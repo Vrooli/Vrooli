@@ -282,6 +282,7 @@
   "metadata": {
     "pilot": "plan-repair",
     "consumerMutationOwner": "swarm-manager",
-    "validationAuthority": "plan-manager"
+    "validationAuthority": "plan-manager",
+    "transition": "plan.repair"
   }
 }

@@ -227,6 +227,9 @@ func (s *Service) ApplyEvidenceRequestWorkflow(ctx context.Context, kind, name s
 			return Round{}, false, fmt.Errorf("workflow completion does not match evidence request provenance")
 		}
 		input, ok := completion.Input.AsInterface().(map[string]any)
+		if !ok {
+			return Round{}, false, fmt.Errorf("workflow input is not a valid evidence request snapshot")
+		}
 		entity, ok := input["entity"].(map[string]any)
 		if !ok || entity["kind"] != kind || entity["name"] != name || entity["version"] != thread.AgentWorkflowVersion {
 			return Round{}, false, fmt.Errorf("workflow completion does not match evidence request snapshot")

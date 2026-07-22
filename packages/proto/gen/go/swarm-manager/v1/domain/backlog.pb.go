@@ -94,9 +94,12 @@ type BacklogItem struct {
 	// Most recent explicit decision that the item remains valid without a
 	// content mutation. This is distinct from `updated`, which tracks changes
 	// to the work specification itself.
-	LastReview    *BacklogReviewRecord `protobuf:"bytes,28,opt,name=last_review,json=lastReview,proto3,oneof" json:"last_review,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LastReview *BacklogReviewRecord `protobuf:"bytes,28,opt,name=last_review,json=lastReview,proto3,oneof" json:"last_review,omitempty"`
+	// Explicit operator authorization for the current canonical plan frontier.
+	// A changed content hash or work-contract version makes this record stale.
+	PlanAcceptance *PlanAcceptance `protobuf:"bytes,29,opt,name=plan_acceptance,json=planAcceptance,proto3,oneof" json:"plan_acceptance,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *BacklogItem) Reset() {
@@ -304,6 +307,81 @@ func (x *BacklogItem) GetLastReview() *BacklogReviewRecord {
 	return nil
 }
 
+func (x *BacklogItem) GetPlanAcceptance() *PlanAcceptance {
+	if x != nil {
+		return x.PlanAcceptance
+	}
+	return nil
+}
+
+type PlanAcceptance struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Actor           string                 `protobuf:"bytes,1,opt,name=actor,proto3" json:"actor,omitempty"`
+	AcceptedAt      string                 `protobuf:"bytes,2,opt,name=accepted_at,json=acceptedAt,proto3" json:"accepted_at,omitempty"`
+	PlanContentHash string                 `protobuf:"bytes,3,opt,name=plan_content_hash,json=planContentHash,proto3" json:"plan_content_hash,omitempty"`
+	SubjectVersion  string                 `protobuf:"bytes,4,opt,name=subject_version,json=subjectVersion,proto3" json:"subject_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PlanAcceptance) Reset() {
+	*x = PlanAcceptance{}
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlanAcceptance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlanAcceptance) ProtoMessage() {}
+
+func (x *PlanAcceptance) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlanAcceptance.ProtoReflect.Descriptor instead.
+func (*PlanAcceptance) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *PlanAcceptance) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *PlanAcceptance) GetAcceptedAt() string {
+	if x != nil {
+		return x.AcceptedAt
+	}
+	return ""
+}
+
+func (x *PlanAcceptance) GetPlanContentHash() string {
+	if x != nil {
+		return x.PlanContentHash
+	}
+	return ""
+}
+
+func (x *PlanAcceptance) GetSubjectVersion() string {
+	if x != nil {
+		return x.SubjectVersion
+	}
+	return ""
+}
+
 type BacklogReviewRecord struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// RFC3339 timestamp of the accepted review.
@@ -319,7 +397,7 @@ type BacklogReviewRecord struct {
 
 func (x *BacklogReviewRecord) Reset() {
 	*x = BacklogReviewRecord{}
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -331,7 +409,7 @@ func (x *BacklogReviewRecord) String() string {
 func (*BacklogReviewRecord) ProtoMessage() {}
 
 func (x *BacklogReviewRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -344,7 +422,7 @@ func (x *BacklogReviewRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BacklogReviewRecord.ProtoReflect.Descriptor instead.
 func (*BacklogReviewRecord) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{1}
+	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *BacklogReviewRecord) GetReviewedAt() string {
@@ -395,7 +473,7 @@ type BacklogFile struct {
 
 func (x *BacklogFile) Reset() {
 	*x = BacklogFile{}
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -407,7 +485,7 @@ func (x *BacklogFile) String() string {
 func (*BacklogFile) ProtoMessage() {}
 
 func (x *BacklogFile) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -420,7 +498,7 @@ func (x *BacklogFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BacklogFile.ProtoReflect.Descriptor instead.
 func (*BacklogFile) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{2}
+	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *BacklogFile) GetName() string {
@@ -477,7 +555,7 @@ type ClarificationMessage struct {
 
 func (x *ClarificationMessage) Reset() {
 	*x = ClarificationMessage{}
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -489,7 +567,7 @@ func (x *ClarificationMessage) String() string {
 func (*ClarificationMessage) ProtoMessage() {}
 
 func (x *ClarificationMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -502,7 +580,7 @@ func (x *ClarificationMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClarificationMessage.ProtoReflect.Descriptor instead.
 func (*ClarificationMessage) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{3}
+	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ClarificationMessage) GetRole() string {
@@ -552,7 +630,7 @@ type ClarificationImpact struct {
 
 func (x *ClarificationImpact) Reset() {
 	*x = ClarificationImpact{}
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -564,7 +642,7 @@ func (x *ClarificationImpact) String() string {
 func (*ClarificationImpact) ProtoMessage() {}
 
 func (x *ClarificationImpact) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -577,7 +655,7 @@ func (x *ClarificationImpact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClarificationImpact.ProtoReflect.Descriptor instead.
 func (*ClarificationImpact) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{4}
+	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ClarificationImpact) GetLevel() string {
@@ -638,7 +716,7 @@ type ClarificationThread struct {
 
 func (x *ClarificationThread) Reset() {
 	*x = ClarificationThread{}
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[5]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -650,7 +728,7 @@ func (x *ClarificationThread) String() string {
 func (*ClarificationThread) ProtoMessage() {}
 
 func (x *ClarificationThread) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[5]
+	mi := &file_swarm_manager_v1_domain_backlog_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -663,7 +741,7 @@ func (x *ClarificationThread) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClarificationThread.ProtoReflect.Descriptor instead.
 func (*ClarificationThread) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{5}
+	return file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ClarificationThread) GetId() string {
@@ -733,8 +811,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\xb8\n" +
-	"\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\x9c\v\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -768,7 +845,9 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"findingRef\x88\x01\x01\x12\x14\n" +
 	"\x05stale\x18\x1b \x01(\bR\x05stale\x12K\n" +
 	"\vlast_review\x18\x1c \x01(\v2%.swarm_manager.v1.BacklogReviewRecordH\tR\n" +
-	"lastReview\x88\x01\x01B\r\n" +
+	"lastReview\x88\x01\x01\x12N\n" +
+	"\x0fplan_acceptance\x18\x1d \x01(\v2 .swarm_manager.v1.PlanAcceptanceH\n" +
+	"R\x0eplanAcceptance\x88\x01\x01B\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
@@ -778,8 +857,15 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\x0f_queue_positionB\v\n" +
 	"\t_plan_refB\x0e\n" +
 	"\f_finding_refB\x0e\n" +
-	"\f_last_reviewJ\x04\b\n" +
-	"\x10\vJ\x04\b\x0e\x10\x0fJ\x04\b\x14\x10\x15\"\xaf\x01\n" +
+	"\f_last_reviewB\x12\n" +
+	"\x10_plan_acceptanceJ\x04\b\n" +
+	"\x10\vJ\x04\b\x0e\x10\x0fJ\x04\b\x14\x10\x15\"\xc0\x01\n" +
+	"\x0ePlanAcceptance\x12\x1d\n" +
+	"\x05actor\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05actor\x12(\n" +
+	"\vaccepted_at\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"acceptedAt\x123\n" +
+	"\x11plan_content_hash\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0fplanContentHash\x120\n" +
+	"\x0fsubject_version\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0esubjectVersion\"\xaf\x01\n" +
 	"\x13BacklogReviewRecord\x12(\n" +
 	"\vreviewed_at\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
 	"reviewedAt\x12&\n" +
@@ -832,29 +918,31 @@ func file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_backlog_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_swarm_manager_v1_domain_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_swarm_manager_v1_domain_backlog_proto_goTypes = []any{
 	(*BacklogItem)(nil),             // 0: swarm_manager.v1.BacklogItem
-	(*BacklogReviewRecord)(nil),     // 1: swarm_manager.v1.BacklogReviewRecord
-	(*BacklogFile)(nil),             // 2: swarm_manager.v1.BacklogFile
-	(*ClarificationMessage)(nil),    // 3: swarm_manager.v1.ClarificationMessage
-	(*ClarificationImpact)(nil),     // 4: swarm_manager.v1.ClarificationImpact
-	(*ClarificationThread)(nil),     // 5: swarm_manager.v1.ClarificationThread
-	(*AgentSessionAttribution)(nil), // 6: swarm_manager.v1.AgentSessionAttribution
-	(*PlanRef)(nil),                 // 7: swarm_manager.v1.PlanRef
+	(*PlanAcceptance)(nil),          // 1: swarm_manager.v1.PlanAcceptance
+	(*BacklogReviewRecord)(nil),     // 2: swarm_manager.v1.BacklogReviewRecord
+	(*BacklogFile)(nil),             // 3: swarm_manager.v1.BacklogFile
+	(*ClarificationMessage)(nil),    // 4: swarm_manager.v1.ClarificationMessage
+	(*ClarificationImpact)(nil),     // 5: swarm_manager.v1.ClarificationImpact
+	(*ClarificationThread)(nil),     // 6: swarm_manager.v1.ClarificationThread
+	(*AgentSessionAttribution)(nil), // 7: swarm_manager.v1.AgentSessionAttribution
+	(*PlanRef)(nil),                 // 8: swarm_manager.v1.PlanRef
 }
 var file_swarm_manager_v1_domain_backlog_proto_depIdxs = []int32{
-	6, // 0: swarm_manager.v1.BacklogItem.created_by:type_name -> swarm_manager.v1.AgentSessionAttribution
-	7, // 1: swarm_manager.v1.BacklogItem.plan_ref:type_name -> swarm_manager.v1.PlanRef
-	1, // 2: swarm_manager.v1.BacklogItem.last_review:type_name -> swarm_manager.v1.BacklogReviewRecord
-	2, // 3: swarm_manager.v1.BacklogFile.children:type_name -> swarm_manager.v1.BacklogFile
-	3, // 4: swarm_manager.v1.ClarificationThread.messages:type_name -> swarm_manager.v1.ClarificationMessage
-	4, // 5: swarm_manager.v1.ClarificationThread.latest_impact:type_name -> swarm_manager.v1.ClarificationImpact
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	7, // 0: swarm_manager.v1.BacklogItem.created_by:type_name -> swarm_manager.v1.AgentSessionAttribution
+	8, // 1: swarm_manager.v1.BacklogItem.plan_ref:type_name -> swarm_manager.v1.PlanRef
+	2, // 2: swarm_manager.v1.BacklogItem.last_review:type_name -> swarm_manager.v1.BacklogReviewRecord
+	1, // 3: swarm_manager.v1.BacklogItem.plan_acceptance:type_name -> swarm_manager.v1.PlanAcceptance
+	3, // 4: swarm_manager.v1.BacklogFile.children:type_name -> swarm_manager.v1.BacklogFile
+	4, // 5: swarm_manager.v1.ClarificationThread.messages:type_name -> swarm_manager.v1.ClarificationMessage
+	5, // 6: swarm_manager.v1.ClarificationThread.latest_impact:type_name -> swarm_manager.v1.ClarificationImpact
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_backlog_proto_init() }
@@ -865,15 +953,15 @@ func file_swarm_manager_v1_domain_backlog_proto_init() {
 	file_swarm_manager_v1_domain_agent_session_proto_init()
 	file_swarm_manager_v1_domain_plan_ref_proto_init()
 	file_swarm_manager_v1_domain_backlog_proto_msgTypes[0].OneofWrappers = []any{}
-	file_swarm_manager_v1_domain_backlog_proto_msgTypes[2].OneofWrappers = []any{}
-	file_swarm_manager_v1_domain_backlog_proto_msgTypes[5].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_backlog_proto_msgTypes[3].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_backlog_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_backlog_proto_rawDesc), len(file_swarm_manager_v1_domain_backlog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

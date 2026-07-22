@@ -40,7 +40,7 @@ type ResourceClassification struct {
 //   - Automation platforms: n8n, huginn, windmill
 //   - Storage services: minio, s3
 //   - Browser automation: playwright (legacy label: browserless)
-//   - Code execution: judge0, sandbox
+//   - Code execution: sandbox
 //
 // Heavy operations are those requiring significant CPU/memory/GPU:
 //   - Databases: postgres, mysql, mongodb (not redis/qdrant which are lighter)
@@ -81,7 +81,7 @@ func ClassifyResource(resourceName string) ResourceClassification {
 			IsHeavyOps: true, // Browser automation requires significant resources
 		}
 
-	case "judge0", "sandbox":
+	case "sandbox":
 		return ResourceClassification{
 			Class:      ResourceClassExecution,
 			IsHeavyOps: true, // Code execution sandboxes are heavy

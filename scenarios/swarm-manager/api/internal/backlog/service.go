@@ -96,12 +96,6 @@ type CreationContext struct {
 	// RememberItem). Other sources should leave this false.
 	SkipInitiativeAttach bool
 
-	// SkipWorkshopTrigger lets the batch path defer workshop spawns to
-	// after all items in the batch are persisted, so cascade-trigger
-	// reasoning sees the full set. Other sources should leave this
-	// false; the workshop runs synchronously by default.
-	SkipWorkshopTrigger bool
-
 	// SkipGraphInvalidation lets the proposals.Applier batch graph
 	// invalidation across an entire mutation set rather than firing
 	// one re-projection per add_item.
@@ -135,19 +129,6 @@ type archiveEventEmitter interface {
 	EmitBacklogArchived(entityID, previousStatus, archivedAt string)
 }
 
-// WorkshopTrigger fires the auto-workshop policy for a freshly-created
-// item. Pluggable so the Service stays free of agent-manager / settings
-// dependencies; main.go wires Handler.maybeAutoWorkshop in.
-type WorkshopTrigger interface {
-	MaybeStartWorkshop(item BacklogItem)
-}
-
-// WorkshopTriggerFunc is a func adapter for WorkshopTrigger so callers
-// can pass a closure without defining a type.
-type WorkshopTriggerFunc func(item BacklogItem)
-
-func (f WorkshopTriggerFunc) MaybeStartWorkshop(item BacklogItem) { f(item) }
-
 // GraphInvalidator schedules a graph re-projection after a successful
 // creation so the per-initiative graph.json reflects the new node.
 // Optional — a nil invalidator means the caller is responsible for
@@ -180,7 +161,6 @@ type Service struct {
 	assigner        ItemAttacher
 	events          CreationEventEmitter
 	artifacts       sessionArtifactRecorder
-	workshop        WorkshopTrigger
 	invalidator     GraphInvalidator
 	cycleChecker    CycleChecker
 	activityChecker ActivityChecker
@@ -196,14 +176,12 @@ type PendingBacklogFile struct {
 }
 
 // ServiceConfig bundles Service dependencies. Store is required; the
-// rest are optional and degrade gracefully (nil emitter = no event,
-// nil workshop = no auto-spawn, etc.).
+// rest are optional and degrade gracefully (nil emitter = no event).
 type ServiceConfig struct {
 	Store           CreationStore
 	Assigner        ItemAttacher
 	Events          CreationEventEmitter
 	Artifacts       sessionArtifactRecorder
-	Workshop        WorkshopTrigger
 	Invalidator     GraphInvalidator
 	CycleChecker    CycleChecker
 	ActivityChecker ActivityChecker
@@ -220,7 +198,6 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		assigner:        cfg.Assigner,
 		events:          cfg.Events,
 		artifacts:       cfg.Artifacts,
-		workshop:        cfg.Workshop,
 		invalidator:     cfg.Invalidator,
 		cycleChecker:    cfg.CycleChecker,
 		activityChecker: cfg.ActivityChecker,
@@ -406,12 +383,6 @@ func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc Creati
 			actorType,
 			actorID,
 		)
-	}
-
-	if (cc.Source == SourceHumanHTTP || cc.Source == SourceBatch) && !cc.SkipWorkshopTrigger {
-		if s.workshop != nil {
-			s.workshop.MaybeStartWorkshop(item)
-		}
 	}
 
 	if s.invalidator != nil && !cc.SkipGraphInvalidation {

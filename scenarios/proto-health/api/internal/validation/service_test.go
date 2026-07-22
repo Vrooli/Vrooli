@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/maturity-go/assessment"
@@ -64,16 +65,31 @@ func (f fakeGenSyncChecker) CheckScenario(context.Context, string) (GenSyncStatu
 type fakeCodeFactsClient struct {
 	adoptionReport *factsv1.ProofReport
 	adoptionErr    error
+	adoptionCtx    context.Context
 	endpointReport *factsv1.ProofReport
 	endpointErr    error
 	endpointIDs    []string
 }
 
-func (f *fakeCodeFactsClient) CheckProtoAdoption(context.Context, string) (*factsv1.ProofReport, error) {
+func (f *fakeCodeFactsClient) CheckProtoAdoption(ctx context.Context, _ string) (*factsv1.ProofReport, error) {
+	f.adoptionCtx = ctx
 	if f.adoptionErr != nil {
 		return nil, f.adoptionErr
 	}
 	return f.adoptionReport, nil
+}
+
+func TestValidateScenarioBoundsOptionalCodeFactsEvidence(t *testing.T) {
+	client := &fakeCodeFactsClient{adoptionErr: context.DeadlineExceeded}
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: cleanSurface()}, CodeFacts: client})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	requireFinding(t, report, CodeCodeFactsUnavailable, SeverityWarning)
+	require.NotNil(t, client.adoptionCtx)
+	deadline, ok := client.adoptionCtx.Deadline()
+	require.True(t, ok, "optional proof RPC must receive a bounded context")
+	require.LessOrEqual(t, time.Until(deadline), codeFactsBudget)
 }
 
 func (f *fakeCodeFactsClient) CheckEndpointProof(_ context.Context, _ string, endpointIDs []string) (*factsv1.ProofReport, error) {

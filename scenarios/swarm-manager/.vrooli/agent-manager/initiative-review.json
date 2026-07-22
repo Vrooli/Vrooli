@@ -60,11 +60,23 @@
               "partial",
               "failed"
             ]
+          },
+          "disposition": {
+            "type": "object",
+            "properties": {
+              "kind": {"type": "string", "enum": ["plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention"]},
+              "rationale": {"type": "string", "minLength": 1, "maxLength": 8192},
+              "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+              "scope": {"type": "string", "maxLength": 4096}
+            },
+            "required": ["kind", "rationale", "confidence"],
+            "additionalProperties": false
           }
         },
         "required": [
           "assessment",
-          "classification"
+          "classification",
+          "disposition"
         ],
         "additionalProperties": false
       }
@@ -100,11 +112,23 @@
                   "partial",
                   "failed"
                 ]
+              },
+              "disposition": {
+                "type": "object",
+                "properties": {
+                  "kind": {"type": "string", "enum": ["plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention"]},
+                  "rationale": {"type": "string", "minLength": 1, "maxLength": 8192},
+                  "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+                  "scope": {"type": "string", "maxLength": 4096}
+                },
+                "required": ["kind", "rationale", "confidence"],
+                "additionalProperties": false
               }
             },
             "required": [
               "assessment",
-              "classification"
+              "classification",
+              "disposition"
             ],
             "additionalProperties": false
           }

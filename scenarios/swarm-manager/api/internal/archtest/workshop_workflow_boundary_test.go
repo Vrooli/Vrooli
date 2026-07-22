@@ -9,11 +9,10 @@ import (
 	"testing"
 )
 
-func TestBacklogWorkshopPilotUsesWorkflowBoundaryOnly(t *testing.T) {
+func TestPlanWorkshopServiceUsesWorkflowBoundaryOnly(t *testing.T) {
 	root := swarmScenarioRoot(t)
 	for _, relative := range []string{
-		"api/internal/backlog/research.go",
-		"api/internal/backlog/workshop_workflow.go",
+		"api/internal/planworkshop/service.go",
 		"api/internal/agentmanager/workflow.go",
 	} {
 		data, err := os.ReadFile(filepath.Join(root, relative))
@@ -29,16 +28,16 @@ func TestBacklogWorkshopPilotUsesWorkflowBoundaryOnly(t *testing.T) {
 	}
 }
 
-func TestBacklogWorkshopUsesGenericInvocationSeam(t *testing.T) {
+func TestPlanWorkshopUsesGenericInvocationSeam(t *testing.T) {
 	root := swarmScenarioRoot(t)
-	backlogSource, err := os.ReadFile(filepath.Join(root, "api/internal/backlog/workshop_workflow.go"))
+	backlogSource, err := os.ReadFile(filepath.Join(root, "api/internal/planworkshop/service.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(backlogSource)
-	for _, required := range []string{".StartWorkflow(", ".CollectWorkflow(", "agentmanager.Invocation{"} {
+	for _, required := range []string{"ReviewStarter", "ReconciliationStarter", "ReviewCollector", "ReconciliationCollector"} {
 		if !strings.Contains(text, required) {
-			t.Fatalf("backlog workshop adapter missing generic workflow seam %q", required)
+			t.Fatalf("plan workshop adapter missing generic workflow seam %q", required)
 		}
 	}
 	agentManagerSource, err := os.ReadFile(filepath.Join(root, "api/internal/agentmanager/workflow.go"))
@@ -52,8 +51,8 @@ func TestBacklogWorkshopUsesGenericInvocationSeam(t *testing.T) {
 	}
 }
 
-func TestBacklogWorkshopDefinitionStaysStructurallySmall(t *testing.T) {
-	path := filepath.Join(swarmScenarioRoot(t), ".vrooli", "agent-manager", "backlog-workshop-round.json")
+func TestPlanWorkshopReviewDefinitionStaysStructurallySmall(t *testing.T) {
+	path := filepath.Join(swarmScenarioRoot(t), ".vrooli", "agent-manager", "plan-workshop-review.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +71,11 @@ func TestBacklogWorkshopDefinitionStaysStructurallySmall(t *testing.T) {
 			t.Fatalf("workflow contains forbidden framework field %q", forbidden)
 		}
 	}
-	if !strings.Contains(encoded, `"profileKey": "swarm-manager/deep-work"`) || !strings.Contains(encoded, `"oneOf"`) {
+	review, _ := nodes[0].(map[string]any)
+	run, _ := review["run"].(map[string]any)
+	resultSpec, _ := run["resultSpec"].(map[string]any)
+	schema, _ := resultSpec["schema"].(map[string]any)
+	if run["profileKey"] != "swarm-manager/deep-work" || len(schema) == 0 || schema["oneOf"] == nil {
 		t.Fatal("workflow does not declare its node-local profile and discriminated result")
 	}
 }

@@ -1,8 +1,0 @@
-{
-  "kind": "agentops-operation-binding",
-  "operation": "initiative-review",
-  "operation_version": "1.0.0",
-  "layer": "system-default",
-  "mode": "initiative-review-loop",
-  "mode_revision": "1.0.0"
-}

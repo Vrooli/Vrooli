@@ -9,7 +9,6 @@ import (
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/workshop"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
@@ -92,7 +91,6 @@ func (h *Handler) doUpdate(ctx context.Context, kind BacklogKind, name string, r
 
 	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldInitiative, existing.Initiative, oldDependsOn, existing.DependsOn)
 	h.maybeManuallyAcceptExecution(ctx, kind, name, oldStatus, existing.Status)
-	h.maybeCascadeWorkshop(oldStatus, existing)
 	return existing, nil
 }
 
@@ -188,20 +186,5 @@ func (h *Handler) maybeManuallyAcceptExecution(
 	}
 	if accepted {
 		slog.Info("execution manually accepted", "ref", ref, "execution_id", execID)
-	}
-}
-
-// maybeCascadeWorkshop triggers workshops for dependents when a status
-// transition unblocks them.
-func (h *Handler) maybeCascadeWorkshop(oldStatus BacklogStatus, item BacklogItem) {
-	if oldStatus == item.Status {
-		return
-	}
-	if !blockingDepStatuses[oldStatus] || blockingDepStatuses[item.Status] {
-		return
-	}
-	controls := h.loadPolicyControls("cascade policy-controls load error, using defaults")
-	if workshop.ShouldCascade(controls.AutoAdvance.Cascade) {
-		go h.cascadeWorkshopTrigger(item)
 	}
 }

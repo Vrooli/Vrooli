@@ -15,10 +15,6 @@ vi.mock("../../services/backlog-service", () => ({
     getFileContent: vi.fn().mockResolvedValue("{}"),
     saveFileContent: vi.fn().mockResolvedValue({}),
     batchReview: vi.fn().mockResolvedValue(undefined),
-    workshopSave: vi.fn().mockResolvedValue({
-      file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 100 },
-      autoAdvance: { triggered: false, reason: "not_ready" },
-    }),
   },
 }));
 
@@ -53,8 +49,8 @@ const makeOptions = (): DecisionOption[] => [
 ];
 
 const makeWorkshopQuestion = (overrides?: Partial<PendingQuestion>): PendingQuestion => ({
-  id: "d1",
-  source: "workshop",
+	 id: "d1",
+	 source: "workshop",
   item_kind: "idea",
   item_name: "dashboard",
   topic: "Architecture decision",
@@ -66,7 +62,7 @@ const makeWorkshopQuestion = (overrides?: Partial<PendingQuestion>): PendingQues
 });
 
 const makeCrossItemQuestion = (overrides?: Partial<CrossItemQuestion>): CrossItemQuestion => ({
-  question: makeWorkshopQuestion(),
+	 question: makeWorkshopQuestion(),
   parentKind: "idea" as BacklogKind,
   parentName: "dashboard",
   parentTitle: "Dashboard feature",
@@ -101,13 +97,32 @@ describe("DecisionStreamView", () => {
 
     it("shows correct counter with multiple questions", () => {
       const questions = [
-        makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1" }) }),
+		makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d2", topic: "Second" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d3", topic: "Third" }) }),
       ];
       render(<DecisionStreamView {...defaultProps} questions={questions} />);
 
       expect(screen.getByTestId(selectors.commandPost.decisionStream.counter)).toHaveTextContent("1/3");
+    });
+
+    it("restores the selected decision by its stable question id", () => {
+      const questions = [
+        makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1", topic: "First" }) }),
+        makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d2", topic: "Restored" }) }),
+      ];
+      render(<DecisionStreamView {...defaultProps} questions={questions} currentQuestionId="d2" />);
+
+      expect(screen.getByText("Restored")).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.commandPost.decisionStream.counter)).toHaveTextContent("2/2");
+    });
+
+    it("falls back to the first decision and repairs a stale question id", () => {
+      const onCurrentQuestionChange = vi.fn();
+      render(<DecisionStreamView {...defaultProps} currentQuestionId="removed-after-refetch" onCurrentQuestionChange={onCurrentQuestionChange} />);
+
+      expect(screen.getByText("Architecture decision")).toBeInTheDocument();
+      expect(onCurrentQuestionChange).toHaveBeenCalledWith("d1");
     });
 
     it("opens the full backlog item from the title link", () => {

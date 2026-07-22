@@ -13,7 +13,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestCreate_Success",
+          "ref": "api/internal/backlog/handler_create_test.go::TestCreate_Success",
           "phase": "unit",
           "status": "failing",
           "notes": "Test Create successfully creates backlog folder with spec.json"
@@ -34,7 +34,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestList_WithItems",
+          "ref": "api/internal/backlog/handler_get_test.go::TestList_WithItems",
           "phase": "unit",
           "status": "failing",
           "notes": "Test List loads backlog items from folder structure"
@@ -51,14 +51,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestGet_Found",
+          "ref": "api/internal/backlog/handler_get_test.go::TestGet_Found",
           "phase": "unit",
           "status": "failing",
           "notes": "Test Get loads single backlog item from folder with all fields"
         },
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestDelete_Idempotent",
+          "ref": "api/internal/backlog/handler_delete_test.go::TestDelete_Idempotent",
           "phase": "unit",
           "status": "failing",
           "notes": "Test Delete removes backlog folder"

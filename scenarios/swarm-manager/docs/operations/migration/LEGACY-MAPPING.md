@@ -175,9 +175,9 @@ migrating persisted settings into `system-default` bindings and
 transition-policy revisions; the same table is served publicly as
 `SettingsResponse.policy_projection` (proto `SettingsPolicyProjection`).
 
-Retained user preferences (per the plan): auto-advance + delay, retry/fixup
-limits, review thresholds. They remain user-facing settings; only the *read
-path* moved behind the policy-controls seam.
+Retained user preferences are retry/fixup limits and review thresholds. Plan
+Workshop automation settings were removed from persisted configuration and the
+public settings API; historic values are not interpreted at runtime.
 
 | Legacy settings field (JSON) | Role | PolicyControls destination | Consumer(s) after slice B | Phase-8 action |
 |---|---|---|---|---|
@@ -185,11 +185,6 @@ path* moved behind the policy-controls seam.
 | `auto_fixup` | policy control | `retry.auto_fixup` | `execution` finalization (fixup spawn decision) | Transition-policy control (fail → fixup transition guard). |
 | `max_fixup_attempts` | policy control (retained pref) | `retry.max_fixup_attempts` | `execution` finalization | Transition-policy retry-limit parameter. |
 | `review_agent_enabled` | policy control | `review.agent_enabled` | `execution` finalization (`checkReviewAgentEnabled`, review trigger) | Transition-policy control gating `review-round`/evidence spawning. |
-| `max_auto_rounds` | policy control | `auto_advance.max_auto_rounds` | `backlog` workshop auto-advance via `Handler.loadPolicyControls` | Transition-policy round cap. |
-| `auto_initialize_workshop` | policy control | `auto_advance.auto_initialize` | `backlog` create path (`maybeAutoWorkshop`) | Transition-policy control (created → workshop transition). |
-| `auto_advance_workshop` | policy control (retained pref) | `auto_advance.enabled` | `backlog` workshop save (`computeAutoAdvance`) | Transition-policy auto-advance toggle. |
-| `auto_cascade_workshop` | policy control | `auto_advance.cascade` | `backlog` update path (`maybeCascadeWorkshop`) | Transition-policy control (dependency-unblock cascade). |
-| `auto_advance_delay_seconds` | policy control (retained pref) | `auto_advance.delay_seconds` | `backlog` scheduler-intent creation (`scheduleDeferredAdvance` not-before) | Scheduler-intent delay parameter on the advance transition. |
 | `agent_max_turns` | policy control | `budgets.max_turns` | `execution` governance cost estimation (via `GovernanceProvider`, derived from projection) | Binding-default agent budget. |
 | `agent_timeout_seconds` | **dormant** (no runtime reader; spawn timeouts come from the agent profile) | `budgets.timeout_seconds` | none (CLI/UI display only) | Migrate alongside `max_turns` into the binding-default budget or retire with an explicit decision; field stays persisted until Phase 9. |
 | `review_code_quality_min_score` | policy control (retained pref) | `review.code_quality_min_score` | `execution.ReviewThresholdsProvider` → GCT review request | Review-transition threshold parameter. |

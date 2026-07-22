@@ -1,10 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { backlogService } from "../services/backlog-service";
-import { OTHER_KEY, parseWorkshopRound, buildWorkshopRoundContent } from "../lib/workshop-files";
 import type { QuestionAnswer } from "../components/backlog/question-renderers";
 import type { CrossItemQuestion } from "../lib/command-post-utils";
 import type { BacklogKind } from "../types";
-import type { WorkshopAutoAdvance } from "../services/backlog/types";
 import {
   decisionParentKey,
   decisionQuestionKey,
@@ -21,11 +19,9 @@ export interface DecisionStreamResults {
   skippedCount: number;
   snoozedCount: number;
   unlockedItems: {
-    kind: BacklogKind;
+    kind: string;
     name: string;
     title: string;
-    action: "finalize" | "run";
-    autoAdvance?: WorkshopAutoAdvance;
   }[];
 }
 
@@ -75,11 +71,10 @@ export function useDecisionStreamLogic({
   const [localAnswers, setLocalAnswers] = useState<Map<string, QuestionAnswer>>(() => new Map());
   const [answeredQuestionKeys, setAnsweredQuestionKeys] = useState<Set<string>>(() => new Set());
   const [skippedIds, setSkippedIds] = useState<Set<string>>(() => new Set());
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
+  const [deletedIds] = useState<Set<string>>(() => new Set());
   const [snoozedItemKeys, setSnoozedItemKeys] = useState<Set<string>>(() => new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [phase, setPhase] = useState<"answering" | "completing" | "complete">("answering");
   const [completionResults, setCompletionResults] = useState<DecisionStreamResults | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -131,25 +126,7 @@ export function useDecisionStreamLogic({
     setSavingId(q.id);
     setSaveError(null);
     try {
-      if (q.source === "workshop" && q.round_number != null && a.selected?.trim()) {
-        const roundNum = String(q.round_number).padStart(3, "0");
-        const filePath = `workshop/round-${roundNum}.json`;
-        const content = await backlogService.getFileContent(ciq.parentKind, ciq.parentName, filePath);
-        const parsed = parseWorkshopRound(content);
-        if (parsed.round) {
-          const round = parsed.round;
-          const item = (round.items ?? []).find((i) => i.id === q.id);
-          if (item) {
-            item.selected = a.selected === OTHER_KEY ? OTHER_KEY : a.selected;
-            item.freeform = a.selected === OTHER_KEY ? (a.freeform ?? null) : null;
-            item.notes = a.notes ?? null;
-          }
-          await backlogService.saveFileContent(
-            ciq.parentKind, ciq.parentName, filePath,
-            buildWorkshopRoundContent(round), "application/json",
-          );
-        }
-      } else if (q.source === "review" && (a.reviewStatus === "approved" || a.reviewStatus === "flagged")) {
+      if (q.source === "review" && (a.reviewStatus === "approved" || a.reviewStatus === "flagged")) {
         await backlogService.batchReview(ciq.parentKind, ciq.parentName, [{
           id: q.id,
           type: q.review_type ?? "target",
@@ -169,36 +146,6 @@ export function useDecisionStreamLogic({
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Delete question
-  // ---------------------------------------------------------------------------
-
-  const deleteQuestion = useCallback(async (ciq: CrossItemQuestion) => {
-    const q = ciq.question;
-    if (q.source !== "workshop" || q.round_number == null) return;
-
-    setDeletingId(q.id);
-    setSaveError(null);
-    try {
-      const roundNum = String(q.round_number).padStart(3, "0");
-      const filePath = `workshop/round-${roundNum}.json`;
-      const content = await backlogService.getFileContent(ciq.parentKind, ciq.parentName, filePath);
-      const parsed = parseWorkshopRound(content);
-      if (parsed.round) {
-        const round = parsed.round;
-        round.items = (round.items ?? []).filter((i) => i.id !== q.id);
-        await backlogService.saveFileContent(
-          ciq.parentKind, ciq.parentName, filePath,
-          buildWorkshopRoundContent(round), "application/json",
-        );
-      }
-      setDeletedIds((prev) => new Set(prev).add(q.id));
-    } catch {
-      setSaveError("Delete failed — please try again");
-    } finally {
-      setDeletingId(null);
-    }
-  }, []);
-
   // ---------------------------------------------------------------------------
   // Completion
   // ---------------------------------------------------------------------------
@@ -209,56 +156,10 @@ export function useDecisionStreamLogic({
 
     const answeredCount = Array.from(effectiveAnswered).length;
     const validLocalAnswerCount = Array.from(localAnswers.values()).filter((a) => {
-      if (a.selected?.trim()) {
-        if (a.selected === OTHER_KEY && !a.freeform?.trim()) return false;
-        return true;
-      }
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     }).length;
 
-    const eligibleQuestions = questions.filter(
-      (ciq) =>
-        !snoozedItemKeys.has(decisionParentKey(ciq.parentKind, ciq.parentName)) &&
-        !deletedIds.has(ciq.question.id),
-    );
-    const parentGroups = groupByParent(eligibleQuestions);
     const unlockedItems: DecisionStreamResults["unlockedItems"] = [];
-
-    for (const [parentKey, groupQuestions] of parentGroups) {
-      const workshopQ = groupQuestions.find(
-        (ciq) => ciq.question.source === "workshop" && ciq.question.round_number != null,
-      );
-      if (!workshopQ || workshopQ.question.round_number == null) continue;
-
-      const hasAnswers = groupQuestions.some((ciq) => {
-        return effectiveAnswered.has(decisionQuestionKey(ciq));
-      });
-      if (!hasAnswers) continue;
-
-      try {
-        const roundNumber = workshopQ.question.round_number;
-        const roundNum = String(roundNumber).padStart(3, "0");
-        const filePath = `workshop/round-${roundNum}.json`;
-        const content = await backlogService.getFileContent(
-          workshopQ.parentKind, workshopQ.parentName, filePath,
-        );
-        const result = await backlogService.workshopSave(
-          workshopQ.parentKind, workshopQ.parentName, roundNumber, content,
-        );
-        if (result.autoAdvance?.nextMode) {
-          const [, name] = parentKey.split("/");
-          unlockedItems.push({
-            kind: workshopQ.parentKind,
-            name: name ?? workshopQ.parentName,
-            title: workshopQ.parentTitle,
-            action: result.autoAdvance.nextMode === "finalize" ? "finalize" : "run",
-            autoAdvance: result.autoAdvance,
-          });
-        }
-      } catch {
-        // Non-fatal: continue with other items
-      }
-    }
 
     const results = {
       answeredCount: Math.max(answeredCount, validLocalAnswerCount),
@@ -272,7 +173,7 @@ export function useDecisionStreamLogic({
     }
     setCompletionResults(results);
     setPhase("complete");
-  }, [answeredQuestionKeys, localAnswers, questions, skippedIds, snoozedItemKeys, deletedIds, onQueueComplete]);
+  }, [answeredQuestionKeys, localAnswers, skippedIds, snoozedItemKeys, onQueueComplete]);
 
   // ---------------------------------------------------------------------------
   // Navigation
@@ -283,11 +184,6 @@ export function useDecisionStreamLogic({
       if (skippedIds.has(ciq.question.id)) return true;
       const a = localAnswers.get(ciq.question.id);
       if (!a) return false;
-      if (ciq.question.source === "workshop") {
-        if (!a.selected?.trim()) return false;
-        if (a.selected === OTHER_KEY && !a.freeform?.trim()) return false;
-        return true;
-      }
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     });
   }, [activeQuestions, skippedIds, localAnswers]);
@@ -330,11 +226,6 @@ export function useDecisionStreamLogic({
       if (newSkipped.has(ciq.question.id)) return true;
       const a = localAnswers.get(ciq.question.id);
       if (!a) return false;
-      if (ciq.question.source === "workshop") {
-        if (!a.selected?.trim()) return false;
-        if (a.selected === OTHER_KEY && !a.freeform?.trim()) return false;
-        return true;
-      }
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     });
     if (allDone) {
@@ -431,31 +322,14 @@ export function useDecisionStreamLogic({
           e.preventDefault();
           onBack();
           break;
-        default: {
-          const num = parseInt(e.key, 10);
-          if (num >= 1 && num <= 9 && current.question.source === "workshop") {
-            e.preventDefault();
-            const options = current.question.options ?? [];
-            if (num <= options.length) {
-              const opt = options[num - 1];
-              if (opt) {
-                updateAnswer(current.question.id, {
-                  selected: opt.key,
-                  freeform: undefined,
-                });
-              }
-            } else if (num === options.length + 1) {
-              updateAnswer(current.question.id, { selected: OTHER_KEY });
-            }
-          }
+        default:
           break;
-        }
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [phase, current, advance, goBack, snoozeParent, onBack, updateAnswer, navigatorOpenRef, toggleNavigator, parentGroups, jumpToParent]);
+  }, [phase, current, advance, goBack, snoozeParent, onBack, navigatorOpenRef, toggleNavigator, parentGroups, jumpToParent]);
 
   return {
     phase,
@@ -466,14 +340,12 @@ export function useDecisionStreamLogic({
     safeIndex,
     savingId,
     saveError,
-    deletingId,
     containerRef,
     updateAnswer,
     advance,
     goBack,
     skip,
     snoozeParent,
-    deleteQuestion,
     parentGroups,
     jumpToParent,
     snoozeSpecificParent,

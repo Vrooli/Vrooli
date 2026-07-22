@@ -111,11 +111,6 @@ func promptCatalogNextSteps(items []PromptCatalogEntry) []string {
 				cliCommand("prompts", "skill-get", "--id", item.SkillID),
 				cliCommand("prompts", "preview", "--id", item.SkillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
 			)
-			if item.Group == "backlog" && item.UsageType == "direct_runtime" {
-				nextSteps = append(nextSteps,
-					cliCommand("prompts", "simulate", "--kind", firstOr(item.BacklogKinds, "idea"), "--mode", firstOr(item.Modes, "workshop"), "--item-title", "Example", "--item-folder", "scenarios/example"),
-				)
-			}
 			break
 		}
 	}
@@ -440,93 +435,6 @@ func (a *App) cmdPromptsPreview(args []string) error {
 	fmt.Println(response.Prompt)
 	printCommandListSection("Next Steps", []string{
 		cliCommand("prompts", "skill-get", "--id", response.SkillID),
-		cliCommand("prompts", "simulate", "--kind", "idea", "--mode", "workshop", "--item-title", "Example", "--item-folder", "scenarios/example"),
-	})
-	return nil
-}
-
-func (a *App) cmdPromptsSimulate(args []string) error {
-	fs := flag.NewFlagSet("prompts simulate", flag.ContinueOnError)
-	kindFlag := fs.String("kind", "", "Workload kind")
-	mode := fs.String("mode", "", "Backlog prompt mode (workshop|initialize|finalize)")
-	itemName := fs.String("item-name", "", "Backlog item name")
-	itemTitle := fs.String("item-title", "", "Backlog item title")
-	itemDescription := fs.String("item-description", "", "Backlog item description")
-	itemStatus := fs.String("item-status", "", "Backlog item status")
-	itemPriority := fs.String("item-priority", "", "Backlog item priority")
-	itemTags := fs.String("item-tags", "", "Backlog item tags")
-	itemFolder := fs.String("item-folder", "", "Backlog item folder path")
-	varsCSV := fs.String("vars", "", "Comma-separated variables (KEY=VALUE)")
-	jsonOut := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if err := requireFlag("kind", *kindFlag); err != nil {
-		return fmt.Errorf("usage: prompts simulate --kind KIND [--mode MODE] [--item-title TITLE] [--item-folder PATH] [--vars KEY=VALUE,...] [--json]\n\n%s", err)
-	}
-	kind := strings.TrimSpace(*kindFlag)
-	vars, err := parseKVCSV(*varsCSV)
-	if err != nil {
-		return err
-	}
-
-	payload := map[string]any{
-		"kind": kind,
-	}
-	if value := strings.TrimSpace(*mode); value != "" {
-		payload["mode"] = value
-	}
-	if value := strings.TrimSpace(*itemName); value != "" {
-		payload["item_name"] = value
-	}
-	if value := strings.TrimSpace(*itemTitle); value != "" {
-		payload["item_title"] = value
-	}
-	if value := strings.TrimSpace(*itemDescription); value != "" {
-		payload["item_description"] = value
-	}
-	if value := strings.TrimSpace(*itemStatus); value != "" {
-		payload["item_status"] = value
-	}
-	if value := strings.TrimSpace(*itemPriority); value != "" {
-		payload["item_priority"] = value
-	}
-	if value := strings.TrimSpace(*itemTags); value != "" {
-		payload["item_tags"] = value
-	}
-	if value := strings.TrimSpace(*itemFolder); value != "" {
-		payload["item_folder"] = value
-	}
-	if len(vars) > 0 {
-		payload["variables"] = vars
-	}
-
-	body, err := a.core.Request("POST", "/prompts/simulate", nil, payload)
-	if err != nil {
-		return err
-	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
-	}
-
-	response, err := decodeResponse[PromptSimulateResponse](body)
-	if err != nil {
-		return err
-	}
-	printSection("Summary")
-	fmt.Printf("  Simulated prompt for %s (%s)\n", response.Kind, response.Group)
-	fmt.Printf("  Catalog Entry: %s\n", response.EntryID)
-	fmt.Printf("  Usage: %s\n", response.UsageType)
-	fmt.Printf("  Skill: %s\n", response.SkillID)
-	if strings.TrimSpace(response.Mode) != "" {
-		fmt.Printf("  Mode: %s\n", response.Mode)
-	}
-	fmt.Printf("  Variables: %d\n", len(response.Variables))
-	printSection("Prompt")
-	fmt.Println(response.Prompt)
-	printCommandListSection("Next Steps", []string{
-		cliCommand("prompts", "skill-get", "--id", response.SkillID),
-		cliCommand("prompts", "preview", "--id", response.SkillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
 	})
 	return nil
 }
@@ -616,16 +524,6 @@ func promptCatalogTarget(item PromptCatalogEntry) string {
 		return item.Builder
 	}
 	return "(unknown)"
-}
-
-func firstOr(values []string, fallback string) string {
-	if len(values) == 0 {
-		return fallback
-	}
-	if value := strings.TrimSpace(values[0]); value != "" {
-		return value
-	}
-	return fallback
 }
 
 func printPromptTraceSummary(header, subject string, trace PromptTrace) {

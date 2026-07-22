@@ -46,7 +46,7 @@ describe("getActionsForNode", () => {
   it("returns backlog actions for topology/backlog", () => {
     const actions = getActionsForNode("topology", "backlog");
     expect(actions.map((a) => a.id)).toEqual([
-      "edit-backlog", "queue", "workshop", "add-dependency", "assign-initiative", "view-files",
+      "edit-backlog", "queue", "add-dependency", "assign-initiative", "view-files",
     ]);
   });
 

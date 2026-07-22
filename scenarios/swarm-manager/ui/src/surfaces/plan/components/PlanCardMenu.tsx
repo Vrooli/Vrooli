@@ -71,12 +71,6 @@ export function PlanCardMenu({ card }: PlanCardMenuProps) {
     if (card.action === "run") {
       items.push({ label: "Run", testId: "plan-card-menu-run", onSelect: callbacks.onRun });
     }
-    if (card.action === "workshop") {
-      items.push({ label: "Workshop", testId: "plan-card-menu-workshop", onSelect: callbacks.onWorkshop });
-    }
-    if (card.action === "finalize") {
-      items.push({ label: "Finalize", testId: "plan-card-menu-finalize", onSelect: callbacks.onFinalize });
-    }
     if (card.status === "backlog") {
       items.push({
         label: "Mark ready",

@@ -2,7 +2,7 @@
  * BacklogTab - Lists backlog items with rich action cards.
  *
  * Uses the shared BacklogCard component, providing inline
- * decision answering, run/workshop/finalize actions, and follow-up/archive.
+ * decision answering, run actions, and follow-up/archive.
  */
 
 import { Profiler, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -34,7 +34,6 @@ import type { StableItemCallbacks } from "../../../../hooks/useCommandPostItemAc
 import type { BacklogItem, ItemBlockingInfo, PendingQuestion } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
 import type { AttentionReason } from "../../../../lib/attention";
-import type { ReadinessIndicatorData } from "../../../../lib/maturity";
 import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
 import { backlogDetailPath } from "../../../../app/routes/route-paths";
 import { SidebarEmptyState } from "./SidebarEmptyState";
@@ -114,17 +113,11 @@ function BacklogTabImpl({
     getItemCallbacks,
     activeRunKeys,
     activeRunLabels,
-    readinessMap,
     pendingQuestionsMap,
     attentionReasonsMap,
     completedSteppers,
-    transitionItems,
     handleStepperCompleted,
-    workshopBlockingConfirm,
-    setWorkshopBlockingConfirm,
-    confirmWorkshopOverride,
     pendingArchiveKey,
-    pendingWorkshop,
     pendingStatusKey,
   } = useCommandPostItemActions({
     onSelectBacklog: handleSelectBacklog,
@@ -174,11 +167,6 @@ function BacklogTabImpl({
     },
     [fetchBacklog],
   );
-  const handleCloseWorkshopConfirm = useCallback(
-    () => setWorkshopBlockingConfirm(null),
-    [setWorkshopBlockingConfirm],
-  );
-
   if (sorted.length === 0) {
     const filtersActive = hasActiveFilters(filters);
     const title = filtersActive
@@ -235,16 +223,13 @@ function BacklogTabImpl({
         <VirtualizedBacklogList
           sorted={sorted}
           blockingMap={blockingMap}
-          readinessMap={readinessMap}
           attentionReasonsMap={attentionReasonsMap}
           pendingQuestionsMap={pendingQuestionsMap}
           activeRunKeys={activeRunKeys}
           activeRunLabels={activeRunLabels}
           completedSteppers={completedSteppers}
-          transitionItems={transitionItems}
           getItemCallbacks={getItemCallbacks}
           pendingArchiveKey={pendingArchiveKey}
-          pendingWorkshop={pendingWorkshop}
           pendingStatusKey={pendingStatusKey}
           pendingDismissKey={pendingDismissKey}
           handleStepperCompleted={handleStepperCompleted}
@@ -264,19 +249,6 @@ function BacklogTabImpl({
         onSuccess={handleRunModalSuccess}
       />
 
-      {/* Workshop blocking override confirmation */}
-      <ConfirmDialog
-        isOpen={!!workshopBlockingConfirm}
-        onClose={handleCloseWorkshopConfirm}
-        onConfirm={confirmWorkshopOverride}
-        title="Dependencies Not Ready"
-        description={
-          workshopBlockingConfirm?.blockingDepKeys.length
-            ? `This item is blocked by incomplete dependencies: ${workshopBlockingConfirm.blockingDepKeys.join(", ")}. Do you want to proceed anyway?`
-            : "This item has incomplete dependencies. Do you want to proceed anyway?"
-        }
-        confirmLabel="Override and Proceed"
-      />
     </>
   );
 }
@@ -309,16 +281,13 @@ const ROW_GAP_PX = 8;
 interface VirtualizedBacklogListProps {
   sorted: BacklogItem[];
   blockingMap: Record<string, ItemBlockingInfo>;
-  readinessMap: Map<string, ReadinessIndicatorData>;
   attentionReasonsMap: Map<string, AttentionReason[]>;
   pendingQuestionsMap: Map<string, PendingQuestion[]>;
   activeRunKeys: Set<string>;
   activeRunLabels: Map<string, string>;
   completedSteppers: Set<string>;
-  transitionItems: Map<string, StepperCompletionResult>;
   getItemCallbacks: (item: BacklogItem) => StableItemCallbacks;
   pendingArchiveKey: string | null;
-  pendingWorkshop: { key: string; mode: "workshop" | "finalize" } | null;
   pendingStatusKey: string | null;
   pendingDismissKey: string | null;
   handleStepperCompleted: (itemKey: string, item: BacklogItem, result: StepperCompletionResult) => void;
@@ -332,16 +301,13 @@ interface VirtualizedBacklogListProps {
 function VirtualizedBacklogList({
   sorted,
   blockingMap,
-  readinessMap,
   attentionReasonsMap,
   pendingQuestionsMap,
   activeRunKeys,
   activeRunLabels,
   completedSteppers,
-  transitionItems,
   getItemCallbacks,
   pendingArchiveKey,
-  pendingWorkshop,
   pendingStatusKey,
   pendingDismissKey,
   handleStepperCompleted,
@@ -386,7 +352,6 @@ function VirtualizedBacklogList({
         const item = sorted[virtualRow.index];
         if (!item) return null;
         const itemKey = `${item.kind}/${item.name}`;
-        const readiness = readinessMap.get(itemKey);
         const callbacks = getItemCallbacks(item);
         return (
           <div
@@ -404,19 +369,14 @@ function VirtualizedBacklogList({
             <BacklogRow
               item={item}
               blockingInfo={blockingMap[itemKey] ?? null}
-              readiness={readiness}
               attentionReasons={attentionReasonsMap.get(itemKey) ?? EMPTY_REASONS}
               pendingQuestions={pendingQuestionsMap.get(itemKey)}
               agentRunning={activeRunKeys.has(itemKey)}
               isStepperCompleted={completedSteppers.has(itemKey)}
-              transitionResult={transitionItems.get(itemKey)}
               callbacks={callbacks}
               archivePending={pendingArchiveKey === itemKey}
               dismissPending={pendingDismissKey === itemKey}
-              finalizePending={pendingWorkshop?.key === itemKey && pendingWorkshop.mode === "finalize"}
-              workshopPending={pendingWorkshop?.key === itemKey && pendingWorkshop.mode === "workshop"}
               statusChangePending={pendingStatusKey === itemKey}
-              workshopLabel={(readiness?.roundsCompleted ?? 0) > 0 ? "Next Round" : "Workshop"}
               runningLabel={activeRunLabels.get(itemKey)}
               handleStepperCompleted={handleStepperCompleted}
               onAcceptSuggestion={() => callbacks.onStatusChange("backlog")}
@@ -436,12 +396,10 @@ function VirtualizedBacklogList({
 interface BacklogRowProps {
   item: BacklogItem;
   blockingInfo: ItemBlockingInfo | null;
-  readiness: ReadinessIndicatorData | undefined;
   attentionReasons: AttentionReason[];
   pendingQuestions: PendingQuestion[] | undefined;
   agentRunning: boolean;
   isStepperCompleted: boolean;
-  transitionResult: StepperCompletionResult | undefined;
   /** Stable per-item callbacks. Identity is preserved for items whose
    *  kind/name and blocking info haven't changed. */
   callbacks: StableItemCallbacks;
@@ -450,12 +408,9 @@ interface BacklogRowProps {
    *  rows preserve memo equality. */
   archivePending: boolean;
   dismissPending: boolean;
-  finalizePending: boolean;
-  workshopPending: boolean;
   statusChangePending: boolean;
   onAcceptSuggestion: () => void;
   onDismissSuggestion: () => void;
-  workshopLabel: string;
   runningLabel: string | undefined;
   handleStepperCompleted: (itemKey: string, item: BacklogItem, result: StepperCompletionResult) => void;
   onItemClick: (nodeId: string) => void;
@@ -467,21 +422,16 @@ interface BacklogRowProps {
 const BacklogRow = memo(function BacklogRow({
   item,
   blockingInfo,
-  readiness,
   attentionReasons,
   pendingQuestions,
   agentRunning,
   isStepperCompleted,
-  transitionResult,
   callbacks,
   archivePending,
   dismissPending,
-  finalizePending,
-  workshopPending,
   statusChangePending,
   onAcceptSuggestion,
   onDismissSuggestion,
-  workshopLabel,
   runningLabel,
   handleStepperCompleted,
   onItemClick,
@@ -498,13 +448,11 @@ const BacklogRow = memo(function BacklogRow({
       getItemActions({
         item,
         blockingInfo,
-        readinessReady: readiness ? readiness.ready : null,
-        pendingSynthesis: readiness?.pendingSynthesis ?? false,
         agentRunning,
         hasPendingDecisions,
         hasExecutionHistory: item.status === "completed" || item.status === "failed",
       }),
-    [item, blockingInfo, readiness, agentRunning, hasPendingDecisions],
+    [item, blockingInfo, agentRunning, hasPendingDecisions],
   );
   const handleClick = useCallback(() => onItemClick(nodeId), [nodeId, onItemClick]);
   const handleStepperCompletedForItem = useCallback(
@@ -534,12 +482,10 @@ const BacklogRow = memo(function BacklogRow({
     >
       <BacklogCard
         item={item}
-        readinessData={readiness}
         itemActions={itemActions}
         attentionReasons={attentionReasons}
         pendingQuestions={pendingQuestions}
         isStepperCompleted={isStepperCompleted}
-        transitionResult={transitionResult}
         onStepperCompleted={handleStepperCompletedForItem}
         batchMode={selectionMode}
         isSelected={selected}
@@ -547,17 +493,12 @@ const BacklogRow = memo(function BacklogRow({
         onRun={callbacks.onRun}
         onArchive={callbacks.onArchive}
         onFollowUp={callbacks.onFollowUp}
-        onFinalize={callbacks.onFinalize}
-        onWorkshop={callbacks.onWorkshop}
         onAcceptSuggestion={onAcceptSuggestion}
         onDismissSuggestion={onDismissSuggestion}
         onStatusChange={callbacks.onStatusChange}
         archivePending={archivePending}
         dismissPending={dismissPending}
-        finalizePending={finalizePending}
-        workshopPending={workshopPending}
         statusChangePending={statusChangePending}
-        workshopLabel={workshopLabel}
         runningLabel={runningLabel}
       />
     </button>

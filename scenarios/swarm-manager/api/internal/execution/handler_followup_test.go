@@ -109,6 +109,26 @@ func TestFollowUp_NewRunFromCompleted(t *testing.T) {
 	}
 }
 
+func TestFollowUp_SourceProposalIsExactlyOnce(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "dedup-idea", map[string]any{"name": "dedup-idea", "title": "Dedup Idea", "description": "desc", "status": "completed", "priority": 3, "tags": []string{}})
+	mustWriteDeliverableFile(t, root, "idea", "dedup-idea")
+	parent := Record{ExecutionID: "parent-dedup", BacklogKind: "idea", BacklogName: "dedup-idea", Status: StatusCompleted, Mode: ModeYOLO}
+	svc, workflow := followUpTestService(t, root, []Record{parent}, &stubAgentService{})
+	request := FollowUpRequest{ExecutionID: parent.ExecutionID, FollowUpType: "followup", Context: "verified review finding", SourceProposalID: "proposal-review-1", SourceReviewRef: "review/idea/dedup-idea/round/1"}
+	first, err := svc.FollowUp(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := svc.FollowUp(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.ExecutionID != second.ExecutionID || first.FollowUpSourceProposalID != request.SourceProposalID || first.FollowUpSourceReviewRef != request.SourceReviewRef || workflow.startCalls != 1 {
+		t.Fatalf("first=%+v second=%+v starts=%d", first, second, workflow.startCalls)
+	}
+}
+
 func TestFollowUp_FixupFromNeedsFixup(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "fix", "fixup-item", map[string]any{

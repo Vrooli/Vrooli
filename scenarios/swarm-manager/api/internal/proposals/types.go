@@ -122,7 +122,27 @@ type Proposal struct {
 	Mutations []Mutation `json:"mutations,omitempty"`
 	Graph     *Graph     `json:"graph,omitempty"`
 	Rationale string     `json:"rationale,omitempty"`
+	// BaseVersion and ConflictKey make the proposal safe to replay through a
+	// workshop session. They are optional for historical proposals, but when
+	// present are carried unchanged through normalization and checked by the
+	// Swarm-owned application boundary.
+	BaseVersion           string    `json:"base_version,omitempty"`
+	ConflictKey           string    `json:"conflict_key,omitempty"`
+	Dependencies          []string  `json:"dependencies,omitempty"`
+	ApplyMode             ApplyMode `json:"apply_mode,omitempty"`
+	RequiresAuthorization bool      `json:"requires_authorization,omitempty"`
 }
+
+// ApplyMode declares whether a proposal can be safely applied by Swarm or
+// must be batched into workshop reconciliation. It is a declaration of
+// required authority, not permission for an agent to mutate live state.
+type ApplyMode string
+
+const (
+	ApplyModeDirect         ApplyMode = "direct"
+	ApplyModeReconciliation ApplyMode = "reconciliation"
+	ApplyModeAttention      ApplyMode = "attention"
+)
 
 // Mutation is a single change. Only the fields relevant to Op are populated;
 // Validate enforces which fields are required per op.

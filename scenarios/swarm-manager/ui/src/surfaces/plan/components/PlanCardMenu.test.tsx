@@ -45,8 +45,6 @@ function makeContext(callbacks?: Partial<StableItemCallbacks>): {
     onRun: vi.fn(),
     onArchive: vi.fn(),
     onFollowUp: vi.fn(),
-    onFinalize: vi.fn(),
-    onWorkshop: vi.fn(),
     onStatusChange: vi.fn(),
     ...callbacks,
   };
@@ -112,16 +110,6 @@ describe("PlanCardMenu", () => {
     await user.click(screen.getByTestId("plan-card-menu-backlog-item/fix/thing"));
     await user.click(screen.getByTestId(selectors.plan.cardMenuRun));
     expect(spies.callbacks.onRun).toHaveBeenCalled();
-  });
-
-  it("workshop card exposes Workshop", async () => {
-    const { value, spies } = makeContext();
-    const user = userEvent.setup();
-    renderMenu(itemCard({ action: "workshop", status: "backlog" }), value);
-
-    await user.click(screen.getByTestId("plan-card-menu-backlog-item/fix/thing"));
-    await user.click(screen.getByTestId(selectors.plan.cardMenuWorkshop));
-    expect(spies.callbacks.onWorkshop).toHaveBeenCalled();
   });
 
   it("decide gate exposes Answer and opens the scoped drawer", async () => {

@@ -2,6 +2,8 @@ package workshop
 
 import "testing"
 
+func strPtr(value string) *string { return &value }
+
 func TestSummarizeRound_AllRecommended(t *testing.T) {
 	round := Round{
 		Items: []Item{

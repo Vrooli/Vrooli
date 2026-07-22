@@ -7,7 +7,7 @@
  */
 
 import { create } from "zustand";
-import { backlogService, graphService, type GraphProjectionMeta } from "../../../services";
+import { graphService, type GraphProjectionMeta } from "../../../services";
 import { computeNodeAttention, type NodeEnrichment } from "../lib/attention";
 import {
   cloneGraphsByLens,
@@ -223,24 +223,9 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       const freshTopo = get().graphsByLens.topology;
       const snoozedKeys = useSnoozeStore.getState().snoozedKeys();
 
-      // Fetch maturity enrichment for focus filtering.
+      // Focus filtering is lifecycle- and decision-driven. Plan acceptance is
+      // enforced by execution preflight rather than a client maturity score.
       const enrichmentMap = new Map<string, NodeEnrichment>();
-      try {
-        const summary = await backlogService.getBacklogSummary();
-        const maturityByKey = new Map(
-          (summary.maturity?.items ?? []).map((m) => [`${m.kind}/${m.name}`, m]),
-        );
-        for (const key of maturityByKey.keys()) {
-          const mat = maturityByKey.get(key);
-          enrichmentMap.set(key, {
-            pendingDecisions: 0,
-            maturityReady: mat ? (mat.ready ?? null) : null,
-            pendingSynthesis: mat?.pending_synthesis ?? false,
-          });
-        }
-      } catch {
-        // If summary fetch fails, fall back to status-only filtering.
-      }
 
       const filteredNodeIds = new Set<string>();
       const filteredNodes: GraphNode[] = [];

@@ -7,6 +7,8 @@
 // archive or follow up on a completed backlog item.
 package review
 
+import "context"
+
 // EvidenceType enumerates the kinds of evidence a review agent can produce.
 type EvidenceType string
 
@@ -48,6 +50,9 @@ type Round struct {
 	RequestThreads       []RequestThread `json:"request_threads,omitempty"`
 	// ImprovementSuggestions recommends durable automations to replace one-off evidence.
 	ImprovementSuggestions []ImprovementSuggestion `json:"improvement_suggestions,omitempty"`
+	// Disposition is the review's bounded recommendation for the common Plan
+	// Workshop loop. It is not a terminal decision and never mutates work.
+	Disposition *Disposition `json:"disposition,omitempty"`
 	// RunID is the agent-manager run ID for the review agent session.
 	RunID string `json:"run_id,omitempty"`
 	// CurrentRunStatus is the live agent-manager status for an in-flight review run.
@@ -67,6 +72,19 @@ type Round struct {
 	AgentWorkflowApplyState  string `json:"agent_workflow_apply_state,omitempty"`
 	AgentWorkflowAppliedAt   string `json:"agent_workflow_applied_at,omitempty"`
 }
+
+// Disposition keeps review recommendations typed and portable without giving
+// a review round authority to create or apply follow-up work.
+type Disposition struct {
+	Kind       string `json:"kind"`
+	Rationale  string `json:"rationale"`
+	Confidence string `json:"confidence"`
+	Scope      string `json:"scope,omitempty"`
+}
+
+// RoundTerminalObserver projects completed evidence to another operator
+// surface. The round file remains the historical source for review detail.
+type RoundTerminalObserver func(ctx context.Context, kind, name string, round Round)
 
 // RunnerOwned reports whether the round's terminal transition is owned by the
 // operation runner (started through the reroute) rather than the legacy poller.

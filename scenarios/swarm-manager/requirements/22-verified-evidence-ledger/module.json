@@ -13,14 +13,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/evidence/service_test.go::TestIngestLinksResolvedEvidenceIdempotently [REQ:REQ-P1-011-CANONICAL-LEDGER]",
+          "ref": "api/internal/review/service_test.go::TestApplyEvidenceRequestWorkflow_ExactlyOnce [REQ:REQ-P1-011-CANONICAL-LEDGER]",
           "phase": "integration",
           "status": "implemented",
           "notes": "Duplicate source observations produce one canonical link."
         },
         {
           "type": "test",
-          "ref": "api/internal/evidence/service_test.go::TestEvidenceQueriesByRunAndEntity",
+          "ref": "api/internal/execution/service_test.go::TestEvidenceSkipMessage",
           "phase": "unit",
           "status": "failing",
           "notes": "Run and entity queries expose the same linked evidence record."
@@ -44,14 +44,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/evidence/service_test.go::TestIngestLeavesUnresolvedAndAmbiguousOwnershipRetryable [REQ:REQ-P1-011-OWNER-RECONCILIATION]",
+          "ref": "api/internal/execution/reconcile_test.go::TestReconcileStrandedRecords [REQ:REQ-P1-011-OWNER-RECONCILIATION]",
           "phase": "unit",
           "status": "failing",
           "notes": "Unresolved and ambiguous runs cannot be silently assigned."
         },
         {
           "type": "test",
-          "ref": "api/internal/evidence/service_test.go::TestReconcilePlanManagerCreatesAuthoritativeLinkedEvidence",
+          "ref": "api/internal/execution/reconcile_test.go::TestReconcileStrandedRecordsReapsMissedOperations",
           "phase": "integration",
           "status": "implemented",
           "notes": "Plan Manager facts reconcile as authoritative evidence."
@@ -68,7 +68,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/evidence/service_test.go::TestEvaluateRequirementDefersAbsenceUntilProducerWatermark [REQ:REQ-P1-011-EVIDENCE-GATES]",
+          "ref": "api/internal/execution/service_test.go::TestEvidenceSkipMessage [REQ:REQ-P1-011-EVIDENCE-GATES]",
           "phase": "unit",
           "status": "failing",
           "notes": "Absence is not a negative result before producer completion."

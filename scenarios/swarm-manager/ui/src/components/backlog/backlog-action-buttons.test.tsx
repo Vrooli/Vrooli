@@ -16,10 +16,6 @@ const baseActions: ItemActions = {
   primaryCta: "followUp",
   canRun: false,
   runDisabled: false,
-  canWorkshop: false,
-  workshopDisabled: false,
-  canFinalize: false,
-  finalizeDisabled: false,
   canFollowUp: true,
   canRetry: true,
   canArchive: true,
@@ -35,23 +31,14 @@ function renderMenu(actions: ItemActions, overrides: Partial<BacklogActionMenuOp
     isLocked: false,
     isTerminal: true,
     agentRunningLabel: "Running",
-    workshopActionLabel: "Workshop",
-    deliverableLabel: "Plan",
-    agentLabel: "Agent",
-    isRunningAgent: false,
   };
   const items = buildBacklogActionMenuItems(detail, {
     isUpdating: false,
-    onFinalizeWorkshop: () => {},
     onStartRun: () => {},
-    onRunWorkshop: () => {},
     onEdit: () => {},
     onFollowUp: () => {},
     onRetry: () => {},
-    onOpenAgentDialog: () => {},
     onArchive: () => {},
-    onResetWorkshop: () => {},
-    hasWorkshopRounds: false,
     onDelete: () => {},
     ...overrides,
   });
@@ -82,17 +69,16 @@ describe("buildBacklogActionMenuItems", () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it("excludes the primary CTA from the menu but keeps the other CTAs", () => {
+  it("excludes legacy workshop actions from the menu", () => {
     renderMenu({
       ...baseActions,
       terminal: false,
       primaryCta: "run",
       canRun: true,
-      canWorkshop: true,
       canFollowUp: false,
       canRetry: false,
     });
     expect(screen.queryByRole("button", { name: "Run" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Workshop" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Workshop" })).toBeNull();
   });
 });

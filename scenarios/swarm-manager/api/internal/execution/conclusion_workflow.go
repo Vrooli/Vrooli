@@ -15,11 +15,15 @@ import (
 
 type conclusionWorkflowResult struct {
 	Result struct {
-		Handoff struct {
-			Summary  string `json:"summary"`
-			Progress string `json:"progress"`
-			NextStep string `json:"next_step"`
-		} `json:"handoff"`
+		Finding struct {
+			Summary string `json:"summary"`
+		} `json:"finding"`
+		Disposition struct {
+			Kind       string `json:"kind"`
+			Rationale  string `json:"rationale"`
+			Confidence string `json:"confidence"`
+			Scope      string `json:"scope"`
+		} `json:"disposition"`
 	} `json:"result"`
 }
 
@@ -134,6 +138,9 @@ func (s *Service) ApplyConclusionWorkflow(ctx context.Context, executionID strin
 			return PhasedPlanApplyResult{}, err
 		}
 	}
+	if err := s.publishResearchConclusion(ctx, record); err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
 	if err := s.finishConclusionClaim(&record); err != nil {
 		return PhasedPlanApplyResult{}, err
 	}
@@ -146,6 +153,19 @@ func (s *Service) ApplyConclusionWorkflow(ctx context.Context, executionID strin
 	}
 	s.dispatchStatusUpdate(record)
 	return PhasedPlanApplyResult{Record: record}, nil
+}
+
+func (s *Service) publishResearchConclusion(ctx context.Context, record Record) error {
+	if s.researchConclusionObserver == nil {
+		return nil
+	}
+	var result conclusionWorkflowResult
+	_ = json.Unmarshal(record.AgentWorkflowResult, &result)
+	return s.researchConclusionObserver(ctx, ResearchConclusionEvent{
+		ExecutionID: record.ExecutionID, BacklogKind: record.BacklogKind, BacklogName: record.BacklogName, Outcome: record.AgentWorkflowOutcome,
+		Summary: strings.TrimSpace(result.Result.Finding.Summary), Disposition: strings.TrimSpace(result.Result.Disposition.Kind),
+		Rationale: strings.TrimSpace(result.Result.Disposition.Rationale), Confidence: strings.TrimSpace(result.Result.Disposition.Confidence), Scope: strings.TrimSpace(result.Result.Disposition.Scope),
+	})
 }
 
 func (s *Service) validateConclusionCompletion(record Record, completion agentmanager.InvocationCompletion) error {
@@ -175,8 +195,8 @@ func parseConclusionOutcome(status domainpb.WorkflowExecutionStatus, raw []byte)
 	switch status {
 	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED:
 		var result conclusionWorkflowResult
-		if len(raw) == 0 || json.Unmarshal(raw, &result) != nil || strings.TrimSpace(result.Result.Handoff.Summary) == "" || result.Result.Handoff.Progress != "complete" {
-			return "", apierr.BadGateway("research conclusion workflow succeeded without a complete typed handoff")
+		if len(raw) == 0 || json.Unmarshal(raw, &result) != nil || strings.TrimSpace(result.Result.Finding.Summary) == "" || !validResearchDisposition(result.Result.Disposition.Kind, result.Result.Disposition.Rationale, result.Result.Disposition.Confidence) {
+			return "", apierr.BadGateway("research conclusion workflow succeeded without a typed finding and disposition")
 		}
 		return "complete", nil
 	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED:
@@ -188,6 +208,18 @@ func parseConclusionOutcome(status domainpb.WorkflowExecutionStatus, raw []byte)
 	default:
 		return "failed", nil
 	}
+}
+
+func validResearchDisposition(kind, rationale, confidence string) bool {
+	if strings.TrimSpace(rationale) == "" {
+		return false
+	}
+	switch kind {
+	case "plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention":
+	default:
+		return false
+	}
+	return confidence == "high" || confidence == "medium" || confidence == "low"
 }
 
 func (s *Service) finishConclusionClaim(record *Record) error {

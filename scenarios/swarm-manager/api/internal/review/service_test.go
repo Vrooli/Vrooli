@@ -202,7 +202,7 @@ func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"handoff": map[string]any{"verdict": "ready", "agent_assessment": "verified", "evidence": []any{}, "improvement_suggestions": []any{}, "regression_introduced": false, "notes": []any{}, "summary": "ready"}}})
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"handoff": map[string]any{"verdict": "ready", "agent_assessment": "verified", "evidence": []any{}, "improvement_suggestions": []any{}, "regression_introduced": false, "notes": []any{}, "summary": "ready", "disposition": map[string]any{"kind": "archive", "rationale": "Evidence is sufficient", "confidence": "high"}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,12 +210,22 @@ func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 	svc := newTestService(&capturingSpawner{enabled: true}, "")
 	svc.workflow = workflow
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	observed := 0
+	svc.SetRoundTerminalObserver(func(_ context.Context, kind, name string, round Round) {
+		observed++
+		if kind != "task" || name != "item" || round.Disposition == nil || round.Disposition.Kind != "archive" {
+			t.Fatalf("unexpected terminal projection: %s/%s %#v", kind, name, round)
+		}
+	})
 	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowExecutionID: "workflow-1", AgentWorkflowDefinition: "sha256:def", AgentWorkflowVersion: "sha256:snapshot"}); err != nil {
 		t.Fatal(err)
 	}
 	first, replay, err := svc.ApplyWorkflowRound(context.Background(), "task", "item", 1)
 	if err != nil || replay || first.Status != RoundStatusComplete || first.Classification != "ready" {
 		t.Fatalf("first apply = %#v replay=%v err=%v", first, replay, err)
+	}
+	if observed != 1 {
+		t.Fatalf("terminal observer calls = %d, want 1", observed)
 	}
 	second, replay, err := svc.ApplyWorkflowRound(context.Background(), "task", "item", 1)
 	if err != nil || !replay || second.AgentWorkflowApplyState != reviewWorkflowApplyComplete || workflow.collects != 1 {

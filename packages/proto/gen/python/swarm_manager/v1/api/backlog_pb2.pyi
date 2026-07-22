@@ -399,12 +399,6 @@ class WorkshopAutoAdvance(_message.Message):
     delay_seconds: int
     def __init__(self, triggered: _Optional[bool] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., reason: _Optional[str] = ..., next_mode: _Optional[str] = ..., pending: _Optional[bool] = ..., advance_at: _Optional[str] = ..., delay_seconds: _Optional[int] = ...) -> None: ...
 
-class WorkshopCancelPendingAdvanceResponse(_message.Message):
-    __slots__ = ("cancelled",)
-    CANCELLED_FIELD_NUMBER: _ClassVar[int]
-    cancelled: bool
-    def __init__(self, cancelled: _Optional[bool] = ...) -> None: ...
-
 class WorkshopDeleteRoundRequest(_message.Message):
     __slots__ = ("round_number",)
     ROUND_NUMBER_FIELD_NUMBER: _ClassVar[int]

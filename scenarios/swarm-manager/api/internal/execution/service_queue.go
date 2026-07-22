@@ -18,7 +18,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	mode, item, preflight, err := s.validateAndLoadQueueRequest(req)
+	mode, item, preflight, err := s.validateAndLoadQueueRequest(ctx, req)
 	if err != nil {
 		return Record{}, err
 	}
@@ -78,7 +78,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 // validateAndLoadQueueRequest validates the create request, resolves the effective
 // mode, loads the backlog item, and runs preflight checks. Returns the resolved
 // mode, loaded item, preflight result, and any validation error.
-func (s *Service) validateAndLoadQueueRequest(req CreateRequest) (Mode, backlogItem, ProcessPreflight, error) {
+func (s *Service) validateAndLoadQueueRequest(ctx context.Context, req CreateRequest) (Mode, backlogItem, ProcessPreflight, error) {
 	if strings.TrimSpace(req.BacklogKind) == "" {
 		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("backlog_kind is required")
 	}
@@ -107,7 +107,7 @@ func (s *Service) validateAndLoadQueueRequest(req CreateRequest) (Mode, backlogI
 		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("backlog item cannot be queued from current status: %s", item.Status)
 	}
 
-	preflight := s.processPreflightForItem(item, true)
+	preflight := s.processPreflightForItem(ctx, item, true)
 	if !preflight.Ready && (!req.Force || hasNonForceableExecutionReasons(preflight.BlockingReasons)) {
 		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("process preflight failed: %s", strings.Join(allBlockingReasons(preflight), "; "))
 	}

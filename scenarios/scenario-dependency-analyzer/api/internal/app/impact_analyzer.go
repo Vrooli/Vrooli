@@ -142,7 +142,7 @@ func determineDependencyType(dependencyName string, directDeps []types.Dependent
 
 // isLikelyResource checks if the name follows resource naming patterns.
 func isLikelyResource(name string) bool {
-	resourcePatterns := []string{"postgres", "redis", "qdrant", "claude-code", "ollama", "n8n", "minio", "browserless", "judge0", "vault"}
+	resourcePatterns := []string{"postgres", "redis", "qdrant", "claude-code", "ollama", "n8n", "minio", "browserless", "vault"}
 	for _, pattern := range resourcePatterns {
 		if name == pattern {
 			return true

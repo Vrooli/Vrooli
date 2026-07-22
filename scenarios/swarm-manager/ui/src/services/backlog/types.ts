@@ -4,7 +4,7 @@
  * Shared type definitions used across backlog service modules.
  */
 
-import type { BacklogFile, BacklogItem, BacklogKind, BlockingReason, ClarificationThread, ItemBlockingInfo, PlanRef } from "../../types";
+import type { BacklogFile, BacklogItem, BacklogKind, BlockingReason, ItemBlockingInfo, PlanRef } from "../../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -33,37 +33,6 @@ export type BacklogUpdatePatch = Partial<Pick<
   BacklogItem,
   "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "initiative" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "note"
 >>;
-
-/** Result of auto-advance decision from the workshop save endpoint. */
-export interface WorkshopAutoAdvance {
-  triggered: boolean;
-  runId?: string;
-  taskId?: string;
-  reason: string;
-  nextMode?: "workshop" | "finalize";
-  /** Whether an advance is pending (countdown active, not yet spawned). */
-  pending?: boolean;
-  /** When the pending advance will fire (RFC 3339 timestamp). */
-  advanceAt?: string;
-  /** Configured delay in seconds. */
-  delaySeconds?: number;
-}
-
-/** Response from saving a workshop round via the dedicated endpoint. */
-export interface WorkshopSaveResponse {
-  file: BacklogFile;
-  autoAdvance: WorkshopAutoAdvance;
-}
-
-export interface WorkshopDeleteRoundResponse {
-  deletedRound: number;
-  remainingRounds: number;
-}
-
-export interface WorkshopResetResponse {
-  deletedRounds: number;
-  statusReverted: boolean;
-}
 
 export interface ImportBacklogResponse {
   dryRun: boolean;
@@ -128,20 +97,6 @@ export interface IBacklogService {
     name: string,
     note?: string,
   ): Promise<{ newExecutionId: string; parentExecutionId: string; status: string }>;
-  research(
-    kind: BacklogKind,
-    name: string,
-    payload?: {
-      prompt?: string;
-      projectRoot?: string;
-      mode?: string;
-      contextPaths?: string[];
-      contextTargetIds?: string[];
-      contextRequirementIds?: string[];
-      confirm?: boolean;
-      force?: boolean;
-    }
-  ): Promise<import("../../types").ResearchResponse>;
   getArchiveTargets(kind: BacklogKind, name: string): Promise<import("../../types").ArchiveTargetsResponse>;
   createArchiveTarget(kind: string, name: string, target: import("../../types").ArchiveTargetFormValues): Promise<void>;
   updateArchiveTarget(kind: string, name: string, targetId: string, target: import("../../types").ArchiveTargetFormValues): Promise<void>;
@@ -166,56 +121,5 @@ export interface IBacklogService {
   }): Promise<Blob>;
   importItems(file: File, apply?: boolean): Promise<ImportBacklogResponse>;
   getBacklogSummary(): Promise<import("../../types").BacklogSummaryResponse>;
-  getMaturitySummary(): Promise<import("../../types").MaturitySummaryResponse>;
   getPendingQuestions(): Promise<import("../../types").PendingQuestionsResponse>;
-  workshopSave(
-    kind: BacklogKind,
-    name: string,
-    roundNumber: number,
-    content: string,
-  ): Promise<WorkshopSaveResponse>;
-  workshopDeleteRound(
-    kind: BacklogKind,
-    name: string,
-    roundNumber: number,
-  ): Promise<WorkshopDeleteRoundResponse>;
-  workshopReset(
-    kind: BacklogKind,
-    name: string,
-  ): Promise<WorkshopResetResponse>;
-  reWorkshop(
-    kind: BacklogKind,
-    name: string,
-  ): Promise<WorkshopResetResponse>;
-  workshopCancelPendingAdvance(
-    kind: BacklogKind,
-    name: string,
-  ): Promise<{ cancelled: boolean }>;
-  createClarification(
-    kind: BacklogKind,
-    name: string,
-    roundNumber: number,
-    itemId: string,
-    message?: string,
-    files?: File[],
-  ): Promise<{ thread: ClarificationThread }>;
-  getClarification(
-    kind: BacklogKind,
-    name: string,
-    threadId: string,
-  ): Promise<{ thread: ClarificationThread }>;
-  continueClarification(
-    kind: BacklogKind,
-    name: string,
-    threadId: string,
-    message: string,
-    files?: File[],
-  ): Promise<{ thread: ClarificationThread }>;
-  clarificationAction(
-    kind: BacklogKind,
-    name: string,
-    threadId: string,
-    action: string,
-    updatedItemJson?: string,
-  ): Promise<{ action: string; success: boolean; message: string; run_id?: string; task_id?: string }>;
 }

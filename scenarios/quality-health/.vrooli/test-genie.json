@@ -241,7 +241,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "quality-health",
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented"
@@ -268,7 +268,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "quality-health",
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented"
@@ -296,7 +296,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "quality-health",
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "fix_class": "manual",
         "reason": "Installing the reload guard is an app-entry code change, not a safe config rewrite."

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/pathutil"
@@ -17,15 +18,16 @@ import (
 	"swarm-manager/internal/transitions"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type TerminalResult struct {
-	Outcome       string   `json:"outcome"`
-	CandidatePlan string   `json:"candidatePlan,omitempty"`
-	Summary       string   `json:"summary,omitempty"`
-	Reason        string   `json:"reason,omitempty"`
-	Unresolved    []string `json:"unresolvedFindings,omitempty"`
+	Outcome       string          `json:"outcome"`
+	CandidatePlan json.RawMessage `json:"candidatePlan,omitempty"`
+	Summary       string          `json:"summary,omitempty"`
+	Reason        string          `json:"reason,omitempty"`
+	Unresolved    []string        `json:"unresolvedFindings,omitempty"`
 }
 
 type StartRequest struct {
@@ -34,6 +36,7 @@ type StartRequest struct {
 	EntityName         string
 	EntityVersion      string
 	PlanReference      string
+	BaseContentHash    string
 	PlanContent        string
 	FrontierDigest     string
 	ValidationFindings []any
@@ -47,9 +50,8 @@ type Service struct {
 	transitionRegistry transitions.Registry
 }
 
-type Canonicalizer interface {
-	ImportPlan(context.Context, planclient.ImportPlanInput) (*sharedv1.Plan, error)
-	RenderMarkdown(context.Context, string, bool) (planclient.RenderMarkdownResult, error)
+type CandidateCanonicalizer interface {
+	planclient.CandidateClient
 }
 
 // Binder remains domain-owned: it re-reads the current entity and moves its
@@ -112,7 +114,7 @@ func (s *Service) Start(ctx context.Context, request StartRequest) (Record, erro
 	if err != nil {
 		return Record{}, err
 	}
-	record := Record{ID: request.ID, EntityKind: request.EntityKind, EntityName: request.EntityName, EntityVersion: request.EntityVersion, PlanReference: request.PlanReference, FrontierDigest: request.FrontierDigest, WorkflowExecution: started.ExecutionID, WorkflowDigest: started.DefinitionDigest, ApplyState: ApplyPending}
+	record := Record{ID: request.ID, EntityKind: request.EntityKind, EntityName: request.EntityName, EntityVersion: request.EntityVersion, PlanReference: request.PlanReference, BaseContentHash: request.BaseContentHash, FrontierDigest: request.FrontierDigest, WorkflowExecution: started.ExecutionID, WorkflowDigest: started.DefinitionDigest, ApplyState: ApplyPending}
 	if err := s.store.Save(record); err != nil {
 		return Record{}, err
 	}
@@ -154,7 +156,7 @@ func (s *Service) Collect(ctx context.Context, id string) (Record, TerminalResul
 	}
 	switch result.Outcome {
 	case "ready":
-		if strings.TrimSpace(result.CandidatePlan) == "" {
+		if len(result.CandidatePlan) == 0 {
 			return Record{}, TerminalResult{}, fmt.Errorf("ready repair result is missing candidatePlan")
 		}
 	case "needs_attention", "abstained":
@@ -167,54 +169,31 @@ func (s *Service) Collect(ctx context.Context, id string) (Record, TerminalResul
 	return record, result, nil
 }
 
-// Canonicalize imports a ready candidate as a superseding Plan Manager plan
-// and requires Plan Manager's rendered quality verdict before it can be bound.
-func Canonicalize(ctx context.Context, client Canonicalizer, record Record, result TerminalResult) (*sharedv1.Plan, error) {
+// Canonicalize persists a whole-plan candidate without changing the canonical
+// plan or the backlog item's PlanRef. The operator-facing Plan Workshop owns
+// preview, authorization, and the eventual guarded candidate application.
+func Canonicalize(ctx context.Context, client CandidateCanonicalizer, record Record, result TerminalResult) (*plansv1.CandidateRevisionPreview, error) {
 	if client == nil {
 		return nil, fmt.Errorf("plan manager client is required")
 	}
 	if result.Outcome != "ready" {
 		return nil, fmt.Errorf("only ready repair results can be canonicalized")
 	}
-	plan, err := client.ImportPlan(ctx, planclient.ImportPlanInput{Markdown: result.CandidatePlan, SourcePath: "swarm-manager:repair/" + record.ID, Supersede: record.PlanReference})
+	candidatePlan := &sharedv1.Plan{}
+	if err := protojson.Unmarshal(result.CandidatePlan, candidatePlan); err != nil {
+		return nil, fmt.Errorf("decode whole-plan repair candidate: %w", err)
+	}
+	candidate, err := client.CreateCandidateRevision(ctx, planclient.CandidateRevisionInput{
+		PlanID: record.PlanReference, ExpectedBaseContentHash: record.BaseContentHash,
+		ProposalProvenance: "swarm-manager:repair/" + record.ID, CandidatePlan: candidatePlan,
+	})
 	if err != nil {
 		return nil, err
 	}
-	if plan == nil || strings.TrimSpace(plan.GetId()) == "" {
-		return nil, fmt.Errorf("plan manager import omitted canonical plan")
+	if candidate == nil || strings.TrimSpace(candidate.GetId()) == "" {
+		return nil, fmt.Errorf("plan manager candidate creation omitted candidate id")
 	}
-	rendered, err := client.RenderMarkdown(ctx, plan.GetId(), true)
-	if err != nil {
-		return nil, err
-	}
-	if rendered.QualityStatus != "pass" {
-		return nil, fmt.Errorf("canonical repaired plan quality is %q", rendered.QualityStatus)
-	}
-	return plan, nil
-}
-
-func (s *Service) CompleteApply(ctx context.Context, binder Binder, record Record, plan *sharedv1.Plan) (Record, error) {
-	if binder == nil || plan == nil || strings.TrimSpace(plan.GetId()) == "" {
-		return Record{}, fmt.Errorf("repair binder and canonical plan are required")
-	}
-	if record.ApplyState == ApplyComplete {
-		return record, nil
-	}
-	if record.ApplyState != ApplyPending && record.ApplyState != ApplyClaimed {
-		return Record{}, fmt.Errorf("repair %q is not applicable", record.ID)
-	}
-	record.ApplyState = ApplyClaimed
-	if err := s.store.Save(record); err != nil {
-		return Record{}, err
-	}
-	if err := binder.BindRepairedPlan(ctx, record, plan); err != nil {
-		return Record{}, err
-	}
-	record.ApplyState, record.AppliedPlanID = ApplyComplete, plan.GetId()
-	if err := s.store.Save(record); err != nil {
-		return Record{}, err
-	}
-	return record, nil
+	return client.PreviewCandidateRevision(ctx, candidate.GetId())
 }
 
 func repairID(request StartRequest) string {

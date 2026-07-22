@@ -4,7 +4,6 @@ package backlog
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -81,12 +80,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	// overrides below so callers receive one canonical queue response
 	// shape with clear next actions.
 
-	// Check workshop feedback state for additional blocking signals.
-	itemDir := h.store.ItemDir(kind, item.Name)
-	latestRound, _, _ := LoadLatestRound(itemDir)
-	pendingDecisions := CountPendingDecisions(latestRound)
-
-	blockingReasons, blockErr := h.collectQueueBlockingReasons(item, kind, name, itemDir, preflight, pendingDecisions)
+	blockingReasons, blockErr := h.collectQueueBlockingReasons(item, kind, name, preflight)
 	if blockErr != nil {
 		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to check dependencies"))
 		return
@@ -98,7 +92,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		protoReasons[i] = &apipb.BlockingReason{Message: r.Message, Forceable: r.Forceable}
 	}
 
-	if done := h.handleQueuePreflightResponse(w, item, protoReasons, preflight.Advisories, pendingDecisions, confirm, force, blockingReasons, r); done {
+	if done := h.handleQueuePreflightResponse(w, item, protoReasons, preflight.Advisories, confirm, force, blockingReasons, r); done {
 		return
 	}
 	record, err := executionService.QueueBacklog(r.Context(), execution.CreateRequest{
@@ -134,7 +128,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		Message:             "Queue created successfully.",
 		BlockingReasons:     nil,
 		UnansweredQuestions: 0,
-		PendingSuggestions:  int32(pendingDecisions),
+		PendingSuggestions:  0,
 		Advisories:          preflight.Advisories,
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, resp); err != nil {
@@ -202,7 +196,6 @@ func (h *Handler) handleQueuePreflightResponse(
 	item BacklogItem,
 	protoReasons []*apipb.BlockingReason,
 	advisories []string,
-	pendingDecisions int,
 	confirm, force bool,
 	blockingReasons []BlockingReason,
 	r *http.Request,
@@ -219,7 +212,7 @@ func (h *Handler) handleQueuePreflightResponse(
 			Message:             message,
 			BlockingReasons:     protoReasons,
 			UnansweredQuestions: 0,
-			PendingSuggestions:  int32(pendingDecisions),
+			PendingSuggestions:  0,
 			Advisories:          advisories,
 		}
 	}
@@ -230,7 +223,7 @@ func (h *Handler) handleQueuePreflightResponse(
 			message = "Preview only. Re-run with confirm=true (CLI: --execute) to queue."
 		}
 		if len(blockingReasons) > 0 {
-			message = "Queue blocked by readiness checks. Resolve blockers or use force=true (CLI: --force) for feedback-gate overrides."
+			message = "Queue blocked by preflight checks. Resolve blockers or use force=true (CLI: --force) for eligible overrides."
 		}
 		resp := buildResp(true, false, message, "dry-run-task", "", time.Now().UTC().Format(time.RFC3339))
 		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
@@ -240,7 +233,7 @@ func (h *Handler) handleQueuePreflightResponse(
 	}
 
 	if len(blockingReasons) > 0 && (!force || HasNonForceableReasons(blockingReasons)) {
-		resp := buildResp(true, false, "Queue blocked by readiness checks.", "", "", time.Now().UTC().Format(time.RFC3339))
+		resp := buildResp(true, false, "Queue blocked by preflight checks.", "", "", time.Now().UTC().Format(time.RFC3339))
 		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
 			apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode blocked response"))
 		}
@@ -265,13 +258,12 @@ func mapQueueBacklogError(w http.ResponseWriter, err error) {
 }
 
 // collectQueueBlockingReasons gathers all blocking reasons for a queue request:
-// preflight structural/forceable reasons, pending workshop decisions, dependency
+// preflight structural/forceable reasons and dependency
 // readiness. The returned slice is deduplicated. A non-nil
 // error indicates the dependency check itself failed and the queue must abort.
-func (h *Handler) collectQueueBlockingReasons(item BacklogItem, kind BacklogKind, name, itemDir string, preflight execution.ProcessPreflight, pendingDecisions int) ([]BlockingReason, error) {
+func (h *Handler) collectQueueBlockingReasons(item BacklogItem, kind BacklogKind, name string, preflight execution.ProcessPreflight) ([]BlockingReason, error) {
 	// Convert preflight reasons to structured BlockingReasons.
-	// Preflight reasons from the execution service (readiness dimensions,
-	// missing deliverables) are non-forceable structural blockers.
+	// Preflight reasons from the execution service are non-forceable structural blockers.
 	var blockingReasons []BlockingReason
 	for _, reason := range preflight.BlockingReasons {
 		blockingReasons = append(blockingReasons, BlockingReason{
@@ -287,13 +279,6 @@ func (h *Handler) collectQueueBlockingReasons(item BacklogItem, kind BacklogKind
 			Forceable: true,
 		})
 	}
-	if pendingDecisions > 0 {
-		blockingReasons = append(blockingReasons, BlockingReason{
-			Message:   fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions),
-			Forceable: true,
-		})
-	}
-
 	// Check dependency readiness: all depends_on items must be completed.
 	depReasons, depErr := EvaluateDependencyBlocking(item, h.store)
 	if depErr != nil {

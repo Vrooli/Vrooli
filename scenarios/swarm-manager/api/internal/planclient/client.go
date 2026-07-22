@@ -72,6 +72,29 @@ type PlanImporter interface {
 	ImportPlan(ctx context.Context, input ImportPlanInput) (*sharedv1.Plan, error)
 }
 
+// CandidateClient is the narrow Plan Manager authority used by workflows that
+// propose a change to an existing canonical plan. It intentionally has no
+// direct-update operation: Swarm may create and inspect a candidate, while an
+// explicitly authorized operator applies it through the Plan Workshop flow.
+type CandidateClient interface {
+	CreateCandidateRevision(ctx context.Context, input CandidateRevisionInput) (*plansv1.CandidateRevision, error)
+	PreviewCandidateRevision(ctx context.Context, candidateID string) (*plansv1.CandidateRevisionPreview, error)
+	ApplyCandidateRevision(ctx context.Context, candidateID, expectedBaseContentHash string, acknowledgeQualityImpact bool) (*plansv1.ApplyCandidateRevisionResponse, error)
+}
+
+// CandidateDiscarder is kept separate so existing candidate canonicalizers do
+// not gain an operator-only mutation requirement.
+type CandidateDiscarder interface {
+	DiscardCandidateRevision(ctx context.Context, candidateID, reason string) (*plansv1.CandidateRevision, error)
+}
+
+type CandidateRevisionInput struct {
+	PlanID                  string
+	ExpectedBaseContentHash string
+	ProposalProvenance      string
+	CandidatePlan           *sharedv1.Plan
+}
+
 // MarkdownRenderer is the render subset used by execution prompt resolution.
 type MarkdownRenderer interface {
 	RenderMarkdown(ctx context.Context, id string, compact bool) (RenderMarkdownResult, error)
@@ -205,6 +228,61 @@ func (c *ConnectClient) ImportPlan(ctx context.Context, input ImportPlanInput) (
 		return nil, opError("ImportPlan", firstNonEmpty(input.Slug, input.SourcePath, input.Title), err)
 	}
 	return resp.Msg.GetPlan(), nil
+}
+
+func (c *ConnectClient) CreateCandidateRevision(ctx context.Context, input CandidateRevisionInput) (*plansv1.CandidateRevision, error) {
+	client, err := c.plans(ctx)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.CreateCandidateRevision(ctx, connect.NewRequest(&plansv1.CreateCandidateRevisionRequest{
+		PlanId:                  input.PlanID,
+		ExpectedBaseContentHash: input.ExpectedBaseContentHash,
+		ProposalProvenance:      input.ProposalProvenance,
+		CandidatePlan:           input.CandidatePlan,
+	}))
+	if err != nil {
+		return nil, opError("CreateCandidateRevision", input.PlanID, err)
+	}
+	return response.Msg.GetCandidate(), nil
+}
+
+func (c *ConnectClient) PreviewCandidateRevision(ctx context.Context, candidateID string) (*plansv1.CandidateRevisionPreview, error) {
+	client, err := c.plans(ctx)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.PreviewCandidateRevision(ctx, connect.NewRequest(&plansv1.PreviewCandidateRevisionRequest{Id: candidateID}))
+	if err != nil {
+		return nil, opError("PreviewCandidateRevision", candidateID, err)
+	}
+	return response.Msg.GetPreview(), nil
+}
+
+func (c *ConnectClient) ApplyCandidateRevision(ctx context.Context, candidateID, expectedBaseContentHash string, acknowledgeQualityImpact bool) (*plansv1.ApplyCandidateRevisionResponse, error) {
+	client, err := c.plans(ctx)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.ApplyCandidateRevision(ctx, connect.NewRequest(&plansv1.ApplyCandidateRevisionRequest{
+		Id: candidateID, ExpectedBaseContentHash: expectedBaseContentHash, AcknowledgeQualityImpact: acknowledgeQualityImpact,
+	}))
+	if err != nil {
+		return nil, opError("ApplyCandidateRevision", candidateID, err)
+	}
+	return response.Msg, nil
+}
+
+func (c *ConnectClient) DiscardCandidateRevision(ctx context.Context, candidateID, reason string) (*plansv1.CandidateRevision, error) {
+	client, err := c.plans(ctx)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.DiscardCandidateRevision(ctx, connect.NewRequest(&plansv1.DiscardCandidateRevisionRequest{Id: candidateID, Reason: reason}))
+	if err != nil {
+		return nil, opError("DiscardCandidateRevision", candidateID, err)
+	}
+	return response.Msg.GetCandidate(), nil
 }
 
 func (c *ConnectClient) Start(ctx context.Context, req *executionv1.StartRequest) (*executionv1.StartResponse, error) {

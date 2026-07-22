@@ -4,34 +4,6 @@ import (
 	"testing"
 )
 
-func TestResolveBacklogSkill(t *testing.T) {
-	tests := []struct {
-		name string
-		mode string
-		kind string
-		want string
-	}{
-		{name: "workshop non research", mode: "workshop", kind: "idea", want: "swarm-manager-workshop"},
-		{name: "workshop research", mode: "workshop", kind: "research", want: "swarm-manager-workshop-research"},
-		{name: "initialize non research", mode: "initialize", kind: "fix", want: "swarm-manager-initialize-backlog"},
-		{name: "initialize research", mode: "initialize", kind: "research", want: "swarm-manager-initialize-research"},
-		{name: "finalize non research", mode: "finalize", kind: "execute", want: "swarm-manager-workshop-finalize"},
-		{name: "finalize research", mode: "finalize", kind: "research", want: "swarm-manager-workshop-research-finalize"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			entry, ok := ResolveBacklogSkill(tt.mode, tt.kind)
-			if !ok {
-				t.Fatalf("ResolveBacklogSkill(%q, %q) returned no match", tt.mode, tt.kind)
-			}
-			if entry.SkillID != tt.want {
-				t.Fatalf("ResolveBacklogSkill(%q, %q) = %q, want %q", tt.mode, tt.kind, entry.SkillID, tt.want)
-			}
-		})
-	}
-}
-
 func TestResolveHelpers(t *testing.T) {
 	capture, ok := ResolveCaptureSkill()
 	if !ok {
@@ -51,13 +23,13 @@ func TestResolveHelpers(t *testing.T) {
 }
 
 func TestSkillUsageSummary(t *testing.T) {
-	if got := SkillUsageCount("swarm-manager-workshop"); got != 1 {
-		t.Fatalf("workshop direct usage count = %d, want 1", got)
+	if _, ok := Lookup("backlog-workshop"); ok {
+		t.Fatal("retired workshop prompt remains catalogued")
 	}
-	if got := SkillUsageCount("swarm-manager-backlog-tools"); got != 8 {
-		t.Fatalf("backlog-tools reference count = %d, want 8", got)
+	if got := SkillUsageCount("swarm-manager-backlog-tools"); got != 1 {
+		t.Fatalf("backlog-tools reference count = %d, want 1", got)
 	}
-	if got := SkillImpactSummary("swarm-manager-backlog-tools"); got != "Referenced by 8 runtime prompt paths." {
+	if got := SkillImpactSummary("swarm-manager-backlog-tools"); got != "Referenced by 1 runtime prompt path." {
 		t.Fatalf("unexpected backlog-tools summary: %q", got)
 	}
 	if got := SkillImpactSummary("spec-sync"); got != "Used directly by 1 runtime prompt path." {

@@ -257,21 +257,9 @@ Behavior:
 - initiative metadata is created or updated before items are written
 - failures roll back the whole batch
 
-## Workshop Cancel Pending Advance
+## Retired Workshop Advance Endpoint
 
-`DELETE /api/v1/backlog/{kind}/{name}/workshop/pending-advance`
-
-Cancels a pending auto-advance countdown for the given backlog item. When `auto_advance_delay_seconds > 0` in settings, the `WorkshopSave` endpoint creates a deferred advance instead of spawning immediately. This endpoint cancels that deferred advance before it fires.
-
-Response:
-```json
-{
-  "cancelled": true
-}
-```
-
-- `cancelled: true` — a pending advance was found and cancelled
-- `cancelled: false` — no pending advance existed (idempotent)
+The legacy pending-advance endpoint was removed with auto-advance. Use the Plan Workshop session endpoints to open an explicit review and submit an operator response.
 
 ## Backlog Archive / Unarchive
 
@@ -536,7 +524,6 @@ Swarm Manager owns the prompt inventory contract. Prompt-manager still owns prom
 | GET | `/api/v1/prompts/skills/{id}/versions` | List prompt skill version history |
 | POST | `/api/v1/prompts/skills/{id}/revert/{version}` | Revert a prompt skill to a previous version |
 | POST | `/api/v1/prompts/preview` | Render a catalog-backed prompt-manager skill with variables |
-| POST | `/api/v1/prompts/simulate` | Simulate backlog runtime prompts for `workshop`, `initialize`, or `finalize` |
 
 ### Prompt Catalog Entry
 
@@ -546,17 +533,15 @@ Swarm Manager owns the prompt inventory contract. Prompt-manager still owns prom
 {
   "items": [
     {
-      "id": "backlog-workshop",
-      "title": "Backlog Workshop",
-      "group": "backlog",
+      "id": "capture-classify",
+      "title": "Capture Classification",
+      "group": "capture",
       "usage_type": "direct_runtime",
       "source_type": "skill",
-      "trigger": "Backlog workshop round",
-      "skill_id": "swarm-manager-workshop",
-      "backlog_kinds": ["idea", "fix", "execute", "chore"],
-      "modes": ["workshop"],
-      "purpose": "Run one workshop round for non-research backlog items and update the canonical plan-manager plan.",
-      "output_paths": ["workshop/round-NNN.json", "spec.json.plan_ref"]
+      "trigger": "Capture classify action",
+      "skill_id": "swarm-manager-classify-capture",
+      "purpose": "Analyze raw capture text and classify it into suggested backlog items.",
+      "output_paths": ["classification.json", "capture.json"]
     },
     {
       "id": "execution-process",
@@ -570,18 +555,5 @@ Swarm Manager owns the prompt inventory contract. Prompt-manager still owns prom
       "purpose": "Build the runtime execution prompt from the backlog deliverable."
     }
   ]
-}
-```
-
-### Prompt Simulation
-
-`POST /api/v1/prompts/simulate`
-
-```json
-{
-  "kind": "idea",
-  "mode": "workshop",
-  "item_title": "Prompt Catalog",
-  "item_folder": "scenarios/swarm-manager/ideas/prompt-catalog"
 }
 ```

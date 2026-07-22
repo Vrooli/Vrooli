@@ -30,7 +30,6 @@ describe("getAttentionReasons", () => {
 
     expect(getAttentionReasons(item({ status: "researching" }), feedback, maturity)).toEqual([
       { kind: "pending-decisions", count: 2 },
-      { kind: "plan-ready" },
       { kind: "research-complete" },
     ]);
   });

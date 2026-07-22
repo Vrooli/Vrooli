@@ -37,6 +37,9 @@ func (s *Service) ApplyWorkflowRound(ctx context.Context, kind, name string, rou
 		return Round{}, false, fmt.Errorf("workflow completion does not match review round provenance")
 	}
 	input, ok := completion.Input.AsInterface().(map[string]any)
+	if !ok {
+		return Round{}, false, fmt.Errorf("workflow input is not a valid review snapshot")
+	}
 	entity, ok := input["entity"].(map[string]any)
 	if !ok || entity["kind"] != kind || entity["name"] != name || entity["executionId"] != round.ExecutionID || entity["version"] != round.AgentWorkflowVersion {
 		return Round{}, false, fmt.Errorf("workflow completion does not match review snapshot")
@@ -57,11 +60,13 @@ func (s *Service) ApplyWorkflowRound(ctx context.Context, kind, name string, rou
 	outcome := "failed"
 	if completion.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
 		handoff := parseReviewHandoff(result)
-		switch handoff.Verdict {
-		case "ready", "ready_with_notes":
-			outcome = "accepted"
-		case "needs_work":
-			outcome = "changes-requested"
+		if validDisposition(handoff.Disposition) {
+			switch handoff.Verdict {
+			case "ready", "ready_with_notes":
+				outcome = "accepted"
+			case "needs_work":
+				outcome = "changes-requested"
+			}
 		}
 	}
 	FinalizeRoundFromResult(round, result, outcome)
@@ -73,5 +78,6 @@ func (s *Service) ApplyWorkflowRound(ctx context.Context, kind, name string, rou
 	if s.onRoundTerminal != nil {
 		s.onRoundTerminal(ctx, kind, name, *round)
 	}
+	s.notifyRoundTerminal(ctx, kind, name, *round)
 	return *round, false, nil
 }

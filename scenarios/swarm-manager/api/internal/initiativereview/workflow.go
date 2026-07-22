@@ -58,6 +58,9 @@ func (s *Service) ApplyWorkflowRound(ctx context.Context, initiativeName string,
 		return review.Round{}, false, fmt.Errorf("workflow completion does not match initiative review provenance")
 	}
 	input, ok := completion.Input.AsInterface().(map[string]any)
+	if !ok {
+		return review.Round{}, false, fmt.Errorf("workflow input is not a valid initiative review snapshot")
+	}
 	entity, ok := input["entity"].(map[string]any)
 	if !ok || entity["kind"] != "initiative" || entity["name"] != initiativeName || entity["version"] != round.AgentWorkflowVersion {
 		return review.Round{}, false, fmt.Errorf("workflow completion does not match initiative review snapshot")
@@ -65,13 +68,15 @@ func (s *Service) ApplyWorkflowRound(ctx context.Context, initiativeName string,
 	if completion.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED && completion.Output != nil {
 		var envelope struct {
 			Result struct {
-				Assessment     string `json:"assessment"`
-				Classification string `json:"classification"`
+				Assessment     string             `json:"assessment"`
+				Classification string             `json:"classification"`
+				Disposition    review.Disposition `json:"disposition"`
 			} `json:"result"`
 		}
 		raw, _ := json.Marshal(completion.Output.AsInterface())
-		if json.Unmarshal(raw, &envelope) == nil && strings.TrimSpace(envelope.Result.Assessment) != "" && (envelope.Result.Classification == "delivered" || envelope.Result.Classification == "partial" || envelope.Result.Classification == "failed") {
+		if json.Unmarshal(raw, &envelope) == nil && strings.TrimSpace(envelope.Result.Assessment) != "" && validDisposition(envelope.Result.Disposition) && (envelope.Result.Classification == "delivered" || envelope.Result.Classification == "partial" || envelope.Result.Classification == "failed") {
 			round.Status, round.AgentAssessment, round.Classification, round.FailureReason = review.RoundStatusComplete, envelope.Result.Assessment, envelope.Result.Classification, ""
+			round.Disposition = &envelope.Result.Disposition
 		} else {
 			round.Status, round.FailureReason = review.RoundStatusFailed, "workflow returned invalid initiative review result"
 		}
@@ -85,6 +90,18 @@ func (s *Service) ApplyWorkflowRound(ctx context.Context, initiativeName string,
 	}
 	s.handleTerminalRound(ctx, initiativeName, *round)
 	return *round, false, nil
+}
+
+func validDisposition(disposition review.Disposition) bool {
+	if strings.TrimSpace(disposition.Rationale) == "" {
+		return false
+	}
+	switch disposition.Kind {
+	case "plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention":
+	default:
+		return false
+	}
+	return disposition.Confidence == "high" || disposition.Confidence == "medium" || disposition.Confidence == "low"
 }
 
 func (s *Service) SetWorkflow(workflow agentmanager.WorkflowInvoker) { s.workflow = workflow }

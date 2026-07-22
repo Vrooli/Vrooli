@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"proto-health/internal/protosurface"
 
@@ -18,6 +19,11 @@ import (
 )
 
 var versionDirRE = regexp.MustCompile(`^v[1-9][0-9]*$`)
+
+// codeFactsBudget bounds optional implementation-proof evidence. Static proto
+// validation remains authoritative, so an unavailable analyzer must degrade
+// to a finding rather than consume the entire ValidateScenario RPC deadline.
+const codeFactsBudget = 8 * time.Second
 
 type Service struct {
 	loader                 SurfaceLoader
@@ -141,7 +147,9 @@ func (s *Service) checkCodeFacts(ctx context.Context, scenario string, surface p
 }
 
 func (s *Service) checkProtoAdoptionFacts(ctx context.Context, scenario string) []Finding {
-	report, err := s.codeFacts.CheckProtoAdoption(ctx, scenario)
+	proofCtx, cancel := context.WithTimeout(ctx, codeFactsBudget)
+	defer cancel()
+	report, err := s.codeFacts.CheckProtoAdoption(proofCtx, scenario)
 	if err != nil {
 		return []Finding{codeFactsUnavailableFinding("proto adoption", err)}
 	}
@@ -189,7 +197,9 @@ func (s *Service) checkProtoAdoptionFacts(ctx context.Context, scenario string) 
 }
 
 func (s *Service) checkEndpointProofFacts(ctx context.Context, scenario string, endpointIDs []string) []Finding {
-	report, err := s.codeFacts.CheckEndpointProof(ctx, scenario, endpointIDs)
+	proofCtx, cancel := context.WithTimeout(ctx, codeFactsBudget)
+	defer cancel()
+	report, err := s.codeFacts.CheckEndpointProof(proofCtx, scenario, endpointIDs)
 	if err != nil {
 		return []Finding{codeFactsUnavailableFinding("endpoint proof", err)}
 	}

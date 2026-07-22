@@ -97,11 +97,12 @@ code-owned method becomes a declared Agent Manager workflow only after review.
 
 ### Work shaping and completion
 
-An item becomes executable when its canonical Plan Manager `plan_ref` is valid
-for its intended role. Plan Manager—not a Swarm prompt or local readiness
-heuristic—is the authority on whether the plan is structurally ready. Swarm may
-gate execution on that answer and preserve decisions/evidence that explain why
-work is not ready.
+An item becomes executable only after an operator explicitly accepts its
+canonical Plan Manager `plan_ref` at a particular content hash. Plan
+Manager—not a Swarm prompt or local readiness heuristic—is the authority on
+whether the plan is structurally valid. Swarm records acceptance actor,
+timestamp, subject version, and hash, then rejects a changed plan or work
+contract until it is accepted again.
 
 Initiatives coordinate multiple items and plans. They can choose different
 workflows as the initiative learns; they do not imply one fixed sequence or
@@ -200,7 +201,7 @@ its failure logic back into imperative Swarm code.
 | Tests, baselines, or regression evidence fail | Evidence result → bounded fix-and-revalidate workflow, explicit follow-up, or attention. | Test Genie / Control Tower are evidence authorities. Swarm applies the final result only after the declared completion policy is met. |
 | A required integration is unavailable or stale | Do not start the affected action, or park an in-flight action with the unavailable capability named. Resume/retry only under declared policy. | Deterministic integration preflight plus workflow terminal semantics; never degrade into an unrecorded manual workaround. |
 | An operator starts, schedules, pauses, resumes, cancels, or retries work | Create/update an authorized engagement; cancellation and retry use new, idempotent intent where required. | Deterministic Swarm execution-control action; it starts or controls a workflow rather than recreating its graph. |
-| Scope changes during learning | Propose an item/initiative/dependency/plan change → operator/policy validates and applies it → affected items re-evaluate readiness and snapshots. | Session proposal or declared proposal workflow, then deterministic Swarm apply. This covers split, merge, reprioritize, dependency, and initiative-membership changes. |
+| Scope changes during learning | Plan Workshop packet → one operator response → direct application or a candidate revision → fresh acceptance where needed. | The session references the one proposal store; Plan Manager validates/diffs/applies candidate plans; Swarm owns exact-once resolution and authorization. |
 | Research or review discovers additional work | Produce a typed follow-up proposal → create or link a backlog item/initiative → return to normal shaping. | Workflow or session produces the proposal; Swarm applies it explicitly and preserves provenance. |
 | A suggestion is no longer valid or wanted | Dismiss, archive, or reconcile it without deleting operator history. | Deterministic policy/operator action. A future observation may create a new suggestion rather than reviving stale state implicitly. |
 | Completed work needs correction or renewed scope | Reopen or create a follow-up with an explicit relationship to the completed record; do not mutate historical completion into a new execution. | Deterministic ledger action plus an appropriate new workflow if agent work is needed. |

@@ -117,7 +117,6 @@ export function ScenarioNavigatorPopover({
             if (skippedIds.has(ciq.question.id)) return false;
             const a = localAnswers.get(ciq.question.id);
             if (!a) return false;
-            if (ciq.question.source === "workshop") return !!a.selected?.trim();
             return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
           }).length;
 

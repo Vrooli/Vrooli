@@ -94,6 +94,7 @@ func (s *Service) ResetArtifacts(ctx context.Context, kind BacklogKind, name str
 			}
 		case ResetScopePlanUnbind:
 			item.PlanRef = nil
+			item.PlanAcceptance = nil
 		}
 	}
 	if item.Status == StatusReady {
@@ -155,7 +156,7 @@ func (s *Service) RecreateItem(ctx context.Context, kind BacklogKind, name strin
 	cloneRef := string(kind) + "/" + cloneName
 	now := time.Now().UTC().Format(time.RFC3339)
 	clone := BacklogItem{Name: cloneName, Title: source.Title, Description: source.Description, Status: StatusBacklog, Priority: source.Priority, Tags: append([]string(nil), source.Tags...), Created: now, Updated: now, Kind: source.Kind, DependsOn: append([]string(nil), source.DependsOn...), Initiative: source.Initiative, Effort: source.Effort, AcceptanceAllow: append([]string(nil), source.AcceptanceAllow...), AcceptanceDeny: append([]string(nil), source.AcceptanceDeny...), Creates: append([]string(nil), source.Creates...), SpawnedFrom: ref, FindingRef: source.FindingRef, Note: source.Note, SuggestedSkills: append([]string(nil), source.SuggestedSkills...), CreatedBy: source.CreatedBy}
-	if err := s.Create(clone, CreationContext{Context: ctx, Source: SourceProposal, SkipWorkshopTrigger: true}); err != nil {
+	if err := s.Create(clone, CreationContext{Context: ctx, Source: SourceProposal}); err != nil {
 		return BacklogItem{}, fmt.Errorf("create recreation clone: %w", err)
 	}
 	dependents := make([]BacklogItem, 0)

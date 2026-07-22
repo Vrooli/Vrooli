@@ -458,29 +458,6 @@ func TestCmdExecutionPolicyUpdateValidation(t *testing.T) {
 	}
 }
 
-func TestCmdBacklogResearchValidation(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() returned error: %v", err)
-	}
-
-	err = app.cmdBacklogResearch([]string{})
-	if err == nil {
-		t.Error("cmdBacklogResearch with no args should return error")
-	}
-	if !strings.Contains(err.Error(), "usage") {
-		t.Errorf("Error should contain 'usage', got: %v", err)
-	}
-
-	err = app.cmdBacklogResearch([]string{"--kind", "idea", "--name", "item-name", "--data", "{invalid"})
-	if err == nil {
-		t.Error("cmdBacklogResearch with invalid JSON should return error")
-	}
-	if !strings.Contains(err.Error(), "invalid JSON") {
-		t.Errorf("Error should contain 'invalid JSON', got: %v", err)
-	}
-}
-
 func TestCmdBacklogUpdateValidation(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
@@ -869,7 +846,7 @@ func TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint(t *testing.T) {
 		if r.URL.Path != "/api/v1/backlog/pending-questions" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		if got := r.URL.Query().Get("source"); got != "workshop" {
+		if got := r.URL.Query().Get("source"); got != "review" {
 			t.Fatalf("unexpected source query: %q", got)
 		}
 		if got := r.URL.Query().Get("limit"); got != "2" {
@@ -878,14 +855,14 @@ func TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint(t *testing.T) {
 		if got := r.URL.Query().Get("initiative"); got != "focus" {
 			t.Fatalf("unexpected initiative query: %q", got)
 		}
-		_, _ = w.Write([]byte(`{"items":[{"kind":"idea","name":"alpha","questions":[{"id":"d1","source":"workshop","topic":"Architecture","options":[{"key":"A","label":"Monolith"}]}]}]}`))
+		_, _ = w.Write([]byte(`{"items":[{"kind":"idea","name":"alpha","questions":[{"id":"OT-P0-001","source":"review","title":"Architecture","review_type":"target"}]}]}`))
 	}))
 
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
-	if err := app.cmdBacklogPendingQuestions([]string{"--source", "workshop", "--limit", "2", "--initiative", "focus"}); err != nil {
+	if err := app.cmdBacklogPendingQuestions([]string{"--source", "review", "--limit", "2", "--initiative", "focus"}); err != nil {
 		t.Fatalf("cmdBacklogPendingQuestions returned error: %v", err)
 	}
 }
@@ -958,7 +935,7 @@ func TestCmdPromptsCatalogRequestsExpectedEndpoint(t *testing.T) {
 		if r.URL.Path != "/api/v1/prompts/catalog" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		_, _ = w.Write([]byte(`{"items":[{"id":"backlog-workshop","title":"Backlog Workshop","group":"backlog","usage_type":"direct_runtime","source_type":"skill","trigger":"Backlog workshop round","skill_id":"swarm-manager-workshop","backlog_kinds":["idea"],"modes":["workshop"],"purpose":"Run one workshop round.","output_paths":["workshop/round-NNN.json","plan.md"]}]}`))
+		_, _ = w.Write([]byte(`{"items":[{"id":"capture-classify","title":"Capture Classification","group":"capture","usage_type":"direct_runtime","source_type":"skill","trigger":"Capture classify action","skill_id":"swarm-manager-classify-capture","purpose":"Classify capture text."}]}`))
 	}))
 
 	app, err := NewApp()
@@ -986,7 +963,7 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 		if err := json.Unmarshal(body, &payload); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if payload["skill_id"] != "swarm-manager-workshop" {
+		if payload["skill_id"] != "swarm-manager-classify-capture" {
 			t.Fatalf("unexpected skill_id: %v", payload["skill_id"])
 		}
 		if payload["with_scope"] != true {
@@ -999,14 +976,14 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 		if vars["ITEM_TITLE"] != "My Idea" {
 			t.Fatalf("unexpected ITEM_TITLE: %v", vars["ITEM_TITLE"])
 		}
-		_, _ = w.Write([]byte(`{"skill_id":"swarm-manager-workshop","with_scope":true,"variables":{"ITEM_TITLE":"My Idea"},"prompt":"preview prompt"}`))
+		_, _ = w.Write([]byte(`{"skill_id":"swarm-manager-classify-capture","with_scope":true,"variables":{"ITEM_TITLE":"My Idea"},"prompt":"preview prompt"}`))
 	}))
 
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
-	if err := app.cmdPromptsPreview([]string{"--id", "swarm-manager-workshop", "--with-scope", "--vars", "ITEM_TITLE=My Idea"}); err != nil {
+	if err := app.cmdPromptsPreview([]string{"--id", "swarm-manager-classify-capture", "--with-scope", "--vars", "ITEM_TITLE=My Idea"}); err != nil {
 		t.Fatalf("cmdPromptsPreview returned error: %v", err)
 	}
 }

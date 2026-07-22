@@ -243,19 +243,9 @@ func (h *Handler) processBatchQueueItem(ctx context.Context, eq ExecutionQueuer,
 // a batch item. It returns a "Blocked: ..." message and true when the item must
 // not be queued (respecting the force override for forceable-only reasons).
 func (h *Handler) batchQueueBlockingMessage(item BacklogItem, preflight execution.ProcessPreflight, force bool) (string, bool) {
-	itemDir := h.store.ItemDir(item.Kind, item.Name)
-	latestRound, _, _ := LoadLatestRound(itemDir)
-	pendingDecisions := CountPendingDecisions(latestRound)
-
 	var blockingReasons []BlockingReason
 	for _, reason := range preflight.BlockingReasons {
 		blockingReasons = append(blockingReasons, BlockingReason{Message: reason, Forceable: false})
-	}
-	if pendingDecisions > 0 {
-		blockingReasons = append(blockingReasons, BlockingReason{
-			Message:   fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions),
-			Forceable: true,
-		})
 	}
 	blockingReasons = DedupeReasons(blockingReasons)
 

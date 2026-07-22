@@ -1,12 +1,11 @@
 /**
- * RunBacklogModal — lightweight auto-run + warning dialog.
+ * RunBacklogModal — lightweight queue preflight and confirmation dialog.
  *
  * New flow:
  * 1. When modal opens, auto-submit a queue call (mode=yolo, confirm=true).
  * 2. If no issues + single item: fire onSuccess, close. User never sees the modal.
- * 3. If readiness warnings: show warning dialog, user clicks "Execute Anyway".
- * 4. If blocking reasons: show blocker dialog, user can override and re-submit.
- * 5. For bulk mode: show progress as items are queued sequentially.
+ * 3. If blocking reasons: show blocker dialog, user can override and re-submit.
+ * 4. For bulk mode: show progress as items are queued sequentially.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -17,8 +16,6 @@ import { backlogService } from "../../services";
 import type { QueueResponse } from "../../services";
 import type { BacklogKind } from "../../types";
 import { selectors } from "../../consts/selectors";
-import type { ReadinessIndicatorData } from "../../lib/maturity";
-import { READINESS_DIMENSIONS, DIMENSION_LABELS } from "../../lib/maturity";
 import { isApiError } from "../../lib/api-client";
 import { StalePlanPanel } from "./stale-plan-panel";
 import { extractMissingPaths, type MissingPath } from "./stale-plan-utils";
@@ -42,10 +39,6 @@ export interface RunBacklogModalProps {
   targets?: RunBacklogTarget[];
   /** Called after a successful (non-dry-run) queue */
   onSuccess?: (result: QueueResponse) => void;
-  /** Readiness data for single-item mode */
-  readinessData?: ReadinessIndicatorData | null;
-  /** Readiness data map for bulk mode (keyed by "kind/name") */
-  readinessDataMap?: Map<string, ReadinessIndicatorData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,14 +51,11 @@ export function RunBacklogModal({
   target,
   targets,
   onSuccess,
-  readinessData,
-  readinessDataMap,
 }: RunBacklogModalProps) {
   // State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blockedResult, setBlockedResult] = useState<QueueResponse | null>(null);
-  const [showReadinessWarning, setShowReadinessWarning] = useState(false);
   const [forceConfirmed, setForceConfirmed] = useState(false);
   // Track whether the auto-run preflight has completed (to avoid showing dialog flash)
   const [preflightDone, setPreflightDone] = useState(false);
@@ -86,43 +76,6 @@ export function RunBacklogModal({
   const sessionRef = useRef(0);
 
   // -------------------------------------------------------------------------
-  // Readiness warnings
-  // -------------------------------------------------------------------------
-
-  /** Collect readiness warnings for items that have a plan but are not fully ready. */
-  const readinessWarnings = useMemo(() => {
-    const warnings: Array<{
-      key: string;
-      title?: string;
-      noWorkshopRounds: boolean;
-      weakDimensions: string[];
-    }> = [];
-
-    for (const t of effectiveTargets) {
-      const key = `${t.kind}/${t.name}`;
-      const data = isBulk
-        ? readinessDataMap?.get(key)
-        : readinessData ?? undefined;
-      if (!data) continue;
-      // Only warn when a plan exists but readiness is incomplete
-      if (!data.hasPlan) continue;
-      if (data.ready) continue;
-
-      const noWorkshopRounds = data.roundsCompleted === 0;
-      const weakDimensions = READINESS_DIMENSIONS
-        .filter((dim) => data.effectiveScores[dim] < 3)
-        .map((dim) => `${DIMENSION_LABELS[dim]} (${data.effectiveScores[dim]}/3)`);
-
-      if (noWorkshopRounds || weakDimensions.length > 0) {
-        warnings.push({ key, title: t.title, noWorkshopRounds, weakDimensions });
-      }
-    }
-    return warnings;
-  }, [effectiveTargets, isBulk, readinessData, readinessDataMap]);
-
-  const needsReadinessConfirmation = readinessWarnings.length > 0;
-
-  // -------------------------------------------------------------------------
   // Auto-run on open
   // -------------------------------------------------------------------------
 
@@ -133,18 +86,10 @@ export function RunBacklogModal({
     setError(null);
     setBlockedResult(null);
     setIsSubmitting(false);
-    setShowReadinessWarning(false);
     setForceConfirmed(false);
     setPreflightDone(false);
 
     const session = ++sessionRef.current;
-
-    // If readiness warnings exist, show dialog immediately
-    if (needsReadinessConfirmation) {
-      setShowReadinessWarning(true);
-      setPreflightDone(true);
-      return;
-    }
 
     // For bulk mode, always show the dialog for progress tracking
     if (isBulk) {
@@ -214,12 +159,6 @@ export function RunBacklogModal({
 
   const handleSubmit = async () => {
     if (effectiveTargets.length === 0 || isSubmitting) return;
-
-    // Gate: show readiness warning if needed and not yet acknowledged
-    if (needsReadinessConfirmation && !showReadinessWarning) {
-      setShowReadinessWarning(true);
-      return;
-    }
 
     setIsSubmitting(true);
     setError(null);
@@ -326,7 +265,7 @@ export function RunBacklogModal({
       testId={selectors.runBacklog.dialog}
     >
       <div className="space-y-5">
-        {/* Stale plan panel — re-workshop trigger for plan_stale errors */}
+        {/* Stale plan panel — opens a fresh Plan Workshop review for plan_stale errors */}
         {stalePlanFor && (
           <StalePlanPanel
             kind={stalePlanFor.kind}
@@ -341,38 +280,6 @@ export function RunBacklogModal({
               onClose();
             }}
           />
-        )}
-
-        {/* Readiness warning */}
-        {showReadinessWarning && readinessWarnings.length > 0 && (
-          <div
-            className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
-            data-testid={selectors.runBacklog.readinessWarning}
-          >
-            <div className="mb-2 flex items-center gap-2 font-medium">
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
-              Low readiness — proceed with caution
-            </div>
-            {readinessWarnings.map((w) => (
-              <div key={w.key} className="mt-1.5">
-                {isBulk && (
-                  <p className="font-medium text-amber-100">
-                    {w.title ?? w.key}
-                  </p>
-                )}
-                {w.noWorkshopRounds && (
-                  <p>No workshop rounds completed — plan was created manually</p>
-                )}
-                {w.weakDimensions.length > 0 && (
-                  <ul className="mt-1 list-disc pl-5 space-y-0.5">
-                    {w.weakDimensions.map((d) => (
-                      <li key={d}>{d}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
         )}
 
         {/* Blocking reasons — with option to force-run */}
@@ -431,16 +338,10 @@ export function RunBacklogModal({
         <div className="flex justify-end gap-3 pt-2">
           <Button
             variant="outline"
-            onClick={() => {
-              if (showReadinessWarning) {
-                setShowReadinessWarning(false);
-              } else {
-                onClose();
-              }
-            }}
+            onClick={onClose}
             disabled={isSubmitting}
           >
-            {showReadinessWarning ? "Back" : "Cancel"}
+            Cancel
           </Button>
           <Button
             onClick={handleSubmit}
@@ -452,11 +353,7 @@ export function RunBacklogModal({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Running...
               </>
-            ) : showReadinessWarning ? (
-              "Execute Anyway"
-            ) : (
-              "Run"
-            )}
+            ) : "Run"}
           </Button>
         </div>
       </div>

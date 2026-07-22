@@ -74,14 +74,14 @@ func TestShadowedScenariosParsing(t *testing.T) {
 	if !IsShadowed("swarm-manager") || !IsShadowed("swarm-manager@shadow") {
 		t.Error("IsShadowed should match bare and suffixed names")
 	}
-	if IsShadowed("swarm-manager") {
-		t.Error("swarm-manager should not be shadowed")
+	if IsShadowed("web-console") {
+		t.Error("web-console should not be shadowed")
 	}
 }
 
 func TestResolveVariantPrecedence(t *testing.T) {
 	clearInstanceOverrides(t)
-	t.Setenv(EnvShadowScenarios, "agent-manager,swarm-manager")
+	t.Setenv(EnvShadowScenarios, "agent-manager")
 
 	// Ambient: a named scenario resolves to shadow.
 	if got := ResolveVariant("agent-manager"); got != ShadowVariant {

@@ -25,7 +25,6 @@ import { ActivityTab } from "../components/backlog/activity-tab";
 import { RelatedTab } from "../components/related/RelatedTab";
 import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
 import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
-import { HeaderPrimaryAction } from "../components/backlog/header-primary-action";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
 import { proposalSessionService } from "../services/proposal-session-service";
@@ -66,13 +65,10 @@ import { useAppBack } from "../app/routes/useAppBack";
 import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createBacklogFileServiceAdapter } from "../services/backlog/backlog-file-service-adapter";
-import type { WorkshopAutoAdvance, WorkshopSaveResponse } from "../services/backlog/types";
 
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const AGENT_RUN_REFRESH_MS = 6000;
 const LIFECYCLE_RESET_SCOPES: Array<[string, string]> = [
-  ["workshop", "Workshop rounds and conclusion"],
-  ["clarifications", "Clarifications"],
   ["review", "Review rounds"],
   ["handoff_executions", "Handoff data and executions"],
   ["plan_unbind", "Plan binding"],
@@ -126,12 +122,11 @@ export function BacklogDetailsPage() {
     item, isLoadingItem, itemError, refetchItem, spawnedItems,
     files, isLoadingFiles, filesError, refetchFiles,
     executionHistory, reviewRounds, isGatheringEvidence, isAwaitingManualReview,
-    workshopRounds, readinessData, archiveTargets,
+    archiveTargets,
     depRelations, itemActions, targetScenarios,
-    deliverableLabel, workshopActionLabel,
-    isWorkshopFinalized, isLocked, isTerminal, workshopBlockedDeps,
-    deleteError, archiveError, isArchiving, isUpdating, isRunningAgent, isSavingWorkshop,
-    isBatchReviewing, isDeletingWorkshopRound, isFileActionPending,
+    isLocked, isTerminal,
+    deleteError, archiveError, isArchiving, isUpdating,
+    isBatchReviewing, isFileActionPending,
   } = data;
 
   // --- Local UI state (URL-synced or needs render) ---
@@ -139,12 +134,11 @@ export function BacklogDetailsPage() {
     validate: (v): v is DetailsTab => ["info", "prompt", "proposals", "files", "output", "activity", "related"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
-  const [workshopAutoAdvance, setWorkshopAutoAdvance] = useState<WorkshopAutoAdvance | null>(null);
   const [dismissSuggestionPending, setDismissSuggestionPending] = useState(false);
   const [dismissSuggestionError, setDismissSuggestionError] = useState<string | null>(null);
   const [recreateOpen, setRecreateOpen] = useState(false);
   const [resetArtifactsOpen, setResetArtifactsOpen] = useState(false);
-  const [resetScope, setResetScope] = useState<string[]>(["workshop"]);
+  const [resetScope, setResetScope] = useState<string[]>(["review"]);
   const [lifecyclePending, setLifecyclePending] = useState(false);
   const [lifecycleError, setLifecycleError] = useState<string | undefined>();
   const { data: proposalSessions = [] } = useQuery({
@@ -158,10 +152,6 @@ export function BacklogDetailsPage() {
     [proposalSessions],
   );
   const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
-  const handleWorkshopSaveResult = useCallback((result: WorkshopSaveResponse) => {
-    setWorkshopAutoAdvance(result.autoAdvance?.nextMode ? result.autoAdvance : null);
-  }, []);
-  const clearWorkshopAutoAdvance = useCallback(() => setWorkshopAutoAdvance(null), []);
   const handleDismissSuggestion = useCallback(async () => {
     if (!item) return;
     setDismissSuggestionPending(true);
@@ -215,24 +205,21 @@ export function BacklogDetailsPage() {
     setSearchParams,
     selectedFile,
     closeDetail,
-    refreshActivities,
-    onWorkshopSaveResult: handleWorkshopSaveResult,
   });
 
   // --- Computed labels ---
   const agentRunningLabel = useMemo(() => {
     if (!agentRunIsBusy || !latestAgentActivity) return "Agent running\u2026";
     switch (latestAgentActivity.purpose) {
-      case "workshop": return "Running workshop\u2026";
-      case "finalize": return "Running finalize\u2026";
+      case "workshop": return "Running Plan Workshop review\u2026";
+      case "finalize": return "Finalizing historical workshop\u2026";
       case "research": return "Running research\u2026";
-      case "initialize": return "Initializing workshop\u2026";
+      case "initialize": return "Initializing historical workshop\u2026";
       case "process": return "Processing\u2026";
       default: return "Agent running\u2026";
     }
   }, [agentRunIsBusy, latestAgentActivity]);
 
-  const agentLabel = item?.kind === "idea" ? "Idea Agent" : "Workshop";
   const attachToSession = useAttachToSessionAction(item ? backlogOption(item) : null);
 
   // --- Effects ---
@@ -257,17 +244,6 @@ export function BacklogDetailsPage() {
       }, { replace: true });
     }
   }, [actionParam, executionHistory, uiStore.followUpTarget, setSearchParams, uiStore]);
-
-  // Merged flagged items for the agent dialog
-  const { agentDialogTargetIds: getAgentDialogTargetIds, agentDialogRequirementIds: getAgentDialogRequirementIds } = data;
-  const agentDialogTargetIds = useMemo(
-    () => getAgentDialogTargetIds(uiStore.selectedTargetIds),
-    [getAgentDialogTargetIds, uiStore.selectedTargetIds],
-  );
-  const agentDialogRequirementIds = useMemo(
-    () => getAgentDialogRequirementIds(uiStore.selectedRequirementIds),
-    [getAgentDialogRequirementIds, uiStore.selectedRequirementIds],
-  );
 
   // Sync selected file from URL param / file tree
   const selectedFileParam = searchParams.get("file");
@@ -316,7 +292,6 @@ export function BacklogDetailsPage() {
       prevItemRef.current = key;
       setActiveTab("info");
       uiStore.reset();
-      setWorkshopAutoAdvance(null);
     }
   }, [backlogKind, name, setActiveTab, uiStore]);
 
@@ -339,8 +314,6 @@ export function BacklogDetailsPage() {
     void Promise.allSettled([
       queryClient.refetchQueries({ queryKey: ["backlog", backlogKind, name] }),
       queryClient.refetchQueries({ queryKey: ["backlog", backlogKind, name, "files"] }),
-      queryClient.refetchQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] }),
-      queryClient.refetchQueries({ queryKey: ["backlog-maturity-summary"] }),
       queryClient.refetchQueries({ queryKey: ["executions", backlogKind, name] }),
       queryClient.refetchQueries({ queryKey: ["review-rounds", backlogKind, name] }),
     ]);
@@ -373,15 +346,7 @@ export function BacklogDetailsPage() {
     isTerminal,
     agentRunIsActive: agentRunIsBlocking,
     latestAgentActivity,
-    deliverableLabel,
-    workshopActionLabel,
     agentRunningLabel,
-    agentLabel,
-    isWorkshopFinalized,
-    workshopBlockedDeps,
-    isRunningAgent,
-    workshopAutoAdvance,
-    clearWorkshopAutoAdvance,
   };
 
   // --- Shared element variables ---
@@ -409,7 +374,6 @@ export function BacklogDetailsPage() {
         selectedCount={uiStore.selectedTargetIds.size + uiStore.selectedRequirementIds.size}
         onApproveSelected={handlers.handleBulkApprove}
         onFlagSelected={handlers.handleBulkFlag}
-        onSendToAgent={uiStore.openAgent}
         onClearSelection={uiStore.clearSelections}
       />
     </>
@@ -432,23 +396,7 @@ export function BacklogDetailsPage() {
     />
   ) : null;
 
-  const notesPanel = (
-    <BacklogNotesPanel
-      readinessData={readinessData}
-      workshopRounds={workshopRounds}
-      isSavingWorkshop={isSavingWorkshop}
-      isDeletingRound={isDeletingWorkshopRound}
-      onStartRun={uiStore.openRunModal}
-      onSaveRound={handlers.handleSaveRound}
-      onRunWorkshop={handlers.handleRunWorkshop}
-      onFinalizeWorkshop={handlers.handleFinalizeWorkshop}
-      onInitializeWorkshop={() => handlers.handleAgentSubmit({
-        mode: "initialize",
-        prompt: "Initialize the first workshop round for this backlog item.",
-      })}
-      onDeleteRound={uiStore.setRoundToDelete}
-    />
-  );
+  const notesPanel = <BacklogNotesPanel />;
 
   const menuActions: ActionMenuItem[] = item && itemActions ? [
     attachToSession.actionItem,
@@ -458,16 +406,10 @@ export function BacklogDetailsPage() {
         isLocked,
         isTerminal,
         agentRunningLabel,
-        workshopActionLabel,
-        deliverableLabel,
-        agentLabel,
-        isRunningAgent,
       },
       {
         isUpdating,
-        onFinalizeWorkshop: handlers.handleFinalizeWorkshop,
         onStartRun: uiStore.openRunModal,
-        onRunWorkshop: handlers.handleRunWorkshop,
         onEdit: uiStore.openEdit,
         onFollowUp: () => uiStore.setFollowUpTarget(executionHistory?.[0] ?? null),
         onRetry: () => {
@@ -478,10 +420,7 @@ export function BacklogDetailsPage() {
             });
           });
         },
-        onOpenAgentDialog: uiStore.openAgent,
         onArchive: () => handlers.handleArchiveItem(),
-        onResetWorkshop: uiStore.openWorkshopReset,
-        hasWorkshopRounds: (workshopRounds?.length ?? 0) > 0,
         onDelete: () => {
           if (getDeleteConfirmLevel("backlog") === "none") {
             handlers.handleDeleteConfirm();
@@ -613,9 +552,6 @@ export function BacklogDetailsPage() {
             status={item?.status}
             nodeId={nodeId}
             lenses={BACKLOG_LENSES}
-            primaryAction={item ? (
-              <HeaderPrimaryAction className="shrink-0" onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} />
-            ) : undefined}
             menuActions={menuActions}
             onStatusChange={!isLocked ? (newStatus) => data.updateStatus(newStatus) : undefined}
             statusChangePending={data.isUpdatingStatus}
@@ -729,12 +665,7 @@ export function BacklogDetailsPage() {
           <BacklogDialogs
             data={data}
             handlers={handlers}
-            files={files}
-            readinessData={readinessData}
-            agentDialogTargetIds={agentDialogTargetIds}
-            agentDialogRequirementIds={agentDialogRequirementIds}
             upsertItem={upsertItem}
-            blockingInfo={itemActions ? { blocked: itemActions.blocked, blockingDepKeys: itemActions.blockingDepKeys, allForceable: false } : null}
           />
           <ConfirmDialog
             isOpen={recreateOpen}

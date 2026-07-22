@@ -74,17 +74,6 @@ func (e *fakeEvents) EmitBacklogArchived(entityID, previousStatus, archivedAt st
 	e.archives = append(e.archives, emittedArchive{entityID: entityID, previousStatus: previousStatus, archivedAt: archivedAt})
 }
 
-type fakeWorkshop struct {
-	mu    sync.Mutex
-	calls []string
-}
-
-func (w *fakeWorkshop) MaybeStartWorkshop(item BacklogItem) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.calls = append(w.calls, string(item.Kind)+"/"+item.Name)
-}
-
 type fakeSessionArtifacts struct {
 	mu        sync.Mutex
 	artifacts []agentsessions.Artifact
@@ -133,7 +122,6 @@ type serviceTestEnv struct {
 	store     *FileStore
 	att       *fakeAttacher
 	events    *fakeEvents
-	workshop  *fakeWorkshop
 	inv       *testutil.RecordingScheduler
 	artifacts *fakeSessionArtifacts
 	svc       *Service
@@ -151,7 +139,6 @@ func newServiceTestEnv(t *testing.T) *serviceTestEnv {
 		store:     store,
 		att:       &fakeAttacher{},
 		events:    &fakeEvents{},
-		workshop:  &fakeWorkshop{},
 		inv:       &testutil.RecordingScheduler{},
 		artifacts: &fakeSessionArtifacts{},
 	}
@@ -160,7 +147,6 @@ func newServiceTestEnv(t *testing.T) *serviceTestEnv {
 		Assigner:    env.att,
 		Events:      env.events,
 		Artifacts:   env.artifacts,
-		Workshop:    env.workshop,
 		Invalidator: env.inv,
 	})
 	if err != nil {
@@ -243,7 +229,7 @@ func TestService_Create_RejectsMissingSource(t *testing.T) {
 	}
 }
 
-func TestService_Create_HumanHTTP_TriggersWorkshopAndEmitsUserActor(t *testing.T) {
+func TestService_Create_HumanHTTP_EmitsUserActorWithoutStartingWorkshop(t *testing.T) {
 	env := newServiceTestEnv(t)
 	if err := env.svc.Create(sampleItem("alpha"), CreationContext{
 		Source: SourceHumanHTTP, DecidedBy: "matt",
@@ -251,9 +237,6 @@ func TestService_Create_HumanHTTP_TriggersWorkshopAndEmitsUserActor(t *testing.T
 		t.Fatalf("Create: %v", err)
 	}
 
-	if got := len(env.workshop.calls); got != 1 {
-		t.Errorf("workshop trigger calls = %d, want 1", got)
-	}
 	if got := len(env.events.calls); got != 1 {
 		t.Fatalf("event emit calls = %d, want 1", got)
 	}
@@ -269,23 +252,19 @@ func TestService_Create_HumanHTTP_TriggersWorkshopAndEmitsUserActor(t *testing.T
 	}
 }
 
-func TestService_Create_Batch_TriggersWorkshopUnlessSkipped(t *testing.T) {
+func TestService_Create_Batch_DefersOnlyGraphInvalidation(t *testing.T) {
 	env := newServiceTestEnv(t)
 	cc := CreationContext{
 		Source:                SourceBatch,
 		SkipDuplicateCheck:    true,
 		SkipCycleCheck:        true,
 		SkipInitiativeAttach:  true,
-		SkipWorkshopTrigger:   true,
 		SkipGraphInvalidation: true,
 	}
 	if err := env.svc.Create(sampleItem("beta"), cc); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	if len(env.workshop.calls) != 0 {
-		t.Errorf("SkipWorkshopTrigger ignored: workshop fired %v", env.workshop.calls)
-	}
 	if got := env.inv.Count(); got != 0 {
 		t.Errorf("SkipGraphInvalidation ignored: ScheduleAll fired %d times", got)
 	}
@@ -313,9 +292,6 @@ func TestService_Create_Proposal_AttributesToFeedbackRound(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	if len(env.workshop.calls) != 0 {
-		t.Errorf("proposal source must NOT trigger workshop, got %v", env.workshop.calls)
-	}
 	if len(env.events.calls) != 1 {
 		t.Fatalf("event emit calls = %d", len(env.events.calls))
 	}

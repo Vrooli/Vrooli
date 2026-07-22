@@ -228,8 +228,9 @@ quarantine, verification, rollback.
     `clarify/*` (1), `review/**` (185), `evidence/**` (9),
     `acceptance-validation.json` (56), `.swarm/**` (136), item docs (229),
     per-item `plan_ref` inside `spec.json` + initiative `plan_ref` (144 managed, 0 unmanaged),
-    `initiatives/<name>/review/**` (1 round), pending-advance state (now durable
-    scheduler intents — `timers[]` on the workflow), review decisions inside round docs.
+    `initiatives/<name>/review/**` (1 round), and review decisions inside round
+    docs. Historical pending-advance state is retained as unread legacy data;
+    no current scheduler interprets it.
 - **Target:** the owning target's `agentops/workflow.json` gains
   `operations[]` correlation records ONLY for rounds that carry a run identity
   (run id / execution id in the round doc); rounds without any run identity are
@@ -304,10 +305,8 @@ and how to stop it:
 | Review worker + boot orphan sweep | `main.go:908` + `routes_execution.go:300–315` (`review.NewSweeper`) | `<item>/review/**`, item statuses | no flag — scenario stop |
 | Initiative-review worker | `main.go:913` | `initiatives/<n>/review/**` | no flag — scenario stop |
 | Ops refresh driver | `main.go:926` `RefreshDriver.Run` (5 s tick) | active mode-target rounds, `agentops/**` | no flag — scenario stop |
-| Ops scheduler (durable intents, auto-advance) | `main.go:930` `Scheduler.Run` (5 s tick) | fires `workshop-round`/`workshop-finalize` Invokes → `workshop/**`, `agentops/**`, `timers[]` | no flag — scenario stop |
 | Boot-time orphan-snapshot reconcile | `routes_backlog_ops_runner.go:178` (`ReconcileOrphanSnapshots`, 15 m grace) | `agentops/executions/**`, workflow records | boot-only — runs on next start, so run it deliberately BEFORE the fence (resolves the F3 divergence), then stop |
 | Auto-filer sweeper | `main.go:936` | backlog items (suggest/create) | currently `enabled=false` in settings (boot log confirms) — still stop the scenario |
-| Workshop auto-advance (deferred intents) | via ops scheduler (above) + `backlog` save paths | `workshop/**` | scenario stop |
 | aisearch boot reconcile + SyncLoop | `main.go:957` `startAISearchBackground` | Qdrant only (no fs) | `AI_SEARCH_SYNC_DISABLED` kill-switch exists, but scenario stop covers it |
 | Event log | every API mutation | `events.db{,-wal,-shm}` | scenario stop (also required to checkpoint WAL + release the lock, RUNBOOK §1/§2.5) |
 | API mutation handlers | all routes | everything | scenario stop |

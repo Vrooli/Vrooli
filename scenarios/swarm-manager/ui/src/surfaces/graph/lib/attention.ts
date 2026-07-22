@@ -9,10 +9,6 @@ export type NodeAttentionReason =
 
 export interface NodeEnrichment {
   pendingDecisions?: number;
-  /** null = unknown, true = ready, false = not ready (needs workshop). */
-  maturityReady?: boolean | null;
-  /** Latest workshop answers need synthesis (finalize). */
-  pendingSynthesis?: boolean;
 }
 
 export interface NodeAttentionResult {
@@ -63,13 +59,7 @@ export function computeNodeAttention(
     // Pending decisions take priority — user must answer before anything else.
     if (enrichment?.pendingDecisions && enrichment.pendingDecisions > 0) {
       reasons.push("pending-decisions");
-    } else if (enrichment?.pendingSynthesis) {
-      // Latest workshop answers need synthesis (finalize) — treated as a decision.
-      reasons.push("pending-decisions");
-    } else if (enrichment?.maturityReady === false) {
-      // Not mature enough — needs workshop to make progress.
-      reasons.push("pending-decisions");
-    } else if (status === "ready" || enrichment?.maturityReady === true) {
+    } else if (status === "ready") {
       reasons.push("ready-to-run");
     } else if (status === "researching") {
       // Research phase items surface as needing decisions (review/advance).

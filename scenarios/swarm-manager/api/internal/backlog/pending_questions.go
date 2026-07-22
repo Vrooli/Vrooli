@@ -1,6 +1,5 @@
-// Pending questions endpoint — returns actual question content for all backlog
-// items that have unanswered workshop decisions or unreviewed targets/requirements.
-// Used by the All tab inline question stepper to render questions without N+1 queries.
+// Pending questions endpoint — returns unreviewed independent-review targets
+// and requirements. Plan Workshop questions stay in the workshop aggregate.
 package backlog
 
 import (
@@ -17,25 +16,12 @@ import (
 	"swarm-manager/internal/httputil"
 )
 
-// PendingQuestion represents a single question from either a workshop decision
-// or a target/requirement review.
+// PendingQuestion represents an unreviewed target or requirement.
 type PendingQuestion struct {
 	ID       string `json:"id"`
-	Source   string `json:"source"` // "workshop" | "review"
+	Source   string `json:"source"` // "review"
 	ItemKind string `json:"item_kind"`
 	ItemName string `json:"item_name"`
-
-	// Workshop decision fields
-	Topic           string           `json:"topic,omitempty"`
-	Text            string           `json:"text,omitempty"`
-	Context         string           `json:"context,omitempty"`
-	Options         []WorkshopOption `json:"options,omitempty"`
-	Selected        *string          `json:"selected,omitempty"`
-	Freeform        *string          `json:"freeform,omitempty"`
-	Notes           *string          `json:"notes,omitempty"`
-	RoundNumber     int              `json:"round_number,omitempty"`
-	ClarificationID *string          `json:"clarification_id,omitempty"`
-	ContextNote     *string          `json:"context_note,omitempty"`
 
 	// Review fields
 	Title         string `json:"title,omitempty"`
@@ -62,15 +48,12 @@ type PendingQuestionsResponse struct {
 type pendingQuestionSource string
 
 const (
-	pendingQuestionSourceWorkshop pendingQuestionSource = "workshop"
-	pendingQuestionSourceReview   pendingQuestionSource = "review"
-	pendingQuestionSourceAll      pendingQuestionSource = "all"
+	pendingQuestionSourceReview pendingQuestionSource = "review"
 )
 
-// PendingQuestions returns the actual question content for all backlog items with
-// pending workshop decisions or unreviewed targets/requirements.
+// PendingQuestions returns unreviewed targets and requirements for backlog items.
 func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
-	source, limit, initiative, ok := parsePendingQuestionsQuery(w, r)
+	_, limit, initiative, ok := parsePendingQuestionsQuery(w, r)
 	if !ok {
 		return
 	}
@@ -90,15 +73,7 @@ func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		itemDir := h.store.ItemDir(item.Kind, item.Name)
-		var questions []PendingQuestion
-
-		if source != pendingQuestionSourceReview {
-			questions = append(questions, collectWorkshopQuestions(itemDir, item.Kind, item.Name)...)
-		}
-
-		if source != pendingQuestionSourceWorkshop {
-			questions = append(questions, collectReviewQuestions(itemDir, item.Kind, item.Name)...)
-		}
+		questions := collectReviewQuestions(itemDir, item.Kind, item.Name)
 
 		if len(questions) > 0 {
 			result = append(result, PendingQuestionsItem{
@@ -132,13 +107,13 @@ func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
 func parsePendingQuestionsQuery(w http.ResponseWriter, r *http.Request) (pendingQuestionSource, int, string, bool) {
 	sourceRaw := strings.TrimSpace(r.URL.Query().Get("source"))
 	if sourceRaw == "" {
-		sourceRaw = string(pendingQuestionSourceWorkshop)
+		sourceRaw = string(pendingQuestionSourceReview)
 	}
 	source := pendingQuestionSource(strings.ToLower(sourceRaw))
 	switch source {
-	case pendingQuestionSourceWorkshop, pendingQuestionSourceReview, pendingQuestionSourceAll:
+	case pendingQuestionSourceReview:
 	default:
-		apierr.MapError(w, "[backlog] pending-questions", apierr.BadRequest("invalid source: must be workshop, review, or all"))
+		apierr.MapError(w, "[backlog] pending-questions", apierr.BadRequest("invalid source: must be review"))
 		return "", 0, "", false
 	}
 
@@ -182,41 +157,6 @@ func parseBacklogUpdatedAt(raw string) time.Time {
 		return time.Time{}
 	}
 	return parsed
-}
-
-// collectWorkshopQuestions extracts unanswered decision items from the latest workshop round.
-func collectWorkshopQuestions(itemDir string, kind BacklogKind, name string) []PendingQuestion {
-	latestRound, _, err := LoadLatestRound(itemDir)
-	if err != nil || latestRound == nil {
-		return nil
-	}
-
-	var questions []PendingQuestion
-	for _, wi := range latestRound.Items {
-		if wi.Type != "decision" {
-			continue
-		}
-		if wi.Selected != nil && strings.TrimSpace(*wi.Selected) != "" {
-			continue // already answered
-		}
-		questions = append(questions, PendingQuestion{
-			ID:              wi.ID,
-			Source:          "workshop",
-			ItemKind:        string(kind),
-			ItemName:        name,
-			Topic:           wi.Topic,
-			Text:            wi.Text,
-			Context:         wi.Context,
-			Options:         wi.Options,
-			Selected:        wi.Selected,
-			Freeform:        wi.Freeform,
-			Notes:           wi.Notes,
-			RoundNumber:     latestRound.RoundNum,
-			ClarificationID: wi.ClarificationID,
-			ContextNote:     wi.ContextNote,
-		})
-	}
-	return questions
 }
 
 // collectReviewQuestions extracts unreviewed targets and requirements.

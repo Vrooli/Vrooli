@@ -2,18 +2,15 @@ package gates
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 )
 
-// fakeStore is an in-memory ItemStore backed by a temp dir for workshop files.
+// fakeStore is an in-memory ItemStore.
 type fakeStore struct {
 	items []backlog.BacklogItem
 	root  string
@@ -27,41 +24,6 @@ func (f *fakeStore) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogItem, err
 	return f.items, nil
 }
 
-func (f *fakeStore) ItemDir(kind backlog.BacklogKind, name string) string {
-	return filepath.Join(f.root, string(kind), name)
-}
-
-type roundSpec struct {
-	Round            int            `json:"round"`
-	GeneratedAt      string         `json:"generated_at"`
-	Mode             string         `json:"mode,omitempty"`
-	PendingSynthesis bool           `json:"pending_synthesis,omitempty"`
-	Readiness        map[string]int `json:"readiness"`
-	Items            []roundItem    `json:"items"`
-}
-
-type roundItem struct {
-	ID       string  `json:"id"`
-	Type     string  `json:"type"`
-	Selected *string `json:"selected,omitempty"`
-}
-
-func writeRound(t *testing.T, store *fakeStore, kind, name string, spec roundSpec) {
-	t.Helper()
-	dir := filepath.Join(store.ItemDir(backlog.BacklogKind(kind), name), "workshop")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	data, err := json.Marshal(spec)
-	if err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(dir, fmt.Sprintf("round-%d.json", spec.Round))
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func item(kind, name string, status backlog.BacklogStatus, deps ...string) backlog.BacklogItem {
 	return backlog.BacklogItem{
 		Kind:      backlog.BacklogKind(kind),
@@ -73,166 +35,82 @@ func item(kind, name string, status backlog.BacklogStatus, deps ...string) backl
 	}
 }
 
+type fakePlanReader struct {
+	plan *sharedv1.Plan
+	err  error
+}
+
+func (f fakePlanReader) ListPlans(context.Context) ([]*sharedv1.Plan, error) { return nil, f.err }
+func (f fakePlanReader) GetPlan(context.Context, string) (*sharedv1.Plan, error) {
+	return f.plan, f.err
+}
+
+func acceptedItem(kind, name string, status backlog.BacklogStatus) backlog.BacklogItem {
+	it := item(kind, name, status)
+	it.PlanRef = &backlog.PlanRef{Provider: "plan-manager", PlanID: "plan-" + name, Slug: name, Role: backlog.PlanRefRoleExecutionSpec}
+	it.PlanAcceptance = &backlog.PlanAcceptance{Actor: "operator", AcceptedAt: "2026-07-01T00:00:00Z", PlanContentHash: "sha256:current"}
+	it.PlanAcceptance.SubjectVersion = backlog.PlanAcceptanceSubjectVersion(it)
+	return it
+}
+
 func archived(it backlog.BacklogItem) backlog.BacklogItem {
 	ts := "2026-07-01T00:00:00Z"
 	it.ArchivedAt = &ts
 	return it
 }
 
-func strPtr(s string) *string { return &s }
-
-func allReadiness(score int) map[string]int {
-	m := make(map[string]int, len(backlog.ReadinessDimensions))
-	for _, dim := range backlog.ReadinessDimensions {
-		m[dim] = score
-	}
-	return m
-}
-
-// --- DecideSource -----------------------------------------------------------
-
-func TestDecideSource_EnumeratesPendingDecisions(t *testing.T) {
-	store := &fakeStore{root: t.TempDir(), items: []backlog.BacklogItem{
-		item("fix", "alpha", backlog.StatusBacklog),
-		item("fix", "beta", backlog.StatusReady, "fix/alpha"),
-	}}
-	writeRound(t, store, "fix", "alpha", roundSpec{
-		Round:       1,
-		GeneratedAt: "2026-07-01T12:00:00Z",
-		Readiness:   allReadiness(1),
-		Items: []roundItem{
-			{ID: "d1", Type: "decision"},
-			{ID: "d2", Type: "decision", Selected: strPtr("A")},
-			{ID: "i1", Type: "info"},
-		},
-	})
-
-	got, err := DecideSource{Store: store}.Enumerate(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 {
-		t.Fatalf("expected 1 gate, got %d: %+v", len(got), got)
-	}
-	g := got[0]
-	if g.Kind != KindDecide || g.OwnerName != "alpha" || g.Count != 1 {
-		t.Errorf("unexpected gate: %+v", g)
-	}
-	if g.ID != "decide:backlog/fix/alpha" {
-		t.Errorf("unexpected id: %s", g.ID)
-	}
-	if g.DecidableSince != "2026-07-01T12:00:00Z" {
-		t.Errorf("unexpected decidable_since: %s", g.DecidableSince)
-	}
-	if len(g.Blocks) != 1 || g.Blocks[0] != "fix/beta" {
-		t.Errorf("unexpected blocks: %v", g.Blocks)
-	}
-}
-
-func TestDecideSource_SkipsLockedTerminalArchived(t *testing.T) {
-	store := &fakeStore{root: t.TempDir(), items: []backlog.BacklogItem{
-		item("fix", "locked", backlog.StatusInProgress),
-		item("fix", "done", backlog.StatusCompleted),
-		archived(item("fix", "gone", backlog.StatusBacklog)),
-	}}
-	for _, name := range []string{"locked", "done", "gone"} {
-		writeRound(t, store, "fix", name, roundSpec{
-			Round:     1,
-			Readiness: allReadiness(1),
-			Items:     []roundItem{{ID: "d1", Type: "decision"}},
-		})
-	}
-
-	got, err := DecideSource{Store: store}.Enumerate(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 0 {
-		t.Errorf("expected no gates, got %+v", got)
-	}
-}
-
-func TestDecideSource_NoRoundsNoGate(t *testing.T) {
-	store := &fakeStore{root: t.TempDir(), items: []backlog.BacklogItem{
-		item("fix", "fresh", backlog.StatusBacklog),
-	}}
-	got, err := DecideSource{Store: store}.Enumerate(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 0 {
-		t.Errorf("expected no gates, got %+v", got)
-	}
-}
-
 // --- WorkshopSource ---------------------------------------------------------
 
-func TestWorkshopSource_UnworkshoppedItemNeedsWorkshop(t *testing.T) {
+func TestWorkshopSource_UnacceptedPlanNeedsAcceptance(t *testing.T) {
 	store := &fakeStore{root: t.TempDir(), items: []backlog.BacklogItem{
-		item("execute", "raw", backlog.StatusBacklog),
+		acceptedItem("execute", "raw", backlog.StatusBacklog),
 	}}
-	got, err := WorkshopSource{Store: store}.Enumerate(context.Background())
+	store.items[0].PlanAcceptance = nil
+	got, err := WorkshopSource{Store: store, Plans: fakePlanReader{plan: &sharedv1.Plan{ContentHash: "sha256:current", Status: sharedv1.PlanStatus_PLAN_STATUS_ACTIVE}}}.Enumerate(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Suggested != "workshop" {
-		t.Fatalf("expected workshop gate, got %+v", got)
+	if len(got) != 1 || got[0].Suggested != "accept-plan" {
+		t.Fatalf("expected acceptance gate, got %+v", got)
 	}
 }
 
-func TestWorkshopSource_ReadyItemHasNoGate(t *testing.T) {
+func TestWorkshopSource_AcceptedCurrentPlanHasNoGate(t *testing.T) {
 	store := &fakeStore{root: t.TempDir(), items: []backlog.BacklogItem{
-		item("fix", "ready", backlog.StatusReady),
+		acceptedItem("fix", "ready", backlog.StatusReady),
 	}}
-	writeRound(t, store, "fix", "ready", roundSpec{
-		Round:       1,
-		GeneratedAt: "2026-07-01T12:00:00Z",
-		Mode:        "finalize",
-		Readiness:   allReadiness(3),
-	})
-	got, err := WorkshopSource{Store: store}.Enumerate(context.Background())
+	got, err := WorkshopSource{Store: store, Plans: fakePlanReader{plan: &sharedv1.Plan{ContentHash: "sha256:current", Status: sharedv1.PlanStatus_PLAN_STATUS_ACTIVE}}}.Enumerate(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 0 {
-		t.Errorf("ready item should have no workshop gate, got %+v", got)
+		t.Errorf("accepted current plan should have no gate, got %+v", got)
 	}
 }
 
-func TestWorkshopSource_PendingSynthesisReadySuggestsFinalize(t *testing.T) {
+func TestWorkshopSource_ChangedPlanNeedsFreshAcceptance(t *testing.T) {
 	store := &fakeStore{root: t.TempDir(), items: []backlog.BacklogItem{
-		item("fix", "synth", backlog.StatusReady),
+		acceptedItem("fix", "synth", backlog.StatusReady),
 	}}
-	writeRound(t, store, "fix", "synth", roundSpec{
-		Round:            1,
-		GeneratedAt:      "2026-07-01T12:00:00Z",
-		PendingSynthesis: true,
-		Readiness:        allReadiness(3),
-	})
-	got, err := WorkshopSource{Store: store}.Enumerate(context.Background())
+	got, err := WorkshopSource{Store: store, Plans: fakePlanReader{plan: &sharedv1.Plan{ContentHash: "sha256:changed", Status: sharedv1.PlanStatus_PLAN_STATUS_ACTIVE}}}.Enumerate(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Suggested != "finalize" {
-		t.Fatalf("expected finalize gate, got %+v", got)
+	if len(got) != 1 || got[0].Suggested != "accept-plan" {
+		t.Fatalf("expected stale acceptance gate, got %+v", got)
 	}
 }
 
-func TestWorkshopSource_PendingDecisionsTakePrecedence(t *testing.T) {
+func TestWorkshopSource_AuthorsPlanWhenPlanRefMissing(t *testing.T) {
 	store := &fakeStore{root: t.TempDir(), items: []backlog.BacklogItem{
 		item("fix", "questions", backlog.StatusBacklog),
 	}}
-	writeRound(t, store, "fix", "questions", roundSpec{
-		Round:     1,
-		Readiness: allReadiness(1),
-		Items:     []roundItem{{ID: "d1", Type: "decision"}},
-	})
 	got, err := WorkshopSource{Store: store}.Enumerate(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 0 {
-		t.Errorf("decide gate should suppress workshop gate, got %+v", got)
+	if len(got) != 1 || got[0].Suggested != "author-plan" {
+		t.Errorf("missing plan should produce author-plan gate, got %+v", got)
 	}
 }
 

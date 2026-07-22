@@ -13,14 +13,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestListFiles_And_GetFileContent",
+          "ref": "api/internal/backlog/handler_get_test.go::TestListFiles_And_GetFileContent",
           "phase": "unit",
           "status": "failing",
           "notes": "Test API endpoint returns files list"
         },
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestListFiles_And_GetFileContent",
+          "ref": "api/internal/backlog/handler_get_test.go::TestListFiles_And_GetFileContent",
           "phase": "unit",
           "status": "failing",
           "notes": "Test API endpoint handles multiple files and directories"
@@ -41,7 +41,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestListFiles_And_GetFileContent",
+          "ref": "api/internal/backlog/handler_get_test.go::TestListFiles_And_GetFileContent",
           "phase": "unit",
           "status": "failing",
           "notes": "Test API file content endpoint returns text content"
@@ -76,7 +76,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestUploadFile_Success",
+          "ref": "api/internal/fileserve/fileserve_test.go::TestUpload_HappyPath",
           "phase": "unit",
           "status": "failing",
           "notes": "Test API file upload success"

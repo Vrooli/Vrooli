@@ -43,27 +43,17 @@ type ListBacklogResponse struct {
 }
 
 type PendingQuestion struct {
-	ID              string           `json:"id"`
-	Source          string           `json:"source"`
-	ItemKind        string           `json:"item_kind"`
-	ItemName        string           `json:"item_name"`
-	Topic           string           `json:"topic,omitempty"`
-	Text            string           `json:"text,omitempty"`
-	Context         string           `json:"context,omitempty"`
-	Options         []WorkshopOption `json:"options,omitempty"`
-	Selected        *string          `json:"selected,omitempty"`
-	Freeform        *string          `json:"freeform,omitempty"`
-	Notes           *string          `json:"notes,omitempty"`
-	RoundNumber     int              `json:"round_number,omitempty"`
-	ClarificationID *string          `json:"clarification_id,omitempty"`
-	ContextNote     *string          `json:"context_note,omitempty"`
-	Title           string           `json:"title,omitempty"`
-	Description     string           `json:"description,omitempty"`
-	Criticality     string           `json:"criticality,omitempty"`
-	ReviewStatus    string           `json:"review_status,omitempty"`
-	ReviewComment   string           `json:"review_comment,omitempty"`
-	ReviewType      string           `json:"review_type,omitempty"`
-	ModuleID        string           `json:"module_id,omitempty"`
+	ID            string `json:"id"`
+	Source        string `json:"source"`
+	ItemKind      string `json:"item_kind"`
+	ItemName      string `json:"item_name"`
+	Title         string `json:"title,omitempty"`
+	Description   string `json:"description,omitempty"`
+	Criticality   string `json:"criticality,omitempty"`
+	ReviewStatus  string `json:"review_status,omitempty"`
+	ReviewComment string `json:"review_comment,omitempty"`
+	ReviewType    string `json:"review_type,omitempty"`
+	ModuleID      string `json:"module_id,omitempty"`
 }
 
 type PendingQuestionsItem struct {
@@ -74,15 +64,6 @@ type PendingQuestionsItem struct {
 
 type PendingQuestionsResponse struct {
 	Items []PendingQuestionsItem `json:"items"`
-}
-
-type WorkshopOption struct {
-	Key          string `json:"key"`
-	Label        string `json:"label"`
-	Description  string `json:"description,omitempty"`
-	Recommended  bool   `json:"recommended,omitempty"`
-	ImageAssetID string `json:"image_asset_id,omitempty"`
-	ImagePrompt  string `json:"image_prompt,omitempty"`
 }
 
 type CreateBacklogRequest struct {
@@ -434,17 +415,6 @@ type PromptSkillVersionsResponse struct {
 type PromptPreviewResponse struct {
 	SkillID   string            `json:"skill_id"`
 	WithScope bool              `json:"with_scope"`
-	Variables map[string]string `json:"variables,omitempty"`
-	Prompt    string            `json:"prompt"`
-}
-
-type PromptSimulateResponse struct {
-	EntryID   string            `json:"entry_id"`
-	Group     string            `json:"group"`
-	UsageType string            `json:"usage_type"`
-	Kind      string            `json:"kind"`
-	Mode      string            `json:"mode,omitempty"`
-	SkillID   string            `json:"skill_id"`
 	Variables map[string]string `json:"variables,omitempty"`
 	Prompt    string            `json:"prompt"`
 }

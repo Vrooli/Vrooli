@@ -1,23 +1,36 @@
 /**
- * @vrooliComponentSource react-component-library:mermaid-diagram
- * @vrooliComponentVersion 0.1.1
- * @vrooliComponentAdoption a498d635-a0a3-4cc5-8329-ee5aec7405ae
- * @vrooliComponentAppliedAt 2026-07-21T05:02:45Z
- * @vrooliComponentSourceSha256 f0b37b2521ba2d15462396002cfe68436fccd1ab54f6492de48226876a4d079c
- * @vrooliComponentDriftHash f0b37b2521ba2d15462396002cfe68436fccd1ab54f6492de48226876a4d079c
+ * @vrooliComponentSource react-component-library:markdown-renderer
+ * @vrooliComponentVersion 0.3.2
+ * @vrooliComponentAdoption 612450da-7d3d-4888-85a9-e9ecf63254a6
+ * @vrooliComponentAppliedAt 2026-07-21T21:01:34Z
+ * @vrooliComponentSourceSha256 730c67e23fac64f0743f66d5024e869ff6bbd958b641f55b6142c0a26342dfc9
+ * @vrooliComponentDriftHash 730c67e23fac64f0743f66d5024e869ff6bbd958b641f55b6142c0a26342dfc9
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import { useState } from "react";
-export interface MermaidDiagramProps { code: string; onMermaidOpen?: (code: string) => void; sourceLabel?: string; diagramLabel?: string; }
-/**
- * @libraryId react-component-library:mermaid-diagram
- * @displayName Mermaid Diagram
- * @description Mermaid diagram source preview with an expand seam.
- * @version 0.1.1
- * @tags ["markdown","mermaid"]
- * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
- */
+import { useCodeCopy } from "./useCodeCopy";
+import { useMermaidSvg } from "./useMermaidSvg";
 
-export function MermaidDiagram({ code, onMermaidOpen, sourceLabel = "Source", diagramLabel = "Diagram" }: MermaidDiagramProps) { const [source, setSource] = useState(false); return <section className="rounded border border-slate-700 bg-slate-950 p-3"><div className="mb-2 flex gap-2 text-xs"><button type="button" onClick={() => setSource(false)}>{diagramLabel}</button><button type="button" onClick={() => setSource(true)}>{sourceLabel}</button><button type="button" onClick={() => onMermaidOpen?.(code)}>Open</button></div>{source ? <pre className="overflow-x-auto text-xs text-slate-200">{code}</pre> : <pre className="whitespace-pre-wrap text-xs text-slate-300">{code}</pre>}</section>; }
+export interface MermaidDiagramProps {
+  code: string;
+  onMermaidOpen?: (code: string) => void;
+  sourceLabel?: string;
+  diagramLabel?: string;
+  openLabel?: string;
+  copyLabel?: string;
+}
+
+export function MermaidDiagram({ code, onMermaidOpen, sourceLabel = "Source", diagramLabel = "Diagram", openLabel = "Open", copyLabel = "Copy" }: MermaidDiagramProps) {
+  const [showSource, setShowSource] = useState(false);
+  const { svg, error, loading } = useMermaidSvg(code);
+  const { copied, copy } = useCodeCopy();
+  return <section className="my-3 overflow-x-auto rounded border border-[var(--markdown-border)] bg-[var(--markdown-code-surface)]">
+    <header className="flex items-center justify-between gap-2 border-b border-[var(--markdown-border)] px-3 py-2 text-xs text-[var(--markdown-muted)]">
+      <div className="flex gap-2"><button type="button" aria-pressed={!showSource} onClick={() => setShowSource(false)}>{diagramLabel}</button><button type="button" aria-pressed={showSource} onClick={() => setShowSource(true)}>{sourceLabel}</button></div>
+      <div className="flex gap-2"><button type="button" onClick={() => void copy(code)}>{copied ? "Copied" : copyLabel}</button>{onMermaidOpen && <button type="button" onClick={() => onMermaidOpen(code)} className="text-[var(--markdown-link)]">{openLabel}</button>}</div>
+    </header>
+    {showSource ? <pre className="p-3 text-xs text-[var(--markdown-code-text)]">{code}</pre> : error ? <><p role="alert" className="p-3 text-xs text-[var(--markdown-error)]">{error}</p><pre className="p-3 text-xs text-[var(--markdown-code-text)]">{code}</pre></> : loading ? <p className="p-3 text-xs text-[var(--markdown-muted)]">Rendering diagram…</p> : <div className="p-3 [&>svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svg ?? "" }} />}
+  </section>;
+}

@@ -49,7 +49,6 @@ declare -g -A RESOURCE_PORTS=(
     ["pihole"]="8087"          # Pi-hole network-wide ad blocking and DNS management
     
     # Execution Services (23xx range)
-    ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
     ["llamaindex"]="8091"      # RAG and document processing
     ["haystack"]="8075"        # End-to-end framework for question answering and search
     ["keycloak"]="8070"        # Enterprise identity and access management

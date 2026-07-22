@@ -194,15 +194,11 @@ export interface ActionContext {
   item: Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn"> & { archivedAt?: string };
   /** Server-computed blocking info for this item, or null if not available. */
   blockingInfo: ItemBlockingInfo | null;
-  /** Whether the item's plan is ready for execution. null = no readiness data loaded. */
-  readinessReady: boolean | null;
-  /** Whether the latest answered workshop round still needs a synthesis/finalize pass. */
-  pendingSynthesis: boolean;
   /** Whether an agent run is currently active for this item. */
   agentRunning: boolean;
   /** Whether the agent is actively executing work, not merely blocked in review. */
   agentExecuting?: boolean;
-  /** Whether the item has unanswered workshop decisions. */
+  /** Whether the item has unanswered Plan Workshop review decisions. */
   hasPendingDecisions: boolean;
   /** Whether execution history exists for this item (details page only; card passes false). */
   hasExecutionHistory: boolean;
@@ -217,7 +213,7 @@ export interface ActionContext {
 }
 
 /** Which single CTA should receive primary visual emphasis. */
-export type PrimaryCta = "run" | "workshop" | "finalize" | "followUp" | "archive" | "review" | "answer" | null;
+export type PrimaryCta = "run" | "followUp" | "archive" | "review" | "answer" | null;
 
 /** Computed action states for a backlog item. */
 export interface ItemActions {
@@ -235,21 +231,13 @@ export interface ItemActions {
   canRun: boolean;
   /** "Run" button: visible but disabled (agent running or blocked). */
   runDisabled: boolean;
-  /** "Workshop" button: visible and enabled. */
-  canWorkshop: boolean;
-  /** "Workshop" button: visible but disabled (agent running or blocked). */
-  workshopDisabled: boolean;
-  /** "Finalize" button: visible and enabled. */
-  canFinalize: boolean;
-  /** "Finalize" button: visible but disabled (agent running or blocked). */
-  finalizeDisabled: boolean;
   /** "Follow Up" button: visible (terminal + has execution history). */
   canFollowUp: boolean;
   /** "Retry" button: visible (terminal + has execution history). Same gate as Follow-Up; semantically distinct (re-runs same scope). */
   canRetry: boolean;
   /** "Archive" button: visible (terminal items). */
   canArchive: boolean;
-  /** Inline decision stepper / expanded workshop panel should render. */
+  /** Inline decision stepper should render. */
   showDecisionStepper: boolean;
   /** Pass-through for label text ("Agent running..."). */
   agentRunning: boolean;
@@ -269,10 +257,8 @@ export interface ItemActions {
  * | -1   | Locked (queued/in_progress)         | none            |
  * |  0   | Blocked by deps                    | disabled        |
  * |  1   | Agent running                      | disabled        |
- * |  2   | Unanswered decisions               | stepper/panel   |
- * |  3   | Latest answers pending synthesis    | finalize/workshop |
- * |  4   | Readiness not met (no decisions)    | workshop        |
- * |  5   | Ready, no active run               | run             |
+ * |  2   | Unanswered Plan Workshop decisions  | stepper         |
+ * |  3   | Queueable item                      | run             |
  * |  6   | Terminal (completed/failed)         | follow-up/archive |
  */
 export function getItemActions(ctx: ActionContext): ItemActions {
@@ -303,10 +289,6 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     primaryCta: null,
     canRun: false,
     runDisabled: false,
-    canWorkshop: false,
-    workshopDisabled: false,
-    canFinalize: false,
-    finalizeDisabled: false,
     canFollowUp: false,
     canRetry: false,
     canArchive: false,
@@ -321,8 +303,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
   if (locked) return base;
   if (item.archivedAt != null) return base;
 
-  // Step 5: Terminal — follow-up + archive. Checked before steps 0-4 because
-  // terminal items should never show run/workshop regardless of other state.
+  // Terminal items should never show a new run regardless of other state.
   if (terminal) {
     return {
       ...base,
@@ -338,65 +319,26 @@ export function getItemActions(ctx: ActionContext): ItemActions {
   // fields on ItemActions signal the UI to show a warning, but buttons are not
   // hard-disabled. Fall through to normal CTA logic below.
 
-  // Step 2: Unanswered decisions — stepper is primary, workshop blocked until
-  // all decisions are resolved (running another round before answering existing
-  // questions would just pile up more unanswered items).
+  // Unanswered Plan Workshop decisions keep the inline response surface in
+  // focus. Starting another execution is intentionally deferred until they
+  // are resolved.
   if (ctx.hasPendingDecisions) {
     return {
       ...base,
       showDecisionStepper: true,
-      canWorkshop: false,
-      workshopDisabled: false,
       canRetry: canRetryFromHistory,
       primaryCta: null,
     };
   }
 
-  // Step 3a: Latest answers need synthesis — finalize if ready, otherwise run
-  // another workshop round to incorporate them.
-  if (queueable && ctx.pendingSynthesis) {
-    if (ctx.readinessReady === true) {
-      return {
-        ...base,
-        canFinalize: !agentRunning,
-        finalizeDisabled: agentRunning,
-        canWorkshop: !agentRunning,
-        workshopDisabled: agentRunning,
-        canRetry: canRetryFromHistory,
-        primaryCta: "finalize",
-        disabledReason: agentRunning ? "An agent is already running for this item." : null,
-      };
-    }
-    return {
-      ...base,
-      canWorkshop: !agentRunning,
-      workshopDisabled: agentRunning,
-      canRetry: canRetryFromHistory,
-      primaryCta: "workshop",
-      disabledReason: agentRunning ? "An agent is already running for this item." : null,
-    };
-  }
-
-  // Step 3: Readiness not met — workshop is primary.
-  if (queueable && ctx.readinessReady === false) {
-    return {
-      ...base,
-      canWorkshop: !agentRunning,
-      workshopDisabled: agentRunning,
-      canRetry: canRetryFromHistory,
-      primaryCta: "workshop",
-      disabledReason: agentRunning ? "An agent is already running for this item." : null,
-    };
-  }
-
-  // Step 4: Ready — run is primary.
+  // Queueability is determined by lifecycle and server-side execution
+  // preflight. Plan acceptance is enforced by the API, not a stale client
+  // readiness score.
   if (queueable) {
     return {
       ...base,
       canRun: !agentRunning,
       runDisabled: agentRunning,
-      canWorkshop: !agentRunning,
-      workshopDisabled: agentRunning,
       canRetry: canRetryFromHistory,
       primaryCta: "run",
       disabledReason: agentRunning ? "An agent is already running for this item." : null,

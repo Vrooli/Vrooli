@@ -12,7 +12,6 @@ vi.mock("../services", () => ({
     getSkillVersions: vi.fn(),
     revertSkillVersion: vi.fn(),
     preview: vi.fn(),
-    simulate: vi.fn(),
     getExecutionPromptTrace: vi.fn(),
   },
 }));
@@ -41,18 +40,6 @@ describe("PromptsPage", () => {
         purpose: "Analyze a capture and suggest backlog items.",
       },
       {
-        id: "backlog-workshop",
-        title: "Backlog Workshop",
-        group: "backlog",
-        usage_type: "direct_runtime",
-        source_type: "skill",
-        trigger: "Backlog workshop round",
-        skill_id: "swarm-manager-workshop",
-        backlog_kinds: ["idea", "fix"],
-        modes: ["workshop"],
-        purpose: "Run a backlog workshop round.",
-      },
-      {
         id: "execution-process",
         title: "Execution Process Prompt",
         group: "execution",
@@ -66,29 +53,29 @@ describe("PromptsPage", () => {
     ]);
     vi.mocked(promptService.listSkills).mockResolvedValue([
       {
-        id: "swarm-manager-workshop",
-        name: "Workshop",
-        description: "Workshop prompts",
+        id: "swarm-manager-classify-capture",
+        name: "Capture Classification",
+        description: "Capture classification prompts",
         draft: false,
         usage_type: "direct_runtime",
-        groups: ["backlog"],
+        groups: ["capture"],
         trigger_count: 1,
         impact_summary: "Used directly by 1 runtime prompt path.",
       },
     ]);
     vi.mocked(promptService.getSkill).mockResolvedValue({
-      id: "swarm-manager-workshop",
-      name: "Workshop",
-      description: "Workshop prompts",
+        id: "swarm-manager-classify-capture",
+        name: "Capture Classification",
+        description: "Capture classification prompts",
       draft: false,
       usage_type: "direct_runtime",
-      groups: ["backlog"],
+        groups: ["capture"],
       trigger_count: 1,
       impact_summary: "Used directly by 1 runtime prompt path.",
       current_content: "Use {{ITEM_TITLE}} in {{ITEM_FOLDER}}",
     });
     vi.mocked(promptService.getSkillVersions).mockResolvedValue({
-      skillId: "swarm-manager-workshop",
+      skillId: "swarm-manager-classify-capture",
       current: 1,
       versions: [],
     });
@@ -114,7 +101,7 @@ describe("PromptsPage", () => {
     expect(screen.getByText("Execution")).toBeInTheDocument();
     expect(screen.getByText("Prompt Catalog")).toBeInTheDocument();
 
-    const catalogButtons = screen.getAllByRole("button", { name: /Backlog Workshop/i });
+    const catalogButtons = screen.getAllByRole("button", { name: /Capture Classification/i });
     expect(catalogButtons.length).toBeGreaterThan(0);
     const firstCatalogButton = catalogButtons[0];
     if (!firstCatalogButton) {
@@ -126,7 +113,6 @@ describe("PromptsPage", () => {
       expect(screen.getByTestId("prompts-viewer-panel")).toBeVisible();
       expect(screen.getAllByTestId("prompts-skills-list").length).toBeGreaterThan(0);
       expect(screen.getByTestId("prompts-editor")).toBeInTheDocument();
-      expect(screen.getByText("Simulation Preview")).toBeEnabled();
     });
   });
 });

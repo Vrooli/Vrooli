@@ -13,6 +13,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { FloatingPanel } from "../../../components/ui/floating-panel";
+import { selectors } from "../../../consts/selectors";
 import { cn } from "../../../lib/utils";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphSettingsStore } from "../stores/graph-settings-store";
@@ -396,7 +397,7 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
       onClose={onClose}
       title="Graph Controls"
       className="max-w-3xl"
-      testId="settings-drawer"
+      testId={selectors.workspace.settingsDrawer}
     >
       <div className="-mx-4 mb-4 flex border-b border-slate-700/50 px-4">
         {(["graph", "settings", "prompts"] as const).map((tab) => (
@@ -410,7 +411,7 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                 ? "border-cyan-400 text-cyan-300"
                 : "border-transparent text-slate-400 hover:text-slate-200",
             )}
-            data-testid={`settings-drawer-tab-${tab}`}
+            data-testid={tab === "settings" ? selectors.workspace.drawerSettingsTab : `settings-drawer-tab-${tab}`}
           >
             {tab === "graph" ? "Graph" : tab === "settings" ? "Settings" : "Prompts"}
           </button>

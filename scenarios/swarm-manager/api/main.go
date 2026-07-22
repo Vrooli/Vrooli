@@ -79,52 +79,53 @@ import (
 )
 
 type Server struct {
-	router              *mux.Router
-	agentSvc            *agentmanager.AgentService
-	agentActivitySvc    *agentactivity.Service
-	agentSessionSvc     *agentsessions.Service
-	agentSessionStore   agentsessions.Store
-	settingsStore       *settings.Store
-	integrationStatus   *integrationstatus.Provider
-	backlogHandler      *backlog.Handler
-	capturesHandler     *captures.Handler
-	recordsService      *records.Service
-	recordsHandler      *records.Handler
-	recordsStore        records.Store
-	scenariosHandler    *scenarios.Handler
-	initStore           *initiatives.Store
-	initiativeService   *initiatives.Service
-	goalService         *goals.Service
-	overviewSvc         *overview.Service
-	executionSvc        *execution.Service
-	executionHandler    *execution.Handler
-	reviewSvc           *review.Service
-	reviewHandler       *review.Handler
-	initiativeReviewSvc *initiativereview.Service
-	executionStopChan   chan struct{}
-	reviewStopChan      chan struct{}
-	initReviewStopChan  chan struct{}
-	graphBroker         *graph.Broker
-	graphDispatch       *graph.Dispatch
-	graphProjection     *graph.ProjectionService
-	queueHandler        *queue.Handler
-	scenarioRoot        string
-	dataRoot            string
-	cacheRoot           string
-	promptClient        promptmanager.Client
-	eventDB             *database.RoutedDB
-	emitter             *eventlog.Emitter
-	statsEngine         *stats.Engine
-	eventRepo           *eventlog.SQLiteRepository
-	aiSearchSvc         *aisearch.Service
-	aiSearchReconciler  *aisearch.Reconciler
-	aiSearchSyncLoop    *aisearch.SyncLoop
-	aiSearchStopChan    chan struct{}
-	reviewSweeperStop   chan struct{}
-	autoFilerSweeper    *autofiler.Sweeper
-	autoFilerStopChan   chan struct{}
-	audioToolsResolver  audiotools.URLResolver
-	opsAggregator       *operations.Aggregator
+	router               *mux.Router
+	agentSvc             *agentmanager.AgentService
+	agentActivitySvc     *agentactivity.Service
+	agentSessionSvc      *agentsessions.Service
+	agentSessionStore    agentsessions.Store
+	planWorkshopWorkflow *agentmanager.WorkflowService
+	settingsStore        *settings.Store
+	integrationStatus    *integrationstatus.Provider
+	backlogHandler       *backlog.Handler
+	capturesHandler      *captures.Handler
+	recordsService       *records.Service
+	recordsHandler       *records.Handler
+	recordsStore         records.Store
+	scenariosHandler     *scenarios.Handler
+	initStore            *initiatives.Store
+	initiativeService    *initiatives.Service
+	goalService          *goals.Service
+	overviewSvc          *overview.Service
+	executionSvc         *execution.Service
+	executionHandler     *execution.Handler
+	reviewSvc            *review.Service
+	reviewHandler        *review.Handler
+	initiativeReviewSvc  *initiativereview.Service
+	executionStopChan    chan struct{}
+	reviewStopChan       chan struct{}
+	initReviewStopChan   chan struct{}
+	graphBroker          *graph.Broker
+	graphDispatch        *graph.Dispatch
+	graphProjection      *graph.ProjectionService
+	queueHandler         *queue.Handler
+	scenarioRoot         string
+	dataRoot             string
+	cacheRoot            string
+	promptClient         promptmanager.Client
+	eventDB              *database.RoutedDB
+	emitter              *eventlog.Emitter
+	statsEngine          *stats.Engine
+	eventRepo            *eventlog.SQLiteRepository
+	aiSearchSvc          *aisearch.Service
+	aiSearchReconciler   *aisearch.Reconciler
+	aiSearchSyncLoop     *aisearch.SyncLoop
+	aiSearchStopChan     chan struct{}
+	reviewSweeperStop    chan struct{}
+	autoFilerSweeper     *autofiler.Sweeper
+	autoFilerStopChan    chan struct{}
+	audioToolsResolver   audiotools.URLResolver
+	opsAggregator        *operations.Aggregator
 
 	// Audio ports — all backed by audio-tools. Mirrors web-console's
 	// audio integration: the UI talks same-origin to swarm-manager's own
@@ -265,6 +266,7 @@ func (s *Server) setupRoutes() {
 	// --- Core domain ---
 	backlogHandler := s.registerBacklogRoutes(s.dataRoot, scenarioRoot)
 	initService := s.registerInitiativeRoutes(s.dataRoot, backlogHandler)
+	s.registerPlanWorkshopRoutes(s.dataRoot)
 	s.registerGoalsRoutes(s.dataRoot, backlogHandler)
 	s.registerCapturesRoutes(s.cacheRoot, backlogHandler)
 	s.registerRecordsRoutes(s.dataRoot, scenariosDir)
@@ -842,6 +844,9 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 		s.initiativeReviewSvc.SetTransitionRegistry(registry)
 		s.initiativeReviewSvc.SetWorkflowStartGuard(guard)
 	}
+	if s.planWorkshopWorkflow != nil {
+		s.planWorkshopWorkflow.SetStartGuard(guard)
+	}
 }
 
 func (s *Server) registerAgentActivityRoutes(_ string) {
@@ -962,15 +967,6 @@ func main() {
 	if srv.executionHandler != nil {
 		go srv.executionHandler.StartBackgroundWorker(srv.executionStopChan)
 	}
-	if srv.backlogHandler != nil {
-		// Recovery is a bounded one-shot scan of durable correlations. Active
-		// workflow completion is applied through the explicit domain endpoint;
-		// Swarm must not run a background polling loop over Agent Manager.
-		if err := srv.backlogHandler.ProcessWorkshopWorkflows(context.Background()); err != nil {
-			slog.Warn("workshop workflow boot reconciliation failed", "err", err)
-		}
-	}
-
 	if srv.reviewSvc != nil {
 		srv.reviewSvc.RecoverActiveRounds()
 		go srv.reviewSvc.StartBackgroundWorker(srv.reviewStopChan)

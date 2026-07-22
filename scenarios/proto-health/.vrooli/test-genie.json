@@ -111,7 +111,7 @@
         "capability_id": "endpoint_proof"
       },
       "proto.gen_manifest_missing": {
-        "local_level_impact": "L0",
+        "local_level_impact": "L1",
         "global_impact": "foundation_blocker",
         "dimension": "proto-health",
         "severity_default": "SEVERITY_ERROR",

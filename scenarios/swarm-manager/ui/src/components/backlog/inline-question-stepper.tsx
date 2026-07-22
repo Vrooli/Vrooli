@@ -8,23 +8,10 @@ import { ChevronLeft, ChevronRight, Loader2, SkipForward } from "lucide-react";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { backlogService } from "../../services/backlog-service";
-import { OTHER_KEY, parseWorkshopRound, buildWorkshopRoundContent } from "../../lib/workshop-files";
 import type { PendingQuestion, BacklogKind } from "../../types";
-import { QuestionAnswer, WorkshopQuestionView, ReviewQuestionView } from "./question-renderers";
+import { QuestionAnswer, ReviewQuestionView } from "./question-renderers";
 
-/** Result passed to onAllAnswered when workshop auto-advance is evaluated. */
-export interface StepperCompletionResult {
-  autoAdvance?: {
-    triggered: boolean;
-    runId?: string;
-    taskId?: string;
-    reason: string;
-    nextMode?: "workshop" | "finalize";
-    pending?: boolean;
-    advanceAt?: string;
-    delaySeconds?: number;
-  };
-}
+export type StepperCompletionResult = Record<string, never>;
 
 interface InlineQuestionStepperProps {
   questions: PendingQuestion[];
@@ -68,26 +55,7 @@ export function InlineQuestionStepper({
     setSavingId(q.id);
     setSaveError(null);
     try {
-      if (q.source === "workshop" && q.round_number != null && a.selected?.trim()) {
-        // Read-modify-write the workshop round file.
-        const roundNum = String(q.round_number).padStart(3, "0");
-        const filePath = `workshop/round-${roundNum}.json`;
-        const content = await backlogService.getFileContent(backlogKind, backlogName, filePath);
-        const parsed = parseWorkshopRound(content);
-        if (parsed.round) {
-          const round = parsed.round;
-          const item = (round.items ?? []).find((i) => i.id === q.id);
-          if (item) {
-            item.selected = a.selected === OTHER_KEY ? OTHER_KEY : a.selected;
-            item.freeform = a.selected === OTHER_KEY ? (a.freeform ?? null) : null;
-            item.notes = a.notes ?? null;
-          }
-          await backlogService.saveFileContent(
-            backlogKind, backlogName, filePath,
-            buildWorkshopRoundContent(round), "application/json",
-          );
-        }
-      } else if (q.source === "review" && (a.reviewStatus === "approved" || a.reviewStatus === "flagged")) {
+      if (q.source === "review" && (a.reviewStatus === "approved" || a.reviewStatus === "flagged")) {
         await backlogService.batchReview(backlogKind, backlogName, [{
           id: q.id,
           type: q.review_type ?? "target",
@@ -133,7 +101,7 @@ export function InlineQuestionStepper({
     }
   }, [currentIndex, total, question, skippedIds]);
 
-  /** Finish: save the last answer and close the stepper (no auto-advance). */
+  /** Finish: save the last answer and close the stepper. */
   const finish = useCallback(async () => {
     const q = stableQuestions[currentIndex] as PendingQuestion | undefined;
     if (!q) return;
@@ -158,21 +126,12 @@ export function InlineQuestionStepper({
     >
       {/* Question content */}
       <div className="min-h-[140px]">
-        {question.source === "workshop" ? (
-          <WorkshopQuestionView
-            question={question}
-            answer={answer}
-            disabled={isSaving}
-            onUpdate={(patch) => updateAnswer(question.id, patch)}
-          />
-        ) : (
-          <ReviewQuestionView
-            question={question}
-            answer={answer}
-            disabled={isSaving}
-            onUpdate={(patch) => updateAnswer(question.id, patch)}
-          />
-        )}
+        <ReviewQuestionView
+          question={question}
+          answer={answer}
+          disabled={isSaving}
+          onUpdate={(patch) => updateAnswer(question.id, patch)}
+        />
       </div>
 
       {/* Save error */}
@@ -243,4 +202,3 @@ export function InlineQuestionStepper({
     </div>
   );
 }
-

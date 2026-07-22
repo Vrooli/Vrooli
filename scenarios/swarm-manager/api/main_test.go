@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,23 +19,6 @@ import (
 func newTestServer(t *testing.T) *Server {
 	t.Helper()
 	root := t.TempDir()
-	// Disable auto-workshop flags so item creation doesn't fire background
-	// agent spawns under the test. The production settings handler reads
-	// from `<scenarioRoot>/config/settings.json` (see main.go), so the
-	// file must land there.
-	configDir := filepath.Join(root, "config")
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	settings := map[string]any{
-		"auto_initialize_workshop": false,
-		"auto_advance_workshop":    false,
-		"auto_cascade_workshop":    false,
-	}
-	data, _ := json.MarshalIndent(settings, "", "  ")
-	if err := os.WriteFile(filepath.Join(configDir, "settings.json"), data, 0o644); err != nil {
-		t.Fatal(err)
-	}
 	// The operating-mode registry loads mode data from `<scenarioRoot>/modes`
 	// (see operatingmode.ValidateRegistry in main.go). Symlink the real
 	// committed mode folder into the isolated test root so the server starts

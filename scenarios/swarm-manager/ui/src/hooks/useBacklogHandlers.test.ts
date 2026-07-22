@@ -5,7 +5,7 @@ import { useBacklogDetailUIStore } from "../stores";
 
 // Shape matching the mock data so we can access _mutations without `any`
 interface MockMutation { mutate: ReturnType<typeof vi.fn>; isPending: boolean; isError: boolean; error: null; reset: ReturnType<typeof vi.fn> }
-interface MockMutations { update: MockMutation; acceptanceGlob: MockMutation; delete: MockMutation; agent: MockMutation; workshopSave: MockMutation; workshopDeleteRound: MockMutation; fileAction: MockMutation; updateReqs: MockMutation; createModule: MockMutation; updateModuleMeta: MockMutation; createTarget: MockMutation; updateTarget: MockMutation }
+interface MockMutations { update: MockMutation; acceptanceGlob: MockMutation; delete: MockMutation; agent: MockMutation; fileAction: MockMutation; updateReqs: MockMutation; createModule: MockMutation; updateModuleMeta: MockMutation; createTarget: MockMutation; updateTarget: MockMutation }
 interface MockData { _mutations: MockMutations; updateRequirements: ReturnType<typeof vi.fn>; [key: string]: unknown }
 
 // Minimal mock for _mutations
@@ -23,8 +23,6 @@ const makeMockData = () => ({
     acceptanceGlob: makeMockMutation(),
     delete: makeMockMutation(),
     agent: makeMockMutation(),
-    workshopSave: makeMockMutation(),
-    workshopDeleteRound: makeMockMutation(),
     fileAction: makeMockMutation(),
     updateReqs: makeMockMutation(),
     createModule: makeMockMutation(),
@@ -41,7 +39,6 @@ const makeMockData = () => ({
   },
   targetIdSet: new Set(["t1"]),
   reqModuleMap: new Map([["req1", "mod1"]]),
-  deliverableLabelLower: "plan",
   invalidateFiles: vi.fn(),
   deleteTarget: vi.fn(),
   deleteModule: vi.fn(),
@@ -59,7 +56,6 @@ function makeOpts(overrides: Partial<UseBacklogHandlersOptions> = {}): UseBacklo
     setSearchParams: vi.fn(),
     selectedFile: null,
     closeDetail: vi.fn(),
-    refreshActivities: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -97,33 +93,6 @@ describe("useBacklogHandlers", () => {
     expect((opts.data as unknown as MockData)._mutations.delete.mutate).toHaveBeenCalled();
   });
 
-  it("handleRunWorkshop calls agent mutation with workshop mode", () => {
-    const opts = makeOpts();
-    const { result } = renderHook(() => useBacklogHandlers(opts));
-
-    act(() => {
-      result.current.handleRunWorkshop();
-    });
-
-    expect((opts.data as unknown as MockData)._mutations.agent.mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "workshop" }),
-      expect.any(Object),
-    );
-  });
-
-  it("handleFinalizeWorkshop calls agent mutation with finalize mode", () => {
-    const opts = makeOpts();
-    const { result } = renderHook(() => useBacklogHandlers(opts));
-
-    act(() => {
-      result.current.handleFinalizeWorkshop();
-    });
-
-    expect((opts.data as unknown as MockData)._mutations.agent.mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "finalize" }),
-      expect.any(Object),
-    );
-  });
 
   it("handleCreateTarget opens target dialog in store", () => {
     const opts = makeOpts();

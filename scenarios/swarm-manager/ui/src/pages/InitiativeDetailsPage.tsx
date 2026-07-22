@@ -32,6 +32,7 @@ import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDe
 import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
 import { proposalSessionService } from "../services/proposal-session-service";
 import { InitiativeReviewPanel } from "../components/initiative/initiative-review-panel";
+import { PlanWorkshopPanel } from "../components/plan-workshop/plan-workshop-panel";
 import { RelatedTab } from "../components/related/RelatedTab";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createInitiativeFileServiceAdapter } from "../services/initiative-file-service-adapter";
@@ -696,6 +697,9 @@ export function InitiativeDetailsPage() {
             {archiveActionError}
           </div>
         )}
+        <div className="mb-3">
+          <PlanWorkshopPanel subject={{ kind: "initiative", ref: initiative.name }} disabled={isArchived} />
+        </div>
         {activeTab === "info" && (
           <>
             {/* Overview section */}

@@ -590,7 +590,7 @@ system::install_nvidia_runtime_pacman() {
     return 1
 }
 
-# Additional system utility functions for Judge0 and other resources
+# Additional system utility functions for resources
 
 #######################################
 # Get total memory in MB

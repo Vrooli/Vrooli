@@ -93,10 +93,6 @@ func settingsToProto(s Settings) *domainpb.Settings {
 		AutoFixup:                     s.AutoFixup,
 		MaxFixupAttempts:              int32(s.MaxFixupAttempts),
 		ReviewAgentEnabled:            s.ReviewAgentEnabled,
-		MaxAutoRounds:                 int32(s.MaxAutoRounds),
-		AutoInitializeWorkshop:        s.AutoInitializeWorkshop,
-		AutoAdvanceWorkshop:           s.AutoAdvanceWorkshop,
-		AutoCascadeWorkshop:           s.AutoCascadeWorkshop,
 		AgentMaxTurns:                 int32(s.AgentMaxTurns),
 		AgentTimeoutSeconds:           int32(s.AgentTimeoutSeconds),
 		SearchDebounceMs:              int32(s.SearchDebounceMs),
@@ -144,11 +140,6 @@ func policyProjectionToProto(s Settings) *apipb.SettingsPolicyProjection {
 	out := &apipb.SettingsPolicyProjection{
 		EffectiveControls: &apipb.PolicyControlsView{
 			DefaultMode:                 controls.Execution.DefaultMode,
-			AutoInitialize:              controls.AutoAdvance.AutoInitialize,
-			AutoAdvanceEnabled:          controls.AutoAdvance.Enabled,
-			CascadeEnabled:              controls.AutoAdvance.Cascade,
-			AutoAdvanceDelaySeconds:     int32(controls.AutoAdvance.DelaySeconds),
-			MaxAutoRounds:               int32(controls.AutoAdvance.MaxAutoRounds),
 			AutoFixup:                   controls.Retry.AutoFixup,
 			MaxFixupAttempts:            int32(controls.Retry.MaxFixupAttempts),
 			ReviewAgentEnabled:          controls.Review.AgentEnabled,
@@ -196,7 +187,6 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		patch.Theme = req.Theme
 	}
 	executionPatchFromProto(req, &patch)
-	workshopPatchFromProto(req, &patch)
 	agentPatchFromProto(req, &patch)
 	uiPatchFromProto(req, &patch)
 	reviewPatchFromProto(req, &patch)
@@ -221,27 +211,6 @@ func executionPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPa
 	if req.ReviewAgentEnabled != nil {
 		v := *req.ReviewAgentEnabled
 		patch.ReviewAgentEnabled = &v
-	}
-}
-
-// workshopPatchFromProto copies the workshop request fields. The proto request
-// has no AutoAdvanceDelaySeconds field, so it is intentionally absent here.
-func workshopPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
-	if req.MaxAutoRounds != nil {
-		v := int(*req.MaxAutoRounds)
-		patch.MaxAutoRounds = &v
-	}
-	if req.AutoInitializeWorkshop != nil {
-		v := *req.AutoInitializeWorkshop
-		patch.AutoInitializeWorkshop = &v
-	}
-	if req.AutoAdvanceWorkshop != nil {
-		v := *req.AutoAdvanceWorkshop
-		patch.AutoAdvanceWorkshop = &v
-	}
-	if req.AutoCascadeWorkshop != nil {
-		v := *req.AutoCascadeWorkshop
-		patch.AutoCascadeWorkshop = &v
 	}
 }
 
@@ -381,7 +350,6 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 	}
 	return req.Theme == nil &&
 		isEmptyExecutionRequest(req) &&
-		isEmptyWorkshopRequest(req) &&
 		isEmptyAgentRequest(req) &&
 		isEmptyUIRequest(req) &&
 		isEmptyReviewRequest(req) &&
@@ -394,14 +362,6 @@ func isEmptyExecutionRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.AutoFixup == nil &&
 		req.MaxFixupAttempts == nil &&
 		req.ReviewAgentEnabled == nil
-}
-
-// isEmptyWorkshopRequest reports whether no workshop field is set.
-func isEmptyWorkshopRequest(req *apipb.UpdateSettingsRequest) bool {
-	return req.MaxAutoRounds == nil &&
-		req.AutoInitializeWorkshop == nil &&
-		req.AutoAdvanceWorkshop == nil &&
-		req.AutoCascadeWorkshop == nil
 }
 
 // isEmptyAgentRequest reports whether no agent-behavior field is set.

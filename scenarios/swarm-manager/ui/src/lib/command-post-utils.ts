@@ -27,7 +27,6 @@ import { computeUnblockingMap } from "./dependency-sort";
 // ---------------------------------------------------------------------------
 
 export type ActionGroupId =
-  | "needs-workshop"
   | "ready-to-run"
   | "pending-decisions"
   | "needs-review"
@@ -66,7 +65,6 @@ export interface CrossItemQuestion {
 // ---------------------------------------------------------------------------
 
 const GROUP_LABELS: Record<ActionGroupId, string> = {
-  "needs-workshop": "Needs Workshop",
   "ready-to-run": "Ready to Run",
   "pending-decisions": "Pending Decisions",
   "needs-review": "Needs Review",
@@ -163,16 +161,12 @@ export function groupActionItems(
     const key = snoozeKeyForBacklog(item.kind, item.name);
     const reasons = getAttentionReasons(item, feedbackMap, maturityMap);
 
-    // Build a minimal ActionContext to get the primary CTA
-    const maturityKey = `${item.kind}/${item.name}`;
-    const maturity = maturityMap.get(maturityKey);
-    const feedback = feedbackMap.get(maturityKey);
+    // Build a minimal ActionContext to get the primary CTA.
+    const feedback = feedbackMap.get(`${item.kind}/${item.name}`);
 
     const ctx: ActionContext = {
       item,
       blockingInfo: null, // Command post doesn't need blocking state — items are grouped by CTA
-      readinessReady: maturity?.ready ?? null,
-      pendingSynthesis: false, // conservative default
       agentRunning: false,
       hasPendingDecisions: (feedback?.pendingDecisions ?? 0) > 0,
       hasExecutionHistory: false,
@@ -202,8 +196,6 @@ export function groupActionItems(
 
     if (ctx.hasPendingDecisions) {
       groups.get("pending-decisions")?.push({ ...actionable, primaryCta: "answer" });
-    } else if (actions.primaryCta === "workshop" || actions.primaryCta === "finalize") {
-      groups.get("needs-workshop")?.push(actionable);
     } else if (actions.primaryCta === "run") {
       groups.get("ready-to-run")?.push(actionable);
     }
@@ -271,7 +263,6 @@ export function aggregateCrossItemQuestions(
     if (activeItemKeys && !activeItemKeys.has(`${pqi.kind}/${pqi.name}`)) continue;
 
     for (const question of pqi.questions) {
-      if (question.source === "workshop" && question.selected?.trim()) continue;
       if (question.source === "review" && (question.review_status === "approved" || question.review_status === "flagged")) continue;
 
       result.push({

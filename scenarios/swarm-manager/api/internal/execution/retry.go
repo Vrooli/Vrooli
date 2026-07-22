@@ -74,7 +74,7 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		return Record{}, fmt.Errorf("cannot retry: %w", loadErr)
 	}
 
-	preflight := s.processPreflightForItem(item, false)
+	preflight := s.processPreflightForItem(ctx, item, false)
 	if !preflight.Ready && !parent.Force && hasNonForceableExecutionReasons(preflight.BlockingReasons) {
 		return Record{}, apierr.BadRequest("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
 	}

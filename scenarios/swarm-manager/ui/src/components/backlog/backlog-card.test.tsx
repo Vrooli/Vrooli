@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BacklogCard } from "./backlog-card";
 import type { BacklogCardProps } from "./backlog-card";
@@ -28,10 +28,6 @@ const makeActions = (overrides?: Partial<ItemActions>): ItemActions => ({
   primaryCta: "run",
   canRun: false,
   runDisabled: false,
-  canWorkshop: false,
-  workshopDisabled: false,
-  canFinalize: false,
-  finalizeDisabled: false,
   canFollowUp: false,
   canRetry: false,
   canArchive: false,
@@ -55,32 +51,13 @@ const renderCard = (overrides?: Partial<BacklogCardProps>) => {
     onRun: vi.fn(),
     onArchive: vi.fn(),
     onFollowUp: vi.fn(),
-    onFinalize: vi.fn(),
-    onWorkshop: vi.fn(),
     archivePending: false,
-    finalizePending: false,
-    workshopPending: false,
     ...overrides,
   };
   return render(<BacklogCard {...props} />);
 };
 
 describe("BacklogCard", () => {
-  it("renders finalize as the primary action and next round as secondary", () => {
-    renderCard({
-      itemActions: makeActions({
-        primaryCta: "finalize",
-        canFinalize: true,
-        canWorkshop: true,
-      }),
-      workshopLabel: "Next Round",
-    });
-
-    const actionRow = screen.getByTestId("backlog-card-actions");
-    expect(within(actionRow).getByRole("button", { name: "Finalize" })).toBeInTheDocument();
-    expect(within(actionRow).getByRole("button", { name: "Next Round" })).toBeInTheDocument();
-  });
-
   it("renders clickable status chip when onStatusChange is provided", () => {
     renderCard({ onStatusChange: vi.fn() });
     expect(screen.getByTestId("status-chip-trigger")).toBeInTheDocument();
@@ -111,21 +88,6 @@ describe("BacklogCard", () => {
 
     await user.click(screen.getByTestId("status-option-backlog"));
     expect(onStatusChange).toHaveBeenCalledWith("backlog");
-  });
-
-  it("shows finalization transition copy for research items", () => {
-    renderCard({
-      item: makeItem({ kind: "research", status: "researching" }),
-      transitionResult: {
-        autoAdvance: {
-          triggered: true,
-          reason: "finalizing",
-          nextMode: "finalize",
-        },
-      },
-    });
-
-    expect(screen.getByText("Finalizing conclusion...")).toBeInTheDocument();
   });
 
   describe("pick mode (SessionContextPicker)", () => {

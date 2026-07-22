@@ -92,8 +92,8 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
         {
           id: "operations-decisions",
           icon: ListTodo,
-          text: "Help me drain workshop decisions for a backlog item.",
-          contextText: (title) => `Help me drain workshop decisions for "${title}".`,
+          text: "Review a Plan Workshop and recommend the next operator action.",
+          contextText: (title) => `Review the Plan Workshop for "${title}" and recommend the next operator action.`,
           requirements: [{ kind: "context", type: "backlog_item" }],
         },
         {

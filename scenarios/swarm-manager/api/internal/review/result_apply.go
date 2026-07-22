@@ -13,6 +13,7 @@ type reviewHandoff struct {
 	RegressionIntroduced   bool                    `json:"regression_introduced"`
 	Notes                  []string                `json:"notes"`
 	Summary                string                  `json:"summary"`
+	Disposition            *Disposition            `json:"disposition,omitempty"`
 }
 
 type reviewResultEnvelope struct {
@@ -50,6 +51,9 @@ func applyReviewHandoff(round *Round, handoff reviewHandoff) {
 	if len(handoff.Notes) > 0 {
 		round.Notes = handoff.Notes
 	}
+	if handoff.Disposition != nil {
+		round.Disposition = handoff.Disposition
+	}
 }
 
 func parseReviewHandoff(raw json.RawMessage) reviewHandoff {
@@ -83,12 +87,26 @@ func parseReviewHandoff(raw json.RawMessage) reviewHandoff {
 func isReviewSuccessOutcome(outcome string) bool {
 	return outcome == "accepted" || outcome == "changes-requested"
 }
+
+func validDisposition(disposition *Disposition) bool {
+	if disposition == nil || strings.TrimSpace(disposition.Rationale) == "" {
+		return false
+	}
+	switch disposition.Kind {
+	case "plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention":
+	default:
+		return false
+	}
+	return disposition.Confidence == "high" || disposition.Confidence == "medium" || disposition.Confidence == "low"
+}
+
 func reviewAbstainReason(outcome string) string {
 	if outcome == "failed" {
 		return "review round failed"
 	}
 	return "review agent could not derive an honest verdict; round abstained to operator attention"
 }
+
 func firstNonEmptyString(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {

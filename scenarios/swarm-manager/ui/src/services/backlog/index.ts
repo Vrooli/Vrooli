@@ -13,7 +13,6 @@ import { defaultApiClient } from "../../lib/api-client";
 import type { IBacklogService } from "./types";
 import { createCrudMethods } from "./crud-service";
 import { createFileMethods } from "./file-service";
-import { createWorkshopMethods } from "./workshop-service";
 import { createQueueMethods } from "./queue-service";
 import { createArchiveMethods } from "./archive-service";
 import { createBulkMethods } from "./bulk-service";
@@ -24,10 +23,6 @@ export type {
   QueueResponse,
   BacklogFileOperationResult,
   BacklogUpdatePatch,
-  WorkshopAutoAdvance,
-  WorkshopSaveResponse,
-  WorkshopDeleteRoundResponse,
-  WorkshopResetResponse,
   ImportBacklogResponse,
   RenderedBacklogPlan,
 } from "./types";
@@ -36,7 +31,6 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
   return {
     ...createCrudMethods(apiClient),
     ...createFileMethods(apiClient),
-    ...createWorkshopMethods(apiClient),
     ...createQueueMethods(apiClient),
     ...createArchiveMethods(apiClient),
     ...createBulkMethods(apiClient),

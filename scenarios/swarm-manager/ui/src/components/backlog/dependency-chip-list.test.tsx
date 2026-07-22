@@ -177,11 +177,11 @@ describe("DependencyChipList", () => {
       expect(screen.getByTestId("dep-activity-chip-idea-dep-item")).toBeInTheDocument();
     });
 
-    it("renders plan-ready and review-ready badges when applicable", () => {
+    it("renders pending-decision and review-ready badges when applicable", () => {
       const dep1 = makeDep({
         name: "p",
         status: "ready" as BacklogStatus,
-        attentionReasons: [{ kind: "plan-ready" }],
+        attentionReasons: [{ kind: "pending-decisions", count: 1 }],
       });
       const dep2 = makeDep({
         name: "r",
@@ -189,7 +189,7 @@ describe("DependencyChipList", () => {
         attentionReasons: [{ kind: "research-complete" }],
       });
       renderChips([dep1, dep2]);
-      expect(screen.getByText("Plan ready")).toBeInTheDocument();
+      expect(screen.getByText("1 decision")).toBeInTheDocument();
       expect(screen.getByText("Review ready")).toBeInTheDocument();
     });
   });

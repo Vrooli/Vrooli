@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/independent-review",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Gather bounded independent evidence for one completed backlog execution. Swarm owns the immutable execution snapshot, review ledger, and operator gate.",
   "inputSchema": {
     "type": "object",
@@ -96,6 +96,17 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 16384
+              },
+              "disposition": {
+                "type": "object",
+                "properties": {
+                  "kind": {"type": "string", "enum": ["plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention"]},
+                  "rationale": {"type": "string", "minLength": 1, "maxLength": 8192},
+                  "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+                  "scope": {"type": "string", "maxLength": 4096}
+                },
+                "required": ["kind", "rationale", "confidence"],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -105,7 +116,8 @@
               "improvement_suggestions",
               "regression_introduced",
               "notes",
-              "summary"
+              "summary",
+              "disposition"
             ],
             "additionalProperties": false
           }
@@ -137,7 +149,76 @@
             "properties": {
               "handoff": {
                 "type": "object",
-                "additionalProperties": true
+                "properties": {
+                  "verdict": {
+                    "type": "string",
+                    "enum": [
+                      "ready",
+                      "ready_with_notes",
+                      "needs_work",
+                      "not_assessable"
+                    ]
+                  },
+                  "agent_assessment": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 16384
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "improvement_suggestions": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "regression_introduced": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 4096
+                    }
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 16384
+                  },
+                  "disposition": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {"type": "string", "enum": ["plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention"]},
+                      "rationale": {"type": "string", "minLength": 1, "maxLength": 8192},
+                      "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+                      "scope": {"type": "string", "maxLength": 4096}
+                    },
+                    "required": ["kind", "rationale", "confidence"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "verdict",
+                  "agent_assessment",
+                  "evidence",
+                  "improvement_suggestions",
+                  "regression_introduced",
+                  "notes",
+                  "summary",
+                  "disposition"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [

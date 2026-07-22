@@ -63,6 +63,13 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   createdBy?: AgentSessionAttribution;
   /** Canonical plan-manager plan backing this work item. */
   planRef?: PlanRef;
+  /** Explicit authorization for the currently bound canonical plan revision. */
+  planAcceptance?: {
+    actor: string;
+    acceptedAt: string;
+    planContentHash: string;
+    subjectVersion: string;
+  };
   /** Read-time lifecycle signal; never persisted in an item spec. */
   stale?: boolean;
 };

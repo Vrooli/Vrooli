@@ -1,7 +1,6 @@
 package backlog
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,7 +11,6 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/identity"
-	"swarm-manager/internal/workshop"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
@@ -125,11 +123,8 @@ func mapCreateError(w http.ResponseWriter, err error) {
 // for item creation; HTTP callers MUST go through it.
 func (h *Handler) creationService() *Service {
 	cfg := ServiceConfig{
-		Store:    h.store,
-		Assigner: h.initiativeAssigner,
-		Workshop: WorkshopTriggerFunc(func(item BacklogItem) {
-			h.maybeAutoWorkshop(item, false)
-		}),
+		Store:        h.store,
+		Assigner:     h.initiativeAssigner,
 		Invalidator:  graphInvalidatorFunc(h.invalidateAllGraphLenses),
 		CycleChecker: CycleCheckerFunc(h.checkDependencyCycles),
 	}
@@ -155,81 +150,5 @@ type graphInvalidatorFunc func()
 func (f graphInvalidatorFunc) ScheduleAll() {
 	if f != nil {
 		f()
-	}
-}
-
-// maybeAutoWorkshop checks the global auto_initialize_workshop setting,
-// dependency readiness, and spawns the first workshop round asynchronously
-// if appropriate.
-func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
-	controls := h.loadPolicyControls("auto-workshop policy-controls load error, using defaults")
-	if !workshop.ShouldAutoInitialize(controls.AutoAdvance.AutoInitialize) {
-		return
-	}
-	if !forceOverride && len(item.DependsOn) > 0 {
-		reasons, err := EvaluateDependencyBlocking(item, h.store)
-		if err != nil {
-			slog.Warn("auto-workshop dep check error, proceeding anyway", "kind", item.Kind, "name", item.Name, "err", err)
-		} else if len(reasons) > 0 {
-			slog.Info("auto-workshop blocked by deps", "kind", item.Kind, "name", item.Name, "reasons", reasons)
-			return
-		}
-	}
-	go func(item BacklogItem) {
-		if _, err := h.startWorkshopRoundWorkflow(context.Background(), item, ""); err != nil {
-			slog.Error("auto-init failed", "kind", item.Kind, "name", item.Name, "err", err)
-		}
-	}(item)
-}
-
-// cascadeWorkshopTrigger finds items that depend on the given item and
-// auto-triggers their workshops if all their dependencies are now met.
-// Only triggers for items still in "backlog" status with no existing
-// workshop rounds.
-func (h *Handler) cascadeWorkshopTrigger(readyItem BacklogItem) {
-	readyKey := string(readyItem.Kind) + "/" + readyItem.Name
-
-	allItems, err := h.store.LoadAll(nil)
-	if err != nil {
-		slog.Error("cascade failed to load items", "err", err)
-		return
-	}
-
-	for _, item := range allItems {
-		if item.Status != StatusBacklog {
-			continue
-		}
-		dependsOnReady := false
-		for _, dep := range item.DependsOn {
-			if dep == readyKey {
-				dependsOnReady = true
-				break
-			}
-		}
-		if !dependsOnReady {
-			continue
-		}
-
-		reasons, err := EvaluateDependencyBlocking(item, h.store)
-		if err != nil {
-			slog.Warn("cascade dep check failed", "kind", item.Kind, "name", item.Name, "err", err)
-			continue
-		}
-		if len(reasons) > 0 {
-			continue
-		}
-
-		itemDir := h.store.ItemDir(item.Kind, item.Name)
-		_, roundCount, _ := workshop.LoadLatestRound(itemDir)
-		if roundCount > 0 {
-			continue
-		}
-
-		slog.Info("cascade triggering workshop", "kind", item.Kind, "name", item.Name, "unblocked_by", readyKey)
-		go func(item BacklogItem) {
-			if _, err := h.startWorkshopRoundWorkflow(context.Background(), item, ""); err != nil {
-				slog.Error("cascade workshop invoke failed", "kind", item.Kind, "name", item.Name, "err", err)
-			}
-		}(item)
 	}
 }

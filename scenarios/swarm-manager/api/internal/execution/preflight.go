@@ -2,24 +2,25 @@ package execution
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"swarm-manager/internal/workshop"
 )
 
 // ProcessPreflight evaluates whether a backlog item is ready for processing.
-func (s *Service) ProcessPreflight(_ context.Context, backlogKind, backlogName string) (ProcessPreflight, error) {
+func (s *Service) ProcessPreflight(ctx context.Context, backlogKind, backlogName string) (ProcessPreflight, error) {
 	item, err := s.loadBacklogItem(backlogKind, backlogName)
 	if err != nil {
 		return ProcessPreflight{}, err
 	}
-	return s.processPreflightForItem(item, true), nil
+	return s.processPreflightForItem(ctx, item, true), nil
 }
 
-func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool) ProcessPreflight {
+func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem, checkQueueable bool) ProcessPreflight {
 	targetScenarioID, archivedRevival := resolveTargetScenario(item)
 	targetScenarioExists := false
 	if strings.TrimSpace(targetScenarioID) != "" {
@@ -46,37 +47,25 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 		preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("backlog item cannot be queued from current status: %s", item.Status))
 	}
 
-	// Check workshop readiness instead of clarify questions.
+	// Execution requires an explicit acceptance of the current canonical plan.
+	// Workshop artifacts remain historical context only; score thresholds are
+	// deliberately not a release gate.
 	itemDir := s.itemDir(item.Kind, item.Name)
 	deliverablePath := deliverableForKind(item.Kind)
 	hasDeliverable := false
 	if deliverablePath == "conclusion.md" {
-		hasDeliverable = workshop.HasPlanByName(itemDir, deliverablePath)
+		hasDeliverable = hasConclusion(itemDir, deliverablePath)
 	} else {
 		hasDeliverable = hasExecutionPlanRef(item)
 	}
 	if !hasDeliverable {
 		preflight.BlockingReasons = append(preflight.BlockingReasons, missingDeliverableReason(item.Kind, deliverablePath))
 	}
-	rounds, _ := workshop.LoadRounds(itemDir)
-	if len(rounds) > 0 {
-		latest := rounds[len(rounds)-1]
-		rawScores := make(map[string]int, len(workshop.ReadinessDimensions))
-		for _, dim := range workshop.ReadinessDimensions {
-			if v, ok := latest.Readiness[dim]; ok {
-				rawScores[dim] = v
-			}
+	if deliverablePath != "conclusion.md" && hasDeliverable {
+		acceptanceReason := s.planAcceptanceBlockingReason(ctx, item)
+		if acceptanceReason != "" {
+			preflight.BlockingReasons = append(preflight.BlockingReasons, acceptanceReason)
 		}
-		effective := workshop.ComputeEffectiveScores(rawScores, len(rounds), item.Kind)
-		for _, dim := range workshop.ReadinessDimensions {
-			if effective[dim] < 3 {
-				preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("readiness dimension %q is %d/3 — needs more workshop refinement", dim, effective[dim]))
-			}
-		}
-	} else if hasDeliverable {
-		// Primary deliverable exists but no workshop rounds — allow execution.
-	} else {
-		preflight.BlockingReasons = append(preflight.BlockingReasons, "no workshop rounds completed — run workshop or initialize first")
 	}
 
 	// Fix-before-feature gate applies only at queue time (checkQueueable),
@@ -89,6 +78,63 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 	return preflight
 }
 
+func hasConclusion(itemDir, deliverablePath string) bool {
+	data, err := os.ReadFile(filepath.Join(itemDir, deliverablePath))
+	return err == nil && strings.TrimSpace(string(data)) != ""
+}
+
+func (s *Service) planAcceptanceBlockingReason(ctx context.Context, item backlogItem) string {
+	if item.PlanAcceptance == nil {
+		return "canonical plan has not been explicitly accepted — accept the current plan revision before queueing"
+	}
+	// Production wiring always supplies the Plan Manager renderer. The nil
+	// seam is retained for narrow domain tests and embedded callers that can
+	// verify stored acceptance but do not own a Plan Manager connection.
+	if s.planRenderer == nil {
+		return ""
+	}
+	rendered, err := resolveRenderedPlanContent(ctx, item, s.planRenderer)
+	if err != nil {
+		return fmt.Sprintf("canonical plan validation unavailable: %s", err)
+	}
+	if strings.TrimSpace(rendered.QualityStatus) != "pass" {
+		return fmt.Sprintf("canonical plan is not valid: quality status is %q", rendered.QualityStatus)
+	}
+	if rendered.Status == "PLAN_STATUS_DRAFT" || rendered.Status == "PLAN_STATUS_ARCHIVED" {
+		return fmt.Sprintf("canonical plan is not executable in status %q", rendered.Status)
+	}
+	if strings.TrimSpace(rendered.ContentHash) == "" {
+		return "canonical plan validation unavailable: plan-manager returned no content hash"
+	}
+	if strings.TrimSpace(item.PlanAcceptance.PlanContentHash) != strings.TrimSpace(rendered.ContentHash) {
+		return "canonical plan changed after acceptance — accept the current revision before queueing"
+	}
+	if strings.TrimSpace(item.PlanAcceptance.SubjectVersion) != executionPlanAcceptanceSubjectVersion(item) {
+		return "work contract changed after plan acceptance — accept the current revision before queueing"
+	}
+	return ""
+}
+
+func executionPlanAcceptanceSubjectVersion(item backlogItem) string {
+	payload := struct {
+		Kind            string   `json:"kind"`
+		Name            string   `json:"name"`
+		Title           string   `json:"title"`
+		Description     string   `json:"description"`
+		AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
+		AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+		Creates         []string `json:"creates,omitempty"`
+		PlanRef         *planRef `json:"plan_ref,omitempty"`
+	}{
+		Kind: item.Kind, Name: item.Name, Title: item.Title, Description: item.Description,
+		AcceptanceAllow: item.AcceptanceAllow, AcceptanceDeny: item.AcceptanceDeny,
+		Creates: item.Creates, PlanRef: item.PlanRef,
+	}
+	raw, _ := json.Marshal(payload)
+	sum := sha256.Sum256(raw)
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
 func hasExecutionPlanRef(item backlogItem) bool {
 	if item.PlanRef == nil {
 		return false
@@ -97,10 +143,6 @@ func hasExecutionPlanRef(item backlogItem) bool {
 		strings.TrimSpace(item.PlanRef.Role) == planRefRoleExecutionSpec &&
 		(strings.TrimSpace(item.PlanRef.PlanID) != "" || strings.TrimSpace(item.PlanRef.Slug) != "")
 }
-
-// Old clarify-based blocking question types and loading have been removed.
-// The execution preflight now uses workshop readiness from backlog.LoadWorkshopRounds
-// and backlog.ComputeEffectiveScores instead.
 
 func resolveTargetScenario(item backlogItem) (string, bool) {
 	source := strings.TrimSpace(item.SourceScenarioName)
@@ -124,17 +166,7 @@ func allBlockingReasons(preflight ProcessPreflight) []string {
 }
 
 func hasNonForceableExecutionReasons(reasons []string) bool {
-	for _, reason := range reasons {
-		normalized := strings.ToLower(strings.TrimSpace(reason))
-		if normalized == "" {
-			continue
-		}
-		if strings.Contains(normalized, "workshop decision") || strings.Contains(normalized, "pending decision") {
-			continue
-		}
-		return true
-	}
-	return false
+	return len(reasons) > 0
 }
 
 func scenarioExists(path string) bool {

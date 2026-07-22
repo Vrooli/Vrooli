@@ -31,12 +31,8 @@ interface BacklogDetailUIState {
   // Simple open/close dialogs
   showEdit: boolean;
   showDelete: boolean;
-  showWorkshopReset: boolean;
-  showAgentDialog: boolean;
   showRunModal: boolean;
   showGlobDialog: boolean;
-  /** Workshop blocking override confirmation dialog. Stores the pending mode. */
-  workshopBlockingConfirm: { show: boolean; mode: "workshop" | "finalize" };
   // Parameterised dialog state
   followUpTarget: ExecutionRecord | null;
   roundToDelete: number | null;
@@ -56,16 +52,10 @@ interface BacklogDetailUIState {
   closeEdit: () => void;
   openDelete: () => void;
   closeDelete: () => void;
-  openWorkshopReset: () => void;
-  closeWorkshopReset: () => void;
-  openAgent: () => void;
-  closeAgent: () => void;
   openRunModal: () => void;
   closeRunModal: () => void;
   openGlob: () => void;
   closeGlob: () => void;
-  openWorkshopBlockingConfirm: (mode: "workshop" | "finalize") => void;
-  closeWorkshopBlockingConfirm: () => void;
   setFollowUpTarget: (target: ExecutionRecord | null) => void;
   setRoundToDelete: (round: number | null) => void;
 
@@ -93,11 +83,8 @@ interface BacklogDetailUIState {
 const INITIAL_STATE = {
   showEdit: false,
   showDelete: false,
-  showWorkshopReset: false,
-  showAgentDialog: false,
   showRunModal: false,
   showGlobDialog: false,
-  workshopBlockingConfirm: { show: false, mode: "workshop" as const },
   followUpTarget: null,
   roundToDelete: null,
   reqDialog: closedDialog<{ groupId: string; req?: ArchiveRequirementRecord }>(),
@@ -116,16 +103,10 @@ export const useBacklogDetailUIStore = create<BacklogDetailUIState>((set) => ({
   closeEdit: () => set({ showEdit: false }),
   openDelete: () => set({ showDelete: true }),
   closeDelete: () => set({ showDelete: false }),
-  openWorkshopReset: () => set({ showWorkshopReset: true }),
-  closeWorkshopReset: () => set({ showWorkshopReset: false }),
-  openAgent: () => set({ showAgentDialog: true }),
-  closeAgent: () => set({ showAgentDialog: false }),
   openRunModal: () => set({ showRunModal: true }),
   closeRunModal: () => set({ showRunModal: false }),
   openGlob: () => set({ showGlobDialog: true }),
   closeGlob: () => set({ showGlobDialog: false }),
-  openWorkshopBlockingConfirm: (mode) => set({ workshopBlockingConfirm: { show: true, mode } }),
-  closeWorkshopBlockingConfirm: () => set({ workshopBlockingConfirm: { show: false, mode: "workshop" } }),
   setFollowUpTarget: (target) => set({ followUpTarget: target }),
   setRoundToDelete: (round) => set({ roundToDelete: round }),
 
@@ -158,7 +139,6 @@ export const useBacklogDetailUIStore = create<BacklogDetailUIState>((set) => ({
 
   reset: () => set({
     ...INITIAL_STATE,
-    workshopBlockingConfirm: { show: false, mode: "workshop" as const },
     // Create fresh Set instances to avoid sharing references
     selectedTargetIds: new Set<string>(),
     selectedRequirementIds: new Set<string>(),

@@ -7,12 +7,10 @@
 
 import { BacklogFormDialog } from "./backlog-form-dialog";
 import { AcceptanceGlobDialog } from "./acceptance-glob-dialog";
-import { BacklogAgentDialog } from "./backlog-agent-dialog";
 import { RunBacklogModal } from "./run-backlog-modal";
 import { RequirementFormDialog } from "./requirement-form-dialog";
 import { ModuleFormDialog } from "./module-form-dialog";
 import { TargetFormDialog } from "./target-form-dialog";
-import { ClarificationPanel } from "./clarification-panel";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { FollowUpSheet } from "../review/follow-up-sheet";
 import { findRequirementGroup } from "../../lib/archive-utils";
@@ -22,30 +20,18 @@ import { useRuntimeConfig } from "../../hooks/useRuntimeConfig";
 import { useBacklogDetailUIStore } from "../../stores";
 import type { useBacklogDetailData } from "../../hooks/useBacklogDetailData";
 import type { useBacklogHandlers } from "../../hooks/useBacklogHandlers";
-import type { BacklogFile, ItemBlockingInfo } from "../../types";
 import type { BacklogItem } from "../../types/domain";
-import type { ReadinessIndicatorData } from "../../lib/maturity";
 
 export interface BacklogDialogsProps {
   data: ReturnType<typeof useBacklogDetailData>;
   handlers: ReturnType<typeof useBacklogHandlers>;
-  files: BacklogFile[] | undefined;
-  readinessData: ReadinessIndicatorData | null;
-  agentDialogTargetIds: Set<string>;
-  agentDialogRequirementIds: Set<string>;
   upsertItem: (item: BacklogItem) => void;
-  blockingInfo?: ItemBlockingInfo | null;
 }
 
 export function BacklogDialogs({
   data,
   handlers,
-  files,
-  readinessData,
-  agentDialogTargetIds,
-  agentDialogRequirementIds,
   upsertItem,
-  blockingInfo,
 }: BacklogDialogsProps) {
   const { backlogKind, name, item } = useBacklogDetail();
   const ui = useBacklogDetailUIStore();
@@ -112,42 +98,15 @@ export function BacklogDialogs({
         />
       )}
 
-      <ConfirmDialog
-        isOpen={ui.showWorkshopReset}
-        onClose={() => { ui.closeWorkshopReset(); data.resetWorkshopResetMutation(); }}
-        onConfirm={handlers.handleWorkshopResetConfirm}
-        title="Reset Workshop"
-        description={`This will delete all workshop rounds, clarifications, attachments, and the ${data.deliverableLabel?.toLowerCase() ?? "deliverable"} for "${item?.title || name}". The item spec will be preserved.`}
-        confirmationText={item?.name}
-        confirmLabel="Reset Workshop"
-        isLoading={data.isResettingWorkshop}
-      />
-
       <RunBacklogModal
         isOpen={ui.showRunModal}
         onClose={ui.closeRunModal}
         target={backlogKind && name ? { kind: backlogKind, name, title: item?.title } : undefined}
-        readinessData={readinessData}
         onSuccess={(result) => {
           if (result.item) upsertItem(result.item);
           data.invalidateItem();
           ui.closeRunModal();
         }}
-      />
-
-      <BacklogAgentDialog
-        isOpen={ui.showAgentDialog}
-        isSubmitting={data.isRunningAgent}
-        backlogKind={backlogKind}
-        backlogTitle={item?.title ?? name ?? ""}
-        itemStatus={item?.status}
-        errorMessage={data.agentError}
-        files={files}
-        archiveTargets={data.archiveTargets}
-        initialSelectedTargetIds={agentDialogTargetIds}
-        initialSelectedRequirementIds={agentDialogRequirementIds}
-        onClose={() => { ui.closeAgent(); data.resetAgentMutation(); }}
-        onSubmit={handlers.handleAgentSubmit}
       />
 
       <RequirementFormDialog
@@ -200,26 +159,6 @@ export function BacklogDialogs({
         />
       )}
 
-      <ClarificationPanel
-        onAction={(action) => {
-          if (action === "invalidate_round" || action === "remove_decision" || action === "update_decision") {
-            data.refetchItem();
-          }
-        }}
-      />
-
-      <ConfirmDialog
-        isOpen={ui.workshopBlockingConfirm.show}
-        onClose={ui.closeWorkshopBlockingConfirm}
-        onConfirm={handlers.handleWorkshopBlockingOverride}
-        title="Dependencies Not Ready"
-        description={
-          blockingInfo?.blockingDepKeys.length
-            ? `This item is blocked by incomplete dependencies: ${blockingInfo.blockingDepKeys.join(", ")}. Do you want to proceed anyway?`
-            : "This item has incomplete dependencies. Do you want to proceed anyway?"
-        }
-        confirmLabel="Override and Proceed"
-      />
     </>
   );
 }

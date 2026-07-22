@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/workshop"
 )
 
 func splitEntityRef(ref string) (string, string) {
@@ -437,9 +436,6 @@ func (s *aggregateState) handleWorkshopRoundCompleted(e *eventlog.Event) {
 	}
 	if kind == "" {
 		kind = "unknown"
-	}
-	if _, known := workshop.BoostN[kind]; !known && kind != "unknown" {
-		slog.Warn("recommendation-acceptance stats: unknown kind", "kind", kind, "entity", e.EntityID)
 	}
 	bucket, ok := s.decisionByKind[kind]
 	if !ok {

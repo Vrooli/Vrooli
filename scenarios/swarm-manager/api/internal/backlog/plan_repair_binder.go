@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"swarm-manager/internal/planrepair"
-	"swarm-manager/internal/workshop"
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 )
@@ -23,12 +22,8 @@ func (h *Handler) BindRepairedPlan(ctx context.Context, record planrepair.Record
 	if err != nil {
 		return err
 	}
-	_, rounds, err := workshop.LoadLatestRound(h.store.ItemDir(kind, item.Name))
-	if err != nil {
-		return fmt.Errorf("load workshop frontier: %w", err)
-	}
-	if record.EntityVersion != workshopSnapshotVersion(item, rounds) {
-		return fmt.Errorf("backlog item or workshop version changed after repair start")
+	if record.EntityVersion != immutableBacklogSnapshotVersion(item) {
+		return fmt.Errorf("backlog item changed after repair start")
 	}
 	if item.PlanRef == nil || (item.PlanRef.PlanID != record.PlanReference && item.PlanRef.Slug != record.PlanReference) {
 		return fmt.Errorf("backlog plan reference changed after repair start")
@@ -47,6 +42,7 @@ func (h *Handler) BindRepairedPlan(ctx context.Context, record planrepair.Record
 		return fmt.Errorf("canonical repaired plan id is required")
 	}
 	item.PlanRef = &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: plan.GetId(), Slug: plan.GetSlug(), Role: PlanRefRoleExecutionSpec}
+	item.PlanAcceptance = nil
 	item.Updated = time.Now().UTC().Format(time.RFC3339)
 	return h.store.SaveItem(item)
 }

@@ -10,14 +10,12 @@
  */
 
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
   getItemActions,
   scenariosFromGlobs,
 } from "../lib";
 import type { ItemActions, ResolvedDependencyActivity } from "../lib/backlog-queue-utils";
 import { computeDependencyRelations } from "../lib/backlog-queue-utils";
-import type { FeedbackItem, MaturityItem } from "../lib/attention";
 import { isAgentActivityBlocking } from "../lib/agent-activity-utils";
 import type {
   ArchiveRequirementRecord,
@@ -28,8 +26,6 @@ import type {
   ModuleFormValues,
   ReviewUpdate,
 } from "../types";
-import type { ReviewRound } from "../services/review-service";
-import { backlogService } from "../services";
 import { useAgentActivitiesStore, useBacklogStore } from "../stores";
 import { useBacklogQueries } from "./useBacklogQueries";
 import { useBacklogMutations } from "./useBacklogMutations";
@@ -79,12 +75,6 @@ export function useBacklogDetailData({
     reviewRounds,
     isGatheringEvidence,
     isAwaitingManualReview,
-    workshopDir,
-    workshopRoundPaths,
-    workshopRounds,
-    refetchWorkshopRounds,
-    maturitySummaryData,
-    readinessData,
     archiveTargets,
   } = queries;
 
@@ -98,8 +88,6 @@ export function useBacklogDetailData({
     depStatusMutation,
     acceptanceGlobMutation,
     deleteMutation,
-    agentMutation,
-    workshopSaveMutation,
     updateReqsMutation,
     createModuleMutation,
     updateModuleMetaMutation,
@@ -110,48 +98,17 @@ export function useBacklogDetailData({
     archiveMutation,
     unarchiveMutation,
     batchReviewMutation,
-    workshopDeleteRoundMutation,
-    workshopResetMutation,
     fileActionMutation,
     updateError,
     archiveError,
     deleteError,
-    agentErrorMsg,
     invalidateFiles,
     invalidateItem,
-  } = useBacklogMutations({
-    backlogKind,
-    name,
-    refetchFiles: () => void refetchFiles(),
-    refetchWorkshopRounds: () => void refetchWorkshopRounds(),
-  });
+  } = useBacklogMutations({ backlogKind, name });
 
   // -----------------------------------------------------------------------
   // Computed values
   // -----------------------------------------------------------------------
-
-  // Backlog summary cache (shared with useCommandPostBadgeCount / useNodeActionContext).
-  // Powers the attentionReasons overlay on dependency chips.
-  const summaryQuery = useQuery({
-    queryKey: ["backlog-summary"],
-    queryFn: () => backlogService.getBacklogSummary(),
-    staleTime: 60_000,
-  });
-
-  const feedbackMap = useMemo(() => new Map<string, FeedbackItem>(), []);
-
-  const maturityMap = useMemo(() => {
-    const map = new Map<string, MaturityItem>();
-    for (const entry of summaryQuery.data?.maturity?.items ?? []) {
-      map.set(`${entry.kind}/${entry.name}`, {
-        kind: entry.kind,
-        name: entry.name,
-        ready: entry.ready ?? false,
-        pendingItems: entry.pending_items ?? 0,
-      });
-    }
-    return map;
-  }, [summaryQuery.data?.maturity]);
 
   const activities = useAgentActivitiesStore((s) => s.activities);
   const activityByKey = useMemo(() => {
@@ -171,20 +128,10 @@ export function useBacklogDetailData({
   const depRelations = useMemo(
     () =>
       item
-        ? computeDependencyRelations(item, allBacklogItems, {
-            activityByKey,
-            feedbackMap,
-            maturityMap,
-          })
+        ? computeDependencyRelations(item, allBacklogItems, { activityByKey })
         : { parents: [], children: [] },
-    [item, allBacklogItems, activityByKey, feedbackMap, maturityMap],
+    [item, allBacklogItems, activityByKey],
   );
-
-  const deliverableLabel = backlogKind === "research" ? "Conclusion" : "Plan";
-  const deliverableLabelLower = deliverableLabel.toLowerCase();
-  const workshopActionLabel = workshopRounds.length > 0 ? "Next Round" : "Workshop";
-  const isWorkshopFinalized = workshopRounds.some((r) => r.mode === "finalize")
-    && !(readinessData?.pendingSynthesis ?? false);
 
   // Default client-side CTA funnel, then gated by the canonical workflow
   // projection's legal_actions when a workflow document exists for the item.
@@ -196,30 +143,19 @@ export function useBacklogDetailData({
     const clientActions = getItemActions({
       item,
       blockingInfo: blockingMap[itemKey] ?? null,
-      readinessReady: readinessData ? readinessData.ready : null,
-      pendingSynthesis: readinessData?.pendingSynthesis ?? false,
       agentRunning: agentRunIsBlocking,
       agentExecuting: agentRunIsExecuting,
-      // Only the LATEST round gates the CTAs: each workshop round supersedes
-      // the previous one, so decisions left unanswered in an early round no
-      // longer block once a later round (or finalize) exists. This mirrors the
-      // server's pending_items computation in the maturity summary.
-      hasPendingDecisions: workshopRounds.length > 0
-        ? (workshopRounds[workshopRounds.length - 1]?.items?.some(
-            (wi) => wi.type === "decision" && wi.selected == null,
-          ) ?? false)
-        : false,
+      hasPendingDecisions: false,
       hasExecutionHistory: (executionHistory?.length ?? 0) > 0,
       hasTerminalExecution: (executionHistory ?? []).some(
         (e) => e.status === "completed" || e.status === "failed" || e.status === "canceled" || e.status === "needs_fixup",
       ),
     });
     return clientActions;
-  }, [item, blockingMap, readinessData, agentRunIsBlocking, agentRunIsExecuting, workshopRounds, executionHistory]);
+  }, [item, blockingMap, agentRunIsBlocking, agentRunIsExecuting, executionHistory]);
 
   const isLocked = itemActions?.locked ?? false;
   const isTerminal = itemActions?.terminal ?? false;
-  const workshopBlockedDeps = itemActions?.blockingDepKeys ?? [];
 
   const reqModuleMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -246,33 +182,6 @@ export function useBacklogDetailData({
     [item?.acceptanceAllow],
   );
 
-  const getAgentDialogTargetIds = useMemo(() => {
-    return (selectedTargetIds: Set<string>) => {
-      const merged = new Set(selectedTargetIds);
-      for (const t of archiveTargets?.targets ?? []) {
-        if (t.review_status === "flagged") merged.add(t.id);
-      }
-      return merged;
-    };
-  }, [archiveTargets]);
-
-  const getAgentDialogRequirementIds = useMemo(() => {
-    return (selectedRequirementIds: Set<string>) => {
-      const merged = new Set(selectedRequirementIds);
-      if (!archiveTargets) return merged;
-      const walkReqs = (groups: typeof archiveTargets.requirements) => {
-        for (const g of groups) {
-          for (const r of g.requirements) {
-            if (r.review_status === "flagged") merged.add(r.id);
-          }
-          walkReqs(g.children);
-        }
-      };
-      walkReqs(archiveTargets.requirements);
-      return merged;
-    };
-  }, [archiveTargets]);
-
   // -----------------------------------------------------------------------
   // Return
   // -----------------------------------------------------------------------
@@ -293,36 +202,21 @@ export function useBacklogDetailData({
 
     executionHistory,
 
-    reviewRounds: reviewRounds ?? ([] as ReviewRound[]),
+    reviewRounds: reviewRounds ?? [],
     isGatheringEvidence,
     isAwaitingManualReview,
-
-    workshopRounds,
-    refetchWorkshopRounds: () => void refetchWorkshopRounds(),
-
-    maturitySummaryData,
-    readinessData,
 
     archiveTargets,
 
     // Computed
     depRelations,
-    workshopDir,
-    workshopRoundPaths,
     itemActions,
     reqModuleMap,
     targetIdSet,
-    agentDialogTargetIds: getAgentDialogTargetIds,
-    agentDialogRequirementIds: getAgentDialogRequirementIds,
     targetScenarios,
 
-    deliverableLabel,
-    deliverableLabelLower,
-    workshopActionLabel,
-    isWorkshopFinalized,
     isLocked,
     isTerminal,
-    workshopBlockedDeps,
 
     // Mutations — stable callbacks
     updateItem: (values: { title: string; description: string; status: BacklogStatus; priority: number; tags: string[] }) =>
@@ -350,15 +244,6 @@ export function useBacklogDetailData({
     isArchiving: archiveMutation.isPending || unarchiveMutation.isPending,
     archiveError,
 
-    runAgent: (payload: { mode?: string; prompt: string; contextPaths?: string[]; contextTargetIds?: string[]; contextRequirementIds?: string[]; confirm?: boolean; force?: boolean }) =>
-      agentMutation.mutate(payload),
-    isRunningAgent: agentMutation.isPending,
-    agentError: agentErrorMsg,
-    resetAgentMutation: () => agentMutation.reset(),
-
-    saveWorkshopRound: (roundNumber: number, content: string) =>
-      workshopSaveMutation.mutate({ roundNumber, content }),
-    isSavingWorkshop: workshopSaveMutation.isPending,
 
     updateRequirements: (args: { moduleId: string; requirements: ArchiveRequirementRecord[] }) =>
       updateReqsMutation.mutate(args),
@@ -397,11 +282,6 @@ export function useBacklogDetailData({
     isBatchReviewing: batchReviewMutation.isPending,
     batchReviewError: batchReviewMutation.error instanceof Error ? batchReviewMutation.error.message : null,
 
-    deleteWorkshopRound: (roundNumber: number) => workshopDeleteRoundMutation.mutate({ roundNumber }),
-    isDeletingWorkshopRound: workshopDeleteRoundMutation.isPending,
-    isResettingWorkshop: workshopResetMutation.isPending,
-    resetWorkshopResetMutation: () => workshopResetMutation.reset(),
-
     fileAction: (args: { action: FileActionType; target: BacklogFile; destinationPath?: string }) =>
       fileActionMutation.mutate(args),
     isFileActionPending: fileActionMutation.isPending,
@@ -418,8 +298,6 @@ export function useBacklogDetailData({
       delete: deleteMutation,
       archiveMutation,
       unarchiveMutation,
-      agent: agentMutation,
-      workshopSave: workshopSaveMutation,
       updateReqs: updateReqsMutation,
       createModule: createModuleMutation,
       updateModuleMeta: updateModuleMetaMutation,
@@ -428,8 +306,6 @@ export function useBacklogDetailData({
       updateTarget: updateTargetMutation,
       deleteTarget: deleteTargetMutation,
       batchReview: batchReviewMutation,
-      workshopDeleteRound: workshopDeleteRoundMutation,
-      workshopReset: workshopResetMutation,
       fileAction: fileActionMutation,
     },
   } as const;

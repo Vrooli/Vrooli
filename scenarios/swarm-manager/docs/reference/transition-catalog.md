@@ -27,11 +27,10 @@ the prompt, Runs, validation, routing, waits, retries, and provenance.
 | `session.workflow_authoring` | Session / Run | `session-input/v1`; human-led workflow design and proposal | `apply_session_proposal` |
 | `proposal.apply` | Deterministic | `proposal-apply-input/v1` | `apply_proposal` |
 | `capture.classify` | Workflow | `swarm-manager/capture-classify` | `apply_capture_classification` |
-| `backlog.refine` | Workflow | `swarm-manager/backlog-workshop-round` | `apply_backlog_refinement` |
-| `backlog.clarify` | Workflow | `swarm-manager/backlog-clarify` | `apply_backlog_clarification` |
+| `plan.workshop.review` | Workflow | `swarm-manager/plan-workshop-review`; typed packet only | `record_plan_workshop_packet` |
+| `plan.workshop.reconcile` | Workflow | `swarm-manager/plan-workshop-reconcile`; candidate only | `record_plan_workshop_candidate` |
 | `plan.author` | Workflow | `swarm-manager/plan-author`; Plan Manager validates | `bind_validated_plan_ref` |
 | `plan.repair` | Workflow | `swarm-manager/plan-repair`; Plan Manager validates | `bind_validated_plan_ref` |
-| `research.refine` | Workflow | `swarm-manager/backlog-workshop-round` | `apply_research_refinement` |
 | `research.conclude` | Workflow | `swarm-manager/research-conclude` | `apply_research_conclusion` |
 | `plan.execute` | Workflow | `swarm-manager/phased-plan-drain`; evidence-gated | `apply_plan_execution` |
 | `work.review` | Workflow | `swarm-manager/independent-review`; evidence-gated | `apply_review_outcome` |

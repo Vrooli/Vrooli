@@ -108,35 +108,37 @@ type Config struct {
 	GraphReader   GraphReader
 	// RunInspector polls agent-run state for gathering rounds. Optional —
 	// without it, stale rounds fall back to age-based recovery.
-	RunInspector       RunInspector
-	Lock               *initiativelock.Lock
-	ExecutionLookup    ExecutionLookup
-	PlanContent        PlanContentResolver
-	GCTClient          GCTClient
-	GCTPollInterval    time.Duration
-	GCTPollTimeout     time.Duration
-	PromptClient       promptmanager.Client
-	Clock              func() time.Time
-	Workflow           agentmanager.WorkflowInvoker
-	TransitionRegistry transitions.Registry
+	RunInspector          RunInspector
+	Lock                  *initiativelock.Lock
+	ExecutionLookup       ExecutionLookup
+	PlanContent           PlanContentResolver
+	GCTClient             GCTClient
+	GCTPollInterval       time.Duration
+	GCTPollTimeout        time.Duration
+	PromptClient          promptmanager.Client
+	Clock                 func() time.Time
+	Workflow              agentmanager.WorkflowInvoker
+	TransitionRegistry    transitions.Registry
+	RoundTerminalObserver review.RoundTerminalObserver
 }
 
 // Service orchestrates initiative review rounds.
 type Service struct {
-	initStore          InitiativeStore
-	backlogLoader      BacklogLoader
-	graphReader        GraphReader
-	workflow           agentmanager.WorkflowInvoker
-	transitionRegistry transitions.Registry
-	inspector          RunInspector
-	lock               *initiativelock.Lock
-	executionLookup    ExecutionLookup
-	planContent        PlanContentResolver
-	gctClient          GCTClient
-	gctPollInterval    time.Duration
-	gctPollTimeout     time.Duration
-	promptClient       promptmanager.Client
-	clock              func() time.Time
+	initStore             InitiativeStore
+	backlogLoader         BacklogLoader
+	graphReader           GraphReader
+	workflow              agentmanager.WorkflowInvoker
+	transitionRegistry    transitions.Registry
+	inspector             RunInspector
+	lock                  *initiativelock.Lock
+	executionLookup       ExecutionLookup
+	planContent           PlanContentResolver
+	gctClient             GCTClient
+	gctPollInterval       time.Duration
+	gctPollTimeout        time.Duration
+	promptClient          promptmanager.Client
+	clock                 func() time.Time
+	roundTerminalObserver review.RoundTerminalObserver
 
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
@@ -174,26 +176,35 @@ func NewService(cfg Config) (*Service, error) {
 		pc = promptmanager.NewHTTPClient()
 	}
 	svc := &Service{
-		initStore:          cfg.InitStore,
-		backlogLoader:      cfg.BacklogLoader,
-		graphReader:        cfg.GraphReader,
-		inspector:          cfg.RunInspector,
-		lock:               cfg.Lock,
-		executionLookup:    cfg.ExecutionLookup,
-		planContent:        cfg.PlanContent,
-		gctClient:          cfg.GCTClient,
-		gctPollInterval:    cfg.GCTPollInterval,
-		gctPollTimeout:     cfg.GCTPollTimeout,
-		promptClient:       pc,
-		clock:              clk,
-		workflow:           cfg.Workflow,
-		transitionRegistry: cfg.TransitionRegistry,
-		activeRounds:       make(map[string]activeRound),
+		initStore:             cfg.InitStore,
+		backlogLoader:         cfg.BacklogLoader,
+		graphReader:           cfg.GraphReader,
+		inspector:             cfg.RunInspector,
+		lock:                  cfg.Lock,
+		executionLookup:       cfg.ExecutionLookup,
+		planContent:           cfg.PlanContent,
+		gctClient:             cfg.GCTClient,
+		gctPollInterval:       cfg.GCTPollInterval,
+		gctPollTimeout:        cfg.GCTPollTimeout,
+		promptClient:          pc,
+		clock:                 clk,
+		roundTerminalObserver: cfg.RoundTerminalObserver,
+		workflow:              cfg.Workflow,
+		transitionRegistry:    cfg.TransitionRegistry,
+		activeRounds:          make(map[string]activeRound),
 	}
 	if svc.workflow == nil {
 		svc.workflow = agentmanager.NewWorkflowService()
 	}
 	return svc, nil
+}
+
+// SetRoundTerminalObserver adds an idempotent projection seam for Plan
+// Workshop without replacing the initiative status transition.
+func (s *Service) SetRoundTerminalObserver(observer review.RoundTerminalObserver) {
+	if s != nil {
+		s.roundTerminalObserver = observer
+	}
 }
 
 // SetTransitionRegistry supplies the versioned catalog that selects the

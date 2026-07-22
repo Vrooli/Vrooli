@@ -15,7 +15,6 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/planclient"
-	"swarm-manager/internal/workshop"
 
 	"github.com/gorilla/mux"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -53,14 +52,10 @@ func (h *Handler) startPlanAuthorWorkflow(ctx context.Context, item BacklogItem)
 		return agentmanager.WorkflowStart{}, err
 	}
 	itemDir := h.store.ItemDir(item.Kind, item.Name)
-	rounds, err := workshop.LoadRounds(itemDir)
-	if err != nil {
-		return agentmanager.WorkflowStart{}, err
-	}
-	version := workshopSnapshotVersion(item, len(rounds))
+	version := immutableBacklogSnapshotVersion(item)
 	// StructPB accepts JSON-shaped values only. Round-trip the domain structs so
 	// the typed immutable snapshot stays bounded and transport-neutral.
-	snapshotRaw, err := json.Marshal(map[string]any{"item": item, "workshopRounds": rounds})
+	snapshotRaw, err := json.Marshal(map[string]any{"item": item})
 	if err != nil {
 		return agentmanager.WorkflowStart{}, err
 	}
@@ -142,12 +137,8 @@ func (h *Handler) applyPlanAuthor(ctx context.Context, kind BacklogKind, name, e
 	if !planAuthorInputMatches(completion.Input, kind, name, pending.EntityVersion) {
 		return nil, errors.New("plan author workflow snapshot does not match item")
 	}
-	rounds, err := workshop.LoadRounds(itemDir)
-	if err != nil {
-		return nil, err
-	}
-	if workshopSnapshotVersion(item, len(rounds)) != pending.EntityVersion {
-		return nil, errors.New("backlog item or workshop history changed after plan author start")
+	if immutableBacklogSnapshotVersion(item) != pending.EntityVersion {
+		return nil, errors.New("backlog item changed after plan author start")
 	}
 	if item.PlanRef != nil {
 		return nil, errors.New("backlog item acquired a plan_ref after plan author start")
@@ -170,6 +161,7 @@ func (h *Handler) applyPlanAuthor(ctx context.Context, kind BacklogKind, name, e
 			return nil, fmt.Errorf("canonical authored plan quality is %q", rendered.QualityStatus)
 		}
 		item.PlanRef = &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: plan.GetId(), Slug: plan.GetSlug(), Role: PlanRefRoleExecutionSpec}
+		item.PlanAcceptance = nil
 		item.Updated = time.Now().UTC().Format(time.RFC3339)
 		if err := h.store.SaveItem(item); err != nil {
 			return nil, err

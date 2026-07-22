@@ -37,13 +37,11 @@ import (
 func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 	db = dbConn
 	rt := ensureRuntime(cfg, dbConn)
-	if rt != nil && rt.Store() != nil {
-		if det := detectorInstance(); det != nil {
-			if err := rt.Store().CleanupInvalidScenarioDependencies(det.ScenarioCatalog()); err != nil {
-				log.Printf("Warning: failed to cleanup scenario dependencies: %v", err)
-			}
-		}
-	}
+	log.Println("Scenario Dependency Analyzer runtime initialized")
+	// Catalog discovery touches every scenario directory and the cleanup shares
+	// the API's SQLite connection. It is maintenance, not a readiness
+	// dependency, so leave a startup window for health checks before running it.
+	time.AfterFunc(time.Minute, func() { cleanupInvalidScenarioDependencies(rt) })
 
 	router := gin.Default()
 	corsMiddleware := cors.New(cors.Options{
@@ -56,6 +54,7 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 	h := newHandler(rt)
 	graphIngest := newGraphIngestService(rt)
 	registerRoutes(router, h, graphIngest)
+	log.Println("Scenario Dependency Analyzer HTTP routes registered")
 
 	// AI semantic search over SDA's corpora. ONE multi-corpus service backs every
 	// federated leaf: the dependency-governance corpus (RankIDs ranker), the
@@ -76,6 +75,7 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		Resources:      resourceProvider,
 		SearchJSONPath: searchJSONPath,
 	})
+	log.Println("Scenario Dependency Analyzer semantic search initialized")
 
 	// The control token gates the shared, token-gated reindex/config-write plane.
 	// search-hub mints it at registration and is its only holder, so the token
@@ -142,6 +142,21 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		IdleTimeout:       60 * time.Second,
 	}
 	return server.ListenAndServe()
+}
+
+func cleanupInvalidScenarioDependencies(rt *Runtime) {
+	if rt == nil || rt.Store() == nil {
+		return
+	}
+	det := detectorInstance()
+	if det == nil {
+		return
+	}
+	if err := rt.Store().CleanupInvalidScenarioDependencies(det.ScenarioCatalog()); err != nil {
+		log.Printf("Warning: failed to cleanup scenario dependencies: %v", err)
+		return
+	}
+	log.Println("Scenario Dependency Analyzer dependency cleanup complete")
 }
 
 func registerRoutes(router *gin.Engine, handler *handler, graphIngest *graphIngestService) {

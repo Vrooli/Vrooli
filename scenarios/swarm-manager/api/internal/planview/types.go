@@ -170,9 +170,9 @@ type OpsSummarizer interface {
 	Aggregate(ctx context.Context, f operations.Filters) (*operations.OperationsView, error)
 }
 
-// InitiativeLister provides initiative membership + depends_on so the board
-// readiness graph can fold in the D2 initiative gate. Optional: when nil, the
-// wave graph uses item depends_on alone (pre-gate behavior).
+// InitiativeLister provides initiative membership + depends_on so the board's
+// dependency graph can fold in the D2 initiative gate. Optional: when nil,
+// the wave graph uses item depends_on alone (pre-gate behavior).
 type InitiativeLister interface {
 	LoadAll() ([]initiatives.Initiative, error)
 }

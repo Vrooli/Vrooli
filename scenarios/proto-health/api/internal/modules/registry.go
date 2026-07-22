@@ -57,6 +57,9 @@ func AllEndpoints() []module.EndpointDescriptor {
 type ProtoFileEntry struct {
 	Module string
 	File   protoreflect.FileDescriptor
+	// Services narrows a shared proto file to the services this module mounts.
+	// Empty preserves the legacy meaning of "all services in File".
+	Services []protoreflect.Name
 }
 
 // AllProtoFiles returns the proto FileDescriptor backing each
@@ -64,7 +67,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "impact", File: impactH.ProtoFile},
-		{Module: "validation", File: validationH.ScenarioValidationProtoFile},
+		{Module: "validation", File: validationH.ScenarioValidationProtoFile, Services: []protoreflect.Name{"ScenarioValidationService"}},
 		{Module: "validation", File: validationH.ProtoFile},
 	}
 }

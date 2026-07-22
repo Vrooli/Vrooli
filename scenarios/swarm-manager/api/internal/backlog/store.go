@@ -251,6 +251,11 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "plan_ref")
 	}
+	if item.PlanAcceptance != nil {
+		merged["plan_acceptance"] = item.PlanAcceptance
+	} else {
+		delete(merged, "plan_acceptance")
+	}
 	if strings.TrimSpace(item.FindingRef) != "" {
 		merged["finding_ref"] = item.FindingRef
 	} else {

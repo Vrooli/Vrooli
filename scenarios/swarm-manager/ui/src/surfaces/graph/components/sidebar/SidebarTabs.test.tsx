@@ -170,7 +170,7 @@ describe("SidebarTabs", () => {
 
     renderTabs();
 
-    expect(within(screen.getByTestId("sidebar-tab-backlog")).getByText("3")).toBeInTheDocument();
+    expect(within(screen.getByTestId("sidebar-tab-backlog")).getByText("2")).toBeInTheDocument();
     expect(within(screen.getByTestId("sidebar-tab-captures")).getByText("2")).toBeInTheDocument();
     expect(within(screen.getByTestId("sidebar-tab-executions")).getByText("1")).toBeInTheDocument();
     expect(within(screen.getByTestId("sidebar-tab-sessions")).getByText("2")).toBeInTheDocument();
@@ -184,7 +184,6 @@ describe("SidebarTabs", () => {
     renderTabs();
 
     expect(within(screen.getByTestId("sidebar-tab-goals")).queryByText(/\d+/)).toBeNull();
-    expect(within(screen.getByTestId("sidebar-tab-operatingModes")).queryByText(/\d+/)).toBeNull();
     expect(within(screen.getByTestId("sidebar-tab-sessions")).queryByText(/\d+/)).toBeNull();
   });
 

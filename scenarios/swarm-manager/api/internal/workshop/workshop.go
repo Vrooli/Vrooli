@@ -61,71 +61,12 @@ type Option struct {
 const OtherKey = "__other__"
 
 // ---------------------------------------------------------------------------
-// Readiness dimensions and boost computation
-// ---------------------------------------------------------------------------
-
-// ReadinessDimensions are the 5 universal dimensions scored per round.
-var ReadinessDimensions = []string{
-	"problem_clarity",
-	"scope_defined",
-	"approach_solid",
-	"testable",
-	"risk_awareness",
-}
-
-// BoostN maps each backlog kind (as string) to its boost divisor N.
-// The boost formula is: effective = raw >= 2 ? min(3, raw + floor(rounds/N)) : raw
-var BoostN = map[string]int{
-	"idea":     2,
-	"research": 2,
-	"fix":      1,
-	"execute":  2,
-	"chore":    1,
-}
-
-// ComputeEffectiveScores applies the round-based boost formula to raw scores.
-func ComputeEffectiveScores(raw map[string]int, roundsCompleted int, kind string) map[string]int {
-	n := BoostN[kind]
-	if n <= 0 {
-		n = 2 // safe default
-	}
-	boost := 0
-	if roundsCompleted > 0 {
-		boost = roundsCompleted / n
-	}
-
-	effective := make(map[string]int, len(ReadinessDimensions))
-	for _, dim := range ReadinessDimensions {
-		score := raw[dim]
-		if score >= 2 {
-			eff := score + boost
-			if eff > 3 {
-				eff = 3
-			}
-			effective[dim] = eff
-		} else {
-			effective[dim] = score
-		}
-	}
-	return effective
-}
-
-// IsReady returns true when all effective dimension scores are >= 3.
-func IsReady(effective map[string]int) bool {
-	for _, dim := range ReadinessDimensions {
-		if effective[dim] < 3 {
-			return false
-		}
-	}
-	return true
-}
-
-// ---------------------------------------------------------------------------
 // Workshop round I/O
 // ---------------------------------------------------------------------------
 
-// LoadRounds reads all workshop/round-*.json files from the item
-// directory, sorted by round number ascending.
+// LoadRounds reads historical legacy round files from an item directory,
+// sorted by round number ascending. It is a read-only compatibility parser;
+// current Plan Workshop state is stored separately.
 func LoadRounds(itemDir string) ([]Round, error) {
 	workshopDir := filepath.Join(itemDir, "workshop")
 	entries, err := os.ReadDir(workshopDir)
@@ -174,85 +115,6 @@ func LoadLatestRound(itemDir string) (*Round, int, error) {
 		return nil, 0, nil
 	}
 	return &rounds[len(rounds)-1], len(rounds), nil
-}
-
-// CountPendingDecisions counts decision items that have not been answered yet.
-// A decision with Selected == OtherKey is only considered answered when its
-// Freeform field is also non-empty (the user must provide an explanation).
-func CountPendingDecisions(round *Round) int {
-	if round == nil {
-		return 0
-	}
-	count := 0
-	for _, item := range round.Items {
-		if item.Type != "decision" {
-			continue
-		}
-		sel := ""
-		if item.Selected != nil {
-			sel = strings.TrimSpace(*item.Selected)
-		}
-		if sel == "" {
-			count++
-		} else if sel == OtherKey {
-			freeform := ""
-			if item.Freeform != nil {
-				freeform = strings.TrimSpace(*item.Freeform)
-			}
-			if freeform == "" {
-				count++
-			}
-		}
-	}
-	return count
-}
-
-// CountDecisionItems counts all decision items in a round, answered or not.
-func CountDecisionItems(round *Round) int {
-	if round == nil {
-		return 0
-	}
-	count := 0
-	for _, item := range round.Items {
-		if item.Type == "decision" {
-			count++
-		}
-	}
-	return count
-}
-
-// RoundMode returns the normalized round mode, defaulting to "workshop"
-// for legacy rounds that predate explicit mode metadata.
-func RoundMode(round *Round) string {
-	if round == nil {
-		return ""
-	}
-	mode := strings.ToLower(strings.TrimSpace(round.Mode))
-	if mode == "" {
-		return "workshop"
-	}
-	return mode
-}
-
-// IsFinalizeRound reports whether the round is an explicit finalize round.
-func IsFinalizeRound(round *Round) bool {
-	return RoundMode(round) == "finalize"
-}
-
-// NeedsSynthesis reports whether the latest round should be followed by a
-// finalize pass. This supports both explicit new-format rounds and legacy
-// answered rounds that predate the pending_synthesis marker.
-func NeedsSynthesis(round *Round) bool {
-	if round == nil {
-		return false
-	}
-	if round.PendingSynthesis {
-		return true
-	}
-	if IsFinalizeRound(round) {
-		return false
-	}
-	return CountDecisionItems(round) > 0 && CountPendingDecisions(round) == 0
 }
 
 // HasPlanByName checks whether the named deliverable file exists for the item.

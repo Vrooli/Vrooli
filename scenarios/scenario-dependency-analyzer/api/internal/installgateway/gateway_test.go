@@ -26,6 +26,7 @@ func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"pnpm-lock.yaml": "", "package.json": "{}"})
 	mkSurface(t, repoRoot, "demo", "api", map[string]string{"go.mod": "module demo\n"})
 	mkSurface(t, repoRoot, "demo", "cli", map[string]string{"requirements.txt": ""})
+	mkSurface(t, repoRoot, "demo", "tools/mermaid-lint", map[string]string{"pnpm-lock.yaml": "", "package.json": "{}"})
 
 	cases := []struct {
 		surface, ecosystem, pkg, version string
@@ -36,6 +37,7 @@ func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 		{"ui", "npm", "zod", "", "pnpm", "pnpm add zod"},
 		{"api", "go", "github.com/foo/bar", "v1.2.3", "go", "go get github.com/foo/bar@v1.2.3"},
 		{"cli", "pip", "requests", "2.31.0", "pip", "pip install requests==2.31.0"},
+		{"tools/mermaid-lint", "npm", "mermaid", "11.13.0", "pnpm", "pnpm add mermaid@11.13.0"},
 	}
 	for _, tc := range cases {
 		r, err := Resolve(repoRoot, "demo", tc.surface, tc.ecosystem, tc.pkg, tc.version)
@@ -107,7 +109,13 @@ func TestResolveRejectsBadSurfaceAndEcosystem(t *testing.T) {
 	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"pnpm-lock.yaml": ""})
 
 	if _, err := Resolve(repoRoot, "demo", "worker", "npm", "x", ""); err == nil {
-		t.Fatal("expected error for non-ui/api/cli surface")
+		t.Fatal("expected error for non-installable surface")
+	}
+	if _, err := Resolve(repoRoot, "demo", "tools", "npm", "x", ""); err == nil {
+		t.Fatal("expected tools root to be rejected; a tools package is required")
+	}
+	if _, err := Resolve(repoRoot, "demo", "tools/../api", "npm", "x", ""); err == nil {
+		t.Fatal("expected tools traversal to be rejected")
 	}
 	if _, err := Resolve(repoRoot, "demo", "api", "npm", "x", ""); err == nil || !strings.Contains(err.Error(), "surface directory not found") {
 		t.Fatalf("expected missing-surface error, got %v", err)

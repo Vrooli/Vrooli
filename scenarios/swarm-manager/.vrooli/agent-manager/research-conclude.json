@@ -3,7 +3,7 @@
   "owner": "swarm-manager",
   "key": "swarm-manager/research-conclude",
   "version": "1.0.0",
-  "description": "Produce a planless research conclusion through bounded typed handoff rounds; Swarm owns the item and terminal application.",
+  "description": "Produce research evidence and one typed, operator-reviewed disposition through bounded rounds; Swarm owns terminal application.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -70,7 +70,7 @@
           "schema": {
             "type": "object",
             "properties": {
-              "handoff": {
+              "finding": {
                 "type": "object",
                 "properties": {
                   "summary": {
@@ -78,17 +78,13 @@
                     "minLength": 1,
                     "maxLength": 16384
                   },
-                  "blockers": {
+                  "evidence": {
                     "type": "array",
                     "maxItems": 50,
                     "items": {
                       "type": "string",
                       "maxLength": 4096
                     }
-                  },
-                  "next_step": {
-                    "type": "string",
-                    "maxLength": 4096
                   },
                   "changed_files": {
                     "type": "array",
@@ -105,29 +101,42 @@
                       "type": "string",
                       "maxLength": 1024
                     }
-                  },
-                  "progress": {
-                    "type": "string",
-                    "enum": [
-                      "continue",
-                      "complete",
-                      "blocked"
-                    ]
                   }
                 },
                 "required": [
                   "summary",
-                  "blockers",
-                  "next_step",
                   "changed_files",
                   "tests",
-                  "progress"
+                  "evidence"
                 ],
                 "additionalProperties": false
+              },
+              "disposition": {
+                "type": "object",
+                "properties": {
+                  "kind": {"type": "string", "enum": ["plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention"]},
+                  "rationale": {"type": "string", "minLength": 1, "maxLength": 8192},
+                  "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+                  "scope": {"type": "string", "maxLength": 4096}
+                },
+                "required": ["kind", "rationale", "confidence"],
+                "additionalProperties": false
+              },
+              "progress": {
+                "type": "string",
+                "enum": ["continue", "complete", "blocked"]
+              },
+              "blockers": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {"type": "string", "maxLength": 4096}
               }
             },
             "required": [
-              "handoff"
+              "finding",
+              "disposition",
+              "progress",
+              "blockers"
             ],
             "additionalProperties": false
           }
@@ -258,23 +267,23 @@
     {
       "from": "route",
       "to": "completed",
-      "condition": "latest(journal).value.handoff.progress == 'complete'"
+      "condition": "latest(journal).value.progress == 'complete'"
     },
     {
       "from": "route",
       "to": "blocked",
-      "condition": "latest(journal).value.handoff.progress == 'blocked'"
+      "condition": "latest(journal).value.progress == 'blocked'"
     },
     {
       "from": "route",
       "to": "continue",
-      "condition": "latest(journal).value.handoff.progress == 'continue' && count(journal, 'conclude') + count(journal, 'continue') < 6",
+      "condition": "latest(journal).value.progress == 'continue' && count(journal, 'conclude') + count(journal, 'continue') < 6",
       "maxTraversals": 5
     },
     {
       "from": "route",
       "to": "limit",
-      "condition": "latest(journal).value.handoff.progress == 'continue' && count(journal, 'conclude') + count(journal, 'continue') >= 6"
+      "condition": "latest(journal).value.progress == 'continue' && count(journal, 'conclude') + count(journal, 'continue') >= 6"
     }
   ],
   "budgets": {

@@ -364,7 +364,6 @@ func TestClassifyResource(t *testing.T) {
 		{"S3", "s3", ResourceClassStorage, false},
 		{"Browserless", "browserless", ResourceClassBrowser, true},
 		{"Playwright", "playwright", ResourceClassBrowser, true},
-		{"Judge0", "judge0", ResourceClassExecution, true},
 		{"Sandbox", "sandbox", ResourceClassExecution, true},
 		{"Unknown", "unknown-resource", ResourceClassService, false},
 	}

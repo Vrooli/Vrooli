@@ -28,11 +28,6 @@ func TestProjectionEquivalence(t *testing.T) {
 	s.AutoFixup = true
 	s.MaxFixupAttempts = 4
 	s.ReviewAgentEnabled = false
-	s.MaxAutoRounds = 25
-	s.AutoInitializeWorkshop = false
-	s.AutoAdvanceWorkshop = false
-	s.AutoCascadeWorkshop = false
-	s.AutoAdvanceDelaySeconds = 42
 	s.AgentMaxTurns = 123
 	s.AgentTimeoutSeconds = 700
 	s.ReviewCodeQualityMinScore = 80
@@ -50,11 +45,6 @@ func TestProjectionEquivalence(t *testing.T) {
 		want any
 	}{
 		{"Execution.DefaultMode", c.Execution.DefaultMode, s.DefaultMode},
-		{"AutoAdvance.AutoInitialize", c.AutoAdvance.AutoInitialize, s.AutoInitializeWorkshop},
-		{"AutoAdvance.Enabled", c.AutoAdvance.Enabled, s.AutoAdvanceWorkshop},
-		{"AutoAdvance.Cascade", c.AutoAdvance.Cascade, s.AutoCascadeWorkshop},
-		{"AutoAdvance.DelaySeconds", c.AutoAdvance.DelaySeconds, s.AutoAdvanceDelaySeconds},
-		{"AutoAdvance.MaxAutoRounds", c.AutoAdvance.MaxAutoRounds, s.MaxAutoRounds},
 		{"Retry.AutoFixup", c.Retry.AutoFixup, s.AutoFixup},
 		{"Retry.MaxFixupAttempts", c.Retry.MaxFixupAttempts, s.MaxFixupAttempts},
 		{"Review.AgentEnabled", c.Review.AgentEnabled, s.ReviewAgentEnabled},
@@ -149,11 +139,9 @@ func TestPolicyControlsAdapterBoundsFromNormalize(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "settings.json")
 	testutil.WriteJSONFile(t, path, map[string]any{
-		"max_fixup_attempts":         99,
-		"max_auto_rounds":            999,
-		"auto_advance_delay_seconds": 999,
-		"agent_max_turns":            1,
-		"agent_timeout_seconds":      1,
+		"max_fixup_attempts":    99,
+		"agent_max_turns":       1,
+		"agent_timeout_seconds": 1,
 	})
 
 	controls, err := NewPolicyControlsAdapter(NewStore(path)).LoadPolicyControls()
@@ -162,12 +150,6 @@ func TestPolicyControlsAdapterBoundsFromNormalize(t *testing.T) {
 	}
 	if controls.Retry.MaxFixupAttempts != 5 {
 		t.Errorf("MaxFixupAttempts = %d, want clamp to 5", controls.Retry.MaxFixupAttempts)
-	}
-	if controls.AutoAdvance.MaxAutoRounds != 50 {
-		t.Errorf("MaxAutoRounds = %d, want clamp to 50", controls.AutoAdvance.MaxAutoRounds)
-	}
-	if controls.AutoAdvance.DelaySeconds != 120 {
-		t.Errorf("DelaySeconds = %d, want clamp to 120", controls.AutoAdvance.DelaySeconds)
 	}
 	if controls.Budgets.MaxTurns != 5 {
 		t.Errorf("Budgets.MaxTurns = %d, want clamp to 5", controls.Budgets.MaxTurns)
@@ -181,13 +163,9 @@ func TestPolicyControlsAdapterBoundsFromNormalize(t *testing.T) {
 // effective controls and classifies every orchestration field exactly once.
 func TestPolicyProjectionToProto(t *testing.T) {
 	s := DefaultSettings()
-	s.AutoAdvanceDelaySeconds = 33
 	proj := policyProjectionToProto(s)
 	if proj.EffectiveControls == nil {
 		t.Fatal("projection missing effective_controls")
-	}
-	if got := proj.EffectiveControls.AutoAdvanceDelaySeconds; got != 33 {
-		t.Errorf("effective auto_advance_delay_seconds = %d, want 33", got)
 	}
 	if got := proj.EffectiveControls.DefaultMode; got != s.DefaultMode {
 		t.Errorf("effective default_mode = %q, want %q", got, s.DefaultMode)
@@ -202,8 +180,7 @@ func TestPolicyProjectionToProto(t *testing.T) {
 	}
 	for _, field := range []string{
 		"default_mode", "auto_fixup", "max_fixup_attempts", "review_agent_enabled",
-		"max_auto_rounds", "auto_initialize_workshop", "auto_advance_workshop",
-		"auto_cascade_workshop", "auto_advance_delay_seconds", "agent_max_turns",
+		"agent_max_turns",
 		"agent_timeout_seconds", "review_code_quality_min_score",
 		"review_test_min_pass_rate", "review_max_blocking_violations",
 		"review_max_warnings", "review_require_screenshots", "review_require_tests",

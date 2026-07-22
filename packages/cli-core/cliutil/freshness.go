@@ -31,6 +31,24 @@ type FreshnessSpec struct {
 	CaseInsensitive bool
 }
 
+// GoModuleInstallerArgs returns the canonical cli-installer invocation for a
+// Go-module CLI. Callers execute it with their cli-core directory as Cmd.Dir.
+// Keeping argument construction here prevents scenario, resource, and
+// api-core source installs from drifting apart.
+func GoModuleInstallerArgs(modulePath, manifestPath, binaryName, installDir string, spec FreshnessSpec) []string {
+	args := []string{"run", "./cmd/cli-installer", "--module", modulePath, "--name", binaryName, "--install-dir", installDir}
+	if strings.TrimSpace(manifestPath) != "" {
+		args = append(args, "--manifest", manifestPath)
+	}
+	if strings.TrimSpace(spec.ContextRoot) != "" && filepath.Clean(spec.ContextRoot) != filepath.Clean(modulePath) {
+		args = append(args, "--context-root", spec.ContextRoot)
+	}
+	for _, input := range trimNonEmpty(spec.Inputs) {
+		args = append(args, "--freshness-input", input)
+	}
+	return args
+}
+
 // CanonicalScenarioGoModuleFreshnessSpec returns the freshness contract used by
 // cli-core's NewStandardScenarioApp (SourceContextPath="..", FreshnessInputs=
 // ["<moduleDir>/**", ".vrooli/service.json", "../../packages/cli-core"]).
@@ -76,22 +94,6 @@ func CanonicalResourceGoModuleFreshnessSpec(resourceRoot, modulePath, binaryName
 		ContextRoot: resourceRoot,
 		Inputs:      inputs,
 		SkipFiles:   []string{binaryName},
-	}
-}
-
-// CanonicalShellScriptFreshnessSpec returns the freshness contract for
-// shell_script-adapter CLIs. ownerRoot is the scenario or resource directory
-// that contains the script and manifest; customInputs overrides the default
-// [scriptPath, installScript, manifestRelPath] list when non-empty.
-func CanonicalShellScriptFreshnessSpec(ownerRoot, scriptPath, installScript, manifestRelPath, binaryName string, customInputs []string) FreshnessSpec {
-	inputs := []string{scriptPath, installScript, filepath.ToSlash(manifestRelPath)}
-	if trimmed := trimNonEmpty(customInputs); len(trimmed) > 0 {
-		inputs = trimmed
-	}
-	return FreshnessSpec{
-		SourceRoot:  ownerRoot,
-		ContextRoot: ownerRoot,
-		Inputs:      inputs,
 	}
 }
 

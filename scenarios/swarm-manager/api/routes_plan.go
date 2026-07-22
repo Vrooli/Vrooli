@@ -5,6 +5,7 @@ import (
 
 	"swarm-manager/internal/gates"
 	"swarm-manager/internal/graph"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/planview"
 	"swarm-manager/internal/stats"
 )
@@ -29,8 +30,7 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 		reviewSource.Executions = graph.NewExecutionAdapter(s.executionSvc)
 	}
 	gateSvc := gates.NewService(
-		gates.DecideSource{Store: store},
-		gates.WorkshopSource{Store: store},
+		gates.WorkshopSource{Store: store, Plans: planclient.NewConnectClient(nil, nil)},
 		reviewSource,
 		gates.ClassifySource{Captures: planCaptureAdapter{inner: graph.NewCaptureAdapter(scenarioRoot)}},
 		gates.ProposalSource{Store: s.agentSessionStore},

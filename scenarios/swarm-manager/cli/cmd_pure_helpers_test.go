@@ -36,25 +36,6 @@ func TestFirstNonEmptyString(t *testing.T) {
 }
 
 func TestSummarizePendingQuestion(t *testing.T) {
-	workshopWithOptions := PendingQuestion{
-		Source:  "workshop",
-		Topic:   "Pick storage",
-		Options: []WorkshopOption{{Label: "sqlite"}, {Label: " "}, {Label: "postgres"}},
-	}
-	if got := summarizePendingQuestion(workshopWithOptions); got != "Pick storage (options: sqlite, postgres)" {
-		t.Errorf("workshop+options = %q", got)
-	}
-
-	workshopNoOptions := PendingQuestion{Source: "workshop", Text: "Decide approach"}
-	if got := summarizePendingQuestion(workshopNoOptions); got != "Decide approach" {
-		t.Errorf("workshop fallback to Text = %q", got)
-	}
-
-	workshopFallback := PendingQuestion{Source: "workshop"}
-	if got := summarizePendingQuestion(workshopFallback); got != "workshop decision" {
-		t.Errorf("workshop default = %q", got)
-	}
-
 	reviewWithType := PendingQuestion{Source: "review", Title: "Fix bug", ReviewType: "quality"}
 	if got := summarizePendingQuestion(reviewWithType); got != "Fix bug (quality)" {
 		t.Errorf("review+type = %q", got)
@@ -120,18 +101,6 @@ func TestPromptCatalogTarget(t *testing.T) {
 	}
 	if got := promptCatalogTarget(PromptCatalogEntry{}); got != "(unknown)" {
 		t.Errorf("unknown fallback = %q", got)
-	}
-}
-
-func TestFirstOr(t *testing.T) {
-	if got := firstOr([]string{" a ", "b"}, "fb"); got != "a" {
-		t.Errorf("firstOr = %q, want a", got)
-	}
-	if got := firstOr(nil, "fb"); got != "fb" {
-		t.Errorf("firstOr empty = %q, want fb", got)
-	}
-	if got := firstOr([]string{"  "}, "fb"); got != "fb" {
-		t.Errorf("firstOr blank-first = %q, want fb", got)
 	}
 }
 

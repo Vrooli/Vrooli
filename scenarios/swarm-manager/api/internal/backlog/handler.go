@@ -14,7 +14,6 @@ package backlog
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -27,7 +26,6 @@ import (
 	"swarm-manager/internal/planrepair"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
-	"swarm-manager/internal/settings"
 	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/mux"
@@ -97,27 +95,24 @@ type RecordCreator interface {
 // scenario source path used purely as a repo anchor (e.g. by
 // validate_globs.go to resolve `.vrooli/repo-contract.json`).
 type Handler struct {
-	dataRoot              string
-	repoRoot              string
-	store                 Store
-	activityChecker       AgentActivityChecker
-	promptClient          promptmanager.Client
-	planClient            planclient.Client
-	initiativeAssigner    InitiativeAssigner
-	sessionArtifacts      sessionArtifactRecorder
-	executionQueuer       ExecutionQueuer
-	eventDispatcher       dispatch.Invalidator
-	eventLogger           EventLogger
-	itemTerminalHandler   ItemTerminalHandler
-	recordCreator         RecordCreator
-	reviewRoundInspector  ReviewRoundInspector
-	policyControls        settings.PolicyControlsProvider
-	workshopWorkflow      agentmanager.WorkflowInvoker
-	clarificationWorkflow agentmanager.WorkflowInvoker
-	planAuthorWorkflow    agentmanager.WorkflowInvoker
-	planRepair            *planrepair.Service
-	transitionRegistry    transitions.Registry
-	lifecycleService      *Service
+	dataRoot             string
+	repoRoot             string
+	store                Store
+	activityChecker      AgentActivityChecker
+	promptClient         promptmanager.Client
+	planClient           planclient.Client
+	initiativeAssigner   InitiativeAssigner
+	sessionArtifacts     sessionArtifactRecorder
+	executionQueuer      ExecutionQueuer
+	eventDispatcher      dispatch.Invalidator
+	eventLogger          EventLogger
+	itemTerminalHandler  ItemTerminalHandler
+	recordCreator        RecordCreator
+	reviewRoundInspector ReviewRoundInspector
+	planAuthorWorkflow   agentmanager.WorkflowInvoker
+	planRepair           *planrepair.Service
+	transitionRegistry   transitions.Registry
+	lifecycleService     *Service
 }
 
 // SetLifecycleService installs the single lifecycle implementation used by
@@ -133,32 +128,6 @@ func (h *Handler) SetPlanRepair(service *planrepair.Service) {
 	if service != nil {
 		service.SetTransitionRegistry(h.transitionRegistry)
 	}
-}
-
-// SetPolicyControlsProvider injects the policy-controls seam used by the
-// workshop auto-initialize / auto-advance / cascade paths. When unset, the
-// handler falls back to the settings-backed provider that resolves the
-// scenario settings file on every load (the pre-seam behavior).
-func (h *Handler) SetPolicyControlsProvider(p settings.PolicyControlsProvider) {
-	h.policyControls = p
-}
-
-// loadPolicyControls reads the current orchestration policy controls through
-// the PolicyControlsProvider seam. On load failure it logs (with the given
-// context string, preserving legacy per-site log messages) and degrades to
-// the default policy-controls projection, which equals the default
-// settings — identical to the legacy DefaultSettings() fallback.
-func (h *Handler) loadPolicyControls(logContext string) settings.PolicyControls {
-	provider := h.policyControls
-	if provider == nil {
-		provider = settings.NewPolicyControlsAdapter(nil)
-	}
-	controls, err := provider.LoadPolicyControls()
-	if err != nil {
-		slog.Warn(logContext, "err", err)
-		return settings.DefaultPolicyControls()
-	}
-	return controls
 }
 
 // EventLogger records state-change events for analytics.
@@ -188,14 +157,12 @@ func NewHandler(dataRoot, repoRoot string) *Handler {
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	return &Handler{
-		dataRoot:              dataRoot,
-		repoRoot:              repoRoot,
-		store:                 NewFileStore(dataRoot),
-		promptClient:          promptmanager.NewHTTPClient(),
-		planClient:            planclient.NewConnectClient(nil, nil),
-		workshopWorkflow:      agentmanager.NewWorkflowService(),
-		clarificationWorkflow: agentmanager.NewWorkflowService(),
-		planAuthorWorkflow:    agentmanager.NewWorkflowService(),
+		dataRoot:           dataRoot,
+		repoRoot:           repoRoot,
+		store:              NewFileStore(dataRoot),
+		promptClient:       promptmanager.NewHTTPClient(),
+		planClient:         planclient.NewConnectClient(nil, nil),
+		planAuthorWorkflow: agentmanager.NewWorkflowService(),
 	}
 }
 
@@ -206,14 +173,12 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerA
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	h := &Handler{
-		dataRoot:              dataRoot,
-		repoRoot:              repoRoot,
-		store:                 NewFileStore(dataRoot),
-		promptClient:          promptClient,
-		planClient:            planclient.NewConnectClient(nil, nil),
-		workshopWorkflow:      agentmanager.NewWorkflowService(),
-		clarificationWorkflow: agentmanager.NewWorkflowService(),
-		planAuthorWorkflow:    agentmanager.NewWorkflowService(),
+		dataRoot:           dataRoot,
+		repoRoot:           repoRoot,
+		store:              NewFileStore(dataRoot),
+		promptClient:       promptClient,
+		planClient:         planclient.NewConnectClient(nil, nil),
+		planAuthorWorkflow: agentmanager.NewWorkflowService(),
 	}
 	// The injected agent service is consumed only as the active-agent guard source
 	// (a narrow, read-only capability). Its Agent Manager spawn methods are never
@@ -226,16 +191,6 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerA
 		h.promptClient = promptmanager.NewHTTPClient()
 	}
 	return h
-}
-
-// SetWorkshopWorkflow injects the generic declared-workflow seam. It is
-// primarily a deterministic test seam; production uses the default adapter.
-func (h *Handler) SetWorkshopWorkflow(service agentmanager.WorkflowInvoker) {
-	h.workshopWorkflow = service
-}
-
-func (h *Handler) SetClarificationWorkflow(service agentmanager.WorkflowInvoker) {
-	h.clarificationWorkflow = service
 }
 
 // SetPlanAuthorWorkflow injects the generic declared-workflow seam for plan
@@ -265,12 +220,6 @@ func (h *Handler) resolveWorkflow(transitionKey string) (transitions.Locator, er
 // SetWorkflowStartGuard applies the server-owned transition policy to the
 // default workflow adapter. Test fakes intentionally remain policy-free.
 func (h *Handler) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
-	if workflow, ok := h.workshopWorkflow.(*agentmanager.WorkflowService); ok {
-		workflow.SetStartGuard(guard)
-	}
-	if workflow, ok := h.clarificationWorkflow.(*agentmanager.WorkflowService); ok {
-		workflow.SetStartGuard(guard)
-	}
 	if workflow, ok := h.planAuthorWorkflow.(*agentmanager.WorkflowService); ok {
 		workflow.SetStartGuard(guard)
 	}
@@ -429,7 +378,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/batch", h.BatchCreate).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/batch/queue", h.BatchQueue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/summary", h.BacklogSummary).Methods("GET")
-	r.HandleFunc("/api/v1/backlog/maturity-summary", h.MaturitySummary).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/pending-questions", h.PendingQuestions).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/validate-globs", h.ValidateGlobs).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Get).Methods("GET")
@@ -440,8 +388,10 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.OperateFile).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-render", h.RenderLinkedPlan).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-accept", h.AcceptPlan).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair", h.StartPlanRepair).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair/{repairID}/apply", h.ApplyPlanRepair).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-candidates/{candidateID}/apply", h.ApplyPlanCandidate).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-author/{executionID}/apply", h.ApplyPlanAuthor).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/process-preflight", h.ProcessPreflight).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Archive).Methods("PATCH")
@@ -450,20 +400,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review-decide", h.ReviewDecide).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/recover-review", h.RecoverReview).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/retry", h.Retry).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/workflow/{executionID}/apply", h.ApplyWorkshopWorkflowResult).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/reset", h.WorkshopReset).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/re-workshop", h.ReWorkshop).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/recreate", h.Recreate).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/reset-artifacts", h.ResetArtifacts).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/pending-advance", h.WorkshopCancelPendingAdvance).Methods("DELETE")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification", h.CreateClarification).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}", h.GetClarification).Methods("GET")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/continue", h.ContinueClarification).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/workflow/{executionID}/apply", h.ApplyClarificationWorkflow).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/action", h.ClarificationAction).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.CreateTargetHandler).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets/{targetId}", h.UpdateTargetHandler).Methods("PUT")

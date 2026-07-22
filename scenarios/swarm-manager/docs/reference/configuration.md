@@ -33,22 +33,9 @@ Swarm Manager exposes a focused configuration surface:
 | `descriptionLineClamp` | 2 | 1-5 | Visible description lines before truncation |
 | `defaultPageSize` | 20 | 10-100 | Default list page size |
 
-### Workshop Auto-Execution (Settings API)
+### Plan Workshop
 
-These settings control auto-execution triggers for the workshop refinement system. All are stored in `.vrooli/settings.json` and accessible via `GET/PUT /api/v1/settings`.
-
-| Lever | Default | Range | Impact |
-|-------|---------|-------|--------|
-| `auto_initialize_workshop` | true | boolean | Auto-spawn first workshop round on backlog item creation |
-| `auto_advance_workshop` | true | boolean | Auto-spawn next round after save when item is not ready |
-| `auto_cascade_workshop` | true | boolean | Auto-trigger dependent item workshops when a dependency becomes ready |
-| `max_auto_rounds` | 10 | 0-50 | Maximum rounds before auto-advancement stops (0 = fully disabled) |
-
-**Interaction notes:**
-- When `auto_advance_workshop` is false, `max_auto_rounds` is irrelevant (no advancement occurs).
-- When `auto_initialize_workshop` is false, newly created items require manual workshop initiation.
-- When `auto_cascade_workshop` is false, dependency resolution does not auto-trigger downstream workshops.
-- Setting all three booleans to false effectively "locks down" the swarm manager from all auto-execution.
+Plan Workshop has no automatic initialization, auto-advance, or readiness settings. Operators explicitly open a review for a backlog item or initiative, submit one response, and decide whether to accept the resulting valid candidate plan. Execution checks the accepted canonical plan on the server.
 
 ### Execution Defaults (Settings API)
 

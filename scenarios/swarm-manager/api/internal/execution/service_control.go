@@ -46,7 +46,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	if err != nil {
 		return Record{}, err
 	}
-	preflight := s.processPreflightForItem(item, false)
+	preflight := s.processPreflightForItem(ctx, item, false)
 	if !preflight.Ready && (!record.Force || hasNonForceableExecutionReasons(preflight.BlockingReasons)) {
 		return Record{}, apierr.BadRequest("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
 	}

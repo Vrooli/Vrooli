@@ -9,7 +9,7 @@
  */
 
 import { memo } from "react";
-import { Archive, ArrowRight, CheckSquare, Clock, Loader2, Lock, MessageSquare, MessageSquareText, Play, Sparkles } from "lucide-react";
+import { Archive, ArrowRight, CheckSquare, Clock, Lock, MessageSquare, Play } from "lucide-react";
 import { Button } from "../ui/button";
 import { TagList } from "../ui/tag-list";
 import { formatRelativeTime } from "../../lib";
@@ -18,7 +18,6 @@ import type { BacklogItem, BacklogStatus, PendingQuestion } from "../../types";
 import { StatusChipPopover } from "./status-chip-popover";
 import type { ItemActions } from "../../lib/backlog-queue-utils";
 import type { AttentionReason } from "../../lib/attention";
-import type { ReadinessIndicatorData } from "../../lib/maturity";
 import type { StepperCompletionResult } from "./inline-question-stepper";
 import { InlineQuestionStepper } from "./inline-question-stepper";
 import { PendingDecisionBadge } from "./pending-decision-badge";
@@ -28,8 +27,6 @@ import { ScenarioBadge } from "./scenario-badge";
 import { AgentRunningBadge } from "./agent-running-badge";
 import { CircuitBrokenBadge } from "./circuit-broken-badge";
 import { NoteIndicator } from "../ui/note-indicator";
-import { ReadinessBar } from "./readiness-bar";
-import { AutoAdvanceCountdown } from "./auto-advance-countdown";
 import { SnoozePopover } from "../command-post/SnoozePopover";
 import { snoozeKeyForBacklog } from "../../lib/snooze-utils";
 import { displayLimitsConfig } from "../../config";
@@ -48,10 +45,6 @@ const NO_ITEM_ACTIONS: ItemActions = {
   primaryCta: null,
   canRun: false,
   runDisabled: false,
-  canWorkshop: false,
-  workshopDisabled: false,
-  canFinalize: false,
-  finalizeDisabled: false,
   canFollowUp: false,
   canRetry: false,
   canArchive: false,
@@ -63,7 +56,6 @@ const NO_ITEM_ACTIONS: ItemActions = {
 
 export interface BacklogCardProps {
   item: BacklogItem;
-  readinessData?: ReadinessIndicatorData;
   /**
    * Picker pick-mode selection contract. When `selection.selectionMode` is
    * true the card renders a compact display-only summary (no action rows,
@@ -76,7 +68,6 @@ export interface BacklogCardProps {
   attentionReasons?: AttentionReason[];
   pendingQuestions?: PendingQuestion[];
   isStepperCompleted?: boolean;
-  transitionResult?: StepperCompletionResult;
   onStepperCompleted?: (result: StepperCompletionResult) => void;
   // Batch mode
   batchMode?: boolean;
@@ -86,16 +77,11 @@ export interface BacklogCardProps {
   onRun?: () => void;
   onArchive?: () => void;
   onFollowUp?: () => void;
-  onFinalize?: () => void;
-  onWorkshop?: () => void;
   onAcceptSuggestion?: () => void;
   onDismissSuggestion?: () => void;
   archivePending?: boolean;
   dismissPending?: boolean;
-  finalizePending?: boolean;
-  workshopPending?: boolean;
-  workshopLabel?: string;
-  /** Human-readable label shown when an agent is running (e.g. "Running workshop…"). */
+  /** Human-readable label shown when an agent is running. */
   runningLabel?: string;
   /** Callback for inline status changes via the status chip popover. */
   onStatusChange?: (newStatus: BacklogStatus) => void;
@@ -109,13 +95,11 @@ export interface BacklogCardProps {
 
 function BacklogCardImpl({
   item,
-  readinessData,
   selection,
   itemActions = NO_ITEM_ACTIONS,
   attentionReasons = [],
   pendingQuestions,
   isStepperCompleted = false,
-  transitionResult,
   onStepperCompleted = () => {},
   batchMode = false,
   isSelected = false,
@@ -123,15 +107,10 @@ function BacklogCardImpl({
   onRun = () => {},
   onArchive = () => {},
   onFollowUp = () => {},
-  onFinalize = () => {},
-  onWorkshop = () => {},
   onAcceptSuggestion = () => {},
   onDismissSuggestion = () => {},
   archivePending = false,
   dismissPending = false,
-  finalizePending = false,
-  workshopPending = false,
-  workshopLabel = "Workshop",
   runningLabel = "Agent running…",
   onStatusChange,
   statusChangePending,
@@ -175,10 +154,9 @@ function BacklogCardImpl({
 
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
   const showBatchCheckbox = batchMode;
-  const deliverableLabel = item.kind === "research" ? "conclusion" : "plan";
   const KindIcon = BACKLOG_KIND_ICONS[item.kind];
   const hasPrimaryActionRow = (
-    (itemActions.canFinalize || itemActions.finalizeDisabled || itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled)
+    (itemActions.canRun || itemActions.runDisabled)
     && !itemActions.blocked
   );
   const snoozeItemKey = snoozeKeyForBacklog(item.kind, item.name);
@@ -241,7 +219,7 @@ function BacklogCardImpl({
       <h3 className="mt-3 font-medium text-slate-100">{item.title}</h3>
       <p className="mt-1 line-clamp-2 text-sm text-slate-400">{item.description}</p>
 
-      {/* Body: stepper, transition, or normal content */}
+      {/* Body: pending independent review or normal content */}
       {hasActiveStepper ? (
         <InlineQuestionStepper
           questions={pendingQuestions as PendingQuestion[]}
@@ -249,49 +227,6 @@ function BacklogCardImpl({
           backlogName={item.name}
           onAllAnswered={onStepperCompleted}
         />
-      ) : transitionResult ? (
-        <div className="mt-3">
-          {transitionResult.autoAdvance?.pending && transitionResult.autoAdvance?.advanceAt ? (
-            <AutoAdvanceCountdown
-              advanceAt={transitionResult.autoAdvance.advanceAt}
-              delaySeconds={transitionResult.autoAdvance.delaySeconds ?? 10}
-              nextMode={(transitionResult.autoAdvance.nextMode ?? "workshop")}
-              kind={item.kind}
-              name={item.name}
-              onCancelled={onStepperCompleted.bind(null, {})}
-              onExpired={() => {/* timer expired — server ticker will spawn; UI shows spinner */}}
-            />
-          ) : (
-          <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.03] px-3 py-2.5 text-sm text-cyan-300">
-          {transitionResult.autoAdvance?.triggered && transitionResult.autoAdvance?.nextMode === "finalize" ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-              {`Finalizing ${deliverableLabel}...`}
-            </>
-          ) : transitionResult.autoAdvance?.triggered ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-              Generating next workshop round...
-            </>
-          ) : transitionResult.autoAdvance?.nextMode === "finalize" ? (
-            <>
-              <CheckSquare className="h-4 w-4 shrink-0 text-emerald-400" />
-              <span className="text-emerald-300">{`All decisions answered — ${deliverableLabel} ready to finalize.`}</span>
-            </>
-          ) : transitionResult.autoAdvance?.nextMode === "workshop" ? (
-            <>
-              <CheckSquare className="h-4 w-4 shrink-0" />
-              All decisions answered — run the next workshop round to continue.
-            </>
-          ) : (
-            <>
-              <CheckSquare className="h-4 w-4 shrink-0" />
-              All decisions answered
-            </>
-          )}
-          </div>
-          )}
-        </div>
       ) : (
         <>
           {attentionReasons.length > 0 && (
@@ -310,9 +245,6 @@ function BacklogCardImpl({
             maxTags={displayLimitsConfig.backlogCardMaxTags}
             className="mt-3"
           />
-          {readinessData && item.kind === "idea" ? (
-            <ReadinessBar data={readinessData} className="mt-3" />
-          ) : null}
           <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
             <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
             <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
@@ -360,31 +292,9 @@ function BacklogCardImpl({
           {/* Blocked state */}
           {itemActions.blocked && !itemActions.locked && (
             <div className="mt-3 space-y-2" onClick={(event) => event.preventDefault()}>
-              {(itemActions.finalizeDisabled || itemActions.workshopDisabled || (itemActions.runDisabled && !itemActions.workshopDisabled && !itemActions.finalizeDisabled)) && (
+              {itemActions.runDisabled && (
                 <div className={actionRowClass} data-testid="backlog-card-actions">
-                  {(itemActions.finalizeDisabled) && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled
-                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                    >
-                      <Sparkles className="mr-1 h-3 w-3" />
-                      Finalize
-                    </Button>
-                  )}
-                  {(itemActions.workshopDisabled) && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled
-                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                    >
-                      <MessageSquareText className="mr-1 h-3 w-3" />
-                      {workshopLabel}
-                    </Button>
-                  )}
-                  {(itemActions.runDisabled && !itemActions.workshopDisabled && !itemActions.finalizeDisabled) && (
+                  {(itemActions.runDisabled) && (
                     <Button
                       size="sm"
                       disabled
@@ -405,21 +315,6 @@ function BacklogCardImpl({
           {/* Primary action row */}
           {hasPrimaryActionRow && (
             <div className={actionRowClass} data-testid="backlog-card-actions" onClick={(event) => event.preventDefault()}>
-              {(itemActions.canFinalize || itemActions.finalizeDisabled) && (
-                <Button
-                  size="sm"
-                  variant={itemActions.primaryCta === "finalize" ? "default" : "outline"}
-                  disabled={itemActions.finalizeDisabled || finalizePending}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onFinalize();
-                  }}
-                >
-                  <Sparkles className="mr-1 h-3 w-3" />
-                  {itemActions.agentExecuting ? runningLabel : finalizePending ? "Starting..." : "Finalize"}
-                </Button>
-              )}
               {(itemActions.canRun || itemActions.runDisabled) && (
                 <Button
                   size="sm"
@@ -434,22 +329,6 @@ function BacklogCardImpl({
                 >
                   <Play className="mr-1 h-3 w-3" />
                   {itemActions.agentExecuting ? runningLabel : "Run"}
-                </Button>
-              )}
-              {(itemActions.canWorkshop || itemActions.workshopDisabled) && (
-                <Button
-                  size="sm"
-                  variant={itemActions.primaryCta === "workshop" ? "default" : "outline"}
-                  disabled={itemActions.workshopDisabled || workshopPending}
-                  title={(itemActions.workshopDisabled || workshopPending) && itemActions.disabledReason ? itemActions.disabledReason : undefined}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onWorkshop();
-                  }}
-                >
-                  <MessageSquareText className="mr-1 h-3 w-3" />
-                  {itemActions.agentExecuting ? runningLabel : workshopPending ? "Starting..." : workshopLabel}
                 </Button>
               )}
               {showSnooze && onSnooze && (
@@ -510,7 +389,7 @@ function BacklogCardImpl({
           )}
 
           {/* Disabled reason for buttons that are shown but not clickable */}
-          {itemActions.disabledReason && (itemActions.runDisabled || itemActions.workshopDisabled || itemActions.finalizeDisabled) && (
+          {itemActions.disabledReason && itemActions.runDisabled && (
             <p className="mt-3 text-xs text-amber-400/80">
               {itemActions.disabledReason}
             </p>

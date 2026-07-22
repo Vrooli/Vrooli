@@ -1325,7 +1325,7 @@ export default function RulesManager() {
                                       <div className="bg-gray-50 rounded p-3 text-xs space-y-2">
                                         <div className="flex items-center gap-2 text-gray-600">
                                           <span className="font-medium">Method:</span>
-                                          <span className={`px-2 py-0.5 rounded text-xs ${test.execution_output.method === 'judge0' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                          <span className={`px-2 py-0.5 rounded text-xs ${test.execution_output.method === 'sandbox' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                                             }`}>
                                             {test.execution_output.method}
                                           </span>
@@ -1460,7 +1460,7 @@ export default function RulesManager() {
                                 <div className="bg-gray-50 rounded p-3 text-xs space-y-2">
                                   <div className="flex items-center gap-2 text-gray-600">
                                     <span className="font-medium">Method:</span>
-                                    <span className={`px-2 py-0.5 rounded text-xs ${playgroundResult.test_result.execution_output.method === 'judge0' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                    <span className={`px-2 py-0.5 rounded text-xs ${playgroundResult.test_result.execution_output.method === 'sandbox' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                                       }`}>
                                       {playgroundResult.test_result.execution_output.method}
                                     </span>

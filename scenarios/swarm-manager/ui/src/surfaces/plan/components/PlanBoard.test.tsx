@@ -483,6 +483,7 @@ describe("PlanBoard", () => {
 
   it("opens dependency-cycle details with graph actions", async () => {
     setPlanStoreService(stubService(makeBoard({
+      next: { groups: [group("cycle", [itemCard("a"), itemCard("b")])], cardCount: 2 },
       meta: { generatedAt: "", windowSeconds: 86400, maxWave: 2, cycles: ["fix/a -> fix/b -> fix/a"], eta: null },
     })));
     const user = userEvent.setup();
@@ -490,7 +491,11 @@ describe("PlanBoard", () => {
 
     await user.click(await screen.findByTestId(selectors.plan.cycleWarning));
 
-    expect(await screen.findByTestId("plan-cycle-popover")).toHaveTextContent("fix/a");
+    const popover = await screen.findByTestId("plan-cycle-popover");
+    expect(popover).toHaveTextContent("a title");
+    expect(popover).toHaveTextContent("b title");
+    expect(popover).toHaveTextContent("Loops back to a title.");
+    expect(popover).not.toHaveTextContent("fix/a");
     expect(screen.getByTestId("plan-cycle-resolve")).toHaveTextContent("Open backlog item");
   });
 });

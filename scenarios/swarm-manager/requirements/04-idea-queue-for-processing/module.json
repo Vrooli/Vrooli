@@ -69,7 +69,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestQueue_SpawnsAgent",
+          "ref": "api/internal/execution/service_test.go::TestQueueAndStartManualExecution",
           "phase": "unit",
           "status": "failing",
           "notes": "Test queue success with mocked agent service"

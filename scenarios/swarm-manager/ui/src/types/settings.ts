@@ -29,7 +29,7 @@ export type DeleteConfirmationSettings = Record<DeletableEntityType, DeleteConfi
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "laneConcurrencyLimits" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmationLevels" | "fixBeforeFeature" | "autoFiler"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoInitializeWorkshop" | "autoAdvanceWorkshop" | "autoCascadeWorkshop" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "laneConcurrencyLimits" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmationLevels" | "fixBeforeFeature" | "autoFiler"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
@@ -38,12 +38,6 @@ export type Settings = Omit<
   autoFixup: boolean;
   maxFixupAttempts: number;
   reviewAgentEnabled: boolean;
-  /** Workshop */
-  autoInitializeWorkshop: boolean;
-  autoAdvanceWorkshop: boolean;
-  autoCascadeWorkshop: boolean;
-  maxAutoRounds: number;
-  autoAdvanceDelaySeconds: number;
   /** Agent behavior */
   agentMaxTurns: number;
   agentTimeoutSeconds: number;
@@ -134,11 +128,6 @@ export interface SettingsFieldClassification {
  */
 export interface PolicyControlsView {
   defaultMode: ExecutionMode;
-  autoInitialize: boolean;
-  autoAdvanceEnabled: boolean;
-  cascadeEnabled: boolean;
-  autoAdvanceDelaySeconds: number;
-  maxAutoRounds: number;
   autoFixup: boolean;
   maxFixupAttempts: number;
   reviewAgentEnabled: boolean;

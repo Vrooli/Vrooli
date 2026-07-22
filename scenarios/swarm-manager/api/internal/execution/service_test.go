@@ -15,6 +15,7 @@ import (
 	"swarm-manager/internal/promptmanager"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -138,7 +139,10 @@ type snapshotAgentService struct {
 }
 
 func testPlanRenderer() *fakeMarkdownRenderer {
-	return &fakeMarkdownRenderer{result: planclient.RenderMarkdownResult{Markdown: "# Rendered implementation plan\n\nTest plan content."}}
+	return &fakeMarkdownRenderer{result: planclient.RenderMarkdownResult{
+		Markdown: "# Rendered implementation plan\n\nTest plan content.", QualityStatus: "pass",
+		Plan: &sharedv1.Plan{ContentHash: "sha256:test-plan"},
+	}}
 }
 
 func (s *snapshotAgentService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
@@ -324,6 +328,14 @@ func TestApplyConclusionWorkflow_ExactlyOnce(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "research", "conclusion-apply")
 	workflow := &stubConclusionWorkflow{}
 	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"), PlanRenderer: testPlanRenderer(), AgentService: &stubAgentService{}, PromptClient: &promptmanager.MockClient{Result: "test prompt"}, ConclusionWorkflow: workflow})
+	observed := 0
+	service.SetResearchConclusionObserver(func(_ context.Context, event ResearchConclusionEvent) error {
+		observed++
+		if event.BacklogKind != "research" || event.BacklogName != "conclusion-apply" || event.Summary != "done" || event.Disposition != "follow_up" || event.Rationale != "Validate the conclusion" || event.Confidence != "medium" {
+			t.Fatalf("unexpected research conclusion event: %+v", event)
+		}
+		return nil
+	})
 	queued, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "research", BacklogName: "conclusion-apply", Mode: ModeManual})
 	if err != nil {
 		t.Fatal(err)
@@ -332,7 +344,7 @@ func TestApplyConclusionWorkflow_ExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"handoff": map[string]any{"summary": "done", "blockers": []any{}, "next_step": "review", "changed_files": []any{}, "tests": []any{}, "progress": "complete"}}})
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"finding": map[string]any{"summary": "done", "evidence": []any{}, "changed_files": []any{}, "tests": []any{}}, "disposition": map[string]any{"kind": "follow_up", "rationale": "Validate the conclusion", "confidence": "medium"}, "progress": "complete", "blockers": []any{}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,6 +362,9 @@ func TestApplyConclusionWorkflow_ExactlyOnce(t *testing.T) {
 	}
 	if !second.Idempotent {
 		t.Fatalf("expected idempotent replay, got %#v", second)
+	}
+	if observed != 1 {
+		t.Fatalf("observer calls = %d, want 1", observed)
 	}
 }
 
@@ -619,6 +634,23 @@ func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[str
 				"plan_id":  "test-plan-" + name,
 				"slug":     "test-plan-" + name,
 				"role":     "execution_spec",
+			}
+		}
+		if _, ok := payload["plan_acceptance"]; !ok {
+			raw, err := json.Marshal(payload)
+			if err != nil {
+				t.Fatalf("marshal acceptance fixture: %v", err)
+			}
+			var item backlogItem
+			if err := json.Unmarshal(raw, &item); err != nil {
+				t.Fatalf("decode acceptance fixture: %v", err)
+			}
+			item.Name = name
+			item.Kind = kind
+			payload["plan_acceptance"] = map[string]any{
+				"actor": "test", "accepted_at": "2026-01-01T00:00:00Z",
+				"plan_content_hash": "sha256:test-plan",
+				"subject_version":   executionPlanAcceptanceSubjectVersion(item),
 			}
 		}
 	}

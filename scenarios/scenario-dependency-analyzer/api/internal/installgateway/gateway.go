@@ -49,16 +49,18 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	return string(out), err
 }
 
-// allowedSurfaces is the closed set of surfaces a scenario exposes.
+// allowedSurfaces is the closed set of installable top-level scenario surfaces.
+// Tools packages are addressed as tools/<package>; this keeps governed installs
+// scoped to one explicit helper package instead of treating tools/ as a package.
 var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}}
 
 // Resolve maps a request to a Resolution. repoRoot is the Vrooli repo root;
-// surface is ui/api/cli. It validates the surface exists and that the ecosystem
+// surface is ui/api/cli or tools/<package>. It validates the surface exists and that the ecosystem
 // matches the surface's detected package manager, and builds the install argv.
 func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string) (Resolution, error) {
-	surface = strings.ToLower(strings.TrimSpace(surface))
-	if _, ok := allowedSurfaces[surface]; !ok {
-		return Resolution{}, fmt.Errorf("surface %q is not one of ui/api/cli", surface)
+	surface, err := normalizedSurface(surface)
+	if err != nil {
+		return Resolution{}, err
 	}
 	if strings.TrimSpace(packageName) == "" {
 		return Resolution{}, fmt.Errorf("package name is required")
@@ -79,6 +81,18 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 		ManifestPath:   manifest,
 		Argv:           argv,
 	}, nil
+}
+
+func normalizedSurface(surface string) (string, error) {
+	surface = strings.ToLower(strings.TrimSpace(surface))
+	if _, ok := allowedSurfaces[surface]; ok {
+		return surface, nil
+	}
+	parts := strings.Split(surface, "/")
+	if len(parts) == 2 && parts[0] == "tools" && parts[1] != "" && parts[1] != "." && parts[1] != ".." && !strings.Contains(parts[1], `\\`) {
+		return surface, nil
+	}
+	return "", fmt.Errorf("surface %q is not ui/api/cli or tools/<package>", surface)
 }
 
 // planForEcosystem builds the package manager, manifest path, and install argv

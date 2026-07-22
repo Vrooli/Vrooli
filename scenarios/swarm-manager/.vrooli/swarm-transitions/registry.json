@@ -68,50 +68,25 @@
   },
   {
     "schemaVersion": "swarm-transition/v1",
-    "key": "backlog.refine",
-    "subject": "backlog-item",
+    "key": "plan.workshop.review",
+    "subject": "plan-workshop-subject",
     "kind": "workflow",
-    "workflow": {
-      "owner": "swarm-manager",
-      "key": "swarm-manager/backlog-workshop-round"
-    },
-    "requires": [
-      "agent-manager",
-      "prompt-manager"
-    ],
-    "inputContract": "backlog-refinement-input/v1",
-    "terminalOutcomes": [
-      "proposals",
-      "ready",
-      "needs_attention",
-      "abstained",
-      "failed"
-    ],
-    "applyAction": "apply_backlog_refinement"
+    "workflow": {"owner": "swarm-manager", "key": "swarm-manager/plan-workshop-review"},
+    "requires": ["agent-manager", "prompt-manager", "plan-manager"],
+    "inputContract": "plan-workshop-review-input/v1",
+    "terminalOutcomes": ["packet", "needs_attention", "abstained", "failed"],
+    "applyAction": "record_plan_workshop_packet"
   },
   {
     "schemaVersion": "swarm-transition/v1",
-    "key": "backlog.clarify",
-    "subject": "backlog-item",
+    "key": "plan.workshop.reconcile",
+    "subject": "plan-workshop-subject",
     "kind": "workflow",
-    "workflow": {
-      "owner": "swarm-manager",
-      "key": "swarm-manager/backlog-clarify"
-    },
-    "requires": [
-      "agent-manager",
-      "prompt-manager"
-    ],
-    "inputContract": "backlog-clarification-input/v1",
-    "terminalOutcomes": [
-      "clarified",
-      "waiting_for_operator",
-      "needs_attention",
-      "abstained",
-      "failed",
-      "cancelled"
-    ],
-    "applyAction": "apply_backlog_clarification"
+    "workflow": {"owner": "swarm-manager", "key": "swarm-manager/plan-workshop-reconcile"},
+    "requires": ["agent-manager", "prompt-manager", "plan-manager"],
+    "inputContract": "plan-workshop-reconcile-input/v1",
+    "terminalOutcomes": ["candidate", "needs_attention", "abstained", "failed"],
+    "applyAction": "record_plan_workshop_candidate"
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -159,28 +134,6 @@
       "budget_exhausted"
     ],
     "applyAction": "bind_validated_plan_ref"
-  },
-  {
-    "schemaVersion": "swarm-transition/v1",
-    "key": "research.refine",
-    "subject": "backlog-item",
-    "kind": "workflow",
-    "workflow": {
-      "owner": "swarm-manager",
-      "key": "swarm-manager/backlog-workshop-round"
-    },
-    "requires": [
-      "agent-manager",
-      "prompt-manager"
-    ],
-    "inputContract": "research-refinement-input/v1",
-    "terminalOutcomes": [
-      "refined",
-      "needs_attention",
-      "abstained",
-      "failed"
-    ],
-    "applyAction": "apply_research_refinement"
   },
   {
     "schemaVersion": "swarm-transition/v1",

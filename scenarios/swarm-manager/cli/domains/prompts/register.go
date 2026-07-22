@@ -18,7 +18,6 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("skill-versions", "Get prompt skill version history (--id ID)", deps.PromptsSkillVersions),
 			support.APICommand("skill-revert", "Revert prompt skill to version (--id ID --version VERSION)", deps.PromptsSkillRevert),
 			support.APICommand("preview", "Render a skill prompt with variables (--id ID)", deps.PromptsPreview),
-			support.APICommand("simulate", "Simulate selected prompt for a workload kind (--kind KIND)", deps.PromptsSimulate),
 			support.APICommand("experiment-results", "Show experiment results (--id EID or positional) [--json]", deps.PromptsExperiment),
 		},
 	}

@@ -5,7 +5,7 @@
  * single return object for BacklogDetailsPage. Each concern is implemented in
  * its own sub-hook:
  *
- *   - useBacklogCRUDHandlers  -- item CRUD, agent, workshop
+ *   - useBacklogCRUDHandlers  -- item CRUD and lifecycle actions
  *   - useBacklogFileHandlers  -- file select, upload, rename/move/copy/delete
  *   - (remaining)             -- review, targets, requirements, modules, selection
  *
@@ -20,7 +20,6 @@ import { useBacklogDetailUIStore } from "../stores";
 import { useBacklogCRUDHandlers } from "./useBacklogCRUDHandlers";
 import { useBacklogFileHandlers } from "./useBacklogFileHandlers";
 import type { useBacklogDetailData } from "./useBacklogDetailData";
-import type { WorkshopSaveResponse } from "../services/backlog/types";
 import type {
   ArchiveRequirement,
   ArchiveRequirementRecord,
@@ -53,8 +52,6 @@ export interface UseBacklogHandlersOptions {
   selectedFile: BacklogFile | null;
   // Navigation
   closeDetail: () => void;
-  refreshActivities: (force: boolean) => Promise<void>;
-  onWorkshopSaveResult?: (result: WorkshopSaveResponse) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,8 +68,6 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
     setSearchParams,
     selectedFile,
     closeDetail,
-    refreshActivities,
-    onWorkshopSaveResult,
   } = opts;
 
   const { _mutations, archiveTargets, targetIdSet, reqModuleMap } = data;
@@ -84,8 +79,6 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
     backlogKind,
     name,
     closeDetail,
-    refreshActivities,
-    onWorkshopSaveResult,
   });
 
   const fileHandlers = useBacklogFileHandlers({
@@ -311,7 +304,7 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
   }, []);
 
   return {
-    // CRUD & workshop (from sub-hook)
+    // CRUD (from sub-hook)
     ...crudHandlers,
     // File operations (from sub-hook)
     ...fileHandlers,

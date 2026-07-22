@@ -182,7 +182,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.applyBatchCreateRequest(r.Context(), req, identity.FromContext(r.Context()), true, "http.batch_create")
+	result, err := h.applyBatchCreateRequest(r.Context(), req, identity.FromContext(r.Context()), "http.batch_create")
 	if err != nil {
 		apierr.MapError(w, "[backlog] batch-create", err)
 		return
@@ -211,7 +211,7 @@ func (h *Handler) ApplyAgentSessionBacklogBatchImport(ctx context.Context, paylo
 		return nil, apierr.BadRequest("invalid backlog batch proposal payload: %s", httputil.TruncateErrorMessage(err, 240))
 	}
 	req.Preview = false
-	result, err := h.applyBatchCreateRequest(ctx, req, prov, false, "agent_sessions.apply.backlog_batch_import")
+	result, err := h.applyBatchCreateRequest(ctx, req, prov, "agent_sessions.apply.backlog_batch_import")
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func (h *Handler) ImportBatchItems(ctx context.Context, payloadJSON string, prov
 		return nil, apierr.BadRequest("invalid plan-import batch payload: %s", httputil.TruncateErrorMessage(err, 240))
 	}
 	req.Preview = false
-	result, err := h.applyBatchCreateRequest(ctx, req, prov, true, "http.plan_import")
+	result, err := h.applyBatchCreateRequest(ctx, req, prov, "http.plan_import")
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,6 @@ func (h *Handler) applyBatchCreateRequest(
 	ctx context.Context,
 	req batchCreateRequest,
 	prov identity.Provenance,
-	triggerAutoWorkshop bool,
 	mutationSource string,
 ) (batchApplyResult, error) {
 	if len(req.Items) == 0 {
@@ -304,12 +303,6 @@ func (h *Handler) applyBatchCreateRequest(
 	if err != nil {
 		rollbackBatchCreate(batchItemDirs(h.store, createdItems), appliedInitiatives, h.initiativeAssigner)
 		return batchApplyResult{}, apierr.Internal("failed to record session artifacts")
-	}
-
-	if triggerAutoWorkshop {
-		for _, item := range createdItems {
-			h.maybeAutoWorkshop(item, false)
-		}
 	}
 
 	slog.Info("batch-created items", "count", len(createdItems))
@@ -617,7 +610,7 @@ func (h *Handler) applyInitiativeChanges(plans map[string]resolvedInitiativePlan
 // already validated up front. SkipInitiativeAttach defers initiative
 // membership writes to assignItemsToInitiatives, which uses bulk
 // AddItems for one initiative.json write per initiative instead of N
-// from per-item RememberItem. SkipWorkshopTrigger and SkipGraphInvalidation
+// from per-item RememberItem. SkipGraphInvalidation
 // defer those side effects to the end of the batch where they fire once.
 func (h *Handler) createBatchItems(ctx context.Context, validated []validatedItem, appliedInitiatives []resolvedInitiativePlan) ([]BacklogItem, error) {
 	createdDirs := make([]string, 0, len(validated))
@@ -632,7 +625,6 @@ func (h *Handler) createBatchItems(ctx context.Context, validated []validatedIte
 			SkipDuplicateCheck:    true,
 			SkipCycleCheck:        true,
 			SkipInitiativeAttach:  true,
-			SkipWorkshopTrigger:   true,
 			SkipGraphInvalidation: true,
 			SkipSessionArtifact:   true,
 		})

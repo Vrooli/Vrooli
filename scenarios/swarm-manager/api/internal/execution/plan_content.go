@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"swarm-manager/internal/planclient"
-	"swarm-manager/internal/workshop"
 )
 
 const (
@@ -17,20 +16,10 @@ const (
 type renderedPlanContent struct {
 	Path            string
 	Markdown        string
+	ContentHash     string
+	Status          string
 	QualityStatus   string
 	QualityFindings []string
-}
-
-func (s *Service) resolveExecutionDeliverable(ctx context.Context, item backlogItem, itemDir string) (renderedPlanContent, error) {
-	if deliverableForKind(item.Kind) == "conclusion.md" {
-		path := "conclusion.md"
-		content := workshop.LoadPlanContentByName(itemDir, path)
-		if strings.TrimSpace(content) == "" {
-			return renderedPlanContent{}, fmt.Errorf("backlog item %s/%s has no research conclusion (%s)", item.Kind, item.Name, path)
-		}
-		return renderedPlanContent{Path: path, Markdown: content}, nil
-	}
-	return resolveRenderedPlanContent(ctx, item, s.planRenderer)
 }
 
 func resolveRenderedPlanContent(ctx context.Context, item backlogItem, renderer planclient.MarkdownRenderer) (renderedPlanContent, error) {
@@ -63,6 +52,8 @@ func resolveRenderedPlanContent(ctx context.Context, item backlogItem, renderer 
 	return renderedPlanContent{
 		Path:            "plan-manager:" + pathID,
 		Markdown:        result.Markdown,
+		ContentHash:     result.Plan.GetContentHash(),
+		Status:          result.Plan.GetStatus().String(),
 		QualityStatus:   result.QualityStatus,
 		QualityFindings: append([]string(nil), result.QualityFindings...),
 	}, nil

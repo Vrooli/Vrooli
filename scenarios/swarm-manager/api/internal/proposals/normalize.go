@@ -42,9 +42,14 @@ func Normalize(p Proposal, current CurrentState) (Proposal, error) {
 
 func normalizeMutationList(p Proposal) Proposal {
 	out := Proposal{
-		Form:      FormMutationList,
-		Rationale: p.Rationale,
-		Mutations: make([]Mutation, 0, len(p.Mutations)),
+		Form: FormMutationList, Rationale: p.Rationale, BaseVersion: strings.TrimSpace(p.BaseVersion),
+		ConflictKey: strings.TrimSpace(p.ConflictKey), ApplyMode: ApplyMode(strings.TrimSpace(string(p.ApplyMode))),
+		RequiresAuthorization: p.RequiresAuthorization, Mutations: make([]Mutation, 0, len(p.Mutations)),
+	}
+	for _, dependency := range p.Dependencies {
+		if trimmed := strings.TrimSpace(dependency); trimmed != "" {
+			out.Dependencies = append(out.Dependencies, trimmed)
+		}
 	}
 	for i, m := range p.Mutations {
 		m.Target = strings.TrimSpace(m.Target)
@@ -87,8 +92,14 @@ func normalizeFullGraph(p Proposal, current CurrentState) (Proposal, error) {
 	targetEdges := dedupeEdges(p.Graph.Edges)
 
 	out := Proposal{
-		Form:      FormMutationList,
-		Rationale: p.Rationale,
+		Form: FormMutationList, Rationale: p.Rationale, BaseVersion: strings.TrimSpace(p.BaseVersion),
+		ConflictKey: strings.TrimSpace(p.ConflictKey), ApplyMode: ApplyMode(strings.TrimSpace(string(p.ApplyMode))),
+		RequiresAuthorization: p.RequiresAuthorization,
+	}
+	for _, dependency := range p.Dependencies {
+		if trimmed := strings.TrimSpace(dependency); trimmed != "" {
+			out.Dependencies = append(out.Dependencies, trimmed)
+		}
 	}
 
 	// Deterministic order: sorted ref for ops that reference a single node,

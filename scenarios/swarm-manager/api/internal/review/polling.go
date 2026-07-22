@@ -103,6 +103,9 @@ func (s *Service) RefreshGatheringRounds(ctx context.Context) {
 		if s.onRoundTerminal != nil && ar.Kind != "" && ar.Name != "" {
 			s.onRoundTerminal(ctx, ar.Kind, ar.Name, *round)
 		}
+		if ar.Kind != "" && ar.Name != "" {
+			s.notifyRoundTerminal(ctx, ar.Kind, ar.Name, *round)
+		}
 
 		s.untrackRound(runID)
 	}

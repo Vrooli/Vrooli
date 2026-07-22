@@ -85,6 +85,12 @@ func (s *Service) SetConclusionWorkflow(workflow agentmanager.WorkflowInvoker) {
 	s.conclusionWorkflow = workflow
 }
 
+func (s *Service) SetResearchConclusionObserver(observer func(context.Context, ResearchConclusionEvent) error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.researchConclusionObserver = observer
+}
+
 // SetWorkWorkflow installs the generic declared-workflow seam for bounded
 // follow-up and correction work. The domain adapter owns snapshots and apply;
 // the workflow owns the agent invocation and typed extraction.

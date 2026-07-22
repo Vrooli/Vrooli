@@ -3,7 +3,7 @@
  *
  * PURPOSE:
  * Allows users to configure UI preferences, execution defaults,
- * workshop behavior, agent settings, review thresholds, and UI behavior.
+ * Plan Workshop guidance, agent settings, review thresholds, and UI behavior.
  *
  * CURRENT STATUS: Persistent via filesystem-backed unified settings API.
  *
@@ -284,7 +284,7 @@ export function SettingsPage() {
         <TabsList className="w-full">
           <TabsTrigger value="general" data-testid={selectors.settings.tabGeneral}>General</TabsTrigger>
           <TabsTrigger value="execution" data-testid={selectors.settings.tabExecution}>Execution</TabsTrigger>
-          <TabsTrigger value="workshop" data-testid={selectors.settings.tabWorkshop}>Workshop</TabsTrigger>
+          <TabsTrigger value="workshop" data-testid={selectors.settings.tabWorkshop}>Plan Workshop</TabsTrigger>
           <TabsTrigger value="review" data-testid={selectors.settings.tabReview}>Review</TabsTrigger>
           <TabsTrigger value="audio" data-testid={selectors.settings.tabAudio}>Audio</TabsTrigger>
         </TabsList>
@@ -298,7 +298,7 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="workshop">
-          <WorkshopTab form={form} patch={patch} policyProjection={policyProjection} />
+          <WorkshopTab />
         </TabsContent>
 
         <TabsContent value="review">

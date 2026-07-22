@@ -78,9 +78,10 @@ type ServiceConfig struct {
 	PlanContentResolver  PlanContentResolver
 	// OnRoundTerminal fires when a review round transitions to complete/failed.
 	// Used to flip the backlog item's status to review_pending.
-	OnRoundTerminal    RoundTerminalHandler
-	Workflow           agentmanager.WorkflowInvoker
-	TransitionRegistry transitions.Registry
+	OnRoundTerminal       RoundTerminalHandler
+	RoundTerminalObserver RoundTerminalObserver
+	Workflow              agentmanager.WorkflowInvoker
+	TransitionRegistry    transitions.Registry
 	// RoundMaxAge bounds how long a round may sit in `gathering` before the
 	// poller treats its run as abandoned and finalizes it as failed (which
 	// fires OnRoundTerminal so the item leaves in_review). Zero uses
@@ -97,19 +98,20 @@ const DefaultRoundMaxAge = 30 * time.Minute
 
 // Service provides review evidence management for completed executions.
 type Service struct {
-	dataRoot             string
-	workflow             agentmanager.WorkflowInvoker
-	transitionRegistry   transitions.Registry
-	inspector            RunInspector
-	promptClient         promptmanager.Client
-	eventLogger          EventLogger
-	itemDirFn            func(kind, name string) string
-	loadItemTitle        func(kind, name string) (string, error)
-	loadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
-	planContentResolver  PlanContentResolver
-	onRoundTerminal      RoundTerminalHandler
-	roundMaxAge          time.Duration
-	clock                func() time.Time
+	dataRoot              string
+	workflow              agentmanager.WorkflowInvoker
+	transitionRegistry    transitions.Registry
+	inspector             RunInspector
+	promptClient          promptmanager.Client
+	eventLogger           EventLogger
+	itemDirFn             func(kind, name string) string
+	loadItemTitle         func(kind, name string) (string, error)
+	loadExecutionContext  func(ctx context.Context, executionID string) (*ExecutionContext, error)
+	planContentResolver   PlanContentResolver
+	onRoundTerminal       RoundTerminalHandler
+	roundTerminalObserver RoundTerminalObserver
+	roundMaxAge           time.Duration
+	clock                 func() time.Time
 
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
@@ -126,19 +128,20 @@ func NewService(cfg ServiceConfig) *Service {
 		roundMaxAge = envDuration("SWARM_MANAGER_REVIEW_ROUND_MAX_AGE", DefaultRoundMaxAge)
 	}
 	svc := &Service{
-		dataRoot:             cfg.DataRoot,
-		inspector:            cfg.RunInspector,
-		promptClient:         pc,
-		itemDirFn:            cfg.ItemDirFn,
-		loadItemTitle:        cfg.LoadItemTitle,
-		loadExecutionContext: cfg.LoadExecutionContext,
-		planContentResolver:  cfg.PlanContentResolver,
-		onRoundTerminal:      cfg.OnRoundTerminal,
-		workflow:             cfg.Workflow,
-		transitionRegistry:   cfg.TransitionRegistry,
-		roundMaxAge:          roundMaxAge,
-		clock:                time.Now,
-		activeRounds:         make(map[string]activeRound),
+		dataRoot:              cfg.DataRoot,
+		inspector:             cfg.RunInspector,
+		promptClient:          pc,
+		itemDirFn:             cfg.ItemDirFn,
+		loadItemTitle:         cfg.LoadItemTitle,
+		loadExecutionContext:  cfg.LoadExecutionContext,
+		planContentResolver:   cfg.PlanContentResolver,
+		onRoundTerminal:       cfg.OnRoundTerminal,
+		roundTerminalObserver: cfg.RoundTerminalObserver,
+		workflow:              cfg.Workflow,
+		transitionRegistry:    cfg.TransitionRegistry,
+		roundMaxAge:           roundMaxAge,
+		clock:                 time.Now,
+		activeRounds:          make(map[string]activeRound),
 	}
 	if svc.workflow == nil {
 		svc.workflow = agentmanager.NewWorkflowService()
@@ -149,6 +152,21 @@ func NewService(cfg ServiceConfig) *Service {
 		}
 	}
 	return svc
+}
+
+// SetRoundTerminalObserver configures the optional projection into the common
+// operator loop. It deliberately supplements, rather than replaces, the
+// backlog lifecycle callback.
+func (s *Service) SetRoundTerminalObserver(observer RoundTerminalObserver) {
+	if s != nil {
+		s.roundTerminalObserver = observer
+	}
+}
+
+func (s *Service) notifyRoundTerminal(ctx context.Context, kind, name string, round Round) {
+	if s.roundTerminalObserver != nil {
+		s.roundTerminalObserver(ctx, kind, name, round)
+	}
 }
 
 // SetEventLogger injects an optional event logger for analytics.

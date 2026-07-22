@@ -9,8 +9,8 @@ import (
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/planrepair"
-	"swarm-manager/internal/workshop"
 
 	"github.com/gorilla/mux"
 )
@@ -54,17 +54,12 @@ func (h *Handler) StartPlanRepair(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[backlog] plan-repair", apierr.Conflict("plan has no validation findings to repair"))
 		return
 	}
-	_, rounds, err := workshop.LoadLatestRound(h.store.ItemDir(kind, name))
-	if err != nil {
-		apierr.MapError(w, "[backlog] plan-repair", apierr.Internal("load workshop frontier failed"))
-		return
-	}
 	findings := make([]any, len(rendered.QualityFindings))
 	for i := range rendered.QualityFindings {
 		findings[i] = map[string]any{"message": rendered.QualityFindings[i]}
 	}
 	frontier := repairFrontier(item.PlanRef.PlanID, rendered.Markdown)
-	record, err := h.planRepair.Start(r.Context(), planrepair.StartRequest{EntityKind: string(kind), EntityName: name, EntityVersion: workshopSnapshotVersion(item, rounds), PlanReference: item.PlanRef.PlanID, PlanContent: rendered.Markdown, FrontierDigest: frontier, ValidationFindings: findings, CheckedAt: time.Now().UTC().Format(time.RFC3339Nano), MaxRepairAttempts: request.MaxRepairAttempts})
+	record, err := h.planRepair.Start(r.Context(), planrepair.StartRequest{EntityKind: string(kind), EntityName: name, EntityVersion: immutableBacklogSnapshotVersion(item), PlanReference: item.PlanRef.PlanID, BaseContentHash: rendered.Plan.GetContentHash(), PlanContent: rendered.Markdown, FrontierDigest: frontier, ValidationFindings: findings, CheckedAt: time.Now().UTC().Format(time.RFC3339Nano), MaxRepairAttempts: request.MaxRepairAttempts})
 	if err != nil {
 		apierr.MapError(w, "[backlog] plan-repair", apierr.Conflict("start plan repair: %s", err))
 		return
@@ -94,17 +89,17 @@ func (h *Handler) ApplyPlanRepair(w http.ResponseWriter, r *http.Request) {
 		_ = httputil.JSON(w, result)
 		return
 	}
-	plan, err := planrepair.Canonicalize(r.Context(), h.planClient, record, result)
+	candidateClient, ok := h.planClient.(planclient.CandidateClient)
+	if !ok {
+		apierr.MapError(w, "[backlog] plan-repair", apierr.Unavailable("plan manager candidate revisions are unavailable"))
+		return
+	}
+	preview, err := planrepair.Canonicalize(r.Context(), candidateClient, record, result)
 	if err != nil {
 		apierr.MapError(w, "[backlog] plan-repair", apierr.Conflict("canonicalize repaired plan: %s", err))
 		return
 	}
-	completed, err := h.planRepair.CompleteApply(r.Context(), h, record, plan)
-	if err != nil {
-		apierr.MapError(w, "[backlog] plan-repair", apierr.Conflict("apply repaired plan: %s", err))
-		return
-	}
-	_ = httputil.JSON(w, completed)
+	_ = httputil.JSON(w, map[string]any{"repair": record, "candidate_preview": preview})
 }
 
 func repairFrontier(planID, markdown string) string {

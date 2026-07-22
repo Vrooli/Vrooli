@@ -54,29 +54,6 @@ func TestCanonicalScenarioSpecMatchesStaleCheckerDerivation(t *testing.T) {
 	}
 }
 
-func TestCanonicalShellScriptSpecIncludesScriptNamedLikeBinary(t *testing.T) {
-	root := t.TempDir()
-	mustWriteFile(t, filepath.Join(root, "cli", "alpha"), "#!/usr/bin/env bash\necho first\n")
-	mustWriteFile(t, filepath.Join(root, "cli", "install.sh"), "#!/usr/bin/env bash\n")
-	mustWriteFile(t, filepath.Join(root, ".vrooli", "service.json"), "{}\n")
-
-	spec := CanonicalShellScriptFreshnessSpec(root, "cli/alpha", "cli/install.sh", ".vrooli/service.json", "alpha", nil)
-	first, err := ComputeFreshnessFingerprint(spec)
-	if err != nil {
-		t.Fatalf("first fingerprint: %v", err)
-	}
-
-	mustWriteFile(t, filepath.Join(root, "cli", "alpha"), "#!/usr/bin/env bash\necho second\n")
-	second, err := ComputeFreshnessFingerprint(spec)
-	if err != nil {
-		t.Fatalf("second fingerprint: %v", err)
-	}
-
-	if first == second {
-		t.Fatal("expected script content change to affect shell-script freshness fingerprint")
-	}
-}
-
 func TestCanonicalSpecHonorsCustomInputs(t *testing.T) {
 	spec := CanonicalScenarioGoModuleFreshnessSpec("/scenarios/alpha", "/scenarios/alpha/cli", "alpha", []string{"cli/**", "docs/**"})
 	if len(spec.Inputs) != 2 || spec.Inputs[0] != "cli/**" || spec.Inputs[1] != "docs/**" {

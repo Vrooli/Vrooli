@@ -1,8 +1,7 @@
 // Package gates provides a read-model over existing swarm state that
 // enumerates decision points ("gates") requiring a human or agent action
-// before dependent work can proceed: unanswered workshop decisions,
-// review-pending items and runs, captures awaiting classification, and
-// items whose workshop maturity is not yet execution-ready.
+// before dependent work can proceed: review-pending items and runs, captures
+// awaiting classification, accepted-plan checks, and pending proposals.
 //
 // The package owns no storage and no policy — it only projects sources
 // that already exist. Sources sit behind the Source interface so a future
@@ -20,15 +19,16 @@ import (
 type Kind string
 
 const (
-	// KindDecide — unanswered workshop decisions on a backlog item.
+	// KindDecide remains decodable for historical gate records. Current Plan
+	// Workshop decisions are resolved in their workshop session instead.
 	KindDecide Kind = "decide"
 	// KindReview — a human review is pending (review_pending item or a
 	// needs_review / needs_fixup execution).
 	KindReview Kind = "review"
 	// KindClassify — a capture is awaiting classification review.
 	KindClassify Kind = "classify"
-	// KindWorkshop — a queueable item whose plan maturity is not yet
-	// execution-ready (agent-actionable, not a human gate).
+	// KindWorkshop — a queueable item whose canonical plan needs validation or
+	// fresh operator acceptance (agent-actionable, not a human gate).
 	KindWorkshop Kind = "workshop"
 	// KindProposal — one or more agent mutation proposals await an explicit
 	// operator decision for the owning entity.
@@ -52,7 +52,7 @@ type Gate struct {
 	// DecidableSince is the RFC3339 timestamp the gate became answerable,
 	// when the source knows it.
 	DecidableSince string
-	// Suggested is a workshop-gate hint: "workshop" or "finalize".
+	// Suggested is an operator action hint such as "author-plan" or "accept-plan".
 	Suggested string
 }
 

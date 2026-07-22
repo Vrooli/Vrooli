@@ -1,7 +1,7 @@
 /**
  * FocusActionsSection — Inline actions for the NodeInspectorPanel in focus lens mode.
  *
- * Renders the primary CTA (Run/Workshop/Finalize/etc.) and a collapsible
+ * Renders the primary CTA and a collapsible
  * InlineQuestionStepper for pending decisions. Only renders for entity types
  * with actionable states (backlog, execution, capture).
  */
@@ -11,8 +11,6 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Play,
-  MessageCircle,
-  Sparkles,
   Wrench,
   Eye,
   ChevronRight,
@@ -23,7 +21,7 @@ import { cn } from "../../../lib/utils";
 import { defaultApiClient } from "../../../lib/api-client";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { useBacklogStore } from "../../../stores/backlog-store";
-import { backlogDetailPath, executionDetailPath } from "../../../app/routes/route-paths";
+import { executionDetailPath } from "../../../app/routes/route-paths";
 import { RunBacklogModal, type RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
 import { InlineQuestionStepper } from "../../../components/backlog/inline-question-stepper";
 import { useNodeActionContext } from "../hooks/useNodeActionContext";
@@ -42,8 +40,6 @@ import type {
 
 const CTA_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
   run: { label: "Run", icon: Play },
-  workshop: { label: "Workshop", icon: MessageCircle },
-  finalize: { label: "Finalize", icon: Sparkles },
   followUp: { label: "Follow Up", icon: Wrench },
   archive: { label: "Archive", icon: Eye },
 };
@@ -84,8 +80,6 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     const cta = itemActions.primaryCta;
     if (cta === "run") {
       setRunModalTarget({ kind: nodeData.kind, name: nodeData.name, title: nodeData.title });
-    } else if (cta === "workshop" || cta === "finalize") {
-      navigate(backlogDetailPath(nodeData.kind, nodeData.name));
     } else if (cta === "followUp") {
       // Find the latest execution for this item to follow up on.
       const parsed = parseNodeId(nodeId);

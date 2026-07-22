@@ -12,22 +12,23 @@ import (
 
 // backlogItem represents a backlog entry loaded from spec.json.
 type backlogItem struct {
-	Name               string   `json:"name"`
-	Title              string   `json:"title"`
-	Description        string   `json:"description"`
-	Status             string   `json:"status"`
-	Priority           int      `json:"priority"`
-	Tags               []string `json:"tags"`
-	Created            string   `json:"created"`
-	Updated            string   `json:"updated"`
-	Kind               string   `json:"kind"`
-	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
-	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
-	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
-	Creates            []string `json:"creates,omitempty"`
-	ArchivedAt         *string  `json:"archived_at,omitempty"`
-	SuggestedSkills    []string `json:"suggested_skills,omitempty"`
-	PlanRef            *planRef `json:"plan_ref,omitempty"`
+	Name               string          `json:"name"`
+	Title              string          `json:"title"`
+	Description        string          `json:"description"`
+	Status             string          `json:"status"`
+	Priority           int             `json:"priority"`
+	Tags               []string        `json:"tags"`
+	Created            string          `json:"created"`
+	Updated            string          `json:"updated"`
+	Kind               string          `json:"kind"`
+	SourceScenarioName string          `json:"sourceScenarioName,omitempty"`
+	AcceptanceAllow    []string        `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny     []string        `json:"acceptance_deny,omitempty"`
+	Creates            []string        `json:"creates,omitempty"`
+	ArchivedAt         *string         `json:"archived_at,omitempty"`
+	SuggestedSkills    []string        `json:"suggested_skills,omitempty"`
+	PlanRef            *planRef        `json:"plan_ref,omitempty"`
+	PlanAcceptance     *planAcceptance `json:"plan_acceptance,omitempty"`
 }
 
 type planRef struct {
@@ -35,6 +36,13 @@ type planRef struct {
 	PlanID   string `json:"plan_id,omitempty"`
 	Slug     string `json:"slug,omitempty"`
 	Role     string `json:"role,omitempty"`
+}
+
+type planAcceptance struct {
+	Actor           string `json:"actor"`
+	AcceptedAt      string `json:"accepted_at"`
+	PlanContentHash string `json:"plan_content_hash"`
+	SubjectVersion  string `json:"subject_version"`
 }
 
 func (s *Service) loadBacklogItem(kind, name string) (backlogItem, error) {

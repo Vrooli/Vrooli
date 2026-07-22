@@ -3,16 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/goals"
-	"swarm-manager/internal/workshop"
 )
 
 // migrationNameBackfillExecCompletedV1 is the sentinel key recorded in the
@@ -20,13 +14,6 @@ import (
 // change this constant: the presence of an event with this name gates
 // re-running the migration.
 const migrationNameBackfillExecCompletedV1 = "backfill_execution_completed_v1"
-
-// migrationNameBackfillRecommendationAcceptanceV1 is the sentinel for the
-// one-time backfill that scans every workshop/round-NNN.json on disk and
-// emits enriched decision.workshop_round_completed events for rounds whose
-// per-item counters are not yet represented in the event log. Gated on the
-// presence of a system.migration_applied event with this name.
-const migrationNameBackfillRecommendationAcceptanceV1 = "backfill_recommendation_acceptance_v1"
 
 // runMigrationsOnce runs any pending one-time migrations against the event
 // log and the execution store. Each migration is gated on a sentinel event of
@@ -95,27 +82,6 @@ func (s *Server) runMigrationsOnce() {
 		}
 	}
 
-	if !migrationApplied(events, migrationNameBackfillRecommendationAcceptanceV1) {
-		enriched := enrichedWorkshopRounds(events)
-		affected, err := s.backfillRecommendationAcceptance(enriched)
-		if err != nil {
-			slog.Error("migrations: backfill_recommendation_acceptance_v1 failed", "err", err)
-			return
-		}
-		s.emitter.EmitMigrationApplied(
-			migrationNameBackfillRecommendationAcceptanceV1,
-			"Emit enriched decision.workshop_round_completed events from on-disk round files so recommendation-acceptance stats reflect historical data.",
-			affected,
-		)
-		slog.Info("migrations: backfill_recommendation_acceptance_v1 applied", "affected", affected)
-
-		if s.statsEngine != nil {
-			if err := s.statsEngine.Rebuild(ctx); err != nil {
-				slog.Error("migrations: stats rebuild after recommendation-acceptance backfill failed", "err", err)
-			}
-		}
-	}
-
 	if !migrationApplied(events, migrationNameBackfillETADurationSamplesV1) {
 		alreadySampled := refsWithDurationSamples(events)
 		produced := s.backfillETADurationSamples(alreadySampled)
@@ -146,107 +112,6 @@ func (s *Server) runMigrationsOnce() {
 			slog.Info("migrations: seed_goals_from_tags_v1 applied", "created", created)
 		}
 	}
-}
-
-// enrichedWorkshopRounds returns the set of (entityID, roundNumber) pairs
-// already represented by an enriched (per-item populated) workshop event.
-// Pre-schema events with only round_number contribute nothing — they are
-// not "enriched" — so the backfill replaces their signal with one that
-// carries item-level data.
-func enrichedWorkshopRounds(events []eventlog.Event) map[string]struct{} {
-	seen := make(map[string]struct{})
-	for _, e := range events {
-		if e.EventType != eventlog.EventWorkshopRoundCompleted {
-			continue
-		}
-		if len(e.Metadata) == 0 {
-			continue
-		}
-		var p eventlog.WorkshopRoundPayload
-		if err := json.Unmarshal(e.Metadata, &p); err != nil {
-			continue
-		}
-		if p.ItemsTotal == 0 {
-			continue
-		}
-		seen[fmt.Sprintf("%s#%d", e.EntityID, p.RoundNumber)] = struct{}{}
-	}
-	return seen
-}
-
-// backfillRecommendationAcceptance walks the workshop round files for every
-// kind under the scenario root and emits an enriched workshop-round event
-// for each round not already represented. Returns the number of events
-// emitted. Errors during a single file are logged and skipped so a
-// malformed round does not abort the whole backfill.
-func (s *Server) backfillRecommendationAcceptance(alreadyEnriched map[string]struct{}) (int, error) {
-	kinds := []backlog.BacklogKind{
-		backlog.KindIdea, backlog.KindResearch, backlog.KindFix,
-		backlog.KindExecute, backlog.KindChore,
-	}
-	store := backlog.NewFileStore(s.scenarioRoot)
-	emitted := 0
-
-	for _, kind := range kinds {
-		kindDir := store.KindDir(kind)
-		entries, err := os.ReadDir(kindDir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return emitted, fmt.Errorf("read %s: %w", kindDir, err)
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			name := entry.Name()
-			workshopDir := filepath.Join(kindDir, name, "workshop")
-			roundFiles, err := os.ReadDir(workshopDir)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				slog.Warn("backfill_recommendation_acceptance_v1: read workshop dir", "dir", workshopDir, "err", err)
-				continue
-			}
-			for _, rf := range roundFiles {
-				if rf.IsDir() {
-					continue
-				}
-				if !strings.HasPrefix(rf.Name(), "round-") || !strings.HasSuffix(rf.Name(), ".json") {
-					continue
-				}
-				roundPath := filepath.Join(workshopDir, rf.Name())
-				data, err := os.ReadFile(roundPath)
-				if err != nil {
-					slog.Warn("backfill_recommendation_acceptance_v1: read round", "path", roundPath, "err", err)
-					continue
-				}
-				var round workshop.Round
-				if err := json.Unmarshal(data, &round); err != nil {
-					slog.Warn("backfill_recommendation_acceptance_v1: parse round", "path", roundPath, "err", err)
-					continue
-				}
-				entityID := string(kind) + "/" + name
-				key := fmt.Sprintf("%s#%d", entityID, round.RoundNum)
-				if _, present := alreadyEnriched[key]; present {
-					continue
-				}
-				summary := workshop.SummarizeRound(&round)
-				s.emitter.EmitWorkshopRoundCompleted(entityID, eventlog.WorkshopRoundPayload{
-					RoundNumber:            round.RoundNum,
-					Kind:                   string(kind),
-					ItemsTotal:             summary.ItemsTotal,
-					ItemsAnswered:          summary.ItemsAnswered,
-					ItemsRecommendedChosen: summary.ItemsRecommendedChosen,
-					ItemsFreeformChosen:    summary.ItemsFreeformChosen,
-				})
-				emitted++
-			}
-		}
-	}
-	return emitted, nil
 }
 
 // migrationApplied returns true if a system.migration_applied event with the

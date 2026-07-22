@@ -103,23 +103,28 @@ var backlogKindDirs = func() map[BacklogKind]string {
 
 // BacklogItem represents a unit of work stored on disk.
 type BacklogItem struct {
-	Name            string               `json:"name"`
-	Title           string               `json:"title"`
-	Description     string               `json:"description"`
-	Status          BacklogStatus        `json:"status"`
-	Priority        int                  `json:"priority"`
-	Tags            []string             `json:"tags"`
-	Created         string               `json:"created"`
-	Updated         string               `json:"updated"`
-	Kind            BacklogKind          `json:"kind"`
-	DependsOn       []string             `json:"depends_on,omitempty"`
-	Initiative      string               `json:"initiative,omitempty"`
-	Effort          string               `json:"effort,omitempty"`
-	AcceptanceAllow []string             `json:"acceptance_allow,omitempty"`
-	AcceptanceDeny  []string             `json:"acceptance_deny,omitempty"`
-	Creates         []string             `json:"creates,omitempty"`
-	SpawnedFrom     string               `json:"spawned_from,omitempty"`
-	PlanRef         *PlanRef             `json:"plan_ref,omitempty"`
+	Name            string        `json:"name"`
+	Title           string        `json:"title"`
+	Description     string        `json:"description"`
+	Status          BacklogStatus `json:"status"`
+	Priority        int           `json:"priority"`
+	Tags            []string      `json:"tags"`
+	Created         string        `json:"created"`
+	Updated         string        `json:"updated"`
+	Kind            BacklogKind   `json:"kind"`
+	DependsOn       []string      `json:"depends_on,omitempty"`
+	Initiative      string        `json:"initiative,omitempty"`
+	Effort          string        `json:"effort,omitempty"`
+	AcceptanceAllow []string      `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  []string      `json:"acceptance_deny,omitempty"`
+	Creates         []string      `json:"creates,omitempty"`
+	SpawnedFrom     string        `json:"spawned_from,omitempty"`
+	PlanRef         *PlanRef      `json:"plan_ref,omitempty"`
+	// PlanAcceptance is the operator's explicit acceptance of the exact
+	// canonical plan revision this item may execute. It is intentionally
+	// separate from workshop history: workshops inform planning, while this
+	// record authorizes a concrete Plan Manager content hash.
+	PlanAcceptance  *PlanAcceptance      `json:"plan_acceptance,omitempty"`
 	FindingRef      string               `json:"finding_ref,omitempty"`
 	Note            string               `json:"note,omitempty"`
 	SuggestedSkills []string             `json:"suggested_skills,omitempty"`
@@ -145,6 +150,16 @@ type PlanRef struct {
 	Role     string `json:"role"`
 }
 
+// PlanAcceptance records an explicit decision against one immutable plan
+// frontier. SubjectVersion detects material changes to the work container;
+// PlanContentHash detects canonical-plan changes made in Plan Manager.
+type PlanAcceptance struct {
+	Actor           string `json:"actor"`
+	AcceptedAt      string `json:"accepted_at"`
+	PlanContentHash string `json:"plan_content_hash"`
+	SubjectVersion  string `json:"subject_version"`
+}
+
 const (
 	PlanRefProviderPlanManager = "plan-manager"
 	PlanRefRoleExecutionSpec   = "execution_spec"
@@ -163,15 +178,6 @@ type BacklogFile struct {
 // protectedBacklogFileName is the spec file that cannot be renamed or deleted
 // through the file operation API.
 const protectedBacklogFileName = "spec.json"
-
-// ResearchMode describes the intent for backlog agent work.
-type ResearchMode string
-
-const (
-	ResearchModeWorkshop   ResearchMode = "workshop"
-	ResearchModeFinalize   ResearchMode = "finalize"
-	ResearchModeInitialize ResearchMode = "initialize"
-)
 
 // ParseBacklogKind validates and normalizes a raw kind string.
 func ParseBacklogKind(raw string) (BacklogKind, error) {
@@ -263,6 +269,14 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if item.PlanRef != nil {
 		result.PlanRef = planRefToProto(item.PlanRef)
+	}
+	if item.PlanAcceptance != nil {
+		result.PlanAcceptance = &domainpb.PlanAcceptance{
+			Actor:           item.PlanAcceptance.Actor,
+			AcceptedAt:      item.PlanAcceptance.AcceptedAt,
+			PlanContentHash: item.PlanAcceptance.PlanContentHash,
+			SubjectVersion:  item.PlanAcceptance.SubjectVersion,
+		}
 	}
 	if strings.TrimSpace(item.FindingRef) != "" {
 		result.FindingRef = &item.FindingRef

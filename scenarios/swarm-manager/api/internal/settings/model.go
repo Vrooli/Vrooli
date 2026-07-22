@@ -69,13 +69,6 @@ type Settings struct {
 	MaxFixupAttempts   int    `json:"max_fixup_attempts"`
 	ReviewAgentEnabled bool   `json:"review_agent_enabled"`
 
-	// Workshop.
-	MaxAutoRounds           int  `json:"max_auto_rounds"`
-	AutoInitializeWorkshop  bool `json:"auto_initialize_workshop"`
-	AutoAdvanceWorkshop     bool `json:"auto_advance_workshop"`
-	AutoCascadeWorkshop     bool `json:"auto_cascade_workshop"`
-	AutoAdvanceDelaySeconds int  `json:"auto_advance_delay_seconds"`
-
 	// Agent behavior.
 	AgentMaxTurns       int `json:"agent_max_turns"`
 	AgentTimeoutSeconds int `json:"agent_timeout_seconds"`
@@ -143,12 +136,6 @@ type SettingsPatch struct {
 	MaxFixupAttempts   *int    `json:"max_fixup_attempts,omitempty"`
 	ReviewAgentEnabled *bool   `json:"review_agent_enabled,omitempty"`
 
-	MaxAutoRounds           *int  `json:"max_auto_rounds,omitempty"`
-	AutoInitializeWorkshop  *bool `json:"auto_initialize_workshop,omitempty"`
-	AutoAdvanceWorkshop     *bool `json:"auto_advance_workshop,omitempty"`
-	AutoCascadeWorkshop     *bool `json:"auto_cascade_workshop,omitempty"`
-	AutoAdvanceDelaySeconds *int  `json:"auto_advance_delay_seconds,omitempty"`
-
 	AgentMaxTurns       *int `json:"agent_max_turns,omitempty"`
 	AgentTimeoutSeconds *int `json:"agent_timeout_seconds,omitempty"`
 
@@ -214,16 +201,11 @@ func NewStore(path string) *Store {
 // DefaultSettings returns the baseline settings.
 func DefaultSettings() Settings {
 	return Settings{
-		Theme:                   "dark",
-		DefaultMode:             "yolo",
-		AutoFixup:               false,
-		MaxFixupAttempts:        2,
-		ReviewAgentEnabled:      true,
-		MaxAutoRounds:           10,
-		AutoInitializeWorkshop:  true,
-		AutoAdvanceWorkshop:     true,
-		AutoCascadeWorkshop:     true,
-		AutoAdvanceDelaySeconds: 10,
+		Theme:              "dark",
+		DefaultMode:        "yolo",
+		AutoFixup:          false,
+		MaxFixupAttempts:   2,
+		ReviewAgentEnabled: true,
 		// Per-run turn budget mirrored by the swarm-manager agent profile
 		// in .vrooli/agent-profiles (the canonical source for spawns).
 		AgentMaxTurns:            600,
@@ -418,10 +400,6 @@ func normalizeSettings(settings Settings) Settings {
 	}
 	settings.MaxFixupAttempts = clampInt(settings.MaxFixupAttempts, 0, 5)
 
-	// Workshop.
-	settings.MaxAutoRounds = clampInt(settings.MaxAutoRounds, 0, 50)
-	settings.AutoAdvanceDelaySeconds = clampInt(settings.AutoAdvanceDelaySeconds, 0, 120)
-
 	// Agent behavior.
 	settings.AgentMaxTurns = clampInt(settings.AgentMaxTurns, 5, 1000)
 	settings.AgentTimeoutSeconds = clampInt(settings.AgentTimeoutSeconds, 60, 3600)
@@ -524,7 +502,6 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 		current.Theme = strings.TrimSpace(*patch.Theme)
 	}
 	applyExecutionPatch(&current, patch)
-	applyWorkshopPatch(&current, patch)
 	applyAgentPatch(&current, patch)
 	applyUIPatch(&current, patch)
 	applyReviewPatch(&current, patch)
@@ -545,25 +522,6 @@ func applyExecutionPatch(current *Settings, patch SettingsPatch) {
 	}
 	if patch.ReviewAgentEnabled != nil {
 		current.ReviewAgentEnabled = *patch.ReviewAgentEnabled
-	}
-}
-
-// applyWorkshopPatch overlays the workshop fields.
-func applyWorkshopPatch(current *Settings, patch SettingsPatch) {
-	if patch.MaxAutoRounds != nil {
-		current.MaxAutoRounds = *patch.MaxAutoRounds
-	}
-	if patch.AutoInitializeWorkshop != nil {
-		current.AutoInitializeWorkshop = *patch.AutoInitializeWorkshop
-	}
-	if patch.AutoAdvanceWorkshop != nil {
-		current.AutoAdvanceWorkshop = *patch.AutoAdvanceWorkshop
-	}
-	if patch.AutoCascadeWorkshop != nil {
-		current.AutoCascadeWorkshop = *patch.AutoCascadeWorkshop
-	}
-	if patch.AutoAdvanceDelaySeconds != nil {
-		current.AutoAdvanceDelaySeconds = *patch.AutoAdvanceDelaySeconds
 	}
 }
 

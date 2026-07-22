@@ -1,8 +1,7 @@
 /**
  * PlanBoardActions — the board's action layer, re-hosting the Command
  * Post's proven wiring (D9): `useCommandPostItemActions` drives per-card
- * run/workshop/archive/status mutations, the existing RunBacklogModal and
- * confirm dialogs are invoked unchanged, and the decision drawer hosts
+ * run/archive/status mutations, the existing RunBacklogModal and decision drawer
  * DecisionStreamView. Cards reach the layer through PlanCardActionsContext.
  */
 
@@ -144,20 +143,6 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
         confirmLabel="Proceed"
       />
 
-      {/* Workshop blocking override — "Dependencies Not Ready" guard. */}
-      <ConfirmDialog
-        isOpen={!!itemActions.workshopBlockingConfirm}
-        onClose={() => itemActions.setWorkshopBlockingConfirm(null)}
-        onConfirm={itemActions.confirmWorkshopOverride}
-        title="Dependencies Not Ready"
-        description={
-          itemActions.workshopBlockingConfirm?.blockingDepKeys.length
-            ? `This item is blocked by incomplete dependencies: ${itemActions.workshopBlockingConfirm.blockingDepKeys.join(", ")}. Do you want to proceed anyway?`
-            : "This item has incomplete dependencies. Do you want to proceed anyway?"
-        }
-        confirmLabel="Override and Proceed"
-      />
-
       <RunBacklogModal
         isOpen={!!runModalTargets}
         onClose={() => setRunModalTargets(undefined)}
@@ -167,5 +152,4 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
     </PlanCardActionsContext.Provider>
   );
 }
-
 

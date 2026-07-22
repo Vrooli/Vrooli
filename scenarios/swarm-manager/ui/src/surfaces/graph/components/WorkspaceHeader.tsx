@@ -32,6 +32,7 @@ import { useOperationsStore } from "../../../stores/operations-store";
 import { selectActiveCount } from "../../../stores/operations-store";
 import { usePlanDataStore } from "../../plan/stores/plan-data-store";
 import { hasActiveFilters } from "../../plan/lib/plan-url-state";
+import { selectors } from "../../../consts/selectors";
 
 export interface WorkspaceHeaderProps {
   /** Current active surface or graph data lens */
@@ -92,7 +93,7 @@ export function WorkspaceHeader({
   return (
     <header
       className="z-20 flex shrink-0 flex-col"
-      data-testid="workspace-header"
+      data-testid={selectors.workspace.header}
     >
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-slate-200/20 px-3">
         {/* Left: sidebar toggle + lens nav */}
@@ -146,7 +147,7 @@ export function WorkspaceHeader({
               onClick={onToggleSettings}
               className={ICON_BUTTON_CLASS}
               aria-label="Open graph controls"
-              data-testid="settings-gear"
+              data-testid={selectors.workspace.settingsGear}
             >
               <Settings className="h-4 w-4" />
             </button>

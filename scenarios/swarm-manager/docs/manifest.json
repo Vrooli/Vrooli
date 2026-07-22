@@ -126,8 +126,8 @@
         {
           "path": "guides/workshop-workflow.md",
           "docType": "guide-workshop-workflow",
-          "title": "Workshop Refinement Workflow",
-          "description": "Universal iterative workshop loop with readiness scoring for all backlog kinds",
+          "title": "Plan Workshop",
+          "description": "Explicit unified review, reconciliation, candidate, and acceptance loop for backlog items and initiatives",
           "audience": [
             "developers",
             "operators"
@@ -324,14 +324,14 @@
         },
         {
           "path": "operations/migration/RUNBOOK.md",
-          "docType": "runbook-agentops-migration",
-          "title": "Agent-Operations Migration Runbook",
-          "description": "Operator runbook for the completed persisted-state migration onto the agent-operations model",
+          "docType": "runbook-workflow-cutover-history",
+          "title": "Workflow Cutover History",
+          "description": "Historical operator notes for the retired agent-operations migration",
           "audience": [
             "developers",
             "operators"
           ],
-          "maturity": "active",
+          "maturity": "historical",
           "requiredBy": [
             "deployable"
           ],

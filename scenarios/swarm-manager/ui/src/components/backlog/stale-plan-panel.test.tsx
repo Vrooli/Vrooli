@@ -3,16 +3,14 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { StalePlanPanel } from "./stale-plan-panel";
 import { extractMissingPaths } from "./stale-plan-utils";
 
-vi.mock("../../services", () => ({
-  backlogService: {
-    reWorkshop: vi.fn().mockResolvedValue({
-      deletedRounds: 3,
-      statusReverted: true,
-    }),
+vi.mock("../../services/plan-workshop-service", () => ({
+  planWorkshopService: {
+    open: vi.fn().mockResolvedValue({ id: "workshop-1" }),
+    startReview: vi.fn().mockResolvedValue({}),
   },
 }));
 
-import { backlogService } from "../../services";
+import { planWorkshopService } from "../../services/plan-workshop-service";
 
 describe("StalePlanPanel", () => {
   beforeEach(() => {
@@ -49,7 +47,7 @@ describe("StalePlanPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("calls backlogService.reWorkshop and onReWorkshopped when the button is clicked", async () => {
+  it("opens a Plan Workshop review and calls onReWorkshopped when the button is clicked", async () => {
     const onReWorkshopped = vi.fn();
     render(
       <StalePlanPanel
@@ -63,10 +61,11 @@ describe("StalePlanPanel", () => {
     fireEvent.click(screen.getByTestId("stale-plan-reworkshop-button"));
 
     await waitFor(() => {
-      expect(backlogService.reWorkshop).toHaveBeenCalledWith(
-        "research",
-        "agent-sandbox-auditability-contract",
-      );
+      expect(planWorkshopService.open).toHaveBeenCalledWith({
+        kind: "backlog_item",
+        ref: "research/agent-sandbox-auditability-contract",
+      });
+      expect(planWorkshopService.startReview).toHaveBeenCalledWith("workshop-1");
       expect(onReWorkshopped).toHaveBeenCalled();
     });
   });

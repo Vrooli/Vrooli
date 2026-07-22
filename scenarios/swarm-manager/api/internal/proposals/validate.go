@@ -86,6 +86,17 @@ func Validate(p Proposal, state CurrentState) error {
 	}
 
 	var problems []error
+	if p.ApplyMode != "" && p.ApplyMode != ApplyModeDirect && p.ApplyMode != ApplyModeReconciliation && p.ApplyMode != ApplyModeAttention {
+		problems = append(problems, fmt.Errorf("apply_mode must be direct, reconciliation, or attention"))
+	}
+	seenDependencies := map[string]bool{}
+	for _, dependency := range p.Dependencies {
+		if strings.TrimSpace(dependency) == "" || seenDependencies[dependency] {
+			problems = append(problems, fmt.Errorf("dependencies must contain unique non-empty values"))
+			break
+		}
+		seenDependencies[dependency] = true
+	}
 	seenIDs := make(map[string]int, len(p.Mutations))
 	newItems := make(map[string]int, len(p.Mutations)) // ref -> mutation index
 

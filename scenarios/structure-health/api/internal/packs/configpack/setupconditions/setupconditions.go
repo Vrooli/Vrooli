@@ -39,7 +39,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "lifecycle": {
@@ -74,7 +73,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "lifecycle": {
@@ -108,7 +106,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "lifecycle": {
@@ -171,7 +168,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "ports": {"ui": {"env_var": "UI_PORT"}},
@@ -213,7 +209,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "lifecycle": {
@@ -250,7 +245,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "lifecycle": {
@@ -282,7 +276,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "lifecycle": {
@@ -321,7 +314,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "lifecycle": {
@@ -355,7 +347,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "ports": {
@@ -392,7 +383,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "ports": {
@@ -429,7 +419,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "ports": {
@@ -469,7 +458,6 @@ Targets: service_json
     "enabled": true,
     "command": "scenario-auditor",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
   },
   "ports": {

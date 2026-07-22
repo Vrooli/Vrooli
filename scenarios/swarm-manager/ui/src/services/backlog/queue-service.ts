@@ -2,12 +2,8 @@
  * Backlog Queue Service — queue and research operations
  */
 
+import { QueueBacklogItemRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 import {
-  BacklogResearchRequestSchema,
-  QueueBacklogItemRequestSchema,
-} from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
-import {
-  backlogResearchResponseSchema,
   mapProtoBacklogItem,
   parseProtoResponse,
   queueBacklogResponseSchema,
@@ -16,7 +12,7 @@ import {
 } from "../proto-contracts";
 import type { IApiClient } from "../../lib/api-client";
 import { API_ENDPOINTS } from "../../lib/api-endpoints";
-import type { BacklogKind, ResearchResponse } from "../../types";
+import type { BacklogKind } from "../../types";
 import type { QueueResponse } from "./types";
 
 export interface RetryBacklogResponse {
@@ -79,37 +75,6 @@ export function createQueueMethods(apiClient: IApiClient) {
         parentExecutionId: data.parent_execution_id,
         status: data.status,
       };
-    },
-
-    async research(
-      kind: BacklogKind,
-      name: string,
-      payload?: {
-        prompt?: string;
-        projectRoot?: string;
-        mode?: string;
-        contextPaths?: string[];
-        contextTargetIds?: string[];
-        contextRequirementIds?: string[];
-        confirm?: boolean;
-        force?: boolean;
-      }
-    ): Promise<ResearchResponse> {
-      const message = buildMessage(BacklogResearchRequestSchema, {
-        prompt: payload?.prompt,
-        projectRoot: payload?.projectRoot,
-        mode: payload?.mode,
-        contextPaths: payload?.contextPaths ?? [],
-        contextTargetIds: payload?.contextTargetIds ?? [],
-        contextRequirementIds: payload?.contextRequirementIds ?? [],
-        ...(payload?.confirm !== undefined ? { confirm: payload.confirm } : {}),
-        ...(payload?.force !== undefined ? { force: payload.force } : {}),
-      });
-      const data = await apiClient.post<unknown>(
-        API_ENDPOINTS.backlogResearch(kind, name),
-        toProtoJson(BacklogResearchRequestSchema, message)
-      );
-      return parseProtoResponse(backlogResearchResponseSchema, data, "backlog research");
     },
   };
 }

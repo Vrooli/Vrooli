@@ -17,7 +17,7 @@ import (
 // initiative lock so feedback submissions can proceed once the user is
 // looking at the review verdict. Called from both the ListRounds inline-
 // poll and the background worker.
-func (s *Service) handleTerminalRound(_ context.Context, initiativeName string, round review.Round) {
+func (s *Service) handleTerminalRound(ctx context.Context, initiativeName string, round review.Round) {
 	if round.Status != review.RoundStatusComplete && round.Status != review.RoundStatusFailed {
 		return
 	}
@@ -43,6 +43,9 @@ func (s *Service) handleTerminalRound(_ context.Context, initiativeName string, 
 	}
 	if err := s.setInitiativeStatus(init, initiatives.InitiativeStatusReviewPending, s.clock().UTC().Format(time.RFC3339)); err != nil {
 		slog.Warn("initiative review: flip to review_pending", "initiative", initiativeName, "err", err)
+	}
+	if s.roundTerminalObserver != nil {
+		s.roundTerminalObserver(ctx, "initiative", initiativeName, round)
 	}
 }
 

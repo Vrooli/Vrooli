@@ -70,10 +70,8 @@ export type { IGoalsService } from "./goals-service";
 // Prompt Center
 export { promptService, createPromptService } from "./prompt-service";
 export type {
-  IPromptService,
-  PromptPreviewResponse,
-  PromptSimulateRequest,
-  PromptSimulateResponse,
+	IPromptService,
+	PromptPreviewResponse,
 } from "./prompt-service";
 
 // Graph

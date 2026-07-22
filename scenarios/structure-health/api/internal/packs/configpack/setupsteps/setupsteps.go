@@ -60,7 +60,6 @@ Targets: service_json
     "enabled": true,
     "command": "file-tools",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "file-tools"}
   },
   "lifecycle": {
@@ -122,7 +121,6 @@ Targets: service_json
     "enabled": true,
     "command": "file-tools",
     "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
     "invoke": {"kind": "installed_command", "command": "file-tools"}
   },
   "lifecycle": {

@@ -25,12 +25,10 @@ import { useGraphUIStore } from "../stores/graph-ui-store";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphStateSync } from "../hooks/useGraphStateSync";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
-import { useQueryClient } from "@tanstack/react-query";
 import { GraphCanvas } from "./GraphCanvas";
 import { PlanBoard, PlanHelpPanel } from "../../plan";
 import { usePlanDataStore } from "../../plan/stores/plan-data-store";
 import { CreateWorkFromPlanDialog } from "../../../components/plan/CreateWorkFromPlanDialog";
-import { ClarificationPanel } from "../../../components/backlog/clarification-panel";
 import { useSpatialNav } from "../../../hooks/useSpatialNav";
 import { SpatialGroup } from "../../../hooks/SpatialGroup";
 import { SpatialNavProvider } from "../../../hooks/SpatialNavContext";
@@ -49,7 +47,6 @@ import { SESSION_CREATE_TITLES } from "../../../components/session/session-view-
 
 export function GraphWorkspace() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const helpButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -219,19 +216,6 @@ export function GraphWorkspace() {
           onImported={() => void usePlanDataStore.getState().fetchBoard({ force: true })}
         />
 
-        {/* Single workspace mount for the clarification thread (workshop
-            questions answered from the Plan board's decision drawer). */}
-        <ClarificationPanel
-          onAction={(action) => {
-            if (
-              action === "invalidate_round" ||
-              action === "remove_decision" ||
-              action === "update_decision"
-            ) {
-              void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
-            }
-          }}
-        />
       </div>
 
       <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />

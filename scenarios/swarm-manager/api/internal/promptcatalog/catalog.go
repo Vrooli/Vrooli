@@ -70,133 +70,6 @@ var staticEntries = []Entry{
 		VariableKeys: []string{"CAPTURE_ID", "CAPTURE_TEXT"},
 	},
 	{
-		ID:           "backlog-workshop",
-		Title:        "Backlog Workshop",
-		Group:        GroupBacklog,
-		UsageType:    UsageDirectRuntime,
-		SourceType:   SourceSkill,
-		Trigger:      "Backlog workshop round",
-		SkillID:      "swarm-manager-workshop",
-		BacklogKinds: []string{"idea", "fix", "execute", "chore"},
-		Modes:        []string{"workshop"},
-		Purpose:      "Run one workshop round for non-research backlog items and update the canonical plan-manager plan.",
-		OutputPaths:  []string{"workshop/round-NNN.json"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
-		ReferenceSkillIDs: []string{
-			"swarm-manager-backlog-tools",
-			"implementation-plan-authoring",
-		},
-	},
-	{
-		ID:           "backlog-workshop-research",
-		Title:        "Backlog Workshop (Research)",
-		Group:        GroupBacklog,
-		UsageType:    UsageDirectRuntime,
-		SourceType:   SourceSkill,
-		Trigger:      "Backlog workshop round",
-		SkillID:      "swarm-manager-workshop-research",
-		BacklogKinds: []string{"research"},
-		Modes:        []string{"workshop"},
-		Purpose:      "Run one workshop round for research backlog items and update conclusion.md.",
-		OutputPaths:  []string{"workshop/round-NNN.json", "conclusion.md"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
-		ReferenceSkillIDs: []string{
-			"swarm-manager-backlog-tools",
-			"research-conclusion-authoring",
-		},
-	},
-	{
-		ID:           "backlog-initialize-research",
-		Title:        "Backlog Initialize (Research)",
-		Group:        GroupBacklog,
-		UsageType:    UsageDirectRuntime,
-		SourceType:   SourceSkill,
-		Trigger:      "Backlog initialize action",
-		SkillID:      "swarm-manager-initialize-research",
-		BacklogKinds: []string{"research"},
-		Modes:        []string{"initialize"},
-		Purpose:      "Bootstrap a research backlog item with a conclusion.md scaffold and a first workshop round.",
-		OutputPaths:  []string{"workshop/round-001.json", "conclusion.md"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE"},
-		ReferenceSkillIDs: []string{
-			"swarm-manager-backlog-tools",
-			"research-conclusion-authoring",
-			"swarm-manager-processing-guidance",
-		},
-	},
-	{
-		ID:           "backlog-initialize",
-		Title:        "Backlog Initialize",
-		Group:        GroupBacklog,
-		UsageType:    UsageDirectRuntime,
-		SourceType:   SourceSkill,
-		Trigger:      "Backlog initialize action",
-		SkillID:      "swarm-manager-initialize-backlog",
-		BacklogKinds: []string{"idea", "fix", "execute", "chore"},
-		Modes:        []string{"initialize"},
-		Purpose:      "Bootstrap a non-research backlog item with a canonical plan-manager plan and first workshop round.",
-		OutputPaths:  []string{"workshop/round-001.json"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE"},
-		ReferenceSkillIDs: []string{
-			"swarm-manager-backlog-tools",
-			"implementation-plan-authoring",
-			"swarm-manager-processing-guidance",
-		},
-	},
-	{
-		ID:           "backlog-finalize",
-		Title:        "Backlog Finalize",
-		Group:        GroupBacklog,
-		UsageType:    UsageDirectRuntime,
-		SourceType:   SourceSkill,
-		Trigger:      "Backlog finalize action",
-		SkillID:      "swarm-manager-workshop-finalize",
-		BacklogKinds: []string{"idea", "fix", "execute", "chore"},
-		Modes:        []string{"finalize"},
-		Purpose:      "Fold the latest workshop answers into the canonical plan-manager plan and write a finalize round with no new decisions.",
-		OutputPaths:  []string{"workshop/round-NNN.json"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
-		ReferenceSkillIDs: []string{
-			"swarm-manager-backlog-tools",
-			"implementation-plan-authoring",
-		},
-	},
-	{
-		ID:           "backlog-finalize-research",
-		Title:        "Backlog Finalize (Research)",
-		Group:        GroupBacklog,
-		UsageType:    UsageDirectRuntime,
-		SourceType:   SourceSkill,
-		Trigger:      "Backlog finalize action",
-		SkillID:      "swarm-manager-workshop-research-finalize",
-		BacklogKinds: []string{"research"},
-		Modes:        []string{"finalize"},
-		Purpose:      "Fold the latest workshop answers into conclusion.md and write a finalize round with no new decisions.",
-		OutputPaths:  []string{"workshop/round-NNN.json", "conclusion.md"},
-		VariableKeys: []string{"ITEM_DESCRIPTION", "ITEM_FOLDER", "ITEM_INITIATIVE", "ITEM_NAME", "ITEM_PRIORITY", "ITEM_TAGS", "ITEM_TITLE", "ROUND_NUMBER"},
-		ReferenceSkillIDs: []string{
-			"swarm-manager-backlog-tools",
-			"research-conclusion-authoring",
-		},
-	},
-	{
-		ID:           "backlog-clarify",
-		Title:        "Backlog Decision Clarification",
-		Group:        GroupBacklog,
-		UsageType:    UsageDirectRuntime,
-		SourceType:   SourceSkill,
-		Trigger:      "Decision clarification request",
-		SkillID:      "swarm-manager-workshop-clarify",
-		BacklogKinds: []string{"idea", "research", "fix", "execute", "chore"},
-		Modes:        []string{"clarify"},
-		Purpose:      "Clarify a workshop decision item and assess impact on the workshop round.",
-		OutputPaths:  []string{},
-		VariableKeys: []string{"CLARIFICATION_HISTORY", "DECISION_CONTEXT", "DECISION_OPTIONS", "DECISION_TOPIC", "ITEM_DESCRIPTION", "ITEM_INITIATIVE", "ITEM_KIND", "ITEM_NAME", "ITEM_TITLE", "USER_QUESTION", "WORKSHOP_HISTORY"},
-		ReferenceSkillIDs: []string{
-			"swarm-manager-backlog-tools",
-		},
-	},
-	{
 		ID:          "execution-process",
 		Title:       "Execution Process Prompt",
 		Group:       GroupExecution,
@@ -372,21 +245,6 @@ func Lookup(id string) (Entry, bool) {
 	return Entry{}, false
 }
 
-func ResolveBacklogSkill(mode, kind string) (Entry, bool) {
-	normalizedMode := strings.ToLower(strings.TrimSpace(mode))
-	normalizedKind := strings.ToLower(strings.TrimSpace(kind))
-	for _, entry := range catalogEntries() {
-		if entry.Group != GroupBacklog || entry.SourceType != SourceSkill || entry.UsageType != UsageDirectRuntime {
-			continue
-		}
-		if !contains(entry.Modes, normalizedMode) || !contains(entry.BacklogKinds, normalizedKind) {
-			continue
-		}
-		return cloneEntry(entry), true
-	}
-	return Entry{}, false
-}
-
 func ResolveCaptureSkill() (Entry, bool) {
 	return Lookup("capture-classify")
 }
@@ -423,5 +281,9 @@ func ResolveSpecSyncSkill() (Entry, bool) {
 }
 
 func catalogEntries() []Entry {
-	return append([]Entry(nil), staticEntries...)
+	entries := make([]Entry, 0, len(staticEntries))
+	for _, entry := range staticEntries {
+		entries = append(entries, entry)
+	}
+	return entries
 }

@@ -1,271 +1,93 @@
-# Workshop Refinement Workflow
+# Plan Workshop
 
-## Agent Manager workflow pilot
+Plan Workshop is Swarm Manager's one operator-visible planning loop for a
+backlog item or initiative. It replaces readiness-score and finalize-round
+decisions. Historical `workshop/round-*.json` files remain readable evidence;
+they do not authorize execution or mutate a current workshop session.
 
-Explicit `POST /api/v1/backlog/{kind}/{name}/research` requests with `{"mode":"workshop"}` now start the scenario-owned `backlog-workshop-round` Agent Manager workflow. The response `task_id` is the workflow execution ID and `run_id` is the fresh workflow run using profile `swarm-manager/deep-work`. This entrypoint does not fall back to the legacy operation runner.
+## Simplification measure
 
-When execution succeeds, apply its typed result through:
+The Phase 1 baseline counted six distinct operator decisions for an existing
+backlog plan: enter the workshop, answer a round, save it, start another round,
+finalize, and bind/validate the resulting plan. After cutover the comparable
+loop has five or fewer decisions: open Plan Workshop, submit one response,
+choose apply or ignore for a validated candidate when one exists, accept the
+current canonical plan, and queue the work. Review and reconciliation are
+internal continuations rather than separately selected workflows. The count is
+therefore non-increasing (6 before, at most 5 after); repeated review is a
+deliberate return to the same loop, not an added workflow family.
 
-```text
-POST /api/v1/backlog/{kind}/{name}/workshop/workflow/{executionID}/apply
-```
+## Operator flow
 
-The apply call checks the immutable input snapshot, validates the `proposals`, `no_questions`, or `abstained` result, records execution/run/profile provenance, and performs the Swarm-owned update exactly once. Retrying the same apply is safe, including after an API restart. `abstained` records provenance without creating a workshop round. The existing UI is unchanged during this pilot.
+1. Open a session with `POST /api/v1/plan-workshops`, naming a `backlog_item`
+   (`kind/name`) or `initiative` subject and a typed review packet.
+2. Review findings, decision questions, and references to proposals in the
+   existing Agent Session proposal store as one packet.
+3. Submit exactly one idempotent response at
+   `POST /api/v1/plan-workshops/{id}/responses`. Answers are applied directly
+   only when deterministic; accepted proposals request one reconciliation.
+4. Review the candidate plan in Plan Manager. Candidate preview, structured
+   diff, validation, and guarded in-place apply remain Plan Manager authority.
+5. Explicitly accept the valid canonical revision at
+   `POST /api/v1/backlog/{kind}/{name}/plan-accept`, with an actor and,
+   optionally, the hash seen by the operator.
+6. Queue the item. Preflight requires the fresh accepted Plan Manager content
+   hash and current plan validity, alongside ordinary dependency and policy
+   checks.
 
-The workshop system is a universal iterative refinement loop that transforms any backlog item (idea, research, fix, execute, chore) into a fully-specified, ready-for-execution plan. It replaces the earlier idea-only 3-phase pipeline (clarify/suggest/enhance) with a single loop that works across all 5 backlog kinds.
+Research, independent review, and initiative review each retain their native
+conclusion or round as historical evidence. Their terminal result also creates
+one idempotent finding on the matching Plan Workshop session, with a typed
+disposition (`plan_revision`, `plan_authoring`, `follow_up`, `archive`,
+`supersede`, or `attention`), rationale, and confidence. The disposition is an
+operator recommendation, not a mutation instruction: the operator still uses
+the workshop response and existing `work.follow_up` or `work.correct`
+transitions for authorized work. A research conclusion is not itself an
+implementation plan.
 
-## End-to-End Flow
+Automatic follow-up creation is denied by default. An operator may explicitly
+opt in with `SWARM_MANAGER_AUTO_FOLLOW_UP=true`; even then the bounded policy
+allows only one high-confidence proposal for the current execution. It
+deduplicates by source proposal, retains the source review and execution link
+on the child record, and emits proposal creation/application audit events.
+All other follow-up proposals remain an explicit operator decision in Plan
+Workshop. Distinct backlog or initiative work is a normal mutation-list
+proposal with `spawned_from` provenance, never an implicit execution.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  BacklogDetailsPage                                                 │
-│  User clicks "Workshop" button on any backlog item                  │
-│  ┌───────────────────────────────────────────────────────────┐      │
-│  │  WorkshopPanel                                             │      │
-│  │  Round N: questions + proposals + info                     │      │
-│  │  [Answer questions]  [Accept/reject proposals]             │      │
-│  │  [Run next round]                                          │      │
-│  └───────────────────────────────────────────────────────────┘      │
-│                                                                      │
-│  ReadinessBar: 5-dimension radar showing progress toward ready       │
-└─────────────────────────┬───────────────────────────────────────────┘
-                          │ POST /api/v1/backlog/{kind}/{name}/research
-                          ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  API: Handler.Research()                                            │
-│                                                                     │
-│  1. Snapshot the item and current workshop version                  │
-│  2. Start the reconciled Agent Manager workflow idempotently        │
-│  3. Agent returns one schema-validated typed result                  │
-│  4. Swarm validates and applies that result exactly once            │
-└─────────────────────────┬───────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  Filesystem artifacts                                               │
-│                                                                     │
-│  {kind}/{name}/                                                     │
-│  ├── spec.json                    (metadata incl. plan_ref)         │
-│  └── workshop/                                                      │
-│      ├── round-1.json             (round 1 output)                  │
-│      ├── round-2.json             (round 2 output)                  │
-│      └── ...                                                        │
-└─────────────────────────────────────────────────────────────────────┘
-```
+## Authority and safety
 
-## The Workshop Loop
+| Concern | Owner | Guard |
+| --- | --- | --- |
+| Findings, questions, responses, and exact-once resolution | Swarm Manager | Immutable subject version and response idempotency key |
+| Proposal records | Agent Session proposal store | Session/proposal references; no duplicate workshop store |
+| Plan candidate and canonical apply | Plan Manager | Expected base hash, validation, acknowledgment, active-execution rejection |
+| Plan acceptance | Swarm Manager operator action | Actor, timestamp, plan content hash, subject version |
+| Workflow execution and retries | Agent Manager | Declared workflow plus immutable invocation |
 
-Each round is a self-contained iteration. The agent generates questions, proposals, and informational items based on the current state of the item and all prior rounds. The operator reviews and responds. Then the next round incorporates that feedback.
+An acceptance becomes stale when its subject contract or canonical plan content
+hash changes. It is never synthesized from historical workshop scores.
 
-```
-              ┌───────────────────────────────────────┐
-              │                                       │
-              ▼                                       │
-       ┌──────────────┐                               │
-       │  GENERATE    │  Agent produces round N       │
-       │  ROUND       │  with questions, proposals,   │
-       │              │  and readiness scores          │
-       └──────┬───────┘                               │
-              │                                       │
-              ▼                                       │
-       ┌──────────────┐                               │
-       │  OPERATOR    │  User answers questions,      │
-       │  REVIEWS     │  accepts/rejects proposals    │
-       │              │                               │
-       └──────┬───────┘                               │
-              │                                       │
-              ▼                                       │
-       ┌──────────────┐     readiness < 3 on          │
-       │  READINESS   │     any dimension ────────────┘
-       │  CHECK       │
-       └──────┬───────┘
-              │ all dimensions >= 3
-              ▼
-       ┌──────────────┐
-       │  READY       │  plan_ref bound,
-       │              │  item can be queued
-       └──────────────┘
-```
+## API shape
 
-There is no fixed number of rounds. The loop continues until readiness is achieved or the operator decides to queue manually.
+`ReviewPacket` carries findings, decision questions, and proposal references.
+Each proposal reference includes both Agent Session ID and proposal ID. A
+response must name the session's immutable subject version, an actor, and an
+idempotency key. It may answer known questions and accept only proposals in the
+packet. Invalid, stale, and duplicate requests are explicit recovery states;
+the operator can refresh the session or safely retry the same key.
 
-## Workshop Round Format
+## Historical migration
 
-Each round is stored as `workshop/round-N.json` with this schema:
+Legacy workshop files are read-only history. The one-shot migration records an
+observable marker, preserves every `round-*.json` path, and makes an atomic
+backup for each item without explicit plan acceptance before recording that
+state as archived from active use. Corrupt historical round files are retained
+and listed as migration errors; they never disappear silently or block clean
+history from rendering. The migration does not synthesize plan acceptance, and
+legacy finalize posts are not an alternate plan-reference binding path.
+Missing plans continue through `plan.author`; concrete plan validation findings
+may use `plan.repair` as an internal continuation. Both remain hidden behind
+the single Plan Workshop operator loop.
 
-```json
-{
-  "round": 1,
-  "generated_at": "2026-03-20T14:30:00Z",
-  "readiness": {
-    "problem_clarity": 2,
-    "scope_defined": 1,
-    "approach_solid": 2,
-    "testable": 0,
-    "risk_awareness": 1
-  },
-  "items": [
-    {
-      "id": "q1",
-      "type": "question",
-      "text": "What authentication method should be used?",
-      "context": "The spec mentions user accounts but no auth details.",
-      "options": ["OAuth 2.0", "JWT tokens", "Session-based"],
-      "answer": null
-    },
-    {
-      "id": "p1",
-      "type": "proposal",
-      "text": "Use WebSocket instead of polling for real-time updates",
-      "details": "Rationale and implementation approach...",
-      "decision": "pending",
-      "notes": null
-    },
-    {
-      "id": "i1",
-      "type": "info",
-      "text": "The existing auth-service scenario already supports OAuth 2.0"
-    }
-  ],
-  "plan_updates": "Optional text describing changes the agent made to the plan-manager plan"
-}
-```
-
-### Item Types
-
-| Type | Purpose | Operator Action |
-|------|---------|-----------------|
-| `question` | Reduce ambiguity; gather missing information | Provide an answer (free text or pick from options) |
-| `proposal` | Suggest an improvement or design decision | Accept or reject (with optional notes) |
-| `info` | Surface relevant context the operator should know | Read-only |
-
-## Readiness Dimensions
-
-Every round includes the agent's assessment of item readiness across 5 universal dimensions, each scored 0-3:
-
-| Dimension | What it measures | Score meaning |
-|-----------|-----------------|---------------|
-| `problem_clarity` | Is the problem well-understood? | 0=vague, 3=crystal clear |
-| `scope_defined` | Are boundaries and deliverables defined? | 0=unbounded, 3=fully scoped |
-| `approach_solid` | Is the technical approach viable? | 0=no approach, 3=proven path |
-| `testable` | Can success be verified? | 0=no criteria, 3=concrete test plan |
-| `risk_awareness` | Are risks identified and mitigated? | 0=unknown, 3=risks addressed |
-
-An item is considered **ready** when all 5 effective scores reach 3.
-
-## Boost Formula
-
-Raw readiness scores improve naturally as the agent learns more about the item. To reward iterative engagement, the system applies a **round-based boost** to dimensions that have already reached a baseline:
-
-```
-effective = raw >= 2 ? min(3, raw + floor(rounds_completed / N)) : raw
-```
-
-Where `N` (the boost divisor) varies by backlog kind:
-
-| Kind | N | Rationale |
-|------|---|-----------|
-| idea | 2 | Ideas need more rounds to de-risk |
-| research | 2 | Research similarly benefits from iteration |
-| fix | 1 | Fixes are typically well-scoped, boost faster |
-| execute | 2 | Execution tasks need careful scoping |
-| chore | 1 | Chores are straightforward, boost faster |
-
-This means a dimension with raw score 2 will reach effective score 3 after N additional rounds, even if the raw score does not change. Dimensions below 2 are not boosted (they need substantive improvement first).
-
-## How to Trigger Workshop Rounds
-
-### Via the UI
-
-1. Open any backlog item from the Backlog page
-2. Click the **Workshop** button in the item detail view
-3. The WorkshopPanel shows the latest round's items
-4. Answer questions and accept/reject proposals
-5. Click **Run next round** to trigger the agent
-
-### Via the API
-
-```
-POST /api/v1/backlog/{kind}/{name}/research
-Content-Type: application/json
-
-{
-  "mode": "workshop"
-}
-```
-
-The API snapshots the current item, starts the reconciled Agent Manager workflow, and returns its execution and fresh-run identities. Once the workflow is terminal, the separate apply endpoint performs the Swarm-owned mutation.
-
-## Item Lifecycle: Backlog to Execution
-
-```
-backlog ──workshop──▶ researching ──readiness met──▶ ready ──queue──▶ queued ──run──▶ in_progress
-                           │                                                           │
-                           │ (workshop loop continues                                  ▼
-                           │  until ready or manual queue)                    completed / failed
-                           │
-                           └──▶ archived (operator decision)
-```
-
-1. **backlog**: Item exists but has not been workshopped
-2. **researching**: Workshop agent is running (one or more rounds in progress)
-3. **ready**: All 5 readiness dimensions are at effective score 3; `spec.json.plan_ref` is bound to the canonical plan-manager plan
-4. **queued**: Operator has queued the item for execution
-5. **in_progress**: Execution agent is building/implementing the plan
-6. **completed/failed**: Execution finished
-
-Operators can queue items before they reach `ready` status if they judge the plan is sufficient.
-
-## plan_ref: The Primary Execution Artifact
-
-The non-research workshop loop's main output is a canonical plan-manager implementation plan referenced by `spec.json.plan_ref`. That plan serves as the specification handed to the execution agent (Generator/Improver). The agent updates the plan-manager plan with each round, incorporating answers to questions and accepted proposals.
-
-The mandatory section structure, convergence patterns, quality gates, and guardrails for the canonical plan are defined by the `implementation-plan-authoring` skill (`prompt-manager skill read implementation-plan-authoring`). Workshop agents load this skill as required reading and follow it when creating or updating plans.
-
-The execution agent receives a rendered projection of the linked plan-manager plan as its primary input. Workshop rounds are supporting evidence, not the execution spec. Research items are the exception: they produce `conclusion.md` rather than a plan-manager implementation plan.
-
-For `idea` backlog items, swarm-manager also generates a derived `handoff/` package when execution begins:
-
-- `handoff/brief.md`
-- `handoff/manifest.json`
-- `handoff/source-index.json`
-
-That package is not a separate planning surface. It is frozen supporting context for swarm-manager plan execution, regenerated from the latest finalized backlog state so downstream slices can preserve context without re-reading raw workshop artifacts. The linked plan-manager plan remains the execution authority.
-
-## Where Workshop Fits in the Pipeline
-
-```
- Raw backlog item
-    │
-    ▼
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  WORKSHOP    │ ──▶ │ PLAN DRAIN   │ ──▶ │ EVIDENCE LOOP│
-│  Iterative   │     │  Bounded     │     │ Test Genie → │
-│  refinement  │     │  scenario    │     │ Swarm follow-│
-│  → plan_ref  │     │  slices      │     │ up work      │
-└──────────────┘     └──────────────┘     └──────────────┘
-  Status: backlog      Status: queued       Status:
-    → researching        → in_progress       in_progress
-      → ready              → completed
-```
-
-## Implementation References
-
-### Backend
-- [CODE: api/internal/workshop/workshop.go] -- Readiness computation, round I/O, boost formula
-- [CODE: api/internal/backlog/workshop.go] -- Workshop handler integration with backlog domain
-- [CODE: api/internal/backlog/handler.go#Research] -- HTTP handler, prompt fetching, agent spawn
-- [CODE: api/internal/backlog/maturity_summary.go] -- Maturity/readiness aggregation endpoint
-
-### Frontend
-- [CODE: ui/src/lib/workshop-files.ts] -- Round parsing, truncation recovery, metrics
-- [CODE: ui/src/types/domain.ts#WorkshopRound] -- Type definitions for rounds, items, readiness
-- [CODE: ui/src/services/backlog-service.ts#research] -- API client method
-
-### Prompts (managed by prompt-manager and cataloged in swarm-manager)
-- `swarm-manager-workshop` -- Workshop rounds for `idea`, `fix`, `execute`, and `chore`
-- `swarm-manager-workshop-research` -- Workshop rounds for `research`
-- `swarm-manager-initialize-backlog` -- First-round bootstrap for every backlog kind
-- `swarm-manager-workshop-finalize` -- Finalize rounds for non-research backlog kinds
-- `swarm-manager-workshop-research-finalize` -- Finalize rounds for research backlog items
-- [DOC: docs/reference/api-endpoints.md#prompts] -- Catalog and simulation endpoints
+See [DOC: docs/concepts/TARGET-OPERATING-MODEL.md] for the ownership model and
+[DOC: docs/reference/transition-catalog.md] for declared workflows.

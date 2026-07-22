@@ -61,6 +61,7 @@ func (f *fakeInitiativeReviewWorkflow) StartWorkflow(_ context.Context, invocati
 	f.invocation = invocation
 	return agentmanager.WorkflowStart{ExecutionID: "workflow-init-1", RunID: "run-init-1", DefinitionDigest: "sha256:initiative-review"}, nil
 }
+
 func (f *fakeInitiativeReviewWorkflow) CollectWorkflow(context.Context, string) (agentmanager.InvocationCompletion, error) {
 	return f.completion, nil
 }
@@ -376,11 +377,18 @@ func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 	if err != nil || !triggered.Started {
 		t.Fatalf("trigger = %#v, err=%v", triggered, err)
 	}
-	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"assessment": "ready", "classification": "delivered"}})
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"assessment": "ready", "classification": "delivered", "disposition": map[string]any{"kind": "archive", "rationale": "All initiative goals are met", "confidence": "high"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	e.workflow.completion = agentmanager.InvocationCompletion{ExecutionID: "workflow-init-1", DefinitionDigest: "sha256:initiative-review", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: e.workflow.invocation.Input, Output: output}
+	observed := 0
+	e.svc.SetRoundTerminalObserver(func(_ context.Context, kind, name string, round review.Round) {
+		observed++
+		if kind != "initiative" || name != "apply-init" || round.Disposition == nil || round.Disposition.Kind != "archive" {
+			t.Fatalf("unexpected terminal projection: %s/%s %#v", kind, name, round)
+		}
+	})
 	first, idempotent, err := e.svc.ApplyWorkflowRound(context.Background(), "apply-init", triggered.Round)
 	if err != nil || idempotent || first.Status != review.RoundStatusComplete {
 		t.Fatalf("first apply = %#v idempotent=%v err=%v", first, idempotent, err)
@@ -388,6 +396,9 @@ func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 	init, _ := e.initStore.Load("apply-init")
 	if init.Status != initiatives.InitiativeStatusReviewPending {
 		t.Fatalf("initiative status = %s, want review_pending", init.Status)
+	}
+	if observed != 1 {
+		t.Fatalf("terminal observer calls = %d, want 1", observed)
 	}
 	_, idempotent, err = e.svc.ApplyWorkflowRound(context.Background(), "apply-init", triggered.Round)
 	if err != nil || !idempotent {

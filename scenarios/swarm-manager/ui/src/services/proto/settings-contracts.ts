@@ -97,11 +97,6 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     autoFixup: protoSettings.autoFixup ?? false,
     maxFixupAttempts: protoSettings.maxFixupAttempts ?? 0,
     reviewAgentEnabled: protoSettings.reviewAgentEnabled ?? true,
-    maxAutoRounds: protoSettings.maxAutoRounds ?? 10,
-    autoInitializeWorkshop: protoSettings.autoInitializeWorkshop ?? true,
-    autoAdvanceWorkshop: protoSettings.autoAdvanceWorkshop ?? true,
-    autoCascadeWorkshop: protoSettings.autoCascadeWorkshop ?? true,
-    autoAdvanceDelaySeconds: protoSettings.autoAdvanceDelaySeconds ?? 10,
     agentMaxTurns: protoSettings.agentMaxTurns ?? 600,
     agentTimeoutSeconds: protoSettings.agentTimeoutSeconds ?? 900,
     searchDebounceMs: protoSettings.searchDebounceMs ?? 300,
@@ -152,11 +147,6 @@ export function mapProtoPolicyProjection(
   return {
     effectiveControls: {
       defaultMode: isExecutionMode(c.defaultMode) ? c.defaultMode : "manual",
-      autoInitialize: c.autoInitialize ?? false,
-      autoAdvanceEnabled: c.autoAdvanceEnabled ?? false,
-      cascadeEnabled: c.cascadeEnabled ?? false,
-      autoAdvanceDelaySeconds: c.autoAdvanceDelaySeconds ?? 0,
-      maxAutoRounds: c.maxAutoRounds ?? 0,
       autoFixup: c.autoFixup ?? false,
       maxFixupAttempts: c.maxFixupAttempts ?? 0,
       reviewAgentEnabled: c.reviewAgentEnabled ?? false,

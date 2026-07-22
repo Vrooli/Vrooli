@@ -85,8 +85,9 @@ each writer is stopped:
 1. **Stop scheduling / autonomous loops.** Disable auto-drain
    (`data/auto-drain.json` → disabled) and the auto-filer, and stop the swarm
    scheduler so no new runs are queued.
-2. **Stop workshop auto-advance.** No new workshop/clarification rounds may be
-   spawned (freezes writes to `<item>/workshop/**`).
+2. **Verify Plan Workshop is quiescent.** Workshops are explicitly started and
+   have no scheduler or auto-advance writer; confirm no active review or
+   reconciliation workflow remains before swapping migrated state.
 3. **Stop execution polling.** The execution poller mutates `execution-runs.json`,
    `circuit-breaker.json`, `engagement-owners.json`, and item statuses — it must
    be idle.

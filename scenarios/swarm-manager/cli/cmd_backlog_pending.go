@@ -12,7 +12,7 @@ import (
 
 func (a *App) cmdBacklogPendingQuestions(args []string) error {
 	fs := flag.NewFlagSet("backlog pending-questions", flag.ContinueOnError)
-	sourceFlag := fs.String("source", "workshop", "Question source: workshop, review, or all")
+	sourceFlag := fs.String("source", "review", "Question source: review")
 	limitFlag := fs.Int("limit", 0, "Maximum number of backlog items to return (0 = unlimited)")
 	initiativeFlag := fs.String("initiative", "", "Restrict to backlog items in the given initiative")
 	briefFlag := fs.Bool("brief", false, "Return a small agent-oriented pending-question brief")
@@ -23,9 +23,9 @@ func (a *App) cmdBacklogPendingQuestions(args []string) error {
 
 	source := strings.ToLower(strings.TrimSpace(*sourceFlag))
 	switch source {
-	case "workshop", "review", "all":
+	case "review":
 	default:
-		return fmt.Errorf("invalid source %q: must be workshop, review, or all", *sourceFlag)
+		return fmt.Errorf("invalid source %q: must be review", *sourceFlag)
 	}
 	if *limitFlag < 0 {
 		return fmt.Errorf("invalid limit %d: must be a non-negative integer", *limitFlag)
@@ -99,22 +99,6 @@ func (a *App) cmdBacklogPendingQuestions(args []string) error {
 }
 
 func summarizePendingQuestion(question PendingQuestion) string {
-	if question.Source == "workshop" {
-		label := firstNonEmpty(question.Topic, question.Text, "workshop decision")
-		extra := ""
-		if len(question.Options) > 0 {
-			optionLabels := make([]string, 0, len(question.Options))
-			for _, option := range question.Options {
-				if trimmed := strings.TrimSpace(option.Label); trimmed != "" {
-					optionLabels = append(optionLabels, trimmed)
-				}
-			}
-			if len(optionLabels) > 0 {
-				extra = fmt.Sprintf(" (options: %s)", strings.Join(optionLabels, ", "))
-			}
-		}
-		return label + extra
-	}
 	label := firstNonEmpty(question.Title, question.Description, "review item")
 	if question.ReviewType != "" {
 		return fmt.Sprintf("%s (%s)", label, question.ReviewType)

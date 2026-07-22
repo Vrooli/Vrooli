@@ -11,7 +11,7 @@
 import { useState } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "../ui/button";
-import { backlogService } from "../../services";
+import { planWorkshopService } from "../../services/plan-workshop-service";
 import type { BacklogKind } from "../../types";
 import type { MissingPath } from "./stale-plan-utils";
 
@@ -39,10 +39,11 @@ export function StalePlanPanel({
     setIsSubmitting(true);
     setError(null);
     try {
-      await backlogService.reWorkshop(kind, name);
+      const session = await planWorkshopService.open({ kind: "backlog_item", ref: `${kind}/${name}` });
+      await planWorkshopService.startReview(session.id);
       onReWorkshopped?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to re-workshop item.");
+      setError(err instanceof Error ? err.message : "Failed to start the Plan Workshop review.");
     } finally {
       setIsSubmitting(false);
     }
@@ -58,8 +59,8 @@ export function StalePlanPanel({
         This plan references paths that no longer exist.
       </div>
       <p className="mb-2 text-amber-200/90">
-        The plan was likely written against an earlier repo state. Re-workshopping
-        rewrites the plan and acceptance against the current repo.
+        The plan was likely written against an earlier repo state. Review it in
+        Plan Workshop to produce a guarded candidate revision against the current repo.
       </p>
       {missingPaths.length > 0 && (
         <ul className="mb-3 list-disc pl-5 space-y-1">
@@ -103,10 +104,10 @@ export function StalePlanPanel({
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Re-workshopping...
+              Starting review...
             </>
           ) : (
-            "Re-workshop"
+            "Open Plan Workshop"
           )}
         </Button>
       </div>

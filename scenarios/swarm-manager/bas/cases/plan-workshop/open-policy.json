@@ -1,0 +1,102 @@
+{
+  "metadata": {
+    "name": "plan-workshop-open-policy",
+    "description": "Given an operator on the Graph workspace, when they open Settings and select Plan Workshop, then the explicit review-only policy and absence of automatic rounds are visible.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[]"
+    },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": {
+    "viewport_width": 1600,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "open-graph-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "swarm-manager",
+          "scenario_path": "/graph",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the Graph workspace" }
+      }
+    },
+    {
+      "id": "wait-workspace-header",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.header",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": { "label": "Workspace header renders" }
+      }
+    },
+    {
+      "id": "open-settings-drawer",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.settingsGear" },
+        "metadata": { "label": "Open workspace settings" }
+      }
+    },
+    {
+      "id": "wait-settings-drawer",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.settingsDrawer",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": { "label": "Settings drawer renders" }
+      }
+    },
+    {
+      "id": "open-settings-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.drawerSettingsTab" },
+        "metadata": { "label": "Open settings tab" }
+      }
+    },
+    {
+      "id": "open-plan-workshop-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/settings.tabWorkshop" },
+        "metadata": { "label": "Open Plan Workshop policy" }
+      }
+    },
+    {
+      "id": "assert-plan-workshop-policy",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/settings.workshopSettings",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "there are no automatic rounds or readiness controls to configure" },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "Plan Workshop must explain its explicit review-only policy"
+        },
+        "metadata": { "label": "Plan Workshop policy is explicit" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-graph-workspace", "target": "wait-workspace-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-workspace-header", "target": "open-settings-drawer", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "open-settings-drawer", "target": "wait-settings-drawer", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "wait-settings-drawer", "target": "open-settings-tab", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "open-settings-tab", "target": "open-plan-workshop-tab", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "open-plan-workshop-tab", "target": "assert-plan-workshop-policy", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

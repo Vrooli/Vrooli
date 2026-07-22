@@ -26,6 +26,7 @@ type Record struct {
 	EntityName        string     `json:"entityName"`
 	EntityVersion     string     `json:"entityVersion"`
 	PlanReference     string     `json:"planReference"`
+	BaseContentHash   string     `json:"baseContentHash"`
 	FrontierDigest    string     `json:"frontierDigest"`
 	WorkflowExecution string     `json:"workflowExecution"`
 	WorkflowDigest    string     `json:"workflowDigest"`
@@ -34,7 +35,7 @@ type Record struct {
 }
 
 func (r Record) Validate() error {
-	for name, value := range map[string]string{"id": r.ID, "entityKind": r.EntityKind, "entityName": r.EntityName, "entityVersion": r.EntityVersion, "planReference": r.PlanReference, "frontierDigest": r.FrontierDigest, "workflowExecution": r.WorkflowExecution, "workflowDigest": r.WorkflowDigest} {
+	for name, value := range map[string]string{"id": r.ID, "entityKind": r.EntityKind, "entityName": r.EntityName, "entityVersion": r.EntityVersion, "planReference": r.PlanReference, "baseContentHash": r.BaseContentHash, "frontierDigest": r.FrontierDigest, "workflowExecution": r.WorkflowExecution, "workflowDigest": r.WorkflowDigest} {
 		if strings.TrimSpace(value) == "" {
 			return fmt.Errorf("%s is required", name)
 		}

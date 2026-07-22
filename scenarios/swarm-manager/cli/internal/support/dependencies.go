@@ -16,8 +16,7 @@ type Dependencies struct {
 	BacklogUpdate           CommandFunc
 	BacklogDelete           CommandFunc
 	BacklogDismiss          CommandFunc
-	BacklogWorkshopReset    CommandFunc
-	BacklogReWorkshop       CommandFunc
+	BacklogPlanWorkshop     CommandFunc
 	BacklogRecreate         CommandFunc
 	BacklogResetArtifacts   CommandFunc
 	BacklogFiles            CommandFunc
@@ -25,16 +24,10 @@ type Dependencies struct {
 	BacklogFileUpload       CommandFunc
 	BacklogProcess          CommandFunc
 	BacklogQueue            CommandFunc
-	BacklogResearch         CommandFunc
-	BacklogPromptTrace      CommandFunc
 	BacklogBatchCreate      CommandFunc
 	BacklogBatchQueue       CommandFunc
 	BacklogExport           CommandFunc
 	BacklogImport           CommandFunc
-	BacklogClarify          CommandFunc
-	BacklogClarifyGet       CommandFunc
-	BacklogClarifyNext      CommandFunc
-	BacklogClarifyAction    CommandFunc
 	BacklogReviewDecide     CommandFunc
 	BacklogRecoverReview    CommandFunc
 	BacklogRetry            CommandFunc
@@ -75,7 +68,6 @@ type Dependencies struct {
 	PromptsSkillVersions    CommandFunc
 	PromptsSkillRevert      CommandFunc
 	PromptsPreview          CommandFunc
-	PromptsSimulate         CommandFunc
 	PromptsExperiment       CommandFunc
 	InitiativesList         CommandFunc
 	InitiativesGet          CommandFunc

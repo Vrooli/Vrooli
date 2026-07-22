@@ -105,8 +105,14 @@ type Record struct {
 	PromptTrace       *PromptTrace    `json:"prompt_trace,omitempty"`
 	ArchiveContext    *ArchiveContext `json:"archive_context,omitempty"`
 	ParentExecutionID string          `json:"parent_execution_id,omitempty"`
-	FixupAttempt      int             `json:"fixup_attempt,omitempty"`
-	Finalization      *Finalization   `json:"finalization,omitempty"`
+	// FollowUpSourceProposalID and FollowUpSourceReviewRef preserve the
+	// proposal/review relationship for a routed correction. Together with the
+	// parent execution they are the durable deduplication key for automatic or
+	// operator-approved follow-up work.
+	FollowUpSourceProposalID string        `json:"follow_up_source_proposal_id,omitempty"`
+	FollowUpSourceReviewRef  string        `json:"follow_up_source_review_ref,omitempty"`
+	FixupAttempt             int           `json:"fixup_attempt,omitempty"`
+	Finalization             *Finalization `json:"finalization,omitempty"`
 	// OpWorkflowID and OpExecutionID correlate this record to the durable
 	// operation execution that started its agent run (the runner's workflow
 	// instance + operation-execution id). They are written when the run is
@@ -344,10 +350,12 @@ type GovernanceStatusResponse struct {
 
 // FollowUpRequest describes a user-initiated follow-up from a completed/failed execution.
 type FollowUpRequest struct {
-	ExecutionID  string `json:"execution_id"`
-	FollowUpType string `json:"follow_up_type"` // fixup, followup, custom
-	Context      string `json:"context,omitempty"`
-	RunMode      string `json:"run_mode"` // continue, new
+	ExecutionID      string `json:"execution_id"`
+	FollowUpType     string `json:"follow_up_type"` // fixup, followup, custom
+	Context          string `json:"context,omitempty"`
+	RunMode          string `json:"run_mode"` // continue, new
+	SourceProposalID string `json:"source_proposal_id,omitempty"`
+	SourceReviewRef  string `json:"source_review_ref,omitempty"`
 }
 
 // RetryRequest describes a user-initiated retry of a terminal execution.

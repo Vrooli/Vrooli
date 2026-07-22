@@ -13,7 +13,6 @@ import {
   Trash2,
   PlusCircle,
   FolderOpen,
-  Beaker,
   Link,
   Target,
   Archive,
@@ -128,21 +127,6 @@ function makeBacklogEditAction(): InspectorAction {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
       return { entityType: "backlog", kind: parsed.kind, name: parsed.name };
-    },
-  };
-}
-
-function makeBacklogWorkshopAction(): InspectorAction {
-  return {
-    id: "workshop",
-    label: "Workshop",
-    icon: Beaker,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed?.kind || !parsed?.name) return null;
-      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "workshop" };
     },
   };
 }
@@ -288,7 +272,6 @@ export const actionRegistry: ActionRegistry = {
     backlog: [
       makeBacklogEditAction(),
       makeQueueAction(),
-      makeBacklogWorkshopAction(),
       makeBacklogAddDependencyAction(),
       makeBacklogAssignInitiativeAction(),
       makeBacklogViewFilesAction(),
@@ -312,7 +295,6 @@ export const actionRegistry: ActionRegistry = {
     backlog: [
       makeBacklogEditAction(),
       makeQueueAction(),
-      makeBacklogWorkshopAction(),
       makeBacklogAddDependencyAction(),
       makeBacklogAssignInitiativeAction(),
       makeBacklogViewFilesAction(),

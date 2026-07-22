@@ -5,63 +5,63 @@
   "requirements": [
     {
       "id": "REQ-P1-004-API",
-      "title": "Research Agent Spawn API",
+      "title": "Plan Workshop Session API",
       "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "api",
-      "description": "POST /api/v1/backlog/{kind}/{name}/research endpoint with prompt-manager skill resolution and agent-manager spawning",
+      "description": "Plan Workshop sessions are explicit, versioned review/reconciliation exchanges for backlog items and initiatives; they preserve historical rounds read-only and expose no direct research spawn endpoint.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler.go",
+          "ref": "api/internal/planworkshop/service_test.go::TestSubmitResponseIsIdempotentAndRejectsStaleSubject",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Research endpoint resolves prompt skill by kind+mode, spawns agent via agent-manager"
+          "status": "implemented",
+          "notes": "The session rejects stale subject versions and handles idempotent responses."
         },
         {
           "type": "test",
-          "ref": "api/internal/prompttrace/model.go",
+          "ref": "api/internal/planworkshop/migration_test.go::TestOpenLinksMigratedLegacyHistory",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Prompt trace captured to .swarm/last-research-prompt-trace.json"
+          "status": "implemented",
+          "notes": "Historical workshop data is linked as read-only session history."
         },
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler.go",
+          "ref": "api/internal/backlog/plan_acceptance_test.go::TestAcceptPlanPinsCanonicalHashAndScopeVersion",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Fallback prompt used when prompt-manager unavailable"
+          "notes": "Plan acceptance is pinned to the canonical plan hash and scope version."
         }
       ]
     },
     {
       "id": "REQ-P1-004-UI",
-      "title": "Research Agent Dialog Interface",
+      "title": "Plan Workshop Operator Interface",
       "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "ui",
-      "description": "Backlog agent dialog with agent-mode selection (workshop / initialize) plus a multi-turn clarification Q&A panel for refining workshop decisions. The standalone suggestions accept/reject panel was removed in the 2026-03 research backlog rework in favor of the workshop-based refinement flow (see OT-P1-004 'Implemented (workshop-based refinement flow)').",
+      "description": "Backlog and initiative detail pages expose the same Plan Workshop panel. Operators start review explicitly, respond once, see reconciliation/candidate state, and accept a candidate through Plan Manager; retired agent-dialog and clarification controls are absent.",
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/components/backlog/backlog-agent-dialog.tsx",
+          "ref": "ui/src/pages/BacklogDetailsPage.test.tsx::presents Plan Workshop rather than legacy workshop controls",
           "phase": "unit",
-          "status": "failing",
-          "notes": "backlog-agent-dialog renders the agent-mode selector with context input"
+          "status": "implemented",
+          "notes": "Backlog detail exposes Plan Workshop rather than legacy launcher controls."
         },
         {
           "type": "test",
-          "ref": "ui/src/components/backlog/clarification-panel.test.tsx::renders thread messages after successful fetch",
+          "ref": "ui/src/components/plan-workshop/plan-workshop-panel.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "clarification-panel displays the multi-turn Q&A thread"
+          "notes": "A single Plan Workshop panel presents review, response, reconciliation, and candidate state."
         },
         {
           "type": "test",
-          "ref": "ui/src/components/backlog/clarification-panel.test.tsx::textarea is disabled while isLoading is true",
+          "ref": "ui/src/pages/InitiativeDetailsPage.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "clarification-panel collects operator responses via its input textarea"
+          "notes": "Initiative detail hosts the same Plan Workshop operator surface."
         }
       ]
     }

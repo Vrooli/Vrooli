@@ -55,6 +55,13 @@ export const literalSelectors = {
     mobileNav: "mobile-nav",
     agentsToggle: "layout-agents-toggle",
   },
+  // Unified Graph/Plan workspace controls
+  workspace: {
+    header: "workspace-header",
+    settingsGear: "settings-gear",
+    settingsDrawer: "settings-drawer",
+    drawerSettingsTab: "settings-drawer-tab-settings",
+  },
   // Error state selectors (shared across pages)
   error: {
     container: "error-state",
@@ -196,10 +203,6 @@ export const literalSelectors = {
     fileUpload: "backlog-details-file-upload",
     uploadDropzone: "file-upload-dropzone",
     uploadList: "file-upload-list",
-    clarifyPanel: "backlog-clarify-panel",
-    clarifyNextMode: "backlog-clarify-next-mode",
-    clarifyNextModeNone: "backlog-clarify-next-mode-none",
-    clarifySubmit: "backlog-clarify-submit",
     suggestionsPanel: "backlog-suggestions-panel",
     suggestionsSubmit: "backlog-suggestions-submit",
     // Experience architecture additions (Phase 29)
@@ -351,7 +354,6 @@ export const literalSelectors = {
     dialog: "run-backlog-dialog",
     submitButton: "run-backlog-submit",
     blockingReasons: "run-backlog-blocking-reasons",
-    readinessWarning: "run-backlog-readiness-warning",
     error: "run-backlog-error",
   },
   followUp: {

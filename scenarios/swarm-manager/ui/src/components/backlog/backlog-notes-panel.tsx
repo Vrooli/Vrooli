@@ -1,148 +1,50 @@
-/**
- * BacklogNotesPanel
- *
- * Displays readiness information, workshop state, locked/blocked warnings,
- * and the workshop panel for a backlog item.
- *
- * Reads shared state (isLocked, isTerminal, etc.) from BacklogDetailContext.
- */
-
 import { useState } from "react";
-import { ReadinessDetailsPanel } from "./readiness-details-panel";
-import { WorkshopPanel } from "./workshop-panel";
-import { WorkshopTransitionStatus } from "./workshop-transition-status";
-import { ConfirmDialog } from "../ui/confirm-dialog";
 import { formatBacklogStatus } from "../../types";
-import type { WorkshopRound } from "../../types/domain";
-import type { ReadinessIndicatorData } from "../../lib/maturity";
 import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
-import { EntityLink } from "../ui/entity-link";
+import { planWorkshopService } from "../../services/plan-workshop-service";
+import { PlanWorkshopPanel } from "../plan-workshop/plan-workshop-panel";
 
-export interface BacklogNotesPanelProps {
-  readinessData: ReadinessIndicatorData | null;
-  workshopRounds: WorkshopRound[];
-  isSavingWorkshop: boolean;
-  isDeletingRound: boolean;
-  onStartRun: () => void;
-  onSaveRound: (roundNumber: number, content: string) => void;
-  onRunWorkshop: () => void;
-  onFinalizeWorkshop: () => void;
-  onInitializeWorkshop: () => void;
-  onDeleteRound: (roundNumber: number) => void;
-}
-
-export function BacklogNotesPanel({
-  readinessData,
-  workshopRounds,
-  isSavingWorkshop,
-  isDeletingRound,
-  onStartRun,
-  onSaveRound,
-  onRunWorkshop,
-  onFinalizeWorkshop,
-  onInitializeWorkshop,
-  onDeleteRound,
-}: BacklogNotesPanelProps) {
-  const {
-    backlogKind, item, itemActions, isLocked, isTerminal,
-    agentRunningLabel, workshopActionLabel, deliverableLabel,
-    isWorkshopFinalized, workshopBlockedDeps, isRunningAgent,
-    agentRunIsActive,
-    workshopAutoAdvance, clearWorkshopAutoAdvance,
-  } = useBacklogDetail();
-
-  const [showForceWorkshopConfirm, setShowForceWorkshopConfirm] = useState(false);
-  const canRun = !!itemActions?.canRun;
-  const canFinalize = !!itemActions?.canFinalize;
-  const finalizeDisabled = !!itemActions?.finalizeDisabled;
-  const blocked = !!itemActions?.blocked;
+export function BacklogNotesPanel() {
+  const { backlogKind, item, isLocked, isTerminal } = useBacklogDetail();
+  const [acceptingPlan, setAcceptingPlan] = useState(false);
+  const [acceptanceMessage, setAcceptanceMessage] = useState<string | null>(null);
 
   return (
     <div className="space-y-3 mt-4 border-t border-slate-800 pt-4">
-      {readinessData && !isTerminal && (
-        <ReadinessDetailsPanel
-          data={readinessData}
-          kind={backlogKind}
-          onRun={canRun ? onStartRun : undefined}
-        />
+      {item?.planRef && backlogKind !== "research" && !isTerminal && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/20 bg-sky-500/5 px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-sky-100">Canonical plan acceptance</p>
+            <p className="text-xs text-slate-400">
+              {item.planAcceptance
+                ? `Accepted ${new Date(item.planAcceptance.acceptedAt).toLocaleString()}. Re-accept after any plan or scope change.`
+                : "Review the linked canonical plan, then explicitly accept this revision before queueing."}
+            </p>
+            {acceptanceMessage && <p className="mt-1 text-xs text-emerald-300">{acceptanceMessage}</p>}
+          </div>
+          <button
+            className="shrink-0 rounded-md bg-sky-500 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isLocked || acceptingPlan}
+            onClick={() => {
+              if (!item) return;
+              setAcceptingPlan(true);
+              setAcceptanceMessage(null);
+              void planWorkshopService.acceptPlan(backlogKind, item.name)
+                .then(() => setAcceptanceMessage("Plan revision accepted. Refresh the item to see its recorded acceptance."))
+                .catch((error: unknown) => setAcceptanceMessage(error instanceof Error ? error.message : "Unable to accept the plan revision."))
+                .finally(() => setAcceptingPlan(false));
+            }}
+          >
+            {acceptingPlan ? "Accepting…" : item.planAcceptance ? "Re-accept plan" : "Accept plan"}
+          </button>
+        </div>
       )}
       {isLocked && (
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-sm text-amber-300">
           This item is {item?.status ? formatBacklogStatus(item.status) : "locked"} and cannot be edited.
         </div>
       )}
-      {workshopBlockedDeps.length > 0 && workshopRounds.length === 0 && (
-        <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-orange-300">
-              Workshop paused &mdash; waiting for:{" "}
-              {workshopBlockedDeps.map((dep, i) => {
-                const slashIdx = dep.indexOf("/");
-                const depKind = slashIdx > 0 ? dep.slice(0, slashIdx) : "";
-                const depName = slashIdx > 0 ? dep.slice(slashIdx + 1) : dep;
-                return (
-                  <span key={dep}>
-                    {i > 0 && ", "}
-                    <EntityLink
-                      entityType="backlog"
-                      kind={depKind}
-                      name={depName}
-                      label={dep}
-                      className="rounded-none bg-transparent px-0 py-0 font-medium text-orange-200 underline decoration-orange-500/40 hover:bg-transparent hover:text-orange-100 hover:decoration-orange-400/60"
-                    />
-                  </span>
-                );
-              })}
-            </p>
-            <button
-              className="shrink-0 text-xs text-orange-400 hover:text-orange-300 underline"
-              onClick={() => setShowForceWorkshopConfirm(true)}
-            >
-              Start Anyway
-            </button>
-          </div>
-        </div>
-      )}
-      <ConfirmDialog
-        isOpen={showForceWorkshopConfirm}
-        onClose={() => setShowForceWorkshopConfirm(false)}
-        title="Start Workshop Despite Unplanned Dependencies?"
-        description={`Dependencies not yet planned: ${workshopBlockedDeps.join(", ")}. Starting now may produce a ${backlogKind === "research" ? "conclusion" : "plan"} that needs revision when these dependencies are finalized.`}
-        confirmLabel="Start Workshop"
-        onConfirm={() => {
-          setShowForceWorkshopConfirm(false);
-          onInitializeWorkshop();
-        }}
-      />
-      <WorkshopPanel
-        rounds={workshopRounds}
-        backlogKind={backlogKind}
-        backlogName={item?.name ?? ""}
-        disabled={isLocked || isTerminal}
-        isSaving={isSavingWorkshop}
-        isRunningWorkshop={isRunningAgent || agentRunIsActive}
-        onSaveRound={onSaveRound}
-        primaryActionLabel={(!isTerminal && !blocked && (canFinalize || finalizeDisabled)) ? `Finalize ${deliverableLabel}` : undefined}
-        onPrimaryAction={(!isTerminal && !blocked && (canFinalize || finalizeDisabled)) ? onFinalizeWorkshop : undefined}
-        onRunWorkshop={!isTerminal && !blocked ? onRunWorkshop : undefined}
-        workshopActionLabel={workshopActionLabel}
-        onDeleteRound={isTerminal ? undefined : onDeleteRound}
-        isDeletingRound={isDeletingRound}
-        isFinalized={isWorkshopFinalized}
-        deliverableLabel={deliverableLabel}
-        runningLabel={agentRunningLabel}
-      />
-      {workshopAutoAdvance?.nextMode && item?.name ? (
-        <WorkshopTransitionStatus
-          autoAdvance={workshopAutoAdvance}
-          kind={backlogKind}
-          name={item.name}
-          onCancelled={clearWorkshopAutoAdvance ?? (() => undefined)}
-          onExpired={clearWorkshopAutoAdvance ?? (() => undefined)}
-          onRunNext={onRunWorkshop}
-          onFinalize={onFinalizeWorkshop}
-        />
-      ) : null}
+      {item && <PlanWorkshopPanel subject={{ kind: "backlog_item", ref: `${backlogKind}/${item.name}` }} disabled={isLocked || isTerminal} />}
     </div>
   );
 }

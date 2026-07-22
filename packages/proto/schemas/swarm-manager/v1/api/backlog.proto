@@ -594,11 +594,6 @@ message WorkshopAutoAdvance {
   int32 delay_seconds = 8;
 }
 
-// WorkshopCancelPendingAdvanceResponse is the response from cancelling a pending advance.
-message WorkshopCancelPendingAdvanceResponse {
-  bool cancelled = 1;
-}
-
 // WorkshopDeleteRoundRequest deletes an entire workshop round and renumbers
 // subsequent rounds to maintain contiguous numbering.
 message WorkshopDeleteRoundRequest {

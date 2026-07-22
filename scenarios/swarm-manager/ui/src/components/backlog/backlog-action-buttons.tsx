@@ -2,7 +2,7 @@
  * buildBacklogActionMenuItems
  *
  * Builds the overflow-menu actions for a backlog item (secondary CTAs, edit,
- * follow-up, retry, agent, archive, reset workshop, delete) for the
+ * follow-up, retry, archive, and delete) for the
  * DetailPageHeader ellipsis menu. The item's primary CTA is rendered by
  * `HeaderPrimaryAction` and excluded here; status changes go through the
  * header's StatusBadge.
@@ -15,12 +15,9 @@
 import {
   Archive,
   Edit,
-  MessageSquare,
-  MessageSquareText,
-  Play,
-  RefreshCw,
-  RotateCcw,
-  Sparkles,
+	MessageSquare,
+	Play,
+	RefreshCw,
   Trash2,
 } from "lucide-react";
 import { type ActionMenuItem } from "../ui/action-menu";
@@ -32,46 +29,28 @@ export interface BacklogActionMenuDetail {
   isLocked: boolean;
   isTerminal: boolean;
   agentRunningLabel: string;
-  workshopActionLabel: string;
-  deliverableLabel: string;
-  agentLabel: string;
-  isRunningAgent: boolean;
 }
 
 export interface BacklogActionMenuOptions {
   isUpdating: boolean;
-  onFinalizeWorkshop: () => void;
   onStartRun: () => void;
-  onRunWorkshop: () => void;
   onEdit: () => void;
   onFollowUp: () => void;
   onRetry: () => void;
-  onOpenAgentDialog: () => void;
   onArchive: () => void;
-  onResetWorkshop: () => void;
-  hasWorkshopRounds: boolean;
   onDelete: () => void;
 }
 
 export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
   isUpdating,
-  onFinalizeWorkshop,
-  onStartRun,
-  onRunWorkshop,
+	onStartRun,
   onEdit,
   onFollowUp,
   onRetry,
-  onOpenAgentDialog,
   onArchive,
-  onResetWorkshop,
-  hasWorkshopRounds,
   onDelete,
 }: BacklogActionMenuOptions): ActionMenuItem[] {
-  const {
-    itemActions, isLocked, isTerminal,
-    agentRunningLabel, workshopActionLabel, deliverableLabel,
-    agentLabel, isRunningAgent,
-  } = detail;
+  const { itemActions, agentRunningLabel } = detail;
 
   if (!itemActions) return [];
 
@@ -79,16 +58,6 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
 
   // Secondary CTAs — every available CTA except the primary one, which
   // HeaderPrimaryAction already renders as the visible header button.
-  if (itemActions.primaryCta !== "finalize" && (itemActions.canFinalize || itemActions.finalizeDisabled)) {
-    items.push({
-      label: itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : `Finalize ${deliverableLabel}`,
-      icon: <Sparkles />,
-      description: "Finalize the current workshop deliverable.",
-      onSelect: onFinalizeWorkshop,
-      disabled: itemActions.finalizeDisabled || isRunningAgent,
-      title: (itemActions.finalizeDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined,
-    });
-  }
   if (itemActions.primaryCta !== "run" && (itemActions.canRun || itemActions.runDisabled)) {
     items.push({
       label: itemActions.agentExecuting ? agentRunningLabel : "Run",
@@ -97,16 +66,6 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
       onSelect: onStartRun,
       disabled: itemActions.runDisabled,
       title: itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined,
-    });
-  }
-  if (itemActions.primaryCta !== "workshop" && (itemActions.canWorkshop || itemActions.workshopDisabled)) {
-    items.push({
-      label: itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel,
-      icon: <MessageSquareText />,
-      description: "Continue shaping the work with a guided workshop.",
-      onSelect: onRunWorkshop,
-      disabled: itemActions.workshopDisabled || isRunningAgent,
-      title: (itemActions.workshopDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined,
     });
   }
   items.push({
@@ -133,16 +92,6 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
       title: "Re-run with the same scope. Use Follow-Up if the work needs to change.",
     });
   }
-  if (!itemActions.canFollowUp && !itemActions.canRetry && !isTerminal) {
-    items.push({
-      label: agentLabel,
-      icon: <Sparkles />,
-      description: "Start agent-assisted work for this item.",
-      onSelect: onOpenAgentDialog,
-      disabled: isLocked,
-      testId: selectors.backlogDetails.agentButton,
-    });
-  }
   if (itemActions.canArchive) {
     items.push({
       label: isUpdating ? "Archiving..." : "Archive",
@@ -150,15 +99,6 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
       description: "Hide this item from active work while retaining history.",
       onSelect: onArchive,
       disabled: isUpdating,
-    });
-  }
-  if (hasWorkshopRounds && !isLocked) {
-    items.push({
-      label: "Reset Workshop",
-      icon: <RotateCcw />,
-      description: "Remove workshop material while preserving the item specification.",
-      onSelect: onResetWorkshop,
-      destructive: true,
     });
   }
   items.push({

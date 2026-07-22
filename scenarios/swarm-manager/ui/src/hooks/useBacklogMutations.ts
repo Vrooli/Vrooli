@@ -16,15 +16,11 @@ export type FileActionType = "rename" | "move" | "copy" | "delete";
 export interface UseBacklogMutationsOptions {
   backlogKind: BacklogKind | null;
   name: string | undefined;
-  refetchFiles: () => unknown;
-  refetchWorkshopRounds: () => unknown;
 }
 
 export function useBacklogMutations({
   backlogKind,
   name,
-  refetchFiles,
-  refetchWorkshopRounds,
 }: UseBacklogMutationsOptions) {
   const queryClient = useQueryClient();
   const upsertItem = useBacklogStore((state) => state.upsertItem);
@@ -134,50 +130,6 @@ export function useBacklogMutations({
     },
   });
 
-  const agentMutation = useMutation({
-    mutationFn: ({ mode, prompt, contextPaths, contextTargetIds, contextRequirementIds, confirm, force }: {
-      mode?: string;
-      prompt: string;
-      contextPaths?: string[];
-      contextTargetIds?: string[];
-      contextRequirementIds?: string[];
-      confirm?: boolean;
-      force?: boolean;
-    }) => {
-      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return backlogService.research(backlogKind, name, {
-        mode,
-        prompt,
-        contextPaths,
-        contextTargetIds,
-        contextRequirementIds,
-        confirm,
-        force,
-      });
-    },
-    onSuccess: () => {
-      if (!backlogKind || !name) return;
-      void queryClient.invalidateQueries({ queryKey: ["backlog-maturity-summary"] });
-      void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
-    },
-  });
-
-  const workshopSaveMutation = useMutation({
-    mutationFn: async ({ roundNumber, content }: { roundNumber: number; content: string }) => {
-      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return backlogService.workshopSave(backlogKind, name, roundNumber, content);
-    },
-    onSuccess: () => {
-      if (!backlogKind || !name) return;
-      invalidate(["backlog", backlogKind, name, "files"]);
-      invalidate(["backlog", backlogKind, name, "workshop-rounds"]);
-      invalidate(["backlog-maturity-summary"]);
-      invalidate(["backlog-summary"]);
-      void refetchFiles();
-      void refetchWorkshopRounds();
-    },
-  });
-
   const updateReqsMutation = useMutation({
     mutationFn: ({ moduleId, requirements }: { moduleId: string; requirements: ArchiveRequirementRecord[] }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
@@ -244,39 +196,6 @@ export function useBacklogMutations({
     },
   });
 
-  const workshopDeleteRoundMutation = useMutation({
-    mutationFn: async ({ roundNumber }: { roundNumber: number }) => {
-      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return backlogService.workshopDeleteRound(backlogKind, name, roundNumber);
-    },
-    onSuccess: () => {
-      if (!backlogKind || !name) return;
-      invalidate(["backlog", backlogKind, name, "files"]);
-      invalidate(["backlog", backlogKind, name, "workshop-rounds"]);
-      invalidate(["backlog-maturity-summary"]);
-      invalidate(["backlog-summary"]);
-      void refetchFiles();
-      void refetchWorkshopRounds();
-    },
-  });
-
-  const workshopResetMutation = useMutation({
-    mutationFn: async () => {
-      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return backlogService.workshopReset(backlogKind, name);
-    },
-    onSuccess: () => {
-      if (!backlogKind || !name) return;
-      invalidate(["backlog", backlogKind, name]);
-      invalidate(["backlog", backlogKind, name, "files"]);
-      invalidate(["backlog", backlogKind, name, "workshop-rounds"]);
-      invalidate(["backlog-maturity-summary"]);
-      invalidate(["backlog-summary"]);
-      void refetchFiles();
-      void refetchWorkshopRounds();
-    },
-  });
-
   const fileActionMutation = useMutation({
     mutationFn: async ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
@@ -306,10 +225,6 @@ export function useBacklogMutations({
   const deleteError = deleteMutation.isError
     ? deleteMutation.error instanceof Error ? deleteMutation.error.message : "Failed to delete backlog item. Please try again."
     : null;
-  const agentErrorMsg = agentMutation.isError
-    ? agentMutation.error instanceof Error ? agentMutation.error.message : "Failed to start the agent. Make sure agent-manager is running."
-    : null;
-
   const archiveError = archiveMutation.isError
     ? archiveMutation.error instanceof Error ? archiveMutation.error.message : "Failed to archive item. Please try again."
     : null;
@@ -322,8 +237,6 @@ export function useBacklogMutations({
     archiveMutation,
     unarchiveMutation,
     deleteMutation,
-    agentMutation,
-    workshopSaveMutation,
     updateReqsMutation,
     createModuleMutation,
     updateModuleMetaMutation,
@@ -332,14 +245,11 @@ export function useBacklogMutations({
     updateTargetMutation,
     deleteTargetMutation,
     batchReviewMutation,
-    workshopDeleteRoundMutation,
-    workshopResetMutation,
     fileActionMutation,
 
     updateError,
     archiveError,
     deleteError,
-    agentErrorMsg,
 
     invalidateFiles: () => {
       if (!backlogKind || !name) return;

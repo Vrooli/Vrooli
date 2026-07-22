@@ -20,7 +20,7 @@ export function PolicyControlsBadge() {
     <span
       className="rounded-full border border-indigo-400/30 bg-indigo-500/10 px-2 py-0.5 text-[11px] font-medium text-indigo-300"
       data-testid="policy-controls-badge"
-      title="These settings govern the operation runner's transition policies (auto-advance, retries, review spawning). They remain user preferences; orchestration reads them through the policy-controls seam."
+      title="These settings govern the operation runner's retry and review policies. They remain user preferences; orchestration reads them through the policy-controls seam."
     >
       Policy controls
     </span>

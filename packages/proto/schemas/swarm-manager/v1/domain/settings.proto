@@ -112,19 +112,10 @@ message Settings {
   }];
   bool review_agent_enabled = 31;
 
-  // Workshop settings.
-  int32 max_auto_rounds = 9 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 50
-  }];
-  bool auto_initialize_workshop = 16;
-  bool auto_advance_workshop = 17;
-  bool auto_cascade_workshop = 18;
-  // Grace period (seconds) before auto-advance spawns the next round. 0 = instant.
-  int32 auto_advance_delay_seconds = 32 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 120
-  }];
+  // Retired workshop automation fields. Workshops are now explicitly started
+  // by an operator and are represented by Plan Workshop sessions.
+  reserved 9, 16, 17, 18, 32;
+  reserved "max_auto_rounds", "auto_initialize_workshop", "auto_advance_workshop", "auto_cascade_workshop", "auto_advance_delay_seconds";
 
   // Agent behavior settings.
   int32 agent_max_turns = 10 [(buf.validate.field).int32 = {

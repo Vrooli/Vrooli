@@ -81,7 +81,7 @@ function getGroup(groups: ActionGroup[], id: string): ActionGroup {
 describe("groupActionItems", () => {
   it("returns all group types even when empty", () => {
     const groups = groupActionItems([], [], [], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
-    expect(groups).toHaveLength(5);
+    expect(groups).toHaveLength(4);
     expect(groups.every((g) => g.count === 0)).toBe(true);
   });
 
@@ -115,16 +115,6 @@ describe("groupActionItems", () => {
     const item = makeBacklogItem({ status: "completed" });
     const groups = groupActionItems([item], [], [], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
     expect(getGroup(groups, "needs-review").count).toBe(1);
-  });
-
-  it("classifies workshop-needing items into needs-workshop group", () => {
-    // An item with readinessReady=false → primaryCta = "workshop"
-    const item = makeBacklogItem({ status: "backlog" });
-    const maturityMap = new Map([
-      [`${item.kind}/${item.name}`, { kind: item.kind, name: item.name, ready: false, pendingItems: 1 }],
-    ]);
-    const groups = groupActionItems([item], [], [], EMPTY_FEEDBACK, maturityMap, NO_SNOOZED);
-    expect(getGroup(groups, "needs-workshop").count).toBe(1);
   });
 
   it("classifies needs_review executions into needs-review group", () => {
@@ -466,7 +456,6 @@ describe("computeBadgeCount", () => {
       { id: "ready-to-run", label: "Ready", count: 3, items: [] },
       { id: "pending-decisions", label: "Pending", count: 2, items: [] },
       { id: "needs-review", label: "Review", count: 1, items: [] },
-      { id: "needs-workshop", label: "Workshop", count: 0, items: [] },
       { id: "needs-classification", label: "Classify", count: 4, items: [] },
     ];
     expect(computeBadgeCount(groups)).toBe(10);

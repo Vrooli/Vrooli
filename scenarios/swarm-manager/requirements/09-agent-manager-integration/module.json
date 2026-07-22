@@ -5,70 +5,70 @@
   "requirements": [
     {
       "id": "REQ-P0-010-API",
-      "title": "Agent Manager API Client",
+      "title": "Plan Workshop Agent Manager Contract",
       "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "category": "api",
-      "description": "Implement API client for agent-manager to spawn and manage agents",
+      "description": "Plan Workshop invokes only its declared review and reconciliation workflows through Agent Manager, then projects typed outputs into the session without auto-applying a canonical plan.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/agentmanager/client_test.go::TestHTTPClient_CreateResearchRun_Success",
+          "ref": "api/internal/planworkshop/service_test.go::TestReviewRunProjectsTypedResultOnce",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Test agent spawn requests via discovery-resolved base URL"
+          "status": "implemented",
+          "notes": "A review workflow result is projected once into the Plan Workshop session."
         },
         {
           "type": "test",
-          "ref": "api/internal/agentmanager/client_test.go::TestHTTPClient_CreateResearchRun_ResolverError",
+          "ref": "api/internal/planworkshop/service_test.go::TestProposalResponseRequiresOneReconciliation",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Test resolver failure handling"
+          "status": "implemented",
+          "notes": "A proposal response creates exactly one reconciliation engagement."
         },
         {
           "type": "test",
-          "ref": "api/internal/agentmanager/client_test.go::TestHTTPClient_CreateResearchRun_RequestError",
+          "ref": "api/internal/planworkshop/service_test.go::TestApplyReconciliationCreatesCandidateWithoutCanonicalApply",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Test HTTP request failure handling"
+          "status": "implemented",
+          "notes": "Reconciliation produces a candidate; only Plan Manager may apply canonical changes."
         }
       ]
     },
     {
       "id": "REQ-P0-010-WORKFLOW",
-      "title": "Agent Workflow Integration",
+      "title": "Plan Workshop Workflow Integration",
       "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "category": "integration",
-      "description": "End-to-end integration with agent-manager for automated task workflows",
+      "description": "The operator explicitly starts Plan Workshop review or reconciliation. Legacy research, workshop-round, finalize, and auto-advance execution paths are retired.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/agentmanager/service_test.go::TestDefaultProfileConfig",
+          "ref": "api/internal/planworkshop/service_test.go::TestSubmitResponseIsIdempotentAndRejectsStaleSubject",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Agent service default profile configuration is validated"
+          "status": "implemented",
+          "notes": "Responses are idempotent and stale subject versions are rejected."
         },
         {
           "type": "test",
-          "ref": "api/internal/agentmanager/service_test.go::TestBuildProfile",
+          "ref": "api/internal/planworkshop/service_test.go::TestApplyReviewMarksChangedSubjectStale",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Agent service profile build wiring is validated"
+          "status": "implemented",
+          "notes": "A changed subject invalidates the review packet instead of silently continuing."
         },
         {
           "type": "test",
-          "ref": "api/internal/backlog/handler_test.go::TestResearch_SpawnsAgent",
+          "ref": "api/internal/planworkshop/migration_test.go::TestMigrateLegacyHistoryIsReadOnlyAndIdempotent",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Backlog research uses agent-manager service seam"
+          "status": "implemented",
+          "notes": "Historical rounds migrate once and remain read-only."
         },
         {
           "type": "test",
-          "ref": "api/internal/execution/service_test.go::TestQueueAndStartManualExecution",
+          "ref": "api/internal/backlog/plan_acceptance_test.go::TestPlanAcceptanceIsClearedWhenWorkContractChanges",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Execution queue workflow spawns agent runs"
+          "status": "implemented",
+          "notes": "Execution acceptance is an explicit server-side gate tied to the canonical plan."
         },
         {
           "type": "test",
@@ -84,17 +84,17 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/agentmanager/workflow_test.go",
+          "ref": "api/internal/planworkshop/service_test.go::TestDirectProposalUsesCanonicalPacketModeOnce",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Real HTTP transport accepts Agent Manager's asynchronous 202 workflow start contract"
+          "notes": "Plan Workshop uses its canonical packet path exactly once per response."
         },
         {
           "type": "test",
-          "ref": "api/internal/backlog/workshop_workflow_test.go::TestWorkshopWorkflowResultReconcilesAutomaticallyAcrossRestart",
+          "ref": "api/internal/planworkshop/service_test.go::TestApplyReconciliationCreatesCandidateWithoutCanonicalApply",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Both showcase workflow results apply automatically and replay safely through consumer-owned reconciliation"
+          "notes": "Reconciliation retains a candidate for Plan Manager control; no automatic canonical apply occurs."
         },
         {
           "type": "test",

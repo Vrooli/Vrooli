@@ -1,20 +1,12 @@
 package settings
 
 type PolicyControls struct {
-	Execution   ExecutionControls
-	AutoAdvance AutoAdvanceControls
-	Retry       RetryControls
-	Review      ReviewControls
-	Budgets     AgentBudgetControls
+	Execution ExecutionControls
+	Retry     RetryControls
+	Review    ReviewControls
+	Budgets   AgentBudgetControls
 }
 type ExecutionControls struct{ DefaultMode string }
-type AutoAdvanceControls struct {
-	AutoInitialize bool
-	Enabled        bool
-	Cascade        bool
-	DelaySeconds   int
-	MaxAutoRounds  int
-}
 type RetryControls struct {
 	AutoFixup        bool
 	MaxFixupAttempts int
@@ -51,13 +43,6 @@ func ProjectPolicyControls(s Settings) PolicyControls {
 	return PolicyControls{
 		Execution: ExecutionControls{
 			DefaultMode: s.DefaultMode,
-		},
-		AutoAdvance: AutoAdvanceControls{
-			AutoInitialize: s.AutoInitializeWorkshop,
-			Enabled:        s.AutoAdvanceWorkshop,
-			Cascade:        s.AutoCascadeWorkshop,
-			DelaySeconds:   s.AutoAdvanceDelaySeconds,
-			MaxAutoRounds:  s.MaxAutoRounds,
 		},
 		Retry: RetryControls{
 			AutoFixup:        s.AutoFixup,
@@ -124,7 +109,7 @@ type FieldClassification struct {
 	// Role is one of the FieldRole* constants.
 	Role string
 	// Control is the destination path inside PolicyControls (JSON path
-	// segments, e.g. "auto_advance.delay_seconds"). Empty unless Role is
+	// segments, e.g. "retry.max_fixup_attempts"). Empty unless Role is
 	// policy_control or dormant-with-destination.
 	Control string
 	// Note is a short human-readable explanation.
@@ -145,11 +130,6 @@ func PolicyFieldClassifications() []FieldClassification {
 		{Field: "auto_fixup", Role: FieldRolePolicyControl, Control: "retry.auto_fixup", Note: "Automatic fixup re-run after a failed review."},
 		{Field: "max_fixup_attempts", Role: FieldRolePolicyControl, Control: "retry.max_fixup_attempts", Note: "Retained user preference: retry limit consumed via policy controls."},
 		{Field: "review_agent_enabled", Role: FieldRolePolicyControl, Control: "review.agent_enabled", Note: "Gates autonomous review-round (evidence) spawning."},
-		{Field: "max_auto_rounds", Role: FieldRolePolicyControl, Control: "auto_advance.max_auto_rounds", Note: "Caps autonomous workshop rounds."},
-		{Field: "auto_initialize_workshop", Role: FieldRolePolicyControl, Control: "auto_advance.auto_initialize", Note: "Spawns the first workshop round on item creation."},
-		{Field: "auto_advance_workshop", Role: FieldRolePolicyControl, Control: "auto_advance.enabled", Note: "Retained user preference: auto-advance consumed via policy controls."},
-		{Field: "auto_cascade_workshop", Role: FieldRolePolicyControl, Control: "auto_advance.cascade", Note: "Triggers dependent workshops when a dependency unblocks."},
-		{Field: "auto_advance_delay_seconds", Role: FieldRolePolicyControl, Control: "auto_advance.delay_seconds", Note: "Retained user preference: grace delay before the scheduled advance intent fires."},
 		{Field: "agent_max_turns", Role: FieldRolePolicyControl, Control: "budgets.max_turns", Note: "Per-run turn budget; cost-cap estimation input."},
 		{Field: "agent_timeout_seconds", Role: FieldRoleDormant, Control: "budgets.timeout_seconds", Note: "No runtime reader today (spawn timeouts come from the agent profile); persisted field retained."},
 		{Field: "review_code_quality_min_score", Role: FieldRolePolicyControl, Control: "review.code_quality_min_score", Note: "Retained user preference: review threshold consumed via policy controls."},

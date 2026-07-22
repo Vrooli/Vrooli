@@ -1,8 +1,0 @@
-{
-  "kind": "agentops-operation-binding",
-  "operation": "execution-followup",
-  "operation_version": "1.0.0",
-  "layer": "system-default",
-  "mode": "backlog-followup",
-  "mode_revision": "1.0.0"
-}

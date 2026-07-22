@@ -6,7 +6,6 @@ import type { IApiClient } from "../../lib/api-client";
 import { API_ENDPOINTS } from "../../lib/api-endpoints";
 import type {
   BacklogSummaryResponse,
-  MaturitySummaryResponse,
   PendingQuestionsResponse,
 } from "../../types";
 import type { ImportBacklogResponse } from "./types";
@@ -46,11 +45,6 @@ export function createBulkMethods(apiClient: IApiClient) {
     async getBacklogSummary(): Promise<BacklogSummaryResponse> {
       return apiClient.get<BacklogSummaryResponse>(API_ENDPOINTS.backlogSummary);
     },
-
-    async getMaturitySummary(): Promise<MaturitySummaryResponse> {
-      return apiClient.get<MaturitySummaryResponse>(API_ENDPOINTS.backlogMaturitySummary);
-    },
-
     async getPendingQuestions(): Promise<PendingQuestionsResponse> {
       return apiClient.get<PendingQuestionsResponse>(API_ENDPOINTS.backlogPendingQuestions);
     },

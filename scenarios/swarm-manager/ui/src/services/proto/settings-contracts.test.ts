@@ -46,11 +46,6 @@ describe("settings proto contracts", () => {
     const result = mapProtoPolicyProjection({
       effectiveControls: {
         defaultMode: "yolo",
-        autoInitialize: true,
-        autoAdvanceEnabled: true,
-        cascadeEnabled: false,
-        autoAdvanceDelaySeconds: 15,
-        maxAutoRounds: 12,
         autoFixup: true,
         maxFixupAttempts: 3,
         reviewAgentEnabled: true,
@@ -65,9 +60,9 @@ describe("settings proto contracts", () => {
       },
       classifications: [
         {
-          field: "auto_advance_workshop",
+          field: "max_fixup_attempts",
           role: SettingsFieldRole.POLICY_CONTROL,
-          control: "auto_advance.enabled",
+          control: "retry.max_fixup_attempts",
           note: "Retained user preference.",
         },
         {
@@ -81,14 +76,12 @@ describe("settings proto contracts", () => {
 
     expect(result).not.toBeNull();
     expect(result?.effectiveControls.defaultMode).toBe("yolo");
-    expect(result?.effectiveControls.autoAdvanceDelaySeconds).toBe(15);
-    expect(result?.effectiveControls.maxAutoRounds).toBe(12);
     expect(result?.effectiveControls.reviewMaxWarnings).toBe(-1);
     expect(result?.classifications).toEqual([
       {
-        field: "auto_advance_workshop",
+        field: "max_fixup_attempts",
         role: "policy_control",
-        control: "auto_advance.enabled",
+        control: "retry.max_fixup_attempts",
         note: "Retained user preference.",
       },
       {

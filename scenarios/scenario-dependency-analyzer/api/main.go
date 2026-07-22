@@ -33,6 +33,7 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("Failed to initialize schemas: %v", err)
 	}
+	log.Println("Scenario Dependency Analyzer database schemas initialized")
 
 	if err := app.Run(cfg, db.Primary()); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

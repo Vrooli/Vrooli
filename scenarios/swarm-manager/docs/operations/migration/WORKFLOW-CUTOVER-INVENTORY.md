@@ -74,20 +74,20 @@ inventory can establish whether the aggregate reaches the target.
 
 | Current concern | Target transition | Target mechanism | Stored-state disposition | Wave |
 | --- | --- | --- | --- | --- |
-| Workshop synthesis round | `backlog.refine` | Declared `swarm-manager/backlog-workshop-round` workflow. Initialize, operator-started workshop, automatic creation/cascade, and re-workshop all use the same immutable-snapshot adapter. | Preserve item, decisions, and workshop history; persist workflow correlation/provenance and stop creating new mode-round state. | D → E |
-| Clarification start/continue | `backlog.clarify` | Declared `swarm-manager/backlog-clarify` workflow returns a typed reply from an immutable decision/thread snapshot; Swarm persists correlation and applies terminal replies exactly once. | Preserve historical clarification threads read-only; new activity journals in Agent Manager. | E |
-| Delayed workshop auto-advance | `backlog.refine` | Disabled pending a declared Agent Manager wait-node contract; no Swarm scheduler may launch a legacy operation. | Existing historical scheduler intents may be cancelled/read, but new delayed intents are not created. | E |
+| Workshop synthesis round | Retired | Replaced by the explicit `plan.workshop.review` and `plan.workshop.reconcile` session workflow pair. | Historical item, decision, and workshop records remain read-only. | Retired |
+| Clarification start/continue | Retired | Replaced by one Plan Workshop operator response; open-ended discussion belongs in Agent Sessions. | Historical clarification threads remain read-only. | Retired |
+| Delayed workshop auto-advance | Retired | Plan Workshop has no scheduled or automatic continuation. | Historical scheduler records remain read-only evidence only. | Retired |
 | Workshop finalization | `plan.author` | Declared `swarm-manager/plan-author` workflow returns a candidate plan; Swarm imports it through Plan Manager, requires a passing render verdict, then binds once. | Preserve old rounds as evidence; persist workflow correlation/provenance and keep `plan_ref` canonical. | E |
 | Invalid or stale plan | `plan.repair` | Workflow receives Plan Manager validation findings, repairs the plan, then revalidates under a bounded policy. | No new Swarm readiness-loop state; retain validation evidence and terminal reason. | D |
-| Research refinement | `research.refine` | The declared backlog-workshop workflow currently supplies typed readiness/proposals. | Keep research item and supporting artifacts. | E |
-| Research conclusion | `research.conclude` | Declared `swarm-manager/research-conclude` workflow owns bounded conclusion rounds and typed handoff outcomes; the execution-record terminal apply adapter remains the migration boundary. | Preserve conclusion and evidence; replace the execution-mode record correlation with workflow provenance. | E |
+| Research refinement | Retired | Research review uses the generic Plan Workshop review and reconciliation pair. | Keep research item and supporting artifacts as read-only history. | Retired |
+| Research conclusion | `research.conclude` | Declared `swarm-manager/research-conclude` workflow owns bounded conclusion rounds and emits one typed Plan Workshop finding/disposition; the execution-record terminal apply adapter remains the migration boundary. | Preserve conclusion and evidence; replace the execution-mode record correlation with workflow provenance. | E |
 
 ### Plan execution, review, and evidence
 
 | Current concern | Target transition | Target mechanism | Stored-state disposition | Wave |
 | --- | --- | --- | --- | --- |
 | Execute a valid plan | `plan.execute` | `swarm-manager/phased-plan-drain` workflow. | Execution record keeps authorized intent and workflow correlation; Agent Manager owns attempts and loop state. | D → E |
-| Slice review | `work.review` | Declared `swarm-manager/independent-review` workflow now starts from an immutable execution snapshot; Swarm retains only the review ledger, snapshot validation, exactly-once apply, and operator gate. | Workflow-owned rounds carry pinned workflow provenance and are excluded from legacy polling/recovery; historical operation rounds remain readable. | D complete; E for correction composition |
+| Slice review | `work.review` | Declared `swarm-manager/independent-review` workflow starts from an immutable execution snapshot and emits one typed Plan Workshop finding/disposition; Swarm retains the review ledger, snapshot validation, exactly-once apply, and operator gate. | Workflow-owned rounds carry pinned workflow provenance and are excluded from legacy polling/recovery; historical operation rounds remain readable. | D complete; E for correction composition |
 | Review evidence request | `review.evidence_request` | Declared `swarm-manager/evidence-request` workflow receives an immutable review-thread snapshot; Swarm applies the terminal typed evidence result to that thread exactly once. | Preserve review evidence and messages; new threads pin workflow provenance and do not create an operation correlation. | E in progress |
 | Review asks for correction | `work.correct` | Declared `swarm-manager/work-correct` workflow starts from an immutable parent execution/finalization snapshot. Swarm retains only authorization, exact-once terminal apply, and re-review routing. | Keep final evidence and decision; legacy operation executions are historical-read only. | E in progress |
 | Test/baseline regression | `work.fix_and_revalidate` | Workflow routes on typed Test Genie/Control Tower evidence; bounded correction or terminal attention. | Persist evidence reference and result application; no transcript rediscovery. | E |
@@ -102,22 +102,22 @@ inventory can establish whether the aggregate reaches the target.
 | Initiative investigation and work breakdown | `initiative.discover` | Workflow producing typed proposal(s) for plans, member items, dependencies, and decisions. | Initiative remains the goal container; proposals apply through Swarm. | F |
 | Initiative plan author/repair | `initiative.plan` | Workflow plus Plan Manager validation. | Preserve initiative `plan_ref`, membership, and acceptance criteria. | F |
 | Initiative execution/replanning | `initiative.execute` | Composition of plan execution, evidence, and explicit attention signals—not a Swarm mode engine. | Workflow owns loop state; Swarm owns goal/initiative state. | F |
-| Initiative review/reconciliation | `initiative.review` | Declared `swarm-manager/initiative-review` workflow receives an immutable initiative snapshot. Swarm persists the workflow-owned round, applies its typed assessment exactly once, releases the initiative lock, and retains the operator decision. | Retain acceptance evidence and decisions; historical operation rounds remain readable. | F in progress |
+| Initiative review/reconciliation | `initiative.review` | Declared `swarm-manager/initiative-review` workflow receives an immutable initiative snapshot. Swarm persists the workflow-owned round, applies its typed assessment and Plan Workshop finding/disposition exactly once, releases the initiative lock, and retains the operator decision. | Retain acceptance evidence and decisions; historical operation rounds remain readable. | F in progress |
 | Scenario specification sync | `scenario.spec_sync` | Declared `swarm-manager/scenario-spec-sync` workflow with a portable immutable scenario/archive snapshot. Swarm alone applies the typed result, archives, and deletes exactly once. | Preserve scenario records and archive context; active paths have no special operation/mode correlation. | G in progress |
 
 ## Current runtime components and expected disposition
 
 | Component | Present responsibility | Target disposition |
 | --- | --- | --- |
-| `internal/operatingmode/` | Mode grammar, resolution, phase engine, classification, simulation, state, execution. | Retire after target workflow catalog and equivalent contract tests prove coverage. |
-| `internal/agentops/` | Separate operation, binding, policy, provenance, and workflow-instance contract system. | Retire or reduce to a very small Swarm transition-registration contract; do not preserve a second workflow model. |
-| `internal/opsrunner/` | Persisted workflow-instance repository, scheduler, runner, dispatcher, lifecycle. | Retire; Agent Manager workflow execution/journal/control replaces this runtime. |
-| `internal/opsbridge/` and `internal/opscatalog/` | Completion routing and operation catalog glue. | Retire with agent-operations runtime. |
+| `internal/operatingmode/` | Former mode grammar and phase engine. | Retired. The transition registry plus declared Agent Manager workflows are the only active workflow selection contract. |
+| `internal/agentops/` | Former operation, binding, policy, provenance, and workflow-instance model. | Retired and deleted. Swarm retains only transition registration; it has no second workflow model. |
+| `internal/opsrunner/` | Former persisted workflow runner and scheduler. | Retired and deleted. Agent Manager owns execution, journaling, retry, and control. |
+| `internal/opsbridge/` and `internal/opscatalog/` | Former completion routing and catalog glue. | Retired and deleted with the agent-operations runtime. |
 | `internal/agentmanager/` | Both direct Run integration and workflow adapters. | Retain Session/Run support and a generic workflow client; replace feature-specific adapters with one typed workflow invocation/apply seam. |
 | `internal/execution/` | Mix of essential authorization/apply state and legacy orchestration, polling, finalization, retry/follow-up logic. | Split deliberately: retain authorization, snapshot, control, exactly-once apply, and domain projection; retire agent-method loops and duplicate polling after workflow migration. |
 | `internal/review/` | Evidence domain plus agent review-round orchestration. | Retain evidence ownership and operator decisions; move review/fixup flow execution to workflows. |
 | `internal/agentactivity/` | Observability for Runs and programmatic activity. | Keep/reduce to a projection that can correlate Session Runs and workflow executions; remove it as an execution authority. |
-| `modes/`, `operation-contracts/`, `policy/` | Authored data for the incumbent runtime. | Replace with Agent Manager workflow declarations and Swarm transition-registration JSON; archive/migrate historical references before deletion. |
+| `modes/`, `operation-contracts/`, `bindings/`, `policy/` | Former authored data for the incumbent runtime. | Retired and deleted. Historical state remains read-only; declared Agent Manager workflows and Swarm transition registration are authoritative. |
 
 ## SSOT requirements before broad migration
 

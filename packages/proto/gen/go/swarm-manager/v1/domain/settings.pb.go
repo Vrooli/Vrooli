@@ -258,13 +258,6 @@ type Settings struct {
 	AutoFixup          bool   `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
 	MaxFixupAttempts   int32  `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3" json:"max_fixup_attempts,omitempty"`
 	ReviewAgentEnabled bool   `protobuf:"varint,31,opt,name=review_agent_enabled,json=reviewAgentEnabled,proto3" json:"review_agent_enabled,omitempty"`
-	// Workshop settings.
-	MaxAutoRounds          int32 `protobuf:"varint,9,opt,name=max_auto_rounds,json=maxAutoRounds,proto3" json:"max_auto_rounds,omitempty"`
-	AutoInitializeWorkshop bool  `protobuf:"varint,16,opt,name=auto_initialize_workshop,json=autoInitializeWorkshop,proto3" json:"auto_initialize_workshop,omitempty"`
-	AutoAdvanceWorkshop    bool  `protobuf:"varint,17,opt,name=auto_advance_workshop,json=autoAdvanceWorkshop,proto3" json:"auto_advance_workshop,omitempty"`
-	AutoCascadeWorkshop    bool  `protobuf:"varint,18,opt,name=auto_cascade_workshop,json=autoCascadeWorkshop,proto3" json:"auto_cascade_workshop,omitempty"`
-	// Grace period (seconds) before auto-advance spawns the next round. 0 = instant.
-	AutoAdvanceDelaySeconds int32 `protobuf:"varint,32,opt,name=auto_advance_delay_seconds,json=autoAdvanceDelaySeconds,proto3" json:"auto_advance_delay_seconds,omitempty"`
 	// Agent behavior settings.
 	AgentMaxTurns       int32 `protobuf:"varint,10,opt,name=agent_max_turns,json=agentMaxTurns,proto3" json:"agent_max_turns,omitempty"`
 	AgentTimeoutSeconds int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3" json:"agent_timeout_seconds,omitempty"`
@@ -366,41 +359,6 @@ func (x *Settings) GetReviewAgentEnabled() bool {
 		return x.ReviewAgentEnabled
 	}
 	return false
-}
-
-func (x *Settings) GetMaxAutoRounds() int32 {
-	if x != nil {
-		return x.MaxAutoRounds
-	}
-	return 0
-}
-
-func (x *Settings) GetAutoInitializeWorkshop() bool {
-	if x != nil {
-		return x.AutoInitializeWorkshop
-	}
-	return false
-}
-
-func (x *Settings) GetAutoAdvanceWorkshop() bool {
-	if x != nil {
-		return x.AutoAdvanceWorkshop
-	}
-	return false
-}
-
-func (x *Settings) GetAutoCascadeWorkshop() bool {
-	if x != nil {
-		return x.AutoCascadeWorkshop
-	}
-	return false
-}
-
-func (x *Settings) GetAutoAdvanceDelaySeconds() int32 {
-	if x != nil {
-		return x.AutoAdvanceDelaySeconds
-	}
-	return 0
 }
 
 func (x *Settings) GetAgentMaxTurns() int32 {
@@ -558,19 +516,14 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x01R\x16minVelocityTransitions\x125\n" +
 	"\x10interval_minutes\x18\a \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xa0\v(\x01R\x0fintervalMinutes\x12$\n" +
-	"\tgoal_name\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bgoalName\"\xe8\x11\n" +
+	"\tgoal_name\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bgoalName\"\xde\x10\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
 	"\n" +
 	"auto_fixup\x18\a \x01(\bR\tautoFixup\x127\n" +
 	"\x12max_fixup_attempts\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttempts\x120\n" +
-	"\x14review_agent_enabled\x18\x1f \x01(\bR\x12reviewAgentEnabled\x121\n" +
-	"\x0fmax_auto_rounds\x18\t \x01(\x05B\t\xbaH\x06\x1a\x04\x182(\x00R\rmaxAutoRounds\x128\n" +
-	"\x18auto_initialize_workshop\x18\x10 \x01(\bR\x16autoInitializeWorkshop\x122\n" +
-	"\x15auto_advance_workshop\x18\x11 \x01(\bR\x13autoAdvanceWorkshop\x122\n" +
-	"\x15auto_cascade_workshop\x18\x12 \x01(\bR\x13autoCascadeWorkshop\x12F\n" +
-	"\x1aauto_advance_delay_seconds\x18  \x01(\x05B\t\xbaH\x06\x1a\x04\x18x(\x00R\x17autoAdvanceDelaySeconds\x122\n" +
+	"\x14review_agent_enabled\x18\x1f \x01(\bR\x12reviewAgentEnabled\x122\n" +
 	"\x0fagent_max_turns\x18\n" +
 	" \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x05R\ragentMaxTurns\x12>\n" +
@@ -602,7 +555,8 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\x05value:\x028\x01\x1aH\n" +
 	"\x1aLaneConcurrencyLimitsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b!\x10\"J\x04\b\x19\x10\x1aJ\x04\b$\x10%R\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x13delete_confirmationR\x19max_concurrent_executions*\x9b\x01\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\t\x10\n" +
+	"J\x04\b\x10\x10\x11J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13J\x04\b \x10!J\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b!\x10\"J\x04\b\x19\x10\x1aJ\x04\b$\x10%R\x0fmax_auto_roundsR\x18auto_initialize_workshopR\x15auto_advance_workshopR\x15auto_cascade_workshopR\x1aauto_advance_delay_secondsR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x13delete_confirmationR\x19max_concurrent_executions*\x9b\x01\n" +
 	"\x12DeleteConfirmLevel\x12$\n" +
 	" DELETE_CONFIRM_LEVEL_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bDELETE_CONFIRM_LEVEL_SIMPLE\x10\x01\x12\x1d\n" +

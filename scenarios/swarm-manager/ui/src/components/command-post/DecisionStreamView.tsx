@@ -9,20 +9,15 @@
  * collapsible context panel, and maximized vertical content space.
  */
 import { useState, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Loader2, SkipForward, Moon, CheckCircle2, Trash2, Menu } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, SkipForward, Moon, CheckCircle2, Menu } from "lucide-react";
 import { cn } from "../../lib";
-import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { selectors } from "../../consts/selectors";
 import { BACKLOG_KIND_ICONS, BACKLOG_KIND_LABELS } from "../../types";
 import type { CrossItemQuestion } from "../../lib/command-post-utils";
-import { WorkshopQuestionView, ReviewQuestionView } from "../backlog/question-renderers";
-import { ClarifyButton } from "../backlog/clarify-button";
+import { ReviewQuestionView } from "../backlog/question-renderers";
 import { useDecisionStreamLogic } from "../../hooks/useDecisionStreamLogic";
-import { useClarificationStore } from "../../stores/clarification-store";
 import { ScenarioNavigatorPopover } from "./ScenarioNavigatorPopover";
 import type { DecisionStreamResults } from "../../hooks/useDecisionStreamLogic";
-import { WorkshopTransitionStatus } from "../backlog/workshop-transition-status";
-import { backlogService } from "../../services/backlog-service";
 
 export type { DecisionStreamResults };
 
@@ -77,14 +72,12 @@ export function DecisionStreamView({
     safeIndex,
     savingId,
     saveError,
-    deletingId,
     containerRef,
     updateAnswer,
     advance,
     goBack,
     skip,
     snoozeParent,
-    deleteQuestion,
     parentGroups,
     jumpToParent,
     snoozeSpecificParent,
@@ -92,32 +85,6 @@ export function DecisionStreamView({
     skippedIds,
     onComplete: finishDecisionStream,
   } = useDecisionStreamLogic({ questions, onComplete, onBack: onBack ?? (() => undefined), onSnoozeItem, navigatorOpenRef, toggleNavigator, onQueueComplete, currentQuestionId, onCurrentQuestionChange });
-
-  // Clarification
-  const clarificationStore = useClarificationStore();
-  const isClarifyActive = current
-    ? clarificationStore.isOpen && clarificationStore.target?.itemId === current.question.id
-    : false;
-
-  const handleClarifyClick = useCallback(() => {
-    if (!current) return;
-    const q = current.question;
-    if (isClarifyActive) {
-      clarificationStore.close();
-    } else if (q.source === "workshop" && q.round_number != null) {
-      clarificationStore.open({
-        backlogKind: current.parentKind,
-        backlogName: current.parentName,
-        roundNumber: q.round_number,
-        itemId: q.id,
-        itemTopic: q.topic || q.text || "",
-        clarificationId: q.clarification_id,
-      });
-    }
-  }, [current, isClarifyActive, clarificationStore]);
-
-  // Delete confirmation
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Completing phase
@@ -128,7 +95,7 @@ export function DecisionStreamView({
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-slate-400">
           <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
-          <p className="text-sm">Saving answers and checking auto-advance...</p>
+          <p className="text-sm">Saving answers...</p>
         </div>
       </div>
     );
@@ -150,39 +117,9 @@ export function DecisionStreamView({
             </div>
           </div>
 
-          {completionResults.unlockedItems.length > 0 ? (
-            <div className="space-y-2">
-              {completionResults.unlockedItems.map((item) => (
-                <WorkshopTransitionStatus
-                  key={`${item.kind}/${item.name}`}
-                  autoAdvance={item.autoAdvance ?? { triggered: false, reason: "ready", nextMode: item.action === "finalize" ? "finalize" : "workshop" }}
-                  kind={item.kind}
-                  name={item.name}
-                  title={item.title}
-                  onCancelled={() => finishDecisionStream(completionResults)}
-                  onExpired={() => finishDecisionStream(completionResults)}
-                  onRunNext={() => {
-                    void backlogService.research(item.kind, item.name, {
-                      mode: "workshop",
-                      prompt: "Run the next workshop round for this backlog item.",
-                      confirm: true,
-                    }).then(() => finishDecisionStream(completionResults));
-                  }}
-                  onFinalize={() => {
-                    void backlogService.research(item.kind, item.name, {
-                      mode: "finalize",
-                      prompt: "Finalize the latest workshop answers for this backlog item.",
-                      confirm: true,
-                    }).then(() => finishDecisionStream(completionResults));
-                  }}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2.5 text-sm text-slate-400">
-              No workshop item reported a next step from the save response.
-            </div>
-          )}
+          <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2.5 text-sm text-slate-400">
+            Plan Workshop owns current planning questions and follow-up review. Historical workshop questions remain read-only.
+          </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button
@@ -280,76 +217,12 @@ export function DecisionStreamView({
         data-testid={selectors.commandPost.decisionStream.questionArea}
       >
         <div className="mx-auto max-w-2xl">
-          {current.question.source === "workshop" ? (
-            <WorkshopQuestionView
-              question={current.question}
-              answer={answer}
-              disabled={isSaving}
-              onUpdate={(patch) => updateAnswer(current.question.id, patch)}
-              actions={
-                <div className="flex shrink-0 items-center gap-1">
-                  {current.question.round_number != null && (
-                    <ClarifyButton
-                      disabled={isSaving || deletingId === current.question.id}
-                      isActive={isClarifyActive}
-                      hasClarification={!!current.question.clarification_id}
-                      onClick={handleClarifyClick}
-                    />
-                  )}
-                  {confirmDeleteId === current.question.id ? (
-                    <span className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setConfirmDeleteId(null);
-                          void deleteQuestion(current);
-                        }}
-                        disabled={deletingId === current.question.id}
-                        className="rounded px-1.5 py-0.5 text-[10px] font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                        data-testid={selectors.commandPost.decisionStream.deleteConfirm}
-                      >
-                        {deletingId === current.question.id ? "Deleting..." : "Delete"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteId(null)}
-                        className="rounded px-1.5 py-0.5 text-[10px] font-medium text-slate-400 hover:bg-slate-700 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeleteId(current.question.id)}
-                      disabled={isSaving || deletingId === current.question.id}
-                      className="shrink-0 rounded p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                      title="Delete question"
-                      data-testid={selectors.commandPost.decisionStream.deleteButton}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              }
-            />
-          ) : (
-            <ReviewQuestionView
-              question={current.question}
-              answer={answer}
-              disabled={isSaving}
-              onUpdate={(patch) => updateAnswer(current.question.id, patch)}
-            />
-          )}
-
-          {/* Context note from clarification */}
-          {current.question.context_note && (
-            <div className="mt-2 rounded border border-cyan-500/15 bg-cyan-500/5 px-2 py-1">
-              <span className="text-[9px] font-medium text-cyan-400">Clarification note</span>
-              <MarkdownRenderer content={current.question.context_note} className="prose-sm-slate mt-1 break-words text-xs text-slate-400 [overflow-wrap:anywhere]" />
-            </div>
-          )}
-
+          <ReviewQuestionView
+            question={current.question}
+            answer={answer}
+            disabled={isSaving}
+            onUpdate={(patch) => updateAnswer(current.question.id, patch)}
+          />
           {saveError && (
             <p className="mt-2 text-[10px] text-red-400">{saveError}</p>
           )}

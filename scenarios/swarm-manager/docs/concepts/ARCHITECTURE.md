@@ -274,11 +274,14 @@ The previous workshop system used a 5-dimension readiness model to measure how p
 | `testable` | Can success be verified? |
 | `risk_awareness` | Are risks identified and mitigated? |
 
-A **round-based boost** rewards iterative engagement: `effective = raw >= 2 ? min(3, raw + floor(rounds/N)) : raw`, where N varies by kind (1 for fix/chore, 2 for idea/research/execute). An item is **ready** when all 5 effective scores reach 3.
+The score and boost formula are historical-data semantics only. The active
+contract is a Plan Workshop session with a typed packet, one idempotent
+operator response, Plan Manager candidate validation, and explicit plan
+acceptance. A non-research item queues only while its accepted canonical plan
+hash and work-contract version remain current. Research keeps `conclusion.md`
+as evidence and does not treat it as an implementation plan.
 
-The primary output of current non-research refinement is a canonical Plan Manager plan bound through `spec.json.plan_ref`. Execution, review, initiative review, and idea handoff render that plan when they need the execution specification. Historical workshop rounds are supporting evidence and audit trail. Research items are the exception: they keep `conclusion.md` as their canonical local deliverable.
-
-See [DOC: docs/guides/workshop-workflow.md] for the full workshop pipeline and schemas. Readiness computation lives in [CODE: api/internal/workshop/workshop.go].
+See [DOC: docs/guides/workshop-workflow.md] for the active operator contract.
 
 ## Physical Structure
 

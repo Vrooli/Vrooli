@@ -6,13 +6,15 @@ import (
 	"strings"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/planclient"
+
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 )
 
 // ItemStore is the narrow slice of backlog.Store the backlog-backed gate
 // sources need.
 type ItemStore interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
-	ItemDir(kind backlog.BacklogKind, name string) string
 }
 
 // lockedStatuses are mid-execution statuses: the item is in flight, so its
@@ -64,62 +66,13 @@ func gateEligible(item backlog.BacklogItem) bool {
 	return true
 }
 
-// DecideSource enumerates KindDecide gates: backlog items whose latest
-// workshop round has unanswered decisions.
-type DecideSource struct {
-	Store ItemStore
-}
-
-// Name identifies the source in degradation logs.
-func (s DecideSource) Name() string { return "decide" }
-
-// Enumerate implements Source.
-func (s DecideSource) Enumerate(_ context.Context) ([]Gate, error) {
-	items, err := s.Store.LoadAll(nil)
-	if err != nil {
-		return nil, err
-	}
-	dependents := directDependents(items)
-
-	var out []Gate
-	for _, item := range items {
-		if !gateEligible(item) {
-			continue
-		}
-		latest, _, err := backlog.LoadLatestRound(s.Store.ItemDir(item.Kind, item.Name))
-		if err != nil || latest == nil {
-			continue
-		}
-		pending := backlog.CountPendingDecisions(latest)
-		if pending == 0 {
-			continue
-		}
-		key := itemKey(item)
-		out = append(out, Gate{
-			ID:             GateID(KindDecide, "backlog", key),
-			Kind:           KindDecide,
-			OwnerType:      "backlog",
-			OwnerKind:      string(item.Kind),
-			OwnerName:      item.Name,
-			OwnerTitle:     itemTitle(item),
-			Count:          pending,
-			Blocks:         dependents[key],
-			DecidableSince: latest.GeneratedAt,
-		})
-	}
-	return out, nil
-}
-
-// WorkshopSource enumerates KindWorkshop gates: queueable items whose plan
-// maturity is not execution-ready (or whose answered round still needs a
-// synthesis pass). These are agent-actionable, not human gates — the board
-// renders them as workshop/finalize item cards, not gate cards.
-//
-// Mirrors the Command Post CTA funnel: pending decisions take precedence
-// (no workshop gate while questions are open); readiness comes from the
-// effective workshop scores.
+// WorkshopSource enumerates queueable items that still need an explicit plan
+// acceptance. Its historical name and KindWorkshop are retained so clients can
+// render old gate records, but it no longer derives readiness from workshop
+// scores or a finalization pass.
 type WorkshopSource struct {
 	Store ItemStore
+	Plans planclient.PlanReader
 }
 
 // Name identifies the source in degradation logs.
@@ -133,7 +86,7 @@ var queueableStatuses = map[backlog.BacklogStatus]bool{
 }
 
 // Enumerate implements Source.
-func (s WorkshopSource) Enumerate(_ context.Context) ([]Gate, error) {
+func (s WorkshopSource) Enumerate(ctx context.Context) ([]Gate, error) {
 	items, err := s.Store.LoadAll(nil)
 	if err != nil {
 		return nil, err
@@ -145,32 +98,25 @@ func (s WorkshopSource) Enumerate(_ context.Context) ([]Gate, error) {
 		if !gateEligible(item) || !queueableStatuses[item.Status] {
 			continue
 		}
-		itemDir := s.Store.ItemDir(item.Kind, item.Name)
-		latest, roundCount, err := backlog.LoadLatestRound(itemDir)
-		if err != nil {
-			continue
+		if item.Kind == backlog.KindResearch {
+			continue // research executes a conclusion, not a canonical plan.
 		}
-		if backlog.CountPendingDecisions(latest) > 0 {
-			continue // decide gate takes precedence
-		}
-
-		raw := make(map[string]int, len(backlog.ReadinessDimensions))
-		if latest != nil {
-			for _, dim := range backlog.ReadinessDimensions {
-				raw[dim] = latest.Readiness[dim]
+		suggested := "accept-plan"
+		if item.PlanRef == nil {
+			suggested = "author-plan"
+		} else if s.Plans == nil {
+			suggested = "validate-plan"
+		} else {
+			planID := strings.TrimSpace(item.PlanRef.PlanID)
+			if planID == "" {
+				planID = strings.TrimSpace(item.PlanRef.Slug)
 			}
-		}
-		ready := backlog.IsReady(backlog.ComputeEffectiveScores(raw, roundCount, item.Kind))
-		pendingSynthesis := backlog.NeedsSynthesis(latest)
-
-		var suggested string
-		switch {
-		case pendingSynthesis && ready:
-			suggested = "finalize"
-		case pendingSynthesis || !ready:
-			suggested = "workshop"
-		default:
-			continue // ready to run — no workshop gate
+			plan, err := s.Plans.GetPlan(ctx, planID)
+			if err != nil || plan == nil || strings.TrimSpace(plan.GetContentHash()) == "" || plan.GetStatus() == sharedv1.PlanStatus_PLAN_STATUS_DRAFT || plan.GetStatus() == sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED {
+				suggested = "validate-plan"
+			} else if backlog.PlanAcceptanceMatches(item, plan.GetContentHash()) {
+				continue
+			}
 		}
 
 		key := itemKey(item)
@@ -184,9 +130,6 @@ func (s WorkshopSource) Enumerate(_ context.Context) ([]Gate, error) {
 			Count:      1,
 			Blocks:     dependents[key],
 			Suggested:  suggested,
-		}
-		if latest != nil {
-			gate.DecidableSince = latest.GeneratedAt
 		}
 		out = append(out, gate)
 	}

@@ -42,6 +42,9 @@ type ItemPatch struct {
 // this helper because different callers validate differently (PATCH
 // handler rejects at request time; proposals rejects at Validate time).
 func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
+	contractChanged := patch.Title != nil || patch.Description != nil ||
+		patch.AcceptanceAllow != nil || patch.AcceptanceDeny != nil ||
+		patch.Creates != nil || patch.PlanRefSet
 	if patch.Title != nil {
 		item.Title = strings.TrimSpace(*patch.Title)
 	}
@@ -80,8 +83,15 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	}
 	if patch.PlanRefSet {
 		item.PlanRef = normalizePlanRef(patch.PlanRef)
+		// A changed (or explicitly rebound) plan reference always needs a new
+		// acceptance. Keeping a historical acceptance here would authorize a
+		// different canonical plan under the old decision.
+		item.PlanAcceptance = nil
 	}
 	if patch.Note != nil {
 		item.Note = strings.TrimSpace(*patch.Note)
+	}
+	if contractChanged {
+		item.PlanAcceptance = nil
 	}
 }

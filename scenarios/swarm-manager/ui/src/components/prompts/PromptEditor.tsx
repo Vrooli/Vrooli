@@ -50,14 +50,9 @@ export interface PromptEditorProps {
   markdownView: "raw" | "rendered";
   onToggleMarkdownView: () => void;
   markdownPreviewSource: string;
-  lastSimulationPayload: { kind: string; mode: string } | null;
   onSaveDraft: () => void;
   onPublish: () => void;
   updatePending: boolean;
-  canSimulate: boolean;
-  onOpenSimulation: () => void;
-  hasSimulationResult: boolean;
-  onClearSimulation: () => void;
   onShowMobileSkills: () => void;
   versions: PromptSkillVersion[];
   comparisonVersion: PromptSkillVersion | null;
@@ -81,14 +76,9 @@ export function PromptEditor({
   markdownView,
   onToggleMarkdownView,
   markdownPreviewSource,
-  lastSimulationPayload,
   onSaveDraft,
   onPublish,
   updatePending,
-  canSimulate,
-  onOpenSimulation,
-  hasSimulationResult,
-  onClearSimulation,
   onShowMobileSkills,
   versions,
   comparisonVersion,
@@ -154,14 +144,6 @@ export function PromptEditor({
                   >
                     Publish
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onOpenSimulation}
-                    disabled={!canSimulate}
-                  >
-                    Simulation Preview
-                  </Button>
                   <button
                     type="button"
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300/40 text-slate-200 transition-colors hover:bg-slate-900/20 hover:text-white"
@@ -171,11 +153,6 @@ export function PromptEditor({
                   >
                     {markdownView === "rendered" ? <Code className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
-                  {hasSimulationResult ? (
-                    <Button variant="outline" size="sm" onClick={onClearSimulation}>
-                      Clear Simulation
-                    </Button>
-                  ) : null}
                 </div>
               </div>
 
@@ -199,11 +176,6 @@ export function PromptEditor({
                     />
                   ) : (
                     <div className="h-full overflow-auto p-4" data-testid={selectors.prompts.preview}>
-                      {lastSimulationPayload ? (
-                        <p className="mb-3 text-xs text-cyan-300">
-                          Simulation: {lastSimulationPayload.kind}/{lastSimulationPayload.mode}
-                        </p>
-                      ) : null}
                       <MarkdownRenderer content={markdownPreviewSource} className="prose prose-invert max-w-none prose-headings:mb-2 prose-headings:mt-4 prose-p:my-2 prose-pre:bg-slate-900 prose-code:text-cyan-300" />
                     </div>
                   )}

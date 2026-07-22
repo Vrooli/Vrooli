@@ -100,74 +100,90 @@ func backlogActivitySpec(
 // is the scenario source path, used only as a repo anchor for resolving
 // the sibling scenarios/ directory in preflight.
 type ServiceConfig struct {
-	DataRoot                 string
-	RepoRoot                 string
-	StorePath                string
-	CircuitBreakerPath       string
-	SelfScenarioName         string
-	PolicyProvider           PolicyProvider
-	GovernanceProvider       GovernanceProvider
-	ReviewThresholdsProvider ReviewThresholdsProvider
-	AgentService             AgentManagerAvailability
-	ScenarioLifecycle        ScenarioLifecycle
-	ScenarioHealthChecker    ScenarioHealthChecker
-	PromptClient             promptmanager.Client
-	ExperimentClient         promptmanager.ExperimentClient
-	Archiver                 Archiver
-	ReviewClient             ReviewClient
-	BaselineClient           BaselineClient
-	BaselineEngagementRunner BaselineEngagementRunner
-	PlanRenderer             planclient.MarkdownRenderer
-	PhasedPlanWorkflow       agentmanager.WorkflowInvoker
-	ConclusionWorkflow       agentmanager.WorkflowInvoker
-	WorkWorkflow             agentmanager.WorkflowInvoker
-	SpecSyncWorkflow         agentmanager.WorkflowInvoker
-	TransitionRegistry       transitions.Registry
-	Finalization             FinalizationConfig
+	DataRoot                   string
+	RepoRoot                   string
+	StorePath                  string
+	CircuitBreakerPath         string
+	SelfScenarioName           string
+	PolicyProvider             PolicyProvider
+	GovernanceProvider         GovernanceProvider
+	ReviewThresholdsProvider   ReviewThresholdsProvider
+	AgentService               AgentManagerAvailability
+	ScenarioLifecycle          ScenarioLifecycle
+	ScenarioHealthChecker      ScenarioHealthChecker
+	PromptClient               promptmanager.Client
+	ExperimentClient           promptmanager.ExperimentClient
+	Archiver                   Archiver
+	ReviewClient               ReviewClient
+	BaselineClient             BaselineClient
+	BaselineEngagementRunner   BaselineEngagementRunner
+	PlanRenderer               planclient.MarkdownRenderer
+	PhasedPlanWorkflow         agentmanager.WorkflowInvoker
+	ConclusionWorkflow         agentmanager.WorkflowInvoker
+	WorkWorkflow               agentmanager.WorkflowInvoker
+	SpecSyncWorkflow           agentmanager.WorkflowInvoker
+	TransitionRegistry         transitions.Registry
+	Finalization               FinalizationConfig
+	ResearchConclusionObserver func(context.Context, ResearchConclusionEvent) error
 }
 
 // Service owns execution lifecycle logic.
 type Service struct {
-	dataRoot                 string
-	repoRoot                 string
-	selfScenarioName         string
-	finalizationCfg          FinalizationConfig
-	store                    Store
-	policyProvider           PolicyProvider
-	governanceProvider       GovernanceProvider
-	reviewThresholdsProvider ReviewThresholdsProvider
-	agentService             AgentManagerAvailability
-	operationStarter         OperationStarter
-	promptClient             promptmanager.Client
-	experimentClient         promptmanager.ExperimentClient
-	archiver                 Archiver
-	reviewClient             ReviewClient
-	baselineClient           BaselineClient
-	baselineEngagementRunner BaselineEngagementRunner
-	planRenderer             planclient.MarkdownRenderer
-	phasedPlanWorkflow       agentmanager.WorkflowInvoker
-	conclusionWorkflow       agentmanager.WorkflowInvoker
-	workWorkflow             agentmanager.WorkflowInvoker
-	specSyncWorkflow         agentmanager.WorkflowInvoker
-	transitionRegistry       transitions.Registry
-	engagementStore          *EngagementStore
-	differ                   RunDiffer
-	stopper                  RunStopper
-	approver                 RunApprover
-	scenarioLifecycle        ScenarioLifecycle
-	scenarioHealth           ScenarioHealthChecker
-	reviewService            ReviewServiceIntegration
-	eventDispatcher          dispatch.NodeDispatcher
-	eventLogger              EventLogger
-	circuitBreaker           *CircuitBreaker
-	activityLaneReader       ActivityLaneReader
-	goalPriorityProvider     GoalPriorityProvider
-	goalReadyProvider        GoalReadyProvider
-	autoDrainProvider        AutoDrainProvider
-	autoFilerWaker           AutoFilerWaker
-	processingFinalizations  map[string]struct{}
-	processingHolds          map[string]struct{}
-	mu                       sync.Mutex
+	dataRoot                   string
+	repoRoot                   string
+	selfScenarioName           string
+	finalizationCfg            FinalizationConfig
+	store                      Store
+	policyProvider             PolicyProvider
+	governanceProvider         GovernanceProvider
+	reviewThresholdsProvider   ReviewThresholdsProvider
+	agentService               AgentManagerAvailability
+	operationStarter           OperationStarter
+	promptClient               promptmanager.Client
+	experimentClient           promptmanager.ExperimentClient
+	archiver                   Archiver
+	reviewClient               ReviewClient
+	baselineClient             BaselineClient
+	baselineEngagementRunner   BaselineEngagementRunner
+	planRenderer               planclient.MarkdownRenderer
+	phasedPlanWorkflow         agentmanager.WorkflowInvoker
+	conclusionWorkflow         agentmanager.WorkflowInvoker
+	workWorkflow               agentmanager.WorkflowInvoker
+	specSyncWorkflow           agentmanager.WorkflowInvoker
+	transitionRegistry         transitions.Registry
+	engagementStore            *EngagementStore
+	differ                     RunDiffer
+	stopper                    RunStopper
+	approver                   RunApprover
+	scenarioLifecycle          ScenarioLifecycle
+	scenarioHealth             ScenarioHealthChecker
+	reviewService              ReviewServiceIntegration
+	eventDispatcher            dispatch.NodeDispatcher
+	eventLogger                EventLogger
+	circuitBreaker             *CircuitBreaker
+	activityLaneReader         ActivityLaneReader
+	goalPriorityProvider       GoalPriorityProvider
+	goalReadyProvider          GoalReadyProvider
+	autoDrainProvider          AutoDrainProvider
+	autoFilerWaker             AutoFilerWaker
+	researchConclusionObserver func(context.Context, ResearchConclusionEvent) error
+	processingFinalizations    map[string]struct{}
+	processingHolds            map[string]struct{}
+	mu                         sync.Mutex
+}
+
+// ResearchConclusionEvent carries bounded, attributable research evidence to
+// the operator-facing Plan Workshop. It grants no mutation authority.
+type ResearchConclusionEvent struct {
+	ExecutionID string
+	BacklogKind string
+	BacklogName string
+	Outcome     string
+	Summary     string
+	Disposition string
+	Rationale   string
+	Confidence  string
+	Scope       string
 }
 
 // SetActivityLaneReader wires the agentactivity-backed lane reader after
@@ -231,33 +247,34 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 
 	service := &Service{
-		dataRoot:                 dataRoot,
-		repoRoot:                 repoRoot,
-		selfScenarioName:         selfName,
-		finalizationCfg:          fc,
-		store:                    NewStore(cfg.StorePath),
-		policyProvider:           pp,
-		governanceProvider:       gp,
-		reviewThresholdsProvider: rtp,
-		agentService:             cfg.AgentService,
-		promptClient:             pc,
-		experimentClient:         cfg.ExperimentClient,
-		archiver:                 cfg.Archiver,
-		reviewClient:             cfg.ReviewClient,
-		baselineClient:           cfg.BaselineClient,
-		baselineEngagementRunner: cfg.BaselineEngagementRunner,
-		planRenderer:             cfg.PlanRenderer,
-		phasedPlanWorkflow:       cfg.PhasedPlanWorkflow,
-		conclusionWorkflow:       cfg.ConclusionWorkflow,
-		workWorkflow:             cfg.WorkWorkflow,
-		specSyncWorkflow:         cfg.SpecSyncWorkflow,
-		transitionRegistry:       cfg.TransitionRegistry,
-		engagementStore:          NewEngagementStore(engagementStorePath(cfg.StorePath)),
-		scenarioLifecycle:        cfg.ScenarioLifecycle,
-		scenarioHealth:           cfg.ScenarioHealthChecker,
-		circuitBreaker:           NewCircuitBreaker(circuitBreakerPath),
-		processingFinalizations:  map[string]struct{}{},
-		processingHolds:          map[string]struct{}{},
+		dataRoot:                   dataRoot,
+		repoRoot:                   repoRoot,
+		selfScenarioName:           selfName,
+		finalizationCfg:            fc,
+		store:                      NewStore(cfg.StorePath),
+		policyProvider:             pp,
+		governanceProvider:         gp,
+		reviewThresholdsProvider:   rtp,
+		agentService:               cfg.AgentService,
+		promptClient:               pc,
+		experimentClient:           cfg.ExperimentClient,
+		archiver:                   cfg.Archiver,
+		reviewClient:               cfg.ReviewClient,
+		baselineClient:             cfg.BaselineClient,
+		baselineEngagementRunner:   cfg.BaselineEngagementRunner,
+		planRenderer:               cfg.PlanRenderer,
+		phasedPlanWorkflow:         cfg.PhasedPlanWorkflow,
+		conclusionWorkflow:         cfg.ConclusionWorkflow,
+		researchConclusionObserver: cfg.ResearchConclusionObserver,
+		workWorkflow:               cfg.WorkWorkflow,
+		specSyncWorkflow:           cfg.SpecSyncWorkflow,
+		transitionRegistry:         cfg.TransitionRegistry,
+		engagementStore:            NewEngagementStore(engagementStorePath(cfg.StorePath)),
+		scenarioLifecycle:          cfg.ScenarioLifecycle,
+		scenarioHealth:             cfg.ScenarioHealthChecker,
+		circuitBreaker:             NewCircuitBreaker(circuitBreakerPath),
+		processingFinalizations:    map[string]struct{}{},
+		processingHolds:            map[string]struct{}{},
 	}
 	if service.phasedPlanWorkflow == nil {
 		service.phasedPlanWorkflow = agentmanager.NewWorkflowService()

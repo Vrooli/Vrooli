@@ -12,17 +12,17 @@ import (
 )
 
 func TestStandardResourceEnv(t *testing.T) {
-	env := StandardResourceEnv("mail-in-a-box", ResourceEnvOptions{
+	env := StandardResourceEnv("example-resource", ResourceEnvOptions{
 		ExtraSourceRootEnvVars:   []string{"CUSTOM_SOURCE_ROOT"},
 		ExtraControlPlaneEnvVars: []string{"CUSTOM_VROOLI_BIN"},
 	})
 
-	wantSource := []string{"VROOLI_CLI_SOURCE_ROOT", "MAIL_IN_A_BOX_CLI_SOURCE_ROOT", "CUSTOM_SOURCE_ROOT"}
+	wantSource := []string{"VROOLI_CLI_SOURCE_ROOT", "EXAMPLE_RESOURCE_CLI_SOURCE_ROOT", "CUSTOM_SOURCE_ROOT"}
 	if !reflect.DeepEqual(env.SourceRootEnvVars, wantSource) {
 		t.Fatalf("SourceRootEnvVars = %v, want %v", env.SourceRootEnvVars, wantSource)
 	}
 
-	wantControl := []string{"VROOLI_CLI_BIN", "MAIL_IN_A_BOX_VROOLI_CLI_BIN", "CUSTOM_VROOLI_BIN"}
+	wantControl := []string{"VROOLI_CLI_BIN", "EXAMPLE_RESOURCE_VROOLI_CLI_BIN", "CUSTOM_VROOLI_BIN"}
 	if !reflect.DeepEqual(env.ControlPlaneEnvVars, wantControl) {
 		t.Fatalf("ControlPlaneEnvVars = %v, want %v", env.ControlPlaneEnvVars, wantControl)
 	}

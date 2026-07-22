@@ -556,6 +556,7 @@
   "metadata": {
     "pilot": "phased-plan-drain",
     "consumerMutationOwner": "swarm-manager",
-    "freshRunPerSlice": "true"
+    "freshRunPerSlice": "true",
+    "transitions": "plan.execute,work.retry"
   }
 }

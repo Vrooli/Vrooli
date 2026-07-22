@@ -1,8 +1,0 @@
-{
-  "kind": "agentops-operation-binding",
-  "operation": "execution-retry",
-  "operation_version": "1.0.0",
-  "layer": "system-default",
-  "mode": "execution-drain",
-  "mode_revision": "1.0.0"
-}

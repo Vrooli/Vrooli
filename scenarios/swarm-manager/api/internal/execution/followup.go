@@ -162,6 +162,16 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		return Record{}, err
 	}
 	parent := &records[idx]
+	// A policy or observer retry must not start a second run for the same
+	// evidence-backed proposal. Manual follow-ups intentionally leave this key
+	// empty and retain their existing repeatable behavior.
+	if sourceProposalID := strings.TrimSpace(req.SourceProposalID); sourceProposalID != "" {
+		for _, record := range records {
+			if record.ParentExecutionID == parent.ExecutionID && record.FollowUpSourceProposalID == sourceProposalID {
+				return record, nil
+			}
+		}
+	}
 
 	// Only allow follow-up from terminal or needs_fixup states.
 	switch parent.Status {
@@ -184,17 +194,19 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 
 	now := nowRFC3339()
 	followUpRecord := Record{
-		ExecutionID:       idgen.Generate(),
-		BacklogKind:       parent.BacklogKind,
-		BacklogName:       parent.BacklogName,
-		PreviousStatus:    string(parent.Status),
-		Status:            StatusPending,
-		Mode:              ModeYOLO,
-		StartedBy:         "swarm-manager:follow-up",
-		Operation:         req.FollowUpType,
-		ParentExecutionID: parent.ExecutionID,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+		ExecutionID:              idgen.Generate(),
+		BacklogKind:              parent.BacklogKind,
+		BacklogName:              parent.BacklogName,
+		PreviousStatus:           string(parent.Status),
+		Status:                   StatusPending,
+		Mode:                     ModeYOLO,
+		StartedBy:                "swarm-manager:follow-up",
+		Operation:                req.FollowUpType,
+		ParentExecutionID:        parent.ExecutionID,
+		FollowUpSourceProposalID: strings.TrimSpace(req.SourceProposalID),
+		FollowUpSourceReviewRef:  strings.TrimSpace(req.SourceReviewRef),
+		CreatedAt:                now,
+		UpdatedAt:                now,
 	}
 	if req.FollowUpType == "fixup" {
 		followUpRecord.FixupAttempt = parent.FixupAttempt + 1

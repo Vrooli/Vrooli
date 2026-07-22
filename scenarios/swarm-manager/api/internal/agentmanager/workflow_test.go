@@ -18,14 +18,14 @@ func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 	input, _ := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "idea", "name": "search", "version": "sha256:v"}, "snapshot": map[string]any{}, "operatorNote": "focus"})
 	output, _ := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "no_questions", "note": "ready", "readiness": map[string]any{"problem_clarity": 3}}})
 	execution := &domainpb.WorkflowExecution{Id: "11111111-1111-1111-1111-111111111111", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}
-	attempt := &domainpb.WorkflowNodeAttempt{NodeId: "workshop", RunId: "22222222-2222-2222-2222-222222222222", ProfileIdentity: "profile:swarm-manager/deep-work"}
+	attempt := &domainpb.WorkflowNodeAttempt{NodeId: "review", RunId: "22222222-2222-2222-2222-222222222222", ProfileIdentity: "profile:swarm-manager/deep-work"}
 	var calls []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.Method+" "+r.URL.RequestURI())
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/workflow-executions":
 			body, _ := io.ReadAll(r.Body)
-			if !strings.Contains(string(body), `"workflowKey":"swarm-manager/backlog-workshop-round"`) || !strings.Contains(string(body), `"idempotencyKey":"stable-key"`) {
+			if !strings.Contains(string(body), `"workflowKey":"swarm-manager/plan-workshop-review"`) || !strings.Contains(string(body), `"idempotencyKey":"stable-key"`) {
 				t.Fatalf("unexpected start body: %s", body)
 			}
 			// Agent Manager starts workflow execution asynchronously and therefore
@@ -48,7 +48,7 @@ func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 	defer server.Close()
 	client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
 	service := NewWorkflowServiceWithClient(client)
-	start, err := service.StartWorkflow(context.Background(), Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/backlog-workshop-round", Input: input, IdempotencyKey: "stable-key", FirstRunNodeID: "workshop"})
+	start, err := service.StartWorkflow(context.Background(), Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/plan-workshop-review", Input: input, IdempotencyKey: "stable-key", FirstRunNodeID: "review"})
 	if err != nil {
 		t.Fatal(err)
 	}
