@@ -1,0 +1,20 @@
+{
+  "libraryId": "react-component-library:code-block",
+  "displayName": "Code Block",
+  "description": "Code block with language label and copy feedback.",
+  "tags": [
+    "markdown",
+    "code"
+  ],
+  "entry": "CodeBlock.tsx",
+  "latest": "0.3.1",
+  "deprecatedVersions": [],
+  "draft": "",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

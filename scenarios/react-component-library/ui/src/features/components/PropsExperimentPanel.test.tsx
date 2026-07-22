@@ -61,4 +61,43 @@ describe("PropsExperimentPanel", () => {
     await user.click(screen.getByTestId(selectors.components.editor.propsReset));
     expect(onReset).toHaveBeenCalledTimes(1);
   });
+
+  it("supports scalar control kinds and reports invalid advanced JSON", async () => {
+    const onApply = vi.fn();
+    const user = userEvent.setup();
+    const controls = {
+      ...storyContract,
+      argsJson: '{"fields":[{"path":"count","kind":"number","default":1},{"path":"enabled","kind":"boolean","default":false},{"path":"tone","kind":"enum","options":["neutral","danger"],"default":"neutral"}]}',
+    };
+    renderWithProviders(<PropsExperimentPanel storyContract={controls} storyId="primary" onApply={onApply} onReset={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("count"), { target: { value: "3" } });
+    await user.click(screen.getByLabelText("enabled"));
+    await user.selectOptions(screen.getByLabelText("tone"), "danger");
+    await user.click(screen.getByRole("button", { name: "Advanced JSON" }));
+    fireEvent.change(screen.getByTestId(selectors.components.editor.propsDraft), { target: { value: "{" } });
+    await user.click(screen.getByTestId(selectors.components.editor.propsApply));
+    expect(screen.getByTestId(selectors.components.editor.propsError)).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId(selectors.components.editor.propsDraft), { target: { value: "[]" } });
+    await user.click(screen.getByTestId(selectors.components.editor.propsApply));
+    expect(screen.getByTestId(selectors.components.editor.propsError)).toBeInTheDocument();
+  });
+
+  it("degrades malformed and unsupported story schemas to a safe empty control set", () => {
+    const { rerender } = renderWithProviders(<PropsExperimentPanel storyContract={{ ...storyContract, argsJson: "{" }} onApply={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.getByText("This story declares no configurable scalar arguments.")).toBeInTheDocument();
+    rerender(<PropsExperimentPanel storyContract={{ ...storyContract, argsJson: '{"fields":[null,{"path":3},{"path":"handler","kind":"handler"}]}' }} onApply={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.getByText("This story declares no configurable scalar arguments.")).toBeInTheDocument();
+  });
+
+  it("does not expose environment inputs for malformed fixture declarations", () => {
+    const { rerender } = renderWithProviders(<PropsExperimentPanel storyContract={{ ...storyContract, environmentJson: "{" }} onApply={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.queryByText("Environment")).not.toBeInTheDocument();
+    rerender(<PropsExperimentPanel storyContract={{ ...storyContract, environmentJson: '{"fixtures":[{"key":3,"options":["idle"]},{"key":"voice","options":["idle",3]}]}' }} onApply={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.queryByText("Environment")).not.toBeInTheDocument();
+  });
+
+  it("falls back to explicit initial args when the selected story has invalid args", () => {
+    renderWithProviders(<PropsExperimentPanel storyId="primary" initialArgs={{ title: "Fallback" }} storyContract={{ ...storyContract, storiesJson: '[{"id":"primary","args":[]}]' }} onApply={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.getByLabelText("title")).toHaveValue("Fallback");
+  });
 });

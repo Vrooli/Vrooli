@@ -13,6 +13,8 @@ import (
 // Session wraps a playwright driver session with mode-aware behavior.
 type Session struct {
 	id             string
+	executionID    string
+	leaseID        string
 	mode           Mode
 	client         *driver.Client
 	mu             sync.RWMutex
@@ -277,6 +279,27 @@ func (s *Session) Close(ctx context.Context) error {
 	return err
 }
 
+// Release relinquishes this execution's lease but deliberately keeps the
+// browser resource open. A released Session is terminal for this owner: only a
+// subsequent execution can acquire a new lease for the resource.
+func (s *Session) Release(ctx context.Context) error {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil
+	}
+	s.closed = true
+	s.mu.Unlock()
+
+	if err := s.client.ReleaseSessionLease(ctx, s.id, s.executionID, s.leaseID); err != nil {
+		s.mu.Lock()
+		s.closed = false
+		s.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
 // CloseWithArtifacts closes the session and returns any artifact metadata from the driver.
 func (s *Session) CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionResponse, error) {
 	s.mu.Lock()
@@ -288,7 +311,7 @@ func (s *Session) CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionR
 	s.closed = true
 	s.mu.Unlock()
 
-	artifacts, err := s.client.CloseSession(ctx, s.id)
+	artifacts, err := s.client.CloseSessionWithLease(ctx, s.id, s.executionID, s.leaseID)
 	if err != nil {
 		// Rollback on failure - session is still open on driver
 		s.mu.Lock()

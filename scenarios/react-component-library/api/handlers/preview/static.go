@@ -214,6 +214,22 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory) string {
 	sb.WriteString(strings.ReplaceAll(importMap, "</script", "<\\/script"))
 	sb.WriteString(`
 </script>
+<script>
+// Signal the standard iframe bridge before the preview's module graph loads.
+// The component bundle can be cold and take longer than the host's readiness
+// budget, but the harness itself is ready to receive bridge/inspect messages.
+(() => {
+  if (window.parent === window) return;
+  window.__vrooliBridgeChildInstalled = true;
+  const post = (payload) => { try { window.parent.postMessage(payload, "*"); } catch (e) {} };
+  post({ v: 1, t: "HELLO", appId: "react-component-library", title: document.title, caps: ["history", "hash", "title", "deeplink", "screenshot", "shortcuts", "inspect"] });
+  // Re-announce READY while the host completes iframe attachment. This keeps
+  // cold component imports from turning a valid harness into a timing race.
+  const ready = () => post({ v: 1, t: "READY" });
+  queueMicrotask(ready);
+  [100, 500, 1500].forEach((delay) => setTimeout(ready, delay));
+})();
+</script>
 </head>
 <body>
 <div id="root"></div>
@@ -410,8 +426,6 @@ window.addEventListener("message", (ev) => {
     if (d.cmd === "START") setActive(true, "start");
     else if (d.cmd === "STOP") setActive(false, "stop");
   });
-  // Announce capability so the host knows the harness supports inspect.
-  post({ v: 1, t: "HELLO", caps: ["inspect"] });
 })();
 const errEl = document.getElementById("preview-error");
 const storyResultEl = document.getElementById("rcl-story-result");
@@ -636,7 +650,12 @@ try {
       if (typeof target.selector === "string") return document.querySelector(target.selector);
       if (typeof target.role !== "string") return null;
       const candidates = document.querySelectorAll('[role="' + CSS.escape(target.role) + '"], ' + target.role);
-      return Array.from(candidates).find((candidate) => typeof target.name !== "string" || (candidate.getAttribute("aria-label") || candidate.textContent || "").trim() === target.name) || null;
+      const accessibleName = (candidate) => {
+        const labelledBy = candidate.getAttribute("aria-labelledby");
+        if (labelledBy) return labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent || "").join(" ").trim();
+        return (candidate.getAttribute("aria-label") || candidate.textContent || "").trim();
+      };
+      return Array.from(candidates).find((candidate) => typeof target.name !== "string" || accessibleName(candidate) === target.name) || null;
     };
     const expectationFailure = (expectation) => {
       const visible = (node) => !!node && !node.hasAttribute("hidden") && getComputedStyle(node).display !== "none" && getComputedStyle(node).visibility !== "hidden";
@@ -659,7 +678,7 @@ try {
       const failures = [];
       for (const interaction of previewStory.interactions || []) {
         let target = locate(interaction.target);
-        if (interaction.kind === "settle") { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); continue; }
+        if (interaction.kind === "settle") { await new Promise((resolve) => setTimeout(resolve, 20)); continue; }
         if (interaction.kind === "waitFor") { await new Promise((resolve) => setTimeout(resolve, Math.min(Math.max(Number(interaction.text) || 0, 0), 1000))); continue; }
         if (!target && previewStory.kind === "hook" && interaction.kind === "key") target = window;
         if (!target && previewStory.kind === "hook" && interaction.kind === "click") target = document.querySelector("[data-rcl-hook-action=start]");

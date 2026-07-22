@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, Eye, FileCode2, Info, Menu, Minus, P
 import { Group, Panel, Separator, type PanelImperativeHandle } from "react-resizable-panels";
 
 import { Button } from "../../components/ui/button";
+import { IconButton } from "../../components/ui/IconButton";
 import { StatusBadge } from "../../components/ui/status-badge";
 import { useTheme } from "../../components/theme/useTheme";
 import { selectors } from "../../consts/selectors";
@@ -572,7 +573,7 @@ export function ComponentEditor({
         title={<span data-testid={selectors.components.editor.title}>{libraryId}</span>}
         description={t(strings.components.editor.subtitle)}
         leading={shellNavigation.sidebarCollapsed ? <button type="button" onClick={shellNavigation.openSidebar} aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })} data-testid="workspace-header-open-sidebar" className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><Menu aria-hidden className="h-5 w-5" /></button> : undefined}
-        actions={<div className="flex items-center gap-1.5">{dirty && <StatusBadge data-testid={selectors.components.editor.dirtyBadge} tone="warning">{t(strings.components.editor.dirty)}</StatusBadge>}{previewReady && (desktopLayout || currentPane === "preview") && <StatusBadge data-testid={selectors.components.editor.previewBadge} tone="success">{t(strings.components.editor.previewReady)}</StatusBadge>}{availablePanes.length > 1 && <Button data-testid="components-editor-split-view-toggle" type="button" variant={splitView ? "primary" : "secondary"} aria-pressed={splitView} onClick={toggleSplitView} className="hidden h-8 gap-1.5 px-2 text-xs lg:inline-flex"><PanelsLeftRight aria-hidden className="h-3.5 w-3.5" />{t("components.editor.splitView", { defaultValue: "Split view" })}</Button>}{renderable && <Button data-testid={selectors.components.editor.closeButton} onClick={onClose} className="h-8 gap-1.5 rounded-md px-2 text-xs" variant="secondary"><ArrowLeft aria-hidden className="h-3.5 w-3.5" />{t(strings.components.editor.close)}</Button>}</div>}
+        actions={<div className="flex items-center gap-1.5">{dirty && <StatusBadge data-testid={selectors.components.editor.dirtyBadge} tone="warning">{t(strings.components.editor.dirty)}</StatusBadge>}{previewReady && (desktopLayout || currentPane === "preview") && <StatusBadge data-testid={selectors.components.editor.previewBadge} tone="success">{t(strings.components.editor.previewReady)}</StatusBadge>}{availablePanes.length > 1 && <IconButton data-testid="components-editor-split-view-toggle" aria-label={t("components.editor.splitView", { defaultValue: "Split view" })} aria-pressed={splitView} onClick={toggleSplitView} className={`hidden h-8 min-h-8 min-w-8 lg:inline-flex ${splitView ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}><PanelsLeftRight aria-hidden className="h-3.5 w-3.5" /></IconButton>}{renderable && <IconButton data-testid={selectors.components.editor.closeButton} aria-label={t(strings.components.editor.close)} onClick={onClose} className="h-8 min-h-8 min-w-8 border border-app-border bg-app-surface"><ArrowLeft aria-hidden className="h-3.5 w-3.5" /></IconButton>}</div>}
       />
 
       {navigationSlot && <div className="shrink-0 border-b border-app-border bg-app-surface px-4">{navigationSlot}</div>}
@@ -630,7 +631,7 @@ export function ComponentEditor({
                     <div data-testid={renderable ? selectors.components.editor.workspacePane : selectors.assets.hookSource} data-pane="files" className="flex h-full min-h-0 flex-col bg-app-background">
                       {splitView && paneHeader("files", index, paneLabels.files, <FileCode2 aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 min-w-0 gap-1 overflow-x-auto border-b border-app-border bg-app-surface px-2 py-1.5">
-                        <Button data-testid={selectors.components.editor.filesTreeTab} type="button" variant={filesView === "tree" ? "primary" : "secondary"} className="h-7 shrink-0 px-2 text-xs" onClick={() => setFilesView("tree")}>{t("components.editor.fileTree", { defaultValue: "Files" })}</Button>
+                        <IconButton data-testid={selectors.components.editor.filesTreeTab} aria-label={t("components.editor.fileTree", { defaultValue: "Files" })} className={`h-7 min-h-7 min-w-7 shrink-0 ${filesView === "tree" ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`} onClick={() => setFilesView("tree")}><FileCode2 aria-hidden className="h-3.5 w-3.5" /></IconButton>
                         {activeVersionFiles.map((file) => (
                           <Button key={file.path} data-testid={selectors.components.editor.filesSourceTab} data-file={file.path} type="button" variant={filesView === "source" && (selectedFile === file.path || (!selectedFile && file.isEntry)) ? "primary" : "secondary"} className="h-7 shrink-0 px-2 text-xs" onClick={() => selectFile(file.isEntry ? "" : file.path)}>{file.path}</Button>
                         ))}
@@ -665,11 +666,11 @@ export function ComponentEditor({
                         <>
                           <div className="flex shrink-0 flex-wrap items-center justify-between gap-1.5 border-b border-app-border bg-app-surface px-2 py-1.5">
                             <div className="flex items-center gap-1">
-                              <Button data-testid={selectors.components.editor.saveButton} onClick={() => saveMutation.mutate()} disabled={readOnly || !dirty || saveMutation.isPending || contentQuery.isLoading} className="h-7 gap-1 px-2 text-xs"><Save aria-hidden className="h-3.5 w-3.5" />{saveMutation.isPending ? t(strings.components.editor.saving) : t(strings.components.editor.save)}</Button>
-                              <Button data-testid={selectors.components.editor.filesRevertButton} type="button" variant="secondary" onClick={() => setBuffer(contentQuery.data.content)} disabled={readOnly || !dirty} className="h-7 gap-1 px-2 text-xs"><RotateCcw aria-hidden className="h-3.5 w-3.5" />{t("components.editor.revert", { defaultValue: "Revert" })}</Button>
+                              <IconButton data-testid={selectors.components.editor.saveButton} aria-label={saveMutation.isPending ? t(strings.components.editor.saving) : t(strings.components.editor.save)} onClick={() => saveMutation.mutate()} disabled={readOnly || !dirty || saveMutation.isPending || contentQuery.isLoading} className="h-7 min-h-7 min-w-7 bg-app-primary text-app-primary-foreground"><Save aria-hidden className="h-3.5 w-3.5" /></IconButton>
+                              <IconButton data-testid={selectors.components.editor.filesRevertButton} aria-label={t("components.editor.revert", { defaultValue: "Revert" })} onClick={() => setBuffer(contentQuery.data.content)} disabled={readOnly || !dirty} className="h-7 min-h-7 min-w-7 border border-app-border bg-app-surface"><RotateCcw aria-hidden className="h-3.5 w-3.5" /></IconButton>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Button data-testid={selectors.components.editor.filesWrapButton} type="button" variant="secondary" aria-pressed={wordWrap === "on"} onClick={() => setWordWrap((current) => current === "on" ? "off" : "on")} className="h-7 px-2 text-xs">{t("components.editor.wrap", { defaultValue: "Wrap" })}</Button>
+                              <IconButton data-testid={selectors.components.editor.filesWrapButton} aria-label={t("components.editor.wrap", { defaultValue: "Wrap" })} aria-pressed={wordWrap === "on"} onClick={() => setWordWrap((current) => current === "on" ? "off" : "on")} className={`h-7 min-h-7 min-w-7 ${wordWrap === "on" ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}><FileCode2 aria-hidden className="h-3.5 w-3.5" /></IconButton>
                               <Button data-testid={selectors.components.editor.filesFontDecrease} type="button" variant="secondary" aria-label={t("components.editor.decreaseFont", { defaultValue: "Decrease font size" })} onClick={() => setFontSize((current) => Math.max(11, current - 1))} disabled={fontSize <= 11} className="h-7 w-7 p-0"><Minus aria-hidden className="h-3.5 w-3.5" /></Button>
                               <Button data-testid={selectors.components.editor.filesFontIncrease} type="button" variant="secondary" aria-label={t("components.editor.increaseFont", { defaultValue: "Increase font size" })} onClick={() => setFontSize((current) => Math.min(20, current + 1))} disabled={fontSize >= 20} className="h-7 w-7 p-0"><Plus aria-hidden className="h-3.5 w-3.5" /></Button>
                             </div>
@@ -692,11 +693,11 @@ export function ComponentEditor({
                       {splitView && paneHeader("preview", index, paneLabels.preview, <Eye aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
                         <nav className="flex max-w-full gap-1 overflow-x-auto" aria-label="Component stories">
-                          {specimens.map((example) => { const identity = specimenIdentity(example); const selected = identity === activeSpecimen; return <Button key={identity} type="button" variant={selected ? "primary" : "secondary"} className="h-8 shrink-0 px-2 text-xs" aria-current={selected ? "true" : undefined} onClick={() => { setComparedSpecimens(new Set()); activateSpecimen(identity); }}>{example?.displayName || example?.name || "Default"}</Button>; })}
+                          {specimens.map((example) => { const identity = specimenIdentity(example); const selected = identity === activeSpecimen; return <Button key={identity} type="button" variant={selected ? "primary" : "secondary"} className="h-8 shrink-0 px-2 text-xs" aria-current={selected ? "true" : undefined} onClick={() => activateSpecimen(identity)}>{example?.displayName || example?.name || "Default"}</Button>; })}
                         </nav>
                         <ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} filters={filters} />
                         <EmulatorToolbar emulator={emulator} />
-                        {activeSpecimen && <Button data-testid={selectors.components.editor.previewToolsToggle} type="button" variant="secondary" className="ml-auto h-8 gap-1.5 px-2 text-xs" aria-expanded={!previewToolsCollapsed} aria-controls="component-preview-tools" onClick={togglePreviewTools}>{previewToolsCollapsed ? <ChevronUp aria-hidden className="h-3.5 w-3.5" /> : <ChevronDown aria-hidden className="h-3.5 w-3.5" />}{previewToolsCollapsed ? t("components.editor.showTools", { defaultValue: "Show controls" }) : t("components.editor.hideTools", { defaultValue: "Hide controls" })}</Button>}
+                        {activeSpecimen && <IconButton data-testid={selectors.components.editor.previewToolsToggle} aria-label={previewToolsCollapsed ? t("components.editor.showTools", { defaultValue: "Show controls" }) : t("components.editor.hideTools", { defaultValue: "Hide controls" })} className="ml-auto h-8 min-h-8 min-w-8 border border-app-border bg-app-surface" aria-expanded={!previewToolsCollapsed} aria-controls="component-preview-tools" onClick={togglePreviewTools}>{previewToolsCollapsed ? <ChevronUp aria-hidden className="h-3.5 w-3.5" /> : <ChevronDown aria-hidden className="h-3.5 w-3.5" />}</IconButton>}
                       </div>
                       <Group id="component-preview-workbench" orientation="vertical" defaultLayout={{ specimen: 1, tools: 280 }} className="min-h-0 flex-1">
                       <Panel id="specimen" minSize={220} className="min-h-0">
@@ -711,12 +712,12 @@ export function ComponentEditor({
                               <div data-testid={selectors.components.editor.comparisonToolbar} className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-app-primary/30 bg-app-primary/10 px-3 py-2">
                                 <p className="text-xs text-app-foreground">{t(strings.components.editor.comparing)}</p>
                                 <Button data-testid={selectors.components.editor.comparisonClear} type="button" variant="secondary" className="h-7 px-2 text-xs" onClick={() => setComparedSpecimens(new Set())}>
-                                  {t(strings.components.editor.showAllSpecimens)}
+                                  {t(strings.components.editor.showAllStories)}
                                 </Button>
                               </div>
                             )}
                             <p data-testid={selectors.components.editor.galleryStatus} aria-live="polite" className="mb-2 text-xs text-app-muted-foreground">
-                              {previewMessage || t(strings.components.editor.specimenStatus, { ready: readyExamples.size, total: specimens.length })}
+                              {previewMessage || t(strings.components.editor.storyStatus, { ready: readyExamples.size, total: specimens.length })}
                             </p>
                             <div className={comparisonActive ? "grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2" : "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-3"}>
                               {visibleSpecimens.map((example) => {
@@ -728,7 +729,7 @@ export function ComponentEditor({
                                   <section key={identity} data-testid={selectors.components.editor.exampleCard} data-specimen={identity} data-story={example?.storyId ?? "__default__"} className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}>
                                     <header className="flex items-center justify-between gap-2 border-b border-app-border px-3 py-2">
                                       <h3 data-testid={selectors.components.editor.exampleTitle} className="min-w-0 truncate text-sm font-semibold text-app-foreground">{title}</h3>
-                                      {examples.length > 1 && <Button data-testid={selectors.components.editor.exampleCompare} type="button" variant={comparedSpecimens.has(identity) ? "primary" : "secondary"} aria-pressed={comparedSpecimens.has(identity)} disabled={!comparedSpecimens.has(identity) && comparedSpecimens.size >= 2} className="h-7 px-2 text-xs" onClick={() => toggleComparison(identity)}>{t(strings.components.editor.compareSpecimen)}</Button>}
+                                      {examples.length > 1 && <Button data-testid={selectors.components.editor.exampleCompare} type="button" variant={comparedSpecimens.has(identity) ? "primary" : "secondary"} aria-pressed={comparedSpecimens.has(identity)} disabled={!comparedSpecimens.has(identity) && comparedSpecimens.size >= 2} className="h-7 px-2 text-xs" onClick={() => toggleComparison(identity)}>{t(strings.components.editor.compareStory)}</Button>}
                                     </header>
                                     {error ? (
                                       <div data-testid={selectors.components.editor.specimenError} className="flex min-h-[18rem] flex-col items-center justify-center gap-3 bg-app-danger/5 p-4 text-center">
@@ -762,7 +763,7 @@ export function ComponentEditor({
                         </EmulatorViewport>
                       </div>
                       </Panel>
-                      {activeSpecimen && <>
+                      {activeSpecimen && desktopLayout && <>
                         <Separator className="hidden h-1 shrink-0 bg-app-border hover:bg-app-primary lg:block" />
                         <Panel panelRef={previewToolsPanelRef} id="tools" defaultSize={280} minSize={160} maxSize="45%" collapsible collapsedSize={0} onResize={(size) => setPreviewToolsCollapsed(size.inPixels === 0)} className="hidden min-h-0 lg:block">
                           <div id="component-preview-tools" data-testid={selectors.components.editor.previewToolsPanel} className="h-full overflow-y-auto border-t border-app-border bg-app-surface p-3"><div className="grid gap-3 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(20rem,1.2fr)]"><PropsExperimentPanel key={activeSpecimen} storyId={activeExample?.storyId} storyName={activeSpecimenLabel} initialArgs={activeExample ? JSON.parse(activeExample.propsJson) : {}} initialEnvironment={activeExample?.environment} storyContract={activeStoryContract} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /><InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} /></div></div>

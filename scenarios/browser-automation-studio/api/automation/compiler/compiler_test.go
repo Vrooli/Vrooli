@@ -269,6 +269,22 @@ func TestCompileWorkflowEntryMetadata(t *testing.T) {
 	}
 }
 
+func TestCompileWorkflowMapsSessionReuseLabelToExecutionPolicy(t *testing.T) {
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"isolated-validation",
+		[]*basworkflows.WorkflowNodeV2{
+			{Id: "navigate", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}},
+		},
+		[]*basworkflows.WorkflowEdgeV2{},
+	)
+	workflow.FlowDefinition.Metadata = &basworkflows.WorkflowMetadataV2{Labels: map[string]string{"session_reuse_mode": "fresh"}}
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	assert.Equal(t, "fresh", plan.Metadata["sessionReuseMode"])
+}
+
 // =============================================================================
 // Nil/Empty Input Tests
 // =============================================================================

@@ -146,6 +146,17 @@ func CompileWorkflowWithOptions(workflow *basapi.WorkflowSummary, opts *CompileO
 			metadata["entrySelectorTimeoutMs"] = timeout
 		}
 	}
+	// Workflow labels are the contract-native extension point for execution
+	// policy. Keep the external label spelling stable while exposing the
+	// executor's typed metadata key. In particular, adhoc validation callers can
+	// request a fresh browser without adding a scenario-specific API surface.
+	if raw.Metadata != nil {
+		if labels, ok := raw.Metadata["labels"].(map[string]any); ok {
+			if reuseMode, ok := labels["session_reuse_mode"].(string); ok && strings.TrimSpace(reuseMode) != "" {
+				metadata["sessionReuseMode"] = reuseMode
+			}
+		}
+	}
 	if len(metadata) == 0 {
 		metadata = nil
 	}
@@ -236,6 +247,7 @@ func applySpecialEdges(plan *ExecutionPlan, special map[string][]EdgeRef) {
 
 // flowDefinition mirrors the React Flow payload persisted with workflows.
 type flowDefinition struct {
+	Metadata map[string]any `json:"metadata"`
 	Nodes    []rawNode      `json:"nodes"`
 	Edges    []rawEdge      `json:"edges"`
 	Settings map[string]any `json:"settings"`
@@ -1234,6 +1246,14 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 	// Only load manifest if we found @selector/ references
 	if !hasSelectorsRefs {
 		logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: no @selector/ refs, returning early")
+		return nil
+	}
+	// A selector namespace belongs to the target project, not BAS itself. If
+	// the caller did not supply project_root, retain the symbolic reference for
+	// the execution boundary instead of resolving it against this repository's
+	// unrelated manifest.
+	if strings.TrimSpace(manifestRoot) == "" {
+		logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: no project root, preserving selector references")
 		return nil
 	}
 

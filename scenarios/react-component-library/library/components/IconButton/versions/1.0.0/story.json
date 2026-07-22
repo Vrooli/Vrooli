@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "IconButton",
+  "args": { "fields": [
+    { "path": "aria-label", "label": "Accessible label", "kind": "text", "default": "Close panel" },
+    { "path": "children", "label": "Icon", "kind": "structured", "default": { "$icon": "X" } },
+    { "path": "disabled", "label": "Disabled", "kind": "boolean", "default": false }
+  ] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Default", "args": { "aria-label": "Close panel", "children": { "$icon": "X" } }, "expect": [
+      { "kind": "role", "role": "button", "name": "Close panel" },
+      { "kind": "visible", "selector": "button" }
+    ] },
+    { "id": "disabled", "name": "Disabled", "args": { "aria-label": "Save changes", "children": { "$icon": "Save" }, "disabled": true }, "expect": [
+      { "kind": "role", "role": "button", "name": "Save changes" },
+      { "kind": "attribute", "selector": "button", "name": "disabled", "value": "" }
+    ] },
+    { "id": "toggled", "name": "Toggled", "args": { "aria-label": "Wrap lines", "children": { "$icon": "WrapText" }, "aria-pressed": true }, "expect": [
+      { "kind": "role", "role": "button", "name": "Wrap lines" },
+      { "kind": "attribute", "selector": "button", "name": "aria-pressed", "value": "true" }
+    ] }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "libraryId": "react-component-library:inline-code",
+  "displayName": "Inline Code",
+  "description": "Inline code token renderer with copy affordance.",
+  "tags": [
+    "markdown",
+    "code"
+  ],
+  "entry": "InlineCode.tsx",
+  "latest": "0.3.1",
+  "deprecatedVersions": [],
+  "draft": "",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

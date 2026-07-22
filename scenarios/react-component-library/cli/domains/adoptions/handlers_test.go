@@ -21,29 +21,31 @@ import (
 )
 
 type adoptionsService struct {
-	mu             sync.Mutex
-	listResp       *adoptionsv1.ListAdoptionsResponse
-	effectiveResp  *adoptionsv1.ListEffectiveAdoptionsResponse
-	applyResp      *adoptionsv1.ApplyAdoptionResponse
-	reapplyResp    *adoptionsv1.ReapplyAdoptionResponse
-	deleteResp     *adoptionsv1.DeleteAdoptionResponse
-	refreshResp    *adoptionsv1.RefreshAdoptionsResponse
-	resolveResp    *adoptionsv1.ResolveAdoptionPathResponse
-	suggestResp    *adoptionsv1.SuggestAdoptionsResponse
-	reconcileResp  *adoptionsv1.ReconcileAdoptionsResponse
-	reconvergeResp *adoptionsv1.ReconvergeAdoptionsResponse
-	reconvergeReqs []*adoptionsv1.ReconvergeAdoptionsRequest
-	listReqs       []*adoptionsv1.ListAdoptionsRequest
-	applyReqs      []*adoptionsv1.ApplyAdoptionRequest
-	reapplyReqs    []*adoptionsv1.ReapplyAdoptionRequest
-	refreshReqs    []*adoptionsv1.RefreshAdoptionsRequest
-	resolveReqs    []*adoptionsv1.ResolveAdoptionPathRequest
-	suggestReqs    []*adoptionsv1.SuggestAdoptionsRequest
-	reconcileReqs  []*adoptionsv1.ReconcileAdoptionsRequest
-	discoverResp   *adoptionsv1.DiscoverAdoptionsResponse
-	discoverReqs   []*adoptionsv1.DiscoverAdoptionsRequest
-	confirmResp    *adoptionsv1.ConfirmDiscoveryResponse
-	confirmReqs    []*adoptionsv1.ConfirmDiscoveryRequest
+	mu                sync.Mutex
+	listResp          *adoptionsv1.ListAdoptionsResponse
+	listScenariosResp *adoptionsv1.ListScenariosResponse
+	effectiveResp     *adoptionsv1.ListEffectiveAdoptionsResponse
+	applyResp         *adoptionsv1.ApplyAdoptionResponse
+	reapplyResp       *adoptionsv1.ReapplyAdoptionResponse
+	deleteResp        *adoptionsv1.DeleteAdoptionResponse
+	refreshResp       *adoptionsv1.RefreshAdoptionsResponse
+	resolveResp       *adoptionsv1.ResolveAdoptionPathResponse
+	suggestResp       *adoptionsv1.SuggestAdoptionsResponse
+	reconcileResp     *adoptionsv1.ReconcileAdoptionsResponse
+	reconvergeResp    *adoptionsv1.ReconvergeAdoptionsResponse
+	reconvergeReqs    []*adoptionsv1.ReconvergeAdoptionsRequest
+	listReqs          []*adoptionsv1.ListAdoptionsRequest
+	listScenariosReqs []*adoptionsv1.ListScenariosRequest
+	applyReqs         []*adoptionsv1.ApplyAdoptionRequest
+	reapplyReqs       []*adoptionsv1.ReapplyAdoptionRequest
+	refreshReqs       []*adoptionsv1.RefreshAdoptionsRequest
+	resolveReqs       []*adoptionsv1.ResolveAdoptionPathRequest
+	suggestReqs       []*adoptionsv1.SuggestAdoptionsRequest
+	reconcileReqs     []*adoptionsv1.ReconcileAdoptionsRequest
+	discoverResp      *adoptionsv1.DiscoverAdoptionsResponse
+	discoverReqs      []*adoptionsv1.DiscoverAdoptionsRequest
+	confirmResp       *adoptionsv1.ConfirmDiscoveryResponse
+	confirmReqs       []*adoptionsv1.ConfirmDiscoveryRequest
 }
 
 func (s *adoptionsService) DiscoverAdoptions(_ context.Context, req *connect.Request[adoptionsv1.DiscoverAdoptionsRequest]) (*connect.Response[adoptionsv1.DiscoverAdoptionsResponse], error) {
@@ -74,6 +76,16 @@ func (s *adoptionsService) ListAdoptions(_ context.Context, req *connect.Request
 		s.listResp = &adoptionsv1.ListAdoptionsResponse{}
 	}
 	return connect.NewResponse(s.listResp), nil
+}
+
+func (s *adoptionsService) ListScenarios(_ context.Context, req *connect.Request[adoptionsv1.ListScenariosRequest]) (*connect.Response[adoptionsv1.ListScenariosResponse], error) {
+	s.mu.Lock()
+	s.listScenariosReqs = append(s.listScenariosReqs, req.Msg)
+	s.mu.Unlock()
+	if s.listScenariosResp == nil {
+		s.listScenariosResp = &adoptionsv1.ListScenariosResponse{}
+	}
+	return connect.NewResponse(s.listScenariosResp), nil
 }
 
 func (s *adoptionsService) ListEffectiveAdoptions(_ context.Context, _ *connect.Request[adoptionsv1.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptionsv1.ListEffectiveAdoptionsResponse], error) {
@@ -206,6 +218,20 @@ func TestAdoptionsList_ForwardsFiltersAndRenders(t *testing.T) {
 	require.Equal(t, int32(50), svc.listReqs[0].Limit)
 	require.Contains(t, out.String(), "Found 1 adoption(s).")
 	require.Contains(t, out.String(), "behind")
+}
+
+func TestAdoptionsListScenarios_RendersTypedDisplayOptions(t *testing.T) {
+	svc := &adoptionsService{listScenariosResp: &adoptionsv1.ListScenariosResponse{
+		Scenarios: []*adoptionsv1.ScenarioOption{{Name: "swarm-manager", DisplayName: "Swarm Manager"}, {Name: "scenario-qa", DisplayName: "scenario-qa"}},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	require.NoError(t, h.listScenarios(ctx))
+	require.Len(t, svc.listScenariosReqs, 1)
+	require.Contains(t, out.String(), "Found 2 selectable scenario(s).")
+	require.Contains(t, out.String(), "Swarm Manager (swarm-manager)")
+	require.Contains(t, out.String(), "scenario-qa")
 }
 
 func TestAdoptionsDiscover_ForwardsThresholdAndRendersEvidence(t *testing.T) {

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Grid2X2, List, Network, Search } from "lucide-react";
 import { type FormEvent, useDeferredValue, useMemo, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import { listCatalogAssets, type CatalogAsset } from "../../api/components";
 import { selectors } from "../../consts/selectors";
@@ -12,7 +12,7 @@ import { Button } from "../../components/ui/button";
 import { ExperienceSurface, type ExperienceSurfaceState } from "../../../../library/components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
 import { CreateComponentDialog } from "../components/CreateComponentDialog";
 import { workflowsClient } from "../../api/workflows";
-import { assetPath } from "../../routes";
+import { assetInfoTab, assetPath } from "../../routes";
 
 type Presentation = "tree" | "list" | "cards";
 type KindTab = "components" | "hooks";
@@ -36,7 +36,7 @@ function adoptionCounts(asset: CatalogAsset) {
   };
 }
 
-function AssetRow({ asset, presentation, selected, onNavigate }: { asset: CatalogAsset; presentation: Presentation; selected: boolean; onNavigate?: () => void }) {
+function AssetRow({ asset, presentation, selected, onNavigate, currentTab }: { asset: CatalogAsset; presentation: Presentation; selected: boolean; onNavigate?: () => void; currentTab?: ReturnType<typeof assetInfoTab> }) {
   const { t } = useTranslation();
   const isHook = (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
   const counts = adoptionCounts(asset);
@@ -51,7 +51,7 @@ function AssetRow({ asset, presentation, selected, onNavigate }: { asset: Catalo
   );
   return (
     <Link
-      to={assetPath(asset.id)}
+      to={assetPath(asset.id, currentTab ? { tab: currentTab } : {})}
       onClick={onNavigate}
       data-testid={selectors.catalog.asset}
       data-selected={selected || undefined}
@@ -107,6 +107,7 @@ function CatalogActions() {
 export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props) {
   const { t } = useTranslation();
   const { id: selectedID } = useParams<{ id: string }>();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<KindTab>("components");
   const [presentation, setPresentation] = useState<Presentation>("tree");
@@ -147,7 +148,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
       {query.isLoading && <p role="status" className="text-xs text-app-muted-foreground">{t("catalog.loading", { defaultValue: "Loading catalog…" })}</p>}
       {query.error && <p role="alert" className="text-xs text-app-danger">{t("catalog.error", { defaultValue: "The catalog could not be loaded." })}</p>}
       {!query.isLoading && !query.error && assets.length === 0 && <p className="rounded-control border border-dashed border-app-border p-3 text-sm text-app-muted-foreground">{t("catalog.empty", { defaultValue: "No matching assets." })}</p>}
-      {presentation === "tree" ? <div className="space-y-3">{groups.map(([group, groupedAssets]) => <section key={group}><div className="mb-1 flex items-center justify-between px-1 text-xs font-medium uppercase text-app-muted-foreground"><span>{group}</span><span>{groupedAssets.reduce((total, asset) => total + adoptionCounts(asset).direct, 0)}</span></div><div className="space-y-1">{groupedAssets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation="tree" selected={selectedID === asset.id} onNavigate={onNavigate} />)}</div></section>)}</div> : <div className={presentation === "cards" ? "grid gap-2 sm:grid-cols-2" : "space-y-1"}>{assets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation={presentation} selected={selectedID === asset.id} onNavigate={onNavigate} />)}</div>}
+      {presentation === "tree" ? <div className="space-y-3">{groups.map(([group, groupedAssets]) => <section key={group}><div className="mb-1 flex items-center justify-between px-1 text-xs font-medium uppercase text-app-muted-foreground"><span>{group}</span><span>{groupedAssets.reduce((total, asset) => total + adoptionCounts(asset).direct, 0)}</span></div><div className="space-y-1">{groupedAssets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation="tree" selected={selectedID === asset.id} onNavigate={onNavigate} currentTab={selectedID ? assetInfoTab(new URLSearchParams(location.search)) : undefined} />)}</div></section>)}</div> : <div className={presentation === "cards" ? "grid gap-2 sm:grid-cols-2" : "space-y-1"}>{assets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation={presentation} selected={selectedID === asset.id} onNavigate={onNavigate} currentTab={selectedID ? assetInfoTab(new URLSearchParams(location.search)) : undefined} />)}</div>}
     </section>
   );
   if (!surfaceId) return content;

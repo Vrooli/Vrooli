@@ -64,6 +64,35 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) listScenarios(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListScenarios(context.Background(), connect.NewRequest(&adoptionsv1.ListScenariosRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("list selectable scenarios", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no scenarios response")
+	}
+	rows := make([]string, 0, len(resp.Msg.Scenarios))
+	for _, scenario := range resp.Msg.Scenarios {
+		if scenario == nil {
+			continue
+		}
+		label := scenario.DisplayName
+		if label == "" || label == scenario.Name {
+			label = scenario.Name
+		} else {
+			label = fmt.Sprintf("%s (%s)", label, scenario.Name)
+		}
+		rows = append(rows, label)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d selectable scenario(s).", len(rows))},
+		ResultsHeading: "Scenarios",
+		Results:        rows,
+		RetrievalHints: []string{"`adoptions apply <component-id> <scenario> <adopted-path>` — adopt a component into a scenario"},
+	})
+}
+
 func (h *handlers) listEffective(ctx cliapp.RunContext) error {
 	req := &adoptionsv1.ListEffectiveAdoptionsRequest{ComponentId: ctx.Positional("component-id")}
 	if raw := ctx.Flag("limit"); raw != "" {

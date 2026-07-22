@@ -42,6 +42,9 @@ func (e ChromeHarnessExecutor) ExecuteStory(ctx context.Context, libraryID, vers
 	if baseURL == "" {
 		return StoryExecution{}, fmt.Errorf("preview API base URL is required")
 	}
+	if _, err := exec.LookPath(e.ChromePath); err != nil {
+		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("locate Chrome executable %q: %w", e.ChromePath, err)}
+	}
 	u, err := url.Parse(baseURL + "/preview/" + url.PathEscape(libraryID) + "/harness.html")
 	if err != nil {
 		return StoryExecution{}, fmt.Errorf("build harness URL: %w", err)

@@ -111,7 +111,7 @@ export async function handleSessionStart(
     };
 
     // Start session - returns session info including whether it was reused and actual viewport
-    const { sessionId, reused, createdAt, actualViewport } =
+    const { sessionId, leaseId, reused, createdAt, actualViewport } =
       await sessionManager.startSession(spec);
 
     // Start frame streaming if requested (for record mode live preview)
@@ -131,6 +131,7 @@ export async function handleSessionStart(
 
     const response: StartSessionResponse = {
       session_id: sessionId,
+      lease_id: leaseId,
       phase: 'ready',
       created_at: createdAt.toISOString(),
       reused: reused || undefined, // Only include if true

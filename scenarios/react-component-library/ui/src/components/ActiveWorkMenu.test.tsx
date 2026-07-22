@@ -54,4 +54,27 @@ describe("ActiveWorkMenu", () => {
 
     await waitFor(() => expect(screen.getByTestId("active-work-menu")).toBeInTheDocument());
   });
+
+  it("shows an empty active-work dialog when no workflow history exists", async () => {
+    listWorkflows.mockResolvedValue({ workflows: [] });
+    const user = userEvent.setup();
+    renderWithProviders(<ActiveWorkMenu />);
+    await user.click(screen.getByTestId("active-work-menu"));
+    expect(await screen.findByText("workflows.none")).toBeInTheDocument();
+  });
+
+  it("falls back to the root link for workflow work without an asset", async () => {
+    listWorkflows.mockResolvedValue({ workflows: [{ id: "extract", status: "running", canStop: false, canRetry: false, sourceScenario: "demo", sourcePath: "ui/Button.tsx" }] });
+    const user = userEvent.setup();
+    renderWithProviders(<ActiveWorkMenu />);
+    await user.click(screen.getByTestId("active-work-menu"));
+    expect(await screen.findByRole("link", { name: "demo" })).toHaveAttribute("href", "/");
+  });
+
+  it("preserves the current asset tab on workflow asset links", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ActiveWorkMenu />, { routerEntries: ["/assets/current?tab=files"] });
+    await user.click(screen.getByTestId("active-work-menu"));
+    expect(await screen.findByRole("link", { name: "focus-panel" })).toHaveAttribute("href", "/assets/focus-panel?tab=files");
+  });
 });

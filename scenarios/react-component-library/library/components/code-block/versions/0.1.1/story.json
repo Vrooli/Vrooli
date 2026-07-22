@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "default", "name": "Default", "args": { "code": "const component = 'CodeBlock';", "language": "ts" }, "expect": [
+    { "kind": "text", "value": "const component = 'CodeBlock';" },
+    { "kind": "role", "role": "button", "name": "Copy" }
+  ] }]
+}

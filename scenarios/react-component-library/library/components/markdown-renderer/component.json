@@ -1,0 +1,21 @@
+{
+  "libraryId": "react-component-library:markdown-renderer",
+  "displayName": "Markdown Renderer",
+  "description": "GFM markdown renderer with routed inline-token, file, link, and Mermaid seams.",
+  "tags": [
+    "markdown",
+    "rendering",
+    "gfm"
+  ],
+  "entry": "MarkdownRenderer.tsx",
+  "latest": "0.3.2",
+  "deprecatedVersions": [],
+  "draft": "",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

@@ -181,7 +181,7 @@
         {
           "kind": "role",
           "role": "button",
-          "name": "Recovering voice input"
+          "name": "Listening for voice input"
         }
       ]
     },

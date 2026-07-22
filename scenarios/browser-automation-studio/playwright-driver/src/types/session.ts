@@ -198,6 +198,11 @@ export type SessionPhase =
 
 export interface SessionState {
   id: string;
+  /** Immutable execution that acquired the current lease. Never rewrite this
+   * while the lease is active; a later execution receives a new lease. */
+  ownerExecutionId: string;
+  leaseId: string;
+  leaseReleasedAt?: Date;
   browser: Browser;
   context: BrowserContext;
   page: Page;
@@ -424,6 +429,8 @@ export interface ActualViewportResponse {
 
 export interface StartSessionResponse {
   session_id: string;
+  /** Opaque token required to release or close this execution's lease. */
+  lease_id: string;
   /** Session phase after creation (always 'ready' for new sessions) */
   phase: SessionPhase;
   /** ISO 8601 timestamp when session was created */
@@ -435,6 +442,11 @@ export interface StartSessionResponse {
    * May differ from requested dimensions due to browser profile fingerprint overrides.
    */
   actual_viewport?: ActualViewportResponse;
+}
+
+export interface CloseSessionRequest {
+  execution_id: string;
+  lease_id: string;
 }
 
 /**

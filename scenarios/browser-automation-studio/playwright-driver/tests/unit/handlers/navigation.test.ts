@@ -121,8 +121,8 @@ describe('NavigationHandler', () => {
 
     it('waits for a selector only after navigation completes', async () => {
       const sequence: string[] = [];
-      mockPage.goto.mockImplementation(async () => { sequence.push('goto'); return null; });
-      mockPage.waitForSelector.mockImplementation(async () => { sequence.push('selector'); return null; });
+      mockPage.goto.mockImplementation(() => { sequence.push('goto'); return Promise.resolve(null); });
+      mockPage.waitForSelector.mockImplementation(() => { sequence.push('selector'); return Promise.resolve(null); });
       const instruction = createTypedInstruction('navigate', { url: 'https://example.com', waitForSelector: '[data-testid=ready]' }, { nodeId: 'node-1' });
 
       await handler.execute(instruction, context);

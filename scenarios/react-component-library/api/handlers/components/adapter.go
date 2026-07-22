@@ -175,6 +175,24 @@ func parityReportToProtoValue(report *components.IngestParityReport) *components
 	return out
 }
 
+func parityReportFromProto(report *componentsv1.IngestParityReport) *components.IngestParityReport {
+	if report == nil {
+		return nil
+	}
+	out := &components.IngestParityReport{
+		OriginFiles:    append([]string(nil), report.OriginFiles...),
+		HarvestedFiles: append([]string(nil), report.HarvestedFiles...),
+		Acknowledged:   report.Acknowledged,
+	}
+	for _, finding := range report.Findings {
+		if finding == nil {
+			continue
+		}
+		out.Findings = append(out.Findings, components.IngestFinding{Code: finding.Code, Message: finding.Message, SourceFile: finding.SourceFile})
+	}
+	return out
+}
+
 func versionFilesToProto(files []components.ComponentVersionFile) []*componentsv1.ComponentVersionFile {
 	out := make([]*componentsv1.ComponentVersionFile, 0, len(files))
 	for _, file := range files {

@@ -128,7 +128,7 @@ export function findByExecutionId(
  * @returns true if the session may be pooled across executions
  */
 export function isSafeForLabelReuse(session: SessionState): boolean {
-  return session.phase === 'ready';
+  return session.phase === 'ready' && session.leaseReleasedAt !== undefined;
 }
 
 /**

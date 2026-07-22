@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1, "kind": "component", "title": "Markdown Renderer",
+  "args": { "fields": [{ "path": "content", "label": "Markdown", "kind": "text", "default": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n> Keep operator context visible.\n\n```ts\nconst stable = true;\n```" }] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "gfm-prose-and-code", "name": "GFM, prose, and code", "args": { "content": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n> Keep operator context visible.\n\n```ts\nconst stable = true;\n```" }, "expect": [{ "kind": "text", "value": "Shared markdown" }, { "kind": "text", "value": "Ready" }, { "kind": "text", "value": "Keep operator context visible." }, { "kind": "text", "value": "const stable = true;" }] }]
+}

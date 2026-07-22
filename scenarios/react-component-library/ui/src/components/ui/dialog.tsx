@@ -61,7 +61,7 @@ export function Dialog({
         aria-labelledby="dialog-title"
         aria-describedby={description ? "dialog-description" : undefined}
         className={cn(
-          "relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-panel border border-app-border bg-app-surface text-app-foreground shadow-xl",
+          "relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-panel border border-app-border bg-app-surface text-app-foreground shadow-xl md:rounded-panel",
           className,
         )}
       >
@@ -89,4 +89,3 @@ export function Dialog({
     </div>
   );
 }
-

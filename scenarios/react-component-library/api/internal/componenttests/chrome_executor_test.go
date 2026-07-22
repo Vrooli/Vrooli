@@ -1,6 +1,10 @@
 package componenttests
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
+)
 
 func TestNewChromeHarnessExecutorUsesConfiguredAPIAddress(t *testing.T) {
 	t.Setenv("RCL_API_BASE_URL", "http://preview.example.test/")
@@ -30,5 +34,14 @@ func TestDecodeRenderedStoryResultPreservesPlantedExpectationFailure(t *testing.
 	}
 	if len(execution.Failures) != 1 || execution.Failures[0] != "expect[0] text Missing label not found" {
 		t.Fatalf("failures = %#v", execution.Failures)
+	}
+}
+
+func TestChromeHarnessExecutorReportsMissingChromeAsUnavailable(t *testing.T) {
+	executor := ChromeHarnessExecutor{BaseURL: "http://preview.example.test", ChromePath: "definitely-not-installed-rcl-chrome"}
+	_, err := executor.ExecuteStory(context.Background(), "rcl:button", "1.0.0", "default")
+	var unavailable ExecutorUnavailableError
+	if !errors.As(err, &unavailable) {
+		t.Fatalf("ExecuteStory() error = %v, want ExecutorUnavailableError", err)
 	}
 }

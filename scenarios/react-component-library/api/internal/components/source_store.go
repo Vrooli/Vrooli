@@ -22,16 +22,23 @@ type SourceStore interface {
 }
 
 type sourceManifestFile struct {
-	LibraryID          string   `json:"libraryId"`
-	DisplayName        string   `json:"displayName"`
-	Description        string   `json:"description"`
-	Tags               []string `json:"tags"`
-	Slot               string   `json:"slot,omitempty"`
-	Category           string   `json:"category,omitempty"`
-	Entry              string   `json:"entry,omitempty"`
-	Latest             string   `json:"latest"`
-	Draft              string   `json:"draft,omitempty"`
-	DeprecatedVersions []string `json:"deprecatedVersions"`
+	LibraryID          string                 `json:"libraryId"`
+	DisplayName        string                 `json:"displayName"`
+	Description        string                 `json:"description"`
+	Tags               []string               `json:"tags"`
+	Slot               string                 `json:"slot,omitempty"`
+	Category           string                 `json:"category,omitempty"`
+	Entry              string                 `json:"entry,omitempty"`
+	Latest             string                 `json:"latest"`
+	Draft              string                 `json:"draft,omitempty"`
+	DeprecatedVersions []string               `json:"deprecatedVersions"`
+	DesignStyles       []sourceDesignAffinity `json:"designStyles"`
+}
+
+type sourceDesignAffinity struct {
+	StyleID  string `json:"styleId"`
+	Affinity string `json:"affinity"`
+	Reason   string `json:"reason,omitempty"`
 }
 
 func (s *FSContentStore) Root() string { return s.root }
@@ -88,6 +95,9 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 		Entry:              fileName,
 		Latest:             version,
 		DeprecatedVersions: []string{},
+		DesignStyles: []sourceDesignAffinity{{
+			StyleID: "vrooli-default", Affinity: "native", Reason: "token-native operational-console baseline",
+		}},
 	}
 	if err := writeJSONFile(manifestAbs, mf); err != nil {
 		return "", "", err
@@ -182,7 +192,7 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	for _, file := range files {
 		body := strings.TrimSpace(file.Content)
 		if file.IsEntry {
-			body = setHeaderVersion(ensureHeaderFields(body, c.LibraryID, c.DisplayName, c.Description, version, c.Tags), version)
+			body = ensureHeaderFields(body, c.LibraryID, c.DisplayName, c.Description, version, c.Tags)
 		}
 		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
 		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
@@ -348,6 +358,11 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 	} else if _, ok := manifest["deprecatedVersions"]; !ok {
 		setManifestField(manifest, &order, "deprecatedVersions", []string{})
 	}
+	if _, ok := manifest["designStyles"]; !ok {
+		setManifestField(manifest, &order, "designStyles", []sourceDesignAffinity{{
+			StyleID: "vrooli-default", Affinity: "native", Reason: "token-native operational-console baseline",
+		}})
+	}
 
 	encoded, err := marshalOrderedObject(manifest, order)
 	if err != nil {
@@ -506,9 +521,8 @@ func writeJSONFile(abs string, value any) error {
 }
 
 var (
-	slugInvalidRe   = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
-	versionTokenRe  = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?$`)
-	headerVersionRe = regexp.MustCompile(`(?m)^(\s*\*\s*@version\s+).*$`)
+	slugInvalidRe  = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
+	versionTokenRe = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?$`)
 )
 
 func normalizeSlug(raw string) string {
@@ -578,29 +592,64 @@ export default function %s() {
 }
 
 func ensureHeaderFields(source, libraryID, displayName, description, version string, tags []string) string {
-	if _, ok := extractHeaderBlock(source); ok {
-		return setHeaderVersion(source, version)
-	}
-	return strings.TrimRight(defaultComponentHeader(libraryID, displayName, description, version, tags), "\n") + "\n" + strings.TrimLeft(source, "\n")
+	deps := metadataHeaderFieldValue(source, "deps")
+	// A harvested source can contain both a prior catalog header and its source
+	// header. Normalize the whole metadata set to one canonical leading block;
+	// otherwise a valid @deps line in the later block is invisible to indexing.
+	body := componentMetadataHeaderRe.ReplaceAllStringFunc(source, func(block string) string {
+		if strings.Contains(block, "@libraryId") {
+			return ""
+		}
+		return block
+	})
+	return strings.TrimRight(componentHeader(libraryID, displayName, description, version, tags, deps), "\n") + "\n" + strings.TrimLeft(body, "\n")
 }
 
 func defaultComponentHeader(libraryID, displayName, description, version string, tags []string) string {
+	return componentHeader(libraryID, displayName, description, version, tags, "")
+}
+
+func componentHeader(libraryID, displayName, description, version string, tags []string, deps string) string {
+	depsLine := ""
+	if deps = strings.TrimSpace(deps); deps != "" {
+		depsLine = " * @deps " + deps + "\n"
+	}
 	return fmt.Sprintf(`/**
  * @libraryId %s
  * @displayName %s
  * @description %s
  * @version %s
  * @tags %s
- * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
+%s * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-`, libraryID, displayName, description, version, tagsJSON(tags))
+`, libraryID, displayName, description, version, tagsJSON(tags), depsLine)
 }
 
-func setHeaderVersion(source, version string) string {
-	if headerVersionRe.MatchString(source) {
-		return headerVersionRe.ReplaceAllString(source, "${1}"+version)
+func headerFieldValue(source, field string) string {
+	header, ok := extractHeaderBlock(source)
+	if !ok {
+		return ""
 	}
-	return source
+	re := regexp.MustCompile(`(?m)^\s*\*\s*@` + regexp.QuoteMeta(field) + `\s+(.+?)\s*$`)
+	match := re.FindStringSubmatch(header)
+	if len(match) != 2 {
+		return ""
+	}
+	return strings.TrimSpace(match[1])
+}
+
+var componentMetadataHeaderRe = regexp.MustCompile(`(?s)/\*\*.*?\*/`)
+
+func metadataHeaderFieldValue(source, field string) string {
+	for _, block := range componentMetadataHeaderRe.FindAllString(source, -1) {
+		if !strings.Contains(block, "@libraryId") {
+			continue
+		}
+		if value := headerFieldValue(block, field); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func tagsJSON(tags []string) string {

@@ -61,6 +61,7 @@ import { PerformanceTracer, injectWebVitalsObserver, AccessibilitySnapshotter } 
 /** Result type for session creation */
 type SessionCreationResult = {
   sessionId: string;
+  leaseId: string;
   reused: boolean;
   createdAt: Date;
   actualViewport: ActualViewport;
@@ -147,19 +148,6 @@ export class SessionManager {
    * Separated from startSession to enable InFlightGuard tracking.
    */
   private async startSessionInternal(spec: SessionSpec): Promise<SessionCreationResult> {
-    // Check resource limits
-    if (this.sessions.size >= this.config.session.maxConcurrent) {
-      logger.warn(scopedLog(LogContext.SESSION, 'resource limit reached'), {
-        maxSessions: this.config.session.maxConcurrent,
-        currentSessions: this.sessions.size,
-        hint: 'Close unused sessions or increase MAX_SESSIONS configuration',
-      });
-      throw new ResourceLimitError(
-        `Maximum concurrent sessions reached: ${this.config.session.maxConcurrent}`,
-        { maxSessions: this.config.session.maxConcurrent, currentSessions: this.sessions.size }
-      );
-    }
-
     // Idempotency: Check for existing session with same execution_id
     // Decision logic is in session-decisions.ts
     const existingByExecutionId = findByExecutionId(this.sessions.values(), spec.execution_id);
@@ -204,6 +192,7 @@ export class SessionManager {
       };
       return {
         sessionId: existingByExecutionId.id,
+        leaseId: existingByExecutionId.leaseId,
         reused: true,
         createdAt: existingByExecutionId.createdAt,
         actualViewport,
@@ -239,14 +228,14 @@ export class SessionManager {
           await this.resetSession(existingSession.id);
         }
 
-        const reusingAcrossExecutions = existingSession.spec.execution_id !== spec.execution_id;
-        if (reusingAcrossExecutions) {
-          // Prevent stale instruction replay outcomes from leaking into a new execution.
-          existingSession.executedInstructions?.clear();
-          existingSession.instructionCount = 0;
-        }
-
-        // Keep session identity aligned with the caller so retries by execution_id are idempotent.
+        // The previous owner explicitly released this lease. A new execution
+        // gets a new immutable ownership token; it never mutates an active
+        // execution identity in place.
+        existingSession.ownerExecutionId = spec.execution_id;
+        existingSession.leaseId = uuidv4();
+        existingSession.leaseReleasedAt = undefined;
+        existingSession.executedInstructions?.clear();
+        existingSession.instructionCount = 0;
         existingSession.spec = {
           ...existingSession.spec,
           ...spec,
@@ -263,11 +252,26 @@ export class SessionManager {
         };
         return {
           sessionId: existingSession.id,
+          leaseId: existingSession.leaseId,
           reused: true,
           createdAt: existingSession.createdAt,
           actualViewport,
         };
       }
+    }
+
+    // New sessions consume capacity only after idempotent and released-lease
+    // reuse paths have been considered.
+    if (this.sessions.size >= this.config.session.maxConcurrent) {
+      logger.warn(scopedLog(LogContext.SESSION, 'resource limit reached'), {
+        maxSessions: this.config.session.maxConcurrent,
+        currentSessions: this.sessions.size,
+        hint: 'Release or close unused sessions, or increase MAX_SESSIONS configuration',
+      });
+      throw new ResourceLimitError(
+        `Maximum concurrent sessions reached: ${this.config.session.maxConcurrent}`,
+        { maxSessions: this.config.session.maxConcurrent, currentSessions: this.sessions.size }
+      );
     }
 
     // Create new session
@@ -337,6 +341,8 @@ export class SessionManager {
     // Create session state
     const session: SessionState = {
       id: sessionId,
+      ownerExecutionId: spec.execution_id,
+      leaseId: uuidv4(),
       browser,
       context,
       page,
@@ -497,7 +503,7 @@ export class SessionManager {
     });
 
     // Return actualViewport from buildContext (includes source attribution)
-    return { sessionId, reused: false, createdAt, actualViewport };
+    return { sessionId, leaseId: session.leaseId, reused: false, createdAt, actualViewport };
   }
 
   /**
@@ -511,6 +517,35 @@ export class SessionManager {
 
     session.lastUsedAt = new Date();
     return session;
+  }
+
+  /**
+   * Releases an execution's lease without transferring ownership. Only the
+   * active owner and exact lease token may release it; stale cleanup from an
+   * earlier execution is harmless.
+   */
+  releaseExecutionLease(sessionId: string, executionId: string, leaseId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.ownerExecutionId !== executionId || session.leaseId !== leaseId) {
+      return false;
+    }
+    session.leaseReleasedAt = new Date();
+    session.lastUsedAt = session.leaseReleasedAt;
+    logger.info(scopedLog(LogContext.SESSION, 'execution lease released'), {
+      sessionId,
+      executionId,
+      leaseId,
+    });
+    return true;
+  }
+
+  /** Close only if this exact execution still owns the active lease. */
+  async closeSessionForLease(sessionId: string, executionId: string, leaseId: string): Promise<SessionCloseResult> {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.ownerExecutionId !== executionId || session.leaseId !== leaseId) {
+      throw new SessionNotFoundError(sessionId);
+    }
+    return this.closeSession(sessionId);
   }
 
   /**
@@ -798,6 +833,7 @@ export class SessionManager {
     await safeInvoke(this.instrumentation.onSessionClose?.bind(this.instrumentation), {
       sessionId,
       executionId: session.spec.execution_id,
+      leaseId: session.leaseId,
     });
 
     logger.info(scopedLog(LogContext.SESSION, 'closing'), {

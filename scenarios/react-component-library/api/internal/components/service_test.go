@@ -399,6 +399,31 @@ func TestService_CreateComponentVersionRequiresExplicitParityWaiver(t *testing.T
 	require.True(t, got.Version.ParityReport.Acknowledged)
 }
 
+func TestService_CreateComponentVersionPreservesOperatorParityReport(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(context.Context, string, string) ([]byte, error) {
+		return []byte(`export function MarkdownRenderer() { return <div /> }`), nil
+	}))
+	created, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{Scenario: "react-component-library", SourceFile: "ui/src/MarkdownRenderer.tsx", Slug: "markdown-renderer"})
+	require.NoError(t, err)
+	want := &components.IngestParityReport{
+		OriginFiles:    []string{"scenarios/web-console/ui/src/components/markdown/MarkdownRenderer.tsx"},
+		HarvestedFiles: []string{"MarkdownRenderer.tsx"},
+	}
+	got, err := svc.CreateComponentVersion(context.Background(), components.CreateComponentVersionInput{
+		ComponentID: created.Component.ID,
+		Version:     "1.0.0",
+		FromVersion: created.DraftVersion,
+		Intent:      components.VersionIntentRelease,
+		ParityReport: want,
+	})
+	require.NoError(t, err)
+	require.Equal(t, want.OriginFiles, got.Version.ParityReport.OriginFiles)
+	require.Equal(t, want.HarvestedFiles, got.Version.ParityReport.HarvestedFiles)
+}
+
 func seedStyleFitComponent(t *testing.T, repo *mocks.FakeRepository) components.Component {
 	t.Helper()
 	c, err := repo.UpsertManifest(context.Background(), components.IndexManifestInput{

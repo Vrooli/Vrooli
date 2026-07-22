@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"connectrpc.com/connect"
 
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
@@ -369,6 +371,17 @@ func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
 			return err
 		}
 		req.Source = string(body)
+	}
+	if reportPath := ctx.Flag("parity-report"); reportPath != "" {
+		body, err := readSourceArg(reportPath)
+		if err != nil {
+			return err
+		}
+		report := &componentsv1.IngestParityReport{}
+		if err := protojson.Unmarshal(body, report); err != nil {
+			return fmt.Errorf("decode --parity-report: %w", err)
+		}
+		req.ParityReport = report
 	}
 	resp, err := h.client.CreateComponentVersion(context.Background(), connect.NewRequest(req))
 	if err != nil {

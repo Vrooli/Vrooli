@@ -1,0 +1,16 @@
+{
+  "originFiles": [
+    "scenarios/web-console/ui/src/components/markdown/MarkdownRenderer.tsx",
+    "scenarios/web-console/ui/src/components/markdown/components/CodeBlock.tsx",
+    "scenarios/web-console/ui/src/components/markdown/components/InlineCode.tsx",
+    "scenarios/web-console/ui/src/components/markdown/components/MermaidDiagram.tsx"
+  ],
+  "harvestedFiles": [
+    "MarkdownRenderer.tsx",
+    "CodeBlock.tsx",
+    "InlineCode.tsx",
+    "MermaidDiagram.tsx"
+  ],
+  "findings": [],
+  "acknowledged": false
+}

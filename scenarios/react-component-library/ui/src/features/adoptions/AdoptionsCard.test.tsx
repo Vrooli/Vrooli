@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Route, Routes, useLocation } from "react-router-dom";
 
 import { renderWithProviders } from "../../test-utils";
 import {
@@ -148,5 +149,51 @@ describe("AdoptionsCard", () => {
 
     expect(await screen.findByText("Heuristic candidate — review before adopting")).toBeInTheDocument();
     expect(screen.getByText("matching import inventory")).toBeInTheDocument();
+  });
+
+  it("routes suggestion adoption through the prefilled guided launcher flow", async () => {
+    const { adoptionsClient } = await import("../../api/adoptions");
+    vi.mocked(adoptionsClient.suggestAdoptions).mockResolvedValueOnce(makeSuggestAdoptionsResponse({
+      suggestions: [{ componentId: "asset-1", displayName: "Button", scenario: "demo", reasons: [], classification: 1 }],
+    }));
+    const LocationProbe = () => <output data-testid="location">{useLocation().search}</output>;
+    const user = userEvent.setup();
+
+    renderWithProviders(<Routes><Route path="/" element={<><AdoptionsCard suggestionsOnly /><LocationProbe /></>} /></Routes>);
+    await user.click(await screen.findByRole("button", { name: "Adopt" }));
+    expect(screen.getByTestId("location")).toHaveTextContent("?action=adopt&assetId=asset-1&targetScenario=demo");
+  });
+
+  it("routes standard adoption entry points through the guided launcher and keeps local re-link explicit", async () => {
+    const { adoptionsClient } = await import("../../api/adoptions");
+    vi.mocked(adoptionsClient.listAdoptions).mockResolvedValue(makeListAdoptionsResponse());
+    const LocationProbe = () => <output data-testid="location">{useLocation().search}</output>;
+    const user = userEvent.setup();
+    renderWithProviders(<Routes><Route path="/" element={<><AdoptionsCard /><LocationProbe /></>} /></Routes>);
+
+    await user.click(await screen.findByTestId(selectors.adoptions.createButton));
+    expect(screen.getByTestId("location")).toHaveTextContent("?action=adopt");
+    await user.click(screen.getByText("Advanced local re-link"));
+    await user.click(screen.getByRole("button", { name: "Open local re-link" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("filters the adoption table by current, behind, and modified status", async () => {
+    const { adoptionsClient } = await import("../../api/adoptions");
+    vi.mocked(adoptionsClient.listAdoptions).mockResolvedValue(makeListAdoptionsResponse({ adoptions: [
+      makeAdoption({ id: "current", scenario: "current", libraryVersionStatus: LibraryVersionStatus.CURRENT, localStatus: LocalStatus.CLEAN }),
+      makeAdoption({ id: "behind", scenario: "behind", libraryVersionStatus: LibraryVersionStatus.BEHIND, localStatus: LocalStatus.CLEAN }),
+      makeAdoption({ id: "modified", scenario: "modified", libraryVersionStatus: LibraryVersionStatus.CURRENT, localStatus: LocalStatus.MODIFIED }),
+    ] }));
+    const user = userEvent.setup();
+    renderWithProviders(<AdoptionsCard />);
+    await screen.findByTestId(selectors.adoptions.list);
+
+    await user.click(screen.getByRole("button", { name: "Behind" }));
+    expect(screen.getAllByTestId(selectors.adoptions.itemScenario)).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Modified" }));
+    expect(screen.getAllByTestId(selectors.adoptions.itemScenario)).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Current" }));
+    expect(screen.getAllByTestId(selectors.adoptions.itemScenario)).toHaveLength(2);
   });
 });

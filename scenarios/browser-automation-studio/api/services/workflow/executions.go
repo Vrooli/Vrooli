@@ -517,13 +517,16 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	}
 
 	req := autoexecutor.Request{
-		Plan:                plan,
-		EngineName:          engineName,
-		EngineFactory:       s.engineFactory,
-		Recorder:            s.artifactRecorder,
-		EventSink:           eventSink,
-		HeartbeatInterval:   2 * time.Second,
-		ReuseMode:           autoengine.ReuseModeReuse,
+		Plan:              plan,
+		EngineName:        engineName,
+		EngineFactory:     s.engineFactory,
+		Recorder:          s.artifactRecorder,
+		EventSink:         eventSink,
+		HeartbeatInterval: 2 * time.Second,
+		// Leave this unset so the executor resolves the workflow's declared
+		// sessionReuseMode metadata. The historical explicit "reuse" value
+		// silently overrode an adhoc caller's isolation policy.
+		ReuseMode:           "",
 		WorkflowResolver:    s,
 		PlanCompiler:        s.planCompiler,
 		MaxSubflowDepth:     5,

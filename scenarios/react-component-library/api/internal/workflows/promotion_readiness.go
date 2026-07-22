@@ -70,6 +70,8 @@ func (r promotionReadinessReader) PromotionReadiness(ctx context.Context, in Pro
 	}
 	if !out.ParityReportPresent {
 		out.Blockers = append(out.Blockers, "selected version has no origin parity report")
+	} else if len(out.ParityFindings) > 0 && !out.ParityWaived {
+		out.Blockers = append(out.Blockers, "selected version has unacknowledged parity findings")
 	}
 	if out.AvailableExampleCount < out.RequiredExampleCount {
 		out.Blockers = append(out.Blockers, "selected version has no required story")

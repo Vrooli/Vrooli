@@ -885,6 +885,16 @@ interface InstructionHandler {
 
 **Location:** `playwright-driver/src/session/manager.ts`, `playwright-driver/src/session/browser-manager.ts`
 
+**Execution lease ownership:** A session ID identifies the browser resource;
+`execution_id` plus `lease_id` is the capability that owns it. Same-execution
+retries are idempotent. A different execution may reuse a label-matched session
+only after explicit release, and receives a new lease ID. Close and release
+require the exact execution and lease, so stale cleanup cannot close a later
+owner's session. Driver logs and close instrumentation carry session,
+execution, and lease correlation IDs. UI Health marks its validation workflows
+`session_reuse_mode=fresh`, which BAS compiles into this policy without a
+scenario-specific API contract.
+
 **Current Implementation:**
 ```typescript
 // BrowserManager extracted to handle browser lifecycle

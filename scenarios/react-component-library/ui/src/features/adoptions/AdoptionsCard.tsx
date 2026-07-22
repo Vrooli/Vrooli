@@ -318,7 +318,7 @@ export function AdoptionsCard({ componentId, suggestionsOnly = false }: { compon
           <Button
             data-testid={selectors.adoptions.createButton}
             variant="secondary"
-            onClick={() => setCreateOpen(true)}
+            onClick={() => void navigate("/?action=adopt")}
           >
             {t(strings.adoptions.createAction)}
           </Button>
@@ -374,7 +374,7 @@ export function AdoptionsCard({ componentId, suggestionsOnly = false }: { compon
             title={t(strings.adoptions.empty)}
             action={(
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setCreateOpen(true)}>
+                <Button variant="secondary" onClick={() => void navigate("/?action=adopt")}>
                   {t(strings.adoptions.createAction)}
                 </Button>
                 <Button
@@ -434,6 +434,11 @@ export function AdoptionsCard({ componentId, suggestionsOnly = false }: { compon
           {!suggestionsQuery.isLoading && (suggestionsQuery.data?.suggestions.length ?? 0) === 0 && <p className="text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.empty)}</p>}
         </div>
       </section>
+      <details className="mt-3 text-xs text-app-muted-foreground">
+        <summary className="cursor-pointer">Advanced local re-link</summary>
+        <p className="mt-2">Use this only to record an existing local copy; normal adoption starts the guided adopt-assist workflow.</p>
+        <Button variant="secondary" size="sm" className="mt-2" onClick={() => setCreateOpen(true)}>Open local re-link</Button>
+      </details>
       <CreateAdoptionDialog open={createOpen} initial={null} onClose={() => setCreateOpen(false)} />
     </section>
   );

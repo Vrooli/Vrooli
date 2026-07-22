@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "default", "name": "Default", "args": { "children": "pnpm test" }, "expect": [
+    { "kind": "role", "role": "button", "name": "pnpm test" },
+    { "kind": "text", "value": "pnpm test" }
+  ] }]
+}

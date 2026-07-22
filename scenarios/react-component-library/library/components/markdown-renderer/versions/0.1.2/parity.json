@@ -1,0 +1,27 @@
+{
+  "originFiles": [
+    "scenarios/web-console/ui/src/components/markdown/MarkdownRenderer.tsx",
+    "scenarios/web-console/ui/src/components/markdown/components/CodeBlock.tsx",
+    "scenarios/web-console/ui/src/components/markdown/components/InlineCode.tsx",
+    "scenarios/web-console/ui/src/components/markdown/components/MermaidDiagram.tsx"
+  ],
+  "harvestedFiles": [
+    "MarkdownRenderer.tsx",
+    "CodeBlock.tsx",
+    "InlineCode.tsx",
+    "MermaidDiagram.tsx"
+  ],
+  "findings": [
+    {
+      "Code": "behavior-lost",
+      "Message": "Syntax-highlighted fenced code and its bounded Shiki cache are not yet represented by the library renderer.",
+      "SourceFile": "scenarios/web-console/ui/src/components/markdown/components/CodeBlock.tsx"
+    },
+    {
+      "Code": "behavior-lost",
+      "Message": "Rendered Mermaid SVG with loading and parse-error states is not yet represented by the library renderer.",
+      "SourceFile": "scenarios/web-console/ui/src/components/markdown/components/MermaidDiagram.tsx"
+    }
+  ],
+  "acknowledged": false
+}

@@ -359,7 +359,9 @@ func TestWriteAndReadWorkflowFile_RoundTrip(t *testing.T) {
 
 	readResp, err := c.ReadProjectFile(context.Background(), connect.NewRequest(&project_filesv1.ReadProjectFileRequest{
 		ProjectId: projectID.String(),
-		Path:      "workflows/hello.json",
+		// The write path is project-root-relative; read the same path rather
+		// than assuming the workflow service adds a workflows/ prefix.
+		Path: "hello.json",
 	}))
 	require.NoError(t, err)
 	require.NotNil(t, readResp.Msg.GetWorkflow())

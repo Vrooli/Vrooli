@@ -15,6 +15,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"AdoptionsService.ListAdoptions":          h.list,
+		"AdoptionsService.ListScenarios":          h.listScenarios,
 		"AdoptionsService.ListEffectiveAdoptions": h.listEffective,
 		"AdoptionsService.ApplyAdoption":          h.apply,
 		"AdoptionsService.ReapplyAdoption":        h.reapply,

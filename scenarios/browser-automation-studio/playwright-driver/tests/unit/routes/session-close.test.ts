@@ -46,7 +46,7 @@ describe('Session Close Route', () => {
 
   it('should close existing session', async () => {
     // Create session first
-    const { sessionId } = await sessionManager.startSession({
+    const { sessionId, leaseId } = await sessionManager.startSession({
       execution_id: 'exec-123',
       workflow_id: 'workflow-123',
       base_url: 'https://example.com',
@@ -55,7 +55,7 @@ describe('Session Close Route', () => {
       required_capabilities: {},
     });
 
-    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close` });
+    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close`, body: { execution_id: 'exec-123', lease_id: leaseId } });
     const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
@@ -66,7 +66,7 @@ describe('Session Close Route', () => {
   });
 
   it('should return 404 for non-existent session', async () => {
-    const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/non-existent/close' });
+    const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/non-existent/close', body: { execution_id: 'exec-123', lease_id: 'lease-123' } });
     const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, 'non-existent', sessionManager);
@@ -76,7 +76,7 @@ describe('Session Close Route', () => {
 
   it('should remove session from manager', async () => {
     // Create session first
-    const { sessionId } = await sessionManager.startSession({
+    const { sessionId, leaseId } = await sessionManager.startSession({
       execution_id: 'exec-123',
       workflow_id: 'workflow-123',
       base_url: 'https://example.com',
@@ -85,7 +85,7 @@ describe('Session Close Route', () => {
       required_capabilities: {},
     });
 
-    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close` });
+    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close`, body: { execution_id: 'exec-123', lease_id: leaseId } });
     const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
@@ -99,7 +99,7 @@ describe('Session Close Route', () => {
     sessionManager = new SessionManager(config);
 
     const executionId = 'exec-video-123';
-    const { sessionId } = await sessionManager.startSession({
+    const { sessionId, leaseId } = await sessionManager.startSession({
       execution_id: executionId,
       workflow_id: 'workflow-123',
       base_url: 'https://example.com',
@@ -122,7 +122,7 @@ describe('Session Close Route', () => {
         path: (): Promise<string | null> => Promise.resolve(sourcePath),
       });
 
-      const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close` });
+      const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close`, body: { execution_id: executionId, lease_id: leaseId } });
       const mockRes = createMockHttpResponse();
 
       await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);

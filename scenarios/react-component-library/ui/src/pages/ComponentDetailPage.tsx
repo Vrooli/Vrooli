@@ -33,8 +33,8 @@ type InfoTab = AssetInfoTab;
 function DetailTabs({ active, onChange, versionCount, adoptionCount, renderable = true }: { active: InfoTab; onChange: (tab: InfoTab) => void; versionCount: number; adoptionCount: number; renderable?: boolean }) {
   const { t } = useTranslation();
   const tabs: Array<{ id: InfoTab; label: string; count?: number }> = [
-    { id: "overview", label: t("componentDetail.info.overview", { defaultValue: "Overview" }) },
     ...(renderable ? [{ id: "preview" as const, label: t("components.editor.previewMode", { defaultValue: "Preview" }) }] : []),
+    { id: "overview", label: t("componentDetail.info.overview", { defaultValue: "Overview" }) },
     { id: "files", label: t("components.editor.files", { defaultValue: "Files" }) },
     { id: "tests", label: t("componentDetail.info.tests", { defaultValue: "Tests" }) },
     { id: "versions", label: t("componentDetail.info.versions", { defaultValue: "Versions" }), count: versionCount },
@@ -80,7 +80,7 @@ function isHook(asset: CatalogAsset) {
 function HookWorkspace({ asset, onClose, tab, onTabChange, selectedStory, onSelectedStoryChange }: { asset: CatalogAsset; onClose: () => void; tab: InfoTab; onTabChange: (tab: InfoTab) => void; selectedStory?: string; onSelectedStoryChange: (story: string) => void }) {
   const { t } = useTranslation();
   const effective = useQuery({ queryKey: ["adoptions", "effective", asset.id], queryFn: () => adoptionsClient.listEffectiveAdoptions({ componentId: asset.id, limit: 100 }) });
-  return <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col"><ComponentEditor id={asset.id} libraryId={asset.libraryId || asset.id} onClose={onClose} renderable activePane={paneForTab(tab)} onActivePaneChange={(pane) => onTabChange(tabForPane(pane, tab))} selectedStory={selectedStory} onSelectedStoryChange={onSelectedStoryChange} navigationSlot={<DetailTabs active={tab} onChange={onTabChange} versionCount={asset.metrics?.versionCount ?? 0} adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0} renderable />} metadataSlot={<aside data-testid="hook-workspace-details" className="space-y-3"><StatusBadge tone="info">{t("catalog.hookFixturePreview", { defaultValue: "Live fixture preview — declared inputs and adapters only." })}</StatusBadge><div className="flex flex-wrap gap-2 text-xs"><StatusBadge tone="neutral">{t("catalog.directAdoptions", { defaultValue: "{{count}} direct", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: asset.metrics?.effectiveAdoptionCount ?? 0 })}</StatusBadge></div>{tab === "overview" && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-app-muted-foreground">{t("catalog.kind", { defaultValue: "Kind" })}</dt><dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd><dt className="text-app-muted-foreground">{t("catalog.source", { defaultValue: "Source" })}</dt><dd className="break-all font-mono">{asset.sourcePath || "—"}</dd></dl>}{tab === "tests" && <ComponentTestPanel componentId={asset.id} version={asset.latestVersion || asset.version} />}{tab === "versions" && <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />}{tab === "adoptions" && <div data-testid="hook-effective-adoptions" className="space-y-2 text-xs">{effective.isLoading ? <p className="text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : (effective.data?.adoptions ?? []).length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No recorded usage." })} /> : <ul className="space-y-2">{(effective.data?.adoptions ?? []).map((entry) => <li key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`} className="rounded-control border border-app-border p-2"><p className="font-medium">{entry.mediated ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" }) : t("catalog.directUsage", { defaultValue: "Direct usage" })}</p><p className="mt-1">{entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}</p><p className="mt-1 font-mono text-app-muted-foreground">{entry.parentAdoption?.id}</p></li>)}</ul>}</div>}</aside>} /></div>;
+  return <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col"><ComponentEditor id={asset.id} libraryId={asset.libraryId || asset.id} onClose={onClose} renderable={false} activePane={paneForTab(tab)} onActivePaneChange={(pane) => onTabChange(tabForPane(pane, tab))} selectedStory={selectedStory} onSelectedStoryChange={onSelectedStoryChange} navigationSlot={<DetailTabs active={tab} onChange={onTabChange} versionCount={asset.metrics?.versionCount ?? 0} adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0} renderable={false} />} metadataSlot={<aside data-testid="hook-workspace-details" className="space-y-3"><StatusBadge tone="info">{t("catalog.hookFixturePreview", { defaultValue: "Live fixture preview — declared inputs and adapters only." })}</StatusBadge><div className="flex flex-wrap gap-2 text-xs"><StatusBadge tone="neutral">{t("catalog.directAdoptions", { defaultValue: "{{count}} direct", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: asset.metrics?.effectiveAdoptionCount ?? 0 })}</StatusBadge></div>{tab === "overview" && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-app-muted-foreground">{t("catalog.kind", { defaultValue: "Kind" })}</dt><dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd><dt className="text-app-muted-foreground">{t("catalog.source", { defaultValue: "Source" })}</dt><dd className="break-all font-mono">{asset.sourcePath || "—"}</dd></dl>}{tab === "tests" && <ComponentTestPanel componentId={asset.id} version={asset.latestVersion || asset.version} />}{tab === "versions" && <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />}{tab === "adoptions" && <div data-testid="hook-effective-adoptions" className="space-y-2 text-xs">{effective.isLoading ? <p className="text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : (effective.data?.adoptions ?? []).length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No recorded usage." })} /> : <ul className="space-y-2">{(effective.data?.adoptions ?? []).map((entry) => <li key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`} className="rounded-control border border-app-border p-2"><p className="font-medium">{entry.mediated ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" }) : t("catalog.directUsage", { defaultValue: "Direct usage" })}</p><p className="mt-1">{entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}</p><p className="mt-1 font-mono text-app-muted-foreground">{entry.parentAdoption?.id}</p></li>)}</ul>}</div>}</aside>} /></div>;
 }
 
 export function ComponentDetailPage() {
@@ -101,7 +101,7 @@ export function ComponentDetailPage() {
     try {
       const saved = window.localStorage.getItem(assetNavigationStorageKey(id));
       const navigation = saved ? JSON.parse(saved) as StoredAssetNavigation : undefined;
-      if (navigation?.tab || navigation?.story) setSearch(assetSearchForTab(navigation.tab ?? "overview", undefined, navigation.story), { replace: true });
+      if (navigation?.tab || navigation?.story) setSearch(assetSearchForTab(navigation.tab ?? "preview", undefined, navigation.story), { replace: true });
     } catch {
       // Storage may be unavailable in private browsing; URL/default remain authoritative.
     }
@@ -162,6 +162,13 @@ export function ComponentDetailPage() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["adoptions", "component", id] }),
   });
 
+  const loadedAsset = catalogAsset.data?.component ?? data?.component;
+  useEffect(() => {
+    if (loadedAsset && isHook(loadedAsset) && infoTab === "preview") {
+      setInfoTab("overview");
+    }
+  }, [loadedAsset, infoTab]);
+
   if (!id) {
     return (
       <p data-testid="component-detail-missing-id" className="text-sm text-app-danger">
@@ -186,9 +193,13 @@ export function ComponentDetailPage() {
     );
   }
 
-  const component = catalogAsset.data?.component ?? data.component;
+  const component = loadedAsset ?? data.component;
   if (isHook(component)) {
-    return <HookWorkspace asset={component} onClose={() => { void navigate("/"); }} tab={infoTab} onTabChange={setInfoTab} selectedStory={selectedStory} onSelectedStoryChange={(story) => setSearch(assetSearchForTab(infoTab, undefined, story), { replace: true })} />;
+    // Hooks are catalog assets but have no browser-renderable preview. The
+    // effect above repairs stale URLs and saved preferences; this fallback
+    // keeps the first render useful while it does so.
+    const hookTab = infoTab === "preview" ? "overview" : infoTab;
+    return <HookWorkspace asset={component} onClose={() => { void navigate("/"); }} tab={hookTab} onTabChange={setInfoTab} selectedStory={selectedStory} onSelectedStoryChange={(story) => setSearch(assetSearchForTab(hookTab, undefined, story), { replace: true })} />;
   }
   // Proto clients provide empty collections, while test and older persisted
   // projections can omit these optional-shaped values entirely.

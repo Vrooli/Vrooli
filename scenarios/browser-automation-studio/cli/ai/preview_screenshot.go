@@ -39,7 +39,11 @@ func previewScreenshotCommand(core *cliapp.ScenarioApp) cliapp.Command {
 			{Name: "device-scale-factor", Description: "Browser device scale factor (0.5-4.0)"},
 		}},
 		RunCtx: func(rc cliapp.RunContext) error {
-			request, err := buildPreviewScreenshotRequest(previewScreenshotFlagsFromContext(rc))
+			flags, err := previewScreenshotFlagsFromContext(rc)
+			if err != nil {
+				return err
+			}
+			request, err := buildPreviewScreenshotRequest(flags)
 			if err != nil {
 				return err
 			}
@@ -64,19 +68,31 @@ func previewScreenshotCommand(core *cliapp.ScenarioApp) cliapp.Command {
 	}
 }
 
-func previewScreenshotFlagsFromContext(rc cliapp.RunContext) previewScreenshotFlags {
+func previewScreenshotFlagsFromContext(rc cliapp.RunContext) (previewScreenshotFlags, error) {
 	f := previewScreenshotFlags{url: strings.TrimSpace(rc.Flag("url")), device: strings.ToLower(strings.TrimSpace(rc.Flag("device")))}
 	if value := rc.Flag("width"); value != "" {
-		f.width, _ = strconv.Atoi(value)
+		width, err := strconv.Atoi(value)
+		if err != nil {
+			return f, fmt.Errorf("--width: %w", err)
+		}
+		f.width = width
 	}
 	if value := rc.Flag("height"); value != "" {
-		f.height, _ = strconv.Atoi(value)
+		height, err := strconv.Atoi(value)
+		if err != nil {
+			return f, fmt.Errorf("--height: %w", err)
+		}
+		f.height = height
 	}
 	if value := rc.Flag("device-scale-factor"); value != "" {
-		f.deviceScale, _ = strconv.ParseFloat(value, 64)
+		deviceScale, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return f, fmt.Errorf("--device-scale-factor: %w", err)
+		}
+		f.deviceScale = deviceScale
 		f.hasDeviceScale = true
 	}
-	return f
+	return f, nil
 }
 
 func buildPreviewScreenshotRequest(flags previewScreenshotFlags) (*aiv1.TakePreviewScreenshotRequest, error) {

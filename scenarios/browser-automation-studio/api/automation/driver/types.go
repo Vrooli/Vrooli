@@ -137,6 +137,7 @@ func CreateSessionRequestFromUUID(executionID, workflowID uuid.UUID) *CreateSess
 // CreateSessionResponse is the response from creating a session.
 type CreateSessionResponse struct {
 	SessionID      string          `json:"session_id"`
+	LeaseID        string          `json:"lease_id"`
 	ActualViewport *ActualViewport `json:"actual_viewport,omitempty"`
 }
 
@@ -467,6 +468,23 @@ type CloseSessionResponse struct {
 	VideoPaths []string `json:"video_paths,omitempty"`
 	TracePath  string   `json:"trace_path,omitempty"`
 	HARPath    string   `json:"har_path,omitempty"`
+}
+
+// CloseSessionRequest proves that the caller still owns the execution lease.
+type CloseSessionRequest struct {
+	ExecutionID string `json:"execution_id"`
+	LeaseID     string `json:"lease_id"`
+}
+
+// ReleaseSessionRequest proves that the caller owns the lease it releases.
+type ReleaseSessionRequest struct {
+	ExecutionID string `json:"execution_id"`
+	LeaseID     string `json:"lease_id"`
+}
+
+// ReleaseSessionResponse confirms that the session is idle and reusable.
+type ReleaseSessionResponse struct {
+	Success bool `json:"success,omitempty"`
 }
 
 // ArtifactDownload captures a streamed artifact response from the driver.

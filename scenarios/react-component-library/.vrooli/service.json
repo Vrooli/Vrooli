@@ -81,11 +81,6 @@
           "description": "Build Go API server"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install the current scenario CLI"
-        },
-        {
           "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
@@ -217,6 +212,9 @@
         "cli/**",
         ".vrooli/service.json"
       ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
   "environment": {

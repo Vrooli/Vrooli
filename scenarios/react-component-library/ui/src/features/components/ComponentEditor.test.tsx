@@ -344,6 +344,8 @@ describe("ComponentEditor", () => {
   });
 
   it("sends a temporary props override to the visible selected state", async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     const { componentsClient, listComponentStories } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-props" }),
@@ -364,9 +366,12 @@ describe("ComponentEditor", () => {
       story: "primary",
       props: { title: "A deliberately much longer value" },
     }), "*");
+    window.matchMedia = originalMatchMedia;
   });
 
   it("keeps state, canvas, and controls together without a playground mode", async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     const { componentsClient, listComponentStories } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-playground" }),
@@ -385,6 +390,23 @@ describe("ComponentEditor", () => {
     expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
     expect(screen.getByTestId(selectors.components.editor.exampleTitle)).toHaveTextContent("Secondary");
     expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it("does not mount the resizable preview tools panel on a narrow viewport", async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const { componentsClient, listComponentStories } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(makeGetComponentContentResponse({ content: "v1", sha256: "sha-mobile-tools" }));
+    vi.mocked(listComponentStories).mockResolvedValueOnce({ stories: [{ id: "contract", componentId: "cmp-mobile-tools", libraryId: "lib:Mobile", version: "1.0.0", schemaVersion: 1, kind: "component", title: "", argsJson: '{"fields":[]}', environmentJson: '{"fixtures":[]}', storiesJson: '[{"id":"primary","name":"Primary","args":{}}]', contractJson: "{}", sourcePath: "story.json" }] });
+
+    try {
+      renderWithProviders(<ComponentEditor id="cmp-mobile-tools" libraryId="lib:Mobile" onClose={() => {}} activePane="preview" />);
+      await screen.findByRole("button", { name: "Primary" });
+      expect(screen.queryByTestId(selectors.components.editor.previewToolsPanel)).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
   });
 
   it("reloads the iframe when save returns a new sha256", async () => {
@@ -440,7 +462,22 @@ describe("ComponentEditor", () => {
 
     const error = await screen.findByTestId(selectors.components.editor.specimenError);
     expect(error.textContent).toContain("preview: render failed - boom");
+  });
 
+  it("compares two selected stories and clears the comparison", async () => {
+    const { componentsClient, listComponentStories } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(makeGetComponentContentResponse({ content: "v1", sha256: "sha-compare" }));
+    vi.mocked(listComponentStories).mockResolvedValueOnce({ stories: [{ id: "contract", componentId: "cmp-compare", libraryId: "lib:Compare", version: "1.0.0", schemaVersion: 1, kind: "component", title: "", argsJson: '{"fields":[]}', environmentJson: '{"fixtures":[]}', storiesJson: '[{"id":"primary","name":"Primary","args":{}},{"id":"disabled","name":"Disabled","args":{}}]', contractJson: "{}", sourcePath: "story.json" }] });
+    const user = userEvent.setup();
+    renderWithProviders(<ComponentEditor id="cmp-compare" libraryId="lib:Compare" onClose={() => {}} activePane="preview" />);
+    await screen.findByRole("button", { name: "Primary" });
+    const comparisonButtons = await screen.findAllByTestId(selectors.components.editor.exampleCompare);
+    await user.click(comparisonButtons[0]!);
+    await user.click(screen.getByRole("button", { name: "Disabled" }));
+    await user.click((await screen.findAllByTestId(selectors.components.editor.exampleCompare))[0]!);
+    expect(await screen.findAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
+    await user.click(screen.getByTestId(selectors.components.editor.comparisonClear));
+    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
   });
 
   it("marks the preview ready and posts the resolved theme on the desktop side-by-side layout", async () => {

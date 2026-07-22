@@ -130,6 +130,8 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 
 	session := &Session{
 		id:             resp.SessionID,
+		executionID:    spec.ExecutionID.String(),
+		leaseID:        resp.LeaseID,
 		mode:           spec.Mode,
 		client:         m.client,
 		actualViewport: resp.ActualViewport,

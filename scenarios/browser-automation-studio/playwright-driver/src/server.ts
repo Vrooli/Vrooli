@@ -431,6 +431,13 @@ function setupRoutes(
     }
     await routes.handleSessionReset(req, res, sessionId, sessionManager);
   });
+  router.post('/session/:id/release', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionRelease(req, res, sessionId, sessionManager);
+  });
   router.post('/session/:id/close', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');
     if (!sessionId) {

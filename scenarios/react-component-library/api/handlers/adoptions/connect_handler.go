@@ -60,6 +60,22 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
+// ListScenarios makes the same safe scenario-root inventory used by adoption
+// suggestions available to typed UI clients. Do not infer names client-side:
+// the API owns the configured scenarios root and its validation boundary.
+func (h *connectHandler) ListScenarios(_ context.Context, _ *connect.Request[adoptionsv1.ListScenariosRequest]) (*connect.Response[adoptionsv1.ListScenariosResponse], error) {
+	scenarios, err := h.suggestionScenarios("")
+	if err != nil {
+		h.deps.Logger.Printf("adoptions.ListScenarios: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list scenarios: %w", err))
+	}
+	options := make([]*adoptionsv1.ScenarioOption, 0, len(scenarios))
+	for _, scenario := range scenarios {
+		options = append(options, &adoptionsv1.ScenarioOption{Name: scenario, DisplayName: scenario})
+	}
+	return connect.NewResponse(&adoptionsv1.ListScenariosResponse{Scenarios: options}), nil
+}
+
 func (h *connectHandler) ListAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.ListAdoptionsRequest]) (*connect.Response[adoptionsv1.ListAdoptionsResponse], error) {
 	out, err := h.deps.Service.List(ctx, adoptions.ListQuery{
 		ComponentID: req.Msg.ComponentId,

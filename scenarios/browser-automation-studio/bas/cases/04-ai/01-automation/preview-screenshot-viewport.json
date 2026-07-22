@@ -1,0 +1,39 @@
+{
+  "edges": [
+    { "id": "navigate-to-request", "source": "navigate-dashboard", "target": "request-mobile-preview", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ],
+  "metadata": {
+    "description": "Calls the real preview-screenshot RPC and proves that a 390x844 request keeps its CSS viewport width.",
+    "labels": { "reset": "none" },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": { "label": "Open BAS dashboard" },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(async () => { const response = await fetch('/browser_automation_studio.v1.ai.AIService/TakePreviewScreenshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: window.location.origin, viewport: { width: 390, height: 844 } }) }); if (!response.ok) throw new Error('preview-screenshot RPC failed: ' + response.status); const payload = await response.json(); if (payload.viewportWidth !== 390) throw new Error('preview-screenshot viewport width = ' + payload.viewportWidth + ', want 390'); return payload.viewportWidth; })()",
+          "store_result": "previewViewportWidth"
+        },
+        "metadata": { "label": "Request a 390px preview screenshot" },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "request-mobile-preview"
+    }
+  ],
+  "settings": { "viewport_height": 900, "viewport_width": 1440 }
+}

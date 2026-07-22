@@ -112,8 +112,10 @@ describe("ComponentDetailPage", () => {
   });
 
   it("shows declared behavior, evidence tier, verdict, and capture link", async () => {
+    const user = userEvent.setup();
     renderWithProviders(<Routes><Route path="/components/:id" element={<ComponentDetailPage />} /></Routes>, { routerEntries: ["/components/cmp-42"] });
 
+    await user.click(await screen.findByRole("tab", { name: "componentDetail.info.overview" }));
     expect(await screen.findByTestId("component-experience-panel")).toHaveTextContent("A named action is present.");
     expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("machine");
     expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("passed");
@@ -144,7 +146,7 @@ describe("ComponentDetailPage", () => {
     );
 
     await screen.findByRole("tab", { name: "componentDetail.info.adoptions" });
-    expect(screen.getByRole("tab", { name: "componentDetail.info.overview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "components.editor.previewMode" })).toHaveAttribute("aria-selected", "true");
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.adoptions" }));
     expect(screen.getByTestId("component-detail-adoptions")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
@@ -171,6 +173,7 @@ describe("ComponentDetailPage", () => {
   });
 
   it("links a component's shared hook dependencies from its overview", async () => {
+    const user = userEvent.setup();
     renderWithProviders(
       <Routes>
         <Route path="/components/:id" element={<ComponentDetailPage />} />
@@ -178,11 +181,23 @@ describe("ComponentDetailPage", () => {
       { routerEntries: ["/components/cmp-42"] },
     );
 
-    expect(await screen.findByRole("link", { name: "react-component-library:useFocusTrap" })).toHaveAttribute("href", "/assets/react-component-library%3AuseFocusTrap");
-    expect(screen.getByRole("link", { name: "react-component-library:useEscapeKey" })).toHaveAttribute("href", "/assets/react-component-library%3AuseEscapeKey");
+    await user.click(await screen.findByRole("tab", { name: "componentDetail.info.overview" }));
+    expect(await screen.findByRole("link", { name: "react-component-library:useFocusTrap" })).toHaveAttribute("href", "/assets/react-component-library%3AuseFocusTrap?tab=overview");
+    expect(screen.getByRole("link", { name: "react-component-library:useEscapeKey" })).toHaveAttribute("href", "/assets/react-component-library%3AuseEscapeKey?tab=overview");
   });
 
-  it("gives a hook fixture preview alongside Files, Details, versions, and mediated-adoption tabs", async () => {
+  it("restores an asset's saved tab and story when the URL has neither", async () => {
+    window.localStorage.setItem("rcl.asset-navigation.cmp-42", JSON.stringify({ tab: "files", story: "disabled" }));
+    try {
+      renderWithProviders(<Routes><Route path="/components/:id" element={<ComponentDetailPage />} /></Routes>, { routerEntries: ["/components/cmp-42"] });
+      expect(await screen.findByRole("tab", { name: "components.editor.files" })).toHaveAttribute("aria-selected", "true");
+      await waitFor(() => expect(window.localStorage.getItem("rcl.asset-navigation.cmp-42")).toContain("disabled"));
+    } finally {
+      window.localStorage.removeItem("rcl.asset-navigation.cmp-42");
+    }
+  });
+
+  it("opens hooks in Overview and omits the render preview tab", async () => {
     const user = userEvent.setup();
     vi.mocked(getCatalogAsset).mockResolvedValueOnce({
       component: {
@@ -201,6 +216,8 @@ describe("ComponentDetailPage", () => {
     renderWithProviders(<Routes><Route path="/assets/:id" element={<ComponentDetailPage />} /></Routes>, { routerEntries: ["/assets/hook-42"] });
 
     await screen.findByTestId("hook-detail-page");
+    expect(await screen.findByRole("tab", { name: "componentDetail.info.overview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("tab", { name: "components.editor.preview" })).not.toBeInTheDocument();
     expect(screen.getByTestId("hook-workspace-details")).toBeInTheDocument();
     await user.click(await screen.findByRole("tab", { name: "components.editor.files" }));
     expect(await screen.findByTestId("monaco-stub")).toBeInTheDocument();

@@ -1,0 +1,13 @@
+{
+  "libraryId": "react-component-library:IconButton",
+  "displayName": "IconButton",
+  "description": "Accessible icon-only action control.",
+  "tags": [
+    "button",
+    "icon",
+    "accessibility"
+  ],
+  "entry": "IconButton.tsx",
+  "latest": "1.0.0",
+  "deprecatedVersions": []
+}

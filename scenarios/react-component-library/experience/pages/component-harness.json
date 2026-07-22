@@ -16,7 +16,14 @@
   "states": [
     {
       "id": "default",
-      "description": "A selected component example is rendered in the standalone harness."
+      "description": "A selected component example is rendered in the standalone harness.",
+      "setup": {
+        "route": "/preview/react-component-library:Button/harness.html",
+        "query": {
+          "story": "primary",
+          "version": "1.2.0"
+        }
+      }
     }
   ]
 }

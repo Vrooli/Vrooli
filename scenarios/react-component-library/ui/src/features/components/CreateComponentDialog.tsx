@@ -1,9 +1,10 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, KeyboardEvent, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import { componentsClient } from "../../api/components";
 import { Button } from "../../components/ui/button";
+import { Dialog } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { selectors } from "../../consts/selectors";
@@ -24,22 +25,20 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
   const [libraryId, setLibraryId] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [initialVersion, setInitialVersion] = useState("0.1.0");
   const [fileName, setFileName] = useState("");
   const [initialSource, setInitialSource] = useState("");
 
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (submittedTags: string[]) =>
       componentsClient.initializeComponent({
         slug,
         libraryId,
         displayName,
         description,
-        tags: tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
+        tags: submittedTags,
         initialVersion,
         fileName,
         initialSource,
@@ -55,29 +54,34 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    mutation.mutate();
+    const submittedTags = [...new Set([...tags, ...tagDraft.split(",").map((tag) => tag.trim()).filter(Boolean)])];
+    setTags(submittedTags);
+    setTagDraft("");
+    mutation.mutate(submittedTags);
+  };
+
+  const addTags = (value: string) => {
+    const additions = value.split(",").map((tag) => tag.trim()).filter(Boolean);
+    if (additions.length > 0) setTags((current) => [...new Set([...current, ...additions])]);
+    setTagDraft("");
+  };
+  const tagKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      addTags(tagDraft);
+    }
   };
 
   return (
-    <div
-      data-testid={selectors.components.create.dialog}
-      className="mt-4 rounded-lg border border-app-border bg-app-surface p-4"
+    <Dialog
+      open
+      onClose={onClose}
+      closeLabel={t(strings.components.create.cancel)}
+      title={t(strings.components.create.title)}
+      className="max-w-2xl"
     >
+      <div data-testid={selectors.components.create.dialog}>
       <form onSubmit={submit} className="grid gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-medium text-app-foreground">
-            {t(strings.components.create.title)}
-          </h3>
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-8 px-3 text-xs"
-            onClick={onClose}
-            data-testid={selectors.components.create.cancel}
-          >
-            {t(strings.components.create.cancel)}
-          </Button>
-        </div>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.slug)}
@@ -129,13 +133,10 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
           </label>
           <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.tags)}
-            <Input
-              data-testid={selectors.components.create.tags}
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder={t(strings.components.create.tagsPlaceholder)}
-              className="mt-1"
-            />
+            <div className="mt-1 flex flex-wrap gap-1 rounded-control border border-app-border bg-app-background p-1">
+              {tags.map((tag) => <button key={tag} type="button" onClick={() => setTags((current) => current.filter((value) => value !== tag))} aria-label={`Remove ${tag}`} className="rounded bg-app-surface-muted px-2 py-1 text-xs">{tag} ×</button>)}
+              <Input data-testid={selectors.components.create.tags} value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} onKeyDown={tagKeyDown} onBlur={() => addTags(tagDraft)} placeholder={t(strings.components.create.tagsPlaceholder)} className="min-w-28 flex-1 border-0 bg-transparent" />
+            </div>
           </label>
         </div>
         <label className="block text-xs text-app-muted-foreground">
@@ -162,7 +163,10 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
             {errorMessage(mutation.error, t)}
           </p>
         )}
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" data-testid={selectors.components.create.cancel} onClick={onClose}>
+            {t(strings.components.create.cancel)}
+          </Button>
           <Button
             data-testid={selectors.components.create.submit}
             type="submit"
@@ -174,6 +178,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
           </Button>
         </div>
       </form>
-    </div>
+      </div>
+    </Dialog>
   );
 }

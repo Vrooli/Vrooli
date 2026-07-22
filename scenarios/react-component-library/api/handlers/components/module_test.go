@@ -80,6 +80,37 @@ func TestModule_InitializeComponentRoundTrip(t *testing.T) {
 	require.Contains(t, rw.Body.String(), `react-component-library:Header`)
 }
 
+func TestModule_InitializeComponentCanonicalizesProvidedHeader(t *testing.T) {
+	r, root := setupModule(t)
+
+	rw := callConnect(r, componentsconnect.ComponentsServiceInitializeComponentProcedure, `{
+		"slug":"code-block",
+		"libraryId":"react-component-library:code-block",
+		"displayName":"Code Block",
+		"description":"Copyable fenced code block",
+		"tags":["markdown","code"],
+		"initialVersion":"0.1.0",
+		"initialSource":"/**\n * @libraryId react-component-library:CodeBlock\n * @displayName Old Code Block\n * @description obsolete\n * @version 9.9.9\n * @tags [\"obsolete\"]\n * @deps npm/react-markdown\n */\nexport const CodeBlock = () => null;\n"
+	}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `react-component-library:code-block`)
+
+	sourcePath := filepath.Join(root, "components", "code-block", "versions", "0.1.0", "code-block.tsx")
+	source, err := os.ReadFile(sourcePath)
+	require.NoError(t, err)
+	require.Contains(t, string(source), "@libraryId react-component-library:code-block")
+	require.Contains(t, string(source), "@displayName Code Block")
+	require.Contains(t, string(source), "@description Copyable fenced code block")
+	require.Contains(t, string(source), "@version 0.1.0")
+	require.Contains(t, string(source), "@tags [\"markdown\",\"code\"]")
+	require.Contains(t, string(source), "@deps npm/react-markdown")
+	require.FileExists(t, filepath.Join(root, "components", "code-block", "versions", "0.1.0", "story.json"))
+
+	rw = callConnect(r, componentsconnect.ComponentsServiceGetComponentByLibraryIdProcedure,
+		`{"libraryId":"react-component-library:code-block"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+}
+
 func TestModule_ContentRoundTrip(t *testing.T) {
 	r, root := setupModule(t)
 

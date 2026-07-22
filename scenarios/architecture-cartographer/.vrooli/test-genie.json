@@ -349,7 +349,7 @@
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
           "screaming-architecture-audit",
-          "intent-clarification"
+          "domain-clarity"
         ]
       },
       "glossary_drift": {
@@ -361,7 +361,7 @@
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
           "screaming-architecture-audit",
-          "intent-clarification"
+          "domain-clarity"
         ]
       },
       "convergence_drift": {
@@ -443,7 +443,7 @@
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
           "requirements-traceability-steer",
-          "intent-clarification"
+          "domain-clarity"
         ]
       }
     },

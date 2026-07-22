@@ -1,0 +1,22 @@
+{
+  "originFiles": [
+    "MarkdownRenderer.tsx",
+    "InlineCode.tsx",
+    "CodeBlock.tsx",
+    "MermaidDiagram.tsx",
+    "languageDetection.ts",
+    "useCodeCopy.ts",
+    "useMermaidSvg.ts"
+  ],
+  "harvestedFiles": [
+    "MarkdownRenderer.tsx",
+    "InlineCode.tsx",
+    "CodeBlock.tsx",
+    "MermaidDiagram.tsx",
+    "languageDetection.ts",
+    "useCodeCopy.ts",
+    "useMermaidSvg.ts"
+  ],
+  "findings": null,
+  "acknowledged": false
+}

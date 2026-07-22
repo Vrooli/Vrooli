@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -85,6 +86,21 @@ type StoryExecution struct {
 	Failures []string
 	Duration time.Duration
 }
+
+// ExecutorUnavailableError means the browser harness cannot run in the
+// current environment. It is deliberately distinct from a rendered-story
+// failure: absence of Chrome must leave an auditable blocked result rather
+// than falsely reporting a behavioral regression.
+type ExecutorUnavailableError struct{ Err error }
+
+func (e ExecutorUnavailableError) Error() string {
+	if e.Err == nil {
+		return "story executor is unavailable"
+	}
+	return "story executor is unavailable: " + e.Err.Error()
+}
+
+func (e ExecutorUnavailableError) Unwrap() error { return e.Err }
 
 // StoryExecutor loads the production preview harness for one immutable story.
 // It is a narrow seam so runner tests can calibrate pass, fail, and no-mount
@@ -171,6 +187,11 @@ func (r Runner) directStoryResults(ctx context.Context, asset components.Compone
 		}
 		execution, err := r.Executor.ExecuteStory(ctx, asset.LibraryID, version.Version, definition.ID)
 		if err != nil {
+			var unavailable ExecutorUnavailableError
+			if errors.As(err, &unavailable) {
+				results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictBlocked, Message: unavailable.Error(), Remediation: "install or configure Chrome before trusting story results"})
+				continue
+			}
 			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictFailed, Message: "story did not render: " + err.Error(), Remediation: "fix the preview harness or story mount before adopting this version"})
 			continue
 		}

@@ -310,7 +310,7 @@ func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponent
 	}
 	if intent == VersionIntentRelease {
 		from := firstNonEmpty(in.FromVersion, c.DraftVersion)
-		if from != "" {
+		if from != "" && in.ParityReport == nil {
 			if draft, err := s.repo.GetVersion(ctx, c.ID, from); err == nil && draft.ParityReport != nil {
 				if len(draft.ParityReport.Findings) > 0 && !in.AcknowledgeParityWaiver {
 					return CreateComponentVersionResult{}, ErrParityWaiverRequired{ComponentID: c.ID, Version: from, Findings: draft.ParityReport.Findings}

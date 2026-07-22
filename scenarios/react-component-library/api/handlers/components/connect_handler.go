@@ -120,14 +120,15 @@ func (h *connectHandler) GetComponentContent(ctx context.Context, req *connect.R
 
 func (h *connectHandler) InitializeComponent(ctx context.Context, req *connect.Request[componentsv1.InitializeComponentRequest]) (*connect.Response[componentsv1.InitializeComponentResponse], error) {
 	out, err := h.deps.Service.InitializeComponent(ctx, components.InitializeComponentInput{
-		LibraryID:      req.Msg.LibraryId,
-		Slug:           req.Msg.Slug,
-		DisplayName:    req.Msg.DisplayName,
-		Description:    req.Msg.Description,
-		Tags:           append([]string(nil), req.Msg.Tags...),
-		InitialVersion: req.Msg.InitialVersion,
-		FileName:       req.Msg.FileName,
-		InitialSource:  req.Msg.InitialSource,
+		LibraryID:        req.Msg.LibraryId,
+		Slug:             req.Msg.Slug,
+		DisplayName:      req.Msg.DisplayName,
+		Description:      req.Msg.Description,
+		Tags:             append([]string(nil), req.Msg.Tags...),
+		InitialVersion:   req.Msg.InitialVersion,
+		FileName:         req.Msg.FileName,
+		InitialSource:    req.Msg.InitialSource,
+		ScaffoldExamples: true,
 	})
 	if err != nil {
 		connectErr := components.ToConnectError(err)
@@ -189,6 +190,8 @@ func (h *connectHandler) CreateComponentVersion(ctx context.Context, req *connec
 		Source:                  req.Msg.Source,
 		ChangelogMD:             req.Msg.ChangelogMd,
 		AcknowledgeParityWaiver: req.Msg.AcknowledgeParityWaiver,
+		ScaffoldExamples:        true,
+		ParityReport:            parityReportFromProto(req.Msg.ParityReport),
 	})
 	if err != nil {
 		connectErr := components.ToConnectError(err)

@@ -598,6 +598,7 @@ func TestComponentsVersionCreate_ForwardsIntent(t *testing.T) {
 			{Name: "release"},
 			{Name: "file-name"},
 			{Name: "source-file"},
+			{Name: "parity-report"},
 			{Name: "acknowledge-parity-waiver"},
 			{Name: "changelog"},
 		},

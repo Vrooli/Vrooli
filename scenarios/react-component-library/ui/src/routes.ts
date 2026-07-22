@@ -12,14 +12,14 @@ export const appRoutes = {
   settings: "/settings",
 } as const;
 
-export type AssetInfoTab = "overview" | "preview" | "files" | "tests" | "versions" | "adoptions";
+export type AssetInfoTab = "preview" | "overview" | "files" | "tests" | "versions" | "adoptions";
 export type AssetRouteState = { tab?: AssetInfoTab; story?: string; testReport?: string };
 
 const assetTabs = new Set<AssetInfoTab>(["overview", "preview", "files", "tests", "versions", "adoptions"]);
 
 export function assetPath(assetID: string, state: AssetRouteState = {}): string {
   const search = new URLSearchParams();
-  if (state.tab && state.tab !== "overview") search.set("tab", state.tab);
+  if (state.tab && state.tab !== "preview") search.set("tab", state.tab);
   if (state.story) search.set("story", state.story);
   if (state.testReport && state.tab === "tests") search.set("testReport", state.testReport);
   const serialized = search.toString();
@@ -28,7 +28,7 @@ export function assetPath(assetID: string, state: AssetRouteState = {}): string 
 
 export function assetInfoTab(search: URLSearchParams): AssetInfoTab {
   const tab = search.get("tab");
-  return tab !== null && assetTabs.has(tab as AssetInfoTab) ? tab as AssetInfoTab : "overview";
+  return tab !== null && assetTabs.has(tab as AssetInfoTab) ? tab as AssetInfoTab : "preview";
 }
 
 export function assetStory(search: URLSearchParams): string | undefined {
@@ -38,7 +38,7 @@ export function assetStory(search: URLSearchParams): string | undefined {
 
 export function assetSearchForTab(tab: AssetInfoTab, reportID?: string, story?: string): string {
   const search = new URLSearchParams();
-  if (tab !== "overview") search.set("tab", tab);
+  if (tab !== "preview") search.set("tab", tab);
   if (story) search.set("story", story);
   if (tab === "tests" && reportID) search.set("testReport", reportID);
   const serialized = search.toString();

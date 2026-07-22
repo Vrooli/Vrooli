@@ -9,6 +9,9 @@
       "lucide-react": ["./node_modules/lucide-react/dist/lucide-react.d.ts"],
       "react": ["./node_modules/@types/react/index.d.ts"],
       "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "react-markdown": ["./node_modules/react-markdown/index.d.ts"],
+      "remark-gfm": ["./node_modules/remark-gfm/index.d.ts"],
+      "shiki": ["./node_modules/shiki/dist/index.d.mts"],
       "tailwind-merge": ["./node_modules/tailwind-merge/dist/types.d.ts"]
     }
   },

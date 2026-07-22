@@ -152,7 +152,7 @@ describe('SessionManager', () => {
       expect(mockContext.clearCookies.mock.calls.length).toBeGreaterThan(0);
     });
 
-    it('should clear replay cache and update execution identity when reusing by labels', async () => {
+    it('does not hand an active lease to a different execution by labels', async () => {
       const first = await manager.startSession({
         ...sessionSpec,
         execution_id: 'exec-original',
@@ -175,14 +175,24 @@ describe('SessionManager', () => {
         labels: { suite: 'playbook', scenario: 'web-console' },
       });
 
-      expect(second.sessionId).toBe(first.sessionId);
-      expect(second.reused).toBe(true);
+      expect(second.sessionId).not.toBe(first.sessionId);
+      expect(second.reused).toBe(false);
+      expect(manager.getSession(first.sessionId).ownerExecutionId).toBe('exec-original');
+    });
 
-      const reusedSession = manager.getSession(second.sessionId);
-      expect(reusedSession.spec.execution_id).toBe('exec-new');
-      expect(reusedSession.spec.workflow_id).toBe('workflow-new');
-      expect(reusedSession.executedInstructions?.size).toBe(0);
-      expect(reusedSession.instructionCount).toBe(0);
+    it('reuses a label only after the owner releases its exact lease', async () => {
+      const first = await manager.startSession({ ...sessionSpec, execution_id: 'exec-original', labels: { suite: 'playbook' } });
+      const original = manager.getSession(first.sessionId);
+      const originalLeaseID = original.leaseId;
+      expect(manager.releaseExecutionLease(first.sessionId, 'wrong-owner', originalLeaseID)).toBe(false);
+      expect(manager.releaseExecutionLease(first.sessionId, 'exec-original', originalLeaseID)).toBe(true);
+
+      const second = await manager.startSession({ ...sessionSpec, execution_id: 'exec-new', reuse_mode: 'reuse', labels: { suite: 'playbook' } });
+      expect(second.sessionId).toBe(first.sessionId);
+      const reassigned = manager.getSession(second.sessionId);
+      expect(reassigned.ownerExecutionId).toBe('exec-new');
+      expect(reassigned.leaseId).not.toBe(originalLeaseID);
+      await expect(manager.closeSessionForLease(first.sessionId, 'exec-original', originalLeaseID)).rejects.toThrow(SessionNotFoundError);
     });
 
     it('should set creation time on session', async () => {

@@ -129,3 +129,14 @@ func TestRunnerFailsWhenAStoryDoesNotMount(t *testing.T) {
 	require.Equal(t, VerdictFailed, report.Verdict)
 	require.Contains(t, report.Results[len(report.Results)-1].Message, "did not render")
 }
+
+func TestRunnerBlocksWhenTheStoryExecutorIsUnavailable(t *testing.T) {
+	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
+	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const Root = () => null", ContentSHA256: "root"}}}, Stories: stories{"root@1.0.0": componentStory("idle")}, Executor: executor{err: ExecutorUnavailableError{Err: errors.New("Chrome not found")}}}
+	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0"})
+	require.NoError(t, err)
+	require.Equal(t, VerdictBlocked, report.Verdict)
+	result := report.Results[len(report.Results)-1]
+	require.Equal(t, VerdictBlocked, result.Verdict)
+	require.Contains(t, result.Message, "Chrome not found")
+}

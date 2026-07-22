@@ -19,6 +19,12 @@
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
+          "name": "list-scenarios",
+          "description": "List scenarios available as component-adoption targets",
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ListScenarios" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
           "name": "list-effective",
           "description": "List direct and mediated usage for one catalog asset",
           "positionals": [{ "name": "component-id", "required": true, "description": "Catalog asset id" }],
@@ -289,6 +295,7 @@
             { "name": "release", "description": "Treat the new version as latest release" },
             { "name": "file-name", "description": "TSX file name in the new folder" },
             { "name": "source-file", "description": "Source file, or - for stdin" },
+            { "name": "parity-report", "description": "JSON IngestParityReport file, or - for stdin" },
             { "name": "acknowledge-parity-waiver", "description": "Explicitly waive behavior-loss findings while promoting an ingest draft" },
             { "name": "changelog", "description": "Changelog text for the version" }
           ],

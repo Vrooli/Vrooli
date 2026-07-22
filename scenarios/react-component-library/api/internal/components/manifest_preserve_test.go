@@ -121,6 +121,7 @@ func TestFSContentStore_CreateVersionPreservesDesignStyles(t *testing.T) {
   "draft": "",
   "deprecatedVersions": []
 }
+
 `
 	require.NoError(t, os.WriteFile(filepath.Join(base, "component.json"), []byte(manifest), 0o600))
 
@@ -147,4 +148,21 @@ func TestFSContentStore_CreateVersionPreservesDesignStyles(t *testing.T) {
 	require.Equal(t, "1.1.2", got["latest"])
 	require.Contains(t, got, "designStyles", "designStyles must survive a real version cut")
 	require.Len(t, got["designStyles"].([]any), 1)
+}
+
+func TestEnsureHeaderFieldsMergesDependencyMetadataAndRemovesDuplicates(t *testing.T) {
+	source := `/**
+ * @libraryId react-component-library:markdown-renderer
+ * @version 0.2.0
+ */
+/**
+ * @libraryId react-component-library:markdown-renderer
+ * @deps {"react":"^18","react-markdown":"^10.1.0"}
+ */
+export function MarkdownRenderer() { return null; }
+`
+	got := ensureHeaderFields(source, "react-component-library:markdown-renderer", "Markdown Renderer", "Renderer", "0.3.0", []string{"markdown"})
+	require.Equal(t, 1, strings.Count(got, "@libraryId"))
+	require.Contains(t, got, `@deps {"react":"^18","react-markdown":"^10.1.0"}`)
+	require.Contains(t, got, "export function MarkdownRenderer")
 }

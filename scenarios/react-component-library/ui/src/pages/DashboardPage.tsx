@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, Boxes, CheckCircle2, Clock3, Palette, RefreshCw } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { adoptionsClient, LibraryVersionStatus, LocalStatus } from "../api/adoptions";
 import { listCatalogAssets, type CatalogAsset } from "../api/components";
 import { useTranslation } from "../i18n";
-import { assetPath } from "../routes";
+import { assetInfoTab, assetPath } from "../routes";
 
 function countAdoptionIssues(adoptions: Awaited<ReturnType<typeof adoptionsClient.listAdoptions>>["adoptions"]) {
   return adoptions.filter((adoption) =>
@@ -22,8 +22,8 @@ function Metric({ label, value, tone = "default" }: { label: string; value: numb
   </div>;
 }
 
-function AssetLink({ asset }: { asset: CatalogAsset }) {
-  return <Link to={assetPath(asset.id)} className="flex items-center justify-between gap-3 rounded-control px-2 py-2 text-sm hover:bg-app-surface-muted">
+function AssetLink({ asset, tab }: { asset: CatalogAsset; tab?: ReturnType<typeof assetInfoTab> }) {
+  return <Link to={assetPath(asset.id, tab ? { tab } : {})} className="flex items-center justify-between gap-3 rounded-control px-2 py-2 text-sm hover:bg-app-surface-muted">
     <span className="truncate font-medium">{asset.displayName || asset.libraryId}</span>
     <span className="shrink-0 text-xs text-app-muted-foreground">v{asset.version || "draft"}</span>
   </Link>;
@@ -31,6 +31,8 @@ function AssetLink({ asset }: { asset: CatalogAsset }) {
 
 export function DashboardPage() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const currentTab = location.pathname.startsWith("/assets/") ? assetInfoTab(new URLSearchParams(location.search)) : undefined;
   const assets = useQuery({ queryKey: ["dashboard", "assets"], queryFn: () => listCatalogAssets({ limit: 200, assetKind: 1 }), staleTime: 30_000 });
   const adoptions = useQuery({ queryKey: ["dashboard", "adoptions"], queryFn: () => adoptionsClient.listAdoptions({ limit: 500 }), staleTime: 30_000 });
   const allAssets = assets.data?.components ?? [];
@@ -59,7 +61,7 @@ export function DashboardPage() {
       </section>
       <section className="rounded-panel border border-app-border bg-app-surface p-4" aria-labelledby="evolved-heading">
         <div className="flex items-center gap-2"><Clock3 aria-hidden className="h-4 w-4 text-app-muted-foreground" /><h2 id="evolved-heading" className="font-semibold">{t("dashboard.recentlyEvolved", { defaultValue: "Recently evolved" })}</h2></div>
-        <div className="mt-2 divide-y divide-app-border">{recentlyEvolved.length ? recentlyEvolved.map((asset) => <AssetLink key={asset.id} asset={asset} />) : <p className="py-2 text-sm text-app-muted-foreground">{t("dashboard.noAssets", { defaultValue: "No assets yet." })}</p>}</div>
+        <div className="mt-2 divide-y divide-app-border">{recentlyEvolved.length ? recentlyEvolved.map((asset) => <AssetLink key={asset.id} asset={asset} tab={currentTab} />) : <p className="py-2 text-sm text-app-muted-foreground">{t("dashboard.noAssets", { defaultValue: "No assets yet." })}</p>}</div>
       </section>
       <section className="rounded-panel border border-app-border bg-app-surface p-4" aria-labelledby="adoption-heading">
         <div className="flex items-center gap-2"><Boxes aria-hidden className="h-4 w-4 text-app-muted-foreground" /><h2 id="adoption-heading" className="font-semibold">{t("dashboard.adoptionHealth", { defaultValue: "Adoption health by scenario" })}</h2></div>

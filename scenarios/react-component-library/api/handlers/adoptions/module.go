@@ -161,6 +161,17 @@ func defaultScenariosRoot() (string, error) {
 // module's public surface.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "adoptions_list_scenarios",
+		Path:        adoptionsconnect.AdoptionsServiceListScenariosProcedure,
+		Method:      "POST",
+		Summary:     "List available scenarios for guided adoption workflows",
+		Description: "Returns scenario names discovered from the repository scenarios directory.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object"},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenarios": "array<ScenarioOption>"}},
+		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Repository read failure"}},
+	},
+	{
 		ID:          "adoptions_reconcile",
 		Path:        adoptionsconnect.AdoptionsServiceReconcileAdoptionsProcedure,
 		Method:      "POST",

@@ -1,0 +1,20 @@
+{
+  "libraryId": "react-component-library:mermaid-diagram",
+  "displayName": "Mermaid Diagram",
+  "description": "Mermaid diagram source preview with an expand seam.",
+  "tags": [
+    "markdown",
+    "mermaid"
+  ],
+  "entry": "MermaidDiagram.tsx",
+  "latest": "0.3.1",
+  "deprecatedVersions": [],
+  "draft": "",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

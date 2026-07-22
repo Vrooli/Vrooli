@@ -310,13 +310,20 @@ func (c *Client) CreateSession(ctx context.Context, req *CreateSessionRequest) (
 	return &resp, nil
 }
 
-// CloseSession closes a browser session.
-func (c *Client) CloseSession(ctx context.Context, sessionID string) (*CloseSessionResponse, error) {
+// CloseSessionWithLease closes only the session currently leased by executionID.
+func (c *Client) CloseSessionWithLease(ctx context.Context, sessionID, executionID, leaseID string) (*CloseSessionResponse, error) {
 	var resp CloseSessionResponse
-	if err := c.postNoBody(ctx, fmt.Sprintf("/session/%s/close", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/close", url.PathEscape(sessionID)), &CloseSessionRequest{ExecutionID: executionID, LeaseID: leaseID}, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// ReleaseSessionLease releases only the session currently leased by executionID
+// while retaining the browser resource for an explicitly later reuse.
+func (c *Client) ReleaseSessionLease(ctx context.Context, sessionID, executionID, leaseID string) error {
+	var resp ReleaseSessionResponse
+	return c.post(ctx, fmt.Sprintf("/session/%s/release", url.PathEscape(sessionID)), &ReleaseSessionRequest{ExecutionID: executionID, LeaseID: leaseID}, &resp)
 }
 
 // DownloadArtifact streams an artifact file from the driver.
