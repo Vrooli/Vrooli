@@ -93,6 +93,7 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 		FailFast:                 result.FailFast,
 		Success:                  result.Success,
 		Phases:                   compactPhaseResults(result.Phases),
+		PreparationStages:        compactPreparationStages(result.PreparationStages),
 		StartedAt:                result.StartedAt,
 		CompletedAt:              result.CompletedAt,
 	}
@@ -106,6 +107,30 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 
 	result.ExecutionID = record.ID
 	return result, nil
+}
+
+// compactPreparationStages keeps historical execution timing bounded without
+// mixing orchestration spans into the phase-history projection.
+func compactPreparationStages(stages []orchestrator.PreparationStage) []orchestrator.PreparationStage {
+	if len(stages) == 0 {
+		return []orchestrator.PreparationStage{}
+	}
+	out := make([]orchestrator.PreparationStage, 0, len(stages))
+	for _, stage := range stages {
+		if stage.Name == "" {
+			continue
+		}
+		stage.DurationMilliseconds = maxInt64(0, stage.DurationMilliseconds)
+		out = append(out, stage)
+	}
+	return out
+}
+
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // compactPhaseResults is the execution-history persistence boundary. Detailed

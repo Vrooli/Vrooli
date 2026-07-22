@@ -47,7 +47,7 @@ func TestCheckProviderReadinessBlocksRequiredProviderAndKeepsActivePhases(t *tes
 		providerDef(phases.Docs, "knowledge-observatory", bestEffort),
 		staticDef(phases.Structure),
 	}
-	got := o.checkProviderReadiness(context.Background(), workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: t.TempDir()}, defs, io.Discard)
+	got := o.checkProviderReadiness(context.Background(), workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: t.TempDir()}, defs, io.Discard, nil)
 
 	if probes != 2 {
 		t.Fatalf("probes = %d, want only provider-backed selected phases probed", probes)
@@ -57,6 +57,12 @@ func TestCheckProviderReadinessBlocksRequiredProviderAndKeepsActivePhases(t *tes
 	}
 	if _, blocked := got.Blocked["unit"]; !blocked {
 		t.Fatalf("unit should be blocked: %+v", got.Blocked)
+	}
+	if len(got.Stages) != 2 || got.Stages[0].Name != "provider_check" || got.Stages[0].Parent != "provider_readiness" || got.Stages[0].Subject != "unit-health" {
+		t.Fatalf("readiness stages = %+v", got.Stages)
+	}
+	if got.Stages[0].Status != string(providerreadiness.OutcomeUnreachable) || got.Stages[0].DurationMilliseconds < 0 {
+		t.Fatalf("required provider stage = %+v", got.Stages[0])
 	}
 }
 

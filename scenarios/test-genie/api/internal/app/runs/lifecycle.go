@@ -58,11 +58,8 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 		return nil, saturationError(err)
 	}
 	defer releasePreview()
-	etaTotal, etaKnown, err := s.previewPlan(ctx, input.Request)
+	etaTotal, etaKnown, err := s.prepareAdmission(ctx, &input.Request)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.attachAdmissionIdentity(&input.Request); err != nil {
 		return nil, err
 	}
 	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
@@ -90,31 +87,43 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 	}), nil
 }
 
-func (s *Service) attachAdmissionIdentity(req *orchestrator.SuiteExecutionRequest) error {
+// prepareAdmission computes the complete admission identity and ETA in one
+// bounded planner call. The preview token is intentionally held while this
+// work runs, so it must honor the caller's context and never invoke a second,
+// uncancellable planner preview.
+func (s *Service) prepareAdmission(ctx context.Context, req *orchestrator.SuiteExecutionRequest) (int, bool, error) {
 	if req == nil {
-		return errors.New("run request is required")
+		return 0, false, errors.New("run request is required")
 	}
 	dir, err := s.scenarioDir(req.ScenarioName)
 	if err != nil {
-		return err
+		return 0, false, err
 	}
 	digest, err := treedigest.Compute(dir)
 	if err != nil {
-		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("compute source identity: %w", err))
+		return 0, false, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("compute source identity: %w", err))
 	}
 	if s.planner == nil {
 		req.AdmissionTreeDigest = digest
-		return nil
+		return 0, false, nil
 	}
-	preview, err := s.planner.Preview(context.Background(), *req)
-	if err != nil || preview == nil {
-		return connect.NewError(connect.CodeFailedPrecondition, errors.New("resolve execution identity"))
+	preview, err := s.planner.Preview(ctx, *req)
+	if err != nil {
+		var vErr shared.ValidationError
+		if errors.As(err, &vErr) {
+			return 0, false, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return 0, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("resolve execution identity"))
+	}
+	if preview == nil {
+		return 0, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("resolve execution identity"))
 	}
 	req.AdmissionTreeDigest = digest
 	req.AdmissionPhaseSetDigest = preview.PhaseSetDigest
 	req.AdmissionDescriptorDigest = preview.DescriptorSnapshotDigest
 	req.AdmissionConfigurationDigest = preview.ConfigurationFingerprint
-	return nil
+	total := preview.Summary.EstimatedDurationSeconds
+	return total, total > 0, nil
 }
 
 func saturationError(err error) *connect.Error {
@@ -134,29 +143,6 @@ func busyError(busy *runmanager.BusyError) *connect.Error {
 		cerr.AddDetail(detail)
 	}
 	return cerr
-}
-
-// previewPlan derives the summed plan estimate and surfaces plan validation
-// errors (bad preset/phase) as InvalidArgument so a malformed request is
-// rejected up front rather than failing inside the run goroutine. A non-fatal
-// preview error (e.g. no timing history) yields ETA-unknown and proceeds.
-func (s *Service) previewPlan(ctx context.Context, req orchestrator.SuiteExecutionRequest) (int, bool, error) {
-	if s.planner == nil {
-		return 0, false, nil
-	}
-	preview, err := s.planner.Preview(ctx, req)
-	if err != nil {
-		var vErr shared.ValidationError
-		if errors.As(err, &vErr) {
-			return 0, false, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		return 0, false, nil
-	}
-	if preview == nil {
-		return 0, false, nil
-	}
-	total := preview.Summary.EstimatedDurationSeconds
-	return total, total > 0, nil
 }
 
 // FollowRun streams canonical run events, replaying history first. Cancelling

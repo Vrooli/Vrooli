@@ -99,6 +99,9 @@ INSERT INTO suite_executions (
 	if err := insertPhaseHistory(ctx, tx, record.ID, record.Phases); err != nil {
 		return err
 	}
+	if err := insertStageHistory(ctx, tx, record.ID, record.PreparationStages); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -191,6 +194,10 @@ WHERE id = ?
 	if err != nil {
 		return nil, err
 	}
+	record.PreparationStages, err = r.loadStageHistory(ctx, record.ID)
+	if err != nil {
+		return nil, err
+	}
 	return &record, nil
 }
 
@@ -222,6 +229,9 @@ func (r *SuiteExecutionRepository) DeleteByRunID(ctx context.Context, runID stri
 	// correctness: the compact child rows are removed explicitly with their
 	// owning execution headers.
 	if _, err := tx.ExecContext(ctx, `DELETE FROM suite_execution_phases WHERE execution_id IN (SELECT id FROM suite_executions WHERE run_id = ?)`, runID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM suite_execution_stages WHERE execution_id IN (SELECT id FROM suite_executions WHERE run_id = ?)`, runID); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM suite_executions WHERE run_id = ?`, runID); err != nil {

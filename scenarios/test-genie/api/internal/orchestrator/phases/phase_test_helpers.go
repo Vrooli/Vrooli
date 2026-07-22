@@ -1,7 +1,6 @@
 package phases
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,33 +24,11 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 			t.Fatalf("failed to create %s: %v", rel, err)
 		}
 	}
-	cliScript := func(name string) []byte {
-		return []byte(fmt.Sprintf(`#!/usr/bin/env bash
-# Handle no arguments - print help
-if [ -z "$1" ]; then
-  echo "usage: %s <cmd>"
-  exit 0
-fi
-# Handle known commands
-case "$1" in
-  version|--version|-v)
-    echo "%s version 1.0.0"
-    exit 0
-    ;;
-  help|--help|-h)
-    echo "usage: %s <cmd>"
-    exit 0
-    ;;
-  *)
-    # Unknown command - return error
-    echo "error: unknown command '$1'" >&2
-    exit 1
-    ;;
-esac
-`, name, name, name))
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte("module "+name+"/cli\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed scenario CLI module: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", name), cliScript(name), 0o755); err != nil {
-		t.Fatalf("failed to seed scenario cli binary: %v", err)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed scenario CLI source: %v", err)
 	}
 	serviceJSON := `{
   "service": {"name":"` + name + `"},
@@ -59,12 +36,12 @@ esac
     "enabled": true,
     "command": "` + name + `",
     "adapter": {
-      "kind": "shell_script",
-      "script_path": "cli/` + name + `",
-      "install_script": "cli/install.sh"
+      "kind": "go_module",
+      "module_dir": "cli"
     },
-    "install": [{"kind":"command","run":"bash ./cli/install.sh"}],
-    "invoke": {"kind":"installed_command","command":"` + name + `"}
+    "source_build": {"kind":"go_module"},
+    "invoke": {"kind":"installed_command","command":"` + name + `"},
+    "freshness": {"inputs":["cli/**", ".vrooli/service.json"]}
   }
 }`
 	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), []byte(serviceJSON), 0o644); err != nil {

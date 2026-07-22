@@ -29,10 +29,11 @@ type SuiteExecutionRecord struct {
 	// vocabulary; catastrophic runs (no result produced) persist a row carrying
 	// errored/aborted/timeout. Empty on records read from pre-migration rows
 	// before backfill.
-	TerminalOutcome TerminalOutcome
-	Phases          []phases.ExecutionResult
-	StartedAt       time.Time
-	CompletedAt     time.Time
+	TerminalOutcome   TerminalOutcome
+	Phases            []phases.ExecutionResult
+	PreparationStages []orchestrator.PreparationStage
+	StartedAt         time.Time
+	CompletedAt       time.Time
 }
 
 // ToExecutionResult converts the repository record into the orchestrator payload shared with callers.
@@ -54,6 +55,9 @@ func (r SuiteExecutionRecord) ToExecutionResult() *orchestrator.SuiteExecutionRe
 	}
 	if len(r.Phases) > 0 {
 		result.Phases = append([]orchestrator.PhaseExecutionResult(nil), r.Phases...)
+	}
+	if len(r.PreparationStages) > 0 {
+		result.PreparationStages = append([]orchestrator.PreparationStage(nil), r.PreparationStages...)
 	}
 	result.PhaseSummary = orchestrator.SummarizePhases(result.Phases)
 	return result

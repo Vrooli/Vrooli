@@ -190,7 +190,7 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(goMod, []byte("module "+name+"\n\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed api/go.mod: %v", err)
 	}
-	manifest := fmt.Sprintf(`{"service":{"name":"%s"},"cli":{"enabled":true,"command":"%s","adapter":{"kind":"shell_script","script_path":"cli/%s","install_script":"cli/install.sh"},"invoke":{"kind":"installed_command","command":"%s"},"install":[{"kind":"command","run":"bash cli/install.sh"}]},"lifecycle":{"health":{"checks":[{"name":"api"}]}}}`, name, name, name, name)
+	manifest := fmt.Sprintf(`{"service":{"name":"%s"},"cli":{"enabled":true,"command":"%s","adapter":{"kind":"go_module","module_dir":"cli"},"source_build":{"kind":"go_module"},"invoke":{"kind":"installed_command","command":"%s"},"freshness":{"inputs":["cli/**",".vrooli/service.json"]}},"lifecycle":{"health":{"checks":[{"name":"api"}]}}}`, name, name, name)
 	manifestPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
 	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
@@ -218,36 +218,11 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), []byte(module), 0o644); err != nil {
 		t.Fatalf("failed to seed module.json: %v", err)
 	}
-	scenarioCLI := filepath.Join(scenarioDir, "cli", name)
-	cliScript := fmt.Sprintf(`#!/usr/bin/env bash
-# Handle no arguments - print help
-if [ -z "$1" ]; then
-  echo "usage: %s <cmd>"
-  exit 0
-fi
-# Handle known commands
-case "$1" in
-  version|--version|-v)
-    echo "%s version 1.0.0"
-    exit 0
-    ;;
-  help|--help|-h)
-    echo "usage: %s <cmd>"
-    exit 0
-    ;;
-  *)
-    # Unknown command - return error
-    echo "error: unknown command '$1'" >&2
-    exit 1
-    ;;
-esac
-`, name, name, name)
-	if err := os.WriteFile(scenarioCLI, []byte(cliScript), 0o755); err != nil {
-		t.Fatalf("failed to seed scenario cli: %v", err)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte("module "+name+"/cli\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed scenario CLI module: %v", err)
 	}
-	installScript := filepath.Join(scenarioDir, "cli", "install.sh")
-	if err := os.WriteFile(installScript, []byte("#!/usr/bin/env bash\necho install\n"), 0o755); err != nil {
-		t.Fatalf("failed to seed cli/install.sh: %v", err)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed scenario CLI source: %v", err)
 	}
 	playbookRegistry := fmt.Sprintf(`{"scenario":"%s","playbooks":[]}`, name)
 	registryPath := filepath.Join(scenarioDir, "bas", "registry.json")

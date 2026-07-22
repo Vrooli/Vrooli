@@ -36,7 +36,7 @@ Every tidiness finding is `WARNING`/advisory — none fail the phase; they surfa
 ## The canonical fix
 
 - **`LONG_FILE`** → split the file along its natural seams into smaller, single-responsibility units (skills: `tidiness`, `cognitive-load-reduction`).
-- **`TECH_DEBT_MARKERS`** → resolve or clarify the `TODO`/`FIXME`/`HACK` markers; convert real work into tracked items rather than inline debt (skills: `tidiness`, `intent-clarification`).
+- **`TECH_DEBT_MARKERS`** → resolve or clarify the `TODO`/`FIXME`/`HACK` markers; convert real work into tracked items rather than inline debt (skills: `tidiness`, `domain-clarity`).
 - **`HIGH_COMPLEXITY`** → reduce branching by extracting helpers and flattening control flow; add tests around the seam first (skills: `tidiness`, `cognitive-load-reduction`, `test`).
 - **`HIGH_COUPLING`** → narrow the import surface; enforce a clean boundary of responsibility for the module (skills: `tidiness`, `boundary-of-responsibility-enforcement`).
 - **`DUPLICATED_CODE`** → unify the duplicated blocks behind a shared util so a fix lands once (skills: `tidiness`, `utils-unification`).

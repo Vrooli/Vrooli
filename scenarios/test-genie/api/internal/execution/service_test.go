@@ -39,6 +39,21 @@ func TestSuiteExecutionServicePersistsOnlyCompactPhaseHistory(t *testing.T) {
 	}
 }
 
+func TestSuiteExecutionServicePersistsCompactPreparationStages(t *testing.T) {
+	recorder := &serviceRecorder{}
+	service := NewSuiteExecutionService(serviceEngine{result: &orchestrator.SuiteExecutionResult{
+		RunID: "run-stages", ScenarioName: "demo", StartedAt: time.Now().Add(-time.Second), CompletedAt: time.Now(), Success: true,
+		PreparationStages: []orchestrator.PreparationStage{{Name: "provider_readiness", DurationMilliseconds: 100}, {Name: "provider_check", Parent: "provider_readiness", Subject: "unit-health", Status: "ready", DurationMilliseconds: 20}},
+	}}, recorder)
+	if _, err := service.Execute(context.Background(), SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}); err != nil {
+		t.Fatal(err)
+	}
+	stages := recorder.records[0].PreparationStages
+	if len(stages) != 2 || stages[1].Subject != "unit-health" || stages[1].DurationMilliseconds != 20 {
+		t.Fatalf("compact preparation stages = %#v", stages)
+	}
+}
+
 func (e serviceEngine) ExecuteWithEvents(_ context.Context, _ orchestrator.SuiteExecutionRequest, _ orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	return e.result, e.err
 }

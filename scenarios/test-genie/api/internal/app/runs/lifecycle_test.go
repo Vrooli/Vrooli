@@ -30,6 +30,30 @@ type rpcFakeExecutor struct {
 	result      *orchestrator.SuiteExecutionResult
 }
 
+type countingRPCPlanner struct {
+	mu       sync.Mutex
+	calls    int
+	preview  *execution.ExecutionPlanPreview
+	blockCtx bool
+}
+
+func (p *countingRPCPlanner) Preview(ctx context.Context, _ orchestrator.SuiteExecutionRequest) (*execution.ExecutionPlanPreview, error) {
+	p.mu.Lock()
+	p.calls++
+	p.mu.Unlock()
+	if p.blockCtx {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	return p.preview, nil
+}
+
+func (p *countingRPCPlanner) callCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.calls
+}
+
 func newRPCFake(scenarioDir string) *rpcFakeExecutor {
 	_ = os.MkdirAll(scenarioDir, 0o755)
 	return &rpcFakeExecutor{
@@ -213,6 +237,44 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	summaries := wr2.Msg.GetStatus().GetTerminalFindingsSummaries()
 	if len(summaries) != 1 || summaries[0].GetErrors() != 1 {
 		t.Fatalf("terminal findings summaries = %+v", summaries)
+	}
+}
+
+func TestLifecycleRPC_StartRunPreviewsOnceForAdmission(t *testing.T) {
+	root := t.TempDir()
+	fake := newRPCFake(root + "/demo")
+	planner := &countingRPCPlanner{preview: &execution.ExecutionPlanPreview{
+		ScenarioName: "demo", PhaseSetDigest: "phase:one", DescriptorSnapshotDigest: "descriptor:one", ConfigurationFingerprint: "config:one",
+	}}
+	manager := runmanager.New(fake, root)
+	defer manager.Shutdown()
+	svc := NewService(root, manager, planner, nil)
+
+	if _, err := svc.StartRun(context.Background(), connect.NewRequest(&runspb.StartRunRequest{Scenario: "demo"})); err != nil {
+		t.Fatalf("StartRun: %v", err)
+	}
+	if got := planner.callCount(); got != 1 {
+		t.Fatalf("planner calls = %d, want 1", got)
+	}
+	close(fake.release)
+}
+
+func TestPrepareAdmissionHonorsCancellation(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(root+"/demo", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	planner := &countingRPCPlanner{blockCtx: true}
+	svc := NewService(root, nil, planner, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	_, _, err := svc.prepareAdmission(ctx, &orchestrator.SuiteExecutionRequest{ScenarioName: "demo"})
+	if err == nil {
+		t.Fatal("expected cancelled admission to fail")
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("admission ignored cancellation for %s", elapsed)
 	}
 }
 

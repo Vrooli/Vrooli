@@ -32,6 +32,7 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `architecture` | architecture-cartographer | 5 | provider-delegated | `scenarios/test-genie/docs/phases/architecture/README.md` |
 | `branding` | brand-manager | 6 | provider-delegated | `scenarios/test-genie/docs/phases/branding/README.md` |
 | `business` | business-health | 4 | provider-delegated | `scenarios/test-genie/docs/phases/business/README.md` |
+| `component-tests` | react-component-library | 1 | provider-delegated | `scenarios/test-genie/docs/phases/component-tests/README.md` |
 | `contracts` | cli-health | 7 | provider-delegated (lighthouse) | `scenarios/test-genie/docs/phases/contracts/README.md` |
 | `dependencies` | scenario-dependency-analyzer | 6 | provider-delegated | `scenarios/test-genie/docs/phases/dependencies/README.md` |
 | `docs` | knowledge-observatory | 7 | provider-delegated | `scenarios/test-genie/docs/phases/docs/README.md` |

@@ -71,3 +71,20 @@ CREATE INDEX IF NOT EXISTS idx_suite_execution_phases_execution
 
 CREATE INDEX IF NOT EXISTS idx_suite_execution_phases_name_duration
     ON suite_execution_phases (phase_name, duration_seconds);
+
+-- Preparation stages are the compact orchestration-timing projection. They
+-- deliberately live beside, not inside, suite_execution_phases so historical
+-- phase estimates and reliability remain semantically pure.
+CREATE TABLE IF NOT EXISTS suite_execution_stages (
+    execution_id TEXT NOT NULL REFERENCES suite_executions(id) ON DELETE CASCADE,
+    ordinal INTEGER NOT NULL,
+    stage_name TEXT NOT NULL,
+    parent_stage TEXT NOT NULL DEFAULT '',
+    subject TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT '',
+    duration_milliseconds INTEGER NOT NULL DEFAULT 0 CHECK (duration_milliseconds >= 0),
+    PRIMARY KEY (execution_id, ordinal)
+);
+
+CREATE INDEX IF NOT EXISTS idx_suite_execution_stages_name_duration
+    ON suite_execution_stages (stage_name, duration_milliseconds);

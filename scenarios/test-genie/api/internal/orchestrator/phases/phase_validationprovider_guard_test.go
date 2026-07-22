@@ -128,11 +128,11 @@ func declaresMaturityLadder(descriptor providerdescriptor.Descriptor) bool {
 // Unit executes the suite, Measures runs its checks, Performance benchmarks the
 // Go + UI build and Lighthouse-if-UI, Contracts runs cli-health's runtime CLI
 // probe, Search runs live corpus validation, UIHealth drives the BAS render
-// handshake, and Workflow executes BAS validation cases. Every other delegate is
-// inspection-only.
+// handshake, Workflow executes BAS validation cases, and Component Tests runs
+// React Component Library contracts. Every other delegate is inspection-only.
 func includeExecutionPhase(phase Name) bool {
 	switch phase {
-	case Unit, Measures, Performance, Contracts, Search, UIHealth, Workflow:
+	case Unit, Measures, Performance, Contracts, Search, UIHealth, Workflow, Name("component-tests"):
 		return true
 	default:
 		return false

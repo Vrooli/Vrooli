@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/storage/sqliteutil"
 	"test-genie/internal/testsqlite"
@@ -35,8 +36,9 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 		Phases: []phases.ExecutionResult{
 			{Name: "structure", Status: "passed", DurationSeconds: 1},
 		},
-		StartedAt:   now.Add(-time.Minute),
-		CompletedAt: now,
+		PreparationStages: []orchestrator.PreparationStage{{Name: "provider_readiness", Status: "completed", DurationMilliseconds: 1234}, {Name: "provider_check", Parent: "provider_readiness", Subject: "unit-health", Status: "ready", DurationMilliseconds: 45}},
+		StartedAt:         now.Add(-time.Minute),
+		CompletedAt:       now,
 	}
 
 	if err := repo.Create(context.Background(), record); err != nil {
@@ -58,6 +60,9 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 	}
 	if stored.TerminalOutcome != TerminalOutcomePassed {
 		t.Fatalf("expected terminal_outcome derived as passed, got %q", stored.TerminalOutcome)
+	}
+	if len(stored.PreparationStages) != 2 || stored.PreparationStages[1].Subject != "unit-health" || stored.PreparationStages[0].DurationMilliseconds != 1234 {
+		t.Fatalf("expected preparation stages to round-trip: %#v", stored.PreparationStages)
 	}
 	if stored.PhaseSetDigest != record.PhaseSetDigest || stored.DescriptorSnapshotDigest != record.DescriptorSnapshotDigest || stored.ConfigurationFingerprint != record.ConfigurationFingerprint {
 		t.Fatalf("expected comparability metadata to round-trip: %#v", stored)
@@ -93,6 +98,12 @@ func TestSuiteExecutionRepositoryDeleteByRunID(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("deleted run retained %d compact phase rows", count)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_execution_stages WHERE execution_id = ?`, retainedExecutionID.String()).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("deleted run retained %d compact stage rows", count)
 	}
 	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_executions WHERE run_id = ?`, "other-run").Scan(&count); err != nil {
 		t.Fatal(err)

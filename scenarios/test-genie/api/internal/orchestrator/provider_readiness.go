@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phases"
@@ -18,6 +19,7 @@ type providerReadinessPlan struct {
 	Active   []phases.Definition
 	Blocked  map[string]providerreadiness.Outcome
 	Outcomes []providerreadiness.Outcome
+	Stages   []PreparationStage
 }
 
 func (o *SuiteOrchestrator) checkProviderReadiness(
@@ -25,10 +27,12 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 	env workspacepkg.Environment,
 	defs []phases.Definition,
 	logWriter io.Writer,
+	emit ExecutionEventCallback,
 ) providerReadinessPlan {
 	active := make([]phases.Definition, 0, len(defs))
 	blocked := make(map[string]providerreadiness.Outcome)
 	outcomes := make([]providerreadiness.Outcome, 0, len(defs))
+	stages := make([]PreparationStage, 0, len(defs))
 	manager := o.readiness
 	if manager == nil {
 		manager = providerreadiness.NewManager()
@@ -39,6 +43,7 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 		if policy.IsZero() {
 			policy = phasepolicy.FromLegacyCatalog(def.Optional, false)
 		}
+		started := time.Now()
 		outcome := manager.Check(ctx, providerreadiness.Input{
 			Phase:            def.Name.String(),
 			ProviderScenario: def.ProviderScenario,
@@ -47,6 +52,17 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 			Policy:           policy,
 			Timeout:          def.Timeout,
 		}, logWriter)
+		provider := strings.TrimSpace(def.ProviderScenario)
+		if provider != "" {
+			stages = append(stages, PreparationStage{
+				Name:                 "provider_check",
+				Parent:               "provider_readiness",
+				Subject:              provider,
+				Status:               string(outcome.Status),
+				DurationMilliseconds: time.Since(started).Milliseconds(),
+			})
+			emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf("checked %s: %s in %s", provider, outcome.Status, time.Since(started).Round(time.Millisecond)))
+		}
 		if def.ProviderScenario != "" || outcome.Status != providerreadiness.OutcomeReady {
 			outcomes = append(outcomes, outcome)
 		}
@@ -57,7 +73,7 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 		active = append(active, def)
 	}
 
-	return providerReadinessPlan{Active: active, Blocked: blocked, Outcomes: outcomes}
+	return providerReadinessPlan{Active: active, Blocked: blocked, Outcomes: outcomes, Stages: stages}
 }
 
 func (o *SuiteOrchestrator) newProviderReadinessPhaseResult(def phases.Definition, runLogDir string, outcome providerreadiness.Outcome) PhaseExecutionResult {

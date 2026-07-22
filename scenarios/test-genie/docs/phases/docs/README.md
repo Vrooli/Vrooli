@@ -40,7 +40,7 @@ Each finding caps its capability at the named rung; only ERROR severities fail t
 | `append_log_missing_heading` / `append_log_invalid_fields` | append_log_integrity | L1 | ERROR | **Yes** |
 | `file_read_error` | content_quality | L1 | ERROR | **Yes** |
 | `markdown_unclosed_fence` | content_quality | L1 | WARNING | No |
-| `mermaid_invalid` / `absolute_path` / `unmarked_number` | content_quality | L2 | WARNING | No |
+| `mermaid_invalid` / `mermaid_unverified` / `absolute_path` / `unmarked_number` | content_quality | L2 | WARNING | No |
 | `broken_local_link` | link_health | L1 | ERROR | **Yes** |
 | `broken_link_parse` | link_health | L1 | WARNING | No |
 | `external_link_warning` / `broken_external_link` | link_health | L2 | WARNING (advisory) | No |
@@ -54,7 +54,7 @@ Each finding caps its capability at the named rung; only ERROR severities fail t
 - **Doc contract (`contract_missing`, `schema_load_error`, `schema_violation`, `manifest_missing`, `invalid_contract_*`, `missing_*` metadata, `scenario_manifest_missing`)** → resolve or author the scenario-owned `docs/manifest.json` and make its schema, kind, stage, maturity, and per-document metadata validate; promoting from template fallback to a scenario manifest is an ownership decision.
 - **Required docs (`missing_doc`, `misplaced_doc`, `extra_doc`, `temporary_doc`)** → create missing docs with scenario-specific content, move misplaced docs to their contract paths (auto), and retire temporary docs or register/remove extra ones.
 - **Append-log integrity (`append_log_missing_heading`, `append_log_invalid_fields`, `append_log_invalid_date_source`, `append_log_invalid_format`)** → align each append-log operation's target heading, fields, date source, and format with the document it writes to.
-- **Content quality (`file_read_error`, `markdown_unclosed_fence`, `mermaid_invalid`, `absolute_path`, `unmarked_number`, `number_marker_without_reason`)** → fix read errors and unclosed fences, correct Mermaid semantics, replace OS-rooted absolute paths with portable references, and tag or remove derived numbers with a source-of-truth rationale.
+- **Content quality (`file_read_error`, `markdown_unclosed_fence`, `mermaid_invalid`, `mermaid_unverified`, `absolute_path`, `unmarked_number`, `number_marker_without_reason`)** → fix read errors and unclosed fences, correct Mermaid semantics; for `mermaid_unverified`, restore the parser engine rather than accepting an unverified result; replace OS-rooted absolute paths with portable references, and tag or remove derived numbers with a source-of-truth rationale.
 - **Link health (`broken_local_link`, `broken_link_parse`, `external_link_warning`, `broken_external_link`)** → repair or remove broken local targets and malformed link syntax; triage external warnings (decide whether the source is still authoritative).
 - **Reference integrity (`broken_code_ref`, `broken_doc_ref`, `broken_marked_ref`, `broken_command_snippet`, `unknown_*`, `partial_*`)** → point each broken code/doc/marked reference and command snippet at its correct current target, and register or rewrite unknown markers/CLI refs.
 - **Manifest coverage (`manifest_missing_doc`, `manifest_orphaned_doc`)** → add missing docs or correct their manifest registration, and register orphaned Markdown or delete obsolete files.

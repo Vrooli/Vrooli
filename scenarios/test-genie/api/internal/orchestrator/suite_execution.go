@@ -222,6 +222,7 @@ type SuiteExecutionResult struct {
 	FailFast          bool                        `json:"failFast"`
 	Phases            []PhaseExecutionResult      `json:"phases"`
 	PhaseSummary      PhaseSummary                `json:"phaseSummary"`
+	PreparationStages []PreparationStage          `json:"preparationStages,omitempty"`
 	ProviderReadiness []providerreadiness.Outcome `json:"providerReadiness,omitempty"`
 	Warnings          []string                    `json:"warnings,omitempty"`
 	WarningSummary    WarningSummary              `json:"warningSummary"`
@@ -269,6 +270,18 @@ type PhaseSummary struct {
 	ObservationCount int `json:"observationCount"`
 }
 
+// PreparationStage is a bounded timing span for work that happens before test
+// phases begin. It is intentionally distinct from PhaseExecutionResult: stage
+// timings explain orchestration cost but must never affect phase reliability or
+// adaptive phase-selection estimates.
+type PreparationStage struct {
+	Name                 string `json:"name"`
+	Parent               string `json:"parent,omitempty"`
+	Subject              string `json:"subject,omitempty"`
+	Status               string `json:"status,omitempty"`
+	DurationMilliseconds int64  `json:"durationMilliseconds"`
+}
+
 // ExecutionEventType identifies the kind of streaming event.
 type ExecutionEventType string
 
@@ -313,12 +326,13 @@ type ExecutionEvent struct {
 type ExecutionEventCallback func(event ExecutionEvent)
 
 type preparedExecution struct {
-	env       workspacepkg.Environment
-	config    *workspacepkg.Config
-	plan      *phasePlan
-	runID     string
-	runLogDir string
-	result    *SuiteExecutionResult
+	env               workspacepkg.Environment
+	config            *workspacepkg.Config
+	plan              *phasePlan
+	runID             string
+	runLogDir         string
+	result            *SuiteExecutionResult
+	preparationStages []PreparationStage
 }
 
 type phaseRunContext struct {
@@ -439,13 +453,17 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	if err != nil {
 		return nil, err
 	}
+	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{Name: "planning", Status: "completed", DurationMilliseconds: time.Since(prepareStarted).Milliseconds()})
+	prepared.result.PreparationStages = append(prepared.result.PreparationStages, prepared.preparationStages...)
 	emitPreparationProgress(emit, "planning", fmt.Sprintf("completed in %s", time.Since(prepareStarted).Round(time.Millisecond)))
 	log.Printf("test-genie preflight planning for %s completed in %s", prepared.env.ScenarioName, time.Since(prepareStarted).Round(time.Millisecond))
 
 	readinessStarted := time.Now()
 	emitPreparationProgress(emit, "provider_readiness", "starting")
-	readiness := o.checkProviderReadiness(ctx, prepared.env, prepared.plan.Selected, nil)
+	readiness := o.checkProviderReadiness(ctx, prepared.env, prepared.plan.Selected, nil, emit)
 	prepared.result.ProviderReadiness = readiness.Outcomes
+	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{Name: "provider_readiness", Status: "completed", DurationMilliseconds: time.Since(readinessStarted).Milliseconds()})
+	prepared.result.PreparationStages = append(prepared.result.PreparationStages, readiness.Stages...)
 	emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf("completed in %s", time.Since(readinessStarted).Round(time.Millisecond)))
 	log.Printf("test-genie preflight provider readiness for %s completed in %s", prepared.env.ScenarioName, time.Since(readinessStarted).Round(time.Millisecond))
 
@@ -455,6 +473,7 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	if err != nil {
 		return nil, err
 	}
+	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{Name: "target_runtime", Status: "completed", DurationMilliseconds: time.Since(runtimeStarted).Milliseconds()})
 	emitPreparationProgress(emit, "target_runtime", fmt.Sprintf("completed in %s", time.Since(runtimeStarted).Round(time.Millisecond)))
 	log.Printf("test-genie preflight target runtime for %s completed in %s", prepared.env.ScenarioName, time.Since(runtimeStarted).Round(time.Millisecond))
 	prepared.env = env
@@ -687,10 +706,12 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	// block the run.
 	gitContextStarted := time.Now()
 	gitCtx := treedigest.CollectGitContext(planCtx.env.ScenarioDir)
-	log.Printf("test-genie preflight git context for %s completed in %s", scenario, time.Since(gitContextStarted).Round(time.Millisecond))
+	gitContextDuration := time.Since(gitContextStarted)
+	log.Printf("test-genie preflight git context for %s completed in %s", scenario, gitContextDuration.Round(time.Millisecond))
 	digestStarted := time.Now()
 	digest, digestErr := treedigest.Compute(planCtx.env.ScenarioDir)
-	log.Printf("test-genie preflight source digest for %s completed in %s", scenario, time.Since(digestStarted).Round(time.Millisecond))
+	digestDuration := time.Since(digestStarted)
+	log.Printf("test-genie preflight source digest for %s completed in %s", scenario, digestDuration.Round(time.Millisecond))
 	if digestErr != nil {
 		log.Printf("tree digest unavailable for run %s: %v", runID, digestErr)
 	}
@@ -759,6 +780,10 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 			GateQuality:              req.RequireGateQuality,
 			FailFast:                 req.FailFast,
 			Warnings:                 buildPlanWarnings(planCtx.plan),
+		},
+		preparationStages: []PreparationStage{
+			{Name: "git_context", Parent: "planning", Status: "completed", DurationMilliseconds: gitContextDuration.Milliseconds()},
+			{Name: "source_digest", Parent: "planning", Status: "completed", DurationMilliseconds: digestDuration.Milliseconds()},
 		},
 	}, nil
 }
