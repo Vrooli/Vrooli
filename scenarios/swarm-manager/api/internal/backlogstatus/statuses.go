@@ -47,7 +47,7 @@ func IsValid(s string) bool {
 //   - Terminal states (completed, failed, needs_followup) — the manual
 //     override escape hatch. Users can override a run that auto-landed in
 //     failed / needs_followup, or mark an item completed without a run
-//     (e.g., research items that concluded in discussion). When the item
+//     (e.g., work that is closed by an explicit operator decision). When the item
 //     is currently in a review-gated status (in_review / review_pending),
 //     update_patch.go rejects the PATCH and forces the review-decide flow
 //     — this whitelist is the first line; review-state gating is the

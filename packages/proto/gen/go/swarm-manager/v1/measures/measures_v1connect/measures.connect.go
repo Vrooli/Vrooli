@@ -42,9 +42,9 @@ const (
 	// MeasuresServiceCountExecutionsCompletedProcedure is the fully-qualified name of the
 	// MeasuresService's CountExecutionsCompleted RPC.
 	MeasuresServiceCountExecutionsCompletedProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountExecutionsCompleted"
-	// MeasuresServiceCountInitiativesCreatedProcedure is the fully-qualified name of the
-	// MeasuresService's CountInitiativesCreated RPC.
-	MeasuresServiceCountInitiativesCreatedProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountInitiativesCreated"
+	// MeasuresServiceCountGoalsCreatedProcedure is the fully-qualified name of the MeasuresService's
+	// CountGoalsCreated RPC.
+	MeasuresServiceCountGoalsCreatedProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountGoalsCreated"
 	// MeasuresServiceCountAgentSessionsCreatedProcedure is the fully-qualified name of the
 	// MeasuresService's CountAgentSessionsCreated RPC.
 	MeasuresServiceCountAgentSessionsCreatedProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountAgentSessionsCreated"
@@ -62,9 +62,9 @@ type MeasuresServiceClient interface {
 	// CountExecutionsCompleted answers "how many executions completed in
 	// <window>". Bound to the `execution completed` measure.
 	CountExecutionsCompleted(context.Context, *connect.Request[measures.CountExecutionsCompletedRequest]) (*connect.Response[measures.CountExecutionsCompletedResponse], error)
-	// CountInitiativesCreated answers "how many initiatives were created in
-	// <window>". Bound to the `initiative created` measure.
-	CountInitiativesCreated(context.Context, *connect.Request[measures.CountInitiativesCreatedRequest]) (*connect.Response[measures.CountInitiativesCreatedResponse], error)
+	// CountGoalsCreated answers "how many goals were created in
+	// <window>". Bound to the `goal created` measure.
+	CountGoalsCreated(context.Context, *connect.Request[measures.CountGoalsCreatedRequest]) (*connect.Response[measures.CountGoalsCreatedResponse], error)
 	// CountAgentSessionsCreated answers "how many agent sessions were created in
 	// <window>". Bound to the `agent_session created` measure.
 	CountAgentSessionsCreated(context.Context, *connect.Request[measures.CountAgentSessionsCreatedRequest]) (*connect.Response[measures.CountAgentSessionsCreatedResponse], error)
@@ -100,10 +100,10 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("CountExecutionsCompleted")),
 			connect.WithClientOptions(opts...),
 		),
-		countInitiativesCreated: connect.NewClient[measures.CountInitiativesCreatedRequest, measures.CountInitiativesCreatedResponse](
+		countGoalsCreated: connect.NewClient[measures.CountGoalsCreatedRequest, measures.CountGoalsCreatedResponse](
 			httpClient,
-			baseURL+MeasuresServiceCountInitiativesCreatedProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("CountInitiativesCreated")),
+			baseURL+MeasuresServiceCountGoalsCreatedProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("CountGoalsCreated")),
 			connect.WithClientOptions(opts...),
 		),
 		countAgentSessionsCreated: connect.NewClient[measures.CountAgentSessionsCreatedRequest, measures.CountAgentSessionsCreatedResponse](
@@ -120,7 +120,7 @@ type measuresServiceClient struct {
 	countBacklogCompleted     *connect.Client[measures.CountBacklogCompletedRequest, measures.CountBacklogCompletedResponse]
 	countBacklogCreated       *connect.Client[measures.CountBacklogCreatedRequest, measures.CountBacklogCreatedResponse]
 	countExecutionsCompleted  *connect.Client[measures.CountExecutionsCompletedRequest, measures.CountExecutionsCompletedResponse]
-	countInitiativesCreated   *connect.Client[measures.CountInitiativesCreatedRequest, measures.CountInitiativesCreatedResponse]
+	countGoalsCreated         *connect.Client[measures.CountGoalsCreatedRequest, measures.CountGoalsCreatedResponse]
 	countAgentSessionsCreated *connect.Client[measures.CountAgentSessionsCreatedRequest, measures.CountAgentSessionsCreatedResponse]
 }
 
@@ -141,10 +141,9 @@ func (c *measuresServiceClient) CountExecutionsCompleted(ctx context.Context, re
 	return c.countExecutionsCompleted.CallUnary(ctx, req)
 }
 
-// CountInitiativesCreated calls
-// vrooli.swarm_manager.v1.measures.MeasuresService.CountInitiativesCreated.
-func (c *measuresServiceClient) CountInitiativesCreated(ctx context.Context, req *connect.Request[measures.CountInitiativesCreatedRequest]) (*connect.Response[measures.CountInitiativesCreatedResponse], error) {
-	return c.countInitiativesCreated.CallUnary(ctx, req)
+// CountGoalsCreated calls vrooli.swarm_manager.v1.measures.MeasuresService.CountGoalsCreated.
+func (c *measuresServiceClient) CountGoalsCreated(ctx context.Context, req *connect.Request[measures.CountGoalsCreatedRequest]) (*connect.Response[measures.CountGoalsCreatedResponse], error) {
+	return c.countGoalsCreated.CallUnary(ctx, req)
 }
 
 // CountAgentSessionsCreated calls
@@ -165,9 +164,9 @@ type MeasuresServiceHandler interface {
 	// CountExecutionsCompleted answers "how many executions completed in
 	// <window>". Bound to the `execution completed` measure.
 	CountExecutionsCompleted(context.Context, *connect.Request[measures.CountExecutionsCompletedRequest]) (*connect.Response[measures.CountExecutionsCompletedResponse], error)
-	// CountInitiativesCreated answers "how many initiatives were created in
-	// <window>". Bound to the `initiative created` measure.
-	CountInitiativesCreated(context.Context, *connect.Request[measures.CountInitiativesCreatedRequest]) (*connect.Response[measures.CountInitiativesCreatedResponse], error)
+	// CountGoalsCreated answers "how many goals were created in
+	// <window>". Bound to the `goal created` measure.
+	CountGoalsCreated(context.Context, *connect.Request[measures.CountGoalsCreatedRequest]) (*connect.Response[measures.CountGoalsCreatedResponse], error)
 	// CountAgentSessionsCreated answers "how many agent sessions were created in
 	// <window>". Bound to the `agent_session created` measure.
 	CountAgentSessionsCreated(context.Context, *connect.Request[measures.CountAgentSessionsCreatedRequest]) (*connect.Response[measures.CountAgentSessionsCreatedResponse], error)
@@ -198,10 +197,10 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("CountExecutionsCompleted")),
 		connect.WithHandlerOptions(opts...),
 	)
-	measuresServiceCountInitiativesCreatedHandler := connect.NewUnaryHandler(
-		MeasuresServiceCountInitiativesCreatedProcedure,
-		svc.CountInitiativesCreated,
-		connect.WithSchema(measuresServiceMethods.ByName("CountInitiativesCreated")),
+	measuresServiceCountGoalsCreatedHandler := connect.NewUnaryHandler(
+		MeasuresServiceCountGoalsCreatedProcedure,
+		svc.CountGoalsCreated,
+		connect.WithSchema(measuresServiceMethods.ByName("CountGoalsCreated")),
 		connect.WithHandlerOptions(opts...),
 	)
 	measuresServiceCountAgentSessionsCreatedHandler := connect.NewUnaryHandler(
@@ -218,8 +217,8 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceCountBacklogCreatedHandler.ServeHTTP(w, r)
 		case MeasuresServiceCountExecutionsCompletedProcedure:
 			measuresServiceCountExecutionsCompletedHandler.ServeHTTP(w, r)
-		case MeasuresServiceCountInitiativesCreatedProcedure:
-			measuresServiceCountInitiativesCreatedHandler.ServeHTTP(w, r)
+		case MeasuresServiceCountGoalsCreatedProcedure:
+			measuresServiceCountGoalsCreatedHandler.ServeHTTP(w, r)
 		case MeasuresServiceCountAgentSessionsCreatedProcedure:
 			measuresServiceCountAgentSessionsCreatedHandler.ServeHTTP(w, r)
 		default:
@@ -243,8 +242,8 @@ func (UnimplementedMeasuresServiceHandler) CountExecutionsCompleted(context.Cont
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountExecutionsCompleted is not implemented"))
 }
 
-func (UnimplementedMeasuresServiceHandler) CountInitiativesCreated(context.Context, *connect.Request[measures.CountInitiativesCreatedRequest]) (*connect.Response[measures.CountInitiativesCreatedResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountInitiativesCreated is not implemented"))
+func (UnimplementedMeasuresServiceHandler) CountGoalsCreated(context.Context, *connect.Request[measures.CountGoalsCreatedRequest]) (*connect.Response[measures.CountGoalsCreatedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountGoalsCreated is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) CountAgentSessionsCreated(context.Context, *connect.Request[measures.CountAgentSessionsCreatedRequest]) (*connect.Response[measures.CountAgentSessionsCreatedResponse], error) {

@@ -329,8 +329,20 @@ func (s *Supervisor) readLoop(stdout io.ReadCloser, gen int, done chan struct{})
 			// took a response. Drop.
 		}
 	}
-	// scanner.Err() may be non-nil on broken pipe — that's expected on
-	// child death.
+	if err := scanner.Err(); err != nil {
+		// A frame-limit or pipe-read error used to be silently ignored. That
+		// closes stdout under a live Node child, turning a bounded transport
+		// failure into Node's uncaught EPIPE. Kill this generation explicitly
+		// so supervise() drains callers and performs the normal restart path.
+		fmt.Fprintf(s.cfg.StderrSink, "sidecar: stdout frame reader stopped: %v\n", err)
+		s.mu.Lock()
+		cmd := s.cmd
+		current := gen == s.generation
+		s.mu.Unlock()
+		if current && cmd != nil && cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+	}
 }
 
 // registerPending allocates a buffered channel for a request. Buffer

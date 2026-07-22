@@ -35,7 +35,7 @@ type Runner interface {
 
 func Default() *Handlers {
 	return &Handlers{
-		Runner: content.NewDockerRunner(),
+		Runner: content.NewDefaultRunner(),
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}

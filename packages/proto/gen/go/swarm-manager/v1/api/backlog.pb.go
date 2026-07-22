@@ -40,8 +40,8 @@ type CreateBacklogItemRequest struct {
 	Kind string `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Dependencies as "kind/name" references.
 	DependsOn []string `protobuf:"bytes,8,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	// Initiative this item belongs to.
-	Initiative *string `protobuf:"bytes,9,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	// Owned goal/milestone reference this item belongs to.
+	Milestone *string `protobuf:"bytes,9,opt,name=milestone,proto3,oneof" json:"milestone,omitempty"`
 	// Effort estimate: XS, S, M, L, XL.
 	Effort *string `protobuf:"bytes,11,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
 	// Glob patterns for file paths expected to be modified.
@@ -142,9 +142,9 @@ func (x *CreateBacklogItemRequest) GetDependsOn() []string {
 	return nil
 }
 
-func (x *CreateBacklogItemRequest) GetInitiative() string {
-	if x != nil && x.Initiative != nil {
-		return *x.Initiative
+func (x *CreateBacklogItemRequest) GetMilestone() string {
+	if x != nil && x.Milestone != nil {
+		return *x.Milestone
 	}
 	return ""
 }
@@ -220,8 +220,8 @@ type UpdateBacklogItemRequest struct {
 	Tags []string `protobuf:"bytes,5,rep,name=tags,proto3" json:"tags,omitempty"`
 	// Dependencies as "kind/name" references.
 	DependsOn []string `protobuf:"bytes,7,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	// Initiative this item belongs to. Set to the empty string to clear.
-	Initiative *string `protobuf:"bytes,8,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	// Owned goal/milestone reference this item belongs to. Set to the empty string to clear.
+	Milestone *string `protobuf:"bytes,8,opt,name=milestone,proto3,oneof" json:"milestone,omitempty"`
 	// Effort estimate: XS, S, M, L, XL. Set to the empty string to clear.
 	Effort *string `protobuf:"bytes,9,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
 	// Glob patterns for file paths expected to be modified.
@@ -313,9 +313,9 @@ func (x *UpdateBacklogItemRequest) GetDependsOn() []string {
 	return nil
 }
 
-func (x *UpdateBacklogItemRequest) GetInitiative() string {
-	if x != nil && x.Initiative != nil {
-		return *x.Initiative
+func (x *UpdateBacklogItemRequest) GetMilestone() string {
+	if x != nil && x.Milestone != nil {
+		return *x.Milestone
 	}
 	return ""
 }
@@ -3068,7 +3068,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\xda\x05\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\xd7\x05\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -3078,10 +3078,8 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12>\n" +
 	"\x04kind\x18\x06 \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12\x1d\n" +
 	"\n" +
-	"depends_on\x18\b \x03(\tR\tdependsOn\x12#\n" +
-	"\n" +
-	"initiative\x18\t \x01(\tH\x02R\n" +
-	"initiative\x88\x01\x01\x123\n" +
+	"depends_on\x18\b \x03(\tR\tdependsOn\x12!\n" +
+	"\tmilestone\x18\t \x01(\tH\x02R\tmilestone\x88\x01\x01\x123\n" +
 	"\x06effort\x18\v \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x03R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\r \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x0e \x03(\tR\x0eacceptanceDeny\x12&\n" +
@@ -3090,13 +3088,14 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\acreates\x18\x11 \x03(\tR\acreates\x129\n" +
 	"\bplan_ref\x18\x12 \x01(\v2\x19.swarm_manager.v1.PlanRefH\x06R\aplanRef\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\v\n" +
-	"\t_priorityB\r\n" +
-	"\v_initiativeB\t\n" +
+	"\t_priorityB\f\n" +
+	"\n" +
+	"_milestoneB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\v\n" +
 	"\t_plan_refJ\x04\b\a\x10\bJ\x04\b\n" +
-	"\x10\vJ\x04\b\f\x10\r\"\xb4\x06\n" +
+	"\x10\vJ\x04\b\f\x10\r\"\xb1\x06\n" +
 	"\x18UpdateBacklogItemRequest\x12\"\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05title\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x9e\x01\n" +
@@ -3105,10 +3104,8 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"(\x01H\x03R\bpriority\x88\x01\x01\x12\x1c\n" +
 	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12\x1d\n" +
 	"\n" +
-	"depends_on\x18\a \x03(\tR\tdependsOn\x12#\n" +
-	"\n" +
-	"initiative\x18\b \x01(\tH\x04R\n" +
-	"initiative\x88\x01\x01\x125\n" +
+	"depends_on\x18\a \x03(\tR\tdependsOn\x12!\n" +
+	"\tmilestone\x18\b \x01(\tH\x04R\tmilestone\x88\x01\x01\x125\n" +
 	"\x06effort\x18\t \x01(\tB\x18\xbaH\x15r\x13R\x00R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x05R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\v \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\f \x03(\tR\x0eacceptanceDeny\x12&\n" +
@@ -3119,8 +3116,9 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x06_titleB\x0e\n" +
 	"\f_descriptionB\t\n" +
 	"\a_statusB\v\n" +
-	"\t_priorityB\r\n" +
-	"\v_initiativeB\t\n" +
+	"\t_priorityB\f\n" +
+	"\n" +
+	"_milestoneB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\v\n" +

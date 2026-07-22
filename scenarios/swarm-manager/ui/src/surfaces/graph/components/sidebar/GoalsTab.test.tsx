@@ -15,6 +15,7 @@ function makeGoal(name: string, priority: number, progressPct: number): GoalWith
       status: "active",
       priority,
       targets: [`fix/${name}`],
+      milestones: [],
       seeded: false,
       scopeHistory: [],
       created: "2026-07-01T00:00:00Z",
@@ -104,15 +105,28 @@ describe("GoalsTab", () => {
     await waitFor(() => expect(setPriority).toHaveBeenCalledWith("top-goal", 9));
   });
 
-  it("navigates to the goal node on row click", async () => {
+  it("navigates to the goal node from anywhere in the non-control card surface", async () => {
     vi.spyOn(goalsService, "list").mockResolvedValue([makeGoal("top-goal", 8, 50)]);
     const onItemClick = vi.fn();
 
     renderTab({ onItemClick });
 
     await waitFor(() => expect(screen.getByTestId("goal-row-top-goal")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("top goal"));
+    fireEvent.click(screen.getByTestId("goal-row-top-goal"));
 
     expect(onItemClick).toHaveBeenCalledWith("goal/top-goal");
+  });
+
+  it("does not navigate when changing priority", async () => {
+    vi.spyOn(goalsService, "list").mockResolvedValue([makeGoal("top-goal", 8, 50)]);
+    vi.spyOn(goalsService, "setPriority").mockResolvedValue(makeGoal("top-goal", 9, 50));
+    const onItemClick = vi.fn();
+
+    renderTab({ onItemClick });
+
+    await waitFor(() => expect(screen.getByTestId("goal-priority-up-top-goal")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("goal-priority-up-top-goal"));
+
+    expect(onItemClick).not.toHaveBeenCalled();
   });
 });

@@ -49,8 +49,8 @@ type BacklogItem struct {
 	Kind string `protobuf:"bytes,9,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Dependencies as "kind/name" references. Item won't process until all deps complete.
 	DependsOn []string `protobuf:"bytes,11,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	// Initiative this item belongs to.
-	Initiative *string `protobuf:"bytes,12,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	// Owned goal/milestone reference this item belongs to.
+	Milestone *string `protobuf:"bytes,12,opt,name=milestone,proto3,oneof" json:"milestone,omitempty"`
 	// Effort estimate: XS, S, M, L, XL.
 	Effort *string `protobuf:"bytes,13,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
 	// Glob patterns for file paths expected to be modified (e.g., ["scenarios/web-console/api/**"]).
@@ -202,9 +202,9 @@ func (x *BacklogItem) GetDependsOn() []string {
 	return nil
 }
 
-func (x *BacklogItem) GetInitiative() string {
-	if x != nil && x.Initiative != nil {
-		return *x.Initiative
+func (x *BacklogItem) GetMilestone() string {
+	if x != nil && x.Milestone != nil {
+		return *x.Milestone
 	}
 	return ""
 }
@@ -811,7 +811,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\x9c\v\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\x99\v\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -824,10 +824,8 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\aupdated\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aupdated\x12>\n" +
 	"\x04kind\x18\t \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12\x1d\n" +
 	"\n" +
-	"depends_on\x18\v \x03(\tR\tdependsOn\x12#\n" +
-	"\n" +
-	"initiative\x18\f \x01(\tH\x00R\n" +
-	"initiative\x88\x01\x01\x123\n" +
+	"depends_on\x18\v \x03(\tR\tdependsOn\x12!\n" +
+	"\tmilestone\x18\f \x01(\tH\x00R\tmilestone\x88\x01\x01\x123\n" +
 	"\x06effort\x18\r \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x01R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\x0f \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x10 \x03(\tR\x0eacceptanceDeny\x12&\n" +
@@ -847,8 +845,9 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\vlast_review\x18\x1c \x01(\v2%.swarm_manager.v1.BacklogReviewRecordH\tR\n" +
 	"lastReview\x88\x01\x01\x12N\n" +
 	"\x0fplan_acceptance\x18\x1d \x01(\v2 .swarm_manager.v1.PlanAcceptanceH\n" +
-	"R\x0eplanAcceptance\x88\x01\x01B\r\n" +
-	"\v_initiativeB\t\n" +
+	"R\x0eplanAcceptance\x88\x01\x01B\f\n" +
+	"\n" +
+	"_milestoneB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\x0e\n" +

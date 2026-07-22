@@ -95,11 +95,11 @@ message AgentSessionMessage {
 // Swarm Manager record attached to a single session message.
 message AgentSessionContextItem {
   // Context type.
-  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief
+  // @constraint one of: backlog_item, goal, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief
   string type = 1 [(buf.validate.field).string = {
     in: [
       "backlog_item",
-      "initiative",
+      "goal",
       "capture",
       "execution",
       "agent_activity",
@@ -186,16 +186,16 @@ message AgentSessionProposal {
   optional AgentSessionAttribution attribution = 8;
 }
 
-// AgentSessionProposalTarget identifies the backlog item or initiative whose
+// AgentSessionProposalTarget identifies the backlog item or goal whose
 // proposal review surface owns a session's proposals.
 message AgentSessionProposalTarget {
   // Entity kind receiving the proposed changes.
   string type = 1 [(buf.validate.field).string = {
-    in: ["backlog_item", "initiative"]
+    in: ["backlog_item", "goal"]
   }];
 
-  // Stable entity reference. Backlog items use "kind/name"; initiatives use
-  // their initiative name.
+  // Stable entity reference. Backlog items use "kind/name"; goals use
+  // their goal name.
   string ref = 2 [(buf.validate.field).string.min_len = 1];
 
   // Human-readable target title.
@@ -211,11 +211,11 @@ message AgentSessionArtifact {
   string session_id = 2 [(buf.validate.field).string.min_len = 1];
 
   // Artifact type.
-  // @constraint one of: backlog_item, initiative, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
+  // @constraint one of: backlog_item, milestone, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
   string artifact_type = 3 [(buf.validate.field).string = {
     in: [
       "backlog_item",
-      "initiative",
+      "milestone",
       "operating_mode_proposal",
       "operating_mode_definition",
       "capture",
@@ -236,7 +236,7 @@ message AgentSessionArtifact {
     ]
   }];
 
-  // Stable entity reference, such as execute/my-item, initiative-name, or a file path.
+  // Stable entity reference, such as execute/my-item, goal-name, or a file path.
   string entity_ref = 5 [(buf.validate.field).string.min_len = 1];
 
   // Optional human-readable title for display.

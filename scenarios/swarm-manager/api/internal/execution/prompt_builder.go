@@ -16,7 +16,7 @@ type executionPromptParams struct {
 	Title              string // human-readable title
 	ItemFolder         string // absolute path to the backlog item directory
 	RunType            string // process, fixup, followup, custom
-	DeliverablePath    string // rendered plan_ref path or research conclusion path
+	DeliverablePath    string // rendered canonical plan_ref path
 	DeliverableContent string // full primary workshop artifact text (empty if missing)
 	ReviewFeedback     string // review summary for fixup runs
 	FollowUpNote       string // user-provided context for follow-up/custom runs
@@ -155,30 +155,15 @@ func appendScenarioFeedback(b *strings.Builder, scenario ScenarioFinalization) {
 }
 
 func deliverableForKind(kind string) string {
-	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "research":
-		return "conclusion.md"
-	default:
-		return ""
-	}
+	return ""
 }
 
 func deliverablePromptTag(kind string) string {
-	switch deliverableForKind(kind) {
-	case "conclusion.md":
-		return "research-conclusion"
-	default:
-		return "implementation-plan"
-	}
+	return "implementation-plan"
 }
 
 func missingDeliverableReason(kind, deliverablePath string) string {
-	switch deliverableForKind(kind) {
-	case "conclusion.md":
-		return fmt.Sprintf("no research conclusion (%s) exists — run workshop first", deliverablePath)
-	default:
-		return "no implementation plan_ref exists — finalize the item through plan-manager before queueing"
-	}
+	return "no implementation plan_ref exists — author a plan through plan.author before queueing"
 }
 
 func promptRevision(prompt string) string {

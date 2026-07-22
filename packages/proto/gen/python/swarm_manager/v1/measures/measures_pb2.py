@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from measures.v1 import measures_pb2 as measures_dot_v1_dot_measures__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(swarm-manager/v1/measures/measures.proto\x12 vrooli.swarm_manager.v1.measures\x1a\x1ameasures/v1/measures.proto\"V\n\x1c\x43ountBacklogCompletedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"5\n\x1d\x43ountBacklogCompletedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"T\n\x1a\x43ountBacklogCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"3\n\x1b\x43ountBacklogCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"Y\n\x1f\x43ountExecutionsCompletedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"8\n CountExecutionsCompletedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"X\n\x1e\x43ountInitiativesCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"7\n\x1f\x43ountInitiativesCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"Z\n CountAgentSessionsCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"9\n!CountAgentSessionsCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount2\xad\x06\n\x0fMeasuresService\x12\x98\x01\n\x15\x43ountBacklogCompleted\x12>.vrooli.swarm_manager.v1.measures.CountBacklogCompletedRequest\x1a?.vrooli.swarm_manager.v1.measures.CountBacklogCompletedResponse\x12\x92\x01\n\x13\x43ountBacklogCreated\x12<.vrooli.swarm_manager.v1.measures.CountBacklogCreatedRequest\x1a=.vrooli.swarm_manager.v1.measures.CountBacklogCreatedResponse\x12\xa1\x01\n\x18\x43ountExecutionsCompleted\x12\x41.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest\x1a\x42.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedResponse\x12\x9e\x01\n\x17\x43ountInitiativesCreated\x12@.vrooli.swarm_manager.v1.measures.CountInitiativesCreatedRequest\x1a\x41.vrooli.swarm_manager.v1.measures.CountInitiativesCreatedResponse\x12\xa4\x01\n\x19\x43ountAgentSessionsCreated\x12\x42.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedRequest\x1a\x43.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/measures;measures_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(swarm-manager/v1/measures/measures.proto\x12 vrooli.swarm_manager.v1.measures\x1a\x1ameasures/v1/measures.proto\"V\n\x1c\x43ountBacklogCompletedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"5\n\x1d\x43ountBacklogCompletedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"T\n\x1a\x43ountBacklogCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"3\n\x1b\x43ountBacklogCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"Y\n\x1f\x43ountExecutionsCompletedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"8\n CountExecutionsCompletedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"R\n\x18\x43ountGoalsCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"1\n\x19\x43ountGoalsCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"Z\n CountAgentSessionsCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"9\n!CountAgentSessionsCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount2\x9b\x06\n\x0fMeasuresService\x12\x98\x01\n\x15\x43ountBacklogCompleted\x12>.vrooli.swarm_manager.v1.measures.CountBacklogCompletedRequest\x1a?.vrooli.swarm_manager.v1.measures.CountBacklogCompletedResponse\x12\x92\x01\n\x13\x43ountBacklogCreated\x12<.vrooli.swarm_manager.v1.measures.CountBacklogCreatedRequest\x1a=.vrooli.swarm_manager.v1.measures.CountBacklogCreatedResponse\x12\xa1\x01\n\x18\x43ountExecutionsCompleted\x12\x41.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest\x1a\x42.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedResponse\x12\x8c\x01\n\x11\x43ountGoalsCreated\x12:.vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest\x1a;.vrooli.swarm_manager.v1.measures.CountGoalsCreatedResponse\x12\xa4\x01\n\x19\x43ountAgentSessionsCreated\x12\x42.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedRequest\x1a\x43.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/measures;measures_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -45,14 +45,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_COUNTEXECUTIONSCOMPLETEDREQUEST']._serialized_end=477
   _globals['_COUNTEXECUTIONSCOMPLETEDRESPONSE']._serialized_start=479
   _globals['_COUNTEXECUTIONSCOMPLETEDRESPONSE']._serialized_end=535
-  _globals['_COUNTINITIATIVESCREATEDREQUEST']._serialized_start=537
-  _globals['_COUNTINITIATIVESCREATEDREQUEST']._serialized_end=625
-  _globals['_COUNTINITIATIVESCREATEDRESPONSE']._serialized_start=627
-  _globals['_COUNTINITIATIVESCREATEDRESPONSE']._serialized_end=682
-  _globals['_COUNTAGENTSESSIONSCREATEDREQUEST']._serialized_start=684
-  _globals['_COUNTAGENTSESSIONSCREATEDREQUEST']._serialized_end=774
-  _globals['_COUNTAGENTSESSIONSCREATEDRESPONSE']._serialized_start=776
-  _globals['_COUNTAGENTSESSIONSCREATEDRESPONSE']._serialized_end=833
-  _globals['_MEASURESSERVICE']._serialized_start=836
-  _globals['_MEASURESSERVICE']._serialized_end=1649
+  _globals['_COUNTGOALSCREATEDREQUEST']._serialized_start=537
+  _globals['_COUNTGOALSCREATEDREQUEST']._serialized_end=619
+  _globals['_COUNTGOALSCREATEDRESPONSE']._serialized_start=621
+  _globals['_COUNTGOALSCREATEDRESPONSE']._serialized_end=670
+  _globals['_COUNTAGENTSESSIONSCREATEDREQUEST']._serialized_start=672
+  _globals['_COUNTAGENTSESSIONSCREATEDREQUEST']._serialized_end=762
+  _globals['_COUNTAGENTSESSIONSCREATEDRESPONSE']._serialized_start=764
+  _globals['_COUNTAGENTSESSIONSCREATEDRESPONSE']._serialized_end=821
+  _globals['_MEASURESSERVICE']._serialized_start=824
+  _globals['_MEASURESSERVICE']._serialized_end=1619
 # @@protoc_insertion_point(module_scope)

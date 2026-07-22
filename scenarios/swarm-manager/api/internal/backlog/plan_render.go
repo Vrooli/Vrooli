@@ -18,8 +18,7 @@ type RenderLinkedPlanResponse struct {
 }
 
 // RenderLinkedPlan returns the canonical plan-manager rendered projection for a
-// non-research backlog item. Research items keep conclusion.md as their
-// canonical deliverable.
+// backlog item.
 func (h *Handler) RenderLinkedPlan(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "plan-render")
 	if !ok {
@@ -36,20 +35,9 @@ func (h *Handler) RenderLinkedPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if item.Kind == KindResearch {
-		path := "conclusion.md"
-		content := strings.TrimSpace(LoadPlanContentByName(h.store.ItemDir(kind, name), path))
-		if content == "" {
-			apierr.MapError(w, "[backlog] plan-render", apierr.NotFound("research conclusion not found"))
-			return
-		}
-		_ = httputil.JSON(w, RenderLinkedPlanResponse{Path: path, Markdown: content})
-		return
-	}
-
 	ref := normalizePlanRef(item.PlanRef)
 	if ref == nil {
-		apierr.MapError(w, "[backlog] plan-render", apierr.Conflict("backlog item has no plan_ref"))
+		apierr.MapError(w, "[backlog] plan-render", apierr.NotFound("plan_ref not found").WithCode("plan_ref_not_found"))
 		return
 	}
 	if err := validatePlanRef(ref, PlanRefRoleExecutionSpec); err != nil {

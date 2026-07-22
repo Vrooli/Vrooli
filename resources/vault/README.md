@@ -4,15 +4,14 @@ Managed HashiCorp Vault runtime for local Vrooli secret storage and resource-sec
 
 ## Supported Surface
 
-- `resource.json` is the lifecycle authority for the Docker service, ports, health check, volumes, and runtime command.
+- `resource.json` is the lifecycle authority for the signed native Vault server, its loopback listener, data path, health check, and provider policy.
 - `resource-vault` is the supported CLI for resources and scenarios.
 - `resource-vault content ...` is the supported machine interface for reading and writing KV v2 secrets.
 - `resource-vault secrets ...` is the supported inventory interface for `resources/*/config/secrets.yaml`.
-- `lib/` contains retained shell-era scripts for reference only. New consumers must not call those scripts or old command names.
 
 ## Runtime Posture
 
-The default local runtime now uses Vault file storage under `${RESOURCE_DATA_DIR}` with config and logs under canonical resource directories. The CLI initializes and unseals a fresh local Vault instance on first secret operation and stores local bootstrap material in the mounted Vault data directory.
+The default local runtime is a Vrooli-signed Vault server installed under the per-user resource artifact store. It uses file storage under `${RESOURCE_DATA_DIR}`, writes a non-secret loopback-only configuration under `${RESOURCE_CONFIG_DIR}`, and never exposes a root token through the normal lifecycle or CLI path. Initialization, unseal, and scoped client credentials are provider-authorized operations; supply the resulting scoped `VAULT_TOKEN` explicitly when using `resource-vault content`.
 
 This is suitable for local durable resource secrets such as Kopia repository passphrases. It is not an enterprise production Vault deployment: no HA, auto-unseal, TLS listener, namespaces, dynamic database credentials, PKI, or SSH CA are implemented here.
 
@@ -75,4 +74,4 @@ with field:
 passphrase
 ```
 
-Kopia treats a missing passphrase for an existing repository as a hard error and now distinguishes missing secrets from Vault/Docker outages.
+Kopia treats a missing passphrase for an existing repository as a hard error and distinguishes missing secrets from Vault service outages.

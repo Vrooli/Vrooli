@@ -93,6 +93,7 @@ type Server struct {
 	scenariosHandler     *scenarios.Handler
 	milestoneAssigner    backlog.ItemAttacher
 	goalService          *goals.Service
+	goalsHandler         *goals.Handler
 	overviewSvc          *overview.Service
 	executionSvc         *execution.Service
 	executionHandler     *execution.Handler
@@ -266,6 +267,9 @@ func (s *Server) setupRoutes() {
 
 	// --- Execution & review ---
 	execSvc := s.registerExecutionRoutes(s.dataRoot, scenarioRoot)
+	if execSvc != nil {
+		backlogHandler.SetExecutionActivityChecker(execSvc)
+	}
 	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.wireWorkflowStartGuards(backlogHandler, execSvc)
 	s.registerQueueRoutes(scenarioRoot)
@@ -421,8 +425,12 @@ func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Ha
 	goalService := goals.NewService(goalStore, backlogHandler.Store())
 	goalService.SetEstimatorFactory(s.newETAEstimator)
 	goalHandler := goals.NewHandler(goalService)
+	s.goalsHandler = goalHandler
 	goalHandler.RegisterRoutes(s.router)
 	goals.RegisterConnectRoutes(s.router, goalService)
+	// Goal proposals share the session-backed mutation-list decision store.
+	// Wiring after both services exist avoids a second goal-specific inbox.
+	s.agentSessionSvc.SetMutationProposalProcessor(newGoalMutationProcessor(goalService))
 
 	assigner := goals.NewBacklogMilestoneAssigner(goalService)
 	backlogHandler.SetMilestoneAssigner(assigner)
@@ -730,9 +738,6 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 	}
 	s.integrationStatus.SetTransitionRegistry(registry)
 	backlogHandler.SetTransitionRegistry(registry)
-	if executionService != nil {
-		executionService.SetTransitionRegistry(registry)
-	}
 	guard := func(ctx context.Context, workflowKey string) error {
 		for _, definition := range registry.Definitions() {
 			if definition.Kind != transitions.KindWorkflow || definition.Workflow == nil || definition.Workflow.Key != workflowKey {
@@ -741,6 +746,15 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 			return s.integrationStatus.Preflight(ctx, definition)
 		}
 		return fmt.Errorf("workflow start %q is not registered by swarm-transition/v1", workflowKey)
+	}
+	if s.goalsHandler != nil {
+		workflow := agentmanager.NewWorkflowService()
+		workflow.SetStartGuard(guard)
+		s.goalsHandler.SetWorkflow(goalWorkflowAdapter{invoker: workflow}, registry)
+		s.goalsHandler.SetWorkflowProposalRecorder(goalWorkflowProposalRecorder{sessions: s.agentSessionSvc})
+	}
+	if executionService != nil {
+		executionService.SetTransitionRegistry(registry)
 	}
 	backlogHandler.SetWorkflowStartGuard(guard)
 	if s.capturesHandler != nil {

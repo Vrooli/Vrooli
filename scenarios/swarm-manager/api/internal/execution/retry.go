@@ -94,30 +94,12 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		UpdatedAt:         now,
 	}
 
-	// Retry creates a new declared workflow execution with its own immutable
-	// intent, never an operation-runner retry. Plan-backed work uses the same
-	// phase-drain declaration as a first attempt; planless research uses its
-	// declared conclusion workflow. The parent link remains Swarm domain data.
-	if hasExecutionPlanRef(item) {
-		records = append(records, retryRecord)
-		return s.startPlanOperationLocked(ctx, records, len(records)-1, retryRecord, item)
-	} else {
-		res, snapshot, startErr := s.startConclusionWorkflow(ctx, item, retryRecord, req.Note)
-		if startErr != nil {
-			return Record{}, wrapAgentError(fmt.Errorf("start retry conclusion workflow failed: %w", startErr))
-		}
-		if strings.TrimSpace(res.ExecutionID) == "" {
-			return Record{}, apierr.BadGateway("research-conclude workflow started but returned no execution id")
-		}
-		retryRecord.RunID = res.RunID
-		retryRecord.TaskID = res.ExecutionID
-		retryRecord.AgentWorkflowExecutionID = res.ExecutionID
-		retryRecord.AgentWorkflowKey = snapshot.WorkflowKey
-		retryRecord.AgentWorkflowDefinition = res.DefinitionDigest
-		retryRecord.AgentWorkflowEntityVersion = snapshot.EntityVersion
-		retryRecord.Status = StatusStarting
-		retryRecord.StartedAt = now
+	// Retry always restarts the canonical plan-backed workflow.
+	if !hasExecutionPlanRef(item) {
+		return Record{}, apierr.Conflict("a canonical execution plan is required before retrying work")
 	}
+	records = append(records, retryRecord)
+	return s.startPlanOperationLocked(ctx, records, len(records)-1, retryRecord, item)
 
 	records = append(records, retryRecord)
 	if err := s.store.Save(records); err != nil {

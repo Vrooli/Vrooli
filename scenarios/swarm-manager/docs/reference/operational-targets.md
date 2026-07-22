@@ -101,7 +101,7 @@ References:
 - [CODE: cli/cmd_scenarios.go]
 
 ### OT-P05-005 - Backlog convert
-Status: Removed. Research items now execute directly via conclusion.md actions; convert flow was removed in the research backlog rework (2026-03-26).
+Status: Removed. Research items now follow the same plan-authoring and plan-acceptance lifecycle as every other backlog kind; the old convert flow is retired.
 
 ### OT-P05-006 - Backlog prompt trace
 Status: Implemented.

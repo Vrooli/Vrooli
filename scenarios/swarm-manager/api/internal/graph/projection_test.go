@@ -171,11 +171,11 @@ func TestProjectTopology_TargetsEdges(t *testing.T) {
 func TestMemberOfEdges(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "task-1", Title: "T1", Status: "ready", Milestone: "my-init"},
+			{Kind: "execute", Name: "task-1", Title: "T1", Status: "ready", Milestone: "delivery"},
 			{Kind: "fix", Name: "bug-1", Title: "B1", Status: "ready"}, // no milestone
 		}},
 		Goal: &mockGoalLister{goals: []GoalEntry{
-			{Name: "my-init", Title: "Init", Status: "active"},
+			{Name: "my-goal", Title: "Goal", Status: "active", Items: []string{"execute/task-1"}},
 		}},
 	})
 
@@ -191,8 +191,8 @@ func TestMemberOfEdges(t *testing.T) {
 			if e.Source != "backlog-item/execute/task-1" {
 				t.Errorf("expected member_of source to be task-1, got %s", e.Source)
 			}
-			if e.Target != "goal/my-init" {
-				t.Errorf("expected member_of target to be my-init, got %s", e.Target)
+			if e.Target != "goal/my-goal" {
+				t.Errorf("expected member_of target to be my-goal, got %s", e.Target)
 			}
 		}
 	}

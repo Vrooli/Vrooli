@@ -116,11 +116,17 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 	}
 	if s.backlogHandler != nil {
 		s.backlogHandler.SetExecutionQueuer(s.executionSvc)
+		if s.goalsHandler != nil {
+			goalHandler := s.goalsHandler
+			s.backlogHandler.AddItemTerminalHandler(func(ctx context.Context, kind, name string, status backlog.BacklogStatus) {
+				goalHandler.StartMilestoneReviewsForTerminalItem(ctx, kind, name, status)
+			})
+		}
 
 		// Baseline Modes engagement close (plan P-c): promote/abandon the owner's
 		// whole engagement set at the review-decide terminal transition — the
 		// atomic accept/reject — not at finalization. Chained via Add so it
-		// coexists with the initiative-review trigger.
+		// coexists with other terminal observers.
 		execSvc := s.executionSvc
 		s.backlogHandler.AddItemTerminalHandler(func(ctx context.Context, kind, name string, status backlog.BacklogStatus) {
 			execSvc.CloseOwnerEngagements(ctx, kind, name, engagementCloseDecisionForStatus(status))

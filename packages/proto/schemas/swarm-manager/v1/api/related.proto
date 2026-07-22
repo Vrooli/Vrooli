@@ -4,18 +4,18 @@ package swarm_manager.v1;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
-// RelatedService exposes explainable related work for a backlog item or initiative.
+// RelatedService exposes explainable related work for a backlog item or goal.
 service RelatedService {
   rpc GetRelated(GetRelatedRequest) returns (GetRelatedResponse);
 }
 
 message RelatedBacklogTarget { string kind = 1; string name = 2; }
-message RelatedInitiativeTarget { string name = 1; }
+message RelatedGoalTarget { string name = 1; }
 
 message GetRelatedRequest {
   oneof target {
     RelatedBacklogTarget backlog = 1;
-    RelatedInitiativeTarget initiative = 2;
+    RelatedGoalTarget goal = 2;
   }
   // Historical work is included unless this is true.
   bool exclude_historical = 3;

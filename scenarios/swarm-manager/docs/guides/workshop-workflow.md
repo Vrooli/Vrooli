@@ -35,14 +35,15 @@ deliberate return to the same loop, not an added workflow family.
    hash and current plan validity, alongside ordinary dependency and policy
    checks.
 
-Research, independent review, and milestone review each retain their native
-conclusion or round as historical evidence. Their terminal result also creates
-one idempotent finding on the matching Plan Workshop session, with a typed
+Independent review and milestone review retain their rounds as historical
+evidence. Research evidence is stored as ordinary item files and leads to a
+normal implementation plan or an explicit archive proposal. Terminal results
+create one idempotent finding on the matching Plan Workshop session, with a typed
 disposition (`plan_revision`, `plan_authoring`, `follow_up`, `archive`,
 `supersede`, or `attention`), rationale, and confidence. The disposition is an
 operator recommendation, not a mutation instruction: the operator still uses
 the workshop response and existing `work.follow_up` or `work.correct`
-transitions for authorized work. A research conclusion is not itself an
+transitions for authorized work. Research evidence is not itself an
 implementation plan.
 
 Automatic follow-up creation is denied by default. An operator may explicitly

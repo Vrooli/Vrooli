@@ -67,13 +67,10 @@ func createTestItem(t *testing.T, rootDir string, kind BacklogKind, item Backlog
 
 func createReadyTestItem(t *testing.T, rootDir string, kind BacklogKind, item BacklogItem) {
 	t.Helper()
-	if kind != KindResearch && item.PlanRef == nil {
+	if item.PlanRef == nil {
 		item.PlanRef = &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: "test-plan-" + item.Name, Slug: "test-plan-" + item.Name, Role: PlanRefRoleExecutionSpec}
 	}
 	createTestItem(t, rootDir, kind, item)
-	if kind == KindResearch {
-		testutil.WriteFile(t, filepath.Join(rootDir, backlogKindDirs[kind], item.Name, "conclusion.md"), "# Conclusion\nTest conclusion.")
-	}
 }
 
 type mockAgentService struct {

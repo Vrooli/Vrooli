@@ -16,6 +16,7 @@ function goal(name: string, priority: number, progressPct: number): GoalWithScop
       status: "active",
       priority,
       targets: [],
+      milestones: [],
       seeded: false,
       scopeHistory: [],
       created: "",

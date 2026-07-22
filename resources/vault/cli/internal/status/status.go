@@ -20,12 +20,14 @@ type Handlers struct {
 
 type Report struct {
 	Container       string `json:"container"`
+	Endpoint        string `json:"endpoint,omitempty"`
 	Initialized     bool   `json:"initialized"`
 	Sealed          bool   `json:"sealed"`
 	StorageType     string `json:"storage_type"`
 	Version         string `json:"version,omitempty"`
 	PersistenceSafe bool   `json:"persistence_safe"`
 	Mode            string `json:"mode"`
+	Runtime         string `json:"runtime"`
 }
 
 type vaultStatus struct {
@@ -36,7 +38,11 @@ type vaultStatus struct {
 }
 
 func Default() *Handlers {
-	return &Handlers{Stdout: os.Stdout, Stderr: os.Stderr, Run: runCommand}
+	return &Handlers{
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Run:    runCommand,
+	}
 }
 
 func Command(h *Handlers) cliapp.CommandGroup {
@@ -85,17 +91,21 @@ func (h *Handlers) Status(args []string) error {
 }
 
 func (h *Handlers) report() (Report, error) {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_MANAGED_PROVIDER")), "remote-vrooli") {
+		return Report{}, fmt.Errorf("remote-vrooli provider must use the scenario API; direct Vault status access is forbidden")
+	}
 	run := h.Run
 	if run == nil {
 		run = runCommand
 	}
-	container := strings.TrimSpace(os.Getenv("VROOLI_VAULT_CONTAINER"))
-	if container == "" {
-		container = "vault"
+	endpoint := strings.TrimSpace(os.Getenv("VAULT_ADDR"))
+	if endpoint == "" {
+		endpoint = "http://127.0.0.1:8200"
 	}
-	out, err := run("docker", "exec", "-e", "VAULT_ADDR=http://127.0.0.1:8200", container, "vault", "status", "-format=json")
+	runtime := "managed-service"
+	out, err := run(vaultBinary(), "status", "-format=json")
 	if err != nil {
-		return Report{}, fmt.Errorf("vault status in container %q: %w", container, err)
+		return Report{}, fmt.Errorf("Vault status through managed endpoint %q: %w", endpoint, err)
 	}
 	var parsed vaultStatus
 	if err := json.Unmarshal(out, &parsed); err != nil {
@@ -107,13 +117,15 @@ func (h *Handlers) report() (Report, error) {
 		mode = "ephemeral-dev"
 	}
 	return Report{
-		Container:       container,
+		Container:       "managed-service",
+		Endpoint:        endpoint,
 		Initialized:     parsed.Initialized,
 		Sealed:          parsed.Sealed,
 		StorageType:     parsed.StorageType,
 		Version:         parsed.Version,
 		PersistenceSafe: persistenceSafe,
 		Mode:            mode,
+		Runtime:         runtime,
 	}, nil
 }
 
@@ -127,4 +139,14 @@ func runCommand(name string, args ...string) ([]byte, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+func vaultBinary() string {
+	if binary := strings.TrimSpace(os.Getenv("VROOLI_VAULT_BINARY")); binary != "" {
+		return binary
+	}
+	if binary := strings.TrimSpace(os.Getenv("VROOLI_MANAGED_SERVICE_ARTIFACT")); binary != "" {
+		return binary
+	}
+	return "vault"
 }

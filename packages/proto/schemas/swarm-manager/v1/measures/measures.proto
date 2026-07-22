@@ -37,7 +37,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 //   /vrooli.swarm_manager.v1.measures.MeasuresService/CountBacklogCompleted
 //   /vrooli.swarm_manager.v1.measures.MeasuresService/CountBacklogCreated
 //   /vrooli.swarm_manager.v1.measures.MeasuresService/CountExecutionsCompleted
-//   /vrooli.swarm_manager.v1.measures.MeasuresService/CountInitiativesCreated
+//   /vrooli.swarm_manager.v1.measures.MeasuresService/CountGoalsCreated
 //   /vrooli.swarm_manager.v1.measures.MeasuresService/CountAgentSessionsCreated
 // =============================================================================
 
@@ -84,16 +84,16 @@ message CountExecutionsCompletedResponse {
   int64 count = 1;
 }
 
-// CountInitiativesCreatedRequest scopes the initiative-creation count.
-message CountInitiativesCreatedRequest {
+// CountGoalsCreatedRequest scopes the goal-creation count.
+message CountGoalsCreatedRequest {
   // Time window the count is scoped to (see CountBacklogCompletedRequest).
   vrooli.measures.v1.TimeWindow window = 1;
 }
 
-// CountInitiativesCreatedResponse carries the scalar value_field `count`.
-message CountInitiativesCreatedResponse {
-  // Number of initiatives created within the requested window (counted from
-  // initiative.created events).
+// CountGoalsCreatedResponse carries the scalar value_field `count`.
+message CountGoalsCreatedResponse {
+  // Number of goals created within the requested window (counted from
+  // goal.created events).
   int64 count = 1;
 }
 
@@ -127,9 +127,9 @@ service MeasuresService {
   // <window>". Bound to the `execution completed` measure.
   rpc CountExecutionsCompleted(CountExecutionsCompletedRequest) returns (CountExecutionsCompletedResponse);
 
-  // CountInitiativesCreated answers "how many initiatives were created in
-  // <window>". Bound to the `initiative created` measure.
-  rpc CountInitiativesCreated(CountInitiativesCreatedRequest) returns (CountInitiativesCreatedResponse);
+  // CountGoalsCreated answers "how many goals were created in
+  // <window>". Bound to the `goal created` measure.
+  rpc CountGoalsCreated(CountGoalsCreatedRequest) returns (CountGoalsCreatedResponse);
 
   // CountAgentSessionsCreated answers "how many agent sessions were created in
   // <window>". Bound to the `agent_session created` measure.

@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Archive,
   CheckCircle2,
@@ -21,6 +21,9 @@ import { BacklogCard } from "../components/backlog/backlog-card";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
+import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
+import { Button } from "../components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { GOAL_LENSES } from "../components/detail/lens-options";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import type { ActionMenuItem } from "../components/ui/action-menu";
@@ -29,7 +32,7 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { goalsService } from "../services/goals-service";
 import { GOALS_QUERY_KEY } from "../surfaces/plan/hooks/useGoals";
-import type { GoalScope, GoalScopeEntities, GoalWithScope } from "../types/goal";
+import type { GoalFile, GoalMilestone, GoalScope, GoalScopeEntities, GoalWithScope } from "../types/goal";
 import { ENTITY_TYPE_ICONS } from "../types/constants";
 import {
   backlogDetailPath,
@@ -39,6 +42,27 @@ import {
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
+const GOAL_TABS = ["overview", "milestones", "decide", "files", "activity", "related"] as const;
+type GoalTab = typeof GOAL_TABS[number];
+
+function isGoalTab(value: string | null): value is GoalTab {
+  return value !== null && (GOAL_TABS as readonly string[]).includes(value);
+}
+
+function GoalFileList({ files, isLoading }: { files?: GoalFile[]; isLoading: boolean }) {
+  if (isLoading) return <p className="py-8 text-sm text-slate-500">Loading goal files…</p>;
+  if (!files?.length) return <p className="py-8 text-sm text-slate-500">This goal has no files yet.</p>;
+  return (
+    <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800" data-testid="goal-files-list">
+      {files.map((file) => (
+        <li key={file.path} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+          <code className="min-w-0 truncate text-slate-200">{file.path}</code>
+          <span className="shrink-0 text-xs text-slate-500">{file.size.toLocaleString()} B</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 interface ParsedGoalRef {
   ref: string;
@@ -204,12 +228,46 @@ function ScopeHistory({ goal }: { goal: GoalWithScope["goal"] }) {
   );
 }
 
+function MilestoneGroups({ milestones, entities }: { milestones: GoalMilestone[]; entities?: GoalScopeEntities }) {
+  const active = milestones.filter((milestone) => !milestone.archivedAt);
+  if (active.length === 0) {
+    return <p className="text-sm text-slate-500">This goal does not have milestone groups yet.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {active.map((milestone) => (
+        <article
+          key={milestone.name}
+          className="rounded-xl border border-slate-800 bg-slate-900/50 p-3"
+          data-testid={`goal-milestone-${milestone.name}`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-slate-100">{milestone.title || milestone.name}</h3>
+              {milestone.description && <p className="mt-1 text-sm text-slate-400">{milestone.description}</p>}
+            </div>
+            <span className="shrink-0 rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-xs text-slate-400">
+              {milestone.items.length} assigned
+            </span>
+          </div>
+          <div className="mt-3">
+            <RefList refs={milestone.items} emptyText="No work assigned to this milestone yet." entities={entities} />
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export function GoalDetailsPage() {
   const { name = "" } = useParams<{ name: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [activeTab, setActiveTab] = useState<GoalTab>(() => isGoalTab(searchParams.get("tab")) ? searchParams.get("tab") as GoalTab : "overview");
 
   const decodedName = useMemo(() => decodeURIComponent(name), [name]);
   const nodeId = routeTargetToNodeId({ entityType: "goal", name: decodedName });
@@ -218,6 +276,12 @@ export function GoalDetailsPage() {
     queryKey: ["goal", decodedName],
     queryFn: () => goalsService.get(decodedName),
     enabled: decodedName.length > 0,
+    ...defaultQueryOptions,
+  });
+  const filesQuery = useQuery({
+    queryKey: ["goal-files", decodedName],
+    queryFn: () => goalsService.getFiles(decodedName),
+    enabled: decodedName.length > 0 && activeTab === "files",
     ...defaultQueryOptions,
   });
 
@@ -246,6 +310,8 @@ export function GoalDetailsPage() {
       navigate("/plan", { replace: true });
     },
   });
+  const planMutation = useMutation({ mutationFn: () => goalsService.startPlan(decodedName), onSuccess: invalidateGoal });
+  const discoverMutation = useMutation({ mutationFn: () => goalsService.startDiscover(decodedName), onSuccess: invalidateGoal });
 
   if (query.isLoading) {
     return (
@@ -313,12 +379,28 @@ export function GoalDetailsPage() {
           lenses={GOAL_LENSES}
           onDrillToLens={() => navigate(graphPath({ lens: "plan", goal: goal.name }))}
           menuActions={menuActions}
+          tabBar={
+            <Tabs value={activeTab} onValueChange={(value) => {
+              if (!isGoalTab(value)) return;
+              setActiveTab(value);
+              setSearchParams(value === "overview" ? {} : { tab: value }, { replace: true });
+            }}>
+              <TabsList className="w-full justify-start gap-1 overflow-x-auto rounded-none bg-transparent px-3">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="milestones">Milestones</TabsTrigger>
+                <TabsTrigger value="decide">Decide</TabsTrigger>
+                <TabsTrigger value="files">Files</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsTrigger value="related">Related</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          }
         />
       }
       bodyClassName="mx-auto w-full max-w-3xl"
     >
       <div className="min-w-0 space-y-4">
-        <DetailSection title="Overview" icon={ENTITY_TYPE_ICONS.goal} hideDivider data-testid="goal-overview">
+        {activeTab === "overview" && <DetailSection title="Overview" icon={ENTITY_TYPE_ICONS.goal} hideDivider data-testid="goal-overview">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
@@ -408,27 +490,44 @@ export function GoalDetailsPage() {
               </div>
             </div>
           </div>
-        </DetailSection>
+        </DetailSection>}
 
-        <DetailSection title="Targets" icon={Target} storageKey="goal.targets" data-testid="goal-targets">
+        {activeTab === "overview" && <DetailSection title="Targets" icon={Target} storageKey="goal.targets" data-testid="goal-targets">
           <RefList refs={goal.targets} emptyText="This goal does not have explicit targets yet." entities={query.data.scopeEntities} />
-        </DetailSection>
+        </DetailSection>}
 
-        <DetailSection title="Scope Progress" icon={Workflow} storageKey="goal.scope-progress" data-testid="goal-scope">
+        {activeTab === "overview" && <DetailSection title="Scope Progress" icon={Workflow} storageKey="goal.scope-progress" data-testid="goal-scope">
           <ScopeProgress scope={scope} />
-        </DetailSection>
+        </DetailSection>}
 
-        <DetailSection title="Ready Work" icon={ListChecks} storageKey="goal.ready-work" data-testid="goal-ready">
+        {activeTab === "milestones" && <DetailSection title="Milestone Groups" icon={ListChecks} storageKey="goal.milestones" data-testid="goal-milestones">
+          <MilestoneGroups milestones={goal.milestones} entities={query.data.scopeEntities} />
+        </DetailSection>}
+
+        {activeTab === "overview" && <DetailSection title="Ready Work" icon={ListChecks} storageKey="goal.ready-work" data-testid="goal-ready">
           <RefList refs={scope.ready} emptyText="No ready work in this goal right now." entities={query.data.scopeEntities} />
-        </DetailSection>
+        </DetailSection>}
 
-        <DetailSection title="Blocked Work" icon={ListChecks} storageKey="goal.blocked-work" data-testid="goal-blocked">
+        {activeTab === "overview" && <DetailSection title="Blocked Work" icon={ListChecks} storageKey="goal.blocked-work" data-testid="goal-blocked">
           <RefList refs={scope.blocked} emptyText="No blocked work in this goal right now." entities={query.data.scopeEntities} />
-        </DetailSection>
+        </DetailSection>}
 
-        <DetailSection title="Scope Creep" icon={Workflow} storageKey="goal.scope-creep" defaultOpen={false} data-testid="goal-history">
+        {activeTab === "overview" && <DetailSection title="Scope Creep" icon={Workflow} storageKey="goal.scope-creep" defaultOpen={false} data-testid="goal-history">
           <ScopeHistory goal={goal} />
-        </DetailSection>
+        </DetailSection>}
+        {activeTab === "decide" && (
+          <section className="space-y-4" data-testid="goal-decide">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div><h2 className="text-lg font-semibold text-slate-100">Goal decisions</h2><p className="text-sm text-slate-400">Plan the goal or discover bounded work, then approve typed proposals here.</p></div>
+              <div className="flex gap-2"><Button disabled={planMutation.isPending || discoverMutation.isPending} title="Starts a goal-plan workflow from the current immutable snapshot" onClick={() => planMutation.mutate()}>{planMutation.isPending ? "Planning…" : "Plan goal"}</Button><Button variant="outline" disabled={planMutation.isPending || discoverMutation.isPending} title="Starts a goal-discover workflow from the current immutable snapshot" onClick={() => discoverMutation.mutate()}>{discoverMutation.isPending ? "Discovering…" : "Discover"}</Button></div>
+            </div>
+            {(planMutation.error || discoverMutation.error) && <p className="text-sm text-red-300">{(planMutation.error ?? discoverMutation.error) instanceof Error ? ((planMutation.error ?? discoverMutation.error) as Error).message : "Unable to start goal workflow."}</p>}
+            <ProposalSessionsPanel target={{ type: "goal", ref: goal.name, name: goal.title || goal.name }} />
+          </section>
+        )}
+        {activeTab === "files" && <section data-testid="goal-files"><h2 className="mb-2 text-lg font-semibold text-slate-100">Goal files</h2><p className="mb-4 text-sm text-slate-400">Read-only goal metadata and migrated initiative carry-over.</p><GoalFileList files={filesQuery.data} isLoading={filesQuery.isLoading} /></section>}
+        {activeTab === "activity" && <p className="py-8 text-sm text-slate-500">Goal activity is recorded with milestone and proposal decisions.</p>}
+        {activeTab === "related" && <RefList refs={goal.targets} emptyText="No related targets." entities={query.data.scopeEntities} />}
       </div>
 
       <ConfirmDialog

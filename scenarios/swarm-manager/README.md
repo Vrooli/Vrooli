@@ -187,8 +187,9 @@ swarm-manager prompts simulate --kind <kind> [--mode workshop|initialize|finaliz
 
 Plan-backed primary executions use the bounded Agent Manager
 `phased-plan-drain` workflow. Swarm pins the Plan Manager frontier and remains
-the sole owner of approval and terminal result application; retry, fixup,
-follow-up, and research conclusion retain their existing execution paths. The
+the sole owner of approval and terminal result application; retry, fixup, and
+follow-up retain their existing execution paths. Research items use this same
+plan-backed lifecycle after investigation evidence is captured. The
 workflow enforces the requested slice bound, makes independent review rejection
 drive a reviewed same-conversation correction, and preserves blocked,
 abstained, and budget-exhausted terminal outcomes. See

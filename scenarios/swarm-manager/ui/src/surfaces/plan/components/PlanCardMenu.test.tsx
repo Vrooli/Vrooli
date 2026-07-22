@@ -71,6 +71,7 @@ function goal(name: string, targets: string[] = []): GoalWithScope {
       status: "active",
       priority: 1,
       targets,
+      milestones: [],
       seeded: false,
       scopeHistory: [],
       created: "",

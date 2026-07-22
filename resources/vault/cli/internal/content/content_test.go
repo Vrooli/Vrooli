@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -207,5 +208,25 @@ func TestCommandsSurface(t *testing.T) {
 		if !got[want] {
 			t.Fatalf("missing subcommand %q", want)
 		}
+	}
+}
+
+func TestNativeRunnerRequiresScopedToken(t *testing.T) {
+	runner := &nativeRunner{binary: "vault", addr: "http://127.0.0.1:8200"}
+	if _, _, err := runner.Run(context.Background(), []string{"kv", "get", "secret/example"}, nil); err == nil || !strings.Contains(err.Error(), "VAULT_TOKEN") {
+		t.Fatalf("Run() error = %v, want scoped token requirement", err)
+	}
+}
+
+func TestNativeRunnerRejectsDirectRemoteVrooliAccess(t *testing.T) {
+	runner := &nativeRunner{binary: "vault", addr: "https://vault.example", token: "scoped", provider: "remote-vrooli"}
+	if _, _, err := runner.Run(context.Background(), []string{"kv", "get", "secret/example"}, nil); err == nil || !strings.Contains(err.Error(), "scenario API") {
+		t.Fatalf("Run() error = %v, want scenario API boundary", err)
+	}
+}
+
+func TestDefaultRunnerUsesNativeManagedService(t *testing.T) {
+	if _, ok := NewDefaultRunner().(*nativeRunner); !ok {
+		t.Fatal("default runner must use the native managed service")
 	}
 }

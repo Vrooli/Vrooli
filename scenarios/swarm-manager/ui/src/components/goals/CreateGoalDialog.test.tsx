@@ -30,6 +30,7 @@ function makeGoal(name: string): GoalWithScope {
       status: "active",
       priority: 0,
       targets: [],
+      milestones: [],
       seeded: false,
       scopeHistory: [],
       created: "",

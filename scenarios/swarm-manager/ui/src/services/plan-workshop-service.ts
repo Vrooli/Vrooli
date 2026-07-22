@@ -90,6 +90,7 @@ export interface IPlanWorkshopService {
   applyCandidate(id: string, responseId: string): Promise<{ session: PlanWorkshopSession; resolution: PlanWorkshopResolution }>;
   discardCandidate(id: string, responseId: string, reason?: string): Promise<{ session: PlanWorkshopSession; resolution: PlanWorkshopResolution }>;
   acceptPlan(kind: string, name: string, planContentHash?: string): Promise<{ plan_acceptance: { actor: string; accepted_at: string; plan_content_hash: string; subject_version: string } }>;
+  unacceptPlan(kind: string, name: string): Promise<void>;
 }
 
 export function createPlanWorkshopService(apiClient: IApiClient = defaultApiClient): IPlanWorkshopService {
@@ -125,6 +126,9 @@ export function createPlanWorkshopService(apiClient: IApiClient = defaultApiClie
       return apiClient.post<{ plan_acceptance: { actor: string; accepted_at: string; plan_content_hash: string; subject_version: string } }>(API_ENDPOINTS.backlogPlanAccept(kind, name), {
         ...(planContentHash ? { plan_content_hash: planContentHash } : {}),
       });
+    },
+    async unacceptPlan(kind, name) {
+      await apiClient.delete<void>(API_ENDPOINTS.backlogPlanAccept(kind, name));
     },
   };
 }

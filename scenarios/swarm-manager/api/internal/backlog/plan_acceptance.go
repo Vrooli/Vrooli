@@ -96,6 +96,36 @@ func (h *Handler) AcceptPlan(w http.ResponseWriter, r *http.Request) {
 	_ = httputil.JSON(w, map[string]any{"plan_acceptance": item.PlanAcceptance})
 }
 
+// UnacceptPlan clears an explicit acceptance. It is forbidden while execution
+// is queued or running: the operator must cancel the execution first so the
+// readiness contract cannot change beneath live work.
+func (h *Handler) UnacceptPlan(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "unaccept-plan")
+	if !ok {
+		return
+	}
+	if h.executionActivity != nil && h.executionActivity.HasActiveForBacklog(r.Context(), string(kind), name) {
+		apierr.MapError(w, "[backlog] unaccept-plan", apierr.Conflict("cannot un-accept while an execution is queued or running; cancel it first"))
+		return
+	}
+	item, err := h.store.LoadItem(kind, name)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			apierr.MapError(w, "[backlog] unaccept-plan", apierr.NotFound("backlog item not found"))
+		} else {
+			apierr.MapError(w, "[backlog] unaccept-plan", apierr.Internal("failed to load backlog item"))
+		}
+		return
+	}
+	item.PlanAcceptance = nil
+	item.Updated = time.Now().UTC().Format(time.RFC3339Nano)
+	if err := h.store.SaveItem(item); err != nil {
+		apierr.MapError(w, "[backlog] unaccept-plan", apierr.Internal("failed to clear plan acceptance"))
+		return
+	}
+	_ = httputil.JSON(w, map[string]any{"plan_acceptance": nil})
+}
+
 // PlanAcceptanceSubjectVersion hashes the plan-relevant work contract while
 // deliberately excluding lifecycle timestamps/status. Queueing must not make
 // an already accepted plan stale, but changing scope or the plan reference

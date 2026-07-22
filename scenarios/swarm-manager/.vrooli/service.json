@@ -206,7 +206,6 @@
               ".vrooli/agent-manager/phased-plan-drain.json",
               ".vrooli/agent-manager/plan-repair.json",
               ".vrooli/agent-manager/capture-classify.json",
-              ".vrooli/agent-manager/research-conclude.json",
               ".vrooli/agent-manager/independent-review.json",
               ".vrooli/agent-manager/work-follow-up.json",
               ".vrooli/agent-manager/work-correct.json",

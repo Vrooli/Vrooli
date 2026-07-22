@@ -1,0 +1,37 @@
+package main
+
+import (
+	"context"
+
+	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/agentsessions"
+	"swarm-manager/internal/goals"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+)
+
+type goalWorkflowAdapter struct{ invoker agentmanager.WorkflowInvoker }
+
+func (a goalWorkflowAdapter) StartWorkflow(ctx context.Context, in goals.WorkflowInvocation) (goals.WorkflowStart, error) {
+	start, err := a.invoker.StartWorkflow(ctx, agentmanager.Invocation{Owner: in.Owner, WorkflowKey: in.WorkflowKey, Input: in.Input, IdempotencyKey: in.IdempotencyKey, FirstRunNodeID: in.FirstRunNodeID})
+	return goals.WorkflowStart{ExecutionID: start.ExecutionID, RunID: start.RunID, DefinitionDigest: start.DefinitionDigest}, err
+}
+
+func (a goalWorkflowAdapter) CollectWorkflow(ctx context.Context, executionID string) (goals.WorkflowCompletion, error) {
+	completion, err := a.invoker.CollectWorkflow(ctx, executionID)
+	return goals.WorkflowCompletion{ExecutionID: completion.ExecutionID, DefinitionDigest: completion.DefinitionDigest, Succeeded: completion.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: completion.Input, Output: completion.Output}, err
+}
+
+type goalWorkflowProposalRecorder struct{ sessions *agentsessions.Service }
+
+func (r goalWorkflowProposalRecorder) RecordGoalWorkflowProposals(ctx context.Context, proposal goals.GoalWorkflowProposal) (goals.GoalWorkflowProposalReceipt, error) {
+	session, recorded, err := r.sessions.RecordWorkflowMutationProposals(ctx, proposal.Title, proposal.Summary, proposal.GoalVersion, agentsessions.ProposalTarget{Type: agentsessions.ContextGoal, Ref: proposal.GoalName, Name: proposal.GoalName}, proposal.Payloads, agentsessions.Attribution{Type: agentsessions.AttributionAgent, RunID: proposal.ExecutionID, ProfileKey: "swarm-manager/deep-work", Source: "workflow/" + proposal.WorkflowKey})
+	if err != nil {
+		return goals.GoalWorkflowProposalReceipt{}, err
+	}
+	ids := make([]string, 0, len(recorded))
+	for _, entry := range recorded {
+		ids = append(ids, entry.ID)
+	}
+	return goals.GoalWorkflowProposalReceipt{SessionID: session.ID, ProposalIDs: ids}, nil
+}

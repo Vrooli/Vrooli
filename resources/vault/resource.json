@@ -39,96 +39,112 @@
       "kind": "go_module"
     }
   },
-  "template": "docker-service",
-  "driver": "docker-service",
+  "template": "managed-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "provider_policy": {
+      "default_mode": "managed-shared",
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli"
+      ],
+      "shared_reuse_requires_consent": false,
+      "external_management": "forbidden",
+      "external_access_capabilities": ["read-only", "read-write"]
+    },
+    "artifact": {
+      "path": "server/vault",
+      "version": "1.17.6",
+      "sha256_by_platform": {
+        "linux-amd64": "9929f66df86b1bb64c2ff5dca14cb3da34f3c064d11e4af2e50ba33177e5cdb0",
+        "linux-arm64": "438a552f2a51bbb2a5e135f2a60d9b4b3ecd3cb3dcff776021686ec16f17010a",
+        "macos-amd64": "d7be7ef93315148ea5889baff52e43c2b1824183378d8554da283e8047d77d30",
+        "macos-arm64": "71d41f26eed5d33845672b1971e02c9e9c8e3161ceb69ffd33ccf808905c8f41",
+        "windows-amd64": "2584b56bdf40c2fb2c49910507d45711f0791deacba412a856d9025ad5150e9c"
+      },
+      "bundle_artifact": "vault_${os}_${arch}"
+    },
+    "attach_health_path": "/v1/sys/health",
+    "arguments": [
+      "server",
+      "-config=${RESOURCE_CONFIG_DIR}/vault.hcl"
+    ],
+    "environment": {
+      "VROOLI_VAULT_RUNTIME": "managed",
+      "VAULT_ADDR": "http://127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "VAULT_API_ADDR": "http://127.0.0.1:${RESOURCE_PORT_HTTP}"
+    },
+    "config": {
+      "path": "vault.hcl",
+      "content": "storage \"file\" {\n  path = \"${RESOURCE_DATA_DIR}\"\n}\n\nlistener \"tcp\" {\n  address = \"127.0.0.1:${RESOURCE_PORT_HTTP}\"\n  tls_disable = true\n}\n\napi_addr = \"http://127.0.0.1:${RESOURCE_PORT_HTTP}\"\ndisable_mlock = true\nui = false\n"
+    }
+  },
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker-engine"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker images, storage, and networking remain host-managed."
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum",
+            "fixture-runtime-test"
           ]
         },
         "macos": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker-desktop"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum",
+            "fixture-runtime-test"
           ]
         },
         "windows": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
-            "amd64",
-            "arm64"
+            "amd64"
           ],
-          "requires": [
-            "docker-desktop"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum",
+            "fixture-runtime-test"
           ]
         }
       }
     }
   },
-  "portability_tier": "full",
+  "portability_tier": "partial",
   "category": "storage",
   "platforms": {
-    "linux": "supported",
-    "macos": "supported",
+    "linux": "partial",
+    "macos": "partial",
     "windows": "partial"
   },
-  "hostTools": [
-    {
-      "name": "yq",
-      "required": false,
-      "reason": "Parse resource secrets.yaml templates and initialization metadata from retained Vault shell workflows",
-      "when": [
-        "setup",
-        "develop"
-      ],
-      "notes": "Vault secret helper scripts fall back to basic parsing when yq is unavailable"
-    },
-    {
-      "name": "vault",
-      "required": true,
-      "reason": "Core CLI for all Vault server operations: inject, status, health, and storage strategy management",
-      "when": [
-        "setup",
-        "develop"
-      ]
-    }
-  ],
+  "hostTools": [],
   "dependencies": [],
   "ports": [
     {
@@ -140,7 +156,7 @@
   "health_checks": [
     {
       "type": "http",
-      "target": "http://127.0.0.1:8200/v1/sys/health",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health",
       "expected_status": [
         200,
         429,
@@ -153,36 +169,9 @@
       "timeout_seconds": 10
     }
   ],
-  "runtime": {
-    "image": "hashicorp/vault:1.17",
-    "container_name": "vault",
-    "env": {
-      "VAULT_ADDR": "http://0.0.0.0:8200",
-      "VAULT_API_ADDR": "http://localhost:8200",
-      "VAULT_LOCAL_CONFIG": "{\"storage\":{\"file\":{\"path\":\"/vault/file\"}},\"listener\":[{\"tcp\":{\"address\":\"0.0.0.0:8200\",\"tls_disable\":true}}],\"disable_mlock\":true,\"ui\":true}"
-    },
-    "volumes": [
-      {
-        "source": "${RESOURCE_DATA_DIR}",
-        "target": "/vault/file"
-      },
-      {
-        "source": "${RESOURCE_CONFIG_DIR}",
-        "target": "/vault/config"
-      },
-      {
-        "source": "${RESOURCE_LOGS_DIR}",
-        "target": "/vault/logs"
-      }
-    ],
-    "command": [
-      "server"
-    ]
-  },
   "environment_exports": {
     "static": {
-      "VAULT_HOST": "localhost",
-      "VAULT_TOKEN": "myroot"
+      "VAULT_HOST": "localhost"
     },
     "from_ports": {
       "VAULT_PORT": "http"

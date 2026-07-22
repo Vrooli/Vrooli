@@ -8,7 +8,7 @@ resource-vault start
 resource-vault status
 ```
 
-The local runtime uses Vault file storage in the resource data directory. On first secret operation, `resource-vault` initializes and unseals the local Vault instance and stores bootstrap material in the mounted resource data directory.
+The local runtime uses a signed Vault server with file storage in the resource data directory and a loopback-only listener. `resource-vault` requires an explicitly supplied scoped `VAULT_TOKEN` for secret operations; bootstrap and unseal are authorized provider operations and never print or discover a root token on the normal path.
 
 ## Store And Read A Secret
 

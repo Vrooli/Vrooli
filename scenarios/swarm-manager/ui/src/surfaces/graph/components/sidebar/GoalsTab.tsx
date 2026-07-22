@@ -1,4 +1,5 @@
 import { memo } from "react";
+import type { MouseEvent } from "react";
 import { ChevronDown, ChevronUp, Loader2, Plus } from "lucide-react";
 import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { Button } from "../../../../components/ui/button";
@@ -83,6 +84,10 @@ function GoalsTabImpl({
     }
   };
 
+  const stopCardNavigation = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+  };
+
   if (isLoading) {
     return <LoadingSkeleton />;
   }
@@ -130,11 +135,12 @@ function GoalsTabImpl({
             key={goal.goal.name}
             className="rounded-lg border border-slate-800/80 bg-slate-900/60 p-2.5 text-left transition-colors hover:border-slate-700 hover:bg-slate-900"
             data-testid={`goal-row-${goal.goal.name}`}
+            onClick={() => onItemClick(`goal/${goal.goal.name}`)}
           >
             <button
               type="button"
               className="w-full text-left"
-              onClick={() => onItemClick(`goal/${goal.goal.name}`)}
+              aria-label={`Open ${goal.goal.title}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -164,7 +170,10 @@ function GoalsTabImpl({
             <div className="mt-2 flex items-center justify-end gap-1">
               <button
                 type="button"
-                onClick={() => changePriority(goal.goal.name, goal.goal.priority, 1)}
+                onClick={(event) => {
+                  stopCardNavigation(event);
+                  changePriority(goal.goal.name, goal.goal.priority, 1);
+                }}
                 disabled={goal.goal.priority >= MAX_PRIORITY || setPriority.isPending}
                 className={cn(
                   "rounded border border-slate-700/60 p-1 text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-200",
@@ -177,7 +186,10 @@ function GoalsTabImpl({
               </button>
               <button
                 type="button"
-                onClick={() => changePriority(goal.goal.name, goal.goal.priority, -1)}
+                onClick={(event) => {
+                  stopCardNavigation(event);
+                  changePriority(goal.goal.name, goal.goal.priority, -1);
+                }}
                 disabled={goal.goal.priority <= MIN_PRIORITY || setPriority.isPending}
                 className={cn(
                   "rounded border border-slate-700/60 p-1 text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-200",

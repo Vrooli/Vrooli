@@ -92,6 +92,18 @@ const (
 	// OpRecreateMilestone archives an milestone and creates a fresh active
 	// successor while moving its member items to that successor.
 	OpRecreateMilestone Op = "recreate_milestone"
+
+	// Goal-scoped operations are intentionally part of the same mutation-list
+	// envelope as backlog operations.  They are only valid when the proposal
+	// target is a goal; the goal mutation processor validates and applies them
+	// through goals.Service after explicit operator approval.
+	OpCreateMilestone        Op = "create_milestone"
+	OpUpdateMilestone        Op = "update_milestone"
+	OpArchiveMilestone       Op = "archive_milestone"
+	OpAssignMilestoneItems   Op = "assign_milestone_items"
+	OpUnassignMilestoneItems Op = "unassign_milestone_items"
+	OpAddGoalTarget          Op = "add_goal_target"
+	OpRemoveGoalTarget       Op = "remove_goal_target"
 )
 
 // AllOps returns the canonical list of supported ops. Used for validation
@@ -112,6 +124,13 @@ func AllOps() []Op {
 		OpRecreateItem,
 		OpResetArtifacts,
 		OpRecreateMilestone,
+		OpCreateMilestone,
+		OpUpdateMilestone,
+		OpArchiveMilestone,
+		OpAssignMilestoneItems,
+		OpUnassignMilestoneItems,
+		OpAddGoalTarget,
+		OpRemoveGoalTarget,
 	}
 }
 
@@ -186,6 +205,27 @@ type Mutation struct {
 
 	// OpResetArtifacts payload: the independently-removable artifact scopes.
 	ResetScope []ResetArtifactScope `json:"reset_scope,omitempty"`
+
+	// Goal operation payload. Milestone is used by create/update, while
+	// MilestoneName and Items identify archive/assignment operations. Targets
+	// is used by add_goal_target and remove_goal_target. DetachOpen makes an
+	// archive explicit when an active milestone still has member items.
+	GoalMilestone *GoalMilestone `json:"goal_milestone,omitempty"`
+	MilestoneName string         `json:"milestone_name,omitempty"`
+	Items         []string       `json:"items,omitempty"`
+	Targets       []string       `json:"targets,omitempty"`
+	DetachOpen    bool           `json:"detach_open,omitempty"`
+}
+
+// GoalMilestone is the proposal-safe representation of a goals.Milestone.
+// It deliberately lives here to keep proposals independent of the goals
+// package and avoid an import cycle.
+type GoalMilestone struct {
+	Name               string   `json:"name"`
+	Title              string   `json:"title"`
+	Description        string   `json:"description,omitempty"`
+	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
+	DependsOn          []string `json:"depends_on,omitempty"`
 }
 
 // ResetArtifactScope identifies a derived-artifact group that may be removed
@@ -222,7 +262,7 @@ type ItemSpec struct {
 	Tags            []string `json:"tags,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
-	Milestone      string   `json:"milestone,omitempty"`
+	Milestone       string   `json:"milestone,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 	Note            string   `json:"note,omitempty"`
@@ -281,7 +321,7 @@ type GraphEdge struct {
 // telemetry (event log, agentactivity) can group by code path
 // ("session.proposal", "milestone.review", etc.).
 type Source struct {
-	MilestoneName  string
+	MilestoneName   string
 	Mode            string
 	Phase           string
 	FeedbackRoundID string

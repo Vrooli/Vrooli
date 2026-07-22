@@ -83,6 +83,9 @@ type Dependencies struct {
 	GoalsMilestoneAssign    CommandFunc
 	GoalsMilestoneUnassign  CommandFunc
 	GoalsMilestoneArchive   CommandFunc
+	GoalsPlanRun            CommandFunc
+	GoalsDiscoverRun        CommandFunc
+	GoalsMilestoneReviewRun CommandFunc
 	CapturesList            CommandFunc
 	CapturesCreate          CommandFunc
 	CapturesGet             CommandFunc
@@ -107,7 +110,7 @@ type Dependencies struct {
 	StatsSummary            CommandFunc
 	StatsThroughput         CommandFunc
 	StatsBlocking           CommandFunc
-	StatsMilestones        CommandFunc
+	StatsMilestones         CommandFunc
 	StatsAgent              CommandFunc
 	StatsSessions           CommandFunc
 	StatsSandboxAdoption    CommandFunc

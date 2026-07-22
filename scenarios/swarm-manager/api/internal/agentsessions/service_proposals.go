@@ -2,6 +2,7 @@ package agentsessions
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -25,6 +26,46 @@ func (s *Service) RecordProposal(_ context.Context, sessionID string, proposal P
 	}
 	s.emitProposalCreated(sessionID, proposal)
 	return proposal, nil
+}
+
+// RecordWorkflowMutationProposals creates the durable proposal-session
+// projection of a completed declared workflow. The workflow remains the
+// immutable evidence source; this session is the single operator decision
+// inbox and deliberately does not attempt to start an agent-session run.
+func (s *Service) RecordWorkflowMutationProposals(ctx context.Context, title, summary, baseVersion string, target ProposalTarget, payloads []string, attribution Attribution) (Session, []Proposal, error) {
+	if strings.TrimSpace(title) == "" {
+		title = "Workflow proposals for " + target.Name
+	}
+	session, err := s.Create(ctx, CreateRequest{Kind: KindSwarmOperations, Title: title, ProposalTarget: &target})
+	if err != nil {
+		return Session{}, nil, err
+	}
+	session.Status = StatusProposalReady
+	session.UpdatedAt = nowRFC3339()
+	if err := s.store.SaveSession(session); err != nil {
+		return Session{}, nil, err
+	}
+	if len(payloads) == 0 {
+		payload, marshalErr := json.Marshal(map[string]any{"form": "mutation_list", "rationale": strings.TrimSpace(summary), "base_version": strings.TrimSpace(baseVersion), "mutations": []any{}})
+		if marshalErr != nil {
+			return Session{}, nil, marshalErr
+		}
+		payloads = []string{string(payload)}
+	}
+	proposals := make([]Proposal, 0, len(payloads))
+	for _, payload := range payloads {
+		kind := ProposalMutationList
+		if isNoChangeMutationProposal(payload) {
+			kind = ProposalNoChangeRecommendation
+		}
+		proposal, recordErr := s.RecordProposal(ctx, session.ID, Proposal{Kind: kind, Status: ProposalStatusReady, Summary: summary, PayloadJSON: payload, Target: &target, Attribution: &attribution})
+		if recordErr != nil {
+			return Session{}, nil, recordErr
+		}
+		proposals = append(proposals, proposal)
+	}
+	stored, err := s.store.LoadSession(session.ID)
+	return stored, proposals, err
 }
 
 func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID string) (Session, []Artifact, error) {

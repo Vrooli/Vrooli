@@ -16,6 +16,10 @@ function makeGoal(): GoalWithScope {
       status: "active",
       priority: 4,
       targets: ["execute/ship-workspace"],
+      milestones: [
+        { name: "foundation", title: "Foundation", description: "Lay the groundwork.", items: ["fix/blocker"], acceptanceCriteria: [], dependsOn: [] },
+        { name: "delivery", title: "Delivery", items: ["execute/ship-workspace"], acceptanceCriteria: [], dependsOn: ["foundation"] },
+      ],
       seeded: false,
       scopeHistory: [
         { at: "2026-07-01T00:00:00Z", targetCount: 1, closureSize: 3, completed: 1 },
@@ -73,8 +77,12 @@ describe("GoalDetailsPage", () => {
     expect(screen.getByTestId("goal-scope")).toHaveTextContent("50%");
     expect(screen.getByTestId("goal-ready")).toHaveTextContent("ship-workspace");
     expect(screen.getByTestId("goal-blocked")).toHaveTextContent("blocker");
+    await userEvent.click(screen.getByRole("tab", { name: "Milestones" }));
+    expect(screen.getByTestId("goal-milestones")).toHaveTextContent("Foundation");
+    expect(screen.getByTestId("goal-milestones")).toHaveTextContent("Delivery");
+    expect(screen.getByTestId("goal-milestone-foundation")).toHaveTextContent("1 assigned");
+    await userEvent.click(screen.getByRole("tab", { name: "Overview" }));
     expect(screen.getByText("1d-2d")).toBeInTheDocument();
-
     // Scope Creep is collapsed by default; expanding reveals the history table.
     expect(screen.getByTestId("goal-history")).not.toHaveTextContent("3");
     await userEvent.click(screen.getByTestId("goal-history-toggle"));

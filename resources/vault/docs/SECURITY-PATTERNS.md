@@ -62,11 +62,11 @@ secret/resources/kopia/repo/<repo>/passphrase
 
 with field `passphrase`.
 
-Missing passphrases for existing repositories are hard errors. Vault/Docker failures are also hard errors and must not be treated as missing values.
+Missing passphrases for existing repositories are hard errors and Vault service failures must not be treated as missing values.
 
 ## Local Runtime Caveat
 
-The default Vrooli runtime is durable local file storage, not in-memory dev mode. Bootstrap material is stored in the resource config directory and must be protected with normal local filesystem controls.
+The default Vrooli runtime is durable local file storage, not in-memory dev mode. Bootstrap and unseal material are provider-controlled and are not written by the normal resource lifecycle.
 
 Before external production use, add and validate TLS, operator-managed unseal or auto-unseal, scoped policies, audit logging, backup/restore, and HA design.
 

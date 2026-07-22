@@ -62,8 +62,8 @@ message CreateBacklogItemRequest {
   // Dependencies as "kind/name" references.
   repeated string depends_on = 8;
 
-  // Initiative this item belongs to.
-  optional string initiative = 9;
+  // Owned goal/milestone reference this item belongs to.
+  optional string milestone = 9;
 
   reserved 10; // auto_workshop removed — use settings.auto_initialize_workshop instead.
 
@@ -148,8 +148,8 @@ message UpdateBacklogItemRequest {
   // Dependencies as "kind/name" references.
   repeated string depends_on = 7;
 
-  // Initiative this item belongs to. Set to the empty string to clear.
-  optional string initiative = 8;
+  // Owned goal/milestone reference this item belongs to. Set to the empty string to clear.
+  optional string milestone = 8;
 
   // Effort estimate: XS, S, M, L, XL. Set to the empty string to clear.
   optional string effort = 9 [(buf.validate.field).string = {

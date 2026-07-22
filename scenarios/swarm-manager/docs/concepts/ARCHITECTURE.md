@@ -116,10 +116,9 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 1. **Backlog creation and refinement**
    ```
-   Team finding -> Backlog item (idea/fix/execute/chore) -> declared refinement workflow or Session -> plan-manager plan_ref -> queue
-   Team finding -> Research item -> declared research workflow or Session -> conclusion.md
+   Team finding -> Backlog item (idea/research/fix/execute/chore) -> declared refinement workflow or Session -> plan-manager plan_ref -> queue
    ```
-   Non-research backlog kinds use a registered transition when code needs a typed refinement result. Plan Manager is the readiness authority for the canonical plan bound through `spec.json.plan_ref`; Swarm does not reproduce a local agent-readiness loop. Research items keep `conclusion.md` as their local deliverable. See [DOC: docs/reference/transition-catalog.md] for the active catalog.
+   Every backlog kind uses the same plan-backed readiness lifecycle. Research artifacts remain ordinary item files, while Plan Manager is the readiness authority for the canonical plan bound through `spec.json.plan_ref`. See [DOC: docs/reference/transition-catalog.md] for the active catalog.
 
 2. **Archive scenario into backlog context**
    ```
@@ -277,9 +276,9 @@ The previous workshop system used a 5-dimension readiness model to measure how p
 The score and boost formula are historical-data semantics only. The active
 contract is a Plan Workshop session with a typed packet, one idempotent
 operator response, Plan Manager candidate validation, and explicit plan
-acceptance. A non-research item queues only while its accepted canonical plan
-hash and work-contract version remain current. Research keeps `conclusion.md`
-as evidence and does not treat it as an implementation plan.
+acceptance. A backlog item queues only while its accepted canonical plan hash
+and work-contract version remain current. Research evidence is stored as normal
+item artifacts and never replaces the implementation plan.
 
 See [DOC: docs/guides/workshop-workflow.md] for the active operator contract.
 

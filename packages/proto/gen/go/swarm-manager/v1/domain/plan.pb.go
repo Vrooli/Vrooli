@@ -292,9 +292,9 @@ type PlanCard struct {
 	Status   string `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
 	Priority int32  `protobuf:"varint,8,opt,name=priority,proto3" json:"priority,omitempty"`
 	// Dependency wave index; 0 = runnable now, -1 = trapped in a cycle.
-	Wave       int32  `protobuf:"varint,9,opt,name=wave,proto3" json:"wave,omitempty"`
-	Initiative string `protobuf:"bytes,10,opt,name=initiative,proto3" json:"initiative,omitempty"`
-	Effort     string `protobuf:"bytes,11,opt,name=effort,proto3" json:"effort,omitempty"`
+	Wave      int32  `protobuf:"varint,9,opt,name=wave,proto3" json:"wave,omitempty"`
+	Milestone string `protobuf:"bytes,10,opt,name=milestone,proto3" json:"milestone,omitempty"`
+	Effort    string `protobuf:"bytes,11,opt,name=effort,proto3" json:"effort,omitempty"`
 	// Populated when card_type == gate.
 	Gate *PlanGate `protobuf:"bytes,12,opt,name=gate,proto3" json:"gate,omitempty"`
 	// ok | failed | needs_review — populated when card_type == outcome.
@@ -400,9 +400,9 @@ func (x *PlanCard) GetWave() int32 {
 	return 0
 }
 
-func (x *PlanCard) GetInitiative() string {
+func (x *PlanCard) GetMilestone() string {
 	if x != nil {
-		return x.Initiative
+		return x.Milestone
 	}
 	return ""
 }
@@ -816,7 +816,7 @@ const file_swarm_manager_v1_domain_plan_proto_rawDesc = "" +
 	"\x06blocks\x18\b \x03(\tR\x06blocks\x12'\n" +
 	"\x0fdecidable_since\x18\t \x01(\tR\x0edecidableSince\x12\x1c\n" +
 	"\tsuggested\x18\n" +
-	" \x01(\tR\tsuggested\"\xc9\x03\n" +
+	" \x01(\tR\tsuggested\"\xc7\x03\n" +
 	"\bPlanCard\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tcard_type\x18\x02 \x01(\tR\bcardType\x12\x16\n" +
@@ -826,11 +826,9 @@ const file_swarm_manager_v1_domain_plan_proto_rawDesc = "" +
 	"\x05title\x18\x06 \x01(\tR\x05title\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\x12\x1a\n" +
 	"\bpriority\x18\b \x01(\x05R\bpriority\x12\x12\n" +
-	"\x04wave\x18\t \x01(\x05R\x04wave\x12\x1e\n" +
-	"\n" +
-	"initiative\x18\n" +
-	" \x01(\tR\n" +
-	"initiative\x12\x16\n" +
+	"\x04wave\x18\t \x01(\x05R\x04wave\x12\x1c\n" +
+	"\tmilestone\x18\n" +
+	" \x01(\tR\tmilestone\x12\x16\n" +
 	"\x06effort\x18\v \x01(\tR\x06effort\x12.\n" +
 	"\x04gate\x18\f \x01(\v2\x1a.swarm_manager.v1.PlanGateR\x04gate\x12\x18\n" +
 	"\aoutcome\x18\r \x01(\tR\aoutcome\x12\x1f\n" +

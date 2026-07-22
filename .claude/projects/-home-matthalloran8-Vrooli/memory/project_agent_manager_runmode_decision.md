@@ -14,7 +14,7 @@ type: project
 - Policies declare a minimum sandbox strictness via `policy.Decision.RequiredSandboxMode SandboxMode` (zero = no requirement). The orchestrator rejects the run when `SandboxConfig.Mode < required`. Use `SandboxMode.AtLeast(required)` for comparison; the rank order is `Off (0) < Tracking (1) < Protected (2)`.
 - The CLI exposes `--sandbox-mode off|tracking|protected` (replacing the old `--sandbox` boolean) on `agent-manager profile create|update|ensure`.
 - The UI `ProfileFormData.sandboxMode` and `RunFormData.sandboxMode` carry the form-level string; `useApi.ts` maps it to `SandboxConfig{Mode: …}` on the proto request.
-- Downstream scenario clients (test-genie, system-monitor, scenario-to-cloud, scenario-to-desktop, ecosystem-manager, app-issue-tracker, scenario-auditor, knowledge-observatory, prompt-manager, swarm-manager) expose their own `SandboxMode` enum field on their `ProfileConfig` and let `agent-manager.resolveSandboxConfig` backfill the rest of the contract defaults.
+- Downstream scenario clients (test-genie, system-monitor, scenario-to-cloud, scenario-to-desktop, swarm-manager, app-issue-tracker, scenario-auditor, knowledge-observatory, prompt-manager, swarm-manager) expose their own `SandboxMode` enum field on their `ProfileConfig` and let `agent-manager.resolveSandboxConfig` backfill the rest of the contract defaults.
 
 **Don't do this:**
 - Reintroduce a `RequiresSandbox bool` anywhere — that's the bug.

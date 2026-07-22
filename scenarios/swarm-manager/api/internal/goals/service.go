@@ -119,6 +119,10 @@ func (s *Service) newEstimator() *eta.Estimator {
 // GoalDir exposes the store path for file handlers.
 func (s *Service) GoalDir(name string) string { return s.store.GoalDir(name) }
 
+// ListFiles returns the read-only files held by a goal. Only paths relative to
+// the goal directory are exposed.
+func (s *Service) ListFiles(name string) ([]File, error) { return s.store.ListFiles(name) }
+
 // Create validates and persists a new goal, recording a baseline scope
 // snapshot. Returns the goal with its computed scope.
 func (s *Service) Create(req CreateRequest) (*GoalWithScope, error) {
@@ -198,7 +202,7 @@ func (s *Service) Get(name string) (*GoalWithScope, error) {
 	gws := &GoalWithScope{Goal: *g, Scope: scope}
 	// Hydrate the rendered refs from the data the scope walk already loaded —
 	// a map join, not extra I/O.
-	gws.ScopeEntities = buildScopeEntities(g.Targets, scope, items)
+	gws.ScopeEntities = buildScopeEntities(g.Targets, scope, g.Milestones, items)
 	attachETA(gws, in, s.newEstimator())
 	return gws, nil
 }
@@ -788,12 +792,17 @@ func (s *Service) buildScopeData() (ScopeInput, []backlog.BacklogItem, error) {
 }
 
 // buildScopeEntities hydrates the refs the goal detail view renders (targets ∪
-// ready ∪ blocked) from the already-loaded items. Returns nil
+// ready ∪ blocked ∪ milestone assignments) from the already-loaded items. Returns nil
 // when nothing resolves so the field is omitted from JSON.
-func buildScopeEntities(targets []string, scope Scope, items []backlog.BacklogItem) *ScopeEntities {
+func buildScopeEntities(targets []string, scope Scope, milestones []Milestone, items []backlog.BacklogItem) *ScopeEntities {
 	wanted := make(map[string]bool, len(targets)+len(scope.Ready)+len(scope.Blocked))
 	for _, refs := range [][]string{targets, scope.Ready, scope.Blocked} {
 		for _, ref := range refs {
+			wanted[ref] = true
+		}
+	}
+	for _, milestone := range milestones {
+		for _, ref := range milestone.Items {
 			wanted[ref] = true
 		}
 	}

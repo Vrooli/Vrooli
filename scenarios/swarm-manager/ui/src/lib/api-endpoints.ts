@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
     `/backlog/${kind}/${name}/files/${filePath}`,
   backlogPlanRender: (kind: string, name: string) => `/backlog/${kind}/${name}/plan-render`,
   backlogPlanAccept: (kind: string, name: string) => `/backlog/${kind}/${name}/plan-accept`,
+  goalFiles: (name: string) => `/goals/${name}/files`,
   planWorkshops: "/plan-workshops",
   planWorkshopById: (id: string) => `/plan-workshops/${id}`,
   planWorkshopReview: (id: string) => `/plan-workshops/${id}/review`,
@@ -144,6 +145,8 @@ export const API_ENDPOINTS = {
   goalByName: (name: string) => `/goals/${name}`,
   goalTargets: (name: string) => `/goals/${name}/targets`,
   goalArchiveItem: (name: string) => `/goals/${name}/archive-item`,
+  goalPlanRun: (name: string) => `/goals/${name}/plan-run`,
+  goalDiscoverRun: (name: string) => `/goals/${name}/discover-run`,
   // AI search
   searchAI: "/search/ai",
   searchAIStatus: "/search/ai/status",

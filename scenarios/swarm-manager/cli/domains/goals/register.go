@@ -22,5 +22,8 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		support.APICommand("milestone-assign", "Assign scoped items (--goal NAME --milestone NAME --items kind/name,...) [--json]", deps.GoalsMilestoneAssign),
 		support.APICommand("milestone-unassign", "Unassign scoped items (--goal NAME --milestone NAME --items kind/name,...) [--json]", deps.GoalsMilestoneUnassign),
 		support.APICommand("milestone-archive", "Archive milestone (--goal NAME --milestone NAME) [--json]", deps.GoalsMilestoneArchive),
+		support.APICommand("plan-run", "Start goal planning (--name NAME) [--json]", deps.GoalsPlanRun),
+		support.APICommand("discover-run", "Start goal discovery (--name NAME) [--json]", deps.GoalsDiscoverRun),
+		support.APICommand("milestone-review-run", "Start milestone review (--goal NAME --milestone NAME) [--json]", deps.GoalsMilestoneReviewRun),
 	}}
 }

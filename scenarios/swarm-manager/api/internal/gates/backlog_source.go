@@ -98,9 +98,6 @@ func (s WorkshopSource) Enumerate(ctx context.Context) ([]Gate, error) {
 		if !gateEligible(item) || !queueableStatuses[item.Status] {
 			continue
 		}
-		if item.Kind == backlog.KindResearch {
-			continue // research executes a conclusion, not a canonical plan.
-		}
 		suggested := "accept-plan"
 		if item.PlanRef == nil {
 			suggested = "author-plan"

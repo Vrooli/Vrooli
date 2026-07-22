@@ -67,13 +67,12 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	// the slow snapshot runs detached. Best-effort — never blocks the start.
 	record.PreExecBaselines = s.capturePreExecBaselinesLocked(ctx, item)
 
-	// Plan-backed items use the phased-plan workflow. Planless research items use
-	// their declared conclusion workflow; neither path creates a consumer-owned
-	// programmatic Run.
-	if hasExecutionPlanRef(item) {
-		return s.startPlanOperationLocked(ctx, records, idx, record, item)
+	// Every backlog kind, including research, executes only against a canonical
+	// accepted plan. There is no planless conclusion execution branch.
+	if !hasExecutionPlanRef(item) {
+		return Record{}, apierr.Conflict("a canonical execution plan is required before starting work")
 	}
-	return s.startConclusionOperationLocked(ctx, records, idx, record)
+	return s.startPlanOperationLocked(ctx, records, idx, record, item)
 }
 
 // startPlanOperationLocked is the single hard-cut plan-execution consumer. It
@@ -124,40 +123,6 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	record.AgentWorkflowKey = workflow.Key
 	record.AgentWorkflowDefinition = res.DefinitionDigest
 	record.AgentWorkflowFrontier = snapshot.FrontierDigest
-	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
-	record.StartedAt = nowRFC3339()
-	record.FinishedAt = ""
-	record.FailureReason = ""
-	record.Status = StatusStarting
-	record.UpdatedAt = nowRFC3339()
-	records[idx] = record
-	if err := s.store.Save(records); err != nil {
-		return Record{}, err
-	}
-	s.dispatchStatusUpdate(record)
-	return record, nil
-}
-
-// startConclusionOperationLocked starts a planless item's declared conclusion
-// workflow. Swarm supplies only its immutable domain snapshot and applies the
-// terminal typed outcome through ApplyConclusionWorkflow.
-func (s *Service) startConclusionOperationLocked(ctx context.Context, records []Record, idx int, record Record) (Record, error) {
-	item, err := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
-	if err != nil {
-		return Record{}, err
-	}
-	res, snapshot, err := s.startConclusionWorkflow(ctx, item, record, "")
-	if err != nil {
-		return Record{}, wrapAgentError(err)
-	}
-	if strings.TrimSpace(res.ExecutionID) == "" {
-		return Record{}, apierr.BadGateway("research-conclude workflow started but returned no execution id")
-	}
-	record.RunID = res.RunID
-	record.TaskID = res.ExecutionID
-	record.AgentWorkflowExecutionID = res.ExecutionID
-	record.AgentWorkflowKey = snapshot.WorkflowKey
-	record.AgentWorkflowDefinition = res.DefinitionDigest
 	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
 	record.StartedAt = nowRFC3339()
 	record.FinishedAt = ""
@@ -227,17 +192,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		return record, nil
 	case StatusStarting, StatusRunning, StatusNeedsReview:
 		if strings.TrimSpace(record.AgentWorkflowExecutionID) != "" {
-			if record.AgentWorkflowKey == "swarm-manager/research-conclude" {
-				canceler, ok := s.conclusionWorkflow.(interface {
-					CancelWorkflow(context.Context, string, string, string) error
-				})
-				if !ok {
-					return Record{}, apierr.BadRequest("cancel is not supported by current conclusion workflow service")
-				}
-				if err := canceler.CancelWorkflow(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
-					return Record{}, wrapAgentError(err)
-				}
-			} else if record.AgentWorkflowKey == "swarm-manager/work-follow-up" || record.AgentWorkflowKey == "swarm-manager/work-correct" {
+			if record.AgentWorkflowKey == "swarm-manager/work-follow-up" || record.AgentWorkflowKey == "swarm-manager/work-correct" {
 				canceler, ok := s.workWorkflow.(interface {
 					CancelWorkflow(context.Context, string, string, string) error
 				})

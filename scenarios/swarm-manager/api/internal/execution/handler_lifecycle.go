@@ -108,8 +108,6 @@ func (h *Handler) ApplyWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 	var result PhasedPlanApplyResult
 	switch record.AgentWorkflowKey {
-	case "swarm-manager/research-conclude":
-		result, err = h.service.ApplyConclusionWorkflow(r.Context(), executionID)
 	case "swarm-manager/work-follow-up", "swarm-manager/work-correct":
 		result, err = h.service.ApplyWorkWorkflow(r.Context(), executionID)
 	case "swarm-manager/scenario-spec-sync":

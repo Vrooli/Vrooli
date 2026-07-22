@@ -204,9 +204,11 @@ func (a *App) cmdGoalsUpdate(args []string) error {
 func (a *App) cmdGoalsTargetsAdd(args []string) error {
 	return a.cmdGoalsTargets(args, "goals targets-add", true)
 }
+
 func (a *App) cmdGoalsTargetsRemove(args []string) error {
 	return a.cmdGoalsTargets(args, "goals targets-remove", false)
 }
+
 func (a *App) cmdGoalsTargets(args []string, command string, add bool) error {
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
 	name, targets := fs.String("name", "", "Goal name"), fs.String("targets", "", "Comma-separated item refs")
@@ -284,6 +286,7 @@ func (a *App) cmdGoalsMilestoneAssign(args []string) error {
 func (a *App) cmdGoalsMilestoneUnassign(args []string) error {
 	return a.cmdGoalsMilestoneItems(args, "goals milestone-unassign", false)
 }
+
 func (a *App) cmdGoalsMilestoneItems(args []string, command string, assign bool) error {
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
 	goal, milestone, items := fs.String("goal", "", "Goal name"), fs.String("milestone", "", "Milestone name"), fs.String("items", "", "Comma-separated item refs")
@@ -330,6 +333,63 @@ func (a *App) cmdGoalsMilestoneArchive(args []string) error {
 		return printGoalJSON(result.Msg, true)
 	}
 	printGoal(result.Msg)
+	return nil
+}
+
+func (a *App) cmdGoalsPlanRun(args []string) error {
+	return a.cmdGoalsWorkflowRun(args, "goals plan-run", "plan-run")
+}
+
+func (a *App) cmdGoalsDiscoverRun(args []string) error {
+	return a.cmdGoalsWorkflowRun(args, "goals discover-run", "discover-run")
+}
+
+func (a *App) cmdGoalsWorkflowRun(args []string, command, action string) error {
+	name, jsonOut, err := goalName(args, command)
+	if err != nil {
+		return err
+	}
+	body, err := a.requestMultipart("POST", "/goals/"+name+"/"+action, []byte(`{}`), "application/json")
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(jsonOut, body) {
+		return nil
+	}
+	var result struct {
+		ExecutionID string `json:"execution_id"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return err
+	}
+	fmt.Printf("Started %s workflow: %s\n", action, result.ExecutionID)
+	return nil
+}
+
+func (a *App) cmdGoalsMilestoneReviewRun(args []string) error {
+	fs := flag.NewFlagSet("goals milestone-review-run", flag.ContinueOnError)
+	goal, milestone := fs.String("goal", "", "Goal name"), fs.String("milestone", "", "Milestone name")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlags("goal", *goal, "milestone", *milestone); err != nil {
+		return err
+	}
+	body, err := a.requestMultipart("POST", "/goals/"+*goal+"/milestones/"+*milestone+"/review-run", []byte(`{}`), "application/json")
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	var result struct {
+		ExecutionID string `json:"execution_id"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return err
+	}
+	fmt.Printf("Started milestone review workflow: %s\n", result.ExecutionID)
 	return nil
 }
 

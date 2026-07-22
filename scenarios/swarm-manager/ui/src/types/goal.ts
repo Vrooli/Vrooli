@@ -19,6 +19,23 @@ export interface GoalScopeSnapshot {
   completed: number;
 }
 
+/** An optional, goal-owned subdivision of the goal's derived scope. */
+export interface GoalMilestone {
+  name: string;
+  title: string;
+  description?: string;
+  items: string[];
+  acceptanceCriteria: string[];
+  dependsOn: string[];
+  archivedAt?: string;
+}
+
+/** A read-only file held in a goal's on-disk folder. */
+export interface GoalFile {
+  path: string;
+  size: number;
+}
+
 /** The persisted goal entity. */
 export interface Goal {
   name: string;
@@ -28,6 +45,7 @@ export interface Goal {
   priority: number;
   /** Target refs: "<kind>/<name>" for backlog items. */
   targets: string[];
+  milestones: GoalMilestone[];
   seeded: boolean;
   scopeHistory: GoalScopeSnapshot[];
   created: string;

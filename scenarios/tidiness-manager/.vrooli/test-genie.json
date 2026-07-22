@@ -196,7 +196,7 @@
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
           "tidiness",
-          "intent-clarification"
+          "domain-clarity"
         ]
       },
       "HIGH_COMPLEXITY": {

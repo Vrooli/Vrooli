@@ -53,7 +53,7 @@ class PlanGate(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., owner_type: _Optional[str] = ..., owner_kind: _Optional[str] = ..., owner_name: _Optional[str] = ..., owner_title: _Optional[str] = ..., count: _Optional[int] = ..., blocks: _Optional[_Iterable[str]] = ..., decidable_since: _Optional[str] = ..., suggested: _Optional[str] = ...) -> None: ...
 
 class PlanCard(_message.Message):
-    __slots__ = ("id", "card_type", "action", "item_kind", "item_name", "title", "status", "priority", "wave", "initiative", "effort", "gate", "outcome", "finished_at", "execution_id", "unblocks")
+    __slots__ = ("id", "card_type", "action", "item_kind", "item_name", "title", "status", "priority", "wave", "milestone", "effort", "gate", "outcome", "finished_at", "execution_id", "unblocks")
     ID_FIELD_NUMBER: _ClassVar[int]
     CARD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
@@ -63,7 +63,7 @@ class PlanCard(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
     WAVE_FIELD_NUMBER: _ClassVar[int]
-    INITIATIVE_FIELD_NUMBER: _ClassVar[int]
+    MILESTONE_FIELD_NUMBER: _ClassVar[int]
     EFFORT_FIELD_NUMBER: _ClassVar[int]
     GATE_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
@@ -79,14 +79,14 @@ class PlanCard(_message.Message):
     status: str
     priority: int
     wave: int
-    initiative: str
+    milestone: str
     effort: str
     gate: PlanGate
     outcome: str
     finished_at: str
     execution_id: str
     unblocks: int
-    def __init__(self, id: _Optional[str] = ..., card_type: _Optional[str] = ..., action: _Optional[str] = ..., item_kind: _Optional[str] = ..., item_name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., wave: _Optional[int] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., gate: _Optional[_Union[PlanGate, _Mapping]] = ..., outcome: _Optional[str] = ..., finished_at: _Optional[str] = ..., execution_id: _Optional[str] = ..., unblocks: _Optional[int] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., card_type: _Optional[str] = ..., action: _Optional[str] = ..., item_kind: _Optional[str] = ..., item_name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., wave: _Optional[int] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., gate: _Optional[_Union[PlanGate, _Mapping]] = ..., outcome: _Optional[str] = ..., finished_at: _Optional[str] = ..., execution_id: _Optional[str] = ..., unblocks: _Optional[int] = ...) -> None: ...
 
 class PlanCardGroup(_message.Message):
     __slots__ = ("id", "label", "blocker_kind", "gate_id", "blocker_keys", "cards")

@@ -69,11 +69,7 @@ func (s *Service) ResetArtifacts(ctx context.Context, kind BacklogKind, name str
 	for _, scope := range scopes {
 		switch scope {
 		case ResetScopeWorkshop:
-			deliverable := ""
-			if kind == KindResearch {
-				deliverable = "conclusion.md"
-			}
-			deleted, resetErr := workshop.ResetWorkshop(itemDir, deliverable)
+			deleted, resetErr := workshop.ResetWorkshop(itemDir, "")
 			if resetErr != nil {
 				return ResetArtifactsResult{}, fmt.Errorf("reset workshop: %w", resetErr)
 			}

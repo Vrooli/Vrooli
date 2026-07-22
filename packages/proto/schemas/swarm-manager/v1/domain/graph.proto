@@ -30,8 +30,8 @@ message GraphPosition {
   double y = 2;
 }
 
-// GraphInitiativeRollup summarizes the member backlog state for an initiative.
-message GraphInitiativeRollup {
+// GraphGoalRollup summarizes the derived backlog state for a goal.
+message GraphGoalRollup {
   int32 total = 1 [(buf.validate.field).int32.gte = 0];
   int32 completed = 2 [(buf.validate.field).int32.gte = 0];
   int32 in_progress = 3 [(buf.validate.field).int32.gte = 0];
@@ -76,12 +76,12 @@ message GraphBacklogNodeData {
   int32 active_execution_count = 7;
 }
 
-// GraphInitiativeNodeData describes an initiative node.
-message GraphInitiativeNodeData {
+// GraphGoalNodeData describes a goal node.
+message GraphGoalNodeData {
   string name = 1 [(buf.validate.field).string.min_len = 1];
   string title = 2 [(buf.validate.field).string.min_len = 1];
   string status = 3 [(buf.validate.field).string.min_len = 1];
-  GraphInitiativeRollup rollup = 4;
+  GraphGoalRollup rollup = 4;
   reserved 5, 6;
 }
 
@@ -214,7 +214,7 @@ message GraphRunNodeData {
 message GraphNodeData {
   oneof value {
     GraphBacklogNodeData backlog = 1;
-    GraphInitiativeNodeData initiative = 2;
+    GraphGoalNodeData goal = 2;
     GraphCaptureNodeData capture = 3;
     GraphScenarioNodeData scenario = 4;
     GraphExecutionNodeData execution = 5;
@@ -229,7 +229,7 @@ message GraphNode {
   string type = 2 [(buf.validate.field).string = {
     in: [
       "BacklogItem",
-      "Initiative",
+      "Goal",
       "Capture",
       "Scenario",
       "ExecutionRecord",

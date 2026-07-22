@@ -31,7 +31,6 @@ the prompt, Runs, validation, routing, waits, retries, and provenance.
 | `plan.workshop.reconcile` | Workflow | `swarm-manager/plan-workshop-reconcile`; candidate only | `record_plan_workshop_candidate` |
 | `plan.author` | Workflow | `swarm-manager/plan-author`; Plan Manager validates | `bind_validated_plan_ref` |
 | `plan.repair` | Workflow | `swarm-manager/plan-repair`; Plan Manager validates | `bind_validated_plan_ref` |
-| `research.conclude` | Workflow | `swarm-manager/research-conclude` | `apply_research_conclusion` |
 | `plan.execute` | Workflow | `swarm-manager/phased-plan-drain`; evidence-gated | `apply_plan_execution` |
 | `work.review` | Workflow | `swarm-manager/independent-review`; evidence-gated | `apply_review_outcome` |
 | `review.evidence_request` | Workflow | `swarm-manager/evidence-request` | `apply_review_evidence_request` |
@@ -40,10 +39,6 @@ the prompt, Runs, validation, routing, waits, retries, and provenance.
 | `work.retry` | Workflow | `swarm-manager/phased-plan-drain` | `apply_plan_execution` |
 | `work.follow_up` | Workflow | `swarm-manager/work-follow-up` | `apply_follow_up` |
 | `work.control` | Deterministic | `workflow-control-input/v1` | `control_workflow_execution` |
-| `milestone.discover` | Workflow | `swarm-manager/milestone-discover` | `apply_milestone_proposal` |
-| `milestone.plan` | Workflow | `swarm-manager/milestone-plan`; Plan Manager validates | `bind_milestone_plan_ref` |
-| `milestone.execute` | Workflow | `swarm-manager/milestone-execute`; evidence-gated | `apply_milestone_execution` |
-| `milestone.review` | Workflow | `swarm-manager/milestone-review`; evidence-gated | `apply_milestone_review` |
 | `goal.discover` | Workflow | `swarm-manager/goal-discover` | `apply_goal_proposal` |
 | `goal.plan` | Workflow | `swarm-manager/goal-plan` | `apply_goal_proposal` |
 | `milestone.review` | Workflow | `swarm-manager/milestone-review`; evidence-gated | `apply_milestone_review` |

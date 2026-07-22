@@ -14,25 +14,25 @@ class RelatedBacklogTarget(_message.Message):
     name: str
     def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
 
-class RelatedInitiativeTarget(_message.Message):
+class RelatedGoalTarget(_message.Message):
     __slots__ = ("name",)
     NAME_FIELD_NUMBER: _ClassVar[int]
     name: str
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
 class GetRelatedRequest(_message.Message):
-    __slots__ = ("backlog", "initiative", "exclude_historical", "entity_kinds", "limit")
+    __slots__ = ("backlog", "goal", "exclude_historical", "entity_kinds", "limit")
     BACKLOG_FIELD_NUMBER: _ClassVar[int]
-    INITIATIVE_FIELD_NUMBER: _ClassVar[int]
+    GOAL_FIELD_NUMBER: _ClassVar[int]
     EXCLUDE_HISTORICAL_FIELD_NUMBER: _ClassVar[int]
     ENTITY_KINDS_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     backlog: RelatedBacklogTarget
-    initiative: RelatedInitiativeTarget
+    goal: RelatedGoalTarget
     exclude_historical: bool
     entity_kinds: _containers.RepeatedScalarFieldContainer[str]
     limit: int
-    def __init__(self, backlog: _Optional[_Union[RelatedBacklogTarget, _Mapping]] = ..., initiative: _Optional[_Union[RelatedInitiativeTarget, _Mapping]] = ..., exclude_historical: _Optional[bool] = ..., entity_kinds: _Optional[_Iterable[str]] = ..., limit: _Optional[int] = ...) -> None: ...
+    def __init__(self, backlog: _Optional[_Union[RelatedBacklogTarget, _Mapping]] = ..., goal: _Optional[_Union[RelatedGoalTarget, _Mapping]] = ..., exclude_historical: _Optional[bool] = ..., entity_kinds: _Optional[_Iterable[str]] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class RelatedEntity(_message.Message):
     __slots__ = ("entity_kind", "key", "title", "status", "archived", "reasons", "score_percent")

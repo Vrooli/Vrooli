@@ -223,7 +223,7 @@ func (x *AgentSessionMessage) GetContext() []*AgentSessionContextItem {
 type AgentSessionContextItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Context type.
-	// @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief
+	// @constraint one of: backlog_item, goal, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief
 	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	// Stable entity reference.
 	Ref string `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
@@ -522,14 +522,14 @@ func (x *AgentSessionProposal) GetAttribution() *AgentSessionAttribution {
 	return nil
 }
 
-// AgentSessionProposalTarget identifies the backlog item or initiative whose
+// AgentSessionProposalTarget identifies the backlog item or goal whose
 // proposal review surface owns a session's proposals.
 type AgentSessionProposalTarget struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Entity kind receiving the proposed changes.
 	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	// Stable entity reference. Backlog items use "kind/name"; initiatives use
-	// their initiative name.
+	// Stable entity reference. Backlog items use "kind/name"; goals use
+	// their goal name.
 	Ref string `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
 	// Human-readable target title.
 	Name          string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
@@ -596,12 +596,12 @@ type AgentSessionArtifact struct {
 	// Owning session ID.
 	SessionId string `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Artifact type.
-	// @constraint one of: backlog_item, initiative, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
+	// @constraint one of: backlog_item, milestone, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
 	ArtifactType string `protobuf:"bytes,3,opt,name=artifact_type,json=artifactType,proto3" json:"artifact_type,omitempty"`
 	// Link action.
 	// @constraint one of: proposed, created, updated, deleted, linked
 	Action string `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
-	// Stable entity reference, such as execute/my-item, initiative-name, or a file path.
+	// Stable entity reference, such as execute/my-item, goal-name, or a file path.
 	EntityRef string `protobuf:"bytes,5,opt,name=entity_ref,json=entityRef,proto3" json:"entity_ref,omitempty"`
 	// Optional human-readable title for display.
 	Title *string `protobuf:"bytes,6,opt,name=title,proto3,oneof" json:"title,omitempty"`
@@ -960,10 +960,9 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12%\n" +
 	"\x0eattachment_ids\x18\x05 \x03(\tR\rattachmentIds\x12C\n" +
-	"\acontext\x18\x06 \x03(\v2).swarm_manager.v1.AgentSessionContextItemR\acontext\"\xa1\x03\n" +
-	"\x17AgentSessionContextItem\x12\xa1\x01\n" +
-	"\x04type\x18\x01 \x01(\tB\x8c\x01\xbaH\x88\x01r\x85\x01R\fbacklog_itemR\n" +
-	"initiativeR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x13operations_briefingR\rstartup_briefR\x04type\x12\x19\n" +
+	"\acontext\x18\x06 \x03(\v2).swarm_manager.v1.AgentSessionContextItemR\acontext\"\x9a\x03\n" +
+	"\x17AgentSessionContextItem\x12\x9a\x01\n" +
+	"\x04type\x18\x01 \x01(\tB\x85\x01\xbaH\x81\x01r\x7fR\fbacklog_itemR\x04goalR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x13operations_briefingR\rstartup_briefR\x04type\x12\x19\n" +
 	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\x12\x1d\n" +
 	"\x05title\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12\x18\n" +
 	"\asummary\x18\x04 \x01(\tR\asummary\x12\x1c\n" +
@@ -995,18 +994,16 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\a \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12P\n" +
 	"\vattribution\x18\b \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x00R\vattribution\x88\x01\x01B\x0e\n" +
-	"\f_attribution\"\x89\x01\n" +
-	"\x1aAgentSessionProposalTarget\x123\n" +
-	"\x04type\x18\x01 \x01(\tB\x1f\xbaH\x1cr\x1aR\fbacklog_itemR\n" +
-	"initiativeR\x04type\x12\x19\n" +
+	"\f_attribution\"\x83\x01\n" +
+	"\x1aAgentSessionProposalTarget\x12-\n" +
+	"\x04type\x18\x01 \x01(\tB\x19\xbaH\x16r\x14R\fbacklog_itemR\x04goalR\x04type\x12\x19\n" +
 	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\x12\x1b\n" +
-	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xe9\x05\n" +
+	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xe8\x05\n" +
 	"\x14AgentSessionArtifact\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12&\n" +
 	"\n" +
-	"session_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x97\x01\n" +
-	"\rartifact_type\x18\x03 \x01(\tBr\xbaHormR\fbacklog_itemR\n" +
-	"initiativeR\x17operating_mode_proposalR\x19operating_mode_definitionR\acaptureR\x04fileR\x0eagent_activityR\fartifactType\x12J\n" +
+	"session_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x96\x01\n" +
+	"\rartifact_type\x18\x03 \x01(\tBq\xbaHnrlR\fbacklog_itemR\tmilestoneR\x17operating_mode_proposalR\x19operating_mode_definitionR\acaptureR\x04fileR\x0eagent_activityR\fartifactType\x12J\n" +
 	"\x06action\x18\x04 \x01(\tB2\xbaH/r-R\bproposedR\acreatedR\aupdatedR\adeletedR\x06linkedR\x06action\x12&\n" +
 	"\n" +
 	"entity_ref\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tentityRef\x12\x19\n" +

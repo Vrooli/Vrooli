@@ -50,18 +50,11 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 	// Execution requires an explicit acceptance of the current canonical plan.
 	// Workshop artifacts remain historical context only; score thresholds are
 	// deliberately not a release gate.
-	itemDir := s.itemDir(item.Kind, item.Name)
-	deliverablePath := deliverableForKind(item.Kind)
-	hasDeliverable := false
-	if deliverablePath == "conclusion.md" {
-		hasDeliverable = hasConclusion(itemDir, deliverablePath)
-	} else {
-		hasDeliverable = hasExecutionPlanRef(item)
-	}
+	hasDeliverable := hasExecutionPlanRef(item)
 	if !hasDeliverable {
-		preflight.BlockingReasons = append(preflight.BlockingReasons, missingDeliverableReason(item.Kind, deliverablePath))
+		preflight.BlockingReasons = append(preflight.BlockingReasons, missingDeliverableReason(item.Kind, ""))
 	}
-	if deliverablePath != "conclusion.md" && hasDeliverable {
+	if hasDeliverable {
 		acceptanceReason := s.planAcceptanceBlockingReason(ctx, item)
 		if acceptanceReason != "" {
 			preflight.BlockingReasons = append(preflight.BlockingReasons, acceptanceReason)
@@ -76,11 +69,6 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 
 	preflight.Ready = len(preflight.BlockingReasons) == 0 && len(preflight.ForceableBlockingReasons) == 0
 	return preflight
-}
-
-func hasConclusion(itemDir, deliverablePath string) bool {
-	data, err := os.ReadFile(filepath.Join(itemDir, deliverablePath))
-	return err == nil && strings.TrimSpace(string(data)) != ""
 }
 
 func (s *Service) planAcceptanceBlockingReason(ctx context.Context, item backlogItem) string {

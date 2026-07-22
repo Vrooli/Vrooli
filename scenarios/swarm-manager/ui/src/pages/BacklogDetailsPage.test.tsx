@@ -25,14 +25,14 @@ vi.mock("../services/review-service", () => ({ reviewService: { listRounds: vi.f
 vi.mock("../services/plan-workshop-service", () => ({ planWorkshopService: { acceptPlan: vi.fn() } }));
 
 describe("BacklogDetailsPage", () => {
-  it("presents Plan Workshop rather than legacy workshop controls", async () => {
+  it("presents the consolidated Decide tab rather than legacy workshop controls", async () => {
     renderWithProviders(
       <Routes><Route path="/backlog/:kind/:name" element={<BacklogDetailsPage />} /></Routes>,
       { queryClient: createTestQueryClient(), initialEntries: ["/backlog/idea/test-idea"] },
     );
 
     expect(await screen.findByTestId("backlog-details-page")).toBeInTheDocument();
-    expect(await screen.findByTestId("plan-workshop-panel")).toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: /Decide/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Workshop$/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Finalize$/i })).toBeNull();
   });

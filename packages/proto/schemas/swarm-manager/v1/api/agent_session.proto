@@ -138,11 +138,11 @@ message ContinueAgentSessionResponse {
 // as context for a single session message.
 message AgentSessionContextRef {
   // Context type.
-  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief, goal
+  // @constraint one of: backlog_item, goal, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief
   string type = 1 [(buf.validate.field).string = {
     in: [
       "backlog_item",
-      "initiative",
+      "goal",
       "capture",
       "execution",
       "agent_activity",
@@ -150,8 +150,7 @@ message AgentSessionContextRef {
       "operating_mode",
       "session",
       "operations_briefing",
-      "startup_brief",
-      "goal"
+      "startup_brief"
     ]
   }];
 
@@ -274,11 +273,11 @@ message ListAgentSessionArtifactsResponse {
 // GetArtifactsByEntityRequest finds session links for an entity.
 message GetArtifactsByEntityRequest {
   // Artifact type.
-  // @constraint one of: backlog_item, initiative, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
+  // @constraint one of: backlog_item, milestone, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
   string artifact_type = 1 [(buf.validate.field).string = {
     in: [
       "backlog_item",
-      "initiative",
+      "milestone",
       "operating_mode_proposal",
       "operating_mode_definition",
       "capture",
@@ -287,7 +286,7 @@ message GetArtifactsByEntityRequest {
     ]
   }];
 
-  // Stable entity reference, such as execute/my-item or initiative-name.
+  // Stable entity reference, such as execute/my-item or goal-name.
   string entity_ref = 2 [(buf.validate.field).string.min_len = 1];
 }
 

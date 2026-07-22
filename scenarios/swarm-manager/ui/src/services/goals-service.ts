@@ -12,6 +12,8 @@ import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type {
   CreateGoalInput,
   Goal,
+  GoalFile,
+  GoalMilestone,
   GoalScope,
   GoalScopeEntities,
   GoalScopeSnapshot,
@@ -37,11 +39,25 @@ interface RawGoal {
   status?: string;
   priority?: number;
   targets?: string[];
+  milestones?: RawGoalMilestone[];
   seeded?: boolean;
   scope_history?: RawSnapshot[];
   scopeHistory?: RawSnapshot[];
   created?: string;
   updated?: string;
+  archived_at?: string;
+  archivedAt?: string;
+}
+
+interface RawGoalMilestone {
+  name?: string;
+  title?: string;
+  description?: string;
+  items?: string[];
+  acceptance_criteria?: string[];
+  acceptanceCriteria?: string[];
+  depends_on?: string[];
+  dependsOn?: string[];
   archived_at?: string;
   archivedAt?: string;
 }
@@ -132,10 +148,24 @@ function normalizeGoal(raw: RawGoal): Goal {
     status,
     priority: raw.priority ?? 0,
     targets: raw.targets ?? [],
+    milestones: (raw.milestones ?? []).map(normalizeMilestone),
     seeded: raw.seeded ?? false,
     scopeHistory: history.map(normalizeSnapshot),
     created: raw.created ?? "",
     updated: raw.updated ?? "",
+    ...(archivedAt ? { archivedAt } : {}),
+  };
+}
+
+function normalizeMilestone(raw: RawGoalMilestone): GoalMilestone {
+  const archivedAt = raw.archivedAt ?? raw.archived_at;
+  return {
+    name: raw.name ?? "",
+    title: raw.title ?? raw.name ?? "",
+    description: raw.description ?? "",
+    items: raw.items ?? [],
+    acceptanceCriteria: raw.acceptanceCriteria ?? raw.acceptance_criteria ?? [],
+    dependsOn: raw.dependsOn ?? raw.depends_on ?? [],
     ...(archivedAt ? { archivedAt } : {}),
   };
 }
@@ -220,6 +250,9 @@ export interface IGoalsService {
   removeTargets(name: string, targets: string[]): Promise<GoalWithScope>;
   archive(name: string): Promise<void>;
   remove(name: string): Promise<void>;
+  startPlan(name: string): Promise<{ execution_id: string; run_id?: string; definition_digest: string }>;
+  startDiscover(name: string): Promise<{ execution_id: string; run_id?: string; definition_digest: string }>;
+  getFiles(name: string): Promise<GoalFile[]>;
 }
 
 export function createGoalsService(apiClient: IApiClient = defaultApiClient): IGoalsService {
@@ -279,6 +312,19 @@ export function createGoalsService(apiClient: IApiClient = defaultApiClient): IG
 
     async remove(name: string): Promise<void> {
       await apiClient.delete<unknown>(API_ENDPOINTS.goalByName(name));
+    },
+
+    startPlan(name: string) {
+      return apiClient.post<{ execution_id: string; run_id?: string; definition_digest: string }>(API_ENDPOINTS.goalPlanRun(name), {});
+    },
+
+    startDiscover(name: string) {
+      return apiClient.post<{ execution_id: string; run_id?: string; definition_digest: string }>(API_ENDPOINTS.goalDiscoverRun(name), {});
+    },
+
+    async getFiles(name: string): Promise<GoalFile[]> {
+      const response = await apiClient.get<{ files?: Array<{ path?: string; size?: number }> }>(API_ENDPOINTS.goalFiles(name));
+      return (response.files ?? []).map((file) => ({ path: file.path ?? "", size: file.size ?? 0 }));
     },
   };
 }

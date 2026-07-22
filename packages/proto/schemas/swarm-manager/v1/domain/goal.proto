@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// Goal is the single work-grouping entity. Its scope is derived from targets.
+message Goal {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+  string description = 3;
+  string status = 4;
+  int32 priority = 5;
+  repeated string targets = 6;
+  repeated Milestone milestones = 7;
+  string created = 8;
+  string updated = 9;
+  optional string archived_at = 10;
+}
+
+// Milestone is an owned, non-nestable goal subdivision.
+message Milestone {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+  string description = 3;
+  repeated string items = 4;
+  repeated string acceptance_criteria = 5;
+  repeated string depends_on = 6;
+  optional string archived_at = 7;
+}
+
+message MilestoneRollup {
+  string milestone_name = 1;
+  int32 total = 2;
+  int32 completed = 3;
+  int32 ready = 4;
+  int32 blocked = 5;
+}
+
+message GoalScope {
+  repeated string targets = 1;
+  repeated string closure = 2;
+  repeated string completed = 3;
+  repeated string ready = 4;
+  repeated string blocked = 5;
+  repeated MilestoneRollup milestones = 6;
+  repeated string unassigned = 7;
+}

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PlanPanel } from "./plan-panel";
+import { ApiError } from "../../lib/api-client";
 
 vi.mock("../../services", () => ({
   backlogService: {
@@ -59,7 +60,7 @@ describe("PlanPanel", () => {
   });
 
   it("renders empty state when no linked plan is found", async () => {
-    vi.mocked(backlogService.getRenderedPlan).mockRejectedValue(new Error("not found"));
+    vi.mocked(backlogService.getRenderedPlan).mockRejectedValue(new ApiError("http", "Plan not found", { status: 404, code: "plan_ref_not_found" }));
 
     renderWithProviders(<PlanPanel backlogKind="idea" backlogName="test-item" />);
 

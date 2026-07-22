@@ -73,27 +73,27 @@ func (x *RelatedBacklogTarget) GetName() string {
 	return ""
 }
 
-type RelatedInitiativeTarget struct {
+type RelatedGoalTarget struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RelatedInitiativeTarget) Reset() {
-	*x = RelatedInitiativeTarget{}
+func (x *RelatedGoalTarget) Reset() {
+	*x = RelatedGoalTarget{}
 	mi := &file_swarm_manager_v1_api_related_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RelatedInitiativeTarget) String() string {
+func (x *RelatedGoalTarget) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RelatedInitiativeTarget) ProtoMessage() {}
+func (*RelatedGoalTarget) ProtoMessage() {}
 
-func (x *RelatedInitiativeTarget) ProtoReflect() protoreflect.Message {
+func (x *RelatedGoalTarget) ProtoReflect() protoreflect.Message {
 	mi := &file_swarm_manager_v1_api_related_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -105,12 +105,12 @@ func (x *RelatedInitiativeTarget) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RelatedInitiativeTarget.ProtoReflect.Descriptor instead.
-func (*RelatedInitiativeTarget) Descriptor() ([]byte, []int) {
+// Deprecated: Use RelatedGoalTarget.ProtoReflect.Descriptor instead.
+func (*RelatedGoalTarget) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_api_related_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *RelatedInitiativeTarget) GetName() string {
+func (x *RelatedGoalTarget) GetName() string {
 	if x != nil {
 		return x.Name
 	}
@@ -122,7 +122,7 @@ type GetRelatedRequest struct {
 	// Types that are valid to be assigned to Target:
 	//
 	//	*GetRelatedRequest_Backlog
-	//	*GetRelatedRequest_Initiative
+	//	*GetRelatedRequest_Goal
 	Target isGetRelatedRequest_Target `protobuf_oneof:"target"`
 	// Historical work is included unless this is true.
 	ExcludeHistorical bool     `protobuf:"varint,3,opt,name=exclude_historical,json=excludeHistorical,proto3" json:"exclude_historical,omitempty"`
@@ -178,10 +178,10 @@ func (x *GetRelatedRequest) GetBacklog() *RelatedBacklogTarget {
 	return nil
 }
 
-func (x *GetRelatedRequest) GetInitiative() *RelatedInitiativeTarget {
+func (x *GetRelatedRequest) GetGoal() *RelatedGoalTarget {
 	if x != nil {
-		if x, ok := x.Target.(*GetRelatedRequest_Initiative); ok {
-			return x.Initiative
+		if x, ok := x.Target.(*GetRelatedRequest_Goal); ok {
+			return x.Goal
 		}
 	}
 	return nil
@@ -216,13 +216,13 @@ type GetRelatedRequest_Backlog struct {
 	Backlog *RelatedBacklogTarget `protobuf:"bytes,1,opt,name=backlog,proto3,oneof"`
 }
 
-type GetRelatedRequest_Initiative struct {
-	Initiative *RelatedInitiativeTarget `protobuf:"bytes,2,opt,name=initiative,proto3,oneof"`
+type GetRelatedRequest_Goal struct {
+	Goal *RelatedGoalTarget `protobuf:"bytes,2,opt,name=goal,proto3,oneof"`
 }
 
 func (*GetRelatedRequest_Backlog) isGetRelatedRequest_Target() {}
 
-func (*GetRelatedRequest_Initiative) isGetRelatedRequest_Target() {}
+func (*GetRelatedRequest_Goal) isGetRelatedRequest_Target() {}
 
 type RelatedEntity struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -427,14 +427,12 @@ const file_swarm_manager_v1_api_related_proto_rawDesc = "" +
 	"\"swarm-manager/v1/api/related.proto\x12\x10swarm_manager.v1\">\n" +
 	"\x14RelatedBacklogTarget\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"-\n" +
-	"\x17RelatedInitiativeTarget\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"\x96\x02\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"'\n" +
+	"\x11RelatedGoalTarget\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\x84\x02\n" +
 	"\x11GetRelatedRequest\x12B\n" +
-	"\abacklog\x18\x01 \x01(\v2&.swarm_manager.v1.RelatedBacklogTargetH\x00R\abacklog\x12K\n" +
-	"\n" +
-	"initiative\x18\x02 \x01(\v2).swarm_manager.v1.RelatedInitiativeTargetH\x00R\n" +
-	"initiative\x12-\n" +
+	"\abacklog\x18\x01 \x01(\v2&.swarm_manager.v1.RelatedBacklogTargetH\x00R\abacklog\x129\n" +
+	"\x04goal\x18\x02 \x01(\v2#.swarm_manager.v1.RelatedGoalTargetH\x00R\x04goal\x12-\n" +
 	"\x12exclude_historical\x18\x03 \x01(\bR\x11excludeHistorical\x12!\n" +
 	"\fentity_kinds\x18\x04 \x03(\tR\ventityKinds\x12\x14\n" +
 	"\x05limit\x18\x05 \x01(\x05R\x05limitB\b\n" +
@@ -473,16 +471,16 @@ func file_swarm_manager_v1_api_related_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_related_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_swarm_manager_v1_api_related_proto_goTypes = []any{
-	(*RelatedBacklogTarget)(nil),    // 0: swarm_manager.v1.RelatedBacklogTarget
-	(*RelatedInitiativeTarget)(nil), // 1: swarm_manager.v1.RelatedInitiativeTarget
-	(*GetRelatedRequest)(nil),       // 2: swarm_manager.v1.GetRelatedRequest
-	(*RelatedEntity)(nil),           // 3: swarm_manager.v1.RelatedEntity
-	(*RelatedGroup)(nil),            // 4: swarm_manager.v1.RelatedGroup
-	(*GetRelatedResponse)(nil),      // 5: swarm_manager.v1.GetRelatedResponse
+	(*RelatedBacklogTarget)(nil), // 0: swarm_manager.v1.RelatedBacklogTarget
+	(*RelatedGoalTarget)(nil),    // 1: swarm_manager.v1.RelatedGoalTarget
+	(*GetRelatedRequest)(nil),    // 2: swarm_manager.v1.GetRelatedRequest
+	(*RelatedEntity)(nil),        // 3: swarm_manager.v1.RelatedEntity
+	(*RelatedGroup)(nil),         // 4: swarm_manager.v1.RelatedGroup
+	(*GetRelatedResponse)(nil),   // 5: swarm_manager.v1.GetRelatedResponse
 }
 var file_swarm_manager_v1_api_related_proto_depIdxs = []int32{
 	0, // 0: swarm_manager.v1.GetRelatedRequest.backlog:type_name -> swarm_manager.v1.RelatedBacklogTarget
-	1, // 1: swarm_manager.v1.GetRelatedRequest.initiative:type_name -> swarm_manager.v1.RelatedInitiativeTarget
+	1, // 1: swarm_manager.v1.GetRelatedRequest.goal:type_name -> swarm_manager.v1.RelatedGoalTarget
 	3, // 2: swarm_manager.v1.RelatedGroup.entities:type_name -> swarm_manager.v1.RelatedEntity
 	4, // 3: swarm_manager.v1.GetRelatedResponse.groups:type_name -> swarm_manager.v1.RelatedGroup
 	2, // 4: swarm_manager.v1.RelatedService.GetRelated:input_type -> swarm_manager.v1.GetRelatedRequest
@@ -501,7 +499,7 @@ func file_swarm_manager_v1_api_related_proto_init() {
 	}
 	file_swarm_manager_v1_api_related_proto_msgTypes[2].OneofWrappers = []any{
 		(*GetRelatedRequest_Backlog)(nil),
-		(*GetRelatedRequest_Initiative)(nil),
+		(*GetRelatedRequest_Goal)(nil),
 	}
 	file_swarm_manager_v1_api_related_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}

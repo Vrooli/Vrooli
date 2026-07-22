@@ -20,6 +20,7 @@ function goal(name: string, targets: string[], closure: string[] = targets, prio
       status: "active",
       priority,
       targets,
+      milestones: [],
       seeded: false,
       scopeHistory: [],
       created: "",

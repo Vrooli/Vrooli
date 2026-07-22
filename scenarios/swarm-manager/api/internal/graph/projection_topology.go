@@ -31,9 +31,18 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 	itemByKey := make(map[string]backlog.BacklogItem, len(items))
 	nodes, edges = appendTopologyBacklogNodes(nodes, edges, items, execRecords, itemIndex, itemByKey)
 
-	// Goal nodes and membership edges.
-	nodes = p.appendTopologyGoalNodes(ctx, nodes, itemByKey)
-	edges = appendTopologyMemberOfEdges(edges, items)
+	// Goal nodes and membership edges. Goal scope is authoritative: milestone
+	// names are owned only within their goal and cannot identify a goal node.
+	var goals []GoalEntry
+	if p.goal != nil {
+		goals, err = p.goal.List()
+		if err != nil {
+			slog.Error("topology: goals error", "error", err)
+			goals = nil
+		}
+	}
+	nodes = appendTopologyGoalNodes(nodes, goals, itemByKey)
+	edges = appendTopologyMemberOfEdges(edges, items, goals)
 
 	// Capture nodes and classified_as edges.
 	nodes, edges = p.appendTopologyCaptureNodes(nodes, edges, itemIndex)
@@ -92,19 +101,11 @@ func appendTopologyBacklogNodes(
 }
 
 // appendTopologyGoalNodes appends non-archived goal nodes.
-func (p *ProjectionService) appendTopologyGoalNodes(
-	ctx context.Context,
+func appendTopologyGoalNodes(
 	nodes []Node,
+	goals []GoalEntry,
 	itemByKey map[string]backlog.BacklogItem,
 ) []Node {
-	if p.goal == nil {
-		return nodes
-	}
-	goals, err := p.goal.List()
-	if err != nil {
-		slog.Error("topology: goals error", "error", err)
-		return nodes
-	}
 	for _, goal := range goals {
 		if goal.ArchivedAt != nil {
 			continue
@@ -134,19 +135,29 @@ func (p *ProjectionService) appendTopologyGoalNodes(
 }
 
 // appendTopologyMemberOfEdges appends member_of edges from active backlog items
-// to their goals.
-func appendTopologyMemberOfEdges(edges []Edge, items []backlog.BacklogItem) []Edge {
+// to every active goal whose derived scope contains them. The scope already
+// accounts for targets, dependency closure, and goal-owned milestones; using a
+// backlog item's legacy milestone string here would target a non-existent goal.
+func appendTopologyMemberOfEdges(edges []Edge, items []backlog.BacklogItem, goals []GoalEntry) []Edge {
+	activeItems := make(map[string]struct{}, len(items))
 	for _, item := range items {
 		if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
 			continue
 		}
-		if item.Milestone != "" {
-			key := backlogItemKey(string(item.Kind), item.Name)
-			nodeID := backlogItemNodeID(string(item.Kind), item.Name)
+		activeItems[backlogItemKey(string(item.Kind), item.Name)] = struct{}{}
+	}
+	for _, goal := range goals {
+		if goal.ArchivedAt != nil {
+			continue
+		}
+		for _, key := range goal.Items {
+			if _, ok := activeItems[key]; !ok {
+				continue
+			}
 			edges = append(edges, Edge{
-				ID:     fmt.Sprintf("member_of:%s->%s", key, item.Milestone),
-				Source: nodeID,
-				Target: "goal/" + item.Milestone,
+				ID:     fmt.Sprintf("member_of:%s->%s", key, goal.Name),
+				Source: backlogItemNodeIDFromKey(key),
+				Target: "goal/" + goal.Name,
 				Type:   "member_of",
 			})
 		}

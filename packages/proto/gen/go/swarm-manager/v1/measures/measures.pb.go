@@ -305,8 +305,8 @@ func (x *CountExecutionsCompletedResponse) GetCount() int64 {
 	return 0
 }
 
-// CountInitiativesCreatedRequest scopes the initiative-creation count.
-type CountInitiativesCreatedRequest struct {
+// CountGoalsCreatedRequest scopes the goal-creation count.
+type CountGoalsCreatedRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Time window the count is scoped to (see CountBacklogCompletedRequest).
 	Window        *v1.TimeWindow `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
@@ -314,20 +314,20 @@ type CountInitiativesCreatedRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CountInitiativesCreatedRequest) Reset() {
-	*x = CountInitiativesCreatedRequest{}
+func (x *CountGoalsCreatedRequest) Reset() {
+	*x = CountGoalsCreatedRequest{}
 	mi := &file_swarm_manager_v1_measures_measures_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CountInitiativesCreatedRequest) String() string {
+func (x *CountGoalsCreatedRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CountInitiativesCreatedRequest) ProtoMessage() {}
+func (*CountGoalsCreatedRequest) ProtoMessage() {}
 
-func (x *CountInitiativesCreatedRequest) ProtoReflect() protoreflect.Message {
+func (x *CountGoalsCreatedRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_swarm_manager_v1_measures_measures_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -339,42 +339,42 @@ func (x *CountInitiativesCreatedRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CountInitiativesCreatedRequest.ProtoReflect.Descriptor instead.
-func (*CountInitiativesCreatedRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CountGoalsCreatedRequest.ProtoReflect.Descriptor instead.
+func (*CountGoalsCreatedRequest) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_measures_measures_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *CountInitiativesCreatedRequest) GetWindow() *v1.TimeWindow {
+func (x *CountGoalsCreatedRequest) GetWindow() *v1.TimeWindow {
 	if x != nil {
 		return x.Window
 	}
 	return nil
 }
 
-// CountInitiativesCreatedResponse carries the scalar value_field `count`.
-type CountInitiativesCreatedResponse struct {
+// CountGoalsCreatedResponse carries the scalar value_field `count`.
+type CountGoalsCreatedResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Number of initiatives created within the requested window (counted from
-	// initiative.created events).
+	// Number of goals created within the requested window (counted from
+	// goal.created events).
 	Count         int64 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CountInitiativesCreatedResponse) Reset() {
-	*x = CountInitiativesCreatedResponse{}
+func (x *CountGoalsCreatedResponse) Reset() {
+	*x = CountGoalsCreatedResponse{}
 	mi := &file_swarm_manager_v1_measures_measures_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CountInitiativesCreatedResponse) String() string {
+func (x *CountGoalsCreatedResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CountInitiativesCreatedResponse) ProtoMessage() {}
+func (*CountGoalsCreatedResponse) ProtoMessage() {}
 
-func (x *CountInitiativesCreatedResponse) ProtoReflect() protoreflect.Message {
+func (x *CountGoalsCreatedResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_swarm_manager_v1_measures_measures_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -386,12 +386,12 @@ func (x *CountInitiativesCreatedResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CountInitiativesCreatedResponse.ProtoReflect.Descriptor instead.
-func (*CountInitiativesCreatedResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CountGoalsCreatedResponse.ProtoReflect.Descriptor instead.
+func (*CountGoalsCreatedResponse) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_measures_measures_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *CountInitiativesCreatedResponse) GetCount() int64 {
+func (x *CountGoalsCreatedResponse) GetCount() int64 {
 	if x != nil {
 		return x.Count
 	}
@@ -507,20 +507,20 @@ const file_swarm_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\x1fCountExecutionsCompletedRequest\x126\n" +
 	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\"8\n" +
 	" CountExecutionsCompletedResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x03R\x05count\"X\n" +
-	"\x1eCountInitiativesCreatedRequest\x126\n" +
-	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\"7\n" +
-	"\x1fCountInitiativesCreatedResponse\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x03R\x05count\"R\n" +
+	"\x18CountGoalsCreatedRequest\x126\n" +
+	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\"1\n" +
+	"\x19CountGoalsCreatedResponse\x12\x14\n" +
 	"\x05count\x18\x01 \x01(\x03R\x05count\"Z\n" +
 	" CountAgentSessionsCreatedRequest\x126\n" +
 	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\"9\n" +
 	"!CountAgentSessionsCreatedResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x03R\x05count2\xad\x06\n" +
+	"\x05count\x18\x01 \x01(\x03R\x05count2\x9b\x06\n" +
 	"\x0fMeasuresService\x12\x98\x01\n" +
 	"\x15CountBacklogCompleted\x12>.vrooli.swarm_manager.v1.measures.CountBacklogCompletedRequest\x1a?.vrooli.swarm_manager.v1.measures.CountBacklogCompletedResponse\x12\x92\x01\n" +
 	"\x13CountBacklogCreated\x12<.vrooli.swarm_manager.v1.measures.CountBacklogCreatedRequest\x1a=.vrooli.swarm_manager.v1.measures.CountBacklogCreatedResponse\x12\xa1\x01\n" +
-	"\x18CountExecutionsCompleted\x12A.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest\x1aB.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedResponse\x12\x9e\x01\n" +
-	"\x17CountInitiativesCreated\x12@.vrooli.swarm_manager.v1.measures.CountInitiativesCreatedRequest\x1aA.vrooli.swarm_manager.v1.measures.CountInitiativesCreatedResponse\x12\xa4\x01\n" +
+	"\x18CountExecutionsCompleted\x12A.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest\x1aB.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedResponse\x12\x8c\x01\n" +
+	"\x11CountGoalsCreated\x12:.vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest\x1a;.vrooli.swarm_manager.v1.measures.CountGoalsCreatedResponse\x12\xa4\x01\n" +
 	"\x19CountAgentSessionsCreated\x12B.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedRequest\x1aC.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/measures;measures_v1b\x06proto3"
 
 var (
@@ -543,8 +543,8 @@ var file_swarm_manager_v1_measures_measures_proto_goTypes = []any{
 	(*CountBacklogCreatedResponse)(nil),       // 3: vrooli.swarm_manager.v1.measures.CountBacklogCreatedResponse
 	(*CountExecutionsCompletedRequest)(nil),   // 4: vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest
 	(*CountExecutionsCompletedResponse)(nil),  // 5: vrooli.swarm_manager.v1.measures.CountExecutionsCompletedResponse
-	(*CountInitiativesCreatedRequest)(nil),    // 6: vrooli.swarm_manager.v1.measures.CountInitiativesCreatedRequest
-	(*CountInitiativesCreatedResponse)(nil),   // 7: vrooli.swarm_manager.v1.measures.CountInitiativesCreatedResponse
+	(*CountGoalsCreatedRequest)(nil),          // 6: vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest
+	(*CountGoalsCreatedResponse)(nil),         // 7: vrooli.swarm_manager.v1.measures.CountGoalsCreatedResponse
 	(*CountAgentSessionsCreatedRequest)(nil),  // 8: vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedRequest
 	(*CountAgentSessionsCreatedResponse)(nil), // 9: vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedResponse
 	(*v1.TimeWindow)(nil),                     // 10: vrooli.measures.v1.TimeWindow
@@ -553,17 +553,17 @@ var file_swarm_manager_v1_measures_measures_proto_depIdxs = []int32{
 	10, // 0: vrooli.swarm_manager.v1.measures.CountBacklogCompletedRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	10, // 1: vrooli.swarm_manager.v1.measures.CountBacklogCreatedRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	10, // 2: vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	10, // 3: vrooli.swarm_manager.v1.measures.CountInitiativesCreatedRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	10, // 3: vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	10, // 4: vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,  // 5: vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogCompleted:input_type -> vrooli.swarm_manager.v1.measures.CountBacklogCompletedRequest
 	2,  // 6: vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogCreated:input_type -> vrooli.swarm_manager.v1.measures.CountBacklogCreatedRequest
 	4,  // 7: vrooli.swarm_manager.v1.measures.MeasuresService.CountExecutionsCompleted:input_type -> vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest
-	6,  // 8: vrooli.swarm_manager.v1.measures.MeasuresService.CountInitiativesCreated:input_type -> vrooli.swarm_manager.v1.measures.CountInitiativesCreatedRequest
+	6,  // 8: vrooli.swarm_manager.v1.measures.MeasuresService.CountGoalsCreated:input_type -> vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest
 	8,  // 9: vrooli.swarm_manager.v1.measures.MeasuresService.CountAgentSessionsCreated:input_type -> vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedRequest
 	1,  // 10: vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogCompleted:output_type -> vrooli.swarm_manager.v1.measures.CountBacklogCompletedResponse
 	3,  // 11: vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogCreated:output_type -> vrooli.swarm_manager.v1.measures.CountBacklogCreatedResponse
 	5,  // 12: vrooli.swarm_manager.v1.measures.MeasuresService.CountExecutionsCompleted:output_type -> vrooli.swarm_manager.v1.measures.CountExecutionsCompletedResponse
-	7,  // 13: vrooli.swarm_manager.v1.measures.MeasuresService.CountInitiativesCreated:output_type -> vrooli.swarm_manager.v1.measures.CountInitiativesCreatedResponse
+	7,  // 13: vrooli.swarm_manager.v1.measures.MeasuresService.CountGoalsCreated:output_type -> vrooli.swarm_manager.v1.measures.CountGoalsCreatedResponse
 	9,  // 14: vrooli.swarm_manager.v1.measures.MeasuresService.CountAgentSessionsCreated:output_type -> vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedResponse
 	10, // [10:15] is the sub-list for method output_type
 	5,  // [5:10] is the sub-list for method input_type

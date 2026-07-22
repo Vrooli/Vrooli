@@ -43,15 +43,44 @@ func TestStatusJSON(t *testing.T) {
 	}
 }
 
-func TestStatusSurfacesDockerError(t *testing.T) {
+func TestStatusSurfacesManagedRuntimeError(t *testing.T) {
 	h := &Handlers{
 		Stdout: &bytes.Buffer{},
 		Stderr: &bytes.Buffer{},
 		Run: func(string, ...string) ([]byte, error) {
-			return nil, errors.New("docker down")
+			return nil, errors.New("service unavailable")
 		},
 	}
 	if err := h.Status(nil); err == nil {
-		t.Fatal("expected docker error")
+		t.Fatal("expected managed runtime error")
+	}
+}
+
+func TestStatusUsesNativeVaultCommandByDefault(t *testing.T) {
+	var gotName string
+	h := &Handlers{
+		Stdout: &bytes.Buffer{},
+		Stderr: &bytes.Buffer{},
+		Run: func(name string, args ...string) ([]byte, error) {
+			gotName = name
+			return []byte(`{"initialized":true,"sealed":false,"storage_type":"file"}`), nil
+		},
+	}
+	if err := h.Status(nil); err != nil {
+		t.Fatal(err)
+	}
+	if gotName != "vault" {
+		t.Fatalf("native invocation = %q, want vault", gotName)
+	}
+}
+
+func TestStatusRejectsDirectRemoteVrooliAccess(t *testing.T) {
+	t.Setenv("VROOLI_MANAGED_PROVIDER", "remote-vrooli")
+	h := &Handlers{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Run: func(string, ...string) ([]byte, error) {
+		t.Fatal("remote mode must not invoke Vault directly")
+		return nil, nil
+	}}
+	if err := h.Status(nil); err == nil || !strings.Contains(err.Error(), "scenario API") {
+		t.Fatalf("Status() error = %v, want scenario API boundary", err)
 	}
 }

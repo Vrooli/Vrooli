@@ -137,28 +137,6 @@
   },
   {
     "schemaVersion": "swarm-transition/v1",
-    "key": "research.conclude",
-    "subject": "backlog-item",
-    "kind": "workflow",
-    "workflow": {
-      "owner": "swarm-manager",
-      "key": "swarm-manager/research-conclude"
-    },
-    "requires": [
-      "agent-manager",
-      "prompt-manager"
-    ],
-    "inputContract": "research-conclusion-input/v1",
-    "terminalOutcomes": [
-      "concluded",
-      "needs_attention",
-      "abstained",
-      "failed"
-    ],
-    "applyAction": "apply_research_conclusion"
-  },
-  {
-    "schemaVersion": "swarm-transition/v1",
     "key": "plan.execute",
     "subject": "backlog-item",
     "kind": "workflow",

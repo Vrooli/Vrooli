@@ -42,13 +42,13 @@ class CountExecutionsCompletedResponse(_message.Message):
     count: int
     def __init__(self, count: _Optional[int] = ...) -> None: ...
 
-class CountInitiativesCreatedRequest(_message.Message):
+class CountGoalsCreatedRequest(_message.Message):
     __slots__ = ("window",)
     WINDOW_FIELD_NUMBER: _ClassVar[int]
     window: _measures_pb2.TimeWindow
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ...) -> None: ...
 
-class CountInitiativesCreatedResponse(_message.Message):
+class CountGoalsCreatedResponse(_message.Message):
     __slots__ = ("count",)
     COUNT_FIELD_NUMBER: _ClassVar[int]
     count: int

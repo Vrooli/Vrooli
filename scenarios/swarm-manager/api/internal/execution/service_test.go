@@ -14,7 +14,6 @@ import (
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -97,26 +96,6 @@ func (s *stubPhasedPlanWorkflow) SignalWorkflow(context.Context, string, string,
 func (s *stubPhasedPlanWorkflow) CancelWorkflow(context.Context, string, string, string) error {
 	s.cancelCalls++
 	return nil
-}
-
-func TestSetWorkflowStartGuardAlsoGuardsConclusionWorkflow(t *testing.T) {
-	service := NewService(ServiceConfig{DataRoot: t.TempDir(), StorePath: filepath.Join(t.TempDir(), "runs.json")})
-	workflow, ok := service.conclusionWorkflow.(*agentmanager.WorkflowService)
-	if !ok {
-		t.Fatalf("default conclusion workflow = %T, want generic workflow service", service.conclusionWorkflow)
-	}
-	called := false
-	service.SetWorkflowStartGuard(func(_ context.Context, key string) error {
-		called = key == "swarm-manager/research-conclude"
-		return errors.New("blocked")
-	})
-	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "research", "name": "x", "version": "v"}, "snapshot": map[string]any{}, "operatorNote": ""})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := workflow.StartWorkflow(context.Background(), agentmanager.Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/research-conclude", Input: input}); err == nil || !called {
-		t.Fatalf("conclusion start guard was not applied: err=%v called=%v", err, called)
-	}
 }
 
 func (s *stubAgentService) IsEnabled() bool { return true }
@@ -266,10 +245,8 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	}
 }
 
-// TestQueueAndStartManualExecution_ResearchRoutesToConcludeWorkflow proves a
-// planless research item's primary execution uses its declared workflow rather
-// than an operation wrapper or a direct programmatic Run.
-func TestQueueAndStartManualExecution_ResearchRoutesToConcludeWorkflow(t *testing.T) {
+// TestQueueAndStartManualExecution_ResearchRequiresPlan proves a
+func TestQueueAndStartManualExecution_ResearchRequiresCanonicalPlan(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "research", "test-research", map[string]any{
 		"name":        "test-research",
@@ -279,92 +256,20 @@ func TestQueueAndStartManualExecution_ResearchRoutesToConcludeWorkflow(t *testin
 		"priority":    3,
 		"tags":        []string{},
 	})
-	mustWriteDeliverableFile(t, root, "research", "test-research")
-
-	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
+		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
-	workflow := &stubConclusionWorkflow{}
-	service.SetConclusionWorkflow(workflow)
-
-	record, err := service.QueueBacklog(context.Background(), CreateRequest{
+	_, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "research",
 		BacklogName: "test-research",
 		Mode:        ModeManual,
 	})
-	if err != nil {
-		t.Fatalf("QueueBacklog error: %v", err)
-	}
-
-	started, err := service.Start(context.Background(), record.ExecutionID)
-	if err != nil {
-		t.Fatalf("Start error: %v", err)
-	}
-	if workflow.startCalls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/research-conclude" {
-		t.Fatalf("expected declared conclusion workflow invocation, got calls=%d key=%q", workflow.startCalls, workflow.invocation.WorkflowKey)
-	}
-	entity := workflow.invocation.Input.AsInterface().(map[string]any)["entity"].(map[string]any)
-	if entity["kind"] != "research" || entity["name"] != "test-research" || entity["version"] == "" {
-		t.Fatalf("expected immutable research entity snapshot, got %#v", entity)
-	}
-	if started.Status != StatusStarting || started.RunID != "run-c" || started.AgentWorkflowExecutionID != "conclusion-1" || started.AgentWorkflowKey != "swarm-manager/research-conclude" || started.OpExecutionID != "" {
-		t.Fatalf("expected workflow-backed record without operation correlation, got %#v", started)
-	}
-	if agent.spawnCalls != 0 {
-		t.Fatalf("expected 0 direct agent spawns, got %d", agent.spawnCalls)
-	}
-}
-
-func TestApplyConclusionWorkflow_ExactlyOnce(t *testing.T) {
-	root := t.TempDir()
-	mustWriteBacklogItem(t, root, "research", "conclusion-apply", map[string]any{
-		"name": "conclusion-apply", "title": "Conclusion Apply", "description": "desc", "status": "backlog", "priority": 3, "tags": []string{},
-	})
-	mustWriteDeliverableFile(t, root, "research", "conclusion-apply")
-	workflow := &stubConclusionWorkflow{}
-	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"), PlanRenderer: testPlanRenderer(), AgentService: &stubAgentService{}, PromptClient: &promptmanager.MockClient{Result: "test prompt"}, ConclusionWorkflow: workflow})
-	observed := 0
-	service.SetResearchConclusionObserver(func(_ context.Context, event ResearchConclusionEvent) error {
-		observed++
-		if event.BacklogKind != "research" || event.BacklogName != "conclusion-apply" || event.Summary != "done" || event.Disposition != "follow_up" || event.Rationale != "Validate the conclusion" || event.Confidence != "medium" {
-			t.Fatalf("unexpected research conclusion event: %+v", event)
-		}
-		return nil
-	})
-	queued, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "research", BacklogName: "conclusion-apply", Mode: ModeManual})
-	if err != nil {
-		t.Fatal(err)
-	}
-	started, err := service.Start(context.Background(), queued.ExecutionID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"finding": map[string]any{"summary": "done", "evidence": []any{}, "changed_files": []any{}, "tests": []any{}}, "disposition": map[string]any{"kind": "follow_up", "rationale": "Validate the conclusion", "confidence": "medium"}, "progress": "complete", "blockers": []any{}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	workflow.completion = agentmanager.InvocationCompletion{ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition, Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: workflow.invocation.Input, Output: output}
-	first, err := service.ApplyConclusionWorkflow(context.Background(), started.ExecutionID)
-	if err != nil {
-		t.Fatalf("apply: %v", err)
-	}
-	if first.Idempotent || first.Record.AgentWorkflowApplyState != workflowApplyComplete || first.Record.AgentWorkflowOutcome != "complete" {
-		t.Fatalf("unexpected first apply: %#v", first)
-	}
-	second, err := service.ApplyConclusionWorkflow(context.Background(), started.ExecutionID)
-	if err != nil {
-		t.Fatalf("replay apply: %v", err)
-	}
-	if !second.Idempotent {
-		t.Fatalf("expected idempotent replay, got %#v", second)
-	}
-	if observed != 1 {
-		t.Fatalf("observer calls = %d, want 1", observed)
+	if err == nil || !strings.Contains(err.Error(), "plan_ref") {
+		t.Fatalf("QueueBacklog error = %v, want canonical plan guard", err)
 	}
 }
 
@@ -663,34 +568,13 @@ func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[str
 	}
 }
 
-// mustWriteDeliverableFile creates the primary workshop artifact in the item
-// directory for research items. Non-research readiness is driven by plan_ref.
+// mustWriteDeliverableFile is retained as a call-site fixture name. Readiness
+// is now uniformly driven by plan_ref, including for research items.
 func mustWriteDeliverableFile(t *testing.T, root, kind, name string) {
 	t.Helper()
-	kindDir := "ideas"
-	deliverablePath := ""
-	switch kind {
-	case "research":
-		kindDir = "research"
-		deliverablePath = "conclusion.md"
-	case "fix":
-		kindDir = "fix"
-	case "execute":
-		kindDir = "execute"
-	case "chore":
-		kindDir = "chore"
-	}
-	if deliverablePath == "" {
-		return
-	}
-	dir := filepath.Join(root, kindDir, name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("mkdir for deliverable: %v", err)
-	}
-	content := "# Conclusion\nManually created conclusion for testing."
-	if err := os.WriteFile(filepath.Join(dir, deliverablePath), []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", deliverablePath, err)
-	}
+	_ = root
+	_ = kind
+	_ = name
 }
 
 func mustLoadBacklogItem(t *testing.T, path string) map[string]any {

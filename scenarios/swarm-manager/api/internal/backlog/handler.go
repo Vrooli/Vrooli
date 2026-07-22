@@ -50,6 +50,13 @@ type AgentActivityChecker interface {
 	HasActiveAgent(ctx context.Context, ownerKind, ownerName string) bool
 }
 
+// ExecutionActivityChecker reports whether an item has work queued or running.
+// It is intentionally a narrow cross-domain seam so plan acceptance does not
+// reach into execution persistence directly.
+type ExecutionActivityChecker interface {
+	HasActiveForBacklog(ctx context.Context, kind, name string) bool
+}
+
 // ItemTerminalHandler is invoked after the review-decide endpoint flips an
 // item to a terminal status (completed / failed / needs_followup). The
 // callback fires synchronously inside the HTTP handler so downstream effects
@@ -70,7 +77,7 @@ type BacklogRecordRequest struct {
 	Title           string
 	Description     string
 	AcceptanceAllow []string
-	Milestone      string
+	Milestone       string
 	Status          BacklogStatus
 	DecidedBy       string
 }
@@ -101,9 +108,10 @@ type Handler struct {
 	activityChecker      AgentActivityChecker
 	promptClient         promptmanager.Client
 	planClient           planclient.Client
-	milestoneAssigner   MilestoneAssigner
+	milestoneAssigner    MilestoneAssigner
 	sessionArtifacts     sessionArtifactRecorder
 	executionQueuer      ExecutionQueuer
+	executionActivity    ExecutionActivityChecker
 	eventDispatcher      dispatch.Invalidator
 	eventLogger          EventLogger
 	itemTerminalHandler  ItemTerminalHandler
@@ -113,6 +121,12 @@ type Handler struct {
 	planRepair           *planrepair.Service
 	transitionRegistry   transitions.Registry
 	lifecycleService     *Service
+}
+
+// SetExecutionActivityChecker installs the execution-active guard used by
+// destructive readiness changes such as un-accepting a plan.
+func (h *Handler) SetExecutionActivityChecker(checker ExecutionActivityChecker) {
+	h.executionActivity = checker
 }
 
 // SetLifecycleService installs the single lifecycle implementation used by
@@ -389,6 +403,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-render", h.RenderLinkedPlan).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-accept", h.AcceptPlan).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-accept", h.UnacceptPlan).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair", h.StartPlanRepair).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair/{repairID}/apply", h.ApplyPlanRepair).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-candidates/{candidateID}/apply", h.ApplyPlanCandidate).Methods("POST")

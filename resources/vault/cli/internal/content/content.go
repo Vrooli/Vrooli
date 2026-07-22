@@ -23,10 +23,10 @@ type Handlers struct {
 	Stderr io.Writer
 }
 
-// Default returns Handlers wired to the real docker-backed Runner.
+// Default uses the managed client and requires an explicitly scoped token.
 func Default() *Handlers {
 	return &Handlers{
-		Runner: NewDockerRunner(),
+		Runner: NewDefaultRunner(),
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}

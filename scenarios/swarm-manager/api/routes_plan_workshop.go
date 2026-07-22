@@ -351,30 +351,6 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 			return fmt.Errorf("direct Plan Workshop proposal is missing from its Agent Session")
 		})
 	}
-	if s.executionSvc != nil {
-		s.executionSvc.SetResearchConclusionObserver(func(ctx context.Context, event execution.ResearchConclusionEvent) error {
-			severity := "info"
-			if event.Outcome != "complete" {
-				severity = "attention"
-			}
-			summary := event.Summary
-			if summary == "" {
-				summary = "Research conclusion requires operator attention"
-			}
-			finding := planworkshop.Finding{ID: "research-conclusion/" + event.ExecutionID, Severity: severity, Summary: summary, Evidence: "execution/" + event.ExecutionID}
-			if event.Outcome == "complete" {
-				finding.Disposition = &planworkshop.Disposition{Kind: event.Disposition, Rationale: event.Rationale, Confidence: event.Confidence, Scope: event.Scope}
-			}
-			subject := planworkshop.Subject{Kind: planworkshop.SubjectBacklog, Ref: event.BacklogKind + "/" + event.BacklogName}
-			if _, err := service.AttachFinding(subject, finding); err != nil {
-				return err
-			}
-			if finding.Disposition != nil {
-				return s.attachFollowUpProposal(ctx, service, subject, "research/"+event.ExecutionID, event.ExecutionID, *finding.Disposition)
-			}
-			return nil
-		})
-	}
 	attachReviewFinding := func(ctx context.Context, kind, name string, round review.Round) {
 		subjectKind := planworkshop.SubjectBacklog
 		subjectRef := kind + "/" + name

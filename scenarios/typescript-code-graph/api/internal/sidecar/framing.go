@@ -12,8 +12,10 @@ import (
 // maxLineBytes caps the per-message size on read. The wire protocol is
 // line-delimited JSON; ts-morph can emit very large extracted graphs,
 // so the cap is generous. 64 MiB is the practical ceiling for a
-// single project extract.
-const maxLineBytes = 64 * 1024 * 1024
+// single project extract. The cap is deliberately above the largest known
+// real-world graph: the supervisor must report a typed transport failure when
+// this boundary is crossed rather than silently abandoning its stdout reader.
+const maxLineBytes = 256 * 1024 * 1024
 
 // newFrameScanner constructs a bufio.Scanner with the per-message size
 // raised. The default 64 KiB buffer is far too small for an extracted

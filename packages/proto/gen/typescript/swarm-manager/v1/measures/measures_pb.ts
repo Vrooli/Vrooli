@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/measures/measures.proto.
  */
 export const file_swarm_manager_v1_measures_measures: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL21lYXN1cmVzL21lYXN1cmVzLnByb3RvEiB2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcyJOChxDb3VudEJhY2tsb2dDb21wbGV0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93Ii4KHUNvdW50QmFja2xvZ0NvbXBsZXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIkwKGkNvdW50QmFja2xvZ0NyZWF0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IiwKG0NvdW50QmFja2xvZ0NyZWF0ZWRSZXNwb25zZRINCgVjb3VudBgBIAEoAyJRCh9Db3VudEV4ZWN1dGlvbnNDb21wbGV0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IjEKIENvdW50RXhlY3V0aW9uc0NvbXBsZXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIlAKHkNvdW50SW5pdGlhdGl2ZXNDcmVhdGVkUmVxdWVzdBIuCgZ3aW5kb3cYASABKAsyHi52cm9vbGkubWVhc3VyZXMudjEuVGltZVdpbmRvdyIwCh9Db3VudEluaXRpYXRpdmVzQ3JlYXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIlIKIENvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IjIKIUNvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWRSZXNwb25zZRINCgVjb3VudBgBIAEoAzKtBgoPTWVhc3VyZXNTZXJ2aWNlEpgBChVDb3VudEJhY2tsb2dDb21wbGV0ZWQSPi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEJhY2tsb2dDb21wbGV0ZWRSZXF1ZXN0Gj8udnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQ291bnRCYWNrbG9nQ29tcGxldGVkUmVzcG9uc2USkgEKE0NvdW50QmFja2xvZ0NyZWF0ZWQSPC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEJhY2tsb2dDcmVhdGVkUmVxdWVzdBo9LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QmFja2xvZ0NyZWF0ZWRSZXNwb25zZRKhAQoYQ291bnRFeGVjdXRpb25zQ29tcGxldGVkEkEudnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQ291bnRFeGVjdXRpb25zQ29tcGxldGVkUmVxdWVzdBpCLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50RXhlY3V0aW9uc0NvbXBsZXRlZFJlc3BvbnNlEp4BChdDb3VudEluaXRpYXRpdmVzQ3JlYXRlZBJALnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50SW5pdGlhdGl2ZXNDcmVhdGVkUmVxdWVzdBpBLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50SW5pdGlhdGl2ZXNDcmVhdGVkUmVzcG9uc2USpAEKGUNvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWQSQi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEFnZW50U2Vzc2lvbnNDcmVhdGVkUmVxdWVzdBpDLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWRSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvbWVhc3VyZXM7bWVhc3VyZXNfdjFiBnByb3RvMw", [file_measures_v1_measures]);
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL21lYXN1cmVzL21lYXN1cmVzLnByb3RvEiB2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcyJOChxDb3VudEJhY2tsb2dDb21wbGV0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93Ii4KHUNvdW50QmFja2xvZ0NvbXBsZXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIkwKGkNvdW50QmFja2xvZ0NyZWF0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IiwKG0NvdW50QmFja2xvZ0NyZWF0ZWRSZXNwb25zZRINCgVjb3VudBgBIAEoAyJRCh9Db3VudEV4ZWN1dGlvbnNDb21wbGV0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IjEKIENvdW50RXhlY3V0aW9uc0NvbXBsZXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIkoKGENvdW50R29hbHNDcmVhdGVkUmVxdWVzdBIuCgZ3aW5kb3cYASABKAsyHi52cm9vbGkubWVhc3VyZXMudjEuVGltZVdpbmRvdyIqChlDb3VudEdvYWxzQ3JlYXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIlIKIENvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IjIKIUNvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWRSZXNwb25zZRINCgVjb3VudBgBIAEoAzKbBgoPTWVhc3VyZXNTZXJ2aWNlEpgBChVDb3VudEJhY2tsb2dDb21wbGV0ZWQSPi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEJhY2tsb2dDb21wbGV0ZWRSZXF1ZXN0Gj8udnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQ291bnRCYWNrbG9nQ29tcGxldGVkUmVzcG9uc2USkgEKE0NvdW50QmFja2xvZ0NyZWF0ZWQSPC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEJhY2tsb2dDcmVhdGVkUmVxdWVzdBo9LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QmFja2xvZ0NyZWF0ZWRSZXNwb25zZRKhAQoYQ291bnRFeGVjdXRpb25zQ29tcGxldGVkEkEudnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQ291bnRFeGVjdXRpb25zQ29tcGxldGVkUmVxdWVzdBpCLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50RXhlY3V0aW9uc0NvbXBsZXRlZFJlc3BvbnNlEowBChFDb3VudEdvYWxzQ3JlYXRlZBI6LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50R29hbHNDcmVhdGVkUmVxdWVzdBo7LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50R29hbHNDcmVhdGVkUmVzcG9uc2USpAEKGUNvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWQSQi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEFnZW50U2Vzc2lvbnNDcmVhdGVkUmVxdWVzdBpDLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWRSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvbWVhc3VyZXM7bWVhc3VyZXNfdjFiBnByb3RvMw", [file_measures_v1_measures]);
 
 /**
  * CountBacklogCompletedRequest scopes the backlog-completion count to a window.
@@ -148,11 +148,11 @@ export const CountExecutionsCompletedResponseSchema: GenMessage<CountExecutionsC
   messageDesc(file_swarm_manager_v1_measures_measures, 5);
 
 /**
- * CountInitiativesCreatedRequest scopes the initiative-creation count.
+ * CountGoalsCreatedRequest scopes the goal-creation count.
  *
- * @generated from message vrooli.swarm_manager.v1.measures.CountInitiativesCreatedRequest
+ * @generated from message vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest
  */
-export type CountInitiativesCreatedRequest = Message<"vrooli.swarm_manager.v1.measures.CountInitiativesCreatedRequest"> & {
+export type CountGoalsCreatedRequest = Message<"vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest"> & {
   /**
    * Time window the count is scoped to (see CountBacklogCompletedRequest).
    *
@@ -162,21 +162,21 @@ export type CountInitiativesCreatedRequest = Message<"vrooli.swarm_manager.v1.me
 };
 
 /**
- * Describes the message vrooli.swarm_manager.v1.measures.CountInitiativesCreatedRequest.
- * Use `create(CountInitiativesCreatedRequestSchema)` to create a new message.
+ * Describes the message vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest.
+ * Use `create(CountGoalsCreatedRequestSchema)` to create a new message.
  */
-export const CountInitiativesCreatedRequestSchema: GenMessage<CountInitiativesCreatedRequest> = /*@__PURE__*/
+export const CountGoalsCreatedRequestSchema: GenMessage<CountGoalsCreatedRequest> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_measures_measures, 6);
 
 /**
- * CountInitiativesCreatedResponse carries the scalar value_field `count`.
+ * CountGoalsCreatedResponse carries the scalar value_field `count`.
  *
- * @generated from message vrooli.swarm_manager.v1.measures.CountInitiativesCreatedResponse
+ * @generated from message vrooli.swarm_manager.v1.measures.CountGoalsCreatedResponse
  */
-export type CountInitiativesCreatedResponse = Message<"vrooli.swarm_manager.v1.measures.CountInitiativesCreatedResponse"> & {
+export type CountGoalsCreatedResponse = Message<"vrooli.swarm_manager.v1.measures.CountGoalsCreatedResponse"> & {
   /**
-   * Number of initiatives created within the requested window (counted from
-   * initiative.created events).
+   * Number of goals created within the requested window (counted from
+   * goal.created events).
    *
    * @generated from field: int64 count = 1;
    */
@@ -184,10 +184,10 @@ export type CountInitiativesCreatedResponse = Message<"vrooli.swarm_manager.v1.m
 };
 
 /**
- * Describes the message vrooli.swarm_manager.v1.measures.CountInitiativesCreatedResponse.
- * Use `create(CountInitiativesCreatedResponseSchema)` to create a new message.
+ * Describes the message vrooli.swarm_manager.v1.measures.CountGoalsCreatedResponse.
+ * Use `create(CountGoalsCreatedResponseSchema)` to create a new message.
  */
-export const CountInitiativesCreatedResponseSchema: GenMessage<CountInitiativesCreatedResponse> = /*@__PURE__*/
+export const CountGoalsCreatedResponseSchema: GenMessage<CountGoalsCreatedResponse> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_measures_measures, 7);
 
 /**
@@ -276,15 +276,15 @@ export const MeasuresService: GenService<{
     output: typeof CountExecutionsCompletedResponseSchema;
   },
   /**
-   * CountInitiativesCreated answers "how many initiatives were created in
-   * <window>". Bound to the `initiative created` measure.
+   * CountGoalsCreated answers "how many goals were created in
+   * <window>". Bound to the `goal created` measure.
    *
-   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.CountInitiativesCreated
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.CountGoalsCreated
    */
-  countInitiativesCreated: {
+  countGoalsCreated: {
     methodKind: "unary";
-    input: typeof CountInitiativesCreatedRequestSchema;
-    output: typeof CountInitiativesCreatedResponseSchema;
+    input: typeof CountGoalsCreatedRequestSchema;
+    output: typeof CountGoalsCreatedResponseSchema;
   },
   /**
    * CountAgentSessionsCreated answers "how many agent sessions were created in

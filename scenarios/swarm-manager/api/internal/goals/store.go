@@ -19,6 +19,13 @@ type Store struct {
 	dir string
 }
 
+// File is a read-only entry in a goal's on-disk folder. It deliberately
+// exposes a relative path only so callers never receive host filesystem paths.
+type File struct {
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+}
+
 // NewStore creates a Store rooted at {dataRoot}/goals.
 func NewStore(dataRoot string) *Store {
 	return &Store{dir: filepath.Join(dataRoot, "goals")}
@@ -93,4 +100,37 @@ func (s *Store) Delete(name string) error {
 		return fmt.Errorf("delete goal %q: %w", name, err)
 	}
 	return nil
+}
+
+// ListFiles returns all regular files held by a goal, including migrated
+// initiative material. Goal files are an audit surface, not an editor.
+func (s *Store) ListFiles(name string) ([]File, error) {
+	root := s.GoalDir(name)
+	if !s.Exists(name) {
+		return nil, fmt.Errorf("goal %q not found", name)
+	}
+	files := make([]File, 0)
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !entry.Type().IsRegular() {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		files = append(files, File{Path: filepath.ToSlash(rel), Size: info.Size()})
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list goal %q files: %w", name, err)
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+	return files, nil
 }

@@ -73,7 +73,7 @@ const LIFECYCLE_RESET_SCOPES: Array<[string, string]> = [
   ["handoff_executions", "Handoff data and executions"],
   ["plan_unbind", "Plan binding"],
 ];
-type DetailsTab = "info" | "prompt" | "proposals" | "files" | "output" | "activity" | "related";
+type DetailsTab = "info" | "prompt" | "decide" | "files" | "output" | "activity" | "related";
 
 export function BacklogDetailsPage() {
   // --- Navigation / selection ---
@@ -131,7 +131,7 @@ export function BacklogDetailsPage() {
 
   // --- Local UI state (URL-synced or needs render) ---
   const [activeTab, setActiveTab] = useUrlState<DetailsTab>("tab", "info", {
-    validate: (v): v is DetailsTab => ["info", "prompt", "proposals", "files", "output", "activity", "related"].includes(v),
+    validate: (v): v is DetailsTab => ["info", "prompt", "decide", "files", "output", "activity", "related"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
   const [dismissSuggestionPending, setDismissSuggestionPending] = useState(false);
@@ -508,11 +508,11 @@ export function BacklogDetailsPage() {
           </TabsTrigger>
           <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
             <Sparkles className="h-4 w-4" />
-            {backlogKind === "research" ? "Conclusion" : "Plan"}
+            Plan
           </TabsTrigger>
-          <TabsTrigger value="proposals" className="gap-2">
+          <TabsTrigger value="decide" className="gap-2">
             <GitPullRequestArrow className="h-4 w-4" />
-            Proposals
+            Decide
             {proposalCount > 0 && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">{proposalCount}</span>}
           </TabsTrigger>
           <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
@@ -605,10 +605,10 @@ export function BacklogDetailsPage() {
                 <PlanPanel
                   backlogKind={backlogKind}
                   backlogName={name}
-                  className="flex-1 overflow-y-auto lg:mt-3 lg:min-h-[500px] lg:rounded-lg lg:border lg:border-slate-800 lg:bg-slate-900/50"
+                  className="flex-1 overflow-y-auto lg:mt-3 lg:min-h-[500px]"
                 />
               )}
-              {activeTab === "proposals" && backlogKind && name && item && (
+              {activeTab === "decide" && backlogKind && name && item && (
                 <ProposalSessionsPanel target={{ type: "backlog_item", ref: `${backlogKind}/${name}`, name: item.title || name }} />
               )}
               {activeTab === "files" && fileWorkspaceElement}

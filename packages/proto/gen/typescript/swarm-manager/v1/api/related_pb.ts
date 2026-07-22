@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/related.proto.
  */
 export const file_swarm_manager_v1_api_related: GenFile = /*@__PURE__*/
-  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL2FwaS9yZWxhdGVkLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIjIKFFJlbGF0ZWRCYWNrbG9nVGFyZ2V0EgwKBGtpbmQYASABKAkSDAoEbmFtZRgCIAEoCSInChdSZWxhdGVkSW5pdGlhdGl2ZVRhcmdldBIMCgRuYW1lGAEgASgJItoBChFHZXRSZWxhdGVkUmVxdWVzdBI5CgdiYWNrbG9nGAEgASgLMiYuc3dhcm1fbWFuYWdlci52MS5SZWxhdGVkQmFja2xvZ1RhcmdldEgAEj8KCmluaXRpYXRpdmUYAiABKAsyKS5zd2FybV9tYW5hZ2VyLnYxLlJlbGF0ZWRJbml0aWF0aXZlVGFyZ2V0SAASGgoSZXhjbHVkZV9oaXN0b3JpY2FsGAMgASgIEhQKDGVudGl0eV9raW5kcxgEIAMoCRINCgVsaW1pdBgFIAEoBUIICgZ0YXJnZXQioQEKDVJlbGF0ZWRFbnRpdHkSEwoLZW50aXR5X2tpbmQYASABKAkSCwoDa2V5GAIgASgJEg0KBXRpdGxlGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIQCghhcmNoaXZlZBgFIAEoCBIPCgdyZWFzb25zGAYgAygJEhoKDXNjb3JlX3BlcmNlbnQYByABKAVIAIgBAUIQCg5fc2NvcmVfcGVyY2VudCJhCgxSZWxhdGVkR3JvdXASDAoEbmFtZRgBIAEoCRIxCghlbnRpdGllcxgCIAMoCzIfLnN3YXJtX21hbmFnZXIudjEuUmVsYXRlZEVudGl0eRIQCghkZWdyYWRlZBgDIAEoCCJEChJHZXRSZWxhdGVkUmVzcG9uc2USLgoGZ3JvdXBzGAEgAygLMh4uc3dhcm1fbWFuYWdlci52MS5SZWxhdGVkR3JvdXAyaQoOUmVsYXRlZFNlcnZpY2USVwoKR2V0UmVsYXRlZBIjLnN3YXJtX21hbmFnZXIudjEuR2V0UmVsYXRlZFJlcXVlc3QaJC5zd2FybV9tYW5hZ2VyLnYxLkdldFJlbGF0ZWRSZXNwb25zZUJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z");
+  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL2FwaS9yZWxhdGVkLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIjIKFFJlbGF0ZWRCYWNrbG9nVGFyZ2V0EgwKBGtpbmQYASABKAkSDAoEbmFtZRgCIAEoCSIhChFSZWxhdGVkR29hbFRhcmdldBIMCgRuYW1lGAEgASgJIs4BChFHZXRSZWxhdGVkUmVxdWVzdBI5CgdiYWNrbG9nGAEgASgLMiYuc3dhcm1fbWFuYWdlci52MS5SZWxhdGVkQmFja2xvZ1RhcmdldEgAEjMKBGdvYWwYAiABKAsyIy5zd2FybV9tYW5hZ2VyLnYxLlJlbGF0ZWRHb2FsVGFyZ2V0SAASGgoSZXhjbHVkZV9oaXN0b3JpY2FsGAMgASgIEhQKDGVudGl0eV9raW5kcxgEIAMoCRINCgVsaW1pdBgFIAEoBUIICgZ0YXJnZXQioQEKDVJlbGF0ZWRFbnRpdHkSEwoLZW50aXR5X2tpbmQYASABKAkSCwoDa2V5GAIgASgJEg0KBXRpdGxlGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIQCghhcmNoaXZlZBgFIAEoCBIPCgdyZWFzb25zGAYgAygJEhoKDXNjb3JlX3BlcmNlbnQYByABKAVIAIgBAUIQCg5fc2NvcmVfcGVyY2VudCJhCgxSZWxhdGVkR3JvdXASDAoEbmFtZRgBIAEoCRIxCghlbnRpdGllcxgCIAMoCzIfLnN3YXJtX21hbmFnZXIudjEuUmVsYXRlZEVudGl0eRIQCghkZWdyYWRlZBgDIAEoCCJEChJHZXRSZWxhdGVkUmVzcG9uc2USLgoGZ3JvdXBzGAEgAygLMh4uc3dhcm1fbWFuYWdlci52MS5SZWxhdGVkR3JvdXAyaQoOUmVsYXRlZFNlcnZpY2USVwoKR2V0UmVsYXRlZBIjLnN3YXJtX21hbmFnZXIudjEuR2V0UmVsYXRlZFJlcXVlc3QaJC5zd2FybV9tYW5hZ2VyLnYxLkdldFJlbGF0ZWRSZXNwb25zZUJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z");
 
 /**
  * @generated from message swarm_manager.v1.RelatedBacklogTarget
@@ -35,9 +35,9 @@ export const RelatedBacklogTargetSchema: GenMessage<RelatedBacklogTarget> = /*@_
   messageDesc(file_swarm_manager_v1_api_related, 0);
 
 /**
- * @generated from message swarm_manager.v1.RelatedInitiativeTarget
+ * @generated from message swarm_manager.v1.RelatedGoalTarget
  */
-export type RelatedInitiativeTarget = Message<"swarm_manager.v1.RelatedInitiativeTarget"> & {
+export type RelatedGoalTarget = Message<"swarm_manager.v1.RelatedGoalTarget"> & {
   /**
    * @generated from field: string name = 1;
    */
@@ -45,10 +45,10 @@ export type RelatedInitiativeTarget = Message<"swarm_manager.v1.RelatedInitiativ
 };
 
 /**
- * Describes the message swarm_manager.v1.RelatedInitiativeTarget.
- * Use `create(RelatedInitiativeTargetSchema)` to create a new message.
+ * Describes the message swarm_manager.v1.RelatedGoalTarget.
+ * Use `create(RelatedGoalTargetSchema)` to create a new message.
  */
-export const RelatedInitiativeTargetSchema: GenMessage<RelatedInitiativeTarget> = /*@__PURE__*/
+export const RelatedGoalTargetSchema: GenMessage<RelatedGoalTarget> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_api_related, 1);
 
 /**
@@ -66,10 +66,10 @@ export type GetRelatedRequest = Message<"swarm_manager.v1.GetRelatedRequest"> & 
     case: "backlog";
   } | {
     /**
-     * @generated from field: swarm_manager.v1.RelatedInitiativeTarget initiative = 2;
+     * @generated from field: swarm_manager.v1.RelatedGoalTarget goal = 2;
      */
-    value: RelatedInitiativeTarget;
-    case: "initiative";
+    value: RelatedGoalTarget;
+    case: "goal";
   } | { case: undefined; value?: undefined };
 
   /**
@@ -189,7 +189,7 @@ export const GetRelatedResponseSchema: GenMessage<GetRelatedResponse> = /*@__PUR
   messageDesc(file_swarm_manager_v1_api_related, 5);
 
 /**
- * RelatedService exposes explainable related work for a backlog item or initiative.
+ * RelatedService exposes explainable related work for a backlog item or goal.
  *
  * @generated from service swarm_manager.v1.RelatedService
  */

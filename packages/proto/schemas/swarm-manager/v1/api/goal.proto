@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/goal.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+service GoalService {
+  rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
+  rpc GetGoal(GetGoalRequest) returns (GoalResponse);
+  rpc CreateGoal(CreateGoalRequest) returns (GoalResponse);
+  rpc UpdateGoal(UpdateGoalRequest) returns (GoalResponse);
+  rpc DeleteGoal(DeleteGoalRequest) returns (EmptyGoalResponse);
+  rpc ArchiveGoal(ArchiveGoalRequest) returns (GoalResponse);
+  rpc UnarchiveGoal(UnarchiveGoalRequest) returns (GoalResponse);
+  rpc AddTargets(UpdateGoalTargetsRequest) returns (GoalResponse);
+  rpc RemoveTargets(UpdateGoalTargetsRequest) returns (GoalResponse);
+  rpc CreateMilestone(CreateMilestoneRequest) returns (GoalResponse);
+  rpc UpdateMilestone(UpdateMilestoneRequest) returns (GoalResponse);
+  rpc ArchiveMilestone(ArchiveMilestoneRequest) returns (GoalResponse);
+  rpc AssignMilestoneItems(UpdateMilestoneItemsRequest) returns (GoalResponse);
+  rpc UnassignMilestoneItems(UpdateMilestoneItemsRequest) returns (GoalResponse);
+  rpc GetScope(GetGoalRequest) returns (GoalScopeResponse);
+}
+
+message ListGoalsRequest {}
+message GetGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
+message DeleteGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
+message ArchiveGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
+message UnarchiveGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
+message CreateGoalRequest { string name = 1; string title = 2; string description = 3; int32 priority = 4; repeated string targets = 5; }
+message UpdateGoalRequest { string name = 1; optional string title = 2; optional string description = 3; optional int32 priority = 4; }
+message UpdateGoalTargetsRequest { string name = 1; repeated string targets = 2; }
+message CreateMilestoneRequest { string goal_name = 1; Milestone milestone = 2; }
+message UpdateMilestoneRequest { string goal_name = 1; Milestone milestone = 2; }
+message ArchiveMilestoneRequest { string goal_name = 1; string milestone_name = 2; }
+message UpdateMilestoneItemsRequest { string goal_name = 1; string milestone_name = 2; repeated string items = 3; }
+message GoalResponse { Goal goal = 1; GoalScope scope = 2; }
+message ListGoalsResponse { repeated GoalResponse goals = 1; }
+message GoalScopeResponse { GoalScope scope = 1; }
+message EmptyGoalResponse {}

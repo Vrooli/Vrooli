@@ -43,7 +43,7 @@ func TestSubmitResponseIsIdempotentAndRejectsStaleSubject(t *testing.T) {
 func TestAttachFindingIsDurableAndIdempotent(t *testing.T) {
 	svc := NewService(NewStore(t.TempDir()), func(Subject) (string, string, string, error) { return "v1", "", "", nil })
 	subject := Subject{Kind: SubjectBacklog, Ref: "research/example"}
-	first, err := svc.AttachFinding(subject, Finding{ID: "research-conclusion/execution-1", Severity: "info", Summary: "Evidence is ready", Evidence: "execution/execution-1", Disposition: &Disposition{Kind: "follow_up", Rationale: "Validate the result", Confidence: "medium"}})
+	first, err := svc.AttachFinding(subject, Finding{ID: "research-evidence/execution-1", Severity: "info", Summary: "Evidence is ready", Evidence: "execution/execution-1", Disposition: &Disposition{Kind: "follow_up", Rationale: "Validate the result", Confidence: "medium"}})
 	if err != nil || len(first.Packet.Findings) != 1 {
 		t.Fatalf("first attach = %+v, err=%v", first, err)
 	}

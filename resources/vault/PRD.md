@@ -6,10 +6,10 @@ Vault provides local durable secret storage for Vrooli resources and scenarios. 
 
 ## Implemented
 
-- [x] Docker-service resource manifest with managed lifecycle.
+- [x] Signed native managed-service resource manifest with shared lifecycle.
 - [x] Standard resource lifecycle commands through `resource-vault`: `info`, `status`, `install`, `uninstall`, `start`, `stop`, `restart`, `logs`.
 - [x] Durable local Vault file storage under canonical resource data/config/log directories.
-- [x] Local first-use initialization and unseal for the managed container.
+- [x] Native runtime preserves the established durable data directory without a Docker compatibility path.
 - [x] KV v2 content commands: `content get`, `content set`, `content add`, `content delete`, `content remove`, `content list`.
 - [x] `content get --format raw` machine contract for direct value reads.
 - [x] `content get --format json` passthrough for Vault JSON.
@@ -18,7 +18,9 @@ Vault provides local durable secret storage for Vrooli resources and scenarios. 
 - [x] Resource secret inventory commands: `secrets scan`, `secrets check`, `secrets validate`, `secrets export`, `secrets provision`.
 - [x] `secrets init` alias for non-interactive provisioning where existing resources call it.
 - [x] Kopia consumer integration through `resource-vault content get/set`.
-- [x] Kopia missing-secret handling distinguishes absence from Vault/Docker failure.
+- [x] Kopia missing-secret handling distinguishes absence from Vault service failure.
+- [x] Broker-authorized shared use issues per-app, lease-bounded Vault child tokens with isolated KV v2 policy prefixes; management credentials are never persisted or returned to applications.
+- [x] Explicit attach-only endpoint health validation without lifecycle authority.
 
 ## Not Implemented
 
@@ -31,7 +33,6 @@ Vault provides local durable secret storage for Vrooli resources and scenarios. 
 - [ ] Interactive secret prompting.
 - [ ] Secret rotation automation.
 - [ ] Audit device enablement and security scoring CLI.
-- [ ] Per-resource Vault policies and scoped tokens.
 - [ ] Bulk migration/export commands from legacy shell workflows.
 
 ## CLI Contract
@@ -59,9 +60,41 @@ resource-vault secrets provision <resource>
 
 ## Runtime Posture
 
-The local runtime is durable across container restarts. It is acceptable for local backup passphrase storage, assuming the operator protects the resource data directory that contains local bootstrap material.
+The local runtime is durable across native managed-service restarts. It is acceptable for local backup passphrase storage, assuming the operator protects the resource data directory. Normal lifecycle paths do not write, discover, or expose bootstrap material.
 
 This resource is not yet a fully managed external production Vault. External production use requires explicit work on TLS, unseal strategy, policy design, audit logging, storage backup, and HA.
+
+## Maturity Assessment
+
+Vault currently meets **M4 (template-conformant), with conditional desktop
+profiles** under the resource maturity playbook. Its manifest is authoritative,
+normal lifecycle and diagnostics use Go-native managed-service paths, the
+release catalog pins a verified artifact for every declared desktop target, and
+normal operations do not require Docker or Bash. Focused runtime integration
+also proves lifecycle restart and app-scope isolation with a real Vault
+artifact; Kopia and Secrets Manager retain their supported CLI contracts.
+
+It must not be classified as M5 yet. Each macOS and Windows profile remains
+conditional until the target-host smoke test runs against that platform's
+signed artifact. The full Plan Manager baseline also remains non-comparable
+because of pre-existing affected-scenario failures. See
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md#target-host-smoke-evidence) for the
+native-host evidence command.
+
+## Capability Evidence Map
+
+| Capability | Focused evidence |
+| --- | --- |
+| Verified private lifecycle, restart, and persistence | `TestManagedVaultArtifactIntegration` with a staged signed Vault artifact |
+| Artifact integrity and lifecycle ownership | `TestManagedServiceSupervisorStartsVerifiedArtifactAndStops`, `TestManagedServiceSupervisorRejectsTamperedArtifact`, and `TestManagedServiceArtifactPathUsesInstalledSignedArtifactStore` |
+| Shared app isolation and consent | `TestVaultCredentialIssuerCreatesLeaseBoundScopedToken`, `TestManagedServiceProviderRequiresExplicitSharedConsent`, and the desktop runtime shared-broker tests |
+| Attach-only safety | `TestManagedServiceDriverRefusesAttachOnlyLifecycle` and `TestManagedServiceDriverValidatesExplicitAttachOnlyEndpointWithoutLifecycle` |
+| Remote scenario boundary | `TestNativeRunnerRejectsDirectRemoteVrooliAccess` and `TestStatusRejectsDirectRemoteVrooliAccess` |
+| Consumer compatibility | `go test ./...` in `resources/kopia/cli` and `scenarios/secrets-manager/api` |
+
+Run the target-host smoke test for each conditional target before upgrading its
+support claim. The evidence table is a correspondence map, not a substitute
+for native target execution.
 
 ## Quality Gates
 

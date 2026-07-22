@@ -25,6 +25,13 @@ describe("Goals Service", () => {
         status: "active",
         priority: 7,
         targets: ["execute/foo"],
+        milestones: [{
+          name: "foundation",
+          title: "Foundation",
+          items: ["execute/dep"],
+          acceptance_criteria: ["Dependencies are complete"],
+          depends_on: [],
+        }],
         seeded: true,
         scope_history: [{ at: "t0", target_count: 2, closure_size: 9, completed: 3 }],
         created: "c",
@@ -45,6 +52,14 @@ describe("Goals Service", () => {
     expect(res.goal.priority).toBe(7);
     expect(res.goal.seeded).toBe(true);
     expect(res.goal.scopeHistory[0]).toEqual({ at: "t0", targetCount: 2, closureSize: 9, completed: 3 });
+    expect(res.goal.milestones).toEqual([{
+      name: "foundation",
+      title: "Foundation",
+      description: "",
+      items: ["execute/dep"],
+      acceptanceCriteria: ["Dependencies are complete"],
+      dependsOn: [],
+    }]);
     expect(res.scope.completedCount).toBe(1);
     expect(res.scope.progressPct).toBe(50);
     expect(res.eta?.basisLabel).toBe("27 samples");

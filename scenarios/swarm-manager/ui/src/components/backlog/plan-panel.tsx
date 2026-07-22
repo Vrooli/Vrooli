@@ -1,16 +1,18 @@
 import { useCallback, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, ExternalLink, FileText, List, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { defaultQueryOptions } from "../../lib";
 import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { extractHeadings } from "../../lib/heading-utils";
 import { backlogService } from "../../services";
+import { planWorkshopService } from "../../services/plan-workshop-service";
 import type { BacklogKind } from "../../types";
 import { useModalBehavior } from "../../hooks/useModalBehavior";
 import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
 import { selectors } from "../../consts/selectors";
+import { isApiError } from "../../lib/api-client";
 
 export interface PlanPanelProps {
   backlogKind: BacklogKind;
@@ -27,6 +29,8 @@ const TOC_ITEM_STYLES: Record<number, string> = {
 export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProps) {
   const [copySuccess, setCopySuccess] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const tocRef = useRef<HTMLDivElement>(null);
 
   useModalBehavior({
@@ -49,8 +53,37 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
 
   const markdown = data?.markdown ?? "";
   const headings = extractHeadings(markdown);
-  const is404 = error && (error).message?.includes("not found");
-  const label = backlogKind === "research" ? "conclusion" : "plan";
+  const planAbsent = isApiError(error) && error.code === "plan_ref_not_found";
+  const label = "plan";
+  const itemQuery = useQuery({
+    queryKey: ["backlog-item", backlogKind, backlogName],
+    queryFn: () => backlogService.get(backlogKind, backlogName),
+    enabled: Boolean(data?.planRef),
+    ...defaultQueryOptions,
+  });
+  const refreshAcceptance = () => {
+    void itemQuery.refetch();
+    void queryClient.invalidateQueries({ queryKey: ["backlog-item", backlogKind, backlogName] });
+  };
+  const accept = useMutation({
+    mutationFn: () => planWorkshopService.acceptPlan(backlogKind, backlogName),
+    onSuccess: () => { setActionMessage("Plan accepted. Queueing will recheck this exact revision and scope."); refreshAcceptance(); },
+    onError: (cause: unknown) => setActionMessage(cause instanceof Error ? cause.message : "Unable to accept this plan."),
+  });
+  const unaccept = useMutation({
+    mutationFn: () => planWorkshopService.unacceptPlan(backlogKind, backlogName),
+    onSuccess: () => { setActionMessage("Plan acceptance cleared."); refreshAcceptance(); },
+    onError: (cause: unknown) => setActionMessage(cause instanceof Error ? cause.message : "Unable to clear plan acceptance."),
+  });
+  const runReview = useMutation({
+    mutationFn: async () => {
+      const opened = await planWorkshopService.open({ kind: "backlog_item", ref: `${backlogKind}/${backlogName}` });
+      return planWorkshopService.startReview(opened.id);
+    },
+    onSuccess: () => setActionMessage("Plan review started. Its findings and proposals will appear in Decide."),
+    onError: (cause: unknown) => setActionMessage(cause instanceof Error ? cause.message : "Unable to start plan review."),
+  });
+  const accepted = itemQuery.data?.planAcceptance;
 
   const handleCopy = useCallback(async () => {
     if (!markdown) return;
@@ -72,7 +105,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
     );
   }
 
-  if (is404 || (!isLoading && !error && !markdown)) {
+  if (planAbsent || (!isLoading && !error && !markdown)) {
     return (
       <div
         className={cn("flex flex-col items-center justify-center gap-3 py-20 text-center", className)}
@@ -81,9 +114,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
         <FileText className="h-10 w-10 text-slate-600" />
         <p className="text-sm font-medium text-slate-400">No {label} yet</p>
         <p className="text-xs text-slate-500">
-          {backlogKind === "research"
-            ? "Run a research workshop to generate a conclusion."
-            : "Finalize the workshop through plan-manager to attach a plan_ref."}
+          Author an actionable plan through plan.author, then start plan review and accept the canonical plan before queueing.
         </p>
       </div>
     );
@@ -142,6 +173,30 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
 
         <div className="min-w-0 flex-1 truncate text-xs text-slate-500">{data?.path}</div>
 
+        {accepted ? (
+          <span className="hidden text-xs text-emerald-300 sm:inline">Accepted {new Date(accepted.acceptedAt).toLocaleDateString()}</span>
+        ) : null}
+
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={accept.isPending || unaccept.isPending}
+          title={accepted ? "Clear the recorded acceptance before changing queue readiness" : "Accept this exact canonical plan revision"}
+          onClick={() => accepted ? unaccept.mutate() : accept.mutate()}
+        >
+          {accept.isPending || unaccept.isPending ? "Saving…" : accepted ? "Un-accept" : "Accept plan"}
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={runReview.isPending}
+          title={runReview.isPending ? "A plan review is being started" : "Start a plan review; resulting decisions appear in Decide"}
+          onClick={() => runReview.mutate()}
+        >
+          {runReview.isPending ? "Starting…" : "Run plan review"}
+        </Button>
+
         {data?.planRef?.slug && (
           <Button
             variant="outline"
@@ -175,7 +230,9 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      {actionMessage && <p className="border-b border-slate-800 px-4 py-2 text-xs text-slate-300" role="status">{actionMessage}</p>}
+
+      <div className="flex-1 overflow-y-auto bg-transparent">
         <MarkdownRenderer content={markdown} className="px-4 py-4" />
       </div>
     </div>

@@ -73,7 +73,7 @@ message PlanCard {
   int32 priority = 8;
   // Dependency wave index; 0 = runnable now, -1 = trapped in a cycle.
   int32 wave = 9;
-  string initiative = 10;
+  string milestone = 10;
   string effort = 11;
   // Populated when card_type == gate.
   PlanGate gate = 12;

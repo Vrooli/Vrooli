@@ -126,18 +126,11 @@ func TestRefreshGatheringRounds_InvokesOnRoundTerminal(t *testing.T) {
 	}
 }
 
-// setupItemDir creates a temporary backlog item directory. Research items keep
-// conclusion.md as a local deliverable; non-research plan content is resolved
-// through planContentResolver.
+// setupItemDir creates a temporary backlog item directory. Every backlog kind
+// resolves its actionable plan through planContentResolver.
 func setupItemDir(t *testing.T, kind string) string {
 	t.Helper()
-	dir := t.TempDir()
-	if kind == "research" {
-		if err := os.WriteFile(filepath.Join(dir, "conclusion.md"), []byte("# Test Conclusion\nResearch findings."), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return dir
+	return t.TempDir()
 }
 
 func TestStartReview_StartsDeclaredWorkflowAndWritesRound(t *testing.T) {

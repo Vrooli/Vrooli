@@ -150,6 +150,14 @@ async function dispatch(msg: Request): Promise<void> {
 export function startStdioLoop(): void {
   const rl = readline.createInterface({ input: process.stdin });
 
+  // Go owns the read end of stdout. If that transport disappears, treat it as
+  // a controlled sidecar failure so the supervisor can restart us; without an
+  // error listener Node turns EPIPE into an uncaught exception.
+  process.stdout.on("error", (err) => {
+    logger.error("stdout transport failed", { err: err.message, code: (err as NodeJS.ErrnoException).code });
+    process.exit(1);
+  });
+
   rl.on("line", (line) => {
     if (shuttingDown) return;
     const trimmed = line.trim();
