@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-
 	"knowledge-observatory/internal/doclogs"
 	"knowledge-observatory/internal/docschema"
 	"knowledge-observatory/internal/doctemplates"
 	"knowledge-observatory/internal/docvalidation"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 var (
@@ -26,6 +25,7 @@ type Service struct {
 	staticCfg        staticConfig
 	doer             Doer
 	commandValidator CommandReferenceValidator
+	diagramValidator DiagramValidator
 }
 
 // ServiceOption configures a Service.
@@ -43,10 +43,58 @@ func WithCommandReferenceValidator(v CommandReferenceValidator) ServiceOption {
 	return func(s *Service) { s.commandValidator = v }
 }
 
+// WithDiagramValidator overrides Mermaid parsing. Tests use this seam; production
+// executes the pinned Mermaid parser sidecar.
+func WithDiagramValidator(v DiagramValidator) ServiceOption {
+	return func(s *Service) { s.diagramValidator = v }
+}
+
 // HealthResult bundles validation results with doc counts.
 type HealthResult struct {
 	Validation *docvalidation.Result
 	TotalDocs  int
+}
+
+// ValidateMarkdownDiagrams validates Mermaid fences in caller-provided Markdown.
+func (s *Service) ValidateMarkdownDiagrams(ctx context.Context, content, source string) ([]Finding, string, bool) {
+	blocks := extractMermaidBlocks(content)
+	if source == "" {
+		source = "markdown"
+	}
+	if len(blocks) == 0 {
+		return nil, "", false
+	}
+	if s.diagramValidator == nil {
+		findings := make([]Finding, 0, len(blocks))
+		for _, block := range blocks {
+			findings = append(findings, Finding{Code: "mermaid_unverified", Severity: SeverityWarning, Message: fmt.Sprintf("%s:%d Mermaid parser unavailable: diagram parser is not configured", source, block.startLine), Path: source, Line: block.startLine})
+		}
+		return findings, "", true
+	}
+	input := make([]DiagramBlock, len(blocks))
+	for i, block := range blocks {
+		input[i] = block.DiagramBlock
+	}
+	result, err := s.diagramValidator.ValidateDiagrams(ctx, input)
+	if err != nil || len(result.Verdicts) != len(blocks) {
+		reason := "diagram parser returned incomplete verdicts"
+		if err != nil {
+			reason = err.Error()
+		}
+		findings := make([]Finding, 0, len(blocks))
+		for _, block := range blocks {
+			findings = append(findings, Finding{Code: "mermaid_unverified", Severity: SeverityWarning, Message: fmt.Sprintf("%s:%d Mermaid parser unavailable: %s", source, block.startLine, reason), Path: source, Line: block.startLine})
+		}
+		return findings, "", true
+	}
+	var findings []Finding
+	for i, v := range result.Verdicts {
+		if !v.Valid {
+			line := blocks[i].startLine + v.Line
+			findings = append(findings, Finding{Code: "mermaid_invalid", Severity: SeverityFailure, Message: fmt.Sprintf("%s:%d %s", source, line, v.Error), Path: source, Line: line})
+		}
+	}
+	return findings, result.Engine, false
 }
 
 // NewService initializes the doc health service.
@@ -66,6 +114,7 @@ func NewService(scenariosRoot string, opts ...ServiceOption) (*Service, error) {
 		scenariosRoot:    scenariosRoot,
 		staticCfg:        defaultStaticConfig(),
 		commandValidator: NewCLIHealthCommandReferenceValidator(),
+		diagramValidator: NewMermaidSidecarValidator(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -208,7 +257,7 @@ func (s *Service) DocHealth(ctx context.Context, scenarioName string, opts DocHe
 	var linkTasks []linkTarget
 	for _, file := range files {
 		if sel.runs(checkContent, target) {
-			findings, summary, links, ioErrs := inspectMarkdownFile(file, cfg)
+			findings, summary, links, ioErrs := inspectMarkdownFile(file, cfg, s.diagramValidator)
 			result.ContentFindings = append(result.ContentFindings, findings...)
 			result.Counts.FilesChecked++
 			result.Counts.MermaidValidated += summary.MermaidValidated

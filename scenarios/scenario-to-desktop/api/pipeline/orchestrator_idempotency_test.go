@@ -373,10 +373,7 @@ func TestRunPipeline_StageFiltering_SingleStage(t *testing.T) {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	// Wait for completion
-	time.Sleep(200 * time.Millisecond)
-
-	final, _ := orchestrator.GetStatus(status.PipelineID)
+	final := waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	// Only bundle should be executed
 	mu.Lock()
@@ -416,9 +413,7 @@ func TestRunPipeline_StageFiltering_MultipleStages(t *testing.T) {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	time.Sleep(200 * time.Millisecond)
-
-	final, _ := orchestrator.GetStatus(status.PipelineID)
+	final := waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -464,7 +459,7 @@ func TestRunPipeline_StageFiltering_PreservesPipelineOrder(t *testing.T) {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	time.Sleep(200 * time.Millisecond)
+	final := waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -476,7 +471,6 @@ func TestRunPipeline_StageFiltering_PreservesPipelineOrder(t *testing.T) {
 		t.Errorf("expected [bundle, generate] (pipeline order), got %v", executedStages)
 	}
 
-	final, _ := orchestrator.GetStatus(status.PipelineID)
 	if len(final.StageOrder) != 2 || final.StageOrder[0] != "bundle" || final.StageOrder[1] != "generate" {
 		t.Errorf("expected stage order [bundle, generate], got %v", final.StageOrder)
 	}
@@ -520,12 +514,12 @@ func TestRunPipeline_StageFiltering_EmptyRunsAll(t *testing.T) {
 		// Stages not specified - should run all
 	}
 
-	_, err := orchestrator.RunPipeline(ctx, config)
+	status, err := orchestrator.RunPipeline(ctx, config)
 	if err != nil {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	time.Sleep(200 * time.Millisecond)
+	waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	mu.Lock()
 	defer mu.Unlock()

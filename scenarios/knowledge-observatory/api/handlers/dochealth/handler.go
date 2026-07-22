@@ -10,13 +10,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"knowledge-observatory/internal/services/dochealing"
+	"knowledge-observatory/internal/services/dochealth"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
-
-	"knowledge-observatory/internal/services/dochealing"
-	"knowledge-observatory/internal/services/dochealth"
 
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
@@ -102,6 +101,19 @@ func (h *Handler) DocHealth(ctx context.Context, req *connect.Request[kov1.DocHe
 	translateSt.End()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build docs maturity assessment: %w", err))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *Handler) ValidateMarkdownDiagrams(ctx context.Context, req *connect.Request[kov1.ValidateMarkdownDiagramsRequest]) (*connect.Response[kov1.ValidateMarkdownDiagramsResponse], error) {
+	if h.service == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("documentation health service unavailable"))
+	}
+	findings, engine, unverified := h.service.ValidateMarkdownDiagrams(ctx, req.Msg.GetContent(), req.Msg.GetSourceLabel())
+	resp := &kov1.ValidateMarkdownDiagramsResponse{Engine: engine, Unverified: unverified}
+	for _, finding := range findings {
+		line := int32(finding.Line)
+		resp.Findings = append(resp.Findings, &kov1.DocHealthFinding{Code: finding.Code, Severity: severityToProto(finding.Severity), Message: finding.Message, Path: &finding.Path, Line: &line})
 	}
 	return connect.NewResponse(resp), nil
 }

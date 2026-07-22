@@ -1,8 +1,11 @@
 package uiruntime
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	urlpkg "net/url"
 	"strings"
 	"time"
 )
@@ -10,12 +13,13 @@ import (
 // Node IDs for the handshake workflow. The timeline reader locates the
 // handshake-gating assert and the frame screenshot by these ids.
 const (
-	nodeNavigate  = "smoke-navigate-host"
-	nodeInject    = "smoke-inject-frame"
-	nodeHandshake = "smoke-assert-handshake"
-	nodeReadiness = "smoke-assert-experience-settled"
-	nodeArtifacts = "visual-capture-artifacts"
-	nodeScreens   = "smoke-screenshot-frame"
+	nodeNavigate     = "smoke-navigate-host"
+	nodeInject       = "smoke-inject-frame"
+	nodeHandshake    = "smoke-assert-handshake"
+	nodeReadiness    = "smoke-assert-experience-settled"
+	nodeRenderSettle = "smoke-wait-for-first-paint"
+	nodeArtifacts    = "visual-capture-artifacts"
+	nodeScreens      = "smoke-screenshot-frame"
 
 	// hostFrameSelector is the id of the host iframe element embedding the
 	// scenario UI; the screenshot step captures it.
@@ -26,8 +30,12 @@ const (
 
 	// defaultHandshakeTimeout bounds how long the assert waits for readiness.
 	defaultHandshakeTimeout = 15 * time.Second
-	defaultViewportWidth    = 1280
-	defaultViewportHeight   = 720
+	// renderSettleDelay gives a committed React frame time to paint after the
+	// bridge handshake. The iframe bridge is initialized during boot, which is
+	// intentionally earlier than lazy route content becoming visible.
+	renderSettleDelay     = 750 * time.Millisecond
+	defaultViewportWidth  = 1280
+	defaultViewportHeight = 720
 )
 
 // defaultHandshakeSignals are the window-property paths polled, inside the
@@ -52,8 +60,9 @@ var defaultHandshakeSignals = []string{
 //     host DOM once the bridge child posts READY/HELLO (or a signal poll holds);
 //  3. assert [data-smoke-bridge-ready] EXISTS (the hard-fail gate), bounded by
 //     timeoutMs — succeeds the moment the marker appears, fails on timeout;
-//  4. evaluate: best-effort DOM/layout/viewport artifact capture;
-//  5. screenshot the host iframe element.
+//  4. wait for the first post-handshake render to paint;
+//  5. evaluate: best-effort DOM/layout/viewport artifact capture;
+//  6. screenshot the host iframe element.
 func buildHandshakeWorkflow(scenarioURL string, signals []string, expected []requiredSurface, timeout time.Duration, vw, vh int) map[string]any {
 	if len(signals) == 0 {
 		signals = defaultHandshakeSignals
@@ -79,7 +88,7 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, expected []req
 			"evaluate": map[string]any{"expression": injectExpr},
 		}),
 		node(nodeHandshake, "Wait for iframe-bridge handshake", map[string]any{
-			"type": "ACTION_TYPE_ASSERT",
+			"type":   "ACTION_TYPE_ASSERT",
 			"assert": map[string]any{"selector": bridgeReadyMarker, "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": timeout.Milliseconds(), "failure_message": "Iframe bridge never signaled ready."},
 		}),
 	}
@@ -87,12 +96,18 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, expected []req
 	previous := nodeHandshake
 	if len(expected) > 0 {
 		nodes = append(nodes, node(nodeReadiness, "Wait for declared experience surfaces to settle", map[string]any{
-			"type": "ACTION_TYPE_ASSERT",
+			"type":   "ACTION_TYPE_ASSERT",
 			"assert": map[string]any{"selector": "[data-smoke-experience-settled]", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": timeout.Milliseconds(), "failure_message": "Declared required experience surfaces did not settle to a terminal state."},
 		}))
 		edges = append(edges, edge(previous, nodeReadiness))
 		previous = nodeReadiness
 	}
+	nodes = append(nodes, node(nodeRenderSettle, "Wait for first post-handshake paint", map[string]any{
+		"type": "ACTION_TYPE_WAIT",
+		"wait": map[string]any{"duration_ms": renderSettleDelay.Milliseconds()},
+	}))
+	edges = append(edges, edge(previous, nodeRenderSettle))
+	previous = nodeRenderSettle
 	nodes = append(nodes,
 		node(nodeArtifacts, "Capture visual health artifacts", map[string]any{"type": "ACTION_TYPE_EVALUATE", "evaluate": map[string]any{"expression": artifactCaptureScript(), "storeResult": "visual_artifacts"}}),
 		node(nodeScreens, "Screenshot embedded UI", map[string]any{"type": "ACTION_TYPE_SCREENSHOT", "screenshot": map[string]any{"selector": hostFrameSelector}}),
@@ -103,6 +118,13 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, expected []req
 		"metadata": map[string]any{
 			"name":        "ui-health-runtime",
 			"description": "ui-health runtime/render: host-iframe embed + iframe-bridge handshake gate + frame screenshot",
+			"labels": map[string]string{
+				// Every profile check owns a fresh execution lease. This prevents a
+				// prior profile's browser state from becoming validation evidence.
+				"session_reuse_mode":  "fresh",
+				"validation_route":    scenarioURL,
+				"validation_viewport": fmt.Sprintf("%dx%d", vw, vh),
+			},
 		},
 		"settings": map[string]any{
 			"viewport_width":  vw,
@@ -134,17 +156,56 @@ func edge(source, target string) map[string]any {
 // all observable state is exposed through the DOM marker (BAS's evaluate does
 // not reliably return a value).
 func injectionScript(scenarioURL string, signals []string, expected []requiredSurface) string {
-	urlJSON, _ := json.Marshal(scenarioURL)
-	type expectedSurface struct { ID string `json:"id"`; Kind string `json:"kind"`; States []string `json:"states"` }
+	target, origin, nonce := bridgeTarget(scenarioURL)
+	urlJSON, _ := json.Marshal(target)
+	originJSON, _ := json.Marshal(origin)
+	nonceJSON, _ := json.Marshal(nonce)
+	type expectedSurface struct {
+		ID     string   `json:"id"`
+		Kind   string   `json:"kind"`
+		States []string `json:"states"`
+	}
 	items := make([]expectedSurface, 0, len(expected))
 	for _, surface := range expected {
-		if !surface.required || strings.TrimSpace(surface.id) == "" { continue }
+		if !surface.required || strings.TrimSpace(surface.id) == "" {
+			continue
+		}
 		states := make([]string, 0, len(surface.states))
-		for state := range surface.states { if state != "loading" { states = append(states, state) } }
+		for state := range surface.states {
+			if state != "loading" {
+				states = append(states, state)
+			}
+		}
 		items = append(items, expectedSurface{ID: surface.id, Kind: surface.kind, States: states})
 	}
 	expectedJSON, _ := json.Marshal(items)
-	return fmt.Sprintf(injectionTemplate, string(urlJSON), framePropertyPredicate(signals), string(expectedJSON))
+	return fmt.Sprintf(injectionTemplate, string(urlJSON), string(originJSON), string(nonceJSON), framePropertyPredicate(signals), string(expectedJSON))
+}
+
+// bridgeTarget gives every validation iframe an unguessable, per-invocation
+// nonce. The child receives it in its URL and must echo it in READY/HELLO;
+// the host never treats an arbitrary same-page postMessage as readiness.
+func bridgeTarget(raw string) (target, origin, nonce string) {
+	target, origin = raw, ""
+	if parsed, err := urlpkg.Parse(raw); err == nil {
+		origin = parsed.Scheme + "://" + parsed.Host
+		nonce = bridgeNonce()
+		query := parsed.Query()
+		query.Set("__vrooli_bridge_nonce", nonce)
+		parsed.RawQuery = query.Encode()
+		target = parsed.String()
+	}
+	return target, origin, nonce
+}
+
+func bridgeNonce() string {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		// The nonce is a validation correlation token, not an authorization
+		// secret. Preserve a non-empty per-call fallback if OS entropy is down.
+		return fmt.Sprintf("runtime-%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(bytes)
 }
 
 // framePropertyPredicate renders a JS boolean expression true when any readiness
@@ -199,14 +260,16 @@ func signalCheck(signal string) string {
 	}
 }
 
-// injectionTemplate is the page-context script. Placeholders: %[1]s =
-// JSON-quoted scenario URL, %[2]s = the frame-window readiness predicate body,
-// %[3]s = declared required surface terminal-state expectations.
+// injectionTemplate is the page-context script. Placeholders: %[1]s = target
+// URL, %[2]s = expected origin, %[3]s = nonce, %[4]s = frame readiness
+// predicate, %[5]s = declared required surface terminal-state expectations.
 // (references `w`).
 const injectionTemplate = `(() => {
   var doc = document;
   var target = %[1]s;
-  var expectedSurfaces = %[3]s;
+  var expectedOrigin = %[2]s;
+  var nonce = %[3]s;
+  var expectedSurfaces = %[5]s;
   var observedDocument = null;
 
   function signalReady() {
@@ -215,11 +278,15 @@ const injectionTemplate = `(() => {
 
   window.addEventListener('message', function (ev) {
     var d = ev && ev.data;
-    if (d && (d.t === 'READY' || d.t === 'HELLO')) { signalReady(); }
+    if (!d || (d.t !== 'READY' && d.t !== 'HELLO')) { return; }
+    if (!frame || ev.source !== frame.contentWindow) { return; }
+    if (expectedOrigin && ev.origin !== expectedOrigin) { return; }
+    if (!nonce || d.nonce !== nonce) { return; }
+    signalReady();
   });
 
   function frameReady(w) {
-    try { return (%[2]s); } catch (e) { return false; }
+    try { return (%[4]s); } catch (e) { return false; }
   }
 
   var style = doc.createElement('style');
@@ -230,6 +297,8 @@ const injectionTemplate = `(() => {
   frame.id = 'ui-smoke-frame';
   frame.setAttribute('allow', 'clipboard-read; clipboard-write');
   frame.src = target;
+  var frameLoaded = false;
+  frame.addEventListener('load', function () { frameLoaded = true; });
   doc.body.appendChild(frame);
 
   function updateExperienceSettlement() {
@@ -261,6 +330,7 @@ const injectionTemplate = `(() => {
   }
 
   var poll = setInterval(function () {
+    if (!frameLoaded) { return; }
     var w = null;
     try { w = frame.contentWindow; } catch (e) { w = null; }
     if (w && frameReady(w)) { signalReady(); }

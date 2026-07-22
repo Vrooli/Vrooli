@@ -4,12 +4,13 @@
  * display the "currently selected" record without pushing the main
  * content out of view.
  */
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode } from "react";
 import { X } from "lucide-react";
 
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useIsMobile } from "../hooks/useMediaQuery";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useTranslation } from "../i18n";
 
 interface Props {
@@ -23,14 +24,7 @@ export function InspectorPanel({ open, onClose, title, children }: Props) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  useEscapeKey(open, onClose);
 
   if (!open) return null;
 

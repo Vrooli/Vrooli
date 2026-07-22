@@ -167,12 +167,32 @@ func (s *Supervisor) AllServicesReady() bool {
 // ServiceStatuses returns a copy of all service statuses.
 func (s *Supervisor) ServiceStatuses() map[string]ServiceStatus {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 	out := make(map[string]ServiceStatus)
 	for id, st := range s.serviceStatus {
 		out[id] = st
 	}
+	resourceServer := s.resourceServer
+	s.mu.RUnlock()
+	if resourceServer != nil {
+		for resource, status := range resourceServer.Statuses() {
+			out["resource:"+resource] = ServiceStatus{Ready: status.Running, Message: status.Message}
+		}
+	}
 	return out
+}
+
+// ResourceLogPath returns a managed resource log only when the resource was
+// selected by this bundle's verified deployment plan. It deliberately does not
+// accept an arbitrary filesystem path from the control API.
+func (s *Supervisor) ResourceLogPath(resource string) (string, bool) {
+	s.mu.RLock()
+	resourceServer := s.resourceServer
+	s.mu.RUnlock()
+	if resourceServer == nil {
+		return "", false
+	}
+	status, ok := resourceServer.Statuses()[resource]
+	return status.LogPath, ok && status.LogPath != ""
 }
 
 // recordTelemetry writes a telemetry event if the recorder is initialized.

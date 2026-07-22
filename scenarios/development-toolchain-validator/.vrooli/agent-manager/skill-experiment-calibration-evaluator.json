@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "skill-experiment-calibration-evaluator",
+  "profileKey": "development-toolchain-validator/calibration-evaluator",
+  "description": "Calibration-only independent evaluator profile.",
+  "roleRef": "code.smart",
+  "maxTurns": 8,
+  "timeout": "300s",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {"mode": "SANDBOX_MODE_PROTECTED"},
+  "createdBy": "development-toolchain-validator"
+}

@@ -35,13 +35,55 @@ type ResourceDeploymentPlanItem struct {
 	Support           string                       `json:"support"`
 	Requires          []string                     `json:"requires,omitempty"`
 	Limitations       []string                     `json:"limitations,omitempty"`
+	Evidence          []string                     `json:"evidence,omitempty"`
+	SelectedFallback  *ResourceDeploymentFallback  `json:"selected_fallback,omitempty"`
 	Artifact          string                       `json:"artifact,omitempty"`
 	Files             []ResourceDeploymentArtifact `json:"files,omitempty"`
+	Service           *ResourceDeploymentService   `json:"service,omitempty"`
+}
+
+// ResourceDeploymentFallback records the declared replacement selected for a
+// target. Keeping this explicit makes a compatible fallback auditable instead
+// of looking like an accidental resource substitution.
+type ResourceDeploymentFallback struct {
+	Resource string `json:"resource"`
+	Reason   string `json:"reason"`
 }
 
 type ResourceDeploymentArtifact struct {
 	Name   string `json:"name"`
 	SHA256 string `json:"sha256"`
+}
+
+// ResourceDeploymentService is the independently pinned server portion of a
+// bundled-service resource. It is separate from the resource controller so a
+// desktop runtime cannot accidentally launch a controller as a service.
+type ResourceDeploymentService struct {
+	ProviderPolicy resourcedeployment.ProviderPolicy `json:"provider_policy"`
+	Artifact       string                            `json:"artifact"`
+	Version        string                            `json:"version"`
+	SHA256         string                            `json:"sha256"`
+	Arguments      []string                          `json:"arguments,omitempty"`
+	Environment    map[string]string                 `json:"environment,omitempty"`
+	Config         *resourcedeployment.ServiceConfig `json:"config,omitempty"`
+	Ports          []ResourceDeploymentServicePort   `json:"ports,omitempty"`
+	HealthChecks   []ResourceDeploymentHealthCheck   `json:"health_checks,omitempty"`
+	Files          []ResourceDeploymentArtifact      `json:"files"`
+}
+
+// ResourceDeploymentHealthCheck is the resolved readiness contract for a
+// bundled server. It is copied from the resource manifest during packaging;
+// the runtime must not infer a health endpoint from an open port.
+type ResourceDeploymentHealthCheck struct {
+	Type           string `json:"type"`
+	Target         string `json:"target"`
+	ExpectedStatus []int  `json:"expected_status,omitempty"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+}
+
+type ResourceDeploymentServicePort struct {
+	Name string `json:"name"`
+	Host int    `json:"host"`
 }
 
 type resourceArtifactManifest struct {
@@ -51,7 +93,10 @@ type resourceArtifactManifest struct {
 			ArtifactName string `json:"artifact_name"`
 		} `json:"distribution"`
 	} `json:"cli"`
-	Deployment resourcedeployment.Deployment `json:"deployment"`
+	Deployment     resourcedeployment.Deployment      `json:"deployment"`
+	ManagedService *resourcedeployment.ManagedService `json:"managed_service,omitempty"`
+	HealthChecks   []ResourceDeploymentHealthCheck    `json:"health_checks,omitempty"`
+	Ports          []ResourceDeploymentServicePort    `json:"ports,omitempty"`
 }
 
 // resolveResourceDeploymentPlan makes every resource selection before any
@@ -64,11 +109,19 @@ func resolveResourceDeploymentPlan(scenarioPath, artifactRoot string, platformIn
 	}
 	root := filepath.Dir(filepath.Dir(scenarioPath))
 	platforms := make([]resourcedeployment.Platform, 0, len(platformInputs))
+	if len(platformInputs) == 0 {
+		return nil, fmt.Errorf("desktop target matrix is required")
+	}
+	seenPlatforms := make(map[string]bool, len(platformInputs))
 	for _, raw := range platformInputs {
 		platform, err := resourcedeployment.ParsePlatform(raw)
 		if err != nil {
 			return nil, err
 		}
+		if seenPlatforms[platform.String()] {
+			return nil, fmt.Errorf("desktop target matrix contains duplicate target %s", platform.String())
+		}
+		seenPlatforms[platform.String()] = true
 		platforms = append(platforms, platform)
 	}
 	checksums := map[string]string(nil)
@@ -116,7 +169,7 @@ func resolveResourceForTarget(root, requested, candidate string, alternatives []
 	}
 	target, found := manifest.Deployment.ResolveTarget("desktop", platform)
 	if found && target.Support != "unsupported" {
-		item := ResourceDeploymentPlanItem{RequestedResource: requested, Resource: candidate, OS: platform.OS, Architecture: platform.Arch, Mode: target.Mode, Support: target.Support, Requires: target.Requires, Limitations: target.Limitations}
+		item := ResourceDeploymentPlanItem{RequestedResource: requested, Resource: candidate, OS: platform.OS, Architecture: platform.Arch, Mode: target.Mode, Support: target.Support, Requires: target.Requires, Limitations: target.Limitations, Evidence: target.Evidence}
 		bundled := strings.HasPrefix(target.Mode, "bundled-")
 		if bundled {
 			if manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact" {
@@ -127,6 +180,30 @@ func resolveResourceForTarget(root, requested, candidate string, alternatives []
 				return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resolve artifact for %s: %w", candidate, err)
 			}
 			item.Artifact = artifact
+			if target.Mode == "bundled-service" {
+				if manifest.ManagedService == nil {
+					return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resource %s uses bundled-service but has no managed_service contract", candidate)
+				}
+				serviceArtifact, err := manifest.ManagedService.Artifact.ForPlatform(platform.OS, platform.Arch)
+				if err != nil {
+					return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resolve managed-service artifact for %s: %w", candidate, err)
+				}
+				serviceName, err := serviceArtifact.BundleArtifactForPlatform(platform.OS, platform.Arch)
+				if err != nil {
+					return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resolve bundled service artifact for %s: %w", candidate, err)
+				}
+				item.Service = &ResourceDeploymentService{
+					ProviderPolicy: manifest.ManagedService.ProviderPolicy,
+					Artifact:       serviceName,
+					Version:        serviceArtifact.Version,
+					SHA256:         serviceArtifact.SHA256,
+					Arguments:      append([]string(nil), manifest.ManagedService.Arguments...),
+					Environment:    cloneServiceEnvironment(manifest.ManagedService.Environment),
+					Config:         cloneServiceConfig(manifest.ManagedService.Config),
+					Ports:          append([]ResourceDeploymentServicePort(nil), manifest.Ports...),
+					HealthChecks:   append([]ResourceDeploymentHealthCheck(nil), manifest.HealthChecks...),
+				}
+			}
 		}
 		return item, bundled, nil
 	}
@@ -140,10 +217,30 @@ func resolveResourceForTarget(root, requested, candidate string, alternatives []
 		}
 		item, bundled, err := resolveResourceForTarget(root, requested, fallback, nil, platform, seen)
 		if err == nil {
+			item.SelectedFallback = &ResourceDeploymentFallback{Resource: fallback, Reason: reason}
 			return item, bundled, nil
 		}
 	}
 	return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resource %s cannot deploy on %s: %s", requested, platform.String(), reason)
+}
+
+func cloneServiceConfig(config *resourcedeployment.ServiceConfig) *resourcedeployment.ServiceConfig {
+	if config == nil {
+		return nil
+	}
+	copy := *config
+	return &copy
+}
+
+func cloneServiceEnvironment(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make(map[string]string, len(values))
+	for key, value := range values {
+		result[key] = value
+	}
+	return result
 }
 
 func resolveArtifactFiles(root string, checksums map[string]string, item *ResourceDeploymentPlanItem) error {
@@ -165,6 +262,24 @@ func resolveArtifactFiles(root string, checksums map[string]string, item *Resour
 		}
 		item.Files = append(item.Files, ResourceDeploymentArtifact{Name: name, SHA256: actual})
 	}
+	if item.Service == nil {
+		return nil
+	}
+	if !resourcedeployment.IsSafeArtifactName(item.Service.Artifact) {
+		return fmt.Errorf("resource %s has unsafe bundled service artifact", item.Resource)
+	}
+	expected, ok := checksums[item.Service.Artifact]
+	if !ok {
+		return fmt.Errorf("signed release checksum is missing bundled service artifact %s", item.Service.Artifact)
+	}
+	actual, err := sha256File(filepath.Join(root, item.Service.Artifact))
+	if err != nil {
+		return fmt.Errorf("hash bundled service artifact %s: %w", item.Service.Artifact, err)
+	}
+	if !strings.EqualFold(expected, actual) || !strings.EqualFold(item.Service.SHA256, actual) {
+		return fmt.Errorf("bundled service artifact checksum mismatch for %s", item.Service.Artifact)
+	}
+	item.Service.Files = append(item.Service.Files, ResourceDeploymentArtifact{Name: item.Service.Artifact, SHA256: actual})
 	return nil
 }
 
@@ -186,6 +301,18 @@ func stageBundledResourceArtifacts(bundleDir, artifactRoot string, plan *Resourc
 				return nil, err
 			}
 			copied = append(copied, destination)
+		}
+		if item.Service != nil {
+			for _, file := range item.Service.Files {
+				if !resourcedeployment.IsSafeArtifactName(file.Name) {
+					return nil, fmt.Errorf("unsafe bundled service artifact %q", file.Name)
+				}
+				destination := filepath.Join(bundleDir, "resources", item.Resource, file.Name)
+				if err := copyArtifact(filepath.Join(artifactRoot, file.Name), destination); err != nil {
+					return nil, err
+				}
+				copied = append(copied, destination)
+			}
 		}
 	}
 	data, err := json.MarshalIndent(plan, "", "  ")

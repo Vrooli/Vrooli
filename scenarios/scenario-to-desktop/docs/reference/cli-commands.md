@@ -7,7 +7,7 @@
 | Property | Value |
 |----------|-------|
 | Binary | `scenario-to-desktop` |
-| Install script | `cli/install.sh` |
+| Installation | Installed by the control plane from the declared Go module |
 
 ## Required Commands
 

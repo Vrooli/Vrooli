@@ -320,6 +320,23 @@ func TestReadTimelineExtractsVisualArtifacts(t *testing.T) {
 	}
 }
 
+func TestReadTimelinePreservesSessionLossBeforeHandshakeTimeout(t *testing.T) {
+	failedNode, handshake := "navigate", nodeHandshake
+	timeline := &bastimeline.ExecutionTimeline{Entries: []*bastimeline.TimelineEntry{
+		{NodeId: &failedNode, Context: &basbase.EventContext{Error: stringPtr("session not found: browser was closed")}},
+		{NodeId: &handshake, Context: &basbase.EventContext{Error: stringPtr("handshake timed out")}},
+	}}
+	result := readTimeline(timeline)
+	if result.loaded {
+		t.Fatal("session loss must be classified as a runtime load failure")
+	}
+	if result.loadError != "session not found: browser was closed" {
+		t.Fatalf("loadError = %q, want first causal session loss", result.loadError)
+	}
+}
+
+func stringPtr(value string) *string { return &value }
+
 func TestNetworkEntriesIgnoreResourceTimingWithoutFailureStatus(t *testing.T) {
 	entries := networkEntriesFromAny([]any{map[string]any{
 		"url":    "https://example.test/app.js",

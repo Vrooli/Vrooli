@@ -138,6 +138,8 @@ type Supervisor struct {
 	instanceID     string
 	manifestHash   string
 	startedAt      time.Time
+	resourcePlan   *resourceplan.Plan
+	resourceServer *resourceplan.ServiceSupervisor
 
 	// Runtime state.
 	serviceStatus   map[string]ServiceStatus
@@ -166,8 +168,11 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 	if opts.Manifest == nil {
 		return nil, errors.New("manifest is required")
 	}
+	var resolvedResourcePlan *resourceplan.Plan
 	if opts.BundlePath != "" {
-		if _, err := resourceplan.Load(opts.BundlePath); err != nil {
+		var err error
+		resolvedResourcePlan, err = resourceplan.Load(opts.BundlePath)
+		if err != nil {
 			return nil, fmt.Errorf("validate resolved resource deployment plan: %w", err)
 		}
 	}
@@ -247,6 +252,7 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 		procs:         make(map[string]*serviceProcess),
 		instanceID:    newInstanceID(),
 		manifestHash:  hashManifest(opts.Manifest),
+		resourcePlan:  resolvedResourcePlan,
 		// Create envRenderer now since all dependencies are available.
 		envRenderer: env.NewRenderer(appData, opts.BundlePath, portAllocator, envReader),
 	}
@@ -312,6 +318,10 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	runtimeCtx, cancel := context.WithCancel(ctx)
 	s.runtimeCtx = runtimeCtx
 	s.cancel = cancel
+	if err := s.startBundledResources(runtimeCtx); err != nil {
+		cancel()
+		return err
+	}
 
 	s.triggerServicesOrWait()
 
@@ -480,6 +490,9 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 
 	// Stop services in reverse dependency order.
 	s.stopServices(ctx)
+	if s.resourceServer != nil {
+		_ = s.resourceServer.Stop(ctx)
+	}
 	done := make(chan struct{})
 	go func() {
 		s.wg.Wait()

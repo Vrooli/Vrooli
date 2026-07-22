@@ -41,7 +41,7 @@ type linkTarget struct {
 	location string
 }
 
-func inspectMarkdownFile(path string, cfg effective) ([]Finding, fileMetrics, []linkTarget, []string) {
+func inspectMarkdownFile(path string, cfg effective, validators ...DiagramValidator) ([]Finding, fileMetrics, []linkTarget, []string) {
 	var (
 		findings []Finding
 		summary  fileMetrics
@@ -49,22 +49,22 @@ func inspectMarkdownFile(path string, cfg effective) ([]Finding, fileMetrics, []
 		ioErrors []string
 	)
 
-	f, err := os.Open(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		ioErrors = append(ioErrors, fmt.Sprintf("cannot read %s: %v", path, err))
 		return findings, summary, links, ioErrors
 	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
 	lineNum := 0
 	inFence := false
-	fenceLang := ""
 	fenceMarker := ""
-	var mermaidBuf []string
 	var mermaidStart int
+	var diagramValidator DiagramValidator
+	if len(validators) > 0 {
+		diagramValidator = validators[0]
+	}
 
 	for scanner.Scan() {
 		lineNum++
@@ -73,29 +73,18 @@ func inspectMarkdownFile(path string, cfg effective) ([]Finding, fileMetrics, []
 
 		if matches := codeFencePattern.FindStringSubmatch(trim); len(matches) > 0 {
 			marker := matches[1]
-			lang := strings.TrimSpace(matches[2])
 			if !inFence {
 				inFence = true
 				fenceMarker = marker
-				fenceLang = lang
-				mermaidBuf = mermaidBuf[:0]
 				mermaidStart = lineNum
 			} else if marker == fenceMarker {
-				if fenceLang == "mermaid" || fenceLang == "mermaidjs" {
-					validateMermaidBlock(path, mermaidStart, strings.Join(mermaidBuf, "\n"), cfg.mermaidStrict, &findings, &summary)
-				}
 				inFence = false
-				fenceLang = ""
 				fenceMarker = ""
-				mermaidBuf = mermaidBuf[:0]
 			}
 			continue
 		}
 
 		if inFence {
-			if fenceLang == "mermaid" || fenceLang == "mermaidjs" {
-				mermaidBuf = append(mermaidBuf, line)
-			}
 			continue
 		}
 
@@ -136,6 +125,7 @@ func inspectMarkdownFile(path string, cfg effective) ([]Finding, fileMetrics, []
 			Line:     mermaidStart,
 		})
 	}
+	validateMermaidBlocksWithValidator(path, extractMermaidBlocks(string(content)), cfg.mermaidStrict, diagramValidator, &findings, &summary)
 
 	return findings, summary, links, ioErrors
 }

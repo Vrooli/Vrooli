@@ -9,8 +9,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
@@ -28,18 +30,56 @@ type Item struct {
 	Support           string     `json:"support"`
 	Requires          []string   `json:"requires,omitempty"`
 	Limitations       []string   `json:"limitations,omitempty"`
+	Evidence          []string   `json:"evidence,omitempty"`
+	SelectedFallback  *Fallback  `json:"selected_fallback,omitempty"`
 	Artifact          string     `json:"artifact,omitempty"`
 	Files             []Artifact `json:"files,omitempty"`
+	Service           *Service   `json:"service,omitempty"`
+}
+type Fallback struct {
+	Resource string `json:"resource"`
+	Reason   string `json:"reason"`
 }
 type Artifact struct {
 	Name   string `json:"name"`
 	SHA256 string `json:"sha256"`
 }
 
+// Service is the independently signed executable launched as the hidden
+// server component of a bundled-service resource. It is deliberately not a
+// controller artifact and must be verified separately before any supervisor
+// receives it.
+type Service struct {
+	ProviderPolicy resourcedeployment.ProviderPolicy `json:"provider_policy"`
+	Artifact       string                            `json:"artifact"`
+	Version        string                            `json:"version"`
+	SHA256         string                            `json:"sha256"`
+	Arguments      []string                          `json:"arguments,omitempty"`
+	Environment    map[string]string                 `json:"environment,omitempty"`
+	Config         *resourcedeployment.ServiceConfig `json:"config,omitempty"`
+	Ports          []ServicePort                     `json:"ports,omitempty"`
+	HealthChecks   []HealthCheck                     `json:"health_checks,omitempty"`
+	Files          []Artifact                        `json:"files"`
+}
+
+type HealthCheck struct {
+	Type           string `json:"type"`
+	Target         string `json:"target"`
+	ExpectedStatus []int  `json:"expected_status,omitempty"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+}
+
+type ServicePort struct {
+	Name string `json:"name"`
+	Host int    `json:"host"`
+}
+
+var findDocker = exec.LookPath
+
 // Load validates all items selected for this runtime host. Bundled clients are
-// ready for scenario services to invoke from the bundle; services/controllers
-// require an explicit future lifecycle command contract and are rejected rather
-// than being guessed or launched with unsafe default arguments.
+// ready for scenario services to invoke from the bundle; bundled services are
+// verified here and later launched only by ServiceSupervisor from their
+// explicit plan arguments and configuration contract.
 func Load(bundleRoot string) (*Plan, error) {
 	path := filepath.Join(bundleRoot, "resource-deployment-plan.json")
 	data, err := os.ReadFile(path)
@@ -57,23 +97,110 @@ func Load(bundleRoot string) (*Plan, error) {
 		return nil, fmt.Errorf("unsupported resource deployment plan version %q", plan.SchemaVersion)
 	}
 	for _, item := range plan.Resources {
+		if err := validateItem(item); err != nil {
+			return nil, err
+		}
 		if item.OS != runtimeOS() || item.Architecture != runtime.GOARCH {
 			continue
 		}
-		if item.Support == "unsupported" {
-			return nil, fmt.Errorf("resolved resource %s is unsupported on this host", item.RequestedResource)
-		}
-		if item.Mode != "bundled-client" && item.Mode != "bundled-service" && item.Mode != "bundled-controller" {
-			continue
-		}
-		if item.Mode != "bundled-client" {
-			return nil, fmt.Errorf("resource %s uses %s but this bundle has no lifecycle adapter", item.Resource, item.Mode)
-		}
-		if err := verifyClient(bundleRoot, item); err != nil {
-			return nil, err
+		switch item.Mode {
+		case "bundled-client":
+			if err := verifyClient(bundleRoot, item); err != nil {
+				return nil, err
+			}
+		case "bundled-service":
+			if err := verifyClient(bundleRoot, item); err != nil {
+				return nil, err
+			}
+			if err := verifyService(bundleRoot, item); err != nil {
+				return nil, err
+			}
+		case "docker-desktop":
+			if _, err := findDocker("docker"); err != nil {
+				return nil, fmt.Errorf("resource %s requires Docker Desktop or Docker Engine before it can run: install and start Docker, then retry", item.Resource)
+			}
 		}
 	}
 	return &plan, nil
+}
+
+func validateItem(item Item) error {
+	if item.RequestedResource == "" || item.Resource == "" || item.OS == "" || item.Architecture == "" {
+		return fmt.Errorf("resource deployment plan contains an incomplete resource selection")
+	}
+	if item.Support == "unsupported" {
+		return fmt.Errorf("resolved resource %s is unsupported", item.RequestedResource)
+	}
+	switch item.Mode {
+	case "bundled-client", "bundled-service", "docker-desktop", "native-host-tool", "remote-service", "manual":
+	default:
+		return fmt.Errorf("resource %s uses unknown deployment mode %q", item.Resource, item.Mode)
+	}
+	if item.SelectedFallback != nil && (item.SelectedFallback.Resource != item.Resource || item.SelectedFallback.Reason == "") {
+		return fmt.Errorf("resource %s has an invalid selected fallback record", item.RequestedResource)
+	}
+	return nil
+}
+
+func verifyService(bundleRoot string, item Item) error {
+	if item.Service == nil {
+		return fmt.Errorf("bundled-service resource %s is missing its server artifact", item.Resource)
+	}
+	service := item.Service
+	if _, err := serviceProviderPolicy(service).ResolveProvider(resourcedeployment.ProviderRequest{}); err != nil {
+		return fmt.Errorf("resource %s has invalid bundled service provider policy: %w", item.Resource, err)
+	}
+	if strings.TrimSpace(service.Version) == "" || !resourcedeployment.IsSafeArtifactName(service.Artifact) || len(service.SHA256) != sha256.Size*2 {
+		return fmt.Errorf("resource %s has an invalid bundled service identity", item.Resource)
+	}
+	if len(service.Files) != 1 || service.Files[0].Name != service.Artifact || !strings.EqualFold(service.Files[0].SHA256, service.SHA256) {
+		return fmt.Errorf("resource %s has an invalid bundled service file record", item.Resource)
+	}
+	if service.Config != nil {
+		if err := service.Config.Validate(); err != nil {
+			return fmt.Errorf("resource %s has invalid bundled service config: %w", item.Resource, err)
+		}
+	}
+	for _, check := range service.HealthChecks {
+		if check.Type != "http" || strings.TrimSpace(check.Target) == "" {
+			return fmt.Errorf("resource %s has an unsupported bundled service health check", item.Resource)
+		}
+		for _, status := range check.ExpectedStatus {
+			if status < 100 || status > 599 {
+				return fmt.Errorf("resource %s has invalid bundled service health status", item.Resource)
+			}
+		}
+	}
+	seenPorts := map[string]bool{}
+	for _, port := range service.Ports {
+		if strings.TrimSpace(port.Name) == "" || port.Host <= 0 || port.Host > 65535 || seenPorts[port.Name] {
+			return fmt.Errorf("resource %s has an invalid bundled service port", item.Resource)
+		}
+		seenPorts[port.Name] = true
+	}
+	data, err := os.ReadFile(filepath.Join(bundleRoot, "resources", item.Resource, service.Artifact))
+	if err != nil {
+		return fmt.Errorf("read bundled service artifact %s: %w", service.Artifact, err)
+	}
+	sum := sha256.Sum256(data)
+	if !strings.EqualFold(hex.EncodeToString(sum[:]), service.SHA256) {
+		return fmt.Errorf("bundled service artifact hash mismatch for %s", service.Artifact)
+	}
+	return nil
+}
+
+// serviceProviderPolicy treats plans created before provider_policy was added
+// as private-only. That is the fail-closed legacy interpretation: an older
+// signed bundle can still start its own artifact, but can never opt into reuse.
+func serviceProviderPolicy(service *Service) resourcedeployment.ProviderPolicy {
+	if service.ProviderPolicy.DefaultMode == "" && len(service.ProviderPolicy.AllowedModes) == 0 && service.ProviderPolicy.ExternalManagement == "" {
+		return resourcedeployment.ProviderPolicy{
+			DefaultMode:        resourcedeployment.ProviderManagedPrivate,
+			AllowedModes:       []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate},
+			ExternalManagement: "forbidden",
+		}
+	}
+	return service.ProviderPolicy
 }
 
 func runtimeOS() string {
@@ -90,6 +217,11 @@ func verifyClient(bundleRoot string, item Item) error {
 	if len(item.Files) != 3 {
 		return fmt.Errorf("resource %s must include binary, manifest, and build metadata", item.Resource)
 	}
+	expectedFiles, err := resourcedeployment.ArtifactFiles(item.Artifact)
+	if err != nil {
+		return err
+	}
+	seen := make(map[string]bool, len(item.Files))
 	for _, artifact := range item.Files {
 		if !resourcedeployment.IsSafeArtifactName(artifact.Name) {
 			return fmt.Errorf("resource %s has unsafe artifact file", item.Resource)
@@ -101,6 +233,12 @@ func verifyClient(bundleRoot string, item Item) error {
 		sum := sha256.Sum256(data)
 		if hex.EncodeToString(sum[:]) != artifact.SHA256 {
 			return fmt.Errorf("resource artifact hash mismatch for %s", artifact.Name)
+		}
+		seen[artifact.Name] = true
+	}
+	for _, expected := range expectedFiles {
+		if !seen[expected] {
+			return fmt.Errorf("resource %s is missing required artifact %s", item.Resource, expected)
 		}
 	}
 	var contract struct {
@@ -116,5 +254,28 @@ func verifyClient(bundleRoot string, item Item) error {
 	if contract.Name != item.Resource {
 		return fmt.Errorf("resource artifact contract mismatch: plan selects %s, contract names %s", item.Resource, contract.Name)
 	}
+	var metadata struct {
+		Resource string `json:"resource"`
+		Artifact string `json:"artifact"`
+		OS       string `json:"os"`
+		Arch     string `json:"arch"`
+	}
+	metadataData, err := os.ReadFile(filepath.Join(bundleRoot, "resources", item.Resource, item.Artifact+".build.json"))
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(metadataData, &metadata); err != nil {
+		return fmt.Errorf("parse resource build metadata for %s: %w", item.Resource, err)
+	}
+	if metadata.Resource != item.Resource || metadata.Artifact != item.Artifact || metadata.OS != artifactOS(item.OS) || metadata.Arch != item.Architecture {
+		return fmt.Errorf("resource artifact build metadata mismatch for %s", item.Resource)
+	}
 	return nil
+}
+
+func artifactOS(os string) string {
+	if os == "macos" {
+		return "darwin"
+	}
+	return os
 }

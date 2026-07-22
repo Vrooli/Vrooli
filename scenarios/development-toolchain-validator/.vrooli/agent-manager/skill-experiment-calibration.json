@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "development-toolchain-validator",
+  "key": "development-toolchain-validator/skill-experiment-calibration",
+  "version": "1.0.0",
+  "description": "Calibration-only workflow for verifying that controlled skill experiments rank a known-good prompt above a known-bad prompt. It changes no files and must never be used for production task selection. Before reuse, create a new running calibration experiment, set its ID in the treatment promptRef, and reconcile the workflow so its evaluator provenance is frozen.",
+  "inputSchema": {"type":"object","properties":{"token":{"type":"string","minLength":1,"maxLength":64}},"required":["token"],"additionalProperties":false},
+  "outputSchema": {"type":"object","properties":{"verdict":{"type":"string","enum":["pass","fail"]}},"required":["verdict"],"additionalProperties":false},
+  "entryNode": "treatment",
+  "experimentEvaluator": {
+    "treatmentNodeIds": ["treatment"],
+    "evaluatorNodeId": "evaluator",
+    "verdictPointer": "/verdict",
+    "allowedVerdicts": ["pass", "fail"],
+    "successVerdicts": ["pass"],
+    "rubricHash": "sha256:skill-experiment-calibration-rubric-v1",
+    "rubricAuthor": "development-toolchain-validator",
+    "evaluatorPromptHash": "sha256:skill-experiment-calibration-evaluator-v1",
+    "independenceDeclaration": "The evaluator uses a distinct review profile and calibration-only rubric authored by development-toolchain-validator, not skill-optimizer."
+  },
+  "nodes": [
+    {"id":"treatment","kind":"run","run":{"profileKey":"development-toolchain-validator/calibration-treatment","promptRef":{"skillId":"skill-experiment-calibration-treatment","experimentId":"skill-experiment-calibration-v4"},"resultSpec":{"version":"result-spec/v1","kind":"json_schema","extractionMode":"deterministic_only","schema":{"type":"object","properties":{"token":{"type":"string"},"quality":{"type":"string"}},"required":["token","quality"],"additionalProperties":false}},"bindings":[{"name":"input","source":"workflow_input","selector":"$.token","limit":1,"maxBytes":64,"renderAs":"text","missingPolicy":"error"}],"maxTurns":4,"timeoutSeconds":180}},
+    {"id":"evaluator","kind":"run","run":{"profileKey":"development-toolchain-validator/calibration-evaluator","promptRef":{"skillId":"skill-experiment-calibration-evaluator"},"resultSpec":{"version":"result-spec/v1","kind":"json_schema","extractionMode":"deterministic_only","schema":{"type":"object","properties":{"verdict":{"type":"string","enum":["pass","fail"]}},"required":["verdict"],"additionalProperties":false}},"bindings":[{"name":"treatment","source":"structured_result","selector":"node=treatment;$.value","limit":1,"maxBytes":4096,"renderAs":"json_pretty","missingPolicy":"error"}],"maxTurns":4,"timeoutSeconds":180}},
+    {"id":"done","kind":"end","end":{"status":"succeeded","bindings":[{"name":"verdict","source":"structured_result","selector":"node=evaluator;$.value.verdict","limit":1,"maxBytes":32,"renderAs":"text","missingPolicy":"error"}]}}
+  ],
+  "edges": [{"from":"treatment","to":"evaluator"},{"from":"evaluator","to":"done"}]
+  ,"budgets":{"wallTimeSeconds":900,"maxTurns":16,"maxTokens":80000,"maxCostUsd":4,"maxNodeAttempts":4,"maxChildren":2,"maxConcurrency":1,"maxRecursion":1,"maxRetries":1,"maxWaitSeconds":60}
+}

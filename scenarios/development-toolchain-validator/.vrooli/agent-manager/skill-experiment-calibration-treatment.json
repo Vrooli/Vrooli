@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "skill-experiment-calibration-treatment",
+  "profileKey": "development-toolchain-validator/calibration-treatment",
+  "description": "Calibration-only treatment profile with no tool restriction policy, suitable for the Codex runner.",
+  "roleRef": "code.smart",
+  "maxTurns": 8,
+  "timeout": "300s",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {"mode": "SANDBOX_MODE_PROTECTED"},
+  "createdBy": "development-toolchain-validator"
+}

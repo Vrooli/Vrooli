@@ -285,6 +285,13 @@ func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
 	}
 	handshakeSeen := false
 	for _, e := range tl.GetEntries() {
+		// A lost Playwright session is causal infrastructure failure, never an
+		// iframe handshake failure. Preserve the first such timeline error even
+		// if the later handshake assertion reports a timeout.
+		if r.loaded && isSessionLoss(e.GetContext().GetError()) {
+			r.loaded = false
+			r.loadError = e.GetContext().GetError()
+		}
 		switch e.GetNodeId() {
 		case nodeHandshake:
 			handshakeSeen = true
@@ -331,6 +338,13 @@ func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
 	r.console = boundConsoleEntries(r.console)
 	r.network = boundNetworkEntries(r.network)
 	return r
+}
+
+func isSessionLoss(message string) bool {
+	message = strings.ToLower(message)
+	return strings.Contains(message, "session not found") ||
+		strings.Contains(message, "page has been closed") ||
+		strings.Contains(message, "target page, context or browser has been closed")
 }
 
 func (r *runResult) applyVisualArtifacts(values map[string]*commonpb.JsonValue) {

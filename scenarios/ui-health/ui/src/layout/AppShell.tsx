@@ -30,7 +30,7 @@ export function AppShell() {
   return (
     <div
       data-testid={selectors.layout.shell}
-      className="flex min-h-screen w-full bg-app-background text-app-foreground"
+      className="flex min-h-full w-full bg-app-background text-app-foreground"
     >
       <a
         href="#main-content"

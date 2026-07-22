@@ -2,12 +2,13 @@
  * MobileDrawer — slide-in panel hosting the full nav surface for mobile
  * viewports. Triggered from `MobileHeader` via the menu button.
  */
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode } from "react";
 import { X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useTranslation } from "../i18n";
 import { NAV_ITEMS } from "./navItems";
 
@@ -20,14 +21,7 @@ interface Props {
 export function MobileDrawer({ open, onClose, children }: Props) {
   const { t } = useTranslation();
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  useEscapeKey(open, onClose);
 
   if (!open) return null;
 

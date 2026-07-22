@@ -169,13 +169,7 @@ func TestResumePipeline(t *testing.T) {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	// Wait for first run to complete
-	time.Sleep(200 * time.Millisecond)
-
-	parentStatus, ok := orchestrator.GetStatus(status.PipelineID)
-	if !ok {
-		t.Fatalf("expected to retrieve parent pipeline status")
-	}
+	parentStatus := waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	// Verify it can be resumed
 	if !parentStatus.CanResume() {
@@ -191,13 +185,7 @@ func TestResumePipeline(t *testing.T) {
 		t.Fatalf("ResumePipeline error: %v", err)
 	}
 
-	// Wait for resumed pipeline to complete
-	time.Sleep(200 * time.Millisecond)
-
-	finalStatus, ok := orchestrator.GetStatus(resumeStatus.PipelineID)
-	if !ok {
-		t.Fatalf("expected to retrieve resumed pipeline status")
-	}
+	finalStatus := waitForPipelineTerminal(t, orchestrator, resumeStatus.PipelineID)
 
 	t.Run("resumed pipeline completed", func(t *testing.T) {
 		if finalStatus.Status != StatusCompleted {
@@ -245,7 +233,7 @@ func TestResumePipelineWithStopAfter(t *testing.T) {
 	}
 
 	status, _ := orchestrator.RunPipeline(ctx, config)
-	time.Sleep(200 * time.Millisecond)
+	waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	// Resume but also stop after generate
 	resumeConfig := &Config{
@@ -256,9 +244,7 @@ func TestResumePipelineWithStopAfter(t *testing.T) {
 		t.Fatalf("ResumePipeline error: %v", err)
 	}
 
-	time.Sleep(200 * time.Millisecond)
-
-	finalStatus, _ := orchestrator.GetStatus(resumeStatus.PipelineID)
+	finalStatus := waitForPipelineTerminal(t, orchestrator, resumeStatus.PipelineID)
 
 	// Should be stopped after generate
 	if finalStatus.StoppedAfterStage != "generate" {
@@ -312,7 +298,7 @@ func TestResumePipelineValidation(t *testing.T) {
 
 	t.Run("resume completed pipeline without stop_after_stage", func(t *testing.T) {
 		status, _ := orchestrator.RunPipeline(ctx, &Config{ScenarioName: "test"})
-		time.Sleep(200 * time.Millisecond)
+		waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 		_, err := orchestrator.ResumePipeline(ctx, status.PipelineID, nil)
 		if err == nil {
@@ -331,7 +317,7 @@ func TestResumePipelineValidation(t *testing.T) {
 			ScenarioName:  "test",
 			StopOnFailure: &stopOnFailure,
 		})
-		time.Sleep(200 * time.Millisecond)
+		waitForPipelineTerminal(t, failOrchestrator, status.PipelineID)
 
 		_, err := failOrchestrator.ResumePipeline(ctx, status.PipelineID, nil)
 		if err == nil {

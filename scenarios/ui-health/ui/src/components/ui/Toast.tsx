@@ -103,7 +103,7 @@ export function ToastHost({
             key={toast.id}
             role={toast.tone === "error" ? "alert" : "status"}
             className={cn(
-              "pointer-events-auto flex w-80 max-w-[calc(100vw-2rem)] gap-3 rounded-panel border bg-app-surface p-3 text-sm shadow-lg",
+              "pointer-events-auto flex w-80 max-w-[calc(100%-2rem)] gap-3 rounded-panel border bg-app-surface p-3 text-sm shadow-lg",
               TONE_CLASS[toast.tone],
             )}
           >

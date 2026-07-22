@@ -50,7 +50,7 @@ techniques — with zero per-model code.
 `operations · technique · resolver · models · looks · ai(engine) · backends · safety` — the
 Operation/Technique/Model spine is visible in `ls api/internal/`, not buried in one 44KB file.
 
-## 3. Glossary (concept-vocabulary-unification — one name per concept)
+## 3. Glossary (domain-clarity — one name per concept)
 
 | Term | Exact definition | NOT |
 |---|---|---|

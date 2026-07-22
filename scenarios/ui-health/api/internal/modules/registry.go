@@ -39,13 +39,16 @@ func AllEndpoints() []module.EndpointDescriptor {
 type ProtoFileEntry struct {
 	Module string
 	File   protoreflect.FileDescriptor
+	// Services limits parity validation to services this module actually mounts.
+	// A shared proto file may declare services owned by another scenario.
+	Services []protoreflect.Name
 }
 
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "reindex", File: reindexv1.File_ui_health_v1_reindex_reindex_proto},
 		{Module: "search", File: searchv1.File_ui_health_v1_search_search_proto},
-		{Module: "validation", File: validationH.ProtoFile},
+		{Module: "validation", File: validationH.ProtoFile, Services: []protoreflect.Name{"ScenarioValidationService"}},
 		{Module: "visualhealth", File: visualhealthv1.File_ui_health_v1_visualhealth_visualhealth_proto},
 	}
 }

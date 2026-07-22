@@ -2,10 +2,12 @@ package dochealth
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,6 +25,33 @@ type fakeDoer struct {
 	called []string
 }
 
+func TestMermaidSidecarValidator_UsesRealParserWhenAvailable(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is unavailable")
+	}
+	if _, err := os.Stat(filepath.Join("..", "tools", "mermaid-lint", "node_modules")); err != nil {
+		t.Skip("mermaid sidecar dependencies are unavailable")
+	}
+	result, err := NewMermaidSidecarValidator().ValidateDiagrams(context.Background(), []DiagramBlock{
+		{ID: "valid", Content: "sequenceDiagram\nAlice->>Bob: hello"},
+		{ID: "invalid", Content: "sequenceDiagram\nAlice->>Bob: one; two"},
+	})
+	if err != nil {
+		t.Fatalf("validate diagrams: %v", err)
+	}
+	if result.Engine != "mermaid@11.13.0" || len(result.Verdicts) != 2 || !result.Verdicts[0].Valid || result.Verdicts[1].Valid || result.Verdicts[1].Line == 0 {
+		t.Fatalf("unexpected real parser result: %+v", result)
+	}
+}
+
+func TestValidateMarkdownDiagrams_NilValidatorIsUnverified(t *testing.T) {
+	svc := &Service{}
+	findings, engine, unverified := svc.ValidateMarkdownDiagrams(context.Background(), "```mermaid\nflowchart TD\nA --> B\n```", "fixture.md")
+	if engine != "" || !unverified || len(findings) != 1 || findings[0].Code != "mermaid_unverified" || !strings.Contains(findings[0].Message, "not configured") {
+		t.Fatalf("unexpected unavailable result: engine=%q unverified=%t findings=%+v", engine, unverified, findings)
+	}
+}
+
 func (f *fakeDoer) Do(req *http.Request) (*http.Response, error) {
 	f.called = append(f.called, req.URL.String())
 	if e, ok := f.err[req.URL.String()]; ok {
@@ -37,6 +66,19 @@ func (f *fakeDoer) Do(req *http.Request) (*http.Response, error) {
 type fakeCommandValidator struct {
 	results map[string]CommandReferenceResult
 	calls   []CommandReferenceRequest
+}
+
+type fakeDiagramValidator struct {
+	result   DiagramValidation
+	err      error
+	received *[]int
+}
+
+func (f fakeDiagramValidator) ValidateDiagrams(_ context.Context, blocks []DiagramBlock) (DiagramValidation, error) {
+	if f.received != nil {
+		*f.received = append(*f.received, len(blocks))
+	}
+	return f.result, f.err
 }
 
 func (f *fakeCommandValidator) ValidateCommandReference(ctx context.Context, req CommandReferenceRequest) (CommandReferenceResult, error) {
@@ -145,6 +187,42 @@ func TestValidateMermaid_ValidDiagramPasses(t *testing.T) {
 	}
 	if sum.MermaidValidated != 1 {
 		t.Fatalf("expected MermaidValidated=1")
+	}
+}
+
+func TestValidateMermaidWithValidator_MapsParserErrorAndAbsoluteLine(t *testing.T) {
+	var findings []Finding
+	var summary fileMetrics
+	validateMermaidBlockWithValidator("x.md", 10, "sequenceDiagram", true, fakeDiagramValidator{result: DiagramValidation{Verdicts: []DiagramVerdict{{ID: "block", Error: "Parse error", Line: 2}}}}, &findings, &summary)
+	if len(findings) != 1 || findings[0].Code != "mermaid_invalid" || findings[0].Line != 12 || findings[0].Severity != SeverityFailure {
+		t.Fatalf("unexpected findings: %+v", findings)
+	}
+}
+
+func TestValidateMermaidWithValidator_UnavailableIsLoud(t *testing.T) {
+	var findings []Finding
+	var summary fileMetrics
+	validateMermaidBlockWithValidator("x.md", 3, "flowchart TD\nA --> B", true, fakeDiagramValidator{err: errors.New("node missing")}, &findings, &summary)
+	if !hasFinding(findings, "mermaid_unverified") {
+		t.Fatalf("expected unverified finding, got %+v", findings)
+	}
+}
+
+func TestInspectMarkdownFile_BatchesMermaidBlocksThroughSharedExtractor(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "diagrams.md")
+	writeTestFile(t, path, "```mermaid\nflowchart TD\nA --> B\n```\n\n~~~mermaidjs\nsequenceDiagram\nA->>B: hello\n~~~\n")
+	var received []int
+	validator := fakeDiagramValidator{
+		received: &received,
+		result:   DiagramValidation{Verdicts: []DiagramVerdict{{ID: "0", Valid: true}, {ID: "1", Valid: true}}},
+	}
+	findings, summary, _, ioErrors := inspectMarkdownFile(path, newCfg(), validator)
+	if len(ioErrors) != 0 || len(findings) != 0 || summary.MermaidValidated != 2 {
+		t.Fatalf("unexpected inspection result: findings=%+v summary=%+v errors=%v", findings, summary, ioErrors)
+	}
+	if len(received) != 1 || received[0] != 2 {
+		t.Fatalf("expected one two-block parser call, got %#v", received)
 	}
 }
 

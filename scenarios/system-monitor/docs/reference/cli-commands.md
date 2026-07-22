@@ -2,7 +2,7 @@
 
 ## Installation
 
-The CLI is installed from the Go module in `cli/` via `cli/install.sh` or `cli/install.ps1`.
+The control plane installs the CLI from the Go module declared in `.vrooli/service.json` when the scenario starts.
 
 - `system-monitor` (primary installed command)
 

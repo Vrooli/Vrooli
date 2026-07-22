@@ -2,6 +2,8 @@ package dochealth
 
 import (
 	"context"
+	"knowledge-observatory/internal/services/dochealing"
+	"knowledge-observatory/internal/services/dochealth"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,9 +12,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-
-	"knowledge-observatory/internal/services/dochealing"
-	"knowledge-observatory/internal/services/dochealth"
 
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -25,6 +24,44 @@ type stubFixer struct {
 	dryRunResult *dochealing.AutoFixResult
 	applyResult  *dochealing.AutoFixResult
 }
+
+type diagramValidatorStub struct{ result dochealth.DiagramValidation }
+
+func (s diagramValidatorStub) ValidateDiagrams(_ context.Context, _ []dochealth.DiagramBlock) (dochealth.DiagramValidation, error) {
+	return s.result, nil
+}
+
+func TestValidateMarkdownDiagrams_MapsInvalidAndUnverifiedResponses(t *testing.T) {
+	svc, err := dochealth.NewService(t.TempDir(), dochealth.WithDiagramValidator(diagramValidatorStub{result: dochealth.DiagramValidation{
+		Engine:   "mermaid@11.13.0",
+		Verdicts: []dochealth.DiagramVerdict{{ID: "0", Error: "Parse error", Line: 2}},
+	}}))
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	h := NewWithDeps(Deps{Service: svc})
+	resp, err := h.ValidateMarkdownDiagrams(context.Background(), connect.NewRequest(&kov1.ValidateMarkdownDiagramsRequest{Content: "```mermaid\nsequenceDiagram\nA->>B: one; two\n```", SourceLabel: ptr("fixture.md")}))
+	if err != nil {
+		t.Fatalf("ValidateMarkdownDiagrams: %v", err)
+	}
+	if resp.Msg.GetEngine() != "mermaid@11.13.0" || resp.Msg.GetUnverified() || len(resp.Msg.GetFindings()) != 1 || resp.Msg.GetFindings()[0].GetCode() != "mermaid_invalid" || resp.Msg.GetFindings()[0].GetLine() != 3 {
+		t.Fatalf("unexpected response: %+v", resp.Msg)
+	}
+
+	unverifiedSvc, err := dochealth.NewService(t.TempDir(), dochealth.WithDiagramValidator(nil))
+	if err != nil {
+		t.Fatalf("NewService unavailable: %v", err)
+	}
+	unverified, err := NewWithDeps(Deps{Service: unverifiedSvc}).ValidateMarkdownDiagrams(context.Background(), connect.NewRequest(&kov1.ValidateMarkdownDiagramsRequest{Content: "```mermaid\nflowchart TD\nA --> B\n```"}))
+	if err != nil {
+		t.Fatalf("ValidateMarkdownDiagrams unavailable: %v", err)
+	}
+	if !unverified.Msg.GetUnverified() || len(unverified.Msg.GetFindings()) != 1 || unverified.Msg.GetFindings()[0].GetCode() != "mermaid_unverified" {
+		t.Fatalf("unexpected unverified response: %+v", unverified.Msg)
+	}
+}
+
+func ptr(value string) *string { return &value }
 
 func (s *stubFixer) AutoFix(_ context.Context, scenario string, dryRun bool) (*dochealing.AutoFixResult, error) {
 	if dryRun {
@@ -339,8 +376,8 @@ func TestBuildMaturityAssessmentMapsCapabilitiesAndPriority(t *testing.T) {
 	if len(got.GetCapabilities()) != len(expectedCapabilityIDs()) {
 		t.Fatalf("capabilities = %d, want %d", len(got.GetCapabilities()), len(expectedCapabilityIDs()))
 	}
-	if focus := got.GetHighestPriorityCapability(); focus.GetCapabilityId() != "doc_contract" {
-		t.Fatalf("focus = %+v, want doc_contract", focus)
+	if focus := got.GetHighestPriorityCapability(); focus.GetCapabilityId() != "required_docs" {
+		t.Fatalf("focus = %+v, want required_docs", focus)
 	}
 	wantFindingCapabilities := map[string]string{
 		"schema_violation":       "doc_contract",

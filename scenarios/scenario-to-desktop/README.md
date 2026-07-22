@@ -918,9 +918,6 @@ export DEBUG_TEMPLATES=true
 git clone <repo>
 cd scenarios/scenario-to-desktop
 
-# Install CLI
-./cli/install.sh
-
 # Start API server
 cd api && make run
 

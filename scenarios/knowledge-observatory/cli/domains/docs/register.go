@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -130,7 +131,7 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
 		Title: "Documentation",
 		Commands: []cliapp.Command{
-			{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (read, add, view, search-files, search-text, search-deep, scenarios, tree, health, audit, heal, heal-status, autofix, fix-placeholders, reset, stats, templates, template)", Run: func(args []string) error {
+			{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands", Run: func(args []string) error {
 				return run(deps, args)
 			}},
 		},
@@ -150,6 +151,7 @@ Subcommands:
   scenarios     List all scenarios with doc stats
   tree          Show doc tree for a scenario
   health        Check documentation health
+  validate-diagrams  Validate Mermaid diagrams in Markdown
   audit         Run comprehensive documentation audit
   heal          Auto-fix documentation health issues (agent)
   heal-status   Check heal job status
@@ -185,6 +187,8 @@ func run(deps support.Dependencies, args []string) error {
 		return tree(deps, args[1:])
 	case "health":
 		return health(deps, args[1:])
+	case "validate-diagrams":
+		return validateDiagrams(deps, args[1:])
 	case "view":
 		return view(deps, args[1:])
 	case "reset":
@@ -212,6 +216,59 @@ func run(deps support.Dependencies, args []string) error {
 	default:
 		return fmt.Errorf("unknown docs subcommand: %s\n\n%s", subcommand, Usage())
 	}
+}
+
+func validateDiagrams(deps support.Dependencies, args []string) error {
+	args, jsonFromPositional := support.StripBoolFlag(args, "--json")
+	fs := flag.NewFlagSet("docs validate-diagrams", flag.ContinueOnError)
+	path := fs.String("path", "", "Markdown file to validate (reads stdin when omitted)")
+	jsonOut := fs.Bool("json", false, "Output raw JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	content := ""
+	source := "stdin"
+	if p := strings.TrimSpace(*path); p != "" {
+		body, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		content = string(body)
+		source = p
+	} else {
+		body, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+		content = string(body)
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(deps.ScenarioApp())
+	if strings.TrimSpace(baseURL) == "" {
+		return fmt.Errorf("knowledge-observatory API base URL is empty")
+	}
+	client := kov1connect.NewKnowledgeObservatoryServiceClient(httpClient, baseURL, connect.WithProtoJSON())
+	resp, err := client.ValidateMarkdownDiagrams(context.Background(), connect.NewRequest(&kov1.ValidateMarkdownDiagramsRequest{Content: content, SourceLabel: &source}))
+	if err != nil {
+		return fmt.Errorf("ValidateMarkdownDiagrams RPC failed: %w", err)
+	}
+	if *jsonOut || jsonFromPositional {
+		body, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(resp.Msg)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(body))
+	} else {
+		fmt.Printf("Engine: %s\n", resp.Msg.GetEngine())
+		for _, finding := range resp.Msg.GetFindings() {
+			fmt.Printf("%s:%d [%s] %s\n", finding.GetPath(), finding.GetLine(), finding.GetCode(), finding.GetMessage())
+		}
+	}
+	for _, finding := range resp.Msg.GetFindings() {
+		if finding.GetCode() == "mermaid_invalid" {
+			return fmt.Errorf("invalid Mermaid diagram")
+		}
+	}
+	return nil
 }
 
 func searchFiles(deps support.Dependencies, args []string) error {

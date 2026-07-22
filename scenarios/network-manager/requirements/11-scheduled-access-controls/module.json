@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Scheduled access and temporary pause/resume controls.",
-    "last_validated_at": "2026-06-23T16:25:50-04:00",
+    "last_validated_at": "2026-07-22T01:28:53-04:00",
     "module": "scheduled-access-controls",
     "prd_ref": "OT-P1-002",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "NM-P1-002",
       "title": "Access schedules control devices and groups",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "policy",
       "criticality": "P1",
@@ -26,28 +26,28 @@
           "type": "test",
           "ref": "api/internal/policy/service_test.go::TestPolicyScheduleEvaluationUsesCurrentWindowAndManualStatus",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verifies active/inactive schedule windows remain advisory until an approved policy apply."
         },
         {
           "type": "test",
           "ref": "api/internal/policy/service_test.go::TestPolicyScheduleEvaluationHandlesOvernightWindows",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verifies bedtime-style schedule windows can cross midnight."
         },
         {
           "type": "test",
           "ref": "cli/domains/policy/handlers_test.go::TestHandlersScheduleCallsGeneratedClient",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verifies the schedule CLI delegates evaluation to the generated Connect client."
         },
         {
           "type": "test",
           "ref": "ui/src/pages/NetworkPages.test.tsx::creates household policy profiles and evaluates schedules",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verifies the operator UI can evaluate household profile schedules."
         }
       ]

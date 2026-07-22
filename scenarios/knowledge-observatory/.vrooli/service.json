@@ -122,6 +122,11 @@
           "description": "Install UI dependencies"
         },
         {
+          "name": "install-mermaid-lint-deps",
+          "run": "if [ -f tools/mermaid-lint/package.json ]; then cd tools/mermaid-lint && pnpm install --ignore-workspace; else echo 'tools/mermaid-lint not present yet'; fi",
+          "description": "Install exact-pinned Mermaid parser dependencies"
+        },
+        {
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
           "description": "Build production UI"

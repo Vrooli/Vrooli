@@ -139,7 +139,8 @@ type Config struct {
 	// ScenarioName is the name of the scenario to deploy (required).
 	ScenarioName string `json:"scenario_name" validate:"required"`
 
-	// Platforms to build for. Defaults to current platform if empty.
+	// Platforms to build for. Empty input is normalized to the concrete current
+	// OS/architecture before resource deployment resolution.
 	Platforms []string `json:"platforms,omitempty"`
 
 	// SkipPreflight skips the preflight validation stage.

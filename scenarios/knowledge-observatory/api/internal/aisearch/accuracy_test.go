@@ -60,8 +60,8 @@ func TestSearchSSOTWellFormed(t *testing.T) {
 	if policy.GateK != 5 || policy.RecallTarget != 0.8 || policy.DeepK < policy.GateK {
 		t.Fatalf("unexpected docs scoring policy: %+v", policy)
 	}
-	if len(provider.Tests.Cases) != 22 {
-		t.Fatalf("docs corpus cases = %d, want 22", len(provider.Tests.Cases))
+	if len(provider.Tests.Cases) != 23 {
+		t.Fatalf("docs corpus cases = %d, want 23", len(provider.Tests.Cases))
 	}
 }
 

@@ -103,7 +103,7 @@ Global flags: `--help`, `--version`, `--port <port>`, `--json`, `--quiet`
 - **Container**: container-resource-optimizer, container-health-comprehensive, docker-health-analyzer
 - **Network**: network-anomaly-detector, service-health-monitor
 - **System**: comprehensive-system-analyzer, resource-exhaustion-detector, master-system-sweep
-- **Service-specific**: judge0-cpu-investigation, judge0-memory-analyzer, chrome-cpu-analyzer
+- **Service-specific**: chrome-cpu-analyzer
 
 Auto-fix triggers (configurable in `initialization/configuration/investigation-triggers.json`):
 1. High CPU Usage (75%, 60s sustained)

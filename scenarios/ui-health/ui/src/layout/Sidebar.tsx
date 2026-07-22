@@ -17,7 +17,7 @@ export function Sidebar() {
     <aside
       data-testid={selectors.layout.sidebar}
       aria-label={t(strings.layout.sidebarLabel)}
-      className="hidden h-screen w-60 shrink-0 flex-col border-r border-app-border bg-app-surface md:flex"
+      className="hidden h-full w-60 shrink-0 flex-col border-r border-app-border bg-app-surface md:flex"
     >
       <div className="flex items-center gap-2 border-b border-app-border px-4 py-4">
         <Link

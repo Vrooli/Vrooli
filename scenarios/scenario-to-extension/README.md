@@ -27,10 +27,7 @@ The `scenario-to-extension` scenario provides a complete system for generating b
 ### Installation
 
 1. **Install the CLI**:
-   ```bash
-   cd scenarios/scenario-to-extension
-   ./cli/install.sh
-   ```
+   The control plane installs the declared Go CLI when the scenario starts.
 
 2. **Start the service**:
    ```bash

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "development-toolchain-validator",
+  "key": "development-toolchain-validator/skill-experiment-audit",
+  "version": "1.0.0",
+  "description": "Bounded independent audit of supplied controlled-experiment evidence. It produces findings for Prompt Manager's signed audit-receipt endpoint and never promotes content.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "experiment": {"type": "object", "additionalProperties": true},
+      "assignments": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "object", "additionalProperties": true}}
+    },
+    "required": ["experiment", "assignments"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "findings_hash": {"type": "string", "minLength": 8, "maxLength": 256},
+      "challenge_state": {"type": "string", "enum": ["clear", "challenged"]},
+      "anomaly_count": {"type": "integer", "minimum": 0},
+      "gaming_count": {"type": "integer", "minimum": 0},
+      "summary": {"type": "string", "minLength": 1, "maxLength": 8192}
+    },
+    "required": ["findings_hash", "challenge_state", "anomaly_count", "gaming_count", "summary"],
+    "additionalProperties": false
+  },
+  "entryNode": "audit",
+  "nodes": [
+    {
+      "id": "audit",
+      "kind": "run",
+      "run": {
+        "profileKey": "development-toolchain-validator/calibration-evaluator",
+        "promptRef": {"skillId": "skill-experiment-auditor"},
+        "resultSpec": {"version": "result-spec/v1", "kind": "json_schema", "extractionMode": "deterministic_only", "schema": {"type": "object", "properties": {"findings_hash": {"type": "string"}, "challenge_state": {"type": "string", "enum": ["clear", "challenged"]}, "anomaly_count": {"type": "integer", "minimum": 0}, "gaming_count": {"type": "integer", "minimum": 0}, "summary": {"type": "string"}}, "required": ["findings_hash", "challenge_state", "anomaly_count", "gaming_count", "summary"], "additionalProperties": false}},
+        "bindings": [
+          {"name": "experiment", "source": "workflow_input", "selector": "$.experiment", "limit": 1, "maxBytes": 16384, "renderAs": "json_pretty", "missingPolicy": "error"},
+          {"name": "assignments", "source": "workflow_input", "selector": "$.assignments", "limit": 20, "maxBytes": 49152, "renderAs": "json_pretty", "missingPolicy": "error"}
+        ],
+        "maxTurns": 4,
+        "timeoutSeconds": 300
+      }
+    },
+    {"id": "complete", "kind": "end", "end": {"status": "succeeded", "bindings": [{"name": "findings_hash", "source": "structured_result", "selector": "node=audit;$.value.findings_hash", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"}, {"name": "challenge_state", "source": "structured_result", "selector": "node=audit;$.value.challenge_state", "limit": 1, "maxBytes": 32, "renderAs": "text", "missingPolicy": "error"}, {"name": "anomaly_count", "source": "structured_result", "selector": "node=audit;$.value.anomaly_count", "limit": 1, "maxBytes": 32, "renderAs": "json", "missingPolicy": "error"}, {"name": "gaming_count", "source": "structured_result", "selector": "node=audit;$.value.gaming_count", "limit": 1, "maxBytes": 32, "renderAs": "json", "missingPolicy": "error"}, {"name": "summary", "source": "structured_result", "selector": "node=audit;$.value.summary", "limit": 1, "maxBytes": 8192, "renderAs": "text", "missingPolicy": "error"}]}}
+  ],
+  "edges": [{"from": "audit", "to": "complete", "maxTraversals": 1}],
+  "budgets": {"wallTimeSeconds": 600, "maxTurns": 4, "maxTokens": 80000, "maxCostUsd": 4, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60},
+  "trigger": {"selfTrigger": {}}
+}

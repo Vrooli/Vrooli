@@ -313,7 +313,31 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Find the service.
+	// Bundled managed resources have no manifest launcher entry. Their logs are
+	// still available through the normal authenticated runtime surface using the
+	// explicit resource:<name> identifier.
+	if resource, ok := strings.CutPrefix(serviceID, "resource:"); ok {
+		provider, ok := s.runtime.(interface{ ResourceLogPath(string) (string, bool) })
+		if !ok {
+			http.Error(w, "managed resource logs are unavailable", http.StatusBadRequest)
+			return
+		}
+		logPath, ok := provider.ResourceLogPath(resource)
+		if !ok {
+			http.Error(w, "unknown managed resource", http.StatusBadRequest)
+			return
+		}
+		content, err := fileutil.TailFile(s.runtime.FileSystem(), logPath, lines)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("tail logs: %v", err), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write(content)
+		return
+	}
+
+	// Find the manifest service.
 	m := s.runtime.Manifest()
 	var service *manifest.Service
 	for i := range m.Services {

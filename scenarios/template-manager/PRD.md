@@ -14,10 +14,10 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Template registry and durable store | Catalog scenario templates, design kits, and resource templates with version and manifest metadata in a migration-owned SQLite store.
-- [ ] OT-P0-002 | Validation runs and debt ledger | Record shallow/deep validation, drift snapshots, version lag, and deduplicated defect debt entries through API and CLI.
+- [x] OT-P0-001 | Template registry and durable store | Catalog scenario templates, design kits, and resource templates with version and manifest metadata in a migration-owned SQLite store.
+- [x] OT-P0-002 | Validation runs and debt ledger | Record shallow/deep validation, drift snapshots, version lag, and deduplicated defect debt entries through API and CLI.
 - [x] OT-P0-003 | Templates phase provider | Serve a static scenario-validation provider for test-genie's templates phase with the L0 generation-provenance autofix.
-- [ ] OT-P0-004 | Orientation guidance surface | Return the next incomplete orientation gate and its contract as structured API/CLI data for execution agents.
+- [x] OT-P0-004 | Orientation guidance surface | Return the next incomplete orientation gate and its contract as structured API/CLI data for execution agents.
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | Factory documentation service | Own, serve, and index factory docs for template maintenance, generation contracts, validation, drift, cleanup, and migration protocol.
@@ -26,7 +26,7 @@
 - [ ] OT-P1-004 | Scenario-template and design-kit cutover | Move scenario-template and design-kit lifecycle handling behind Template Manager API/CLI and delete the old vrooli CLI owners.
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | Resource-template cutover | Move resource-template handling into Template Manager and unify template substitution/text detection engines.
+- [x] OT-P2-001 | Resource-template cutover | Move resource-template handling into Template Manager and unify template substitution/text detection engines.
 - [x] OT-P2-002 | Orientation gate stewardship | Govern the orientation gate schema and strengthen template gate definitions so fresh scenarios expose honest work-order state. The engine adds a `content_adapted` check kind and auto-derives it from declared `text_absent` markers, measuring net-new content divergence from the template source so green orientation certifies real adaptation work rather than shipped files.
 
 ## 🧱 Tech Direction Snapshot

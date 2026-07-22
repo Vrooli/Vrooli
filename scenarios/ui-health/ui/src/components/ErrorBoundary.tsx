@@ -59,7 +59,7 @@ function DefaultFallback({ onRetry }: { onRetry: () => void }) {
     <div
       data-testid={selectors.errorBoundary.root}
       role="alert"
-      className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-center p-6"
+      className="min-h-full bg-slate-950 text-slate-50 flex flex-col items-center justify-center p-6"
     >
       <div className="w-full max-w-md rounded-2xl border border-red-500/40 bg-red-950/30 p-6 text-center backdrop-blur-sm">
         <h1 className="text-2xl font-semibold">{t(strings.errorBoundary.title)}</h1>

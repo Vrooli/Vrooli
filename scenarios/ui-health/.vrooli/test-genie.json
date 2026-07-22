@@ -402,7 +402,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ecosystem-fit",
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "advisory"
       },
@@ -424,7 +424,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -436,7 +436,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ux",
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "advisory"
       },
@@ -447,7 +447,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -458,7 +458,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -469,7 +469,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -480,7 +480,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -491,7 +491,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -502,7 +502,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence",
+          "ui-design-system-migration",
           "ux"
         ],
         "clean_requirement": "required"
@@ -514,7 +514,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence",
+          "ui-design-system-migration",
           "ux"
         ],
         "clean_requirement": "required"
@@ -526,7 +526,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence",
+          "ui-design-system-migration",
           "ux"
         ],
         "fix_class": "auto",
@@ -540,7 +540,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -551,7 +551,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence",
+          "ui-design-system-migration",
           "ux"
         ],
         "clean_requirement": "required"
@@ -563,7 +563,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence",
+          "ui-design-system-migration",
           "ux"
         ],
         "fix_class": "auto",
@@ -577,7 +577,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "advisory"
       },
@@ -588,7 +588,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence",
+          "ui-design-system-migration",
           "ux"
         ],
         "clean_requirement": "advisory"
@@ -600,7 +600,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence",
+          "ui-design-system-migration",
           "ux"
         ],
         "clean_requirement": "required"
@@ -612,7 +612,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -623,7 +623,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -634,7 +634,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -645,7 +645,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -656,7 +656,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -667,7 +667,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -678,7 +678,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -689,7 +689,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -700,7 +700,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -711,7 +711,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -722,7 +722,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -733,7 +733,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -744,7 +744,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -755,7 +755,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -766,7 +766,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -777,7 +777,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -788,7 +788,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -799,7 +799,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -810,7 +810,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
-          "react-coherence",
+          "ui-design-system-migration",
           "ux"
         ],
         "clean_requirement": "advisory"
@@ -822,7 +822,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "advisory"
       },
@@ -833,7 +833,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented",
@@ -846,7 +846,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented",
@@ -881,7 +881,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "vrooli-ui-interop",
+          "interoperability-steer",
           "ux"
         ],
         "clean_requirement": "required"
@@ -893,7 +893,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-stability",
+          "failure-topography-and-graceful-degradation",
           "ux"
         ],
         "clean_requirement": "required"
@@ -916,7 +916,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-stability",
+          "failure-topography-and-graceful-degradation",
           "ux"
         ],
         "clean_requirement": "required"
@@ -928,7 +928,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-stability",
+          "failure-topography-and-graceful-degradation",
           "ux"
         ],
         "clean_requirement": "required"
@@ -951,7 +951,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-stability",
+          "failure-topography-and-graceful-degradation",
           "ux"
         ],
         "clean_requirement": "advisory"
@@ -1177,7 +1177,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ux",
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented",
@@ -1191,7 +1191,7 @@
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
           "ux",
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "advisory"
       },
@@ -1285,7 +1285,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ux",
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -1297,7 +1297,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ux",
-          "react-coherence"
+          "ui-design-system-migration"
         ],
         "clean_requirement": "required"
       },
@@ -1309,7 +1309,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ux",
-          "vrooli-ui-interop"
+          "interoperability-steer"
         ],
         "clean_requirement": "required"
       },
@@ -1320,7 +1320,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-stability",
+          "failure-topography-and-graceful-degradation",
           "ux"
         ],
         "clean_requirement": "required"
@@ -1343,7 +1343,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented",
@@ -1356,7 +1356,7 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ],
         "clean_requirement": "required"
       }

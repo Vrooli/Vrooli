@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
@@ -18,6 +19,9 @@ type Options struct {
 	Manifest   *manifest.Manifest // Bundle manifest (required)
 	BundlePath string             // Root path of the unpacked bundle
 	DryRun     bool               // Skip actual service launches (for testing)
+	// SharedResourceResolver is optional and may be supplied only after explicit
+	// user consent. Nil preserves the private bundled-service default.
+	SharedResourceResolver resourceplan.SharedServiceResolver
 
 	// Injectable dependencies (nil = use real implementations)
 	Clock         infra.Clock         // Time operations (default: RealClock)

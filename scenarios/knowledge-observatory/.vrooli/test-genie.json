@@ -1008,7 +1008,7 @@
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
           "documentation-health",
-          "intent-clarification"
+          "domain-clarity"
         ],
         "fix_class": "manual",
         "reason": "Broken code references require choosing the correct implementation target or retiring stale prose.",
@@ -1022,7 +1022,7 @@
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
           "documentation-health",
-          "intent-clarification"
+          "domain-clarity"
         ],
         "fix_class": "manual",
         "reason": "Broken doc references require choosing the correct durable documentation target.",
@@ -1036,7 +1036,7 @@
         "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
           "documentation-health",
-          "intent-clarification"
+          "domain-clarity"
         ],
         "fix_class": "manual",
         "reason": "Broken marked references require preserving typed reference intent while correcting the target.",

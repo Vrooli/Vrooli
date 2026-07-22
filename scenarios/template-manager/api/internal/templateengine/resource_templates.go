@@ -31,6 +31,7 @@ var (
 		"docker-service",
 		"external-cli",
 		"manual-resource",
+		"managed-service",
 		"native-cli",
 	}
 	resourceTemplateRequiredFiles = []string{
@@ -40,8 +41,6 @@ var (
 		"resource.json",
 		"cli/go.mod",
 		"cli/.golangci.yml",
-		"cli/install.sh",
-		"cli/install.ps1",
 		"cli/main.go",
 		"cli/main_test.go",
 		"docs/OPERATIONS.md",
@@ -450,9 +449,6 @@ func validateResourceTemplateAssets(root, templateDir string, manifest ResourceT
 			relPath, relErr := filepath.Rel(templateDir, path)
 			if relErr != nil {
 				return relErr
-			}
-			if filepath.ToSlash(relPath) == "cli/install.sh" {
-				return nil
 			}
 			return fmt.Errorf("canonical templates must not include bash files: %s", filepath.ToSlash(relPath))
 		}
