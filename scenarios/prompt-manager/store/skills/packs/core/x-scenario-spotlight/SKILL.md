@@ -28,7 +28,7 @@ Produce a draft scenario-spotlight (X thread / LinkedIn post / blog body) for a 
 Before drafting, read in order:
 
 ```bash
-prompt-manager skill read swarm-manager-initiative-context  # how to pull scenario state
+prompt-manager skill read swarm-manager-goal-context  # how to pull scenario goal state
 ```
 
 Required file reads (every run):
@@ -201,4 +201,4 @@ If you observe a recurring pattern across runs (e.g., "audience X responds bette
 - Voice canon: [`docs/marketing/strategy/STRATEGY.md`](../../../../../../../docs/marketing/strategy/STRATEGY.md).
 - Sibling post-type skill: `x-dev-log` (project-wide narrative — for contrast).
 - Asset substrate: [Browser Automation Studio scenario](../../../../../../../scenarios/browser-automation-studio/README.md) — known constraint: BAS `recordVideo` gray-bar requires CDP workaround (see BAS scenario docs).
-- Publishing plumbing (planned): `social-media-scheduler` scenario, initiative-proposal `dec-1777312920606447957`.
+- Publishing plumbing (planned): `social-media-scheduler` scenario, proposal `dec-1777312920606447957`.

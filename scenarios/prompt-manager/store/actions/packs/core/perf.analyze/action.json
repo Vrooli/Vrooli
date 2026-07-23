@@ -14,12 +14,18 @@
       "performance-health",
       "analysis",
       "analyze",
+      "{{scenario}}",
       "--trace",
       "{{trace}}",
       "--json"
     ]
   },
   "inputs": {
+    "scenario": {
+      "type": "scenario",
+      "required": true,
+      "description": "Scenario slug that owns the captured trace."
+    },
     "trace": {
       "type": "string",
       "required": true,
@@ -35,7 +41,7 @@
   "permissions": {
     "filesystemRead": true,
     "filesystemWrite": false,
-    "externalNetwork": true,
+    "localhostNetwork": true,
     "processStart": true
   },
   "examples": [

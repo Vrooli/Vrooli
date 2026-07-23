@@ -241,6 +241,6 @@ When your scenario needs common capabilities:
 | Caching | redis | Connect via `REDIS_URL` env var |
 | Vector search | qdrant | Connect via `QDRANT_URL` env var |
 | LLM inference | ollama | Connect via `OLLAMA_URL` env var |
-| Code execution | judge0 | Connect via `JUDGE0_URL` env var |
+| Code execution | local executor | Keep execution within the owning scenario unless a validated sandbox resource exists |
 
 Never reinvent what resources provide.

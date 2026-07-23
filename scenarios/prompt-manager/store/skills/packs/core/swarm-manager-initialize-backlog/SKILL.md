@@ -58,26 +58,12 @@ While the section structure is universal, emphasize different areas depending on
 | execute | Task decomposition, prerequisites, implementation steps, verification criteria |
 | chore | Scope boundaries, approach, completion checklist, acceptance criteria |
 
-## Workshop Round Schema
+## Plan Workshop Handoff
 
-See `swarm-manager-workshop` skill for the full schema. The round file includes:
-- `round`: 1
-- `generated_at`: ISO timestamp
-- `readiness`: 5 dimension scores (0-3)
-- `items`: array of decision/info items
-- `plan_updates`: description of what was written to the canonical plan
-
-### Readiness Dimensions
-
-| Dimension | What It Measures |
-|-----------|-----------------|
-| `problem_clarity` | Is the problem/goal well understood? |
-| `scope_defined` | Are boundaries and acceptance criteria defined? |
-| `approach_solid` | Is there a clear implementation strategy? |
-| `testable` | Do we know how to verify success? |
-| `risk_awareness` | Are blockers and unknowns identified? |
-
-Score each 0 (not started) to 3 (solid). First rounds typically score 0-2 depending on how much context exists.
+Do not create a workshop round or readiness score. After the initial canonical
+plan exists, the operator starts the bounded Plan Workshop review. It returns
+typed findings, decision questions, and proposal drafts against the immutable
+plan hash; Swarm records the proposal entries and owns any later application.
 
 ## Instructions
 
@@ -104,12 +90,12 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    - `archive/` — user-provided materials (requirements docs, prior scenario artifacts, designs)
    - Any user-added files in the item root
    - Existing `plan_ref`, rendered plan, and `workshop/` artifacts from a prior run (preserve these)
-   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, check for strategic context:
+   - **Milestone context** — If this item belongs to milestone `{{ITEM_INITIATIVE}}`, check for strategic context:
      ```bash
-     swarm-manager initiatives get --name {{ITEM_INITIATIVE}}
-     swarm-manager initiatives files --name {{ITEM_INITIATIVE}}
+     swarm-manager milestones get --name {{ITEM_INITIATIVE}}
+     swarm-manager milestones files --name {{ITEM_INITIATIVE}}
      ```
-     Read any files present (orchestration summaries, decision logs, strategy docs). Use initiative context to align decisions with the broader initiative goals and understand how this item relates to sibling items.
+     Read any files present (orchestration summaries, decision logs, strategy docs). Use milestone context to align decisions with the broader milestone goals and understand how this item relates to sibling items.
 
 2. **Check acceptance fields**
 

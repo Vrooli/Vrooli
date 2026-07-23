@@ -1,0 +1,1 @@
+{"kind":"skill","schemaVersion":1,"id":"swarm-manager-workflow-goal-plan","name":"swarm-manager-workflow-goal-plan","description":"Typed prompt contract for goal planning.","tags":["swarm-manager","agent-manager","workflow","prompt-contract"],"status":"active","entry":"SKILL.md","revision":2,"modes":["contract"]}

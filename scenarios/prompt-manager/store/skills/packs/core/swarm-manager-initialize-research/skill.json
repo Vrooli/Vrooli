@@ -3,12 +3,12 @@
   "schemaVersion": 1,
   "id": "swarm-manager-initialize-research",
   "name": "Swarm Manager Initialize Research Item",
-  "description": "Bootstrap a research backlog item with a conclusion.md scaffold and a first workshop round in one agent pass.",
+  "description": "Bootstrap a research backlog item for evidence gathering and normal plan-authoring.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "backlog", "initialize", "research", "workflow"],
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-04-26T00:00:00Z",
   "updatedAt": "2026-04-26T00:00:00Z"
 }

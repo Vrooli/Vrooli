@@ -436,6 +436,23 @@ func TestServiceRunAppliesDefaultsRendersArgvAndAudits(t *testing.T) {
 	}
 }
 
+func TestServiceRunOmitsFlagForAbsentOptionalInput(t *testing.T) {
+	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
+		action.Command.Argv = []string{"browser-automation-studio", "capture", "--url", "{{identifier}}", "--wait-for", "{{waitFor}}"}
+		action.Inputs["waitFor"] = store.ActionInput{Type: "string"}
+	}))
+	runner := &stubRunner{result: CommandRunResult{ExitCode: 0}}
+	service := NewService(actionStore, runnableResolver())
+	service.runner = runner
+	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{Input: map[string]any{"identifier": "https://example.com"}, DryRun: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(result.Argv, " "), "browser-automation-studio capture --url https://example.com"; got != want {
+		t.Fatalf("argv = %q, want %q", got, want)
+	}
+}
+
 func TestServiceRunRendersSnakeCasePlaceholder(t *testing.T) {
 	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
 		action.Command.Argv = []string{"test-genie", "provider-contract", "check", "{{phase_or_provider}}", "{{scenario}}"}

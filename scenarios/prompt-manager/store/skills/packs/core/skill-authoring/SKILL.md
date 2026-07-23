@@ -22,7 +22,7 @@ Out of scope:
 
 ### 2. When to use this skill
 
-Use when authoring or updating a **Steer** skill (`modes[0] = "steer"`) — i.e., a skill that steers how some `path:scenarios/<scenario>/` is built or improved. For other categories use `skill-authoring-{platform,search,tools,practice,meta}`.
+Use when authoring or updating a **Steer** skill (`modes[0] = "steer"`) — i.e., a skill that steers how some `path:scenarios/<scenario>/` is built or improved. For other categories use `skill-authoring-{platform,search,tools,practice,meta}`; for `contract` skills use `docs/agent-system/SKILL_AUTHORING.md` §"Contract skills: machine-invoked workflow prompts".
 
 ---
 

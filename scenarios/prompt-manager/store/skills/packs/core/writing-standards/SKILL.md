@@ -18,9 +18,9 @@ holds the placement map only; each owning skill carries the applied detail.
 | Acceptance criteria, BAS/e2e case descriptions | Gherkin (Given/When/Then) | `e2e-testing` §4 |
 | Test suites after feature removal | Positive validation of replacement; no tombstone/absence tests | `test` §6; `e2e-testing` §4 |
 | Bug/friction reports (repro, expected/actual) | STE-100 steps; Given/When/Then shape | `report-bug` §2; `report-friction` §2 |
-| Research conclusion Findings/Actions | STE-100 | `research-conclusion-authoring` §4 |
+| Research evidence and implementation-plan Findings/Actions | STE-100 | `swarm-manager-initialize-research` |
 | Skill procedural prose itself | STE-100 | `docs/agent-system/SKILL_AUTHORING.md` "Universal quality bars" |
-| Workflow prompt contracts | STE-100 | `swarm-manager-workflow-authoring` "Design a workflow as a contract" |
+| Workflow prompt contracts | STE-100 | `docs/agent-system/SKILL_AUTHORING.md` §"Contract skills: machine-invoked workflow prompts" |
 | Procedural docs (operations/, guides/, runbooks) | STE-100 | this skill (no dedicated doc-style skill yet) |
 
 ### 2. Where the standards do NOT apply

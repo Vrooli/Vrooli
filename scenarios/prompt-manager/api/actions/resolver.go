@@ -85,6 +85,11 @@ func (r *ManifestCommandResolver) ResolveCommand(ctx context.Context, argv []str
 // not auto-invoke it.
 func buildManifestResolution(owner manifestOwner, target string, group cliManifestGroup, cmd cliManifestCommand) CommandResolution {
 	commandPath := []string{group.Name, cmd.Name}
+	commandDescription := target + " " + group.Name + " " + cmd.Name
+	if group.Flat {
+		commandPath = []string{cmd.Name}
+		commandDescription = target + " " + cmd.Name
+	}
 	if !cmd.Governance.RunEligible {
 		return CommandResolution{
 			Certainty:   CertaintyNone,
@@ -110,7 +115,7 @@ func buildManifestResolution(owner manifestOwner, target string, group cliManife
 		Permissions:          append([]string(nil), cmd.Governance.Permissions...),
 		RunSurfaces:          []string{"cli", "api", "action"},
 		RequiresConfirmation: requiresConfirmation,
-		Message:              "manifest-bound: " + target + " " + group.Name + " " + cmd.Name,
+		Message:              "manifest-bound: " + commandDescription,
 	}
 }
 

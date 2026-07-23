@@ -12,7 +12,7 @@ Canonical reference for the swarm-manager backlog item data model and interactio
 
 Every backlog item lives at the runtime working directory `{{ITEM_FOLDER}}` and follows this layout.
 
-> **Filesystem path:** Backlog items are plain directories stored at `scenarios/swarm-manager/{ideas|research|fix|execute|chore}/{item-name}/`. The `{{ITEM_FOLDER}}` variable is a runtime-only working location for local reads and writes. Do not copy it into generated JSON, Markdown, logs, review evidence, or handoff artifacts; persisted references should use `plan_ref` for implementation plans and repo-relative `path:` tokens only for local files such as `path:scenarios/swarm-manager/research/example/conclusion.md`.
+> **Filesystem path:** Backlog items are plain directories stored at `scenarios/swarm-manager/{ideas|research|fix|execute|chore}/{item-name}/`. The `{{ITEM_FOLDER}}` variable is a runtime-only working location for local reads and writes. Do not copy it into generated JSON, Markdown, logs, review evidence, or handoff artifacts; persisted references should use `plan_ref` for implementation plans and repo-relative `path:` tokens for local evidence files.
 
 ```
 item-folder/
@@ -38,7 +38,7 @@ item-folder/
 | `handoff/` | swarm-manager execution code | Idea-only execution-context package generated from the latest finalized backlog state; contains `brief.md`, `manifest.json`, and `source-index.json` for the declared Swarm workflow |
 | `research/` | research agent | Stores feasibility research and findings |
 | `archive/` | user / system | User-provided materials (prior scenario artifacts, requirements, designs) and superseded artifacts. Agents should read but not modify. |
-| root | user / system | `spec.json` metadata and user-uploaded context files. Non-research plans are stored in plan-manager and referenced by `spec.json.plan_ref`. Research keeps `conclusion.md` as its local deliverable. |
+| root | user / system | `spec.json` metadata and user-uploaded context files. Every executable item uses a plan-manager plan referenced by `spec.json.plan_ref`; research evidence remains supplemental item files. |
 
 ## Artifact Schemas
 
@@ -54,7 +54,6 @@ item-folder/
   "status": "backlog | researching | ready | queued | in_progress | completed | archived",
   "tags": ["tag1", "tag2"],
   "depends_on": ["kind/name", "fix/auth-bug"],
-  "initiative": "initiative-name",
   "acceptance_allow": ["scenarios/web-console/**"],
   "acceptance_deny": ["scenarios/web-console/secrets/**"],
   "plan_ref": {
@@ -68,7 +67,7 @@ item-folder/
 }
 ```
 
-`scope` is not a valid backlog field. Use `acceptance_allow` and `acceptance_deny` to describe execution boundaries, and use `initiative` to group related items.
+`scope` is not a valid backlog field. Use `acceptance_allow` and `acceptance_deny` to describe execution boundaries. Group related work through explicit goal targets and milestones.
 
 #### `depends_on` (optional)
 
@@ -91,13 +90,9 @@ Array of glob patterns for file paths that must NOT be modified (e.g., `["scenar
 - **`acceptance_deny`** defines forbidden change boundaries — files matching these globs must NOT be modified.
 - **Post-execution review** uses these fields to validate agent work and identify target scenarios: modifications outside `acceptance_allow` are flagged as deviations, and modifications matching `acceptance_deny` are flagged as violations.
 
-#### `initiative` (optional)
-
-String label grouping this item with other items under a shared initiative. Used by the initiatives API (`/api/v1/initiatives`) to compute rollup status across member items.
-
 ### `plan_ref`
 
-Canonical reference to the implementation plan in plan-manager. For non-research items this is the execution source of truth. Execution, review, initiative review, and idea handoff render the plan from plan-manager through `plan_ref`; agents must not create or maintain a local implementation-plan file in the backlog folder.
+Canonical reference to the implementation plan in plan-manager. For non-research items this is the execution source of truth. Execution, review, milestone review, and idea handoff render the plan from plan-manager through `plan_ref`; agents must not create or maintain a local implementation-plan file in the backlog folder.
 
 The referenced plan must follow the structure, convergence patterns, quality gates, and guardrails defined by `implementation-plan-authoring` (`prompt-manager skill read implementation-plan-authoring`). Workshop rounds may include draft plan markdown while they are converging, but finalization must bind or update the canonical plan-manager plan and leave `spec.json.plan_ref` populated.
 
@@ -267,7 +262,7 @@ swarm-manager backlog update --kind "<kind>" --name "<name>" --data '{"acceptanc
 
 Notes:
 - `backlog update` is a sparse patch. Omitted fields stay unchanged.
-- Use empty strings to clear scalar fields like `description` or `initiative`.
+- Use empty strings to clear scalar fields like `description`.
 - Use empty arrays to clear list fields like `tags`, `depends_on`, `acceptance_allow`, or `acceptance_deny`.
 
 ### Delete a backlog item
@@ -333,9 +328,8 @@ swarm-manager backlog research --kind "<kind>" --name "<name>" --data '{"mode":"
 
 ### Batch create items
 ```bash
-# Preview or create multiple items atomically (all-or-nothing). The request can
-# assign each item to an initiative and can also create/update initiative metadata
-# inline through the top-level `initiatives` array.
+# Preview or create multiple items atomically (all-or-nothing). Add the created
+# items to a goal afterwards with `goals targets-add` when they should share scope.
 cat > /tmp/batch-items.json <<'EOF'
 {
   "items": [
@@ -344,7 +338,6 @@ cat > /tmp/batch-items.json <<'EOF'
       "name": "auth-bug",
       "title": "Fix auth bug",
       "description": "...",
-      "initiative": "release-control",
       "acceptance_allow": ["scenarios/swarm-manager/api/**"]
     },
     {
@@ -353,25 +346,7 @@ cat > /tmp/batch-items.json <<'EOF'
       "title": "New feature",
       "description": "...",
       "depends_on": ["fix/auth-bug"],
-      "initiative": "release-control",
       "acceptance_allow": ["scenarios/web-console/**"]
-    }
-  ],
-  "initiatives": [
-    {
-      "name": "release-control",
-      "title": "Release Control",
-      "description": "Shared release-governance improvements",
-      "status": "active",
-      "priority": 1
-    },
-    {
-      "name": "release-telemetry",
-      "title": "Release Telemetry",
-      "description": "Post-release signal (unblocks after release-control lands)",
-      "status": "active",
-      "priority": 2,
-      "depends_on": ["release-control"]
     }
   ]
 }
@@ -383,10 +358,9 @@ swarm-manager backlog batch-create --file /tmp/batch-items.json
 ```
 
 Notes:
-- `--preview` validates item payloads, dependency refs, and initiative actions without writing anything.
+- `--preview` validates item payloads and dependency refs without writing anything.
 - Unknown fields are rejected. Do not send legacy `scope`.
-- Initiative assignment is per item (`"initiative": "..."`), not a top-level CLI flag.
-- Initiative `priority` (1-10, 0 = unset) and `depends_on` (bare initiative names, not `literal:kind/name`) are optional. The batch applies initiatives in topological order, so you may declare a dependent initiative before its dependency.
+- Batch creation does not infer a goal. Use `goals targets-add` and milestone assignment after the items exist.
 
 ### Batch queue items
 ```bash
@@ -407,66 +381,34 @@ swarm-manager captures delete --id "<id>"                  # Delete a capture
 swarm-manager captures classify --id "<id>"                # AI-classify a capture into a backlog item
 ```
 
-### Initiatives commands
+### Goal and milestone commands
 
-Initiatives are stored as folders at `.vrooli/initiatives/{name}/` containing an `initiative.json` metadata file and any additional context files (strategy docs, decision logs, health reports, etc.).
+Goals own explicit target items and derive their complete scope from item dependencies. Milestones partition that derived scope without duplicating membership.
 
 ```bash
-swarm-manager initiatives list                                    # List all initiatives with rollup status
-swarm-manager initiatives get --name "<name>"                       # Get initiative details and member items
-swarm-manager initiatives context --name "<name>"                   # Initiative + members + upstream + downstream in one call
-swarm-manager initiatives create --data '{"name":"my-init","title":"My Initiative","description":"...","status":"active","priority":5,"depends_on":["other-initiative"]}'
-swarm-manager initiatives update --name "<name>" --data '{"title":"Updated Title","priority":2,"depends_on":["dep-a","dep-b"]}' # Partial update (supply only fields that should change)
-swarm-manager initiatives delete --name "<name>"                    # Delete an initiative
-swarm-manager initiatives add-items --name "<name>" --items kind/name,kind/name   # Add items to initiative
-swarm-manager initiatives remove-items --name "<name>" --items kind/name,kind/name # Remove items from initiative
+swarm-manager goals list
+swarm-manager goals get --name "<name>"
+swarm-manager goals context --name "<name>"
+swarm-manager goals create --name "my-goal" --title "My goal" --targets execute/item-a,fix/item-b
+swarm-manager goals update --name "my-goal" --title "Updated goal" --priority 2
+swarm-manager goals targets-add --name "my-goal" --targets execute/item-c
+swarm-manager goals targets-remove --name "my-goal" --targets execute/item-c
+swarm-manager goals milestone-create --goal "my-goal" --name "build" --title "Build"
+swarm-manager goals milestone-assign --goal "my-goal" --milestone "build" --items execute/item-a
+swarm-manager goals milestone-unassign --goal "my-goal" --milestone "build" --items execute/item-a
+swarm-manager goals milestone-archive --goal "my-goal" --milestone "build"
+swarm-manager goals archive --name "my-goal"
 ```
 
-Use `initiatives context` as the single-call loader before proposing backlog changes — it returns the initiative, its member items (compact view with kind/name/title/status/priority/depends_on), direct upstream initiatives (what this blocks on), and direct downstream initiatives (what this unblocks). This is the right tool for the reuse-before-create heuristic (see `swarm-manager-initiative-context`), not the global `overview` command.
-
-Initiative field notes:
-- `priority`: integer 1-10 (0 = unprioritized, same scale as item priority). Defaults to 0.
-- `depends_on`: array of **bare initiative names**, not `literal:kind/name`. Self-references and cycles are rejected. Supplying an empty array clears deps; omitting the field leaves them unchanged on update.
-- `status`: `active` or `completed`. (`archived` is not a status — archiving is handled via `initiatives delete`.)
+Use `goals context` as the single-call loader before proposing a goal or backlog change. It returns the goal, target roots, dependency-derived scope, milestone rollups, unassigned scope items, and direct goal dependencies. The derived scope is authoritative; do not reconstruct membership client-side.
 
 ### Referential integrity (server-maintained)
 
-You do **not** need to track cross-reference bookkeeping after mutations. The API keeps the two sides (items ↔ initiative membership; items ↔ other items' `depends_on`) in sync automatically:
-
-- `backlog delete --kind K --name N` — removes `"K/N"` from every other item's `depends_on` **and** removes it from its enclosing initiative's `items[]`. Atomic.
-- `backlog update --data '{"initiative":"newInit"}'` — detaches the item from its old initiative's `items[]` and attaches to the new one. Rejects if the target does not exist.
-- `backlog create --initiative <name>` — validates the initiative exists and adds the ref to its `items[]`. Rejects unknown initiatives.
-- `initiatives delete --name N` — orphans every member item (clears their `initiative` field; the items themselves survive) and scrubs `N` from every other initiative's `depends_on`.
-- `initiatives add-items` — rejects items that already belong to a different initiative. Moves must go through `backlog update`, not `add-items`.
-- `initiatives remove-items` — clears the item's `initiative` field if it matches.
-
-Consequence: describe the mutation you want, not the bookkeeping. Never emit cleanup follow-ups like "after deleting X, also update Y.depends_on" — that happens for free.
-
-### Initiative file commands
-
-Initiatives support arbitrary context files alongside the `initiative.json` metadata. Use these commands to manage strategic context, decision logs, health reports, or any other files.
-
-```bash
-swarm-manager initiatives files --name "<name>"                              # List all files in an initiative
-swarm-manager initiatives file-get --name "<name>" --path "<path>"             # Read a file
-swarm-manager initiatives file-get --name "<name>" --path "<path>" --out local-file  # Download to local file
-swarm-manager initiatives file-upload --name "<name>" --path "<path>" --stdin  # Upload from stdin (heredoc)
-swarm-manager initiatives file-upload --name "<name>" --path "<path>" --file "<local-file>"  # Upload local file
-swarm-manager initiatives file-upload --name "<name>" --path "<path>" --content "inline text"  # Upload inline
-swarm-manager initiatives file-op --name "<name>" --op delete --source "<path>"  # Delete a file
-swarm-manager initiatives file-op --name "<name>" --op rename --source "<old>" --dest "<new>"  # Rename
-swarm-manager initiatives file-op --name "<name>" --op move --source "<from>" --dest "<to>"    # Move
-swarm-manager initiatives file-op --name "<name>" --op copy --source "<from>" --dest "<to>"    # Copy
-```
-
-Notes:
-- `initiative.json` is protected and cannot be modified through file operations (use `initiatives update` instead).
-- The `--stdin` flag is preferred for content with special characters (avoids shell quoting issues).
-- File paths are relative to the initiative folder (e.g., `decisions/d1.md`, `strategy.md`).
+You do **not** need to update dependent items after deleting a backlog item. The API removes the deleted item from every other item's `depends_on` atomically. For goal and milestone changes, describe the target, milestone, or assignment change you want; do not edit derived scope directly.
 
 ### Overview command
 ```bash
-swarm-manager overview                  # Aggregated view (backlog counts, initiatives, dep graph, stats)
+swarm-manager overview                  # Aggregated view (backlog counts, goal scope, dep graph, stats)
 swarm-manager overview --format json    # JSON output
 swarm-manager overview --format markdown # Markdown output (default)
 ```
@@ -479,10 +421,9 @@ swarm-manager agent-manager run-stop --id "<run-id>"  # Stop a running execution
 
 ### Stats commands
 ```bash
-swarm-manager stats summary                # Full stats dashboard (throughput, timing, blocking, initiatives, agent efficiency)
+swarm-manager stats summary                # Full stats dashboard (throughput, timing, blocking, goals, agent efficiency)
 swarm-manager stats throughput             # Throughput metrics (completed/created counts, net delta)
 swarm-manager stats blocking              # Blocking analysis (blocked ratio, top reasons, avg block hours)
-swarm-manager stats initiatives           # Initiative health (per-initiative completed/total/blocked/scope_creep)
 swarm-manager stats agent                 # Agent efficiency (success/failure rates, execution time, workshop rounds)
 ```
 

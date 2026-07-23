@@ -65,15 +65,14 @@ Prepare a proposal with all of the following:
    references, bindings, result schema, budgets, branches, waits, retries, and
    child workflows when needed. Every loop, wait, recursion, retry, and budget
    must be bounded.
-5. **Prompt contract** — the Prompt Manager skill(s), including the
-   authoritative inputs to read, allowed tools/actions, change boundary,
-   required validation/evidence, stop conditions, and the exact typed result.
-   Prompts must give agents enough practical direction to work competently;
-   the workflow schema, not prose, enforces the output shape. Write the
-   prompt contract's procedural text in ASD-STE100 Simplified Technical
-   English (one instruction per sentence, imperative mood, one meaning per
-   term, no vague verbs like "handle" or "improve") — the executing agent
-   reads it cold, so ambiguity in the contract becomes divergence in the run.
+5. **Prompt contract** — the Prompt Manager skill(s), authored as **contract
+   skills** per `docs/agent-system/SKILL_AUTHORING.md` §"Contract skills:
+   machine-invoked workflow prompts": shape from schema, choice from skill.
+   The workflow `resultSpec` schema owns and enforces the output shape (the
+   engine renders it into the run prompt); the skill owns the outcome
+   decision table, variable legend, authority boundary, and method
+   citations, written in ASD-STE100 — the executing agent reads it cold, so
+   ambiguity in the contract becomes divergence in the run.
 6. **Swarm adapter** — the small domain adapter that constructs the immutable
    typed snapshot, authorizes the transition, validates identity/version and
    evidence, and applies a terminal result exactly once. It must not recreate
@@ -131,5 +130,5 @@ Keep the conversation natural and concrete. Lead with the recommended
 disposition and why it best preserves the operator's method. Separate observed
 facts from a proposed design, state the tradeoffs, and end with one clear
 operator decision. Use typed references such as `transition:plan.author`,
-`workflow:swarm-manager/plan-author`, `initiative:<name>`,
+`workflow:swarm-manager/plan-author`, `milestone:<name>`,
 `backlog:<kind>/<name>`, or `session:<id>`.

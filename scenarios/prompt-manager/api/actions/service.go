@@ -793,7 +793,13 @@ func renderActionArgv(action *store.Action, values map[string]string) ([]string,
 		}
 		value, ok := values[match[1]]
 		if !ok {
-			return nil, fmt.Errorf("missing rendered input for placeholder: %s", match[1])
+			// Optional inputs may be represented by a value placeholder paired
+			// with its flag. Omit both tokens rather than passing a dangling flag
+			// to the governed command.
+			if len(argv) > 0 && strings.HasPrefix(argv[len(argv)-1], "-") {
+				argv = argv[:len(argv)-1]
+			}
+			continue
 		}
 		argv = append(argv, value)
 	}

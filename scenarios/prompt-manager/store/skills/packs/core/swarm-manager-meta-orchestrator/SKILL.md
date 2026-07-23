@@ -3,7 +3,7 @@
 ## Purpose
 
 Use this human-led conversation to turn an ambiguous objective into an
-operator-reviewed proposal for initiatives, backlog items, dependencies, and
+operator-reviewed proposal for milestones, backlog items, dependencies, and
 next transitions. Do not turn the session into an agentic execution engine.
 The operator interprets the discussion and explicitly applies any proposal.
 
@@ -21,7 +21,7 @@ brief and use at most one targeted drill-down before it.
    grouping before forcing backlog-item boundaries.
 2. Inspect relevant code and scenario documentation when existing capability
    materially affects the proposal.
-3. Use initiatives only as portfolio containers for related work that cannot
+3. Use milestones only as portfolio containers for related work that cannot
    honestly be one independently schedulable item or plan. They do not own an
    agent loop or prescribe one universal method.
 4. Produce a reviewed proposal with goal, scope, dependencies, priority,
@@ -35,7 +35,7 @@ explicit on each item; do not use the retired `scope` field.
 
 ```json
 {
-  "initiatives": [
+  "milestones": [
     {
       "name": "release-control",
       "title": "Release control",
@@ -46,7 +46,7 @@ explicit on each item; do not use the retired `scope` field.
     {
       "kind": "execute",
       "name": "ship-control-plane",
-      "initiative": "release-control",
+      "milestone": "release-control",
       "acceptance_allow": ["scenarios/swarm-manager/**"],
       "acceptance_deny": ["packages/proto/**"]
     }
@@ -74,7 +74,7 @@ its registered transition (`backlog.refine`, `plan.author`, `plan.repair`,
 
 ## Guardrails
 
-- Do not create an untyped generic chat workflow or a persistent initiative
+- Do not create an untyped generic chat workflow or a persistent milestone
   agent engine.
 - Do not recommend retired operating modes or direct programmatic Runs.
 - Do not claim a plan is ready, tests pass, or a regression is absent without
@@ -87,4 +87,4 @@ its registered transition (`backlog.refine`, `plan.author`, `plan.repair`,
 Keep the conversation natural: state the current understanding, the smallest
 useful set of choices, the recommendation and its tradeoff, then ask one clear
 operator question. Use authoritative typed references such as
-`initiative:<name>`, `backlog:<kind>/<name>`, `capture:<id>`, or `session:<id>`.
+`milestone:<name>`, `backlog:<kind>/<name>`, `capture:<id>`, or `session:<id>`.

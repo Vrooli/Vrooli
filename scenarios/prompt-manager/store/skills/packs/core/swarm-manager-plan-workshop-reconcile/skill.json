@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-plan-workshop-reconcile",
+  "name": "swarm-manager-plan-workshop-reconcile",
+  "description": "Reconcile one accepted Plan Workshop response into a candidate-only change or attention outcome.",
+  "tags": [
+    "swarm-manager",
+    "plan-workshop",
+    "workflow",
+    "prompt-contract"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 2,
+  "createdAt": "2026-07-22T00:00:00Z",
+  "updatedAt": "2026-07-22T03:45:00Z",
+  "modes": [
+    "contract"
+  ]
+}

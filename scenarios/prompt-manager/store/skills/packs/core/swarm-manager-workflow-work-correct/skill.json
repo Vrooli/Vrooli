@@ -14,5 +14,8 @@
   "entry": "SKILL.md",
   "revision": 1,
   "createdAt": "2026-07-18T03:05:28Z",
-  "updatedAt": "2026-07-18T03:05:28Z"
+  "updatedAt": "2026-07-18T03:05:28Z",
+  "modes": [
+    "contract"
+  ]
 }

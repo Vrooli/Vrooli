@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "bas.screenshot",
   "name": "Screenshot a Page",
-  "description": "Capture a desktop-viewport screenshot of any URL or running Vrooli scenario. Use this when you need a visual snapshot of UI state — first regression check, sanity look at a deployed scenario, before/after comparison for a UI change.",
+  "description": "Capture a desktop-viewport screenshot of any URL or running Vrooli scenario. Scenario shorthand automatically applies declared readiness surfaces, avoiding caller-provided sleeps or selectors.",
   "status": "active",
   "owner": {
     "type": "scenario",
@@ -17,45 +17,56 @@
       "{{url}}",
       "--capture",
       "screenshot",
+      "--wait-for",
+      "{{waitFor}}",
       "--out",
       "{{out}}",
       "--json"
     ]
   },
   "inputs": {
-    "url": {
-      "type": "string",
-      "required": true,
-      "description": "http(s) URL or `scenario=<slug>,path=<path>` shorthand."
-    },
     "out": {
       "type": "path",
-      "required": true,
-      "description": "Directory the screenshot is written into."
+      "description": "Directory the screenshot is written into; relative paths resolve under BAS's captures storage root.",
+      "required": true
+    },
+    "url": {
+      "type": "string",
+      "description": "Prefer `scenario=\u003cslug\u003e,path=\u003cpath\u003e` shorthand: it resolves the port and applies the scenario's declared readiness profile. Raw http(s) URLs get only generic navigation readiness and may capture a still-loading page unless waitFor is set.",
+      "required": true
+    },
+    "waitFor": {
+      "type": "string",
+      "description": "Optional readiness override: CSS selector, 'networkidle', or timeout in ms. Omit for scenario-shorthand URLs (declared readiness profile applies). Set it for raw http(s) URLs of dynamic pages, which otherwise wait only for navigation."
     }
   },
   "outputs": {
-    "executionId": {
-      "type": "string",
-      "description": "BAS execution id; reuse with `browser-automation-studio execution show`."
-    },
     "artifacts": {
       "type": "string",
       "description": "JSON array of artifact descriptors {type,path,size_bytes,metadata}."
+    },
+    "executionId": {
+      "type": "string",
+      "description": "BAS execution id; reuse with `browser-automation-studio executions get`."
+    },
+    "primaryArtifactPath": {
+      "type": "string",
+      "description": "Path of the final screenshot artifact, marked primary=true in BAS JSON."
     }
   },
   "permissions": {
     "filesystemRead": true,
     "filesystemWrite": true,
+    "localhostNetwork": true,
     "externalNetwork": true,
     "processStart": true
   },
   "examples": [
     {
-      "description": "Screenshot the app-monitor home page.",
+      "description": "Screenshot an RCL component after its preview announces rendered-story readiness.",
       "input": {
-        "url": "scenario=app-monitor,path=/",
-        "out": "/tmp/bas-screenshot"
+        "out": "rcl-shots/colorpicker",
+        "url": "scenario=react-component-library,path=/assets/ColorPicker"
       }
     }
   ],
@@ -76,7 +87,7 @@
   "validation": {
     "mode": "contract"
   },
-  "revision": 1,
+  "revision": 4,
   "createdAt": "2026-05-18T00:00:00Z",
-  "updatedAt": "2026-05-18T00:00:00Z"
+  "updatedAt": "2026-07-23T19:26:40Z"
 }

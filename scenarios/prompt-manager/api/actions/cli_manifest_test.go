@@ -42,17 +42,17 @@ func TestManifestResolverCertaintyMatrix(t *testing.T) {
 			wantWarningOwnership: true,
 		},
 		{
-			name:     "read + run_eligible → CertaintyCommand",
-			manifest: manifestWith("read", true, nil),
-			argv:     []string{"sample-scenario", "widgets", "list"},
+			name:          "read + run_eligible → CertaintyCommand",
+			manifest:      manifestWith("read", true, nil),
+			argv:          []string{"sample-scenario", "widgets", "list"},
 			wantCertainty: CertaintyCommand,
 			wantEffect:    EffectRead,
 			wantRunnable:  true,
 		},
 		{
-			name:     "write + run_eligible → CertaintyCommand",
-			manifest: manifestWith("write", true, nil),
-			argv:     []string{"sample-scenario", "widgets", "list"},
+			name:          "write + run_eligible → CertaintyCommand",
+			manifest:      manifestWith("write", true, nil),
+			argv:          []string{"sample-scenario", "widgets", "list"},
 			wantCertainty: CertaintyCommand,
 			wantEffect:    EffectWrite,
 			wantRunnable:  true,
@@ -171,6 +171,42 @@ func TestManifestResolverCachesPerScenario(t *testing.T) {
 	cached, ok := resolver.cliManifests.manifests["cache-scenario"]
 	if !ok || cached.Manifest == nil {
 		t.Fatalf("expected scenario manifest cached; got %#v", cached)
+	}
+}
+
+func TestManifestResolverResolvesBASScreenshotActionFixturesThroughFlatCatalog(t *testing.T) {
+	schemaPath := locateRealSchema(t)
+	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(schemaPath)))
+	manifestPath := filepath.Join(repoRoot, "scenarios", "browser-automation-studio", "cli", "manifest.json")
+	manifest, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read BAS manifest: %v", err)
+	}
+	repo := newScenarioRepo(t, "browser-automation-studio", string(manifest))
+	resolver := NewManifestCommandResolver(filepath.Join(repo, "scenarios", "prompt-manager", "store"))
+
+	for _, fixture := range []string{"bas.screenshot", "bas.screenshot.mobile"} {
+		t.Run(fixture, func(t *testing.T) {
+			actionPath := filepath.Join(repoRoot, "scenarios", "prompt-manager", "store", "actions", "packs", "core", fixture, "action.json")
+			raw, err := os.ReadFile(actionPath)
+			if err != nil {
+				t.Fatalf("read action fixture: %v", err)
+			}
+			var action store.Action
+			if err := json.Unmarshal(raw, &action); err != nil {
+				t.Fatalf("parse action fixture: %v", err)
+			}
+			resolution, err := resolver.ResolveCommand(context.Background(), action.Command.Argv)
+			if err != nil {
+				t.Fatalf("ResolveCommand(%v): %v", action.Command.Argv, err)
+			}
+			if resolution.Certainty != CertaintyCommand || resolution.Effect != EffectWrite {
+				t.Fatalf("unexpected resolution: %#v", resolution)
+			}
+			if len(resolution.CommandPath) != 1 || resolution.CommandPath[0] != "capture" {
+				t.Fatalf("command path = %q, want [capture]", resolution.CommandPath)
+			}
+		})
 	}
 }
 

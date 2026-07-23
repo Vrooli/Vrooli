@@ -28,6 +28,7 @@ type cliManifest struct {
 type cliManifestGroup struct {
 	Name        string               `json:"name"`
 	Description string               `json:"description"`
+	Flat        bool                 `json:"flat"`
 	Commands    []cliManifestCommand `json:"commands"`
 }
 
@@ -50,10 +51,10 @@ type cliManifestGovernance struct {
 // rule without overriding an explicit false.
 func (g *cliManifestGovernance) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		Effect                string   `json:"effect"`
-		RunEligible           bool     `json:"run_eligible"`
-		RequiresConfirmation  *bool    `json:"requires_confirmation"`
-		Permissions           []string `json:"permissions"`
+		Effect               string   `json:"effect"`
+		RunEligible          bool     `json:"run_eligible"`
+		RequiresConfirmation *bool    `json:"requires_confirmation"`
+		Permissions          []string `json:"permissions"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -81,9 +82,9 @@ type cliManifestLoadResult struct {
 // cliManifestCache resolves and caches per-scenario manifests, sharing one
 // compiled schema across calls. Safe for concurrent use.
 type cliManifestCache struct {
-	repoRoot string
-	mu       sync.Mutex
-	schema   *jsonschema.Schema
+	repoRoot  string
+	mu        sync.Mutex
+	schema    *jsonschema.Schema
 	schemaErr error
 	manifests map[string]cliManifestLoadResult
 }
@@ -167,18 +168,27 @@ func (c *cliManifestCache) compileSchema() (*jsonschema.Schema, error) {
 	return c.schema, nil
 }
 
-// resolveManifestCommand walks argv[1:] against the manifest's group/command
-// tree. argv[0] is the scenario CLI target and is consumed by the caller.
-// Returns (cmd, group, true) on hit; (_, _, false) if no group+command match.
+// resolveManifestCommand walks argv[1:] against the manifest. argv[0] is the
+// scenario CLI target and is consumed by the caller. Normal groups use
+// <group> <command>; flat groups use <command> directly. Returns
+// (cmd, group, true) on hit; (_, _, false) if no declared command matches.
 func resolveManifestCommand(manifest *cliManifest, argv []string) (cliManifestCommand, cliManifestGroup, bool) {
-	if manifest == nil || len(argv) < 3 {
+	if manifest == nil || len(argv) < 2 {
 		return cliManifestCommand{}, cliManifestGroup{}, false
 	}
-	groupName, commandName := argv[1], argv[2]
 	for _, group := range manifest.Groups {
-		if group.Name != groupName {
+		if group.Flat {
+			for _, cmd := range group.Commands {
+				if cmd.Name == argv[1] {
+					return cmd, group, true
+				}
+			}
 			continue
 		}
+		if len(argv) < 3 || group.Name != argv[1] {
+			continue
+		}
+		commandName := argv[2]
 		for _, cmd := range group.Commands {
 			if cmd.Name == commandName {
 				return cmd, group, true
