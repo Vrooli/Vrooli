@@ -67,6 +67,13 @@ export function AppShell() {
     void fetchSessions(undefined, { force: true });
   }, [fetchBacklog, fetchCaptures, fetchExecutions, fetchSessions]);
 
+  // The sidebar is a full-screen overlay below the desktop breakpoint. A
+  // persisted desktop preference must not cover a detail route opened directly
+  // on a phone, otherwise the operator cannot see the route they navigated to.
+  useEffect(() => {
+    if (isMobile) setSidebarCollapsed(true);
+  }, [isMobile, setSidebarCollapsed]);
+
   useStorePolling({
     enabled: true,
     intervalMs: 5000,

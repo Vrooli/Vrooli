@@ -261,6 +261,11 @@ export interface IGoalsService {
   setPriority(name: string, priority: number): Promise<GoalWithScope>;
   addTargets(name: string, targets: string[]): Promise<GoalWithScope>;
   removeTargets(name: string, targets: string[]): Promise<GoalWithScope>;
+  createMilestone(name: string, milestone: GoalMilestone): Promise<GoalWithScope>;
+  updateMilestone(name: string, milestone: GoalMilestone): Promise<GoalWithScope>;
+  archiveMilestone(name: string, milestone: string): Promise<GoalWithScope>;
+  assignMilestoneItems(name: string, milestone: string, items: string[]): Promise<GoalWithScope>;
+  unassignMilestoneItems(name: string, milestone: string, items: string[]): Promise<GoalWithScope>;
   archive(name: string): Promise<void>;
   remove(name: string): Promise<void>;
   startPlan(name: string): Promise<{ execution_id: string; run_id?: string; definition_digest: string }>;
@@ -354,6 +359,22 @@ export function createGoalsService(apiClient: IApiClient = defaultApiClient): IG
     async removeTargets(name: string, targets: string[]): Promise<GoalWithScope> {
       const raw = await apiClient.delete<RawGoalWithScope>(API_ENDPOINTS.goalTargets(name), { targets });
       return normalizeWithScope(raw);
+    },
+
+    async createMilestone(name: string, milestone: GoalMilestone): Promise<GoalWithScope> {
+      return normalizeWithScope(await apiClient.post<RawGoalWithScope>(API_ENDPOINTS.goalMilestones(name), milestone));
+    },
+    async updateMilestone(name: string, milestone: GoalMilestone): Promise<GoalWithScope> {
+      return normalizeWithScope(await apiClient.put<RawGoalWithScope>(API_ENDPOINTS.goalMilestone(name, milestone.name), milestone));
+    },
+    async archiveMilestone(name: string, milestone: string): Promise<GoalWithScope> {
+      return normalizeWithScope(await apiClient.delete<RawGoalWithScope>(API_ENDPOINTS.goalMilestone(name, milestone)));
+    },
+    async assignMilestoneItems(name: string, milestone: string, items: string[]): Promise<GoalWithScope> {
+      return normalizeWithScope(await apiClient.post<RawGoalWithScope>(API_ENDPOINTS.goalMilestoneItems(name, milestone), { targets: items }));
+    },
+    async unassignMilestoneItems(name: string, milestone: string, items: string[]): Promise<GoalWithScope> {
+      return normalizeWithScope(await apiClient.delete<RawGoalWithScope>(API_ENDPOINTS.goalMilestoneItems(name, milestone), { targets: items }));
     },
 
     async archive(name: string): Promise<void> {

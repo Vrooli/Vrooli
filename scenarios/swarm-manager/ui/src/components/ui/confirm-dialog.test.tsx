@@ -60,4 +60,14 @@ describe("ConfirmDialog copy button", () => {
     );
     expect(screen.queryByTestId("copy")).toBeNull();
   });
+
+  it("uses the bottom-sheet presentation when requested", () => {
+    renderStrong({
+      presentation: "bottom-sheet",
+      testIds: { dialog: "delete-sheet", confirmButton: "confirm", copyButton: "copy" },
+    });
+
+    expect(screen.getByTestId("delete-sheet")).toHaveAttribute("role", "dialog");
+    expect(screen.getByTestId("delete-sheet")).toHaveTextContent("Delete Scenario");
+  });
 });

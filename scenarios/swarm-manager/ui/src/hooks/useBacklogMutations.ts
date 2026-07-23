@@ -97,6 +97,19 @@ export function useBacklogMutations({
     },
   });
 
+  const descriptionMutation = useMutation({
+    mutationFn: (description: string) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.update(backlogKind, name, { description });
+    },
+    onSuccess: (updatedItem) => {
+      if (!backlogKind || !name) return;
+      invalidate(["backlog", backlogKind, name]);
+      invalidateNextAction();
+      upsertItem(updatedItem);
+    },
+  });
+
   const archiveMutation = useMutation({
     mutationFn: () => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
@@ -241,6 +254,7 @@ export function useBacklogMutations({
     statusMutation,
     depStatusMutation,
     acceptanceGlobMutation,
+    descriptionMutation,
     archiveMutation,
     unarchiveMutation,
     deleteMutation,

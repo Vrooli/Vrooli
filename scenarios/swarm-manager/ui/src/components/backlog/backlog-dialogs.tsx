@@ -89,6 +89,7 @@ export function BacklogDialogs({
           confirmationText={deleteLevel === "strong" ? item?.name : undefined}
           confirmLabel="Delete Item"
           isLoading={data.isDeleting}
+          presentation="bottom-sheet"
           testIds={{
             dialog: selectors.backlogDetails.deleteDialog,
             confirmButton: selectors.backlogDetails.deleteConfirmButton,

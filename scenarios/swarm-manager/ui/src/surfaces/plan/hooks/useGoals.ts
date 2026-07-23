@@ -42,11 +42,17 @@ export function useGoalMutations() {
     onSuccess: invalidate,
   });
 
+  const removeTargets = useMutation({
+    mutationFn: ({ name, targets }: { name: string; targets: string[] }) =>
+      goalsService.removeTargets(name, targets),
+    onSuccess: invalidate,
+  });
+
   const setPriority = useMutation({
     mutationFn: ({ name, priority }: { name: string; priority: number }) =>
       goalsService.setPriority(name, priority),
     onSuccess: invalidate,
   });
 
-  return { create, addTargets, setPriority };
+  return { create, addTargets, removeTargets, setPriority };
 }

@@ -17,6 +17,8 @@ interface ContextChipTrayProps {
   onRemove?: (type: AgentSessionContextType, ref: string) => void;
   /** Navigate to a chip's detail; wired to the router by the composer host. */
   onOpen?: (path: string) => void;
+  /** Sent-message chips should grow naturally instead of using composer overflow. */
+  constrainHeight?: boolean;
   className?: string;
   testId?: string;
 }
@@ -29,7 +31,7 @@ function chipOpenPath(nodeId?: string): string | null {
   return detailPathFromNodeId(nodeId);
 }
 
-export function ContextChipTray({ items, onRemove, onOpen, className, testId }: ContextChipTrayProps) {
+export function ContextChipTray({ items, onRemove, onOpen, constrainHeight = true, className, testId }: ContextChipTrayProps) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
 
@@ -39,7 +41,7 @@ export function ContextChipTray({ items, onRemove, onOpen, className, testId }: 
   const openPath = chipOpenPath(openItem?.nodeId);
 
   return (
-    <div className={cn("flex max-h-20 flex-wrap gap-1.5 overflow-y-auto", className)} data-testid={testId}>
+    <div className={cn("flex flex-wrap gap-1.5", constrainHeight && "max-h-20 overflow-y-auto", className)} data-testid={testId}>
       {items.map((item) => {
         const key = `${item.type}:${item.ref}`;
         return (

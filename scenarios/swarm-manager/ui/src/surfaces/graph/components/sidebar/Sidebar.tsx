@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useState, type ChangeEvent, type HTMLAttributes, type Ref } from "react";
-import { FilePlus2, ListChecks, Plus } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { SearchBar } from "../../../../components/ui/search-bar";
 import { CreateGoalDialog } from "../../../../components/goals/CreateGoalDialog";
@@ -184,7 +184,7 @@ export function Sidebar({
                 widthClass="w-full"
                 className={cn(
                   "h-8 text-[16px] md:text-sm",
-                  (aiAvailable || showSelectionControls || createAction || activeTab === "backlog") && "pr-36",
+                  (aiAvailable || showSelectionControls || createAction) && "pr-36",
                 )}
                 data-testid="sidebar-search"
               />
@@ -199,18 +199,6 @@ export function Sidebar({
                     data-testid="sidebar-create-current"
                   >
                     <Plus className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                )}
-                {activeTab === "backlog" && (
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateFromPlan(true)}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-700/70 hover:text-slate-100"
-                    title="Create work from plan"
-                    aria-label="Create work from plan"
-                    data-testid="sidebar-create-from-plan"
-                  >
-                    <FilePlus2 className="h-3.5 w-3.5" aria-hidden />
                   </button>
                 )}
                 <SearchModeToggle

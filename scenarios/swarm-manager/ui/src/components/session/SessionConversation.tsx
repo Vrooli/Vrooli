@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChatThread } from "../chat/ChatThread";
 import { MessageComposer, type MessageComposerHandle } from "../composer/MessageComposer";
+import { ContextChipTray } from "../composer/ContextChipTray";
 import { formatRelativeTime } from "../../lib/format-utils";
 import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
@@ -138,7 +139,7 @@ export function SessionConversation({
             </>
           )}
           renderAttachmentPreview={(message) => (
-            <SessionMessageExtras message={message} attachments={attachments} />
+            <SessionMessageExtras message={message} attachments={attachments} onOpenContext={(path) => navigate(path)} />
           )}
         />
       )}
@@ -186,7 +187,15 @@ export function SessionConversation({
   );
 }
 
-function SessionMessageExtras({ message, attachments }: { message: ChatMessageView; attachments: AgentSessionAttachment[] }) {
+function SessionMessageExtras({
+  message,
+  attachments,
+  onOpenContext,
+}: {
+  message: ChatMessageView;
+  attachments: AgentSessionAttachment[];
+  onOpenContext: (path: string) => void;
+}) {
   const messageAttachments = (message.attachmentIds ?? [])
     .map((id) => attachments.find((attachment) => attachment.id === id))
     .filter((attachment): attachment is AgentSessionAttachment => Boolean(attachment));
@@ -196,17 +205,18 @@ function SessionMessageExtras({ message, attachments }: { message: ChatMessageVi
   return (
     <div className="mt-2 space-y-2">
       {message.context && message.context.length > 0 && (
-        <div className="flex flex-wrap gap-1.5" data-testid={selectors.agentSessions.messageContextChips}>
-          {message.context.map((item) => (
-            <span
-              key={`${item.type}:${item.ref}`}
-              className="max-w-full truncate rounded border border-cyan-500/25 bg-cyan-500/10 px-2 py-1 text-[11px] text-cyan-100"
-              title={item.summary || item.ref}
-            >
-              {contextLabel(item.type)} · {item.title}
-            </span>
-          ))}
-        </div>
+        <ContextChipTray
+          items={message.context.map((item) => ({
+            type: item.type,
+            ref: item.ref,
+            title: item.title,
+            subtitle: item.summary,
+            nodeId: item.nodeId,
+          }))}
+          onOpen={onOpenContext}
+          constrainHeight={false}
+          testId={selectors.agentSessions.messageContextChips}
+        />
       )}
       {messageAttachments.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid={selectors.agentSessions.messageImageThumbnails}>
@@ -430,10 +440,6 @@ function countNoun(type: AgentSessionContextType, count: number): string {
     default:
       return type.replace(/_/g, " ");
   }
-}
-
-function contextLabel(type: AgentSessionContextType): string {
-  return type.replace(/_/g, " ");
 }
 
 function draftPlaceholderForKind(kind: AgentSessionKind): string {

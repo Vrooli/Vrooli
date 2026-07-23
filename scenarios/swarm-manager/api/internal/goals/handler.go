@@ -68,6 +68,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/goals/{name}/archive-item", h.Archive).Methods("PATCH")
 	r.HandleFunc("/api/v1/goals/{name}/plan-run", h.StartPlan).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/discover-run", h.StartDiscover).Methods("POST")
+	r.HandleFunc("/api/v1/goals/{name}/milestones", h.CreateMilestone).Methods("POST")
+	r.HandleFunc("/api/v1/goals/{name}/milestones/{milestone}", h.UpdateMilestone).Methods("PUT")
+	r.HandleFunc("/api/v1/goals/{name}/milestones/{milestone}", h.ArchiveMilestone).Methods("DELETE")
+	r.HandleFunc("/api/v1/goals/{name}/milestones/{milestone}/items", h.AssignMilestoneItems).Methods("POST")
+	r.HandleFunc("/api/v1/goals/{name}/milestones/{milestone}/items", h.UnassignMilestoneItems).Methods("DELETE")
 	r.HandleFunc("/api/v1/goals/{name}/milestones/{milestone}/review-run", h.StartMilestoneReview).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/workflow-runs/{execution_id}/apply", h.ApplyWorkflow).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/files", h.ListFiles).Methods("GET")
@@ -268,6 +273,72 @@ func (h *Handler) RemoveTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, "[goals] remove-targets", result)
+}
+
+func (h *Handler) CreateMilestone(w http.ResponseWriter, r *http.Request) {
+	var milestone Milestone
+	if err := json.NewDecoder(r.Body).Decode(&milestone); err != nil {
+		apierr.MapError(w, "[goals] create-milestone", apierr.BadRequest("invalid request body"))
+		return
+	}
+	result, err := h.service.CreateMilestone(nameVar(r), milestone)
+	if err != nil {
+		mapServiceError(w, "[goals] create-milestone", err)
+		return
+	}
+	writeJSON(w, "[goals] create-milestone", result)
+}
+
+func (h *Handler) UpdateMilestone(w http.ResponseWriter, r *http.Request) {
+	var milestone Milestone
+	if err := json.NewDecoder(r.Body).Decode(&milestone); err != nil {
+		apierr.MapError(w, "[goals] update-milestone", apierr.BadRequest("invalid request body"))
+		return
+	}
+	milestone.Name = strings.TrimSpace(mux.Vars(r)["milestone"])
+	result, err := h.service.UpdateMilestone(nameVar(r), milestone)
+	if err != nil {
+		mapServiceError(w, "[goals] update-milestone", err)
+		return
+	}
+	writeJSON(w, "[goals] update-milestone", result)
+}
+
+func (h *Handler) ArchiveMilestone(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.ArchiveMilestone(nameVar(r), strings.TrimSpace(mux.Vars(r)["milestone"]))
+	if err != nil {
+		mapServiceError(w, "[goals] archive-milestone", err)
+		return
+	}
+	writeJSON(w, "[goals] archive-milestone", result)
+}
+
+func (h *Handler) AssignMilestoneItems(w http.ResponseWriter, r *http.Request) {
+	h.updateMilestoneItems(w, r, true)
+}
+func (h *Handler) UnassignMilestoneItems(w http.ResponseWriter, r *http.Request) {
+	h.updateMilestoneItems(w, r, false)
+}
+
+func (h *Handler) updateMilestoneItems(w http.ResponseWriter, r *http.Request, assign bool) {
+	var req targetsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierr.MapError(w, "[goals] milestone-items", apierr.BadRequest("invalid request body"))
+		return
+	}
+	milestone := strings.TrimSpace(mux.Vars(r)["milestone"])
+	var result *GoalWithScope
+	var err error
+	if assign {
+		result, err = h.service.AssignMilestoneItems(nameVar(r), milestone, req.Targets)
+	} else {
+		result, err = h.service.UnassignMilestoneItems(nameVar(r), milestone, req.Targets)
+	}
+	if err != nil {
+		mapServiceError(w, "[goals] milestone-items", err)
+		return
+	}
+	writeJSON(w, "[goals] milestone-items", result)
 }
 
 func nameVar(r *http.Request) string {

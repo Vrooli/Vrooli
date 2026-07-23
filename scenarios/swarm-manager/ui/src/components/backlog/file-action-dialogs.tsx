@@ -6,7 +6,7 @@
 
 import { Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
+import { Drawer } from "../ui/drawer";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { Input } from "../ui/input";
 import { useFileService } from "../../contexts/FileServiceContext";
@@ -39,7 +39,7 @@ export function FileActionDialogs({
   return (
     <>
       {/* File action dialogs (rename/move/copy) */}
-      <Dialog
+      <Drawer
         isOpen={Boolean(activeAction && activeAction.action !== "delete")}
         onClose={onClose}
         title={
@@ -51,10 +51,9 @@ export function FileActionDialogs({
                 ? `Copy ${activeAction.target.type}`
                 : "File Action"
         }
-        maxWidth="max-w-md"
       >
         {activeAction && activeAction.action !== "delete" && (
-          <div className="space-y-4">
+          <div className="space-y-4 p-4">
             <div className="text-sm text-slate-300">
               <p className="text-xs uppercase tracking-wide text-slate-500">Source</p>
               <p className="mt-1 break-all rounded-lg bg-slate-800/60 px-3 py-2">{activeAction.target.path}</p>
@@ -96,7 +95,7 @@ export function FileActionDialogs({
             </div>
           </div>
         )}
-      </Dialog>
+      </Drawer>
 
       {/* File delete confirmation dialog */}
       <ConfirmDialog

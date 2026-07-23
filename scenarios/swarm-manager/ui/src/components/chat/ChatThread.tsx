@@ -70,15 +70,16 @@ export function ChatThread({
     <div className={cn("min-h-0 flex-1 space-y-3 overflow-y-auto", className)} data-testid={testId}>
       {messages.length > 0 ? (
         messages.map((message) => (
-          <ChatMessageBubble
-            key={message.id}
-            message={message}
-            accent={accent}
-            getMessageMeta={getMessageMeta}
-            renderAttachmentPreview={renderAttachmentPreview}
-            speak={tts}
-            onReferenceNavigate={onReferenceNavigate}
-          />
+          <div key={message.id} className="mx-auto w-full max-w-3xl">
+            <ChatMessageBubble
+              message={message}
+              accent={accent}
+              getMessageMeta={getMessageMeta}
+              renderAttachmentPreview={renderAttachmentPreview}
+              speak={tts}
+              onReferenceNavigate={onReferenceNavigate}
+            />
+          </div>
         ))
       ) : (
         <div className="flex h-full min-h-32 items-center justify-center text-sm text-slate-500">{emptyLabel}</div>

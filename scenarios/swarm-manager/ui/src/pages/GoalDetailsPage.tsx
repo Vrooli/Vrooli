@@ -12,14 +12,17 @@ import {
   ChevronDown,
   ChevronUp,
   Clock3,
+  Edit,
   Files,
   GitPullRequestArrow,
   ListChecks,
   Network,
+  Plus,
   ShieldAlert,
   Target,
   Trash2,
   Workflow,
+  X,
 } from "lucide-react";
 import { BacklogCard } from "../components/backlog/backlog-card";
 import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
@@ -33,6 +36,9 @@ import { CompactTabBar, type CompactTabItem } from "../components/ui/compact-tab
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { GOAL_LENSES } from "../components/detail/lens-options";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { Drawer } from "../components/ui/drawer";
+import { Input } from "../components/ui/input";
+import { MarkdownRenderer } from "../components/markdown/MarkdownRenderer";
 import type { ActionMenuItem } from "../components/ui/action-menu";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
@@ -49,6 +55,8 @@ import {
 	 routeTargetToNodeId,
 } from "../app/routes/route-paths";
 import { selectors } from "../consts/selectors";
+import { useTransientHighlight } from "../hooks/useTransientHighlight";
+import { useBacklogStore } from "../stores";
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
@@ -232,7 +240,7 @@ function ScopeHistory({ goal }: { goal: GoalWithScope["goal"] }) {
   );
 }
 
-function MilestoneGroups({ milestones, entities }: { milestones: GoalMilestone[]; entities?: GoalScopeEntities }) {
+function MilestoneGroups({ milestones, entities, onEdit, onArchive, onManageItems }: { milestones: GoalMilestone[]; entities?: GoalScopeEntities; onEdit: (milestone: GoalMilestone) => void; onArchive: (milestone: GoalMilestone) => void; onManageItems: (milestone: GoalMilestone) => void }) {
   const active = milestones.filter((milestone) => !milestone.archivedAt);
   if (active.length === 0) {
     return <p className="text-sm text-slate-500">This goal does not have milestone groups yet.</p>;
@@ -244,6 +252,7 @@ function MilestoneGroups({ milestones, entities }: { milestones: GoalMilestone[]
         <DetailSection
           key={milestone.name}
           title={milestone.title || milestone.name}
+          action={<div className="flex gap-1"><button type="button" onClick={() => onManageItems(milestone)} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" aria-label={`Manage ${milestone.title || milestone.name} items`}><Target className="h-3.5 w-3.5" /></button><button type="button" onClick={() => onEdit(milestone)} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" aria-label={`Edit ${milestone.title || milestone.name}`}><Edit className="h-3.5 w-3.5" /></button><button type="button" onClick={() => onArchive(milestone)} className="rounded p-1 text-slate-400 hover:bg-red-500/10 hover:text-red-300" aria-label={`Archive ${milestone.title || milestone.name}`}><Archive className="h-3.5 w-3.5" /></button></div>}
           storageKey={`goal.milestone.${milestone.name}`}
           className="first:mt-0"
           data-testid={`goal-milestone-${milestone.name}`}
@@ -268,6 +277,15 @@ export function GoalDetailsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<GoalTab>(() => isGoalTab(searchParams.get("tab")) ? searchParams.get("tab") as GoalTab : "overview");
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
+  const [milestoneEditor, setMilestoneEditor] = useState<GoalMilestone | null>(null);
+  const [milestoneDraft, setMilestoneDraft] = useState<GoalMilestone | null>(null);
+  const [goalEditorOpen, setGoalEditorOpen] = useState(false);
+  const [goalDraft, setGoalDraft] = useState({ title: "", description: "", priority: 0 });
+  const [highlightTarget, setHighlightTarget] = useState<string | null>(null);
+  const [targetEditorOpen, setTargetEditorOpen] = useState(false);
+  const [milestoneItemEditor, setMilestoneItemEditor] = useState<GoalMilestone | null>(null);
+  const [milestoneItemDraft, setMilestoneItemDraft] = useState<string[]>([]);
+  useTransientHighlight({ targetSelector: highlightTarget, highlightClass: "ring-2 ring-cyan-400/60 rounded-lg", scrollIntoView: true });
 
   const decodedName = useMemo(() => decodeURIComponent(name), [name]);
   const nodeId = routeTargetToNodeId({ entityType: "goal", name: decodedName });
@@ -312,6 +330,25 @@ export function GoalDetailsPage() {
   });
   const planMutation = useMutation({ mutationFn: () => goalsService.startPlan(decodedName), onSuccess: invalidateGoal });
   const discoverMutation = useMutation({ mutationFn: () => goalsService.startDiscover(decodedName), onSuccess: invalidateGoal });
+  const saveMilestoneMutation = useMutation({
+    mutationFn: (milestone: GoalMilestone) => milestoneEditor ? goalsService.updateMilestone(decodedName, milestone) : goalsService.createMilestone(decodedName, milestone),
+    onSuccess: () => { invalidateGoal(); setMilestoneEditor(null); setMilestoneDraft(null); },
+  });
+  const archiveMilestoneMutation = useMutation({ mutationFn: (milestone: string) => goalsService.archiveMilestone(decodedName, milestone), onSuccess: invalidateGoal });
+  const updateMilestoneItemsMutation = useMutation({
+    mutationFn: async ({ milestone, items }: { milestone: GoalMilestone; items: string[] }) => {
+      const add = items.filter((item) => !milestone.items.includes(item));
+      const remove = milestone.items.filter((item) => !items.includes(item));
+      if (add.length > 0) await goalsService.assignMilestoneItems(decodedName, milestone.name, add);
+      if (remove.length > 0) await goalsService.unassignMilestoneItems(decodedName, milestone.name, remove);
+    },
+    onSuccess: () => { invalidateGoal(); setMilestoneItemEditor(null); },
+  });
+  const updateGoalMutation = useMutation({ mutationFn: (input: { title: string; description: string; priority: number }) => goalsService.update(decodedName, input), onSuccess: () => { invalidateGoal(); setGoalEditorOpen(false); } });
+  const addGoalTargetMutation = useMutation({ mutationFn: (target: string) => goalsService.addTargets(decodedName, [target]), onSuccess: invalidateGoal });
+  const removeGoalTargetMutation = useMutation({ mutationFn: (target: string) => goalsService.removeTargets(decodedName, [target]), onSuccess: invalidateGoal });
+  const backlogItems = useBacklogStore((state) => state.items);
+  const fetchBacklog = useBacklogStore((state) => state.fetchBacklog);
   const goalFileService = useMemo(() => createGoalFileServiceAdapter(decodedName), [decodedName]);
   const fileActionMutation = useMutation({
     mutationFn: ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
@@ -364,7 +401,21 @@ export function GoalDetailsPage() {
     }
   };
 
+  const revealSection = (testId: "goal-scope" | "goal-blocked") => {
+    const toggle = document.querySelector<HTMLButtonElement>(`[data-testid="${testId}-toggle"]`);
+    if (toggle?.getAttribute("aria-expanded") === "false") toggle.click();
+    setHighlightTarget(null);
+    requestAnimationFrame(() => setHighlightTarget(`[data-testid="${testId}"]`));
+  };
+
   const menuActions: ActionMenuItem[] = [
+    {
+      label: "Edit",
+      icon: <Edit />,
+      disabled: busy,
+      onSelect: () => { setGoalDraft({ title: goal.title, description: goal.description ?? "", priority: goal.priority }); setGoalEditorOpen(true); },
+      testId: "goal-edit",
+    },
     ...(goal.status !== "archived" ? [{
       label: "Archive",
       icon: <Archive />,
@@ -416,8 +467,11 @@ export function GoalDetailsPage() {
       <div className={activeTab === "files" ? "min-w-0 h-full" : "min-w-0 space-y-4"} data-testid={selectors.goalDetails.page}>
         {activeTab === "overview" && <DetailSection title="Overview" icon={ENTITY_TYPE_ICONS.goal} hideDivider data-testid="goal-overview">
           <div className="space-y-4">
+            <DetailSection title="Description" action={<button type="button" onClick={() => { setGoalDraft({ title: goal.title, description: goal.description ?? "", priority: goal.priority }); setGoalEditorOpen(true); }} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" aria-label="Edit goal description"><Edit className="h-3.5 w-3.5" /></button>}>
+              <MarkdownRenderer content={goal.description || "No description provided."} className="prose-sm-slate text-sm leading-relaxed text-slate-300" />
+            </DetailSection>
             <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+              <button type="button" onClick={() => revealSection("goal-scope")} className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3 text-left transition-colors hover:border-cyan-500/40">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Progress
@@ -428,8 +482,8 @@ export function GoalDetailsPage() {
                 <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
                   {scope.completedCount} of {scope.total} complete
                 </p>
-              </div>
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3" data-testid="goal-eta-card">
+              </button>
+              <button type="button" onClick={() => revealSection("goal-scope")} className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3 text-left transition-colors hover:border-cyan-500/40" data-testid="goal-eta-card">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
                   <Clock3 className="h-3.5 w-3.5" />
                   ETA Band
@@ -442,7 +496,7 @@ export function GoalDetailsPage() {
                     ? `${eta.basisLabel || eta.basis} · ${eta.confidence || "unknown"} confidence · lane capacity ${eta.laneCapacity}`
                     : "No ETA is available for this goal yet."}
                 </p>
-              </div>
+              </button>
               <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
                   <ChevronUp className="h-3.5 w-3.5" />
@@ -475,7 +529,7 @@ export function GoalDetailsPage() {
                 </div>
                 <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">Drives goal-directed drain order</p>
               </div>
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+              <button type="button" onClick={() => revealSection("goal-blocked")} className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3 text-left transition-colors hover:border-cyan-500/40">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
                   <ShieldAlert className="h-3.5 w-3.5" />
                   Blocked
@@ -486,8 +540,10 @@ export function GoalDetailsPage() {
                 <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
                   {scope.blockedCount > 0 ? "items blocked right now" : "nothing blocked right now"}
                 </p>
-              </div>
+              </button>
             </div>
+
+            <Button variant="outline" size="sm" onClick={() => navigate(graphPath({ lens: "stats", goal: goal.name }))}>Full stats breakdown</Button>
 
             <div className="flex flex-wrap gap-6 text-xs text-slate-500">
               <div>
@@ -506,16 +562,16 @@ export function GoalDetailsPage() {
           </div>
         </DetailSection>}
 
-        {activeTab === "overview" && <DetailSection title="Targets" icon={Target} storageKey="goal.targets" data-testid="goal-targets">
-          <RefList refs={goal.targets} emptyText="This goal does not have explicit targets yet." entities={query.data.scopeEntities} />
+        {activeTab === "overview" && <DetailSection title="Targets" icon={Target} storageKey="goal.targets" data-testid="goal-targets" action={<button type="button" onClick={() => { if (backlogItems.length === 0) void fetchBacklog(); setTargetEditorOpen(true); }} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-500/10"><Plus className="h-3.5 w-3.5" />Add</button>}>
+          {goal.targets.length === 0 ? <p className="text-sm text-slate-500">This goal does not have explicit targets yet.</p> : <div className="flex flex-wrap gap-2">{goal.targets.map((target) => <span key={target} className="inline-flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900 pr-1"><RefChip refId={target} /><button type="button" onClick={() => removeGoalTargetMutation.mutate(target)} disabled={removeGoalTargetMutation.isPending} className="rounded-full p-1 text-slate-400 hover:bg-red-500/15 hover:text-red-300" aria-label={`Remove ${target} from goal`}><X className="h-3.5 w-3.5" /></button></span>)}</div>}
         </DetailSection>}
 
         {activeTab === "overview" && <DetailSection title="Scope Progress" icon={Workflow} storageKey="goal.scope-progress" data-testid="goal-scope">
           <ScopeProgress scope={scope} />
         </DetailSection>}
 
-        {activeTab === "milestones" && <DetailSection title="Milestone Groups" icon={ListChecks} storageKey="goal.milestones" data-testid="goal-milestones">
-          <MilestoneGroups milestones={goal.milestones} entities={query.data.scopeEntities} />
+        {activeTab === "milestones" && <DetailSection title="Milestone Groups" icon={ListChecks} storageKey="goal.milestones" data-testid="goal-milestones" action={<button type="button" onClick={() => { setMilestoneEditor(null); setMilestoneDraft({ name: "", title: "", description: "", items: [], acceptanceCriteria: [], dependsOn: [] }); }} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-500/10"><Plus className="h-3.5 w-3.5" />Add</button>}>
+          <MilestoneGroups milestones={goal.milestones} entities={query.data.scopeEntities} onEdit={(milestone) => { setMilestoneEditor(milestone); setMilestoneDraft({ ...milestone }); }} onArchive={(milestone) => archiveMilestoneMutation.mutate(milestone.name)} onManageItems={(milestone) => { setMilestoneItemEditor(milestone); setMilestoneItemDraft(milestone.items); }} />
         </DetailSection>}
 
         {activeTab === "overview" && <DetailSection title="Ready Work" icon={ListChecks} storageKey="goal.ready-work" data-testid="goal-ready">
@@ -527,6 +583,7 @@ export function GoalDetailsPage() {
         </DetailSection>}
 
         {activeTab === "overview" && <DetailSection title="Scope Creep" icon={Workflow} storageKey="goal.scope-creep" defaultOpen={false} data-testid="goal-history">
+          <p className="mb-3 text-sm text-slate-500">Tracks changes in the total dependency-closure size of this goal’s explicit targets over time.</p>
           <ScopeHistory goal={goal} />
         </DetailSection>}
         {activeTab === "decide" && (
@@ -569,6 +626,25 @@ export function GoalDetailsPage() {
         isLoading={archiveMutation.isPending}
         testIds={{ dialog: "goal-archive-confirm", confirmButton: "goal-archive-confirm-submit" }}
       />
+      <Drawer
+        isOpen={Boolean(milestoneDraft)}
+        onClose={() => { if (!saveMilestoneMutation.isPending) { setMilestoneEditor(null); setMilestoneDraft(null); } }}
+        title={milestoneEditor ? "Edit milestone" : "Add milestone"}
+        description="Milestones group goal work without changing the goal's target scope."
+        footer={<div className="flex justify-end gap-3"><Button variant="outline" onClick={() => { setMilestoneEditor(null); setMilestoneDraft(null); }} disabled={saveMilestoneMutation.isPending}>Cancel</Button><Button onClick={() => milestoneDraft && saveMilestoneMutation.mutate(milestoneDraft)} disabled={saveMilestoneMutation.isPending || !milestoneDraft?.name.trim() || !milestoneDraft?.title.trim()}>{saveMilestoneMutation.isPending ? "Saving..." : "Save milestone"}</Button></div>}
+      >
+        {milestoneDraft && <div className="space-y-4 p-4"><div><label htmlFor="milestone-name" className="text-sm text-slate-200">Name</label><Input id="milestone-name" value={milestoneDraft.name} disabled={Boolean(milestoneEditor)} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, name: event.target.value })} className="mt-2" /></div><div><label htmlFor="milestone-title" className="text-sm text-slate-200">Title</label><Input id="milestone-title" value={milestoneDraft.title} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, title: event.target.value })} className="mt-2" /></div><div><label htmlFor="milestone-description" className="text-sm text-slate-200">Description</label><textarea id="milestone-description" value={milestoneDraft.description ?? ""} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, description: event.target.value })} className="mt-2 w-full rounded-lg border border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-slate-100" rows={5} /></div>{saveMilestoneMutation.error && <p role="alert" className="text-sm text-red-300">{saveMilestoneMutation.error instanceof Error ? saveMilestoneMutation.error.message : "Could not save milestone."}</p>}</div>}
+      </Drawer>
+      <Drawer isOpen={goalEditorOpen} onClose={() => !updateGoalMutation.isPending && setGoalEditorOpen(false)} title="Edit goal" description="Update the goal's outcome, description, and priority." footer={<div className="flex justify-end gap-3"><Button variant="outline" onClick={() => setGoalEditorOpen(false)} disabled={updateGoalMutation.isPending}>Cancel</Button><Button onClick={() => updateGoalMutation.mutate(goalDraft)} disabled={updateGoalMutation.isPending || !goalDraft.title.trim()}>{updateGoalMutation.isPending ? "Saving..." : "Save goal"}</Button></div>}>
+        <div className="space-y-4 p-4"><div><label htmlFor="goal-title" className="text-sm text-slate-200">Title</label><Input id="goal-title" value={goalDraft.title} onChange={(event) => setGoalDraft({ ...goalDraft, title: event.target.value })} className="mt-2" /></div><div><label htmlFor="goal-description" className="text-sm text-slate-200">Description</label><textarea id="goal-description" value={goalDraft.description} onChange={(event) => setGoalDraft({ ...goalDraft, description: event.target.value })} rows={8} className="mt-2 w-full rounded-lg border border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-slate-100" /></div><div><label htmlFor="goal-priority" className="text-sm text-slate-200">Priority</label><Input id="goal-priority" type="number" min={MIN_PRIORITY} max={MAX_PRIORITY} value={goalDraft.priority} onChange={(event) => setGoalDraft({ ...goalDraft, priority: Number(event.target.value) })} className="mt-2" /></div>{updateGoalMutation.error && <p role="alert" className="text-sm text-red-300">{updateGoalMutation.error instanceof Error ? updateGoalMutation.error.message : "Could not update goal."}</p>}</div>
+      </Drawer>
+      <Drawer isOpen={targetEditorOpen} onClose={() => setTargetEditorOpen(false)} title="Add target" description="Choose an explicit backlog item for this goal.">
+        <div className="space-y-2 p-4">{backlogItems.filter((item) => !item.archivedAt && !goal.targets.includes(`${item.kind}/${item.name}`)).map((item) => <button key={`${item.kind}/${item.name}`} type="button" onClick={() => addGoalTargetMutation.mutate(`${item.kind}/${item.name}`, { onSuccess: () => setTargetEditorOpen(false) })} disabled={addGoalTargetMutation.isPending} className="flex w-full items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-left text-sm text-slate-200 hover:border-cyan-500/40 hover:bg-slate-800"><span className="truncate">{item.title || item.name}</span><span className="ml-3 text-xs text-slate-500">{item.kind}/{item.name}</span></button>)}{backlogItems.length === 0 && <p className="text-sm text-slate-500">Loading backlog items…</p>}{addGoalTargetMutation.error && <p role="alert" className="text-sm text-red-300">Unable to add target.</p>}</div>
+      </Drawer>
+      <Drawer isOpen={Boolean(milestoneItemEditor)} onClose={() => !updateMilestoneItemsMutation.isPending && setMilestoneItemEditor(null)} title="Manage milestone items" description="Assign goal-scope items to this milestone.">
+        <div className="space-y-2 p-4">{scope.closure.map((ref) => <label key={ref} className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200"><input type="checkbox" checked={milestoneItemDraft.includes(ref)} onChange={() => setMilestoneItemDraft((current) => current.includes(ref) ? current.filter((item) => item !== ref) : [...current, ref])} /><span>{ref}</span></label>)}</div>
+        <div className="flex justify-end gap-3 border-t border-white/10 p-4"><Button variant="outline" onClick={() => setMilestoneItemEditor(null)} disabled={updateMilestoneItemsMutation.isPending}>Cancel</Button><Button onClick={() => milestoneItemEditor && updateMilestoneItemsMutation.mutate({ milestone: milestoneItemEditor, items: milestoneItemDraft })} disabled={updateMilestoneItemsMutation.isPending}>{updateMilestoneItemsMutation.isPending ? "Saving..." : "Save items"}</Button></div>
+      </Drawer>
       <ConfirmDialog
         isOpen={confirmDelete}
         onClose={() => setConfirmDelete(false)}

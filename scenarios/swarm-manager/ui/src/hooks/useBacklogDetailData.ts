@@ -88,6 +88,7 @@ export function useBacklogDetailData({
     statusMutation,
     depStatusMutation,
     acceptanceGlobMutation,
+    descriptionMutation,
     deleteMutation,
     updateReqsMutation,
     createModuleMutation,
@@ -238,6 +239,11 @@ export function useBacklogDetailData({
     isUpdatingGlob: acceptanceGlobMutation.isPending,
     resetGlobMutation: () => acceptanceGlobMutation.reset(),
 
+    updateDescription: (description: string) => descriptionMutation.mutateAsync(description),
+    isUpdatingDescription: descriptionMutation.isPending,
+    updateDescriptionError: descriptionMutation.error instanceof Error ? descriptionMutation.error.message : null,
+    resetDescriptionMutation: () => descriptionMutation.reset(),
+
     deleteItem: () => deleteMutation.mutate(),
     isDeleting: deleteMutation.isPending,
     deleteError,
@@ -297,6 +303,7 @@ export function useBacklogDetailData({
       update: updateMutation,
       status: statusMutation,
       acceptanceGlob: acceptanceGlobMutation,
+      description: descriptionMutation,
       delete: deleteMutation,
       archiveMutation,
       unarchiveMutation,

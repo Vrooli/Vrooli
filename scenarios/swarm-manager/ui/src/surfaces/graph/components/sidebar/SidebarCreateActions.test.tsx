@@ -110,4 +110,16 @@ describe("sidebar create affordances", () => {
 
     expect(onQuickCapture).toHaveBeenCalledOnce();
   });
+
+  it("does not render a create-from-plan icon in the sidebar", () => {
+    renderWithProviders(
+      <Sidebar
+        onItemClick={vi.fn()}
+        onSettingsOpen={vi.fn()}
+        onGoHome={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("sidebar-create-from-plan")).not.toBeInTheDocument();
+  });
 });

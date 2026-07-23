@@ -403,6 +403,9 @@ export function BacklogDetailsPage() {
         await backlogService.update(item.kind, item.name, { note });
         data.refetchItem();
       }}
+      onSaveDescription={data.updateDescription}
+      isSavingDescription={data.isUpdatingDescription}
+      descriptionSaveError={data.updateDescriptionError}
     />
   ) : null;
 

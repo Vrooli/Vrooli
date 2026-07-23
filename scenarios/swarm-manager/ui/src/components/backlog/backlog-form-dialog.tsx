@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
+import { Drawer } from "../ui/drawer";
 import { selectors } from "../../consts/selectors";
 import { sanitizeBacklogName } from "../../lib";
 import type { BacklogFormValues, BacklogKind } from "../../types";
@@ -93,23 +93,14 @@ export function BacklogFormDialog({
   };
 
   return (
-    <Dialog
+    <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      maxWidth="max-w-xl"
-      isLoading={isSubmitting}
+      title={isEditMode ? `Edit ${kindLabel}` : `Create ${kindLabel}`}
+      description={isEditMode ? "Update backlog details and lifecycle status." : "Capture a new backlog item and add it to the swarm."}
       testId={selectors.backlogForm.dialog}
     >
-      <h2 className="text-xl font-semibold text-slate-100">
-        {isEditMode ? `Edit ${kindLabel}` : `Create ${kindLabel}`}
-      </h2>
-      <p className="mt-1 text-sm text-slate-400">
-        {isEditMode
-          ? "Update backlog details and lifecycle status."
-          : "Capture a new backlog item and add it to the swarm."}
-      </p>
-
-      <div className="mt-6 space-y-4">
+      <div className="space-y-4 p-4">
         <BacklogFormIdentitySection
           kind={kind}
           title={title}
@@ -169,6 +160,6 @@ export function BacklogFormDialog({
           {isSubmitting ? "Saving..." : isEditMode ? "Save Changes" : `Create ${kindLabel}`}
         </Button>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

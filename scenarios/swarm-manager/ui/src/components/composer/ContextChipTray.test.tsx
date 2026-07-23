@@ -43,4 +43,11 @@ describe("ContextChipTray", () => {
     await user.click(screen.getByRole("button", { name: "Remove Broken thing" }));
     expect(onRemove).toHaveBeenCalledWith("backlog_item", "fix/broken-thing");
   });
+
+  it("can opt out of the composer height constraint for sent-message context", () => {
+    const { container } = render(<ContextChipTray items={[CHIP]} constrainHeight={false} testId="tray" />);
+
+    expect(container.firstChild).not.toHaveClass("max-h-20");
+    expect(container.firstChild).not.toHaveClass("overflow-y-auto");
+  });
 });
