@@ -1,6 +1,7 @@
 import type { SessionSpec } from '../../../src/types';
 import { playwrightProvider } from '../../../src/playwright';
 import { SessionManager } from '../../../src/session/manager';
+import { ServiceWorkerController } from '../../../src/service-worker';
 import { SessionNotFoundError, ResourceLimitError } from '../../../src/utils/errors';
 import { createMockBrowser, createMockContext, createMockPage, createTestConfig } from '../../helpers';
 
@@ -203,6 +204,18 @@ describe('SessionManager', () => {
       const session = manager.getSession(result.sessionId);
       expect(session.createdAt.getTime()).toBeGreaterThanOrEqual(before);
       expect(session.createdAt.getTime()).toBeLessThanOrEqual(after);
+    });
+
+    it('cleans up a session already inserted into the map when service-worker initialization fails', async () => {
+      const enable = jest
+        .spyOn(ServiceWorkerController.prototype, 'enable')
+        .mockRejectedValueOnce(new Error('service-worker initialization failed'));
+
+      await expect(manager.startSession(sessionSpec)).rejects.toThrow('service-worker initialization failed');
+
+      expect(enable).toHaveBeenCalledTimes(1);
+      expect(manager.getSessionCount()).toBe(0);
+      expect(mockContext.close).toHaveBeenCalledTimes(1);
     });
   });
 

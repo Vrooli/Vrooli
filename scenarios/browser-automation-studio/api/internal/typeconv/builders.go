@@ -170,13 +170,12 @@ func BuildInputParams(data map[string]any) *basactions.InputParams {
 }
 
 // BuildWaitParams converts a data map to WaitParams proto.
-// Supports "duration" as alias for "durationMs".
+// Supports "duration" as alias for "durationMs", and snake_case spellings
+// ("duration_ms", "timeout_ms") from UseProtoNames-marshaled definitions.
 func BuildWaitParams(data map[string]any) *basactions.WaitParams {
 	p := &basactions.WaitParams{}
-	if dm, ok := ToInt32(data["durationMs"]); ok {
+	if dm, ok := firstInt32(data, "durationMs", "duration_ms", "duration"); ok {
 		p.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: dm}
-	} else if dur, ok := ToInt32(data["duration"]); ok {
-		p.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: dur} // "duration" alias
 	} else if selector, ok := data["selector"].(string); ok && selector != "" {
 		p.WaitFor = &basactions.WaitParams_Selector{Selector: selector}
 	}
@@ -184,7 +183,7 @@ func BuildWaitParams(data map[string]any) *basactions.WaitParams {
 		ws := StringToWaitState(state)
 		p.State = &ws
 	}
-	if tm, ok := ToInt32(data["timeoutMs"]); ok {
+	if tm, ok := firstInt32(data, "timeoutMs", "timeout_ms"); ok {
 		p.TimeoutMs = &tm
 	}
 	return p

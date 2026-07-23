@@ -259,6 +259,7 @@ func main() {
 	// Initialize playwright-driver sidecar management
 	// This enables automatic restart on crashes, health monitoring, and recording recovery
 	var sidecarDeps *sidecar.Dependencies
+	var stopSessionReconciler context.CancelFunc
 	driverClient, err := driver.NewClient(driver.WithLogger(log))
 	if err != nil {
 		log.WithError(err).Warn("⚠️  Failed to create driver client - sidecar management disabled")
@@ -299,6 +300,15 @@ func main() {
 		}).Info("✅ Stale execution recovery completed")
 	}
 	recoverCancel()
+
+	// Terminal executions are the API's source of truth for session ownership.
+	// Reconcile their driver sessions in the background without weakening the
+	// normal lease-protected close endpoint.
+	if driverClient != nil {
+		reconcilerCtx, cancelReconciler := context.WithCancel(context.Background())
+		stopSessionReconciler = cancelReconciler
+		go recovery.NewSessionReconciler(driverClient, repo, log).Run(reconcilerCtx)
+	}
 
 	// Setup router
 	r := chi.NewRouter()
@@ -728,6 +738,9 @@ func main() {
 		Handler:      r,
 		WriteTimeout: globalRequestTimeout + 30*time.Second,
 		Cleanup: func(ctx context.Context) error {
+			if stopSessionReconciler != nil {
+				stopSessionReconciler()
+			}
 			// Stop the scheduler first to prevent new executions
 			if schedulerSvc != nil {
 				log.Info("Stopping scheduler...")

@@ -28,7 +28,7 @@ func TestBuildExportPlan_ProducesCanonicalFileSet(t *testing.T) {
 		Frames:      []export.TimelineFrame{{NodeID: "n1", Status: "completed", Success: true}},
 	}
 
-	plan, err := BuildExportPlan(timeline, "My Flow")
+	plan, err := BuildExportPlan(timeline, "My Flow", "")
 	require.NoError(t, err)
 
 	want := []string{
@@ -55,7 +55,7 @@ func TestBuildExportPlan_ResultJSONReflectsStatus(t *testing.T) {
 			{NodeID: "n2", Status: "failed", Error: "kaboom"},
 		},
 	}
-	plan, err := BuildExportPlan(timeline, "")
+	plan, err := BuildExportPlan(timeline, "", "")
 	require.NoError(t, err)
 
 	var result ResultSummary
@@ -79,7 +79,7 @@ func TestBuildExportPlan_PlansScreenshotCopies(t *testing.T) {
 			},
 		},
 	}
-	plan, err := BuildExportPlan(timeline, "Flow")
+	plan, err := BuildExportPlan(timeline, "Flow", "")
 	require.NoError(t, err)
 	require.Len(t, plan.Screenshots, 1)
 	require.Equal(t, "obj-123", plan.Screenshots[0].ObjectName)
@@ -89,7 +89,23 @@ func TestBuildExportPlan_PlansScreenshotCopies(t *testing.T) {
 
 func TestBuildExportPlan_DefaultsWorkflowName(t *testing.T) {
 	timeline := &export.ExecutionTimeline{ExecutionID: uuid.New(), Status: "completed"}
-	plan, err := BuildExportPlan(timeline, "")
+	plan, err := BuildExportPlan(timeline, "", "")
 	require.NoError(t, err)
 	require.Contains(t, string(planFile(t, plan, "README.md")), "Unnamed Workflow")
+}
+
+func TestBuildExportPlan_ZeroStepFailureUsesPersistedExecutionError(t *testing.T) {
+	timeline := &export.ExecutionTimeline{
+		ExecutionID: uuid.New(),
+		Status:      "failed",
+	}
+
+	plan, err := BuildExportPlan(timeline, "", "driver session capacity reached")
+	require.NoError(t, err)
+
+	var result ResultSummary
+	require.NoError(t, json.Unmarshal(planFile(t, plan, "result.json"), &result))
+	require.False(t, result.Success)
+	require.Equal(t, "failed", result.Status)
+	require.Equal(t, "driver session capacity reached", result.Error)
 }

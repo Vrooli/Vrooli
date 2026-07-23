@@ -1,11 +1,27 @@
 package capture
 
 import (
+	"bytes"
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"browser-automation-studio/cli/internal/appctx"
+
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
+	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 )
+
+type failedCaptureService struct{}
+
+func (failedCaptureService) Capture(context.Context, *connect.Request[capturev1.CaptureRequest]) (*connect.Response[capturev1.CaptureResponse], error) {
+	return nil, connect.NewError(connect.CodeInternal, errors.New("driver session capacity reached"))
+}
 
 func TestFlagsFromContext_UsesProductionParser(t *testing.T) {
 	rc, err := cliapp.NewTestRunContextFromArgs(captureArgSchema(), []string{
@@ -117,5 +133,40 @@ func TestProtoToJSON_Shape(t *testing.T) {
 	arts, ok := m["artifacts"].([]map[string]interface{})
 	if !ok || len(arts) != 1 || arts[0]["path"] != "/tmp/x/shot.png" {
 		t.Errorf("artifacts shape wrong: %+v", m["artifacts"])
+	}
+}
+
+func TestRunCaptureRC_FailedRPCReturnsCommandError(t *testing.T) {
+	path, handler := captureconnect.NewCaptureServiceHandler(failedCaptureService{})
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	configDir := t.TempDir()
+	t.Setenv("BAS_CAPTURE_CLI_TEST_CONFIG", configDir)
+	app, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+		Name:             "bas-capture-cli-test",
+		DefaultAPIBase:   server.URL,
+		APIPrefix:        "/",
+		AllowAnonymous:   true,
+		ConfigDirEnvVars: []string{"BAS_CAPTURE_CLI_TEST_CONFIG"},
+	})
+	if err != nil {
+		t.Fatalf("new CLI app: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	rc, err := cliapp.NewTestRunContextFromArgs(captureArgSchema(), []string{"--url", "https://example.com"}, app, &stdout, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+
+	err = runCaptureRC(&appctx.Context{Core: app}, rc)
+	if err == nil {
+		t.Fatal("expected failed capture RPC to return a command error")
+	}
+	if got := err.Error(); !strings.Contains(got, "driver session capacity reached") {
+		t.Fatalf("capture error must retain the server failure, got %q", got)
 	}
 }

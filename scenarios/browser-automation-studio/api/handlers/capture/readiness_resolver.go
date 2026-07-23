@@ -87,6 +87,13 @@ type readinessProfile struct {
 // one of its declared terminal states. This prevents a surface's initial DOM
 // mount (usually loading) from being mistaken for functional readiness.
 func terminalReadinessSelector(binding, kind string, states []string) string {
+	// Some scenarios expose a dedicated, already-terminal readiness selector
+	// rather than the generic ExperienceSurface data-experience-state contract.
+	// Treat it as authoritative instead of appending a second incompatible state
+	// predicate (for example data-preview-state="ready").
+	if strings.Contains(binding, "[data-preview-state=") || strings.Contains(binding, "[data-experience-state=") {
+		return binding
+	}
 	if kind != "async" {
 		return binding
 	}

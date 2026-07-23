@@ -92,6 +92,49 @@ func TestFilesystemDiscoverySource_ManifestParse(t *testing.T) {
 	}
 }
 
+func TestParseManifestRecordsUsesFlatCommandPaths(t *testing.T) {
+	manifest := []byte(`{
+        "name": "demo",
+        "groups": [
+            {
+                "name": "capture",
+                "flat": true,
+                "commands": [{
+                    "name": "capture",
+                    "binding": {"kind": "connect-rpc", "service": "CaptureService", "method": "Capture"},
+                    "governance": {"effect": "write", "run_eligible": true}
+                }]
+            },
+            {
+                "name": "legacy-status",
+                "commands": [{
+                    "name": "legacy-status",
+                    "binding": {"kind": "local"},
+                    "governance": {"effect": "read", "run_eligible": true}
+                }]
+            }
+        ]
+    }`)
+	records, err := parseManifestRecords("demo", manifest)
+	if err != nil {
+		t.Fatalf("parseManifestRecords() error = %v", err)
+	}
+	paths := make(map[string]struct{}, len(records))
+	for _, record := range records {
+		paths[record.FullPath] = struct{}{}
+	}
+	for _, path := range []string{"demo capture", "demo legacy-status"} {
+		if _, ok := paths[path]; !ok {
+			t.Errorf("missing flat command path %q in %#v", path, records)
+		}
+	}
+	for _, phantom := range []string{"demo capture capture", "demo legacy-status legacy-status"} {
+		if _, ok := paths[phantom]; ok {
+			t.Errorf("unexpected doubled manifest path %q", phantom)
+		}
+	}
+}
+
 func TestFilesystemDiscoverySource_HelpFallback_NoBinary(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "scenarios", "ghost"), 0o755); err != nil {

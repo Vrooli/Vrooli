@@ -379,6 +379,8 @@ export class SessionManager {
 
     this.sessions.set(sessionId, session);
 
+    try {
+
     // Setup diagnostic logging for redirect loop debugging
     // Enable with DIAGNOSTIC_LOGGING=true environment variable
     setupDiagnosticLogging(context, sessionId);
@@ -502,20 +504,37 @@ export class SessionManager {
       executionId: spec.execution_id,
     });
 
-    // Return actualViewport from buildContext (includes source attribution)
-    return { sessionId, leaseId: session.leaseId, reused: false, createdAt, actualViewport };
+      // Return actualViewport from buildContext (includes source attribution)
+      return { sessionId, leaseId: session.leaseId, reused: false, createdAt, actualViewport };
+    } catch (error) {
+      // The map insertion precedes several async initializers. A failed
+      // initializer must release browser resources and capacity immediately.
+      await this.closeSession(sessionId).catch((closeError: unknown) => {
+        logger.warn(scopedLog(LogContext.CLEANUP, 'partial session cleanup failed'), {
+          sessionId,
+          error: getErrorMessage(closeError),
+        });
+      });
+      throw error;
+    }
   }
 
   /**
    * Get session by ID
    */
   getSession(sessionId: string): SessionState {
+    const session = this.peekSession(sessionId);
+    session.lastUsedAt = new Date();
+    return session;
+  }
+
+  // Observation must not extend a session lease. Health and observability use
+  // this side-effect-free lookup so polling cannot defeat idle cleanup.
+  peekSession(sessionId: string): SessionState {
     const session = this.sessions.get(sessionId);
     if (!session) {
       throw new SessionNotFoundError(sessionId);
     }
-
-    session.lastUsedAt = new Date();
     return session;
   }
 
@@ -548,10 +567,17 @@ export class SessionManager {
     return this.closeSession(sessionId);
   }
 
+  // Recovery-only path; normal callers must continue to use the lease guard.
+  async forceCloseSession(sessionId: string): Promise<SessionCloseResult> {
+    return this.closeSession(sessionId);
+  }
+
   /**
    * Export the current storage state (cookies/localStorage/etc) for a session.
    */
   async getStorageState(sessionId: string): Promise<unknown> {
+    // Exporting storage is an operation on the session, not observation. Keep
+    // the idle lease alive while the caller is actively using it.
     const session = this.getSession(sessionId);
     return session.context.storageState();
   }
@@ -699,7 +725,7 @@ export class SessionManager {
     isRecording: boolean;
     url: string;
   } {
-    const session = this.getSession(sessionId);
+    const session = this.peekSession(sessionId);
 
     // Hardened: page.url() can throw if page is in an error state
     let currentUrl = 'about:blank';
@@ -1072,6 +1098,7 @@ export class SessionManager {
     is_idle: boolean;
     is_recording: boolean;
     instruction_count: number;
+    owner_execution_id: string;
     workflow_id?: string;
     current_url?: string;
     page_count: number;
@@ -1086,6 +1113,7 @@ export class SessionManager {
       is_idle: boolean;
       is_recording: boolean;
       instruction_count: number;
+      owner_execution_id: string;
       workflow_id?: string;
       current_url?: string;
       page_count: number;
@@ -1109,6 +1137,7 @@ export class SessionManager {
         is_idle: idleTimeMs >= this.config.session.idleTimeoutMs,
         is_recording: session.pipelineManager?.isRecording() ?? false,
         instruction_count: session.instructionCount,
+        owner_execution_id: session.ownerExecutionId,
         workflow_id: session.spec.workflow_id,
         current_url: currentUrl,
         page_count: session.pages.length,

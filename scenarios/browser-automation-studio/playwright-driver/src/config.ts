@@ -109,6 +109,7 @@ export const CONFIG_TIER_METADATA: Record<string, ConfigOptionMetadata> = {
 
   // === Tier 3: Internal ===
   PLAYWRIGHT_DRIVER_HOST: { tier: ConfigTier.INTERNAL, defaultValue: '127.0.0.1', description: 'HTTP server host', dataType: 'string', editable: false },
+  PLAYWRIGHT_DRIVER_ADMIN_SECRET: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Shared secret required for loopback administrative session recovery', dataType: 'string', editable: false },
   REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout', dataType: 'integer', min: 1000, max: 600000, editable: true },
   MAX_REQUEST_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 5242880, description: 'Max request body size (bytes)', dataType: 'integer', min: 1024, max: 52428800, editable: false },
   HEADLESS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Use headless_shell binary (false = regular Chromium with --headless=new)', dataType: 'boolean', editable: false },
@@ -168,6 +169,7 @@ const ConfigSchema = z.object({
     host: z.string().default('127.0.0.1'),
     requestTimeout: z.number().min(1000).max(600000).default(300000), // 5 minutes - playwright operations can be slow
     maxRequestSize: z.number().min(1024).max(50 * 1024 * 1024).default(5 * 1024 * 1024),
+    adminSecret: z.string().default(''),
   }),
   browser: z.object({
     /**
@@ -494,6 +496,7 @@ export function loadConfig(): Config {
       host: process.env.PLAYWRIGHT_DRIVER_HOST || '127.0.0.1',
       requestTimeout: parseEnvInt(process.env.REQUEST_TIMEOUT_MS, 300000), // 5 minutes
       maxRequestSize: parseEnvInt(process.env.MAX_REQUEST_SIZE, 5242880),
+      adminSecret: process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET?.trim() || '',
     },
     browser: {
       // Default to false to use regular Chromium with --headless=new (not headless_shell)

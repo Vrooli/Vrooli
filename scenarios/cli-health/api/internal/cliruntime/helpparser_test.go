@@ -301,6 +301,27 @@ Commands:
 	}
 }
 
+// TestParseHelpEntries_LongCommandWithSingleSpaceBeforeDescription protects
+// the aligned-help edge case where the longest command has only one separating
+// space before its description. This is common in cli-core output and must not
+// make runtime manifest validation report a healthy command as missing.
+func TestParseHelpEntries_LongCommandWithSingleSpaceBeforeDescription(t *testing.T) {
+	const help = `example CLI
+
+Subcommands:
+  short-command          A shorter command with padded alignment.
+  element-at-coordinate Probe an element at a coordinate.
+`
+
+	got := parseHelpEntries([]byte(help))
+	if len(got) != 2 {
+		t.Fatalf("expected two command entries, got %+v", got)
+	}
+	if got[1].Name != "element-at-coordinate" || got[1].Description != "Probe an element at a coordinate." {
+		t.Fatalf("long command with one separator was not parsed correctly: %+v", got[1])
+	}
+}
+
 // TestParseHelpTree_AliasSubcommands covers the cli-core "Subcommands:" listing
 // where each row is a comma-separated alias list (`create, add  <desc>`). Before
 // the commandLineRE fix the whole row failed to match, so `action` collapsed to

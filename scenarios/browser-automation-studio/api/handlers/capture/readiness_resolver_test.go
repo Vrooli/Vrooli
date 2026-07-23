@@ -26,4 +26,7 @@ func TestTerminalReadinessSelectorWaitsForDeclaredAsyncTerminalState(t *testing.
 	if got := terminalReadinessSelector(`[data-testid="guidance"]`, "static", []string{"static"}); got != `[data-testid="guidance"]` {
 		t.Fatalf("static selector = %q", got)
 	}
+	if got := terminalReadinessSelector(`[data-testid="component-detail-page"][data-preview-state="ready"]`, "async", []string{"loading", "ready"}); got != `[data-testid="component-detail-page"][data-preview-state="ready"]` {
+		t.Fatalf("declared terminal selector = %q", got)
+	}
 }

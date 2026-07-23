@@ -82,6 +82,9 @@ describe("ComponentDetailPage", () => {
     vi.mocked(componentsClient.getComponentByLibraryId).mockResolvedValue(
       {} as Awaited<ReturnType<typeof componentsClient.getComponentByLibraryId>>,
     );
+    vi.mocked(componentsClient.listComponents).mockResolvedValue(
+      { components: [] } as unknown as Awaited<ReturnType<typeof componentsClient.listComponents>>,
+    );
     vi.mocked(getCatalogAsset).mockResolvedValue({
       component: {
         id: "cmp-42",
@@ -237,6 +240,25 @@ describe("ComponentDetailPage", () => {
     );
 
     expect(screen.getByTestId("component-detail-loading")).toBeInTheDocument();
+  });
+
+  it("resolves a bare slug through the catalog when direct lookups miss", async () => {
+    vi.mocked(componentsClient.getComponent).mockRejectedValueOnce(new Error("id is not a uuid"));
+    vi.mocked(componentsClient.getComponentByLibraryId).mockRejectedValueOnce(new Error("unknown library id"));
+    vi.mocked(componentsClient.listComponents).mockResolvedValueOnce(
+      { components: [{ id: "cmp-42", slug: "Button" }] } as unknown as Awaited<ReturnType<typeof componentsClient.listComponents>>,
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/components/:id" element={<ComponentDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/components/Button"] },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("component-detail-page")).toBeInTheDocument();
+    });
   });
 
   it("renders an error when the component lookup returns no component", async () => {

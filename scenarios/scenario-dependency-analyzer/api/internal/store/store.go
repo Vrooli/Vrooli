@@ -38,8 +38,8 @@ func (s *Store) CleanupInvalidScenarioDependencies(known map[string]struct{}) er
 	if err != nil {
 		return fmt.Errorf("query scenario dependencies: %w", err)
 	}
-	defer rows.Close()
 
+	orphaned := make([]string, 0)
 	for rows.Next() {
 		var dep string
 		if scanErr := rows.Scan(&dep); scanErr != nil {
@@ -48,6 +48,20 @@ func (s *Store) CleanupInvalidScenarioDependencies(known map[string]struct{}) er
 		if _, ok := known[normalizeName(dep)]; ok {
 			continue
 		}
+		orphaned = append(orphaned, dep)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return fmt.Errorf("iterate scenario dependencies: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close scenario dependency query: %w", err)
+	}
+
+	// The production database intentionally has a single connection. Release the
+	// query cursor before issuing writes so this maintenance task cannot exhaust
+	// that pool and make the health endpoint time out.
+	for _, dep := range orphaned {
 		if _, err := s.db.Exec(`
             DELETE FROM scenario_dependencies
             WHERE dependency_type = 'scenario' AND dependency_name = ?`, dep); err != nil {

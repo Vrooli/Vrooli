@@ -1,10 +1,11 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "browser-automation-studio",
-  "description": "Browser Automation Studio CLI surface. Single source of truth for command groups, flag shapes, governance metadata, and proto-method bindings. Cross-validated at test time against generated Connect service descriptors (see cli/capture/manifest_proto_test.go). Manifest-driven command dispatch is being adopted incrementally per the proto+Connect migration plan; hand-coded domains continue to register through cli/domains until migrated.",
+  "description": "Browser Automation Studio CLI surface. Single source of truth for command groups, flag shapes, governance metadata, and bindings. Connect-RPC commands are cross-validated at test time against generated service descriptors; explicit local bindings catalog the top-level commands that intentionally own non-RPC behavior.",
   "groups": [
     {
       "name": "capture",
+      "flat": true,
       "description": "Capture screenshot/console/network/video/DOM/performance/accessibility artifacts from a single page load",
       "commands": [
         {
@@ -29,6 +30,62 @@
             "run_eligible": true,
             "permissions": ["network:internal", "network:external", "filesystem:write"]
           }
+        }
+      ]
+    },
+    {
+      "name": "status",
+      "flat": true,
+      "description": "Show BAS API and workflow operational status.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show operational status and resource health.",
+          "flags": [
+            { "name": "json", "bool": true, "description": "Emit the operational report as JSON." }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "playbooks",
+      "flat": true,
+      "description": "Order, scaffold, and verify BAS playbook registries.",
+      "commands": [
+        {
+          "name": "playbooks",
+          "description": "Manage playbook registries using order, scaffold, or verify.",
+          "positionals": [
+            { "name": "operation", "required": true, "description": "One of: order, scaffold, verify." }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] }
+        }
+      ]
+    },
+    {
+      "name": "recording",
+      "flat": true,
+      "description": "Import recordings into BAS workflows.",
+      "commands": [
+        {
+          "name": "recording",
+          "description": "Import a recording archive into a BAS workflow.",
+          "positionals": [
+            { "name": "operation", "required": true, "description": "Only supported operation: import." },
+            { "name": "archive", "required": true, "description": "Recording archive path; command form is recording import <archive>." }
+          ],
+          "flags": [
+            { "name": "project-id", "description": "Target project UUID." },
+            { "name": "project-name", "description": "Target project name." },
+            { "name": "workflow-id", "description": "Target workflow UUID." },
+            { "name": "workflow-name", "description": "Target workflow name." },
+            { "name": "json", "bool": true, "description": "Emit the imported recording result as JSON." }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"] }
         }
       ]
     },
@@ -1741,5 +1798,25 @@
       ]
     }
   ],
-  "omitted": []
+  "omitted": [
+    { "service": "RecordingsService", "method": "GetStorageState", "reason": "UI-owned storage inspector; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "ClearAllStorage", "reason": "UI-owned destructive storage control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "ClearAllCookies", "reason": "UI-owned destructive cookie control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "DeleteCookiesByDomain", "reason": "UI-owned destructive cookie control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "DeleteCookie", "reason": "UI-owned destructive cookie control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "ClearAllLocalStorage", "reason": "UI-owned destructive storage control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "DeleteLocalStorageByOrigin", "reason": "UI-owned destructive storage control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "DeleteLocalStorageItem", "reason": "UI-owned destructive storage control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "GetServiceWorkers", "reason": "UI-owned live-session inspector; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "ClearAllServiceWorkers", "reason": "UI-owned destructive live-session control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "DeleteServiceWorker", "reason": "UI-owned destructive live-session control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "GetHistory", "reason": "UI-owned history inspector; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "ClearHistory", "reason": "UI-owned destructive history control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "DeleteHistoryEntry", "reason": "UI-owned destructive history control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "UpdateHistorySettings", "reason": "UI-owned history settings control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "NavigateToHistoryURL", "reason": "UI-owned live-session navigation affordance; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "GetSessionTabs", "reason": "UI-owned saved-tabs inspector; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "ClearSessionTabs", "reason": "UI-owned destructive saved-tabs control; no CLI command is currently exposed." },
+    { "service": "RecordingsService", "method": "DeleteSessionTab", "reason": "UI-owned destructive saved-tabs control; no CLI command is currently exposed." }
+  ]
 }

@@ -7,6 +7,9 @@ package sidecar
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -72,6 +75,15 @@ func BuildDependencies(
 		return &Dependencies{}, nil
 	}
 
+	// Managed sidecars need an administrative recovery secret even when the
+	// operator did not configure one. Keep it in memory and pass it only to
+	// the child process; external drivers retain the explicit env-var contract.
+	adminSecret, err := recoveryAdminSecret()
+	if err != nil {
+		return nil, err
+	}
+	driverClient.SetAdministrativeSecret(adminSecret)
+
 	// 1. Build checkpoint store (SQLite)
 	checkpointStore := recovery.NewSQLiteStore(db, log)
 
@@ -93,6 +105,7 @@ func BuildDependencies(
 		supervisorCfg.DriverScript,
 		supervisorCfg.DriverPort,
 		log,
+		fmt.Sprintf("%s=%s", driver.PlaywrightDriverAdminSecretEnv, adminSecret),
 	)
 
 	// 4. Build supervisor
@@ -189,6 +202,17 @@ func BuildDependencies(
 		CheckpointManager: checkpointMgr,
 		Store:             checkpointStore,
 	}, nil
+}
+
+func recoveryAdminSecret() (string, error) {
+	if configured := strings.TrimSpace(os.Getenv(driver.PlaywrightDriverAdminSecretEnv)); configured != "" {
+		return configured, nil
+	}
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("generate playwright-driver administrative recovery secret: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
 }
 
 // Start starts all sidecar services.

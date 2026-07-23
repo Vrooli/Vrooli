@@ -1,4 +1,4 @@
-import { handleSessionClose } from '../../../src/routes/session-close';
+import { handleSessionClose, handleSessionForceClose } from '../../../src/routes/session-close';
 import { SessionManager } from '../../../src/session/manager';
 import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 import { promises as fs } from 'node:fs';
@@ -92,6 +92,27 @@ describe('Session Close Route', () => {
 
     // Session should no longer exist
     expect(() => sessionManager.getSession(sessionId)).toThrow();
+  });
+
+  it('force-closes only for a loopback caller holding the recovery secret', async () => {
+    const config = createTestConfig({ server: { adminSecret: 'recovery-secret' } });
+    const { sessionId } = await sessionManager.startSession({
+      execution_id: 'exec-force-close', workflow_id: 'workflow-force-close', base_url: 'https://example.com',
+      viewport: { width: 1280, height: 720 }, reuse_mode: 'fresh', required_capabilities: {},
+    });
+    const unauthorized = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/force-close` });
+    Object.assign(unauthorized, { socket: { remoteAddress: '127.0.0.1' } });
+    const unauthorizedRes = createMockHttpResponse();
+    await handleSessionForceClose(unauthorized, unauthorizedRes, sessionId, sessionManager, config);
+    expect(unauthorizedRes.statusCode).toBe(403);
+    expect(() => sessionManager.peekSession(sessionId)).not.toThrow();
+
+    const authorized = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/force-close`, headers: { 'x-playwright-admin-secret': 'recovery-secret' } });
+    Object.assign(authorized, { socket: { remoteAddress: '127.0.0.1' } });
+    const authorizedRes = createMockHttpResponse();
+    await handleSessionForceClose(authorized, authorizedRes, sessionId, sessionManager, config);
+    expect(authorizedRes.statusCode).toBe(200);
+    expect(() => sessionManager.peekSession(sessionId)).toThrow();
   });
 
   it('should return video paths when available', async () => {

@@ -345,7 +345,7 @@
             "expect_within_top_k": 5
           },
           {
-            "id": "swarm-manager-depends",
+            "id": "swarm-manager-depends-weak-real",
             "query": "what does swarm-manager depend on",
             "tags": [
               "weak-real"

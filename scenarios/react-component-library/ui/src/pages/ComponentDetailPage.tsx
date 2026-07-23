@@ -95,6 +95,7 @@ export function ComponentDetailPage() {
   const selectedStory = assetStory(search);
   const setInfoTab = (tab: InfoTab) => setSearch(assetSearchForTab(tab, undefined, selectedStory), { replace: true });
   const [selectedAdoptionID, setSelectedAdoptionID] = useState("");
+  const [previewExperienceState, setPreviewExperienceState] = useState<"loading" | "partial" | "ready" | "error">("loading");
 
   useEffect(() => {
     if (!id || search.has("tab") || search.has("story")) return;
@@ -126,7 +127,19 @@ export function ComponentDetailPage() {
         // Dependency links use a stable library ID; fall through to that
         // canonical lookup when the route parameter is not a UUID.
       }
-      return componentsClient.getComponentByLibraryId({ libraryId: id ?? "" });
+      try {
+        const byLibrary = await componentsClient.getComponentByLibraryId({ libraryId: id ?? "" });
+        if (byLibrary.component) return byLibrary;
+      } catch {
+        // Hand-typed and externally shared URLs use the bare slug; resolve it
+        // against the catalog before declaring the asset missing.
+      }
+      const list = await componentsClient.listComponents({});
+      const match = (list.components ?? []).find((component) => component.slug === id);
+      if (match) return componentsClient.getComponent({ id: match.id });
+      // Resolving to "no component" (instead of throwing) renders not-found
+      // immediately rather than after the query client's retry backoff.
+      return { component: undefined };
     },
     enabled: !!id,
   });
@@ -211,7 +224,7 @@ export function ComponentDetailPage() {
   const selectedAdoption = adoptions.find((adoption) => adoption.id === selectedAdoptionID) ?? adoptions[0];
 
   return (
-    <div data-testid="component-detail-page" className="flex min-h-0 flex-1 flex-col">
+    <div data-testid="component-detail-page" data-preview-state={previewExperienceState} className="flex min-h-0 flex-1 flex-col">
       <ComponentEditor
         id={component.id}
         libraryId={component.libraryId || component.id}
@@ -223,6 +236,7 @@ export function ComponentDetailPage() {
         onActivePaneChange={(pane) => setInfoTab(tabForPane(pane, infoTab))}
         selectedStory={selectedStory}
         onSelectedStoryChange={(story) => setSearch(assetSearchForTab(infoTab, undefined, story), { replace: true })}
+        onPreviewExperienceStateChange={setPreviewExperienceState}
         navigationSlot={<DetailTabs active={infoTab} onChange={setInfoTab} versionCount={component.metrics?.versionCount ?? 0} adoptionCount={component.metrics?.directAdoptionCount ?? adoptions.length} />}
         comparison={comparison}
         onCloseComparison={() => setComparison(null)}

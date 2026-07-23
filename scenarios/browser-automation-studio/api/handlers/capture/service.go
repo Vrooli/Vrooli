@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/viewport"
 	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basebase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -57,9 +58,22 @@ func (s *service) Capture(
 		return nil, err
 	}
 
+	capturesRoot := strings.TrimSpace(s.deps.CapturesRoot)
+	if capturesRoot == "" {
+		capturesRoot = filepath.Join(os.TempDir(), "bas-capture")
+	}
 	outDir := strings.TrimSpace(msg.GetOutDir())
-	if outDir == "" {
-		outDir = filepath.Join("/tmp/bas-capture", uuid.NewString())
+	switch {
+	case outDir == "":
+		outDir = filepath.Join(capturesRoot, uuid.NewString())
+	case !filepath.IsAbs(outDir):
+		// Relative out dirs anchor to the captures root, not the API
+		// process's working directory. Reject traversal that would escape it.
+		joined := filepath.Join(capturesRoot, outDir)
+		if rel, relErr := filepath.Rel(capturesRoot, joined); relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("out dir %q escapes the captures root", msg.GetOutDir()))
+		}
+		outDir = joined
 	}
 
 	if isDryRun(req.Header().Get("X-Dry-Run")) {
@@ -131,6 +145,7 @@ func (s *service) Capture(
 	}
 
 	execID := resp.GetExecutionId()
+	readinessOutcome := readinessOutcomeForExecutionStatus(resp.GetStatus())
 	executionOutDir := filepath.Join(outDir, execID)
 
 	executionUUID, err := uuid.Parse(execID)
@@ -139,6 +154,16 @@ func (s *service) Capture(
 	}
 	if err := s.deps.Executor.ExportToFolder(ctx, executionUUID, executionOutDir, s.deps.Storage); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("export artifacts: %w", err))
+	}
+	if resp.GetStatus() != basebase.ExecutionStatus_EXECUTION_STATUS_COMPLETED {
+		failure := strings.TrimSpace(resp.GetError())
+		if failure == "" {
+			failure = strings.TrimSpace(resp.GetMessage())
+		}
+		if failure == "" {
+			failure = strings.ToLower(strings.TrimPrefix(resp.GetStatus().String(), "EXECUTION_STATUS_"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("capture execution %s finished %s: %s", execID, strings.ToLower(strings.TrimPrefix(resp.GetStatus().String(), "EXECUTION_STATUS_")), failure))
 	}
 
 	artifacts, err := s.deps.Producers.ProduceAll(captures, executionOutDir)
@@ -171,7 +196,6 @@ func (s *service) Capture(
 	}
 
 	duration := s.deps.Now().Sub(start).Milliseconds()
-	readinessOutcome := "ready"
 	timing := readinessTimelineTiming{}
 	timingAvailable := false
 	if observedTiming, timingErr := readinessTiming(executionOutDir); timingErr != nil {
@@ -199,6 +223,26 @@ func (s *service) Capture(
 		AccessibilityJson: accessibilityJSON,
 		Readiness:         captureReadinessDiagnosticsWithTiming(msg.GetWaitFor(), selectedReadiness, readinessOutcome, duration, fallbackReason, declaredResolution, timing),
 	}), nil
+}
+
+// readinessOutcomeForExecutionStatus preserves the readiness contract's
+// user-facing success value while deriving it from the executor's terminal
+// state rather than assuming every completed RPC is ready.
+func readinessOutcomeForExecutionStatus(status basebase.ExecutionStatus) string {
+	switch status {
+	case basebase.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
+		return "ready"
+	case basebase.ExecutionStatus_EXECUTION_STATUS_FAILED:
+		return "failed"
+	case basebase.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
+		return "cancelled"
+	case basebase.ExecutionStatus_EXECUTION_STATUS_RUNNING:
+		return "running"
+	case basebase.ExecutionStatus_EXECUTION_STATUS_PENDING:
+		return "pending"
+	default:
+		return "unknown"
+	}
 }
 
 func requestedReadinessStrategy(wait *capturev1.WaitFor) string {

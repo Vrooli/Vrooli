@@ -23,6 +23,46 @@ func newTestStore(t *testing.T) *Store {
 	return New(db)
 }
 
+func TestCleanupInvalidScenarioDependenciesDoesNotExhaustSingleConnectionPool(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:cleanup-single-connection?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(Schema()); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO scenario_dependencies (scenario_name, dependency_type, dependency_name, required)
+		VALUES ('consumer', 'scenario', 'orphaned-scenario', 1)`); err != nil {
+		t.Fatalf("seed dependency: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- New(db).CleanupInvalidScenarioDependencies(map[string]struct{}{"known-scenario": {}})
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("cleanup dependencies: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cleanup blocked while a single-connection SQLite pool still had query rows open")
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM scenario_dependencies WHERE dependency_name = 'orphaned-scenario'`).Scan(&count); err != nil {
+		t.Fatalf("count orphaned dependencies: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("orphaned dependency was not removed; count=%d", count)
+	}
+}
+
 func TestGraphEdgesReplaceLoadRoundTrip(t *testing.T) {
 	s := newTestStore(t)
 	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)

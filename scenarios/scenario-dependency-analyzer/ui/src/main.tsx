@@ -4,6 +4,7 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
 import { installChunkReloadGuard } from "@vrooli/api-base";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { onProfilerRender } from "./lib/profiler";
 import "./i18n";
 import "./styles/global.css";
 
@@ -40,7 +41,9 @@ if (
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        <App />
+      </React.Profiler>
     </ErrorBoundary>
   </React.StrictMode>
 );

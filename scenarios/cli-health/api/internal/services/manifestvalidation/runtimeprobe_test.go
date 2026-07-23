@@ -296,6 +296,38 @@ HELP
 	}
 }
 
+// BAS's scenario-local CLI is the binary selected by the comprehensive
+// contracts provider. Keep its help-tree probe honest for the two commands
+// that previously disappeared when a stale local binary was left in place.
+func TestCLIRuntimeProbe_BASLocalCLIExposesManifestLeaves(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+	cliDir := filepath.Join(repoRoot, "scenarios", "browser-automation-studio", "cli")
+	t.Setenv("PATH", cliDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	obs, err := NewCLIRuntimeProbe(5*time.Second).Probe(context.Background(), "browser-automation-studio")
+	if err != nil {
+		t.Fatalf("probe BAS CLI: %v", err)
+	}
+	if !obs.Resolved || obs.HelpFailed {
+		t.Fatalf("BAS local CLI must resolve with working help: %+v", obs)
+	}
+	want := map[string]bool{
+		"ai/element-at-coordinate":       false,
+		"projects/bulk-delete-workflows": false,
+	}
+	for _, command := range obs.Commands {
+		path := command.Group + "/" + command.Name
+		if _, tracked := want[path]; tracked {
+			want[path] = true
+		}
+	}
+	for path, found := range want {
+		if !found {
+			t.Errorf("BAS local CLI help tree did not expose %s; commands=%+v", path, obs.Commands)
+		}
+	}
+}
+
 // End-to-end production probe against a binary whose --help exits non-zero:
 // resolves but HelpFailed is reported.
 func TestCLIRuntimeProbe_RealBinaryHelpFails(t *testing.T) {

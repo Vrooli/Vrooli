@@ -45,10 +45,11 @@ type ExportPlan struct {
 	Screenshots []PlannedScreenshot
 }
 
-// BuildExportPlan is the PURE half of ExportToFolder: given a timeline
-// and the human workflow name, it returns the full set of files (with
-// resolved content) and screenshot copy operations, performing no I/O.
-func BuildExportPlan(timeline *export.ExecutionTimeline, workflowName string) (*ExportPlan, error) {
+// BuildExportPlan is the PURE half of ExportToFolder: given a timeline, the
+// human workflow name, and the persisted execution error, it returns the full
+// set of files (with resolved content) and screenshot copy operations,
+// performing no I/O.
+func BuildExportPlan(timeline *export.ExecutionTimeline, workflowName, executionError string) (*ExportPlan, error) {
 	if workflowName == "" {
 		workflowName = "Unnamed Workflow"
 	}
@@ -61,7 +62,7 @@ func BuildExportPlan(timeline *export.ExecutionTimeline, workflowName string) (*
 	}
 	plan.Files = append(plan.Files, PlannedFile{RelPath: "timeline.json", Content: timelineJSON})
 
-	result := buildResultSummary(timeline)
+	result := buildResultSummary(timeline, executionError)
 	resultJSON, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal result: %w", err)

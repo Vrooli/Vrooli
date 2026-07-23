@@ -514,6 +514,17 @@ describe("ComponentEditor", () => {
     expect(error.textContent).toContain("preview: render failed - boom");
   });
 
+  it("reports loading, ready, and partial preview states to the asset-page readiness contract", async () => {
+    const states: string[] = [];
+    renderWithProviders(<ComponentEditor id="cmp-state" libraryId="lib:State" onClose={() => {}} activePane="preview" onPreviewExperienceStateChange={(state) => states.push(state)} />);
+    const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+    expect(states).toContain("loading");
+    window.dispatchEvent(new MessageEvent("message", { data: { type: "preview-ready", id: "cmp-state", story: "__default__", version: "__current__" }, source: frame.contentWindow }));
+    await waitFor(() => expect(states).toContain("ready"));
+    window.dispatchEvent(new MessageEvent("message", { data: { type: "preview-error", id: "cmp-state", story: "__default__", version: "__current__", message: "failed" }, source: frame.contentWindow }));
+    await waitFor(() => expect(states).toContain("partial"));
+  });
+
   it("compares two selected stories and clears the comparison", async () => {
     const { componentsClient, listComponentStories } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(makeGetComponentContentResponse({ content: "v1", sha256: "sha-compare" }));

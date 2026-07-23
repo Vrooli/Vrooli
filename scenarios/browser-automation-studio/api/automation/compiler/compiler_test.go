@@ -1116,3 +1116,106 @@ func TestCompileWorkflow_WorkflowIDPreserved(t *testing.T) {
 	assert.Equal(t, workflowID, plan.WorkflowID)
 	assert.Equal(t, "id-test", plan.WorkflowName)
 }
+
+// The compiler marshals flow definitions with UseProtoNames (snake_case) while
+// the param builders consume protojson-default camelCase. These tests pin the
+// full seam: typed proto node → compiled params map → rebuilt ActionDefinition.
+// Regression: wait durations were silently dropped and the driver fell back to
+// its 1000ms default (scenario-qa knw-1784773788743993536).
+func TestCompileWorkflow_WaitDurationSurvivesProtoNamesMarshal(t *testing.T) {
+	timeout := int32(20000)
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"wait-duration-flow",
+		[]*basworkflows.WorkflowNodeV2{
+			{
+				Id: "nav",
+				Action: &basactions.ActionDefinition{
+					Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+					Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+				},
+			},
+			{
+				Id: "wait",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_WAIT,
+					Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{
+						WaitFor:   &basactions.WaitParams_DurationMs{DurationMs: 15000},
+						TimeoutMs: &timeout,
+					}},
+				},
+			},
+		},
+		[]*basworkflows.WorkflowEdgeV2{
+			{Id: "e1", Source: "nav", Target: "wait"},
+		},
+	)
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	require.Len(t, plan.Steps, 2)
+
+	waitStep := plan.Steps[1]
+	require.Equal(t, StepWait, waitStep.Type)
+
+	action, err := BuildActionDefinition(string(waitStep.Type), waitStep.Params)
+	require.NoError(t, err)
+	waitParams := action.GetWait()
+	require.NotNil(t, waitParams)
+	assert.Equal(t, int32(15000), waitParams.GetDurationMs(), "wait duration must survive the snake_case marshal/rebuild roundtrip")
+	assert.Equal(t, int32(20000), waitParams.GetTimeoutMs())
+}
+
+func TestCompileWorkflow_MultiWordParamsSurviveProtoNamesMarshal(t *testing.T) {
+	clickCount := int32(2)
+	delayMs := int32(250)
+	clearFirst := true
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"multi-word-params-flow",
+		[]*basworkflows.WorkflowNodeV2{
+			{
+				Id: "click",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_CLICK,
+					Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{
+						Selector:   "#btn",
+						ClickCount: &clickCount,
+						DelayMs:    &delayMs,
+					}},
+				},
+			},
+			{
+				Id: "input",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_INPUT,
+					Params: &basactions.ActionDefinition_Input{Input: &basactions.InputParams{
+						Selector:   "#field",
+						Value:      "hello",
+						ClearFirst: &clearFirst,
+					}},
+				},
+			},
+		},
+		[]*basworkflows.WorkflowEdgeV2{
+			{Id: "e1", Source: "click", Target: "input"},
+		},
+	)
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	require.Len(t, plan.Steps, 2)
+
+	clickAction, err := BuildActionDefinition(string(plan.Steps[0].Type), plan.Steps[0].Params)
+	require.NoError(t, err)
+	clickParams := clickAction.GetClick()
+	require.NotNil(t, clickParams)
+	assert.Equal(t, int32(2), clickParams.GetClickCount())
+	assert.Equal(t, int32(250), clickParams.GetDelayMs())
+
+	inputAction, err := BuildActionDefinition(string(plan.Steps[1].Type), plan.Steps[1].Params)
+	require.NoError(t, err)
+	inputParams := inputAction.GetInput()
+	require.NotNil(t, inputParams)
+	assert.True(t, inputParams.GetClearFirst())
+}

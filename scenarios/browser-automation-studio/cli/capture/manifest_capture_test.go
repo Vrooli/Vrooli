@@ -14,8 +14,9 @@ import (
 // `--captures` / `--out-dir` bug found in the post-migration smoke
 // test; this test makes that class of drift fail at test time.
 //
-// capture is one of the two hand-coded local CommandGroups (the other
-// is `status`); the rest of the BAS CLI is manifest-dispatched via
+// capture is a hand-coded local CommandGroup; its explicit `local` manifest
+// binding catalogs its public contract while preserving the purpose-built
+// execution path. Connect-RPC domains are manifest-dispatched via
 // internal/protodispatch where this parity is guaranteed structurally.
 func TestCaptureArgSchemaCoversManifestFlags(t *testing.T) {
 	manifest := readBASManifest(t)

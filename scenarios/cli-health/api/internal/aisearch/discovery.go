@@ -340,7 +340,7 @@ func parseManifestRecords(scenario string, raw []byte) ([]CommandRecord, error) 
 			// path: dropped when empty or a pure repeat of the leaf desc) so
 			// manifest-discovered commands carry the same query vocabulary.
 			rec.GroupDescription = cliruntime.GroupContext(groupDesc, rec.Description)
-			rec.FullPath = canonicalFullPath(scenario, groupName, rec.Name)
+			rec.FullPath = canonicalManifestFullPath(scenario, groupName, rec.Name, group.Flat, len(group.Commands))
 
 			for _, f := range cmd.Flags {
 				if name := strings.TrimSpace(f.Name); name != "" {
@@ -413,6 +413,15 @@ func canonicalFullPath(scenario, group, name string) string {
 		parts = append(parts, name)
 	}
 	return strings.Join(parts, " ")
+}
+
+func canonicalManifestFullPath(scenario, group, name string, flat bool, commandCount int) string {
+	// The fallback repairs manifests authored before flat was explicit: a
+	// one-command group repeating its own name can only dispatch as a flat leaf.
+	if flat || (commandCount == 1 && group == name) {
+		group = ""
+	}
+	return canonicalFullPath(scenario, group, name)
 }
 
 // helpFallback walks the CLI's `--help` tree recursively and emits one

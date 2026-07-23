@@ -1,6 +1,7 @@
 // Package domains assembles the BAS CLI command surface from per-domain
-// register packages. Hand-coded local-only domains (status, playbooks)
-// stay as flat CommandGroups; every manifest-bound domain returns a
+// register packages. Local-only domains (status, playbooks, capture, and
+// recording) stay as flat CommandGroups and are explicitly cataloged with
+// binding.kind=local; every Connect-RPC domain returns a
 // SubcommandGroup built from cli/manifest.json via cliapp.LoadFromManifest.
 //
 // Phase 10 of the BAS proto+Connect migration
@@ -38,9 +39,10 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// CommandGroups returns the flat (legacy/local-only) command groups.
-// Manifest-bound subcommand groups are surfaced via SubcommandGroups
-// below.
+// CommandGroups returns the flat local command groups. Their behavior stays
+// hand-coded because they own operational reports, workspace mutations, or
+// multipart upload, while their discoverability/governance lives in the
+// manifest. Connect-RPC subcommand groups are surfaced below.
 func CommandGroups(ctx *appctx.Context) []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{
 		status.Commands(ctx),

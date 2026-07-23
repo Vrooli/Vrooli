@@ -67,7 +67,7 @@ func captureArgSchema() cliapp.ArgSchema {
 			{Name: "height", Description: "Explicit viewport height (overrides preset)"},
 			{Name: "device-scale-factor", Description: "CSS pixel ratio (0.5-4.0)"},
 			{Name: "wait-for", Description: "Readiness: CSS selector | 'networkidle' | timeout in ms"},
-			{Name: "out", Description: "Server-relative output directory for artifact files"},
+			{Name: "out", Description: "Output directory for artifact files; relative paths resolve under the scenario's captures storage root"},
 			{Name: "label", Description: "Label echoed into the artifact bundle"},
 			{Name: "inline-accessibility", Bool: true, Description: "Return the normalized accessibility-tree snapshot JSON inline (drives the AX capture; independent of --capture)"},
 			{Name: "dry-run", Bool: true, Description: "Send X-Dry-Run header; server validates without producing artifacts"},

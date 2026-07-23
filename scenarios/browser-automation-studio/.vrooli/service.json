@@ -147,6 +147,11 @@
           "description": "Build Go API binary"
         },
         {
+          "name": "build-cli",
+          "run": "cd cli && go build -o browser-automation-studio .",
+          "description": "Build the scenario-local CLI used by runtime contract validation"
+        },
+        {
           "name": "install-ui-deps",
           "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'No package.json found, skipping pnpm install'; fi",
           "description": "Install React UI dependencies"

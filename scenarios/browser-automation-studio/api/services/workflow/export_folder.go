@@ -33,7 +33,7 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 		return fmt.Errorf("failed to get timeline: %w", err)
 	}
 
-	plan, err := BuildExportPlan(timeline, workflow.Name)
+	plan, err := BuildExportPlan(timeline, workflow.Name, execution.ErrorMessage)
 	if err != nil {
 		return err
 	}
@@ -297,8 +297,10 @@ type ResultSummary struct {
 	Error          string `json:"error,omitempty"`
 }
 
-// buildResultSummary creates a simple summary from the execution timeline.
-func buildResultSummary(timeline *export.ExecutionTimeline) *ResultSummary {
+// buildResultSummary creates a simple summary from the execution timeline. An
+// execution can fail before creating a timeline frame, so the persisted
+// execution error is the authoritative fallback for a zero-step failure.
+func buildResultSummary(timeline *export.ExecutionTimeline, executionError string) *ResultSummary {
 	result := &ResultSummary{
 		Status:      timeline.Status,
 		ExecutionID: timeline.ExecutionID.String(),
@@ -325,6 +327,9 @@ func buildResultSummary(timeline *export.ExecutionTimeline) *ResultSummary {
 				result.Error = frame.Error
 			}
 		}
+	}
+	if result.Error == "" {
+		result.Error = strings.TrimSpace(executionError)
 	}
 
 	return result

@@ -15,6 +15,22 @@ type Viewport struct {
 	Height int `json:"height"`
 }
 
+// ObservedSession is the non-sensitive session inventory exposed by the
+// driver observability endpoint. It is intentionally distinct from the
+// lease-protected command surface: the API uses it only to recover sessions
+// whose owning execution is already terminal.
+type ObservedSession struct {
+	ID               string `json:"id"`
+	OwnerExecutionID string `json:"owner_execution_id"`
+	CreatedAt        string `json:"created_at"`
+	LastUsedAt       string `json:"last_used_at"`
+}
+
+// ObservedSessionsResponse is returned by GET /observability/sessions.
+type ObservedSessionsResponse struct {
+	Sessions []ObservedSession `json:"sessions"`
+}
+
 // ViewportSource describes what determined the actual viewport dimensions.
 // This attribution helps users understand why dimensions may differ from requested.
 type ViewportSource string

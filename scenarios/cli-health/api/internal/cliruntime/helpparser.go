@@ -110,7 +110,10 @@ var (
 	// regardless of trailing spaces.
 	sectionHeaderRE = regexp.MustCompile(`^(\S[^:]*):\s*$`)
 
-	// A command line is indented and looks like: `<spaces><name><2+ spaces><desc>`.
+	// A command line is indented and looks like: `<spaces><name><spaces><desc>`.
+	// Help renderers align descriptions to a common column where possible, but
+	// the longest command name may have only one separating space. Requiring two
+	// spaces silently drops precisely those long commands from a runtime surface.
 	// Some CLIs include a usage tail between the name and description, e.g.
 	// `read <identifier>...  Read skills`; keep the first command token and
 	// ignore the usage tail.
@@ -119,7 +122,7 @@ var (
 	// command (and all its subcommands) was silently dropped, e.g.
 	// `prompt-manager action create`. We also accept lines without a description
 	// (visual category labels) so the caller can filter them out.
-	commandLineRE = regexp.MustCompile(`^(\s+)([A-Za-z][A-Za-z0-9_.-]*(?:,\s*[A-Za-z0-9_.-]+)*)(?:\s+[<\[].*?[>\]].*?)?(?:\s{2,}(.+))?\s*$`)
+	commandLineRE = regexp.MustCompile(`^(\s+)([A-Za-z][A-Za-z0-9_.-]*(?:,\s*[A-Za-z0-9_.-]+)*)(?:\s+[<\[].*?[>\]].*?)?(?:\s+(.+))?\s*$`)
 
 	// Section header names that contain any of these substrings (case-insensitive)
 	// hold flags/usage text, not subcommands. Skip them.

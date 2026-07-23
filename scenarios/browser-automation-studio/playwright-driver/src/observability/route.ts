@@ -204,7 +204,7 @@ function aggregateRecordingStats(
 
   for (const sessionId of sessionIds) {
     try {
-      const session = sessionManager.getSession(sessionId);
+      const session = sessionManager.peekSession(sessionId);
       if (session.recordingInitializer) {
         const injectionStats = session.recordingInitializer.getInjectionStats();
         const routeStats = session.recordingInitializer.getRouteHandlerStats();
@@ -303,7 +303,7 @@ function createSessionSummary(
 
   for (const id of sessionIds) {
     try {
-      const session = sessionManager.getSession(id);
+      const session = sessionManager.peekSession(id);
       const idleTimeMs = now - session.lastUsedAt.getTime();
 
       if (idleTimeMs < config.session.idleTimeoutMs) {
@@ -644,14 +644,16 @@ export async function handleCleanupRun(
   logger.info(scopedLog(LogContext.HEALTH, 'manual cleanup triggered'));
 
   try {
-    // Get session count before cleanup
-    const beforeCount = deps.sessionManager.getSessionCount();
+    // Preserve per-session age before cleanup so a zero-reclaim result remains
+    // diagnosable rather than success-shaped.
+    const beforeSessions = deps.sessionManager.getSessionList();
+    const beforeCount = beforeSessions.length;
 
     // Run cleanup
     await deps.sessionManager.cleanupIdleSessions();
 
-    // Get session count after cleanup
-    const afterCount = deps.sessionManager.getSessionCount();
+    const remainingSessions = deps.sessionManager.getSessionList();
+    const afterCount = remainingSessions.length;
     const cleanedUp = beforeCount - afterCount;
 
     const completedAt = new Date();
@@ -660,6 +662,16 @@ export async function handleCleanupRun(
       success: true,
       cleaned_up: cleanedUp,
       remaining_sessions: afterCount,
+      sessions_before: beforeSessions.map((session) => ({
+        id: session.id,
+        age_ms: startedAt.getTime() - new Date(session.created_at).getTime(),
+        last_used_at: session.last_used_at,
+      })),
+      surviving_sessions: remainingSessions.map((session) => ({
+        id: session.id,
+        age_ms: Date.now() - new Date(session.created_at).getTime(),
+        last_used_at: session.last_used_at,
+      })),
       started_at: startedAt.toISOString(),
       completed_at: completedAt.toISOString(),
       duration_ms: completedAt.getTime() - startedAt.getTime(),

@@ -7,6 +7,7 @@ package capture
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +17,7 @@ import (
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 
+	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
@@ -93,6 +95,11 @@ type Deps struct {
 	Producers           *ProducerRegistry
 	InlineDom           InlineDomConfig
 	InlineAccessibility InlineAccessibilityConfig
+
+	// CapturesRoot anchors relative (and omitted) out_dir values so capture
+	// bundles land in scenario-owned storage rather than the API process's
+	// working directory. Defaults to paths.ResolveCapturesRoot.
+	CapturesRoot string
 }
 
 // Module builds the CaptureService Connect handler and returns it
@@ -112,6 +119,9 @@ func Module(d Deps) connectx.ServiceMount {
 	}
 	if d.Producers == nil {
 		d.Producers = DefaultProducerRegistry()
+	}
+	if strings.TrimSpace(d.CapturesRoot) == "" {
+		d.CapturesRoot = paths.ResolveCapturesRoot(d.Logger)
 	}
 	d.InlineDom = d.InlineDom.withDefaults()
 	d.InlineAccessibility = d.InlineAccessibility.withDefaults()

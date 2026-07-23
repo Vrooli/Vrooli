@@ -382,12 +382,38 @@ func extractV2Params(action map[string]any) map[string]any {
 		if actionParams, ok := action[field].(map[string]any); ok {
 			for k, v := range actionParams {
 				params[k] = v
+				// The flow definition is marshaled with UseProtoNames (snake_case)
+				// while the param builders read protojson-default camelCase, so
+				// every snake_case key also gets a camelCase alias. The original
+				// key wins if the source already contained both spellings.
+				if camel := snakeToCamel(k); camel != k {
+					if _, exists := actionParams[camel]; !exists {
+						params[camel] = v
+					}
+				}
 			}
 			break // Only one action field should be populated
 		}
 	}
 
 	return params
+}
+
+// snakeToCamel converts a snake_case key to lowerCamelCase, matching the
+// protojson default naming the param builders consume.
+func snakeToCamel(s string) string {
+	if !strings.Contains(s, "_") {
+		return s
+	}
+	parts := strings.Split(s, "_")
+	out := parts[0]
+	for _, part := range parts[1:] {
+		if part == "" {
+			continue
+		}
+		out += strings.ToUpper(part[:1]) + part[1:]
+	}
+	return out
 }
 
 type rawEdge struct {

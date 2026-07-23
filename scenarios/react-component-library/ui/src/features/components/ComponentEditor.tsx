@@ -134,6 +134,8 @@ interface ComponentEditorProps {
   onActivePaneChange?: (pane: WorkspacePane) => void;
   selectedStory?: string;
   onSelectedStoryChange?: (story: string) => void;
+  /** Lets the asset-page root expose preview readiness to external automation. */
+  onPreviewExperienceStateChange?: (state: "loading" | "partial" | "ready" | "error") => void;
 }
 
 /**
@@ -160,6 +162,7 @@ export function ComponentEditor({
   onActivePaneChange,
   selectedStory,
   onSelectedStoryChange,
+  onPreviewExperienceStateChange,
 }: ComponentEditorProps) {
   const { t } = useTranslation();
   const shellNavigation = useShellNavigation();
@@ -248,6 +251,10 @@ export function ComponentEditor({
     : Object.keys(specimenErrors).length > 0
     ? "partial"
     : "ready";
+
+  useEffect(() => {
+    onPreviewExperienceStateChange?.(previewExperienceState);
+  }, [onPreviewExperienceStateChange, previewExperienceState]);
   const resolvedPreviewTheme = filters.colorScheme === "system"
     ? appResolvedTheme
     : filters.colorScheme;
@@ -695,6 +702,7 @@ export function ComponentEditor({
                       surfaceId="component-preview"
                       state={previewExperienceState}
                       data-testid={selectors.components.editor.workspacePane}
+                      data-preview-state={previewExperienceState}
                       data-pane="preview"
                       className="flex h-full min-h-0 flex-col overflow-hidden bg-app-background"
                     >
@@ -734,7 +742,7 @@ export function ComponentEditor({
                                 const error = specimenErrors[identity];
                                 const isActive = activeSpecimen === identity;
                                 return (
-                                  <section key={identity} data-testid={selectors.components.editor.exampleCard} data-specimen={identity} data-story={example?.storyId ?? "__default__"} className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}>
+                                  <section key={identity} data-testid={selectors.components.editor.exampleCard} data-specimen={identity} data-story={example?.storyId ?? "__default__"} data-story-ready={readyExamples.has(identity) ? "true" : "false"} className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}>
                                     <header className="flex items-center justify-between gap-2 border-b border-app-border px-3 py-2">
                                       <h3 data-testid={selectors.components.editor.exampleTitle} title={example?.description} className="min-w-0 truncate text-sm font-semibold text-app-foreground">{title}</h3>
                                       {examples.length > 1 && <Button data-testid={selectors.components.editor.exampleCompare} type="button" variant={comparedSpecimens.has(identity) ? "primary" : "secondary"} aria-pressed={comparedSpecimens.has(identity)} disabled={!comparedSpecimens.has(identity) && comparedSpecimens.size >= 2} className="h-7 px-2 text-xs" onClick={() => toggleComparison(identity)}>{t(strings.components.editor.compareStory)}</Button>}

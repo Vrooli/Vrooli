@@ -36,6 +36,9 @@ const (
 
 	// PlaywrightDriverEnv is the environment variable for the driver URL.
 	PlaywrightDriverEnv = "PLAYWRIGHT_DRIVER_URL"
+	// PlaywrightDriverAdminSecretEnv authorizes only the loopback recovery
+	// endpoint. It is never sent with normal lease-protected operations.
+	PlaywrightDriverAdminSecretEnv = "PLAYWRIGHT_DRIVER_ADMIN_SECRET"
 )
 
 // HTTPDoer is an interface for making HTTP requests.
@@ -86,10 +89,11 @@ var _ ClientInterface = (*Client)(nil)
 // Client provides unified HTTP communication with the playwright-driver.
 // It supports both recording mode and execution mode operations.
 type Client struct {
-	baseURL    string
-	httpClient HTTPDoer
-	log        *logrus.Logger
-	breaker    *resilience.Breaker
+	baseURL     string
+	httpClient  HTTPDoer
+	log         *logrus.Logger
+	breaker     *resilience.Breaker
+	adminSecret string
 }
 
 // ClientOption configures a Client.
@@ -123,6 +127,15 @@ func WithCircuitBreaker(breaker *resilience.Breaker) ClientOption {
 	}
 }
 
+// WithAdminSecret configures the loopback-only secret used exclusively by
+// terminal-session reconciliation. Normal lease-protected operations never
+// send this value.
+func WithAdminSecret(secret string) ClientOption {
+	return func(c *Client) {
+		c.adminSecret = strings.TrimSpace(secret)
+	}
+}
+
 // WithoutCircuitBreaker disables the circuit breaker.
 func WithoutCircuitBreaker() ClientOption {
 	return func(c *Client) {
@@ -146,10 +159,11 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	cfg.Logger = log
 
 	c := &Client{
-		baseURL:    strings.TrimRight(driverURL, "/"),
-		httpClient: &http.Client{Timeout: DefaultExecutionTimeout},
-		log:        log,
-		breaker:    resilience.NewBreaker(cfg),
+		baseURL:     strings.TrimRight(driverURL, "/"),
+		httpClient:  &http.Client{Timeout: DefaultExecutionTimeout},
+		log:         log,
+		breaker:     resilience.NewBreaker(cfg),
+		adminSecret: strings.TrimSpace(os.Getenv(PlaywrightDriverAdminSecretEnv)),
 	}
 
 	for _, opt := range opts {
@@ -177,10 +191,11 @@ func NewClientWithURL(driverURL string, opts ...ClientOption) (*Client, error) {
 	cfg.Logger = log
 
 	c := &Client{
-		baseURL:    strings.TrimRight(driverURL, "/"),
-		httpClient: &http.Client{Timeout: DefaultExecutionTimeout},
-		log:        log,
-		breaker:    resilience.NewBreaker(cfg),
+		baseURL:     strings.TrimRight(driverURL, "/"),
+		httpClient:  &http.Client{Timeout: DefaultExecutionTimeout},
+		log:         log,
+		breaker:     resilience.NewBreaker(cfg),
+		adminSecret: strings.TrimSpace(os.Getenv(PlaywrightDriverAdminSecretEnv)),
 	}
 
 	for _, opt := range opts {
@@ -278,6 +293,9 @@ func (c *Client) Health(ctx context.Context) error {
 			Hint:    "check playwright-driver logs for errors",
 		}
 	}
+	if c.breaker != nil && c.breaker.IsOpen() {
+		c.breaker.Reset()
+	}
 
 	return nil
 }
@@ -317,6 +335,39 @@ func (c *Client) CloseSessionWithLease(ctx context.Context, sessionID, execution
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// ListObservedSessions returns recovery metadata without mutating session
+// activity. The endpoint is deliberately separate from normal session use so
+// reconciliation cannot keep an idle session alive.
+func (c *Client) ListObservedSessions(ctx context.Context) ([]ObservedSession, error) {
+	var resp ObservedSessionsResponse
+	if err := c.get(ctx, "/observability/sessions", &resp); err != nil {
+		return nil, err
+	}
+	return resp.Sessions, nil
+}
+
+// ForceCloseSession is an authenticated, loopback-only recovery operation.
+// Normal callers must use CloseSessionWithLease. A missing secret fails closed
+// rather than silently weakening the driver's lease ownership model.
+func (c *Client) ForceCloseSession(ctx context.Context, sessionID string) error {
+	secret := c.adminSecret
+	if secret == "" {
+		return fmt.Errorf("%s is required for administrative session recovery", PlaywrightDriverAdminSecretEnv)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+fmt.Sprintf("/session/%s/force-close", url.PathEscape(sessionID)), http.NoBody)
+	if err != nil {
+		return fmt.Errorf("create force-close request: %w", err)
+	}
+	req.Header.Set("X-Playwright-Admin-Secret", secret)
+	return c.doRequest(req, &CloseSessionResponse{}, "POST /session/:id/force-close")
+}
+
+// SetAdministrativeSecret configures recovery for a sidecar managed by this
+// API process. It is called during startup before the client serves requests.
+func (c *Client) SetAdministrativeSecret(secret string) {
+	c.adminSecret = strings.TrimSpace(secret)
 }
 
 // ReleaseSessionLease releases only the session currently leased by executionID

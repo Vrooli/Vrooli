@@ -445,6 +445,13 @@ function setupRoutes(
     }
     await routes.handleSessionClose(req, res, sessionId, sessionManager);
   });
+  router.post('/session/:id/force-close', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionForceClose(req, res, sessionId, sessionManager, config);
+  });
 
   // Record mode lifecycle
   router.post('/session/:id/record/start', async (req, res, params) => {

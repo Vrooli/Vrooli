@@ -276,6 +276,12 @@ func crossCheck(m *cliapp.Manifest, surface ProtoSurface, manifestPath string) [
 	for _, g := range m.Groups {
 		for _, c := range g.Commands {
 			b := c.Binding
+			// Local commands are catalogued CLI surfaces, not RPC bindings.
+			// They have no proto service/method to cross-check and must not
+			// participate in duplicate or proto-coverage validation.
+			if b.Kind != "connect-rpc" {
+				continue
+			}
 			key := b.Service + "." + b.Method
 			bound[key] = append(bound[key], bindingSite{group: g.Name, cmd: c.Name})
 

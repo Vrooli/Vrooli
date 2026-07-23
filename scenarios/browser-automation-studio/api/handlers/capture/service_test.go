@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,8 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basebase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
@@ -30,6 +33,9 @@ func newTestServer(t *testing.T, deps Deps) (captureconnect.CaptureServiceClient
 	}
 	if deps.Now == nil {
 		deps.Now = func() time.Time { return time.Unix(0, 0) }
+	}
+	if deps.CapturesRoot == "" {
+		deps.CapturesRoot = t.TempDir()
 	}
 	mount := Module(deps)
 	mux := http.NewServeMux()
@@ -61,6 +67,29 @@ func TestCapture_HappyPath_Screenshot(t *testing.T) {
 	require.Equal(t, "https://example.com", nav.Url)
 	require.Equal(t, "generic-navigation", resp.Msg.GetReadiness().GetSelectedStrategy())
 	require.Equal(t, "ready", resp.Msg.GetReadiness().GetOutcome())
+}
+
+func TestCapture_FailedExecutionExportsResultThenReturnsConnectErrorWithoutArtifacts(t *testing.T) {
+	executionID := "745c1553-890d-4b1b-b2a4-d6bf538e5d4f"
+	failure := "driver session capacity reached"
+	exec := &fakeExecutor{Resp: &basexecution.ExecuteAdhocResponse{
+		ExecutionId: executionID,
+		Status:      basebase.ExecutionStatus_EXECUTION_STATUS_FAILED,
+		Error:       &failure,
+	}, ExportLayout: map[string]string{"result.json": `{"status":"failed","error":"driver session capacity reached"}`}}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com"}))
+	require.Nil(t, resp)
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+	require.Contains(t, err.Error(), executionID)
+	require.Contains(t, err.Error(), "driver session capacity reached")
+	require.Equal(t, 1, exec.ExportCalls, "failed executions must persist their authoritative result")
+	result, readErr := os.ReadFile(filepath.Join(exec.LastExportDir, "result.json"))
+	require.NoError(t, readErr)
+	require.Contains(t, string(result), `"status":"failed"`)
+	require.Contains(t, string(result), failure)
 }
 
 func TestCaptureReadinessDiagnosticsCarriesDeclaredProfileProvenance(t *testing.T) {
@@ -578,4 +607,51 @@ func TestCapture_MalformedInteractionFlow_InvalidArgument(t *testing.T) {
 	require.True(t, errors.As(err, &ce))
 	require.Equal(t, connect.CodeInvalidArgument, ce.Code())
 	require.Equal(t, 0, exec.Calls, "executor must not run on a malformed flow")
+}
+
+func TestCapture_RelativeOutDirResolvesUnderCapturesRoot(t *testing.T) {
+	root := t.TempDir()
+	exec := &fakeExecutor{ExportLayout: map[string]string{"screenshots/step-01.png": "png"}}
+	client, _ := newTestServer(t, Deps{Executor: exec, CapturesRoot: root})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:      "https://example.com",
+		OutDir:   "nested/bundle",
+		Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT},
+	}))
+	require.NoError(t, err)
+	wantPrefix := filepath.Join(root, "nested", "bundle") + string(filepath.Separator)
+	require.Truef(t, strings.HasPrefix(resp.Msg.OutDir, wantPrefix), "out dir %q must resolve under captures root %q", resp.Msg.OutDir, wantPrefix)
+	require.Truef(t, strings.HasPrefix(exec.LastExportDir, wantPrefix), "export dir %q must resolve under captures root", exec.LastExportDir)
+	for _, a := range resp.Msg.Artifacts {
+		require.Truef(t, filepath.IsAbs(a.Path), "artifact path %q must be absolute so callers can locate it", a.Path)
+		require.Truef(t, strings.HasPrefix(a.Path, wantPrefix), "artifact path %q must live under the captures root", a.Path)
+	}
+}
+
+func TestCapture_RelativeOutDirTraversalRejected(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec, CapturesRoot: t.TempDir()})
+
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:      "https://example.com",
+		OutDir:   "../escape",
+		Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT},
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Zero(t, exec.Calls, "traversal must be rejected before the executor runs")
+}
+
+func TestCapture_EmptyOutDirDefaultsUnderCapturesRoot(t *testing.T) {
+	root := t.TempDir()
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec, CapturesRoot: root})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:      "https://example.com",
+		Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT},
+	}))
+	require.NoError(t, err)
+	require.Truef(t, strings.HasPrefix(resp.Msg.OutDir, root+string(filepath.Separator)), "default out dir %q must live under captures root %q", resp.Msg.OutDir, root)
 }

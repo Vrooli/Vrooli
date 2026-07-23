@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build": "pnpm strings:gen && tsc --noEmit && vite build",
+    "build:profile": "pnpm strings:gen && tsc --noEmit && vite build --mode profile",
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

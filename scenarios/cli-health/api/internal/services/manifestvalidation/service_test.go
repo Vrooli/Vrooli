@@ -281,6 +281,25 @@ func TestValidateScenario_DuplicateBinding(t *testing.T) {
 	}
 }
 
+func TestValidateScenario_LocalCommandsAreNotProtoBindings(t *testing.T) {
+	manifest := `{
+      "name": "fixture",
+      "groups": [{"name":"flat","flat":true,"commands":[
+        {"name":"status","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}},
+        {"name":"playbooks","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}
+      ]}]
+    }`
+	svc := newServiceWith(
+		stubLoader{raw: []byte(manifest)},
+		stubSchema{},
+		stubProto{surface: ProtoSurface{}},
+	)
+	r, _ := svc.ValidateScenario(context.Background(), "s")
+	if findingHasCode(r.Findings, CodeBindingUnknownSvc) || findingHasCode(r.Findings, CodeBindingDuplicate) {
+		t.Fatalf("local commands must not be validated as proto bindings: %+v", r.Findings)
+	}
+}
+
 // stubArchEvidence is a fake ArchitectureEvidenceProvider returning canned
 // cli-core primitive evidence, so service tests can prove verified-vs-unverified
 // classification through the real ValidateScenario flow.

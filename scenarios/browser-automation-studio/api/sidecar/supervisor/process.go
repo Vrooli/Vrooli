@@ -47,6 +47,7 @@ type NodeProcess struct {
 	script    string
 	port      int
 	log       *logrus.Logger
+	env       []string
 
 	cmd      *exec.Cmd
 	exitChan chan struct{}
@@ -63,13 +64,14 @@ type NodeProcess struct {
 //   - script: script to run within driverDir (e.g., "dist/server.js")
 //   - port: port for the driver to listen on
 //   - log: logger for process events
-func NewNodeProcess(nodePath, driverDir, script string, port int, log *logrus.Logger) *NodeProcess {
+func NewNodeProcess(nodePath, driverDir, script string, port int, log *logrus.Logger, env ...string) *NodeProcess {
 	return &NodeProcess{
 		nodePath:  nodePath,
 		driverDir: driverDir,
 		script:    script,
 		port:      port,
 		log:       log,
+		env:       append([]string(nil), env...),
 	}
 }
 
@@ -112,6 +114,7 @@ func (p *NodeProcess) Start() error {
 		fmt.Sprintf("PLAYWRIGHT_DRIVER_PORT=%d", p.port),
 		fmt.Sprintf("HISTORY_CALLBACK_URL=%s", historyCallbackURL),
 	)
+	p.cmd.Env = append(p.cmd.Env, p.env...)
 
 	// Capture stdout/stderr for logging
 	p.cmd.Stdout = &logWriter{log: p.log, level: logrus.InfoLevel, prefix: "[playwright-driver]"}

@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../session';
+import type { Config } from '../config';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { logger, scopedLog, LogContext } from '../utils';
 import { InvalidInstructionError } from '../utils';
@@ -54,5 +55,34 @@ export async function handleSessionClose(
     sendJson(res, 200, response);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/close`);
+  }
+}
+
+function isLoopbackRequest(req: IncomingMessage): boolean {
+  const address = req.socket?.remoteAddress ?? '';
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
+}
+
+// POST /session/:id/force-close is an authenticated recovery escape hatch.
+// It deliberately does not weaken normal lease-protected close semantics.
+export async function handleSessionForceClose(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  const secret = config.server.adminSecret;
+  if (!isLoopbackRequest(req) || !secret || req.headers['x-playwright-admin-secret'] !== secret) {
+    sendJson(res, 403, { error: 'administrative session recovery is not authorized' });
+    return;
+  }
+  try {
+    const result = await sessionManager.forceCloseSession(sessionId);
+    clearSessionIdempotencyCache(sessionId);
+    clearSessionDownloadCache(sessionId);
+    sendJson(res, 200, { success: true, video_paths: result.videoPaths, trace_path: result.tracePath, har_path: result.harPath });
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/force-close`);
   }
 }
