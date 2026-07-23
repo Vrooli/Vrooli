@@ -18,6 +18,29 @@ The codebase follows three key architectural principles:
 2. **Cognitive Load Reduction** — Code is organized to minimize mental overhead.
 3. **Control Surface Design** — Tunable levers are organized, validated, and documented.
 
+## Enforced Import Boundaries
+
+`api/internal/archtest` turns the following architectural rules into build
+failures rather than conventions:
+
+- `workflowruntime` is a leaf runtime and must not import `orchestration`.
+- Runtime orchestration code depends on repository interfaces and must not
+  import the concrete `database` package. Test-only helpers are excluded from
+  this rule because cross-package integration tests import them directly.
+- Handler persistence is limited to documented CQRS read-side exceptions:
+  `PricingHandler` reads pricing/statistics projections, `EventsHandler` reads
+  the typed event log, and `OperationalStatsHandler` reads the operational
+  statistics projection. Mutation handlers go through their service boundary.
+
+## Task Path Decision
+
+Tasks remain a **first-class agent-manager domain**. The task lifecycle is
+actively consumed by the scenario CLI, the Tasks UI, and run-detail lookups;
+its status transitions also anchor run ownership and operator review. It is
+therefore neither a declared-run projection nor a removal candidate. The
+decision was verified on 2026-07-23 by searching fleet consumers and the
+scenario's CLI/UI surfaces.
+
 ## Folder Structure
 
 Agent-manager uses a **screaming architecture** where folder structure clearly expresses domain intent:

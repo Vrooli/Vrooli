@@ -110,80 +110,8 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 		SchemaVersion: e.SchemaVersion,
 	}
 
-	// Typed-operational events round-trip through TypedEventData carrying
-	// raw JSON; the eventlog package owns the (event_type, schema_version)
-	// → Go-type dispatch and the read-side decoder.
-	if evt.EventType.IsTypedOperationalEvent() {
-		body := append(json.RawMessage(nil), e.Data...)
-		evt.Data = &domain.TypedEventData{Type: evt.EventType, Body: body}
-		return evt
-	}
-
-	// Unmarshal based on event type
-	switch domain.RunEventType(e.EventType) {
-	case domain.EventTypeLog:
-		var data domain.LogEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeMessage:
-		var data domain.MessageEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeMessageDeleted:
-		var data domain.MessageDeletedEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeToolCall:
-		var data domain.ToolCallEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeToolResult:
-		var data domain.ToolResultEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeStatus:
-		var data domain.StatusEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeMetric:
-		// Try CostEventData first (common for token usage)
-		var costData domain.CostEventData
-		if err := json.Unmarshal(e.Data, &costData); err == nil && costData.TotalCostUSD > 0 {
-			evt.Data = &costData
-		} else {
-			// Fall back to generic MetricEventData
-			var metricData domain.MetricEventData
-			if err := json.Unmarshal(e.Data, &metricData); err == nil {
-				evt.Data = &metricData
-			}
-		}
-	case domain.EventTypeArtifact:
-		var data domain.ArtifactEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeError:
-		var data domain.ErrorEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeLifecycle:
-		var data domain.LifecycleEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	default:
-		// For unknown types, try legacy format
-		var legacy domain.RunEventData
-		if err := json.Unmarshal(e.Data, &legacy); err == nil {
-			evt.Data = legacy.ToTypedPayload()
-		}
+	if payload, err := domain.DecodeEventPayload(evt.EventType, e.Data); err == nil {
+		evt.Data = payload
 	}
 	return evt
 }

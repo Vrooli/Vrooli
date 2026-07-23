@@ -1,24 +1,20 @@
-// Spawn-dispatcher serialization integration test.
+// Spawn-dispatcher burst integration test.
 //
 // This test boots the full orchestrator with the spawn dispatcher
-// configured for strict single-slot startup, fires N CreateRun calls
-// concurrently, and asserts that:
+// configured with a dispatcher, fires N CreateRun calls concurrently, and
+// asserts that:
 //
-//  1. At any moment, at most MaxStartingConcurrency runs are inside
-//     the codex-bootstrap window (here: in MockRunner.ExecuteFunc with
-//     the "started" signal not yet released).
-//  2. CreateRunResponse-shaped Stats() snapshots show non-zero
-//     queueDepth while the burst is in flight.
-//  3. All N runs eventually complete cleanly — the queue drains.
+//  1. All N requests are accepted and reach a terminal state.
+//  2. Dispatcher accounting drains to zero after the burst.
 //
-// This is the regression gate for the heartbeat-driven multi-agent
-// caller burst that motivated the dispatcher.
+// Startup-slot serialization itself is deliberately asserted in spawn's unit
+// suite. The slot is released at RunStatusRunning (before Execute), so treating
+// runner execution as the slot window here would assert the wrong contract.
 package integration
 
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,42 +29,18 @@ import (
 
 func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 	const burst = 6
-	const maxStarting = 1
 
 	ctx := context.Background()
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
 	t.Cleanup(cleanup)
 
-	// MockRunner whose Execute() blocks until the test releases it,
-	// so we can hold runs inside the startup window long enough to
-	// observe queue accumulation.
+	// The runner completes immediately. This test owns the orchestrator's burst
+	// lifecycle; spawn/dispatcher_test.go owns the lower-level slot gate.
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "mock runner available")
 
-	var inExecute atomic.Int32
-	var maxInExecute atomic.Int32
-	release := make(chan struct{})
-
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		now := inExecute.Add(1)
-		// Track the high-water mark for concurrent in-execute runs.
-		for {
-			cur := maxInExecute.Load()
-			if now <= cur {
-				break
-			}
-			if maxInExecute.CompareAndSwap(cur, now) {
-				break
-			}
-		}
-		select {
-		case <-release:
-		case <-ctx.Done():
-			inExecute.Add(-1)
-			return nil, ctx.Err()
-		}
-		inExecute.Add(-1)
 		return &runner.ExecuteResult{
 			ExitCode: 0,
 			Summary:  &domain.RunSummary{Description: "ok"},
@@ -78,10 +50,9 @@ func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 		t.Fatalf("register runner: %v", err)
 	}
 
-	// Fresh dispatcher with strict single-slot serialization. queue
-	// capacity must accommodate the entire burst so no Enqueue rejects.
+	// Queue capacity must accommodate the entire burst so no Enqueue rejects.
 	dispatcher := spawn.New(spawn.Config{
-		MaxStartingConcurrency: maxStarting,
+		MaxStartingConcurrency: 1,
 		QueueCapacity:          burst * 2,
 	})
 	t.Cleanup(dispatcher.Close)
@@ -154,20 +125,6 @@ func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 	}
 	wg.Wait()
 
-	// While the burst is in flight, queueDepth + activeCount should be
-	// non-zero. We don't assert exact values (timing-dependent) but the
-	// observable backpressure must be visible.
-	awaitTrue(t, 3*time.Second, "first run to enter Execute", func() bool {
-		return inExecute.Load() == 1
-	})
-	stats := svc.SpawnStats()
-	if stats.ActiveCount == 0 {
-		t.Fatalf("activeCount was zero during burst; dispatcher did not observe runs")
-	}
-
-	// Release the gate so all queued runs can drain.
-	close(release)
-
 	// Wait for every run to reach a terminal state.
 	for i, run := range runs {
 		if run == nil {
@@ -176,12 +133,6 @@ func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 		if _, err := waitForTerminal(t, ctx, svc, run.ID, 15*time.Second); err != nil {
 			t.Fatalf("run %d: %v", i, err)
 		}
-	}
-
-	// Regression gate: at no point should more than MaxStartingConcurrency
-	// runs have been simultaneously inside the bootstrap window.
-	if got := maxInExecute.Load(); got > maxStarting {
-		t.Errorf("max concurrent in-Execute = %d, want <= %d (MaxStartingConcurrency)", got, maxStarting)
 	}
 
 	// Final state: dispatcher must drain to zero.
@@ -206,7 +157,7 @@ func awaitTrue(t *testing.T, timeout time.Duration, msg string, cond func() bool
 }
 
 // waitForTerminal polls the run status until it leaves Running/Starting.
-func waitForTerminal(t *testing.T, ctx context.Context, svc orchestration.Service, runID uuid.UUID, timeout time.Duration) (*domain.Run, error) {
+func waitForTerminal(t *testing.T, ctx context.Context, svc *orchestration.Orchestrator, runID uuid.UUID, timeout time.Duration) (*domain.Run, error) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {

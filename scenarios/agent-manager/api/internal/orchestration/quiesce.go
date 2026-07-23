@@ -162,7 +162,7 @@ func (o *Orchestrator) QuiesceScenario(ctx context.Context, opts QuiesceOptions)
 		return result, nil
 	}
 
-	start := time.Now()
+	start := o.now()
 	deadline := start.Add(timeout)
 	for {
 		remaining, err := o.activeRunsForScenario(ctx, scenario, scopePrefix, tagPrefix)
@@ -177,8 +177,8 @@ func (o *Orchestrator) QuiesceScenario(ctx context.Context, opts QuiesceOptions)
 			return result, nil
 		}
 
-		if !time.Now().Before(deadline) {
-			result.WaitedMs = time.Since(start).Milliseconds()
+		if !o.now().Before(deadline) {
+			result.WaitedMs = o.now().Sub(start).Milliseconds()
 			if opts.Force {
 				return o.forceCancel(ctx, result, remaining, scenario, scopePrefix, tagPrefix, opts.ExcludeRunID), nil
 			}

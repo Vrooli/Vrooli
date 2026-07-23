@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -751,6 +752,39 @@ func TestRunner_ParseTranscriptLineDelegates(t *testing.T) {
 	}
 	if len(res.Events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(res.Events))
+	}
+}
+
+func TestExecute_DurableTranscriptReportsCursorPersistenceFailure(t *testing.T) {
+	codec := newFakeCodec()
+	launcher := &fakeLauncher{stdout: `{"type":"message","content":"durable evidence","session_id":"session-1"}` + "\n"}
+	r := newRunnerForTest(t, codec, launcher)
+	sink := &recordingSink{}
+	stdout, err := os.CreateTemp(t.TempDir(), "transcript-*.ndjson")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	req := newExecuteRequest(uuid.New(), "triage the failure", sink)
+	req.Transcript = &runner.TranscriptConfig{
+		TranscriptPath: stdout.Name(),
+		StdoutFile:     stdout,
+		OnAdvance: func(int64, int64) error {
+			return errors.New("cursor store unavailable")
+		},
+	}
+	result, err := r.Execute(context.Background(), req)
+	if err != nil || !result.Success {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	var cursorFailure bool
+	for _, event := range sink.snapshot() {
+		if log, ok := event.Data.(*domain.LogEventData); ok && strings.Contains(log.Message, "transcript cursor persistence failed: cursor store unavailable") {
+			cursorFailure = true
+		}
+	}
+	if !cursorFailure {
+		t.Fatalf("cursor persistence failure was not emitted: %+v", sink.snapshot())
 	}
 }
 

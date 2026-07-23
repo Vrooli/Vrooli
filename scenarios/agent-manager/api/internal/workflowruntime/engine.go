@@ -16,7 +16,10 @@ import (
 	"github.com/google/uuid"
 )
 
-var ErrConcurrentAdvance = errors.New("workflow execution advanced concurrently")
+var (
+	ErrConcurrentAdvance   = errors.New("workflow execution advanced concurrently")
+	errEmptyPromptTemplate = errors.New("empty_prompt_template")
+)
 
 type (
 	Catalog interface {
@@ -184,6 +187,48 @@ func (e *Engine) Advance(ctx context.Context, id uuid.UUID) (*domain.WorkflowExe
 	default:
 		return e.fail(ctx, execution, "unsupported_node", "node kind is not implemented by core interpreter")
 	}
+}
+
+// Fail transitions a non-terminal execution to failed through the same
+// optimistic commit path used by interpreter failures. It is deliberately
+// narrow: external supervisors use it only when their own worker panics and
+// must not leave the durable execution stuck behind a dead goroutine.
+func (e *Engine) Fail(ctx context.Context, id uuid.UUID, code, message string) (*domain.WorkflowExecution, error) {
+	execution, err := e.Store.Get(ctx, id)
+	if err != nil || execution == nil || execution.Status.Terminal() {
+		return execution, err
+	}
+	return e.commitFailure(ctx, execution, nil, nil, code, message)
+}
+
+// RecordDiagnostic appends durable operator evidence without changing workflow
+// semantics. The execution version still advances, preserving the repository's
+// single serial commit boundary and making concurrent diagnostics harmless.
+func (e *Engine) RecordDiagnostic(ctx context.Context, id uuid.UUID, code, message string) (*domain.WorkflowExecution, error) {
+	execution, err := e.Store.Get(ctx, id)
+	if err != nil || execution == nil || execution.Status.Terminal() {
+		return execution, err
+	}
+	journal, err := e.Store.ListJournal(ctx, id, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	now := e.now()
+	payload, _ := json.Marshal(map[string]string{"code": code, "message": message})
+	entry := nextJournal(id, journal, domain.WorkflowJournalDiagnostic, execution.CurrentNodeID, nil, payload, now)
+	// A diagnostic is evidence, not lifecycle progress. In particular, the
+	// unarmed-wait reaper measures the execution's last real progress using
+	// UpdatedAt; refreshing it here would let repeated warnings postpone the
+	// terminal reap forever.
+	execution.Version++
+	ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: execution.Version - 1, Execution: execution, Journal: []*domain.WorkflowJournalEntry{entry}})
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrConcurrentAdvance
+	}
+	return execution, nil
 }
 
 type waitIntent struct {
@@ -617,6 +662,9 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		assignment := PromptAssignmentIdentity{ExecutionID: x.ID, NodeID: node.ID, AttemptKey: fmt.Sprintf("%d", ordinal), IdempotencyKey: fmt.Sprintf("workflow-assignment/%s/node/%s", x.ID, node.ID)}
 		bindings, prompt, resolution, spec, strategy, source, diagnostics, err := e.resolveAgentInput(ctx, node, attempts, journal, x.Input, assignment)
 		if err != nil {
+			if errors.Is(err, errEmptyPromptTemplate) {
+				return e.fail(ctx, x, "empty_prompt_template", "workflow node has no rendered prompt template")
+			}
 			return e.fail(ctx, x, "binding_invalid", err.Error())
 		}
 		now := e.now()
@@ -716,7 +764,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		// child. It is bounded by the explicit node-attempt budget but must not
 		// be denied merely because the original run consumed MaxChildren.
 		if schemaRepairCount(attempts, node.ID) < schemaRepairLimit(node) && x.BudgetUsage.NodeAttempts < r.Definition.Budgets.MaxNodeAttempts {
-			repair := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: domain.WorkflowAttemptContinue, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: fmt.Sprintf("workflow/%s/node/%s/attempt/%d/schema-repair", x.ID, node.ID, ordinal), InputSnapshot: append(json.RawMessage(nil), active.InputSnapshot...), PromptSnapshot: schemaRepairPrompt(validationError), SourceAttemptID: &active.ID, Version: 1, CreatedAt: now, UpdatedAt: now}
+			repair := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: domain.WorkflowAttemptContinue, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: fmt.Sprintf("workflow/%s/node/%s/attempt/%d/schema-repair", x.ID, node.ID, ordinal), InputSnapshot: append(json.RawMessage(nil), active.InputSnapshot...), PromptSnapshot: schemaRepairPrompt(nodeResultSpec(node), validationError), SourceAttemptID: &active.ID, Version: 1, CreatedAt: now, UpdatedAt: now}
 			x.Status, x.UpdatedAt = domain.WorkflowExecutionRunning, now
 			x.BudgetUsage.NodeAttempts++
 			x.Version++
@@ -771,21 +819,41 @@ func schemaRepairCount(attempts []*domain.WorkflowNodeAttempt, nodeID string) in
 	return count
 }
 
-func schemaRepairLimit(node *domain.WorkflowNode) int {
-	var spec *domain.ResultSpec
+func nodeResultSpec(node *domain.WorkflowNode) *domain.ResultSpec {
 	if node.Run != nil {
-		spec = node.Run.ResultSpec
-	} else if node.Continue != nil {
-		spec = node.Continue.ResultSpec
+		return node.Run.ResultSpec
 	}
+	if node.Continue != nil {
+		return node.Continue.ResultSpec
+	}
+	return nil
+}
+
+func schemaRepairLimit(node *domain.WorkflowNode) int {
+	spec := nodeResultSpec(node)
 	if spec == nil || spec.SchemaRepairAttempts == nil {
 		return 1
 	}
 	return *spec.SchemaRepairAttempts
 }
 
-func schemaRepairPrompt(validationError string) string {
-	return "Your previous response did not satisfy the required structured-result schema. Return only a corrected JSON value that fixes these validation errors; do not add explanation.\n\nValidation errors:\n" + validationError
+func schemaRepairPrompt(spec *domain.ResultSpec, validationError string) string {
+	prompt := "Your previous response did not satisfy the required structured-result schema. Return only a corrected JSON value that fixes these validation errors; do not add explanation.\n\nValidation errors:\n" + validationError
+	if spec != nil && len(spec.Schema) > 0 {
+		prompt += "\n\nRequired schema:\n```json\n" + string(spec.Schema) + "\n```"
+	}
+	return prompt
+}
+
+// structuredResultInstruction renders the node's typed-result contract into the
+// agent-visible prompt. The result schema is otherwise validated only after the
+// run, so without this block the executing agent never sees the shape it must
+// return and can only guess it from prose.
+func structuredResultInstruction(spec *domain.ResultSpec) string {
+	if spec == nil || spec.Kind == domain.ResultSpecKindNone || len(spec.Schema) == 0 {
+		return ""
+	}
+	return "\n\n## Required structured result\n\nMake your final message exactly one JSON value — a bare JSON document or one ```json fence — that validates against the schema below. Do not put any other JSON value or fence in the final message.\n\n```json\n" + string(spec.Schema) + "\n```"
 }
 
 func structuredValidationError(node *domain.WorkflowNode, result *domain.RunResult) string {
@@ -990,6 +1058,9 @@ func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNod
 		}
 		tmpl = resolution.Content
 	}
+	if strings.TrimSpace(tmpl) == "" {
+		return nil, "", PromptResolution{}, nil, "", nil, nil, errEmptyPromptTemplate
+	}
 	values, diagnostics, err := EvaluateBindingsWithDiagnostics(bindings, BindingContext{Input: input, Journal: journal})
 	if err != nil {
 		return nil, "", PromptResolution{}, nil, "", nil, nil, err
@@ -999,7 +1070,11 @@ func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNod
 		return nil, "", PromptResolution{}, nil, "", nil, nil, err
 	}
 	prompt, err := RenderPrompt(tmpl, values)
-	return snapshot, prompt, resolution, spec, strategy, source, diagnostics, err
+	if err != nil {
+		return snapshot, prompt, resolution, spec, strategy, source, diagnostics, err
+	}
+	prompt += structuredResultInstruction(spec)
+	return snapshot, prompt, resolution, spec, strategy, source, diagnostics, nil
 }
 
 func armedPromptRef(node *domain.WorkflowNode) *domain.WorkflowPromptRef {

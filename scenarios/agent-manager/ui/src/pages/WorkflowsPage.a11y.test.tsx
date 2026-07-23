@@ -1,6 +1,7 @@
-import { afterEach, describe, it, vi } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup } from "@testing-library/react";
 import { expectNoA11yViolations } from "../test-utils/a11y";
+import { renderWithProviders } from "../test-utils";
 import { WorkflowsPage } from "./WorkflowsPage";
 
 vi.mock("../hooks/useApi", () => ({
@@ -19,7 +20,8 @@ afterEach(cleanup);
 
 describe("WorkflowsPage accessibility", () => {
   it("has no axe violations in its empty operator state", async () => {
-    const { container } = render(<WorkflowsPage />);
+    const { container } = renderWithProviders(<WorkflowsPage />);
+    expect(container).toBeInTheDocument();
     await expectNoA11yViolations(container);
   });
 });

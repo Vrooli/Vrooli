@@ -802,6 +802,21 @@ type durableInputs struct {
 	isContinue   bool
 }
 
+// reportTranscriptError keeps transcript durability failures visible both in
+// structured logs and on the run timeline. Cursor persistence is especially
+// important: losing it can replay or skip evidence after restart.
+func (r *Runner) reportTranscriptError(runID uuid.UUID, sink runner.EventSink, operation string, err error) {
+	if err == nil {
+		return
+	}
+	r.runnerLog().Warn("transcript operation failed", obs.KeyRunID, runID.String(), "operation", operation, obs.KeyError, err.Error())
+	if sink != nil {
+		if emitErr := sink.Emit(domain.NewLogEvent(runID, "error", operation+" failed: "+err.Error())); emitErr != nil {
+			r.runnerLog().Warn("failed to append transcript failure event", obs.KeyRunID, runID.String(), "operation", operation, obs.KeyError, emitErr.Error())
+		}
+	}
+}
+
 // runDurable runs a launched agent through the durable-transcript path:
 // stdout is tee'd to the on-disk transcript while a background
 // [runner.Consume] tail parses it back into events for the live sink.
@@ -892,7 +907,9 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	stdoutDone := make(chan struct{})
 	go func() {
 		defer close(stdoutDone)
-		_, _ = io.Copy(in.transcript.StdoutFile, proc.Stdout())
+		if _, err := io.Copy(in.transcript.StdoutFile, proc.Stdout()); err != nil {
+			r.reportTranscriptError(in.runID, in.sink, "stdout transcript tee", err)
+		}
 	}()
 
 	// Stderr drainer mirrors into transcript.StderrFile when present.
@@ -903,8 +920,13 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 			errorOutput.WriteString(line)
 			errorOutput.WriteString("\n")
 			if in.transcript.StderrFile != nil {
-				_, _ = io.WriteString(in.transcript.StderrFile, line+"\n")
+				if _, err := io.WriteString(in.transcript.StderrFile, line+"\n"); err != nil {
+					r.reportTranscriptError(in.runID, in.sink, "stderr transcript tee", err)
+				}
 			}
+		}
+		if err := scanner.Err(); err != nil {
+			r.reportTranscriptError(in.runID, in.sink, "stderr transcript scan", err)
 		}
 	}()
 
@@ -915,7 +937,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	transcriptParser := r.codec.NewTranscriptParser()
 	go func() {
 		defer close(liveDone)
-		cursor, liveTerminal, _ := runner.Consume(consumeCtx, runner.ConsumeArgs{
+		cursor, liveTerminal, consumeErr := runner.Consume(consumeCtx, runner.ConsumeArgs{
 			RunID:       in.runID,
 			Transcript:  in.transcript.TranscriptPath,
 			Live:        true,
@@ -930,6 +952,9 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 				}
 			},
 		})
+		if consumeErr != nil && !errors.Is(consumeErr, context.Canceled) {
+			r.reportTranscriptError(in.runID, in.sink, "live transcript consume", consumeErr)
+		}
 		liveCursor = cursor
 		if liveTerminal != nil {
 			terminal = liveTerminal
@@ -960,8 +985,13 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	if finalTerminal != nil {
 		terminal = finalTerminal
 	}
+	if drainErr != nil {
+		r.reportTranscriptError(in.runID, in.sink, "final transcript drain", drainErr)
+	}
 	if in.transcript.OnAdvance != nil {
-		_ = in.transcript.OnAdvance(finalCursor, 0)
+		if err := in.transcript.OnAdvance(finalCursor, 0); err != nil {
+			r.reportTranscriptError(in.runID, in.sink, "transcript cursor persistence", err)
+		}
 	}
 
 	result := &runner.ExecuteResult{

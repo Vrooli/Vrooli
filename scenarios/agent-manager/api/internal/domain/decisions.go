@@ -608,9 +608,9 @@ type LivenessPolicy struct {
 // (not scanned, no expectations, no action) — a safe default for any
 // unrecognised/free-text status.
 var runLivenessPolicies = map[RunStatus]LivenessPolicy{
-	// pending: queued but not yet launched — no executor, no process, nothing
-	// to keep alive. Not scanned (matches pre-refactor behaviour).
-	RunStatusPending: {Scanned: false, StaleAction: StaleRunActionNone},
+	// pending: queued but not yet launched. It has neither a process nor a
+	// heartbeat, but is scanned so the reconciler can bound dispatcher-loss.
+	RunStatusPending: {Scanned: true, StaleAction: StaleRunActionNone},
 	// starting/running: a live executor + process is expected; heartbeat
 	// staleness triggers recover-or-kill.
 	RunStatusStarting: {Scanned: true, ExpectsHeartbeat: true, ExpectsProcess: true, StaleAction: StaleRunActionResume},

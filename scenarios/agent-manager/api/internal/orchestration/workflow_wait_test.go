@@ -3,6 +3,7 @@ package orchestration
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -74,11 +75,11 @@ func TestWaitWorkflowExecutionBlocksUntilTerminal(t *testing.T) {
 		ch <- outcome{res, err}
 	}()
 
-	// The wait must still be blocked while the execution is running.
+	awaitWorkflowWaiters(t, o, id, 1)
 	select {
 	case got := <-ch:
 		t.Fatalf("wait returned before terminal: %+v", got)
-	case <-time.After(100 * time.Millisecond):
+	default:
 	}
 
 	repo.set(domain.WorkflowExecutionSucceeded)
@@ -132,7 +133,7 @@ func TestWaitWorkflowExecutionSurvivesConcurrentWaiters(t *testing.T) {
 			}
 		}()
 	}
-	time.Sleep(100 * time.Millisecond)
+	awaitWorkflowWaiters(t, o, id, waiters)
 	repo.set(domain.WorkflowExecutionFailed)
 	o.onWorkflowExecutionSettled(&domain.WorkflowExecution{ID: id, Status: domain.WorkflowExecutionFailed})
 
@@ -165,7 +166,7 @@ func TestWaitWorkflowExecutionCancelDoesNotCancelExecution(t *testing.T) {
 		res, err := o.WaitWorkflowExecution(ctx, id, 0)
 		ch <- outcome{res, err}
 	}()
-	time.Sleep(100 * time.Millisecond)
+	awaitWorkflowWaiters(t, o, id, 1)
 	cancel()
 
 	select {
@@ -179,4 +180,16 @@ func TestWaitWorkflowExecutionCancelDoesNotCancelExecution(t *testing.T) {
 	if repo.status() != domain.WorkflowExecutionRunning {
 		t.Fatalf("execution status changed after waiter cancel: %s", repo.status())
 	}
+}
+
+func awaitWorkflowWaiters(t *testing.T, o *Orchestrator, id uuid.UUID, want int) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if o.workflowWaiters.count(id) == want {
+			return
+		}
+		runtime.Gosched()
+	}
+	t.Fatalf("waiter subscriptions = %d, want %d", o.workflowWaiters.count(id), want)
 }

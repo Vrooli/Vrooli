@@ -133,6 +133,34 @@ func TestWorkflowExecutionRepositoryCASAndJournalSurviveReload(t *testing.T) {
 	}
 }
 
+func TestWorkflowExecutionRepositoryListsLegacyAttemptWithNullOptionalFields(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	revision := workflowRevision("owner/flow", "sha256:legacy", "1.0.0")
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	executionID, attemptID := uuid.New(), uuid.New()
+	if _, err := db.Exec(`INSERT INTO workflow_executions (id,owner,workflow_key,definition_digest,status,current_node_id,input_json,budget_usage_json,edge_traversals_json,version,idempotency_key,depth,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, executionID, "owner", "owner/flow", "sha256:legacy", domain.WorkflowExecutionRunning, "start", `{}`, `{}`, `{}`, 1, "legacy-execution", 0, SQLiteTime(now), SQLiteTime(now)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO workflow_node_attempts (id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,conversation_id,version,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, attemptID, executionID, "start", 1, domain.WorkflowAttemptFreshRun, domain.WorkflowAttemptDispatchPending, "legacy-attempt", `{}`, "prompt", "", 1, SQLiteTime(now), SQLiteTime(now)); err != nil {
+		t.Fatal(err)
+	}
+
+	attempts, err := repo.ListAttempts(ctx, executionID)
+	if err != nil || len(attempts) != 1 {
+		t.Fatalf("ListAttempts() = %+v, %v", attempts, err)
+	}
+	if got := attempts[0]; got.ExperimentID != "" || got.VariantID != "" || got.PromptHash != "" || got.ErrorCode != "" || got.RawOutput != "" || got.ValidationError != "" {
+		t.Fatalf("legacy nullable fields were not normalized: %+v", got)
+	}
+}
+
 func TestWorkflowExecutionRepositoryExecutionIDForRun(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()

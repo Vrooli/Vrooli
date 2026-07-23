@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"agent-manager/internal/adapters/event"
@@ -15,17 +17,23 @@ import (
 	_ "modernc.org/sqlite" // pure-Go SQLite driver registration for test DB
 )
 
-// SetupTestDB creates a temporary SQLite database with the full schema applied.
-// Returns a database.DB and a cleanup function. The cleanup function closes the
-// database and removes the temp file.
+var (
+	testSchemaOnce sync.Once
+	testSchema     string
+	testSchemaErr  error
+	testDBSequence atomic.Uint64
+)
+
+// SetupTestDB creates an isolated shared-cache in-memory SQLite database with
+// the full schema applied. MaxOpenConns(1) keeps SQLite's lock semantics stable
+// while cache=shared ensures every repository and event store sees one database.
 func SetupTestDB(t *testing.T) (*database.DB, func()) {
 	t.Helper()
 
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "agent-manager-test.db")
+	name := fmt.Sprintf("agent-manager-test-%d", testDBSequence.Add(1))
 	dsn := fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)",
-		dbPath,
+		"file:%s?mode=memory&cache=shared&_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)",
+		name,
 	)
 
 	db, err := sqlx.Connect("sqlite", dsn)
@@ -34,14 +42,11 @@ func SetupTestDB(t *testing.T) (*database.DB, func()) {
 	}
 	db.SetMaxOpenConns(1)
 
-	// Read and execute schema
-	schemaPath := filepath.Join(getSchemaDir(), "schema.sql")
-	schema, err := os.ReadFile(schemaPath)
-	if err != nil {
+	if err := loadTestSchema(); err != nil {
 		db.Close()
 		t.Fatalf("read schema: %v", err)
 	}
-	if _, err := db.Exec(string(schema)); err != nil {
+	if _, err := db.Exec(testSchema); err != nil {
 		db.Close()
 		t.Fatalf("exec schema: %v", err)
 	}
@@ -55,6 +60,18 @@ func SetupTestDB(t *testing.T) (*database.DB, func()) {
 		db.Close()
 	}
 	return dbWrapper, cleanup
+}
+
+func loadTestSchema() error {
+	testSchemaOnce.Do(func() {
+		schemaPath := filepath.Join(getSchemaDir(), "schema.sql")
+		var schema []byte
+		schema, testSchemaErr = os.ReadFile(schemaPath)
+		if testSchemaErr == nil {
+			testSchema = string(schema)
+		}
+	})
+	return testSchemaErr
 }
 
 // SetupTestRepos creates a temporary SQLite database and returns all repositories

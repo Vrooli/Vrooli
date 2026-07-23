@@ -50,6 +50,19 @@
 
 ## Test Gaps
 
+### P-007: Unit coverage policy gaps remain after reliability hardening (2026-07-23)
+**Severity**: Medium (verification)
+**Description**: Unit Health now passes the production-to-testutil boundary and
+CLI shared-fixture checks. Current measured coverage is API 75.0% against 75%
+and CLI 57.6% against 75%; focused reliability tests are green, but the CLI Go
+coverage gates remain open. The UI reports 32.7% and four inherited Vitest
+threshold-projection errors (native threshold 0 versus policy 85).
+**Mitigation**: Continue behavior-focused tests in the API orchestration and
+handler paths, then CLI command result/error paths. UI feature coverage is
+outside the reliability plan, so preserve the truthful policy finding rather
+than weakening the contract.
+**Status**: Open.
+
 ### P-006: Comprehensive health suite has unrelated inherited debt (2026-07-11)
 **Severity**: Medium (verification), not a role/permission cutover defect.
 **Description**: Test Genie run `20260711-155454-0b8cfb01` reached terminal

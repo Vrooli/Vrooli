@@ -58,30 +58,30 @@ func TestJournalHelpersMatchExpandedForms(t *testing.T) {
 	fixtures := map[string][]*domain.WorkflowJournalEntry{
 		"continue_correction_required": {
 			sliceAttempt(2),
-			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "completedSlice": "s", "correctionRequired": true, "approvalRequired": false}),
+			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "correctionRequired": true, "approvalRequired": false}),
 		},
 		"continue_review_rejected": {
 			sliceAttempt(2),
-			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "completedSlice": "s", "correctionRequired": false, "approvalRequired": false}),
+			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "correctionRequired": false, "approvalRequired": false}),
 			reviewOutput(4, false),
 		},
 		"continue_review_accepted": {
 			sliceAttempt(2),
-			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "completedSlice": "s", "correctionRequired": false, "approvalRequired": true}),
+			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "correctionRequired": false, "approvalRequired": true}),
 			reviewOutput(4, true),
 		},
 		"correction_complete_supersedes_slice": {
 			sliceAttempt(2),
-			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "completedSlice": "s", "correctionRequired": true, "approvalRequired": false}),
+			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "correctionRequired": true, "approvalRequired": false}),
 			reviewOutput(4, false),
 			je(5, domain.WorkflowJournalAttempt, "correction", map[string]any{"nodeId": "correction", "ordinal": 0}),
-			structured(6, "correction", map[string]any{"outcome": "complete", "handoff": "c", "completedSlice": "s corrected"}),
+			structured(6, "correction", map[string]any{"outcome": "complete", "handoff": "c"}),
 		},
 		"two_slices_at_limit": {
 			sliceAttempt(2),
-			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "completedSlice": "s", "correctionRequired": false, "approvalRequired": false}),
+			structured(3, "slice", map[string]any{"outcome": "continue", "handoff": "h", "correctionRequired": false, "approvalRequired": false}),
 			sliceAttempt(4),
-			structured(5, "slice", map[string]any{"outcome": "continue", "handoff": "h2", "completedSlice": "s2", "correctionRequired": false, "approvalRequired": false}),
+			structured(5, "slice", map[string]any{"outcome": "continue", "handoff": "h2", "correctionRequired": false, "approvalRequired": false}),
 		},
 	}
 
@@ -133,5 +133,50 @@ func TestJournalHelpersMatchExpandedForms(t *testing.T) {
 				t.Errorf("[%s/%s] helper form diverged: old=%+v new=%+v", fname, p.name, oldOnNew, newOnNew)
 			}
 		}
+	}
+}
+
+func TestCorrectionRouteAllowsTwoAttemptsPerSliceThenBlocks(t *testing.T) { // [REQ:REQ-P2-001]
+	eval, err := NewExpressionEvaluator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := map[string]any{"constraints": map[string]any{"maxSlices": 2}}
+	routeToCorrection := "((latest(journal).value.outcome == 'continue' && latest(journal).value.correctionRequired) || (has(latest(journal, 'review').output) && !latest(journal, 'review').output.review.accepted)) && count_since_last(journal, 'correction', 'slice') < 2"
+	routeRejectedCorrectionToBlocked := "has(latest(journal, 'review').output) && !latest(journal, 'review').output.review.accepted && count_since_last(journal, 'correction', 'slice') >= 2"
+
+	firstReviewRejected := ProjectJournal([]*domain.WorkflowJournalEntry{
+		sliceAttempt(1),
+		structured(2, "slice", map[string]any{"outcome": "continue", "handoff": "handoff", "correctionRequired": false, "approvalRequired": false}),
+		reviewOutput(3, false),
+	})
+	first, err := eval.Evaluate(routeToCorrection, ExpressionContext{Input: input, Journal: firstReviewRejected})
+	if err != nil || !first {
+		t.Fatalf("first rejection should permit its correction: value=%t err=%v", first, err)
+	}
+
+	correctedReviewRejected := append(firstReviewRejected,
+		ProjectJournal([]*domain.WorkflowJournalEntry{
+			je(4, domain.WorkflowJournalAttempt, "correction", map[string]any{"nodeId": "correction", "ordinal": 1}),
+			reviewOutput(5, false),
+		})...,
+	)
+	second, err := eval.Evaluate(routeToCorrection, ExpressionContext{Input: input, Journal: correctedReviewRejected})
+	if err != nil || !second {
+		t.Fatalf("a second rejection of the same slice should permit its second correction: value=%t err=%v", second, err)
+	}
+	twiceCorrectedReviewRejected := append(correctedReviewRejected,
+		ProjectJournal([]*domain.WorkflowJournalEntry{
+			je(6, domain.WorkflowJournalAttempt, "correction", map[string]any{"nodeId": "correction", "ordinal": 2}),
+			reviewOutput(7, false),
+		})...,
+	)
+	third, err := eval.Evaluate(routeToCorrection, ExpressionContext{Input: input, Journal: twiceCorrectedReviewRejected})
+	if err != nil || third {
+		t.Fatalf("a third rejection of the same slice must not start another correction: value=%t err=%v", third, err)
+	}
+	blocked, err := eval.Evaluate(routeRejectedCorrectionToBlocked, ExpressionContext{Input: input, Journal: twiceCorrectedReviewRejected})
+	if err != nil || !blocked {
+		t.Fatalf("a third rejection of the same slice must become blocked: value=%t err=%v", blocked, err)
 	}
 }

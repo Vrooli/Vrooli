@@ -26,7 +26,6 @@ package phases
 import (
 	"context"
 	"errors"
-	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
@@ -59,7 +58,7 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 	outcome := classifyOutcome(in.ExecErr, in.Result)
 	out := HandleResultOutput{Outcome: outcome}
 
-	now := time.Now()
+	now := in.Deps.Now()
 	in.Run.EndedAt = &now
 	in.Run.UpdatedAt = now
 
@@ -102,7 +101,7 @@ func HandleSuccessfulCompletion(ctx context.Context, in HandleResultInput) {
 	if in.Run.RunMode == domain.RunModeInPlace {
 		in.Run.Status = domain.RunStatusComplete
 		in.Run.ApprovalState = domain.ApprovalStateNone
-		domain.MarkFinalizationSkipped(in.Run, "in-place run has no sandbox to finalize", time.Now())
+		domain.MarkFinalizationSkipped(in.Run, "in-place run has no sandbox to finalize", in.Deps.Now())
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
 			"in-place run completed — skipping apply (no sandbox to diff)")
 	} else {
@@ -170,7 +169,7 @@ func HandleFailure(ctx context.Context, in HandleResultInput) {
 			Cost:      cost,
 		})
 	} else {
-		domain.MarkFinalizationSkipped(in.Run, "in-place run has no sandbox to finalize", time.Now())
+		domain.MarkFinalizationSkipped(in.Run, "in-place run has no sandbox to finalize", in.Deps.Now())
 	}
 
 	RevokeIdentityToken(in.Run)
@@ -193,7 +192,7 @@ func HandleCancellation(ctx context.Context, in HandleResultInput) {
 			Cost:      cost,
 		})
 	} else {
-		domain.MarkFinalizationSkipped(in.Run, "in-place run has no sandbox to finalize", time.Now())
+		domain.MarkFinalizationSkipped(in.Run, "in-place run has no sandbox to finalize", in.Deps.Now())
 	}
 	RevokeIdentityToken(in.Run)
 }
@@ -203,7 +202,7 @@ func RevokeIdentityToken(run *domain.Run) {
 	if run == nil || run.IdentityTokenHash == "" {
 		return
 	}
-	now := time.Now()
+	now := systemClock()
 	run.IdentityTokenRevokedAt = &now
 }
 

@@ -1,9 +1,31 @@
 package orchestration
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/testutil"
+	"agent-manager/internal/testutil/mocks"
+
+	"github.com/google/uuid"
 )
+
+type reconcilerWorkflowRecoveryStub struct{ err error }
+
+func (s reconcilerWorkflowRecoveryStub) RecoverWorkflowExecutions(context.Context) error {
+	return s.err
+}
+
+type reconcilerWaitingRecoveryStub struct{ err error }
+
+func (s reconcilerWaitingRecoveryStub) ReconcileUnarmedWorkflowWaits(context.Context, time.Duration, time.Duration) error {
+	return s.err
+}
 
 // =============================================================================
 // RECONCILER CONFIG TESTS
@@ -30,6 +52,9 @@ func TestDefaultReconcilerConfig(t *testing.T) {
 
 	if cfg.MaxStaleRuns != 10 {
 		t.Errorf("MaxStaleRuns = %d, want 10", cfg.MaxStaleRuns)
+	}
+	if cfg.PendingThreshold != 5*time.Minute {
+		t.Errorf("PendingThreshold = %v, want 5m", cfg.PendingThreshold)
 	}
 
 	// Production defaults - always kill orphans and auto-recover
@@ -69,6 +94,121 @@ func TestReconcilerConfig_CustomValues(t *testing.T) {
 	}
 	if !cfg.AutoRecover {
 		t.Error("AutoRecover should be true")
+	}
+}
+
+func TestReconcilerRunOnceReapsAgedPendingAndKeepsOtherRecoveryWorkIndependent(t *testing.T) {
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "stranded pending", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	reconciler := NewReconciler(repos.Runs, nil,
+		WithReconcilerEvents(eventStore),
+		WithReconcilerConfig(ReconcilerConfig{StaleThreshold: time.Minute, PendingThreshold: time.Nanosecond, OrphanGracePeriod: 24 * time.Hour, MaxStaleRuns: 5}),
+		WithReconcilerWorkflowRecovery(reconcilerWorkflowRecoveryStub{err: errors.New("workflow backend unavailable")}),
+		WithReconcilerWorkflowWaitingLiveness(reconcilerWaitingRecoveryStub{}),
+	)
+	stats := reconciler.RunOnce(ctx)
+	if stats.RunsChecked != 1 || stats.StaleRuns != 1 || stats.WorkflowRecoveryRuns != 0 || len(stats.Errors) != 1 {
+		t.Fatalf("reconcile stats=%+v", stats)
+	}
+	stored, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || stored == nil || stored.Status != domain.RunStatusFailed || stored.ErrorMsg == "" {
+		t.Fatalf("pending run after reconcile=%+v err=%v", stored, err)
+	}
+	events, err := eventStore.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil || len(events) == 0 || events[len(events)-1].EventType != domain.EventTypeLog {
+		t.Fatalf("pending reap evidence=%+v err=%v", events, err)
+	}
+}
+
+func TestReconcilerRunOnceRecordsIndependentWorkflowRecoverySuccess(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	reconciler := NewReconciler(repos.Runs, nil,
+		WithReconcilerConfig(ReconcilerConfig{OrphanGracePeriod: 24 * time.Hour}),
+		WithReconcilerWorkflowRecovery(reconcilerWorkflowRecoveryStub{}),
+		WithReconcilerWorkflowWaitingLiveness(reconcilerWaitingRecoveryStub{err: errors.New("wait liveness failure")}),
+	)
+	stats := reconciler.RunOnce(context.Background())
+	if stats.WorkflowRecoveryRuns != 1 || len(stats.Errors) != 1 || stats.RunsChecked != 0 {
+		t.Fatalf("independent recovery stats=%+v", stats)
+	}
+}
+
+func TestReconcilerRunOnceSynchronizesApprovedAndRejectedSandboxReviews(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "review sync", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	approvedSandbox, rejectedSandbox := uuid.New(), uuid.New()
+	approved := &domain.Run{ID: uuid.New(), TaskID: task.ID, SandboxID: &approvedSandbox, Status: domain.RunStatusNeedsReview, Phase: domain.RunPhaseAwaitingReview}
+	rejected := &domain.Run{ID: uuid.New(), TaskID: task.ID, SandboxID: &rejectedSandbox, Status: domain.RunStatusNeedsReview, Phase: domain.RunPhaseAwaitingReview}
+	for _, run := range []*domain.Run{approved, rejected} {
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+	}
+	provider := mocks.NewFakeSandboxProvider()
+	provider.GetFunc = func(_ context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+		status := sandbox.SandboxStatusApproved
+		if id == rejectedSandbox {
+			status = sandbox.SandboxStatusRejected
+		}
+		return &sandbox.Sandbox{ID: id, Status: status}, nil
+	}
+	reconciler := NewReconciler(repos.Runs, nil,
+		WithReconcilerSandbox(provider),
+		WithReconcilerConfig(ReconcilerConfig{OrphanGracePeriod: 24 * time.Hour}),
+	)
+	stats := reconciler.RunOnce(ctx)
+	if stats.ReviewChecked != 2 || stats.ReviewSynced != 2 {
+		t.Fatalf("review sync stats=%+v", stats)
+	}
+	approvedStored, err := repos.Runs.Get(ctx, approved.ID)
+	if err != nil || approvedStored.Status != domain.RunStatusComplete || approvedStored.ApprovalState != domain.ApprovalStateApproved || approvedStored.ApprovedBy != "workspace-sandbox-sync" {
+		t.Fatalf("approved run=%+v err=%v", approvedStored, err)
+	}
+	rejectedStored, err := repos.Runs.Get(ctx, rejected.ID)
+	if err != nil || rejectedStored.Status != domain.RunStatusFailed || rejectedStored.ApprovalState != domain.ApprovalStateRejected || rejectedStored.ApprovedBy != "workspace-sandbox-sync" {
+		t.Fatalf("rejected run=%+v err=%v", rejectedStored, err)
+	}
+}
+
+func TestReconcilerRunOnceFailsStaleRunWhoseProcessHasExited(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "stale run", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	lastHeartbeat := time.Now().Add(-time.Hour)
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "missing-process-" + uuid.NewString(), Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, LastHeartbeat: &lastHeartbeat}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	reconciler := NewReconciler(repos.Runs, nil, WithReconcilerConfig(ReconcilerConfig{StaleThreshold: time.Nanosecond, OrphanGracePeriod: 24 * time.Hour, MaxRecoveryAge: 0}))
+	stats := reconciler.RunOnce(ctx)
+	if stats.RunsChecked != 1 || stats.StaleRuns != 1 {
+		t.Fatalf("stale-run stats=%+v", stats)
+	}
+	stored, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || stored.Status != domain.RunStatusFailed || stored.ErrorMsg == "" {
+		t.Fatalf("stale run=%+v err=%v", stored, err)
 	}
 }
 

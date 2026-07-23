@@ -126,7 +126,7 @@ func (o *Orchestrator) ParkRun(ctx context.Context, in ParkRunInput) (*domain.Ru
 		return nil, domain.NewStateError("Run", string(run.Status), "park", reason)
 	}
 
-	now := time.Now()
+	now := o.now()
 	deadline := in.Deadline
 	if deadline == nil {
 		d := now.Add(o.parkTTL())
@@ -219,7 +219,7 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (*domain.Ru
 		run.LastAwaitKey = awaitKeyString(run.AwaitHandle.Producer, run.AwaitHandle.Key)
 	}
 	run.LastAwaitResult = in.Result
-	resolvedAt := time.Now()
+	resolvedAt := o.now()
 	run.LastAwaitResolvedAt = &resolvedAt
 	run.LastWakeSeq = run.TranscriptLastSeq
 

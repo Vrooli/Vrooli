@@ -177,6 +177,12 @@ func (db *DB) initSchema() error {
 		}
 		return err
 	}
+	if err := db.migrateRunEventPayloads(ctx); err != nil {
+		if db.log != nil {
+			db.log.WithError(err).Error("Failed to migrate run event payloads")
+		}
+		return err
+	}
 	if err := db.migrateColumns(ctx, "agent_profiles", []columnMigration{{column: "tool_restriction_policy", ddl: "ALTER TABLE agent_profiles ADD COLUMN tool_restriction_policy TEXT NOT NULL DEFAULT 'enforced'"}}); err != nil {
 		return err
 	}
@@ -210,6 +216,50 @@ var runColumnMigrations = []columnMigration{
 // migrateRunColumns adds any missing additive columns to the runs table.
 func (db *DB) migrateRunColumns(ctx context.Context) error {
 	return db.migrateColumns(ctx, "runs", runColumnMigrations)
+}
+
+// migrateRunEventPayloads advances rows written by the retired tagged-union
+// event model to the typed payload field names. It updates only changed JSON,
+// preserves all unrelated fields, and never recreates the SQLite table.
+func (db *DB) migrateRunEventPayloads(ctx context.Context) error {
+	type row struct {
+		id        string
+		eventType domain.RunEventType
+		data      []byte
+	}
+	rows, err := db.QueryxContext(ctx, `SELECT id, event_type, data FROM run_events`)
+	if err != nil {
+		return &domain.DatabaseError{Operation: "event_payload_migration_query", EntityType: "RunEvent", Cause: err}
+	}
+	defer rows.Close()
+
+	var updates []row
+	for rows.Next() {
+		var current row
+		if err := rows.Scan(&current.id, &current.eventType, &current.data); err != nil {
+			return &domain.DatabaseError{Operation: "event_payload_migration_scan", EntityType: "RunEvent", Cause: err}
+		}
+		normalized, err := domain.NormalizeEventPayloadJSON(current.eventType, current.data)
+		if err != nil {
+			return &domain.DatabaseError{Operation: "event_payload_migration_decode", EntityType: "RunEvent", Cause: err}
+		}
+		if string(normalized) != string(current.data) {
+			current.data = normalized
+			updates = append(updates, current)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return &domain.DatabaseError{Operation: "event_payload_migration_iterate", EntityType: "RunEvent", Cause: err}
+	}
+	for _, update := range updates {
+		if _, err := db.ExecContext(ctx, `UPDATE run_events SET data = ? WHERE id = ?`, update.data, update.id); err != nil {
+			return &domain.DatabaseError{Operation: "event_payload_migration_update", EntityType: "RunEvent", Cause: err}
+		}
+	}
+	if db.log != nil && len(updates) > 0 {
+		db.log.WithField("rows", len(updates)).Info("Migrated legacy run event payloads")
+	}
+	return nil
 }
 
 func (db *DB) migrateColumns(ctx context.Context, table string, migrations []columnMigration) error {

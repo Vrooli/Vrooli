@@ -59,6 +59,11 @@ type ReconcilerConfig struct {
 	// MaxStaleRuns is the maximum number of stale runs to process per cycle
 	MaxStaleRuns int
 
+	// PendingThreshold is the maximum time a run may remain queued without a
+	// dispatcher entry before it is failed. A pending run has neither a process
+	// nor a heartbeat, so CreatedAt is its only durable liveness signal.
+	PendingThreshold time.Duration
+
 	// KillOrphans determines whether to automatically kill orphan processes
 	KillOrphans bool
 
@@ -79,6 +84,7 @@ func DefaultReconcilerConfig() ReconcilerConfig {
 		MaxRecoveryAge:    10 * time.Minute, // Kill process if stale beyond this
 		OrphanGracePeriod: 10 * time.Minute, // Longer grace period for safety
 		MaxStaleRuns:      10,
+		PendingThreshold:  5 * time.Minute,
 		KillOrphans:       true, // Always kill orphan processes
 		AutoRecover:       true, // Auto-recover stale runs if process is alive
 	}
@@ -110,6 +116,7 @@ type Reconciler struct {
 	interactiveSessionPoll time.Duration
 
 	config ReconcilerConfig
+	clock  func() time.Time
 
 	// levers exposes internal threshold knobs (e.g. recovery tail tick).
 	// Defaulted to config.DefaultLevers(); callers can override via
@@ -127,9 +134,11 @@ type Reconciler struct {
 	// Broadcaster for real-time updates
 	broadcaster EventBroadcaster
 
-	recoveryMu       sync.Mutex
-	tailers          map[uuid.UUID]context.CancelFunc
-	workflowRecovery WorkflowExecutionRecoverer
+	recoveryMu         sync.Mutex
+	tailers            map[uuid.UUID]context.CancelFunc
+	workflowRecovery   WorkflowExecutionRecoverer
+	workflowLiveness   WorkflowWaitingLivenessRecoverer
+	pendingRunRecovery PendingRunRecoverer
 }
 
 // ReconcileStats contains statistics from a reconciliation cycle.
@@ -149,6 +158,17 @@ type ReconcileStats struct {
 
 type WorkflowExecutionRecoverer interface{ RecoverWorkflowExecutions(context.Context) error }
 
+type WorkflowWaitingLivenessRecoverer interface {
+	ReconcileUnarmedWorkflowWaits(context.Context, time.Duration, time.Duration) error
+}
+
+// PendingRunRecoverer re-enqueues a persisted pending run after a process
+// restart. The orchestrator owns this operation because it alone has the task,
+// profile, checkpoint, and spawn-dispatcher dependencies needed to resume it.
+type PendingRunRecoverer interface {
+	ResumeRun(context.Context, uuid.UUID) (*domain.Run, error)
+}
+
 // NewReconciler creates a new reconciler with the given dependencies.
 func NewReconciler(
 	runs repository.RunRepository,
@@ -160,6 +180,7 @@ func NewReconciler(
 		events:  nil,
 		runners: runners,
 		config:  DefaultReconcilerConfig(),
+		clock:   time.Now,
 		levers:  cfgpkg.DefaultLevers(),
 		stopCh:  make(chan struct{}),
 		doneCh:  make(chan struct{}),
@@ -181,6 +202,23 @@ func WithReconcilerConfig(cfg ReconcilerConfig) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.config = cfg
 	}
+}
+
+// WithReconcilerClock injects the wall-clock used for reconciliation state
+// timestamps and process-age calculations. Nil retains the production clock.
+func WithReconcilerClock(clock func() time.Time) ReconcilerOption {
+	return func(r *Reconciler) {
+		if clock != nil {
+			r.clock = clock
+		}
+	}
+}
+
+func (r *Reconciler) now() time.Time {
+	if r != nil && r.clock != nil {
+		return r.clock()
+	}
+	return systemNow()
 }
 
 // WithReconcilerBroadcaster sets the event broadcaster.
@@ -223,6 +261,16 @@ func WithReconcilerInteractive(sessions webconsole.SessionController) Reconciler
 
 func WithReconcilerWorkflowRecovery(recoverer WorkflowExecutionRecoverer) ReconcilerOption {
 	return func(r *Reconciler) { r.workflowRecovery = recoverer }
+}
+
+func WithReconcilerWorkflowWaitingLiveness(recoverer WorkflowWaitingLivenessRecoverer) ReconcilerOption {
+	return func(r *Reconciler) { r.workflowLiveness = recoverer }
+}
+
+// WithReconcilerPendingRunRecovery wires the orchestration-owned resumption
+// path used for pending rows discovered during startup recovery.
+func WithReconcilerPendingRunRecovery(recoverer PendingRunRecoverer) ReconcilerOption {
+	return func(r *Reconciler) { r.pendingRunRecovery = recoverer }
 }
 
 // Start begins the reconciliation loop.
@@ -361,13 +409,18 @@ func (r *Reconciler) updateStats(stats ReconcileStats) {
 
 // reconcile performs the actual reconciliation work.
 func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
-	start := time.Now()
+	start := r.now()
 	stats := ReconcileStats{Timestamp: start}
 	if r.workflowRecovery != nil {
 		if err := r.workflowRecovery.RecoverWorkflowExecutions(ctx); err != nil {
 			stats.Errors = append(stats.Errors, "workflow recovery: "+err.Error())
 		} else {
 			stats.WorkflowRecoveryRuns++
+		}
+	}
+	if r.workflowLiveness != nil {
+		if err := r.workflowLiveness.ReconcileUnarmedWorkflowWaits(ctx, r.levers.Workflow.UnarmedWaitWarningThreshold, r.levers.Workflow.UnarmedWaitFailureThreshold); err != nil {
+			stats.Errors = append(stats.Errors, "workflow waiting liveness: "+err.Error())
 		}
 	}
 
@@ -403,7 +456,18 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 		}
 	}
 
-	// Step 2: Check each run for staleness, dispatching on its liveness policy.
+	// Step 2: Pending runs intentionally have no heartbeat or process. Reap a
+	// queue entry that has exceeded its bounded lifetime so a lost dispatcher
+	// handoff cannot leave durable state invisible forever.
+	for _, run := range dbRuns {
+		if run.Status != domain.RunStatusPending || r.config.PendingThreshold <= 0 || time.Since(run.CreatedAt) <= r.config.PendingThreshold {
+			continue
+		}
+		stats.StaleRuns++
+		r.reapPendingRun(ctx, run)
+	}
+
+	// Step 3: Check each active run for staleness, dispatching on its liveness policy.
 	// Only statuses that expect a heartbeat are stale-checked; only those with
 	// a non-none stale action get recover-or-kill handling.
 	for _, run := range dbRuns {
@@ -417,23 +481,37 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 		}
 	}
 
-	// Step 3: Scan for orphan processes
+	// Step 4: Scan for orphan processes
 	orphans := r.detectOrphanProcesses(ctx, knownTags)
 	stats.OrphansFound = len(orphans)
 
-	// Step 4: Handle orphans
+	// Step 5: Handle orphans
 	for _, orphan := range orphans {
 		r.handleOrphan(ctx, orphan, &stats)
 	}
 
-	// Step 5: Sync needs_review runs with sandbox status
+	// Step 6: Sync needs_review runs with sandbox status
 	r.syncReviewRuns(ctx, &stats)
 
-	// Step 6: Garbage-collect old terminal run state directories.
+	// Step 7: Garbage-collect old terminal run state directories.
 	r.cleanupRunStateDirs(ctx)
 
 	stats.Duration = time.Since(start)
 	return stats
+}
+
+func (r *Reconciler) reapPendingRun(ctx context.Context, run *domain.Run) {
+	age := time.Since(run.CreatedAt).Round(time.Second)
+	reason := fmt.Sprintf("run remained pending for %v without dispatcher execution", age)
+	r.log().Warn("reaping aged pending run", obs.KeyRunID, run.ID.String(), "pendingAge", age.String())
+	r.markRunFailed(ctx, run, reason)
+	if r.events == nil {
+		return
+	}
+	message := fmt.Sprintf("reconciler failed stranded pending run after %v: %s", age, reason)
+	if err := r.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "error", message)); err != nil {
+		r.log().Warn("pending reap event append failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
 }
 
 func (r *Reconciler) syncReviewRuns(ctx context.Context, stats *ReconcileStats) {
@@ -452,6 +530,17 @@ func (r *Reconciler) syncReviewRuns(ctx context.Context, stats *ReconcileStats) 
 	stats.ReviewChecked = len(reviewRuns)
 
 	for _, run := range reviewRuns {
+		// List deliberately omits sandbox_id and other heavy fields. Review
+		// synchronization needs that durable association, so reload the full row
+		// instead of broadening the read-side list contract for every caller.
+		full, getErr := r.runs.Get(ctx, run.ID)
+		if getErr != nil || full == nil {
+			if getErr != nil {
+				stats.Errors = append(stats.Errors, "failed to reload needs_review run "+run.ID.String()+": "+getErr.Error())
+			}
+			continue
+		}
+		run = full
 		if run.SandboxID == nil {
 			continue
 		}
@@ -478,7 +567,7 @@ func (r *Reconciler) syncReviewRuns(ctx context.Context, stats *ReconcileStats) 
 }
 
 func (r *Reconciler) markRunApprovedFromSandbox(ctx context.Context, run *domain.Run, actor string) {
-	now := time.Now()
+	now := r.now()
 	run.ApprovalState = domain.ApprovalStateApproved
 	run.ApprovedBy = actor
 	run.ApprovedAt = &now
@@ -497,7 +586,7 @@ func (r *Reconciler) markRunApprovedFromSandbox(ctx context.Context, run *domain
 }
 
 func (r *Reconciler) markRunRejectedFromSandbox(ctx context.Context, run *domain.Run, actor string) {
-	now := time.Now()
+	now := r.now()
 	run.ApprovalState = domain.ApprovalStateRejected
 	run.ApprovedBy = actor
 	run.ApprovedAt = &now
@@ -608,7 +697,7 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 
 // markRunFailed marks a run as failed due to unexpected termination.
 func (r *Reconciler) markRunFailed(ctx context.Context, run *domain.Run, reason string) {
-	now := time.Now()
+	now := r.now()
 	run.Status = domain.RunStatusFailed
 	run.ErrorMsg = reason
 	run.EndedAt = &now
@@ -807,7 +896,7 @@ func (r *Reconciler) scanRunnerProcesses(runnerName string, knownTags map[string
 		}
 
 		// Get process start time
-		startTime := getProcessStartTime(pid)
+		startTime := r.getProcessStartTime(pid)
 
 		// Only consider it an orphan if it's been running longer than grace period
 		if time.Since(startTime) < r.config.OrphanGracePeriod {
@@ -901,7 +990,7 @@ func looksLikeAgentManagerTag(tag string) bool {
 }
 
 // getProcessStartTime gets the start time of a process.
-func getProcessStartTime(pid int) time.Time {
+func (r *Reconciler) getProcessStartTime(pid int) time.Time {
 	// Read process start time from /proc/[pid]/stat
 	statPath := fmt.Sprintf("/proc/%d/stat", pid)
 	data, err := os.ReadFile(statPath)
@@ -937,7 +1026,7 @@ func getProcessStartTime(pid int) time.Time {
 
 	// Calculate process start time
 	processUptimeSeconds := float64(startTicks) / float64(clkTck)
-	bootTime := time.Now().Add(-time.Duration(uptime * float64(time.Second)))
+	bootTime := r.now().Add(-time.Duration(uptime * float64(time.Second)))
 	startTime := bootTime.Add(time.Duration(processUptimeSeconds * float64(time.Second)))
 
 	return startTime

@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -63,7 +62,7 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 	out := ExecuteAgentOutput{RunState: in.RunState}
 
 	in.Run.Status = domain.RunStatusRunning
-	in.Run.UpdatedAt = time.Now()
+	in.Run.UpdatedAt = in.Deps.Now()
 	if in.Deps.Runs != nil {
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
 			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
@@ -354,7 +353,7 @@ func applyPolicyCandidate(ctx context.Context, deps Deps, run *domain.Run, candi
 	} else {
 		run.ResolvedConfig.Model = candidate.Model
 	}
-	run.UpdatedAt = time.Now()
+	run.UpdatedAt = deps.Now()
 	if deps.Runs != nil {
 		if err := deps.Runs.Update(ctx, run); err != nil {
 			EmitSystemEvent(ctx, deps, run.ID, "warn", "failed to persist policy candidate selection: "+err.Error())
@@ -478,7 +477,7 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 	}
 	state := in.Existing
 	if state == nil {
-		startedAt := time.Now().UTC()
+		startedAt := in.Deps.Now().UTC()
 		if in.Run.StartedAt != nil {
 			startedAt = in.Run.StartedAt.UTC()
 		}

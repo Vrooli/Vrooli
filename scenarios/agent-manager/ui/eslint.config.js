@@ -65,6 +65,17 @@ export default tseslint.config(
       // These runtime errors are extremely hard to debug in production (minified variable names).
       // Requires eslint-plugin-import and eslint-import-resolver-typescript
       "import/no-cycle": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["src/test-utils/**", "src/features/*/mocks/**"],
+              message: "Production code must not import test helpers or feature mocks.",
+            },
+          ],
+        },
+      ],
 
       // ════════════════════════════════════════════════════════════════════════
       // STANDARD RULES (can be adjusted if needed)
@@ -127,7 +138,14 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/require-await": "off",
       "@typescript-eslint/unbound-method": "off",
+	  "no-restricted-imports": "off",
       "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: ["src/test-setup.ts"],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
   {

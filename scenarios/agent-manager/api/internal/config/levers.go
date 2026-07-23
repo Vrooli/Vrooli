@@ -547,6 +547,15 @@ type WorkflowLevers struct {
 	// so it must be generous enough for a full advance-to-fixpoint sweep.
 	// Range: 5s to 10m. Default: 5m.
 	NudgeDriveTimeout time.Duration `json:"nudgeDriveTimeout"`
+
+	// UnarmedWaitWarningThreshold is the age at which a waiting workflow with
+	// no durable wait deadline records a diagnostic. Range: 1m to 24h.
+	UnarmedWaitWarningThreshold time.Duration `json:"unarmedWaitWarningThreshold"`
+
+	// UnarmedWaitFailureThreshold is the age at which that same impossible-to-
+	// wake state is failed. It must exceed the warning threshold. Range: 2m to
+	// 7d.
+	UnarmedWaitFailureThreshold time.Duration `json:"unarmedWaitFailureThreshold"`
 }
 
 // =============================================================================
@@ -653,8 +662,10 @@ func DefaultLevers() Levers {
 			OperationMaxBackoff:      2 * time.Second,
 		},
 		Workflow: WorkflowLevers{
-			NudgeWorkers:      4,
-			NudgeDriveTimeout: 5 * time.Minute,
+			NudgeWorkers:                4,
+			NudgeDriveTimeout:           5 * time.Minute,
+			UnarmedWaitWarningThreshold: 15 * time.Minute,
+			UnarmedWaitFailureThreshold: time.Hour,
 		},
 	}
 }
@@ -720,6 +731,12 @@ func (w *WorkflowLevers) Validate() error {
 	}
 	if w.NudgeDriveTimeout < 5*time.Second || w.NudgeDriveTimeout > 10*time.Minute {
 		return domain.NewConfigInvalidError("nudgeDriveTimeout", fmt.Sprintf("must be between 5s and 10m, got %v", w.NudgeDriveTimeout), nil)
+	}
+	if w.UnarmedWaitWarningThreshold < time.Minute || w.UnarmedWaitWarningThreshold > 24*time.Hour {
+		return domain.NewConfigInvalidError("unarmedWaitWarningThreshold", fmt.Sprintf("must be between 1m and 24h, got %v", w.UnarmedWaitWarningThreshold), nil)
+	}
+	if w.UnarmedWaitFailureThreshold < 2*time.Minute || w.UnarmedWaitFailureThreshold > 7*24*time.Hour || w.UnarmedWaitFailureThreshold <= w.UnarmedWaitWarningThreshold {
+		return domain.NewConfigInvalidError("unarmedWaitFailureThreshold", fmt.Sprintf("must be between warning threshold (%v) and 7d, got %v", w.UnarmedWaitWarningThreshold, w.UnarmedWaitFailureThreshold), nil)
 	}
 	return nil
 }

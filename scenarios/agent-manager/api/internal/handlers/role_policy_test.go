@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"agent-manager/internal/orchestration"
 	"agent-manager/internal/rolepolicy"
 
 	"github.com/gorilla/mux"
@@ -28,7 +29,7 @@ func setupRolePolicyHandler(t *testing.T) (*rolepolicy.State, *mux.Router, strin
 	if err != nil {
 		t.Fatalf("new role policy state: %v", err)
 	}
-	handler := New(nil, WithRolePolicyState(state))
+	handler := New(orchestration.EmptyHandlerServices(), WithRolePolicyState(state))
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
 	return state, router, path

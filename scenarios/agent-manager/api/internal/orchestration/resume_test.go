@@ -60,7 +60,7 @@ func TestCanResumeFromFailureRun_NilRun(t *testing.T) {
 // newResumeTestOrchestrator wires the orchestrator with the runners +
 // storage that ResumeFromFailedRun exercises. Mirrors the investigation
 // attachments test setup.
-func newResumeTestOrchestrator(t *testing.T) (orchestration.Service, *database.Repositories) {
+func newResumeTestOrchestrator(t *testing.T) (*orchestration.Orchestrator, *database.Repositories) {
 	t.Helper()
 
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
@@ -100,7 +100,7 @@ func newResumeTestOrchestrator(t *testing.T) (orchestration.Service, *database.R
 // them. Returns the created records for assertions.
 func seedFailedRun(
 	t *testing.T,
-	svc orchestration.Service,
+	svc *orchestration.Orchestrator,
 	repos *database.Repositories,
 	originalDescription string,
 	originalAttachments []domain.ContextAttachment,

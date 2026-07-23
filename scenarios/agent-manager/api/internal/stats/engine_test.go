@@ -101,6 +101,23 @@ func TestAllEmittedEventsAreProcessed(t *testing.T) {
 	}
 }
 
+func TestOperationalProcessorsAccumulateTypedTriageSignals(t *testing.T) {
+	state := newAggregateState()
+	recordedAt := time.Now().UTC()
+	processPolicyCandidateAttempt(state, eventlog.Record{Payload: &eventlog.PolicyCandidateAttemptPayload{Outcome: eventlog.PolicyCandidateOutcomeFailed, FailureClass: "unavailable"}})
+	processModelHealthTransition(state, eventlog.Record{Timestamp: recordedAt, Payload: &eventlog.ModelHealthTransitionPayload{Runner: "codex", Model: "gpt", ToStatus: "failed", Reason: "rate_limit", Message: "limited"}})
+	processModelHealthTransition(state, eventlog.Record{Timestamp: recordedAt, Payload: &eventlog.ModelHealthTransitionPayload{Runner: "codex", Model: "gpt", ToStatus: "ok"}})
+	processRunnerHealthTransition(state, eventlog.Record{Timestamp: recordedAt, Payload: &eventlog.RunnerHealthTransitionPayload{Runner: "codex", ToStatus: "failed", Reason: "binary_missing"}})
+	processSandboxOperation(state, eventlog.Record{Payload: &eventlog.SandboxOperationPayload{Operation: "apply", Success: true, DurationMS: 10}})
+	processSandboxOperation(state, eventlog.Record{Payload: &eventlog.SandboxOperationPayload{Operation: "apply", Success: false}})
+	processHeartbeatMiss(state, eventlog.Record{Payload: &eventlog.HeartbeatMissPayload{Target: "run"}})
+	processCheckpointFailure(state, eventlog.Record{Payload: &eventlog.CheckpointFailurePayload{Phase: "execute", Step: "save"}})
+	processRetryAttempt(state, eventlog.Record{Payload: &eventlog.RetryAttemptPayload{Operation: "persist", Reason: "transient"}})
+	if state.policyCandidateEvents != 1 || state.policyByFailureClass["unavailable"] != 1 || state.modelHealth[modelKey{Runner: "codex", Model: "gpt"}].TransitionsObserved != 2 || state.runnerHealth["codex"].Status != "failed" || state.sandboxTotal != 2 || state.sandboxSuccess != 1 || state.heartbeatMisses != 1 || state.checkpointFailures != 1 || state.retryAttempts != 1 {
+		t.Fatalf("unexpected operational aggregate: %+v", state)
+	}
+}
+
 func TestEngine_AggregatesFallbackInsights(t *testing.T) {
 	engine, _, db := newTestEngine(t)
 	runID := uuid.New()

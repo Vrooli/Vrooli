@@ -1,12 +1,43 @@
 package mocks
 
 import (
+	"context"
 	"testing"
 
+	adapterrunner "agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )
+
+func TestTranscriptReplayRunnerReplaysExecuteThenContinue(t *testing.T) {
+	runner := NewTranscriptReplayRunner(domain.RunnerTypeCodex)
+	release := make(chan struct{})
+	started := make(chan struct{}, 1)
+	runner.SetReplayTurns(
+		ReplayTurn{Result: &adapterrunner.ExecuteResult{Success: true, ExitCode: 0, SessionID: "first"}},
+		ReplayTurn{Result: &adapterrunner.ExecuteResult{Success: true, ExitCode: 0, SessionID: "second"}, Gate: release, Started: started},
+	)
+	first, err := runner.Execute(context.Background(), adapterrunner.ExecuteRequest{})
+	if err != nil || first.SessionID != "first" {
+		t.Fatalf("first replay = %+v, err=%v", first, err)
+	}
+	done := make(chan *adapterrunner.ExecuteResult, 1)
+	go func() {
+		result, _ := runner.Continue(context.Background(), adapterrunner.ContinueRequest{})
+		done <- result
+	}()
+	<-started
+	select {
+	case <-done:
+		t.Fatal("gated continuation completed before release")
+	default:
+	}
+	close(release)
+	if second := <-done; second == nil || second.SessionID != "second" {
+		t.Fatalf("second replay = %+v", second)
+	}
+}
 
 func TestTranscriptReplayRunnerParsesSessionMessageAndTerminal(t *testing.T) {
 	runID := uuid.New()

@@ -60,7 +60,8 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	if tag == "" {
 		tag = "workflow-" + req.ExecutionID.String() + "-" + req.NodeID
 	}
-	create := CreateRunRequest{TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force,
+	create := CreateRunRequest{
+		TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force,
 		Environment: map[string]string{
 			workflowExecutionEnv:  req.ExecutionID.String(),
 			workflowNodeEnv:       req.NodeID,
@@ -610,6 +611,68 @@ func (o *Orchestrator) driveWorkflowExecution(ctx context.Context, id uuid.UUID)
 	return execution, err
 }
 
+// FailWorkflowExecution records an infrastructure failure outside the engine
+// pull loop (for example, a recovered workflow-nudger panic). The engine owns
+// the CAS transition so this cannot clobber a concurrent terminal advance.
+func (o *Orchestrator) FailWorkflowExecution(ctx context.Context, id uuid.UUID, code, message string) (*domain.WorkflowExecution, error) {
+	if o.workflowEngine == nil {
+		return nil, domain.NewStateError("workflow engine", "unavailable", "fail", "workflow execution is not configured")
+	}
+	execution, err := o.workflowEngine.Fail(ctx, id, code, message)
+	o.onWorkflowExecutionSettled(execution)
+	return execution, err
+}
+
+// ReconcileUnarmedWorkflowWaits finds waiting executions whose latest durable
+// wait intent has no deadline. Such a state cannot be woken by a timeout and
+// therefore needs bounded operator visibility and eventual terminal cleanup.
+func (o *Orchestrator) ReconcileUnarmedWorkflowWaits(ctx context.Context, warningAfter, failAfter time.Duration) error {
+	if o.workflowExecutions == nil || o.workflowEngine == nil || warningAfter <= 0 || failAfter <= warningAfter {
+		return nil
+	}
+	waiting, err := o.workflowExecutions.List(ctx, repository.WorkflowExecutionListFilter{Status: domain.WorkflowExecutionWaiting, ListFilter: repository.ListFilter{Limit: 200}})
+	if err != nil {
+		return err
+	}
+	now := o.now()
+	for _, execution := range waiting {
+		journal, journalErr := o.workflowExecutions.ListJournal(ctx, execution.ID, 0, 0)
+		if journalErr != nil || workflowWaitHasDeadline(journal) {
+			if journalErr != nil {
+				obs.Component("workflow-liveness").Warn("waiting workflow journal read failed", "executionId", execution.ID.String(), obs.KeyError, journalErr.Error())
+			}
+			continue
+		}
+		age := now.Sub(execution.UpdatedAt)
+		if age >= failAfter {
+			if _, failErr := o.FailWorkflowExecution(ctx, execution.ID, "unarmed_wait_reaped", fmt.Sprintf("workflow remained waiting without an armed timeout for %v", age.Round(time.Second))); failErr != nil && !errors.Is(failErr, workflowruntime.ErrConcurrentAdvance) {
+				obs.Component("workflow-liveness").Warn("unarmed wait reap failed", "executionId", execution.ID.String(), obs.KeyError, failErr.Error())
+			}
+			continue
+		}
+		if age >= warningAfter {
+			if _, diagnosticErr := o.workflowEngine.RecordDiagnostic(ctx, execution.ID, "unarmed_wait", fmt.Sprintf("workflow waiting without an armed timeout for %v", age.Round(time.Second))); diagnosticErr != nil && !errors.Is(diagnosticErr, workflowruntime.ErrConcurrentAdvance) {
+				obs.Component("workflow-liveness").Warn("unarmed wait diagnostic failed", "executionId", execution.ID.String(), obs.KeyError, diagnosticErr.Error())
+			}
+		}
+	}
+	return nil
+}
+
+func workflowWaitHasDeadline(journal []*domain.WorkflowJournalEntry) bool {
+	for i := len(journal) - 1; i >= 0; i-- {
+		entry := journal[i]
+		if entry.Kind != domain.WorkflowJournalWait {
+			continue
+		}
+		var intent struct {
+			Deadline time.Time `json:"deadline"`
+		}
+		return json.Unmarshal(entry.Payload, &intent) == nil && !intent.Deadline.IsZero()
+	}
+	return false
+}
+
 // onWorkflowExecutionSettled fires the completion-nudge notifications for an
 // execution that has reached a terminal status. It is idempotent (a second
 // call finds no waiters and re-enqueues a deduped parent nudge) and nil-safe.
@@ -848,7 +911,11 @@ func (o *Orchestrator) RecoverWorkflowExecutions(ctx context.Context) error {
 			_, advanceErr = o.driveWorkflowExecution(ctx, execution.ID)
 		}
 		if advanceErr != nil {
-			return advanceErr
+			if errors.Is(advanceErr, workflowruntime.ErrConcurrentAdvance) {
+				obs.Component("workflow-recovery").Debug("workflow recovery raced a concurrent advance", "executionId", execution.ID.String())
+				continue
+			}
+			obs.Component("workflow-recovery").Warn("workflow recovery failed", "executionId", execution.ID.String(), obs.KeyError, advanceErr.Error())
 		}
 	}
 	return nil

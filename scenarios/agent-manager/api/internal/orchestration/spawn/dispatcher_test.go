@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
 )
@@ -513,4 +514,34 @@ func TestDispatcher_CloseDrainsPendingCounters(t *testing.T) {
 	if s.QueueDepth != 0 {
 		t.Errorf("QueueDepth after Close = %d, want 0", s.QueueDepth)
 	}
+}
+
+func TestDispatcher_RecoversPanickingJob(t *testing.T) {
+	t.Parallel()
+
+	d := New(Config{MaxStartingConcurrency: 1, QueueCapacity: 1})
+	defer d.Close()
+
+	panics := make(chan string, 1)
+	job := makeJob(t, nil, func(StartedFn) { panic("boom") })
+	job.OnPanic = func(failure obs.PanicFailure) {
+		panics <- failure.Error()
+	}
+	if err := d.Enqueue(job); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case got := <-panics:
+		if got != "panic in spawn dispatcher job: boom" {
+			t.Fatalf("panic failure = %q", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("dispatcher did not report recovered panic")
+	}
+
+	awaitTrue(t, time.Second, "dispatcher counters to release", func() bool {
+		stats := d.Stats()
+		return stats.ActiveCount == 0 && stats.StartingCount == 0
+	})
 }

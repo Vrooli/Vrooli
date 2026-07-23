@@ -51,122 +51,6 @@ import (
 )
 
 // -----------------------------------------------------------------------------
-// Service Interface
-// -----------------------------------------------------------------------------
-
-// Service defines the orchestration service contract.
-// This is the primary API for agent-manager operations.
-type Service interface {
-	// --- AgentProfile Operations ---
-	CreateProfile(ctx context.Context, profile *domain.AgentProfile) (*domain.AgentProfile, error)
-	GetProfile(ctx context.Context, id uuid.UUID) (*domain.AgentProfile, error)
-	ListProfiles(ctx context.Context, opts ListOptions) ([]*domain.AgentProfile, error)
-	UpdateProfile(ctx context.Context, profile *domain.AgentProfile) (*domain.AgentProfile, error)
-	DeleteProfile(ctx context.Context, id uuid.UUID) error
-	EnsureProfile(ctx context.Context, req EnsureProfileRequest) (*EnsureProfileResult, error)
-	ReconcileScenarioProfiles(ctx context.Context, req ReconcileScenarioProfilesRequest) (*ReconcileScenarioProfilesResult, error)
-	ReconcileScenarioDeclarations(ctx context.Context, req ReconcileScenarioDeclarationsRequest) (*ReconcileScenarioDeclarationsResult, error)
-	ReconcileDeclaringScenarios(ctx context.Context, repoRoot string) SweepSummary
-	ReconcileSelfDeclarations(ctx context.Context, repoRoot string) (*ReconcileScenarioDeclarationsResult, error)
-	ValidateWorkflow(ctx context.Context, data []byte) (*WorkflowValidationResult, error)
-	ReconcileScenarioWorkflows(ctx context.Context, req ReconcileScenarioWorkflowsRequest) (*ReconcileScenarioWorkflowsResult, error)
-	ListWorkflowRevisions(ctx context.Context, owner, key string, opts ListOptions) ([]*domain.WorkflowRevision, error)
-	GetWorkflowRevision(ctx context.Context, owner, key, digest string) (*domain.WorkflowRevision, error)
-	StartWorkflowExecution(ctx context.Context, req StartWorkflowExecutionRequest) (*domain.WorkflowExecution, error)
-	ListWorkflowExecutions(ctx context.Context, req ListWorkflowExecutionsRequest) ([]*domain.WorkflowExecution, error)
-	GetWorkflowExecution(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
-	AdvanceWorkflowExecution(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
-	WaitWorkflowExecution(ctx context.Context, id uuid.UUID, timeout time.Duration) (*WaitWorkflowExecutionResult, error)
-	GetWorkflowExecutionTrace(ctx context.Context, id uuid.UUID, afterSequence int64, limit int) (*WorkflowExecutionTrace, error)
-	ListWorkflowExecutionRuns(ctx context.Context, id uuid.UUID) ([]*domain.WorkflowNodeAttempt, error)
-	SignalWorkflowExecution(ctx context.Context, req WorkflowExecutionSignalRequest) (*WorkflowExecutionOperationResult, error)
-	CancelWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error)
-	RetryWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error)
-	ResumeWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error)
-	RecoverWorkflowExecutions(ctx context.Context) error
-	SimulateWorkflow(ctx context.Context, req SimulateWorkflowRequest) (*WorkflowSimulation, error)
-
-	// --- Task Operations ---
-	CreateTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
-	GetTask(ctx context.Context, id uuid.UUID) (*domain.Task, error)
-	ListTasks(ctx context.Context, opts ListOptions) ([]*domain.Task, error)
-	UpdateTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
-	CancelTask(ctx context.Context, id uuid.UUID) error
-	DeleteTask(ctx context.Context, id uuid.UUID) error
-
-	// --- Run Operations ---
-	CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error)
-	CreateInvestigationRun(ctx context.Context, req CreateInvestigationRequest) (*domain.Run, error)
-	CreateInvestigationApplyRun(ctx context.Context, req CreateInvestigationApplyRequest) (*domain.Run, error)
-	ResumeFromFailedRun(ctx context.Context, req ResumeFromFailedRunRequest) (*domain.Run, error)
-	GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
-	GetRunByTag(ctx context.Context, tag string) (*domain.Run, error)
-	ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error)
-	DeleteRun(ctx context.Context, id uuid.UUID) error
-	StopRun(ctx context.Context, id uuid.UUID) error
-	StopRunByTag(ctx context.Context, tag string) error
-	StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error)
-	QuiesceScenario(ctx context.Context, opts QuiesceOptions) (*QuiesceResult, error)
-	ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error)
-	ParkRunFromAgent(ctx context.Context, req ParkRunFromAgentRequest) (*ParkRunResult, error)
-	GetAwaitResult(ctx context.Context, runID uuid.UUID) (*AwaitResult, error)
-	WakeRun(ctx context.Context, in WakeRunInput) (*domain.Run, error)
-	RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error)
-	DeleteRunMessage(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (*domain.RunEvent, error)
-
-	// --- Run Resumption Operations (Interruption Resilience) ---
-	ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
-	GetRunProgress(ctx context.Context, id uuid.UUID) (*domain.RunProgress, error)
-	ListStaleRuns(ctx context.Context, staleDuration time.Duration) ([]*domain.Run, error)
-
-	// --- Approval Operations ---
-	ApproveRun(ctx context.Context, req ApproveRequest) (*ApproveResult, error)
-	RejectRun(ctx context.Context, id uuid.UUID, actor, reason string) error
-	PartialApprove(ctx context.Context, req PartialApproveRequest) (*ApproveResult, error)
-	SyncRunFromSandbox(ctx context.Context, req SandboxSyncRequest) (*domain.Run, error)
-
-	// --- Event Operations ---
-	GetRunEvents(ctx context.Context, runID uuid.UUID, opts event.GetOptions) ([]*domain.RunEvent, error)
-	StreamRunEvents(ctx context.Context, runID uuid.UUID, opts event.StreamOptions) (<-chan *domain.RunEvent, error)
-
-	// --- Diff Operations ---
-	GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbox.DiffResult, error)
-
-	// --- Model Policy Operations ---
-	GetModelHealthSnapshot(ctx context.Context) (health.Snapshot, error)
-	ExplainProfilePolicy(ctx context.Context, profileID uuid.UUID) (*domain.ExecutionPolicySnapshot, error)
-	ExplainRunPolicy(ctx context.Context, runID uuid.UUID) (*domain.ExecutionPolicySnapshot, error)
-
-	// --- Status Operations ---
-	GetHealth(ctx context.Context) (*HealthStatus, error)
-	GetRunnerStatus(ctx context.Context) ([]*RunnerStatus, error)
-	ProbeRunner(ctx context.Context, runnerType domain.RunnerType) (*ProbeResult, error)
-	SpawnStats() spawn.Stats
-
-	// --- Maintenance Operations ---
-	PurgeData(ctx context.Context, req PurgeRequest) (*PurgeResult, error)
-
-	// --- Investigation Settings Operations ---
-	GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error)
-	UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error
-	ResetInvestigationSettings(ctx context.Context) error
-
-	// --- Orchestration Settings Operations ---
-	GetOrchestrationSettings(ctx context.Context) (*agentconfig.OrchestrationSettings, error)
-	UpdateOrchestrationSettings(ctx context.Context, settings *agentconfig.OrchestrationSettings) error
-	ResetOrchestrationSettings(ctx context.Context) error
-
-	// --- Path Validation ---
-	ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error)
-
-	// --- Identity Token Operations ---
-	VerifyIdentityToken(ctx context.Context, token string) (*IdentityVerifyResult, error)
-
-	// --- Config Accessors ---
-	GetDefaultProjectRoot() string
-}
-
-// -----------------------------------------------------------------------------
 // Request/Response Types
 // -----------------------------------------------------------------------------
 
@@ -748,6 +632,10 @@ type Orchestrator struct {
 	// Configuration
 	config OrchestratorConfig
 
+	// clock is the wall-clock seam for orchestration state transitions. It is
+	// injected by deterministic tests and defaults to time.Now in production.
+	clock func() time.Time
+
 	// Storage label for health reporting (e.g., sqlite).
 	storageLabel string
 
@@ -830,6 +718,9 @@ type Orchestrator struct {
 	workflowWaiters *workflowWaitRegistry
 }
 
+// systemNow is the production clock behind injected orchestration clocks.
+var systemNow = time.Now
+
 // OrchestratorConfig holds service configuration.
 type OrchestratorConfig struct {
 	DefaultTimeout          time.Duration
@@ -854,6 +745,16 @@ type Option func(*Orchestrator)
 func WithConfig(cfg OrchestratorConfig) Option {
 	return func(o *Orchestrator) {
 		o.config = cfg
+	}
+}
+
+// WithClock injects the wall clock used for durable orchestration timestamps.
+// A nil clock retains the production default.
+func WithClock(clock func() time.Time) Option {
+	return func(o *Orchestrator) {
+		if clock != nil {
+			o.clock = clock
+		}
 	}
 }
 
@@ -1102,6 +1003,7 @@ func New(
 		tasks:              tasks,
 		runs:               runs,
 		config:             DefaultConfig(),
+		clock:              time.Now,
 		interactiveDrivers: newInteractiveDriverRegistry(),
 		structuredResults:  structuredresult.Resolver{},
 		workflowWaiters:    newWorkflowWaitRegistry(),
@@ -1112,7 +1014,7 @@ func New(
 	}
 	if o.workflowExecutions != nil && o.workflows != nil {
 		expressions, _ := workflowruntime.NewExpressionEvaluator()
-		o.workflowEngine = &workflowruntime.Engine{Store: o.workflowExecutions, Catalog: o.workflows, Children: workflowChildLauncher{o: o}, Subworkflows: workflowSubworkflowLauncher{o: o}, Expressions: expressions}
+		o.workflowEngine = &workflowruntime.Engine{Store: o.workflowExecutions, Catalog: o.workflows, Children: workflowChildLauncher{o: o}, Subworkflows: workflowSubworkflowLauncher{o: o}, Expressions: expressions, Now: o.now}
 		if source, ok := o.promptClient.(promptmanager.AssignmentClient); ok && source != nil {
 			o.workflowEngine.PromptResolver = workflowPromptResolver{source: source}
 		}
@@ -1132,8 +1034,12 @@ func New(
 	return o
 }
 
-// Verify Orchestrator implements Service interface at compile time.
-var _ Service = (*Orchestrator)(nil)
+func (o *Orchestrator) now() time.Time {
+	if o != nil && o.clock != nil {
+		return o.clock()
+	}
+	return systemNow()
+}
 
 // -----------------------------------------------------------------------------
 // AgentProfile Operations
@@ -1143,7 +1049,7 @@ func (o *Orchestrator) CreateProfile(ctx context.Context, profile *domain.AgentP
 	if profile.ID == uuid.Nil {
 		profile.ID = uuid.New()
 	}
-	profile.CreatedAt = time.Now()
+	profile.CreatedAt = o.now()
 	profile.UpdatedAt = profile.CreatedAt
 
 	if err := normalizeProfileInput(profile); err != nil {
@@ -1188,7 +1094,7 @@ func (o *Orchestrator) UpdateProfile(ctx context.Context, profile *domain.AgentP
 		profile.SourceUpdatedAt = existing.SourceUpdatedAt
 		profile.LocalOverride = true
 	}
-	profile.UpdatedAt = time.Now()
+	profile.UpdatedAt = o.now()
 	if existing != nil {
 		profile.CreatedAt = existing.CreatedAt
 	}
@@ -1236,7 +1142,7 @@ func (o *Orchestrator) EnsureProfile(ctx context.Context, req EnsureProfileReque
 		candidate.Name = key
 	}
 
-	now := time.Now()
+	now := o.now()
 	if existing == nil {
 		if candidate.ID == uuid.Nil {
 			candidate.ID = uuid.New()
@@ -1297,7 +1203,7 @@ func (o *Orchestrator) CreateTask(ctx context.Context, task *domain.Task) (*doma
 		task.ID = uuid.New()
 	}
 	task.Status = domain.TaskStatusQueued
-	task.CreatedAt = time.Now()
+	task.CreatedAt = o.now()
 	task.UpdatedAt = task.CreatedAt
 
 	if err := o.tasks.Create(ctx, task); err != nil {
@@ -1345,7 +1251,7 @@ func (o *Orchestrator) UpdateTask(ctx context.Context, task *domain.Task) (*doma
 	updated.ScopePath = task.ScopePath
 	updated.ProjectRoot = task.ProjectRoot
 	updated.ContextAttachments = task.ContextAttachments
-	updated.UpdatedAt = time.Now()
+	updated.UpdatedAt = o.now()
 
 	if err := o.tasks.Update(ctx, &updated); err != nil {
 		return nil, err
@@ -1364,7 +1270,7 @@ func (o *Orchestrator) CancelTask(ctx context.Context, id uuid.UUID) error {
 	}
 
 	task.Status = domain.TaskStatusCancelled
-	task.UpdatedAt = time.Now()
+	task.UpdatedAt = o.now()
 	return o.tasks.Update(ctx, task)
 }
 
@@ -1460,7 +1366,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		if resolved != task.ProjectRoot {
 			task.ProjectRoot = resolved
 			if o.tasks != nil {
-				task.UpdatedAt = time.Now()
+				task.UpdatedAt = o.now()
 				_ = o.tasks.Update(ctx, task)
 			}
 		}
@@ -1644,8 +1550,8 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		// Provenance: requested is the primary model the preset expanded to at creation.
 		// Actual is blank until the executor records the model that actually ran.
 		RequestedModel: resolvedConfig.Model,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		CreatedAt:      o.now(),
+		UpdatedAt:      o.now(),
 	}
 	// Apply Decision D7 precedence (spawner > parent inheritance > fresh
 	// UUID). When the spawn surface populates ConversationID directly,
@@ -1678,8 +1584,10 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		return nil, err
 	}
 	if o.toolRestrictionIsAdvisory(resolvedConfig) && o.events != nil {
-		_ = o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "warn",
-			fmt.Sprintf("runner %q cannot enforce allowedTools; advisory policy accepted the launch", resolvedConfig.RunnerType)))
+		if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "warn",
+			fmt.Sprintf("runner %q cannot enforce allowedTools; advisory policy accepted the launch", resolvedConfig.RunnerType))); err != nil {
+			obs.Component("orchestrator").Warn("failed to append advisory tool-restriction event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
+		}
 	}
 
 	// Mark idempotency as complete
@@ -1748,8 +1656,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 			userEvent = domain.NewMessageEvent(run.ID, "user", userMessage)
 		}
 		if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
-			// Log but don't fail
-			_ = err
+			obs.Component("orchestrator").Warn("failed to append initial user message", obs.KeyRunID, run.ID.String(), "eventType", "message", obs.KeyError, err.Error())
 		}
 	}
 
@@ -1763,7 +1670,13 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		RunnerType: runnerTypeOrEmpty(run),
 		Sink:       o.dispatcherSink(run.ID),
 		Fn: func(started spawn.StartedFn) {
+			defer obs.RecoverToFailure("run execution dispatch", func(failure obs.PanicFailure) {
+				o.recoverPanickedRun(run, failure)
+			})
 			o.executeRun(context.Background(), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
+		},
+		OnPanic: func(failure obs.PanicFailure) {
+			o.recoverPanickedRun(run, failure)
 		},
 	}); err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
@@ -1771,6 +1684,27 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 
 	return o.attachRunActions(ctx, run), nil
+}
+
+// recoverPanickedRun contains a panic at an execution-goroutine boundary. The
+// failure state uses the normal phase path so the run reaches the same terminal
+// status and broadcaster contract as an ordinary executor error; the full
+// stack is retained as a protected run event for postmortem triage.
+func (o *Orchestrator) recoverPanickedRun(run *domain.Run, failure obs.PanicFailure) {
+	if run == nil {
+		obs.Component("orchestrator").Error("recovered run panic without run", obs.KeyError, failure.Error())
+		return
+	}
+	ctx := context.Background()
+	phases.FailWithError(ctx, phases.FailWithErrorInput{
+		Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster},
+		Run:  run,
+		Err:  failure,
+	})
+	stackEvent := domain.NewLogEvent(run.ID, "error", "panic recovered in "+failure.Operation+"\n"+failure.Stack)
+	if err := o.appendAndBroadcastEvents(ctx, run.ID, stackEvent); err != nil {
+		obs.Component("orchestrator").Error("failed to append recovered panic stack event", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
 }
 
 func (o *Orchestrator) preflightScopePath(task *domain.Task, runMode domain.RunMode, existingSandboxID *uuid.UUID) error {
@@ -1829,7 +1763,9 @@ func (o *Orchestrator) markIdempotencyFailed(ctx context.Context, key string) {
 	if key == "" || o.idempotency == nil {
 		return
 	}
-	_ = o.idempotency.Fail(ctx, key)
+	if err := o.idempotency.Fail(ctx, key); err != nil {
+		obs.Component("orchestrator").Warn("failed to mark idempotency key failed", "idempotencyKey", key, obs.KeyError, err.Error())
+	}
 }
 
 // markIdempotencyComplete marks an idempotency key as successfully completed.
@@ -1837,7 +1773,9 @@ func (o *Orchestrator) markIdempotencyComplete(ctx context.Context, key string, 
 	if key == "" || o.idempotency == nil {
 		return
 	}
-	_ = o.idempotency.Complete(ctx, key, entityID, entityType, nil)
+	if err := o.idempotency.Complete(ctx, key, entityID, entityType, nil); err != nil {
+		obs.Component("orchestrator").Warn("failed to mark idempotency key complete", "idempotencyKey", key, "entityId", entityID.String(), "entityType", entityType, obs.KeyError, err.Error())
+	}
 }
 
 // resolveRunConfig resolves the run configuration from profile and/or inline config.
@@ -2513,7 +2451,7 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 			o.awaitRegistry.Cancel(id)
 		}
 		run.AwaitHandle = nil
-		endedAt := time.Now()
+		endedAt := o.now()
 		_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 			Run:       run,
 			NewStatus: domain.RunStatusCancelled,
@@ -2533,7 +2471,7 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 			return result.Error
 		}
 
-		endedAt := time.Now()
+		endedAt := o.now()
 		_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 			Run:       run,
 			NewStatus: domain.RunStatusCancelled,
@@ -2559,7 +2497,7 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		}
 	}
 
-	endedAt := time.Now()
+	endedAt := o.now()
 	_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:       run,
 		NewStatus: domain.RunStatusCancelled,
@@ -2700,7 +2638,7 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 		return nil, err
 	}
 
-	now := time.Now()
+	now := o.now()
 	run, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:           run,
 		NewStatus:     domain.RunStatusRunning,
@@ -2739,7 +2677,7 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 			userEvent = domain.NewMessageEvent(run.ID, "user", message)
 		}
 		if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
-			_ = err
+			obs.Component("orchestrator").Warn("failed to append continuation user message", obs.KeyRunID, run.ID.String(), "eventType", "message", obs.KeyError, err.Error())
 		}
 	}
 
@@ -2751,7 +2689,7 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 		metas, err := o.storage.GetMultiple(ctx, attachmentIDs)
 		if err != nil {
 			// Log but continue without attachments
-			_ = err
+			obs.Component("orchestrator").Warn("failed to resolve continuation attachments", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		}
 		for _, meta := range metas {
 			attachments = append(attachments, runner.Attachment{
@@ -2907,7 +2845,8 @@ func (o *Orchestrator) DeleteRunMessage(ctx context.Context, runID uuid.UUID, ev
 	}
 
 	events, err := o.events.Get(ctx, runID, event.GetOptions{
-		EventTypes: []domain.RunEventType{domain.EventTypeMessage, domain.EventTypeMessageDeleted},
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeMessage, domain.EventTypeMessageDeleted},
 	})
 	if err != nil {
 		return nil, err
@@ -2951,7 +2890,7 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 		return nil, nil, nil
 	}
 
-	startedAt := time.Now().UTC()
+	startedAt := o.now().UTC()
 	if run.StartedAt != nil {
 		startedAt = run.StartedAt.UTC()
 	}
@@ -3098,7 +3037,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		return
 	}
 
-	now := time.Now()
+	now := o.now()
 	transition := RunStatusTransitionInput{
 		Run:     run,
 		EndedAt: &now,
@@ -3237,6 +3176,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		prompt,
 		systemPrompt,
 	)
+	executor.WithClock(o.now)
 	executor.WithStructuredResultResolver(o.structuredResults)
 	// Apply orchestration-settings overrides to executor levers when a store
 	// is wired. Defaults come from config.DefaultLevers().
@@ -3392,7 +3332,7 @@ func (o *Orchestrator) interactiveEventSink(runID uuid.UUID) runner.EventSink {
 // failInteractiveRun marks an interactive run failed with an explicit reason
 // (used for pre-launch misconfiguration/validation failures).
 func (o *Orchestrator) failInteractiveRun(ctx context.Context, run *domain.Run, reason string) {
-	now := time.Now()
+	now := o.now()
 	run.Status = domain.RunStatusFailed
 	run.Phase = domain.RunPhaseCompleted
 	run.ErrorMsg = reason
@@ -3493,7 +3433,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 
 	// Update status to running
 	run.Status = domain.RunStatusRunning
-	run.UpdatedAt = time.Now()
+	run.UpdatedAt = o.now()
 	if err := o.runs.Update(ctx, run); err != nil {
 		return nil, err
 	}
@@ -3507,7 +3447,13 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 		RunnerType: runnerTypeOrEmpty(run),
 		Sink:       o.dispatcherSink(run.ID),
 		Fn: func(started spawn.StartedFn) {
+			defer obs.RecoverToFailure("run resumption dispatch", func(failure obs.PanicFailure) {
+				o.recoverPanickedRun(run, failure)
+			})
 			o.resumeRun(context.Background(), run, task, profile, checkpoint, started)
+		},
+		OnPanic: func(failure obs.PanicFailure) {
+			o.recoverPanickedRun(run, failure)
 		},
 	}); err != nil {
 		return nil, err
@@ -3530,6 +3476,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		"", // No new prompt for resume
 		"", // No system prompt for resume (session persists instructions)
 	)
+	executor.WithClock(o.now)
 	executor.WithStructuredResultResolver(o.structuredResults)
 	// Apply orchestration-settings overrides to executor levers when a store
 	// is wired. Defaults come from config.DefaultLevers().
@@ -3762,7 +3709,7 @@ func (o *Orchestrator) GetHealth(ctx context.Context) (*HealthStatus, error) {
 	status := &HealthStatus{
 		Status:    "healthy",
 		Service:   "agent-manager",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Timestamp: o.now().UTC().Format(time.RFC3339),
 		Readiness: true,
 		Dependencies: &HealthDependencies{
 			Runners: make(map[string]*DependencyStatus),
@@ -3892,7 +3839,7 @@ func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.Runner
 
 	// Build the probe command - uses a minimal prompt to reduce cost/time
 	// The prompt asks for a specific response so we can validate it
-	start := time.Now()
+	start := o.now()
 	var probeCmd *exec.Cmd
 	var cmdName string
 	var codexOutputFile string

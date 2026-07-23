@@ -112,8 +112,9 @@ func newTestReconciler(t *testing.T, repos *database.Repositories, store event.S
 // and observes the run completing once the transcript carries a terminal
 // "done:" line. No duplicate events in the store.
 func TestRestartResume_TranscriptReplayCompletes(t *testing.T) {
-	repos, store, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	harness := newOrchestratorHarness(t)
+	t.Cleanup(harness.Cleanup)
+	repos, store := harness.Repos, harness.Events
 
 	transcriptPath := filepath.Join(t.TempDir(), "transcript.ndjson")
 	if err := os.WriteFile(transcriptPath, nil, 0o644); err != nil {
@@ -137,8 +138,7 @@ func TestRestartResume_TranscriptReplayCompletes(t *testing.T) {
 
 	// Boot the recovery-orchestrator (orchestrator B). Use a no-op
 	// fake runner — recovery uses the transcript parser, not Execute.
-	fakeRunner := mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)
-	reconciler := newTestReconciler(t, repos, store, fakeRunner)
+	reconciler := newTestReconciler(t, repos, store, harness.Runner)
 
 	if err := reconciler.RecoverInFlightRuns(context.Background()); err != nil {
 		t.Fatalf("RecoverInFlightRuns: %v", err)

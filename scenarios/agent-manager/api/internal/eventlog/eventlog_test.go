@@ -16,6 +16,8 @@ package eventlog
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -214,6 +216,89 @@ func TestEmitter_NilSinkIsNoOp(t *testing.T) {
 	em := NewEmitter(nil, uuid.New())
 	em.EmitRunnerFallbackAttempted(RunnerFallbackAttemptedPayload{})
 	// no panic = pass
+}
+
+type recordingSink struct {
+	events []*domain.RunEvent
+	err    error
+}
+
+func (s *recordingSink) Emit(event *domain.RunEvent) error {
+	s.events = append(s.events, event)
+	return s.err
+}
+
+func TestEmitterWritesEveryTypedConveniencePayload(t *testing.T) {
+	sink := &recordingSink{}
+	emitter := NewEmitter(sink, uuid.New())
+	emitter.EmitRunnerFallbackAttempted(RunnerFallbackAttemptedPayload{})
+	emitter.EmitRunnerFallbackExhausted(RunnerFallbackExhaustedPayload{})
+	emitter.EmitModelFallbackAttempted(ModelFallbackAttemptedPayload{})
+	emitter.EmitModelFallbackExhausted(ModelFallbackExhaustedPayload{})
+	emitter.EmitPolicyCandidateAttempt(PolicyCandidateAttemptPayload{})
+	emitter.EmitModelHealthTransition(ModelHealthTransitionPayload{})
+	emitter.EmitRunnerHealthTransition(RunnerHealthTransitionPayload{})
+	emitter.EmitSandboxOperation(SandboxOperationPayload{})
+	emitter.EmitHeartbeatMiss(HeartbeatMissPayload{})
+	emitter.EmitCheckpointFailure(CheckpointFailurePayload{})
+	emitter.EmitRetryAttempt(RetryAttemptPayload{})
+	if len(sink.events) != len(typedEventTypes) {
+		t.Fatalf("emitted events = %d, want %d", len(sink.events), len(typedEventTypes))
+	}
+	for _, event := range sink.events {
+		if !event.EventType.IsTypedOperationalEvent() || event.SchemaVersion != LatestSchemaVersion(event.EventType) {
+			t.Fatalf("invalid emitted event: %+v", event)
+		}
+	}
+
+	// Emission is deliberately fire-and-forget: a sink failure must not
+	// panic or prevent later operational events from being attempted.
+	sink.err = errors.New("store unavailable")
+	emitter.EmitRetryAttempt(RetryAttemptPayload{})
+	if len(sink.events) != len(typedEventTypes)+1 {
+		t.Fatal("sink failure prevented emit attempt")
+	}
+}
+
+func TestRepositoryFiltersLegacyEventsAndHonorsCursorsAndLimits(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	runID, otherRunID := uuid.New(), uuid.New()
+	first := MustBuildEvent(runID, RetryAttemptPayload{Operation: "first"})
+	second := MustBuildEvent(runID, HeartbeatMissPayload{Message: "second"})
+	legacy := &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeLog, Timestamp: time.Now(), SchemaVersion: 1, Data: &domain.TypedEventData{Type: domain.EventTypeLog, Body: json.RawMessage(`{}`)}}
+	other := MustBuildEvent(otherRunID, SandboxOperationPayload{Operation: SandboxOpDelete})
+	insertRaw(t, repo, runID, 1, first)
+	insertRaw(t, repo, runID, 2, legacy)
+	insertRaw(t, repo, runID, 3, second)
+	insertRaw(t, repo, otherRunID, 1, other)
+
+	forRun, err := repo.SinceForRun(ctx, runID, 1, 1)
+	if err != nil || len(forRun) != 1 || forRun[0].EventType != domain.EventTypeHeartbeatMiss || forRun[0].Sequence != 3 {
+		t.Fatalf("since for run = %+v, err=%v", forRun, err)
+	}
+	all, err := repo.SinceID(ctx, 0, 2)
+	if err != nil || len(all) != 2 {
+		t.Fatalf("since id = %+v, err=%v", all, err)
+	}
+	if _, err := repo.ByEventType(ctx, domain.EventTypeLog, time.Time{}, 0); err == nil {
+		t.Fatal("legacy event type accepted by typed repository")
+	}
+	matching, err := repo.ByEventType(ctx, domain.EventTypeRetryAttempt, time.Time{}, 0)
+	if err != nil || len(matching) != 1 || matching[0].RunID != runID {
+		t.Fatalf("by event type = %+v, err=%v", matching, err)
+	}
+}
+
+func TestParseTimestampSupportsLegacySQLiteShapes(t *testing.T) {
+	for _, raw := range []string{"2026-01-02T03:04:05", "2026-01-02 03:04:05"} {
+		if _, err := parseTimestamp(raw); err != nil {
+			t.Fatalf("parse %q: %v", raw, err)
+		}
+	}
+	if _, err := parseTimestamp("not-a-timestamp"); err == nil {
+		t.Fatal("invalid timestamp accepted")
+	}
 }
 
 // payloadValue dereferences a Payload pointer to the underlying struct

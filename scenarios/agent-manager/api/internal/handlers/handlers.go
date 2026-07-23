@@ -57,7 +57,8 @@ import (
 
 // Handler provides HTTP handlers for all API endpoints.
 type Handler struct {
-	svc                   orchestration.Service
+	svc                   orchestration.HandlerServices
+	profiles              orchestration.ProfileService
 	hub                   *WebSocketHub
 	validator             protovalidate.Validator
 	storage               storage.Service
@@ -103,12 +104,12 @@ func WithObservedReceipts(client eventbus.Client) HandlerOption {
 }
 
 // New creates a new Handler with the given orchestration service.
-func New(svc orchestration.Service, opts ...HandlerOption) *Handler {
+func New(svc orchestration.HandlerServices, opts ...HandlerOption) *Handler {
 	validator, err := protovalidate.New()
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize protovalidate: %v", err))
 	}
-	h := &Handler{svc: svc, validator: validator}
+	h := &Handler{svc: svc, profiles: svc.ProfileService, validator: validator}
 	for _, opt := range opts {
 		opt(h)
 	}
@@ -868,7 +869,7 @@ func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.CreateProfile(r.Context(), profile)
+	result, err := h.profiles.CreateProfile(r.Context(), profile)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -896,7 +897,7 @@ func (h *Handler) EnsureProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.EnsureProfile(r.Context(), orchestration.EnsureProfileRequest{
+	result, err := h.profiles.EnsureProfile(r.Context(), orchestration.EnsureProfileRequest{
 		ProfileKey:     req.ProfileKey,
 		Defaults:       protoconv.AgentProfileFromProto(req.Defaults),
 		UpdateExisting: req.UpdateExisting,
@@ -930,7 +931,7 @@ func (h *Handler) ReconcileScenarioProfiles(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	result, err := h.svc.ReconcileScenarioProfiles(r.Context(), orchestration.ReconcileScenarioProfilesRequest{
+	result, err := h.profiles.ReconcileScenarioProfiles(r.Context(), orchestration.ReconcileScenarioProfilesRequest{
 		Scenario: req.Scenario,
 		DryRun:   req.DryRun,
 	})
@@ -1015,7 +1016,7 @@ func (h *Handler) reconcileScenarioDeclarations(w http.ResponseWriter, r *http.R
 	if !h.validateProto(w, r, &req) {
 		return
 	}
-	result, err := h.svc.ReconcileScenarioDeclarations(r.Context(), orchestration.ReconcileScenarioDeclarationsRequest{
+	result, err := h.profiles.ReconcileScenarioDeclarations(r.Context(), orchestration.ReconcileScenarioDeclarationsRequest{
 		Scenario:     req.Scenario,
 		DryRun:       req.DryRun || forceDryRun,
 		ValidateOnly: req.ValidateOnly,
@@ -1079,7 +1080,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := h.svc.GetProfile(r.Context(), id)
+	profile, err := h.profiles.GetProfile(r.Context(), id)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -1122,7 +1123,7 @@ func (h *Handler) ListProfiles(w http.ResponseWriter, r *http.Request) {
 	if req.Offset != nil {
 		opts.Offset = int(req.GetOffset())
 	}
-	profiles, err := h.svc.ListProfiles(r.Context(), orchestration.ListOptions{
+	profiles, err := h.profiles.ListProfiles(r.Context(), orchestration.ListOptions{
 		Limit:  opts.Limit,
 		Offset: opts.Offset,
 	})
@@ -1179,7 +1180,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.UpdateProfile(r.Context(), profile)
+	result, err := h.profiles.UpdateProfile(r.Context(), profile)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -1203,7 +1204,7 @@ func (h *Handler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.svc.DeleteProfile(r.Context(), id); err != nil {
+	if err := h.profiles.DeleteProfile(r.Context(), id); err != nil {
 		writeError(w, r, err)
 		return
 	}

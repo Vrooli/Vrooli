@@ -1,7 +1,7 @@
 {
   "$schema": "../../test-genie/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Sample testing configuration for React + Vite template",
+  "description": "Agent Manager Go API, CLI, and UI test policy with deterministic workflow and orchestration coverage.",
     "last_updated": "2025-11-08T00:00:00Z"
   },
   "version": "1.0.0",

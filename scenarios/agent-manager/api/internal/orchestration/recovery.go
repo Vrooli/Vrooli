@@ -46,6 +46,21 @@ func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
 			recoveryLog.Warn("run recovery failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		}
 	}
+
+	pending := domain.RunStatusPending
+	pendingRuns, err := r.runs.List(ctx, repository.RunListFilter{Status: &pending})
+	if err != nil {
+		return err
+	}
+	for _, run := range pendingRuns {
+		if r.pendingRunRecovery == nil {
+			recoveryLog.Warn("pending run cannot be re-enqueued; recovery owner is not wired", obs.KeyRunID, run.ID.String())
+			continue
+		}
+		if _, err := r.pendingRunRecovery.ResumeRun(ctx, run.ID); err != nil {
+			recoveryLog.Warn("pending run re-enqueue failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		}
+	}
 	return nil
 }
 
@@ -106,7 +121,7 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 }
 
 func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, terminal *runner.TranscriptTerminal) (*RecoverResult, error) {
-	now := time.Now()
+	now := r.now()
 	if terminal != nil && terminal.Success {
 		run.Status = domain.RunStatusComplete
 		run.ErrorMsg = ""
@@ -168,7 +183,7 @@ func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, 
 }
 
 func (r *Reconciler) failRecoveredRun(ctx context.Context, run *domain.Run, message string) (*RecoverResult, error) {
-	now := time.Now()
+	now := r.now()
 	run.Status = domain.RunStatusFailed
 	run.ErrorMsg = message
 	run.EndedAt = &now
@@ -337,7 +352,7 @@ func intPtr(v int) *int {
 }
 
 func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
-	cutoff := time.Now().Add(-time.Duration(r.levers.Storage.RunStateRetentionDays) * 24 * time.Hour)
+	cutoff := r.now().Add(-time.Duration(r.levers.Storage.RunStateRetentionDays) * 24 * time.Hour)
 	statuses := []domain.RunStatus{
 		domain.RunStatusComplete,
 		domain.RunStatusFailed,

@@ -725,10 +725,8 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 		Timestamp: e.Timestamp.Time(),
 	}
 
-	// Parse legacy data format
-	var legacy domain.RunEventData
-	if err := json.Unmarshal(e.Data, &legacy); err == nil {
-		evt.Data = legacy.ToTypedPayload()
+	if payload, err := domain.DecodeEventPayload(evt.EventType, e.Data); err == nil {
+		evt.Data = payload
 	}
 	return evt
 }

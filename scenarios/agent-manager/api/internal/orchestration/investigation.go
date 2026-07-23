@@ -79,7 +79,7 @@ func buildInvestigationContextAttachment(projectRoot string, scopePaths []string
 
 // buildInvestigationMetadataAttachment creates a human-readable context attachment
 // with investigation parameters including depth guidance.
-func buildInvestigationMetadataAttachment(runIDs []uuid.UUID, depth domain.InvestigationDepth) domain.ContextAttachment {
+func buildInvestigationMetadataAttachment(runIDs []uuid.UUID, depth domain.InvestigationDepth, now time.Time) domain.ContextAttachment {
 	var depthGuidance string
 	switch depth {
 	case domain.InvestigationDepthQuick:
@@ -94,7 +94,7 @@ func buildInvestigationMetadataAttachment(runIDs []uuid.UUID, depth domain.Inves
 	sb.WriteString(fmt.Sprintf("**Depth**: %s\n", depth))
 	sb.WriteString(fmt.Sprintf("**Guidance**: %s\n", depthGuidance))
 	sb.WriteString(fmt.Sprintf("**Runs**: %d\n", len(runIDs)))
-	sb.WriteString(fmt.Sprintf("**Investigated At**: %s\n", time.Now().UTC().Format(time.RFC3339)))
+	sb.WriteString(fmt.Sprintf("**Investigated At**: %s\n", now.UTC().Format(time.RFC3339)))
 
 	return domain.ContextAttachment{
 		Type:     "note",
@@ -149,7 +149,7 @@ func (o *Orchestrator) CreateInvestigationRun(
 	}
 
 	// Add investigation metadata attachment (depth, run IDs, etc.)
-	metadataAttachment := buildInvestigationMetadataAttachment(req.RunIDs, depth)
+	metadataAttachment := buildInvestigationMetadataAttachment(req.RunIDs, depth, o.now())
 	attachments = append([]domain.ContextAttachment{metadataAttachment}, attachments...)
 
 	// Add investigation context attachment (explicit project root and scope paths)
@@ -334,7 +334,7 @@ func (o *Orchestrator) createInvestigationTask(
 	attachments []domain.ContextAttachment,
 	projectRoot string,
 ) (*domain.Task, error) {
-	now := time.Now()
+	now := o.now()
 	if projectRoot == "" {
 		projectRoot = strings.TrimSpace(o.config.DefaultProjectRoot)
 	}

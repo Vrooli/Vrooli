@@ -98,6 +98,12 @@ type Job struct {
 	// Fn is the executor body. Required.
 	Fn ExecuteFn
 
+	// OnPanic owns the durable failure transition when Fn panics. The
+	// dispatcher deliberately knows nothing about persistence, so callers wire
+	// their run-specific failure path here. Nil is safe for dispatcher-only
+	// callers, which still get a recovered, structured log entry.
+	OnPanic func(obs.PanicFailure)
+
 	enqueuedAt time.Time
 }
 
@@ -126,6 +132,9 @@ type Config struct {
 	// >= MaxStartingConcurrency so a single burst of size N can be
 	// accepted.
 	QueueCapacity int
+
+	// Clock provides enqueue and startup timestamps. Nil uses the system clock.
+	Clock func() time.Time
 }
 
 // ErrDispatcherClosed is returned from Enqueue when Close has already
@@ -140,7 +149,8 @@ var ErrDispatcherClosed = errors.New("spawn: dispatcher closed")
 // Dispatcher is the single startup-serialization choke point for runs.
 // It is safe for concurrent use.
 type Dispatcher struct {
-	cfg Config
+	cfg   Config
+	clock func() time.Time
 
 	// starting is a buffered semaphore: cap = MaxStartingConcurrency.
 	// A worker writes a struct{} to acquire a slot, and runJob reads
@@ -179,8 +189,13 @@ func New(cfg Config) *Dispatcher {
 	if cfg.QueueCapacity < cfg.MaxStartingConcurrency {
 		panic("spawn.New: QueueCapacity must be >= MaxStartingConcurrency")
 	}
+	clock := cfg.Clock
+	if clock == nil {
+		clock = time.Now
+	}
 	d := &Dispatcher{
 		cfg:        cfg,
+		clock:      clock,
 		starting:   make(chan struct{}, cfg.MaxStartingConcurrency),
 		queue:      make(chan *Job, cfg.QueueCapacity),
 		workerStop: make(chan struct{}),
@@ -211,7 +226,7 @@ func (d *Dispatcher) Enqueue(job *Job) error {
 		return ErrDispatcherClosed
 	}
 
-	job.enqueuedAt = time.Now()
+	job.enqueuedAt = d.clock()
 
 	// Reserve a queue slot atomically. queueDepth is the authoritative
 	// rejection gate — relying on the channel's `default` branch would
@@ -294,7 +309,7 @@ func (d *Dispatcher) worker() {
 		// during the sleep so Close() doesn't deadlock waiting for
 		// MinSpacing on a closed dispatcher.
 		if d.cfg.MinSpacing > 0 && !lastSpawn.IsZero() {
-			wait := d.cfg.MinSpacing - time.Since(lastSpawn)
+			wait := d.cfg.MinSpacing - d.clock().Sub(lastSpawn)
 			if wait > 0 {
 				timer := time.NewTimer(wait)
 				select {
@@ -324,7 +339,7 @@ func (d *Dispatcher) worker() {
 		// against QueueCapacity from the operator's perspective).
 		d.queueDepth.Add(-1)
 		d.startingCount.Add(1)
-		lastSpawn = time.Now()
+		lastSpawn = d.clock()
 
 		obs.EmitSpawnStarted(job.Sink, job.RunID, obs.SpawnStartedFields{
 			RunMode:     job.RunMode,
@@ -363,6 +378,7 @@ func (d *Dispatcher) runJob(job *Job) {
 		release()
 		d.activeCount.Add(-1)
 	}()
+	defer obs.RecoverToFailure("spawn dispatcher job", job.OnPanic)
 
 	job.Fn(release)
 }

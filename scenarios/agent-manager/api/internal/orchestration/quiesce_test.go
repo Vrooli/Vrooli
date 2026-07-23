@@ -16,7 +16,7 @@ import (
 // quiesceFixture builds an orchestrator and a task scoped to scenarios/<scope>,
 // returning the service, the run repository (for seeding runs directly), and the
 // task ID.
-func quiesceFixture(t *testing.T, scope string) (orchestration.Service, repository.RunRepository, uuid.UUID) {
+func quiesceFixture(t *testing.T, scope string) (*orchestration.Orchestrator, repository.RunRepository, uuid.UUID) {
 	t.Helper()
 	svc, runRepo := newTestOrchestratorWithLimit(t, 50)
 	ctx := context.Background()

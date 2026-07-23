@@ -124,13 +124,13 @@ func (r *statsRepository) GetRunStatusCounts(ctx context.Context, filter reposit
 
 	query := `
 		SELECT
-			SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-			SUM(CASE WHEN status = 'starting' THEN 1 ELSE 0 END) as starting,
-			SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running,
-			SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) as complete,
-			SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
-			SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
-			SUM(CASE WHEN status = 'needs_review' THEN 1 ELSE 0 END) as needs_review,
+			COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) as pending,
+			COALESCE(SUM(CASE WHEN status = 'starting' THEN 1 ELSE 0 END), 0) as starting,
+			COALESCE(SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END), 0) as running,
+			COALESCE(SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END), 0) as complete,
+			COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) as failed,
+			COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled,
+			COALESCE(SUM(CASE WHEN status = 'needs_review' THEN 1 ELSE 0 END), 0) as needs_review,
 			COUNT(*) as total
 		FROM runs
 		WHERE created_at >= ? AND created_at < ?`

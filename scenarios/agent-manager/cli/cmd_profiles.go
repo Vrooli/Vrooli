@@ -509,7 +509,7 @@ func (a *App) profileEnsure(args []string) error {
 		return err
 	}
 
-	if *jsonOutput || resp == nil {
+	if *jsonOutput || resp == nil || resp.Profile == nil {
 		cliutil.PrintJSON(body)
 		return nil
 	}

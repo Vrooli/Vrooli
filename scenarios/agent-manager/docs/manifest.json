@@ -63,7 +63,8 @@
         {"path": "internal/UTILS_UNIFICATION_NOTES.md", "docType": "utils-unification", "title": "Utilities Unification", "description": "Utility consolidation notes", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
         {"path": "internal/EVENT_TAXONOMY.md", "docType": "event-taxonomy", "title": "Event Taxonomy", "description": "Typed run-event payload taxonomy", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
         {"path": "internal/STORAGE_AUDIT.md", "docType": "storage-audit", "title": "Storage Audit", "description": "Persistence and storage audit notes", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
-        {"path": "internal/UNIT_TEST_ARCHITECTURE.md", "docType": "unit-test-architecture", "title": "Unit Test Architecture", "description": "Test seam and architecture guidance", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
+        {"path": "internal/UNIT_TEST_ARCHITECTURE.md", "docType": "unit-test-architecture", "title": "Unit Test Architecture", "description": "Test seam and architecture guidance", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/TRIAGE.md", "docType": "triage", "title": "Failure Triage", "description": "Artifact-first diagnosis of failed runs and workflow executions", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
       ]
     },
     {

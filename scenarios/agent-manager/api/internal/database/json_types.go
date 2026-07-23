@@ -356,12 +356,11 @@ func (e *EventDataJSON) Scan(src interface{}) error {
 		return scanTypeError("EventDataJSON", src)
 	}
 
-	// Parse into legacy RunEventData first, then convert
-	var legacy domain.RunEventData
-	if err := json.Unmarshal(data, &legacy); err != nil {
+	payload, err := domain.DecodeEventPayload(e.EventType, data)
+	if err != nil {
 		return wrapScanError("EventDataJSON", err)
 	}
-	e.V = legacy.ToTypedPayload()
+	e.V = payload
 	return nil
 }
 

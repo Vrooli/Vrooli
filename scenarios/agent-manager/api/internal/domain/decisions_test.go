@@ -708,8 +708,9 @@ func TestRunStatus_LivenessPolicy(t *testing.T) {
 		expectsProcess   bool
 		staleAction      StaleRunAction
 	}{
-		// Pre-start and resting/terminal states are not scanned for liveness.
-		{RunStatusPending, false, false, false, StaleRunActionNone},
+		// Pending is scanned solely for bounded dispatcher-loss reaping; it has
+		// neither a heartbeat nor a process expectation.
+		{RunStatusPending, true, false, false, StaleRunActionNone},
 		{RunStatusNeedsReview, false, false, false, StaleRunActionNone},
 		{RunStatusComplete, false, false, false, StaleRunActionNone},
 		{RunStatusFailed, false, false, false, StaleRunActionNone},
@@ -752,10 +753,10 @@ func TestRunStatus_LivenessPolicy_UnknownStatusSafeDefault(t *testing.T) {
 // each cycle. The reconciler refactor (Phase 1) preserved running then starting;
 // Phase 2 added parked, which is scanned (for restart recovery / TTL) but — by
 // its LivenessPolicy — never heartbeat-reaped or orphan-killed. Order follows
-// orderedRunStatuses: running, starting, then parked.
+// orderedRunStatuses: running, starting, pending, then parked.
 func TestLivenessScannedStatuses(t *testing.T) {
 	got := LivenessScannedStatuses()
-	want := []RunStatus{RunStatusRunning, RunStatusStarting, RunStatusParked}
+	want := []RunStatus{RunStatusRunning, RunStatusStarting, RunStatusPending, RunStatusParked}
 	if len(got) != len(want) {
 		t.Fatalf("scanned statuses = %v, want %v", got, want)
 	}

@@ -9,7 +9,6 @@ import (
 	"context"
 	"log/slog"
 	"strings"
-	"time"
 
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
@@ -156,7 +155,7 @@ func (o *Orchestrator) SyncRunFromSandbox(ctx context.Context, req SandboxSyncRe
 		actor = "workspace-sandbox"
 	}
 
-	now := time.Now()
+	now := o.now()
 	switch status {
 	case "approved":
 		if req.IsPartial {
@@ -215,7 +214,7 @@ func (o *Orchestrator) getRunForApproval(ctx context.Context, runID uuid.UUID) (
 
 // markRunApproved updates run to fully approved state.
 func (o *Orchestrator) markRunApproved(ctx context.Context, run *domain.Run, actor string) error {
-	now := time.Now()
+	now := o.now()
 	run.ApprovalState = domain.ApprovalStateApproved
 	run.ApprovedBy = actor
 	run.ApprovedAt = &now
@@ -228,7 +227,7 @@ func (o *Orchestrator) markRunApproved(ctx context.Context, run *domain.Run, act
 
 // markRunRejected updates run to rejected state.
 func (o *Orchestrator) markRunRejected(ctx context.Context, run *domain.Run, actor, reason string) error {
-	now := time.Now()
+	now := o.now()
 	run.ApprovalState = domain.ApprovalStateRejected
 	run.ApprovedBy = actor
 	run.ApprovedAt = &now
@@ -242,7 +241,7 @@ func (o *Orchestrator) markRunRejected(ctx context.Context, run *domain.Run, act
 
 // markRunPartiallyApproved updates run to partial approval state.
 func (o *Orchestrator) markRunPartiallyApproved(ctx context.Context, run *domain.Run) error {
-	now := time.Now()
+	now := o.now()
 	run.ApprovalState = domain.ApprovalStatePartiallyApproved
 	run.UpdatedAt = now
 	return o.runs.Update(ctx, run)

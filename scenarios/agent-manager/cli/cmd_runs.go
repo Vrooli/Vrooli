@@ -280,7 +280,11 @@ func (a *App) runGet(args []string) error {
 		}
 	}
 	if run.Result != nil {
-		fmt.Printf("Result Selection: %s\n", formatEnumValue(run.Result.Selection.Status, "FINAL_OUTPUT_SELECTION_STATUS_", "_"))
+		if run.Result.Selection != nil {
+			fmt.Printf("Result Selection: %s\n", formatEnumValue(run.Result.Selection.Status, "FINAL_OUTPUT_SELECTION_STATUS_", "_"))
+		} else {
+			fmt.Println("Result Selection: unavailable")
+		}
 		if run.Result.Structured != nil {
 			fmt.Printf("Structured:      %s", formatEnumValue(run.Result.Structured.Status, "STRUCTURED_RESULT_STATUS_", "_"))
 			if run.Result.Structured.Method != "" {
@@ -968,6 +972,8 @@ func runEventDataString(event *domainpb.RunEvent) string {
 		payload = data.Log
 	case *domainpb.RunEvent_Message:
 		payload = data.Message
+	case *domainpb.RunEvent_MessageDeleted:
+		payload = data.MessageDeleted
 	case *domainpb.RunEvent_ToolCall:
 		payload = data.ToolCall
 	case *domainpb.RunEvent_ToolResult:
@@ -986,6 +992,8 @@ func runEventDataString(event *domainpb.RunEvent) string {
 		payload = data.Cost
 	case *domainpb.RunEvent_RateLimit:
 		payload = data.RateLimit
+	case *domainpb.RunEvent_Compaction:
+		payload = data.Compaction
 	default:
 		return ""
 	}

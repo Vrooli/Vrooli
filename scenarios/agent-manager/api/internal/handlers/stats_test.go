@@ -278,6 +278,31 @@ func TestGetTimeSeries_Success(t *testing.T) {
 	}
 }
 
+func TestOperationalBreakdownEndpointsAcceptLimitsAndRequiredDimensions(t *testing.T) {
+	_, router := setupStatsTestHandler()
+	for _, path := range []string{
+		"/api/v1/stats/profiles?preset=24h&limit=3", "/api/v1/stats/models?preset=24h&limit=3", "/api/v1/stats/tools?preset=24h&limit=3",
+		"/api/v1/stats/models/runs?preset=24h&model=test-model&limit=3", "/api/v1/stats/tools/runs?preset=24h&toolName=bash&limit=3",
+		"/api/v1/stats/tools/models?preset=24h&tool_name=bash&limit=3", "/api/v1/stats/errors?preset=24h&limit=3",
+	} {
+		t.Run(path, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+			assertx.HTTPStatus(t, rr, http.StatusOK)
+			if rr.Body.Len() == 0 {
+				t.Fatal("empty response")
+			}
+		})
+	}
+	for _, path := range []string{"/api/v1/stats/models/runs?preset=24h", "/api/v1/stats/tools/runs?preset=24h", "/api/v1/stats/tools/models?preset=24h"} {
+		t.Run("missing "+path, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+			assertx.HTTPStatus(t, rr, http.StatusBadRequest)
+		})
+	}
+}
+
 func TestGetTimeSeries_WithCustomBucket(t *testing.T) {
 	_, router := setupStatsTestHandler()
 

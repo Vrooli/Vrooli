@@ -6,7 +6,7 @@ import type { ComponentProps } from "react";
 import { test, vi } from "vitest";
 import { QuickRunDialog } from "../../src/components/QuickRunDialog.js";
 import { renderWithProviders } from "../../src/test-utils/index.js";
-import { RunMode, RunnerType, type Run, type RunFormData, type Task, type TaskFormData } from "../../src/types.js";
+import { RunMode, type Run, type RunFormData, type Task, type TaskFormData } from "../../src/types.js";
 
 const persistedEnvelope = <T,>(data: T) =>
   JSON.stringify({
@@ -74,7 +74,7 @@ test("QuickRunDialog starts a default custom run and clears persisted draft stat
   });
   assert.deepEqual(calls.onCreateRun.mock.calls[0]?.[0], {
     taskId: "task-1",
-    runnerType: RunnerType.CLAUDE_CODE,
+    roleRef: "code.default",
     maxTurns: 500,
     timeoutMinutes: 120,
     runMode: RunMode.SANDBOXED,

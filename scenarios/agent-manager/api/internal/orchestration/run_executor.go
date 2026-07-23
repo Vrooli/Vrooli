@@ -71,6 +71,7 @@ type RunExecutor struct {
 	workspaceSandbox  phases.WorkspaceSandboxEnsurer
 	modelHealth       ModelHealthReporter
 	structuredResults phases.StructuredResultResolver
+	clock             func() time.Time
 
 	// Configuration
 	levers config.Levers
@@ -163,6 +164,9 @@ func NewRunExecutor(
 // =============================================================================
 
 func (e *RunExecutor) WithLevers(l config.Levers) *RunExecutor { e.levers = l; return e }
+
+// WithClock supplies deterministic timestamps to all execution phases.
+func (e *RunExecutor) WithClock(clock func() time.Time) *RunExecutor { e.clock = clock; return e }
 
 func (e *RunExecutor) WithCheckpointRepository(repo repository.CheckpointRepository) *RunExecutor {
 	e.checkpoints = repo
@@ -437,6 +441,7 @@ func (e *RunExecutor) deps() phases.Deps {
 		Levers:            e.levers,
 		WorkspaceSandbox:  e.workspaceSandbox,
 		StructuredResults: e.structuredResults,
+		Clock:             e.clock,
 	}
 }
 
@@ -478,7 +483,7 @@ func (e *RunExecutor) advancePhase(ctx context.Context, phase domain.RunPhase) {
 
 // updateStatusToStarting flips the run to RunStatusStarting and broadcasts.
 func (e *RunExecutor) updateStatusToStarting(ctx context.Context) error {
-	now := time.Now()
+	now := e.deps().Now()
 	e.run.Status = domain.RunStatusStarting
 	e.run.StartedAt = &now
 	e.run.UpdatedAt = now

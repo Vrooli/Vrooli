@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/protoconv"
@@ -108,7 +107,7 @@ func (o *Orchestrator) reconcileProfileSource(ctx context.Context, scenario, sce
 			return item
 		}
 		profile.ID = uuid.New()
-		now := time.Now()
+		now := o.now()
 		profile.CreatedAt = now
 		profile.UpdatedAt = now
 		if err := normalizeProfileInput(profile); err != nil {
@@ -144,7 +143,7 @@ func (o *Orchestrator) reconcileProfileSource(ctx context.Context, scenario, sce
 
 	profile.ID = existing.ID
 	profile.CreatedAt = existing.CreatedAt
-	profile.UpdatedAt = time.Now()
+	profile.UpdatedAt = o.now()
 	if dryRun {
 		item.Status = ProfileReconcileStatusUpdated
 		item.Message = "would update profile"

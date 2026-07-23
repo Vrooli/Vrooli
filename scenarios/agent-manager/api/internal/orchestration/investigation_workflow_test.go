@@ -7,10 +7,51 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"
 )
+
+// durableFakeRunLauncher retains the deterministic workflow engine seam while
+// persisting every dispatched child. It lets tests cover API methods that look
+// a node run up through the production repository rather than only inspecting
+// the engine's in-memory ChildState.
+type durableFakeRunLauncher struct {
+	fake  *fakeRunLauncher
+	repos *database.Repositories
+}
+
+func (l *durableFakeRunLauncher) StartFresh(ctx context.Context, req workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
+	state, err := l.fake.StartFresh(ctx, req)
+	if err != nil {
+		return state, err
+	}
+	if existing, getErr := l.repos.Runs.Get(ctx, state.RunID); getErr != nil || existing != nil {
+		return state, getErr
+	}
+	task := &domain.Task{ID: uuid.New(), Title: "workflow child", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := l.repos.Tasks.Create(ctx, task); err != nil {
+		return workflowruntime.ChildState{}, err
+	}
+	if err := l.repos.Runs.Create(ctx, &domain.Run{ID: state.RunID, TaskID: task.ID, Tag: req.Tag, ConversationID: state.ConversationID, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting}); err != nil {
+		return workflowruntime.ChildState{}, err
+	}
+	return state, nil
+}
+
+func (l *durableFakeRunLauncher) Continue(ctx context.Context, req workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
+	return l.StartFresh(ctx, req)
+}
+
+func (l *durableFakeRunLauncher) Inspect(ctx context.Context, id uuid.UUID) (workflowruntime.ChildState, error) {
+	return l.fake.Inspect(ctx, id)
+}
+
+func (l *durableFakeRunLauncher) Stop(ctx context.Context, id uuid.UUID) error {
+	return l.fake.Stop(ctx, id)
+}
 
 // investigateTestDefinition mirrors the shape of the shipped
 // scenarios/agent-manager/.vrooli/agent-manager/investigate.json declaration
@@ -155,6 +196,55 @@ func newInvestigateOrchestrator(t *testing.T, launcher *fakeRunLauncher) *Orches
 	o.workflowNudger.Start()
 	t.Cleanup(o.workflowNudger.Stop)
 	return o
+}
+
+func newDurableInvestigateOrchestrator(t *testing.T) (*Orchestrator, *database.Repositories, *durableFakeRunLauncher) {
+	t.Helper()
+	base := newFakeRunLauncher()
+	o, repos := newRelayOrchestrator(t, base)
+	launcher := &durableFakeRunLauncher{fake: base, repos: repos}
+	if err := repos.Workflows.ActivateBatch(context.Background(), []*domain.WorkflowRevision{investigateTestDefinition()}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+	expr, err := workflowruntime.NewExpressionEvaluator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.workflowEngine = &workflowruntime.Engine{Store: repos.WorkflowExecutions, Catalog: repos.Workflows, Children: launcher, Expressions: expr, Now: o.now}
+	o.SetWorkflowNudger(NewWorkflowNudger(o.NudgeDrive, 2, 5*time.Second))
+	o.workflowNudger.Start()
+	t.Cleanup(o.workflowNudger.Stop)
+	return o, repos, launcher
+}
+
+func TestCreateInvestigationRunReturnsDurableInvestigateNodeRun(t *testing.T) {
+	ctx := context.Background()
+	o, repos, _ := newDurableInvestigateOrchestrator(t)
+	task := &domain.Task{ID: uuid.New(), Title: "failed review", Description: "review sandbox failure", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	source := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusFailed, Phase: domain.RunPhaseCompleted, ErrorMsg: "fixture failure"}
+	if err := repos.Runs.Create(ctx, source); err != nil {
+		t.Fatal(err)
+	}
+	investigation, err := o.CreateInvestigationRun(ctx, CreateInvestigationRequest{RunIDs: []uuid.UUID{source.ID}, Depth: domain.InvestigationDepthQuick, CustomContext: "inspect durable evidence", ProjectRoot: t.TempDir(), ScopePaths: []string{"api"}})
+	if err != nil {
+		t.Fatalf("create investigation: %v", err)
+	}
+	if investigation.ID == uuid.Nil || investigation.Status != domain.RunStatusRunning || investigation.ConversationID == "" {
+		t.Fatalf("investigation node run=%+v", investigation)
+	}
+	stored, err := repos.Runs.Get(ctx, investigation.ID)
+	if err != nil || stored == nil || stored.ID != investigation.ID {
+		t.Fatalf("investigation node run was not durable: run=%+v err=%v", stored, err)
+	}
+	if _, err := o.CreateInvestigationRun(ctx, CreateInvestigationRequest{}); err == nil {
+		t.Fatal("empty investigation request unexpectedly succeeded")
+	}
+	if _, err := o.CreateInvestigationRun(ctx, CreateInvestigationRequest{RunIDs: []uuid.UUID{source.ID}, Depth: domain.InvestigationDepth("invalid")}); err == nil {
+		t.Fatal("invalid depth unexpectedly succeeded")
+	}
 }
 
 // TestInvestigationWorkflowCompletedPathBindsStructuredResult is the Phase 6

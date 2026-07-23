@@ -209,6 +209,83 @@ func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSandboxConfigRoundTripPreservesLifecycleAcceptanceAndNilCriteria(t *testing.T) {
+	trueValue := true
+	original := &domain.SandboxConfig{
+		Mode:           domain.SandboxModeProtected,
+		ManualReview:   true,
+		AutoApply:      &trueValue,
+		ApplyOnFailure: &trueValue,
+		NetworkMode:    domain.NetworkAccessLocalhost,
+		NoLock:         true,
+		Acceptance: domain.SandboxAcceptanceConfig{
+			Mode:         "allowlist",
+			Allow:        domain.SandboxFileCriteria{PathGlobs: []string{"src/**"}, Extensions: []string{".go"}},
+			IgnoreBinary: true,
+		},
+		Lifecycle: domain.SandboxLifecycleConfig{
+			CheckpointOn: []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTurnCompleted, domain.SandboxLifecycleTurnFailed},
+			StopOn:       []domain.SandboxLifecycleEvent{domain.SandboxLifecycleRejected},
+			DeleteOn:     []domain.SandboxLifecycleEvent{domain.SandboxLifecycleRunFinalized},
+			TTL:          30 * time.Minute,
+			IdleTimeout:  5 * time.Minute,
+		},
+	}
+	converted := SandboxConfigToProto(original)
+	if converted.GetAcceptance().GetDeny() != nil {
+		t.Fatal("empty deny criteria must be omitted so it cannot mean deny everything")
+	}
+	if got := SandboxConfigFromProto(converted); got == nil || !reflect.DeepEqual(*got, *original) {
+		t.Fatalf("sandbox config round trip mismatch\n got: %#v\nwant: %#v", got, *original)
+	}
+	if SandboxConfigToProto(nil) != nil || SandboxConfigFromProto(nil) != nil {
+		t.Fatal("nil sandbox configs are not safely represented")
+	}
+}
+
+func TestSandboxLifecycleEventsModesAndAcceptanceConvertersFailClosed(t *testing.T) {
+	events := []domain.SandboxLifecycleEvent{
+		domain.SandboxLifecycleTurnCompleted, domain.SandboxLifecycleTurnFailed, domain.SandboxLifecycleTurnCancelled,
+		domain.SandboxLifecycleRunFinalized, domain.SandboxLifecycleRunCompleted, domain.SandboxLifecycleRunFailed,
+		domain.SandboxLifecycleRunCancelled, domain.SandboxLifecycleApproved, domain.SandboxLifecycleRejected, domain.SandboxLifecycleTerminal,
+	}
+	for _, event := range events {
+		if got := SandboxLifecycleEventFromProto(SandboxLifecycleEventToProto(event)); got != event {
+			t.Fatalf("event %q round trip=%q", event, got)
+		}
+	}
+	if SandboxLifecycleEventToProto("unknown") != pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED || SandboxLifecycleEventFromProto(pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED) != "" {
+		t.Fatal("unknown lifecycle events must fail closed")
+	}
+	for _, mode := range []domain.SandboxMode{domain.SandboxModeOff, domain.SandboxModeTracking, domain.SandboxModeProtected} {
+		if got := SandboxModeFromProto(SandboxModeToProto(mode)); got != mode {
+			t.Fatalf("sandbox mode %q round trip=%q", mode, got)
+		}
+	}
+	if SandboxModeFromProto(pb.SandboxMode_SANDBOX_MODE_UNSPECIFIED) != domain.SandboxModeUnspecified || SandboxAcceptanceModeFromProto(pb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED) != "" || SandboxAcceptanceModeToProto("unknown") != pb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED {
+		t.Fatal("unknown sandbox policy values must not receive a permissive default")
+	}
+}
+
+func TestRunEventTypeConversionsPreserveKnownEventsAndDefaultSafely(t *testing.T) {
+	events := []domain.RunEventType{
+		domain.EventTypeLog, domain.EventTypeMessage, domain.EventTypeMessageDeleted, domain.EventTypeToolCall,
+		domain.EventTypeToolResult, domain.EventTypeStatus, domain.EventTypeMetric, domain.EventTypeArtifact,
+		domain.EventTypeError, domain.EventTypeCompaction, domain.EventTypeLifecycle,
+	}
+	for _, event := range events {
+		if got := RunEventTypeFromProto(RunEventTypeToProto(event)); got != event {
+			t.Fatalf("event type %q round trip=%q", event, got)
+		}
+	}
+	if RunEventTypeToProto(domain.RunEventType("unknown")) != pb.RunEventType_RUN_EVENT_TYPE_UNSPECIFIED {
+		t.Fatal("unknown event type must not be exposed as a known API event")
+	}
+	if RunEventTypeFromProto(pb.RunEventType_RUN_EVENT_TYPE_UNSPECIFIED) != domain.EventTypeLog {
+		t.Fatal("unspecified event type must retain the log-compatible default")
+	}
+}
+
 // =============================================================================
 // TASK STATUS TESTS
 // =============================================================================

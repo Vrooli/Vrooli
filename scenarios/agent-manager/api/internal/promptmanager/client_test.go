@@ -216,3 +216,57 @@ func TestHTTPClient_ReadSkill_ResolverError(t *testing.T) {
 		t.Errorf("expected resolve URL in error, got %v", err)
 	}
 }
+
+func TestHTTPClientAdminOperationsAndExperimentAssignment(t *testing.T) {
+	client := NewHTTPClientWithResolver(
+		func(_ context.Context) (string, error) { return "http://prompt-manager", nil },
+		httpx.DoerFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/api/v1/skills":
+				if req.Method != http.MethodGet || req.URL.Query().Get("tag") != "ops tag" {
+					t.Fatalf("list request=%s", req.URL.String())
+				}
+				return httpx.Response(http.StatusOK, `[{"id":"skill/a","name":"A"}]`), nil
+			case "/api/v1/skills/skill/a":
+				if req.Method == http.MethodGet {
+					return httpx.Response(http.StatusOK, `{"id":"skill/a","content":"old"}`), nil
+				}
+				if req.Method == http.MethodPut {
+					return httpx.Response(http.StatusOK, `{"id":"skill/a","content":"new"}`), nil
+				}
+			case "/api/v1/skills/skill/a/versions":
+				return httpx.Response(http.StatusOK, `{"skillId":"skill/a","current":2,"versions":[{"version":2,"content":"new"}]}`), nil
+			case "/api/v1/skills/skill/a/revert/1":
+				return httpx.Response(http.StatusOK, ``), nil
+			case "/api/v1/experiments/exp/1/assignments":
+				return httpx.Response(http.StatusOK, `{"experimentId":"exp/1","skillId":"skill/a","variantId":"variant","content":"prompt","contentHash":"sha256:1"}`), nil
+			}
+			t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}),
+	)
+	ctx := context.Background()
+	if skills, err := client.ListSkills(ctx, "ops tag"); err != nil || len(skills) != 1 {
+		t.Fatalf("skills=%+v err=%v", skills, err)
+	}
+	if skill, err := client.GetSkill(ctx, "skill/a"); err != nil || skill.Content != "old" {
+		t.Fatalf("skill=%+v err=%v", skill, err)
+	}
+	content := "new"
+	if skill, err := client.UpdateSkill(ctx, "skill/a", PromptSkillUpdate{Content: &content}); err != nil || skill.Content != "new" {
+		t.Fatalf("updated=%+v err=%v", skill, err)
+	}
+	if versions, err := client.GetSkillVersions(ctx, "skill/a"); err != nil || versions.Current != 2 {
+		t.Fatalf("versions=%+v err=%v", versions, err)
+	}
+	if err := client.RevertSkillVersion(ctx, "skill/a", 1); err != nil {
+		t.Fatal(err)
+	}
+	assignment := AssignmentRequest{ExperimentID: "exp/1", SkillID: "skill/a", ExecutionID: "execution", NodeID: "node", AttemptKey: "attempt", IdempotencyKey: "key"}
+	if snap, err := client.AssignExperimentPrompt(ctx, assignment); err != nil || snap.VariantID != "variant" || snap.Content != "prompt" {
+		t.Fatalf("assignment=%+v err=%v", snap, err)
+	}
+	if _, err := client.AssignExperimentPrompt(ctx, AssignmentRequest{}); err == nil {
+		t.Fatal("incomplete assignment accepted")
+	}
+}

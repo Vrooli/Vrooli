@@ -72,6 +72,7 @@ type Terminator struct {
 	runs    repository.RunRepository
 	runners runner.Registry
 	config  TerminatorConfig
+	clock   func() time.Time
 }
 
 // NewTerminator creates a new terminator with the given dependencies.
@@ -84,7 +85,16 @@ func NewTerminator(
 		runs:    runs,
 		runners: runners,
 		config:  config,
+		clock:   time.Now,
 	}
+}
+
+// WithClock supplies deterministic duration measurements for termination tests.
+func (t *Terminator) WithClock(clock func() time.Time) *Terminator {
+	if clock != nil {
+		t.clock = clock
+	}
+	return t
 }
 
 // UpdateConfig applies new configuration at runtime.
@@ -104,7 +114,7 @@ type TerminateResult struct {
 
 // Terminate attempts to stop a run with full retry and escalation logic.
 func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*TerminateResult, error) {
-	start := time.Now()
+	start := t.clock()
 	result := &TerminateResult{}
 
 	// Get the run
@@ -207,7 +217,7 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 
 // TerminateByTag attempts to stop a process by its tag (for orphan cleanup).
 func (t *Terminator) TerminateByTag(ctx context.Context, tag string) (*TerminateResult, error) {
-	start := time.Now()
+	start := t.clock()
 	result := &TerminateResult{}
 
 	for attempt := 1; attempt <= t.config.MaxRetries; attempt++ {

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/protoconv"
@@ -58,7 +59,7 @@ func setupPermissionPolicyHandler(t *testing.T) (*permissionProjectorFake, *mux.
 		t.Fatal(err)
 	}
 	projector := &permissionProjectorFake{}
-	handler := New(nil, WithPermissionPolicy(state, permissionpolicy.NewService(state, projector, nil)))
+	handler := New(orchestration.EmptyHandlerServices(), WithPermissionPolicy(state, permissionpolicy.NewService(state, projector, nil)))
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
 	return projector, router

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,12 +13,75 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/testutil"
 	"agent-manager/internal/testutil/mocks"
 
 	"github.com/google/uuid"
 )
+
+type pendingRunRecoveryStub struct{ ids []uuid.UUID }
+
+func (s *pendingRunRecoveryStub) ResumeRun(_ context.Context, id uuid.UUID) (*domain.Run, error) {
+	s.ids = append(s.ids, id)
+	return &domain.Run{ID: id}, nil
+}
+
+func TestRecoverInFlightRunsReenqueuesPendingRuns(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	stub := &pendingRunRecoveryStub{}
+	reconciler.pendingRunRecovery = stub
+
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	run.Status = domain.RunStatusPending
+	if err := repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatalf("update pending run: %v", err)
+	}
+
+	if err := reconciler.RecoverInFlightRuns(context.Background()); err != nil {
+		t.Fatalf("RecoverInFlightRuns: %v", err)
+	}
+	if len(stub.ids) != 1 || stub.ids[0] != run.ID {
+		t.Fatalf("re-enqueued run ids = %v, want [%s]", stub.ids, run.ID)
+	}
+}
+
+func TestRecoverPanickedRunFailsOnlyAffectedRunWithStackEvent(t *testing.T) {
+	_, repos, eventStore := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	other := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	orchestrator := New(nil, nil, repos.Runs, WithEvents(eventStore))
+	orchestrator.recoverPanickedRun(run, obs.PanicFailure{Operation: "injected phase", Value: "boom", Stack: "stacktrace"})
+
+	failed, err := repos.Runs.Get(context.Background(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failed.Status != domain.RunStatusFailed {
+		t.Fatalf("affected status = %s, want failed", failed.Status)
+	}
+	unchanged, err := repos.Runs.Get(context.Background(), other.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unchanged.Status != domain.RunStatusRunning {
+		t.Fatalf("unaffected run status = %s, want running", unchanged.Status)
+	}
+	events, err := eventStore.Get(context.Background(), run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundStack := false
+	for _, evt := range events {
+		if log, ok := evt.Data.(*domain.LogEventData); ok && strings.Contains(log.Message, "stacktrace") {
+			foundStack = true
+		}
+	}
+	if !foundStack {
+		t.Fatal("expected recovered panic stack event")
+	}
+}
 
 func TestRecoverRun_DeadProcessWithTerminalSuccess(t *testing.T) {
 	reconciler, repos, eventStore := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
@@ -224,12 +288,44 @@ func newRecoveryTestReconciler(t *testing.T, rt domain.RunnerType) (*Reconciler,
 			MaxRecoveryAge:    10 * time.Minute,
 			OrphanGracePeriod: time.Minute,
 			MaxStaleRuns:      10,
+			PendingThreshold:  time.Minute,
 			KillOrphans:       true,
 			AutoRecover:       true,
 		}),
 	)
 
 	return reconciler, repos, eventStore
+}
+
+func TestReconcileReapsAgedPendingRunWithEvent(t *testing.T) {
+	reconciler, repos, eventStore := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	run.Status = domain.RunStatusPending
+	if err := repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatalf("update pending run: %v", err)
+	}
+	// Keep the test fast while exercising the same age comparison production
+	// uses for a genuinely stranded queue entry.
+	reconciler.config.PendingThreshold = time.Nanosecond
+
+	reconciler.reconcile(context.Background())
+	got, err := repos.Runs.Get(context.Background(), run.ID)
+	if err != nil {
+		t.Fatalf("get reaped run: %v", err)
+	}
+	if got.Status != domain.RunStatusFailed {
+		t.Fatalf("status = %s, want %s", got.Status, domain.RunStatusFailed)
+	}
+	if got.ErrorMsg == "" {
+		t.Fatal("expected pending reap reason")
+	}
+	events, err := eventStore.Get(context.Background(), run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatalf("get events: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected explanatory pending reap event")
+	}
 }
 
 func createRecoveryTestRun(t *testing.T, repos *database.Repositories, rt domain.RunnerType) *domain.Run {

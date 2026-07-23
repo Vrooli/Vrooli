@@ -899,144 +899,81 @@ func TestDefaultHeartbeatConfig(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// LEGACY RUN EVENT DATA TESTS
-// =============================================================================
-
-func TestRunEventData_EventType(t *testing.T) {
-	tests := []struct {
-		name     string
-		data     RunEventData
-		expected RunEventType
+func TestDecodeEventPayloadMigratesLegacyJSON(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		eventType RunEventType
+		raw       string
+		assert    func(t *testing.T, payload EventPayload)
 	}{
 		{
-			name:     "log event by level",
-			data:     RunEventData{Level: "info"},
-			expected: EventTypeLog,
+			name:      "tool call input",
+			eventType: EventTypeToolCall,
+			raw:       `{"toolName":"Read","toolInput":{"path":"/tmp"}}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*ToolCallEventData)
+				if got.ToolName != "Read" || got.Input["path"] != "/tmp" {
+					t.Fatalf("decoded tool call = %#v", got)
+				}
+			},
 		},
 		{
-			name:     "log event by message without role",
-			data:     RunEventData{Message: "Hello"},
-			expected: EventTypeLog,
+			name:      "tool result failure",
+			eventType: EventTypeToolResult,
+			raw:       `{"toolOutput":"done","toolError":"denied"}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*ToolResultEventData)
+				if got.Output != "done" || got.Error != "denied" || got.Success {
+					t.Fatalf("decoded tool result = %#v", got)
+				}
+			},
 		},
 		{
-			name:     "message event by role",
-			data:     RunEventData{Role: "assistant", Content: "Hello"},
-			expected: EventTypeMessage,
+			name:      "metric fields",
+			eventType: EventTypeMetric,
+			raw:       `{"metricName":"tokens","metricValue":100}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*MetricEventData)
+				if got.Name != "tokens" || got.Value != 100 {
+					t.Fatalf("decoded metric = %#v", got)
+				}
+			},
 		},
 		{
-			name:     "tool call event",
-			data:     RunEventData{ToolName: "Read", ToolInput: map[string]interface{}{}},
-			expected: EventTypeToolCall,
+			name:      "artifact fields",
+			eventType: EventTypeArtifact,
+			raw:       `{"artifactType":"diff","artifactPath":"/tmp/diff"}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*ArtifactEventData)
+				if got.Type != "diff" || got.Path != "/tmp/diff" {
+					t.Fatalf("decoded artifact = %#v", got)
+				}
+			},
 		},
 		{
-			name:     "tool result event with output",
-			data:     RunEventData{ToolOutput: "file contents"},
-			expected: EventTypeToolResult,
+			name:      "error fields",
+			eventType: EventTypeError,
+			raw:       `{"errorCode":"TIMEOUT","errorMessage":"expired"}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*ErrorEventData)
+				if got.Code != "TIMEOUT" || got.Message != "expired" {
+					t.Fatalf("decoded error = %#v", got)
+				}
+			},
 		},
-		{
-			name:     "tool result event with error",
-			data:     RunEventData{ToolError: "not found"},
-			expected: EventTypeToolResult,
-		},
-		{
-			name:     "status event",
-			data:     RunEventData{OldStatus: "pending", NewStatus: "running"},
-			expected: EventTypeStatus,
-		},
-		{
-			name:     "metric event",
-			data:     RunEventData{MetricName: "tokens", MetricValue: 100},
-			expected: EventTypeMetric,
-		},
-		{
-			name:     "artifact event",
-			data:     RunEventData{ArtifactType: "diff"},
-			expected: EventTypeArtifact,
-		},
-		{
-			name:     "error event by code",
-			data:     RunEventData{ErrorCode: "TIMEOUT"},
-			expected: EventTypeError,
-		},
-		{
-			name:     "error event by message",
-			data:     RunEventData{ErrorMessage: "Something failed"},
-			expected: EventTypeError,
-		},
-		{
-			name:     "empty defaults to log",
-			data:     RunEventData{},
-			expected: EventTypeLog,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.data.EventType()
-			if got != tt.expected {
-				t.Errorf("EventType() = %s, want %s", got, tt.expected)
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			payload, err := DecodeEventPayload(tc.eventType, []byte(tc.raw))
+			if err != nil {
+				t.Fatal(err)
 			}
+			tc.assert(t, payload)
 		})
 	}
-}
-
-func TestRunEventData_ToTypedPayload(t *testing.T) {
-	t.Run("converts log event", func(t *testing.T) {
-		data := RunEventData{Level: "warn", Message: "Warning message"}
-		payload := data.ToTypedPayload()
-
-		logData, ok := payload.(*LogEventData)
-		if !ok {
-			t.Fatalf("expected *LogEventData, got %T", payload)
-		}
-		if logData.Level != "warn" {
-			t.Errorf("Level = %s, want warn", logData.Level)
-		}
-		if logData.Message != "Warning message" {
-			t.Errorf("Message = %s, want 'Warning message'", logData.Message)
-		}
-	})
-
-	t.Run("converts message event", func(t *testing.T) {
-		data := RunEventData{Role: "user", Content: "Hello"}
-		payload := data.ToTypedPayload()
-
-		msgData, ok := payload.(*MessageEventData)
-		if !ok {
-			t.Fatalf("expected *MessageEventData, got %T", payload)
-		}
-		if msgData.Role != "user" {
-			t.Errorf("Role = %s, want user", msgData.Role)
-		}
-	})
-
-	t.Run("converts tool call event", func(t *testing.T) {
-		input := map[string]interface{}{"path": "/test"}
-		data := RunEventData{ToolName: "Read", ToolInput: input}
-		payload := data.ToTypedPayload()
-
-		toolData, ok := payload.(*ToolCallEventData)
-		if !ok {
-			t.Fatalf("expected *ToolCallEventData, got %T", payload)
-		}
-		if toolData.ToolName != "Read" {
-			t.Errorf("ToolName = %s, want Read", toolData.ToolName)
-		}
-	})
-
-	t.Run("converts tool result with error", func(t *testing.T) {
-		data := RunEventData{ToolError: "not found"}
-		payload := data.ToTypedPayload()
-
-		resultData, ok := payload.(*ToolResultEventData)
-		if !ok {
-			t.Fatalf("expected *ToolResultEventData, got %T", payload)
-		}
-		if resultData.Success {
-			t.Error("Success should be false when error is present")
-		}
-	})
+	result, err := DecodeEventPayload(EventTypeToolResult, []byte(`{"toolError":"denied"}`))
+	if err != nil || result.(*ToolResultEventData).Success {
+		t.Fatalf("legacy tool error must remain failed: payload=%#v err=%v", result, err)
+	}
 }
 
 // =============================================================================
@@ -1057,7 +994,6 @@ func TestEventPayload_Interface(t *testing.T) {
 		&CostEventData{InputTokens: 100, OutputTokens: 50},
 		&ProgressEventData{Phase: RunPhaseExecuting},
 		&CompactionEventData{Summary: "test", Trigger: "manual"},
-		RunEventData{Level: "info"}, // Legacy type
 	}
 
 	expectedTypes := []RunEventType{
@@ -1073,7 +1009,6 @@ func TestEventPayload_Interface(t *testing.T) {
 		EventTypeMetric,     // CostEventData returns EventTypeMetric
 		EventTypeStatus,     // ProgressEventData returns EventTypeStatus
 		EventTypeCompaction, // CompactionEventData
-		EventTypeLog,        // Legacy defaults
 	}
 
 	for i, payload := range payloads {

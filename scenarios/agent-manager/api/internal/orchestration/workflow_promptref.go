@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -136,8 +137,10 @@ func clonePromptVariables(variables map[string]string) map[string]string {
 
 // workflowPromptStale reports whether any promptRef-derived node was changed
 // in prompt-manager after this immutable revision was reconciled. Inline
-// prompts are intentionally never stale. A source read error is returned so a
-// caller never silently reports a healthy status when it could not compare.
+// prompts are intentionally never stale. A missing source is a definitive
+// answer — the skill was deleted after reconcile, so the revision is stale —
+// while any other source read error is returned so a caller never silently
+// reports a healthy status when it could not compare.
 func workflowPromptStale(ctx context.Context, source promptmanager.SourceClient, revision *domain.WorkflowRevision) (bool, error) {
 	if revision == nil || source == nil {
 		return false, nil
@@ -155,6 +158,9 @@ func workflowPromptStale(ctx context.Context, source promptmanager.SourceClient,
 		}
 		snapshot, err := source.ReadSkillSource(ctx, provenance.SkillID, provenance.ExperimentID, provenance.Variables, provenance.WithScope)
 		if err != nil {
+			if errors.Is(err, promptmanager.ErrSkillSourceMissing) {
+				return true, nil
+			}
 			return false, fmt.Errorf("read current prompt source %q: %w", provenance.SkillID, err)
 		}
 		if snapshot.ContentHash != provenance.ContentHash || snapshot.Revision != provenance.Revision || snapshot.VariantID != provenance.VariantID {

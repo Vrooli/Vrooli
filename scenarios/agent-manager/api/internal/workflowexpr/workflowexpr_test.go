@@ -36,6 +36,9 @@ func TestHelpersCompileAndGuardEmptyJournal(t *testing.T) {
 	if !evalBool(t, "count(journal, 'slice') == 0", nil) {
 		t.Fatal("count() over an empty journal should be zero")
 	}
+	if !evalBool(t, "count_since_last(journal, 'correction', 'slice') == 0", nil) {
+		t.Fatal("count_since_last() over an empty journal should be zero")
+	}
 }
 
 func TestHelpersReadEnrichedProjection(t *testing.T) {
@@ -52,5 +55,14 @@ func TestHelpersReadEnrichedProjection(t *testing.T) {
 	}
 	if evalBool(t, "count(journal, 'review') == 1", journal) {
 		t.Fatal("count() counted a node with no attempts")
+	}
+	journal = append(journal,
+		map[string]any{"kind": "node_attempt", "nodeId": "correction", "ordinal": 0},
+		map[string]any{"kind": "node_attempt", "nodeId": "correction", "ordinal": 1},
+		map[string]any{"kind": "node_attempt", "nodeId": "slice", "ordinal": 2},
+		map[string]any{"kind": "node_attempt", "nodeId": "correction", "ordinal": 2},
+	)
+	if !evalBool(t, "count_since_last(journal, 'correction', 'slice') == 1", journal) {
+		t.Fatal("count_since_last() did not scope corrections to the newest slice")
 	}
 }

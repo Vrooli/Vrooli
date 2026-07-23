@@ -316,12 +316,12 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 // interactive-only records (file-history-snapshot/ai-title/last-prompt) only at
 // the start of a NEW turn, so file growth is a faithful new-turn signal.
 func (c *Coordinator) awaitNextTurn(ctx context.Context, run *domain.Run, tc tailContext, boundary int64) bool {
-	deadline := time.Now().Add(c.debounce)
+	deadline := c.clock().Add(c.debounce)
 	for {
 		if c.transcriptGrew(run, tc, boundary) {
 			return true
 		}
-		if !time.Now().Before(deadline) {
+		if !c.clock().Before(deadline) {
 			return false
 		}
 		if !sleepCtx(ctx, c.activityPoll) {

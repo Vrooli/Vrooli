@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -11,9 +13,76 @@ import (
 	"agent-manager/internal/protoconv"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestHandleWebSocketSupportsTypedAndLegacyClientMessages(t *testing.T) {
+	hub := NewWebSocketHub()
+	go hub.Run()
+
+	server := httptest.NewServer(http.HandlerFunc((&Handler{}).HandleWebSocket(hub)))
+	t.Cleanup(server.Close)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial websocket: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	readMessage := func() *domainpb.AgentManagerWsMessage {
+		t.Helper()
+		_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatalf("read websocket message: %v", err)
+		}
+		var message domainpb.AgentManagerWsMessage
+		if err := protoconv.UnmarshalJSON(data, &message); err != nil {
+			t.Fatalf("decode websocket message: %v", err)
+		}
+		return &message
+	}
+	writeMessage := func(data []byte) {
+		t.Helper()
+		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			t.Fatalf("write websocket message: %v", err)
+		}
+	}
+
+	if welcome := readMessage(); welcome.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED || welcome.GetConnected() == nil {
+		t.Fatalf("expected connected welcome, got %+v", welcome)
+	}
+
+	typedPing, err := protoconv.MarshalJSON(&domainpb.AgentManagerWsClientMessage{Type: domainpb.AgentManagerWsClientMessageType_AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_PING})
+	if err != nil {
+		t.Fatalf("marshal typed ping: %v", err)
+	}
+	writeMessage(typedPing)
+	if pong := readMessage(); pong.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_PONG || pong.GetPong() == nil {
+		t.Fatalf("expected typed pong, got %+v", pong)
+	}
+
+	runID := uuid.New()
+	subscribe, err := protoconv.MarshalJSON(&domainpb.AgentManagerWsClientMessage{
+		Type:    domainpb.AgentManagerWsClientMessageType_AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE,
+		Payload: &domainpb.AgentManagerWsClientMessage_RunSubscription{RunSubscription: &domainpb.RunSubscription{RunId: runID.String()}},
+	})
+	if err != nil {
+		t.Fatalf("marshal subscription: %v", err)
+	}
+	writeMessage(subscribe)
+	hub.BroadcastProgress(runID, domain.RunPhaseExecuting, 45, "checking durable state")
+	if progress := readMessage(); progress.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS || progress.GetRunId() != runID.String() || progress.GetRunProgress().GetPercentComplete() != 45 {
+		t.Fatalf("expected subscribed progress update, got %+v", progress)
+	}
+
+	writeMessage([]byte(`{"type":"ping"}`))
+	if pong := readMessage(); pong.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_PONG {
+		t.Fatalf("expected legacy pong, got %+v", pong)
+	}
+}
 
 // =============================================================================
 // HUB LIFECYCLE TESTS

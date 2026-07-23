@@ -233,6 +233,76 @@ func TestWorkspaceSandboxProvider_Delete(t *testing.T) {
 	}
 }
 
+func TestWorkspaceSandboxProviderLifecycleValidationAndConflictContracts(t *testing.T) {
+	sandboxID := uuid.New()
+	deleted := make([]string, 0)
+	now := time.Now().UTC()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes/"+sandboxID.String()+"/stop":
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes/"+sandboxID.String()+"/start":
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes/"+sandboxID.String()+"/resume":
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"id": sandboxID.String(), "scopePath": "src/api", "status": "active", "mergedDir": "/tmp/merged", "createdAt": now.Format(time.RFC3339)})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes/"+sandboxID.String()+"/turn-checkpoint":
+			var body map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			if body["actor"] != "applyAtRunEnd" || body["turnId"] != "turn-1" || body["turnSequence"] != float64(2) {
+				t.Fatalf("checkpoint body=%v", body)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"sandboxId": sandboxID.String(), "status": "checkpointed", "success": true, "applied": 1, "checkpointId": "checkpoint-1", "appliedAt": now.Format(time.RFC3339)})
+		case r.Method == http.MethodGet && r.URL.Path == "/validate-path":
+			if r.URL.Query().Get("path") != "src/api" || r.URL.Query().Get("projectRoot") != "/repo" {
+				t.Fatalf("validation query=%s", r.URL.RawQuery)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"path": "src/api", "valid": true, "isDirectory": true})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/sandboxes":
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"sandboxes": []map[string]interface{}{
+				{"id": sandboxID.String(), "scopePath": "src/api", "status": "active", "createdAt": now.Add(-time.Hour).Format(time.RFC3339)},
+				{"id": uuid.NewString(), "scopePath": "src/api/deleted", "status": "deleted", "createdAt": now.Add(-time.Hour).Format(time.RFC3339)},
+				{"id": uuid.NewString(), "scopePath": "docs", "status": "active", "createdAt": now.Format(time.RFC3339)},
+			}})
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/v1/sandboxes/"):
+			deleted = append(deleted, strings.TrimPrefix(r.URL.Path, "/api/v1/sandboxes/"))
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	ctx := context.Background()
+	if err := provider.Stop(ctx, sandboxID); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	if err := provider.Start(ctx, sandboxID); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	resumed, err := provider.Resume(ctx, sandboxID)
+	if err != nil || resumed.ID != sandboxID || resumed.Status != sandbox.SandboxStatusActive {
+		t.Fatalf("resume=%+v err=%v", resumed, err)
+	}
+	checkpoint, err := provider.TurnCheckpoint(ctx, sandbox.TurnCheckpointRequest{SandboxID: sandboxID, RunID: "run-1", TurnID: "turn-1", TurnSequence: 2, CreateCommit: true})
+	if err != nil || !checkpoint.Success || checkpoint.CheckpointID != "checkpoint-1" {
+		t.Fatalf("checkpoint=%+v err=%v", checkpoint, err)
+	}
+	path, err := provider.ValidatePath(ctx, "src/api", "/repo")
+	if err != nil || !path.Valid || !path.IsDirectory {
+		t.Fatalf("path validation=%+v err=%v", path, err)
+	}
+	conflicts, err := provider.CheckConflicts(ctx, "src")
+	if err != nil || len(conflicts) != 1 || conflicts[0].SandboxID != sandboxID.String() {
+		t.Fatalf("conflicts=%+v err=%v", conflicts, err)
+	}
+	count, err := provider.CleanupStaleSandboxes(ctx, 30*time.Minute)
+	if err != nil || count != 1 || len(deleted) != 1 || deleted[0] != sandboxID.String() {
+		t.Fatalf("cleanup count=%d deleted=%v err=%v", count, deleted, err)
+	}
+}
+
 // TestWorkspaceSandboxProvider_GetDiff is a shape-parity contract test for the
 // workspace-sandbox /diff endpoint. The fake server below MUST emit the exact
 // JSON shape that scenarios/workspace-sandbox/api/internal/types.DiffResult

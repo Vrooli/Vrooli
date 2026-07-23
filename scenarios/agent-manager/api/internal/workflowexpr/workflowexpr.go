@@ -68,6 +68,14 @@ func NewEnv() (*Env, error) {
 			cel.Overload("count_journal_node", []*cel.Type{cel.ListType(cel.DynType), cel.StringType}, cel.IntType,
 				cel.BinaryBinding(countForNode)),
 		),
+		// count_since_last(journal, nodeId, boundaryNodeId): how many times a
+		// node has been attempted after the newest attempt of a boundary node.
+		// It lets bounded loops express per-slice limits without depending on a
+		// separate persisted counter.
+		cel.Function("count_since_last",
+			cel.Overload("count_since_last_journal_node_boundary", []*cel.Type{cel.ListType(cel.DynType), cel.StringType, cel.StringType}, cel.IntType,
+				cel.FunctionBinding(countSinceLastNode)),
+		),
 	)
 	if err != nil {
 		return nil, err
@@ -166,6 +174,35 @@ func countForNode(list, nodeID ref.Val) ref.Val {
 	n := 0
 	for _, m := range journalEntries(list) {
 		if kind, ok := m["kind"].(string); ok && kind == "node_attempt" && nodeIDEquals(m, id) {
+			n++
+		}
+	}
+	return types.Int(n)
+}
+
+// countSinceLastNode implements count_since_last(journal, nodeId,
+// boundaryNodeId). Traversing backwards is deliberate: only entries after the
+// current slice attempt belong to the correction budget for that slice.
+func countSinceLastNode(values ...ref.Val) ref.Val {
+	if len(values) != 3 {
+		return types.NewErr("count_since_last: expected journal, nodeId, boundaryNodeId")
+	}
+	countedID, ok := values[1].Value().(string)
+	if !ok {
+		return types.NewErr("count_since_last: nodeId must be a string")
+	}
+	boundaryID, ok := values[2].Value().(string)
+	if !ok {
+		return types.NewErr("count_since_last: boundaryNodeId must be a string")
+	}
+	entries := journalEntries(values[0])
+	n := 0
+	for index := len(entries) - 1; index >= 0; index-- {
+		entry := entries[index]
+		if kind, ok := entry["kind"].(string); ok && kind == "node_attempt" && nodeIDEquals(entry, boundaryID) {
+			break
+		}
+		if kind, ok := entry["kind"].(string); ok && kind == "node_attempt" && nodeIDEquals(entry, countedID) {
 			n++
 		}
 	}

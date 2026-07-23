@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
@@ -458,7 +457,7 @@ func (o *Orchestrator) reconcileDeclaredWorkflows(ctx context.Context, scenario,
 			continue
 		}
 		sum := sha256.Sum256(data)
-		revision := &domain.WorkflowRevision{Owner: scenario, Key: parsed.Definition.Key, SemanticVersion: parsed.Definition.Version, Digest: parsed.Digest, Definition: parsed.Definition, SourcePath: source, SourceHash: hex.EncodeToString(sum[:]), SourceUpdatedAt: info.ModTime().UTC(), CreatedAt: time.Now().UTC()}
+		revision := &domain.WorkflowRevision{Owner: scenario, Key: parsed.Definition.Key, SemanticVersion: parsed.Definition.Version, Digest: parsed.Digest, Definition: parsed.Definition, SourcePath: source, SourceHash: hex.EncodeToString(sum[:]), SourceUpdatedAt: info.ModTime().UTC(), CreatedAt: o.now().UTC()}
 		if active != nil && active.Digest == revision.Digest {
 			item.Status = WorkflowReconcileUnchanged
 			item.Message = "active revision already matches source"
@@ -589,6 +588,7 @@ func (o *Orchestrator) ReconcileDeclaringScenarios(ctx context.Context, repoRoot
 		summary.Scenarios = append(summary.Scenarios, res)
 		if res.Err != "" || res.Failed != 0 {
 			summary.Failed++
+			obs.Logger().Warn("scenario declaration reconciliation failed", "scenario", scenario, "failedItems", res.Failed, obs.KeyError, res.Err)
 		} else {
 			summary.Reconciled++
 		}

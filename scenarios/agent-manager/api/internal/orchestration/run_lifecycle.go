@@ -42,7 +42,7 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 		}
 	}
 
-	now := time.Now()
+	now := o.now()
 
 	run.Status = input.NewStatus
 	if input.Phase != "" {

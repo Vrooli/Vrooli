@@ -308,7 +308,7 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 }
 
 // waitForRunCompletion polls for run completion with a timeout.
-func waitForRunCompletion(t *testing.T, ctx context.Context, svc orchestration.Service, runID uuid.UUID, timeout time.Duration) (*domain.Run, error) {
+func waitForRunCompletion(t *testing.T, ctx context.Context, svc *orchestration.Orchestrator, runID uuid.UUID, timeout time.Duration) (*domain.Run, error) {
 	t.Helper()
 
 	deadline := time.Now().Add(timeout)

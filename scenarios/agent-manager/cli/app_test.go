@@ -660,3 +660,24 @@ func TestApp_CmdMaintenance_UnknownSubcommand(t *testing.T) {
 		t.Error("expected error for unknown subcommand")
 	}
 }
+
+func TestApp_AdditionalCommandGroupsAcceptHelp(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+	commands := map[string]func([]string) error{
+		"declarations":      app.cmdDeclarations,
+		"events":            app.cmdEvents,
+		"health":            app.cmdHealth,
+		"ops":               app.cmdOps,
+		"permission-policy": app.cmdPermissionPolicy,
+	}
+	for name, command := range commands {
+		t.Run(name, func(t *testing.T) {
+			if err := command([]string{"--help"}); err != nil {
+				t.Fatalf("help: %v", err)
+			}
+		})
+	}
+}

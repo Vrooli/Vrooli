@@ -60,7 +60,7 @@ func newTestRolePolicyOption(t *testing.T) orchestration.Option {
 // [REQ:REQ-P0-001] [REQ:REQ-P0-002] [REQ:REQ-P0-003] [REQ:REQ-P0-004]
 // Tests for orchestration service - profile, task, and run operations
 
-func newTestOrchestrator(t *testing.T) orchestration.Service {
+func newTestOrchestrator(t *testing.T) *orchestration.Orchestrator {
 	t.Helper()
 
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
@@ -87,7 +87,7 @@ func newTestOrchestrator(t *testing.T) orchestration.Service {
 	)
 }
 
-func mustCreateProfile(t *testing.T, svc orchestration.Service, ctx context.Context, profile *domain.AgentProfile) *domain.AgentProfile {
+func mustCreateProfile(t *testing.T, svc *orchestration.Orchestrator, ctx context.Context, profile *domain.AgentProfile) *domain.AgentProfile {
 	t.Helper()
 	created, err := svc.CreateProfile(ctx, profile)
 	if err != nil {
@@ -96,7 +96,7 @@ func mustCreateProfile(t *testing.T, svc orchestration.Service, ctx context.Cont
 	return created
 }
 
-func mustCreateTask(t *testing.T, svc orchestration.Service, ctx context.Context, task *domain.Task) *domain.Task {
+func mustCreateTask(t *testing.T, svc *orchestration.Orchestrator, ctx context.Context, task *domain.Task) *domain.Task {
 	t.Helper()
 	created, err := svc.CreateTask(ctx, task)
 	if err != nil {
@@ -757,7 +757,7 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 // [REQ:REQ-P0-005] Run creation with capacity limits
 
 // newTestOrchestratorWithLimit creates an orchestrator with a specific MaxConcurrentRuns limit.
-func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Service, repository.RunRepository) {
+func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (*orchestration.Orchestrator, repository.RunRepository) {
 	t.Helper()
 
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
@@ -1049,7 +1049,7 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 // Tests for feature flag and extra flag handling in run creation.
 
 // newTestOrchestratorWithFlagValidator creates an orchestrator with a custom flag validator.
-func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator) orchestration.Service {
+func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator) *orchestration.Orchestrator {
 	t.Helper()
 
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)

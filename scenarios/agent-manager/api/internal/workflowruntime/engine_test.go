@@ -23,6 +23,60 @@ func (f fixedPromptResolver) Resolve(_ context.Context, _ *domain.WorkflowPrompt
 	return f.resolution, nil
 }
 
+func TestEngineFailPersistsExternalWorkerFailure(t *testing.T) {
+	engine, store, _ := testEngine(t, baseDefinition())
+	execution, err := engine.Start(context.Background(), revision(baseDefinition()), json.RawMessage(`{}`), "external-failure")
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed, err := engine.Fail(context.Background(), execution.ID, "nudger_panic", "panic: injected")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failed.Status != domain.WorkflowExecutionFailed || failed.TerminalReason == nil || failed.TerminalReason.Code != "nudger_panic" {
+		t.Fatalf("failed execution = %+v", failed)
+	}
+	persisted, err := store.Get(context.Background(), execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if persisted.Status != domain.WorkflowExecutionFailed || persisted.TerminalReason == nil || persisted.TerminalReason.Message != "panic: injected" {
+		t.Fatalf("persisted execution = %+v", persisted)
+	}
+}
+
+func TestEngineRecordDiagnosticSequencesEvidenceWithoutRefreshingLifecycleProgress(t *testing.T) {
+	engine, store, _ := testEngine(t, baseDefinition())
+	now := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	engine.Now = func() time.Time { return now }
+	execution, err := engine.Start(context.Background(), revision(baseDefinition()), json.RawMessage(`{}`), "diagnostic-sequence")
+	if err != nil {
+		t.Fatal(err)
+	}
+	progressAt := execution.UpdatedAt
+	now = now.Add(time.Hour)
+	if _, err := engine.RecordDiagnostic(context.Background(), execution.ID, "first", "first diagnostic"); err != nil {
+		t.Fatalf("record first diagnostic: %v", err)
+	}
+	if _, err := engine.RecordDiagnostic(context.Background(), execution.ID, "second", "second diagnostic"); err != nil {
+		t.Fatalf("record second diagnostic: %v", err)
+	}
+	journal, err := store.ListJournal(context.Background(), execution.ID, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(journal) != 3 || journal[1].Sequence != 2 || journal[2].Sequence != 3 {
+		t.Fatalf("diagnostic journal sequence = %+v, want input then sequences 2 and 3", journal)
+	}
+	persisted, err := store.Get(context.Background(), execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !persisted.UpdatedAt.Equal(progressAt) {
+		t.Fatalf("diagnostics refreshed lifecycle progress: got %s, want %s", persisted.UpdatedAt, progressAt)
+	}
+}
+
 func TestEngine_AssignsArmedPromptAtAttemptCreation(t *testing.T) {
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{
@@ -203,6 +257,40 @@ func TestInvalidStructuredResultPreservesRawAttemptEvidence(t *testing.T) {
 	terminal := mustAdvance(t, engine, execution.ID)
 	if terminal.Status != domain.WorkflowExecutionSucceeded {
 		t.Fatalf("repaired result did not finish workflow: %+v", terminal)
+	}
+}
+
+func TestResultSpecSchemaIsInjectedIntoPromptAndRepair(t *testing.T) {
+	schema := `{"type":"object","required":["answer"]}`
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work {{.topic}}", Bindings: []domain.WorkflowInputBinding{inputBinding("topic", "$.topic")}, ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindJSONSchema, ExtractionMode: domain.StructuredExtractionDeterministic, Schema: json.RawMessage(schema)}}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{"topic":"A"}`), "schema-in-prompt")
+	mustAdvance(t, engine, execution.ID)
+	attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+	if len(attempts) != 1 {
+		t.Fatalf("attempts=%+v", attempts)
+	}
+	prompt := attempts[0].PromptSnapshot
+	if !strings.HasPrefix(prompt, "work A") || !strings.Contains(prompt, "## Required structured result") || !strings.Contains(prompt, schema) {
+		t.Fatalf("run prompt missing schema block: %q", prompt)
+	}
+	mustAdvance(t, engine, execution.ID)
+	runID := children.requests[0].runID
+	state := children.states[runID]
+	state.Terminal = true
+	state.Result = &domain.RunResult{FinalOutput: `{"wrong":true}`, Structured: &domain.StructuredResult{Status: domain.StructuredResultInvalid, Diagnostics: []domain.StructuredDiagnostic{{Code: "schema_mismatch", Path: "$.answer", Message: "required property missing"}}}}
+	children.states[runID] = state
+	mustAdvance(t, engine, execution.ID)
+	attempts, _ = store.ListAttempts(context.Background(), execution.ID)
+	if len(attempts) != 2 {
+		t.Fatalf("expected repair attempt: %+v", attempts)
+	}
+	repairPrompt := attempts[1].PromptSnapshot
+	if !strings.Contains(repairPrompt, "Required schema:") || !strings.Contains(repairPrompt, schema) || !strings.Contains(repairPrompt, "schema_mismatch") {
+		t.Fatalf("repair prompt missing schema: %q", repairPrompt)
 	}
 }
 
@@ -905,7 +993,7 @@ func TestAuthoredPhasedPlanUsesReviewCorrectionAndCorrectedOutput(t *testing.T) 
 
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
-	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "original", "completedSlice": "slice one", "correctionRequired": false, "approvalRequired": false})
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "original", "correctionRequired": false, "approvalRequired": false})
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
@@ -921,7 +1009,7 @@ func TestAuthoredPhasedPlanUsesReviewCorrectionAndCorrectedOutput(t *testing.T) 
 	if !strings.Contains(children.requests[1].prompt, "replace the handoff") {
 		t.Fatalf("correction prompt omitted review note: %q", children.requests[1].prompt)
 	}
-	completeStructured(children, children.requests[1].runID, map[string]any{"outcome": "complete", "handoff": "corrected", "completedSlice": "slice one corrected"})
+	completeStructured(children, children.requests[1].runID, map[string]any{"outcome": "complete", "handoff": "corrected"})
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
@@ -932,7 +1020,7 @@ func TestAuthoredPhasedPlanUsesReviewCorrectionAndCorrectedOutput(t *testing.T) 
 	mustAdvance(t, engine, execution.ID)
 	final := mustAdvance(t, engine, execution.ID)
 	if final.Status != domain.WorkflowExecutionSucceeded || !strings.Contains(string(final.Output), `"handoff":"corrected"`) || strings.Contains(string(final.Output), `"handoff":"original"`) {
-		t.Fatalf("terminal output did not select correction: status=%s output=%s", final.Status, final.Output)
+		t.Fatalf("terminal output did not select correction: status=%s reason=%+v output=%s", final.Status, final.TerminalReason, final.Output)
 	}
 }
 
@@ -947,7 +1035,7 @@ func TestAuthoredPhasedPlanEnforcesConsumerSliceLimit(t *testing.T) { // [REQ:RE
 	}
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
-	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "one", "completedSlice": "slice one", "correctionRequired": false, "approvalRequired": false})
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "one", "correctionRequired": false, "approvalRequired": false})
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
@@ -981,7 +1069,7 @@ func TestAuthoredPhasedPlanPreservesBlockedAndAbstainedTerminals(t *testing.T) {
 		value map[string]any
 		want  domain.WorkflowExecutionStatus
 	}{
-		{name: "blocked", value: map[string]any{"outcome": "blocked", "handoff": "paused", "completedSlice": "", "blocker": map[string]any{"code": "operator_input", "summary": "operator input required", "retryable": true}}, want: domain.WorkflowExecutionBlocked},
+		{name: "blocked", value: map[string]any{"outcome": "blocked", "handoff": "paused", "blocker": map[string]any{"code": "operator_input", "summary": "operator input required", "retryable": true}}, want: domain.WorkflowExecutionBlocked},
 		{name: "abstained", value: map[string]any{"outcome": "abstained", "reason": "insufficient evidence"}, want: domain.WorkflowExecutionAbstained},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1015,7 +1103,7 @@ func TestAuthoredPhasedPlanCreatesFreshRunForNextSlice(t *testing.T) { // [REQ:R
 	}
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
-	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "slice-one-handoff", "completedSlice": "slice one", "correctionRequired": false, "approvalRequired": false})
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "slice-one-handoff", "correctionRequired": false, "approvalRequired": false})
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
@@ -1046,7 +1134,7 @@ func TestAuthoredPhasedPlanFeedsCorrectedHandoffToNextSlice(t *testing.T) { // [
 
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
-	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "superseded-handoff", "completedSlice": "slice one", "correctionRequired": false, "approvalRequired": false})
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "superseded-handoff", "correctionRequired": false, "approvalRequired": false})
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
@@ -1056,7 +1144,7 @@ func TestAuthoredPhasedPlanFeedsCorrectedHandoffToNextSlice(t *testing.T) { // [
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
-	completeStructured(children, children.requests[1].runID, map[string]any{"outcome": "continue", "handoff": "corrected-handoff", "completedSlice": "slice one corrected", "correctionRequired": false, "approvalRequired": false})
+	completeStructured(children, children.requests[1].runID, map[string]any{"outcome": "continue", "handoff": "corrected-handoff", "correctionRequired": false, "approvalRequired": false})
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
 	mustAdvance(t, engine, execution.ID)
@@ -1090,14 +1178,41 @@ func loadAuthoredPhasedPlanDefinition(t *testing.T) domain.WorkflowDefinition {
 	if len(parsed.Diagnostics) != 0 {
 		t.Fatalf("authored phased plan diagnostics: %+v", parsed.Diagnostics)
 	}
-	return parsed.Definition
+	definition := parsed.Definition
+	// Runtime receives reconciled definitions, where prompt-manager content is
+	// materialized into promptTemplate. These authored-workflow tests exercise
+	// that runtime contract rather than accidentally testing raw source JSON.
+	for i := range definition.Nodes {
+		node := &definition.Nodes[i]
+		if node.Run != nil && node.Run.PromptRef != nil && node.Run.PromptTemplate == "" {
+			node.Run.PromptTemplate = reconciledSkillTemplate(t, node.Run.PromptRef.SkillID)
+		}
+		if node.Continue != nil && node.Continue.PromptRef != nil && node.Continue.PromptTemplate == "" {
+			node.Continue.PromptTemplate = reconciledSkillTemplate(t, node.Continue.PromptRef.SkillID)
+		}
+	}
+	return definition
+}
+
+func reconciledSkillTemplate(t *testing.T, skillID string) string {
+	t.Helper()
+	path := filepath.Join("..", "..", "..", "..", "prompt-manager", "store", "skills", "packs", "core", skillID, "SKILL.md")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read reconciled prompt skill %q: %v", skillID, err)
+	}
+	if strings.TrimSpace(string(content)) == "" {
+		t.Fatalf("reconciled prompt skill %q was empty", skillID)
+	}
+	return string(content)
 }
 
 func phasedPlanInput(maxSlices int) json.RawMessage {
 	value, _ := json.Marshal(map[string]any{
-		"plan":        map[string]any{"reference": "plan-1", "frontierDigest": "sha256:frontier"},
-		"consumer":    map[string]any{"executionId": "execution-1", "entityKind": "execute", "entityName": "plan", "entityVersion": "sha256:entity"},
-		"constraints": map[string]any{"maxSlices": maxSlices, "writeScope": []string{"scenarios/example/**"}},
+		"plan":            map[string]any{"reference": "plan-1", "frontierDigest": "sha256:frontier"},
+		"planExecutionId": "plan-execution-1",
+		"consumer":        map[string]any{"executionId": "execution-1", "entityKind": "execute", "entityName": "plan", "entityVersion": "sha256:entity"},
+		"constraints":     map[string]any{"maxSlices": maxSlices, "writeScope": []string{"scenarios/example/**"}},
 	})
 	return value
 }

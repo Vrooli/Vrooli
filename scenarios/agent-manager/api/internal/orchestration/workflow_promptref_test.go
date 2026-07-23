@@ -159,6 +159,44 @@ func TestWorkflowPromptStalenessFlipsAndReconcileClears(t *testing.T) {
 	}
 }
 
+func TestWorkflowPromptStaleWhenSourceDeleted(t *testing.T) {
+	prompt := &fakePromptSource{content: "First body.", hash: "sha256:one", rev: 1}
+	o := newPromptRefOrchestrator(t, prompt)
+	ctx := context.Background()
+	scenarioRoot, servicePath := writeScenarioFixture(t, map[string]string{
+		".vrooli/service.json":               declarationManifest(".vrooli/agent-manager/default.json", ".vrooli/agent-manager/ref.json"),
+		".vrooli/agent-manager/default.json": fixtureProfile,
+		".vrooli/agent-manager/ref.json":     promptRefWorkflow,
+	})
+	if _, err := o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", scenarioRoot, servicePath, false, false); err != nil {
+		t.Fatalf("initial reconcile: %v", err)
+	}
+	// Skill deleted after reconcile: the definitive missing-source answer marks
+	// the revision stale instead of failing the whole listing.
+	prompt.err = fmt.Errorf("promptmanager: source response for %q is incomplete: %w", "fixture-skill", promptmanager.ErrSkillSourceMissing)
+	revisions, err := o.ListWorkflowRevisions(ctx, "fixture-scn", "", ListOptions{})
+	if err != nil {
+		t.Fatalf("list with deleted source should not fail: %v", err)
+	}
+	var found bool
+	for _, revision := range revisions {
+		if revision.Key == "fixture-scn/refround" {
+			found = true
+			if !revision.PromptStale {
+				t.Fatalf("deleted source should mark revision stale: %+v", revision)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("refround revision missing from listing")
+	}
+	// A transport-shaped error still aborts: silence must never report healthy.
+	prompt.err = fmt.Errorf("promptmanager: source request failed: connection refused")
+	if _, err := o.ListWorkflowRevisions(ctx, "fixture-scn", "", ListOptions{}); err == nil {
+		t.Fatal("transport error should still fail the listing")
+	}
+}
+
 func TestPromptRefChangedSkillProducesNewRevision(t *testing.T) {
 	prompt := &fakePromptSource{content: "First body.", hash: "sha256:one", rev: 1}
 	o := newPromptRefOrchestrator(t, prompt)

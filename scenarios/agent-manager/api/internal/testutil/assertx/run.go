@@ -74,10 +74,6 @@ func eventMessageContains(evt *domain.RunEvent, substring string) bool {
 		return strings.Contains(data.Reason, substring)
 	case *domain.ErrorEventData:
 		return strings.Contains(data.Message, substring)
-	case domain.RunEventData:
-		return strings.Contains(data.Message, substring) ||
-			strings.Contains(data.Content, substring) ||
-			strings.Contains(data.ErrorMessage, substring)
 	default:
 		return false
 	}

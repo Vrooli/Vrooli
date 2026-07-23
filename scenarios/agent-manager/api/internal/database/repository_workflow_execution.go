@@ -277,34 +277,37 @@ func (r *workflowExecutionRepository) GetAttemptByIdempotencyKey(ctx context.Con
 }
 
 type workflowAttemptRow struct {
-	ID                string         `db:"id"`
-	ExecutionID       string         `db:"execution_id"`
-	NodeID            string         `db:"node_id"`
-	Ordinal           int            `db:"ordinal"`
-	Strategy          string         `db:"strategy"`
-	Status            string         `db:"status"`
-	IdempotencyKey    string         `db:"idempotency_key"`
-	InputSnapshotJSON string         `db:"input_snapshot_json"`
-	PromptSnapshot    string         `db:"prompt_snapshot"`
-	ExperimentID      string         `db:"experiment_id"`
-	VariantID         string         `db:"variant_id"`
-	PromptHash        string         `db:"prompt_hash"`
-	RunID             sql.NullString `db:"run_id"`
-	ConversationID    string         `db:"conversation_id"`
-	SourceAttemptID   sql.NullString `db:"source_attempt_id"`
-	ChildExecutionID  sql.NullString `db:"child_execution_id"`
-	ErrorCode         string         `db:"error_code"`
-	RawOutput         string         `db:"raw_output"`
-	ValidationError   string         `db:"validation_error"`
-	Version           int64          `db:"version"`
-	CreatedAt         SQLiteTime     `db:"created_at"`
-	UpdatedAt         SQLiteTime     `db:"updated_at"`
-	CompletedAt       sql.NullString `db:"completed_at"`
+	ID                string `db:"id"`
+	ExecutionID       string `db:"execution_id"`
+	NodeID            string `db:"node_id"`
+	Ordinal           int    `db:"ordinal"`
+	Strategy          string `db:"strategy"`
+	Status            string `db:"status"`
+	IdempotencyKey    string `db:"idempotency_key"`
+	InputSnapshotJSON string `db:"input_snapshot_json"`
+	PromptSnapshot    string `db:"prompt_snapshot"`
+	// These fields were introduced by additive migrations and the schema permits
+	// NULL for existing executions. Keep the scan representation nullable so an
+	// older attempt can be listed after the migration has been applied.
+	ExperimentID     sql.NullString `db:"experiment_id"`
+	VariantID        sql.NullString `db:"variant_id"`
+	PromptHash       sql.NullString `db:"prompt_hash"`
+	RunID            sql.NullString `db:"run_id"`
+	ConversationID   string         `db:"conversation_id"`
+	SourceAttemptID  sql.NullString `db:"source_attempt_id"`
+	ChildExecutionID sql.NullString `db:"child_execution_id"`
+	ErrorCode        sql.NullString `db:"error_code"`
+	RawOutput        sql.NullString `db:"raw_output"`
+	ValidationError  sql.NullString `db:"validation_error"`
+	Version          int64          `db:"version"`
+	CreatedAt        SQLiteTime     `db:"created_at"`
+	UpdatedAt        SQLiteTime     `db:"updated_at"`
+	CompletedAt      sql.NullString `db:"completed_at"`
 }
 
 func (r workflowAttemptRow) domain() (*domain.WorkflowNodeAttempt, error) {
 	id, eid := uuid.MustParse(r.ID), uuid.MustParse(r.ExecutionID)
-	a := &domain.WorkflowNodeAttempt{ID: id, ExecutionID: eid, NodeID: r.NodeID, Ordinal: r.Ordinal, Strategy: domain.WorkflowAttemptStrategy(r.Strategy), Status: domain.WorkflowAttemptStatus(r.Status), IdempotencyKey: r.IdempotencyKey, InputSnapshot: json.RawMessage(r.InputSnapshotJSON), PromptSnapshot: r.PromptSnapshot, ExperimentID: r.ExperimentID, VariantID: r.VariantID, PromptHash: r.PromptHash, ConversationID: r.ConversationID, ErrorCode: r.ErrorCode, RawOutput: r.RawOutput, ValidationError: r.ValidationError, Version: r.Version, CreatedAt: r.CreatedAt.Time(), UpdatedAt: r.UpdatedAt.Time()}
+	a := &domain.WorkflowNodeAttempt{ID: id, ExecutionID: eid, NodeID: r.NodeID, Ordinal: r.Ordinal, Strategy: domain.WorkflowAttemptStrategy(r.Strategy), Status: domain.WorkflowAttemptStatus(r.Status), IdempotencyKey: r.IdempotencyKey, InputSnapshot: json.RawMessage(r.InputSnapshotJSON), PromptSnapshot: r.PromptSnapshot, ExperimentID: r.ExperimentID.String, VariantID: r.VariantID.String, PromptHash: r.PromptHash.String, ConversationID: r.ConversationID, ErrorCode: r.ErrorCode.String, RawOutput: r.RawOutput.String, ValidationError: r.ValidationError.String, Version: r.Version, CreatedAt: r.CreatedAt.Time(), UpdatedAt: r.UpdatedAt.Time()}
 	if r.RunID.Valid {
 		v, err := uuid.Parse(r.RunID.String)
 		if err != nil {

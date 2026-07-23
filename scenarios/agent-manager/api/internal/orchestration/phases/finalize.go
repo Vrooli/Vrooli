@@ -52,7 +52,7 @@ func Finalize(in FinalizeInput) {
 	ctx, cancel := context.WithTimeout(context.Background(), in.Deps.Levers.Heartbeat.TeardownTimeout)
 	defer cancel()
 
-	finalizeStart := time.Now()
+	finalizeStart := in.Deps.Now()
 	sink := finalizeSink(in.Deps)
 	obs.EmitFinalizeStarted(sink, in.Run.ID, obs.FinalizeFields{
 		SandboxID: in.SandboxID,
@@ -168,7 +168,7 @@ func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) s
 	defer cancel()
 
 	if HasLifecycleEvent(cfg.Lifecycle.DeleteOn, events) {
-		started := time.Now()
+		started := in.Deps.Now()
 		if err := in.Sandbox.Delete(teardownCtx, *in.SandboxID); err != nil {
 			EmitSandboxOperation(ctx, in.Deps, in.Run.ID, eventlog.SandboxOperationPayload{
 				Operation:  eventlog.SandboxOpDelete,
@@ -189,7 +189,7 @@ func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) s
 	}
 
 	if HasLifecycleEvent(cfg.Lifecycle.StopOn, events) {
-		started := time.Now()
+		started := in.Deps.Now()
 		if err := in.Sandbox.Stop(teardownCtx, *in.SandboxID); err != nil {
 			EmitSandboxOperation(ctx, in.Deps, in.Run.ID, eventlog.SandboxOperationPayload{
 				Operation:  eventlog.SandboxOpStop,
@@ -284,13 +284,13 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 		// constructed a run without going through resolveSandboxConfig — a bug.
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 			"apply-at-run-end skipped: run has no sandbox config (resolve bug — please report)")
-		domain.MarkFinalizationFailed(in.Run, fmt.Errorf("run has no sandbox config"), time.Now())
+		domain.MarkFinalizationFailed(in.Run, fmt.Errorf("run has no sandbox config"), in.Deps.Now())
 		return false
 	}
 	if in.Sandbox == nil || in.SandboxID == nil {
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 			"apply-at-run-end skipped: no sandbox available")
-		domain.MarkFinalizationFailed(in.Run, fmt.Errorf("no sandbox available"), time.Now())
+		domain.MarkFinalizationFailed(in.Run, fmt.Errorf("no sandbox available"), in.Deps.Now())
 		return false
 	}
 
@@ -298,7 +298,7 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 	// persists past run end; the run terminates as Complete with
 	// ApprovalState=Pending so the AI Changes review queue surfaces it.
 	if cfg.ManualReview {
-		now := time.Now()
+		now := in.Deps.Now()
 		in.Run.ApprovalState = domain.ApprovalStatePending
 		in.Run.ApprovedAt = &now
 		in.Run.Status = domain.RunStatusNeedsReview
@@ -310,29 +310,29 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 
 	if !cfg.GetAutoApply() {
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", "apply skipped: autoApply=false")
-		domain.MarkFinalizationSkipped(in.Run, "autoApply=false", time.Now())
+		domain.MarkFinalizationSkipped(in.Run, "autoApply=false", in.Deps.Now())
 		return false
 	}
 
 	if in.Outcome != domain.ContractRunOutcomeSuccess && !cfg.GetApplyOnFailure() {
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
 			fmt.Sprintf("apply skipped: applyOnFailure=false (outcome=%s)", in.Outcome))
-		domain.MarkFinalizationSkipped(in.Run, fmt.Sprintf("applyOnFailure=false (outcome=%s)", in.Outcome), time.Now())
+		domain.MarkFinalizationSkipped(in.Run, fmt.Sprintf("applyOnFailure=false (outcome=%s)", in.Outcome), in.Deps.Now())
 		return false
 	}
 
-	domain.MarkFinalizationRunning(in.Run, time.Now())
+	domain.MarkFinalizationRunning(in.Run, in.Deps.Now())
 	result, err := applyOrCheckpointTurn(ctx, cfg, in)
 	if err != nil {
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", "apply-at-run-end failed: "+err.Error())
 		metrics.Get().RecordProvenanceSkipped()
-		domain.MarkFinalizationFailed(in.Run, err, time.Now())
+		domain.MarkFinalizationFailed(in.Run, err, in.Deps.Now())
 		return false
 	}
 
 	metrics.Get().RecordProvenanceWrite()
 
-	now := time.Now()
+	now := in.Deps.Now()
 	in.Run.ApprovedBy = "applyAtRunEnd"
 	in.Run.ApprovedAt = &now
 

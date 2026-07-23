@@ -570,6 +570,46 @@ func TestRefreshPricing_ClearsCache(t *testing.T) {
 	assert.InDelta(t, float64(1000)*newPrice, calc.InputCostUSD, 0.0001)
 }
 
+func TestRefreshModelPricingCacheStatusAndListExposeEffectivePricing(t *testing.T) {
+	provider := newMockProvider("openrouter")
+	input, output := 0.000002, 0.000004
+	now := time.Now().UTC()
+	provider.SetPricing("provider/model", &ModelPricing{
+		CanonicalModelName: "provider/model", Provider: "openrouter", InputTokenPrice: &input, OutputTokenPrice: &output,
+		InputTokenSource: SourceProviderAPI, OutputTokenSource: SourceProviderAPI, FetchedAt: now, ExpiresAt: now.Add(time.Hour), PricingVersion: "v1",
+	})
+	svc, repo := testService(t, provider)
+	ctx := context.Background()
+	if err := svc.RefreshModelPricing(ctx, "provider/model"); err != nil {
+		t.Fatalf("refresh model: %v", err)
+	}
+	if err := svc.RefreshModelPricing(ctx, "unknown/model"); err == nil {
+		t.Fatal("refresh unexpectedly succeeded for unsupported model")
+	}
+	status, err := svc.GetCacheStatus(ctx)
+	if err != nil || status.TotalModels != 1 || status.ExpiredCount != 0 {
+		t.Fatalf("cache status=%+v err=%v", status, err)
+	}
+	items, err := svc.ListModelsWithPricing(ctx)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("pricing list=%+v err=%v", items, err)
+	}
+	if items[0].CanonicalName != "provider/model" || items[0].InputPricePer1M != 2 || items[0].OutputPricePer1M != 4 || items[0].InputSource != SourceProviderAPI {
+		t.Fatalf("effective list item=%+v", items[0])
+	}
+	// A cache entry must be invalidated by targeted refresh; the repository is
+	// the durable source that feeds subsequent cost calculations.
+	if _, err := svc.GetModelPricing(ctx, "provider/model", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpsertPricing(ctx, &ModelPricing{CanonicalModelName: "provider/model", Provider: "openrouter", InputTokenPrice: &output, ExpiresAt: now.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RefreshModelPricing(ctx, "provider/model"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTokensToMillion(t *testing.T) {
 	tests := []struct {
 		perToken   float64

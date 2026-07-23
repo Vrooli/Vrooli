@@ -496,6 +496,10 @@ func (a *App) workflowGet(args []string, path string) error {
 		return nil
 	}
 	r := resp.Revision
+	if r == nil {
+		fmt.Println("No workflow revision found")
+		return nil
+	}
 	fmt.Printf("Key: %s\nVersion: %s\nDigest: %s\nSource: %s\nActive: %t\n", r.Key, r.SemanticVersion, r.Digest, r.SourcePath, r.Active)
 	return nil
 }

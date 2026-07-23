@@ -24,7 +24,7 @@ var parkHandlerSecret = []byte("phase4-park-handler-secret-0123456789abc")
 
 // setupParkHandler builds a handler wired with an identity secret + a claude-code
 // runner, plus a directly-seeded running run, for park/wake HTTP tests.
-func setupParkHandler(t *testing.T) (*mux.Router, *orchestration.Orchestrator, *domain.Run) {
+func setupParkHandler(t *testing.T) (*mux.Router, *orchestration.Orchestrator, *domain.Run, string) {
 	t.Helper()
 	ctx := context.Background()
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
@@ -53,28 +53,30 @@ func setupParkHandler(t *testing.T) (*mux.Router, *orchestration.Orchestrator, *
 		t.Fatalf("create task: %v", err)
 	}
 	runID := uuid.New()
+	token := parkHandlerToken(t, runID)
 	now := time.Now()
 	run := &domain.Run{
-		ID:             runID,
-		TaskID:         task.ID,
-		Tag:            runID.String(),
-		RunMode:        domain.RunModeInPlace,
-		Status:         domain.RunStatusRunning,
-		Phase:          domain.RunPhaseExecuting,
-		SessionID:      "sess-" + uuid.New().String()[:8],
-		StartedAt:      &now,
-		LastHeartbeat:  &now,
-		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
-		ApprovalState:  domain.ApprovalStateNone,
+		ID:                runID,
+		TaskID:            task.ID,
+		Tag:               runID.String(),
+		RunMode:           domain.RunModeInPlace,
+		Status:            domain.RunStatusRunning,
+		Phase:             domain.RunPhaseExecuting,
+		SessionID:         "sess-" + uuid.New().String()[:8],
+		StartedAt:         &now,
+		LastHeartbeat:     &now,
+		ResolvedConfig:    &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		ApprovalState:     domain.ApprovalStateNone,
+		IdentityTokenHash: identity.HashToken(token),
 	}
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatalf("create run: %v", err)
 	}
 
-	h := New(orch)
+	h := New(orchestration.NewHandlerServices(orch))
 	r := mux.NewRouter()
 	h.RegisterRoutes(r)
-	return r, orch, run
+	return r, orch, run, token
 }
 
 func parkHandlerToken(t *testing.T, runID uuid.UUID) string {
@@ -92,12 +94,12 @@ func parkHandlerToken(t *testing.T, runID uuid.UUID) string {
 // TestParkHandler_OwningTokenParks: POST /park with the owning run's token parks
 // the run (200 + parked + clean message).
 func TestParkHandler_OwningTokenParks(t *testing.T) {
-	router, _, run := setupParkHandler(t)
+	router, _, run, token := setupParkHandler(t)
 
 	body := encodeProtoJSON(t, &domainpb.ParkRunRequest{
 		Producer:      "test-genie",
 		Key:           "agent-manager/run-1",
-		IdentityToken: parkHandlerToken(t, run.ID),
+		IdentityToken: token,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+run.ID.String()+"/park", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -123,7 +125,7 @@ func TestParkHandler_OwningTokenParks(t *testing.T) {
 // TestParkHandler_ForeignTokenForbidden: a token that does not own the run is
 // rejected with 403 and the run stays running.
 func TestParkHandler_ForeignTokenForbidden(t *testing.T) {
-	router, orch, run := setupParkHandler(t)
+	router, orch, run, _ := setupParkHandler(t)
 
 	body := encodeProtoJSON(t, &domainpb.ParkRunRequest{
 		Producer:      "test-genie",
@@ -147,7 +149,7 @@ func TestParkHandler_ForeignTokenForbidden(t *testing.T) {
 // TestWakeHandler_Idempotent: waking a non-parked run is a no-op reported as
 // success=false (not an error).
 func TestWakeHandler_Idempotent(t *testing.T) {
-	router, _, run := setupParkHandler(t)
+	router, _, run, _ := setupParkHandler(t)
 
 	body := encodeProtoJSON(t, &domainpb.WakeRunRequest{Result: "ignored"})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+run.ID.String()+"/wake", bytes.NewReader(body))

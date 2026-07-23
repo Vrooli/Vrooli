@@ -18,7 +18,7 @@ import (
 // newParkableRun inserts a RunStatusRunning run (with custom env + session +
 // resolved config) directly, bypassing CreateRun's async execution. It is the
 // starting point for park/wake round-trip tests.
-func newParkableRun(t *testing.T, ctx context.Context, svc orchestration.Service, repos *database.Repositories) *domain.Run {
+func newParkableRun(t *testing.T, ctx context.Context, svc *orchestration.Orchestrator, repos *database.Repositories) *domain.Run {
 	t.Helper()
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
 		Name:       "park-profile",

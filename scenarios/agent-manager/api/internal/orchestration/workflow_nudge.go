@@ -32,6 +32,7 @@ import (
 // each drive runs under its own bounded, request-detached context.
 type WorkflowNudger struct {
 	drive   func(ctx context.Context, id uuid.UUID) error
+	onPanic func(context.Context, uuid.UUID, obs.PanicFailure)
 	workers int
 	timeout time.Duration
 
@@ -46,7 +47,7 @@ type WorkflowNudger struct {
 // NewWorkflowNudger builds a nudger over the given drive function. workers and
 // timeout come from config.Levers.Workflow. The returned nudger is inert until
 // Start spawns its worker goroutines.
-func NewWorkflowNudger(drive func(ctx context.Context, id uuid.UUID) error, workers int, timeout time.Duration) *WorkflowNudger {
+func NewWorkflowNudger(drive func(ctx context.Context, id uuid.UUID) error, workers int, timeout time.Duration, onPanic ...func(context.Context, uuid.UUID, obs.PanicFailure)) *WorkflowNudger {
 	if workers < 1 {
 		workers = 1
 	}
@@ -55,6 +56,9 @@ func NewWorkflowNudger(drive func(ctx context.Context, id uuid.UUID) error, work
 		workers: workers,
 		timeout: timeout,
 		pending: make(map[uuid.UUID]struct{}),
+	}
+	if len(onPanic) > 0 {
+		n.onPanic = onPanic[0]
 	}
 	n.cond = sync.NewCond(&n.mu)
 	return n
@@ -133,6 +137,12 @@ func (n *WorkflowNudger) worker() {
 }
 
 func (n *WorkflowNudger) runDrive(id uuid.UUID) {
+	defer obs.RecoverToFailure("workflow nudger drive", func(failure obs.PanicFailure) {
+		n.log().Error("workflow nudge panic recovered", "executionId", id.String(), obs.KeyError, failure.Error(), "stack", failure.Stack)
+		if n.onPanic != nil {
+			n.onPanic(context.Background(), id, failure)
+		}
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), n.timeout)
 	defer cancel()
 	if err := n.drive(ctx, id); err != nil {
@@ -204,4 +214,12 @@ func (r *workflowWaitRegistry) notify(id uuid.UUID) {
 	for ch := range subs {
 		close(ch)
 	}
+}
+
+// count returns the current subscriber count for one execution. It is used by
+// deterministic waiter tests to synchronize on registration rather than sleep.
+func (r *workflowWaitRegistry) count(id uuid.UUID) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.subs[id])
 }

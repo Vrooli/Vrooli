@@ -2,6 +2,7 @@ package phases
 
 import (
 	"context"
+	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/config"
@@ -64,4 +65,18 @@ type Deps struct {
 	Levers            config.Levers
 	WorkspaceSandbox  WorkspaceSandboxEnsurer
 	StructuredResults StructuredResultResolver
+	// Clock supplies timestamps for phase-owned durable state. Nil defaults to
+	// the system clock, preserving direct phase use in focused tests.
+	Clock func() time.Time
+}
+
+var systemClock = time.Now
+
+// Now returns the phase clock, falling back to the system clock for callers
+// that construct Deps directly.
+func (d Deps) Now() time.Time {
+	if d.Clock != nil {
+		return d.Clock()
+	}
+	return systemClock()
 }

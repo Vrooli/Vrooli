@@ -13,7 +13,6 @@ package phases
 
 import (
 	"context"
-	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
@@ -39,7 +38,7 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 		return ""
 	}
 
-	now := time.Now()
+	now := in.Deps.Now()
 	profileKey := ""
 	if in.Profile != nil {
 		profileKey = in.Profile.ProfileKey

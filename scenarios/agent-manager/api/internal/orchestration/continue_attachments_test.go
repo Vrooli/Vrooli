@@ -20,7 +20,7 @@ import (
 // complete, session ID set, resolved config with runner type). This avoids
 // calling CreateRun, which triggers async execution.
 func setupContinueTest(t *testing.T, opts ...orchestration.Option) (
-	svc orchestration.Service,
+	svc *orchestration.Orchestrator,
 	run *domain.Run,
 	cleanup func(),
 ) {

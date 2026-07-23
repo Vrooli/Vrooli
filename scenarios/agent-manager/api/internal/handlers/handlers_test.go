@@ -9,13 +9,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/protoconv"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/testutil"
@@ -54,12 +59,25 @@ func encodeProtoJSON(t *testing.T, msg proto.Message) []byte {
 // setupTestHandler creates a handler with SQLite-backed repositories for testing.
 func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
 	t.Helper()
+	return setupTestHandlerWithRunner(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+}
+
+// setupTestHandlerWithRunner lets lifecycle tests control runner completion
+// without relying on scheduler timing.
+func setupTestHandlerWithRunner(t *testing.T, mock *runner.MockRunner) (*Handler, *mux.Router) {
+	t.Helper()
+	handler, router, _, _ := setupTestHandlerWithRunnerAndRepos(t, mock)
+	return handler, router
+}
+
+func setupTestHandlerWithRunnerAndRepos(t *testing.T, mock *runner.MockRunner) (*Handler, *mux.Router, *database.Repositories, event.Store) {
+	t.Helper()
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
 	t.Cleanup(cleanup)
 
 	// Create runner registry with mock runner
 	registry := runner.NewRegistry()
-	if err := registry.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode)); err != nil {
+	if err := registry.Register(mock); err != nil {
 		t.Fatalf("register runner: %v", err)
 	}
 
@@ -72,6 +90,10 @@ func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
 	roleState, err := rolepolicy.NewState(rolepolicy.ResolvePath(), rolepolicy.Requirement{Required: true})
 	if err != nil {
 		t.Fatalf("load role policy state: %v", err)
+	}
+	permissionState, err := permissionpolicy.NewState(permissionpolicy.ResolvePath(), permissionpolicy.Requirement{Required: true})
+	if err != nil {
+		t.Fatalf("load permission policy state: %v", err)
 	}
 	orch := orchestration.New(
 		repos.Profiles,
@@ -90,7 +112,11 @@ func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
 	)
 
 	// Create handler
-	handler := New(orch)
+	handler := New(
+		orchestration.NewHandlerServices(orch),
+		WithRolePolicyState(roleState),
+		WithPermissionPolicy(permissionState, permissionpolicy.NewService(permissionState, handlerPermissionProjector{}, nil)),
+	)
 
 	// Create router and register routes
 	r := mux.NewRouter()
@@ -98,7 +124,44 @@ func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
 	r.HandleFunc("/health", handler.Health).Methods("GET")
 	r.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 
-	return handler, r
+	return handler, r, repos, eventStore
+}
+
+func createRunnableTestRun(t *testing.T, router *mux.Router) *pb.Run {
+	t.Helper()
+	key := "sync-run-" + uuid.NewString()
+	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{
+		Name:       key,
+		ProfileKey: key,
+		RoleRef:    "code.default",
+	}})
+	profileRR := httptest.NewRecorder()
+	router.ServeHTTP(profileRR, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
+	if profileRR.Code != http.StatusCreated {
+		t.Fatalf("create profile status=%d body=%s", profileRR.Code, profileRR.Body.String())
+	}
+	var profile apipb.CreateProfileResponse
+	decodeProtoJSON(t, profileRR.Body.Bytes(), &profile)
+
+	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{Title: key, ScopePath: "src/sync-run"}})
+	taskRR := httptest.NewRecorder()
+	router.ServeHTTP(taskRR, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
+	if taskRR.Code != http.StatusCreated {
+		t.Fatalf("create task status=%d body=%s", taskRR.Code, taskRR.Body.String())
+	}
+	var task apipb.CreateTaskResponse
+	decodeProtoJSON(t, taskRR.Body.Bytes(), &task)
+
+	profileID := profile.Profile.GetId()
+	runBody := encodeProtoJSON(t, &apipb.CreateRunRequest{TaskId: task.Task.GetId(), AgentProfileId: &profileID})
+	runRR := httptest.NewRecorder()
+	router.ServeHTTP(runRR, httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(runBody)))
+	if runRR.Code != http.StatusCreated {
+		t.Fatalf("create run status=%d body=%s", runRR.Code, runRR.Body.String())
+	}
+	var run apipb.CreateRunResponse
+	decodeProtoJSON(t, runRR.Body.Bytes(), &run)
+	return run.Run
 }
 
 type handlerRoleResolver struct{}
@@ -110,11 +173,251 @@ func (handlerRoleResolver) Resolve(_ context.Context, runnerType domain.RunnerTy
 	}, nil
 }
 
+// handlerPermissionProjector preserves the operator-contract behavior while
+// keeping handler tests independent from resource CLIs and native config files.
+type handlerPermissionProjector struct{}
+
+func (handlerPermissionProjector) Plan(_ context.Context, request permissionpolicy.ProjectionRequest) (permissionpolicy.ProjectionResult, error) {
+	return handlerPermissionProjection(request), nil
+}
+
+func (handlerPermissionProjector) Reconcile(_ context.Context, request permissionpolicy.ProjectionRequest, explicitlyAuthorized bool) (permissionpolicy.ProjectionResult, error) {
+	if !explicitlyAuthorized {
+		return permissionpolicy.ProjectionResult{}, permissionpolicy.ErrAuthorizationRequired
+	}
+	return handlerPermissionProjection(request), nil
+}
+
+func handlerPermissionProjection(request permissionpolicy.ProjectionRequest) permissionpolicy.ProjectionResult {
+	return permissionpolicy.ProjectionResult{
+		Runner:             request.Runner,
+		Scope:              request.Document.Scope,
+		DesiredDigest:      "sha256:test",
+		DesiredFingerprint: "desired:test",
+		LiveFingerprint:    "live:test",
+		Enforcement:        permissionpolicy.EnforcementPosture{Permissions: "native"},
+		Changes:            []string{},
+		NativePaths:        []string{},
+	}
+}
+
 // =============================================================================
 // PROFILE HANDLER TESTS
 // =============================================================================
 // [REQ:REQ-P0-001] Create Agent Profile
 // [REQ:REQ-P0-002] Update Agent Profile
+
+func TestEnsureProfileCreatesReturnsExistingAndUpdates(t *testing.T) {
+	_, router := setupTestHandler(t)
+	request := func(update bool, name string) *httptest.ResponseRecorder {
+		body := encodeProtoJSON(t, &apipb.EnsureProfileRequest{
+			ProfileKey:     "ensured-profile",
+			Defaults:       &pb.AgentProfile{Name: name, ProfileKey: "ensured-profile", RoleRef: "code.default", MaxTurns: 10},
+			UpdateExisting: update,
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles/ensure", bytes.NewReader(body))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		return rr
+	}
+	first := request(false, "first")
+	if first.Code != http.StatusOK {
+		t.Fatalf("create status=%d body=%s", first.Code, first.Body.String())
+	}
+	var created apipb.EnsureProfileResponse
+	decodeProtoJSON(t, first.Body.Bytes(), &created)
+	if !created.Created || created.Updated || created.Profile.GetName() != "first" {
+		t.Fatalf("created response=%+v", &created)
+	}
+	existing := request(false, "ignored")
+	var unchanged apipb.EnsureProfileResponse
+	decodeProtoJSON(t, existing.Body.Bytes(), &unchanged)
+	if existing.Code != http.StatusOK || unchanged.Created || unchanged.Updated || unchanged.Profile.GetName() != "first" {
+		t.Fatalf("existing status=%d response=%+v", existing.Code, &unchanged)
+	}
+	updated := request(true, "updated")
+	var updatedResponse apipb.EnsureProfileResponse
+	decodeProtoJSON(t, updated.Body.Bytes(), &updatedResponse)
+	if updated.Code != http.StatusOK || !updatedResponse.Updated || updatedResponse.Profile.GetName() != "updated" {
+		t.Fatalf("updated status=%d response=%+v", updated.Code, &updatedResponse)
+	}
+}
+
+func TestProbeRunnerReturnsTypedHealthResultAndRejectsUnknownRunner(t *testing.T) {
+	_, router := setupTestHandler(t)
+	valid := httptest.NewRecorder()
+	router.ServeHTTP(valid, httptest.NewRequest(http.MethodPost, "/api/v1/runners/claude-code/probe", nil))
+	if valid.Code != http.StatusOK {
+		t.Fatalf("probe status=%d body=%s", valid.Code, valid.Body.String())
+	}
+	var response apipb.ProbeRunnerResponse
+	decodeProtoJSON(t, valid.Body.Bytes(), &response)
+	if response.GetResult() == nil || !response.GetResult().GetSuccess() {
+		t.Fatalf("probe response=%+v", &response)
+	}
+	invalid := httptest.NewRecorder()
+	router.ServeHTTP(invalid, httptest.NewRequest(http.MethodPost, "/api/v1/runners/not-a-runner/probe", nil))
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid probe status=%d body=%s", invalid.Code, invalid.Body.String())
+	}
+}
+
+func TestRolePolicyOperatorEndpointsExposeAndValidateActiveCatalog(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	status := httptest.NewRecorder()
+	router.ServeHTTP(status, httptest.NewRequest(http.MethodGet, "/api/v1/role-policy/status", nil))
+	if status.Code != http.StatusOK {
+		t.Fatalf("status endpoint=%d body=%s", status.Code, status.Body.String())
+	}
+	var statusResponse apipb.GetRolePolicyStatusResponse
+	decodeProtoJSON(t, status.Body.Bytes(), &statusResponse)
+	if !statusResponse.GetStatus().GetReady() || statusResponse.GetStatus().GetActiveDigest() == "" {
+		t.Fatalf("status response=%+v", statusResponse.GetStatus())
+	}
+
+	catalog := httptest.NewRecorder()
+	router.ServeHTTP(catalog, httptest.NewRequest(http.MethodGet, "/api/v1/role-policy/catalog", nil))
+	if catalog.Code != http.StatusOK {
+		t.Fatalf("catalog endpoint=%d body=%s", catalog.Code, catalog.Body.String())
+	}
+	var catalogResponse apipb.GetRolePolicyCatalogResponse
+	decodeProtoJSON(t, catalog.Body.Bytes(), &catalogResponse)
+	if catalogResponse.GetCatalog() == nil || len(catalogResponse.GetCatalog().GetRoles()) == 0 {
+		t.Fatalf("catalog response=%+v", catalogResponse.GetCatalog())
+	}
+
+	for _, path := range []string{"/api/v1/role-policy/validate", "/api/v1/role-policy/reload"} {
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, path, nil))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("%s status=%d body=%s", path, rr.Code, rr.Body.String())
+		}
+	}
+	validate := httptest.NewRecorder()
+	router.ServeHTTP(validate, httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/validate", nil))
+	var validateResponse apipb.ValidateRolePolicyCatalogResponse
+	decodeProtoJSON(t, validate.Body.Bytes(), &validateResponse)
+	if !validateResponse.GetValid() || validateResponse.GetCandidateDigest() == "" {
+		t.Fatalf("validate response=%+v", &validateResponse)
+	}
+	reload := httptest.NewRecorder()
+	router.ServeHTTP(reload, httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/reload", nil))
+	var reloadResponse apipb.ReloadRolePolicyCatalogResponse
+	decodeProtoJSON(t, reload.Body.Bytes(), &reloadResponse)
+	if !reloadResponse.GetActivated() || !reloadResponse.GetStatus().GetReady() {
+		t.Fatalf("reload response=%+v", &reloadResponse)
+	}
+}
+
+func TestExplainRolePolicyReturnsResolvedProfileSnapshot(t *testing.T) {
+	_, router := setupTestHandler(t)
+	run := createRunnableTestRun(t, router)
+	if run.GetAgentProfileId() == "" {
+		t.Fatalf("run is missing agent profile: %+v", run)
+	}
+	body := encodeProtoJSON(t, &apipb.ExplainRolePolicyRequest{
+		Target: &apipb.ExplainRolePolicyRequest_ProfileId{ProfileId: run.GetAgentProfileId()},
+	})
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/explain", bytes.NewReader(body)))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("explain status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	var response apipb.ExplainRolePolicyResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
+	if response.GetTargetType() != "profile" || response.GetTargetId() != run.GetAgentProfileId() || response.GetSnapshot() == nil || response.GetSnapshot().GetRoleRef() != "code.default" || response.GetSummary() == "" {
+		t.Fatalf("explain response=%+v", &response)
+	}
+
+	for _, request := range [][]byte{
+		[]byte(`{}`),
+		encodeProtoJSON(t, &apipb.ExplainRolePolicyRequest{Target: &apipb.ExplainRolePolicyRequest_ProfileId{ProfileId: "not-a-uuid"}}),
+	} {
+		invalid := httptest.NewRecorder()
+		router.ServeHTTP(invalid, httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/explain", bytes.NewReader(request)))
+		if invalid.Code != http.StatusBadRequest {
+			t.Fatalf("invalid explain status=%d body=%s", invalid.Code, invalid.Body.String())
+		}
+	}
+}
+
+func TestPermissionPolicyReadOnlyOperatorEndpointsExposeActiveCatalog(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	status := httptest.NewRecorder()
+	router.ServeHTTP(status, httptest.NewRequest(http.MethodGet, "/api/v1/permission-policy/status", nil))
+	if status.Code != http.StatusOK {
+		t.Fatalf("status endpoint=%d body=%s", status.Code, status.Body.String())
+	}
+	var statusResponse apipb.GetPermissionPolicyStatusResponse
+	decodeProtoJSON(t, status.Body.Bytes(), &statusResponse)
+	if !statusResponse.GetStatus().GetReady() || statusResponse.GetStatus().GetActiveDigest() == "" {
+		t.Fatalf("status response=%+v", statusResponse.GetStatus())
+	}
+
+	catalog := httptest.NewRecorder()
+	router.ServeHTTP(catalog, httptest.NewRequest(http.MethodGet, "/api/v1/permission-policy/catalog", nil))
+	if catalog.Code != http.StatusOK {
+		t.Fatalf("catalog endpoint=%d body=%s", catalog.Code, catalog.Body.String())
+	}
+	var catalogResponse apipb.GetPermissionPolicyCatalogResponse
+	decodeProtoJSON(t, catalog.Body.Bytes(), &catalogResponse)
+	if catalogResponse.GetCatalog() == nil || len(catalogResponse.GetCatalog().GetRules()) == 0 {
+		t.Fatalf("catalog response=%+v", catalogResponse.GetCatalog())
+	}
+
+	validate := httptest.NewRecorder()
+	router.ServeHTTP(validate, httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/validate", nil))
+	if validate.Code != http.StatusOK {
+		t.Fatalf("validate endpoint=%d body=%s", validate.Code, validate.Body.String())
+	}
+	var validateResponse apipb.ValidatePermissionPolicyCatalogResponse
+	decodeProtoJSON(t, validate.Body.Bytes(), &validateResponse)
+	if !validateResponse.GetValid() || validateResponse.GetCandidateDigest() == "" {
+		t.Fatalf("validate response=%+v", &validateResponse)
+	}
+
+	reload := httptest.NewRecorder()
+	router.ServeHTTP(reload, httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/reload", nil))
+	if reload.Code != http.StatusOK {
+		t.Fatalf("reload endpoint=%d body=%s", reload.Code, reload.Body.String())
+	}
+	var reloadResponse apipb.ReloadPermissionPolicyCatalogResponse
+	decodeProtoJSON(t, reload.Body.Bytes(), &reloadResponse)
+	if !reloadResponse.GetActivated() || !reloadResponse.GetStatus().GetReady() {
+		t.Fatalf("reload response=%+v", &reloadResponse)
+	}
+}
+
+func TestPermissionPolicyPlanDoctorAndAuthorizedReconcileUseDeclaredState(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	for _, path := range []string{"/api/v1/permission-policy/plan", "/api/v1/permission-policy/doctor"} {
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, path, nil))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("%s status=%d body=%s", path, rr.Code, rr.Body.String())
+		}
+	}
+
+	unauthorized := httptest.NewRecorder()
+	router.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/reconcile", strings.NewReader(`{}`)))
+	if unauthorized.Code != http.StatusBadRequest {
+		t.Fatalf("unauthorized reconcile status=%d body=%s", unauthorized.Code, unauthorized.Body.String())
+	}
+	body := encodeProtoJSON(t, &apipb.ReconcilePermissionPolicyRequest{ExplicitlyAuthorized: true})
+	authorized := httptest.NewRecorder()
+	router.ServeHTTP(authorized, httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/reconcile", bytes.NewReader(body)))
+	if authorized.Code != http.StatusOK {
+		t.Fatalf("authorized reconcile status=%d body=%s", authorized.Code, authorized.Body.String())
+	}
+	var response apipb.ReconcilePermissionPolicyResponse
+	decodeProtoJSON(t, authorized.Body.Bytes(), &response)
+	if response.GetResult() == nil || !response.GetResult().GetSuccess() || len(response.GetResult().GetResources()) == 0 {
+		t.Fatalf("reconcile response=%+v", &response)
+	}
+}
 
 // TestCreateProfile_Success tests successful profile creation.
 // [REQ:REQ-P0-001] Verify profile creation with valid data
@@ -422,6 +725,68 @@ func TestCreateTask_Success(t *testing.T) {
 	}
 }
 
+func TestTaskCancellationAndDeletionLifecycle(t *testing.T) {
+	_, router := setupTestHandler(t)
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{Title: "cleanup", ScopePath: "src/cleanup"}})
+	create := httptest.NewRecorder()
+	router.ServeHTTP(create, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body)))
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", create.Code, create.Body.String())
+	}
+	var created apipb.CreateTaskResponse
+	decodeProtoJSON(t, create.Body.Bytes(), &created)
+
+	deleteBeforeCancel := httptest.NewRecorder()
+	router.ServeHTTP(deleteBeforeCancel, httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/"+created.Task.GetId(), nil))
+	if deleteBeforeCancel.Code != http.StatusConflict {
+		t.Fatalf("uncancelled delete status=%d body=%s", deleteBeforeCancel.Code, deleteBeforeCancel.Body.String())
+	}
+	cancel := httptest.NewRecorder()
+	router.ServeHTTP(cancel, httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+created.Task.GetId()+"/cancel", nil))
+	if cancel.Code != http.StatusOK {
+		t.Fatalf("cancel status=%d body=%s", cancel.Code, cancel.Body.String())
+	}
+	remove := httptest.NewRecorder()
+	router.ServeHTTP(remove, httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/"+created.Task.GetId(), nil))
+	if remove.Code != http.StatusOK {
+		t.Fatalf("delete status=%d body=%s", remove.Code, remove.Body.String())
+	}
+	var deleted apipb.DeleteTaskResponse
+	decodeProtoJSON(t, remove.Body.Bytes(), &deleted)
+	if !deleted.Success {
+		t.Fatalf("delete response=%+v", &deleted)
+	}
+}
+
+func TestListTasksAppliesQueryFiltersAndRejectsInvalidValues(t *testing.T) {
+	_, router := setupTestHandler(t)
+	for _, task := range []*pb.Task{{Title: "matching", ScopePath: "src/match"}, {Title: "other", ScopePath: "docs/other"}} {
+		body := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: task})
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body)))
+		if rr.Code != http.StatusCreated {
+			t.Fatalf("create status=%d body=%s", rr.Code, rr.Body.String())
+		}
+	}
+	list := httptest.NewRecorder()
+	router.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/api/v1/tasks?status=TASK_STATUS_QUEUED&scopePrefix=src/&limit=10&offset=0", nil))
+	if list.Code != http.StatusOK {
+		t.Fatalf("list status=%d body=%s", list.Code, list.Body.String())
+	}
+	var response apipb.ListTasksResponse
+	decodeProtoJSON(t, list.Body.Bytes(), &response)
+	if response.GetTotal() != 1 || response.GetTasks()[0].GetTitle() != "matching" {
+		t.Fatalf("list response=%+v", &response)
+	}
+	for _, path := range []string{"/api/v1/tasks?limit=invalid", "/api/v1/tasks?status=unknown"} {
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("%s status=%d body=%s", path, rr.Code, rr.Body.String())
+		}
+	}
+}
+
 // TestCreateTask_ValidationError tests task creation with invalid data.
 // [REQ:REQ-P0-003] Verify validation of required fields
 func TestCreateTask_ValidationError(t *testing.T) {
@@ -698,6 +1063,275 @@ func TestCreateRun_Success(t *testing.T) {
 	}
 	if len(createdRun.ResolvedConfig.ResultSpec.ClassificationValues) != 0 || len(createdRun.ResolvedConfig.ResultSpec.Schema) == 0 {
 		t.Fatalf("result spec was not canonicalized: %+v", createdRun.ResolvedConfig.ResultSpec)
+	}
+}
+
+func TestPartialApproveRunRejectsInvalidRequestsBeforeCallingService(t *testing.T) {
+	_, router := setupTestHandler(t)
+	runID := uuid.New()
+	otherRunID := uuid.New()
+	fileID := uuid.New()
+
+	tests := []struct {
+		name string
+		path string
+		body []byte
+	}{
+		{
+			name: "invalid URL run ID",
+			path: "/api/v1/runs/not-a-uuid/partial-approve",
+			body: encodeProtoJSON(t, &apipb.PartialApproveRunRequest{FileIds: []string{fileID.String()}}),
+		},
+		{
+			name: "malformed JSON",
+			path: "/api/v1/runs/" + runID.String() + "/partial-approve",
+			body: []byte(`{`),
+		},
+		{
+			name: "mismatched run ID",
+			path: "/api/v1/runs/" + runID.String() + "/partial-approve",
+			body: encodeProtoJSON(t, &apipb.PartialApproveRunRequest{RunId: otherRunID.String(), FileIds: []string{fileID.String()}}),
+		},
+		{
+			name: "no selected files",
+			path: "/api/v1/runs/" + runID.String() + "/partial-approve",
+			body: encodeProtoJSON(t, &apipb.PartialApproveRunRequest{RunId: runID.String()}),
+		},
+		{
+			name: "invalid file ID",
+			path: "/api/v1/runs/" + runID.String() + "/partial-approve",
+			body: encodeProtoJSON(t, &apipb.PartialApproveRunRequest{RunId: runID.String(), FileIds: []string{"not-a-uuid"}}),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, tt.path, bytes.NewReader(tt.body)))
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+			}
+		})
+	}
+}
+
+func TestSyncRunFromSandboxRejectsInvalidRequestsBeforeCallingService(t *testing.T) {
+	_, router := setupTestHandler(t)
+	runID := uuid.New()
+	otherRunID := uuid.New()
+
+	tests := []struct {
+		name string
+		path string
+		body string
+	}{
+		{name: "invalid URL run ID", path: "/api/v1/runs/not-a-uuid/sandbox-sync", body: `{"status":"approved"}`},
+		{name: "malformed JSON", path: "/api/v1/runs/" + runID.String() + "/sandbox-sync", body: `{`},
+		{name: "mismatched run ID", path: "/api/v1/runs/" + runID.String() + "/sandbox-sync", body: `{"runId":"` + otherRunID.String() + `","status":"approved"}`},
+		{name: "missing status", path: "/api/v1/runs/" + runID.String() + "/sandbox-sync", body: `{}`},
+		{name: "invalid sandbox ID", path: "/api/v1/runs/" + runID.String() + "/sandbox-sync", body: `{"status":"approved","sandboxId":"not-a-uuid"}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, tt.path, strings.NewReader(tt.body)))
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+			}
+		})
+	}
+}
+
+func TestSyncRunFromSandboxUpdatesApprovalState(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	t.Run("fully approved", func(t *testing.T) {
+		run := createRunnableTestRun(t, router)
+		rr := httptest.NewRecorder()
+		body := `{"runId":"` + run.GetId() + `","status":"approved","actor":"reviewer"}`
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+run.GetId()+"/sandbox-sync", strings.NewReader(body)))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+		var response map[string]string
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if response["status"] != "synced" || response["runStatus"] != string(domain.RunStatusComplete) || response["approvalState"] != string(domain.ApprovalStateApproved) {
+			t.Fatalf("unexpected response=%v", response)
+		}
+	})
+
+	t.Run("partially approved", func(t *testing.T) {
+		run := createRunnableTestRun(t, router)
+		rr := httptest.NewRecorder()
+		body := `{"status":"approved","isPartial":true}`
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+run.GetId()+"/sandbox-sync", strings.NewReader(body)))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+		var response map[string]string
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if response["approvalState"] != string(domain.ApprovalStatePartiallyApproved) {
+			t.Fatalf("unexpected response=%v", response)
+		}
+	})
+
+	t.Run("unsupported status", func(t *testing.T) {
+		run := createRunnableTestRun(t, router)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+run.GetId()+"/sandbox-sync", strings.NewReader(`{"status":"unknown"}`)))
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+	})
+}
+
+func TestDeleteRunMessageDeletesFirstMessageThroughHTTPContract(t *testing.T) {
+	_, router, repos, eventStore := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "message delete", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	message := domain.NewMessageEvent(run.ID, "assistant", "first durable message")
+	if err := eventStore.Append(ctx, run.ID, message); err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+	path := "/api/v1/runs/" + run.ID.String() + "/messages/" + message.ID.String() + "/delete"
+	router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, path, nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("delete message status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	var response pb.DeleteRunMessageResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
+	if !response.GetSuccess() {
+		t.Fatalf("delete response=%+v", &response)
+	}
+	events, err := eventStore.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 || events[1].EventType != domain.EventTypeMessageDeleted {
+		t.Fatalf("events=%+v", events)
+	}
+
+	for _, badPath := range []string{
+		"/api/v1/runs/not-a-uuid/messages/" + message.ID.String() + "/delete",
+		"/api/v1/runs/" + run.ID.String() + "/messages/not-a-uuid/delete",
+	} {
+		invalid := httptest.NewRecorder()
+		router.ServeHTTP(invalid, httptest.NewRequest(http.MethodPost, badPath, nil))
+		if invalid.Code != http.StatusBadRequest {
+			t.Fatalf("%s status=%d body=%s", badPath, invalid.Code, invalid.Body.String())
+		}
+	}
+}
+
+func TestGetAuditTranscriptServesBoundedPersistedEvidence(t *testing.T) {
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "audit transcript", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	transcript := filepath.Join(t.TempDir(), "transcript.log")
+	if err := os.WriteFile(transcript, []byte("abcdef"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, TranscriptPath: transcript}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+
+	type transcriptResponse struct {
+		RunID       string `json:"runId"`
+		MaxBytes    int    `json:"maxBytes"`
+		Truncated   bool   `json:"truncated"`
+		ContentHash string `json:"contentHash"`
+		Content     string `json:"content"`
+	}
+	bounded := httptest.NewRecorder()
+	router.ServeHTTP(bounded, httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+run.ID.String()+"/audit-transcript?maxBytes=4", nil))
+	if bounded.Code != http.StatusOK {
+		t.Fatalf("bounded transcript status=%d body=%s", bounded.Code, bounded.Body.String())
+	}
+	var response transcriptResponse
+	if err := json.Unmarshal(bounded.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.RunID != run.ID.String() || response.MaxBytes != 4 || !response.Truncated || response.Content != "abcd" || !strings.HasPrefix(response.ContentHash, "sha256:") {
+		t.Fatalf("bounded transcript=%+v", response)
+	}
+
+	for _, path := range []string{
+		"/api/v1/runs/not-a-uuid/audit-transcript",
+		"/api/v1/runs/" + run.ID.String() + "/audit-transcript?maxBytes=0",
+		"/api/v1/runs/" + run.ID.String() + "/audit-transcript?maxBytes=65537",
+	} {
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("%s status=%d body=%s", path, rr.Code, rr.Body.String())
+		}
+	}
+
+	noTranscript := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
+	if err := repos.Runs.Create(ctx, noTranscript); err != nil {
+		t.Fatal(err)
+	}
+	missing := httptest.NewRecorder()
+	router.ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+noTranscript.ID.String()+"/audit-transcript", nil))
+	if missing.Code != http.StatusBadRequest {
+		t.Fatalf("missing transcript status=%d body=%s", missing.Code, missing.Body.String())
+	}
+}
+
+func TestDeletePendingRunIsRejectedWithLifecycleGuidance(t *testing.T) {
+	release := make(chan struct{})
+	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mock.ExecuteFunc = func(ctx context.Context, _ runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		select {
+		case <-release:
+			return &runner.ExecuteResult{ExitCode: 0}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	t.Cleanup(func() { close(release) })
+	_, router := setupTestHandlerWithRunner(t, mock)
+	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{Name: "delete-run", ProfileKey: "delete-run", RoleRef: "code.default"}})
+	profileRR := httptest.NewRecorder()
+	router.ServeHTTP(profileRR, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
+	var profile apipb.CreateProfileResponse
+	decodeProtoJSON(t, profileRR.Body.Bytes(), &profile)
+	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{Title: "delete-run", ScopePath: "src/delete"}})
+	taskRR := httptest.NewRecorder()
+	router.ServeHTTP(taskRR, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
+	var task apipb.CreateTaskResponse
+	decodeProtoJSON(t, taskRR.Body.Bytes(), &task)
+	profileID := profile.Profile.GetId()
+	runBody := encodeProtoJSON(t, &apipb.CreateRunRequest{TaskId: task.Task.GetId(), AgentProfileId: &profileID})
+	runRR := httptest.NewRecorder()
+	router.ServeHTTP(runRR, httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(runBody)))
+	if runRR.Code != http.StatusCreated {
+		t.Fatalf("run status=%d body=%s", runRR.Code, runRR.Body.String())
+	}
+	var run apipb.CreateRunResponse
+	decodeProtoJSON(t, runRR.Body.Bytes(), &run)
+	deleteRR := httptest.NewRecorder()
+	router.ServeHTTP(deleteRR, httptest.NewRequest(http.MethodDelete, "/api/v1/runs/"+run.Run.GetId(), nil))
+	if deleteRR.Code != http.StatusConflict {
+		t.Fatalf("delete pending status=%d body=%s", deleteRR.Code, deleteRR.Body.String())
 	}
 }
 

@@ -144,7 +144,7 @@ var _ sandbox.Provider = (*archiveAwareSandboxProvider)(nil)
 // runClosedDiffScenario sets up a sandboxed run that completes, then
 // arms the provider with `archive` for the GetRunDiff assertion. Returns
 // the orchestrator and runID so the caller can run targeted asserts.
-func runClosedDiffScenario(t *testing.T, archive *sandbox.DiffResult) (orchestration.Service, uuid.UUID, *archiveAwareSandboxProvider) {
+func runClosedDiffScenario(t *testing.T, archive *sandbox.DiffResult) (*orchestration.Orchestrator, uuid.UUID, *archiveAwareSandboxProvider) {
 	t.Helper()
 	ctx := context.Background()
 

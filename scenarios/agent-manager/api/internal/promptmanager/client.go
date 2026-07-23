@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,6 +18,12 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 )
+
+// ErrSkillSourceMissing marks a definitive answer from prompt-manager: the
+// request succeeded but the skill no longer resolves to usable source content
+// (deleted or gutted skill). Callers can distinguish this from transport
+// failures, where no comparison was possible at all.
+var ErrSkillSourceMissing = errors.New("skill source missing")
 
 // Client reads skill prompts from prompt-manager.
 type Client interface {
@@ -223,6 +230,10 @@ func (c *HTTPClient) ReadSkill(ctx context.Context, skillID string, variables ma
 	if err != nil {
 		return "", fmt.Errorf("promptmanager: create request: %w", err)
 	}
+	// Deliberately no X-Agent-Identity-Token: this is agent-manager's own
+	// service-side read, not an agent run's. Controlled-lane attribution rides
+	// on dispatch assignments; per-run exposure receipts belong to the
+	// observational lane, whose reads go through the CLI and carry the token.
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
@@ -287,7 +298,7 @@ func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID, experimentID 
 		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: decode source response: %w", err)
 	}
 	if len(readResp.Skills) != 1 || strings.TrimSpace(readResp.Combined) == "" || strings.TrimSpace(readResp.CombinedHash) == "" {
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source response for %q is incomplete", skillID)
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source response for %q is incomplete: %w", skillID, ErrSkillSourceMissing)
 	}
 	skill := readResp.Skills[0]
 	variant := strings.TrimSpace(readResp.SelectedVariantID)

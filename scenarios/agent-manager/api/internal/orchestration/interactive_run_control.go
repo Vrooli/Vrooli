@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
@@ -144,7 +143,7 @@ func (o *Orchestrator) stopInteractiveRun(ctx context.Context, run *domain.Run) 
 	if current.Status.IsTerminal() {
 		return nil
 	}
-	endedAt := time.Now()
+	endedAt := o.now()
 	_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:       current,
 		NewStatus: domain.RunStatusCancelled,
@@ -190,7 +189,7 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 
 	// Reactivate the run (reset the heartbeat in the same transition) and record
 	// the follow-up as a user message, mirroring pipe-mode resumeConversation.
-	now := time.Now()
+	now := o.now()
 	run, err := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:           run,
 		NewStatus:     domain.RunStatusRunning,
@@ -210,7 +209,7 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 	// Type the follow-up into the live session (paste + Enter submit). On failure
 	// finalize the run Failed rather than leaving it stuck Running.
 	if err := o.interactiveSessions.SendPrompt(ctx, run.WebConsoleSessionID, message, interactiveRunSource(run.ID)); err != nil {
-		endedAt := time.Now()
+		endedAt := o.now()
 		if _, terr := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 			Run:       run,
 			NewStatus: domain.RunStatusFailed,

@@ -33,11 +33,42 @@ type FailWithErrorOutput struct {
 	Outcome domain.RunOutcome
 }
 
+const terminalPersistAttempts = 3
+
+// persistTerminalRun retries a terminal transition with a short detached
+// context. Terminal status is more important than the request that discovered
+// the error: a cancelled request must not turn a real failure into a stranded
+// active run. The bounded retry keeps the failure path finite and leaves a
+// visible system event when durable persistence still cannot succeed.
+func persistTerminalRun(deps Deps, run *domain.Run) error {
+	if deps.Runs == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	var lastErr error
+	for attempt := 0; attempt < terminalPersistAttempts; attempt++ {
+		if err := deps.Runs.Update(ctx, run); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+		if attempt+1 < terminalPersistAttempts {
+			select {
+			case <-ctx.Done():
+				return lastErr
+			case <-time.After(time.Duration(attempt+1) * 25 * time.Millisecond):
+			}
+		}
+	}
+	return lastErr
+}
+
 // FailWithError marks the run as failed with proper error classification.
 // Errors are captured with full context, the failure event is emitted,
 // the failure state is persisted, and the broadcaster is notified.
 func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutput {
-	now := time.Now()
+	now := in.Deps.Now()
 	in.Run.Status = domain.RunStatusFailed
 	in.Run.EndedAt = &now
 	in.Run.UpdatedAt = now
@@ -53,7 +84,7 @@ func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutp
 	outcome := ClassifyErrorOutcome(in.Err)
 
 	if in.Deps.Runs != nil {
-		if updateErr := in.Deps.Runs.Update(ctx, in.Run); updateErr != nil {
+		if updateErr := persistTerminalRun(in.Deps, in.Run); updateErr != nil {
 			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "error",
 				"failed to persist failure state: "+updateErr.Error())
 		}
@@ -113,12 +144,12 @@ func HandleContextError(ctx context.Context, in HandleContextErrorInput) HandleC
 	case context.Canceled:
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", "execution cancelled")
 		out.Outcome = domain.RunOutcomeCancelled
-		now := time.Now()
+		now := in.Deps.Now()
 		in.Run.Status = domain.RunStatusCancelled
 		in.Run.EndedAt = &now
 		in.Run.UpdatedAt = now
 		if in.Deps.Runs != nil {
-			if updateErr := in.Deps.Runs.Update(ctx, in.Run); updateErr != nil {
+			if updateErr := persistTerminalRun(in.Deps, in.Run); updateErr != nil {
 				EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 					"failed to persist cancellation: "+updateErr.Error())
 			}
