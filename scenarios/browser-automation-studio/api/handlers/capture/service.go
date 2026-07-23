@@ -2,6 +2,7 @@ package capture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -26,6 +27,37 @@ import (
 // service implements captureconnect.CaptureServiceHandler.
 type service struct {
 	deps Deps
+}
+
+// writeCaptureArtifactSummary makes the response artifact contract durable in
+// the exported result.json, including the canonical screenshot selection.
+func writeCaptureArtifactSummary(outDir string, artifacts []*capturev1.CaptureArtifact) error {
+	path := filepath.Join(outDir, "result.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read result.json: %w", err)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return fmt.Errorf("parse result.json: %w", err)
+	}
+	summaries := make([]map[string]any, 0, len(artifacts))
+	for _, artifact := range artifacts {
+		summary := map[string]any{"type": artifact.GetType().String(), "path": artifact.GetPath(), "size_bytes": artifact.GetSizeBytes(), "metadata": artifact.GetMetadata(), "primary": artifact.GetPrimary()}
+		summaries = append(summaries, summary)
+		if artifact.GetPrimary() {
+			result["primary_artifact_path"] = artifact.GetPath()
+		}
+	}
+	result["capture_artifacts"] = summaries
+	encoded, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode result.json: %w", err)
+	}
+	return os.WriteFile(path, append(encoded, '\n'), 0o644)
 }
 
 var (
@@ -169,6 +201,9 @@ func (s *service) Capture(
 	artifacts, err := s.deps.Producers.ProduceAll(captures, executionOutDir)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("harvest artifacts: %w", err))
+	}
+	if err := writeCaptureArtifactSummary(executionOutDir, artifacts); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write capture artifact summary: %w", err))
 	}
 
 	// Inline DOM is best-effort: a failed in-page read degrades to an empty

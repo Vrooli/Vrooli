@@ -55,13 +55,22 @@ func TestScreenshotProducer_ExposesEachFile(t *testing.T) {
 		require.NotEqual(t, "true", a.Metadata["unavailable"])
 		require.Positive(t, a.SizeBytes)
 	}
+	require.False(t, arts[0].Primary)
+	require.True(t, arts[1].Primary)
+	stable, err := os.ReadFile(filepath.Join(dir, "screenshot.png"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("png-bb"), stable)
 }
 
 func TestScreenshotProducer_MissingDirMarksUnavailable(t *testing.T) {
-	arts, err := screenshotProducer{}.Produce(t.TempDir())
+	dir := t.TempDir()
+	arts, err := screenshotProducer{}.Produce(dir)
 	require.NoError(t, err)
 	require.Len(t, arts, 1)
 	require.Equal(t, "true", arts[0].Metadata["unavailable"])
+	require.False(t, arts[0].Primary)
+	_, err = os.Stat(filepath.Join(dir, "screenshot.png"))
+	require.Error(t, err)
 }
 
 func TestFileProducer_PresentAndMissing(t *testing.T) {

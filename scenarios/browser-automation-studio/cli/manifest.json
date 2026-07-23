@@ -1502,6 +1502,27 @@
       ]
     },
     {
+      "name": "drills",
+      "description": "Run development-only controlled driver failure and recovery drills.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List supported failure drills.",
+          "binding": { "kind": "connect-rpc", "service": "FailureDrillService", "method": "ListDrills" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "run",
+          "description": "Run one named controlled drill: DRIVER_UNAVAILABLE, PARTIAL_INITIALIZATION, CAPACITY, or EXPIRY.",
+          "flags": [
+            { "name": "name", "required": true, "description": "Drill enum name", "bind": { "field": "name" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FailureDrillService", "method": "RunDrill" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
       "name": "observability",
       "description": "Status, diagnostics, metrics, runtime config, and pipeline self-test for the playwright-driver, plus the in-process debug-mode toggle.",
       "commands": [

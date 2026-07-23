@@ -122,6 +122,7 @@ func TestProtoToJSON_Shape(t *testing.T) {
 			Path:      "/tmp/x/shot.png",
 			SizeBytes: 4096,
 			Metadata:  map[string]string{"width": "390", "height": "844"},
+			Primary:   true,
 		}},
 	}
 	_ = w
@@ -133,6 +134,9 @@ func TestProtoToJSON_Shape(t *testing.T) {
 	arts, ok := m["artifacts"].([]map[string]interface{})
 	if !ok || len(arts) != 1 || arts[0]["path"] != "/tmp/x/shot.png" {
 		t.Errorf("artifacts shape wrong: %+v", m["artifacts"])
+	}
+	if m["primary_artifact_path"] != "/tmp/x/shot.png" {
+		t.Errorf("primary_artifact_path = %v", m["primary_artifact_path"])
 	}
 }
 

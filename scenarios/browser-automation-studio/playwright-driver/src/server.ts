@@ -8,6 +8,7 @@ import { sendError, sendJson } from './middleware';
 import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
 import { SERVER_DRAIN_TIMEOUT_MS, SERVER_DRAIN_INTERVAL_MS } from './constants';
 import { createDirectFrameServer, type DirectFrameServer } from './frame-streaming/websocket';
+import { FaultController } from './fault-control';
 
 function requireRouteParam(
   res: ServerResponse,
@@ -95,7 +96,7 @@ async function main(): Promise<void> {
   }
 
   // Setup router with all routes
-  const router = setupRoutes(sessionManager, cleanup, config, appLogger);
+  const router = setupRoutes(sessionManager, cleanup, config, appLogger, new FaultController());
 
   // Create main HTTP server
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -310,7 +311,8 @@ function setupRoutes(
   sessionManager: SessionManager,
   sessionCleanup: SessionCleanup,
   config: Config,
-  appLogger: typeof logger
+  appLogger: typeof logger,
+  faultController: FaultController
 ): routes.Router {
   const router = routes.createRouter();
 
@@ -373,6 +375,9 @@ function setupRoutes(
     observability.handlePipelineTest(req, res, observabilityDeps);
     return Promise.resolve();
   });
+  router.post('/test-control/faults/arm', async (req, res) => routes.handleFaultArm(req, res, config, faultController));
+  router.get('/test-control/faults', (req, res) => { routes.handleFaultSnapshot(req, res, config, faultController); return Promise.resolve(); });
+  router.post('/test-control/faults/disarm', async (req, res) => routes.handleFaultDisarm(req, res, config, faultController));
 
   router.get('/artifacts', async (req, res) => {
     await routes.handleArtifactDownload(req, res);
@@ -380,7 +385,7 @@ function setupRoutes(
 
   // Session lifecycle
   router.post('/session/start', async (req, res) => {
-    await routes.handleSessionStart(req, res, sessionManager, config);
+    await routes.handleSessionStart(req, res, sessionManager, config, faultController);
   });
   router.post('/session/:id/run', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');

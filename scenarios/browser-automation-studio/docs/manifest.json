@@ -272,6 +272,12 @@
           "internal": true
         },
         {
+          "path": "failure-drills.md",
+          "title": "Controlled Failure Drills",
+          "description": "Development-only browser driver fault and recovery qualification",
+          "internal": true
+        },
+        {
           "path": "ASSUMPTION_MAPPING.md",
           "title": "Assumption Mapping",
           "description": "Documented assumptions",

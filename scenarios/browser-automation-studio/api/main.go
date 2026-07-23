@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/handlers"
 	aiserviceconnect "github.com/vrooli/browser-automation-studio/handlers/ai_service"
 	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
+	drillsconnect "github.com/vrooli/browser-automation-studio/handlers/drills"
 	entitlementconnect "github.com/vrooli/browser-automation-studio/handlers/entitlement"
 	executionsconnect "github.com/vrooli/browser-automation-studio/handlers/executions"
 	exportsserviceconnect "github.com/vrooli/browser-automation-studio/handlers/exports_service"
@@ -336,7 +337,12 @@ func main() {
 	// chi REST routes below are unaffected; Connect routes get the full
 	// middleware stack above. Do not migrate REST endpoints here — that
 	// is a separate, per-endpoint decision.
+	drillSecret := ""
+	if sidecarDeps != nil {
+		drillSecret = sidecarDeps.AdminSecret
+	}
 	connectMounts := []connectx.ServiceMount{
+		drillsconnect.Module(drillsconnect.Deps{AdminSecret: drillSecret, DriverClient: driverClient, Logger: log}),
 		captureconnect.Module(captureconnect.Deps{
 			Executor:          deps.ExecutionService,
 			Storage:           deps.Storage,

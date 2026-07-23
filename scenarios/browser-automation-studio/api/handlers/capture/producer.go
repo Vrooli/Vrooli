@@ -2,6 +2,7 @@ package capture
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -119,7 +120,30 @@ func (p screenshotProducer) Produce(outDir string) ([]*capturev1.CaptureArtifact
 	if len(out) == 0 {
 		return []*capturev1.CaptureArtifact{unavailableArtifact(c, fallback)}, nil
 	}
+	primary := out[len(out)-1]
+	primary.Primary = true
+	if err := copyFile(primary.Path, filepath.Join(outDir, "screenshot.png")); err != nil {
+		return nil, fmt.Errorf("copy primary screenshot: %w", err)
+	}
 	return out, nil
+}
+
+func copyFile(source, destination string) error {
+	in, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(destination)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(out, in)
+	closeErr := out.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	return closeErr
 }
 
 // fileProducer exposes a single named file under outDir as the artifact

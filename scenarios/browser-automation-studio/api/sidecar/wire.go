@@ -26,6 +26,9 @@ import (
 // Dependencies holds all sidecar-related dependencies.
 // These are nil when sidecar management is disabled (external driver configured).
 type Dependencies struct {
+	// AdminSecret is the in-memory loopback credential shared with the managed
+	// driver. It is intentionally not logged or persisted.
+	AdminSecret string
 	// Supervisor manages the playwright-driver process lifecycle.
 	// Nil when using an external driver (PLAYWRIGHT_DRIVER_URL set).
 	Supervisor supervisor.Supervisor
@@ -197,6 +200,7 @@ func BuildDependencies(
 	}).Info("Sidecar dependencies initialized")
 
 	return &Dependencies{
+		AdminSecret:       adminSecret,
 		Supervisor:        sup,
 		HealthMonitor:     monitor,
 		CheckpointManager: checkpointMgr,

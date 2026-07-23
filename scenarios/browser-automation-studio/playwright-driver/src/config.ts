@@ -171,6 +171,10 @@ const ConfigSchema = z.object({
     maxRequestSize: z.number().min(1024).max(50 * 1024 * 1024).default(5 * 1024 * 1024),
     adminSecret: z.string().default(''),
   }),
+  faultControl: z.object({
+    // Test controls are available only in an explicitly non-production driver.
+    enabled: z.boolean().default(false),
+  }),
   browser: z.object({
     /**
      * Headless mode configuration.
@@ -497,6 +501,9 @@ export function loadConfig(): Config {
       requestTimeout: parseEnvInt(process.env.REQUEST_TIMEOUT_MS, 300000), // 5 minutes
       maxRequestSize: parseEnvInt(process.env.MAX_REQUEST_SIZE, 5242880),
       adminSecret: process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET?.trim() || '',
+    },
+    faultControl: {
+      enabled: process.env.NODE_ENV !== 'production' && process.env.PLAYWRIGHT_DRIVER_FAULT_CONTROL !== 'false',
     },
     browser: {
       // Default to false to use regular Chromium with --headless=new (not headless_shell)

@@ -302,6 +302,7 @@ func protoToJSON(m *capturev1.CaptureResponse) map[string]interface{} {
 			"path":       a.Path,
 			"size_bytes": a.SizeBytes,
 			"metadata":   a.Metadata,
+			"primary":    a.Primary,
 		})
 	}
 	out := map[string]interface{}{
@@ -310,6 +311,12 @@ func protoToJSON(m *capturev1.CaptureResponse) map[string]interface{} {
 		"duration_ms":  m.DurationMs,
 		"dry_run":      m.DryRun,
 		"artifacts":    arts,
+	}
+	for _, artifact := range m.Artifacts {
+		if artifact.Primary {
+			out["primary_artifact_path"] = artifact.Path
+			break
+		}
 	}
 	if readiness := m.GetReadiness(); readiness != nil {
 		out["readiness"] = map[string]interface{}{

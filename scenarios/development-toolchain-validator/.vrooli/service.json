@@ -213,7 +213,9 @@
     ".vrooli/agent-manager/skill-experiment-calibration-evaluator.json",
     ".vrooli/agent-manager/skill-experiment-calibration-treatment.json",
     ".vrooli/agent-manager/skill-experiment-calibration.json",
-    ".vrooli/agent-manager/skill-experiment-audit.json"
+    ".vrooli/agent-manager/skill-experiment-audit.json",
+    ".vrooli/agent-manager/skill-experiment-calibration-input.json",
+    ".vrooli/agent-manager/skill-experiment-audit-input.json"
             ]
           }
         }

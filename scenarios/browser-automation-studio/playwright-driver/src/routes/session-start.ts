@@ -5,6 +5,8 @@ import type { StartSessionRequest, StartSessionResponse, SessionSpec } from '../
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { InvalidInstructionError } from '../utils';
 import { startFrameStreaming } from '../frame-streaming';
+import type { FaultController } from '../fault-control';
+import { ResourceLimitError, PlaywrightDriverError } from '../utils';
 
 /**
  * Start session endpoint
@@ -21,7 +23,8 @@ export async function handleSessionStart(
   req: IncomingMessage,
   res: ServerResponse,
   sessionManager: SessionManager,
-  config: Config
+  config: Config,
+  faultController?: FaultController
 ): Promise<void> {
   try {
     // Parse request body
@@ -110,9 +113,21 @@ export async function handleSessionStart(
       fake_media: request.fake_media,
     };
 
+    const drillToken = typeof req.headers['x-playwright-drill-token'] === 'string' ? req.headers['x-playwright-drill-token'] : undefined;
+    if (faultController?.consume(drillToken, 'driver_unavailable')) {
+      throw new PlaywrightDriverError('controlled driver-unavailable drill outcome', 'DRILL_DRIVER_UNAVAILABLE');
+    }
+    if (faultController && faultController.capacityReserved(drillToken) > 0 && faultController.consume(drillToken, 'capacity_lease')) {
+      throw new ResourceLimitError('controlled capacity lease rejected session admission', { drill: true });
+    }
     // Start session - returns session info including whether it was reused and actual viewport
     const { sessionId, leaseId, reused, createdAt, actualViewport } =
       await sessionManager.startSession(spec);
+
+    if (faultController?.consume(drillToken, 'fail_after_session_registration')) {
+      await sessionManager.forceCloseSession(sessionId);
+      throw new PlaywrightDriverError('controlled failure after session registration; session was reconciled', 'DRILL_SESSION_REGISTRATION_FAILURE');
+    }
 
     // Start frame streaming if requested (for record mode live preview)
     // Wait for pipeline to be ready first to ensure recording infrastructure is initialized

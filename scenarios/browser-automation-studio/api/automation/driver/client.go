@@ -328,6 +328,16 @@ func (c *Client) CreateSession(ctx context.Context, req *CreateSessionRequest) (
 	return &resp, nil
 }
 
+// CreateSessionForDrill executes the normal admission path with a scoped
+// test token. Only BAS's controlled drill orchestrator uses this method.
+func (c *Client) CreateSessionForDrill(ctx context.Context, req *CreateSessionRequest, token string) (*CreateSessionResponse, error) {
+	var resp CreateSessionResponse
+	if err := c.postWithHeaders(ctx, "/session/start", req, &resp, http.Header{"X-Playwright-Drill-Token": []string{token}}); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // CloseSessionWithLease closes only the session currently leased by executionID.
 func (c *Client) CloseSessionWithLease(ctx context.Context, sessionID, executionID, leaseID string) (*CloseSessionResponse, error) {
 	var resp CloseSessionResponse
@@ -1058,6 +1068,10 @@ func (c *Client) get(ctx context.Context, path string, response interface{}) err
 }
 
 func (c *Client) post(ctx context.Context, path string, body interface{}, response interface{}) error {
+	return c.postWithHeaders(ctx, path, body, response, nil)
+}
+
+func (c *Client) postWithHeaders(ctx context.Context, path string, body interface{}, response interface{}, headers http.Header) error {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("marshal request: %w", err)
@@ -1067,6 +1081,11 @@ func (c *Client) post(ctx context.Context, path string, body interface{}, respon
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
 	return c.doRequest(req, response, "POST "+path)
 }
 
