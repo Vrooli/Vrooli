@@ -21,6 +21,7 @@ type Invocation struct {
 	Input          *structpb.Value
 	IdempotencyKey string
 	FirstRunNodeID string
+	Activity       *WorkflowActivity
 }
 
 // InvocationCompletion preserves the immutable input, terminal output, pinned
@@ -83,6 +84,13 @@ func (s *WorkflowService) StartWorkflow(ctx context.Context, invocation Invocati
 		if attempt.NodeId == invocation.FirstRunNodeID {
 			start.RunID = strings.TrimSpace(attempt.RunId)
 			break
+		}
+	}
+	if invocation.Activity != nil && s.activityRecorder != nil {
+		activity := *invocation.Activity
+		activity.WorkflowKey = invocation.WorkflowKey
+		if err := s.activityRecorder.RecordWorkflowStart(ctx, activity, start); err != nil {
+			return WorkflowStart{}, fmt.Errorf("%w: record workflow activity: %v", ErrRequestFailed, err)
 		}
 	}
 	return start, nil

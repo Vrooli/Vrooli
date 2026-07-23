@@ -13,7 +13,11 @@ import (
 type goalWorkflowAdapter struct{ invoker agentmanager.WorkflowInvoker }
 
 func (a goalWorkflowAdapter) StartWorkflow(ctx context.Context, in goals.WorkflowInvocation) (goals.WorkflowStart, error) {
-	start, err := a.invoker.StartWorkflow(ctx, agentmanager.Invocation{Owner: in.Owner, WorkflowKey: in.WorkflowKey, Input: in.Input, IdempotencyKey: in.IdempotencyKey, FirstRunNodeID: in.FirstRunNodeID})
+	invocation := agentmanager.Invocation{Owner: in.Owner, WorkflowKey: in.WorkflowKey, Input: in.Input, IdempotencyKey: in.IdempotencyKey, FirstRunNodeID: in.FirstRunNodeID}
+	if in.ActivityOwnerName != "" {
+		invocation.Activity = &agentmanager.WorkflowActivity{OwnerType: in.ActivityOwnerType, OwnerKind: in.ActivityOwnerKind, OwnerName: in.ActivityOwnerName, OwnerTitle: in.ActivityOwnerTitle, Purpose: in.ActivityPurpose}
+	}
+	start, err := a.invoker.StartWorkflow(ctx, invocation)
 	return goals.WorkflowStart{ExecutionID: start.ExecutionID, RunID: start.RunID, DefinitionDigest: start.DefinitionDigest}, err
 }
 

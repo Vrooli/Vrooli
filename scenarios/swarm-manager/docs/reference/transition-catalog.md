@@ -5,6 +5,9 @@ This is the operator-facing projection of
 the machine-readable source of truth. The registry decides the active kind,
 input contract, terminal outcomes, prerequisites, and apply action; this page
 exists to make that contract discoverable without reverse-engineering code.
+`applyAction` is descriptive catalog metadata: Swarm's explicit transition
+handlers remain the runtime mutation boundary and no generic dispatcher reads
+that field.
 
 ## How to classify an interaction
 
@@ -31,14 +34,11 @@ the prompt, Runs, validation, routing, waits, retries, and provenance.
 | `plan.workshop.reconcile` | Workflow | `swarm-manager/plan-workshop-reconcile`; candidate only | `record_plan_workshop_candidate` |
 | `plan.author` | Workflow | `swarm-manager/plan-author`; Plan Manager validates | `bind_validated_plan_ref` |
 | `plan.repair` | Workflow | `swarm-manager/plan-repair`; Plan Manager validates | `bind_validated_plan_ref` |
-| `plan.execute` | Workflow | `swarm-manager/phased-plan-drain`; evidence-gated | `apply_plan_execution` |
-| `work.review` | Workflow | `swarm-manager/independent-review`; evidence-gated | `apply_review_outcome` |
+| `plan.execute` | Workflow | `swarm-manager/phased-plan-drain`; evidence-gated; strategy `phased-plan-drain` is the bounded, resumable default | `apply_plan_execution` |
+| `work.review` | Workflow | `swarm-manager/independent-review`; outcomes: accepted, changes-requested, inconclusive, failed | `apply_review_outcome` |
 | `review.evidence_request` | Workflow | `swarm-manager/evidence-request` | `apply_review_evidence_request` |
 | `work.correct` | Workflow | `swarm-manager/work-correct`; evidence-gated | `apply_correction_outcome` |
-| `work.fix_and_revalidate` | Workflow | `swarm-manager/fix-and-revalidate`; evidence-gated | `apply_validation_outcome` |
-| `work.retry` | Workflow | `swarm-manager/phased-plan-drain` | `apply_plan_execution` |
 | `work.follow_up` | Workflow | `swarm-manager/work-follow-up` | `apply_follow_up` |
-| `work.control` | Deterministic | `workflow-control-input/v1` | `control_workflow_execution` |
 | `goal.discover` | Workflow | `swarm-manager/goal-discover` | `apply_goal_proposal` |
 | `goal.plan` | Workflow | `swarm-manager/goal-plan` | `apply_goal_proposal` |
 | `milestone.review` | Workflow | `swarm-manager/milestone-review`; evidence-gated | `apply_milestone_review` |

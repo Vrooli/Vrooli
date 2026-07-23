@@ -24,14 +24,6 @@ vi.mock("../services/review-service", () => ({
   },
 }));
 
-vi.mock("./useActivityTimeline", () => ({
-  useActivityTimeline: vi.fn().mockReturnValue({
-    entries: [],
-    isLoading: false,
-    error: null,
-  }),
-}));
-
 const { executionService, promptService } = await import("../services") as unknown as {
   executionService: {
     get: ReturnType<typeof vi.fn>;

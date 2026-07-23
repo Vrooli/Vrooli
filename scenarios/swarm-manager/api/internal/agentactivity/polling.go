@@ -6,7 +6,13 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentmanager"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+type workflowStateReader interface {
+	GetWorkflowExecutionState(context.Context, string) (agentmanager.WorkflowExecutionState, error)
+}
 
 func (s *Service) refreshActiveLocked(ctx context.Context) error {
 	if s.agentService == nil {
@@ -19,12 +25,33 @@ func (s *Service) refreshActiveLocked(ctx context.Context) error {
 	}
 
 	stateByRunID := make(map[string]agentmanager.RunState)
+	stateByWorkflowID := make(map[string]agentmanager.WorkflowExecutionState)
+	workflowReader, _ := s.agentService.(workflowStateReader)
 	changed := false
 	changedRecords := make(map[string]Record)
 
 	for i := range records {
 		record := &records[i]
-		if !isActiveStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
+		if !isActiveStatus(record.Status) {
+			continue
+		}
+		if workflowID := strings.TrimSpace(record.Metadata["workflow_execution_id"]); workflowID != "" && workflowReader != nil {
+			state, ok := stateByWorkflowID[workflowID]
+			if !ok {
+				fetched, fetchErr := workflowReader.GetWorkflowExecutionState(ctx, workflowID)
+				if fetchErr != nil {
+					continue
+				}
+				state = fetched
+				stateByWorkflowID[workflowID] = state
+			}
+			if applyWorkflowStateToRecord(record, state) {
+				changed = true
+				changedRecords[record.ActivityID] = *record
+			}
+			continue
+		}
+		if strings.TrimSpace(record.RunID) == "" {
 			continue
 		}
 
@@ -67,6 +94,8 @@ func (s *Service) refreshActiveForOwnerLocked(ctx context.Context, records []Rec
 	}
 
 	stateByRunID := make(map[string]agentmanager.RunState)
+	stateByWorkflowID := make(map[string]agentmanager.WorkflowExecutionState)
+	workflowReader, _ := s.agentService.(workflowStateReader)
 	changed := false
 	changedRecords := make(map[string]Record)
 
@@ -75,7 +104,26 @@ func (s *Service) refreshActiveForOwnerLocked(ctx context.Context, records []Rec
 		if record.OwnerType != OwnerBacklog || record.OwnerKind != ownerKind || record.OwnerName != ownerName {
 			continue
 		}
-		if !isActiveStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
+		if !isActiveStatus(record.Status) {
+			continue
+		}
+		if workflowID := strings.TrimSpace(record.Metadata["workflow_execution_id"]); workflowID != "" && workflowReader != nil {
+			state, ok := stateByWorkflowID[workflowID]
+			if !ok {
+				fetched, fetchErr := workflowReader.GetWorkflowExecutionState(ctx, workflowID)
+				if fetchErr != nil {
+					continue
+				}
+				state = fetched
+				stateByWorkflowID[workflowID] = state
+			}
+			if applyWorkflowStateToRecord(record, state) {
+				changed = true
+				changedRecords[record.ActivityID] = *record
+			}
+			continue
+		}
+		if strings.TrimSpace(record.RunID) == "" {
 			continue
 		}
 
@@ -188,6 +236,47 @@ func applyRunStateToRecord(record *Record, state agentmanager.RunState) bool {
 		record.FinishedAt = record.UpdatedAt
 	}
 	return true
+}
+
+func applyWorkflowStateToRecord(record *Record, state agentmanager.WorkflowExecutionState) bool {
+	nextStatus := mapWorkflowStatus(state.Status)
+	updatedAt := strings.TrimSpace(state.UpdatedAt)
+	if nextStatus == record.Status && (updatedAt == "" || record.UpdatedAt == updatedAt) {
+		return false
+	}
+	record.Status = nextStatus
+	if updatedAt != "" {
+		record.UpdatedAt = updatedAt
+	} else {
+		record.UpdatedAt = nowRFC3339()
+	}
+	if !isActiveStatus(nextStatus) && strings.TrimSpace(record.FinishedAt) == "" {
+		record.FinishedAt = record.UpdatedAt
+	}
+	return true
+}
+
+func mapWorkflowStatus(status domainpb.WorkflowExecutionStatus) Status {
+	switch status {
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING:
+		return StatusPending
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLING:
+		return StatusRunning
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_WAITING,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED:
+		return StatusNeedsReview
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED:
+		return StatusComplete
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED:
+		return StatusCancelled
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED:
+		return StatusFailed
+	default:
+		return StatusUnspecified
+	}
 }
 
 func indexByID(records []Record, activityID string) int {

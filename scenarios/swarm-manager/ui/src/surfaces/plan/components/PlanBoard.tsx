@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowRight, ChevronDown, Clock, CornerDownLeft, MessageCircleQuestion, Play, X } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { OpsBulkActions } from "../../../components/operations/OpsBulkActions";
-import type { RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
+import type { RunSheetTarget } from "../../../components/backlog/run-sheet";
 import { Button } from "../../../components/ui/button";
 import { Popover } from "../../../components/ui/popover";
 import { cn } from "../../../lib/utils";
@@ -68,7 +68,7 @@ function NextHeaderActions({ groups, goal }: { groups: import("../types").PlanCa
   const actions = usePlanCardActions();
   if (!actions) return null;
 
-  const readyTargets: RunBacklogTarget[] = (groups.find((g) => g.id === "ready")?.cards ?? [])
+  const readyTargets: RunSheetTarget[] = (groups.find((g) => g.id === "ready")?.cards ?? [])
     .filter((c) => c.itemKind && c.itemName)
     .map((c) => ({ kind: c.itemKind as BacklogKind, name: c.itemName, title: c.title }));
   const decideCount = (groups.find((g) => g.id === "gates")?.cards ?? [])

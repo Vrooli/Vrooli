@@ -119,8 +119,8 @@ func (s *Service) newEstimator() *eta.Estimator {
 // GoalDir exposes the store path for file handlers.
 func (s *Service) GoalDir(name string) string { return s.store.GoalDir(name) }
 
-// ListFiles returns the read-only files held by a goal. Only paths relative to
-// the goal directory are exposed.
+// ListFiles returns the files held by a goal. Only paths relative to the goal
+// directory are exposed.
 func (s *Service) ListFiles(name string) ([]File, error) { return s.store.ListFiles(name) }
 
 // Create validates and persists a new goal, recording a baseline scope

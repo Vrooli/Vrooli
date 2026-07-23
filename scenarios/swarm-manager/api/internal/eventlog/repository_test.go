@@ -142,6 +142,30 @@ func TestAll(t *testing.T) {
 	}
 }
 
+func TestQueryByEntityUsesCursorAndEntityScope(t *testing.T) {
+	db := setupTestDB(t)
+	repo := eventlog.NewSQLiteRepository(db)
+	ctx := context.Background()
+	first, err := repo.Append(ctx, eventlog.Event{Timestamp: time.Now().UTC(), EntityType: eventlog.EntityBacklogItem, EntityID: "execute/item-a", EventType: eventlog.EventBacklogCreated})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := repo.Append(ctx, eventlog.Event{Timestamp: time.Now().UTC(), EntityType: eventlog.EntityBacklogItem, EntityID: "execute/item-a", EventType: eventlog.EventBacklogStatusChanged})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.Append(ctx, eventlog.Event{Timestamp: time.Now().UTC(), EntityType: eventlog.EntityBacklogItem, EntityID: "execute/item-b", EventType: eventlog.EventBacklogCreated}); err != nil {
+		t.Fatal(err)
+	}
+	events, err := repo.QueryByEntity(ctx, eventlog.EntityBacklogItem, "execute/item-a", first, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || events[0].ID != second {
+		t.Fatalf("QueryByEntity() = %#v, want only event %d", events, second)
+	}
+}
+
 func TestMaxID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := eventlog.NewSQLiteRepository(db)

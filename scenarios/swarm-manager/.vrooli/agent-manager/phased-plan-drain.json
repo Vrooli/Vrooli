@@ -2,12 +2,12 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/phased-plan-drain",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Drain a stable plan in bounded fresh-run slices with compact ordered handoffs and explicit correction/approval paths.",
   "inputSchema": {
     "type": "object",
     "properties": {
-      "plan": {
+    "plan": {
         "type": "object",
         "properties": {
           "reference": {
@@ -25,8 +25,13 @@
           "reference",
           "frontierDigest"
         ],
-        "additionalProperties": false
-      },
+      "additionalProperties": false
+    },
+    "planExecutionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
       "consumer": {
         "type": "object",
         "properties": {
@@ -84,8 +89,9 @@
       }
     },
     "required": [
-      "plan",
-      "consumer",
+    "plan",
+    "planExecutionId",
+    "consumer",
       "constraints"
     ],
     "additionalProperties": false
@@ -127,11 +133,6 @@
                     "minLength": 1,
                     "maxLength": 8192
                   },
-                  "completedSlice": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 4096
-                  },
                   "correctionRequired": {
                     "type": "boolean"
                   },
@@ -141,8 +142,7 @@
                 },
                 "required": [
                   "outcome",
-                  "handoff",
-                  "completedSlice",
+              "handoff",
                   "correctionRequired",
                   "approvalRequired"
                 ],
@@ -158,17 +158,11 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 8192
-                  },
-                  "completedSlice": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 4096
                   }
                 },
                 "required": [
-                  "outcome",
-                  "handoff",
-                  "completedSlice"
+              "outcome",
+              "handoff"
                 ],
                 "additionalProperties": false
               },
@@ -182,10 +176,6 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 8192
-                  },
-                  "completedSlice": {
-                    "type": "string",
-                    "maxLength": 4096
                   },
                   "blocker": {
                     "type": "object",
@@ -213,10 +203,9 @@
                   }
                 },
                 "required": [
-                  "outcome",
-                  "handoff",
-                  "completedSlice",
-                  "blocker"
+              "outcome",
+              "handoff",
+              "blocker"
                 ],
                 "additionalProperties": false
               },
@@ -252,9 +241,18 @@
             "missingPolicy": "error"
           },
           {
-            "name": "plan_digest",
+    "name": "plan_digest",
             "source": "workflow_input",
             "selector": "$.plan.frontierDigest",
+            "limit": 1,
+            "maxBytes": 256,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "plan_execution_id",
+            "source": "workflow_input",
+            "selector": "$.planExecutionId",
             "limit": 1,
             "maxBytes": 256,
             "renderAs": "text",
@@ -487,36 +485,31 @@
       "to": "route",
       "maxTraversals": 6
     },
-    {
-      "from": "route",
-      "to": "correction",
-      "condition": "(latest(journal).value.outcome == 'continue' && latest(journal).value.correctionRequired) || (has(latest(journal, 'review').output) && !latest(journal, 'review').output.review.accepted)",
-      "maxTraversals": 6
-    },
+  {
+    "from": "route",
+    "to": "correction",
+    "condition": "((latest(journal).value.outcome == 'continue' && latest(journal).value.correctionRequired) || (has(latest(journal, 'review').output) && !latest(journal, 'review').output.review.accepted)) && count_since_last(journal, 'correction', 'slice') < 2",
+    "maxTraversals": 12
+  },
+  {
+    "from": "route",
+    "to": "blocked",
+    "condition": "has(latest(journal, 'review').output) && !latest(journal, 'review').output.review.accepted && count_since_last(journal, 'correction', 'slice') >= 2"
+  },
     {
       "from": "route",
       "to": "decision",
       "maxTraversals": 6
     },
-    {
-      "from": "correction",
-      "to": "pre_review",
-      "maxTraversals": 2
-    },
+  {
+    "from": "correction",
+    "to": "pre_review",
+    "maxTraversals": 12
+  },
     {
       "from": "decision",
       "to": "complete",
       "condition": "latest(journal).value.outcome == 'complete'"
-    },
-    {
-      "from": "decision",
-      "to": "blocked",
-      "condition": "latest(journal).value.outcome == 'blocked'"
-    },
-    {
-      "from": "decision",
-      "to": "abstained",
-      "condition": "latest(journal).value.outcome == 'abstained'"
     },
     {
       "from": "decision",
@@ -557,6 +550,6 @@
     "pilot": "phased-plan-drain",
     "consumerMutationOwner": "swarm-manager",
     "freshRunPerSlice": "true",
-    "transitions": "plan.execute,work.retry"
+    "transitions": "plan.execute"
   }
 }

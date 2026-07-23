@@ -19,8 +19,8 @@ type Store struct {
 	dir string
 }
 
-// File is a read-only entry in a goal's on-disk folder. It deliberately
-// exposes a relative path only so callers never receive host filesystem paths.
+// File is an entry in a goal's on-disk folder. It deliberately exposes a
+// relative path only so callers never receive host filesystem paths.
 type File struct {
 	Path string `json:"path"`
 	Size int64  `json:"size"`
@@ -103,7 +103,7 @@ func (s *Store) Delete(name string) error {
 }
 
 // ListFiles returns all regular files held by a goal, including migrated
-// initiative material. Goal files are an audit surface, not an editor.
+// initiative material.
 func (s *Store) ListFiles(name string) ([]File, error) {
 	root := s.GoalDir(name)
 	if !s.Exists(name) {

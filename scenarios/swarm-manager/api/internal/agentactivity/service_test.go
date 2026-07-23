@@ -7,16 +7,20 @@ import (
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 type stubAgentService struct {
-	enabled       bool
-	runStates     map[string]agentmanager.RunState
-	runStateCalls int
-	stopErr       error
-	continueErr   error
-	continueRuns  []string
-	stopRuns      []string
+	enabled            bool
+	runStates          map[string]agentmanager.RunState
+	runStateCalls      int
+	workflowStates     map[string]agentmanager.WorkflowExecutionState
+	workflowStateCalls int
+	stopErr            error
+	continueErr        error
+	continueRuns       []string
+	stopRuns           []string
 }
 
 func (s *stubAgentService) IsEnabled() bool {
@@ -43,6 +47,15 @@ func (s *stubAgentService) GetRunState(_ context.Context, runID string) (agentma
 	state, ok := s.runStates[runID]
 	if !ok {
 		return agentmanager.RunState{}, errors.New("run state not found")
+	}
+	return state, nil
+}
+
+func (s *stubAgentService) GetWorkflowExecutionState(_ context.Context, executionID string) (agentmanager.WorkflowExecutionState, error) {
+	s.workflowStateCalls++
+	state, ok := s.workflowStates[executionID]
+	if !ok {
+		return agentmanager.WorkflowExecutionState{}, errors.New("workflow state not found")
 	}
 	return state, nil
 }
@@ -88,6 +101,46 @@ func newTestServiceWithLanePolicy(t *testing.T, raw *stubAgentService, policy La
 		AgentService: raw,
 		LanePolicy:   policy,
 	})
+}
+
+func TestRecordWorkflowStartPersistsOneCorrelationOnlyActivity(t *testing.T) {
+	svc := newTestService(t, &stubAgentService{enabled: true})
+	activity := agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: "execute", OwnerName: "item-a", Purpose: "process", WorkflowKey: "swarm-manager/phased-plan-drain"}
+	start := agentmanager.WorkflowStart{ExecutionID: "workflow-1", RunID: "run-1"}
+	if err := svc.RecordWorkflowStart(context.Background(), activity, start); err != nil {
+		t.Fatalf("RecordWorkflowStart: %v", err)
+	}
+	if err := svc.RecordWorkflowStart(context.Background(), activity, start); err != nil {
+		t.Fatalf("idempotent RecordWorkflowStart: %v", err)
+	}
+	records, err := svc.ListSnapshot(context.Background(), ListFilters{OwnerType: "backlog", OwnerKind: "execute", OwnerName: "item-a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 || records[0].RunID != "run-1" || records[0].Metadata["workflow_execution_id"] != "workflow-1" {
+		t.Fatalf("workflow activity = %#v", records)
+	}
+}
+
+func TestListReconcilesWorkflowActivityFromWorkflowExecution(t *testing.T) {
+	agent := &stubAgentService{enabled: true, workflowStates: map[string]agentmanager.WorkflowExecutionState{
+		"workflow-1": {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, UpdatedAt: "2026-07-22T12:00:00Z"},
+	}}
+	svc := newTestService(t, agent)
+	activity := agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: "execute", OwnerName: "item-a", Purpose: "process", WorkflowKey: "swarm-manager/phased-plan-drain"}
+	if err := svc.RecordWorkflowStart(context.Background(), activity, agentmanager.WorkflowStart{ExecutionID: "workflow-1", RunID: "first-slice"}); err != nil {
+		t.Fatalf("RecordWorkflowStart: %v", err)
+	}
+	records, err := svc.List(context.Background(), ListFilters{})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(records) != 1 || records[0].Status != StatusComplete || records[0].FinishedAt != "2026-07-22T12:00:00Z" {
+		t.Fatalf("workflow reconciliation result = %#v", records)
+	}
+	if agent.workflowStateCalls != 1 || agent.runStateCalls != 0 {
+		t.Fatalf("workflow row should use workflow state only: workflow=%d run=%d", agent.workflowStateCalls, agent.runStateCalls)
+	}
 }
 
 func TestListSnapshotDoesNotRefreshRunState(t *testing.T) {

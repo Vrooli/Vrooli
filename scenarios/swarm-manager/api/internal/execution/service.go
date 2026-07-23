@@ -168,6 +168,10 @@ type Service struct {
 	mu                       sync.Mutex
 }
 
+type workflowProgressReader interface {
+	GetWorkflowProgress(context.Context, string) (agentmanager.WorkflowProgress, error)
+}
+
 // SetActivityLaneReader wires the agentactivity-backed lane reader after
 // construction. The wiring layer (server bootstrap) calls this once both
 // services exist; tests can leave it unset and GovernanceStatus will
@@ -309,6 +313,38 @@ func engagementStorePath(storePath string) string {
 // SetEventDispatcher sets an optional event dispatcher for real-time graph updates.
 func (s *Service) SetEventDispatcher(d dispatch.NodeDispatcher) {
 	s.eventDispatcher = d
+}
+
+// SetWorkflowActivityRecorder wires the launch ledger into the declared
+// workflow consumer. It keeps activity recording at StartWorkflow rather than
+// duplicating it in each execution entry point.
+func (s *Service) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActivityRecorder) {
+	if workflow, ok := s.phasedPlanWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+	if workflow, ok := s.workWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+	if workflow, ok := s.specSyncWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+}
+
+// WorkflowProgress reads Agent Manager's trace for this execution. The local
+// record only supplies the stable correlation; it never caches live fields.
+func (s *Service) WorkflowProgress(ctx context.Context, executionID string) (agentmanager.WorkflowProgress, error) {
+	record, err := s.Get(ctx, executionID)
+	if err != nil {
+		return agentmanager.WorkflowProgress{}, err
+	}
+	if strings.TrimSpace(record.AgentWorkflowExecutionID) == "" {
+		return agentmanager.WorkflowProgress{}, apierr.Conflict("execution has no agent workflow")
+	}
+	reader, ok := s.phasedPlanWorkflow.(workflowProgressReader)
+	if !ok {
+		return agentmanager.WorkflowProgress{}, apierr.Unavailable("workflow progress is unavailable")
+	}
+	return reader.GetWorkflowProgress(ctx, record.AgentWorkflowExecutionID)
 }
 
 // SetEventLogger injects an optional event logger for analytics tracking.

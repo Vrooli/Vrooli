@@ -32,8 +32,10 @@ func NewHandlerFromService(svc *Service) *Handler {
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution", h.List).Methods("GET")
 	r.HandleFunc("/api/v1/execution", h.Create).Methods("POST")
+	r.HandleFunc("/api/v1/execution/strategies", h.Strategies).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/prompt-trace", h.GetPromptTrace).Methods("GET")
+	r.HandleFunc("/api/v1/execution/{execution_id}/progress", h.GetProgress).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/start", h.Start).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/cancel", h.Cancel).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/workflow/apply", h.ApplyWorkflow).Methods("POST")

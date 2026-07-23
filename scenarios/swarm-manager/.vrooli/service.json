@@ -211,7 +211,6 @@
               ".vrooli/agent-manager/work-correct.json",
               ".vrooli/agent-manager/scenario-spec-sync.json",
               ".vrooli/agent-manager/evidence-request.json",
-              ".vrooli/agent-manager/fix-and-revalidate.json",
               ".vrooli/agent-manager/goal-discover.json",
               ".vrooli/agent-manager/goal-plan.json",
               ".vrooli/agent-manager/milestone-review.json"

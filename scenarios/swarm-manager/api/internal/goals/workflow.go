@@ -256,7 +256,11 @@ func (h *Handler) startMilestoneReview(ctx context.Context, goal *GoalWithScope,
 	if err != nil {
 		return err
 	}
-	start, err := h.workflow.StartWorkflow(ctx, WorkflowInvocation{Owner: locator.Owner, WorkflowKey: locator.Key, Input: input, IdempotencyKey: "milestone-review/" + goal.Goal.Name + "/" + milestone.Name + "/" + milestoneMemberSetDigest(milestone.Items), FirstRunNodeID: "review"})
+	start, err := h.workflow.StartWorkflow(ctx, WorkflowInvocation{
+		Owner: locator.Owner, WorkflowKey: locator.Key, Input: input,
+		IdempotencyKey: "milestone-review/" + goal.Goal.Name + "/" + milestone.Name + "/" + milestoneMemberSetDigest(milestone.Items), FirstRunNodeID: "review",
+		ActivityOwnerType: "milestone", ActivityOwnerKind: "goal", ActivityOwnerName: goal.Goal.Name + "/" + milestone.Name, ActivityPurpose: "milestone_review",
+	})
 	if err != nil {
 		return err
 	}

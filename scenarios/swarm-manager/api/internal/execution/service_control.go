@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
@@ -90,6 +91,21 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err != nil {
 		return Record{}, apierr.BadRequest("%s", err.Error())
 	}
+	if record.PlanManagerExecutionID == "" {
+		client, ok := s.planRenderer.(interface {
+			Resume(context.Context, *executionv1.ResumeRequest) (*executionv1.ResumeResponse, error)
+		})
+		if ok {
+			resumed, resumeErr := client.Resume(ctx, &executionv1.ResumeRequest{PlanOrExecution: planHandle})
+			if resumeErr != nil {
+				return Record{}, apierr.BadGateway("resume plan-manager execution: %s", resumeErr)
+			}
+			if resumed.GetExecution() == nil || strings.TrimSpace(resumed.GetExecution().GetId()) == "" {
+				return Record{}, apierr.BadGateway("plan-manager resume omitted execution")
+			}
+			record.PlanManagerExecutionID = resumed.GetExecution().GetId()
+		}
+	}
 	rendered, err := resolveRenderedPlanContent(ctx, item, s.planRenderer)
 	if err != nil {
 		return Record{}, apierr.BadRequest("%s", err.Error())
@@ -106,9 +122,13 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
+	if !s.strategyMatchesWorkflow(record.ExecutionStrategy, workflow.Key) {
+		return Record{}, apierr.BadRequest("execution strategy %q does not match declared plan workflow", record.ExecutionStrategy)
+	}
 	res, err := s.phasedPlanWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
 		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
 		IdempotencyKey: "execution-plan-drain/" + record.ExecutionID + "/" + snapshot.FrontierDigest, FirstRunNodeID: "slice",
+		Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"},
 	})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
@@ -135,6 +155,19 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	}
 	s.dispatchStatusUpdate(record)
 	return record, nil
+}
+
+func (s *Service) strategyMatchesWorkflow(strategyID, workflowKey string) bool {
+	strategyID = strings.TrimSpace(strategyID)
+	if strategyID == "" {
+		strategyID = defaultExecutionStrategy
+	}
+	for _, strategy := range s.declaredExecutionStrategies() {
+		if strategy.ID == strategyID {
+			return strategy.WorkflowKey == workflowKey
+		}
+	}
+	return false
 }
 
 // reapOperationForRecord marks a canceled run's operation execution canceled in

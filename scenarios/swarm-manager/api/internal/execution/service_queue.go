@@ -11,12 +11,55 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
+	"swarm-manager/internal/transitions"
 )
+
+const defaultExecutionStrategy = "phased-plan-drain"
+
+func (s *Service) declaredExecutionStrategies() []transitions.ExecutionStrategy {
+	if definition, ok := s.transitionRegistry.Get("plan.execute"); ok && len(definition.Strategies) > 0 {
+		return append([]transitions.ExecutionStrategy(nil), definition.Strategies...)
+	}
+	// Unit-level consumers that do not load the scenario registry retain the
+	// sole shipped strategy; production always reads the declaration above.
+	return []transitions.ExecutionStrategy{{
+		ID: defaultExecutionStrategy, WorkflowKey: "swarm-manager/phased-plan-drain",
+		DisplayName: "Phased plan drain", Description: "Executes an accepted plan one verified phase at a time.",
+		WhenToUse: "Use for accepted plans that need durable phase progress.", CostBand: "Governed execution cost.",
+	}}
+}
+
+func (s *Service) normalizeExecutionSelection(req *CreateRequest) error {
+	req.Strategy = strings.TrimSpace(req.Strategy)
+	if req.Strategy == "" {
+		req.Strategy = defaultExecutionStrategy
+	}
+	matched := false
+	for _, strategy := range s.declaredExecutionStrategies() {
+		if strategy.ID == req.Strategy {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		return apierr.BadRequest("unknown execution strategy %q", req.Strategy)
+	}
+	if req.MaxSlices == 0 {
+		req.MaxSlices = 6
+	}
+	if req.MaxSlices < 1 || req.MaxSlices > 6 {
+		return apierr.BadRequest("max_slices must be between 1 and 6")
+	}
+	return nil
+}
 
 // QueueBacklog creates an execution record and optionally starts it.
 func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.normalizeExecutionSelection(&req); err != nil {
+		return Record{}, err
+	}
 
 	mode, item, preflight, err := s.validateAndLoadQueueRequest(ctx, req)
 	if err != nil {
@@ -121,18 +164,20 @@ func (s *Service) validateAndLoadQueueRequest(ctx context.Context, req CreateReq
 func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogItem, mode Mode, _ ProcessPreflight) Record {
 	now := nowRFC3339()
 	record := Record{
-		ExecutionID:    idgen.Generate(),
-		BacklogKind:    strings.ToLower(strings.TrimSpace(req.BacklogKind)),
-		BacklogName:    strings.TrimSpace(req.BacklogName),
-		PreviousStatus: strings.ToLower(strings.TrimSpace(item.Status)),
-		Mode:           mode,
-		Status:         StatusPending,
-		StartedBy:      strings.TrimSpace(req.StartedBy),
-		Operation:      normalizeOperation(req.Operation),
-		Force:          req.Force,
-		QueuedAt:       now,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		ExecutionID:       idgen.Generate(),
+		BacklogKind:       strings.ToLower(strings.TrimSpace(req.BacklogKind)),
+		BacklogName:       strings.TrimSpace(req.BacklogName),
+		PreviousStatus:    strings.ToLower(strings.TrimSpace(item.Status)),
+		Mode:              mode,
+		Status:            StatusPending,
+		StartedBy:         strings.TrimSpace(req.StartedBy),
+		Operation:         normalizeOperation(req.Operation),
+		Force:             req.Force,
+		ExecutionStrategy: req.Strategy,
+		MaxSlices:         req.MaxSlices,
+		QueuedAt:          now,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 	if record.StartedBy == "" {
 		prov := identity.FromContext(ctx)

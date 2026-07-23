@@ -160,6 +160,16 @@
       "budget_exhausted",
       "cancelled"
     ],
+    "strategies": [
+      {
+        "id": "phased-plan-drain",
+        "workflowKey": "swarm-manager/phased-plan-drain",
+        "displayName": "Phased plan drain",
+        "description": "Executes the accepted plan one verified phase at a time, with review and operator approval where needed.",
+        "whenToUse": "Use for accepted plans that need durable phase-by-phase progress and resumability.",
+        "costBand": "Governed by the configured per-turn estimate and workflow budget."
+      }
+    ],
     "applyAction": "apply_plan_execution"
   },
   {
@@ -178,10 +188,9 @@
     ],
     "inputContract": "work-review-input/v1",
     "terminalOutcomes": [
-      "approved",
-      "correction_required",
-      "needs_attention",
-      "abstained",
+      "accepted",
+      "changes-requested",
+      "inconclusive",
       "failed"
     ],
     "applyAction": "apply_review_outcome"
@@ -234,53 +243,6 @@
   },
   {
     "schemaVersion": "swarm-transition/v1",
-    "key": "work.fix_and_revalidate",
-    "subject": "backlog-item",
-    "kind": "workflow",
-    "workflow": {
-      "owner": "swarm-manager",
-      "key": "swarm-manager/fix-and-revalidate"
-    },
-    "requires": [
-      "agent-manager",
-      "test-genie",
-      "git-control-tower"
-    ],
-    "inputContract": "fix-and-revalidate-input/v1",
-    "terminalOutcomes": [
-      "validated",
-      "needs_attention",
-      "abstained",
-      "failed",
-      "budget_exhausted"
-    ],
-    "applyAction": "apply_validation_outcome"
-  },
-  {
-    "schemaVersion": "swarm-transition/v1",
-    "key": "work.retry",
-    "subject": "backlog-item",
-    "kind": "workflow",
-    "workflow": {
-      "owner": "swarm-manager",
-      "key": "swarm-manager/phased-plan-drain"
-    },
-    "requires": [
-      "agent-manager",
-      "plan-manager"
-    ],
-    "inputContract": "work-retry-input/v1",
-    "terminalOutcomes": [
-      "completed",
-      "needs_attention",
-      "abstained",
-      "failed",
-      "cancelled"
-    ],
-    "applyAction": "apply_plan_execution"
-  },
-  {
-    "schemaVersion": "swarm-transition/v1",
     "key": "work.follow_up",
     "subject": "backlog-item",
     "kind": "workflow",
@@ -301,24 +263,6 @@
       "failed"
     ],
     "applyAction": "apply_follow_up"
-  },
-  {
-    "schemaVersion": "swarm-transition/v1",
-    "key": "work.control",
-    "subject": "execution-record",
-    "kind": "deterministic",
-    "requires": [
-      "agent-manager"
-    ],
-    "inputContract": "workflow-control-input/v1",
-    "terminalOutcomes": [
-      "started",
-      "signalled",
-      "cancelled",
-      "rejected",
-      "stale"
-    ],
-    "applyAction": "control_workflow_execution"
   },
   {
     "schemaVersion": "swarm-transition/v1",

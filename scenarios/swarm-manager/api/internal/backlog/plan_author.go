@@ -33,6 +33,34 @@ type planAuthorResult struct {
 	Reason        string `json:"reason,omitempty"`
 }
 
+// StartPlanAuthor starts the declared plan.author workflow from the current
+// immutable backlog snapshot. The resulting execution is visible in Activity;
+// binding a candidate plan remains a separate, explicit terminal action.
+func (h *Handler) StartPlanAuthor(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "plan-author")
+	if !ok {
+		return
+	}
+	item, err := h.store.LoadItem(kind, name)
+	if err != nil {
+		apierr.MapError(w, "[backlog] plan-author", apierr.NotFound("backlog item not found"))
+		return
+	}
+	if item.PlanRef != nil {
+		apierr.MapError(w, "[backlog] plan-author", apierr.Conflict("backlog item already has a plan_ref"))
+		return
+	}
+	started, err := h.startPlanAuthorWorkflow(r.Context(), item)
+	if err != nil {
+		apierr.MapError(w, "[backlog] plan-author", apierr.Conflict("start plan author: %s", err))
+		return
+	}
+	_ = httputil.JSON(w, map[string]any{
+		"execution_id":      started.ExecutionID,
+		"definition_digest": started.DefinitionDigest,
+	})
+}
+
 func planAuthorPendingPath(itemDir, executionID string) string {
 	return filepath.Join(itemDir, "workshop", "plan-author-pending-"+executionID+".json")
 }
@@ -67,7 +95,11 @@ func (h *Handler) startPlanAuthorWorkflow(ctx context.Context, item BacklogItem)
 	if err != nil {
 		return agentmanager.WorkflowStart{}, fmt.Errorf("plan author input: %w", err)
 	}
-	started, err := h.planAuthorWorkflow.StartWorkflow(ctx, agentmanager.Invocation{Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input, IdempotencyKey: "plan-author/" + string(item.Kind) + "/" + item.Name + "/" + strings.TrimPrefix(version, "sha256:"), FirstRunNodeID: "author"})
+	started, err := h.planAuthorWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
+		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
+		IdempotencyKey: "plan-author/" + string(item.Kind) + "/" + item.Name + "/" + strings.TrimPrefix(version, "sha256:"), FirstRunNodeID: "author",
+		Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: string(item.Kind), OwnerName: item.Name, OwnerTitle: item.Title, Purpose: "workflow_authoring"},
+	})
 	if err != nil {
 		return agentmanager.WorkflowStart{}, err
 	}

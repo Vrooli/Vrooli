@@ -60,6 +60,9 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 		Finalization:             finalizationCfg,
 	}
 	s.executionSvc = execution.NewService(cfg)
+	if s.agentActivitySvc != nil {
+		s.executionSvc.SetWorkflowActivityRecorder(s.agentActivitySvc)
+	}
 	// Wire the agentactivity service in as the lane reader so
 	// GovernanceStatus reports per-lane utilization for all four canonical
 	// lanes (Execute is also visible via execution.Records, but the other
@@ -284,6 +287,9 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 		}
 	}
 	s.reviewSvc = review.NewService(cfg)
+	if s.agentActivitySvc != nil {
+		s.reviewSvc.SetWorkflowActivityRecorder(s.agentActivitySvc)
+	}
 	s.reviewHandler = review.NewHandler(s.reviewSvc)
 	s.reviewHandler.RegisterRoutes(s.router)
 

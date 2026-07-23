@@ -26,8 +26,9 @@ type Handler struct {
 
 type (
 	WorkflowInvocation struct {
-		Owner, WorkflowKey, IdempotencyKey, FirstRunNodeID string
-		Input                                              *structpb.Value
+		Owner, WorkflowKey, IdempotencyKey, FirstRunNodeID                                           string
+		Input                                                                                        *structpb.Value
+		ActivityOwnerType, ActivityOwnerKind, ActivityOwnerName, ActivityOwnerTitle, ActivityPurpose string
 	}
 	WorkflowStart      struct{ ExecutionID, RunID, DefinitionDigest string }
 	WorkflowCompletion struct {
@@ -70,6 +71,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/goals/{name}/milestones/{milestone}/review-run", h.StartMilestoneReview).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/workflow-runs/{execution_id}/apply", h.ApplyWorkflow).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/files", h.ListFiles).Methods("GET")
+	r.HandleFunc("/api/v1/goals/{name}/files", h.UploadFile).Methods("POST")
+	r.HandleFunc("/api/v1/goals/{name}/files", h.OperateFile).Methods("PATCH")
+	r.HandleFunc("/api/v1/goals/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
 	r.HandleFunc("/api/v1/goals/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/goals/{name}", h.Update).Methods("PUT")
 	r.HandleFunc("/api/v1/goals/{name}", h.Delete).Methods("DELETE")
@@ -128,7 +132,15 @@ func (h *Handler) startWorkflow(w http.ResponseWriter, r *http.Request, transiti
 		apierr.MapError(w, "[goals] workflow", apierr.BadRequest("build workflow input"))
 		return
 	}
-	start, err := h.workflow.StartWorkflow(r.Context(), WorkflowInvocation{Owner: locator.Owner, WorkflowKey: locator.Key, Input: input, IdempotencyKey: transition + "/" + goal.Goal.Name + "/" + goal.Goal.Updated, FirstRunNodeID: node})
+	activityType, activityKind, activityName, activityPurpose := "scenario", "goal", goal.Goal.Name, "process"
+	if milestone := strings.TrimSpace(mux.Vars(r)["milestone"]); milestone != "" {
+		activityType, activityKind, activityName, activityPurpose = "milestone", "goal", goal.Goal.Name+"/"+milestone, "milestone_review"
+	}
+	start, err := h.workflow.StartWorkflow(r.Context(), WorkflowInvocation{
+		Owner: locator.Owner, WorkflowKey: locator.Key, Input: input,
+		IdempotencyKey: transition + "/" + goal.Goal.Name + "/" + goal.Goal.Updated, FirstRunNodeID: node,
+		ActivityOwnerType: activityType, ActivityOwnerKind: activityKind, ActivityOwnerName: activityName, ActivityPurpose: activityPurpose,
+	})
 	if err != nil {
 		apierr.MapError(w, "[goals] workflow", apierr.BadGateway("start workflow: %s", err))
 		return
@@ -193,15 +205,6 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, "[goals] get", result)
-}
-
-func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
-	files, err := h.service.ListFiles(nameVar(r))
-	if err != nil {
-		mapServiceError(w, "[goals] files", err)
-		return
-	}
-	writeJSON(w, "[goals] files", map[string]any{"files": files})
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {

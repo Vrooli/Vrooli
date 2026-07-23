@@ -8,6 +8,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/dispatch"
+	"swarm-manager/internal/idgen"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -86,6 +87,46 @@ func NewService(cfg ServiceConfig) *Service {
 
 func (s *Service) SetEventDispatcher(d dispatch.NodeDispatcher) {
 	s.eventDispatcher = d
+}
+
+// RecordWorkflowStart implements agentmanager.WorkflowActivityRecorder. It is
+// invoked after Agent Manager accepted a workflow and returned its immutable
+// execution correlation. The ledger is a projection, never workflow state.
+func (s *Service) RecordWorkflowStart(_ context.Context, activity agentmanager.WorkflowActivity, start agentmanager.WorkflowStart) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	spec, err := (Spec{
+		OwnerType: OwnerType(activity.OwnerType), OwnerKind: activity.OwnerKind,
+		OwnerName: activity.OwnerName, OwnerTitle: activity.OwnerTitle,
+		Purpose: Purpose(activity.Purpose), Metadata: map[string]string{"workflow_key": activity.WorkflowKey},
+	}).normalized()
+	if err != nil {
+		return err
+	}
+	records, err := s.store.Load()
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if record.Metadata["workflow_execution_id"] == start.ExecutionID {
+			return nil
+		}
+	}
+	now := nowRFC3339()
+	record := Record{
+		ActivityID: idgen.Generate(), OwnerType: spec.OwnerType, OwnerKind: spec.OwnerKind,
+		OwnerName: spec.OwnerName, OwnerTitle: spec.OwnerTitle, Purpose: spec.Purpose,
+		InteractionType: InteractionSpawn, RunID: start.RunID, Status: StatusRunning,
+		RequestedAt: now, StartedAt: now, RequestedBy: "swarm-manager", UpdatedAt: now,
+		Metadata: map[string]string{"workflow_key": activity.WorkflowKey, "workflow_execution_id": start.ExecutionID, "workflow_status": start.Status.String()},
+	}
+	records = append(records, record)
+	if err := s.store.Save(records); err != nil {
+		return err
+	}
+	s.dispatchStatusUpdate(record)
+	return nil
 }
 
 // SetLanePolicy wires the lane policy after construction. Useful when

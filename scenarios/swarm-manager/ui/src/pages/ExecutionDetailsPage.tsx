@@ -4,7 +4,6 @@
  * Tabbed detail view for a single execution record. Tabs:
  * - Overview: metadata, failure reason, post-run status, actions
  * - Changes: sandbox changed files grouped by scenario
- * - Review: post-run checks, scenario reviews, evidence
  * - Prompt: prompt trace
  *
  * Data fetching is delegated to useExecutionDetailData.
@@ -14,8 +13,8 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import {
-  CircleHelp,
-  ClipboardCheck,
+	CircleHelp,
+	ClipboardCheck,
   GitCompare,
   Loader2,
   MessageSquarePlus,
@@ -33,15 +32,10 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { FollowUpSheet } from "../components/review/follow-up-sheet";
 import { ExecutionOverviewTab } from "../components/execution/execution-overview-tab";
 import { ExecutionChangesTab } from "../components/execution/execution-changes-tab";
-import { ExecutionReviewTab } from "../components/execution/execution-review-tab";
 import { ExecutionPromptTab } from "../components/execution/execution-prompt-tab";
 import { useEmbeddedServiceUrl } from "../hooks/useEmbeddedServiceUrl";
 import { useExecutionDetailData } from "../hooks/useExecutionDetailData";
 import { useUrlState } from "../hooks/use-url-state";
-import { useReviewStore } from "../stores/review-store";
-import { reviewService } from "../services/review-service";
-import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
-import { useQueryClient } from "@tanstack/react-query";
 import { EXECUTION_LENSES } from "../components/detail/lens-options";
 import { selectors } from "../consts/selectors";
 import { canRunPostRunChecks } from "../lib/finalization";
@@ -50,11 +44,9 @@ import { routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { executionOption } from "../components/session/context/session-context-refs";
 
-type ExecutionTab = "overview" | "changes" | "review" | "prompt";
+type ExecutionTab = "overview" | "changes" | "prompt";
 
 export function ExecutionDetailsPage() {
-  const queryClient = useQueryClient();
-
   // --- Navigation / selection ---
   const { executionId } = useParams<{ executionId: string }>();
   const nodeId = routeTargetToNodeId({ entityType: "execution", identifier: executionId });
@@ -62,18 +54,16 @@ export function ExecutionDetailsPage() {
   // --- Tab state (URL-synced) ---
   const [activeTab, setActiveTab] = useUrlState<ExecutionTab>("tab", "overview", {
     validate: (v): v is ExecutionTab =>
-      ["overview", "changes", "review", "prompt"].includes(v),
+      ["overview", "changes", "prompt"].includes(v),
   });
 
   // --- Data ---
   const data = useExecutionDetailData({ executionId });
   const {
     execution,
-    trace,
-    isTraceLoading,
-    reviewRounds,
-    isGatheringEvidence,
-    isAwaitingManualReview,
+	trace,
+	isTraceLoading,
+	reviewRounds,
     targetScenarios: _targetScenarios,
     isLoading,
     error,
@@ -180,22 +170,6 @@ export function ExecutionDetailsPage() {
             Changes
           </TabsTrigger>
           <TabsTrigger
-            value="review"
-            className="gap-2"
-            data-testid={selectors.executionDetails.tabReview}
-          >
-            <ClipboardCheck className="h-4 w-4" />
-            Review
-            {(isGatheringEvidence || isAwaitingManualReview) && (
-              <span className="relative flex h-2 w-2">
-                {isGatheringEvidence && (
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-                )}
-                <span className={`relative inline-flex h-2 w-2 rounded-full ${isAwaitingManualReview ? "bg-amber-400" : "bg-cyan-500"}`} />
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger
             value="prompt"
             className="gap-2"
             data-testid={selectors.executionDetails.tabPrompt}
@@ -232,6 +206,7 @@ export function ExecutionDetailsPage() {
           primaryAction={headerAction}
           menuActions={menuActions}
           tabBar={tabBar}
+          showLenses={activeTab === "overview"}
         />
       }
     >
@@ -257,42 +232,10 @@ export function ExecutionDetailsPage() {
             isActive={isActive}
           />
         )}
-        {activeTab === "review" && (
-          <ExecutionReviewTab
-            execution={execution}
-            reviewRounds={reviewRounds}
-            isGatheringEvidence={isGatheringEvidence}
-            isAwaitingManualReview={isAwaitingManualReview}
-            isActive={isActive}
-            agentManagerUiUrl={agentManagerUiUrl}
-            onFollowUp={() => setFollowUpTarget(execution)}
-            onVerifyEvidence={(round, evidenceId, verified) => {
-              void reviewService.verifyEvidence(
-                execution.backlogKind,
-                execution.backlogName,
-                round,
-                evidenceId,
-                verified,
-                execution.executionId,
-              );
-            }}
-            onRequestMoreEvidence={(round, evidenceId) => {
-              useReviewStore.getState().openRequestPanel(round, evidenceId);
-            }}
-          />
-        )}
         {activeTab === "prompt" && (
           <ExecutionPromptTab trace={trace} isLoading={isTraceLoading} />
         )}
       </div>
-
-      {/* Evidence request panel */}
-      <EvidenceRequestPanel
-        backlogKind={execution?.backlogKind ?? ""}
-        backlogName={execution?.backlogName ?? ""}
-        reviewRounds={reviewRounds}
-        onAction={() => void queryClient.invalidateQueries({ queryKey: ["review-rounds", execution?.backlogKind, execution?.backlogName] })}
-      />
 
       {/* Follow-up sheet */}
       {followUpTarget && (

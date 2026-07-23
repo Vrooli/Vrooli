@@ -21,7 +21,10 @@ export const API_ENDPOINTS = {
     `/backlog/${kind}/${name}/files/${filePath}`,
   backlogPlanRender: (kind: string, name: string) => `/backlog/${kind}/${name}/plan-render`,
   backlogPlanAccept: (kind: string, name: string) => `/backlog/${kind}/${name}/plan-accept`,
+  backlogPlanAuthor: (kind: string, name: string) => `/backlog/${kind}/${name}/plan-author`,
   goalFiles: (name: string) => `/goals/${name}/files`,
+  goalFileContent: (name: string, filePath: string) => `/goals/${name}/files/${filePath}`,
+  goalFileOperations: (name: string) => `/goals/${name}/files`,
   planWorkshops: "/plan-workshops",
   planWorkshopById: (id: string) => `/plan-workshops/${id}`,
   planWorkshopReview: (id: string) => `/plan-workshops/${id}/review`,
@@ -31,6 +34,7 @@ export const API_ENDPOINTS = {
   planWorkshopCandidateApply: (id: string, responseId: string) => `/plan-workshops/${id}/responses/${responseId}/candidate/apply`,
   planWorkshopCandidateDiscard: (id: string, responseId: string) => `/plan-workshops/${id}/responses/${responseId}/candidate/discard`,
   backlogQueue: (kind: string, name: string) => `/backlog/${kind}/${name}/queue`,
+  backlogWorkFeed: (kind: string, name: string) => `/backlog/${kind}/${name}/work-feed`,
   backlogRetry: (kind: string, name: string) => `/backlog/${kind}/${name}/retry`,
   backlogArchiveTargets: (kind: string, name: string) => `/backlog/${kind}/${name}/archive/targets`,
   backlogArchiveTarget: (kind: string, name: string, targetId: string) => `/backlog/${kind}/${name}/archive/targets/${targetId}`,
@@ -60,8 +64,10 @@ export const API_ENDPOINTS = {
   settings: "/settings",
   integrations: "/integrations",
   execution: "/execution",
+  executionStrategies: "/execution/strategies",
   executionById: (executionId: string) => `/execution/${executionId}`,
   executionPromptTrace: (executionId: string) => `/execution/${executionId}/prompt-trace`,
+  executionProgress: (executionId: string) => `/execution/${executionId}/progress`,
   executionStart: (executionId: string) => `/execution/${executionId}/start`,
   executionCancel: (executionId: string) => `/execution/${executionId}/cancel`,
   executionRetry: (executionId: string) => `/execution/${executionId}/retry`,
@@ -123,6 +129,7 @@ export const API_ENDPOINTS = {
   operationsBulkStop: "/operations/bulk-stop",
   // Review evidence endpoints
   reviewRounds: (kind: string, name: string) => `/backlog/${kind}/${name}/review`,
+  reviewDecide: (kind: string, name: string) => `/backlog/${kind}/${name}/review-decide`,
   reviewCapture: (kind: string, name: string, capturePath: string) =>
     `/backlog/${kind}/${name}/review/captures/${capturePath}`,
   reviewVerify: (kind: string, name: string, round: number, evidenceId: string) =>

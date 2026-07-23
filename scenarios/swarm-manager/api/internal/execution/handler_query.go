@@ -76,6 +76,24 @@ func (h *Handler) GetPromptTrace(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetProgress proxies the active workflow trace on demand. It does not persist
+// or infer live state from the local execution record.
+func (h *Handler) GetProgress(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		apierr.MapError(w, "[execution] progress", apierr.BadRequest("execution_id is required"))
+		return
+	}
+	progress, err := h.service.WorkflowProgress(r.Context(), executionID)
+	if err != nil {
+		apierr.MapError(w, "[execution] progress", err)
+		return
+	}
+	if err := httputil.JSON(w, progress); err != nil {
+		apierr.MapError(w, "[execution] progress", apierr.Internal("encode workflow progress"))
+	}
+}
+
 // GCTStatus returns whether git-control-tower is reachable.
 func (h *Handler) GCTStatus(w http.ResponseWriter, r *http.Request) {
 	available := false

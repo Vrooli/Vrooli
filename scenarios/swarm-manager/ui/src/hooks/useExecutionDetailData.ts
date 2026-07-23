@@ -1,7 +1,7 @@
 /**
  * useExecutionDetailData — Data hook for ExecutionDetailsPage.
  *
- * Encapsulates all queries (execution, prompt trace, review rounds, timeline)
+ * Encapsulates all queries (execution, prompt trace, and review rounds)
  * and mutations (cancel, retry, triggerReview) for a single execution.
  * Follows the same boundary pattern as useBacklogDetailData.
  */
@@ -16,10 +16,8 @@ import {
   canFollowUpExecution,
 } from "../lib";
 import { isExecutionActive } from "../lib/execution-utils";
-import { useActivityTimeline } from "./useActivityTimeline";
 import type { ExecutionRecord, PromptTrace } from "../types";
 import type { ReviewRound } from "../services/review-service";
-import type { TimelineEntry } from "./useActivityTimeline";
 
 export interface UseExecutionDetailDataOptions {
   executionId: string | undefined;
@@ -33,7 +31,6 @@ export interface UseExecutionDetailDataResult {
   reviewRounds: ReviewRound[];
   isGatheringEvidence: boolean;
   isAwaitingManualReview: boolean;
-  timeline: { entries: TimelineEntry[]; isLoading: boolean; error: Error | null };
 
   // Loading/error
   isLoading: boolean;
@@ -89,14 +86,7 @@ export function useExecutionDetailData({
     ...defaultQueryOptions,
   });
 
-  // --- Activity timeline ---
   const isActive = execution ? isExecutionActive(execution) : false;
-  const timeline = useActivityTimeline({
-    backlogKind,
-    backlogName,
-    enabled: !!execution,
-    agentRunIsActive: isActive,
-  });
 
   // --- Computed values ---
   const isTerminal = execution ? canFollowUpExecution(execution.status) : false;
@@ -167,7 +157,6 @@ export function useExecutionDetailData({
     reviewRounds: reviewRounds ?? [],
     isGatheringEvidence,
     isAwaitingManualReview,
-    timeline,
     isLoading: execLoading,
     error: execError as Error | undefined,
     isActive,

@@ -67,6 +67,7 @@ describe("GoalDetailsPage", () => {
 
   it("renders goal sections and deep links target chips", async () => {
     vi.spyOn(goalsService, "get").mockResolvedValue(makeGoal());
+    vi.spyOn(goalsService, "getFiles").mockResolvedValue([]);
 
     renderPage();
 
@@ -81,6 +82,7 @@ describe("GoalDetailsPage", () => {
     expect(screen.getByTestId("goal-milestones")).toHaveTextContent("Foundation");
     expect(screen.getByTestId("goal-milestones")).toHaveTextContent("Delivery");
     expect(screen.getByTestId("goal-milestone-foundation")).toHaveTextContent("1 assigned");
+    expect(screen.getByTestId("goal-milestone-foundation-toggle")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Overview" }));
     expect(screen.getByText("1d-2d")).toBeInTheDocument();
     // Scope Creep is collapsed by default; expanding reveals the history table.
@@ -96,6 +98,7 @@ describe("GoalDetailsPage", () => {
 
   it("guards archive and delete with confirmation dialogs", async () => {
     vi.spyOn(goalsService, "get").mockResolvedValue(makeGoal());
+    vi.spyOn(goalsService, "getFiles").mockResolvedValue([]);
     vi.spyOn(goalsService, "archive").mockResolvedValue();
     vi.spyOn(goalsService, "remove").mockResolvedValue();
 
@@ -114,5 +117,19 @@ describe("GoalDetailsPage", () => {
     const dialog = screen.getByTestId("goal-delete-confirm");
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText("workspace")).toBeInTheDocument();
+  });
+
+  it("uses the editable shared file workspace for goal files", async () => {
+    vi.spyOn(goalsService, "get").mockResolvedValue(makeGoal());
+    vi.spyOn(goalsService, "getFiles").mockResolvedValue([
+      { name: "notes.md", path: "notes.md", type: "file", size: 12, children: [] },
+    ]);
+
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Workspace goal")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("tab", { name: "Files" }));
+
+    expect(await screen.findByText("No file selected")).toBeInTheDocument();
+    expect(screen.getByTestId("backlog-details-file-tree")).toHaveTextContent("notes.md");
   });
 });

@@ -5,11 +5,33 @@ import (
 	"path/filepath"
 	"testing"
 
-	"swarm-manager/internal/agentmanager"
-
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
 	"google.golang.org/protobuf/types/known/structpb"
+	"swarm-manager/internal/agentmanager"
 )
+
+type resumeCapableRenderer struct {
+	*fakeMarkdownRenderer
+	request        *executionv1.ResumeRequest
+	statusComplete bool
+	completeCalls  int
+}
+
+func (r *resumeCapableRenderer) Resume(_ context.Context, request *executionv1.ResumeRequest) (*executionv1.ResumeResponse, error) {
+	r.request = request
+	return &executionv1.ResumeResponse{Execution: &executionv1.Execution{Id: "plan-exec-1"}}, nil
+}
+
+func (r *resumeCapableRenderer) GetStatus(_ context.Context, _ *executionv1.GetStatusRequest) (*executionv1.GetStatusResponse, error) {
+	return &executionv1.GetStatusResponse{Execution: &executionv1.Execution{Id: "plan-exec-1", Complete: r.statusComplete}}, nil
+}
+
+func (r *resumeCapableRenderer) Complete(_ context.Context, _ *executionv1.CompleteRequest) (*executionv1.CompleteResponse, error) {
+	r.completeCalls++
+	r.statusComplete = true
+	return &executionv1.CompleteResponse{}, nil
+}
 
 func mustWorkflowOutput(t *testing.T, result map[string]any) *structpb.Value {
 	t.Helper()
@@ -50,7 +72,7 @@ func TestApplyPhasedPlanWorkflow_BlockedExactlyOnce(t *testing.T) { // [REQ:REQ-
 		ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition,
 		Status:   domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED,
 		Input:    workflow.invocation.Input,
-		Output:   mustWorkflowOutput(t, map[string]any{"outcome": "blocked", "handoff": "paused", "completedSlice": "", "blocker": map[string]any{"code": "operator_input", "summary": "operator input required", "retryable": true}}),
+		Output:   mustWorkflowOutput(t, map[string]any{"outcome": "blocked", "handoff": "paused", "blocker": map[string]any{"code": "operator_input", "summary": "operator input required", "retryable": true}}),
 		Attempts: []*domainpb.WorkflowNodeAttempt{{NodeId: "slice", Ordinal: 1, RunId: "run-1", ProfileIdentity: "swarm-manager/deep-work"}},
 	}
 
@@ -99,6 +121,73 @@ func TestProcessActiveExecutionsDoesNotApplyPhasedPlanWorkflow(t *testing.T) {
 	}
 	if applied.Status != StatusStarting || applied.AgentWorkflowApplyState != "" || workflow.collectCalls != 0 {
 		t.Fatalf("legacy housekeeping must not apply workflow: record=%#v collects=%d", applied, workflow.collectCalls)
+	}
+}
+
+func TestStartBindsIdempotentPlanManagerExecutionIntoWorkflowInput(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "execute", "plan-binding", map[string]any{
+		"name": "plan-binding", "title": "Plan binding", "description": "bounded work",
+		"status": "ready", "priority": 2, "tags": []string{},
+		"acceptance_allow": []string{"scenarios/swarm-manager/**"},
+	})
+	renderer := &resumeCapableRenderer{fakeMarkdownRenderer: testPlanRenderer()}
+	workflow := &stubPhasedPlanWorkflow{}
+	service := NewService(ServiceConfig{
+		DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: renderer, PhasedPlanWorkflow: workflow,
+	})
+	queued, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "execute", BacklogName: "plan-binding", Mode: ModeManual, MaxSlices: 2})
+	if err != nil {
+		t.Fatalf("queue: %v", err)
+	}
+	started, err := service.Start(context.Background(), queued.ExecutionID)
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if renderer.request == nil || renderer.request.GetPlanOrExecution() == "" {
+		t.Fatalf("expected plan-manager resume request, got %#v", renderer.request)
+	}
+	if started.PlanManagerExecutionID != "plan-exec-1" {
+		t.Fatalf("plan-manager execution correlation = %q", started.PlanManagerExecutionID)
+	}
+	payload, ok := workflow.invocation.Input.AsInterface().(map[string]any)
+	if !ok || payload["planExecutionId"] != "plan-exec-1" {
+		t.Fatalf("workflow input omitted plan execution: %#v", payload)
+	}
+	constraints, _ := payload["constraints"].(map[string]any)
+	if constraints["maxSlices"] != float64(2) {
+		t.Fatalf("workflow constraints did not preserve maxSlices: %#v", constraints)
+	}
+}
+
+func TestQueueBacklogRejectsUnknownStrategy(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "execute", "unknown-strategy", map[string]any{
+		"name": "unknown-strategy", "title": "Strategy validation", "description": "bounded work",
+		"status": "ready", "priority": 2, "tags": []string{}, "acceptance_allow": []string{"scenarios/swarm-manager/**"},
+	})
+	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"), PlanRenderer: testPlanRenderer()})
+	if _, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "execute", BacklogName: "unknown-strategy", Mode: ModeManual, Strategy: "single-pass"}); err == nil {
+		t.Fatal("expected unknown strategy rejection")
+	}
+}
+
+func TestReconcilePlanManagerCompletionCompletesBoundExecution(t *testing.T) {
+	renderer := &resumeCapableRenderer{fakeMarkdownRenderer: testPlanRenderer()}
+	service := NewService(ServiceConfig{DataRoot: t.TempDir(), PlanRenderer: renderer})
+	record := Record{AgentWorkflowOutcome: "complete", PlanManagerExecutionID: "plan-exec-1"}
+	if err := service.reconcilePlanManagerCompletion(context.Background(), &record); err != nil {
+		t.Fatalf("reconcile plan-manager completion: %v", err)
+	}
+	if renderer.completeCalls != 1 || record.PlanManagerReconciledAt == "" {
+		t.Fatalf("completion reconciliation = calls:%d record:%#v", renderer.completeCalls, record)
+	}
+	if err := service.reconcilePlanManagerCompletion(context.Background(), &record); err != nil {
+		t.Fatalf("idempotent reconciliation: %v", err)
+	}
+	if renderer.completeCalls != 1 {
+		t.Fatalf("reconciliation retried after persistence: %d calls", renderer.completeCalls)
 	}
 }
 

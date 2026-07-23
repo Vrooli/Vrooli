@@ -7,6 +7,7 @@
 
 import type { PlanEtaBandData } from "../surfaces/plan/types";
 import type { BacklogItem } from "./backlog";
+import type { BacklogFile } from "./backlog";
 
 export const GOAL_STATUSES = ["active", "archived"] as const;
 export type GoalStatus = (typeof GOAL_STATUSES)[number];
@@ -30,11 +31,8 @@ export interface GoalMilestone {
   archivedAt?: string;
 }
 
-/** A read-only file held in a goal's on-disk folder. */
-export interface GoalFile {
-  path: string;
-  size: number;
-}
+/** A file held in a goal's editable on-disk workspace. */
+export type GoalFile = BacklogFile;
 
 /** The persisted goal entity. */
 export interface Goal {

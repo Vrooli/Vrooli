@@ -85,6 +85,7 @@ func (s *Service) startWorkWorkflow(ctx context.Context, item backlogItem, recor
 		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: snapshot.Input,
 		IdempotencyKey: "work/" + record.ExecutionID + "/" + snapshot.EntityVersion,
 		FirstRunNodeID: map[bool]string{true: "correct", false: "follow_up"}[workType == "fixup"],
+		Activity:       &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: workType},
 	})
 	return start, snapshot, err
 }

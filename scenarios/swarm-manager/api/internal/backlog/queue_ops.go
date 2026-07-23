@@ -102,6 +102,8 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		StartedBy:   startedBy,
 		Operation:   operation,
 		Force:       force,
+		Strategy:    params.strategy,
+		MaxSlices:   params.maxSlices,
 	})
 	if err != nil {
 		mapQueueBacklogError(w, err)
@@ -143,6 +145,8 @@ type queueRequestParams struct {
 	force     bool
 	mode      execution.Mode
 	startedBy string
+	strategy  string
+	maxSlices int
 }
 
 // parseQueueRequest decodes and normalizes the queue request body, applying
@@ -169,6 +173,8 @@ func parseQueueRequest(w http.ResponseWriter, r *http.Request) (queueRequestPara
 		force:     pbReq.GetForce(),
 		mode:      execution.ModeYOLO,
 		startedBy: strings.TrimSpace(pbReq.GetStartedBy()),
+		strategy:  strings.TrimSpace(pbReq.GetStrategy()),
+		maxSlices: int(pbReq.GetMaxSlices()),
 	}
 	if pbReq.GetOperation() != "" {
 		params.operation = strings.ToLower(strings.TrimSpace(pbReq.GetOperation()))

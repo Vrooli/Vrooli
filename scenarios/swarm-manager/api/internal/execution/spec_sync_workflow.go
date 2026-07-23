@@ -74,6 +74,7 @@ func (s *Service) startSpecSyncWorkflow(ctx context.Context, record Record) (age
 	start, err := s.specSyncWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
 		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: snapshot.Input,
 		IdempotencyKey: "scenario-spec-sync/" + record.ExecutionID + "/" + snapshot.EntityVersion, FirstRunNodeID: "sync",
+		Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "spec_sync"},
 	})
 	return start, snapshot, err
 }

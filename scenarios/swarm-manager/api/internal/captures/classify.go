@@ -94,6 +94,7 @@ func (h *Handler) startClassificationWorkflow(r *http.Request, cap *capture) (ag
 	return h.classificationWorkflow.StartWorkflow(r.Context(), agentmanager.Invocation{
 		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
 		IdempotencyKey: "capture-classify/" + cap.ID + "/" + cap.WorkflowEntityVersion, FirstRunNodeID: "classify",
+		Activity: &agentmanager.WorkflowActivity{OwnerType: "capture", OwnerKind: "capture", OwnerName: cap.ID, OwnerTitle: cap.Text, Purpose: "classify"},
 	})
 }
 

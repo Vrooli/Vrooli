@@ -13,7 +13,7 @@
  * section, not here.
  *
  * Also provides:
- * - Integrated LensBar for cross-lens navigation
+ * - Integrated, contextual LensBar for cross-lens navigation
  * - Optional tab bar slot for entity-specific tabs (e.g., backlog info/prompt/files)
  */
 
@@ -50,8 +50,10 @@ export interface DetailPageHeaderProps {
   /** Optional testid overrides for the actions menu trigger/panel. */
   menuTriggerTestId?: string;
   menuTestId?: string;
-  /** Optional tab bar rendered below the LensBar (e.g., backlog tabs). */
+  /** Optional entity-specific tab bar. */
   tabBar?: ReactNode;
+  /** Whether cross-lens actions are relevant to the active detail section. */
+  showLenses?: boolean;
   /**
    * Overrides the default lens navigation (graph focus/select deep link).
    * Goal pages use this to scope the plan board via ?goal= instead.
@@ -76,6 +78,7 @@ export function DetailPageHeader({
   menuTriggerTestId = "detail-header-actions",
   menuTestId = "detail-header-actions-menu",
   tabBar,
+  showLenses = true,
   onStatusChange,
   statusChangePending,
   onDrillToLens,
@@ -174,8 +177,11 @@ export function DetailPageHeader({
         </button>
       </div>
 
-      {/* LensBar: cross-lens navigation */}
-      {nodeId && lenses.length > 0 && (
+      {/* Tabs establish local context before optional cross-lens navigation. */}
+      {tabBar}
+
+      {/* Cross-lens actions are useful only from an entity overview. */}
+      {showLenses && nodeId && lenses.length > 0 && (
         <LensBar
           nodeId={nodeId}
           lenses={lenses}
@@ -183,9 +189,6 @@ export function DetailPageHeader({
           className="border-t border-slate-800/50"
         />
       )}
-
-      {/* Optional tab bar (entity-specific, e.g. backlog info/prompt/files) */}
-      {tabBar}
     </header>
   );
 }

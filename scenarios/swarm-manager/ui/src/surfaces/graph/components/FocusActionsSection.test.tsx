@@ -40,8 +40,8 @@ vi.mock("../../../stores/execution-store", () => ({
     sel({ items: [] }),
 }));
 
-vi.mock("../../../components/backlog/run-backlog-modal", () => ({
-  RunBacklogModal: ({ isOpen }: { isOpen: boolean }) =>
+vi.mock("../../../components/backlog/run-sheet", () => ({
+  RunSheet: ({ isOpen }: { isOpen: boolean }) =>
     isOpen ? <div data-testid="run-modal">RunModal</div> : null,
 }));
 
@@ -122,7 +122,7 @@ describe("FocusActionsSection", () => {
       expect(screen.getByTestId("focus-cta-button")).toHaveTextContent("Run");
     });
 
-    it("opens RunBacklogModal on Run click", () => {
+    it("opens RunSheet on Run click", () => {
       renderFocusActions(
         <FocusActionsSection
           nodeData={makeBacklogNode("ready")}

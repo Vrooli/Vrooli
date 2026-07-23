@@ -41,3 +41,10 @@ Test Genie, Git Control Tower, or Prompt Manager health.
 Retired operating-mode and agent-operation records are read-only provenance.
 They are not executable configuration and have no active HTTP, CLI, UI, or
 workflow-start surface.
+# Unified work activity seam
+
+`GET /api/v1/backlog/{kind}/{name}/work-feed` is a read-only projection over
+execution records, workflow activities, review rounds, plan-workshop state,
+and entity events. It is deliberately not a persisted aggregate. Live workflow
+state remains read-through at `GET /api/v1/execution/{id}/progress`, which
+proxies Agent Manager's trace only while the operator needs it.

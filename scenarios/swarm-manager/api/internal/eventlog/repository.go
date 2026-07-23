@@ -18,6 +18,9 @@ type Repository interface {
 	Since(ctx context.Context, afterID int64, limit int) ([]Event, error)
 	// All returns every event ordered by ID.
 	All(ctx context.Context) ([]Event, error)
+	// QueryByEntity returns events for one entity after afterID, ordered by ID.
+	// Entity timelines use this instead of scanning unrelated event history.
+	QueryByEntity(ctx context.Context, entityType EntityType, entityID string, afterID int64, limit int) ([]Event, error)
 	// MaxID returns the highest event ID, or 0 if empty.
 	MaxID(ctx context.Context) (int64, error)
 }
@@ -52,7 +55,7 @@ const schemaSQL = `
 			actor_id TEXT NOT NULL DEFAULT '',
 			metadata TEXT
 		);
-		CREATE INDEX IF NOT EXISTS idx_events_entity ON events(entity_type, entity_id);
+		CREATE INDEX IF NOT EXISTS idx_events_entity ON events(entity_type, entity_id, id);
 		CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
 	`
 
@@ -122,6 +125,25 @@ func (r *SQLiteRepository) All(ctx context.Context) ([]Event, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("eventlog all: %w", err)
+	}
+	defer rows.Close()
+	return scanEvents(rows)
+}
+
+// QueryByEntity returns a bounded, chronological slice of one entity's
+// append-only history. Callers supply a cursor rather than relying on wall
+// clock timestamps, which keeps concurrent writes deterministic.
+func (r *SQLiteRepository) QueryByEntity(ctx context.Context, entityType EntityType, entityID string, afterID int64, limit int) ([]Event, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, timestamp, entity_type, entity_id, event_type, actor_type, actor_id, metadata
+		 FROM events WHERE entity_type = ? AND entity_id = ? AND id > ? ORDER BY id ASC LIMIT ?`,
+		string(entityType), entityID, afterID, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("eventlog query entity: %w", err)
 	}
 	defer rows.Close()
 	return scanEvents(rows)

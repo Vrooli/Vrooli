@@ -142,6 +142,10 @@ type Record struct {
 	AgentWorkflowApprovalAt    string                      `json:"agent_workflow_approval_at,omitempty"`
 	AgentWorkflowApprovalBy    string                      `json:"agent_workflow_approval_by,omitempty"`
 	AgentWorkflowAppliedAt     string                      `json:"agent_workflow_applied_at,omitempty"`
+	PlanManagerExecutionID     string                      `json:"plan_manager_execution_id,omitempty"`
+	PlanManagerReconciledAt    string                      `json:"plan_manager_reconciled_at,omitempty"`
+	ExecutionStrategy          string                      `json:"execution_strategy,omitempty"`
+	MaxSlices                  int                         `json:"max_slices,omitempty"`
 	// PreExecBaselines maps an affected scenario name to the GCT baseline
 	// captured for it just before execution started. Finalization diffs each
 	// of these against the post-execution working tree to separate regressions
@@ -260,6 +264,8 @@ type CreateRequest struct {
 	StartedBy   string `json:"started_by,omitempty"`
 	Operation   string `json:"operation,omitempty"`
 	Force       bool   `json:"force,omitempty"`
+	Strategy    string `json:"strategy,omitempty"`
+	MaxSlices   int    `json:"max_slices,omitempty"`
 }
 
 // Policy controls default execution behavior when callers do not provide mode/delay.

@@ -9,6 +9,17 @@
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
+import {
+  backlogFileOperationResponseSchema,
+  backlogFileResponseSchema,
+  backlogFilesResponseSchema,
+  buildMessage,
+  mapProtoBacklogFile,
+  parseProtoResponse,
+  requireProtoField,
+  toProtoJson,
+} from "./proto-contracts";
+import { BacklogFileOperationRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 import type {
   CreateGoalInput,
   Goal,
@@ -21,6 +32,8 @@ import type {
   UpdateGoalInput,
 } from "../types/goal";
 import type { BacklogItem } from "../types/backlog";
+import type { BacklogFile } from "../types/backlog";
+import type { FileOperationResult } from "./file-service-types";
 import type { PlanEtaBandData } from "../surfaces/plan/types";
 
 interface RawSnapshot {
@@ -253,9 +266,46 @@ export interface IGoalsService {
   startPlan(name: string): Promise<{ execution_id: string; run_id?: string; definition_digest: string }>;
   startDiscover(name: string): Promise<{ execution_id: string; run_id?: string; definition_digest: string }>;
   getFiles(name: string): Promise<GoalFile[]>;
+  getFileContent(name: string, filePath: string): Promise<string>;
+  uploadFile(name: string, file: File, path?: string): Promise<BacklogFile>;
+  saveFileContent(name: string, filePath: string, content: string, contentType?: string): Promise<BacklogFile>;
+  renameFile(name: string, sourcePath: string, destinationPath: string): Promise<FileOperationResult>;
+  moveFile(name: string, sourcePath: string, destinationPath: string): Promise<FileOperationResult>;
+  copyFile(name: string, sourcePath: string, destinationPath: string): Promise<FileOperationResult>;
+  deleteFile(name: string, sourcePath: string): Promise<FileOperationResult>;
 }
 
 export function createGoalsService(apiClient: IApiClient = defaultApiClient): IGoalsService {
+  const uploadGoalFile = async (name: string, file: File, path?: string): Promise<BacklogFile> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (path) formData.append("path", path);
+    const data = await apiClient.post<unknown>(API_ENDPOINTS.goalFiles(name), formData, { headers: {} });
+    const parsed = parseProtoResponse(backlogFileResponseSchema, data, "goal file");
+    return mapProtoBacklogFile(requireProtoField(parsed.file, "goal file"));
+  };
+  const operateGoalFile = async (
+    name: string,
+    operation: "rename" | "move" | "copy" | "delete",
+    sourcePath: string,
+    destinationPath?: string,
+  ): Promise<FileOperationResult> => {
+    const message = buildMessage(BacklogFileOperationRequestSchema, {
+      operation,
+      sourcePath,
+      ...(destinationPath ? { destinationPath } : {}),
+    });
+    const data = await apiClient.patch<unknown>(
+      API_ENDPOINTS.goalFileOperations(name),
+      toProtoJson(BacklogFileOperationRequestSchema, message),
+    );
+    const parsed = parseProtoResponse(backlogFileOperationResponseSchema, data, "goal file operation");
+    return {
+      ...(parsed.file ? { file: mapProtoBacklogFile(parsed.file) } : {}),
+      ...(parsed.deletedPath ? { deletedPath: parsed.deletedPath } : {}),
+    };
+  };
+
   return {
     async list(): Promise<GoalWithScope[]> {
       const resp = await apiClient.get<
@@ -323,9 +373,28 @@ export function createGoalsService(apiClient: IApiClient = defaultApiClient): IG
     },
 
     async getFiles(name: string): Promise<GoalFile[]> {
-      const response = await apiClient.get<{ files?: Array<{ path?: string; size?: number }> }>(API_ENDPOINTS.goalFiles(name));
-      return (response.files ?? []).map((file) => ({ path: file.path ?? "", size: file.size ?? 0 }));
+      const data = await apiClient.get<unknown>(API_ENDPOINTS.goalFiles(name));
+      const parsed = parseProtoResponse(backlogFilesResponseSchema, data, "goal files");
+      return parsed.files.map(mapProtoBacklogFile);
     },
+
+    getFileContent(name: string, filePath: string) {
+      return apiClient.get<string>(API_ENDPOINTS.goalFileContent(name, filePath), { responseType: "text" });
+    },
+
+    uploadFile: uploadGoalFile,
+
+    async saveFileContent(name: string, filePath: string, content: string, contentType = "text/plain") {
+      const normalizedPath = filePath.replace(/^[\\/]+/, "");
+      const segments = normalizedPath.split("/");
+      const fileName = segments.pop() || "notes.txt";
+      return uploadGoalFile(name, new File([content], fileName, { type: contentType }), segments.length > 0 ? segments.join("/") : undefined);
+    },
+
+    renameFile: (name, sourcePath, destinationPath) => operateGoalFile(name, "rename", sourcePath, destinationPath),
+    moveFile: (name, sourcePath, destinationPath) => operateGoalFile(name, "move", sourcePath, destinationPath),
+    copyFile: (name, sourcePath, destinationPath) => operateGoalFile(name, "copy", sourcePath, destinationPath),
+    deleteFile: (name, sourcePath) => operateGoalFile(name, "delete", sourcePath),
   };
 }
 

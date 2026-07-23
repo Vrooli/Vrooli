@@ -6,24 +6,31 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
+  Activity,
   Archive,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock3,
+  Files,
+  GitPullRequestArrow,
   ListChecks,
+  Network,
   ShieldAlert,
   Target,
   Trash2,
   Workflow,
 } from "lucide-react";
 import { BacklogCard } from "../components/backlog/backlog-card";
+import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
+import type { FileActionType } from "../components/backlog/backlog-file-browser";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
 import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
 import { Button } from "../components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { CompactTabBar, type CompactTabItem } from "../components/ui/compact-tab-bar";
+import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { GOAL_LENSES } from "../components/detail/lens-options";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import type { ActionMenuItem } from "../components/ui/action-menu";
@@ -31,37 +38,34 @@ import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { goalsService } from "../services/goals-service";
+import { createGoalFileServiceAdapter } from "../services/goals-file-service-adapter";
 import { GOALS_QUERY_KEY } from "../surfaces/plan/hooks/useGoals";
-import type { GoalFile, GoalMilestone, GoalScope, GoalScopeEntities, GoalWithScope } from "../types/goal";
+import type { BacklogFile } from "../types/backlog";
+import type { GoalMilestone, GoalScope, GoalScopeEntities, GoalWithScope } from "../types/goal";
 import { ENTITY_TYPE_ICONS } from "../types/constants";
 import {
   backlogDetailPath,
   graphPath,
 	 routeTargetToNodeId,
 } from "../app/routes/route-paths";
+import { selectors } from "../consts/selectors";
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
 const GOAL_TABS = ["overview", "milestones", "decide", "files", "activity", "related"] as const;
 type GoalTab = typeof GOAL_TABS[number];
 
+const GOAL_TAB_ITEMS: CompactTabItem<GoalTab>[] = [
+  { value: "overview", label: "Overview", icon: ENTITY_TYPE_ICONS.goal },
+  { value: "milestones", label: "Milestones", icon: ListChecks },
+  { value: "decide", label: "Decide", icon: GitPullRequestArrow },
+  { value: "files", label: "Files", icon: Files },
+  { value: "activity", label: "Activity", icon: Activity },
+  { value: "related", label: "Related", icon: Network },
+];
+
 function isGoalTab(value: string | null): value is GoalTab {
   return value !== null && (GOAL_TABS as readonly string[]).includes(value);
-}
-
-function GoalFileList({ files, isLoading }: { files?: GoalFile[]; isLoading: boolean }) {
-  if (isLoading) return <p className="py-8 text-sm text-slate-500">Loading goal files…</p>;
-  if (!files?.length) return <p className="py-8 text-sm text-slate-500">This goal has no files yet.</p>;
-  return (
-    <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800" data-testid="goal-files-list">
-      {files.map((file) => (
-        <li key={file.path} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-          <code className="min-w-0 truncate text-slate-200">{file.path}</code>
-          <span className="shrink-0 text-xs text-slate-500">{file.size.toLocaleString()} B</span>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 interface ParsedGoalRef {
@@ -235,26 +239,21 @@ function MilestoneGroups({ milestones, entities }: { milestones: GoalMilestone[]
   }
 
   return (
-    <div className="space-y-3">
+    <div>
       {active.map((milestone) => (
-        <article
+        <DetailSection
           key={milestone.name}
-          className="rounded-xl border border-slate-800 bg-slate-900/50 p-3"
+          title={milestone.title || milestone.name}
+          storageKey={`goal.milestone.${milestone.name}`}
+          className="first:mt-0"
           data-testid={`goal-milestone-${milestone.name}`}
         >
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="text-sm font-medium text-slate-100">{milestone.title || milestone.name}</h3>
-              {milestone.description && <p className="mt-1 text-sm text-slate-400">{milestone.description}</p>}
-            </div>
-            <span className="shrink-0 rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-xs text-slate-400">
-              {milestone.items.length} assigned
-            </span>
-          </div>
-          <div className="mt-3">
+          <div className="space-y-3">
+            {milestone.description && <p className="text-sm text-slate-400">{milestone.description}</p>}
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{milestone.items.length} assigned</p>
             <RefList refs={milestone.items} emptyText="No work assigned to this milestone yet." entities={entities} />
           </div>
-        </article>
+        </DetailSection>
       ))}
     </div>
   );
@@ -268,6 +267,7 @@ export function GoalDetailsPage() {
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<GoalTab>(() => isGoalTab(searchParams.get("tab")) ? searchParams.get("tab") as GoalTab : "overview");
+  const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
 
   const decodedName = useMemo(() => decodeURIComponent(name), [name]);
   const nodeId = routeTargetToNodeId({ entityType: "goal", name: decodedName });
@@ -279,7 +279,7 @@ export function GoalDetailsPage() {
     ...defaultQueryOptions,
   });
   const filesQuery = useQuery({
-    queryKey: ["goal-files", decodedName],
+    queryKey: ["goal", decodedName, "files"],
     queryFn: () => goalsService.getFiles(decodedName),
     enabled: decodedName.length > 0 && activeTab === "files",
     ...defaultQueryOptions,
@@ -312,6 +312,21 @@ export function GoalDetailsPage() {
   });
   const planMutation = useMutation({ mutationFn: () => goalsService.startPlan(decodedName), onSuccess: invalidateGoal });
   const discoverMutation = useMutation({ mutationFn: () => goalsService.startDiscover(decodedName), onSuccess: invalidateGoal });
+  const goalFileService = useMemo(() => createGoalFileServiceAdapter(decodedName), [decodedName]);
+  const fileActionMutation = useMutation({
+    mutationFn: ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
+      switch (action) {
+        case "rename": return goalsService.renameFile(decodedName, target.path, destinationPath ?? "");
+        case "move": return goalsService.moveFile(decodedName, target.path, destinationPath ?? "");
+        case "copy": return goalsService.copyFile(decodedName, target.path, destinationPath ?? "");
+        case "delete": return goalsService.deleteFile(decodedName, target.path);
+      }
+    },
+    onSuccess: (result, variables) => {
+      setSelectedFile(result.file ?? (variables.action === "delete" ? null : selectedFile));
+      void queryClient.invalidateQueries({ queryKey: ["goal", decodedName, "files"] });
+    },
+  });
 
   if (query.isLoading) {
     return (
@@ -379,27 +394,26 @@ export function GoalDetailsPage() {
           lenses={GOAL_LENSES}
           onDrillToLens={() => navigate(graphPath({ lens: "plan", goal: goal.name }))}
           menuActions={menuActions}
+          showLenses={activeTab === "overview"}
           tabBar={
-            <Tabs value={activeTab} onValueChange={(value) => {
-              if (!isGoalTab(value)) return;
-              setActiveTab(value);
-              setSearchParams(value === "overview" ? {} : { tab: value }, { replace: true });
-            }}>
-              <TabsList className="w-full justify-start gap-1 overflow-x-auto rounded-none bg-transparent px-3">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="milestones">Milestones</TabsTrigger>
-                <TabsTrigger value="decide">Decide</TabsTrigger>
-                <TabsTrigger value="files">Files</TabsTrigger>
-                <TabsTrigger value="activity">Activity</TabsTrigger>
-                <TabsTrigger value="related">Related</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <CompactTabBar
+              items={GOAL_TAB_ITEMS}
+              activeValue={activeTab}
+              onValueChange={(value) => {
+                setActiveTab(value);
+                setSearchParams(value === "overview" ? {} : { tab: value }, { replace: true });
+              }}
+              aria-label="Goal sections"
+              className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 px-3"
+              data-testid={selectors.goalDetails.tabRow}
+              tabTestIdPrefix="goal-details-tab"
+            />
           }
         />
       }
-      bodyClassName="mx-auto w-full max-w-3xl"
+      bodyClassName={activeTab === "files" ? "w-full px-0 py-0 md:px-0 md:py-0" : "mx-auto w-full max-w-3xl"}
     >
-      <div className="min-w-0 space-y-4">
+      <div className={activeTab === "files" ? "min-w-0 h-full" : "min-w-0 space-y-4"} data-testid={selectors.goalDetails.page}>
         {activeTab === "overview" && <DetailSection title="Overview" icon={ENTITY_TYPE_ICONS.goal} hideDivider data-testid="goal-overview">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
@@ -525,7 +539,22 @@ export function GoalDetailsPage() {
             <ProposalSessionsPanel target={{ type: "goal", ref: goal.name, name: goal.title || goal.name }} />
           </section>
         )}
-        {activeTab === "files" && <section data-testid="goal-files"><h2 className="mb-2 text-lg font-semibold text-slate-100">Goal files</h2><p className="mb-4 text-sm text-slate-400">Read-only goal metadata and migrated initiative carry-over.</p><GoalFileList files={filesQuery.data} isLoading={filesQuery.isLoading} /></section>}
+        {activeTab === "files" && (
+          <FileServiceProvider value={goalFileService}>
+            <BacklogFileWorkspace
+              files={filesQuery.data}
+              isLoadingFiles={filesQuery.isLoading}
+              filesError={filesQuery.error instanceof Error ? filesQuery.error : null}
+              selectedFile={selectedFile}
+              isLocked={goal.status === "archived"}
+              onFileSelect={setSelectedFile}
+              onRefetchFiles={() => void filesQuery.refetch()}
+              onUploadComplete={() => void queryClient.invalidateQueries({ queryKey: ["goal", decodedName, "files"] })}
+              fileActionPending={fileActionMutation.isPending}
+              onFileAction={(action, target, destinationPath) => fileActionMutation.mutate({ action, target, destinationPath })}
+            />
+          </FileServiceProvider>
+        )}
         {activeTab === "activity" && <p className="py-8 text-sm text-slate-500">Goal activity is recorded with milestone and proposal decisions.</p>}
         {activeTab === "related" && <RefList refs={goal.targets} emptyText="No related targets." entities={query.data.scopeEntities} />}
       </div>

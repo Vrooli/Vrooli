@@ -113,6 +113,16 @@ describe("DetailPageHeader", () => {
     expect(screen.getByTestId("custom-tabs")).toBeInTheDocument();
   });
 
+  it("places contextual lenses after tabs and can hide them outside Overview", () => {
+    const { rerender } = renderHeader({ tabBar: <div data-testid="custom-tabs">Tabs</div> });
+    const header = screen.getByTestId("detail-page-header");
+    expect(Array.from(header.children).findIndex((node) => node.contains(screen.getByTestId("custom-tabs"))))
+      .toBeLessThan(Array.from(header.children).findIndex((node) => node.contains(screen.getByTestId("lens-bar"))));
+
+    rerender(<DetailPageHeader entityType="backlog" title="Test Item" nodeId="backlog-item/execute/test" lenses={testLenses} showLenses={false} />);
+    expect(screen.queryByTestId("lens-bar")).not.toBeInTheDocument();
+  });
+
   it("hides the hamburger button when the sidebar is open", () => {
     useGraphUIStore.setState({ sidebarCollapsed: false });
     renderHeader();

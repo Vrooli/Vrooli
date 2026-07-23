@@ -213,11 +213,9 @@ export const literalSelectors = {
     tabInfo: "backlog-details-tab-info",
     tabPrompt: "backlog-details-tab-prompt",
     tabFiles: "backlog-details-tab-files",
-    tabOutput: "backlog-details-tab-output",
     tabActivity: "backlog-details-tab-activity",
     tabRelated: "backlog-details-tab-related",
     relatedContent: "backlog-details-related-content",
-    outputTab: "backlog-details-output-tab",
     activityTab: "backlog-details-activity-tab",
     promptPanel: "backlog-details-prompt-panel",
     milestoneChip: "backlog-details-milestone-chip",
@@ -349,13 +347,6 @@ export const literalSelectors = {
     runChecksButton: "execution-details-run-checks",
     viewRunButton: "execution-details-view-run",
   },
-  // Run backlog modal selectors
-  runBacklog: {
-    dialog: "run-backlog-dialog",
-    submitButton: "run-backlog-submit",
-    blockingReasons: "run-backlog-blocking-reasons",
-    error: "run-backlog-error",
-  },
   followUp: {
     dialog: "follow-up-dialog",
     typeFixup: "follow-up-type-fixup",
@@ -369,9 +360,8 @@ export const literalSelectors = {
     reviewSummary: "follow-up-review-summary",
     runHealth: "follow-up-run-health",
   },
-  // Shared review flow selectors
+  // Shared review surface selectors
   review: {
-    flow: "review-flow",
     statusHeader: "review-status-header",
     statusHeaderRunLink: "review-status-header-run-link",
     primaryAction: "review-primary-action",
@@ -391,6 +381,9 @@ export const literalSelectors = {
   },
   goalDetails: {
     conceptExplainerDialog: "concept-explainer-dialog",
+    page: "goal-details-page",
+    tabRow: "goal-details-tab-row",
+    files: "goal-details-files",
   },
   related: {
     tab: "related-tab",

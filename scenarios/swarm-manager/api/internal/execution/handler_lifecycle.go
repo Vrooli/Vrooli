@@ -31,6 +31,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Mode:        mode,
 		StartedBy:   pbReq.GetStartedBy(),
 		Operation:   pbReq.GetOperation(),
+		Strategy:    pbReq.GetStrategy(),
+		MaxSlices:   int(pbReq.GetMaxSlices()),
 	}
 	record, err := h.service.QueueBacklog(r.Context(), req)
 	if err != nil {
@@ -39,6 +41,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, executionResponse(record)); err != nil {
 		apierr.MapError(w, "[execution] create", apierr.Internal("failed to encode response"))
+	}
+}
+
+// Strategies returns execution choices declared by the transition registry.
+// It has no side effects and is safe to read when opening a run sheet.
+func (h *Handler) Strategies(w http.ResponseWriter, r *http.Request) {
+	items, err := h.service.ExecutionStrategies()
+	if err != nil {
+		apierr.MapError(w, "[execution] strategies", err)
+		return
+	}
+	if err := httputil.JSON(w, map[string]any{"items": items}); err != nil {
+		apierr.MapError(w, "[execution] strategies", apierr.Internal("encode execution strategies"))
 	}
 }
 

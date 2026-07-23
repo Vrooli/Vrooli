@@ -76,6 +76,14 @@ func (s *Service) SetStartGuard(guard agentmanager.WorkflowStartGuard) {
 	}
 }
 
+// SetWorkflowActivityRecorder keeps repair launches in the common activity
+// ledger without giving this domain a second recording path.
+func (s *Service) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActivityRecorder) {
+	if workflow, ok := s.workflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+}
+
 // SetTransitionRegistry supplies the immutable Swarm transition catalog used
 // to locate the declared plan-repair workflow.
 func (s *Service) SetTransitionRegistry(registry transitions.Registry) {
@@ -110,6 +118,7 @@ func (s *Service) Start(ctx context.Context, request StartRequest) (Record, erro
 	started, err := s.workflow.StartWorkflow(ctx, agentmanager.Invocation{
 		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
 		IdempotencyKey: "plan-repair/" + request.ID, FirstRunNodeID: "repair",
+		Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: request.EntityKind, OwnerName: request.EntityName, Purpose: "fixup"},
 	})
 	if err != nil {
 		return Record{}, err

@@ -6,9 +6,9 @@
  */
 
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Activity, Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, GitPullRequestArrow, Network, RefreshCw, RotateCcw, Sparkles } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { useParams, useSearchParams } from "react-router-dom";
+import { Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, GitPullRequestArrow, Network, RefreshCw, RotateCcw, Sparkles } from "lucide-react";
+import { CompactTabBar, type CompactTabItem } from "../components/ui/compact-tab-bar";
 import { Button } from "../components/ui/button";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { PlanPanel } from "../components/backlog/plan-panel";
@@ -20,8 +20,9 @@ import { BacklogDetailsPanel } from "../components/backlog/backlog-details-panel
 import { BacklogNotesPanel } from "../components/backlog/backlog-notes-panel";
 import { buildBacklogActionMenuItems } from "../components/backlog/backlog-action-buttons";
 import type { ActionMenuItem } from "../components/ui/action-menu";
-import { OutputTab } from "../components/backlog/output-tab";
-import { ActivityTab } from "../components/backlog/activity-tab";
+import { WorkFeedList, type WorkFeedEntry } from "../components/backlog/activity-surface/work-feed-list";
+import { ActiveWorkCard } from "../components/backlog/activity-surface/active-work-card";
+import { ReviewDecisionCard } from "../components/backlog/activity-surface/review-decision-card";
 import { RelatedTab } from "../components/related/RelatedTab";
 import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
 import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
@@ -31,7 +32,6 @@ import { proposalSessionService } from "../services/proposal-session-service";
 import { backlogOption } from "../components/session/context/session-context-refs";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
-import { useActivityTimeline } from "../hooks/useActivityTimeline";
 import { useBacklogDetailData } from "../hooks/useBacklogDetailData";
 import { useEmbeddedServiceUrl } from "../hooks/useEmbeddedServiceUrl";
 import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
@@ -51,16 +51,15 @@ import {
 import { BACKLOG_LENSES } from "../components/detail/lens-options";
 import { backlogService } from "../services/backlog-service";
 import { autoFilerService } from "../services/auto-filer-service";
-import { reviewService } from "../services/review-service";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import { useReviewStore } from "../stores/review-store";
 import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { formatRelativeTime } from "../lib";
-import { executionDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
+import { routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAppBack } from "../app/routes/useAppBack";
 import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
@@ -73,11 +72,10 @@ const LIFECYCLE_RESET_SCOPES: Array<[string, string]> = [
   ["handoff_executions", "Handoff data and executions"],
   ["plan_unbind", "Plan binding"],
 ];
-type DetailsTab = "info" | "prompt" | "decide" | "files" | "output" | "activity" | "related";
+type DetailsTab = "info" | "prompt" | "decide" | "files" | "activity" | "related";
 
 export function BacklogDetailsPage() {
   // --- Navigation / selection ---
-  const navigate = useNavigate();
   const goBack = useAppBack();
   const params = useParams<{ kind: string; name: string }>();
   const kind = params.kind;
@@ -90,7 +88,6 @@ export function BacklogDetailsPage() {
   // --- Global stores ---
   const upsertItem = useBacklogStore((s) => s.upsertItem);
   const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
-  const stopRun = useAgentActivitiesStore((s) => s.stopRun);
   const latestAgentActivity = useAgentActivitiesStore((s) => {
     if (!backlogKind || !name) return null;
     return selectLatestActivityForBacklog(s, backlogKind, name);
@@ -121,7 +118,7 @@ export function BacklogDetailsPage() {
   const {
     item, isLoadingItem, itemError, refetchItem, spawnedItems,
     files, isLoadingFiles, filesError, refetchFiles,
-    executionHistory, reviewRounds, isGatheringEvidence, isAwaitingManualReview,
+    executionHistory, reviewRounds,
     archiveTargets,
     depRelations, itemActions, targetScenarios,
     isLocked, isTerminal,
@@ -131,7 +128,7 @@ export function BacklogDetailsPage() {
 
   // --- Local UI state (URL-synced or needs render) ---
   const [activeTab, setActiveTab] = useUrlState<DetailsTab>("tab", "info", {
-    validate: (v): v is DetailsTab => ["info", "prompt", "decide", "files", "output", "activity", "related"].includes(v),
+    validate: (v): v is DetailsTab => ["info", "prompt", "decide", "files", "activity", "related"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
   const [dismissSuggestionPending, setDismissSuggestionPending] = useState(false);
@@ -141,15 +138,35 @@ export function BacklogDetailsPage() {
   const [resetScope, setResetScope] = useState<string[]>(["review"]);
   const [lifecyclePending, setLifecyclePending] = useState(false);
   const [lifecycleError, setLifecycleError] = useState<string | undefined>();
+  const planAuthorMutation = useMutation({
+    mutationFn: () => {
+      if (!backlogKind || !name) throw new Error("Backlog item is required to author a plan.");
+      return backlogService.startPlanAuthor(backlogKind, name);
+    },
+    onSuccess: () => {
+      setActiveTab("activity");
+      void refreshActivities(true);
+    },
+  });
   const { data: proposalSessions = [] } = useQuery({
     queryKey: ["proposal-sessions", "backlog_item", backlogKind && name ? `${backlogKind}/${name}` : ""],
     queryFn: () => proposalSessionService.list({ type: "backlog_item", ref: `${backlogKind}/${name}` }),
     enabled: Boolean(backlogKind && name),
     refetchInterval: 15_000,
   });
+  const { data: workFeed = [], isLoading: isLoadingWorkFeed, error: workFeedError } = useQuery({
+    queryKey: ["work-feed", backlogKind, name],
+    queryFn: async () => (await defaultApiClient.get<{ items: WorkFeedEntry[] }>(API_ENDPOINTS.backlogWorkFeed(backlogKind!, name!))).items,
+    enabled: activeTab === "activity" && Boolean(backlogKind && name),
+    refetchInterval: agentRunIsBlocking ? 6_000 : 20_000,
+  });
   const proposalCount = useMemo(
     () => proposalSessions.reduce((count, session) => count + (session.proposals ?? []).filter((proposal) => proposal.kind === "mutation_list" || proposal.kind === "no_change_recommendation").length, 0),
     [proposalSessions],
+  );
+  const activeExecution = useMemo(
+    () => executionHistory?.find((execution) => ["starting", "running", "needs_review"].includes(execution.status)) ?? null,
+    [executionHistory],
   );
   const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
   const handleDismissSuggestion = useCallback(async () => {
@@ -223,14 +240,6 @@ export function BacklogDetailsPage() {
   const attachToSession = useAttachToSessionAction(item ? backlogOption(item) : null);
 
   // --- Effects ---
-
-  // Activity timeline — fetches when the Output tab is active
-  const timeline = useActivityTimeline({
-    backlogKind: backlogKind ?? undefined,
-    backlogName: name,
-    enabled: activeTab === "output" || activeTab === "activity",
-    agentRunIsActive: agentRunIsBlocking,
-  });
 
   // Auto-open follow-up dialog when navigated with ?action=followup
   const actionParam = searchParams.get("action");
@@ -498,47 +507,40 @@ export function BacklogDetailsPage() {
     </FileServiceProvider>
   ) : null;
 
+  const tabItems: CompactTabItem<DetailsTab>[] = [
+    { value: "info", label: "Info", icon: CircleHelp },
+    { value: "prompt", label: "Plan", icon: Sparkles },
+    {
+      value: "decide",
+      label: "Decide",
+      icon: GitPullRequestArrow,
+      count: proposalCount || undefined,
+    },
+    { value: "files", label: "Files", icon: Files },
+    {
+      value: "activity",
+      label: "Activity",
+      icon: ClipboardList,
+      badge: agentRunIsBusy ? (
+        <span className="relative ml-1 flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+        </span>
+      ) : undefined,
+    },
+    { value: "related", label: "Related", icon: Network },
+  ];
+
   const tabBar = item ? (
     <div className="border-t border-slate-800/50" data-testid={selectors.backlogDetails.tabRow}>
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DetailsTab)}>
-        <TabsList className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 px-3">
-          <TabsTrigger value="info" className="gap-2" data-testid={selectors.backlogDetails.tabInfo}>
-            <CircleHelp className="h-4 w-4" />
-            Info
-          </TabsTrigger>
-          <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
-            <Sparkles className="h-4 w-4" />
-            Plan
-          </TabsTrigger>
-          <TabsTrigger value="decide" className="gap-2">
-            <GitPullRequestArrow className="h-4 w-4" />
-            Decide
-            {proposalCount > 0 && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">{proposalCount}</span>}
-          </TabsTrigger>
-          <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
-            <Files className="h-4 w-4" />
-            Files
-          </TabsTrigger>
-          <TabsTrigger value="output" className="gap-2" data-testid={selectors.backlogDetails.tabOutput}>
-            <Activity className="h-4 w-4" />
-            Output
-          </TabsTrigger>
-          <TabsTrigger value="activity" className="gap-2" data-testid={selectors.backlogDetails.tabActivity}>
-            <ClipboardList className="h-4 w-4" />
-            Activity
-            {agentRunIsBusy && (
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="related" className="gap-2" data-testid={selectors.backlogDetails.tabRelated}>
-            <Network className="h-4 w-4" />
-            Related
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <CompactTabBar
+        items={tabItems}
+        activeValue={activeTab}
+        onValueChange={setActiveTab}
+        aria-label="Backlog item sections"
+        className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 px-3"
+        tabTestIdPrefix="backlog-details-tab"
+      />
     </div>
   ) : null;
 
@@ -553,9 +555,11 @@ export function BacklogDetailsPage() {
             nodeId={nodeId}
             lenses={BACKLOG_LENSES}
             menuActions={menuActions}
+            primaryAction={!isLocked && !activeExecution && item?.status !== "review_pending" && item?.status !== "in_review" ? <Button size="sm" onClick={uiStore.openRunModal}>Run</Button> : undefined}
             onStatusChange={!isLocked ? (newStatus) => data.updateStatus(newStatus) : undefined}
             statusChangePending={data.isUpdatingStatus}
             tabBar={tabBar}
+            showLenses={activeTab === "info"}
           />
         }
       >
@@ -606,50 +610,21 @@ export function BacklogDetailsPage() {
                   backlogKind={backlogKind}
                   backlogName={name}
                   className="flex-1 overflow-y-auto lg:mt-3 lg:min-h-[500px]"
+                  onAuthorPlan={() => planAuthorMutation.mutate()}
+                  authorPlanPending={planAuthorMutation.isPending}
+                  authorPlanError={planAuthorMutation.error instanceof Error ? planAuthorMutation.error.message : null}
                 />
               )}
               {activeTab === "decide" && backlogKind && name && item && (
                 <ProposalSessionsPanel target={{ type: "backlog_item", ref: `${backlogKind}/${name}`, name: item.title || name }} />
               )}
               {activeTab === "files" && fileWorkspaceElement}
-              {activeTab === "output" && (
-                <div className="flex-1 space-y-0 overflow-y-auto pb-4 lg:pt-3">
-                  <OutputTab
-                    executionHistory={executionHistory}
-                    agentRunIsBusy={agentRunIsBusy}
-                    latestAgentActivity={latestAgentActivity}
-                    agentManagerUiUrl={agentManagerUiUrl}
-                    reviewRounds={reviewRounds}
-                    isGatheringEvidence={isGatheringEvidence}
-                    isAwaitingManualReview={isAwaitingManualReview}
-                    backlogKind={backlogKind ?? ""}
-                    backlogName={name ?? ""}
-                    onStopRun={(runId) => void stopRun(runId)}
-                    onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                    onArchive={item ? () => handlers.handleArchiveItem() : undefined}
-                    onVerifyEvidence={(round, evidenceId, verified) => {
-                      const execId = executionHistory?.[0]?.executionId;
-                      void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
-                        .then(() => queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }));
-                    }}
-                    onRequestMoreEvidence={(round, evidenceId) => {
-                      useReviewStore.getState().openRequestPanel(round, evidenceId);
-                    }}
-                  />
-                </div>
-              )}
               {activeTab === "related" && backlogKind && name && <RelatedTab target={{ kind: "backlog", backlogKind, name }} enabled />}
               {activeTab === "activity" && (
                 <div className="flex-1 space-y-0 overflow-y-auto pb-4 lg:pt-3">
-                  <ActivityTab
-                    timeline={timeline}
-                    agentRunIsBlocking={agentRunIsBlocking}
-                    latestAgentActivity={latestAgentActivity}
-                    agentManagerUiUrl={agentManagerUiUrl}
-                    onStopRun={(runId) => void stopRun(runId)}
-                    onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                    onViewExecution={(exec) => navigate(executionDetailPath(exec.executionId))}
-                  />
+                  {activeExecution ? <ActiveWorkCard executionId={activeExecution.executionId} agentManagerUrl={agentManagerUiUrl} onStopped={() => { void queryClient.invalidateQueries({ queryKey: ["executions", backlogKind, name] }); void queryClient.invalidateQueries({ queryKey: ["work-feed", backlogKind, name] }); }} /> : null}
+                  {!activeExecution && (item.status === "review_pending" || item.status === "in_review") ? <ReviewDecisionCard kind={backlogKind} name={name} round={reviewRounds.at(-1)} onDecided={() => { void data.invalidateItem(); void queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }); void queryClient.invalidateQueries({ queryKey: ["work-feed", backlogKind, name] }); }} onSendBack={() => { const round = reviewRounds.at(-1); const context = ["Address the review feedback before continuing.", round?.agent_assessment ? `Review note: ${round.agent_assessment}` : "", round?.disposition ? `Disposition: ${round.disposition.kind} — ${round.disposition.rationale}` : ""].filter(Boolean).join("\n\n"); uiStore.setFollowUpContext(context); uiStore.setFollowUpTarget(executionHistory?.[0] ?? null); }} /> : null}
+                  <WorkFeedList entries={workFeed} loading={isLoadingWorkFeed} error={workFeedError instanceof Error ? workFeedError : null} />
                 </div>
               )}
             </>

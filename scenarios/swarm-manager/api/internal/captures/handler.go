@@ -82,6 +82,14 @@ func (h *Handler) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
 	}
 }
 
+// SetWorkflowActivityRecorder makes capture classification launches visible in
+// the common activity ledger at the WorkflowService transport boundary.
+func (h *Handler) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActivityRecorder) {
+	if workflow, ok := h.classificationWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+}
+
 // SetBacklogCreator sets the backlog item creator for the create-item endpoint.
 func (h *Handler) SetBacklogCreator(creator BacklogItemCreator) {
 	h.backlogCreator = creator

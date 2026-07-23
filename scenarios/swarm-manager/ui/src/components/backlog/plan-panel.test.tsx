@@ -69,6 +69,17 @@ describe("PlanPanel", () => {
     });
   });
 
+  it("offers a direct plan-author action when a plan is absent", async () => {
+    vi.mocked(backlogService.getRenderedPlan).mockRejectedValue(new ApiError("http", "Plan not found", { status: 404, code: "plan_ref_not_found" }));
+    const onAuthorPlan = vi.fn();
+
+    renderWithProviders(<PlanPanel backlogKind="idea" backlogName="test-item" onAuthorPlan={onAuthorPlan} />);
+
+    await waitFor(() => expect(screen.getByTestId("backlog-plan-author-cta")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("backlog-plan-author-cta"));
+    expect(onAuthorPlan).toHaveBeenCalledTimes(1);
+  });
+
   it("fetches and renders canonical plan-manager markdown", async () => {
     vi.mocked(backlogService.getRenderedPlan).mockResolvedValue(mockRenderedPlan);
 

@@ -182,6 +182,14 @@ func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
 	}
 }
 
+// SetWorkflowActivityRecorder records independent-review workflow launches in
+// the shared activity ledger at the StartWorkflow chokepoint.
+func (s *Service) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActivityRecorder) {
+	if workflow, ok := s.workflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+}
+
 func (s *Service) SetTransitionRegistry(registry transitions.Registry) {
 	s.transitionRegistry = registry
 }
@@ -263,6 +271,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 	res, err := s.workflow.StartWorkflow(ctx, agentmanager.Invocation{
 		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
 		IdempotencyKey: fmt.Sprintf("review-%s-r%d", params.ExecutionID, roundNum), FirstRunNodeID: "review",
+		Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: params.BacklogKind, OwnerName: params.BacklogName, OwnerTitle: params.ItemTitle, Purpose: "review"},
 	})
 	if err != nil {
 		return fmt.Errorf("start independent review workflow: %w", err)

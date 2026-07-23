@@ -69,6 +69,7 @@ export interface IBacklogService {
   getFiles(kind: BacklogKind, name: string): Promise<BacklogFile[]>;
   getFileContent(kind: BacklogKind, name: string, filePath: string): Promise<string>;
   getRenderedPlan(kind: BacklogKind, name: string): Promise<RenderedBacklogPlan>;
+  startPlanAuthor(kind: BacklogKind, name: string): Promise<{ executionId: string; definitionDigest: string }>;
   uploadFile(kind: BacklogKind, name: string, file: File, path?: string): Promise<BacklogFile>;
   saveFileContent(
     kind: BacklogKind,
@@ -90,6 +91,8 @@ export interface IBacklogService {
       startedBy?: string;
       confirm?: boolean;
       force?: boolean;
+      strategy?: string;
+      maxSlices?: number;
     }
   ): Promise<QueueResponse>;
   retry(

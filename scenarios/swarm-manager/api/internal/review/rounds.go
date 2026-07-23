@@ -167,7 +167,11 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 				slog.Error("resolve evidence-request workflow", "error", resolveErr, "thread_id", threadID)
 				return
 			}
-			res, startErr := s.workflow.StartWorkflow(opCtx, agentmanager.Invocation{Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input, IdempotencyKey: "evidence-" + threadID, FirstRunNodeID: "gather"})
+			res, startErr := s.workflow.StartWorkflow(opCtx, agentmanager.Invocation{
+				Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
+				IdempotencyKey: "evidence-" + threadID, FirstRunNodeID: "gather",
+				Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: kind, OwnerName: name, Purpose: "review"},
+			})
 			if startErr != nil {
 				slog.Error("start evidence-request workflow", "error", startErr, "thread_id", threadID)
 				return

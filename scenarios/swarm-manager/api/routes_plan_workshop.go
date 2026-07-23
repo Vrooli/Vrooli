@@ -71,11 +71,18 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 	// live Swarm or Plan Manager mutation APIs.
 	if registry, err := transitions.LoadDir(filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "swarm-transitions")); err == nil {
 		workflow := agentmanager.NewWorkflowService()
+		if s.agentActivitySvc != nil {
+			workflow.SetWorkflowActivityRecorder(s.agentActivitySvc)
+		}
 		s.planWorkshopWorkflow = workflow
 		service.SetReconciliationStarter(func(ctx context.Context, session planworkshop.Session, response planworkshop.Response) (planworkshop.WorkflowProvenance, error) {
 			locator, err := registry.ResolveWorkflow("plan.workshop.reconcile")
 			if err != nil {
 				return planworkshop.WorkflowProvenance{}, err
+			}
+			parts := strings.SplitN(session.Subject.Ref, "/", 2)
+			if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+				return planworkshop.WorkflowProvenance{}, fmt.Errorf("backlog workshop subject ref must be kind/name")
 			}
 			accepted, err := planWorkshopAcceptedProposalPayloads(s.agentSessionStore, response.Accepted)
 			if err != nil {
@@ -102,6 +109,7 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 				Owner: locator.Owner, WorkflowKey: locator.Key, Input: input,
 				IdempotencyKey: "plan-workshop/" + session.ID + "/" + response.ID,
 				FirstRunNodeID: "reconcile",
+				Activity:       &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: parts[0], OwnerName: parts[1], Purpose: "workshop"},
 			})
 			if err != nil {
 				return planworkshop.WorkflowProvenance{}, err
@@ -127,7 +135,15 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 			if err != nil {
 				return planworkshop.WorkflowProvenance{}, fmt.Errorf("encode review snapshot: %w", err)
 			}
-			started, err := workflow.StartWorkflow(ctx, agentmanager.Invocation{Owner: locator.Owner, WorkflowKey: locator.Key, Input: input, IdempotencyKey: "plan-workshop/review/" + session.ID + "/" + session.SubjectVersion, FirstRunNodeID: "review"})
+			parts := strings.SplitN(session.Subject.Ref, "/", 2)
+			if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+				return planworkshop.WorkflowProvenance{}, fmt.Errorf("backlog workshop subject ref must be kind/name")
+			}
+			started, err := workflow.StartWorkflow(ctx, agentmanager.Invocation{
+				Owner: locator.Owner, WorkflowKey: locator.Key, Input: input,
+				IdempotencyKey: "plan-workshop/review/" + session.ID + "/" + session.SubjectVersion, FirstRunNodeID: "review",
+				Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: parts[0], OwnerName: parts[1], Purpose: "workshop"},
+			})
 			if err != nil {
 				return planworkshop.WorkflowProvenance{}, err
 			}

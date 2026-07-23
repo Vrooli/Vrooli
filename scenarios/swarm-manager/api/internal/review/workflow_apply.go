@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -66,6 +67,10 @@ func (s *Service) ApplyWorkflowRound(ctx context.Context, kind, name string, rou
 				outcome = "accepted"
 			case "needs_work":
 				outcome = "changes-requested"
+			case "not_assessable":
+				outcome = "inconclusive"
+			default:
+				slog.Warn("independent review returned an unknown verdict", "verdict", handoff.Verdict, "execution_id", round.AgentWorkflowExecutionID)
 			}
 		}
 	}

@@ -521,41 +521,35 @@ Light mode now updates all slate-based UI components consistently, and editor/ma
 
 *Last updated: 2026-02-04 (Phase 30: Theme Tokenization + Light Mode Coherence)*
 
-## Output Tab Consolidation (2026-04-02)
+## Unified Activity Surface (2026-07-22)
 
 ### Problem
-Execution/activity data was scattered across three disconnected UI surfaces:
-- `BacklogActiveRunBanner` — vanished when agent finished (no completed execution indicator)
-- `BacklogScenariosPanel` on Info tab — mixed post-run review results with static metadata
-- `ActivityTimeline` in a hidden Drawer — not discoverable
+Execution and review information was split across legacy Output and Activity
+tabs, which made it difficult to follow one work episode from launch through
+the terminal operator decision.
 
 ### Changes
-1. **New Output tab** (4th tab) consolidates all execution output:
-   - `LatestExecutionSummary` — persistent card, always visible (empty/active/completed states)
-   - `ScenarioReviewResults` — target scenario chips + post-run review status
-   - `ActivityTimeline` — inline, promoted from Drawer
+1. **Activity is the single agent-work tab**:
+   - `ActiveWorkCard` reads live workflow progress on demand.
+   - `ReviewDecisionCard` presents the terminal review decision and changed-files link.
+   - `WorkFeedList` projects executions, workshops, reviews, workflows, and item events.
 
-2. **Info tab simplified**:
-   - `BacklogScenariosPanel` now only shows scenario name chips (navigation), no review results
-   - Active run banner removed from Info tab
+2. **Detail stays lightweight**: feed rows open a responsive drawer and link to
+   their source detail instead of embedding multiple competing review surfaces.
 
-3. **Deleted components**:
-   - `backlog-active-run-banner.tsx` — replaced by `LatestExecutionSummary`
-   - ActivityTimeline Drawer in `backlog-dialogs.tsx` — replaced by inline tab content
-   - History button in `backlog-desktop-header.tsx` — no longer needed
+3. **Deleted duplication**: the legacy Output tab, client-side activity merge,
+   activity timeline, and execution-page Review tab are retired.
 
-4. **Store cleanup**:
-   - Removed `isTimelineOpen`, `openTimeline`, `closeTimeline` from `backlog-detail-ui-store`
-   - Timeline polling now gated on `activeTab === "output"` (URL state)
+4. **Polling is scoped**: the active card reads while work is active; the feed
+   refreshes only while the Activity tab is visible.
 
-5. **Tab badge**: Output tab shows pulsing cyan dot when agent is active (visible on all tabs)
+5. **No duplicate review controls**: judgment happens from the backlog item's
+   Activity surface, while execution detail retains Overview, Changes, and Prompt.
 
 ### Files Modified
 - `ui/src/pages/BacklogDetailsPage.tsx`
-- `ui/src/components/backlog/output-tab.tsx` (new)
-- `ui/src/components/backlog/latest-execution-summary.tsx` (new)
-- `ui/src/components/backlog/scenario-review-results.tsx` (new)
-- `ui/src/components/backlog/backlog-scenarios-panel.tsx` (simplified)
+- `ui/src/pages/BacklogDetailsPage.tsx`
+- `ui/src/components/backlog/activity-surface/`
 - `ui/src/components/backlog/backlog-desktop-header.tsx` (simplified)
 - `ui/src/components/backlog/backlog-dialogs.tsx` (simplified)
 - `ui/src/stores/backlog-detail-ui-store.ts` (cleaned)

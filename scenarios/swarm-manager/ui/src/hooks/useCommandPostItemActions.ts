@@ -63,7 +63,7 @@ export interface UseCommandPostItemActionsResult {
 export interface UseCommandPostItemActionsOptions {
   /** Called when the user selects a backlog item for detail view. */
   onSelectBacklog?: (kind: string, name: string) => void;
-  /** Called when the user wants to run an item (opens RunBacklogModal). */
+  /** Called when the user wants to run an item (opens RunSheet). */
   onRunItem?: (kind: BacklogKind, name: string, title?: string) => void;
 }
 

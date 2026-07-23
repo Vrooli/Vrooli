@@ -32,6 +32,8 @@ export function createQueueMethods(apiClient: IApiClient) {
         startedBy?: string;
         confirm?: boolean;
         force?: boolean;
+        strategy?: string;
+        maxSlices?: number;
       }
     ): Promise<QueueResponse> {
       const msg = buildMessage(QueueBacklogItemRequestSchema, {
@@ -40,6 +42,8 @@ export function createQueueMethods(apiClient: IApiClient) {
         ...(options?.startedBy ? { startedBy: options.startedBy } : {}),
         ...(options?.confirm !== undefined ? { confirm: options.confirm } : {}),
         ...(options?.force !== undefined ? { force: options.force } : {}),
+        ...(options?.strategy ? { strategy: options.strategy } : {}),
+        ...(options?.maxSlices ? { maxSlices: options.maxSlices } : {}),
       });
       const data = await apiClient.post<unknown>(
         API_ENDPOINTS.backlogQueue(kind, name),

@@ -12,6 +12,7 @@ import (
 	"swarm-manager/internal/apierr"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -29,14 +30,15 @@ type phasedPlanResult struct {
 }
 
 type phasedPlanSnapshot struct {
-	PlanReference  string
-	FrontierDigest string
-	ExecutionID    string
-	EntityKind     string
-	EntityName     string
-	EntityVersion  string
-	MaxSlices      int
-	WriteScope     []string
+	PlanReference   string
+	FrontierDigest  string
+	ExecutionID     string
+	PlanExecutionID string
+	EntityKind      string
+	EntityName      string
+	EntityVersion   string
+	MaxSlices       int
+	WriteScope      []string
 }
 
 type phasedPlanResultBlocker struct {
@@ -115,8 +117,15 @@ func buildPhasedPlanSnapshot(item backlogItem, record Record, planHandle string,
 	return phasedPlanSnapshot{
 		PlanReference: planHandle, FrontierDigest: frontier, ExecutionID: record.ExecutionID,
 		EntityKind: item.Kind, EntityName: item.Name, EntityVersion: digestStrings(string(itemBytes)),
-		MaxSlices: 6, WriteScope: append([]string(nil), item.AcceptanceAllow...),
+		MaxSlices: firstPositive(record.MaxSlices, 6), WriteScope: append([]string(nil), item.AcceptanceAllow...), PlanExecutionID: record.PlanManagerExecutionID,
 	}, nil
+}
+
+func firstPositive(value, fallback int) int {
+	if value > 0 {
+		return value
+	}
+	return fallback
 }
 
 func (snapshot phasedPlanSnapshot) input() (*structpb.Value, error) {
@@ -125,7 +134,8 @@ func (snapshot phasedPlanSnapshot) input() (*structpb.Value, error) {
 		writeScope[i] = path
 	}
 	return structpb.NewValue(map[string]any{
-		"plan": map[string]any{"reference": snapshot.PlanReference, "frontierDigest": snapshot.FrontierDigest},
+		"plan":            map[string]any{"reference": snapshot.PlanReference, "frontierDigest": snapshot.FrontierDigest},
+		"planExecutionId": snapshot.PlanExecutionID,
 		"consumer": map[string]any{
 			"executionId": snapshot.ExecutionID, "entityKind": snapshot.EntityKind,
 			"entityName": snapshot.EntityName, "entityVersion": snapshot.EntityVersion,
@@ -240,6 +250,9 @@ func (s *Service) ApplyPhasedPlanWorkflow(ctx context.Context, executionID strin
 			return PhasedPlanApplyResult{}, err
 		}
 	}
+	if err := s.reconcilePlanManagerCompletion(ctx, &record); err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
 
 	if err := s.finishPhasedPlanClaim(&record); err != nil {
 		return PhasedPlanApplyResult{}, err
@@ -253,6 +266,44 @@ func (s *Service) ApplyPhasedPlanWorkflow(ctx context.Context, executionID strin
 	}
 	s.dispatchStatusUpdate(record)
 	return PhasedPlanApplyResult{Record: record}, nil
+}
+
+// reconcilePlanManagerCompletion makes Plan Manager the final authority for a
+// drain that claims completion. The agent can complete phases through the
+// bound execution, but Swarm never infers the terminal plan state from a
+// handoff alone.
+func (s *Service) reconcilePlanManagerCompletion(ctx context.Context, record *Record) error {
+	if record.AgentWorkflowOutcome != "complete" || strings.TrimSpace(record.PlanManagerExecutionID) == "" || strings.TrimSpace(record.PlanManagerReconciledAt) != "" {
+		return nil
+	}
+	client, ok := s.planRenderer.(interface {
+		GetStatus(context.Context, *executionv1.GetStatusRequest) (*executionv1.GetStatusResponse, error)
+		Complete(context.Context, *executionv1.CompleteRequest) (*executionv1.CompleteResponse, error)
+	})
+	if !ok {
+		return nil
+	}
+	status, err := client.GetStatus(ctx, &executionv1.GetStatusRequest{ExecutionId: record.PlanManagerExecutionID})
+	if err != nil {
+		return apierr.BadGateway("get plan-manager execution status: %s", err)
+	}
+	if status.GetExecution() == nil {
+		return apierr.BadGateway("plan-manager status omitted execution")
+	}
+	if !status.GetExecution().GetComplete() {
+		if _, err := client.Complete(ctx, &executionv1.CompleteRequest{ExecutionId: record.PlanManagerExecutionID}); err != nil {
+			return apierr.BadGateway("reconcile plan-manager execution completion: %s", err)
+		}
+		status, err = client.GetStatus(ctx, &executionv1.GetStatusRequest{ExecutionId: record.PlanManagerExecutionID})
+		if err != nil {
+			return apierr.BadGateway("verify reconciled plan-manager execution: %s", err)
+		}
+		if status.GetExecution() == nil || !status.GetExecution().GetComplete() {
+			return apierr.Conflict("drain claimed complete but bound plan-manager execution is unfinished")
+		}
+	}
+	record.PlanManagerReconciledAt = nowRFC3339()
+	return nil
 }
 
 func (s *Service) validatePhasedPlanCompletion(ctx context.Context, record Record, completion agentmanager.InvocationCompletion) error {

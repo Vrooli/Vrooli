@@ -7,7 +7,7 @@
 
 import { BacklogFormDialog } from "./backlog-form-dialog";
 import { AcceptanceGlobDialog } from "./acceptance-glob-dialog";
-import { RunBacklogModal } from "./run-backlog-modal";
+import { RunSheet } from "./run-sheet";
 import { RequirementFormDialog } from "./requirement-form-dialog";
 import { ModuleFormDialog } from "./module-form-dialog";
 import { TargetFormDialog } from "./target-form-dialog";
@@ -98,7 +98,7 @@ export function BacklogDialogs({
         />
       )}
 
-      <RunBacklogModal
+      <RunSheet
         isOpen={ui.showRunModal}
         onClose={ui.closeRunModal}
         target={backlogKind && name ? { kind: backlogKind, name, title: item?.title } : undefined}
@@ -152,6 +152,7 @@ export function BacklogDialogs({
           onClose={() => ui.setFollowUpTarget(null)}
           execution={ui.followUpTarget}
           reviewRounds={data.reviewRounds}
+          initialContext={ui.followUpContext}
           onSuccess={() => {
             ui.setFollowUpTarget(null);
             data.invalidateItem();

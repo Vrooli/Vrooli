@@ -20,8 +20,7 @@ import { filterSnoozed, snoozeKeyForBacklog } from "../../../../lib/snooze-utils
 import { buildBacklogNodeId } from "../../lib/node-id-parser";
 import { matchesSearch } from "./useSidebarSearch";
 import { BacklogCard } from "../../../../components/backlog/backlog-card";
-import { RunBacklogModal } from "../../../../components/backlog/run-backlog-modal";
-import type { RunBacklogTarget } from "../../../../components/backlog/run-backlog-modal";
+import { RunSheet, type RunSheetTarget } from "../../../../components/backlog/run-sheet";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
 import { Button } from "../../../../components/ui/button";
 import { ContextMenu } from "../../../../components/ui/context-menu";
@@ -93,7 +92,7 @@ function BacklogTabImpl({
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const snoozedKeys = useSnoozedKeys();
 
-  const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
+  const [runModalTarget, setRunModalTarget] = useState<RunSheetTarget | undefined>();
   const [pendingDismissKey, setPendingDismissKey] = useState<string | null>(null);
 
   // Stable callbacks for the action hook so its internal memos don't churn.
@@ -241,8 +240,7 @@ function BacklogTabImpl({
         />
       </Profiler>
 
-      {/* Run modal */}
-      <RunBacklogModal
+      <RunSheet
         isOpen={!!runModalTarget}
         onClose={handleCloseRunModal}
         target={runModalTarget}

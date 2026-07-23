@@ -154,7 +154,7 @@ export function BacklogFileWorkspace({
 
   return (
     <div className="h-[calc(100dvh-6rem)] lg:h-auto lg:flex-1">
-      <div className="h-full overflow-hidden lg:rounded-xl lg:border lg:border-white/10 lg:bg-slate-900/30">
+      <div className="h-full overflow-hidden">
         <div
           ref={workspaceRef}
           className={cn(
@@ -190,6 +190,7 @@ export function BacklogFileWorkspace({
                   fileName={selectedFile.name}
                   compactHeader
                   stickyHeader
+                  readOnly={isProtectedSelectedFile}
                   headerActions={fileHeaderActions}
                   className="flex-1 border-0 rounded-none bg-transparent"
                   contentClassName="flex-1 max-h-none"

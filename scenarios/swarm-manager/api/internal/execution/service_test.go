@@ -42,6 +42,8 @@ type stubPhasedPlanWorkflow struct {
 	collectCalls int
 	approveCalls int
 	cancelCalls  int
+	progress     agentmanager.WorkflowProgress
+	progressErr  error
 }
 
 type stubConclusionWorkflow struct {
@@ -86,6 +88,33 @@ func (s *stubPhasedPlanWorkflow) StartWorkflow(_ context.Context, invocation age
 func (s *stubPhasedPlanWorkflow) CollectWorkflow(_ context.Context, _ string) (agentmanager.InvocationCompletion, error) {
 	s.collectCalls++
 	return s.completion, s.collectErr
+}
+
+func (s *stubPhasedPlanWorkflow) GetWorkflowProgress(_ context.Context, _ string) (agentmanager.WorkflowProgress, error) {
+	return s.progress, s.progressErr
+}
+
+func TestWorkflowProgressReadsAgentManagerTraceWithoutPersistingIt(t *testing.T) {
+	root := t.TempDir()
+	workflow := &stubPhasedPlanWorkflow{progress: agentmanager.WorkflowProgress{CurrentNode: "slice", SliceCount: 2, Turns: 7, CostUSD: 0.42, EdgeTraversals: map[string]int32{"slice->review": 2}, UpdatedAt: "2026-07-22T12:00:00Z"}}
+	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, "executions.json"), PlanRenderer: testPlanRenderer(), PhasedPlanWorkflow: workflow})
+	if err := service.store.Save([]Record{{ExecutionID: "execution-1", AgentWorkflowExecutionID: "workflow-1", BacklogKind: "execute", BacklogName: "item-a", Status: StatusRunning, Mode: ModeYOLO}}); err != nil {
+		t.Fatal(err)
+	}
+	progress, err := service.WorkflowProgress(context.Background(), "execution-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if progress.CurrentNode != "slice" || progress.SliceCount != 2 || progress.Turns != 7 {
+		t.Fatalf("progress=%+v", progress)
+	}
+	stored, err := service.Get(context.Background(), "execution-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.AgentWorkflowExecutionID != "workflow-1" {
+		t.Fatalf("live progress mutated execution correlation: %+v", stored)
+	}
 }
 
 func (s *stubPhasedPlanWorkflow) SignalWorkflow(context.Context, string, string, *structpb.Value, string) error {

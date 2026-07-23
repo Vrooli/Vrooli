@@ -18,6 +18,9 @@ export interface PlanPanelProps {
   backlogKind: BacklogKind;
   backlogName: string;
   className?: string;
+  onAuthorPlan?: () => void;
+  authorPlanPending?: boolean;
+  authorPlanError?: string | null;
 }
 
 const TOC_ITEM_STYLES: Record<number, string> = {
@@ -26,7 +29,14 @@ const TOC_ITEM_STYLES: Record<number, string> = {
   3: "pl-8 text-slate-500 text-xs",
 };
 
-export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProps) {
+export function PlanPanel({
+  backlogKind,
+  backlogName,
+  className,
+  onAuthorPlan,
+  authorPlanPending = false,
+  authorPlanError,
+}: PlanPanelProps) {
   const [copySuccess, setCopySuccess] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -116,6 +126,12 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
         <p className="text-xs text-slate-500">
           Author an actionable plan through plan.author, then start plan review and accept the canonical plan before queueing.
         </p>
+        {onAuthorPlan && (
+          <Button type="button" size="sm" onClick={onAuthorPlan} disabled={authorPlanPending} data-testid="backlog-plan-author-cta">
+            {authorPlanPending ? "Starting authoring…" : "Author plan"}
+          </Button>
+        )}
+        {authorPlanError && <p className="text-xs text-red-300" role="alert">{authorPlanError}</p>}
       </div>
     );
   }

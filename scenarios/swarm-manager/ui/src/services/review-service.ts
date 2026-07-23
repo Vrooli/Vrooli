@@ -64,6 +64,7 @@ export interface ReviewRound {
   agent_assessment?: string;
   classification?: string;
   notes?: string[];
+  disposition?: { kind: string; rationale: string; confidence: "high" | "medium" | "low"; scope?: string };
   evidence: EvidenceItem[];
   request_threads?: RequestThread[];
   run_id?: string;

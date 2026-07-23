@@ -520,10 +520,6 @@
       "testId": "backlog-details-tab-files",
       "selector": "[data-testid=\"backlog-details-tab-files\"]"
     },
-    "backlogDetails.tabOutput": {
-      "testId": "backlog-details-tab-output",
-      "selector": "[data-testid=\"backlog-details-tab-output\"]"
-    },
     "backlogDetails.tabActivity": {
       "testId": "backlog-details-tab-activity",
       "selector": "[data-testid=\"backlog-details-tab-activity\"]"
@@ -535,10 +531,6 @@
     "backlogDetails.relatedContent": {
       "testId": "backlog-details-related-content",
       "selector": "[data-testid=\"backlog-details-related-content\"]"
-    },
-    "backlogDetails.outputTab": {
-      "testId": "backlog-details-output-tab",
-      "selector": "[data-testid=\"backlog-details-output-tab\"]"
     },
     "backlogDetails.activityTab": {
       "testId": "backlog-details-activity-tab",
@@ -968,22 +960,6 @@
       "testId": "execution-details-view-run",
       "selector": "[data-testid=\"execution-details-view-run\"]"
     },
-    "runBacklog.dialog": {
-      "testId": "run-backlog-dialog",
-      "selector": "[data-testid=\"run-backlog-dialog\"]"
-    },
-    "runBacklog.submitButton": {
-      "testId": "run-backlog-submit",
-      "selector": "[data-testid=\"run-backlog-submit\"]"
-    },
-    "runBacklog.blockingReasons": {
-      "testId": "run-backlog-blocking-reasons",
-      "selector": "[data-testid=\"run-backlog-blocking-reasons\"]"
-    },
-    "runBacklog.error": {
-      "testId": "run-backlog-error",
-      "selector": "[data-testid=\"run-backlog-error\"]"
-    },
     "followUp.dialog": {
       "testId": "follow-up-dialog",
       "selector": "[data-testid=\"follow-up-dialog\"]"
@@ -1027,10 +1003,6 @@
     "followUp.runHealth": {
       "testId": "follow-up-run-health",
       "selector": "[data-testid=\"follow-up-run-health\"]"
-    },
-    "review.flow": {
-      "testId": "review-flow",
-      "selector": "[data-testid=\"review-flow\"]"
     },
     "review.statusHeader": {
       "testId": "review-status-header",

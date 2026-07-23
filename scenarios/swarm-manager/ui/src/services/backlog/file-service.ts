@@ -97,6 +97,17 @@ export function createFileMethods(apiClient: IApiClient) {
       };
     },
 
+    async startPlanAuthor(kind: BacklogKind, name: string): Promise<{ executionId: string; definitionDigest: string }> {
+      const response = await apiClient.post<{ execution_id?: string; definition_digest?: string }>(
+        API_ENDPOINTS.backlogPlanAuthor(kind, name),
+        {},
+      );
+      return {
+        executionId: response.execution_id ?? "",
+        definitionDigest: response.definition_digest ?? "",
+      };
+    },
+
     async uploadFile(kind: BacklogKind, name: string, file: File, path?: string): Promise<BacklogFile> {
       return uploadFile(kind, name, file, path);
     },

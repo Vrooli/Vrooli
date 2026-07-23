@@ -85,7 +85,7 @@ func parseReviewHandoff(raw json.RawMessage) reviewHandoff {
 }
 
 func isReviewSuccessOutcome(outcome string) bool {
-	return outcome == "accepted" || outcome == "changes-requested"
+	return outcome == "accepted" || outcome == "changes-requested" || outcome == "inconclusive"
 }
 
 func validDisposition(disposition *Disposition) bool {

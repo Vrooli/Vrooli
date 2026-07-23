@@ -35,6 +35,7 @@ interface BacklogDetailUIState {
   showGlobDialog: boolean;
   // Parameterised dialog state
   followUpTarget: ExecutionRecord | null;
+  followUpContext?: string;
   roundToDelete: number | null;
 
   // CRUD dialogs (mirror useDialogState shape)
@@ -57,6 +58,7 @@ interface BacklogDetailUIState {
   openGlob: () => void;
   closeGlob: () => void;
   setFollowUpTarget: (target: ExecutionRecord | null) => void;
+  setFollowUpContext: (context?: string) => void;
   setRoundToDelete: (round: number | null) => void;
 
   // CRUD dialog actions
@@ -86,6 +88,7 @@ const INITIAL_STATE = {
   showRunModal: false,
   showGlobDialog: false,
   followUpTarget: null,
+  followUpContext: undefined,
   roundToDelete: null,
   reqDialog: closedDialog<{ groupId: string; req?: ArchiveRequirementRecord }>(),
   moduleDialog: closedDialog<string>(),
@@ -107,7 +110,8 @@ export const useBacklogDetailUIStore = create<BacklogDetailUIState>((set) => ({
   closeRunModal: () => set({ showRunModal: false }),
   openGlob: () => set({ showGlobDialog: true }),
   closeGlob: () => set({ showGlobDialog: false }),
-  setFollowUpTarget: (target) => set({ followUpTarget: target }),
+  setFollowUpTarget: (target) => set({ followUpTarget: target, ...(target ? {} : { followUpContext: undefined }) }),
+  setFollowUpContext: (context) => set({ followUpContext: context }),
   setRoundToDelete: (round) => set({ roundToDelete: round }),
 
   // CRUD dialogs

@@ -1,14 +1,14 @@
 /**
  * PlanBoardActions — the board's action layer, re-hosting the Command
  * Post's proven wiring (D9): `useCommandPostItemActions` drives per-card
- * run/archive/status mutations, the existing RunBacklogModal and decision drawer
+ * run/archive/status mutations, the RunSheet and decision drawer
  * DecisionStreamView. Cards reach the layer through PlanCardActionsContext.
  */
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { backlogDetailPath } from "../../../app/routes/route-paths";
-import { RunBacklogModal, type RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
+import { RunSheet, type RunSheetTarget } from "../../../components/backlog/run-sheet";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useCommandPostItemActions } from "../../../hooks/useCommandPostItemActions";
 import { useBacklogStore } from "../../../stores/backlog-store";
@@ -34,8 +34,8 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
   const backlogItems = useBacklogStore((s) => s.items);
   const snooze = useSnoozeStore((s) => s.snooze);
 
-  const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | undefined>();
-  const [pendingBulkTargets, setPendingBulkTargets] = useState<RunBacklogTarget[] | null>(null);
+  const [runModalTargets, setRunModalTargets] = useState<RunSheetTarget[] | undefined>();
+  const [pendingBulkTargets, setPendingBulkTargets] = useState<RunSheetTarget[] | null>(null);
   const drawerOpen = searchParams.get("drawer") === "decisions";
   const decisionScope = searchParams.get("decisionScope");
   const decisionQuestionId = searchParams.get("decisionQuestion");
@@ -86,7 +86,7 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
     setDrawerParam(false);
   }, [setDrawerParam]);
 
-  const runTargets = useCallback((targets: RunBacklogTarget[]) => {
+  const runTargets = useCallback((targets: RunSheetTarget[]) => {
     if (targets.length === 0) return;
     if (targets.length > BULK_AGENT_CONFIRM_THRESHOLD) {
       setPendingBulkTargets(targets);
@@ -143,7 +143,7 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
         confirmLabel="Proceed"
       />
 
-      <RunBacklogModal
+      <RunSheet
         isOpen={!!runModalTargets}
         onClose={() => setRunModalTargets(undefined)}
         targets={runModalTargets}
@@ -152,4 +152,3 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
     </PlanCardActionsContext.Provider>
   );
 }
-

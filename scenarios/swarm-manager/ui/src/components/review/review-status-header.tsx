@@ -6,7 +6,7 @@
  * - "Review" opens the launch sheet for Full Review / Gather Evidence
  * - "Stop Review" when finalization is in progress
  *
- * Follow-up / Fix Issues / Archive actions are in the ReviewFlow footer
+ * Follow-up and evidence actions are presented from the Activity decision card.
  * (below the evidence panel) so users see them after reviewing evidence.
  */
 

@@ -7,12 +7,35 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func TestWorkflowServiceProgressReadsLiveTrace(t *testing.T) {
+	now := timestamppb.New(time.Now().UTC())
+	execution := &domainpb.WorkflowExecution{Id: "workflow-1", CurrentNodeId: "slice_review", UpdatedAt: now, BudgetUsage: &domainpb.WorkflowBudgetUsage{Turns: 4, Tokens: 900, CostUsd: 0.12}, EdgeTraversals: map[string]int32{"review": 2}}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/workflow-executions/workflow-1/trace" {
+			http.NotFound(w, r)
+			return
+		}
+		writeWorkflowProto(t, w, &apipb.GetWorkflowExecutionTraceResponse{Execution: execution, Journal: []*domainpb.WorkflowJournalEntry{{NodeId: "slice"}, {NodeId: "slice"}, {NodeId: "review"}}}, http.StatusOK)
+	}))
+	defer server.Close()
+	service := NewWorkflowServiceWithClient(NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client()))
+	progress, err := service.GetWorkflowProgress(context.Background(), "workflow-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if progress.CurrentNode != "slice_review" || progress.SliceCount != 2 || progress.Turns != 4 || progress.Tokens != 900 || progress.CostUSD != 0.12 || progress.EdgeTraversals["review"] != 2 || progress.UpdatedAt == "" {
+		t.Fatalf("progress = %#v", progress)
+	}
+}
 
 func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 	input, _ := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "idea", "name": "search", "version": "sha256:v"}, "snapshot": map[string]any{}, "operatorNote": "focus"})

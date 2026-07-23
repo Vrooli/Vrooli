@@ -253,6 +253,7 @@ func (s *Server) setupRoutes() {
 	s.registerAudioRoutes()
 	s.registerSettingsRoutes(scenarioRoot) // Must be before backlog/execution (they depend on settings store)
 	s.registerIntegrationStatusRoutes()
+	eventlog.NewHandler(s.eventRepo).RegisterRoutes(s.router)
 	s.registerAgentActivityRoutes(scenarioRoot) // Must be before backlog/execution (they depend on agent activity)
 	s.registerScenarioRoutes(scenariosDir)
 	s.registerAgentSessionRoutes(s.dataRoot, scenarioRoot)
@@ -272,6 +273,7 @@ func (s *Server) setupRoutes() {
 	}
 	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.wireWorkflowStartGuards(backlogHandler, execSvc)
+	s.registerWorkFeedRoutes()
 	s.registerQueueRoutes(scenarioRoot)
 
 	// --- Cross-domain wiring ---
@@ -412,6 +414,9 @@ func (s *Server) registerBacklogRoutes(dataRoot, scenarioRoot string) *backlog.H
 		panic(err)
 	}
 	backlogHandler.SetAgentSessionArtifactRecorder(s.agentSessionSvc)
+	if s.agentActivitySvc != nil {
+		backlogHandler.SetWorkflowActivityRecorder(s.agentActivitySvc)
+	}
 	s.agentSessionSvc.SetBacklogBatchApplier(backlogHandler)
 	backlogHandler.RegisterRoutes(s.router)
 	s.backlogHandler = backlogHandler
@@ -750,6 +755,7 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 	if s.goalsHandler != nil {
 		workflow := agentmanager.NewWorkflowService()
 		workflow.SetStartGuard(guard)
+		workflow.SetWorkflowActivityRecorder(s.agentActivitySvc)
 		s.goalsHandler.SetWorkflow(goalWorkflowAdapter{invoker: workflow}, registry)
 		s.goalsHandler.SetWorkflowProposalRecorder(goalWorkflowProposalRecorder{sessions: s.agentSessionSvc})
 	}
@@ -760,6 +766,7 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 	if s.capturesHandler != nil {
 		s.capturesHandler.SetTransitionRegistry(registry)
 		s.capturesHandler.SetWorkflowStartGuard(guard)
+		s.capturesHandler.SetWorkflowActivityRecorder(s.agentActivitySvc)
 	}
 	if executionService != nil {
 		executionService.SetWorkflowStartGuard(guard)

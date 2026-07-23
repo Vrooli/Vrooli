@@ -27,15 +27,28 @@ const (
 // Definition is one domain transition. Workflow mechanics belong exclusively
 // to the Agent Manager declaration identified by Workflow.
 type Definition struct {
-	SchemaVersion    string   `json:"schemaVersion"`
-	Key              string   `json:"key"`
-	Subject          string   `json:"subject"`
-	Kind             Kind     `json:"kind"`
-	Workflow         *Locator `json:"workflow,omitempty"`
-	Requires         []string `json:"requires,omitempty"`
-	InputContract    string   `json:"inputContract"`
-	TerminalOutcomes []string `json:"terminalOutcomes"`
-	ApplyAction      string   `json:"applyAction"`
+	SchemaVersion    string              `json:"schemaVersion"`
+	Key              string              `json:"key"`
+	Subject          string              `json:"subject"`
+	Kind             Kind                `json:"kind"`
+	Workflow         *Locator            `json:"workflow,omitempty"`
+	Requires         []string            `json:"requires,omitempty"`
+	InputContract    string              `json:"inputContract"`
+	TerminalOutcomes []string            `json:"terminalOutcomes"`
+	ApplyAction      string              `json:"applyAction"`
+	Strategies       []ExecutionStrategy `json:"strategies,omitempty"`
+}
+
+// ExecutionStrategy is operator-facing metadata for an execution-capable
+// transition. The registry remains the declaration authority; consumers only
+// select an id from this bounded list.
+type ExecutionStrategy struct {
+	ID          string `json:"id"`
+	WorkflowKey string `json:"workflowKey"`
+	DisplayName string `json:"displayName"`
+	Description string `json:"description"`
+	WhenToUse   string `json:"whenToUse"`
+	CostBand    string `json:"costBand"`
 }
 
 type Locator struct {
@@ -152,6 +165,17 @@ func Validate(definition Definition) error {
 			return fmt.Errorf("requires contains duplicate %q", requirement)
 		}
 		seenRequirement[requirement] = struct{}{}
+	}
+	seenStrategy := make(map[string]struct{}, len(definition.Strategies))
+	for _, strategy := range definition.Strategies {
+		strategy.ID = strings.TrimSpace(strategy.ID)
+		if strategy.ID == "" || strings.TrimSpace(strategy.WorkflowKey) == "" || strings.TrimSpace(strategy.DisplayName) == "" || strings.TrimSpace(strategy.Description) == "" || strings.TrimSpace(strategy.WhenToUse) == "" || strings.TrimSpace(strategy.CostBand) == "" {
+			return fmt.Errorf("strategies require id, workflowKey, displayName, description, whenToUse, and costBand")
+		}
+		if _, duplicate := seenStrategy[strategy.ID]; duplicate {
+			return fmt.Errorf("strategies contains duplicate %q", strategy.ID)
+		}
+		seenStrategy[strategy.ID] = struct{}{}
 	}
 	return nil
 }

@@ -32,12 +32,12 @@ func TestDeclaredRegistryCoversEveryTargetTransition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadDir declared registry: %v", err)
 	}
-	if got, want := len(registry.Definitions()), 21; got != want {
+	if got, want := len(registry.Definitions()), 17; got != want {
 		t.Fatalf("registered transition count = %d, want %d", got, want)
 	}
 	for _, key := range []string{
 		"capture.classify", "plan.workshop.review", "plan.workshop.reconcile", "plan.author", "plan.repair", "plan.execute",
-		"work.review", "review.evidence_request", "work.control", "goal.discover", "goal.plan", "milestone.review", "scenario.spec_sync",
+		"work.review", "review.evidence_request", "goal.discover", "goal.plan", "milestone.review", "scenario.spec_sync",
 	} {
 		if _, ok := registry.Get(key); !ok {
 			t.Errorf("registry is missing %q", key)

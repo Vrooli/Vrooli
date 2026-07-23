@@ -73,7 +73,7 @@ func TestPreflightRejectsExpiredFreshness(t *testing.T) {
 	provider := NewWithClock(map[string]Checker{
 		"test-genie": fakeChecker{status: Status{Configured: true, Availability: Available, CheckedAt: now.Add(-time.Hour), FreshUntil: now.Add(-time.Second), DegradedBehavior: "validation-dependent completion is parked"}},
 	}, func() time.Time { return now })
-	err := provider.Preflight(context.Background(), transitions.Definition{Key: "work.fix_and_revalidate", Requires: []string{"test-genie"}})
+	err := provider.Preflight(context.Background(), transitions.Definition{Key: "test.transition", Requires: []string{"test-genie"}})
 	if err == nil || !strings.Contains(err.Error(), "available") {
 		t.Fatalf("Preflight error = %v, want expired-freshness block", err)
 	}

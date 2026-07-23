@@ -5,7 +5,7 @@
  */
 
 import { createContext, useContext } from "react";
-import type { RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
+import type { RunSheetTarget } from "../../../components/backlog/run-sheet";
 import type { StableItemCallbacks } from "../../../hooks/useCommandPostItemActions";
 import type { SnoozePreset } from "../../../lib/snooze-utils";
 import type { BacklogItem } from "../../../types";
@@ -18,7 +18,7 @@ export interface PlanCardActions {
   /** Full backlog item lookup (menu labels need status/kind context). */
   getBacklogItem: (kind: string, name: string) => BacklogItem | undefined;
   /** Open the run modal for one or more targets (bulk-threshold confirmed). */
-  runTargets: (targets: RunBacklogTarget[]) => void;
+  runTargets: (targets: RunSheetTarget[]) => void;
   /** Snooze a card with one of the shared presets. */
   snoozeCard: (card: PlanCardData, preset: SnoozePreset) => void;
   /** Open the decision drawer, optionally scoped to one item (kind/name). */

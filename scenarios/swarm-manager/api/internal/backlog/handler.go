@@ -213,6 +213,18 @@ func (h *Handler) SetPlanAuthorWorkflow(service agentmanager.WorkflowInvoker) {
 	h.planAuthorWorkflow = service
 }
 
+// SetWorkflowActivityRecorder wires the shared launch ledger into every
+// backlog-owned declared workflow. Recording remains inside StartWorkflow so
+// callers cannot accidentally create a separate activity path.
+func (h *Handler) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActivityRecorder) {
+	if workflow, ok := h.planAuthorWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+	if h.planRepair != nil {
+		h.planRepair.SetWorkflowActivityRecorder(recorder)
+	}
+}
+
 // SetTransitionRegistry installs the immutable scenario declaration catalog.
 // Backlog code selects a stable domain transition; only the catalog names the
 // Agent Manager workflow that implements it.
@@ -407,6 +419,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair", h.StartPlanRepair).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair/{repairID}/apply", h.ApplyPlanRepair).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-candidates/{candidateID}/apply", h.ApplyPlanCandidate).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-author", h.StartPlanAuthor).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-author/{executionID}/apply", h.ApplyPlanAuthor).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/process-preflight", h.ProcessPreflight).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Archive).Methods("PATCH")

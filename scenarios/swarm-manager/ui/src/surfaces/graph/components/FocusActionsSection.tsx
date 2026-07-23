@@ -22,7 +22,7 @@ import { defaultApiClient } from "../../../lib/api-client";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { useBacklogStore } from "../../../stores/backlog-store";
 import { executionDetailPath } from "../../../app/routes/route-paths";
-import { RunBacklogModal, type RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
+import { RunSheet, type RunSheetTarget } from "../../../components/backlog/run-sheet";
 import { InlineQuestionStepper } from "../../../components/backlog/inline-question-stepper";
 import { useNodeActionContext } from "../hooks/useNodeActionContext";
 import { useNodePendingQuestions } from "../hooks/useNodePendingQuestions";
@@ -56,7 +56,7 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
   const itemActions = useNodeActionContext(nodeData);
   const pendingQuestions = useNodePendingQuestions(nodeData.kind, nodeData.name);
 
-  const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
+  const [runModalTarget, setRunModalTarget] = useState<RunSheetTarget | undefined>();
   const [isDecisionsExpanded, setDecisionsExpanded] = useState(false);
 
   const invalidateAfterAction = useCallback(() => {
@@ -144,8 +144,7 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
         </div>
       )}
 
-      {/* Run modal */}
-      <RunBacklogModal
+      <RunSheet
         isOpen={!!runModalTarget}
         onClose={() => setRunModalTarget(undefined)}
         target={runModalTarget}
