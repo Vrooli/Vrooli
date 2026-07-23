@@ -22,7 +22,6 @@ This resource is being aligned to the updated `compose-service` structure.
 - `resource.json` is the declarative authority for lifecycle, compose orchestration, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Whisper-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
 
 The intended escalation path is:
 
@@ -78,5 +77,4 @@ the status JSON reports `failed: true` with the terminal reason. A deliberate
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for transcription workflows.
 - Keep runtime state rooted in `${RESOURCE_*_DIR}` paths and compose-managed mounts rather than repo-local mutable directories.
-- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/whisper/docs/OPERATIONS.md) as the architecture boundary for future migrations.

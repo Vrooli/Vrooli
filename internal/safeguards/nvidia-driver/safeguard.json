@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "nvidia_driver",
+  "description": "Validate and repair the NVIDIA kernel driver for the running Ubuntu kernel when NVIDIA display hardware is present",
+  "handler": "nvidia_driver",
+  "platforms": ["linux"],
+  "risk": "high"
+}

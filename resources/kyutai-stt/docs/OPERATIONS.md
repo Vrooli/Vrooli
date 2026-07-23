@@ -16,7 +16,6 @@ Keep responsibilities split cleanly:
   registration. Keep `cli/main.go` thin.
 - `cli/internal/` owns Kyutai STT-specific Go logic that cannot be expressed
   through the manifest or shared control-plane packages.
-- `lib/` contains retained shell behavior (Docker lifecycle, status, API
   helpers, install) used by the shared control plane.
 
 Do not turn `cli/main.go` into the implementation surface. Grow

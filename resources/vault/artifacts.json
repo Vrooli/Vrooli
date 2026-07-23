@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "version": "1.17.6",
+  "checksum_manifest_url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_SHA256SUMS",
+  "checksum_signature_url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_SHA256SUMS.sig",
+  "artifacts": {
+    "linux-amd64": {
+      "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_linux_amd64.zip",
+      "sha256": "0cddc1fbbb88583b5ba5b845f9f8fae47c6fb39a6d48cd543c6ba6fd3ac1a669",
+      "binary_sha256": "9929f66df86b1bb64c2ff5dca14cb3da34f3c064d11e4af2e50ba33177e5cdb0",
+      "archive": "zip",
+      "binary_path": "vault"
+    },
+    "linux-arm64": {
+      "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_linux_arm64.zip",
+      "sha256": "05a48513fd609e26c25d6b6b74005bce3430984fe4161696236cc2226e664f3a",
+      "binary_sha256": "438a552f2a51bbb2a5e135f2a60d9b4b3ecd3cb3dcff776021686ec16f17010a",
+      "archive": "zip",
+      "binary_path": "vault"
+    },
+    "macos-amd64": {
+      "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_darwin_amd64.zip",
+      "sha256": "6900092b154e4d306ed24a0217c68e373b84161bf3dcc4988f401115a33fe768",
+      "binary_sha256": "d7be7ef93315148ea5889baff52e43c2b1824183378d8554da283e8047d77d30",
+      "archive": "zip",
+      "binary_path": "vault"
+    },
+    "macos-arm64": {
+      "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_darwin_arm64.zip",
+      "sha256": "5120c28700460a74782f30ae14b1b6493e8d43fa15947ef954384bfc684a6be7",
+      "binary_sha256": "71d41f26eed5d33845672b1971e02c9e9c8e3161ceb69ffd33ccf808905c8f41",
+      "archive": "zip",
+      "binary_path": "vault"
+    },
+    "windows-amd64": {
+      "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_windows_amd64.zip",
+      "sha256": "4b66a86e6a6033103a102bce5a3aa660c81c244cb3841a37374f71f069f6d191",
+      "binary_sha256": "2584b56bdf40c2fb2c49910507d45711f0791deacba412a856d9025ad5150e9c",
+      "archive": "zip",
+      "binary_path": "vault.exe"
+    }
+  }
+}

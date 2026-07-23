@@ -12,7 +12,6 @@ Keep responsibilities split cleanly:
 - `docker/` owns the server (`server.py`), its pinned dependencies (`requirements.txt`), and the image (`Dockerfile`) plus compose topology.
 - `cli/` owns the binary entrypoint, wiring, and delegated command registration.
 - `cli/internal/` owns Speaker Verification-specific Go logic that cannot be expressed through the manifest or shared control-plane packages.
-- `lib/` contains retained shell behavior only until the resource is fully migrated.
 
 Do not turn `cli/main.go` into the implementation surface. If the resource needs
 specialized compose graph handling, readiness semantics, runtime shaping, probe
@@ -50,7 +49,6 @@ mode with `VROOLI_GPU=on|off|auto` (auto is the default and runs the probe).
 - Keep enrolled profiles and the model cache in the bind-mounted volumes (`/data/profiles`, `/data/model-cache`), not repo-local mutable directories.
 - The first start builds the image and (on first embedding request) downloads the ECAPA-TDNN weights into the model-cache volume. Budget time for both.
 - Pin every docker base image and pip dependency version. Never introduce unpinned installs.
-- Move shell workflows from `lib/` into `cli/internal/...` in focused slices instead of re-implementing them in CLI wiring.
 - Prefer shared `vrooli resource ...` lifecycle behavior before adding resource-local commands.
 
 ## Live Validation
@@ -63,5 +61,5 @@ vrooli resource install speaker-verification
 # or, directly:
 cd resources/speaker-verification && docker compose -f docker/docker-compose.yml up --build -d
 resource-speaker-verification status
-bash test/integration-test.sh
+cd cli && RESOURCE_LIVE_TEST=1 go test ./... -run TestSpeakerVerificationLive
 ```

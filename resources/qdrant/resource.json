@@ -130,7 +130,7 @@
     }
   ],
   "runtime": {
-    "image": "qdrant/qdrant:latest",
+    "image": "qdrant/qdrant:v1.15.3",
     "container_name": "qdrant",
     "volumes": [
       {

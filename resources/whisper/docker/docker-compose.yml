@@ -1,6 +1,6 @@
 services:
   whisper:
-    image: ${WHISPER_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest}
+    image: ${WHISPER_IMAGE:-onerahmet/openai-whisper-asr-webservice@sha256:03b402335881cdab2e4939b24620809df8d6ceec3bf2712217d41c8761a0f5d4}
     container_name: ${WHISPER_CONTAINER_NAME:-whisper}
     hostname: whisper
     restart: unless-stopped

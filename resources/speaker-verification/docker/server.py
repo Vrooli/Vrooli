@@ -29,6 +29,7 @@ The clip is still stored so the user controls their own data.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import os
@@ -62,7 +63,6 @@ SAMPLE_RATE = 16000
 # seconds of voiced speech for a stable enrollment embedding; a sub-second
 # window is not reliable. Enrollment rejects below MIN_ENROLL; verification
 # returns sufficient:false (not a fabricated score) below MIN_VERIFY.
-VAD = build_vad()
 MIN_ENROLL_VOICED_SECONDS = float(
     os.environ.get("SPEAKER_MIN_ENROLL_VOICED_SECONDS", "3.0")
 )
@@ -132,7 +132,7 @@ _gpu_name = torch.cuda.get_device_name(0) if DEVICE == "cuda" and _CUDA_AVAILABL
 print(
     f"[speaker-verification] torch={torch.__version__} "
     f"device_request={_DEVICE_REQUEST or 'auto'} cuda_available={_CUDA_AVAILABLE} "
-    f"device={DEVICE} vad={VAD.name}" + (f" gpu={_gpu_name}" if _gpu_name else ""),
+    f"device={DEVICE}" + (f" gpu={_gpu_name}" if _gpu_name else ""),
     flush=True,
 )
 if _DEVICE_REQUEST == "cuda" and not _CUDA_AVAILABLE:
@@ -157,10 +157,13 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Speaker Verification", version=SERVER_VERSION)
 
-# Lazily-initialized model handles. Loaded on first use so /ready can report
-# liveness even before the (one-time) model download completes.
+# Model handles are eagerly warmed in a startup task.  Requests retain the
+# idempotent accessors for safety, while /ready stays non-200 until both models
+# can serve work.
 _classifier = None
 _separator = None
+_vad = None
+_model_warm_error: Optional[str] = None
 
 
 def _now_iso() -> str:
@@ -181,6 +184,26 @@ def _load_model():
         run_opts={"device": DEVICE},
     )
     return _classifier
+
+
+def _get_vad():
+    """Load and cache the VAD separately from the GPU-backed model."""
+    global _vad
+    if _vad is None:
+        _vad = build_vad()
+    return _vad
+
+
+def _warm_models() -> None:
+    """Warm the serving models without blocking FastAPI from exposing /ready."""
+    global _model_warm_error
+    try:
+        _load_model()
+        _get_vad()
+        _model_warm_error = None
+    except Exception as exc:  # noqa: BLE001 -- expose readiness failure safely
+        _model_warm_error = str(exc)
+        print(f"[speaker-verification] model warmup failed: {exc}", flush=True)
 
 
 def _load_separator():
@@ -332,7 +355,8 @@ def _voiced_embedding(raw: bytes) -> Tuple[Optional[List[float]], float, float]:
     waveform, audio_seconds = _decode_to_waveform(raw)
     if EMBED_DENOISE:
         waveform = _denoise_waveform(waveform)
-    voiced, voiced_seconds = VAD.trim(waveform, SAMPLE_RATE)
+    vad = _get_vad()
+    voiced, voiced_seconds = vad.trim(waveform, SAMPLE_RATE)
     if voiced_seconds <= 0.0 or int(voiced.size(-1)) == 0:
         return None, audio_seconds, 0.0
     return _embed_waveform(voiced), audio_seconds, voiced_seconds
@@ -512,18 +536,28 @@ def _public_profile(record: Dict[str, Any]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@app.on_event("startup")
+async def warm_models_on_startup() -> None:
+    """Start model warmup without making the liveness listener unavailable."""
+    asyncio.create_task(asyncio.to_thread(_warm_models))
+
+
 @app.get("/ready")
-def ready() -> Dict[str, Any]:
+def ready() -> JSONResponse:
     profile_store_ok = PROFILE_STORE_DIR.is_dir() and os.access(
         PROFILE_STORE_DIR, os.W_OK
     )
     temp_dir_ok = TEMP_DIR.is_dir() and os.access(TEMP_DIR, os.W_OK)
-    return {
-        "status": "ok",
-        "model_loaded": _classifier is not None,
+    model_loaded = _classifier is not None and _vad is not None
+    payload = {
+        "status": "ok" if model_loaded and profile_store_ok and temp_dir_ok else "starting",
+        "model_loaded": model_loaded,
         "profile_store_ok": bool(profile_store_ok),
         "temp_dir_ok": bool(temp_dir_ok),
     }
+    if _model_warm_error:
+        payload["model_error"] = _model_warm_error
+    return JSONResponse(status_code=200 if model_loaded and profile_store_ok and temp_dir_ok else 503, content=payload)
 
 
 @app.get("/v1/info")
@@ -537,8 +571,8 @@ def info() -> Dict[str, Any]:
         "sample_rate": SAMPLE_RATE,
         "version": SERVER_VERSION,
         "embedding_dim": EMBEDDING_DIM,
-        "vad": VAD.name,
-        "vad_model": VAD.name,
+        "vad": _get_vad().name,
+        "vad_model": _get_vad().name,
         "score_agg": "max",
         "embed_denoise": EMBED_DENOISE,
         "min_enroll_voiced_seconds": MIN_ENROLL_VOICED_SECONDS,
@@ -619,7 +653,7 @@ async def enroll(
                 "voiced_seconds": voiced_seconds,
                 "audio_seconds": audio_seconds,
                 "min_voiced_seconds": MIN_ENROLL_VOICED_SECONDS,
-                "vad_model": VAD.name,
+                "vad_model": _get_vad().name,
             },
         )
 
@@ -652,7 +686,7 @@ async def enroll(
         "voiced_seconds": voiced_seconds,
         "audio_seconds": audio_seconds,
         "self_consistency_score": self_score,
-        "vad_model": VAD.name,
+        "vad_model": _get_vad().name,
         "created_at": now,
     }
 
@@ -692,7 +726,7 @@ async def enroll(
             "embedding_dim": EMBEDDING_DIM,
             "sample_rate": SAMPLE_RATE,
             "model_name": MODEL_NAME,
-            "vad_model": VAD.name,
+            "vad_model": _get_vad().name,
             "self_consistency_score": self_score,
             "self_consistency_threshold": SELF_CONSISTENCY_THRESHOLD,
             "self_consistency_warning": self_warning,
@@ -752,7 +786,7 @@ async def verify(
                 "backend": "speechbrain",
                 "model": MODEL_NAME,
                 "score_agg": "max",
-                "vad_model": VAD.name,
+                "vad_model": _get_vad().name,
                 "n_clips": n_clips,
                 "best_clip_label": "",
                 "best_clip_id": "",
@@ -771,7 +805,7 @@ async def verify(
         "[speaker-verification] verify "
         f"profile={profile_id.strip()} score={score:.4f} threshold={thr:.4f} "
         f"voiced_seconds={voiced_seconds:.3f} audio_seconds={audio_seconds:.3f} "
-        f"vad={VAD.name} n_clips={n_clips} best_clip_id={best_id} "
+        f"vad={_get_vad().name} n_clips={n_clips} best_clip_id={best_id} "
         f"best_clip_label={best_label!r}",
         flush=True,
     )
@@ -790,7 +824,7 @@ async def verify(
             "backend": "speechbrain",
             "model": MODEL_NAME,
             "score_agg": "max",
-            "vad_model": VAD.name,
+            "vad_model": _get_vad().name,
             "n_clips": n_clips,
             "best_clip_label": best_label,
             "best_clip_id": best_id,

@@ -11,7 +11,7 @@ update the row.
 | **Seam** | The `/v1/stream` wire protocol between the server and any client (primarily the audio-tools scenario). |
 | **Surface** | `docker/server.py` — `start`/binary-PCM/`end` client frames; `partial`/`segment`/`done`/`error` server frames. Input is canonical PCM s16le 16 kHz mono. |
 | **Why it exists** | audio-tools' canonical PCM substrate feeds this directly. Keeping the contract at 16 kHz (with internal resampling to the model's 24 kHz) decouples the scenario from the model's native rate. Changing the frame shapes or sample-rate contract is a breaking change and must bump the server major version. |
-| **Validation** | `test/integration-test.sh` asserts `/v1/info` reports `backend=kyutai` + `sample_rate=16000`, `/health` reports `status=ok`, and the `/v1/stream` route is mounted. |
+| **Validation** | `cli/live_test.go` is live-gated and asserts `/ready`, `/v1/info`, and the streaming resource contract against the running service. |
 
 ## Audio-rate normalization boundary (`Model.resample_to_model`)
 

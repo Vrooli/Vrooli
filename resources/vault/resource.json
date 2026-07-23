@@ -43,14 +43,18 @@
   "driver": "managed-service",
   "managed_service": {
     "provider_policy": {
-      "default_mode": "managed-shared",
+      "target_defaults": {
+        "control-plane": "managed-shared",
+        "desktop-bundle": "managed-private"
+      },
       "allowed_modes": [
         "managed-private",
         "managed-shared",
         "attach-only",
-        "remote-vrooli"
+        "remote-vrooli",
+        "managed-discovered"
       ],
-      "shared_reuse_requires_consent": false,
+      "shared_reuse_requires_consent": true,
       "external_management": "forbidden",
       "external_access_capabilities": ["read-only", "read-write"]
     },
@@ -144,7 +148,20 @@
     "macos": "partial",
     "windows": "partial"
   },
-  "hostTools": [],
+  "hostTools": [
+    {
+      "name": "secret-tool",
+      "required": true,
+      "reason": "Linux managed-shared Vault stores recovery material only in the active user Secret Service",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Required for the control-plane managed-shared provider. Desktop bundles use managed-private Vault and do not rely on this host credential store."
+    }
+  ],
   "dependencies": [],
   "ports": [
     {

@@ -134,7 +134,7 @@ spec:
 
   # Testing and validation
   testing:
-    test_file: "resources/speaker-verification/test/integration-test.sh"
+    test_file: "cd resources/speaker-verification/cli && RESOURCE_LIVE_TEST=1 go test ./... -run TestSpeakerVerificationLive"
     test_coverage:
       - service_health
       - info_endpoint

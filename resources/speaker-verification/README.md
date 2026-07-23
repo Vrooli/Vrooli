@@ -41,8 +41,6 @@ This resource follows the `compose-service` structure.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the home for Speaker Verification-specific Go logic when the
   manifest and shared control plane are not enough.
-- `lib/` contains retained shell behavior during the migration; new logic should
-  move into `cli/internal/...` over time.
 
 Internal package boundaries:
 

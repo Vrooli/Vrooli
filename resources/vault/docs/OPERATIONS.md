@@ -11,7 +11,7 @@
 
 ## Runtime Mode
 
-The default `managed-shared` mode uses one verified, Vrooli-owned per-user
+The `control-plane` target defaults to one verified, Vrooli-owned per-user
 Vault host with a signed server artifact and file storage:
 
 ```json
@@ -29,7 +29,7 @@ not HA or auto-unseal.
 
 ## Provider Modes
 
-`managed-shared` is the default user-host mode. The Vrooli resource host owns
+`managed-shared` is the control-plane default user-host mode. The Vrooli resource host owns
 its lifecycle and the broker issues a per-app child token without exposing its
 management token. `managed-private` creates an isolated instance only when a
 scenario declares that requirement. `remote-vrooli` is a scenario API boundary, not
@@ -99,6 +99,20 @@ Linux also requires a live Secret Service implementation exposed by
 `secret-tool` for the turnkey user-host path. If `secret-tool` is unavailable,
 retain Linux as `conditional` and do not initialize Vault. Artifact and
 private-mode tests do not establish turnkey bootstrap evidence.
+
+Install the declared host tool only through Vrooli, then let the managed
+resource perform its non-secret credential-store probe:
+
+```bash
+vrooli host install secret-tool --sudo-mode=ask
+vrooli resource start vault
+vrooli resource status vault
+```
+
+An interactive administrator prompt can be required for the host-tool install.
+If the Secret Service probe still fails, unlock the active user's Secret
+Service session and retry the resource start. Never replace this prerequisite
+with a plaintext bootstrap or recovery file.
 
 ## Secret Handling
 

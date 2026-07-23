@@ -169,7 +169,7 @@ spec:
 
   # Testing and validation
   testing:
-    test_file: "resources/kokoro/test/integration-test.sh"
+    test_file: "cd resources/kokoro/cli && RESOURCE_LIVE_TEST=1 go test ./... -run TestKokoroLive"
     test_coverage:
       - service_health
       - synthesis_quality

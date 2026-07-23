@@ -132,8 +132,8 @@
   ],
   "orchestration": {
     "startup_order": 565,
-    "startup_timeout_seconds": 90,
-    "startup_time_estimate": "20-60s",
+    "startup_timeout_seconds": 300,
+    "startup_time_estimate": "first run 2-5 min model download and warmup; then 20-60s",
     "dependencies": [],
     "recovery_attempts": 2,
     "priority": "medium"
@@ -158,6 +158,7 @@
     {
       "type": "http",
       "target": "http://127.0.0.1:11452/ready",
+      "kind": "readiness",
       "interval_seconds": 10,
       "timeout_seconds": 10
     }

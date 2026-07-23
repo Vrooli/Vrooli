@@ -36,8 +36,6 @@ audio-tools scenario.
 - `cli/` is the thin binary entrypoint and delegated command wiring.
 - `cli/internal/` is the home for Kyutai STT-specific Go logic when the manifest
   and shared control plane are not enough.
-- `lib/` contains retained shell behavior (Docker lifecycle, status, API
-  helpers, install).
 
 Internal package boundaries (`cli/internal/`): `compose`, `topology`,
 `runtime`, `health`, `env`.

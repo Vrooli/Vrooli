@@ -11,24 +11,24 @@ renames should update the row.
 | **Seam** | The HTTP API surface in `docker/server.py` — endpoint paths, multipart field names, and response JSON keys. |
 | **Production wiring** | The FastAPI app in `docker/server.py`, served by uvicorn inside the resource image. |
 | **External consumer** | `scenarios/audio-tools/api/internal/stt/pipeline/speaker_client.go` (`SpeakerClient`) calls `/ready`, `/v1/info`, `/v1/profiles` (GET list/detail/clips, POST append, DELETE profile + clip), `/v1/verify`, `/v1/extract`. Its Go structs (`SpeakerResourceReady`, `SpeakerResourceInfo`, `SpeakerProfileList`, `SpeakerProfileDetail`, `SpeakerProfileClipList`, `SpeakerEnrollmentResponse`, `SpeakerVerifyResult`, `SpeakerClipDeleteResult`) pin the exact JSON keys. |
-| **Why it exists** | This is the single coupling point between the resource and audio-tools. The server can be reimplemented (different model, different storage) so long as this contract holds byte-for-byte. Drift here silently breaks the audio-tools speaker-gate pipeline, so the contract is documented in `docs/API.md` and mirrored by the integration test in `test/integration-test.sh`. |
+| **Why it exists** | This is the single coupling point between the resource and audio-tools. The server can be reimplemented (different model, different storage) so long as this contract holds byte-for-byte. Drift here silently breaks the audio-tools speaker-gate pipeline, so the contract is documented in `docs/API.md` and mirrored by the live-gated Go test in `cli/live_test.go`. |
 
 ## Voice-activity detector (embedding pre-trim)
 
 | | |
 |---|---|
-| **Seam** | `VoiceActivityDetector` in `docker/vad.py` — `trim(waveform, sr) -> (voiced_waveform, voiced_seconds)`, selected by `SPEAKER_VAD` (`energy`\|`none`). |
-| **Production wiring** | `_voiced_embedding` in `server.py` routes BOTH enrollment and verification through `VAD.trim` before ECAPA, so the two stay symmetric. `EnergyVAD` (default) is dependency-free; its threshold/mask math is pure Python (`estimate_threshold`/`smooth_mask`) and unit-tested in `docker/test_vad.py` without torch. |
+| **Seam** | `VoiceActivityDetector` in `docker/vad.py` — `trim(waveform, sr) -> (voiced_waveform, voiced_seconds)`, selected by `SPEAKER_VAD` (`silero`\|`energy`\|`none`). |
+| **Production wiring** | `_voiced_embedding` routes both enrollment and verification through the same VAD trim before ECAPA. Silero is the default and is fixed on CPU; failure to load it falls back to `EnergyVAD`. ECAPA and SepFormer retain the configured serving device. |
 | **Test fake** | Pure helpers are tested on lists of frame RMS; `EnergyVAD.trim` is exercised on synthetic torch tensors (skipped when torch is absent). `SPEAKER_VAD=none` is a passthrough `NoOpVAD`. |
-| **Why it exists** | Trimming silence/noise before stats-pooling is the biggest speaker-separation lever. The seam is **Silero-ready**: a `silero` branch can be added behind the same `trim` interface with no re-architecting (intentionally not implemented — it would add a model dependency). |
+| **Why it exists** | CPU-only Silero removes the CPU-input/GPU-model mismatch class while keeping the small VAD real-time for clip-sized audio. |
 
-## Score aggregation (multi-clip centroid)
+## Score aggregation (multi-clip maximum)
 
 | | |
 |---|---|
-| **Seam** | `SPEAKER_SCORE_AGG` (`hybrid`\|`centroid`\|`max`) read by `_score_profile` in `server.py`. |
-| **Production wiring** | A profile holds N clip embeddings + an L2 centroid; `hybrid` (default) scores `max(cosine(centroid), max_i cosine(clip_i))`. Centroid math + aggregation are unit-tested in `docker/test_profiles.py`. |
-| **Why it exists** | Lets multiple conditions (devices, normal/whisper) strengthen one identity without the impostor inflation of binding several separate profiles. Env-switchable to `centroid` if false-accepts rise. |
+| **Seam** | `_score_profile` in `server.py` scores a profile as the maximum cosine similarity over its enrolled clip embeddings. |
+| **Production wiring** | A profile holds N clip embeddings. The server returns the best matching clip and uses max aggregation without an environment switch. The aggregation is unit-tested in `docker/test_profiles.py`. |
+| **Why it exists** | Multiple recording conditions strengthen one identity without pulling a centroid toward a neutral voiceprint. |
 
 ## Device selection (CPU/GPU)
 

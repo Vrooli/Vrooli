@@ -5,7 +5,7 @@
 package recommend
 
 // Model is the canonical Whisper model identifier emitted by Pick.
-// Must stay aligned with whisper/lib/common.sh::common::validate_model.
+// These model labels are the resource's canonical recommendation vocabulary.
 type Model string
 
 const (

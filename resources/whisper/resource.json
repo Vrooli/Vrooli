@@ -36,14 +36,7 @@
       ]
     },
     "source_build": {
-      "kind": "go_module",
-      "freshness_inputs": [
-        "cli/**",
-        "cli/internal/**",
-        "docs/**",
-        "README.md",
-        "resource.json"
-      ]
+      "kind": "go_module"
     }
   },
   "template": "compose-service",
@@ -123,7 +116,7 @@
     "probe": "nvidia",
     "compose_overlay": "docker/docker-compose.gpu.yml",
     "env_overrides": {
-      "WHISPER_IMAGE": "onerahmet/openai-whisper-asr-webservice:latest-gpu"
+      "WHISPER_IMAGE": "onerahmet/openai-whisper-asr-webservice@sha256:1132aa08c6eb9b440408864e8c25733d22a197ffea7c6975d60a4f4b6fd7b08b"
     }
   },
   "capacity": {
@@ -232,6 +225,7 @@
     {
       "type": "http",
       "target": "http://127.0.0.1:8090/",
+      "kind": "readiness",
       "interval_seconds": 10,
       "timeout_seconds": 10
     }

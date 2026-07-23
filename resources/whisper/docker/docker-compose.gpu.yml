@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   whisper:
-    image: ${WHISPER_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest-gpu}
+    image: ${WHISPER_IMAGE:-onerahmet/openai-whisper-asr-webservice@sha256:1132aa08c6eb9b440408864e8c25733d22a197ffea7c6975d60a4f4b6fd7b08b}
     container_name: ${WHISPER_CONTAINER_NAME:-whisper}
     hostname: whisper
     restart: unless-stopped

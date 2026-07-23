@@ -206,7 +206,6 @@ class SileroVAD:
 
     def __init__(
         self,
-        device: Optional[str] = None,
         threshold: float = 0.5,
         min_speech_ms: float = 250.0,
         min_silence_ms: float = 200.0,
@@ -214,7 +213,10 @@ class SileroVAD:
     ) -> None:
         if torch is None:  # pragma: no cover -- torch is present in the image
             raise RuntimeError("torch unavailable; cannot load Silero VAD")
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        # VAD always stays on CPU.  The ECAPA and SepFormer models may use CUDA,
+        # but accepting CPU waveform tensors here eliminates an entire class of
+        # CUDA/CPU mismatch failures before an embedding request reaches ECAPA.
+        self.device = "cpu"
         self.threshold = float(threshold)
         self.min_speech_ms = float(min_speech_ms)
         self.min_silence_ms = float(min_silence_ms)

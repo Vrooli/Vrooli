@@ -91,7 +91,7 @@ resource-speaker-verification status
 resource-speaker-verification manage start
 resource-speaker-verification logs
 
-# Profile operations (lib/api.sh helpers, surfaced through content ops)
+# Profile operations (served through the resource HTTP contract)
 resource-speaker-verification content profiles
 ```
 

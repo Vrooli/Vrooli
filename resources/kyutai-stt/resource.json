@@ -64,40 +64,14 @@
           ]
         },
         "macos": {
-          "support": "conditional",
+          "support": "unsupported",
           "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker-desktop"
-          ],
-          "limitations": [
-            "Docker Desktop must be installed and running."
-          ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU; Docker Desktop on macOS cannot pass through NVIDIA GPUs, and CPU decode is not real-time."
         },
         "windows": {
-          "support": "conditional",
+          "support": "unsupported",
           "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker-desktop"
-          ],
-          "limitations": [
-            "Docker Desktop must be installed and running."
-          ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU with linux/amd64 container support; CPU decode is not real-time."
         }
       }
     }
@@ -167,8 +141,8 @@
   ],
   "orchestration": {
     "startup_order": 555,
-    "startup_timeout_seconds": 180,
-    "startup_time_estimate": "first run 2-5 min (model download), then 20-45s",
+    "startup_timeout_seconds": 420,
+    "startup_time_estimate": "first run 2-5 min model download plus load (budgeted 7 min); then 20-45s",
     "dependencies": [],
     "recovery_attempts": 2,
     "priority": "medium"
@@ -195,7 +169,8 @@
   "health_checks": [
     {
       "type": "http",
-      "target": "http://127.0.0.1:8094/health",
+      "target": "http://127.0.0.1:8094/ready",
+      "kind": "readiness",
       "expected_status": [
         200
       ],

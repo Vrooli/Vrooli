@@ -30,29 +30,23 @@ spec:
   # API interfaces available
   interfaces:
     - name: transcription
-      endpoint: "/transcribe"
+      endpoint: "/asr"
       method: [POST]
       inputTypes: [audio/wav, audio/mp3, audio/ogg, audio/m4a, audio/flac, audio/aac, audio/wma]
       outputTypes: [json, text, vtt, srt]
-      description: "Transcribe audio files to text with optional timestamps"
-    - name: translation
-      endpoint: "/translate"
-      method: [POST]
-      inputTypes: [audio/wav, audio/mp3, audio/ogg, audio/m4a, audio/flac, audio/aac, audio/wma]
-      outputTypes: [json, text, vtt, srt]
-      description: "Translate audio from any language to English text"
-    - name: health-check
-      endpoint: "/health"
+      description: "Transcribe an uploaded audio file; accepts the server's /asr multipart contract."
+    - name: language-detection
+      endpoint: "/detect-language"
       method: [GET]
       inputTypes: []
       outputTypes: [json]
-      description: "Service health and model status check"
-    - name: models
-      endpoint: "/models"
+      description: "Detect the spoken language for an uploaded audio payload."
+    - name: readiness
+      endpoint: "/"
       method: [GET]
       inputTypes: []
       outputTypes: [json]
-      description: "List available Whisper models and their capabilities"
+      description: "Readiness probe through the activity-edge companion on port 8090."
   
   # Resource dependencies and requirements
   dependencies:
@@ -195,7 +189,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "resources/whisper/test/integration-test.sh"
+    test_file: "cd resources/whisper/cli && RESOURCE_LIVE_TEST=1 go test ./... -run TestWhisperLive"
     test_coverage:
       - service_health
       - transcription_accuracy

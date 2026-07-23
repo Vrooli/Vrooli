@@ -124,7 +124,7 @@
     }
   ],
   "runtime": {
-    "image": "downloads.unstructured.io/unstructured-io/unstructured-api:latest",
+    "image": "downloads.unstructured.io/unstructured-io/unstructured-api@sha256:a43ab55898599157fb0e0e097dabb8ecdd1d8e3df1ae5b67c6e15a136b171a6c",
     "container_name": "vrooli-unstructured-io",
     "env": {
       "UNSTRUCTURED_API_LOG_LEVEL": "INFO",
