@@ -71,7 +71,9 @@ BadExample:
 package checks
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -92,8 +94,13 @@ var (
 
 func checkDesignTokenBypass(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "standard_design_token_bypass"
+	files := sourceFiles(ctx, "ui/src")
+	if len(files) == 0 {
+		return uiinterop.RuleResult{RuleID: ruleID, Skipped: true, SkipReason: "no ui/src directory found", Message: "no ui/src directory found; skipping design-token bypass check"}
+	}
+	tokenViolations, hasTokenNativeVendor := missingVendoredTokenViolations(ctx, files, ruleID)
 
-	if !serviceDeclaresDesignStyle(ctx.ScenarioRoot) {
+	if !serviceDeclaresDesignStyle(ctx.ScenarioRoot) && !hasTokenNativeVendor {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
 			Skipped:    true,
@@ -102,17 +109,7 @@ func checkDesignTokenBypass(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		}
 	}
 
-	files := sourceFiles(ctx, "ui/src")
-	if len(files) == 0 {
-		return uiinterop.RuleResult{
-			RuleID:     ruleID,
-			Skipped:    true,
-			SkipReason: "no ui/src directory found",
-			Message:    "no ui/src directory found; skipping design-token bypass check",
-		}
-	}
-
-	var violations []uiinterop.Violation
+	violations := tokenViolations
 	for _, f := range files {
 		ext := strings.ToLower(filepath.Ext(f.RelPath))
 		if ext != ".tsx" && ext != ".jsx" && ext != ".css" && ext != ".scss" && ext != ".less" {
@@ -163,6 +160,61 @@ func checkDesignTokenBypass(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		Passed:  true,
 		Message: "component styling primarily uses design tokens",
 	}
+}
+
+func missingVendoredTokenViolations(ctx uiinterop.CheckContext, files []uiinterop.SourceFile, ruleID string) ([]uiinterop.Violation, bool) {
+	repoRoot := findRepoRoot(ctx.ScenarioRoot)
+	if repoRoot == "" {
+		return nil, false
+	}
+	componentDir := filepath.Join(repoRoot, "scenarios", "react-component-library", "library", "components")
+	entries, err := os.ReadDir(componentDir)
+	if err != nil {
+		return nil, false
+	}
+	required := map[string][]string{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(componentDir, entry.Name(), "component.json"))
+		if err != nil {
+			continue
+		}
+		var meta struct {
+			LibraryID      string   `json:"libraryId"`
+			RequiredTokens []string `json:"requiredTokens"`
+		}
+		if json.Unmarshal(data, &meta) == nil && len(meta.RequiredTokens) > 0 {
+			required[meta.LibraryID] = meta.RequiredTokens
+		}
+	}
+	allCSS := ""
+	for _, f := range files {
+		if strings.HasSuffix(strings.ToLower(f.RelPath), ".css") {
+			allCSS += "\n" + f.Content
+		}
+	}
+	var violations []uiinterop.Violation
+	hasTokenNativeVendor := false
+	for _, f := range files {
+		libraryID := provenanceField(f.Content, "@vrooliComponentSource")
+		tokens := required[libraryID]
+		if len(tokens) == 0 {
+			continue
+		}
+		hasTokenNativeVendor = true
+		missing := []string{}
+		for _, token := range tokens {
+			if !strings.Contains(allCSS, token+":") {
+				missing = append(missing, token)
+			}
+		}
+		if len(missing) > 0 {
+			violations = append(violations, uiinterop.Violation{RuleID: ruleID, Severity: "high", Title: "Vendored component requires missing design tokens", Description: fmt.Sprintf("%s vendors %s but host CSS does not define: %s", f.RelPath, libraryID, strings.Join(missing, ", ")), FilePath: f.RelPath, Line: lineOf(f.Content, "@vrooliComponentSource"), Recommendation: "Adopt the governed design-token layer or define the required tokens in host CSS."})
+		}
+	}
+	return violations, hasTokenNativeVendor
 }
 
 func trimRegexMatches(matches []string) []string {

@@ -6,10 +6,10 @@ Resource templates are the canonical scaffolding mechanism for new implemented r
 
 ```bash
 template-manager resource-template list
-template-manager resource-template show <template>
+template-manager resource-template show "<template>"
 template-manager resource-template validate
-template-manager resource-template generate <template> --var RESOURCE_NAME=<name>
-template-manager resource-template generate --from-blueprint <name>
+template-manager resource-template generate "<template>" --var "RESOURCE_NAME=<name>"
+template-manager resource-template generate --from-blueprint "<name>"
 ```
 
 ## Current Rule
@@ -20,13 +20,14 @@ New resource work should start from:
 2. template
 3. implementation
 
-It should not start from copying an old `path:resources/<name>/` directory unless you are explicitly working in transitional cleanup.
+It should not start from copying an old `resources/<name>/` directory unless you are explicitly working in transitional cleanup.
 
 ## Canonical Template Kinds
 
 - `docker-service`
 - `compose-service`
 - `external-cli`
+- `managed-service`
 - `native-cli`
 - `cloud-api`
 - `desktop-app`
@@ -40,9 +41,13 @@ Migration-only adapter pattern:
 
 See [architecture.md](architecture.md) for the ownership model and template-kind expectations each scaffold should converge toward.
 
-`managed-service` is a planned archetype for a Vrooli-managed local process
-that should not require Docker. Do not force such a resource into
-`docker-service` merely because a native process template is not yet available.
+`managed-service` is the canonical archetype for a Vrooli-managed local
+process that should not require Docker. Its generated manifest declares the
+signed server artifact, provider policy, and bundled-service delivery profile;
+the shared driver owns lifecycle and supervision. Its policy defaults are
+target-aware: `control-plane` selects the Vrooli-owned shared host and
+`desktop-bundle` selects a private bundled process. Desktop shared reuse is an
+explicit, consented override rather than a manifest-wide default.
 
 ## Guidance
 
@@ -73,7 +78,7 @@ that should not require Docker. Do not force such a resource into
 The target layout, archetype baselines, proposed manifest shape, and required
 deployment/readiness evidence are defined in
 [deployment-contract.md](deployment-contract.md). Treat its schema examples as
-the target design until the manifest schema and templates implement them.
+the target design until the canonical template implements them.
 
 ## Related
 

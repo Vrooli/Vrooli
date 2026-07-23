@@ -6,7 +6,7 @@ Cross-team-readable canon for how monetization-opportunity signals are partition
 
 Cited by:
 - `topics.json` for `literal:monetization/opportunity-scout` (`intake[].taxonomy = "monetization-opportunity"`).
-- The `monetization-signal-classifier` skill (pure judgment).
+- The `signal-classifier` skill (pure judgment).
 
 ## Editing rules
 

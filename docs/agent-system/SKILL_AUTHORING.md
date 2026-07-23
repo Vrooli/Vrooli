@@ -1,8 +1,8 @@
 # Skill Authoring
 
-Universal quality bars and authoring guidance that apply to every skill, regardless of category. Per-category specifics (`steer`, `search`, `tools`, `practice`, `meta`, `platform`) live in the matching `skill-authoring-<category>` skill.
+Universal quality bars and authoring guidance that apply to every skill, regardless of category. Per-category specifics (`steer`, `search`, `tools`, `practice`, `meta`, `platform`) live in the matching `skill-authoring-<category>` skill; the `contract` category's specifics live in this file's §"Contract skills: machine-invoked workflow prompts".
 
-This is canon. The `skill-authoring` skill cites this file and contains only category-spanning authoring guidance for Steer skills (the `{{TARGET}}` placeholder, etc.); the per-category authoring skills cite this file for the universal quality bars.
+This is canon. Every per-category authoring guide cites this file for the universal quality bars. The Steer category's guide is the bare `skill-authoring` skill; it holds the Steer-specific rules (the `{{TARGET}}` placeholder, the opening template, the maturity-source requirement).
 
 Cites `LAYERS.md`, `PRIMITIVES.md`, and `PROMOTION_LADDER.md`.
 
@@ -18,6 +18,33 @@ Without shared mental models, each agent (or even the same agent across sessions
 
 ---
 
+## Skills are conditioning signals
+
+A skill is not documentation that happens to be read by a model — it is a conditioning signal that shapes the distribution of behavior an executor agent produces. A prompt token does not carry its dictionary meaning; it carries a pointer into the model's prior. This reframe is what *generates* the quality bars below; use it to derive new rules, not just to follow the listed ones. Evaluate any skill through four lenses:
+
+- **Focality.** Does each rule point at something the model already knows deeply? A named industry standard, format, or pattern ("write requirements in EARS form", "ASD-STE100 procedural prose", "Given/When/Then") invokes thousands of training documents' worth of coherent behavior for one phrase — a focal point that independent agents converge on without coordinating. Hand-rolled rule lists are low-precision pointers the model must compose at inference time, and composition is where drift lives. Before hand-rolling a rule-set, ask: what named standard, pattern, or genre already encodes this? A name only works as a focal point if it is real and widely documented — verify the standard exists before citing it. The `writing-standards` skill holds the placement map for prose standards.
+- **Interpretive entropy.** How many divergent-but-compliant readings does the text admit? Decision tables, one meaning per term, and controlled procedural language shrink the space; prose conditionals and decision-hiding words widen it. The test is behavioral, not aesthetic: two agents reading the same skill against the same situation must produce the same decision.
+- **Verifiability.** Can compliance be checked mechanically — by lint, CLI assertion, or a named artifact — rather than by judgment? (This is the lens behind "Destination over direction" below.)
+- **Attention economy.** Every token competes for the model's attention. Twenty weak rules dilute each other; one named standard plus three sharp exceptions does not. Coherent flow is not cosmetic — a skill that reads as one argument conditions behavior better than an equal-length pile of rules, because contradictory or orthogonal rules split the attention budget. Complexity growth is attention debt: when gates, steps, or long-tail prose accumulate, require explicit rationale and a retirement path (`PROMOTION_LADDER.md`).
+
+The test for invoking any concept by name: **name-and-delete, never name-and-keep.** A named standard earns its place only when it lets you delete the hand-rolled rules it replaces. A concept name added alongside the rules it describes is decoration — it costs attention and conditions nothing.
+
+### Conditioning defect patterns
+
+The lenses generate a small defect vocabulary. This table is the single source of truth: meta skills that audit other skills (`skill-validation`, `skill-improvement-suggestions`) and audit topics cite these rows by ID instead of restating them.
+
+| # | Defect pattern | Signal | Fix |
+|---|---|---|---|
+| C1 | Hand-rolled rule cluster (focality) | 5+ style/format rules that a real, widely documented named standard already encodes | Adopt the standard by name and delete the rules it replaces (name-and-delete). Verify the standard is real first; the prose-standard placement map lives in `writing-standards` |
+| C2 | Name-and-keep decoration | A standard or concept cited alongside the hand-rolled rules it describes | Delete either the name or the rules |
+| C3 | Attention-splitting rule pile | Many weak, orthogonal, or contradictory rules aimed at one behavior | Consolidate into one coherent argument or one decision table |
+| C4 | High interpretive entropy | Two compliant readings of a key instruction produce materially different executions | The fix is a decision, not more prose; prefer decision tables over prose conditionals |
+| C5 | Unverifiable rules | Compliance judged by adjectives ("clear", "appropriate") rather than lint, CLI assertion, or named artifact | Restate as a mechanically checkable condition, or apply §"Destination over direction" |
+
+Routing rule for audits: a **confirmed C4** — the divergence probe in `skill-validation` produced two materially different compliant executions — is an executability defect and stays a validation finding. C1, C2, C3, and C5 are conditioning-cost defects; they belong to `skill-improvement-suggestions`.
+
+---
+
 ## Universal quality bars
 
 Every skill must include:
@@ -28,6 +55,7 @@ Every skill must include:
 - **Output expectations** describing what can/can't/must change or how results must be formatted.
 - **Human-first CLI consumption** by default: prefer direct CLI output and avoid parser pipelines (`--json`, `--raw`, `jq`) unless default output is too long or ambiguous for reliable execution.
 - **Selector-first workflows** by default: prefer stable human-readable selectors over extracted opaque IDs when tools support both.
+- **STE-100 procedural prose.** Skills are procedural instructions read by agents with no shared context — write procedure and rule text in ASD-STE100 Simplified Technical English: one instruction per sentence, active voice, imperative mood, one meaning per term used consistently, concrete commands and paths instead of categories. Avoid decision-hiding words in rules — canonical list: "robust", "comprehensive", "appropriately", "properly", "seamless", "handle", "improve", "enhance", "leverage", "as needed" — name the specific behavior instead. This list is the single source of truth; skills cite it rather than copying it. Rationale and "why" passages stay in normal explanatory prose.
 
 For skills with **operational CLI complexity** (multi-step workflows, mutable state, external dependencies, or non-trivial failure modes):
 
@@ -42,9 +70,36 @@ For simple/stable skills with no meaningful long-tail behavior:
 
 ---
 
+## Contract skills: machine-invoked workflow prompts
+
+A **contract skill** is the prompt contract of a declared Agent Manager workflow node. The workflow JSON references it by `promptRef`; reconcile resolves the skill body into the node's prompt template; the engine renders it with the node's bindings and sends the result as the run's entire prompt. The reader is a headless run: no human, no conversation history, no retry beyond the engine's bounded schema repair. Category: `contract` (`modes[0]`, per `PRIMITIVES.md`).
+
+**Shape from schema, choice from skill.** The workflow node's `resultSpec.schema` is the single source of truth for output shape, and the engine renders that schema into the run prompt and into the schema-repair prompt. Therefore:
+
+- Do not restate the schema — field lists, enum values, nesting, required-ness — in skill prose. Restated shape drifts, and the agent already sees the authoritative schema.
+- Do own the **outcome decision rules**. A schema can say the outcome enum is `completed | proposed | needs_attention | abstained`; it cannot say when each value is correct. That choice is the contract skill's core content, and it must be a decision table (observable end state → outcome value), not prose.
+
+**Required content.** This list is the complete structure for a contract skill; the generic skill-structure template and the `## <Category> focus:` header do not apply, because every line of the body is rendered into the run prompt and must earn its tokens there:
+
+1. **Task statement** — 1–3 STE-100 sentences: what the run does to which subject.
+2. **Outcome decision table** — one row per outcome value the schema admits, keyed to observable end states (commands run, artifacts produced, checks passed). Two agents that reach the same end state must select the same outcome value.
+3. **Variable legend** — one line per template binding (`{{.snapshot}}`, `{{.entity}}`, …): what it contains and what is authoritative about it. These are Go-template placeholders rendered by Agent Manager at run time; `prompt-manager skill read` shows them literally.
+4. **Authority boundary** — what the run must not mutate, in STE-100. State it positively where possible ("write only inside `<path>`").
+5. **Method by citation** — when the run needs doctrine (how to review, how to author a plan), cite it: `prompt-manager skill read <skill-id>`. Do not inline doctrine another skill or doc owns.
+
+**The conservative-branch default.** When an affirmative row's predicate is not proven by evidence in hand, the run must select the conservative outcome and name the unproven predicate in the result. This applies wherever the conservative outcome routes to review rather than acting; a workflow whose conservative branch itself acts (rollback, deletion) must state its own explicit calculus instead. Affirmative rows are sufficient-condition predicates that partial or uncertain end states also satisfy — without this default, two honest agents at the same end state diverge on temperament, and the drift is always optimistic. Sharpen row predicates where you can ("the exact command from the snapshot's validation context, not a subset"); this default covers the end states no authored predicate anticipates.
+
+Exemplar: `swarm-manager-workflow-plan-author` (task statement, outcome decision rules, method delegated to `implementation-plan-authoring`).
+
+**Exempt from:** the audit section, the agent memory loop, `Troubleshooting & Edge Cases`, `{{TARGET}}` transferability, and boundary-against-over-application prose — a contract skill cannot be over-applied, because the workflow node fixes its scope, inputs, and lifetime.
+
+**Validation:** the divergence probe (`skill-validation` §3.3) is the primary gate and runs against the outcome decision table: if two compliant readings of the same end state select different outcome values, that is a confirmed C4. Structure checks written for interactive skills do not apply. Validation also cross-checks the referencing workflow declaration: every template variable in the skill has a matching node binding, and the skill restates no part of the node's `resultSpec` schema.
+
+---
+
 ## Convergence patterns
 
-The most effective skills provide **visual patterns** that agents can reference consistently. When something can be described as a decision tree, diagram, or table, agents gravitate toward it across sessions.
+Decision trees, tables, and diagrams are the working forms of the interpretive-entropy lens: a table with explicit criteria admits one reading where prose like "consider whether the state is shared" admits many, and agents gravitate toward visual patterns across sessions. Three forms:
 
 ### Decision trees
 
@@ -91,25 +146,11 @@ Controllers (orchestration, business logic)
 Services (API calls, validation)
 ```
 
-Visual patterns are unambiguous. Prose like "consider whether the state is shared" leaves room for interpretation. A decision table with explicit criteria does not.
-
 ---
 
 ## Principles over prescriptions
 
-While convergence patterns provide structure, skills should still guide *thinking*, not dictate *steps*.
-
-**Good guidance:**
-- "Prioritize stability-critical code paths"
-- "Validate data at system boundaries"
-- "Handle all states explicitly: loading, error, empty, success"
-
-**Bad guidance:**
-- "Edit src/components/Button.tsx on line 42"
-- "Add exactly 5 tests per file"
-- "Complete this in 30 minutes"
-
-Teach *what to care about*, not *what to do*. Agents should be able to apply the principles to novel situations — but with enough concrete patterns that they arrive at consistent solutions.
+While convergence patterns provide structure, skills should still guide *thinking*, not dictate *steps*. Teach *what to care about*, not *what to do*: agents must be able to apply a skill to novel situations, yet meet enough concrete patterns that they arrive at consistent solutions. The canonical good/bad guidance examples live in `PRIMITIVES.md` §Skill — cite them; do not restate them.
 
 ---
 
@@ -123,7 +164,7 @@ Every skill opens with a clear statement of purpose:
 <1–2 sentence summary of what this skill steers toward>
 ```
 
-Categories: `Steer`, `Platform`, `Search`, `Tools`, `Practice`, `Meta` (per `PRIMITIVES.md`).
+Categories: `Steer`, `Platform`, `Search`, `Tools`, `Practice`, `Meta`, `Contract` (per `PRIMITIVES.md`). Contract skills are exempt from this header format — see §"Contract skills: machine-invoked workflow prompts".
 
 The summary should answer: "If I only read this sentence, what would I prioritize?"
 
@@ -306,6 +347,8 @@ To publish a skill:
 3. Run `prompt-manager skill sync` to pick up changes.
 4. Verify via `prompt-manager skill show <id>`.
 
+**Status semantics.** `status` is `active` or `draft` (`draft` marks work-in-progress; it is surfaced as a draft flag in list/show). There is no soft-retired state: retirement is deletion via `prompt-manager skill delete <id>` (per `PROMOTION_LADDER.md`), and git history is the archive. Do not leave superseded skills in the pack with a `retired` label — no surface consumes it, so they keep polluting list, discover, and search results.
+
 ### `targetDimensions` (steer skills)
 
 A **steer skill** — one Swarm Manager's closed-loop controller may select to
@@ -352,23 +395,6 @@ Before creating a new skill:
 
 ---
 
-## Skill architecture heuristics
-
-Use these heuristics when creating or evolving any skill:
-
-- **Optimize for entropy control, not content volume.** Most skill failures come from unmanaged clarification growth, not missing facts.
-- **Standardize only high-leverage constraints.** Avoid rigid global templates; enforce only structures that materially improve execution consistency.
-- **Keep the primary path clean.** Standard execution should be easy to scan and run without long-tail context switching.
-- **Isolate long-tail operations.** For CLI-operational complexity, centralize rare failures and manual recovery in `Troubleshooting & Edge Cases`.
-- **Treat repeated prose as a product signal.** If the same workaround appears repeatedly, promote it to CLI output contracts or tool capabilities (per `PROMOTION_LADDER.md`).
-- **Prefer promotion + retirement loops.** When tooling improves, remove superseded prose to prevent one-way growth.
-- **Prefer layered fixes.** Use skill text as interim guardrails when needed, but prioritize durable CLI/tool improvements for recurring friction.
-- **Use trigger-based governance.** Apply heavier structure when operational complexity is present, not based on category labels alone.
-- **Preserve dual usability.** Default human-readable flows should be directly actionable; machine-readable paths remain deterministic when needed.
-- **Track complexity budget drift.** If gates/steps/long-tail prose increase, require explicit rationale and a retirement plan.
-
----
-
 ## Destination over direction: maturity sources for audit-shaped skills
 
 **Convergence thesis.** Two agents on two machines running the same skill against the same scenario should produce compatible outputs. Skills converge when they are *less prescriptive about the path* and *more prescriptive about the destination*. A skill that names a verifiable end state lets agents arrive there from any starting point; a skill that lists steps without naming the destination invites divergent interpretations every session.
@@ -404,7 +430,7 @@ A destination-clear skill is a *precondition* for climbing the promotion ladder:
 
 ### Programmatic reading
 
-`path:scenarios/development-toolchain-validator/` P1-005 "Skill Maturity Score" is the mechanical reading of destination-over-direction. The score is weighted by: *has structural config + has CLI tool assertions + all assertions pass + no conflicts*. Skills that name verifiable artifacts or provider-owned maturity commands can be configured and scored; skills that describe direction without a destination cannot, and they sit at the bottom of the score distribution until they encode their destination source.
+`path:scenarios/development-toolchain-validator/` OT-P1-002 "Skill Maturity Score" is the planned mechanical reading of destination-over-direction: a per-skill score from validation-run trends (duration, token cost, unexpected-mutation verdicts). Skills that name verifiable artifacts or provider-owned maturity commands can be configured and scored; skills that describe direction without a destination cannot, and they sit at the bottom of the score distribution until they encode their destination source.
 
 ### Applicability
 

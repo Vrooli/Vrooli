@@ -24,14 +24,14 @@ Each row pairs a generated golden identity with the template it is materialized 
 
 | Role | Golden slug | Template | First registered | Last audit | Notes |
 |------|----------|----------|-----------|------------|-------|
-| **Gold-star (primary)** | `reference-react-vite` | `path:templates/scenarios/react-vite/` | 2026-04-24 | 2026-05-04 (template; `template-fitness-audit/react-vite-template/2026-05-04`) | Operator-nominated 2026-04-24 (vision walk; `dec-1776981723540926630` accepted). The slug remains durable for manifests and records; current validation materializes from the template instead of using a committed scenario tree. Historical scans from 2026-04-24 produced 72 standards violations (41 High) against the then-committed reference — see `shared/TOOLCHAIN_SCAN.md`. |
+| **Gold-star (primary)** | `reference-react-vite` | `path:templates/scenarios/react-vite/` | 2026-04-24 | 2026-05-04 — **stale** (template fitness audit `template-fitness-audit/react-vite-template/2026-05-04`; not re-run since) | Operator-nominated 2026-04-24 (vision walk; `dec-1776981723540926630` accepted). The slug remains durable for manifests and records; current validation materializes from the template instead of using a committed scenario tree. Historical scans from 2026-04-24 produced 72 standards violations (41 High) against the then-committed reference — see `shared/TOOLCHAIN_SCAN.md`. |
 | **Secondary references** | *(none yet)* | — | — | — | Scenarios used for specific tool categories (e.g., a scenario that best exercises `test-genie`, one that best exercises `scenario-auditor`). Populated as tooling matures. |
 
 ---
 
 ## Nomination rules
 
-A scenario can be proposed as the gold-star reference if:
+A scenario (paired with the template it is generated from) can be nominated as the gold-star generated golden if:
 
 1. It's in `state: active` and being deployed (not a prototype).
 2. It scores clean on every current toolchain tool (`scenario-auditor`, `test-genie`, `tidiness-manager`, and eventually `development-toolchain-validator`).
@@ -44,7 +44,7 @@ Nomination is an operator action — propose during a vision walk and file a `me
 
 ## Demotion rules
 
-A scenario should be demoted from reference status if:
+A scenario should be demoted from gold-star golden status if:
 
 1. It accumulates persistent violations it can't fix because the violations are actually about tooling rules, not the scenario.
 2. It's scheduled for deprecation or significant restructuring.
@@ -80,7 +80,7 @@ The `Last audit` column links to the most recent typed audit record under `templ
 
 ## History
 
-A log of reference-scenario changes. Format: date, previous reference, new reference, reason.
+A log of generated-golden registry changes. Format: date, previous golden, new golden, reason.
 
 - 2026-04-24 — *(unset)* → `reference-react-vite` — Operator nomination at vision walk. First scan produced 72 standards violations (41 High, 10 Medium, 20 Low, 1 Info), 0 security vulns, opaque `test-genie` 500. Reference is dirty against the tools that gate every other scenario; cleanup is the operator's call.
 - 2026-05-04 — registry table extended from 3 columns (Role / Scenario / Notes) to 6 (Role / Scenario / Template / Generated / Last audit / Notes); added Template-Reference Coupling section. Establishes the template→reference pair as one entity and links each row to its `reference-pattern-fitness` audit. Filed under `meta-self-improvement` decision (see [`REFERENCE_PATTERN_FITNESS.md`](REFERENCE_PATTERN_FITNESS.md)).

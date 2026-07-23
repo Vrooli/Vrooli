@@ -693,6 +693,9 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 		m.onOrchestratorEvent(ar, ev)
 	})
 	close(stopHB)
+	if err != nil {
+		result = terminalFailureResult(result, ar, err)
+	}
 
 	aborted := ctx.Err() != nil
 	// ExecuteWithEvents may return rich observations, findings, and diagnostic
@@ -764,6 +767,36 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 	m.retire(ar)
 	// This run released its concurrency slot; promote any waiters.
 	m.dispatch()
+}
+
+// terminalFailureResult preserves the executor error in the canonical result
+// when preflight exits before the orchestrator can finalize phase evidence.
+// Without this boundary, WaitRun reports only a zero-phase FAIL after the run
+// retires, which is not actionable for lifecycle and host-requirement failures.
+func terminalFailureResult(result *orchestrator.SuiteExecutionResult, ar *activeRun, err error) *orchestrator.SuiteExecutionResult {
+	if result == nil {
+		result = &orchestrator.SuiteExecutionResult{
+			RunID:        ar.runID,
+			ScenarioName: ar.scenario,
+			StartedAt:    ar.startedAt,
+		}
+	}
+	if result.RunID == "" {
+		result.RunID = ar.runID
+	}
+	if result.ScenarioName == "" {
+		result.ScenarioName = ar.scenario
+	}
+	if result.StartedAt.IsZero() {
+		result.StartedAt = ar.startedAt
+	}
+	if result.CompletedAt.IsZero() {
+		result.CompletedAt = time.Now().UTC()
+	}
+	result.Success = false
+	result.Verdict = "FAIL"
+	result.FailureReason = err.Error()
+	return result
 }
 
 // onOrchestratorEvent translates a low-level orchestrator event into the
@@ -1390,6 +1423,7 @@ func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {
 	ls.TerminalSnapshotSchemaVersion = snapshot.SchemaVersion
 	ls.Verdict = result.Verdict
 	ls.Success = result.Success && rec.Status == sharedruns.StatusPassed
+	ls.Error = result.FailureReason
 	ls.TerminalPresentations, ls.TerminalFindingsSummaries = terminalMaturity(&result)
 	return ls, nil
 }

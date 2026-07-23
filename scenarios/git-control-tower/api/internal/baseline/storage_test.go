@@ -52,6 +52,45 @@ func TestStorageSaveLoadRoundTrip(t *testing.T) {
 	}
 }
 
+func TestStorageGeneralWriteSeamCoversDurableRecordBoundaries(t *testing.T) {
+	s := newTestStorage(t)
+	want := errors.New("injected durable write failure")
+	var paths []string
+	s.writeJSON = func(path string, _ any) error {
+		paths = append(paths, path)
+		return want
+	}
+
+	if err := s.Save(1, sampleManifest("fault", "agi"), CreateOnly); !errors.Is(err, want) {
+		t.Fatalf("Save error = %v, want injected failure", err)
+	}
+	if err := s.SaveCollection(1, sampleCollection(), CreateOnly); !errors.Is(err, want) {
+		t.Fatalf("SaveCollection error = %v, want injected failure", err)
+	}
+	audit := LifecycleAuditEntry{Scenario: "foo", Branch: "agi", Name: "fault", Action: "capture", CreatedAt: time.Now().UTC()}
+	if err := s.SaveLifecycleAudit(1, audit); !errors.Is(err, want) {
+		t.Fatalf("SaveLifecycleAudit error = %v, want injected failure", err)
+	}
+	if len(paths) != 3 {
+		t.Fatalf("durable write seam calls = %d, want 3", len(paths))
+	}
+}
+
+func TestStorageLifecycleRoundTripRetainsDeletionTombstone(t *testing.T) {
+	s := newTestStorage(t)
+	record := LifecycleRecord{Scenario: "foo", Branch: "agi", Name: "before", Generation: 2, Status: LifecycleDeleted, RunID: "run-1", UpdatedAt: time.Now().UTC()}
+	if err := s.SaveLifecycle(1, record); err != nil {
+		t.Fatalf("SaveLifecycle: %v", err)
+	}
+	got, err := s.LoadLifecycle(1, "foo", "agi", "before")
+	if err != nil {
+		t.Fatalf("LoadLifecycle: %v", err)
+	}
+	if got.Status != LifecycleDeleted || got.Generation != 2 {
+		t.Fatalf("lifecycle = %+v, want durable deletion tombstone", got)
+	}
+}
+
 func TestStorageCollectionRoundTripAndDelete(t *testing.T) {
 	s := newTestStorage(t)
 	collection := sampleCollection()

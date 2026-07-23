@@ -1005,6 +1005,7 @@ func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 		}, []commandtree.Spec[string]{
 			hostInventorySpec(),
 			hostInstallSpec(),
+			hostSafeguardSpec(),
 		})
 		return nil
 	}
@@ -1013,8 +1014,10 @@ func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 		return app.runHostInventoryCommand(ctx, args[1:])
 	case "install":
 		return app.runHostInstallCommand(ctx, args[1:])
+	case "safeguard":
+		return app.runHostSafeguardCommand(ctx, args[1:])
 	default:
-		return rootcli.NewUnknownCommandError(args[0], []string{"inventory", "install"})
+		return rootcli.NewUnknownCommandError(args[0], []string{"inventory", "install", "safeguard"})
 	}
 }
 

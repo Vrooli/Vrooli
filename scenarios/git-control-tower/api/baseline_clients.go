@@ -72,19 +72,19 @@ type baselineExecutor struct {
 	runs baselineRunsClient
 }
 
+const baselineAdmissionCaller = "git-control-tower:baseline"
+
+var baselineAdmissionRetryDelays = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
+
 func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseline.RunHandle, error) {
 	cl, err := e.runs.client(ctx)
 	if err != nil {
 		return baseline.RunHandle{}, err
 	}
-	resp, err := cl.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{
-		Scenario:       scenario,
-		Preset:         "comprehensive",
-		CaptureProfile: "baseline",
-		// Ordinary baseline capture deliberately uses shared-scoped provenance.
-		// Strict linked-worktree evidence remains available to callers that ask
-		// for it, but is never a prerequisite for retaining before behavior.
-	}))
+	request := baselineStartRequest(scenario)
+	resp, err := startBaselineRunWithRetry(ctx, func() (*connect.Response[runspb.StartRunResponse], error) {
+		return cl.StartRun(ctx, request)
+	})
 	if err != nil {
 		if busy := asRunBusy(err); busy != nil {
 			return baseline.RunHandle{}, busy
@@ -97,6 +97,46 @@ func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseli
 		EtaKnown:              resp.Msg.GetEtaKnown(),
 		Coalesced:             resp.Msg.GetCoalesced(),
 	}, nil
+}
+
+// startBaselineRunWithRetry keeps short-lived preview contention from becoming
+// a terminal baseline failure. The parent capture context remains authoritative
+// so a degraded Test Genie cannot make Git Control Tower wait indefinitely.
+func startBaselineRunWithRetry(ctx context.Context, start func() (*connect.Response[runspb.StartRunResponse], error)) (*connect.Response[runspb.StartRunResponse], error) {
+	for attempt := 0; ; attempt++ {
+		response, err := start()
+		if err == nil || !isPreviewSaturated(err) || attempt == len(baselineAdmissionRetryDelays) {
+			return response, err
+		}
+		timer := time.NewTimer(baselineAdmissionRetryDelays[attempt])
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, fmt.Errorf("wait for test-genie admission: %w", ctx.Err())
+		case <-timer.C:
+		}
+	}
+}
+
+func isPreviewSaturated(err error) bool {
+	var connectErr *connect.Error
+	return errors.As(err, &connectErr) && connectErr.Code() == connect.CodeResourceExhausted
+}
+
+func baselineStartRequest(scenario string) *connect.Request[runspb.StartRunRequest] {
+	request := connect.NewRequest(&runspb.StartRunRequest{
+		Scenario:       scenario,
+		Preset:         "comprehensive",
+		CaptureProfile: "baseline",
+		// Ordinary baseline capture deliberately uses shared-scoped provenance.
+		// Strict linked-worktree evidence remains available to callers that ask
+		// for it, but is never a prerequisite for retaining before behavior.
+	})
+	// Baselines are a trusted gateway workload. Without attribution they share
+	// Test Genie's anonymous preview bucket with unrelated clients and can be
+	// rejected despite available global capacity.
+	request.Header().Set("X-Vrooli-Caller", baselineAdmissionCaller)
+	return request
 }
 
 // RunStatus returns a non-blocking lifecycle snapshot via GetRunStatus.

@@ -4,11 +4,7 @@ This page describes the current expectations for resource-facing platform surfac
 
 ## Current Truth
 
-The canonical project-level resource surface is:
-
-```bash
-vrooli resource ...
-```
+The canonical project-level resource surface is the `vrooli resource` command group.
 
 Resource-specific wrappers may still exist in some places, but they should not be treated as the default design center for new resource work unless explicitly retained.
 
@@ -26,11 +22,11 @@ At the platform level, a well-behaved resource should have:
 
 ```bash
 vrooli resource list
-vrooli resource info <name>
+vrooli resource info "<name>"
 vrooli resource status
-vrooli resource validate <name>
-vrooli resource logs <name>
-vrooli resource restart <name>
+vrooli resource validate "<name>"
+vrooli resource logs "<name>"
+vrooli resource restart "<name>"
 ```
 
 ## Guidance

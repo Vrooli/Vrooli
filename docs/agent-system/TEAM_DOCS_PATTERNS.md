@@ -50,13 +50,7 @@ Every typed topic must have structural declarations in `topics.json`: who produc
 
 ## Promotion Rule
 
-The promotion path is structural:
-
-```text
-typed knowledge topic
-  -> drainer/router
-  -> delete | canonical knowledge | decision | capability-gap | swarm-manager | PoR/skill/CLI/action update
-```
+Typed knowledge is promoted by its drainer/router, which picks exactly one outcome from the uniform action set defined in `INTAKE_PIPELINE.md` § Promotion / Routing (drop, canonical knowledge, decision, capability-gap, swarm-manager handoff, PoR/skill/CLI/action update).
 
 Agents may freely add typed observations when their member or writer skill declares the output. Promotion into durable truth or executable behavior requires the right gate:
 
@@ -70,7 +64,7 @@ Agents may freely add typed observations when their member or writer skill decla
 | Team/member contract | `team-structure-change` or owning team decision |
 | Canonical knowledge observation | drainer retags or writes to declared destination prefix |
 
-The router chooses the smallest useful outcome. A weak signal is deleted. A valid observation becomes canonical knowledge. A repeated pattern becomes a decision or capability gap. Implementation work routes through swarm-manager when it is not a fully specified direct write.
+The router always chooses the smallest useful outcome; `DECISIONS.md` §4 defines when a drain may execute an outcome directly versus escalate to a decision.
 
 ---
 

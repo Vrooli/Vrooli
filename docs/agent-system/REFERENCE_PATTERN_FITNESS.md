@@ -74,7 +74,7 @@ This lens **runs after** the relevant single-instance lenses on the same artifac
 
 The auditor selects from [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) based on the artifact's shape. For a CRUD-template audit (the react-vite case), `screaming-architecture-audit`, `decision-boundary-extraction`, and `utils-unification` are typical prerequisites; for a reference scenario being scrutinized for testing patterns, `seam-discovery-and-enforcement` and `invariant-discovery-and-enforcement` are typical. The paired skill's required-reading section codifies this — the auditor names the prerequisites in the typed audit record.
 
-This lens does **not** belong in the [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) registry. That registry is scoped to the `quality-auditor` member of the `scenario-qa` team, which audits real scenarios where multiplier framing would mislead. Promotion to its own registry — `path:docs/agent-system/audit-techniques/` — is deferred until a second similar lens lands.
+This lens does **not** belong in the [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) registry — see [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md) § Template-Golden Coupling for the rationale (that registry is scoped to `scenario-qa`'s `quality-auditor`, who audits regular scenarios where multiplier framing would mislead). Promotion to its own registry is deferred until a second similar lens lands (per `PROMOTION_LADDER.md`).
 
 ## Worked example: react-vite template (2026-05-04)
 
@@ -104,7 +104,7 @@ This worked example is frozen as of 2026-05-04. Future audits create typed knowl
 
 ## Relation to audit-shaped skill maturity sources
 
-Audit-shaped skills (the steer audit cohort) declare a named maturity source per [`SKILL_AUTHORING.md`](SKILL_AUTHORING.md) §"Destination over direction: maturity sources for audit-shaped skills". Some skills own their ladder directly; provider-backed health skills route to the provider's human CLI maturity report instead. Those destination sources are the structural expectations `development-toolchain-validator` mechanizes via its Skill Maturity Score (P1-005). This lens consumes that signal indirectly: a reference scenario whose dirtiness traces back to a skill that has no named destination is a different finding than one where the skill is well-defined but the substrate is missing. When triaging a finding, check whether the relevant audit-shaped skill has destination clarity before attributing the rot to template or substrate.
+Audit-shaped skills (the steer audit cohort) declare a named maturity source per [`SKILL_AUTHORING.md`](SKILL_AUTHORING.md) §"Destination over direction: maturity sources for audit-shaped skills". Some skills own their ladder directly; provider-backed health skills route to the provider's human CLI maturity report instead. Those destination sources are the structural expectations `development-toolchain-validator` mechanizes via its Skill Maturity Score (OT-P1-002). This lens consumes that signal indirectly: a reference scenario whose dirtiness traces back to a skill that has no named destination is a different finding than one where the skill is well-defined but the substrate is missing. When triaging a finding, check whether the relevant audit-shaped skill has destination clarity before attributing the rot to template or substrate.
 
 ## Cross-references
 

@@ -11,9 +11,9 @@ If the capability should remain a future candidate instead of becoming deprecate
 ## Current CLI Surface
 
 ```bash
-vrooli resource deprecate <name>
+vrooli resource deprecate "<name>"
 vrooli resource list-deprecated
-vrooli resource restore <name>
+vrooli resource restore "<name>"
 vrooli resource archive gc
 ```
 

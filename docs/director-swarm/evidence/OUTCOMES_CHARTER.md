@@ -31,7 +31,7 @@ Per-scenario health, capability coverage, and readiness state. Which scenarios a
 
 ### The Forge — engineering velocity
 
-Swarm Manager-level velocity: initiative throughput, backlog burn-down, agent run success rate, cycle time. Currently ~90% live per the dashboard initiative.
+Swarm Manager-level velocity: goal throughput, backlog burn-down, agent run success rate, cycle time. Currently ~90% live per the dashboard goal.
 
 - Authoritative metrics: `pending-command-center` (largely live — verify coverage when this charter is next reviewed)
 - What "good" looks like here: `pending-command-center`
@@ -69,7 +69,7 @@ _No entries yet._ `pending-operator-input` — add here when one appears that do
 When a metric on any Command Center page shows as `gap`, the flow is:
 
 1. Director-swarm's `outcome-strategist` (once active) spots the gap via `/api/v1/gaps`.
-2. Proposes a backlog item or initiative to build the missing data pipeline, with decision context `outcome-gap`.
+2. Proposes a backlog item or goal to build the missing data pipeline, with decision context `outcome-gap`.
 3. Human approves at the vision walk.
 4. A capability-building team (or the relevant feature team) builds the pipeline.
 5. The metric flips from `gap` → `live`.
@@ -79,13 +79,13 @@ The pre-activation analogue: while `outcome-strategist` is disabled, the operato
 
 ## What this charter does NOT do
 
-- **Does not define specific success thresholds** (e.g., "MRR > $X by date Y"). Thresholds belong in Command Center configuration or in initiative-specific acceptance criteria, not here.
+- **Does not define specific success thresholds** (e.g., "MRR > $X by date Y"). Thresholds belong in Command Center configuration or in goal-specific acceptance criteria, not here.
 - **Does not track metrics over time.** Command Center handles history.
 - **Does not replace the monetization team's financial model.** For revenue math, see [monetization/evidence/FINANCIAL_MODEL.md](../../monetization/evidence/FINANCIAL_MODEL.md).
 
 ## Why `pending-command-center` markers are deliberately visible
 
-Many sections above are explicitly thin. That is intentional — the visibility of these placeholders is itself a signal that Command Center is a high-leverage initiative. When Command Center pages ship and real metrics land, the corresponding sections here get filled in via approved decisions. Until then, the debt stays visible so future reviewers (human and agent) don't forget to come back.
+Many sections above are explicitly thin. That is intentional — the visibility of these placeholders is itself a signal that Command Center is a high-leverage goal. When Command Center pages ship and real metrics land, the corresponding sections here get filled in via approved decisions. Until then, the debt stays visible so future reviewers (human and agent) don't forget to come back.
 
 ## Updating this charter
 

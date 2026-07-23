@@ -10,7 +10,7 @@ Resources should be integrated as capability providers with clear manifests, lif
 
 ```bash
 vrooli resource list
-vrooli resource info <name>
+vrooli resource info "<name>"
 vrooli resource status
 ```
 
@@ -28,12 +28,12 @@ Useful commands:
 
 ```bash
 vrooli resource blueprint list
-vrooli resource blueprint info <name>
+vrooli resource blueprint info "<name>"
 template-manager resource-template list
-template-manager resource-template show <template>
-template-manager resource-template generate <template> --var RESOURCE_NAME=<name>
+template-manager resource-template show "<template>"
+template-manager resource-template generate "<template>" --var "RESOURCE_NAME=<name>"
 template-manager resource-template validate
-vrooli resource validate <name>
+vrooli resource validate "<name>"
 vrooli resource schema validate
 vrooli resource schema sync
 ```

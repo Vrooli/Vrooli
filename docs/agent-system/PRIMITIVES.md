@@ -30,6 +30,7 @@ Each skill picks one **category** (its `modes[0]` in metadata):
 | Use a tool/resource/scenario | Tools | Correct operation, safety, efficiency |
 | Apply a systematic engineering methodology | Practice | Process rigor, repeatability, knowledge capture |
 | Define or govern the skill system | Meta | Skill coherence, policy, lifecycle |
+| Serve as the rendered prompt of a declared workflow node | Contract | Typed-result fidelity, low interpretation entropy |
 
 Decision check:
 
@@ -40,7 +41,10 @@ Is the skill about finding information or implementation? -> Search
 Is the skill about using a tool or resource correctly?    -> Tools
 Is the skill about HOW to approach a class of problems?   -> Practice
 Is the skill about how skills should be written/governed? -> Meta
+Is the skill rendered into a workflow run's prompt?       -> Contract
 ```
+
+Contract skills are machine-invoked (referenced by `promptRef` from an Agent Manager workflow node) and follow their own structure — `SKILL_AUTHORING.md` §"Contract skills: machine-invoked workflow prompts".
 
 Authoring quality bars live in `SKILL_AUTHORING.md`.
 

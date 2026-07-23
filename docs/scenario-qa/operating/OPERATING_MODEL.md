@@ -208,7 +208,7 @@ Owns challenge discipline. It reads QA outputs and decisions, writes challenge r
 
 1. `quality-audit/*` should remain a terminal evidence output in the graph. Its downstream execution path is through decisions, not direct topic consumption.
 2. `capability-gap` is now declared in the scenario-qa team contract so the operating graph can model missing QA capability explicitly. Other teams using `capability-gap` should follow the same explicit-contract pattern.
-3. The `readiness-checks` registry is still a stub. Readiness-dimension techniques should graduate into paired docs and skills as GCT dimensions stabilize; pre-emptive ordering itself is handled by swarm-manager's fix-before-feature gate, not a QA member.
+3. The `methods/readiness/` registry is still a stub. Readiness-dimension techniques should graduate into paired docs and skills as GCT dimensions stabilize; pre-emptive ordering itself is handled by swarm-manager's fix-before-feature gate, not a QA member.
 4. Future operator-fed `qa-inbox/*` and `audit-inbox/*` topics remain out of the contract until a producer exists.
 5. `bug-resolution-proposal` and `quality-backlog-proposal` accepted effects should eventually resolve against concrete downstream backlog implementation contracts, not only prose surfaces.
 

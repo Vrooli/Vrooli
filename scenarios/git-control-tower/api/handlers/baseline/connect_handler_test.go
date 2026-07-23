@@ -3,6 +3,7 @@ package baseline
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log"
 	"os"
 	stdexec "os/exec"
@@ -65,6 +66,7 @@ type recordingRuns struct {
 	mu      sync.Mutex
 	pins    int
 	unpins  int
+	unpinErr error
 	compare bl.CompareResult
 }
 
@@ -79,7 +81,7 @@ func (r *recordingRuns) UnpinRun(_ context.Context, _, _, _ string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.unpins++
-	return nil
+	return r.unpinErr
 }
 
 func (r *recordingRuns) CompareRuns(_ context.Context, _, _, _, _ string) (bl.CompareResult, error) {
@@ -141,6 +143,44 @@ func TestSnapshotTailSurvivesClientCancelAndProjectsV2(t *testing.T) { // [REQ:G
 	}
 	if runs.pins != 1 {
 		t.Fatalf("pins=%d", runs.pins)
+	}
+}
+
+func TestRepairBaselineProjectsDryRunAndExplicitApply(t *testing.T) {
+	runs := &recordingRuns{}
+	srv, svc := newServerDeps(t, &recordingExecutor{}, runs)
+	srv.finalize = func(ctx context.Context, pending bl.PendingCapture) {
+		if _, err := svc.FinalizeCapture(context.WithoutCancel(ctx), pending); err != nil {
+			t.Errorf("finalize baseline: %v", err)
+		}
+	}
+	if _, err := srv.SnapshotForBaseline(context.Background(), connect.NewRequest(&baselinesv1.SnapshotForBaselineRequest{
+		Scenario: "foo", Name: "repair-me", Branch: "agi", CreatedBy: "agent",
+	})); err != nil {
+		t.Fatalf("SnapshotForBaseline: %v", err)
+	}
+	runs.unpinErr = errors.New("temporary retention outage")
+	if err := svc.Delete(context.Background(), 1, "foo", "agi", "repair-me"); err == nil {
+		t.Fatal("delete should leave a tombstoned manifest")
+	}
+	dry, err := srv.RepairBaseline(context.Background(), connect.NewRequest(&baselinesv1.RepairBaselineRequest{
+		Scenario: "foo", Name: "repair-me", Branch: "agi",
+	}))
+	if err != nil {
+		t.Fatalf("RepairBaseline dry run: %v", err)
+	}
+	if dry.Msg.GetApplied() || len(dry.Msg.GetActions()) != 2 {
+		t.Fatalf("dry response = %#v", dry.Msg)
+	}
+	runs.unpinErr = nil
+	applied, err := srv.RepairBaseline(context.Background(), connect.NewRequest(&baselinesv1.RepairBaselineRequest{
+		Scenario: "foo", Name: "repair-me", Branch: "agi", Apply: true,
+	}))
+	if err != nil {
+		t.Fatalf("RepairBaseline apply: %v", err)
+	}
+	if !applied.Msg.GetApplied() || applied.Msg.GetGeneration() == 0 {
+		t.Fatalf("applied response = %#v", applied.Msg)
 	}
 }
 

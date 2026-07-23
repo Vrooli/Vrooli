@@ -33,7 +33,7 @@ func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
 		"worktree": 8,
 		"review":   3,
 		"audit":    1,
-		"baseline": 13, // 5 record verbs + collection/path evidence + 6 engagement verbs
+		"baseline": 14, // 6 record/lifecycle verbs + collection/path evidence + 6 engagement verbs
 	}
 	for name, count := range want {
 		if got[name] != count {

@@ -742,6 +742,27 @@ func TestGetRunFindingsDoesNotReadArtifactWithoutManifest(t *testing.T) {
 	}
 }
 
+func TestGetRunFindingsExplainsPrePhaseFailureWithoutEvidenceManifest(t *testing.T) {
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID:     "preflight-failed",
+		Scenario:  "demo",
+		StartedAt: time.Now().UTC(),
+		Status:    sharedruns.StatusFailed,
+	})
+
+	_, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{
+		Scenario: "demo",
+		RunId:    "preflight-failed",
+	}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("GetRunFindings code = %s, want failed precondition; err=%v", connect.CodeOf(err), err)
+	}
+	if !strings.Contains(err.Error(), "failed before phase execution") || !strings.Contains(err.Error(), "runs status") {
+		t.Fatalf("GetRunFindings error = %v, want pre-phase failure guidance", err)
+	}
+}
+
 // FindRun returns the newest completed run that matches every shape filter, and
 // found=false when none does. It is the reuse primitive git-control-tower
 // queries: only a clean, comprehensive+baseline run at the requested sha should

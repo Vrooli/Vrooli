@@ -562,6 +562,10 @@ func (s *Service) GetRunFindings(ctx context.Context, req *connect.Request[runsp
 	manifest, err := executionevidence.ReadManifest(sharedartifacts.RunDir(dir, runID))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
+			projection, projectionErr := loadRunProjection(sharedruns.NewIndex(dir), runID)
+			if projectionErr == nil && projection.record.Status == sharedruns.StatusFailed && len(projection.record.Phases) == 0 {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("run %q failed before phase execution, so it has no findings manifest; inspect the terminal error with test-genie runs status --scenario %s %s", runID, req.Msg.GetScenario(), runID))
+			}
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no evidence manifest for run %q", runID))
 		}
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("read evidence manifest: %w", err))

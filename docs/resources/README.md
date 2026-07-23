@@ -4,7 +4,7 @@ This section explains the resource ecosystem at the platform level.
 
 Resources are one of Vrooli's core primitives. They provide the raw capabilities that scenarios compose into products, tools, and operator workflows.
 
-Resource CLI behavior is manifest-driven. Implemented resources declare their CLI contract explicitly in `resources/<name>/resource.json` rather than relying on `path:resources/<name>/cli` layout folklore.
+Resource CLI behavior is manifest-driven. Implemented resources declare their CLI contract explicitly in `resources/<name>/resource.json` rather than relying on `resources/<name>/cli` layout folklore.
 
 ## Start Here
 
@@ -41,30 +41,30 @@ Examples include:
 
 ```bash
 vrooli resource list
-vrooli resource info <name>
+vrooli resource info "<name>"
 vrooli resource status
 vrooli resource validate
-vrooli resource start <name>
-vrooli resource restart <name>
+vrooli resource start "<name>"
+vrooli resource restart "<name>"
 vrooli resource start-all
-vrooli resource stop <name>
+vrooli resource stop "<name>"
 vrooli resource stop-all
-vrooli resource logs <name>
-vrooli resource enable <name>
-vrooli resource disable <name>
+vrooli resource logs "<name>"
+vrooli resource enable "<name>"
+vrooli resource disable "<name>"
 ```
 
 Blueprint and template workflows:
 
 ```bash
 vrooli resource blueprint list
-vrooli resource blueprint info <name>
-vrooli resource blueprint search <query>
+vrooli resource blueprint info "<name>"
+vrooli resource blueprint search "<query>"
 vrooli resource blueprint validate
 template-manager resource-template list
-template-manager resource-template show <template>
+template-manager resource-template show "<template>"
 template-manager resource-template validate
-template-manager resource-template generate <template> --var RESOURCE_NAME=<name>
+template-manager resource-template generate "<template>" --var "RESOURCE_NAME=<name>"
 ```
 
 Canonical resource templates emit the same shared CLI manifest shape used by scenarios:
@@ -85,9 +85,9 @@ Bash to start a mature resource. See [deployment-contract.md](deployment-contrac
 Archive and schema workflows:
 
 ```bash
-vrooli resource deprecate <name>
+vrooli resource deprecate "<name>"
 vrooli resource list-deprecated
-vrooli resource archive-to-blueprint <name>
+vrooli resource archive-to-blueprint "<name>"
 vrooli resource list-blueprint-archived
 vrooli resource schema validate
 vrooli resource schema sync

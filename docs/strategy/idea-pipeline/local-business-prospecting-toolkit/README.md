@@ -41,7 +41,7 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 - **BAS (Browser Automation Studio)** — for Maps scraping. Wrap-not-use governs: never inline Playwright; route through BAS scenario. ✅ Already shipped.
 - **An AI inference resource** — local Ollama or hosted LLM access for review-mining + email-personalization. ✅ Already available.
 - **A persistent storage layer** — Postgres + a schema for businesses, reviews, outreach-attempts, responses. ✅ Resource available.
-- **An email-sending surface** — wrap-not-use applies; route through a wrapper scenario (mail-in-a-box-resource or similar). Status: partial; current `email-outreach-manager` scenario is archived and would need rebuilding under current scenario-templates.
+- **An email-sending surface** — wrap-not-use applies; route through a dedicated wrapper scenario. Status: partial; current `email-outreach-manager` scenario is archived and would need rebuilding under current scenario templates.
 - **An identity/permissioning surface** — when agents call this scenario, identity comes from agent-manager. Status: planned.
 
 **Downstream consumers (scenarios that would benefit once this exists):**

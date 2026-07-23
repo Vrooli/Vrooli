@@ -990,6 +990,28 @@ func TestFailedRunReconcilesDurableRecord(t *testing.T) {
 	}
 }
 
+func TestFailedRunPersistsExecutorErrorForTerminalWaiters(t *testing.T) {
+	root := t.TempDir()
+	scenario := "demo"
+	scenarioDir := root + "/" + scenario
+	exec := newFakeExecutor(scenarioDir)
+	exec.returnErr = errors.New("start target scenario demo: required host tool secret-tool is unavailable")
+	m := New(exec, root)
+	defer m.Shutdown()
+
+	runID := startRun(t, m, StartOptions{Input: startInput(scenario)})
+	status, err := m.Wait(context.Background(), scenario, runID)
+	if err != nil {
+		t.Fatalf("wait: %v", err)
+	}
+	if status.Status != sharedruns.StatusFailed {
+		t.Fatalf("status = %q, want failed", status.Status)
+	}
+	if status.Error != exec.returnErr.Error() {
+		t.Fatalf("terminal error = %q, want %q", status.Error, exec.returnErr)
+	}
+}
+
 func TestWaitHydratesCanonicalTerminalSnapshotAfterRestart(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
 	root := t.TempDir()
 	scenario := "demo"

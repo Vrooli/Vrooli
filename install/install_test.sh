@@ -19,6 +19,8 @@ printf '%s\n' 'vrooli fixture is runnable'
 FIXTURE_BINARY
 chmod 0755 "${RELEASE}/vrooli_linux_amd64"
 printf '%s\n' 'fixture-fingerprint' > "${RELEASE}/vrooli_linux_amd64.fp"
+printf '%s\n' 'vault server fixture' > "${RELEASE}/vault_linux_amd64"
+printf 'vault\t1.17.6\tlinux\tamd64\tvault_linux_amd64\n' > "${RELEASE}/resource-artifacts-v1.txt"
 mkdir -p "${TMP}/fixture-source/Vrooli"
 printf '%s\n' 'module github.com/vrooli/vrooli' > "${TMP}/fixture-source/Vrooli/go.mod"
 tar -C "${TMP}/fixture-source" -czf "${RELEASE}/vrooli-source.tar.gz" Vrooli
@@ -29,7 +31,7 @@ openssl genpkey -quiet -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "${TMP}
 openssl pkey -in "${TMP}/private.pem" -pubout -out "${TMP}/public.pem"
 (
     cd "${RELEASE}"
-    sha256sum vrooli-install-lib.sh vrooli_linux_amd64 vrooli_linux_amd64.fp vrooli-source.tar.gz > SHA256SUMS
+    sha256sum vrooli-install-lib.sh vrooli_linux_amd64 vrooli_linux_amd64.fp vault_linux_amd64 resource-artifacts-v1.txt vrooli-source.tar.gz > SHA256SUMS
     openssl dgst -sha256 -sign "${TMP}/private.pem" SHA256SUMS | openssl base64 -A > SHA256SUMS.sig
 )
 
@@ -48,6 +50,7 @@ env \
 
 test "$("${INSTALL_DIR}/vrooli")" = 'vrooli fixture is runnable'
 test "$(cat "${INSTALL_DIR}/vrooli.fp")" = 'fixture-fingerprint'
+test "$(cat "${TMP}/home/.vrooli/artifacts/vault/1.17.6/vault_linux_amd64")" = 'vault server fixture'
 test -f "${TMP}/home/.vrooli/src/${SOURCE_DIGEST}/Vrooli/go.mod"
 test "$(cat "${TMP}/home/.vrooli/source-root")" = "${TMP}/home/.vrooli/src/${SOURCE_DIGEST}/Vrooli"
 
@@ -77,7 +80,7 @@ SOURCE_DIGEST_V2=$(sha256sum "${RELEASE}/vrooli-source.tar.gz")
 SOURCE_DIGEST_V2=${SOURCE_DIGEST_V2%% *}
 (
     cd "${RELEASE}"
-    sha256sum vrooli-install-lib.sh vrooli_linux_amd64 vrooli_linux_amd64.fp vrooli-source.tar.gz > SHA256SUMS
+    sha256sum vrooli-install-lib.sh vrooli_linux_amd64 vrooli_linux_amd64.fp vault_linux_amd64 resource-artifacts-v1.txt vrooli-source.tar.gz > SHA256SUMS
     openssl dgst -sha256 -sign "${TMP}/private.pem" SHA256SUMS | openssl base64 -A > SHA256SUMS.sig
 )
 env \

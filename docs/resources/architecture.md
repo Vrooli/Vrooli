@@ -227,7 +227,7 @@ Expected design:
 
 - `resource.json` still owns install/invoke/freshness/runtime metadata
 - `cli/main.go` stays thin
-- `path:cli/internal/app` owns command registration and app wiring
+- `cli/internal/app` owns command registration and app wiring
 - resource-local Go packages under `cli/internal/...` own the actual implementation
 - the control plane treats the installed binary as the managed interface instead of pretending the resource is a third-party host executable
 
@@ -235,10 +235,10 @@ Expected design:
 
 Some resources are neither a hosted API nor a good Docker/Compose fit: Vrooli
 owns a local service process and should install, configure, supervise, and
-health-check it natively. Until a dedicated template exists, such resources
-must document this shape explicitly rather than being forced into a
-Docker-first template. A future `managed-service` template should provide the
-common cross-platform process, configuration, and health contract.
+health-check it natively. The `managed-service` contract supplies the common
+cross-platform process, configuration, health, and provider-authority model.
+It permits reuse only of a verified Vrooli-owned service; arbitrary external
+endpoints remain attach-only.
 
 ### `cloud-api`
 
@@ -296,8 +296,8 @@ Phase 2 defines what each canonical template kind is expected to converge toward
 ### `native-cli`
 
 - repo-owned Go binary is the design center
-- `path:cli/internal/app` owns the operator command surface
-- `path:cli/internal/<domain>` owns resource-local implementation logic
+- `cli/internal/app` owns the operator command surface
+- `cli/internal/<domain>` owns resource-local implementation logic
 - the manifest still owns command/install/invoke/freshness metadata
 
 ### `cloud-api`
@@ -334,7 +334,7 @@ Do not treat `legacy-adapter` as the normal starting point for new resources.
 
 For future resource work:
 
-- do not start from copying an old `path:resources/<name>/` directory
+- do not start from copying an old `resources/<name>/` directory
 - start from blueprint -> template -> implementation
 - prefer shared Go control-plane packages over resource-local reinvention
 - keep `cli/` thin when possible

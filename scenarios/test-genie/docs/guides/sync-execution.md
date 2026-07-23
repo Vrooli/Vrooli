@@ -23,7 +23,7 @@ means the phases reported a failed or aborted result; inspect the persisted run
 instead of inventing a replacement suite:
 
 ```bash
-test-genie runs show my-scenario <run-id> --json
+test-genie runs show <run-id> --scenario my-scenario --json
 test-genie runs follow my-scenario <run-id>
 ```
 

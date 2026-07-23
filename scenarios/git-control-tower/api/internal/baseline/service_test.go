@@ -94,6 +94,31 @@ func TestServiceCapturePersistsOneRichRunAnchor(t *testing.T) { // [REQ:GCT-BASE
 	}
 }
 
+func TestCreateCompensatesWhenReadyLifecyclePersistenceFails(t *testing.T) {
+	exec := &fakeExecutor{result: terminalResult()}
+	runs := &fakeRuns{}
+	svc, storage := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+	writes := 0
+	storage.writeLifecycle = func(path string, value any) error {
+		writes++
+		if writes == 1 {
+			return writeJSONAtomic(path, value)
+		}
+		return errors.New("injected lifecycle disk failure")
+	}
+
+	_, err := svc.Create(context.Background(), CreateRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "lifecycle-fault"})
+	if err == nil || !strings.Contains(err.Error(), "injected lifecycle disk failure") {
+		t.Fatalf("Create error = %v", err)
+	}
+	if _, err := storage.Load(1, "foo", "agi", "lifecycle-fault"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("manifest survived failed lifecycle commit: %v", err)
+	}
+	if len(runs.unpins) != 1 {
+		t.Fatalf("unpins = %v, want one compensation", runs.unpins)
+	}
+}
+
 // [REQ:GCT-SHARED-WORKSPACE-BASELINE-P0] A dirty primary worktree is normal
 // evidence when the declared scenario scope remained stable. It must produce a
 // durable before result rather than the historical volatile-baseline failure.
@@ -143,13 +168,17 @@ func TestServiceCaptureRetriesOnlyRacedAttempt(t *testing.T) {
 
 func TestServiceCaptureFailureDoesNotPublishEmptyBaseline(t *testing.T) {
 	exec := &fakeExecutor{err: errors.New("aborted")}
-	svc, _ := newTestService(t, exec, &fakeRuns{}, git.State{Branch: "agi", Sha: "abc"})
+	svc, storage := newTestService(t, exec, &fakeRuns{}, git.State{Branch: "agi", Sha: "abc"})
 	_, err := svc.Create(context.Background(), CreateRequest{RepoID: 1, Scenario: "foo", Name: "bad"})
 	if err == nil || !strings.Contains(err.Error(), "aborted") {
 		t.Fatalf("capture error = %v", err)
 	}
 	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "bad"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("failed capture published a manifest: %v", err)
+	}
+	lifecycle, err := storage.LoadLifecycle(1, "foo", "agi", "bad")
+	if err != nil || lifecycle.Status != LifecycleFailed || lifecycle.Generation != 1 {
+		t.Fatalf("failed capture lifecycle = %+v, err=%v", lifecycle, err)
 	}
 }
 
@@ -658,6 +687,24 @@ func TestServiceDeleteUnpinsSingleRunOnce(t *testing.T) {
 	}
 }
 
+func TestScanLegacyOrphansReportsReadyIntentWithoutManifestOrLifecycle(t *testing.T) {
+	svc, storage := newTestService(t, &fakeExecutor{result: terminalResult()}, &fakeRuns{}, git.State{Branch: "agi", Sha: "abc"})
+	intent := SnapshotIntent{Status: "ready", RepoID: 1, Scenario: "foo", Branch: "agi", Name: "orphan", Run: RunHandle{RunID: "run-orphan"}, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	if err := storage.SaveSnapshotIntent(1, intent); err != nil {
+		t.Fatal(err)
+	}
+	reports, err := svc.ScanLegacyOrphans(1)
+	if err != nil || len(reports) != 1 {
+		t.Fatalf("reports = %#v err=%v", reports, err)
+	}
+	if reports[0].Name != "orphan" || reports[0].RunID != "run-orphan" {
+		t.Fatalf("orphan report = %#v", reports[0])
+	}
+	if _, err := storage.LoadLifecycle(1, "foo", "agi", "orphan"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("scan must not mutate lifecycle: %v", err)
+	}
+}
+
 func TestServiceDeletePreservesManifestWhenUnpinFails(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
 	runs := &fakeRuns{}
 	svc, _ := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "abc"})
@@ -667,8 +714,8 @@ func TestServiceDeletePreservesManifestWhenUnpinFails(t *testing.T) { // [REQ:GC
 	if err := svc.Delete(context.Background(), 1, "foo", "agi", "retry-delete"); err == nil || !strings.Contains(err.Error(), "retention pin") {
 		t.Fatalf("Delete error = %v", err)
 	}
-	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "retry-delete"); err != nil {
-		t.Fatalf("failed unpin removed recovery identity: %v", err)
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "retry-delete"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("failed unpin left a ready baseline visible: %v", err)
 	}
 
 	runs.unpinErr = nil
@@ -677,6 +724,36 @@ func TestServiceDeletePreservesManifestWhenUnpinFails(t *testing.T) { // [REQ:GC
 	}
 	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "retry-delete"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("retried delete left manifest: %v", err)
+	}
+}
+
+func TestRepairBaselinePlansAndConvergesTombstonedManifest(t *testing.T) {
+	runs := &fakeRuns{}
+	svc, storage := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "abc"})
+	seedBaseline(t, svc, "repair-me")
+	runs.unpinErr = errors.New("temporary retention outage")
+	if err := svc.Delete(context.Background(), 1, "foo", "agi", "repair-me"); err == nil {
+		t.Fatal("delete should leave a tombstoned manifest when unpin fails")
+	}
+	dry, err := svc.RepairBaseline(context.Background(), RepairRequest{RepoID: 1, Scenario: "foo", Branch: "agi", Name: "repair-me", DryRun: true})
+	if err != nil || dry.Applied || len(dry.Actions) != 2 {
+		t.Fatalf("dry repair = %#v err=%v", dry, err)
+	}
+	runs.unpinErr = nil
+	applied, err := svc.RepairBaseline(context.Background(), RepairRequest{RepoID: 1, Scenario: "foo", Branch: "agi", Name: "repair-me"})
+	if err != nil || !applied.Applied {
+		t.Fatalf("applied repair = %#v err=%v", applied, err)
+	}
+	if _, err := storage.Load(1, "foo", "agi", "repair-me"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("repair retained manifest: %v", err)
+	}
+	dir, err := storage.branchDir(1, "foo", "agi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Join(dir, ".lifecycle-audit"))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("repair audit entries = %#v err=%v", entries, err)
 	}
 }
 

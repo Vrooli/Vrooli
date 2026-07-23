@@ -37,7 +37,15 @@ Meta Optimization has six loops:
 5. **Skill and Action loop** — audit skills and Actions for conversion, improvement, deprecation, and measurement-backed promotion.
 6. **Challenge and debt loop** — challenge stale, weak, or excessive decisions; promote stable typed evidence into canon, skills, Actions, CLI backlog, team changes, capability gaps, or retirement.
 
-The Skill and Action loop has two clear axes that compose rather than compete. **Destination clarity** is covered by `path:docs/agent-system/SKILL_AUTHORING.md` §"Destination over direction: maturity ladders for audit-shaped skills" — does the skill name a verifiable end state? **Implementation maturity** is covered by `path:docs/agent-system/PROMOTION_LADDER.md` — prose → CLI wrapper → Action → retired. Destination clarity is the *precondition* for climbing the implementation ladder: there is nothing to mechanize until the skill has named its target artifact. The Skill Maturity Score in `path:scenarios/development-toolchain-validator/` P1-005 is the programmatic reading of the destination axis (weighted by structural config, CLI tool assertions, and conflict-free passing), and feeds the conversion / improvement / deprecation decisions this loop raises.
+The Skill and Action loop has three axes that compose rather than compete:
+
+- **Destination clarity** — does the skill name a verifiable end state? Covered by `path:docs/agent-system/SKILL_AUTHORING.md` §"Destination over direction: maturity ladders for audit-shaped skills".
+- **Implementation maturity** — prose → CLI wrapper → Action → retired. Covered by `path:docs/agent-system/PROMOTION_LADDER.md`.
+- **Conditioning quality** — does the skill's text converge behavior (focality, interpretive entropy, verifiability, attention economy), or is it a hand-rolled rule pile a named standard should replace? Covered by `path:docs/agent-system/SKILL_AUTHORING.md` §"Skills are conditioning signals".
+
+Destination clarity is the *precondition* for climbing the implementation ladder: there is nothing to mechanize until the skill has named its target artifact.
+
+The measured edge of the loop is prompt-manager's skill-experiment machinery: immutable workflow-dispatch assignments and independently evaluated, assignment-bound verdicts are controlled evidence; organic skill reads are observational only. The `skill-optimizer` can author and analyze contestable experiments, but `experiment conclude` only publishes a pending `skill-experiment-promotion` decision to this team. Promotion requires the frozen protocol gates, a signed clear audit receipt, separately signed holdout confirmation, and the operator accepting that exact decision in `meta-optimization`. No optimizer, ledger topic, audit prose, or alternative decision can write the skill directly. The ledger lives in `topic:skill-experiment/<skill-id>/<experiment-id>`.
 
 The loops are intentionally independent. A friction report can route without becoming a decision; a run lesson can create a capability gap without touching skills; a contrarian review can resolve a decision without generating new work.
 
@@ -115,6 +123,8 @@ flowchart LR
   ACTIONAUD[(action-audit/YYYY-MM-DD)]
   %% @node ACTIONVIS topic:action-visited/<action-id>
   ACTIONVIS[(action-visited/<action-id>)]
+  %% @node SKEXP topic:skill-experiment/<skill-id>/<experiment-id>
+  SKEXP[(skill-experiment/<skill-id>/<experiment-id>)]
   %% @node DEBT topic:debt-scan/YYYY-MM-DD
   DEBT[(debt-scan/YYYY-MM-DD)]
   %% @node CHAL topic:challenge-report/<decision-id>
@@ -230,6 +240,8 @@ flowchart LR
   OP --> SO
   SKILLAUD --> SO
   SKILLVIS --> SO
+  SKEXP --> SO
+  SKEXP --> MC
   ACTIONAUD --> SO
   ACTIONVIS --> SO
   CHAL --> SO
@@ -243,6 +255,7 @@ flowchart LR
   CAP --> SO
   SO --> SKILLAUD
   SO --> SKILLVIS
+  SO --> SKEXP
   SO --> ACTIONAUD
   SO --> ACTIONVIS
   SO --> SKCONV
@@ -332,6 +345,7 @@ flowchart LR
 | `topic:skill-visited/<skill-id>` | live | `skill-optimizer` | `skill-optimizer` | Visited tracker used to avoid repeatedly auditing the same skill before the rotation completes. |
 | `topic:action-audit/YYYY-MM-DD` | live | `skill-optimizer` | `skill-optimizer` | Snapshot audit of Action candidates, Action contracts, Action improvements, and deprecation opportunities. |
 | `topic:action-visited/<action-id>` | live | `skill-optimizer` | `skill-optimizer` | Visited tracker used to avoid repeatedly auditing the same Action before the rotation completes. |
+| `topic:skill-experiment/<skill-id>/<experiment-id>` | live | `skill-optimizer` | `skill-optimizer`, `meta-contrarian` | Experiment ledger for a skill A/B experiment: hypothesis, arm rationale, report snapshots, contrarian challenge, and conclusion evidence. |
 | `topic:debt-scan/YYYY-MM-DD` | live | `debt-curator` | `debt-curator` | Snapshot scan of stable typed evidence and recurring workaround evidence selected for promotion, routing, or retirement. |
 | `topic:challenge-report/<decision-id>` | live | `meta-contrarian` | `toolchain-validator`, `run-introspector`, `team-agent-optimizer`, `skill-optimizer`, `debt-curator`, `meta-contrarian` | Append-only contrarian challenge evidence for meta-optimization decisions. |
 | `topic:challenge-resolution-record/<decision-id>` | live | `meta-contrarian` | `toolchain-validator`, `run-introspector`, `team-agent-optimizer`, `skill-optimizer`, `debt-curator`, `meta-contrarian` | Latest-state record for a meta-optimization challenge: open, author-responded, resolved, escalated, overridden, or stale. |
@@ -391,15 +405,12 @@ If this loop does not produce measurable downstream change, the correct response
 
 ## Current Implementation Gaps
 
-- **Readiness measurement + prioritization is now programmatic** via the `meta-optimization-manager` scenario (the fleet-readiness control plane, "EM one altitude up"). Instead of hand-running `test-genie health --json`, `prompt-manager graph health --json`, and `search-hub providers list --json` and synthesizing the picture in prose, the team reads it directly:
-  - `meta-optimization-manager coverage status --json` — per-projection (Answer/Validate/Guide) coverage joined live against each owner, paired with denominator-confidence.
-  - `meta-optimization-manager focus next --json` / `gaps list --json` — the ranked next-best gaps (impact × importance) and the gaps registry (with `gaps note <id> --add` to store explored-but-unbuilt approaches).
-  - `meta-optimization-manager convergence status --json` — per-template four-lens fitness + gold-star reference-scenario health.
-  - `meta-optimization-manager trials run` / `trials history --json` / `trials coverage --json` — the empirical local-model gate (explicit-invocation only) and its success/tokens/time trend + Guide-gate coverage.
-  The aggregator only *measures and directs*; the *improvement* stays agentic (the loops above). It never stores numerators — coverage is computed live and only short-TTL snapshots are cached. The manual multi-CLI scorekeeping this team used previously is superseded by these commands.
+- **Readiness measurement + prioritization is now programmatic** via the `meta-optimization-manager` scenario (the fleet-readiness control plane, "EM one altitude up"): `coverage status`, `focus next` / `gaps list`, `convergence status`, and `trials run|history|coverage` replace hand-running `test-genie health --json`, `prompt-manager graph health --json`, and `search-hub providers list --json`. The aggregator only *measures and directs*; the *improvement* stays agentic (the loops above), and no numerators are stored. Target state reached — the manual multi-CLI scorekeeping is superseded; per-command detail lives in the `meta-optimization-manager` CLI help.
 - The operating graph and topic catalog are now explicit for this team; validation should be used to keep the graph, `team.json::topicCatalog`, and member `topics.json` files aligned.
 - `Decision context` rows are structurally registered, but accepted decision effects are still mostly prose. A later validator should compare the decision catalog against downstream implementation/routing contracts the same way topic validation compares topic flows.
 - `friction-report/*` routing is deterministic today. If routed scopes stop fitting the current members, add a decision-backed routing context rather than letting the curator become an analyst.
+- The Skill Maturity Score is not yet built. The destination-clarity axis of the Skill and Action loop is meant to be read programmatically by a Skill Maturity Score in `path:scenarios/development-toolchain-validator/` (tracked as OT-P1-002), feeding the conversion / improvement / deprecation decisions the loop raises. It is planned, not shipped. Until it lands, the destination read stays agentic in the `skill-optimizer` audit; the score is a target-state signal, not a current input, and must not be cited in contract prose as if it exists.
+- Held-out trial verdicts are named in the conclusion gate, but `meta-optimization-manager` trials are not yet wired to experiments. The gate in `path:scenarios/prompt-manager/store/teams/meta-optimization/members/skill-optimizer/RESPONSIBILITIES.md` names held-out trial verdicts as a private conclusion score, but the trial runner does no arm pre-resolution, there is no verdict→outcome attribution back to `topic:skill-experiment/<skill-id>/<experiment-id>`, and `trials run` reuse keys on `(taskID, fixtureRev)` — which would mis-attribute a reused run across arms. Until that wiring ships, conclude only on attributed run outcomes or divergence probes; the operating graph and Topic Catalog gain a `meta-optimization-manager` producer into `topic:skill-experiment/<skill-id>/<experiment-id>` only when it does.
 
 ## Adoption / Validation
 

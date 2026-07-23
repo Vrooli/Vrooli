@@ -48,6 +48,36 @@ func TestCollectionCaptureStartsEachMemberOnceAndFinalizesCoverage(t *testing.T)
 	}
 }
 
+func TestCollectionCaptureReusesExistingImmutableBaseline(t *testing.T) {
+	svc, exec := collectionService(t)
+	if _, err := svc.Create(context.Background(), CreateRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Scenario: "plan-manager", Branch: "agi", Name: "before",
+	}); err != nil {
+		t.Fatalf("Create existing baseline: %v", err)
+	}
+	if exec.calls != 1 {
+		t.Fatalf("existing baseline runs = %d, want 1", exec.calls)
+	}
+
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil {
+		t.Fatalf("StartCollectionCapture: %v", err)
+	}
+	if exec.calls != 1 || len(started.Pending) != 0 {
+		t.Fatalf("collection started another run: calls=%d pending=%#v", exec.calls, started.Pending)
+	}
+	member := started.Collection.Members[0]
+	if member.Status != CollectionMemberReady || member.RunID == "" || member.Error != "reused immutable baseline" {
+		t.Fatalf("reused member = %#v", member)
+	}
+	if !started.Collection.Coverage().Complete() {
+		t.Fatalf("reused baseline did not complete collection: %#v", started.Collection.Coverage())
+	}
+}
+
 func TestCollectionCaptureCommitsTerminalMemberWhileSiblingWaits(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
 	exec := &blockingFinalizeExecutor{
 		firstAwaitStarted: make(chan struct{}),
@@ -131,6 +161,31 @@ func TestResumeCollectionCaptureReattachesDurablePendingMembers(t *testing.T) {
 	resumed, err := svc.ResumeCollectionCapture(context.Background(), 1, "agi", "before")
 	if err != nil || !resumed.Coverage().Complete() || exec.calls != 1 {
 		t.Fatalf("resume = %#v err=%v calls=%d", resumed, err, exec.calls)
+	}
+}
+
+func TestResumeCollectionCaptureRepairsPendingProjectionFromReadyChild(t *testing.T) {
+	svc, _ := collectionService(t)
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
+	if err != nil || len(started.Pending) != 1 {
+		t.Fatalf("start = %#v err=%v", started, err)
+	}
+	// Simulate a crash after the child commit and before the parent member
+	// projection, followed by retention cleanup of the completed intent.
+	if _, err := svc.FinalizeCapture(context.Background(), started.Pending[0].Pending); err != nil {
+		t.Fatalf("finalize child: %v", err)
+	}
+	dir, err := svc.storage.branchDir(1, "plan-manager", "agi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(svc.storage.snapshotIntentPath(dir, "before", started.Pending[0].Pending.Run.RunID)); err != nil {
+		t.Fatal(err)
+	}
+
+	resumed, err := svc.ResumeCollectionCapture(context.Background(), 1, "agi", "before")
+	if err != nil || !resumed.Coverage().Complete() || resumed.Members[0].Status != CollectionMemberReady {
+		t.Fatalf("resume did not repair ready child projection: %#v err=%v", resumed, err)
 	}
 }
 

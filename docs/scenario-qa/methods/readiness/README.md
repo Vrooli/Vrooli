@@ -32,7 +32,7 @@ When this registry receives its first entry, the same mandatory rule applies (mi
 
 > Every entry ships as `doc + paired skill`. This is a hard rule, not a recommendation. Neither half is optional, and neither half replaces the other. The doc holds *reasoning*; the skill holds *procedure*. A doc with no skill is a stale shrine. A skill with no doc is brittle.
 
-The canon coherence test at `scenarios/prompt-manager/test/agent_system_canon_test.sh` enforces pairing across all three registries via a shared `{registryDir, skillTag}` pair table; readiness-checks plugs in by appending one entry to that table once the first paired entry exists.
+The canon coherence test at `scenarios/prompt-manager/test/agent_system_canon_test.sh` enforces pairing across all three registries via a shared `{registryDir, skillTag}` pair table; this readiness registry plugs in by appending one entry to that table once the first paired entry exists.
 
 ## Lifecycle (applies when entries exist)
 

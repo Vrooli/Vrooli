@@ -12,6 +12,24 @@ capture profile, phase-set digest, and the persisted Test Genie descriptor
 snapshot identity. GCT pins that run once and unpins it once when the baseline
 is deleted.
 
+## Lifecycle ownership and recovery
+
+Each `(scenario, branch, name)` identity also has one lifecycle record. Its
+generation is monotonic and transitions only through `capturing → ready`,
+`capturing → failed`, and `ready → deleted`. Deletion writes a durable
+`deleted` tombstone before unpinning and removing the manifest. A delayed
+capture finalizer must observe that tombstone and cannot recreate the baseline.
+An explicit recapture creates the next generation; operators never repair this
+state by editing storage files.
+
+Lifecycle repair is deterministic. A dry run reports the exact cleanup actions;
+an apply operation writes an append-only lifecycle audit entry. It can converge
+a tombstoned manifest left by a temporary retention-unpin outage, but it never
+creates a missing ready manifest or silently replaces an anchor. Those cases
+require an explicit recapture. The migration scanner reports legacy ready
+snapshot intents without a manifest or lifecycle record and does not mutate
+them.
+
 Test Genie remains authoritative for:
 
 - the dynamic phase catalog and captured phase descriptors;

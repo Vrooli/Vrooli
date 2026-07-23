@@ -56,6 +56,30 @@ All safeguards must be safe to apply multiple times. The Go handler implements a
 
 A safeguard that can't be made idempotent doesn't belong in this system; it should be a one-shot setup script under the relevant scenario.
 
+## Focused repair and reboot-aware safeguards
+
+Use `vrooli host safeguard <name>` when one declared host capability needs a
+focused repair. It uses the same handler, privilege policy, and typed status as
+`vrooli setup`, without applying unrelated setup requirements. `--dry-run`
+shows the exact managed transaction; `--sudo-mode ask` requests elevation from
+an interactive terminal when needed.
+
+Some changes cannot become effective in the current boot. Such handlers return
+`reboot_required` with the blocking reason `needs_reboot`; this is intentionally
+not reported as healthy. Reboot, then rerun the same safeguard to verify the
+live state.
+
+`nvidia_driver` is the reference kernel-driver safeguard. It detects NVIDIA
+display hardware through PCI sysfs even when `nvidia-smi` is broken, validates
+the live NVML/kernel-driver handshake, and on Ubuntu repairs the module package
+for the running kernel plus the installed kernel-meta package that carries the
+repair forward to future kernel upgrades. It is not a `hostTool`: a GPU
+container cannot supply or repair the host kernel driver it depends on.
+When a recognized remote-desktop server is active, it fails closed before the
+package transaction because module installation can claim DRM/VGA devices
+immediately. Schedule a maintenance window with console or SSH recovery and
+pass `--maintenance-window` only when that interruption is acceptable.
+
 ## Adding a new safeguard
 
 1. Create `internal/safeguards/<name>/safeguard.json` conforming to [`safeguard.schema.json`](../../../.vrooli/schemas/safeguard.schema.json).

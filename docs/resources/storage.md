@@ -37,7 +37,7 @@ Reason:
 
 Recommended shared implementation target:
 
-- `path:internal/resources/runtime/storage`
+- `internal/resources/runtime/storage`
 
 If this later needs to move to a promoted shared package, that should be an intentional follow-up rather than an assumption.
 

@@ -1,6 +1,6 @@
 # Director Swarm Plan of Record
 
-This folder is the plan of record for portfolio direction, initiative sequencing, and outcome discipline. It is owned by the `director-swarm` team in prompt-manager and curated through approved operator decisions.
+This folder is the plan of record for portfolio direction, goal sequencing, and outcome discipline. It is owned by the `director-swarm` team in prompt-manager and curated through approved operator decisions.
 
 The local contract is [`manifest.json`](manifest.json), which instantiates the shared plan-of-record shape from [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json).
 
@@ -12,7 +12,7 @@ Use this README first, then choose the module that matches the work:
 |---|---|
 | How does the director-swarm team operate end to end? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
 | Which work should matter most, and why? | [`strategy/PORTFOLIO_PHILOSOPHY.md`](strategy/PORTFOLIO_PHILOSOPHY.md) |
-| What sequence of initiatives are we steering toward? | [`strategy/ROADMAP.md`](strategy/ROADMAP.md) |
+| What sequence of goals are we steering toward? | [`strategy/ROADMAP.md`](strategy/ROADMAP.md) |
 | What outcome categories should the Command Center eventually close? | [`evidence/OUTCOMES_CHARTER.md`](evidence/OUTCOMES_CHARTER.md) |
 | Does a proposed direction drift from the operator's north star? | [`../../VISION.md`](../../VISION.md) |
 | Does a proposal depend on how Vrooli technically works? | [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) |
@@ -31,7 +31,7 @@ Use this README first, then choose the module that matches the work:
 - Agents never write to plan-of-record canon directly during heartbeat work.
 - Proposed changes go through `director-swarm` decisions and are applied only after approval.
 - Use the most specific module: operating contract under `operating/`, directional portfolio truth under `strategy/`, and outcome or metric framing under `evidence/`.
-- Swarm Manager remains authoritative for live initiative status, dependencies, backlog items, and execution state.
+- Swarm Manager remains authoritative for live goal status, dependencies, backlog items, and execution state.
 
 Decision-context detail lives in [`governance/editing.md`](governance/editing.md).
 

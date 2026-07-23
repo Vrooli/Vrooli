@@ -109,6 +109,121 @@ type CreateResult struct {
 	DirtyWarning string // non-empty when captured against a dirty tree
 }
 
+// LegacyOrphanReport is read-only migration evidence. It intentionally does
+// not repair or delete anything: an operator must choose an explicit repair
+// after inspecting the durable identity and run handle.
+type LegacyOrphanReport struct {
+	Scenario string
+	Branch   string
+	Name     string
+	RunID    string
+	Reason   string
+}
+
+type RepairRequest struct {
+	RepoID   int64
+	Scenario string
+	Branch   string
+	Name     string
+	DryRun   bool
+}
+
+type RepairResult struct {
+	Generation int64
+	Actions    []string
+	Applied    bool
+}
+
+// RepairBaseline plans and, when requested, applies only deterministic
+// lifecycle cleanup. It never manufactures a missing manifest or replaces an
+// anchor; those cases require an explicit recapture.
+func (s *Service) RepairBaseline(ctx context.Context, req RepairRequest) (RepairResult, error) {
+	lifecycle, err := s.storage.LoadLifecycle(req.RepoID, req.Scenario, req.Branch, req.Name)
+	if err != nil {
+		return RepairResult{}, err
+	}
+	result := RepairResult{Generation: lifecycle.Generation}
+	manifest, manifestErr := s.storage.Load(req.RepoID, req.Scenario, req.Branch, req.Name)
+	if manifestErr != nil && !errors.Is(manifestErr, ErrNotFound) {
+		return RepairResult{}, manifestErr
+	}
+	switch lifecycle.Status {
+	case LifecycleDeleted:
+		if manifestErr == nil {
+			result.Actions = append(result.Actions, "unpin retained manifest run", "remove tombstoned manifest")
+			if !req.DryRun {
+				if err := s.unpinRun(ctx, manifest); err != nil {
+					return RepairResult{}, fmt.Errorf("repair tombstoned baseline retention pin: %w", err)
+				}
+				if err := s.storage.Delete(req.RepoID, req.Scenario, req.Branch, req.Name); err != nil {
+					return RepairResult{}, err
+				}
+			}
+		} else {
+			result.Actions = append(result.Actions, "tombstone already converged")
+		}
+	case LifecycleReady:
+		if errors.Is(manifestErr, ErrNotFound) {
+			result.Actions = append(result.Actions, "missing ready manifest requires explicit recapture")
+		} else {
+			result.Actions = append(result.Actions, "ready lifecycle already converged")
+		}
+	case LifecycleCapturing:
+		result.Actions = append(result.Actions, "leave capture for durable status reconciliation")
+	case LifecycleFailed:
+		result.Actions = append(result.Actions, "failed capture requires explicit recapture")
+	}
+	if !req.DryRun {
+		entry := LifecycleAuditEntry{Scenario: req.Scenario, Branch: req.Branch, Name: req.Name, Generation: lifecycle.Generation, Action: "repair", Detail: strings.Join(result.Actions, "; "), CreatedAt: s.now().UTC()}
+		if err := s.storage.SaveLifecycleAudit(req.RepoID, entry); err != nil {
+			return RepairResult{}, err
+		}
+		result.Applied = true
+	}
+	return result, nil
+}
+
+// ScanLegacyOrphans reports completed snapshot intents that have no manifest
+// and no deletion tombstone. These are the historical split-state records that
+// predate lifecycle ownership. The scan is deterministic and non-mutating.
+func (s *Service) ScanLegacyOrphans(repoID int64) ([]LegacyOrphanReport, error) {
+	intents, err := s.storage.ListAllSnapshotIntents(repoID)
+	if err != nil {
+		return nil, err
+	}
+	reports := make([]LegacyOrphanReport, 0)
+	for _, intent := range intents {
+		if intent.Status != "ready" {
+			continue
+		}
+		if lifecycle, lifecycleErr := s.storage.LoadLifecycle(repoID, intent.Scenario, intent.Branch, intent.Name); lifecycleErr == nil {
+			// Lifecycle-managed records are never legacy orphans. A tombstone is
+			// deliberate deletion evidence, while ready/capturing are governed by
+			// the transition coordinator.
+			_ = lifecycle
+			continue
+		} else if !errors.Is(lifecycleErr, ErrNotFound) {
+			return nil, lifecycleErr
+		}
+		if _, manifestErr := s.storage.Load(repoID, intent.Scenario, intent.Branch, intent.Name); manifestErr == nil {
+			continue
+		} else if !errors.Is(manifestErr, ErrNotFound) {
+			return nil, manifestErr
+		}
+		reports = append(reports, LegacyOrphanReport{Scenario: intent.Scenario, Branch: intent.Branch, Name: intent.Name, RunID: intent.Run.RunID, Reason: "ready snapshot intent has no manifest or lifecycle record"})
+	}
+	sort.Slice(reports, func(i, j int) bool {
+		if reports[i].Scenario != reports[j].Scenario {
+			return reports[i].Scenario < reports[j].Scenario
+		}
+		if reports[i].Branch != reports[j].Branch {
+			return reports[i].Branch < reports[j].Branch
+		}
+		return reports[i].Name < reports[j].Name
+	})
+	return reports, nil
+}
+
 // Create is the blocking capture form used by focused tests and internal
 // callers. The public SnapshotForBaseline path uses StartCapture/FinalizeCapture.
 func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, error) {
@@ -120,20 +235,29 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 	if err != nil {
 		return CreateResult{}, err
 	}
+	if err := s.beginLifecycle(req.RepoID, manifest, h.RunID); err != nil {
+		return CreateResult{}, fmt.Errorf("begin baseline lifecycle: %w", err)
+	}
 	terminal, _, err := s.awaitStableCapture(ctx, req.Scenario, h, nil)
 	if err != nil {
+		_ = s.setLifecycle(req.RepoID, manifest, LifecycleFailed, h.RunID, err.Error())
 		return CreateResult{}, err
 	}
 	if err := s.validateBaselineEvidence(ctx, req.Scenario, terminal.RunID); err != nil {
+		_ = s.setLifecycle(req.RepoID, manifest, LifecycleFailed, h.RunID, err.Error())
 		return CreateResult{}, err
 	}
 	if err := s.attachRun(ctx, &manifest, req, terminal); err != nil {
+		_ = s.setLifecycle(req.RepoID, manifest, LifecycleFailed, h.RunID, err.Error())
 		return CreateResult{}, err
 	}
 
 	if err := s.storage.Save(req.RepoID, manifest, CreateOnly); err != nil {
 		_ = s.unpinRun(ctx, manifest)
 		return CreateResult{}, err
+	}
+	if err := s.setLifecycle(req.RepoID, manifest, LifecycleReady, manifest.RunID(), ""); err != nil {
+		return CreateResult{}, s.rollbackUncommittedReady(ctx, req.RepoID, manifest, err)
 	}
 
 	res := CreateResult{Manifest: manifest}
@@ -175,6 +299,9 @@ func (s *Service) StartCapture(ctx context.Context, req CreateRequest) (PendingC
 	}
 
 	pending := PendingCapture{Manifest: manifest, Req: req, Run: h}
+	if err := s.beginLifecycle(req.RepoID, manifest, h.RunID); err != nil {
+		return PendingCapture{}, err
+	}
 	if manifest.Git.Dirty {
 		pending.DirtyWarning = dirtyCaptureWarning(manifest.Git.DirtySummary)
 	}
@@ -205,10 +332,12 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 			return CreateResult{}, err
 		}
 		msg := "comprehensive run failed: " + err.Error()
+		_ = s.setLifecycle(pending.Req.RepoID, pending.Manifest, LifecycleFailed, pending.Run.RunID, msg)
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", msg)
 		return CreateResult{}, errors.New(msg)
 	}
 	if err := s.validateBaselineEvidence(ctx, pending.Req.Scenario, res.RunID); err != nil {
+		_ = s.setLifecycle(pending.Req.RepoID, pending.Manifest, LifecycleFailed, pending.Run.RunID, err.Error())
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", err.Error())
 		return CreateResult{}, err
 	}
@@ -228,6 +357,14 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 		return CreateResult{}, loadErr
 	}
 
+	if lifecycle, lifecycleErr := s.storage.LoadLifecycle(pending.Req.RepoID, pending.Manifest.Scenario, pending.Manifest.Branch, pending.Manifest.Name); lifecycleErr == nil && lifecycle.Status == LifecycleDeleted {
+		// attachRun has already acquired the idempotent retention pin. A delete
+		// that won the race must not leave the newly completed run retained.
+		_ = s.unpinRun(ctx, manifestForRun(pending.Manifest, res))
+		return CreateResult{}, fmt.Errorf("baseline %q was deleted while capture was in progress", pending.Manifest.Name)
+	} else if lifecycleErr != nil && !errors.Is(lifecycleErr, ErrNotFound) {
+		return CreateResult{}, lifecycleErr
+	}
 	manifest := pending.Manifest
 	if err := s.attachRun(ctx, &manifest, pending.Req, res); err != nil {
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", err.Error())
@@ -238,9 +375,61 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", err.Error())
 		return CreateResult{}, err
 	}
+	if err := s.setLifecycle(pending.Req.RepoID, manifest, LifecycleReady, manifest.RunID(), ""); err != nil {
+		commitErr := s.rollbackUncommittedReady(ctx, pending.Req.RepoID, manifest, err)
+		_ = s.saveSnapshotIntent(ctx, pending, "failed", commitErr.Error())
+		return CreateResult{}, commitErr
+	}
 	out := CreateResult{Manifest: manifest, DirtyWarning: pending.DirtyWarning}
 	_ = s.saveSnapshotIntent(ctx, pending, "ready", "")
 	return out, nil
+}
+
+// rollbackUncommittedReady compensates a failed lifecycle commit after a
+// manifest write. A ready manifest without its lifecycle authority would
+// recreate the split state this service is designed to eliminate, so it is
+// never exposed as a successful baseline. Best-effort cleanup errors are kept
+// in the returned failure for an operator/audit trail.
+func (s *Service) rollbackUncommittedReady(ctx context.Context, repoID int64, manifest BaselineManifest, lifecycleErr error) error {
+	cleanup := make([]string, 0, 2)
+	if err := s.storage.Delete(repoID, manifest.Scenario, manifest.Branch, manifest.Name); err != nil {
+		cleanup = append(cleanup, "remove manifest: "+err.Error())
+	}
+	if err := s.unpinRun(ctx, manifest); err != nil {
+		cleanup = append(cleanup, "unpin run: "+err.Error())
+	}
+	if len(cleanup) == 0 {
+		return fmt.Errorf("commit ready lifecycle: %w", lifecycleErr)
+	}
+	return fmt.Errorf("commit ready lifecycle: %w (compensation failed: %s)", lifecycleErr, strings.Join(cleanup, "; "))
+}
+
+// manifestForRun creates the minimal valid ownership record required to undo a
+// pin when a terminal capture loses to a deletion tombstone.
+func manifestForRun(seed BaselineManifest, result ExecResult) BaselineManifest {
+	seed.Run.RunID = result.RunID
+	return seed
+}
+
+func (s *Service) beginLifecycle(repoID int64, manifest BaselineManifest, runID string) error {
+	generation := int64(1)
+	if prior, err := s.storage.LoadLifecycle(repoID, manifest.Scenario, manifest.Branch, manifest.Name); err == nil {
+		generation = prior.Generation + 1
+	} else if !errors.Is(err, ErrNotFound) {
+		return err
+	}
+	return s.storage.SaveLifecycle(repoID, LifecycleRecord{Scenario: manifest.Scenario, Branch: manifest.Branch, Name: manifest.Name, Generation: generation, Status: LifecycleCapturing, RunID: runID, UpdatedAt: s.now().UTC()})
+}
+
+func (s *Service) setLifecycle(repoID int64, manifest BaselineManifest, status LifecycleStatus, runID, message string) error {
+	record, err := s.storage.LoadLifecycle(repoID, manifest.Scenario, manifest.Branch, manifest.Name)
+	if errors.Is(err, ErrNotFound) {
+		record = LifecycleRecord{Scenario: manifest.Scenario, Branch: manifest.Branch, Name: manifest.Name, Generation: 1}
+	} else if err != nil {
+		return err
+	}
+	record.Status, record.RunID, record.Error, record.UpdatedAt = status, runID, message, s.now().UTC()
+	return s.storage.SaveLifecycle(repoID, record)
 }
 
 // awaitStableCapture owns one bounded retry for a raced source snapshot. A
@@ -419,6 +608,11 @@ func dirtyCaptureWarning(summary string) string {
 
 // Get returns a single baseline manifest.
 func (s *Service) Get(ctx context.Context, repoID int64, scenario, branch, name string) (BaselineManifest, error) {
+	if lifecycle, lifecycleErr := s.storage.LoadLifecycle(repoID, scenario, branch, name); lifecycleErr == nil && lifecycle.Status == LifecycleDeleted {
+		return BaselineManifest{}, ErrNotFound
+	} else if lifecycleErr != nil && !errors.Is(lifecycleErr, ErrNotFound) {
+		return BaselineManifest{}, lifecycleErr
+	}
 	m, err := s.storage.Load(repoID, scenario, branch, name)
 	if err != nil {
 		return BaselineManifest{}, err
@@ -432,13 +626,22 @@ func (s *Service) List(ctx context.Context, repoID int64, scenario, branch strin
 	if err != nil {
 		return nil, err
 	}
+	active := manifests[:0]
 	for i := range manifests {
+		lifecycle, lifecycleErr := s.storage.LoadLifecycle(repoID, manifests[i].Scenario, manifests[i].Branch, manifests[i].Name)
+		if lifecycleErr == nil && lifecycle.Status == LifecycleDeleted {
+			continue
+		}
+		if lifecycleErr != nil && !errors.Is(lifecycleErr, ErrNotFound) {
+			return nil, lifecycleErr
+		}
 		manifests[i], err = s.reconcileMigrationPin(ctx, repoID, manifests[i])
 		if err != nil {
 			return nil, err
 		}
+		active = append(active, manifests[i])
 	}
-	return manifests, nil
+	return active, nil
 }
 
 // reconcileMigrationPin completes the retention half of a V1-to-V2 migration.
@@ -996,6 +1199,11 @@ func shortSha(sha string) string {
 func (s *Service) Delete(ctx context.Context, repoID int64, scenario, branch, name string) error {
 	manifest, err := s.storage.Load(repoID, scenario, branch, name)
 	if err != nil {
+		return err
+	}
+	// Retire first: a concurrent finalizer must see the tombstone and never
+	// recreate the just-deleted baseline if unpinning is interrupted.
+	if err := s.setLifecycle(repoID, manifest, LifecycleDeleted, manifest.RunID(), "deleted by operator"); err != nil {
 		return err
 	}
 	if err := s.unpinRun(ctx, manifest); err != nil {

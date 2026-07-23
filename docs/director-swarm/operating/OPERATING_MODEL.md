@@ -1,26 +1,26 @@
 # Director Swarm Operating Model
 
-**Status:** initial contract canon. This document defines how `director-swarm` works as a coherent system: portfolio hygiene, initiative interpretation, outcome gap routing, and morning vision-walk preparation.
+**Status:** initial contract canon. This document defines how `director-swarm` works as a coherent system: portfolio hygiene, goal interpretation, outcome gap routing, and morning vision-walk preparation.
 
 The current document adopts the generic team operating-model shape from `path:docs/agent-system/OPERATING_GRAPHS.md`.
 
 ## Mission
 
-Director Swarm keeps Vrooli's initiative portfolio flowing through Swarm Manager and surfaces outcome-driven strategy as Command Center comes online.
+Director Swarm keeps Vrooli's goal portfolio flowing through Swarm Manager and surfaces outcome-driven strategy as Command Center comes online.
 
 ## Scope
 
 Director Swarm owns:
 
-- portfolio ranking criteria, initiative theme interpretation, and roadmap positioning;
-- decision context preparation for new initiatives, initiative supplements, readiness judgments, outcome gaps, and vision drift;
+- portfolio ranking criteria, goal theme interpretation, and roadmap positioning;
+- decision context preparation for new goals, goal supplements, readiness judgments, outcome gaps, and vision drift;
 - approved decision application where Swarm Manager tooling supports the exact action;
 - outcome-category framing for Command Center and the gap-closure loop that turns missing metrics into capability work;
 - morning vision-walk briefing across portfolio, monetization, marketing, meta-optimization, infra-health, and life-audit signals.
 
 Director Swarm does not own:
 
-- live initiative status, dependencies, backlog items, or execution evidence, which belong to Swarm Manager;
+- live goal status, dependencies, backlog items, or execution evidence, which belong to Swarm Manager;
 - operator-authored vision or architecture canon, which members may flag but not rewrite;
 - monetization strategy, marketing strategy, scenario QA, infra-health reliability canon, or meta-optimization policy;
 - deployment, external execution, code changes, or team deployment.
@@ -29,8 +29,8 @@ Director Swarm does not own:
 
 Director Swarm has four loops:
 
-1. **Portfolio interpretation loop** - compare active and proposed work against [`../strategy/PORTFOLIO_PHILOSOPHY.md`](../strategy/PORTFOLIO_PHILOSOPHY.md), then propose bounded `initiative-portfolio`, `initiative-proposal`, `initiative-supplement`, or `initiative-readiness` decisions.
-2. **Roadmap positioning loop** - keep [`../strategy/ROADMAP.md`](../strategy/ROADMAP.md) aligned with Swarm Manager's initiative set without duplicating live status.
+1. **Portfolio interpretation loop** - compare active and proposed work against [`../strategy/PORTFOLIO_PHILOSOPHY.md`](../strategy/PORTFOLIO_PHILOSOPHY.md), then propose bounded `goal-portfolio`, `goal-proposal`, `goal-supplement`, or `goal-readiness` decisions.
+2. **Roadmap positioning loop** - keep [`../strategy/ROADMAP.md`](../strategy/ROADMAP.md) aligned with Swarm Manager's goal set without duplicating live status.
 3. **Outcome gap loop** - read Command Center gaps when available, use [`../evidence/OUTCOMES_CHARTER.md`](../evidence/OUTCOMES_CHARTER.md) for category framing, and raise `outcome-gap` or `outcome-direction` decisions.
 4. **Vision-walk preparation loop** - compile read-only operator briefings and flag drift against `path:VISION.md` or `path:docs/concepts/ARCHITECTURE.md` through `vision-update`.
 
@@ -74,8 +74,8 @@ flowchart LR
   %% Topics
   %% @node APP topic:decision-application/<decision-id>
   APP[(decision-application/<decision-id>)]
-  %% @node PORT topic:initiative-portfolio-record/YYYY-MM-DD
-  PORT[(initiative-portfolio-record/YYYY-MM-DD)]
+  %% @node PORT topic:goal-portfolio-record/YYYY-MM-DD
+  PORT[(goal-portfolio-record/YYYY-MM-DD)]
   %% @node OUT topic:outcome-target-record/YYYY-MM-DD
   OUT[(outcome-target-record/YYYY-MM-DD)]
   %% @node WALK topic:vision-walk-record/<date>/<slug>
@@ -84,14 +84,14 @@ flowchart LR
   HANDOFF[(handoff-history)]
 
   %% Decisions
-  %% @node IP decision:initiative-portfolio
-  IP{initiative-portfolio}
-  %% @node IS decision:initiative-supplement
-  IS{initiative-supplement}
-  %% @node IPR decision:initiative-proposal
-  IPR{initiative-proposal}
-  %% @node IR decision:initiative-readiness
-  IR{initiative-readiness}
+  %% @node IP decision:goal-portfolio
+  IP{goal-portfolio}
+  %% @node IS decision:goal-supplement
+  IS{goal-supplement}
+  %% @node IPR decision:goal-proposal
+  IPR{goal-proposal}
+  %% @node IR decision:goal-readiness
+  IR{goal-readiness}
   %% @node OG decision:outcome-gap
   OG{outcome-gap}
   %% @node OD decision:outcome-direction
@@ -151,7 +151,7 @@ flowchart LR
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
 | `topic:decision-application/<decision-id>` | live | `member:portfolio-manager` | `member:portfolio-manager` | Record exact accepted-decision application work and avoid duplicate application. |
-| `topic:initiative-portfolio-record/YYYY-MM-DD` | live | `member:portfolio-manager` | `member:portfolio-manager`, `external:operator` | Snapshot portfolio interpretation against the ranking criteria. |
+| `topic:goal-portfolio-record/YYYY-MM-DD` | live | `member:portfolio-manager` | `member:portfolio-manager`, `external:operator` | Snapshot portfolio interpretation against the ranking criteria. |
 | `topic:outcome-target-record/YYYY-MM-DD` | live | `member:outcome-strategist` | `member:outcome-strategist`, `external:operator` | Snapshot outcome target or gap interpretation when Command Center evidence exists. |
 | `topic:vision-walk-record/<date>/<slug>` | live | `member:vision-walk-prep` | `member:vision-walk-prep`, `external:operator` | Read-only morning vision-walk briefing material. |
 
@@ -159,10 +159,10 @@ flowchart LR
 
 | Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
 |---|---|---|---|---|
-| `initiative-portfolio` | `member:portfolio-manager` | Rank initiatives as active now, track, or defer. | Swarm Manager state, `topic:initiative-portfolio-record/YYYY-MM-DD`, or operator direction shows portfolio emphasis drift. | Updates Swarm Manager portfolio metadata or `path:docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md`. |
-| `initiative-supplement` | `member:portfolio-manager` | Propose supporting backlog work under existing initiatives. | An existing initiative lacks a bounded supporting backlog item. | Creates or updates a Swarm Manager backlog item under the owning initiative. |
-| `initiative-proposal` | `member:portfolio-manager` | Propose candidate new initiatives for operator approval. | A durable outcome needs multiple dependent backlog items under one shared outcome. | Creates a Swarm Manager initiative and may update `path:docs/director-swarm/strategy/ROADMAP.md`. |
-| `initiative-readiness` | `member:portfolio-manager` | Judge whether backlog items are detailed enough to execute. | A backlog item is ambiguous, underspecified, or ready for execution. | Updates Swarm Manager backlog readiness or routes clarification to the operator. |
+| `goal-portfolio` | `member:portfolio-manager` | Rank goals as active now, track, or defer. | Swarm Manager state, `topic:goal-portfolio-record/YYYY-MM-DD`, or operator direction shows portfolio emphasis drift. | Updates Swarm Manager portfolio metadata or `path:docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md`. |
+| `goal-supplement` | `member:portfolio-manager` | Propose supporting backlog work under existing goals. | An existing goal lacks a bounded supporting backlog item. | Creates or updates a Swarm Manager backlog item under the owning goal. |
+| `goal-proposal` | `member:portfolio-manager` | Propose candidate new goals for operator approval. | A durable outcome needs multiple dependent backlog items under one shared outcome. | Creates a Swarm Manager goal and may update `path:docs/director-swarm/strategy/ROADMAP.md`. |
+| `goal-readiness` | `member:portfolio-manager` | Judge whether backlog items are detailed enough to execute. | A backlog item is ambiguous, underspecified, or ready for execution. | Updates Swarm Manager backlog readiness or routes clarification to the operator. |
 | `outcome-gap` | `member:outcome-strategist` | Request missing Command Center data pipelines or instrumentation. | Command Center exposes a `gap` metric or `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` has an unresolved `pending-command-center` marker. | Creates capability work for Command Center or the owning implementation team. |
 | `outcome-direction` | `member:outcome-strategist` | Recommend a portfolio emphasis change from measured outcome evidence. | Measured Command Center data shows a material portfolio misalignment. | Updates portfolio emphasis through Swarm Manager or `path:docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md`. |
 | `vision-update` | `member:vision-walk-prep` | Surface operator-north-star or architecture drift without editing canon directly. | A proposed direction conflicts with `path:VISION.md` or `path:docs/concepts/ARCHITECTURE.md`. | Routes an operator-authored update to `path:VISION.md`, `path:docs/concepts/ARCHITECTURE.md`, or rejects the drifting proposal. |
@@ -171,8 +171,8 @@ flowchart LR
 
 | Producer / trigger | Entry surface | Drainer | Routing rule |
 |---|---|---|---|
-| `external:operator` | `decision:initiative-portfolio`, `decision:initiative-proposal`, `decision:vision-update` | `member:portfolio-manager`, `member:vision-walk-prep` | Operator direction can seed portfolio or vision decisions, but accepted effects still require approval. |
-| `external:swarm-manager` | `topic:initiative-portfolio-record/YYYY-MM-DD` | `member:portfolio-manager` | Live initiative state informs portfolio interpretation; do not copy live status into the PoR. |
+| `external:operator` | `decision:goal-portfolio`, `decision:goal-proposal`, `decision:vision-update` | `member:portfolio-manager`, `member:vision-walk-prep` | Operator direction can seed portfolio or vision decisions, but accepted effects still require approval. |
+| `external:swarm-manager` | `topic:goal-portfolio-record/YYYY-MM-DD` | `member:portfolio-manager` | Live goal state informs portfolio interpretation; do not copy live status into the PoR. |
 | `external:command-center` | `topic:outcome-target-record/YYYY-MM-DD`, `decision:outcome-gap` | `member:outcome-strategist` | Metric gaps route to outcome-gap decisions; measured outcome evidence may route to outcome-direction. |
 | `external:cross-team-signals` | `topic:vision-walk-record/<date>/<slug>` | `member:vision-walk-prep` | Cross-team signals become read-only briefing material unless a specific owner raises a decision. |
 
@@ -180,14 +180,14 @@ flowchart LR
 
 | Output | Surface | Consumer | Purpose |
 |---|---|---|---|
-| Approved initiative decisions | `decision:initiative-portfolio`, `decision:initiative-proposal`, `decision:initiative-supplement`, `decision:initiative-readiness` | `external:operator`, `external:swarm-manager` | Move portfolio work into accepted Swarm Manager state. |
+| Approved goal decisions | `decision:goal-portfolio`, `decision:goal-proposal`, `decision:goal-supplement`, `decision:goal-readiness` | `external:operator`, `external:swarm-manager` | Move portfolio work into accepted Swarm Manager state. |
 | Approved outcome-gap decisions | `decision:outcome-gap`, `decision:outcome-direction` | `external:operator`, `external:command-center`, owning implementation teams | Turn missing or surprising metrics into routed capability work. |
 | Vision-walk handoffs | `topic:vision-walk-record/<date>/<slug>`, handoff history | `external:operator` | Prepare morning review without changing canon directly. |
 | Operator-curated PoR updates | `path:docs/director-swarm/` | `member:portfolio-manager`, `member:outcome-strategist`, `member:vision-walk-prep` | Keep durable strategy and evidence canon aligned after approval. |
 
 ## Feedback / Capability Improvement Loop
 
-1. `member:portfolio-manager` compares Swarm Manager state with `topic:initiative-portfolio-record/YYYY-MM-DD` and raises `decision:initiative-portfolio` when strategy and live portfolio diverge.
+1. `member:portfolio-manager` compares Swarm Manager state with `topic:goal-portfolio-record/YYYY-MM-DD` and raises `decision:goal-portfolio` when strategy and live portfolio diverge.
 2. `member:outcome-strategist` checks Command Center gaps against `topic:outcome-target-record/YYYY-MM-DD` and raises `decision:outcome-gap` when a missing metric blocks outcome judgment.
 3. `member:vision-walk-prep` consolidates cross-team signals into `topic:vision-walk-record/<date>/<slug>` and raises `decision:vision-update` only when the operator north star or architecture canon needs review.
 4. Accepted decisions update Swarm Manager, Command Center capability work, or `path:docs/director-swarm/` canon; rejected decisions remain evidence for future review.

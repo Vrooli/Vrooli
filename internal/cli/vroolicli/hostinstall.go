@@ -19,10 +19,11 @@ func hostInstallSpec() commandtree.Spec[string] {
 		Summary: "Install a single host tool (url/release fetch into ~/.vrooli/bin, no sudo)",
 		Help: commandtree.Help{
 			Description: "Ensures one host tool by name through the runtime tool handler: data-declared url/release binaries are fetched + checksum-verified into ~/.vrooli/bin; package/manual tools report how to install them. Honors the hardware-capability gate (a tool whose requirements are unmet on this host is cleanly skipped, not failed).",
-			Usage:       "vrooli host install <tool> [--json] [--dry-run]",
+			Usage:       "vrooli host install <tool> [--json] [--dry-run] [--sudo-mode ask|skip|error]",
 			Options: []commandtree.OptionArg{
 				commandtree.JSONOption(),
 				{Name: "--dry-run", Description: "Report what would be fetched without downloading"},
+				{Name: "--sudo-mode", ValueName: "mode", Description: "Privilege policy for package installs: ask, skip, or error (default: skip)"},
 			},
 			Examples: []string{
 				"vrooli host install realesrgan-ncnn-vulkan",
@@ -37,6 +38,7 @@ func hostInstallSpec() commandtree.Spec[string] {
 			Options: []commandtree.OptionArg{
 				commandtree.JSONOption(),
 				{Name: "--dry-run", Description: "Report what would be fetched without downloading"},
+				{Name: "--sudo-mode", ValueName: "mode", Description: "Privilege policy for package installs: ask, skip, or error (default: skip)"},
 			},
 		},
 		Handler: "install",
@@ -98,11 +100,16 @@ func (app *App) runHostInstallCommand(ctx *CommandContext, args []string) error 
 	tool := strings.TrimSpace(parsed.Positionals[0])
 	jsonOut := ctx.Globals.JSON || parsed.HasFlag("--json")
 	dryRun := parsed.HasFlag("--dry-run")
+	sudoMode := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--sudo-mode")))
+	if sudoMode != "" && sudoMode != "ask" && sudoMode != "skip" && sudoMode != "error" {
+		return rootcli.UsageErrorf("host install", "invalid --sudo-mode %q (want ask, skip, or error)", sudoMode)
+	}
 
 	opts := hostruntime.EnsureOptions{
 		AutoInstall:     true,
 		IncludeOptional: true,
 		DryRun:          dryRun,
+		SudoMode:        sudoMode,
 	}
 	// Stream human progress to stderr so --json keeps stdout a clean contract.
 	if !jsonOut {

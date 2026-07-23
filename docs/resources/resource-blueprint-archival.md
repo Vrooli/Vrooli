@@ -5,9 +5,9 @@ Blueprint archival is the workflow for removing an implementation from the activ
 ## Current CLI Surface
 
 ```bash
-vrooli resource archive-to-blueprint <name>
+vrooli resource archive-to-blueprint "<name>"
 vrooli resource list-blueprint-archived
-vrooli resource restore-blueprint <name>
+vrooli resource restore-blueprint "<name>"
 vrooli resource archive gc-blueprints
 ```
 

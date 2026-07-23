@@ -55,7 +55,7 @@ The normalization work described by older audit docs has been folded into the cu
 
 ```bash
 vrooli resource validate
-vrooli resource validate <name>
+vrooli resource validate "<name>"
 vrooli resource schema validate
 ```
 

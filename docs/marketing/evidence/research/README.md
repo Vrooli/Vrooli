@@ -136,7 +136,7 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 Inbox draining is now a structural concern, not a single skill:
 
 - `docs/marketing/taxonomies/marketing-research/README.md` (paired with `taxonomy.json`) — owns the signal vocabulary, dispatch table, evidence rules, and destination schemas.
-- `marketing-signal-classifier` — pure-judgment skill that returns `signal_type`, `evidence_strength`, `honesty_flags`, and a `recommended_method` for each raw item. Member-agnostic; no inbox or destination coupling.
+- `signal-classifier` — pure-judgment skill that returns `signal_type`, `evidence_strength`, `honesty_flags`, and a `recommended_method` for each raw item. Member-agnostic; no inbox or destination coupling.
 - The researcher's heartbeat receives a generated `# Inbox Flow` section that names the prefix, classifier, destinations, and dispatch.
 
 Planned focused method skills (audience-pain-mining, competitor-positioning-scan, hook-pattern-mining, etc.) cite the taxonomy as their PoR hub and keep procedure in the skill, not in this document.

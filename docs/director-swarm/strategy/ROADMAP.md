@@ -1,8 +1,8 @@
 # Roadmap
 
-A thematic lens over Vrooli's initiative portfolio. **Swarm Manager is authoritative** for initiative status, priority ordering, dependencies, and per-initiative detail — consult `swarm-manager initiatives list` and `swarm-manager initiatives get --name <name>` for current state.
+A thematic lens over Vrooli's goal portfolio. **Swarm Manager is authoritative** for goal status, priority ordering, dependencies, and per-goal detail — consult `swarm-manager goals list` and `swarm-manager goals get --name <name>` for current state.
 
-This doc holds **positioning**: which initiatives exist, why they exist, and how they map to the goals in [PORTFOLIO_PHILOSOPHY.md](PORTFOLIO_PHILOSOPHY.md). It is grouped by theme rather than ordered, because the portfolio pursues several themes in parallel. Status is not reflected here — check Swarm Manager.
+This doc holds **positioning**: which goals exist, why they exist, and how they map to the goals in [PORTFOLIO_PHILOSOPHY.md](PORTFOLIO_PHILOSOPHY.md). It is grouped by theme rather than ordered, because the portfolio pursues several themes in parallel. Status is not reflected here — check Swarm Manager.
 
 ## Themes
 
@@ -16,7 +16,7 @@ The portfolio organizes into the themes below. Each maps to one or more of the r
 
 **Primary criterion:** revenue (1) + quality/auditability co-requirement (2).
 
-| Initiative | Positioning |
+| Goal | Positioning |
 |---|---|
 | `desktop-runtime-interop` | Desktop apps must coexist and override local swarm equivalents cleanly — required for the business bundle's Tier 1 delivery to work at all. |
 | `desktop-release-governance` | Approval gating, release records, LPBS release contracts. The spine of monetized desktop delivery. |
@@ -35,10 +35,10 @@ The portfolio organizes into the themes below. Each maps to one or more of the r
 
 Cross-reference: [docs/monetization/catalogs/skus/base/business.md](../../monetization/catalogs/skus/base/business.md) for the bundle definition.
 
-| Initiative | Positioning |
+| Goal | Positioning |
 |---|---|
 | `git-control-tower-ai-provenance` | GCT needs AI-provenance surfaces before it's trustworthy as a paid product. |
-| `gct-commit-initiative-linking` | Ties GCT to Swarm Manager initiatives — part of GCT's core headliner story. |
+| `gct-commit-goal-linking` | Ties GCT to Swarm Manager goals — part of GCT's core headliner story. |
 | `gct-github-integration` | Required for GCT to be useful in any real external repo. |
 | `gct-pre-commit-security` | Paid release gate for GCT. |
 | `gct-merge-and-conflicts` | GCT's most painful current gap. |
@@ -54,11 +54,11 @@ Cross-reference: [docs/monetization/catalogs/skus/base/business.md](../../moneti
 
 ### Theme 3 — Platform Safety, Auditability & Quality
 
-**Goal:** make the foundation under paid apps reliable, recoverable, and transparent. Every initiative here compounds — fifth paid app is easier to ship than the first because these are in place.
+**Goal:** make the foundation under paid apps reliable, recoverable, and transparent. Every goal here compounds — fifth paid app is easier to ship than the first because these are in place.
 
 **Primary criterion:** quality/auditability (2). This theme is how criterion 2 shows up in the portfolio.
 
-| Initiative | Positioning |
+| Goal | Positioning |
 |---|---|
 | `protected-agent-sandboxing` | Agents must not have unconstrained filesystem/network access. Foundational. |
 | `agent-sandbox-audit-foundation` | Auditability of what agents actually did in sandbox — prerequisite for trusting autonomous work. |
@@ -74,7 +74,7 @@ Cross-reference: [docs/monetization/catalogs/skus/base/business.md](../../moneti
 
 **Primary criterion:** meta-optimization (3). Also feeds back into all other themes by making agents that execute them more reliable.
 
-| Initiative | Positioning |
+| Goal | Positioning |
 |---|---|
 | `command-center-foundation` | Scaffolding for the outcomes/metrics platform — see [OUTCOMES_CHARTER.md](../evidence/OUTCOMES_CHARTER.md). |
 | `command-center-data-layer` | API aggregation + gap-tracking system. The `/api/v1/gaps` surface that makes missing capabilities programmatically visible. |
@@ -88,11 +88,11 @@ Cross-reference: [docs/monetization/catalogs/skus/base/business.md](../../moneti
 
 ## Meta-notes on this roadmap
 
-- **When an initiative is added or removed in Swarm Manager**, `portfolio-manager` should propose an update to this doc assigning the new initiative to a theme or removing the retired one. Don't let the roadmap drift from the live initiative list for long.
-- **Themes can shift.** If a theme becomes vestigial (e.g., all its initiatives retire), propose retiring the theme. If a new theme emerges, propose adding one. Theme boundaries are a tool, not dogma.
-- **Cross-theme dependencies are normal.** An initiative's Swarm Manager dependencies may point into a different theme; that's fine. The theme tells you why the initiative exists; the dependencies tell you what must ship first.
-- **A new initiative's theme is decided at proposal time**, as part of the `initiative-proposal` decision. If the theme isn't clear, that's a signal the initiative isn't well-scoped.
+- **When an goal is added or removed in Swarm Manager**, `portfolio-manager` should propose an update to this doc assigning the new goal to a theme or removing the retired one. Don't let the roadmap drift from the live goal list for long.
+- **Themes can shift.** If a theme becomes vestigial (e.g., all its goals retire), propose retiring the theme. If a new theme emerges, propose adding one. Theme boundaries are a tool, not dogma.
+- **Cross-theme dependencies are normal.** An goal's Swarm Manager dependencies may point into a different theme; that's fine. The theme tells you why the goal exists; the dependencies tell you what must ship first.
+- **A new goal's theme is decided at proposal time**, as part of the `goal-proposal` decision. If the theme isn't clear, that's a signal the goal isn't well-scoped.
 
 ## Updating this doc
 
-Changes go through approved decisions with context `initiative-portfolio` or `initiative-proposal`. Structural changes (adding/removing themes, re-categorizing many initiatives at once) warrant an explicit operator review at the vision walk.
+Changes go through approved decisions with context `goal-portfolio` or `goal-proposal`. Structural changes (adding/removing themes, re-categorizing many goals at once) warrant an explicit operator review at the vision walk.

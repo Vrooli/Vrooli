@@ -19,8 +19,8 @@ Resource blueprints preserve capability knowledge without implying that a resour
 
 ```bash
 vrooli resource blueprint list
-vrooli resource blueprint info <name>
-vrooli resource blueprint search <query>
+vrooli resource blueprint info "<name>"
+vrooli resource blueprint search "<query>"
 vrooli resource blueprint validate
 ```
 

@@ -407,6 +407,26 @@ func (s *Server) DeleteBaseline(ctx context.Context, req *connect.Request[baseli
 	return connect.NewResponse(&baselinesv1.DeleteBaselineResponse{Deleted: true}), nil
 }
 
+// RepairBaseline exposes deterministic lifecycle reconciliation. It is
+// intentionally opt-in for mutation: without apply it only describes the
+// actions that would be taken.
+func (s *Server) RepairBaseline(ctx context.Context, req *connect.Request[baselinesv1.RepairBaselineRequest]) (*connect.Response[baselinesv1.RepairBaselineResponse], error) {
+	m := req.Msg
+	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("RepairBaseline", err)
+	}
+	result, err := s.svc.RepairBaseline(ctx, bl.RepairRequest{
+		RepoID: rid, Scenario: m.GetScenario(), Branch: branch, Name: m.GetName(), DryRun: !m.GetApply(),
+	})
+	if err != nil {
+		return nil, s.wrap("RepairBaseline", err)
+	}
+	return connect.NewResponse(&baselinesv1.RepairBaselineResponse{
+		Generation: result.Generation, Actions: append([]string(nil), result.Actions...), Applied: result.Applied,
+	}), nil
+}
+
 // StartCollectionCapture creates or resumes a durable multi-scenario capture.
 // It returns after child runs are started; each child remains finalized by the
 // server even if this transport disconnects.

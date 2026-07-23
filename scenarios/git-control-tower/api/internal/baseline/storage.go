@@ -54,6 +54,13 @@ type Storage struct {
 	resolver     *storage.Resolver
 	scenarioD    string // storage ScenarioID for the resolver (always "git-control-tower")
 	rootOverride string // test seam: forces class roots under this dir; empty in prod
+	// writeLifecycle is a narrow fault-injection seam for transition tests.
+	// Production leaves it nil and uses the normal atomic writer.
+	writeLifecycle func(path string, value any) error
+	// writeJSON is the general durable-write seam. Tests can fail any record
+	// boundary (intent, manifest, audit, diff, collection, or snapshot) without
+	// bypassing the same atomic writer production uses.
+	writeJSON func(path string, value any) error
 }
 
 // NewStorage builds a Storage over the given api-core resolver.
@@ -194,6 +201,14 @@ func (s *Storage) snapshotIntentPath(dir, name, runID string) string {
 	return filepath.Join(dir, ".snapshots", sanitizeSegment(name)+"__"+sanitizeSegment(runID)+".json")
 }
 
+func (s *Storage) lifecyclePath(dir, name string) string {
+	return filepath.Join(dir, ".lifecycle", sanitizeSegment(name)+".json")
+}
+
+func (s *Storage) lifecycleAuditPath(dir, name string, createdAt time.Time) string {
+	return filepath.Join(dir, ".lifecycle-audit", sanitizeSegment(name)+"__"+createdAt.UTC().Format("20060102T150405.000000000Z")+".json")
+}
+
 func (s *Storage) diffIntentPath(dir, name, runID string) string {
 	return filepath.Join(dir, ".diffs", ".intents", sanitizeSegment(name)+"__"+sanitizeSegment(runID)+".json")
 }
@@ -294,18 +309,71 @@ func (s *Storage) SaveSnapshotIntent(repoID int64, intent SnapshotIntent) error 
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return fmt.Errorf("create snapshot intent dir: %w", err)
 		}
-		data, err := json.MarshalIndent(intent, "", "  ")
+		return s.writeRecord(path, intent)
+	})
+}
+
+// SaveLifecycle is the sole durable authority for whether an intent may
+// publish a baseline. It is deliberately retained after deletion.
+func (s *Storage) SaveLifecycle(repoID int64, record LifecycleRecord) error {
+	if err := record.Validate(); err != nil {
+		return err
+	}
+	dir, err := s.branchDir(repoID, record.Scenario, record.Branch)
+	if err != nil {
+		return err
+	}
+	return s.withLock(dir, record.Name, func() error {
+		path := s.lifecyclePath(dir, record.Name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return fmt.Errorf("create baseline lifecycle dir: %w", err)
+		}
+		if s.writeLifecycle != nil {
+			return s.writeLifecycle(path, record)
+		}
+		return s.writeRecord(path, record)
+	})
+}
+
+func (s *Storage) LoadLifecycle(repoID int64, scenario, branch, name string) (LifecycleRecord, error) {
+	dir, err := s.branchDir(repoID, scenario, branch)
+	if err != nil {
+		return LifecycleRecord{}, err
+	}
+	var record LifecycleRecord
+	err = s.withLock(dir, name, func() error {
+		data, err := os.ReadFile(s.lifecyclePath(dir, name))
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
 		if err != nil {
-			return fmt.Errorf("marshal snapshot intent: %w", err)
+			return fmt.Errorf("read baseline lifecycle: %w", err)
 		}
-		tmp := path + ".tmp"
-		if err := os.WriteFile(tmp, data, 0o644); err != nil {
-			return fmt.Errorf("write snapshot intent tmp: %w", err)
+		if err := json.Unmarshal(data, &record); err != nil {
+			return fmt.Errorf("decode baseline lifecycle: %w", err)
 		}
-		if err := os.Rename(tmp, path); err != nil {
-			return fmt.Errorf("replace snapshot intent: %w", err)
+		return record.Validate()
+	})
+	return record, err
+}
+
+func (s *Storage) SaveLifecycleAudit(repoID int64, entry LifecycleAuditEntry) error {
+	if strings.TrimSpace(entry.Scenario) == "" || strings.TrimSpace(entry.Branch) == "" || strings.TrimSpace(entry.Name) == "" || strings.TrimSpace(entry.Action) == "" {
+		return fmt.Errorf("baseline lifecycle audit identity and action are required")
+	}
+	if entry.CreatedAt.IsZero() {
+		return fmt.Errorf("baseline lifecycle audit timestamp is required")
+	}
+	dir, err := s.branchDir(repoID, entry.Scenario, entry.Branch)
+	if err != nil {
+		return err
+	}
+	return s.withLock(dir, entry.Name, func() error {
+		path := s.lifecycleAuditPath(dir, entry.Name, entry.CreatedAt)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return fmt.Errorf("create baseline lifecycle audit dir: %w", err)
 		}
-		return nil
+		return s.writeRecord(path, entry)
 	})
 }
 
@@ -439,18 +507,7 @@ func (s *Storage) SaveDiffResult(repoID int64, scenario, branch, name, runID str
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return fmt.Errorf("create diff cache dir: %w", err)
 		}
-		data, err := json.MarshalIndent(cd, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal diff cache: %w", err)
-		}
-		tmp := path + ".tmp"
-		if err := os.WriteFile(tmp, data, 0o644); err != nil {
-			return fmt.Errorf("write diff cache tmp: %w", err)
-		}
-		if err := os.Rename(tmp, path); err != nil {
-			return fmt.Errorf("replace diff cache: %w", err)
-		}
-		return nil
+		return s.writeRecord(path, cd)
 	})
 }
 
@@ -490,18 +547,7 @@ func (s *Storage) SaveDiffIntent(repoID int64, intent DiffIntent) error {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return fmt.Errorf("create diff intent dir: %w", err)
 		}
-		data, err := json.MarshalIndent(intent, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal diff intent: %w", err)
-		}
-		tmp := path + ".tmp"
-		if err := os.WriteFile(tmp, data, 0o644); err != nil {
-			return fmt.Errorf("write diff intent tmp: %w", err)
-		}
-		if err := os.Rename(tmp, path); err != nil {
-			return fmt.Errorf("replace diff intent: %w", err)
-		}
-		return nil
+		return s.writeRecord(path, intent)
 	})
 }
 
@@ -625,7 +671,7 @@ func (s *Storage) Save(repoID int64, m BaselineManifest, mode SaveMode) error {
 				return fmt.Errorf("stat baseline: %w", statErr)
 			}
 		}
-		return writeManifestAtomic(path, m)
+		return s.writeRecord(path, m)
 	})
 }
 
@@ -650,7 +696,7 @@ func (s *Storage) Load(repoID int64, scenario, branch, name string) (BaselineMan
 		}
 		m = decoded
 		if migrated {
-			if werr := writeManifestAtomic(s.manifestPath(dir, name), m); werr != nil {
+			if werr := s.writeRecord(s.manifestPath(dir, name), m); werr != nil {
 				return fmt.Errorf("persist migrated baseline: %w", werr)
 			}
 		}
@@ -702,7 +748,7 @@ func (s *Storage) SaveCollection(repoID int64, collection CollectionManifest, mo
 				return fmt.Errorf("stat collection: %w", err)
 			}
 		}
-		return writeJSONAtomic(path, collection)
+		return s.writeRecord(path, collection)
 	})
 }
 
@@ -769,7 +815,7 @@ func (s *Storage) SaveCollectionDiffOperation(repoID int64, operation Collection
 				return fmt.Errorf("stat collection diff operation: %w", err)
 			}
 		}
-		return writeJSONAtomic(path, operation)
+		return s.writeRecord(path, operation)
 	})
 }
 
@@ -871,7 +917,7 @@ func (s *Storage) SavePathSnapshot(repoID int64, snapshot PathSnapshot, objects 
 				return fmt.Errorf("write path snapshot object: %w", err)
 			}
 		}
-		return writeJSONAtomic(path, snapshot)
+		return s.writeRecord(path, snapshot)
 	})
 }
 
@@ -1105,7 +1151,7 @@ func (s *Storage) UpdateCollectionMember(repoID int64, branch, name, scenario st
 		if err := out.Validate(); err != nil {
 			return err
 		}
-		return writeJSONAtomic(s.collectionPath(dir, name), out)
+		return s.writeRecord(s.collectionPath(dir, name), out)
 	})
 	if err != nil {
 		return CollectionManifest{}, err
@@ -1161,7 +1207,7 @@ func (s *Storage) AppendCollectionMembers(repoID int64, branch, name string, tar
 		if err := out.Validate(); err != nil {
 			return err
 		}
-		return writeJSONAtomic(s.collectionPath(dir, name), out)
+		return s.writeRecord(s.collectionPath(dir, name), out)
 	})
 	if err != nil {
 		return CollectionManifest{}, err
@@ -1226,7 +1272,7 @@ func (s *Storage) List(repoID int64, scenario, branch string) ([]BaselineManifes
 				}
 				m = decoded
 				if migrated {
-					return writeManifestAtomic(path, m)
+					return s.writeRecord(path, m)
 				}
 				return nil
 			}); err != nil {
@@ -1337,6 +1383,13 @@ func decodeManifest(data []byte, migratedAt time.Time) (BaselineManifest, bool, 
 
 func writeManifestAtomic(path string, m BaselineManifest) error {
 	return writeJSONAtomic(path, m)
+}
+
+func (s *Storage) writeRecord(path string, value any) error {
+	if s.writeJSON != nil {
+		return s.writeJSON(path, value)
+	}
+	return writeJSONAtomic(path, value)
 }
 
 func writeJSONAtomic(path string, value any) error {

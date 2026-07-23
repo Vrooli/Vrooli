@@ -183,6 +183,28 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 		if member.Status != CollectionMemberPending || member.RunID != "" {
 			continue
 		}
+		// A collection is only an immutable index over per-scenario baselines.
+		// If a previous collection capture was discarded after a partial start,
+		// its successfully captured child baseline remains the authoritative
+		// before-state and must be reusable. Starting another run here would fail
+		// with ErrAlreadyExists and turn valid evidence into a collection failure.
+		if existing, getErr := s.Get(ctx, req.RepoID, member.Scenario, branch, member.BaselineName); getErr == nil {
+			updated, updateErr := s.storage.UpdateCollectionMember(req.RepoID, branch, req.Name, member.Scenario, func(target *CollectionMember) error {
+				target.Status = CollectionMemberReady
+				target.RunID = existing.RunID()
+				target.GitSHA = existing.Git.Sha
+				target.Error = "reused immutable baseline"
+				target.UpdatedAt = s.now().UTC()
+				return nil
+			})
+			if updateErr != nil {
+				return StartCollectionCaptureResult{}, updateErr
+			}
+			collection = updated
+			continue
+		} else if !errors.Is(getErr, ErrNotFound) {
+			return StartCollectionCaptureResult{}, fmt.Errorf("load existing baseline for collection member %s: %w", member.Scenario, getErr)
+		}
 		started, err := s.StartCapture(ctx, CreateRequest{
 			RepoID: req.RepoID, RepoDir: req.RepoDir, Scenario: member.Scenario,
 			Name: member.BaselineName, Branch: branch, CreatedBy: req.CreatedBy, Reason: req.Reason,
@@ -404,6 +426,24 @@ func (s *Service) ResumeCollectionCapture(ctx context.Context, repoID int64, bra
 			return CollectionManifest{}, err
 		}
 		if !found {
+			// A crash can occur after the child manifest commits but before the
+			// collection member projection commits. The child lifecycle is
+			// authoritative: repair this eligible projection instead of turning a
+			// recoverable duplicate/orphan into terminal collection failure.
+			manifest, getErr := s.Get(ctx, repoID, member.Scenario, branch, member.BaselineName)
+			if getErr == nil {
+				collection, err = s.storage.UpdateCollectionMember(repoID, branch, name, member.Scenario, func(target *CollectionMember) error {
+					target.Status, target.RunID, target.GitSHA, target.Error, target.UpdatedAt = CollectionMemberReady, manifest.RunID(), manifest.Git.Sha, "reconciled from durable child lifecycle", s.now().UTC()
+					return nil
+				})
+				if err != nil {
+					return CollectionManifest{}, err
+				}
+				continue
+			}
+			if getErr != nil && !errors.Is(getErr, ErrNotFound) {
+				return CollectionManifest{}, getErr
+			}
 			collection, err = s.storage.UpdateCollectionMember(repoID, branch, name, member.Scenario, func(target *CollectionMember) error {
 				target.Status, target.Error, target.UpdatedAt = CollectionMemberFailed, "durable snapshot intent is missing", s.now().UTC()
 				return nil

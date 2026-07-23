@@ -23,24 +23,15 @@ Topics are **scoped to a team**. Each team has its own knowledge store; when a p
 
 ## How topics are processed
 
-Every topic that has a drainer — any topic declared in some member's `intake[]` — is processed by that member through a **uniform action set**. The drainer reads each entry, applies its taxonomy (and optionally a classifier skill — see `INTAKE_PIPELINE.md` § Two routing modes), and chooses exactly one outcome:
-
-| Outcome | Effect on the entry |
-|---|---|
-| drop | delete; entry leaves the system |
-| observe | retag to a canonical-surface topic (entry's permanent home) |
-| promote-to-canon | observe + raise an owned-context decision |
-| route-to-another-topic | retag/rewrite under a different topic for a different drainer to handle |
-| file-decision | raise an owned-context or capability-gap decision; entry deleted or retained per taxonomy rules |
-| file-backlog / file-initiative | hand off to swarm-manager via CLI; entry deleted or retained |
+Every topic that has a drainer — any topic declared in some member's `intake[]` — is processed by that member through a **uniform action set**. The drainer reads each entry, applies its taxonomy (and optionally a classifier skill — see `INTAKE_PIPELINE.md` § Two routing modes), and chooses exactly one outcome from the set enumerated in `INTAKE_PIPELINE.md` § Promotion / Routing (drop, observe/retag-to-canon, promote-to-canon, route-to-another-topic, file-decision, file-backlog/file-initiative).
 
 **The action set is uniform across the system.** Whatever produces an entry — operator alpha, vision-walk brainstorm, scheduled scan, cross-team handoff, proactive self-generation, another agent's `route-to-another-topic` outcome — the receiving drainer applies this same set. When the action is `route-to-another-topic`, the receiving drainer applies the set again to the new entry. The architecture is recursive: every entry is processed by *some* drainer through the same outcome set until it terminates in drop / observe / canon / decision / backlog.
 
 This is the load-bearing claim that makes the substrate auditable. Adding a new input shape doesn't require new architecture — only a topic + a drainer + a taxonomy entry. See `INTAKE_PIPELINE.md` § Promotion / Routing for the full table of when each outcome is allowed, and `DECISIONS.md` §4 for the direct-write-vs-swarm-manager threshold.
 
-The drainer's classifier/triage skill (when one exists) is loaded by the heartbeat builder from the member's `intake[].classifier_skill` and lives at `path:scenarios/prompt-manager/store/skills/packs/core/<id>/`. Today's classifiers: `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage`. Deterministic-prefix intakes need no classifier when the writer skill or producer-side contract already enforces the signal type.
+The drainer's classifier/triage skill (when one exists) is loaded by the heartbeat builder from the member's `intake[].classifier_skill` and lives at `path:scenarios/prompt-manager/store/skills/packs/core/<id>/`. Today's classifier is `signal-classifier`, parameterized over each member's `intake[].taxonomy`. Deterministic-prefix intakes need no classifier when the writer skill or producer-side contract already enforces the signal type.
 
-For **universal-source intakes** (`intake[].source_team = "*"` — any team's members may write; today: `bug-inbox/*` on scenario-qa, `friction-inbox/*` on meta-optimization), the trigger paragraph that tells producers when to invoke the writer skill is rendered into every member's heartbeat prompt via the Storage Map's `## Observe` subsection (`path:scenarios/prompt-manager/api/heartbeat/prompt_builder.go:buildStorageMapSection`). When you add a new universal-source intake, update that section so producers actually receive the trigger — see `TOPICS_SCHEMA.md` § Universal-source intakes for the convention. With two universal observation flows now in place (bugs and friction), the pattern (intake + writer skill + drainer + trigger paragraph) is at the threshold where a data-driven rendering off `intake[].source_team == "*"` declarations becomes worth exploring rather than a third hardcoded paragraph.
+For **universal-source intakes** (`intake[].source_team = "*"` — any team's members may write; today: `bug-inbox/*` on scenario-qa, `friction-inbox/*` on meta-optimization), a producer-facing trigger paragraph is rendered into every member's heartbeat prompt so producers know when to invoke the writer skill. The declaration semantics, validator behavior, trigger-rendering mechanics, and the data-driven-rendering proposal for a third such intake all live in `TOPICS_SCHEMA.md` § Universal-source intakes.
 
 ## When to create a topic
 
@@ -147,7 +138,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `workshop-decision-prep` | _(none — proactive; reads decisions)_ | `workshop-decision-prep/*` | — |
 
 **Observations (draft):**
-- `vision-walk-prep` is the canonical example of a **synthesis pipeline** member: it consumes decision state from other teams and produces (a) its own `vision-walk-record/*` artifact for the operator, and (b) seeded entries directly into other teams' inboxes for those teams to drain after the walk. INPUTS.md will document this pattern as a first-class flow.
+- `vision-walk-prep` is the canonical example of a **synthesis pipeline** member: it consumes decision state from other teams and produces (a) its own `vision-walk-record/*` artifact for the operator, and (b) seeded entries directly into other teams' inboxes for those teams to drain after the walk. The seeded-inbox edges are declared structurally on each receiving member's `intake[].source_team = "director-swarm"`; a human-readable inputs registry that would catalog this producer as a first-class flow is workshop-pending (see `README.md` § Mental Model).
 - No director-swarm member has `intake[]` — confirms the user's mental model that director teams pull decisions rather than drain topics. This is correct, not a gap.
 - `outcome-target-record/*` and `initiative-portfolio-record/*` are consumed by the operator (and possibly by `swarm-manager`) but no `topics.json` declares the consumer. If a future member or scenario consumes them programmatically, declare it via `intake[].source_team = "director-swarm"`.
 
@@ -172,7 +163,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `researcher` | `research-inbox/*` (taxonomy: marketing-research, classifier: marketing-signal-classifier) | `audience-scan/*`, `competitor-record/*`, `hook-record/*`, `monetization-benchmark-adjacent-record/*` | writes `monetization-benchmark-adjacent-record/*` → monetization |
+| `researcher` | `research-inbox/*` (taxonomy: marketing-research, classifier: signal-classifier) | `audience-scan/*`, `competitor-record/*`, `hook-record/*`, `monetization-benchmark-adjacent-record/*` | writes `monetization-benchmark-adjacent-record/*` → monetization |
 | `brand-manager` | _(none — reads evidence and decisions)_ | `marketing-canon/*` (por_file → `path:docs/marketing/strategy/STRATEGY.md`, `path:docs/marketing/strategy/AUDIENCES.md`), `brand-snapshot/*`, `artifact-request/oss/*`, `artifact-request/subscription/*` | — |
 | `publisher` | _(none — proactive)_ | `publish-log/*` | — |
 | `oss-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
@@ -200,7 +191,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 **Observations (draft):**
 - Five proactive auditors plus one contrarian plus one friction router. This is the densest team.
-- `friction-inbox/*` is the system's second **universal-source intake** (the first is `bug-inbox/*` on scenario-qa). Any team's members may write via the `report-friction` skill (declared as `external_producers`). The friction-curator validates scope, reclassifies `unknown`, and routes by writing to the existing `friction-report/<scope>/<date>/<slug>` topics on the scoped-topic owners' behalf. Curator owns no decision contexts — routing is determinate; capability-gaps are still raised by the scoped-topic owners.
+- `friction-inbox/*` is one of the system's two **universal-source intakes** (semantics in `TOPICS_SCHEMA.md` § Universal-source intakes; sister flow is `bug-inbox/*` on scenario-qa). The friction-curator validates scope, reclassifies `unknown`, and routes by writing to the existing `friction-report/<scope>/<date>/<slug>` topics on the scoped-topic owners' behalf. Curator owns no decision contexts — routing is determinate; capability-gaps are still raised by the scoped-topic owners.
 - `friction-triage-record/<YYYY-MM-DD>` is a daily snapshot, supersedesPrevious=true, drained by debt-curator (synthesis input) and by operator review. `orphan_output` warning is by-design here (no peer drainer).
 - `run-lesson-report/*` is heavily consumed by `meta-contrarian` (via `decisions_consumed: ["run-lesson", ...]`) and by other optimizers' input gathering, but no `intake[]` declares it. The flow goes through decisions, not direct topic-drain. Document this as the canonical example of "topic → decision-consumer" flow rather than "topic → topic-drainer."
 - The four scoped friction topics (`friction-report/toolchain/*`, `friction-report/run-execution/*`, `friction-report/prompt-team-agent-storage/*`, `friction-report/recurring-workaround/*`) are now multi-producer: each scoped sub-member writes their own observations *and* receives routed entries from the friction-curator. Intentional architectural choice — curator delivers cross-team observations into the scoped topic; sub-member synthesizes patterns. Documented on team.json's knowledgeTopics comments.
@@ -211,8 +202,8 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `opportunity-scout` | `opportunity-inbox/*` (taxonomy: monetization-opportunity, classifier: monetization-signal-classifier) | `candidate-sku-record/*` | — |
-| `market-validator` | `validation-inbox/*` (taxonomy: monetization-validation, classifier: market-validation-triage), `monetization-benchmark-adjacent-record/*` (cross-team from marketing) | `monetization-benchmark-record/*` | reads `monetization-benchmark-adjacent-record/*` ← marketing-crew |
+| `opportunity-scout` | `opportunity-inbox/*` (taxonomy: monetization-opportunity, classifier: signal-classifier) | `candidate-sku-record/*` | — |
+| `market-validator` | `validation-inbox/*` (taxonomy: monetization-validation, classifier: signal-classifier), `monetization-benchmark-adjacent-record/*` (cross-team from marketing) | `monetization-benchmark-record/*` | reads `monetization-benchmark-adjacent-record/*` ← marketing-crew |
 | `catalog-strategist` | _(none — proactive; reads decisions)_ | `monetization-canon/*` (por_file → `path:docs/monetization/catalogs/CATALOG.md`) | — |
 | `financial-tracker` | _(none — proactive)_ | `monetization-ledger-log/*` | — |
 | `monetization-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |
@@ -225,7 +216,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 **Mission:** ensure scenario quality through structural quality audits, root-cause bug investigation, and contrarian challenge of QA outcomes. (Pre-emptive readiness ordering moved to swarm-manager's fix-before-feature gate.)
 
-**Plan of record:** [`path:docs/scenario-qa/`](../scenario-qa/) — README, three paired-doc-and-skill registries (`investigation-techniques/`, `audit-techniques/`, `readiness-checks/`), `BUG_REPORT_TAXONOMY.md`. Owner-curated like every other team PoR.
+**Plan of record:** [`path:docs/scenario-qa/`](../scenario-qa/) — README, three paired-doc-and-skill method registries (`methods/investigation/`, `methods/audit/`, `methods/readiness/`), and the `taxonomies/bug-report/` taxonomy. Owner-curated like every other team PoR.
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
@@ -234,7 +225,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `qa-contrarian` | _(none — proactive)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |
 
 **Observations:**
-- `bug-inbox/*` is one of two **universal-source intakes** in the system; the other is `friction-inbox/*` on meta-optimization. Any team's members may write via the `report-bug` skill (declared as `external_producers`). The investigator validates the producer's signal-type assignment as the first sub-step of investigation; deterministic-prefix routing, no separate classifier skill.
+- `bug-inbox/*` is one of the system's two **universal-source intakes** (semantics in `TOPICS_SCHEMA.md` § Universal-source intakes; sister flow is `friction-inbox/*` on meta-optimization). The investigator validates the producer's signal-type assignment as the first sub-step of investigation; deterministic-prefix routing, no separate classifier skill.
 - `bug-investigation-report/*` is an audit log, not an inbox. Append-only; one entry per closed bug; drives technique-graduation decisions on `meta-self-improvement`. No drainer; `orphan_output` warning is by-design here.
 - `challenge-report/*` and `challenge-resolution-record/*` follow the shared contrarian challenge lifecycle in § Contrarian challenge topics.
 - **Possible future gap:** `topic[future]:qa-inbox/*` / `topic[future]:audit-inbox/*` for operator-fed "look at this scenario" alpha. No producer today; would `orphan_input`. Documented as future PoR work in `path:docs/scenario-qa/README.md` § Future PoR work; revisit when (e.g.) `vision-walk-prep` adds them as output prefixes.
@@ -243,31 +234,9 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 ## Validator rules and CI severity
 
-`prompt-manager graph topics` runs every cross-graph rule on every load. Rules are split between **error** severity (CI gate — non-zero exit code) and **warning** severity (advisory). The split follows the rule lifecycle pattern: rules land at warning, the existing population of findings is reconciled, and severity is promoted to error in lockstep with code + doc updates so CI catches regressions thereafter.
+`prompt-manager graph topics` runs every cross-graph rule on every load, splitting findings between **error** severity (CI gate — non-zero exit code) and **warning** severity (advisory). The full rule/severity registry lives with the pillar owners: P1 (declared-graph) rules in [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md) § Validation rules; P2 (prose-scan) rules in [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) § Pattern set and § Severity guidance. [`PRIMITIVES.md`](PRIMITIVES.md) § Three Pillars of Topic Validation indexes all three pillars. This section owns only the promotion discipline that spans them.
 
-| Rule | Severity | What it catches |
-|---|---|---|
-| `conflicting_drain` | error | Two members declare overlapping intake prefixes (would race the drain). |
-| `orphan_input` | error | Intake prefix has no producer (no member output, no `external_producers`, no wildcard source_team). |
-| `missing_taxonomy` / `unknown_taxonomy` | error | Intake declares no taxonomy or names one that doesn't resolve in the registry. |
-| `dangling_por_sink` | error | `destination_kind=por_file` references a `destination_path` that does not exist. |
-| `dangling_evidence_decision` | error | `evidence_consumed[].for_decisions[]` references a decision-context id no team's `team.json` declares. |
-| `attribution_malformed` | error | Post-cutoff knowledge entry has structurally broken attribution (defense in depth — API rejects this at write time). |
-| `unread_required` | error | `required_read[]` prefix has no producer. Producer = any member's `output[]` overlap or any writer-skill `writes_to[]` overlap. |
-| `actual_writer_undeclared` (agent-member subcase) | error | A `kind=agent-member` knowledge entry's topic does not overlap that member's declared `output[]`, or the entry claims a member id that doesn't exist on the team. |
-| `prose_topic_leak` (cli-knowledge-* subpatterns) | error | Markdown prose contains a `prompt-manager team knowledge-*` invocation (`-add`, `-list`, `-list --topic-prefix`, `-update`) whose topic prefix does not resolve against the relevant declaration set per `PROSE_SCAN_TARGETS.md` § Cross-reference matrix. |
-| `actual_writer_undeclared` (external-threshold subcase) | warning | A team's `policy.flagExternalWritesPerWeek` cap was exceeded in some ISO week. Operator-tunable, not concrete drift. |
-| `prose_topic_leak` (`marked-topic-ref` / `inferred-backtick-topic-ref` patterns) | warning | A marked topic ref or inferred unmarked backticked topic-shaped string has no matching declaration. Kept at warning permanently because inferred matches intentionally remain a backstop for agent-written docs that omit markers. |
-| `topic_key_prefix_mismatch` | warning | Knowledge entry's topic does not match any declared prefix on its team. Surfaces real-data drift; resolved by either adding the declaration or renaming the entry. Not promoted because remediation often spans multiple PRs and the data is real. |
-| `orphan_output` | warning | Output prefix has no peer-member consumer. Operator-only snapshots are legitimate (audit logs, ledgers); the warning is the prompt to either add an intake or accept by-design. |
-| `missing_destination_schema` | warning | Output names a schema not declared by any taxonomy. Soft signal — frequently a missing taxonomy entry, not drift. |
-| `wildcard_source_misuse` | warning | A `source_team=*` intake without an `external_producers` anchor. |
-
-**Severity flip discipline.** Promoting a rule to error is an explicit, decision-gated change, not a one-off edit. The contract is: a rule lands at warning, every existing finding is reconciled, then the severity is changed in code AND the relevant canon doc (this file plus the rule's home doc, e.g., `PROSE_SCAN_TARGETS.md` for `prose_topic_leak`). After promotion, *new* findings break CI; reverting to warning to silence drift is forbidden — fix the underlying drift instead.
-
-**Why writer-skill consultation is part of `unread_required`.** Writer-skill `writes_to[]` is the producer-side declaration for skill-written prefixes. A required_read prefix that overlaps a writer-skill's writes_to[] has a documented producer; demanding a member-side output[] in addition would force false declarations (e.g., friction-curator does not write `friction-inbox/*`; the report-friction skill does). The rule consults both sources.
-
-**Why the prose scanner has read/write split.** Writer skills legitimately read other teams' topics (queue depth, source data) — those references must resolve against any team's declaration set, not the skill's own writes_to[]. Only `knowledge-add` / `knowledge-update` (write patterns) require writes_to[] coverage. See `PROSE_SCAN_TARGETS.md` § Cross-reference matrix and `prose_scan.go::joinProseMatch::proseTargetSkill`.
+**Severity flip discipline.** Promoting a rule to error is an explicit, decision-gated change, not a one-off edit. The contract is: a rule lands at warning, every existing finding is reconciled, then the severity is changed in code AND the rule's home pillar doc (`TOPICS_SCHEMA.md` for P1 rules, `PROSE_SCAN_TARGETS.md` for `prose_topic_leak`). After promotion, *new* findings break CI; reverting to warning to silence drift is forbidden — fix the underlying drift instead.
 
 ---
 
@@ -282,4 +251,4 @@ For someone adding a new topic to a member:
 5. **Author the taxonomy if needed.** If the new shape doesn't fit any existing taxonomy (`marketing-research`, `monetization-opportunity`, `monetization-validation`, `bug-report`, `friction-report`), author a new taxonomy JSON sidecar + PoR per `INTAKE_PIPELINE.md` § Two routing modes and `README.md` § Active taxonomies.
 6. **Run the validator.** `prompt-manager graph topics` must report zero new errors.
 7. **Update this file.** Add the topic to § Per-team topic registry under the relevant team.
-8. **Update INPUTS.md.** If the topic introduces a new producer (cross-team flow, scheduled scan, vision-walk input, proactive self-generation), declare the source there.
+8. **Declare any new producer structurally.** If the topic introduces a new producer (cross-team flow, scheduled scan, vision-walk input, proactive self-generation), record it in the consuming member's `topics.json` via `external_producers[]` or `intake[].source_team`. A human-readable inputs registry (`INPUTS.md`) is workshop-pending (see `README.md` § Mental Model); until it lands, the structural declaration is the source of truth.

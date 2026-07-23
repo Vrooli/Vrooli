@@ -50,7 +50,7 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
 Results are available via:
 - **Dashboard** - Visual results with phase breakdowns
 - **API** - `GET /api/v1/executions/{id}`
-- **CLI** - `test-genie runs list my-scenario`
+- **CLI** - `test-genie runs list --scenario my-scenario`
 
 ## Test Presets
 

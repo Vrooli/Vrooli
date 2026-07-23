@@ -364,15 +364,15 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			// Errors raised while the suite executes surface as a failed run
-			// (500 + details), since the run is started decoupled and observed
-			// via the run manager rather than a synchronous Execute call.
+			// Errors raised while the suite executes surface as a durable failed
+			// run. The blocking endpoint returns that terminal result with HTTP
+			// 200; HTTP 500 is reserved for transport or service failures.
 			name: "execution failure",
 			body: `{"scenarioName":"demo"}`,
 			executor: &stubSuiteExecutor{
 				err: errors.New("execution failed"),
 			},
-			wantStatus: http.StatusInternalServerError,
+			wantStatus: http.StatusOK,
 		},
 	}
 
@@ -421,32 +421,27 @@ func TestServer_handleExecuteSuiteIncludesFailureDetails(t *testing.T) {
 
 	server.handleExecuteSuite(rec, req)
 
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d (%s)", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (%s)", rec.Code, rec.Body.String())
 	}
-	var payload struct {
-		Success  bool     `json:"success"`
-		Error    string   `json:"error"`
-		Errors   []string `json:"errors"`
-		Metadata struct {
-			ScenarioName string `json:"scenarioName"`
-			ScenarioPath string `json:"scenarioPath"`
-		} `json:"metadata"`
-	}
+	var payload orchestrator.SuiteExecutionResult
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 	if payload.Success {
 		t.Fatal("expected success=false")
 	}
-	if payload.Error != "suite execution failed" {
-		t.Fatalf("error = %q", payload.Error)
+	if payload.Verdict != orchestrator.SuiteVerdictFail {
+		t.Fatalf("verdict = %q, want %q", payload.Verdict, orchestrator.SuiteVerdictFail)
 	}
-	if len(payload.Errors) != 1 || payload.Errors[0] != "start target scenario demo: exit status 2" {
-		t.Fatalf("errors = %#v", payload.Errors)
+	if payload.FailureReason != "start target scenario demo: exit status 2" {
+		t.Fatalf("failureReason = %q", payload.FailureReason)
 	}
-	if payload.Metadata.ScenarioName != "demo" || payload.Metadata.ScenarioPath != "/tmp/vrooli-template/scenarios/demo" {
-		t.Fatalf("metadata = %#v", payload.Metadata)
+	if payload.ScenarioName != "demo" {
+		t.Fatalf("scenarioName = %q", payload.ScenarioName)
+	}
+	if payload.RunID == "" {
+		t.Fatal("expected durable run id for terminal failure")
 	}
 }
 

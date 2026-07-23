@@ -3,8 +3,41 @@ package baseline
 import (
 	"context"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
+	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
+	baselinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines/baselines_v1connect"
 )
+
+type repairServer struct {
+	baselinesconnect.UnimplementedBaselinesServiceHandler
+	apply bool
+}
+
+func (s *repairServer) RepairBaseline(_ context.Context, req *connect.Request[baselinesv1.RepairBaselineRequest]) (*connect.Response[baselinesv1.RepairBaselineResponse], error) {
+	s.apply = req.Msg.GetApply()
+	return connect.NewResponse(&baselinesv1.RepairBaselineResponse{Generation: 7, Actions: []string{"tombstone already converged"}, Applied: s.apply}), nil
+}
+
+func withRepairServer(t *testing.T) *repairServer {
+	t.Helper()
+	serverImpl := &repairServer{}
+	path, handler := baselinesconnect.NewBaselinesServiceHandler(serverImpl)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	previous := clientFactory
+	clientFactory = func(*cliapp.ScenarioApp) baselinesconnect.BaselinesServiceClient {
+		return baselinesconnect.NewBaselinesServiceClient(http.DefaultClient, server.URL)
+	}
+	t.Cleanup(func() { clientFactory = previous })
+	return serverImpl
+}
 
 func TestBaselineClientTimeoutIsBounded(t *testing.T) {
 	// The diff deadline must be a finite ceiling, never zero (which http.Client
@@ -55,6 +88,22 @@ func TestRegisterExcludesEmptyCreateAndPerSurfaceEdit(t *testing.T) { // [REQ:GC
 		if command.Name == "create" || command.Name == "edit" {
 			t.Fatalf("removed mutable baseline command %q is still registered", command.Name)
 		}
+	}
+}
+
+func TestRepairCommandDefaultsToPlanAndRequiresExplicitApply(t *testing.T) {
+	server := withRepairServer(t)
+	if err := runRepair(nil, []string{"--scenario", "foo", "--name", "before", "--json"}); err != nil {
+		t.Fatalf("dry-run repair: %v", err)
+	}
+	if server.apply {
+		t.Fatal("repair sent apply=true without --apply")
+	}
+	if err := runRepair(nil, []string{"--scenario", "foo", "--name", "before", "--apply", "--json"}); err != nil {
+		t.Fatalf("apply repair: %v", err)
+	}
+	if !server.apply {
+		t.Fatal("repair did not send apply=true with --apply")
 	}
 }
 

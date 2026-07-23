@@ -456,7 +456,7 @@ func printFollowEvent(w io.Writer, ev *runspb.RunEvent) {
 	case "run_completed":
 		fmt.Fprintf(w, "\n%s\n", ev.GetVerdict())
 		if ev.GetScenario() != "" && ev.GetRunId() != "" {
-			fmt.Fprintf(w, "findings: test-genie runs findings %s %s\n", ev.GetScenario(), ev.GetRunId())
+			fmt.Fprintf(w, "findings: test-genie runs findings %s --scenario %s\n", ev.GetRunId(), ev.GetScenario())
 		}
 	}
 }

@@ -203,7 +203,12 @@ type SuiteExecutionResult struct {
 	// backward compatibility and is true for both PASS and PARTIAL (only FAIL is
 	// a non-zero exit), so a self-test that skips an unrunnable phase is honestly
 	// reported without failing CI.
-	Verdict                  string   `json:"verdict,omitempty"`
+	Verdict string `json:"verdict,omitempty"`
+	// FailureReason records a suite-level error that occurred before a phase
+	// could emit its own result, such as target-runtime startup failure. It is
+	// durable terminal evidence, not a warning, and lets waiters distinguish an
+	// empty zero-phase failure from a scenario validation result.
+	FailureReason            string   `json:"failureReason,omitempty"`
 	PresetUsed               string   `json:"preset,omitempty"`
 	RequestedPreset          string   `json:"requestedPreset,omitempty"`
 	RequestedPhases          []string `json:"requestedPhases,omitempty"`

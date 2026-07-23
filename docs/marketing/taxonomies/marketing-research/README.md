@@ -6,7 +6,7 @@ Cross-team-readable canon for how marketing research signals are partitioned, cl
 
 Cited by:
 - `topics.json` for marketing-crew members whose `intake[].taxonomy = "marketing-research"` (e.g., the researcher).
-- The `marketing-signal-classifier` skill (pure judgment; cites this file for definitions and dispatch).
+- The `signal-classifier` skill (pure judgment; cites this file for definitions and dispatch).
 
 ## Editing rules
 

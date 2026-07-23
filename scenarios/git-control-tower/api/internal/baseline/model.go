@@ -18,6 +18,59 @@ const SchemaVersion = 2
 // CaptureProfile is the Test Genie run shape used for every GCT baseline.
 const CaptureProfile = "baseline"
 
+// LifecycleStatus is the authoritative state of a baseline identity. Snapshot
+// intents describe work; this record decides whether that work may publish a
+// baseline.
+type LifecycleStatus string
+
+const (
+	LifecycleCapturing LifecycleStatus = "capturing"
+	LifecycleReady     LifecycleStatus = "ready"
+	LifecycleFailed    LifecycleStatus = "failed"
+	LifecycleDeleted   LifecycleStatus = "deleted"
+)
+
+// LifecycleRecord is stored separately from the immutable manifest so deletion
+// remains durable evidence even after the manifest is gone. Generation is
+// monotonic for one (scenario, branch, name) identity.
+type LifecycleRecord struct {
+	Scenario   string          `json:"scenario"`
+	Branch     string          `json:"branch"`
+	Name       string          `json:"name"`
+	Generation int64           `json:"generation"`
+	Status     LifecycleStatus `json:"status"`
+	RunID      string          `json:"run_id,omitempty"`
+	Error      string          `json:"error,omitempty"`
+	UpdatedAt  time.Time       `json:"updated_at"`
+}
+
+// LifecycleAuditEntry records an operator-visible lifecycle repair decision.
+// It is append-only evidence, separate from the current lifecycle state.
+type LifecycleAuditEntry struct {
+	Scenario   string    `json:"scenario"`
+	Branch     string    `json:"branch"`
+	Name       string    `json:"name"`
+	Generation int64     `json:"generation"`
+	Action     string    `json:"action"`
+	Detail     string    `json:"detail"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+func (r LifecycleRecord) Validate() error {
+	if strings.TrimSpace(r.Scenario) == "" || strings.TrimSpace(r.Branch) == "" || strings.TrimSpace(r.Name) == "" {
+		return fmt.Errorf("baseline lifecycle identity is required")
+	}
+	if r.Generation < 1 {
+		return fmt.Errorf("baseline lifecycle generation must be positive")
+	}
+	switch r.Status {
+	case LifecycleCapturing, LifecycleReady, LifecycleFailed, LifecycleDeleted:
+	default:
+		return fmt.Errorf("invalid baseline lifecycle status %q", r.Status)
+	}
+	return nil
+}
+
 // Verdict is Test Genie's comparison classification. Changed is retained for
 // advisory visual evidence; it never raises the process exit code.
 type Verdict string

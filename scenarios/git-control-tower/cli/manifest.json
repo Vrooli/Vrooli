@@ -111,6 +111,7 @@
     { "service": "BaselinesService", "method": "StartDiff", "reason": "Hand-written in cli/domains/baseline (baseline diff) — custom Connect client; durable return-fast start with re-attach banner; not manifest-bound." },
     { "service": "BaselinesService", "method": "GetDiffResult", "reason": "Hand-written in cli/domains/baseline (baseline diff status) — custom Connect client with diff exit codes 0/1/2/3; not manifest-bound." },
     { "service": "BaselinesService", "method": "DeleteBaseline", "reason": "Hand-written in cli/domains/baseline (baseline delete) — custom Connect client; not manifest-bound." },
+    { "service": "BaselinesService", "method": "RepairBaseline", "reason": "Hand-written in cli/domains/baseline (baseline repair) — custom Connect client with explicit dry-run and --apply lifecycle mutation boundary; not manifest-bound." },
     { "service": "BaselinesService", "method": "StartCollectionCapture", "reason": "Hand-written in cli/domains/baseline (collection capture) — producer-owned wait guidance; not manifest-bound." },
     { "service": "BaselinesService", "method": "GetCollectionStatus", "reason": "Hand-written in cli/domains/baseline (collection show) — pure durable standing read rendered through the shared operation-standing renderer; not manifest-bound." },
     { "service": "BaselinesService", "method": "WaitCollectionCapture", "reason": "Hand-written in cli/domains/baseline (collection show --wait) — explicit parent attachment with typed detach exit; not manifest-bound." },

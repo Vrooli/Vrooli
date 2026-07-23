@@ -236,7 +236,7 @@ flowchart LR
 |---|---|---|---|
 | `external:operator` monetization opportunity | `topic:opportunity-inbox/*` | `member:opportunity-scout` | Classify via `taxonomies/monetization-opportunity/taxonomy.json`; observe, promote, file decision, or raise capability gap. |
 | `external:operator` validation request | `topic:validation-inbox/*` | `member:market-validator` | Classify via `taxonomies/monetization-validation/taxonomy.json`; capture, refresh, or raise decision by materiality threshold. |
-| `team:marketing-crew` benchmark-adjacent evidence | `topic:monetization-benchmark-adjacent-record/*` | `member:market-validator` | Validate with `market-validation-triage`; producer owns front-matter shape, validator owns benchmark disposition. |
+| `team:marketing-crew` benchmark-adjacent evidence | `topic:monetization-benchmark-adjacent-record/*` | `member:market-validator` | Validate with `signal-classifier`; producer owns front-matter shape, validator owns benchmark disposition. |
 | Operator-provided financial inputs | `path:scenarios/prompt-manager/store/teams/monetization/shared/operator-inputs.json` | `member:financial-tracker` | Interpret per `path:docs/monetization/governance/HOW_TO_GATHER_INPUTS.md`; do not edit operator state. |
 
 ## Outputs / Downstream Consumers
