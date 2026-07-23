@@ -35,6 +35,7 @@ export function PlanCardMenu({ card }: PlanCardMenuProps) {
   const callbacks = itemKey
     ? actions.getCallbacks(card.itemKind, card.itemName)
     : undefined;
+  const nextAction = itemKey ? actions.getNextAction(card.itemKind, card.itemName) : undefined;
 
   // Open the owning detail surface.
   items.push({
@@ -68,8 +69,16 @@ export function PlanCardMenu({ card }: PlanCardMenuProps) {
 
   // Item levers via the shared Command Post mutation hook.
   if (callbacks && card.cardType !== "outcome") {
-    if (card.action === "run") {
-      items.push({ label: "Run", testId: "plan-card-menu-run", onSelect: callbacks.onRun });
+    if (nextAction?.id === "run") {
+      items.push({ label: nextAction.expandedLabel, testId: "plan-card-menu-run", onSelect: callbacks.onRun });
+    } else if (nextAction && nextAction.id !== "none") {
+      items.push({
+        label: nextAction.expandedLabel,
+        testId: "plan-card-menu-next-action",
+        disabled: !nextAction.enabled,
+        title: nextAction.reason,
+        onSelect: () => navigate(backlogDetailPath(card.itemKind, card.itemName)),
+      });
     }
     if (card.status === "backlog") {
       items.push({

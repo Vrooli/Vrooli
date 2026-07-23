@@ -49,6 +49,18 @@ export interface RenderedBacklogPlan {
   planRef?: PlanRef;
 }
 
+export type BacklogNextActionID = "none" | "accept_suggestion" | "author_plan" | "accept_plan" | "repair_plan" | "resolve_dependencies" | "review" | "view_execution" | "run" | "retry" | "archive";
+
+export interface BacklogNextAction {
+  id: BacklogNextActionID;
+  compactLabel: string;
+  expandedLabel: string;
+  enabled: boolean;
+  reason?: string;
+  blockers: BlockingReason[];
+  target?: string;
+}
+
 /**
  * Interface for the backlog service.
  * This is the seam - implementations can be swapped for testing.
@@ -57,6 +69,8 @@ export interface IBacklogService {
   list(kinds?: BacklogKind[]): Promise<{ items: BacklogItem[]; blocking: Record<string, ItemBlockingInfo> }>;
   listBySpawnedFrom(spawnedFrom: string): Promise<BacklogItem[]>;
   get(kind: BacklogKind, name: string): Promise<BacklogItem>;
+  getNextAction(kind: BacklogKind, name: string): Promise<BacklogNextAction>;
+  getNextActions(items: Array<{ kind: BacklogKind; name: string }>): Promise<Record<string, BacklogNextAction>>;
   create(item: Omit<BacklogItem, "created" | "updated">): Promise<BacklogItem>;
   update(
     kind: BacklogKind,

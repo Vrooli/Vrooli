@@ -30,6 +30,7 @@ export function useBacklogMutations({
   };
 
   const archiveTargetsQueryKey = ["backlog", backlogKind, name, "archive-targets"];
+  const invalidateNextAction = () => invalidate(["backlog", backlogKind, name, "next-action"]);
 
   const updateMutation = useMutation({
     mutationFn: (values: {
@@ -51,6 +52,7 @@ export function useBacklogMutations({
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
       invalidate(["backlog", backlogKind, name]);
+      invalidateNextAction();
       upsertItem(updatedItem);
     },
   });
@@ -63,6 +65,7 @@ export function useBacklogMutations({
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
       invalidate(["backlog", backlogKind, name]);
+      invalidateNextAction();
       upsertItem(updatedItem);
     },
   });
@@ -73,6 +76,7 @@ export function useBacklogMutations({
     onSuccess: () => {
       if (!backlogKind || !name) return;
       invalidate(["backlog", backlogKind, name]);
+      invalidateNextAction();
       invalidate(["backlog-list"]);
     },
   });
@@ -88,6 +92,7 @@ export function useBacklogMutations({
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
       invalidate(["backlog", backlogKind, name]);
+      invalidateNextAction();
       upsertItem(updatedItem);
     },
   });
@@ -100,6 +105,7 @@ export function useBacklogMutations({
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
       invalidate(["backlog", backlogKind, name]);
+      invalidateNextAction();
       invalidate(["backlog-list"]);
       upsertItem(updatedItem);
     },
@@ -113,6 +119,7 @@ export function useBacklogMutations({
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
       invalidate(["backlog", backlogKind, name]);
+      invalidateNextAction();
       invalidate(["backlog-list"]);
       upsertItem(updatedItem);
     },

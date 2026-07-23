@@ -81,6 +81,16 @@ export function useBacklogQueries({
     },
   });
 
+  const { data: nextAction } = useQuery({
+    queryKey: ["backlog", backlogKind, name, "next-action"],
+    queryFn: () => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.getNextAction(backlogKind, name);
+    },
+    enabled: !!backlogKind && !!name,
+    ...defaultQueryOptions,
+  });
+
   const isValidating = executionHistory?.[0]?.status === "validating";
 
 
@@ -136,6 +146,7 @@ export function useBacklogQueries({
     refetchFiles,
 
     executionHistory,
+    nextAction,
 
     reviewRounds,
     isGatheringEvidence,

@@ -9,6 +9,7 @@ import type { RunSheetTarget } from "../../../components/backlog/run-sheet";
 import type { StableItemCallbacks } from "../../../hooks/useCommandPostItemActions";
 import type { SnoozePreset } from "../../../lib/snooze-utils";
 import type { BacklogItem } from "../../../types";
+import type { BacklogNextAction } from "../../../services/backlog";
 import type { PlanCardData } from "../types";
 
 export interface PlanCardActions {
@@ -17,6 +18,7 @@ export interface PlanCardActions {
   getCallbacks: (kind: string, name: string) => StableItemCallbacks | undefined;
   /** Full backlog item lookup (menu labels need status/kind context). */
   getBacklogItem: (kind: string, name: string) => BacklogItem | undefined;
+  getNextAction: (kind: string, name: string) => BacklogNextAction | undefined;
   /** Open the run modal for one or more targets (bulk-threshold confirmed). */
   runTargets: (targets: RunSheetTarget[]) => void;
   /** Snooze a card with one of the shared presets. */

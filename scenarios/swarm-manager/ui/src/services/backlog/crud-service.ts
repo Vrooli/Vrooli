@@ -18,7 +18,21 @@ import type { IApiClient } from "../../lib/api-client";
 import { API_ENDPOINTS } from "../../lib/api-endpoints";
 import { buildQueryString } from "../../lib/query-utils";
 import type { BacklogItem, BacklogKind, ItemBlockingInfo } from "../../types";
-import type { BacklogUpdatePatch } from "./types";
+import type { BacklogNextAction, BacklogUpdatePatch } from "./types";
+
+const MAX_NEXT_ACTION_BATCH_SIZE = 100;
+
+function mapNextAction(raw: Record<string, unknown>): BacklogNextAction {
+  return {
+    id: String(raw.id) as BacklogNextAction["id"],
+    compactLabel: String(raw.compact_label ?? raw.compactLabel ?? ""),
+    expandedLabel: String(raw.expanded_label ?? raw.expandedLabel ?? ""),
+    enabled: raw.enabled === true,
+    reason: typeof raw.reason === "string" ? raw.reason : undefined,
+    blockers: Array.isArray(raw.blockers) ? raw.blockers as BacklogNextAction["blockers"] : [],
+    target: typeof raw.target === "string" ? raw.target : undefined,
+  };
+}
 
 export function buildBacklogUpdatePayload(patch: BacklogUpdatePatch): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
@@ -64,6 +78,29 @@ export function createCrudMethods(apiClient: IApiClient) {
       const data = await apiClient.get<unknown>(API_ENDPOINTS.backlogItem(kind, name));
       const parsed = parseProtoResponse(backlogItemResponseSchema, data, "backlog item");
       return mapProtoBacklogItem(requireProtoField(parsed.item, "backlog item"));
+    },
+
+    async getNextAction(kind: BacklogKind, name: string): Promise<BacklogNextAction> {
+      const data = await apiClient.get<{ action?: Record<string, unknown> }>(API_ENDPOINTS.backlogNextAction(kind, name));
+      if (!data.action) throw new Error("next action response is missing action");
+      return mapNextAction(data.action);
+    },
+
+    async getNextActions(items: Array<{ kind: BacklogKind; name: string }>): Promise<Record<string, BacklogNextAction>> {
+      const references = items.map(({ kind, name }) => `${kind}/${name}`);
+      const batches = Array.from(
+        { length: Math.ceil(references.length / MAX_NEXT_ACTION_BATCH_SIZE) },
+        (_, index) => references.slice(index * MAX_NEXT_ACTION_BATCH_SIZE, (index + 1) * MAX_NEXT_ACTION_BATCH_SIZE),
+      );
+      const responses = await Promise.all(batches.map((batch) => apiClient.post<{ results?: Array<{ item: string; action?: Record<string, unknown> }> }>(
+        API_ENDPOINTS.backlogNextActions,
+        { items: batch },
+      )));
+      const actions: Record<string, BacklogNextAction> = {};
+      for (const data of responses) {
+        for (const result of data.results ?? []) if (result.action) actions[result.item] = mapNextAction(result.action);
+      }
+      return actions;
     },
 
     async create(item: Omit<BacklogItem, "created" | "updated">): Promise<BacklogItem> {

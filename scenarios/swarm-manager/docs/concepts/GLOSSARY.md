@@ -7,6 +7,18 @@ A git-tracked unit of work stored under `ideas/`, `research/`, `fix/`, or `execu
 The category of backlog work: `idea`, `research`, `fix`, `execute`.
 
 ## Backlog Status
+
+## Next Action
+
+The server-owned, read-only projection of the highest-priority operator step
+for one backlog item. It carries a stable action ID, compact and expanded
+labels, enabled state, reason, blockers, and a target. It is not a command
+endpoint: plan authoring, acceptance, review, retry, archive, and queueing
+continue through their existing authorized operations.
+
+The precedence is: archived and terminal states; active execution; review;
+missing canonical plan; plan acceptance or quality repair; dependency blockers;
+then `run` only when `ProcessPreflight` and dependency evaluation are ready.
 Lifecycle state for a backlog item: `backlog`, `researching`, `ready`, `queued`, `in_progress`, `completed`, `archived`.
 
 ## Execution Run

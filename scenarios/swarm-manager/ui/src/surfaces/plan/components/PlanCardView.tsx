@@ -46,7 +46,7 @@ function cardTone(card: PlanCardData): BoardCardTone {
   return "neutral";
 }
 
-function cardSubtitle(card: PlanCardData): string {
+function cardSubtitle(card: PlanCardData, actionLabel?: string): string {
   const parts: string[] = [];
   if (card.cardType === "gate" && card.gate) {
     parts.push(gateActionLabel(card.gate));
@@ -58,7 +58,7 @@ function cardSubtitle(card: PlanCardData): string {
     if (card.finishedAt) parts.push(formatRelativeTime(card.finishedAt));
   } else {
     if (card.itemKind) parts.push(card.itemKind);
-    parts.push(card.action === "none" ? card.status.replaceAll("_", " ") : card.action);
+    parts.push(actionLabel || (card.action === "none" ? card.status.replaceAll("_", " ") : card.action));
     if (card.unblocks > 0) parts.push(`unblocks ${card.unblocks}`);
   }
   if (card.milestone) parts.push(card.milestone);
@@ -78,6 +78,7 @@ export interface PlanCardViewProps {
 export function PlanCardView({ card, showWave = false, dimmed = false, highlighted = false }: PlanCardViewProps) {
   const navigate = useNavigate();
   const actions = usePlanCardActions();
+  const nextAction = card.itemKind && card.itemName ? actions?.getNextAction(card.itemKind, card.itemName) : undefined;
 
   const handleOpen = useCallback(() => {
     // Decision and proposal gates open the decision drawer scoped to the item; other
@@ -147,7 +148,7 @@ export function PlanCardView({ card, showWave = false, dimmed = false, highlight
   return (
     <BoardCard
       title={card.title}
-      subtitle={cardSubtitle(card)}
+      subtitle={cardSubtitle(card, nextAction?.compactLabel)}
       tone={cardTone(card)}
       badges={badges}
       action={<PlanCardMenu card={card} />}

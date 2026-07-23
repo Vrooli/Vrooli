@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, ChevronDown, Clock, CornerDownLeft, MessageCircleQuestion, Play, X } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { OpsBulkActions } from "../../../components/operations/OpsBulkActions";
@@ -24,6 +25,7 @@ import { useOperationsStore } from "../../../stores/operations-store";
 import { useSnoozedKeys } from "../../../stores/snooze-store";
 import type { ActivityRow } from "../../../types/operations";
 import type { BacklogKind } from "../../../types";
+import { backlogService } from "../../../services";
 import { usePlanData } from "../hooks/usePlanData";
 import { usePlanUrlState } from "../hooks/usePlanUrlState";
 import { usePlanDataStore } from "../stores/plan-data-store";
@@ -69,7 +71,7 @@ function NextHeaderActions({ groups, goal }: { groups: import("../types").PlanCa
   if (!actions) return null;
 
   const readyTargets: RunSheetTarget[] = (groups.find((g) => g.id === "ready")?.cards ?? [])
-    .filter((c) => c.itemKind && c.itemName)
+    .filter((c) => c.itemKind && c.itemName && actions.getNextAction(c.itemKind, c.itemName)?.id === "run")
     .map((c) => ({ kind: c.itemKind as BacklogKind, name: c.itemName, title: c.title }));
   const decideCount = (groups.find((g) => g.id === "gates")?.cards ?? [])
     .filter((c) => c.gate?.kind === "decide" || c.gate?.kind === "proposal")
@@ -422,6 +424,22 @@ export function PlanBoard() {
     [board?.later.groups, snoozedKeys, urlState.showSnoozed],
   );
   const laterSplit = useMemo(() => splitBeyondHorizon(later.groups), [later.groups]);
+  const visibleBacklogRefs = useMemo(() => {
+    const refs = new Map<string, { kind: BacklogKind; name: string }>();
+    for (const group of [...next.groups, ...later.groups, ...(board?.done.groups ?? [])]) {
+      for (const card of group.cards) {
+        if (card.itemKind && card.itemName) {
+          refs.set(`${card.itemKind}/${card.itemName}`, { kind: card.itemKind as BacklogKind, name: card.itemName });
+        }
+      }
+    }
+    return [...refs.values()];
+  }, [board?.done.groups, later.groups, next.groups]);
+  const { data: nextActions = {} } = useQuery({
+    queryKey: ["backlog", "next-actions", visibleBacklogRefs.map(({ kind, name }) => `${kind}/${name}`)],
+    queryFn: () => backlogService.getNextActions(visibleBacklogRefs),
+    enabled: visibleBacklogRefs.length > 0,
+  });
 
   // ----- ?select= deep link (detail-page "Plan" pill) -----------------------
   const [searchParams, setSearchParams] = useSearchParams();
@@ -520,7 +538,7 @@ export function PlanBoard() {
   const hiddenSnoozed = next.hiddenCount + later.hiddenCount;
 
   return (
-    <PlanBoardActions onBoardRefresh={() => void refresh()}>
+    <PlanBoardActions onBoardRefresh={() => void refresh()} nextActions={nextActions}>
     <div className="flex h-full min-h-0 flex-col" data-testid="plan-board">
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <GoalPicker goal={urlState.goal} onSelect={urlState.setGoal} />

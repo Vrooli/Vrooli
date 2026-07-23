@@ -152,6 +152,33 @@ Response fields:
 
 ## Backlog Create
 
+## Backlog Next Actions
+
+`GET /api/v1/backlog/{kind}/{name}/next-action` returns the authoritative,
+read-only action projection for one item. `POST /api/v1/backlog/next-actions`
+accepts up to 100 `{ "items": ["kind/name"] }` references and returns a result
+for every reference; individual bad or unavailable items carry an `error` while
+other items still resolve.
+
+```json
+{
+  "item": "idea/example",
+  "action": {
+    "id": "author_plan",
+    "compact_label": "Plan",
+    "expanded_label": "Author plan",
+    "enabled": true,
+    "reason": "A canonical execution plan is required before this item can run.",
+    "target": "plan_author"
+  }
+}
+```
+
+Stable IDs are `none`, `accept_suggestion`, `author_plan`, `accept_plan`,
+`repair_plan`, `resolve_dependencies`, `review`, `view_execution`, `run`,
+`retry`, and `archive`. `run` is emitted only when the current queue preflight permits
+execution; clients must not reconstruct readiness from lifecycle or plan fields.
+
 `POST /api/v1/backlog`
 
 JSON create:

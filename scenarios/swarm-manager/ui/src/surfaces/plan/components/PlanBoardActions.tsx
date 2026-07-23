@@ -15,6 +15,7 @@ import { useBacklogStore } from "../../../stores/backlog-store";
 import { useSnoozeStore } from "../../../stores/snooze-store";
 import { getPresetExpiry } from "../../../lib/snooze-utils";
 import type { BacklogItem } from "../../../types";
+import type { BacklogNextAction } from "../../../services/backlog";
 import { cardSnoozeKey } from "../lib/plan-presentation";
 import { PlanCardActionsContext, type PlanCardActions } from "./plan-card-actions-context";
 import { DecisionDrawer } from "./DecisionDrawer";
@@ -26,9 +27,10 @@ export interface PlanBoardActionsProps {
   children: ReactNode;
   /** Refetch the board projection (after decision-stream completion). */
   onBoardRefresh: () => void;
+  nextActions?: Record<string, BacklogNextAction>;
 }
 
-export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsProps) {
+export function PlanBoardActions({ children, onBoardRefresh, nextActions = {} }: PlanBoardActionsProps) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const backlogItems = useBacklogStore((s) => s.items);
@@ -102,6 +104,7 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
         return item ? itemActions.getItemCallbacks(item) : undefined;
       },
       getBacklogItem: (kind, name) => itemsByKey.get(`${kind}/${name}`),
+      getNextAction: (kind, name) => nextActions[`${kind}/${name}`],
       runTargets,
       snoozeCard: (card, preset) => {
         const key = cardSnoozeKey(card);
@@ -109,7 +112,7 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
       },
       openDecisions,
     }),
-    [itemsByKey, itemActions, runTargets, snooze, openDecisions],
+    [itemsByKey, itemActions, nextActions, runTargets, snooze, openDecisions],
   );
 
   return (

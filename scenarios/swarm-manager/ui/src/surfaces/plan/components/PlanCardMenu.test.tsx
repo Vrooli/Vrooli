@@ -54,6 +54,7 @@ function makeContext(callbacks?: Partial<StableItemCallbacks>): {
     value: {
       getCallbacks: () => cb,
       getBacklogItem: () => undefined,
+      getNextAction: () => ({ id: "run", compactLabel: "Run", expandedLabel: "Run item", enabled: true, blockers: [] }),
       runTargets: vi.fn(),
       snoozeCard,
       openDecisions,

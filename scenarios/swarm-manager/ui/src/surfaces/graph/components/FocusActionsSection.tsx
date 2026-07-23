@@ -8,7 +8,7 @@
 
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Play,
   Wrench,
@@ -19,12 +19,12 @@ import {
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { defaultApiClient } from "../../../lib/api-client";
+import { backlogService } from "../../../services";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { useBacklogStore } from "../../../stores/backlog-store";
 import { executionDetailPath } from "../../../app/routes/route-paths";
 import { RunSheet, type RunSheetTarget } from "../../../components/backlog/run-sheet";
 import { InlineQuestionStepper } from "../../../components/backlog/inline-question-stepper";
-import { useNodeActionContext } from "../hooks/useNodeActionContext";
 import { useNodePendingQuestions } from "../hooks/useNodePendingQuestions";
 import { parseNodeId } from "../lib/node-id-parser";
 import type {
@@ -53,7 +53,10 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
   const queryClient = useQueryClient();
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
 
-  const itemActions = useNodeActionContext(nodeData);
+  const { data: nextAction } = useQuery({
+    queryKey: ["backlog", nodeData.kind, nodeData.name, "next-action"],
+    queryFn: () => backlogService.getNextAction(nodeData.kind, nodeData.name),
+  });
   const pendingQuestions = useNodePendingQuestions(nodeData.kind, nodeData.name);
 
   const [runModalTarget, setRunModalTarget] = useState<RunSheetTarget | undefined>();
@@ -77,10 +80,10 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
   });
 
   const handleCtaClick = useCallback(() => {
-    const cta = itemActions.primaryCta;
+    const cta = nextAction?.id;
     if (cta === "run") {
       setRunModalTarget({ kind: nodeData.kind, name: nodeData.name, title: nodeData.title });
-    } else if (cta === "followUp") {
+    } else if (cta === "retry") {
       // Find the latest execution for this item to follow up on.
       const parsed = parseNodeId(nodeId);
       if (parsed?.identifier) {
@@ -88,13 +91,19 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
       }
     } else if (cta === "archive") {
       archiveMutation.mutate();
+    } else if (cta === "author_plan" || cta === "accept_plan" || cta === "repair_plan" || cta === "review" || cta === "resolve_dependencies" || cta === "view_execution") {
+      navigate(`/backlog/${nodeData.kind}/${nodeData.name}`);
     }
-  }, [itemActions.primaryCta, nodeData, nodeId, navigate, followUpMutation, archiveMutation]);
+  }, [nextAction?.id, nodeData, nodeId, navigate, followUpMutation, archiveMutation]);
 
-  // Nothing to show for locked items.
-  if (itemActions.locked) return null;
+  // The projection is authoritative, including active-work states.
+  if (!nextAction || nextAction.id === "none") return null;
+  const displayedAction = nextAction;
 
-  const ctaConfig = itemActions.primaryCta ? CTA_CONFIG[itemActions.primaryCta] : null;
+  const ctaConfig = {
+    label: displayedAction.compactLabel,
+    icon: CTA_CONFIG[displayedAction.id === "run" ? "run" : displayedAction.id === "archive" ? "archive" : "followUp"]?.icon ?? Play,
+  };
   const isMutating = archiveMutation.isPending || followUpMutation.isPending;
   const showStepper = pendingQuestions.length > 0;
 
@@ -105,7 +114,7 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
         <button
           type="button"
           onClick={handleCtaClick}
-          disabled={isMutating}
+          disabled={isMutating || !nextAction?.enabled}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
           data-testid="focus-cta-button"
         >

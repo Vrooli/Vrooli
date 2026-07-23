@@ -78,6 +78,57 @@ describe("BacklogCard", () => {
     expect(screen.queryByTestId("status-chip-trigger")).not.toBeInTheDocument();
   });
 
+  it("renders the server-owned full label and routes its action", async () => {
+    const onNextAction = vi.fn();
+    renderCard({
+      nextAction: {
+        id: "author_plan",
+        compactLabel: "Plan",
+        expandedLabel: "Author plan",
+        enabled: true,
+        blockers: [],
+      },
+      onNextAction,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Author plan" }));
+    expect(onNextAction).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Run" })).not.toBeInTheDocument();
+  });
+
+  it("does not render legacy lifecycle actions beside a projected primary action", () => {
+    renderCard({
+      item: makeItem({ status: "completed" }),
+      itemActions: makeActions({ canFollowUp: true, canArchive: true }),
+      nextAction: {
+        id: "archive",
+        compactLabel: "Archive",
+        expandedLabel: "Archive item",
+        enabled: true,
+        blockers: [],
+      },
+    });
+
+    expect(screen.getByRole("button", { name: "Archive item" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Follow Up" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
+  });
+
+  it("does not render a legacy disabled Run beside a dependency projection", () => {
+    renderCard({
+      itemActions: makeActions({ blocked: true, runDisabled: true }),
+      nextAction: {
+        id: "resolve_dependencies",
+        compactLabel: "Blocked",
+        expandedLabel: "Resolve dependencies",
+        enabled: true,
+        blockers: [],
+      },
+    });
+
+    expect(screen.getByRole("button", { name: "Resolve dependencies" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Run" })).not.toBeInTheDocument();
+  });
+
   it("opens popover on status chip click and calls onStatusChange", async () => {
     const user = userEvent.setup();
     const onStatusChange = vi.fn();

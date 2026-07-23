@@ -16,10 +16,14 @@ const mockGetBacklogSummary = vi.fn<() => Promise<unknown>>().mockResolvedValue(
   pending_questions: { items: [] },
 });
 const mockApiPost = vi.fn<(url: string, body?: unknown) => Promise<unknown>>().mockResolvedValue({});
+const mockGetNextAction = vi.fn<() => Promise<unknown>>().mockResolvedValue({
+  id: "run", compactLabel: "Run", expandedLabel: "Run item", enabled: true, blockers: [],
+});
 
 vi.mock("../../../services", () => ({
   backlogService: {
     getBacklogSummary: () => mockGetBacklogSummary(),
+    getNextAction: () => mockGetNextAction(),
     update: vi.fn().mockResolvedValue({}),
   },
 }));
@@ -109,27 +113,28 @@ describe("FocusActionsSection", () => {
       maturity: { items: [] },
       pending_questions: { items: [] },
     });
+    mockGetNextAction.mockResolvedValue({ id: "run", compactLabel: "Run", expandedLabel: "Run item", enabled: true, blockers: [] });
   });
 
   describe("backlog nodes", () => {
-    it("renders Run button for ready backlog item", () => {
+    it("renders Run button for ready backlog item", async () => {
       renderFocusActions(
         <FocusActionsSection
           nodeData={makeBacklogNode("ready")}
           nodeId="backlog:execute/test-item"
         />,
       );
-      expect(screen.getByTestId("focus-cta-button")).toHaveTextContent("Run");
+      expect(await screen.findByTestId("focus-cta-button")).toHaveTextContent("Run");
     });
 
-    it("opens RunSheet on Run click", () => {
+    it("opens RunSheet on Run click", async () => {
       renderFocusActions(
         <FocusActionsSection
           nodeData={makeBacklogNode("ready")}
           nodeId="backlog:execute/test-item"
         />,
       );
-      fireEvent.click(screen.getByTestId("focus-cta-button"));
+      fireEvent.click(await screen.findByTestId("focus-cta-button"));
       expect(screen.getByTestId("run-modal")).toBeInTheDocument();
     });
 
@@ -171,14 +176,15 @@ describe("FocusActionsSection", () => {
       expect(screen.getByTestId("focus-actions-section")).toBeInTheDocument();
     });
 
-    it("renders Archive button for completed terminal item", () => {
+    it("renders Archive button for completed terminal item", async () => {
+      mockGetNextAction.mockResolvedValue({ id: "archive", compactLabel: "Archive", expandedLabel: "Archive item", enabled: true, blockers: [] });
       renderFocusActions(
         <FocusActionsSection
           nodeData={makeBacklogNode("completed")}
           nodeId="backlog:execute/test-item"
         />,
       );
-      expect(screen.getByTestId("focus-cta-button")).toHaveTextContent("Archive");
+      expect(await screen.findByTestId("focus-cta-button")).toHaveTextContent("Archive");
     });
   });
 

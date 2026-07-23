@@ -25,6 +25,8 @@ export type {
   BacklogUpdatePatch,
   ImportBacklogResponse,
   RenderedBacklogPlan,
+  BacklogNextAction,
+  BacklogNextActionID,
 } from "./types";
 
 export function createBacklogService(apiClient: IApiClient = defaultApiClient): IBacklogService {

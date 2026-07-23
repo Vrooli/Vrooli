@@ -72,6 +72,7 @@ export function useBacklogDetailData({
     filesError,
     refetchFiles,
     executionHistory,
+    nextAction,
     reviewRounds,
     isGatheringEvidence,
     isAwaitingManualReview,
@@ -201,6 +202,7 @@ export function useBacklogDetailData({
     refetchFiles: () => void refetchFiles(),
 
     executionHistory,
+    nextAction,
 
     reviewRounds: reviewRounds ?? [],
     isGatheringEvidence,

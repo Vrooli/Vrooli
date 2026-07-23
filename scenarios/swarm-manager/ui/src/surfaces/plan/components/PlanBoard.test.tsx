@@ -459,12 +459,12 @@ describe("PlanBoard", () => {
     expect(await screen.findByTestId(selectors.plan.decisionDrawer)).toBeInTheDocument();
   });
 
-  it("shows Next-column bulk actions for ready items and pending questions", async () => {
+  it("does not offer bulk Run until the server action projection marks an item runnable", async () => {
     setPlanStoreService(stubService(makeBoard()));
     renderWithProviders(<PlanBoard />);
 
     await screen.findByTestId(selectors.plan.board);
-    expect(screen.getByTestId(selectors.plan.nextRunAll)).toHaveTextContent("1");
+    expect(screen.queryByTestId(selectors.plan.nextRunAll)).not.toBeInTheDocument();
     expect(screen.getByTestId(selectors.plan.nextAnswerAll)).toHaveTextContent("3");
   });
 

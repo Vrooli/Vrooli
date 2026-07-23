@@ -8,6 +8,7 @@
 import { Profiler, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useQuery } from "@tanstack/react-query";
 import { onProfilerRender } from "../../../../lib/profiler";
 import { Download, Loader2, Plus } from "lucide-react";
 import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
@@ -31,10 +32,12 @@ import { useSetAsGoalMenu } from "../../../../components/goals/useSetAsGoalMenu"
 import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemActions";
 import type { StableItemCallbacks } from "../../../../hooks/useCommandPostItemActions";
 import type { BacklogItem, ItemBlockingInfo, PendingQuestion } from "../../../../types";
+import type { BacklogNextAction } from "../../../../services/backlog";
 import type { BacklogFilters, SortConfig } from "./types";
 import type { AttentionReason } from "../../../../lib/attention";
 import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
 import { backlogDetailPath } from "../../../../app/routes/route-paths";
+import { nextActionDetailTab } from "../../../../lib/backlog-next-action";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 import { autoFilerService, backlogService } from "../../../../services";
 import { runBulkAction, summarizeBulkOutcomes, failedOutcomeIds, type BulkOutcome } from "./bulk-actions";
@@ -148,6 +151,12 @@ function BacklogTabImpl({
     [selectedIds, sorted],
   );
 
+  const { data: nextActions = {} } = useQuery({
+    queryKey: ["backlog", "next-actions", sorted.map((item) => `${item.kind}/${item.name}`)],
+    queryFn: () => backlogService.getNextActions(sorted.map(({ kind, name }) => ({ kind, name }))),
+    enabled: sorted.length > 0,
+  });
+
   const handleCloseRunModal = useCallback(() => setRunModalTarget(undefined), []);
   const handleRunModalSuccess = useCallback(() => {
     setRunModalTarget(undefined);
@@ -221,6 +230,7 @@ function BacklogTabImpl({
       <Profiler id="VirtualizedBacklogList" onRender={onProfilerRender}>
         <VirtualizedBacklogList
           sorted={sorted}
+          nextActions={nextActions}
           blockingMap={blockingMap}
           attentionReasonsMap={attentionReasonsMap}
           pendingQuestionsMap={pendingQuestionsMap}
@@ -278,6 +288,7 @@ const ROW_GAP_PX = 8;
 
 interface VirtualizedBacklogListProps {
   sorted: BacklogItem[];
+  nextActions: Record<string, BacklogNextAction>;
   blockingMap: Record<string, ItemBlockingInfo>;
   attentionReasonsMap: Map<string, AttentionReason[]>;
   pendingQuestionsMap: Map<string, PendingQuestion[]>;
@@ -298,6 +309,7 @@ interface VirtualizedBacklogListProps {
 
 function VirtualizedBacklogList({
   sorted,
+  nextActions,
   blockingMap,
   attentionReasonsMap,
   pendingQuestionsMap,
@@ -366,6 +378,7 @@ function VirtualizedBacklogList({
           >
             <BacklogRow
               item={item}
+              nextAction={nextActions[itemKey]}
               blockingInfo={blockingMap[itemKey] ?? null}
               attentionReasons={attentionReasonsMap.get(itemKey) ?? EMPTY_REASONS}
               pendingQuestions={pendingQuestionsMap.get(itemKey)}
@@ -393,6 +406,7 @@ function VirtualizedBacklogList({
 
 interface BacklogRowProps {
   item: BacklogItem;
+  nextAction?: BacklogNextAction;
   blockingInfo: ItemBlockingInfo | null;
   attentionReasons: AttentionReason[];
   pendingQuestions: PendingQuestion[] | undefined;
@@ -419,6 +433,7 @@ interface BacklogRowProps {
 
 const BacklogRow = memo(function BacklogRow({
   item,
+  nextAction,
   blockingInfo,
   attentionReasons,
   pendingQuestions,
@@ -437,6 +452,8 @@ const BacklogRow = memo(function BacklogRow({
   selected,
   onToggleSelection,
 }: BacklogRowProps) {
+  const navigate = useNavigate();
+  const fetchBacklog = useBacklogStore((state) => state.fetchBacklog);
   const itemKey = `${item.kind}/${item.name}`;
   const selectionId = backlogSelectionId(item);
   const nodeId = useMemo(() => buildBacklogNodeId(item.kind, item.name), [item.kind, item.name]);
@@ -457,6 +474,27 @@ const BacklogRow = memo(function BacklogRow({
     (result: StepperCompletionResult) => handleStepperCompleted(itemKey, item, result),
     [handleStepperCompleted, itemKey, item],
   );
+  const handleNextAction = useCallback(() => {
+    if (!nextAction) return;
+    switch (nextAction.id) {
+      case "run":
+        callbacks.onRun();
+        return;
+      case "archive":
+        callbacks.onArchive();
+        return;
+      case "accept_suggestion":
+        callbacks.onStatusChange("backlog");
+        return;
+      case "retry":
+        void backlogService.retry(item.kind, item.name).then(() => fetchBacklog({ force: true }));
+        return;
+      default: {
+        const tab = nextActionDetailTab(nextAction);
+        navigate(backlogDetailPath(item.kind, item.name, tab ? { tab } : undefined));
+      }
+    }
+  }, [callbacks, fetchBacklog, item.kind, item.name, navigate, nextAction]);
 
   const contextMenu = useContextMenu();
   const goalTarget = useMemo(() => backlogGoalTarget(item), [item]);
@@ -480,6 +518,7 @@ const BacklogRow = memo(function BacklogRow({
     >
       <BacklogCard
         item={item}
+        nextAction={nextAction}
         itemActions={itemActions}
         attentionReasons={attentionReasons}
         pendingQuestions={pendingQuestions}
@@ -489,6 +528,7 @@ const BacklogRow = memo(function BacklogRow({
         isSelected={selected}
         onToggleSelection={() => onToggleSelection?.(selectionId)}
         onRun={callbacks.onRun}
+        onNextAction={handleNextAction}
         onArchive={callbacks.onArchive}
         onFollowUp={callbacks.onFollowUp}
         onAcceptSuggestion={onAcceptSuggestion}

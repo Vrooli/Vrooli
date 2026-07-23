@@ -17,6 +17,7 @@ import { BACKLOG_KIND_ICONS, BACKLOG_STATUS_COLORS, formatBacklogStatus } from "
 import type { BacklogItem, BacklogStatus, PendingQuestion } from "../../types";
 import { StatusChipPopover } from "./status-chip-popover";
 import type { ItemActions } from "../../lib/backlog-queue-utils";
+import type { BacklogNextAction } from "../../services/backlog";
 import type { AttentionReason } from "../../lib/attention";
 import type { StepperCompletionResult } from "./inline-question-stepper";
 import { InlineQuestionStepper } from "./inline-question-stepper";
@@ -64,6 +65,8 @@ export interface BacklogCardProps {
    */
   selection?: CardSelection;
   itemActions?: ItemActions;
+  /** Server-owned primary action projection for list and graph contexts. */
+  nextAction?: BacklogNextAction;
   // Attention / stepper
   attentionReasons?: AttentionReason[];
   pendingQuestions?: PendingQuestion[];
@@ -75,6 +78,7 @@ export interface BacklogCardProps {
   onToggleSelection?: () => void;
   // Actions
   onRun?: () => void;
+  onNextAction?: () => void;
   onArchive?: () => void;
   onFollowUp?: () => void;
   onAcceptSuggestion?: () => void;
@@ -97,6 +101,7 @@ function BacklogCardImpl({
   item,
   selection,
   itemActions = NO_ITEM_ACTIONS,
+  nextAction,
   attentionReasons = [],
   pendingQuestions,
   isStepperCompleted = false,
@@ -105,6 +110,7 @@ function BacklogCardImpl({
   isSelected = false,
   onToggleSelection = () => {},
   onRun = () => {},
+  onNextAction = () => {},
   onArchive = () => {},
   onFollowUp = () => {},
   onAcceptSuggestion = () => {},
@@ -155,10 +161,10 @@ function BacklogCardImpl({
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
   const showBatchCheckbox = batchMode;
   const KindIcon = BACKLOG_KIND_ICONS[item.kind];
-  const hasPrimaryActionRow = (
-    (itemActions.canRun || itemActions.runDisabled)
-    && !itemActions.blocked
-  );
+  const hasPrimaryActionRow = nextAction
+    ? nextAction.id !== "none"
+    : (itemActions.canRun || itemActions.runDisabled) && !itemActions.blocked;
+  const hasServerActionProjection = nextAction !== undefined;
   const snoozeItemKey = snoozeKeyForBacklog(item.kind, item.name);
   const actionRowClass = "mt-3 flex flex-nowrap items-center gap-2 overflow-x-auto pb-1";
 
@@ -258,7 +264,7 @@ function BacklogCardImpl({
             </div>
           )}
 
-          {item.status === "suggested" && !item.archivedAt && (
+          {!hasServerActionProjection && item.status === "suggested" && !item.archivedAt && (
             <div className={actionRowClass} data-testid="backlog-card-actions" onClick={(event) => event.preventDefault()}>
               <Button
                 size="sm"
@@ -290,7 +296,7 @@ function BacklogCardImpl({
           )}
 
           {/* Blocked state */}
-          {itemActions.blocked && !itemActions.locked && (
+          {!hasServerActionProjection && itemActions.blocked && !itemActions.locked && (
             <div className="mt-3 space-y-2" onClick={(event) => event.preventDefault()}>
               {itemActions.runDisabled && (
                 <div className={actionRowClass} data-testid="backlog-card-actions">
@@ -315,7 +321,22 @@ function BacklogCardImpl({
           {/* Primary action row */}
           {hasPrimaryActionRow && (
             <div className={actionRowClass} data-testid="backlog-card-actions" onClick={(event) => event.preventDefault()}>
-              {(itemActions.canRun || itemActions.runDisabled) && (
+              {nextAction ? (
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={!nextAction.enabled}
+                  title={nextAction.reason}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onNextAction();
+                  }}
+                >
+                  <Play className="mr-1 h-3 w-3" />
+                  {nextAction.expandedLabel}
+                </Button>
+              ) : (itemActions.canRun || itemActions.runDisabled) && (
                 <Button
                   size="sm"
                   variant={itemActions.primaryCta === "run" ? "default" : "outline"}
@@ -340,7 +361,7 @@ function BacklogCardImpl({
           )}
 
           {/* Terminal actions: Follow Up + Archive in a single row */}
-          {(itemActions.canFollowUp || itemActions.canArchive) && (
+          {!hasServerActionProjection && (itemActions.canFollowUp || itemActions.canArchive) && (
             <div className={actionRowClass} data-testid="backlog-card-actions" onClick={(event) => event.preventDefault()}>
               {itemActions.canFollowUp && (
                 <Button

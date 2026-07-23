@@ -64,6 +64,7 @@ import { useAppBack } from "../app/routes/useAppBack";
 import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createBacklogFileServiceAdapter } from "../services/backlog/backlog-file-service-adapter";
+import { nextActionDetailTab } from "../lib/backlog-next-action";
 
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const AGENT_RUN_REFRESH_MS = 6000;
@@ -118,7 +119,7 @@ export function BacklogDetailsPage() {
   const {
     item, isLoadingItem, itemError, refetchItem, spawnedItems,
     files, isLoadingFiles, filesError, refetchFiles,
-    executionHistory, reviewRounds,
+    executionHistory, reviewRounds, nextAction,
     archiveTargets,
     depRelations, itemActions, targetScenarios,
     isLocked, isTerminal,
@@ -544,6 +545,32 @@ export function BacklogDetailsPage() {
     </div>
   ) : null;
 
+  const handleNextAction = () => {
+    if (nextAction) {
+      const targetTab = nextActionDetailTab(nextAction);
+      if (targetTab) {
+        setActiveTab(targetTab);
+        return;
+      }
+    }
+    switch (nextAction?.id) {
+      case "run":
+        uiStore.openRunModal();
+        break;
+      case "accept_suggestion":
+        data.updateStatus("backlog");
+        break;
+      case "archive":
+        handlers.handleArchiveItem();
+        break;
+      case "retry":
+        if (item) void backlogService.retry(item.kind, item.name).then(() => data.refetchItem());
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <BacklogDetailProvider value={contextValue}>
       <DetailPageLayout
@@ -555,7 +582,11 @@ export function BacklogDetailsPage() {
             nodeId={nodeId}
             lenses={BACKLOG_LENSES}
             menuActions={menuActions}
-            primaryAction={!isLocked && !activeExecution && item?.status !== "review_pending" && item?.status !== "in_review" ? <Button size="sm" onClick={uiStore.openRunModal}>Run</Button> : undefined}
+            primaryAction={nextAction && nextAction.id !== "none" ? (
+              <Button size="sm" onClick={handleNextAction} disabled={!nextAction.enabled} title={nextAction.reason}>
+                {nextAction.compactLabel}
+              </Button>
+            ) : undefined}
             onStatusChange={!isLocked ? (newStatus) => data.updateStatus(newStatus) : undefined}
             statusChangePending={data.isUpdatingStatus}
             tabBar={tabBar}

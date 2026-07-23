@@ -97,6 +97,15 @@ Swarm-manager's domain forms a four-entity pipeline that closes the recursive-le
 
 1. **Captures** — raw operator/agent input; the front door for observations and ideas before they have shape.
 2. **Backlog** — current-state work tracking; what is being done now, its plan reference, and its queue/execution lifecycle.
+
+### Backlog next-action policy
+
+`backlog.ResolveNextAction` is the single read-only action policy for first-party
+backlog surfaces. It calls the same execution `ProcessPreflight` boundary used
+by queueing and combines its evidence with dependency and lifecycle facts. The
+policy never treats `plan_ref` presence as execution readiness. Detail views use
+the single-item projection; list surfaces use the bounded batch endpoint, so a
+visible card list does not issue one Plan Manager validation request per card.
 3. **Records** — narrative artifacts of completed work; what was learned, including hypotheses ruled out, files touched, commit, and outcome. Records are the **write side of the recursive-learning loop**: future agents query them via `ai-search query --kind fix` and `records search`. Stub records are auto-created on backlog terminal transitions (`review-decide --accept|--fail`) and filled by the executing agent; records can also be created for work that never touched the backlog.
 4. **Events** — audit log of state deltas (backlog status changes, record creations and supersedes, etc.) consumed by the stats engine to surface throughput, regression rate, and visibility split.
 

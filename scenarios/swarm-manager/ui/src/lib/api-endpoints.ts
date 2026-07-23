@@ -22,6 +22,8 @@ export const API_ENDPOINTS = {
   backlogPlanRender: (kind: string, name: string) => `/backlog/${kind}/${name}/plan-render`,
   backlogPlanAccept: (kind: string, name: string) => `/backlog/${kind}/${name}/plan-accept`,
   backlogPlanAuthor: (kind: string, name: string) => `/backlog/${kind}/${name}/plan-author`,
+  backlogNextAction: (kind: string, name: string) => `/backlog/${kind}/${name}/next-action`,
+  backlogNextActions: "/backlog/next-actions",
   goalFiles: (name: string) => `/goals/${name}/files`,
   goalFileContent: (name: string, filePath: string) => `/goals/${name}/files/${filePath}`,
   goalFileOperations: (name: string) => `/goals/${name}/files`,
