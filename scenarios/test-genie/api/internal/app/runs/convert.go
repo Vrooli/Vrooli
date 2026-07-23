@@ -370,7 +370,7 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 		// A phase that was deliberately inapplicable on both sides is visible in
 		// the phase detail but contributes no behavioral measurement. It must not
 		// turn an otherwise comparable baseline into an unusable comparison.
-		if !symmetricNeutralAbsence(recordA, okA, recordB, okB, descriptorA, descriptorB) {
+		if !bestEffortProviderOutageIsNeutral(recordA, okA, recordB, okB, descriptorA, descriptorB) && !symmetricNeutralAbsence(recordA, okA, recordB, okB, descriptorA, descriptorB) {
 			response.Behavior = aggregateBehavior(response.Behavior, diff.Behavior)
 			response.Coverage = aggregateDimension(response.Coverage, diff.Coverage, "measured")
 			response.Compatibility = aggregateDimension(response.Compatibility, diff.Compatibility, "compatible")
@@ -378,6 +378,13 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 		}
 		response.Diagnostics = append(response.Diagnostics, diff.Diagnostics...)
 		out = append(out, diff)
+	}
+	// A run containing only neutral best-effort coverage gaps has no measured
+	// behavioral delta, but it is still safe to say no regression was observed.
+	// Keep the phase diagnostics visible without turning absence of evidence into
+	// a global not-comparable verdict.
+	if response.Behavior == "unknown" && len(out) > 0 {
+		response.Behavior = "clean"
 	}
 	response.Phases = out
 	response.Verdict = legacyVerdict(response)
@@ -438,6 +445,11 @@ func classifyPhaseComparison(diff *runspb.PhaseDiff, a, b runProjection, recordA
 	if okB {
 		appendCoverageDiagnostic(diff, "current", recordB)
 		appendReadinessDiagnostic(diff, "current", b.result, diff.Phase)
+	}
+	if bestEffortProviderOutageResolved(recordA, okA, recordB, okB, descriptorA, descriptorB) {
+		diff.Coverage, diff.Behavior, diff.Verdict = "current-only", "unknown", verdictClean
+		add("comparison", "provider_recovered", "baseline best-effort provider outage is resolved; current result is additional evidence, not a baseline comparison")
+		return
 	}
 	if diff.Coverage == "measured" && (isUnmeasuredStatus(recordA.Status) || isUnmeasuredStatus(recordB.Status)) {
 		diff.Coverage = "unmeasured"
@@ -580,6 +592,14 @@ func symmetricNeutralAbsence(recordA sharedruns.PhaseRecord, okA bool, recordB s
 
 func providerUnavailableIsBestEffort(descriptor *sharedruns.PhaseDescriptorSnapshot) bool {
 	return descriptor != nil && descriptor.Policy.Unavailable == "skip_without_failing"
+}
+
+func bestEffortProviderOutageResolved(recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
+	return okA && okB && recordA.Status == "provider_unavailable" && isMeasuredTerminalStatus(recordB.Status) && providerUnavailableIsBestEffort(descriptorA) && providerUnavailableIsBestEffort(descriptorB)
+}
+
+func bestEffortProviderOutageIsNeutral(recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
+	return bestEffortProviderOutageResolved(recordA, okA, recordB, okB, descriptorA, descriptorB)
 }
 
 // descriptorInapplicable reports whether a captured phase descriptor recorded

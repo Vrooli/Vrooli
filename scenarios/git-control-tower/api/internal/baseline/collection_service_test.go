@@ -5,17 +5,27 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"git-control-tower/internal/git"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 func collectionService(t *testing.T) (*Service, *fakeExecutor) {
 	t.Helper()
 	exec := &fakeExecutor{result: ExecResult{Success: true, CompletedAt: time.Now().UTC(), TreeDigest: "tree", PhaseSetDigest: "phases", CaptureProfile: CaptureProfile, DescriptorSnapshotDigest: "descriptor", DescriptorSnapshotSchemaVersion: 1}}
 	return NewService(Deps{Storage: newTestStorage(t), Exec: exec, Runs: &fakeRuns{}, CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"})}), exec
+}
+
+func TestCollectionDiffDetailPreservesComparisonRecovery(t *testing.T) {
+	got := collectionDiffDetail(CachedDiff{Result: &DiffResult{Comparison: &runspb.CompareRunsResponse{Diagnostics: []*runspb.ComparisonDiagnostic{{Code: "provider_unavailable", Detail: "provider x is unavailable", Remediation: "restore provider x and rerun"}}}}})
+	if got != "provider x is unavailable (recovery: restore provider x and rerun)" {
+		t.Fatalf("collection detail = %q", got)
+	}
 }
 
 func TestCollectionCaptureStartsEachMemberOnceAndFinalizesCoverage(t *testing.T) {
@@ -272,19 +282,213 @@ func TestCollectionDiffOperationIsDurableAndSelectionIdempotent(t *testing.T) {
 		}
 	}
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "phase-1", Scenarios: []string{"plan-manager"}})
-	if err != nil || len(started.Pending) != 1 || started.Operation.ID != "phase-1" {
+	if err != nil || len(started.Pending) != 1 || started.Operation.ID != "phase-1" || started.Operation.Members[0].Lifecycle != CollectionDiffChildAwaiting {
 		t.Fatalf("start collection diff = %#v err=%v", started, err)
 	}
 	if _, err := svc.FinalizeCollectionDiff(context.Background(), 1, started.Pending[0]); err != nil {
 		t.Fatal(err)
 	}
 	_, settled, err := svc.WaitCollectionDiff(context.Background(), 1, "agi", "before", "phase-1")
-	if err != nil || len(settled.Members) != 1 || settled.Members[0].Status != "ready" {
+	if err != nil || len(settled.Members) != 1 || settled.Members[0].Status != "ready" || settled.Members[0].Lifecycle != CollectionDiffChildPassed {
 		t.Fatalf("settled operation = %#v err=%v", settled, err)
 	}
 	resumed, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "phase-1", Scenarios: []string{"plan-manager"}})
 	if err != nil || len(resumed.Pending) != 0 || resumed.Operation.ID != "phase-1" {
 		t.Fatalf("idempotent operation = %#v err=%v", resumed, err)
+	}
+}
+
+func TestCollectionDiffResumesPreDispatchGraphExactlyOnceAcrossConcurrentAgents(t *testing.T) {
+	svc, exec := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	collection, err := svc.storage.LoadCollection(1, "agi", "before")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	// Simulate a server crash immediately after the complete parent graph was
+	// persisted and before any child dispatch was attached.
+	seed := CollectionDiffOperation{
+		ID: "crash-before-dispatch", Collection: "before", Branch: "agi", CollectionSnapshot: collection,
+		Members:   []CollectionDiffMember{{Scenario: "plan-manager", BaselineName: "before", Required: true, Status: "pending"}},
+		CreatedAt: now, UpdatedAt: now, LastProgressAt: now, Lifecycle: "dispatching",
+	}
+	if err := svc.storage.SaveCollectionDiffOperation(1, seed, CreateOnly); err != nil {
+		t.Fatal(err)
+	}
+
+	type result struct {
+		started StartCollectionDiffResult
+		err     error
+	}
+	results := make(chan result, 2)
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			started, startErr := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "crash-before-dispatch"})
+			results <- result{started, startErr}
+		}()
+	}
+	wg.Wait()
+	close(results)
+	for got := range results {
+		if got.err != nil || len(got.started.Members) != 1 || got.started.Members[0].Status != "pending" || got.started.Members[0].RunID == "" {
+			t.Fatalf("resume result = %#v err=%v", got.started, got.err)
+		}
+	}
+	if exec.calls != 2 { // one capture run + exactly one resumed current diff run
+		t.Fatalf("concurrent resume started duplicate Test Genie work: calls=%d", exec.calls)
+	}
+	operation, err := svc.storage.LoadCollectionDiffOperation(1, "agi", "before", "crash-before-dispatch")
+	if err != nil || operation.Members[0].RunID == "" || operation.Members[0].Status != "pending" {
+		t.Fatalf("durable resumed graph = %#v err=%v", operation, err)
+	}
+}
+
+func TestCollectionDiffDispatchLeaseIsAtomicAcrossServiceInstances(t *testing.T) {
+	svc, exec := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	peer := NewService(Deps{Storage: svc.storage, Exec: exec, Runs: &fakeRuns{}, CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"})})
+	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "two-servers"}
+	var wg sync.WaitGroup
+	errs := make(chan error, 2)
+	for _, server := range []*Service{svc, peer} {
+		wg.Add(1)
+		go func(server *Service) {
+			defer wg.Done()
+			_, err := server.StartCollectionDiff(context.Background(), request)
+			errs <- err
+		}(server)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	exec.mu.Lock()
+	calls := exec.calls
+	exec.mu.Unlock()
+	if calls != 2 {
+		t.Fatalf("two service instances dispatched duplicate child runs: calls=%d", calls)
+	}
+}
+
+func TestCollectionDiffStatusRetriesExpiredDispatchLease(t *testing.T) {
+	svc, exec := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	exec.startErr = errors.New("temporary test-genie outage")
+	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "retry-dispatch"})
+	if err != nil || started.Operation.Members[0].Status != "pending" || started.Operation.Members[0].RunID != "" || started.Operation.Members[0].DispatchAttempts != 1 {
+		t.Fatalf("initial dispatch failure = %#v err=%v", started, err)
+	}
+	operation, err := svc.storage.LoadCollectionDiffOperation(1, "agi", "before", "retry-dispatch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	operation.Members[0].DispatchLeaseExpiresAt = time.Now().Add(-time.Second)
+	if err := svc.storage.SaveCollectionDiffOperation(1, operation, Overwrite); err != nil {
+		t.Fatal(err)
+	}
+	exec.startErr = nil
+	_, operation, _, err = svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "retry-dispatch")
+	if err != nil || operation.Members[0].Status != "ready" || exec.calls != 2 {
+		t.Fatalf("expired dispatch was not recovered: %#v calls=%d err=%v", operation, exec.calls, err)
+	}
+}
+
+func TestCollectionDiffTerminalizesUnrecoverablePreDispatchOperation(t *testing.T) {
+	svc, _ := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	collection, err := svc.storage.LoadCollection(1, "agi", "before")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	seed := CollectionDiffOperation{
+		ID: "missing-repo-path", Collection: "before", Branch: "agi", CollectionSnapshot: collection,
+		Members:   []CollectionDiffMember{{Scenario: "plan-manager", BaselineName: "before", Required: true, Status: "pending", Lifecycle: CollectionDiffChildDispatching}},
+		CreatedAt: now, UpdatedAt: now, LastProgressAt: now, Lifecycle: "dispatching",
+	}
+	if err := svc.storage.SaveCollectionDiffOperation(1, seed, CreateOnly); err != nil {
+		t.Fatal(err)
+	}
+	_, operation, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "missing-repo-path")
+	if err != nil || operation.Members[0].Status != "failed" || operation.Members[0].Lifecycle != CollectionDiffChildFailed || standing.GetLifecycle() != "terminal" || !strings.Contains(operation.Members[0].Detail, "repository path") {
+		t.Fatalf("unrecoverable pre-dispatch operation did not terminalize: %#v standing=%#v err=%v", operation, standing, err)
+	}
+}
+
+func TestCollectionDiffTerminalizesAfterBoundedDispatchFailures(t *testing.T) {
+	svc, exec := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	exec.startErr = errors.New("test-genie unavailable")
+	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "bounded-dispatch"}
+	for attempt := 1; attempt <= maxCollectionDiffDispatchAttempts; attempt++ {
+		started, startErr := svc.StartCollectionDiff(context.Background(), request)
+		if startErr != nil {
+			t.Fatalf("attempt %d start error: %v", attempt, startErr)
+		}
+		member := started.Operation.Members[0]
+		if member.DispatchAttempts != attempt {
+			t.Fatalf("attempt %d state = %#v", attempt, member)
+		}
+		if attempt < maxCollectionDiffDispatchAttempts {
+			operation, loadErr := svc.storage.LoadCollectionDiffOperation(1, "agi", "before", "bounded-dispatch")
+			if loadErr != nil {
+				t.Fatal(loadErr)
+			}
+			operation.Members[0].DispatchLeaseExpiresAt = time.Now().Add(-time.Second)
+			if saveErr := svc.storage.SaveCollectionDiffOperation(1, operation, Overwrite); saveErr != nil {
+				t.Fatal(saveErr)
+			}
+		}
+	}
+	_, operation, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "bounded-dispatch")
+	if err != nil || operation.Members[0].Status != "failed" || standing.GetLifecycle() != "terminal" || !strings.Contains(operation.Members[0].Detail, "attempt 3") {
+		t.Fatalf("bounded dispatch did not terminalize: %#v standing=%#v err=%v", operation, standing, err)
 	}
 }
 
@@ -314,7 +518,7 @@ func TestCollectionDiffStatusUsesImmutableSnapshotAfterCollectionDeletion(t *tes
 	if err != nil {
 		t.Fatalf("status after collection deletion: %v", err)
 	}
-	if collection.Name != "before" || len(operation.Members) != 1 || operation.Members[0].Status != "pending" {
+	if collection.Name != "before" || len(operation.Members) != 1 || operation.Members[0].Status != "ready" || operation.Lifecycle != "terminal" {
 		t.Fatalf("snapshot-backed operation = %#v collection=%#v", operation, collection)
 	}
 }
@@ -352,7 +556,7 @@ func TestCollectionDiffStatusDoesNotAdoptLaterCollectionMembers(t *testing.T) {
 	}
 }
 
-func TestCollectionDiffStatusReportsFinalizingTerminalChildWithoutReconciling(t *testing.T) {
+func TestCollectionDiffStatusReconcilesTerminalChildAfterFinalizerLoss(t *testing.T) {
 	svc, _ := collectionService(t)
 	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
 		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
@@ -371,9 +575,64 @@ func TestCollectionDiffStatusReportsFinalizingTerminalChildWithoutReconciling(t 
 		t.Fatalf("start diff = %#v err=%v", started, err)
 	}
 
+	if err := svc.ReconcileCollectionDiffOperations(context.Background(), 1); err != nil {
+		t.Fatalf("background reconciliation failed: %v", err)
+	}
 	_, operation, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "recover-terminal")
-	if err != nil || len(operation.Members) != 1 || operation.Members[0].Status != "pending" || standing.GetLifecycle() != "finalizing" {
-		t.Fatalf("pure status should expose finalizing terminal child: %#v standing=%#v err=%v", operation, standing, err)
+	if err != nil || len(operation.Members) != 1 || operation.Members[0].Status != "ready" || standing.GetLifecycle() != "terminal" {
+		t.Fatalf("status did not repair terminal child projection: %#v standing=%#v err=%v", operation, standing, err)
+	}
+}
+
+func TestCollectionDiffStatusTerminalizesMissingDurableChildIntent(t *testing.T) {
+	svc, _ := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "missing-intent"})
+	if err != nil || len(started.Pending) != 1 {
+		t.Fatalf("start diff = %#v err=%v", started, err)
+	}
+	dir, err := svc.storage.branchDir(1, "plan-manager", "agi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(svc.storage.diffIntentPath(dir, "before", started.Members[0].RunID)); err != nil {
+		t.Fatal(err)
+	}
+	_, operation, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "missing-intent")
+	if err != nil || operation.Members[0].Status != "failed" || standing.GetLifecycle() != "terminal" {
+		t.Fatalf("missing child was not terminalized: %#v standing=%#v err=%v", operation, standing, err)
+	}
+}
+
+func TestCollectionDiffStatusTerminalizesMissingTestGenieRun(t *testing.T) {
+	svc, exec := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "missing-run"})
+	if err != nil || len(started.Pending) != 1 {
+		t.Fatalf("start diff = %#v err=%v", started, err)
+	}
+	exec.statusInfo = &RunStatusInfo{Missing: true}
+	_, operation, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "missing-run")
+	if err != nil || operation.Members[0].Status != "failed" || standing.GetLifecycle() != "terminal" || !strings.Contains(operation.Members[0].Detail, "missing") {
+		t.Fatalf("missing Test Genie run was not terminalized: %#v standing=%#v err=%v", operation, standing, err)
 	}
 }
 
@@ -397,6 +656,26 @@ func TestCollectionDiffStatusProjectsChildStanding(t *testing.T) {
 	}
 	if standing.GetLifecycle() != "executing" || len(standing.GetChildren()) != 1 || standing.GetChildren()[0].GetActivePhase() != "workflow-health" || standing.GetChildren()[0].GetEstimatedRemainingSeconds() != 91 {
 		t.Fatalf("aggregate did not project child standing: %#v", standing)
+	}
+}
+
+func TestCollectionDiffStatusNeverProjectsRunBackedChildAsQueued(t *testing.T) {
+	svc, exec := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "normalize-queued"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	exec.statusInfo = &RunStatusInfo{Status: "queued", Standing: &commonv1.OperationStanding{Owner: "test-genie", OperationId: started.Members[0].RunID, Lifecycle: "queued", Directive: "wait"}}
+	_, operation, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "normalize-queued")
+	if err != nil || operation.Members[0].Lifecycle != CollectionDiffChildAwaiting || len(standing.Children) != 1 || standing.Children[0].GetLifecycle() != "executing" {
+		t.Fatalf("run-backed child remained queued: operation=%#v standing=%#v err=%v", operation, standing, err)
 	}
 }
 

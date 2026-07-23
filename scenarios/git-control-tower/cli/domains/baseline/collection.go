@@ -36,6 +36,13 @@ func (v *stringListFlag) Set(value string) error {
 	return nil
 }
 
+// collectionDiffIdentityError gives callers an executable recovery shape. The
+// operation id is deliberately caller-owned: silently inventing one on retry
+// would abandon idempotency and can dispatch duplicate collection diffs.
+func collectionDiffIdentityError(verb string) error {
+	return fmt.Errorf("--name and --operation-id are required; use: git-control-tower baseline collection diff %s --name <collection> --operation-id <stable-operation-id> [--member <scenario> ...]", verb)
+}
+
 func runCollection(core *cliapp.ScenarioApp, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("collection requires capture, show, extend, diff, or delete")
@@ -74,7 +81,7 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if strings.TrimSpace(*name) == "" || strings.TrimSpace(*operationID) == "" {
-		return fmt.Errorf("--name and --operation-id are required")
+		return collectionDiffIdentityError("start")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
 	defer cancel()
@@ -95,7 +102,7 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
 	}
 	fmt.Printf("  wait once: %s\n", collectionFollowupCommand("diff wait", *name, *branch, "--operation-id", resp.Msg.GetOperationId()))
-	fmt.Println("  Ctrl-C detaches; rerun that exact status command to recover. Do not poll.")
+	fmt.Println("  Ctrl-C detaches; rerun that exact wait command to recover. Do not poll.")
 	if *wait {
 		return runCollectionDiffWait(core, collectionFollowupArgs(*name, *branch, "--operation-id", *operationID))
 	}
@@ -110,7 +117,7 @@ func runCollectionDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if strings.TrimSpace(*name) == "" || strings.TrimSpace(*operationID) == "" {
-		return fmt.Errorf("--name and --operation-id are required")
+		return collectionDiffIdentityError("status")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
 	defer cancel()
@@ -141,11 +148,28 @@ func runCollectionDiffWait(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if strings.TrimSpace(*name) == "" || strings.TrimSpace(*operationID) == "" {
-		return fmt.Errorf("--name and --operation-id are required")
+		return collectionDiffIdentityError("wait")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), baselineClientTimeout)
 	defer cancel()
-	resp, err := clientFactory(core).WaitCollectionDiff(ctx, connect.NewRequest(&baselinesv1.WaitCollectionDiffRequest{Name: *name, Branch: *branch, OperationId: *operationID, TimeoutSeconds: int32(*timeout)}))
+	client := clientFactory(core)
+	resp, err := client.WaitCollectionDiff(ctx, connect.NewRequest(&baselinesv1.WaitCollectionDiffRequest{Name: *name, Branch: *branch, OperationId: *operationID, TimeoutSeconds: int32(*timeout)}))
+	if err != nil && isAttachmentEnd(err) {
+		// The wait attachment is not the operation. Recover the authoritative
+		// durable parent state exactly once; do not retry the wait or start work.
+		recoveryCtx, cancelRecovery := context.WithTimeout(context.Background(), snapshotStartCeiling)
+		defer cancelRecovery()
+		status, recoveryErr := client.GetCollectionDiffStatus(recoveryCtx, connect.NewRequest(&baselinesv1.GetCollectionDiffStatusRequest{Name: *name, Branch: *branch, OperationId: *operationID}))
+		if recoveryErr == nil {
+			msg := status.Msg
+			resp = connect.NewResponse(&baselinesv1.WaitCollectionDiffResponse{
+				Collection: msg.GetCollection(), Members: msg.GetMembers(), Classification: msg.GetClassification(), OperationId: msg.GetOperationId(), Standing: msg.GetStanding(),
+				Detached: msg.GetStanding().GetLifecycle() != "terminal",
+			})
+			fmt.Fprintf(os.Stderr, "collection-diff wait attachment ended unexpectedly; recovered current durable state once for operation %s\n", *operationID)
+			err = nil
+		}
+	}
 	if err != nil {
 		return err
 	}

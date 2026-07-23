@@ -32,6 +32,8 @@ func TestAggregateExitCodePrecedence(t *testing.T) {
 	failed := waitAllResult{status: &runspb.RunLiveStatus{Status: "failed"}}
 	aborted := waitAllResult{status: &runspb.RunLiveStatus{Status: "aborted"}}
 	timedOut := waitAllResult{status: &runspb.RunLiveStatus{Status: "in_progress"}, timedOut: true}
+	malformedPending := waitAllResult{status: &runspb.RunLiveStatus{Status: "queued"}, nonterminalWithoutTimeout: true}
+	providerUnavailable := waitAllResult{status: &runspb.RunLiveStatus{Status: "failed"}, providerUnavailable: true}
 	errored := waitAllResult{err: errors.New("unreachable")}
 
 	cases := []struct {
@@ -43,6 +45,8 @@ func TestAggregateExitCodePrecedence(t *testing.T) {
 		{"one failed beats timeout+error", []waitAllResult{passed, timedOut, errored, failed}, exitRegression},
 		{"aborted counts as failure", []waitAllResult{passed, aborted}, exitRegression},
 		{"timeout beats error", []waitAllResult{passed, timedOut, errored}, exitWaitTimeout},
+		{"malformed pending response is recoverable", []waitAllResult{passed, malformedPending}, exitWaitTimeout},
+		{"provider outage is not a regression", []waitAllResult{passed, providerUnavailable}, exitNotComparable},
 		{"error only", []waitAllResult{passed, errored}, exitNotComparable},
 	}
 	for _, tc := range cases {

@@ -66,7 +66,7 @@ func (s *Server) mountConnectHandlers() {
 	// Baselines: cross-surface review baseline substrate. The handler resolves
 	// the active repo and delegates capture/diff to baseline.Service.
 	baselinePath, baselineHandler := baselineH.NewHandler(baselineH.Deps{
-		Service: s.newBaselineService(),
+		Service: s.baselineService,
 		Repos:   baselineRepoResolver{repos: s.repos},
 	}, policyOpt)
 

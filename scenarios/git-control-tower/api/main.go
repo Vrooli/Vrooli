@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"git-control-tower/internal/baseline"
 	"git-control-tower/internal/config"
 	"git-control-tower/ssh"
 
@@ -58,6 +59,7 @@ type Server struct {
 	envelopeCache        *EnvelopeCache
 	reviewJobStore       *ReviewJobStore
 	configCache          *GitConfigCache
+	baselineService      *baseline.Service
 }
 
 // NewServer initializes configuration, database, and routes
@@ -183,6 +185,11 @@ func (s *Server) initClients() error {
 }
 
 func (s *Server) initServices() {
+	// One durable baseline service is shared by request handlers and the
+	// background projector, so completion does not depend on a client issuing a
+	// wait/status command after Test Genie reaches terminal state.
+	s.baselineService = s.newBaselineService()
+	s.startBaselineCollectionReconciler()
 	// Best-effort: reconcile the manifest-declared agent profile once reachable.
 	go func() {
 		for i := 0; i < 10; i++ {
@@ -212,6 +219,36 @@ func (s *Server) initServices() {
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
 	}, s.capabilities, s.basClient, s.visualCaptureStorage, s.repos, s.git)
 	s.periodicCapture.Start()
+}
+
+const baselineCollectionReconcileInterval = 30 * time.Second
+
+func (s *Server) startBaselineCollectionReconciler() {
+	if s.baselineService == nil || s.repos == nil {
+		return
+	}
+	go func() {
+		reconcile := func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			repos, _, err := s.repos.List(ctx)
+			if err != nil {
+				log.Printf("warn: list repositories for collection-diff reconciliation: %v", err)
+				return
+			}
+			for _, repo := range repos {
+				if err := s.baselineService.ReconcileCollectionDiffOperations(ctx, repo.ID); err != nil {
+					log.Printf("warn: reconcile collection diffs for repo %d: %v", repo.ID, err)
+				}
+			}
+		}
+		reconcile()
+		ticker := time.NewTicker(baselineCollectionReconcileInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			reconcile()
+		}
+	}()
 }
 
 // Router returns the HTTP handler for use with server.Run

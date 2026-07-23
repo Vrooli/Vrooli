@@ -844,6 +844,82 @@ func (s *Storage) LoadCollectionDiffOperation(repoID int64, branch, name, operat
 	return operation, nil
 }
 
+// ListCollectionDiffOperations returns every durable collection-diff parent for
+// a repository. It is used only by the server-owned reconciler; callers still
+// use LoadCollectionDiffOperation for an individual operation.
+func (s *Storage) ListCollectionDiffOperations(repoID int64) ([]CollectionDiffOperation, error) {
+	root, err := s.resolver.Path(s.opts(), storage.ClassData, fmt.Sprintf("%d/baseline-collections", repoID))
+	if err != nil {
+		return nil, err
+	}
+	branches, err := os.ReadDir(root)
+	if os.IsNotExist(err) {
+		return []CollectionDiffOperation{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read collection diff root: %w", err)
+	}
+	var operations []CollectionDiffOperation
+	for _, branch := range branches {
+		if !branch.IsDir() {
+			continue
+		}
+		diffDir := filepath.Join(root, branch.Name(), ".diffs")
+		entries, readErr := os.ReadDir(diffDir)
+		if os.IsNotExist(readErr) {
+			continue
+		}
+		if readErr != nil {
+			return nil, fmt.Errorf("read collection diff directory: %w", readErr)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+				continue
+			}
+			data, readErr := os.ReadFile(filepath.Join(diffDir, entry.Name()))
+			if readErr != nil {
+				return nil, fmt.Errorf("read collection diff operation: %w", readErr)
+			}
+			var operation CollectionDiffOperation
+			if err := json.Unmarshal(data, &operation); err != nil {
+				return nil, fmt.Errorf("decode collection diff operation: %w", err)
+			}
+			operations = append(operations, operation)
+		}
+	}
+	sort.SliceStable(operations, func(i, j int) bool { return operations[i].UpdatedAt.After(operations[j].UpdatedAt) })
+	return operations, nil
+}
+
+// UpdateCollectionDiffOperation is the compare-and-write boundary for
+// multi-process dispatch claims. Callers must put any decision derived from a
+// child lease inside mutate; separate Load/Save calls are not safe across two
+// GCT servers.
+func (s *Storage) UpdateCollectionDiffOperation(repoID int64, branch, name, operationID string, mutate func(*CollectionDiffOperation) error) (CollectionDiffOperation, error) {
+	dir, err := s.collectionDir(repoID, branch)
+	if err != nil {
+		return CollectionDiffOperation{}, err
+	}
+	var operation CollectionDiffOperation
+	err = s.withLock(dir, name, func() error {
+		data, readErr := os.ReadFile(s.collectionDiffPath(dir, name, operationID))
+		if os.IsNotExist(readErr) {
+			return ErrNotFound
+		}
+		if readErr != nil {
+			return fmt.Errorf("read collection diff operation: %w", readErr)
+		}
+		if err := json.Unmarshal(data, &operation); err != nil {
+			return fmt.Errorf("decode collection diff operation: %w", err)
+		}
+		if err := mutate(&operation); err != nil {
+			return err
+		}
+		return s.writeRecord(s.collectionDiffPath(dir, name, operationID), operation)
+	})
+	return operation, err
+}
+
 // SavePathSnapshot atomically commits a manifest and its content-addressed
 // text objects. The store lock serializes creation, deletion, and garbage
 // collection so a deleted snapshot cannot race a new object into being swept.

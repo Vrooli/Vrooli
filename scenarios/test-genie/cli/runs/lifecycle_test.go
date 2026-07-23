@@ -28,6 +28,7 @@ type streamServer struct {
 	terminalRun     *runspb.RunInfo
 	snapshotVersion int32
 	degradedReasons []string
+	waitErr         error
 }
 
 func (s *streamServer) FollowRun(_ context.Context, _ *connect.Request[runspb.FollowRunRequest], stream *connect.ServerStream[runspb.RunEvent]) error {
@@ -40,6 +41,9 @@ func (s *streamServer) FollowRun(_ context.Context, _ *connect.Request[runspb.Fo
 }
 
 func (s *streamServer) WaitRun(_ context.Context, _ *connect.Request[runspb.WaitRunRequest]) (*connect.Response[runspb.WaitRunResponse], error) {
+	if s.waitErr != nil {
+		return nil, s.waitErr
+	}
 	return connect.NewResponse(&runspb.WaitRunResponse{
 		Status: s.waitStatus, TimedOut: s.waitTimed, TerminalRun: s.terminalRun,
 		TerminalSnapshotSchemaVersion: s.snapshotVersion, DegradedReasons: s.degradedReasons,
@@ -97,6 +101,23 @@ func TestRunWaitHumanStreams(t *testing.T) {
 	}
 	if !strings.Contains(out, "PASS") {
 		t.Fatalf("human wait must render the terminal verdict, got: %q", out)
+	}
+}
+
+func TestRunWaitHumanNeverTreatsMissingTerminalEventAsSuccess(t *testing.T) {
+	withStreamServer(t, &streamServer{events: []*runspb.RunEvent{{Event: "phase_started", RunId: "R", Scenario: "demo", Phase: "unit"}}, waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "in_progress"}})
+	previous := stderrOut
+	var errOut bytes.Buffer
+	stderrOut = &errOut
+	t.Cleanup(func() { stderrOut = previous })
+	var out bytes.Buffer
+	err := runWait(nil, []string{"demo", "R"}, &out)
+	var exit *exitErr
+	if !errors.As(err, &exit) || exit.ExitCode() != exitWaitTimeout {
+		t.Fatalf("missing terminal stream exit = %v, want recoverable wait", err)
+	}
+	if !strings.Contains(errOut.String(), "recover durable status: test-genie runs wait --json demo R") {
+		t.Fatalf("missing terminal stream lacks recovery command: %q", errOut.String())
 	}
 }
 
@@ -276,6 +297,52 @@ func TestRunWaitJSONNeverParksBeforeWaitRun(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), `"status": "passed"`) {
 		t.Fatalf("expected WaitRun JSON snapshot, got %q", out.String())
+	}
+}
+
+func TestRunWaitJSONRejectsNonterminalResponseWithoutTimeout(t *testing.T) {
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "in_progress"}})
+	var out bytes.Buffer
+	err := runWait(nil, []string{"--json", "demo", "R"}, &out)
+	var exit *exitErr
+	if !errors.As(err, &exit) || exit.ExitCode() != exitWaitTimeout {
+		t.Fatalf("wait error = %v, want typed recoverable timeout", err)
+	}
+	if !json.Valid(bytes.TrimSpace(out.Bytes())) {
+		t.Fatalf("nonterminal response must still be rendered as JSON evidence, got %q", out.String())
+	}
+}
+
+func TestRunWaitJSONClassifiesProviderOutageAsNotComparable(t *testing.T) {
+	withStreamServer(t, &streamServer{
+		waitStatus:  &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed"},
+		terminalRun: &runspb.RunInfo{RunId: "R", Scenario: "demo", Status: "failed", Phases: []*runspb.PhaseInfo{{Name: "unit", Status: "provider_unavailable"}}},
+	})
+	var out bytes.Buffer
+	err := runWait(nil, []string{"--json", "demo", "R"}, &out)
+	var exit *exitErr
+	if !errors.As(err, &exit) || exit.ExitCode() != exitNotComparable {
+		t.Fatalf("provider outage exit = %v, want not-comparable", err)
+	}
+	if !json.Valid(bytes.TrimSpace(out.Bytes())) || !strings.Contains(out.String(), "provider_unavailable") {
+		t.Fatalf("provider outage must preserve JSON evidence, got %q", out.String())
+	}
+}
+
+func TestRunWaitJSONReportsRecoverableTransportInterruption(t *testing.T) {
+	withStreamServer(t, &streamServer{waitErr: connect.NewError(connect.CodeUnavailable, errors.New("connection dropped"))})
+	previous := stderrOut
+	var errOut bytes.Buffer
+	stderrOut = &errOut
+	t.Cleanup(func() { stderrOut = previous })
+	var out bytes.Buffer
+	err := runWait(nil, []string{"--json", "demo", "R"}, &out)
+	var exit *exitErr
+	if !errors.As(err, &exit) || exit.ExitCode() != exitWaitTimeout {
+		t.Fatalf("wait error = %v, want typed recoverable timeout", err)
+	}
+	if out.Len() != 0 || !strings.Contains(errOut.String(), "recover: test-genie runs wait --json demo R") {
+		t.Fatalf("transport interruption did not provide recovery handle: stdout=%q stderr=%q", out.String(), errOut.String())
 	}
 }
 

@@ -372,11 +372,12 @@ func TestCompareRunsSymmetricInapplicableIsExplicitlyUnmeasured(t *testing.T) {
 	}
 }
 
-func TestCompareRunsSymmetricBestEffortProviderUnavailableIsUnmeasured(t *testing.T) {
+func TestCompareRunsSymmetricBestEffortProviderUnavailableIsNeutralCoverageGap(t *testing.T) {
 	svc, root := newTestService(t)
 	for _, runID := range []string{"base", "cur"} {
 		seedRecord(t, root, sharedruns.RunRecord{RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "architecture", Status: "provider_unavailable"}}})
 		descriptor := capturedPhase("architecture", "Architecture")
+		descriptor.ComparisonFingerprint = "architecture:v1"
 		descriptor.Policy.Unavailable = "skip_without_failing"
 		seedDescriptorSnapshot(t, root, runID, descriptor)
 	}
@@ -384,13 +385,50 @@ func TestCompareRunsSymmetricBestEffortProviderUnavailableIsUnmeasured(t *testin
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
-	if got := resp.Msg.GetVerdict(); got != verdictNotComparable {
-		t.Fatalf("legacy verdict: want %s, got %s", verdictNotComparable, got)
+	// Fixture records intentionally lack execution provenance, so their legacy
+	// aggregate verdict remains not-comparable; the policy under test is that
+	// this phase no longer degrades measured coverage.
+	if got := resp.Msg.GetCoverage(); got != "measured" {
+		t.Fatalf("aggregate coverage: want measured, got %s", got)
 	}
 	if got := resp.Msg.GetPhases()[0].GetCoverage(); got != "unmeasured" {
 		t.Fatalf("phase coverage: want unmeasured, got %s", got)
 	}
 	assertComparisonReason(t, resp.Msg.GetPhases()[0], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE)
+}
+
+func TestCompareRunsResolvedBestEffortProviderOutageIsCurrentOnlyEvidence(t *testing.T) {
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "architecture", Status: "provider_unavailable"}}})
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "architecture", Status: "passed"}}})
+	for _, runID := range []string{"base", "cur"} {
+		descriptor := capturedPhase("architecture", "Architecture")
+		descriptor.ComparisonFingerprint = "architecture:v1"
+		descriptor.Policy.Unavailable = "skip_without_failing"
+		seedDescriptorSnapshot(t, root, runID, descriptor)
+	}
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if got := resp.Msg.GetCoverage(); got != "measured" {
+		t.Fatalf("aggregate coverage: want measured, got %s", got)
+	}
+	if got := resp.Msg.GetPhases()[0].GetCoverage(); got != "current-only" {
+		t.Fatalf("coverage: want current-only, got %s", got)
+	}
+	if !hasComparisonDiagnostic(resp.Msg.GetPhases()[0], "provider_recovered") {
+		t.Fatalf("resolved outage diagnostic missing: %#v", resp.Msg.GetPhases()[0].GetDiagnostics())
+	}
+}
+
+func hasComparisonDiagnostic(diff *runspb.PhaseDiff, code string) bool {
+	for _, diagnostic := range diff.GetDiagnostics() {
+		if diagnostic.GetCode() == code {
+			return true
+		}
+	}
+	return false
 }
 
 func TestCompareRunsSameKeyContractChangeRequiresExplicitCompatibility(t *testing.T) {

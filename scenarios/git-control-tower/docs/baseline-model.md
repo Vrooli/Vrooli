@@ -118,8 +118,11 @@ Capture and diff waits reattach independent child runs concurrently with bounded
 fan-out. Cancellation or deadline preserves pending handles and returns a typed
 detached standing with exit `124`; terminal failure/regression uses its domain
 exit code. They never return success while required work remains pending.
-Ordinary collection reads are pure: they project durable parent state and child
-standings without reconciling or mutating them. A collection member is
+Collection-diff status is a non-blocking recovery boundary: it reads each
+durable Test Genie child and, when terminal evidence exists, projects that
+result through the persisted child intent into the aggregate operation. A
+missing child intent becomes a terminal infrastructure failure, never an
+indefinitely pending member. It never waits for active work. A collection member is
 `ready` only after its immutable baseline anchor persists; it can be ready
 while another member remains `pending`, and neither status asserts a passing
 suite verdict.
@@ -128,6 +131,20 @@ child run starts. Reusing the same identity with the same selected members
 reattaches to that operation; changing the selection is rejected. `--member`
 is the canonical repeatable selector (`--scenario` remains an alias), and no
 selector means every collection member—the required final DoD scope.
+Before a child run ID exists, the operation records a short dispatch lease and
+attempt count. Status reconciliation retries an expired lease; repeated
+dispatch failure becomes a terminal infrastructure result with its recorded
+error rather than a forever-queued validation.
+After the run ID is committed, the durable child lifecycle is explicitly
+`awaiting_child`, then `reconciling`, and finally `passed`, `failed`, or
+`not_comparable`. A Test Genie admission queue is execution detail, not a
+parent-side queued state. Missing durable child intent/run evidence and an
+operation that cannot recover its repository path terminalize as infrastructure
+failures with their evidence retained.
+The server also runs this same non-blocking reconciliation for every
+nonterminal operation on a short interval. This pull path is the correctness
+backstop; no client wait or completion event is required to make a terminal
+Test Genie result visible in GCT.
 
 Collection membership is append-only. Before editing a newly discovered
 scenario, use `collection extend` to capture its before-state and then use the

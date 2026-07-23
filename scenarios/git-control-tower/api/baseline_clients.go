@@ -149,6 +149,10 @@ func (e baselineExecutor) RunStatus(ctx context.Context, scenario, runID string)
 		Scenario: scenario, RunId: runID,
 	}))
 	if err != nil {
+		var connectErr *connect.Error
+		if errors.As(err, &connectErr) && connectErr.Code() == connect.CodeNotFound {
+			return baseline.RunStatusInfo{Missing: true}, nil
+		}
 		return baseline.RunStatusInfo{}, err
 	}
 	st := resp.Msg

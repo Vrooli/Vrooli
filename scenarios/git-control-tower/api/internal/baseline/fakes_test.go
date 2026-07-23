@@ -2,6 +2,7 @@ package baseline
 
 import (
 	"context"
+	"sync"
 
 	"git-control-tower/internal/git"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -12,6 +13,7 @@ import (
 // capture run and a diff's current run differ; AwaitResult replays the canned
 // result (or err) for that runID.
 type fakeExecutor struct {
+	mu           sync.Mutex
 	result       ExecResult
 	awaitResults []ExecResult
 	err          error // AwaitResult error (the run failed)
@@ -25,9 +27,12 @@ type fakeExecutor struct {
 	// statusInfo, when set, scripts RunStatus; otherwise a terminal-passed
 	// snapshot is returned.
 	statusInfo *RunStatusInfo
+	statusErr  error
 }
 
 func (f *fakeExecutor) StartRun(_ context.Context, _ string) (RunHandle, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.startErr != nil {
 		return RunHandle{}, f.startErr
 	}
@@ -36,6 +41,8 @@ func (f *fakeExecutor) StartRun(_ context.Context, _ string) (RunHandle, error) 
 }
 
 func (f *fakeExecutor) AwaitResult(_ context.Context, _, runID string) (ExecResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.err != nil {
 		return ExecResult{}, f.err
 	}
@@ -69,6 +76,9 @@ func (f *fakeExecutor) AwaitResult(_ context.Context, _, runID string) (ExecResu
 }
 
 func (f *fakeExecutor) RunStatus(_ context.Context, _, _ string) (RunStatusInfo, error) {
+	if f.statusErr != nil {
+		return RunStatusInfo{}, f.statusErr
+	}
 	if f.statusInfo != nil {
 		return *f.statusInfo, nil
 	}

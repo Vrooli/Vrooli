@@ -3,9 +3,11 @@ package baseline
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -17,6 +19,7 @@ import (
 
 type incompleteCollectionServer struct {
 	baselinesconnect.UnimplementedBaselinesServiceHandler
+	waitErr bool
 }
 
 func (*incompleteCollectionServer) GetCollectionStatus(context.Context, *connect.Request[baselinesv1.GetCollectionStatusRequest]) (*connect.Response[baselinesv1.GetCollectionStatusResponse], error) {
@@ -33,13 +36,17 @@ func (*incompleteCollectionServer) GetCollectionDiffStatus(context.Context, *con
 	}), nil
 }
 
-func (*incompleteCollectionServer) WaitCollectionDiff(context.Context, *connect.Request[baselinesv1.WaitCollectionDiffRequest]) (*connect.Response[baselinesv1.WaitCollectionDiffResponse], error) {
+func (s *incompleteCollectionServer) WaitCollectionDiff(context.Context, *connect.Request[baselinesv1.WaitCollectionDiffRequest]) (*connect.Response[baselinesv1.WaitCollectionDiffResponse], error) {
+	if s.waitErr {
+		return nil, io.ErrUnexpectedEOF
+	}
 	return connect.NewResponse(&baselinesv1.WaitCollectionDiffResponse{Collection: &baselinesv1.BaselineCollection{Name: "before"}, OperationId: "op-1", Classification: "not-ready", Detached: true, Standing: &commonv1.OperationStanding{Lifecycle: "executing", Directive: "wait"}}), nil
 }
 
-func withIncompleteCollectionServer(t *testing.T) {
+func withIncompleteCollectionServer(t *testing.T) *incompleteCollectionServer {
 	t.Helper()
-	path, handler := baselinesconnect.NewBaselinesServiceHandler(&incompleteCollectionServer{})
+	serverImpl := &incompleteCollectionServer{}
+	path, handler := baselinesconnect.NewBaselinesServiceHandler(serverImpl)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
 	server := httptest.NewServer(mux)
@@ -49,6 +56,7 @@ func withIncompleteCollectionServer(t *testing.T) {
 		return baselinesconnect.NewBaselinesServiceClient(http.DefaultClient, server.URL)
 	}
 	t.Cleanup(func() { clientFactory = previous })
+	return serverImpl
 }
 
 func TestParseCollectionMemberUsesCollectionNameAndAllowsOverride(t *testing.T) {
@@ -73,12 +81,31 @@ func TestCollectionFollowupArgsOmitEmptyBranch(t *testing.T) {
 	}
 }
 
+func TestCollectionDiffIdentityErrorGivesExecutableStartShape(t *testing.T) {
+	err := collectionDiffIdentityError("start")
+	for _, want := range []string{"--name", "--operation-id", "stable-operation-id", "--member"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("identity error %q missing %q", err, want)
+		}
+	}
+}
+
 func TestCollectionWaitCommandsReturnRenderedDetachOutcome(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
 	withIncompleteCollectionServer(t)
 	err := runCollectionDiffWait(nil, []string{"--name", "before", "--operation-id", "op-1", "--json"})
 	var outcome renderedExitError
 	if !errors.As(err, &outcome) || outcome.code != 124 {
 		t.Fatalf("wait outcome = %v", err)
+	}
+}
+
+func TestCollectionDiffWaitRecoversDurableStateAfterAttachmentEOF(t *testing.T) {
+	server := withIncompleteCollectionServer(t)
+	server.waitErr = true
+	err := runCollectionDiffWait(nil, []string{"--name", "before", "--operation-id", "op-1", "--json"})
+	var outcome renderedExitError
+	if !errors.As(err, &outcome) || outcome.code != 124 {
+		t.Fatalf("recovered wait outcome = %v", err)
 	}
 }
 

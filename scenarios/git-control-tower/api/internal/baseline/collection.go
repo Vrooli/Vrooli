@@ -179,7 +179,29 @@ type CollectionDiffMember struct {
 	RunID        string
 	Verdict      Verdict
 	Detail       string
+	Lifecycle    CollectionDiffChildLifecycle `json:"lifecycle,omitempty"`
+	// DispatchAttempts and DispatchLeaseExpiresAt make the pre-run handoff
+	// durable. A pending member without RunID is dispatching, never queued;
+	// reconciliation may retry it after the lease, then terminalize a bounded
+	// number of failed attempts with evidence.
+	DispatchAttempts       int
+	DispatchLeaseExpiresAt time.Time
 }
+
+// CollectionDiffChildLifecycle is the authoritative parent-side projection of
+// a Test Genie child. Status remains the backwards-compatible verdict surface;
+// lifecycle answers ownership and recovery without asking callers to infer it
+// from a run id or rendered standing.
+type CollectionDiffChildLifecycle string
+
+const (
+	CollectionDiffChildDispatching   CollectionDiffChildLifecycle = "dispatching"
+	CollectionDiffChildAwaiting      CollectionDiffChildLifecycle = "awaiting_child"
+	CollectionDiffChildReconciling   CollectionDiffChildLifecycle = "reconciling"
+	CollectionDiffChildPassed        CollectionDiffChildLifecycle = "passed"
+	CollectionDiffChildFailed        CollectionDiffChildLifecycle = "failed"
+	CollectionDiffChildNotComparable CollectionDiffChildLifecycle = "not_comparable"
+)
 
 // CollectionDiffOperation is the durable parent for selected child diff
 // handles. It permits server restart recovery and one-shot aggregate waits
@@ -188,6 +210,7 @@ type CollectionDiffOperation struct {
 	ID         string `json:"id"`
 	Collection string `json:"collection"`
 	Branch     string `json:"branch"`
+	RepoDir    string `json:"repo_dir,omitempty"`
 	// CollectionSnapshot is the immutable collection/baseline membership that
 	// this operation was created against. A status read must be able to explain
 	// and finalize an already-created operation even after the mutable
@@ -200,6 +223,11 @@ type CollectionDiffOperation struct {
 	// text. It is persisted so a restart cannot make finalization look pending.
 	Lifecycle      string    `json:"lifecycle"`
 	LastProgressAt time.Time `json:"last_progress_at"`
+	// LastReconciliationError records the latest non-terminal failure while
+	// projecting Test Genie truth. It is diagnostic only: a later successful
+	// reconciliation clears it, and it must never make a durable child appear
+	// complete.
+	LastReconciliationError string `json:"last_reconciliation_error,omitempty"`
 }
 
 func (o CollectionDiffOperation) Aggregate(collection CollectionManifest) CollectionDiffResult {

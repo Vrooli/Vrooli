@@ -117,6 +117,11 @@ type PendingCollectionDiff struct {
 	Pending        PendingDiff
 }
 
+const (
+	collectionDiffDispatchLease       = 30 * time.Second
+	maxCollectionDiffDispatchAttempts = 3
+)
+
 type StartCollectionDiffResult struct {
 	Collection CollectionManifest
 	Operation  CollectionDiffOperation
@@ -523,11 +528,17 @@ func (s *Service) StartCollectionDiff(ctx context.Context, req StartCollectionDi
 	if err != nil {
 		return StartCollectionDiffResult{}, err
 	}
+	// Serialize local dispatch decisions. Cross-process callers still converge
+	// through Test Genie's one-run-per-scenario coalescing and the durable
+	// operation record below; this mutex eliminates duplicate starts within the
+	// normal server process without holding the finalization mutex while waiting.
+	s.collectionDiffMu.Lock()
+	defer s.collectionDiffMu.Unlock()
 	if existing, err := s.storage.LoadCollectionDiffOperation(req.RepoID, req.Branch, req.Name, req.OperationID); err == nil {
 		if !sameCollectionDiffSelection(existing.Members, selected) {
 			return StartCollectionDiffResult{}, fmt.Errorf("collection diff operation %q already exists with a different member selection", req.OperationID)
 		}
-		return StartCollectionDiffResult{Collection: collection, Operation: existing, Members: append([]CollectionDiffMember(nil), existing.Members...)}, nil
+		return s.dispatchCollectionDiff(ctx, req, collection, existing)
 	} else if !errors.Is(err, ErrNotFound) {
 		return StartCollectionDiffResult{}, err
 	}
@@ -535,42 +546,173 @@ func (s *Service) StartCollectionDiff(ctx context.Context, req StartCollectionDi
 		ID:                 req.OperationID,
 		Collection:         req.Name,
 		Branch:             req.Branch,
+		RepoDir:            req.RepoDir,
 		CollectionSnapshot: collection,
 		CreatedAt:          s.now().UTC(),
 		UpdatedAt:          s.now().UTC(),
-		Lifecycle:          "preparing",
+		Lifecycle:          "dispatching",
 		LastProgressAt:     s.now().UTC(),
 	}
 	for _, member := range selected {
-		operation.Members = append(operation.Members, CollectionDiffMember{Scenario: member.Scenario, BaselineName: member.BaselineName, Required: member.Required, Status: string(member.Status), RunID: member.RunID, Detail: member.Error})
+		state := CollectionDiffMember{Scenario: member.Scenario, BaselineName: member.BaselineName, Required: member.Required, Status: string(member.Status), Detail: member.Error}
+		if member.Status == CollectionMemberReady {
+			// The parent graph is committed before dispatch. A ready baseline has
+			// no current diff run yet, so it is pending dispatch rather than
+			// incorrectly carrying its immutable baseline run id as a child handle.
+			state.Status = "pending"
+			state.Lifecycle = CollectionDiffChildDispatching
+		}
+		operation.Members = append(operation.Members, state)
 	}
 	if err := s.storage.SaveCollectionDiffOperation(req.RepoID, operation, CreateOnly); err != nil {
-		return StartCollectionDiffResult{}, err
+		if !errors.Is(err, ErrAlreadyExists) {
+			return StartCollectionDiffResult{}, err
+		}
+		// Another agent won creation between our initial read and write. Reload
+		// the authoritative graph and resume it instead of surfacing a spurious
+		// conflict to a retrying caller.
+		existing, loadErr := s.storage.LoadCollectionDiffOperation(req.RepoID, req.Branch, req.Name, req.OperationID)
+		if loadErr != nil {
+			return StartCollectionDiffResult{}, loadErr
+		}
+		if !sameCollectionDiffSelection(existing.Members, selected) {
+			return StartCollectionDiffResult{}, fmt.Errorf("collection diff operation %q already exists with a different member selection", req.OperationID)
+		}
+		return s.dispatchCollectionDiff(ctx, req, collection, existing)
 	}
-	result := StartCollectionDiffResult{Collection: collection, Operation: operation}
-	for _, member := range selected {
-		state := CollectionDiffMember{Scenario: member.Scenario, BaselineName: member.BaselineName, Required: member.Required, Status: string(member.Status), RunID: member.RunID, Detail: member.Error}
-		if member.Status != CollectionMemberReady {
-			result.Members = append(result.Members, state)
+	return s.dispatchCollectionDiff(ctx, req, collection, operation)
+}
+
+// dispatchCollectionDiff resumes an already-persisted child graph. Every child
+// run id is checkpointed immediately after StartDiff, so a crash can lose only
+// the current attachment, never the work identity needed by another agent.
+// The caller holds collectionDiffMu while choosing unassigned children.
+func (s *Service) dispatchCollectionDiff(ctx context.Context, req StartCollectionDiffRequest, collection CollectionManifest, operation CollectionDiffOperation) (StartCollectionDiffResult, error) {
+	// Older operation records predate RepoDir. A resumed explicit start has the
+	// authoritative path, so checkpoint it before any handoff; later status
+	// recovery then remains server-owned even if this caller detaches.
+	if operation.RepoDir == "" && req.RepoDir != "" {
+		var pathErr error
+		operation, pathErr = s.storage.UpdateCollectionDiffOperation(req.RepoID, req.Branch, req.Name, req.OperationID, func(current *CollectionDiffOperation) error {
+			if current.RepoDir == "" {
+				current.RepoDir, current.UpdatedAt = req.RepoDir, s.now().UTC()
+			}
+			return nil
+		})
+		if pathErr != nil {
+			return StartCollectionDiffResult{}, pathErr
+		}
+	}
+	// Repair the short-lived pre-graph representation written by older servers:
+	// its ready members were baseline references, not dispatched current runs.
+	if operation.Lifecycle == "preparing" {
+		var repairErr error
+		operation, repairErr = s.storage.UpdateCollectionDiffOperation(req.RepoID, req.Branch, req.Name, req.OperationID, func(current *CollectionDiffOperation) error {
+			if current.Lifecycle != "preparing" {
+				return nil
+			}
+			for i := range current.Members {
+				if current.Members[i].Status == "ready" {
+					current.Members[i].Status, current.Members[i].RunID, current.Members[i].Lifecycle = "pending", "", CollectionDiffChildDispatching
+				}
+			}
+			current.Lifecycle, current.UpdatedAt = "dispatching", s.now().UTC()
+			return nil
+		})
+		if repairErr != nil {
+			return StartCollectionDiffResult{}, repairErr
+		}
+	}
+	result := StartCollectionDiffResult{Collection: collection}
+	for i := range operation.Members {
+		member := &operation.Members[i]
+		if member.Status != "pending" {
 			continue
 		}
-		started, err := s.StartDiff(ctx, StartDiffRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Branch: req.Branch, Scenario: member.Scenario, Name: member.BaselineName})
+		if member.RunID == "" {
+			now := s.now().UTC()
+			if !member.DispatchLeaseExpiresAt.IsZero() && now.Before(member.DispatchLeaseExpiresAt) {
+				continue
+			}
+			claimed := false
+			claimedOperation, claimErr := s.storage.UpdateCollectionDiffOperation(req.RepoID, req.Branch, req.Name, req.OperationID, func(current *CollectionDiffOperation) error {
+				for j := range current.Members {
+					candidate := &current.Members[j]
+					if candidate.Scenario != member.Scenario || candidate.Status != "pending" || candidate.RunID != "" {
+						continue
+					}
+					if !candidate.DispatchLeaseExpiresAt.IsZero() && now.Before(candidate.DispatchLeaseExpiresAt) {
+						return nil
+					}
+					candidate.DispatchLeaseExpiresAt, candidate.Lifecycle = now.Add(collectionDiffDispatchLease), CollectionDiffChildDispatching
+					claimed = true
+					break
+				}
+				return nil
+			})
+			if claimErr != nil {
+				return StartCollectionDiffResult{}, claimErr
+			}
+			operation = claimedOperation
+			if !claimed {
+				continue
+			}
+			member = &operation.Members[i]
+			started, err := s.StartDiff(ctx, StartDiffRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Branch: req.Branch, Scenario: member.Scenario, Name: member.BaselineName})
+			outcomeStatus, outcomeDetail, outcomeRunID := member.Status, member.Detail, member.RunID
+			outcomeAttempts, outcomeLease := member.DispatchAttempts, member.DispatchLeaseExpiresAt
+			if err != nil {
+				outcomeAttempts++
+				outcomeDetail = "dispatch attempt " + fmt.Sprint(outcomeAttempts) + ": " + err.Error()
+				if outcomeAttempts >= maxCollectionDiffDispatchAttempts {
+					outcomeStatus = "failed"
+				} else {
+					outcomeLease = now.Add(collectionDiffDispatchLease)
+				}
+			} else {
+				outcomeRunID, outcomeDetail, outcomeLease = started.RunID, "", time.Time{}
+				result.Pending = append(result.Pending, PendingCollectionDiff{CollectionName: req.Name, OperationID: req.OperationID, Scenario: member.Scenario, Pending: started.Pending})
+			}
+			operation, err = s.storage.UpdateCollectionDiffOperation(req.RepoID, req.Branch, req.Name, req.OperationID, func(current *CollectionDiffOperation) error {
+				for j := range current.Members {
+					if current.Members[j].Scenario == member.Scenario {
+						current.Members[j].Status, current.Members[j].Detail, current.Members[j].RunID, current.Members[j].DispatchAttempts, current.Members[j].DispatchLeaseExpiresAt = outcomeStatus, outcomeDetail, outcomeRunID, outcomeAttempts, outcomeLease
+						if outcomeStatus == "failed" {
+							current.Members[j].Lifecycle = CollectionDiffChildFailed
+						} else if outcomeRunID != "" {
+							current.Members[j].Lifecycle = CollectionDiffChildAwaiting
+						} else {
+							current.Members[j].Lifecycle = CollectionDiffChildDispatching
+						}
+					}
+				}
+				current.UpdatedAt, current.LastProgressAt = s.now().UTC(), s.now().UTC()
+				current.Lifecycle = collectionDiffLifecycle(*current)
+				return nil
+			})
+			if err != nil {
+				return StartCollectionDiffResult{}, err
+			}
+			continue
+		}
+		intent, found, err := s.storage.LoadDiffIntent(req.RepoID, member.Scenario, req.Branch, member.BaselineName, member.RunID)
 		if err != nil {
-			state.Status, state.Detail = "failed", err.Error()
-			result.Members = append(result.Members, state)
+			return StartCollectionDiffResult{}, err
+		}
+		if !found {
+			if err := s.failCollectionDiffMember(req.RepoID, req.Branch, req.Name, req.OperationID, member.Scenario, "durable child diff intent is missing"); err != nil {
+				return StartCollectionDiffResult{}, err
+			}
+			operation, err = s.storage.LoadCollectionDiffOperation(req.RepoID, req.Branch, req.Name, req.OperationID)
+			if err != nil {
+				return StartCollectionDiffResult{}, err
+			}
 			continue
 		}
-		state.Status, state.RunID = "pending", started.RunID
-		result.Members = append(result.Members, state)
-		result.Pending = append(result.Pending, PendingCollectionDiff{CollectionName: req.Name, OperationID: req.OperationID, Scenario: member.Scenario, Pending: started.Pending})
+		result.Pending = append(result.Pending, PendingCollectionDiff{CollectionName: req.Name, OperationID: req.OperationID, Scenario: member.Scenario, Pending: intent.PendingDiff()})
 	}
-	result.Operation.Members = append([]CollectionDiffMember(nil), result.Members...)
-	result.Operation.UpdatedAt = s.now().UTC()
-	result.Operation.LastProgressAt = result.Operation.UpdatedAt
-	result.Operation.Lifecycle = collectionDiffLifecycle(result.Operation)
-	if err := s.storage.SaveCollectionDiffOperation(req.RepoID, result.Operation, Overwrite); err != nil {
-		return StartCollectionDiffResult{}, err
-	}
+	result.Operation = operation
+	result.Members = append([]CollectionDiffMember(nil), operation.Members...)
 	return result, nil
 }
 
@@ -596,38 +738,88 @@ func (s *Service) FinalizeCollectionDiff(ctx context.Context, repoID int64, pend
 	if err != nil {
 		return CollectionDiffOperation{}, err
 	}
+	_ = s.markCollectionDiffLifecycle(repoID, pending.Pending.Manifest.Branch, pending.CollectionName, pending.OperationID, pending.Scenario, CollectionDiffChildReconciling)
 	result, err := s.FinalizeDiff(ctx, pending.Pending)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return operation, err // detached wait; leave durable member pending
 		}
 	}
-	s.collectionDiffMu.Lock()
-	defer s.collectionDiffMu.Unlock()
-	operation, loadErr := s.storage.LoadCollectionDiffOperation(repoID, pending.Pending.Manifest.Branch, pending.CollectionName, pending.OperationID)
-	if loadErr != nil {
-		return CollectionDiffOperation{}, loadErr
-	}
-	if err != nil {
+	operation, saveErr := s.storage.UpdateCollectionDiffOperation(repoID, pending.Pending.Manifest.Branch, pending.CollectionName, pending.OperationID, func(operation *CollectionDiffOperation) error {
 		for i := range operation.Members {
-			if operation.Members[i].Scenario == pending.Scenario {
-				operation.Members[i].Status, operation.Members[i].Detail = "failed", err.Error()
+			if operation.Members[i].Scenario != pending.Scenario || operation.Members[i].Status != "pending" {
+				continue
+			}
+			if err != nil {
+				operation.Members[i].Status, operation.Members[i].Detail, operation.Members[i].Lifecycle = "failed", err.Error(), CollectionDiffChildFailed
+				continue
+			}
+			operation.Members[i].Status, operation.Members[i].Verdict, operation.Members[i].Detail = "ready", result.Result.Verdict, collectionDiffDetail(result)
+			switch result.Result.Verdict {
+			case VerdictClean:
+				operation.Members[i].Lifecycle = CollectionDiffChildPassed
+			case VerdictNotComparable:
+				operation.Members[i].Lifecycle = CollectionDiffChildNotComparable
+			default:
+				operation.Members[i].Lifecycle = CollectionDiffChildFailed
 			}
 		}
-	} else {
-		for i := range operation.Members {
-			if operation.Members[i].Scenario == pending.Scenario {
-				operation.Members[i].Status, operation.Members[i].Verdict, operation.Members[i].Detail = "ready", result.Result.Verdict, result.Error
-			}
+		operation.UpdatedAt, operation.LastProgressAt = s.now().UTC(), s.now().UTC()
+		operation.Lifecycle = collectionDiffLifecycle(*operation)
+		if err == nil {
+			operation.LastReconciliationError = ""
 		}
-	}
-	operation.UpdatedAt = s.now().UTC()
-	operation.LastProgressAt = operation.UpdatedAt
-	operation.Lifecycle = collectionDiffLifecycle(operation)
-	if saveErr := s.storage.SaveCollectionDiffOperation(repoID, operation, Overwrite); saveErr != nil {
+		return nil
+	})
+	if saveErr != nil {
 		return CollectionDiffOperation{}, saveErr
 	}
 	return operation, err
+}
+
+// collectionDiffDetail retains the actionable comparison reason on the durable
+// aggregate member. A collection-level not-comparable verdict without its
+// provider diagnostic strands callers: the underlying Test Genie comparison
+// already knows whether recovery means restoring a provider, capturing a
+// baseline, or fixing incompatible provenance.
+func collectionDiffDetail(result CachedDiff) string {
+	if detail := strings.TrimSpace(result.Error); detail != "" {
+		return detail
+	}
+	if result.Result == nil || result.Result.Comparison == nil {
+		return ""
+	}
+	comparison := result.Result.Comparison
+	for _, diagnostic := range comparison.GetDiagnostics() {
+		if diagnostic == nil {
+			continue
+		}
+		detail := strings.TrimSpace(diagnostic.GetDetail())
+		if detail == "" {
+			detail = strings.TrimSpace(diagnostic.GetCode())
+		}
+		if detail == "" {
+			continue
+		}
+		if remediation := strings.TrimSpace(diagnostic.GetRemediation()); remediation != "" {
+			return detail + " (recovery: " + remediation + ")"
+		}
+		return detail
+	}
+	return ""
+}
+
+func (s *Service) markCollectionDiffLifecycle(repoID int64, branch, name, operationID, scenario string, lifecycle CollectionDiffChildLifecycle) error {
+	_, err := s.storage.UpdateCollectionDiffOperation(repoID, branch, name, operationID, func(operation *CollectionDiffOperation) error {
+		for i := range operation.Members {
+			if operation.Members[i].Scenario == scenario && operation.Members[i].Status == "pending" {
+				operation.Members[i].Lifecycle = lifecycle
+			}
+		}
+		operation.UpdatedAt, operation.LastProgressAt = s.now().UTC(), s.now().UTC()
+		return nil
+	})
+	return err
 }
 
 // collectionDiffLifecycle is the aggregate owner state. A terminal child that
@@ -644,10 +836,14 @@ func collectionDiffLifecycle(operation CollectionDiffOperation) string {
 	return "terminal"
 }
 
-// GetCollectionDiffStatus is a pure read. It never starts a finalizer, waits,
-// or mutates durable state; observers see the owner and child standing exactly
-// as they are instead of accidentally participating in reconciliation.
+// GetCollectionDiffStatus reconciles already-terminal Test Genie children
+// before projecting the durable aggregate. Test Genie owns execution; GCT owns
+// this durable projection. This pull path is the correctness backstop when the
+// asynchronous finalizer was lost during a restart or client detach.
 func (s *Service) GetCollectionDiffStatus(ctx context.Context, repoID int64, branch, name, operationID string) (CollectionManifest, CollectionDiffOperation, *commonv1.OperationStanding, error) {
+	if _, _, err := s.reconcileCollectionDiff(ctx, repoID, branch, name, operationID); err != nil {
+		return CollectionManifest{}, CollectionDiffOperation{}, nil, err
+	}
 	operation, err := s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
 	if err != nil {
 		return CollectionManifest{}, CollectionDiffOperation{}, nil, err
@@ -677,11 +873,14 @@ func (s *Service) GetCollectionDiffStatus(ctx context.Context, repoID int64, bra
 			child = &commonv1.OperationStanding{Owner: "test-genie", OperationId: member.RunID, Directive: "wait", RecommendedWaitSeconds: int32(status.RecommendedNextCheckSeconds)}
 			if status.Terminal {
 				child.Lifecycle = "terminal"
-			} else if status.Status == "queued" {
-				child.Lifecycle = "queued"
 			} else {
 				child.Lifecycle = "executing"
 			}
+		} else if !status.Terminal && child.Lifecycle == "queued" {
+			// Once the parent has durably recorded a Test Genie run ID, it owns an
+			// attached execution. Preserve Test Genie's phase detail but never
+			// expose the parent child as a fresh queued handoff.
+			child.Lifecycle = "executing"
 		}
 		standing.Children = append(standing.Children, child)
 	}
@@ -694,6 +893,161 @@ func (s *Service) GetCollectionDiffStatus(ctx context.Context, repoID int64, bra
 	return collection, operation, standing, nil
 }
 
+// reconcileCollectionDiff projects terminal child evidence without waiting for
+// active work. It is safe to call from every status read and from a resumed
+// wait: the child diff cache and parent member transition are both idempotent.
+// A missing durable handoff is terminal infrastructure failure, never a
+// forever-pending operation.
+func (s *Service) reconcileCollectionDiff(ctx context.Context, repoID int64, branch, name, operationID string) (CollectionManifest, CollectionDiffOperation, error) {
+	operation, err := s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
+	if err != nil {
+		return CollectionManifest{}, CollectionDiffOperation{}, err
+	}
+	collection, err := s.collectionForOperation(repoID, branch, name, operation)
+	if err != nil {
+		return CollectionManifest{}, operation, err
+	}
+	// A pre-run dispatch has no Test Genie child to query. Its lease makes that
+	// window recoverable after a process crash or transient outage without
+	// requiring an agent to remember to issue StartCollectionDiff again.
+	if operationNeedsDispatchRetry(operation, s.now().UTC()) && operation.RepoDir != "" {
+		s.collectionDiffMu.Lock()
+		latest, loadErr := s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
+		if loadErr == nil {
+			resumed, resumeErr := s.dispatchCollectionDiff(ctx, StartCollectionDiffRequest{RepoID: repoID, RepoDir: latest.RepoDir, Branch: branch, Name: name, OperationID: operationID}, collection, latest)
+			if resumeErr != nil {
+				s.collectionDiffMu.Unlock()
+				return collection, latest, resumeErr
+			}
+			operation = resumed.Operation
+		}
+		s.collectionDiffMu.Unlock()
+		if loadErr != nil {
+			return collection, operation, loadErr
+		}
+	} else if operationNeedsDispatchRetry(operation, s.now().UTC()) {
+		if err := s.failUnrecoverableCollectionDispatch(repoID, branch, name, operationID, "cannot recover collection diff dispatch: repository path is missing from the durable operation"); err != nil {
+			return collection, operation, err
+		}
+	}
+	for _, member := range operation.Members {
+		if member.Status != "pending" || member.RunID == "" {
+			continue
+		}
+		intent, found, loadErr := s.storage.LoadDiffIntent(repoID, member.Scenario, branch, member.BaselineName, member.RunID)
+		if loadErr != nil {
+			return collection, operation, loadErr
+		}
+		if !found {
+			if err := s.failCollectionDiffMember(repoID, branch, name, operationID, member.Scenario, "durable child diff intent is missing"); err != nil {
+				return collection, operation, err
+			}
+			continue
+		}
+		status, statusErr := s.exec.RunStatus(ctx, member.Scenario, member.RunID)
+		if statusErr != nil {
+			// A transport error is recoverable; retain it for diagnostics while a
+			// later status read retries the durable source of truth.
+			_ = s.noteCollectionDiffReconciliationError(repoID, branch, name, operationID, statusErr)
+			continue
+		}
+		if status.Missing {
+			detail := fmt.Sprintf("test-genie run %s is missing from its durable run record", member.RunID)
+			if err := s.failCollectionDiffMember(repoID, branch, name, operationID, member.Scenario, detail); err != nil {
+				return collection, operation, err
+			}
+			continue
+		}
+		if !status.Terminal {
+			if member.Lifecycle != CollectionDiffChildAwaiting {
+				if markErr := s.markCollectionDiffLifecycle(repoID, branch, name, operationID, member.Scenario, CollectionDiffChildAwaiting); markErr != nil {
+					return collection, operation, markErr
+				}
+			}
+			continue
+		}
+		if _, finalizeErr := s.FinalizeCollectionDiff(ctx, repoID, PendingCollectionDiff{CollectionName: name, OperationID: operationID, Scenario: member.Scenario, Pending: intent.PendingDiff()}); finalizeErr != nil {
+			if errors.Is(finalizeErr, context.Canceled) || errors.Is(finalizeErr, context.DeadlineExceeded) {
+				return collection, operation, finalizeErr
+			}
+			return collection, operation, finalizeErr
+		}
+	}
+	operation, err = s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
+	return collection, operation, err
+}
+
+// ReconcileCollectionDiffOperations is the server-owned pull backstop for
+// detached clients and lost completion delivery. It never waits for active
+// Test Genie work; each operation is independently reconciled from durable run
+// state, so one unavailable child does not prevent the others from converging.
+func (s *Service) ReconcileCollectionDiffOperations(ctx context.Context, repoID int64) error {
+	operations, err := s.storage.ListCollectionDiffOperations(repoID)
+	if err != nil {
+		return err
+	}
+	var firstErr error
+	for _, operation := range operations {
+		if operation.Lifecycle == "terminal" {
+			continue
+		}
+		if _, _, reconcileErr := s.reconcileCollectionDiff(ctx, repoID, operation.Branch, operation.Collection, operation.ID); reconcileErr != nil && firstErr == nil {
+			firstErr = reconcileErr
+		}
+	}
+	return firstErr
+}
+
+func operationNeedsDispatchRetry(operation CollectionDiffOperation, now time.Time) bool {
+	for _, member := range operation.Members {
+		if member.Status != "pending" || member.RunID != "" {
+			continue
+		}
+		if member.DispatchLeaseExpiresAt.IsZero() || !now.Before(member.DispatchLeaseExpiresAt) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) failUnrecoverableCollectionDispatch(repoID int64, branch, name, operationID, detail string) error {
+	operation, err := s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
+	if err != nil {
+		return err
+	}
+	for _, member := range operation.Members {
+		if member.Status == "pending" && member.RunID == "" {
+			if err := s.failCollectionDiffMember(repoID, branch, name, operationID, member.Scenario, detail); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Service) failCollectionDiffMember(repoID int64, branch, name, operationID, scenario, detail string) error {
+	_, err := s.storage.UpdateCollectionDiffOperation(repoID, branch, name, operationID, func(operation *CollectionDiffOperation) error {
+		for i := range operation.Members {
+			if operation.Members[i].Scenario == scenario && operation.Members[i].Status == "pending" {
+				operation.Members[i].Status, operation.Members[i].Detail, operation.Members[i].Lifecycle = "failed", detail, CollectionDiffChildFailed
+			}
+		}
+		operation.UpdatedAt, operation.LastProgressAt = s.now().UTC(), s.now().UTC()
+		operation.Lifecycle, operation.LastReconciliationError = collectionDiffLifecycle(*operation), detail
+		return nil
+	})
+	return err
+}
+
+func (s *Service) noteCollectionDiffReconciliationError(repoID int64, branch, name, operationID string, cause error) error {
+	_, err := s.storage.UpdateCollectionDiffOperation(repoID, branch, name, operationID, func(operation *CollectionDiffOperation) error {
+		operation.LastReconciliationError = cause.Error()
+		operation.UpdatedAt = s.now().UTC()
+		return nil
+	})
+	return err
+}
+
 // WaitCollectionDiff is the only blocking aggregate operation. Its durable
 // children keep running when the caller's context expires.
 func (s *Service) WaitCollectionDiff(ctx context.Context, repoID int64, branch, name, operationID string) (CollectionManifest, CollectionDiffOperation, error) {
@@ -704,6 +1058,33 @@ func (s *Service) WaitCollectionDiff(ctx context.Context, repoID int64, branch, 
 	collection, err := s.collectionForOperation(repoID, branch, name, operation)
 	if err != nil {
 		return CollectionManifest{}, operation, err
+	}
+	// Recover only undispatched children here. Terminal fan-in remains below,
+	// where it is deliberately concurrent; doing full reconciliation before the
+	// fan-out can make one slow child serialize every sibling.
+	if operationNeedsDispatchRetry(operation, s.now().UTC()) && operation.RepoDir != "" {
+		s.collectionDiffMu.Lock()
+		latest, loadErr := s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
+		if loadErr == nil {
+			resumed, resumeErr := s.dispatchCollectionDiff(ctx, StartCollectionDiffRequest{RepoID: repoID, RepoDir: latest.RepoDir, Branch: branch, Name: name, OperationID: operationID}, collection, latest)
+			if resumeErr != nil {
+				s.collectionDiffMu.Unlock()
+				return collection, latest, resumeErr
+			}
+			operation = resumed.Operation
+		}
+		s.collectionDiffMu.Unlock()
+		if loadErr != nil {
+			return collection, operation, loadErr
+		}
+	} else if operationNeedsDispatchRetry(operation, s.now().UTC()) {
+		if err := s.failUnrecoverableCollectionDispatch(repoID, branch, name, operationID, "cannot recover collection diff dispatch: repository path is missing from the durable operation"); err != nil {
+			return collection, operation, err
+		}
+		operation, err = s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
+		if err != nil {
+			return collection, CollectionDiffOperation{}, err
+		}
 	}
 	type pendingDiffJob struct {
 		member CollectionDiffMember
@@ -720,14 +1101,7 @@ func (s *Service) WaitCollectionDiff(ctx context.Context, repoID int64, branch, 
 			return collection, operation, err
 		}
 		if !found {
-			member.Status, member.Detail = "failed", "durable child diff intent is missing"
-			for i := range operation.Members {
-				if operation.Members[i].Scenario == member.Scenario {
-					operation.Members[i] = member
-				}
-			}
-			operation.UpdatedAt = s.now().UTC()
-			if err := s.storage.SaveCollectionDiffOperation(repoID, operation, Overwrite); err != nil {
+			if err := s.failCollectionDiffMember(repoID, branch, name, operationID, member.Scenario, "durable child diff intent is missing"); err != nil {
 				return collection, operation, err
 			}
 			continue
@@ -795,6 +1169,9 @@ func collectionDiffStandingLifecycle(operation CollectionDiffOperation, children
 		}
 	}
 	for _, member := range operation.Members {
+		if member.Status == "pending" && member.RunID == "" {
+			return "dispatching"
+		}
 		if member.Status == "pending" {
 			return "finalizing"
 		}

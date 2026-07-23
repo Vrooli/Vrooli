@@ -45,7 +45,11 @@ type waitAllResult struct {
 	ref      runRef
 	status   *runspb.RunLiveStatus
 	timedOut bool
-	err      error
+	// nonterminalWithoutTimeout is a malformed WaitRun outcome. It must be
+	// treated like a recoverable detached wait, never as a terminal regression.
+	nonterminalWithoutTimeout bool
+	providerUnavailable       bool
+	err                       error
 }
 
 // runWaitAll blocks until every named run is terminal (or --timeout elapses) via
@@ -111,6 +115,8 @@ func waitAllFanOut(cl runs_v1connect.RunsServiceClient, refs []runRef, timeout i
 			} else {
 				r.status = resp.Msg.GetStatus()
 				r.timedOut = resp.Msg.GetTimedOut()
+				r.nonterminalWithoutTimeout = !r.timedOut && !isTerminalWaitStatus(r.status.GetStatus())
+				r.providerUnavailable = terminalHasProviderUnavailable(resp.Msg.GetTerminalRun())
 			}
 			results[i] = r
 		}(i, ref)
@@ -128,8 +134,10 @@ func aggregateExitCode(results []waitAllResult) int {
 		switch {
 		case r.err != nil:
 			anyNotComparable = true
-		case r.timedOut:
+		case r.timedOut || r.nonterminalWithoutTimeout:
 			anyTimeout = true
+		case r.providerUnavailable:
+			anyNotComparable = true
 		case r.status.GetStatus() == "passed":
 			// ok
 		default:
@@ -149,7 +157,7 @@ func aggregateExitCode(results []waitAllResult) int {
 func countNotPassed(results []waitAllResult) int {
 	n := 0
 	for _, r := range results {
-		if r.err != nil || r.timedOut || r.status.GetStatus() != "passed" {
+		if r.err != nil || r.timedOut || r.nonterminalWithoutTimeout || r.providerUnavailable || r.status.GetStatus() != "passed" {
 			n++
 		}
 	}
@@ -161,8 +169,8 @@ func printWaitAll(w io.Writer, results []waitAllResult) {
 		switch {
 		case r.err != nil:
 			fmt.Fprintf(w, "?  %s %s  error: %v\n", r.ref.scenario, r.ref.runID, r.err)
-		case r.timedOut:
-			fmt.Fprintf(w, "⏳ %s %s  still running (%.0fs elapsed)\n", r.ref.scenario, r.ref.runID, r.status.GetElapsedSeconds())
+		case r.timedOut || r.nonterminalWithoutTimeout:
+			fmt.Fprintf(w, "⏳ %s %s  still running (%.0fs elapsed); reattach with: test-genie runs wait --json %s %s\n", r.ref.scenario, r.ref.runID, r.status.GetElapsedSeconds(), r.ref.scenario, r.ref.runID)
 		default:
 			mark := "✓"
 			if r.status.GetStatus() != "passed" {

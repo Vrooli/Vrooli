@@ -74,7 +74,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
 		{Name: "delete", NeedsAPI: true, Description: "Delete a baseline and unpin its single Test Genie run (--scenario --name [--branch])", Run: func(a []string) error { return runDelete(core, a) }},
 		{Name: "repair", NeedsAPI: true, Description: "Plan deterministic lifecycle repair for a baseline (--scenario --name [--branch]); pass --apply to write the lifecycle audit and converge a tombstoned manifest", Run: func(a []string) error { return runRepair(core, a) }},
-		{Name: "collection", NeedsAPI: true, Description: "Start, inspect, wait, extend, and diff durable multi-scenario baseline collections: `collection capture --name N --member scenario ...` prints its native wait; `collection show --name N --wait` reattaches; `collection extend` is append-only before edits; `collection diff --member S ...`, then `diff status` inspects and `diff wait` owns the final verdict", Run: func(a []string) error { return runCollection(core, a) }},
+		{Name: "collection", NeedsAPI: true, Description: "Start, inspect, wait, extend, and diff durable multi-scenario baseline collections: `collection capture --name N --member scenario ...` prints its native wait; `collection show --name N --wait` reattaches; `collection extend` is append-only before edits; `collection diff --name N --operation-id stable-id [--member S ...]` starts an idempotent comparison, then `diff status` inspects and `diff wait` owns the final verdict", Run: func(a []string) error { return runCollection(core, a) }},
 		{Name: "path", NeedsAPI: true, Description: "Capture and compare bounded informational source evidence: `path capture --name N --path glob ...`, `path diff --before N --after N`, `path show`, or `path delete`", Run: func(a []string) error { return runPathSnapshot(core, a) }},
 	}
 	subcommands = append(subcommands, registerEngagementVerbs(core)...)
@@ -402,7 +402,7 @@ func isUnexpectedEOF(err error) bool {
 
 func isAttachmentEnd(err error) bool {
 	code := connect.CodeOf(err)
-	return isUnexpectedEOF(err) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || code == connect.CodeDeadlineExceeded || code == connect.CodeCanceled
+	return isUnexpectedEOF(err) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || code == connect.CodeDeadlineExceeded || code == connect.CodeCanceled || code == connect.CodeUnavailable
 }
 
 // renderRunBusy renders the one-run-per-scenario rejection (a divergent run is

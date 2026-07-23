@@ -93,8 +93,12 @@ type RunHandle struct {
 }
 
 type RunStatusInfo struct {
-	Status                      string
-	Terminal                    bool
+	Status   string
+	Terminal bool
+	// Missing means Test Genie authoritatively has no durable record for this
+	// run id. It is distinct from a transient status-read error: a parent can
+	// terminalize this impossible handoff as infrastructure failure.
+	Missing                     bool
 	Success                     bool
 	RecommendedNextCheckSeconds int
 	Standing                    *commonv1.OperationStanding

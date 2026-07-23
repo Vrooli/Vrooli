@@ -2,6 +2,7 @@ package baseline
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -126,6 +127,20 @@ func TestDurableWaitReconnectsOnceByIDAfterUnexpectedEOF(t *testing.T) { // [REQ
 	}
 	if len(blocking) != 2 || !blocking[0] || blocking[1] {
 		t.Fatalf("wait modes = %v, want [true false]", blocking)
+	}
+}
+
+func TestDurableWaitReconnectsOnceByIDAfterUnavailable(t *testing.T) {
+	calls := 0
+	value, recovered, err := durableReadWithEOFRecovery(context.Background(), true, func(_ context.Context, wait bool) (string, error) {
+		calls++
+		if wait {
+			return "", connect.NewError(connect.CodeUnavailable, errors.New("connection dropped"))
+		}
+		return "durable-state", nil
+	})
+	if err != nil || !recovered || value != "durable-state" || calls != 2 {
+		t.Fatalf("unavailable recovery = value=%q recovered=%v calls=%d err=%v", value, recovered, calls, err)
 	}
 }
 

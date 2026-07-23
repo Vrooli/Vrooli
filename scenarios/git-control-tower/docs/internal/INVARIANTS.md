@@ -73,10 +73,30 @@
   projects child standings unchanged. `preparing` with no active phase is
   waitable, and a terminal child awaiting fan-in is `finalizing`, never a
   generic pending/blocked state.
-- **Status never waits or reconciles.** `GetCollection*Status` is a pure read;
-  `WaitCollectionCapture` and `WaitCollectionDiff` are the only blocking
+- **Status never waits; collection-diff status reconciles terminal evidence.**
+  `GetCollectionDiffStatus` performs only non-blocking reads of Test Genie's
+  durable run record and projects a terminal child through its persisted diff
+  intent. It never waits for active execution. A missing child intent becomes a
+  terminal infrastructure failure rather than a permanent pending member.
+  `WaitCollectionCapture` and `WaitCollectionDiff` remain the only blocking
   attachment operations. A timeout detaches with `directive=wait` and leaves
   durable execution untouched.
+- **Reconciliation has a server-owned liveness backstop.** Every 30 seconds
+  the GCT server enumerates nonterminal collection-diff operations for every
+  registered repository and performs the same non-blocking durable-child
+  projection. Completion therefore does not depend on event delivery or a
+  detached client returning to issue status.
+- **Pre-run dispatch is leased and bounded.** The complete selected child graph
+  persists before Test Genie is contacted. A pending child without a run ID is
+  in dispatch, carries an attempt count and lease, and is retried by status
+  reconciliation after the lease expires. Three failed dispatch attempts become
+  a terminal infrastructure failure with the recorded cause; they never remain
+  indistinguishable from queued Test Genie work.
+- **A run-backed child is never parent-queued.** Once a child run ID is
+  committed, its durable lifecycle is `awaiting_child` (then `reconciling` and
+  a terminal projection). Test Genie may report its own admission queue, but
+  GCT exposes that attached child as executing; an operation cannot regress to
+  a fresh parent-side `queued` handoff.
 - **Baseline wait is outside the commit mutex.** `FinalizeCapture` can await
   any durable Test Genie run concurrently. Only the terminal recheck, pin, and
   manifest/intent write hold `captureMu`, so one stalled capture cannot block

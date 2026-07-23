@@ -159,6 +159,9 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		printTimeoutHint(w, scenario, runID, *timeout, fetchNextCheck(cl, scenario, runID))
 		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
 	}
+	if terminal == nil {
+		printInterruptedStreamHint(stderrOut, scenario, runID, streamErr)
+	}
 	printTerminalStandingView(cl, w, scenario, runID, terminal, phases)
 	return terminalExit(runID, terminal, streamErr)
 }
@@ -170,7 +173,11 @@ func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, ru
 		Scenario: scenario, RunId: runID, TimeoutSeconds: int32(timeout),
 	}))
 	if err != nil {
-		return &exitErr{code: exitNotComparable, err: err}
+		// A transport interruption is not test evidence and must not look like a
+		// successful empty wait. The run remains server-owned, so make recovery
+		// explicit and preserve the exact durable handle for the caller.
+		fmt.Fprintf(stderrOut, "wait interrupted for %s/%s: %v\nrecover: test-genie runs wait --json %s %s\n", scenario, runID, err, scenario, runID)
+		return &exitErr{code: exitWaitTimeout, err: err}
 	}
 	st := resp.Msg.GetStatus()
 	view := cliexec.BuildRunStandingViewFromWaitResponse(context.Background(), resp.Msg, report.RunScoreCLI)
@@ -184,10 +191,42 @@ func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, ru
 		printTimeoutHint(stderrOut, scenario, runID, timeout, int(st.GetRecommendedNextCheckSeconds()))
 		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
 	}
+	if !isTerminalWaitStatus(st.GetStatus()) {
+		// A WaitRun response is a terminal snapshot unless it explicitly says the
+		// requested wait window elapsed. Never turn a malformed or prematurely
+		// returned nonterminal response into a successful detached wait: callers
+		// need a typed recoverable outcome and the durable handle remains valid.
+		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("WaitRun returned nonterminal status %q without timeout for %s; reattach using test-genie runs wait --json %s %s", st.GetStatus(), scenario, scenario, runID)}
+	}
 	if st.GetStatus() == "passed" {
 		return nil
 	}
+	if terminalHasProviderUnavailable(resp.Msg.GetTerminalRun()) {
+		// A provider outage is terminal evidence, but it is not evidence that the
+		// target scenario regressed. Keep the complete JSON report on stdout and
+		// use the distinct not-comparable exit so agents do not act on it as a
+		// behavioral regression.
+		return &exitErr{code: exitNotComparable, err: fmt.Errorf("run %s completed with provider_unavailable phase evidence", runID)}
+	}
 	return &exitErr{code: exitRegression, err: fmt.Errorf("run %s %s", runID, st.GetStatus())}
+}
+
+func terminalHasProviderUnavailable(run *runspb.RunInfo) bool {
+	for _, phase := range run.GetPhases() {
+		if phase.GetStatus() == "provider_unavailable" {
+			return true
+		}
+	}
+	return false
+}
+
+func isTerminalWaitStatus(status string) bool {
+	switch status {
+	case "passed", "failed", "aborted", "cancelled", "stopped":
+		return true
+	default:
+		return false
+	}
 }
 
 // runFollow streams the run's canonical events to completion, exiting with the
@@ -209,8 +248,20 @@ func runFollow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return err
 	}
 	terminal, phases, streamErr := streamRunEvents(context.Background(), cl, w, scenario, runID, suppressHeartbeatsFor(w, *heartbeats))
+	if terminal == nil {
+		printInterruptedStreamHint(stderrOut, scenario, runID, streamErr)
+	}
 	printTerminalStandingView(cl, w, scenario, runID, terminal, phases)
 	return terminalExit(runID, terminal, streamErr)
+}
+
+func printInterruptedStreamHint(w io.Writer, scenario, runID string, cause error) {
+	if cause != nil {
+		fmt.Fprintf(w, "run event stream interrupted for %s/%s: %v\n", scenario, runID, cause)
+	} else {
+		fmt.Fprintf(w, "run event stream ended without terminal evidence for %s/%s\n", scenario, runID)
+	}
+	fmt.Fprintf(w, "recover durable status: test-genie runs wait --json %s %s\n", scenario, runID)
 }
 
 // normalizeWaitFlags supports the documented trailing-flag spelling while
@@ -340,11 +391,14 @@ func firstNonEmpty(vals ...string) string {
 
 // terminalExit maps a stream's terminal event + error to the suite exit code:
 // stream error → not-comparable; terminal failure → regression; else pass. A
-// nil terminal with no error (deadline handled by the caller) is treated as a
-// clean detach.
+// nil terminal is never a clean detach: the event stream is only a view, so a
+// missing terminal event leaves the durable operation unresolved for callers.
 func terminalExit(runID string, terminal *runspb.RunEvent, streamErr error) error {
-	if streamErr != nil && terminal == nil {
-		return &exitErr{code: exitNotComparable, err: streamErr}
+	if terminal == nil {
+		if streamErr != nil {
+			return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s stream interrupted: %w", runID, streamErr)}
+		}
+		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s stream ended without terminal evidence", runID)}
 	}
 	if terminal != nil && !terminal.GetSuccess() {
 		return &exitErr{code: exitRegression, err: fmt.Errorf("run %s %s", runID, terminal.GetVerdict())}
