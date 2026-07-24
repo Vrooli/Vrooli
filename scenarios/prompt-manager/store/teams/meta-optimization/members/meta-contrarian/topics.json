@@ -28,6 +28,8 @@
     "skill-conversion-candidate",
     "skill-improvement",
     "skill-deprecation",
+    "skill-graduation",
+    "skill-experiment-promotion",
     "action-candidate",
     "action-improvement",
     "action-deprecation",

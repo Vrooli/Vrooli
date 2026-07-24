@@ -4,12 +4,12 @@
       "prefix": "decision-application/<decision-id>"
     },
     {
-      "prefix": "initiative-portfolio-record/YYYY-MM-DD"
+      "prefix": "goal-portfolio-record/YYYY-MM-DD"
     }
   ],
   "output": [
     {
-      "prefix": "initiative-portfolio-record/*",
+      "prefix": "goal-portfolio-record/*",
       "destination_kind": "knowledge"
     },
     {
@@ -18,11 +18,12 @@
     }
   ],
   "decisions_owned": [
-    "initiative-portfolio",
-    "initiative-supplement",
-    "initiative-proposal",
-    "initiative-readiness"
+    "goal-portfolio",
+    "goal-supplement",
+    "goal-proposal",
+    "goal-readiness"
   ],
+  "raises_capability_gaps": true,
   "decisions_consumed": [
     "capability-gap",
     "vision-update",

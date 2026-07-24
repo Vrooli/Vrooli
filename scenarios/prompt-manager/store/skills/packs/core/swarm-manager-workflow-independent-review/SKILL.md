@@ -19,6 +19,8 @@ Set `regression_introduced` to true only when baseline-delta or equivalent evide
 
 Set one typed `disposition` for the Plan Workshop finding: use `archive` for `ready` evidence, `follow_up` for a bounded correction or distinct next work, `plan_revision` or `plan_authoring` when the evidence changes planning, `supersede` when it replaces a prior direction, and `attention` when no safe recommendation exists. Give evidence-backed rationale and confidence. A disposition is advisory; it never authorizes a mutation.
 
+When `disposition.kind` is `follow_up`, populate `disposition.follow_up` with a non-empty `steering` instruction and exactly one recovery `disposition`: `follow_up_run` to continue the verified work with that steering, `replan` when the plan itself must change, or `new_items` when the recovery should be split into independently actionable item specifications. `new_items` must include `items`, and every item needs `kind`, `name`, and `title`. Do not place this recovery contract in free-form notes.
+
 ## Template variables
 
 | Variable | Content |

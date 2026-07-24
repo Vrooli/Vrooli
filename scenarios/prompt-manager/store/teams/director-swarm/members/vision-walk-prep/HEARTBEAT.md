@@ -12,7 +12,8 @@ Optimize for phase-aligned briefing notes: concise enough to skim, specific enou
 3. Pull monetization, marketing, meta-optimization, and infra-health decision context.
 4. Preserve any existing walk checkpoint verbatim.
 5. Identify life-audit prompts and big-picture context. Frame the big-picture context with the ecosystem lens (`path:docs/concepts/ECOSYSTEM.md`): for active/stalled scenarios and candidate ideas, note which interface(s) they serve or enable, their functional role, and compound-value/bundle fit — so the walk's ideation starts from how things fit the whole, not just the app in isolation.
-6. Compile the HANDOFF without mutating queues or choosing answers.
+6. State the self-improvement loop ladder (see RESPONSIBILITIES) with the evidence behind each rung claim.
+7. Compile the HANDOFF without mutating queues or choosing answers.
 
 ## Handoff Shape
 ### Retrospective
@@ -24,4 +25,5 @@ Optimize for phase-aligned briefing notes: concise enough to skim, specific enou
 ### Infra-Health Decisions
 ### Life Audit Prompts
 ### Big Picture Context
+### Self-Improvement Loop Ladder
 ### Preserved Walk Checkpoint

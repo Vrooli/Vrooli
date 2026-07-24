@@ -627,6 +627,34 @@ func TestConcludeCostGateBlocksExpensiveWinner(t *testing.T) {
 	}
 }
 
+func TestConcludeDecisionEmbedsEvidenceSummary(t *testing.T) {
+	h, es, publisher := newRunningGateExperiment(t, "exp-evidence")
+	seedControlledEvidence(es, "exp-evidence", "v1", 12, true, 1000)
+	seedControlledEvidence(es, "exp-evidence", "control", 12, false, 1000)
+	w := concludeGateRequest(t, h, "exp-evidence", ConcludeExperimentRequest{WinnerVariantID: "v1"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("strong evidence should conclude, got %d: %s", w.Code, w.Body.String())
+	}
+	if len(publisher.entries) != 1 {
+		t.Fatalf("expected 1 published decision, got %d", len(publisher.entries))
+	}
+	rationale := publisher.entries[0].Rationale
+	for _, want := range []string{
+		"In plain terms: the winning variant succeeded in 12/12 controlled runs vs the current content's 0/12",
+		"genuinely better (not luck)",
+		"1.00x the tokens",
+		"Controlled lane:",
+		"v1 (winner):",
+		"P(beats control)=",
+		"Guardrail lane:",
+		"ratio=1.00",
+	} {
+		if !strings.Contains(rationale, want) {
+			t.Fatalf("decision rationale must embed evidence summary; missing %q in:\n%s", want, rationale)
+		}
+	}
+}
+
 func TestConcludeOverrideRecordsJustification(t *testing.T) {
 	h, es, publisher := newRunningGateExperiment(t, "exp-override")
 	seedControlledEvidence(es, "exp-override", "v1", 1, true, 1000)

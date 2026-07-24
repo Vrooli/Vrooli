@@ -24,8 +24,13 @@
       "description": "Inspects recent agent-manager runs since last heartbeat (errored → retried → slow → random-success triage). Captures lessons and proposes skill/agent/prompt changes grounded in what actually happened in execution, not what's documented."
     },
     {
-      "id": "contrarian",
-      "name": "Contrarian",
+      "id": "friction-curator",
+      "name": "Friction Curator",
+      "description": "Drains the universal friction-inbox intake, validates each report's scope against the friction-report taxonomy, reclassifies when evidence supports it, and routes entries to the owning member's friction-report topic."
+    },
+    {
+      "id": "meta-contrarian",
+      "name": "Meta-Contrarian",
       "description": "Mandatory skeptic across all other members' proposals. Defends against polishing, sprawl, premature conversion, churn-without-benefit, too-fast deprecation, scope creep, and conversion-without-measurement. Owns the aging scan for the decision queue."
     },
     {

@@ -1,0 +1,14 @@
+{
+  "sku_id": "oss-platform",
+  "display_name": "Vrooli (OSS narrative)",
+  "last_touched": null,
+  "status": "missing",
+  "stalenessPolicy": { "windowDays": 30 },
+  "channels": {
+    "x-twitter": { "last_posted": null, "artifact_ref": null },
+    "blog": { "last_posted": null, "artifact_ref": null },
+    "video": { "last_posted": null, "artifact_ref": null }
+  },
+  "next_review_date": "2026-05-24",
+  "notes": "Initialized on first publisher heartbeat (2026-04-24). OSS narrative track — builder-in-public, contributor-acquisition. publish-log.jsonl is empty; no OSS artifact has ever shipped. Two oss-advertiser publish-proposals are pending operator approval (dec-1777059142792794233, dec-1777059144293750532); on approval+release this file gets its first last_touched + x-twitter last_posted."
+}

@@ -2,7 +2,7 @@
 
 Prioritize **making the scenario's UI render correctly and embed safely across every Vrooli deployment context** in `scenarios/{{TARGET}}/ui/`. ui-health is the single authority for UI validation — manifest contract, static interop, project-UI standards (i18n / design tokens / accessibility / favicon-PWA / strict-config), bundle freshness, and live runtime render — and it ships deterministic auto-fixers for the safe mechanical subset. This skill routes you to that authority, then helps you reason about and remediate what it reports.
 
-This skill replaces the retired `react-stability`, `react-coherence`, and `vrooli-ui-interop` skills. Their remediation guidance lives below as lenses; their rubrics now live in the provider (`ui-health`'s rule engine + `.vrooli/maturity.json`), not in prose.
+This skill replaces the retired `ui-health`, `ui-health`, and `ui-health` skills. Their remediation guidance lives below as lenses; their rubrics now live in the provider (`ui-health`'s rule engine + `.vrooli/maturity.json`), not in prose.
 
 Required reading:
 - `prompt-manager skill read knowledge-observatory-tools` — read and update scenario documentation through the canonical docs CLI.

@@ -63,7 +63,10 @@ export function AgentListPanel({
   }, [agents, searchQuery])
 
   const handleCreateAgent = async () => {
-    const name = `Agent ${agents.length + 1}`
+    // The list can be filtered or stale while another test/user creates an
+    // agent. A timestamp suffix keeps the generated storage ID unique instead
+    // of turning a normal "New Agent" click into a 409 conflict.
+    const name = `Agent ${agents.length + 1}-${Date.now()}`
     const newAgent = await createAgent({
       displayName: name,
       appearance: {

@@ -72,7 +72,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "graph",
 				Aliases:     []string{"g"},
 				NeedsAPI:    true,
-				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|drain-status)",
+				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|operating-model|drain-status)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},

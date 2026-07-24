@@ -12,6 +12,9 @@ Prefer existing autoheal, system-monitor, scenario lifecycle, capacity, and inve
 ## Sensor-First Rule
 Every reliability target names its sensor, deadband, and actuator in the sensor map of `docs/infra-health/strategy/RELIABILITY_TARGETS.md`. Read the sensor named there; do not re-derive how to measure a target each heartbeat. A target with an empty sensor cell is an `instrumentation-gap` candidate, not a manual-scrape invitation. A signal inside its deadband is not a finding.
 
+## Sensor-Integrity Rule
+A reading is evidence only if its check passes the sensor-integrity rules in `docs/infra-health/strategy/RELIABILITY_TARGETS.md` § Sensor integrity (ISA-18.2/EEMUA 191 discipline): the check's target still exists (not ghost), the check transitioned within the window (not saturated — the transition is the signal, repeat events are not), and the check is not shelved. Never cite the event-weighted `actions uptime` aggregate for a per-scenario claim — it is the alarm-flood sensor; per-scenario evidence comes from per-check `actions trends`. Discriminate sensor fault from plant fault before proposing plant-side work.
+
 ## Capacity Supervision
 The capacity broker (`vrooli capacity`) arbitrates GPU/RAM/CPU claims. Infra-health supervises coverage and honesty; it never operates the broker (no policy-lever changes, no degrade/preempt/release):
 
@@ -19,6 +22,17 @@ The capacity broker (`vrooli capacity`) arbitrates GPU/RAM/CPU claims. Infra-hea
 - `vrooli capacity recommend --json` — granted reserve sustained above 2× observed peak is declared-usage drift.
 
 Route persistent mismatches as `runtime-health-finding` decisions.
+
+## Capability Supervision (Contract-Not-Roster)
+Capability owners (search-hub, test-genie, prompt-manager, meta-optimization-manager, …) run their own scan → validate → aggregate loops over self-declared members (operating-model rule 6). Supervise the machinery and the derived aggregate only:
+
+- Never name, list, or check individual capability members — every set is defined by a derivation query (SDA core-set closure; the owner's load-bearing declared members). Member-level performance deadbands live in the member's own `.vrooli/` declaration, not in team targets.
+- Supervised-set coverage: the autoheal check registry must cover the derived should-be-supervised set. Until the Gap 10 `check reconcile` extension ships, this is a manual diff recorded as an `estimate`.
+- Capability availability: read each owner's derived aggregate once Gap 11 ships persistence; until then the rows are `pending-telemetry`, not a manual-scrape invitation.
+- Capability-architecture proposals (search performance, embedding centralization, provider-less availability) are never this team's findings — supply the out-of-band aggregate as evidence and route the work to the owner or meta-optimization.
+
+## Cascade Discipline
+Do not chase an outer-layer reading while an inner layer is out of band. Layer order (inner → outer): sensor-channel integrity, host/process substrate, capability availability, efficiency and performance trends, measurement improvement. A search-latency finding raised during an unresolved host-level incident (e.g. a GPU flood or pending reboot) is premature by construction — resolve or shelve the inner excursion first.
 
 ## Sudo Boundary
 Privileged host mutation exists only at commissioning time (`vrooli setup`, host tools, host safeguards — see `docs/configuration/host/`) and in operator-run autoheal remediation artifacts. A fix that needs sudo routes as a proposed host tool, host safeguard, or setup change, or as a remediation artifact the operator runs — never as runtime-loop work.

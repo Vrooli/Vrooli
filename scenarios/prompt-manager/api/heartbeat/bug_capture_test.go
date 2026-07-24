@@ -12,6 +12,7 @@ import (
 	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
+	_ "modernc.org/sqlite"
 )
 
 func TestAssessBugCapturePublishesOnlyCompleteTaxonomy(t *testing.T) {

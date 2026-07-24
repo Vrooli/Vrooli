@@ -168,6 +168,19 @@ CLI policy levers are also stored in `store/config/graph-health.json`:
 | `Popular(limit)` | `[]Node` | Top N nodes by incoming edge count |
 | `DetectCircularRefs` | `[][]string` | DFS-based cycle detection across skill-to-skill edges |
 
+## Operating-Model Contracts
+
+The queries above analyze the *relationship* graph — inferred edges scanned out of markdown. A separate, stronger surface analyzes each team's **declared operating contract**: `prompt-manager graph operating-model <list|validate|diff|coverage>`.
+
+| Verb | Answers |
+|------|---------|
+| `list` | Which teams publish an operating model, in which mode, with what node/edge counts |
+| `validate` | Is the document structurally valid and complete as a contract? (severity-bearing findings) |
+| `diff` | Where do the plan-of-record graph and runtime config disagree, in both directions? |
+| `coverage` | What did those assurances actually check? (relationship families, prompt sections, docs tables, gaps) |
+
+These parse `docs/<team>/operating/OPERATING_MODEL.md` rather than the store, and validate it against `team.json`, member `topics.json`, README links, and generated prompt sections. Contract canon — required sections, the typed Mermaid subset, relationship families, and the full validation-rule table — lives in [DOC: docs/agent-system/OPERATING_GRAPHS.md]. Use these verbs, not the relationship queries above, when auditing whether a team's declared contract matches how it actually runs.
+
 ## Index Persistence
 
 [CODE: api/graph/index.go]

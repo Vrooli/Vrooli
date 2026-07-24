@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "director-swarm",
   "displayName": "Director Swarm",
-  "mission": "Keep Vrooli's initiative portfolio flowing through Swarm Manager and surface outcome-driven strategy as Command Center comes online.",
+  "mission": "Keep Vrooli's goal portfolio flowing through Swarm Manager and surface outcome-driven strategy from Command Center's measured outcomes and gaps registry.",
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -31,9 +31,46 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 13,
+  "revision": 15,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-22T11:17:21Z",
+  "updatedAt": "2026-07-23T22:45:00Z",
+  "topicCatalog": [
+    {
+      "prefix": "decision-application/<decision-id>",
+      "status": "live",
+      "purpose": "Record exact accepted-decision application work and avoid duplicate application."
+    },
+    {
+      "prefix": "goal-portfolio-record/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot portfolio interpretation against the ranking criteria."
+    },
+    {
+      "prefix": "outcome-target-record/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot outcome target, gap, or prediction-score interpretation when Command Center evidence exists."
+    },
+    {
+      "prefix": "vision-walk-record/<date>/<slug>",
+      "status": "live",
+      "purpose": "Read-only morning vision-walk briefing material."
+    },
+    {
+      "prefix": "research-inbox/*",
+      "status": "live",
+      "purpose": "Route vision-walk research signal into the marketing research queue for that team's drainer to classify."
+    },
+    {
+      "prefix": "opportunity-inbox/*",
+      "status": "live",
+      "purpose": "Route vision-walk revenue-opportunity signal into the monetization opportunity queue for that team's drainer to classify."
+    },
+    {
+      "prefix": "validation-inbox/*",
+      "status": "live",
+      "purpose": "Route vision-walk demand-validation signal into the monetization validation queue for that team's drainer to classify."
+    }
+  ],
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {
@@ -84,7 +121,7 @@
             "director-swarm"
           ],
           "rationale": "Canonical director-swarm portfolio philosophy, roadmap, and outcome discipline.",
-          "useFor": "portfolio ranking criteria, initiative roadmap interpretation, outcome categories, and morning-walk decision context"
+          "useFor": "portfolio ranking criteria, goal roadmap interpretation, outcome categories, and morning-walk decision context"
         },
         {
           "id": "project-vision",
@@ -171,29 +208,39 @@
       ]
     },
     "decisionContexts": {
-      "initiative-portfolio": {
+      "goal-portfolio": {
         "ownerMemberIds": [
           "portfolio-manager"
         ],
-        "description": "Rank initiatives as active now, track, or defer."
+        "description": "Rank goals as active now, track, or defer. Carries a prediction block per the Outcomes Charter prediction ledger."
       },
-      "initiative-supplement": {
+      "goal-supplement": {
         "ownerMemberIds": [
           "portfolio-manager"
         ],
-        "description": "Proposed supporting backlog work under existing initiatives."
+        "description": "Proposed supporting backlog work under existing goals."
       },
-      "initiative-proposal": {
+      "goal-proposal": {
         "ownerMemberIds": [
           "portfolio-manager"
         ],
-        "description": "Candidate new initiatives for operator approval."
+        "description": "Candidate new goals for operator approval. Carries a prediction block per the Outcomes Charter prediction ledger."
       },
-      "initiative-readiness": {
+      "goal-readiness": {
         "ownerMemberIds": [
           "portfolio-manager"
         ],
         "description": "Judgment about whether backlog items are detailed enough to execute."
+      },
+      "capability-gap": {
+        "ownerMemberIds": [
+          "portfolio-manager"
+        ],
+        "externalAuthorizedRaisers": [
+          "meta-optimization",
+          "infra-health"
+        ],
+        "description": "Missing capability routed from another team; portfolio-manager turns accepted gaps into goal or backlog proposals."
       },
       "outcome-gap": {
         "ownerMemberIds": [
@@ -223,7 +270,7 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "initiative-portfolio-record/YYYY-MM-DD": {
+      "goal-portfolio-record/YYYY-MM-DD": {
         "ownerMemberId": "portfolio-manager",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -241,12 +288,13 @@
     },
     "members": {
       "portfolio-manager": {
-        "lane": "Keep Swarm Manager initiative flow healthy; apply accepted portfolio decisions and propose bounded corrections.",
+        "lane": "Keep Swarm Manager goal flow healthy; apply accepted portfolio decisions and propose bounded corrections.",
         "ownedDecisionContexts": [
-          "initiative-portfolio",
-          "initiative-supplement",
-          "initiative-proposal",
-          "initiative-readiness"
+          "goal-portfolio",
+          "goal-supplement",
+          "goal-proposal",
+          "goal-readiness",
+          "capability-gap"
         ],
         "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
@@ -289,7 +337,7 @@
         },
         "newDecisionCapPerHeartbeat": 3,
         "taskParameters": {
-          "requiredScenarioCoverageCheck": "Run swarm-manager initiatives context before proposing scenario-scoped initiatives.",
+          "requiredScenarioCoverageCheck": "Run swarm-manager goals context before proposing scenario-scoped goals.",
           "acceptedDecisionMarkerTopic": "decision-application/<decision-id>"
         }
       },

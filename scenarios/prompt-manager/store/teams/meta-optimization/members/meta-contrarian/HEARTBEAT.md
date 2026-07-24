@@ -8,7 +8,7 @@ Follow `docs/agent-system/CONTRARIAN_REVIEW.md` for the challenge lifecycle.
 
 1. Fetch all pending decisions across the team.
 2. Read recent member outputs and contract-declared shared artifacts.
-3. Score each pending proposal against the failure-mode framework in `shared/TEAM.md`, including Action-specific risks when the proposal creates, changes, promotes, or retires an Action.
+3. Score each pending proposal against the failure-mode framework in this member's `RESPONSIBILITIES.md`, including Action-specific risks when the proposal creates, changes, promotes, or retires an Action.
 4. Write challenge notes and matching resolution records for every failure-mode hit.
 5. Run the contract stale-decision scan.
 6. Perform the contract-required supersession check on your prior pending decisions.

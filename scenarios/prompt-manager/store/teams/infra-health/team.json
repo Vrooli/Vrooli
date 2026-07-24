@@ -229,7 +229,8 @@
           "platform-code-auditor"
         ],
         "externalAuthorizedRaisers": [
-          "director-swarm"
+          "director-swarm",
+          "meta-optimization"
         ],
         "description": "Missing CLI verb, scenario, or tool capability blocks infra-health work."
       },
@@ -329,13 +330,7 @@
           "stillWriteHandoff": true
         },
         "taskParameters": {
-          "triageLadder": [
-            "repeat failures",
-            "heal-loops",
-            "slow-restart trends",
-            "investigation clusters",
-            "quiet-day shortcut"
-          ]
+          "triageLadder": "SSOT is the Task Loop in members/runtime-health-scanner/HEARTBEAT.md — walk the ladder there in order (rounds 2-3 expanded it beyond the original five tiers). Do not maintain a second copy here."
         }
       },
       "platform-code-auditor": {
@@ -450,15 +445,7 @@
         "taskParameters": {
           "reviewCapPerHeartbeat": 5,
           "frameworkMetaCadence": "at most one per calendar month",
-          "failureModes": [
-            "alarm noise",
-            "polishing",
-            "premature cross-platform",
-            "instrumentation sprawl",
-            "target drift",
-            "scope creep",
-            "measurement gap"
-          ]
+          "failureModes": "SSOT is the Failure-Mode Rubric + Mechanical Thresholds in members/infra-contrarian/RESPONSIBILITIES.md — the operative set includes the mechanical fails (unit mismatch, dead-sensor, roster creep, cascade violation) added in rounds 2-3. Do not maintain a second copy here."
         }
       }
     }

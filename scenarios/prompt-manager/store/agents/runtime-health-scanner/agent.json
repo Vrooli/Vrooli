@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "runtime-health-scanner",
   "displayName": "Runtime Health Scanner",
-  "description": "Reads vrooli-autoheal history, system-monitor investigations, and lifecycle process records each heartbeat. Triages signals through a strict ladder (repeat-failure → heal-loop → slow-restart → investigation-cluster → quiet-day-shortcut) and investigates one signal in depth. Produces durable runtime-health findings.",
+  "description": "Reads vrooli-autoheal history, system-monitor investigations, and lifecycle process records each heartbeat. Triages signals through the strict ladder defined in its HEARTBEAT task loop (SSOT) and investigates one signal in depth. Produces durable runtime-health findings.",
   "status": "active",
   "appearance": {
     "body": "#0F766E",

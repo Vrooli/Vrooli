@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "agent-system-audit",
+  "name": "Agent System Audit",
+  "description": "Audit the whole agent system as one composed system: all six teams, their members, plans of record, and framework canon. Scores per-team contract conformance, cross-team composition, goal alignment, and entropy against the framework-health targets.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "meta-optimization",
+    "teams",
+    "audit",
+    "operating-model",
+    "framework-health"
+  ],
+  "icon": "network",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-24T00:00:00Z",
+  "updatedAt": "2026-07-24T00:00:00Z"
+}

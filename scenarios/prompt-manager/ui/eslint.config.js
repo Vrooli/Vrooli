@@ -12,7 +12,7 @@ import globals from "globals";
  * The rules below preserve hook ordering, dependency freshness, null safety,
  * checked value access, and module initialization ordering.
  *
- * See react-stability skill Section 0 for rationale.
+ * See ui-health skill for rationale.
  */
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "coverage", "*.config.js"] },

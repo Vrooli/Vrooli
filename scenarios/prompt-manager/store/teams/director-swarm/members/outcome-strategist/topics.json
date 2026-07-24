@@ -17,9 +17,6 @@
     "outcome-gap",
     "outcome-direction"
   ],
-  "decisions_consumed": [
-    "capability-gap"
-  ],
   "external_producers": [
     "operator",
     "vision-walk"

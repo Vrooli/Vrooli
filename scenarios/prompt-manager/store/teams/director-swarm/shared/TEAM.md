@@ -1,7 +1,7 @@
 # Director Swarm
 
 ## Mission
-Keep Vrooli's initiative portfolio flowing through Swarm Manager and surface outcome-driven strategy as Command Center comes online.
+Keep Vrooli's goal portfolio flowing through Swarm Manager and surface outcome-driven strategy from Command Center's measured outcomes and gaps registry.
 
 ## Scope
 Owns portfolio hygiene, decision context preparation, and accepted-decision application where Swarm Manager tooling supports the exact action.

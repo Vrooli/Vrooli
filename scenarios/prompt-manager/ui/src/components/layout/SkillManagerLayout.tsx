@@ -128,6 +128,7 @@ function SkillManagerLayoutImpl() {
   const goBack = useAppBack(worldPath())
   const routeHome = getRouteHome(location.pathname)
   const selectedSkillId = params.skillId ?? null
+  const creatingSkillDraft = selectedSkillId === 'new'
   const selectedAgentId = params.agentId ?? null
   const selectedTeamId = params.teamId ?? null
   const selectedRunId = params.runId ?? null
@@ -154,6 +155,7 @@ function SkillManagerLayoutImpl() {
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false
   )
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [draftSkillModes, setDraftSkillModes] = useState<string[]>([])
 
   // Dialog states
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -179,6 +181,27 @@ function SkillManagerLayoutImpl() {
     updateSkills,
     deleteSkill: deleteSkillApi,
   } = useSkillsData()
+
+  // "new" is a client-only draft route. It deliberately participates in the
+  // normal editor state machine so validation and save affordances remain
+  // consistent, but it never enters the server-backed skill list until save.
+  const editorSkills = useMemo<Skill[]>(() => {
+    if (!creatingSkillDraft) return skills
+    return [...skills, {
+      id: 'new',
+      file: 'new.md',
+      name: 'New Skill',
+      description: '',
+      content: '',
+      modes: draftSkillModes,
+      tags: [],
+      draft: true,
+      folder: 'local',
+      createdAt: '',
+      updatedAt: '',
+      usageCount: 0,
+    }]
+  }, [creatingSkillDraft, draftSkillModes, skills])
 
   const {
     agents,
@@ -540,11 +563,19 @@ function SkillManagerLayoutImpl() {
     isDeleting,
     isLoadingContent,
   } = usePromptEditor({
-    skills,
+    skills: editorSkills,
     selectedItemId: selectedSkillId,
     onSave: updateSkills,
     onDelete: deleteSkillApi,
   })
+
+  // Seed the visible draft after the editor has established its empty
+  // baseline. This marks it dirty, which makes an explicit Save the only path
+  // that can call the create endpoint.
+  useEffect(() => {
+    if (!creatingSkillDraft || formState.content !== '') return
+    updateField('content', '# New Skill\n\nEnter your skill content here...')
+  }, [creatingSkillDraft, formState.content, updateField])
 
   // Agent editor state
   const {
@@ -651,12 +682,34 @@ function SkillManagerLayoutImpl() {
 
   // Wrapped save functions with toast notifications
   const handleSaveCurrentSkill = useCallback(async () => {
+    if (creatingSkillDraft) {
+      try {
+        const created = await createSkill({
+          name: formState.name,
+          description: formState.description,
+          content: formState.content,
+          modes: formState.modes,
+          tags: formState.tags,
+          icon: formState.icon || undefined,
+          draft: formState.draft,
+          folder: formState.folder,
+        })
+        useEditorStore.getState().removePrompt('new')
+        setDraftSkillModes([])
+        showSaveResultToast({ success: true, savedCount: 1, failedCount: 0, errors: [], newId: created.id }, false)
+        navigate(skillDetailPath(created.id), { replace: true })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        showSaveResultToast({ success: false, savedCount: 0, failedCount: 1, errors: [{ id: 'new', name: 'New Skill', message }] }, false)
+      }
+      return
+    }
     const result = await saveCurrentSkill()
     showSaveResultToast(result, false)
     if (result.newId) {
       navigate(skillDetailPath(result.newId), { replace: true })
     }
-  }, [navigate, saveCurrentSkill, showSaveResultToast])
+  }, [creatingSkillDraft, createSkill, formState, navigate, saveCurrentSkill, showSaveResultToast])
 
   const handleSaveAllChanges = useCallback(async () => {
     const result = await saveAllChanges()
@@ -733,28 +786,15 @@ function SkillManagerLayoutImpl() {
   }, [deleteCurrentSkill, navigate])
 
   // Handle new skill creation
-  const handleCreateNew = useCallback(async (modes: string[] = []) => {
-    const newSkill: CreateSkillRequest = {
-      name: 'New Skill',
-      description: '',
-      content: '# New Skill\n\nEnter your skill content here...',
-      modes,
-      tags: [],
-      folder: 'local',
-      draft: true,
+  const handleCreateNew = useCallback((modes: string[] = []) => {
+    // The route is client-only; preserve caller-selected modes in component
+    // state until the explicit save creates the server-backed skill.
+    setDraftSkillModes(modes)
+    navigate(skillDetailPath('new'))
+    if (isMobile) {
+      setIsMobileSidebarOpen(false)
     }
-
-    try {
-      const created = await createSkill(newSkill)
-      navigate(skillDetailPath(created.id))
-
-      if (isMobile) {
-        setIsMobileSidebarOpen(false)
-      }
-    } catch (error) {
-      console.error('Failed to create skill:', error)
-    }
-  }, [createSkill, isMobile, navigate])
+  }, [isMobile, navigate])
 
   // Handle delete folder request (shows confirmation dialog)
   const handleDeleteFolderRequest = useCallback((skillIds: string[], folderLabel: string) => {

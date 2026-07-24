@@ -422,6 +422,12 @@
         ],
         "description": "Record that a steer skill's detection has graduated into a programmatic engine: propose setting the skill's programmaticHome pointer (format 'engine:identifier', e.g. 'test-genie:architecture') via `prompt-manager skill update --programmatic-home`. This is a record-of-fact \u2014 propose ONLY when the programmatic home actually exists and runs. The write executes when the decision is applied (the optimizer has no skill-write tool). Graduation auto-prunes the lens from the scenario-qa quality-auditor's derived rotation."
       },
+      "skill-experiment-promotion": {
+        "ownerMemberIds": [
+          "skill-optimizer"
+        ],
+        "description": "Adopt an experiment's winning variant as the skill's content. Minted as a pending decision by the server on `prompt-manager experiment conclude` (By skill-optimizer) and gated by `prompt-manager experiment promote`, which applies only an operator-accepted matching decision. Evidence: the experiment report (per-arm serves/outcomes, posterior, cost), a server-verifiable clear audit receipt, and a separately signed holdout confirmation. Reviewed and challenged by meta-contrarian against the frozen protocol gates and the substrate-validity rule in skill-optimizer RESPONSIBILITIES \u00a7Skill Experiments before operator acceptance."
+      },
       "action-candidate": {
         "ownerMemberIds": [
           "skill-optimizer"
@@ -648,6 +654,7 @@
           "skill-improvement",
           "skill-deprecation",
           "skill-graduation",
+          "skill-experiment-promotion",
           "action-candidate",
           "action-improvement",
           "action-deprecation"

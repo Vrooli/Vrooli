@@ -17,10 +17,10 @@ Required reading:
 
 This skill says *what* good storage architecture is and *why*. **`storage-health` is the *how* — the engine that measures whether a scenario actually conforms, and the gate that enforces the one non-negotiable: test-isolation safety.** What used to be the hand-rolled grep cookbook in §10 is now a real, productized validator; drive it instead of eyeballing `rg` output:
 
-- `storage-health validate scenario {{TARGET}}` — runs every static storage analyzer (schema layout, per-domain ownership, migration hygiene, persistence-seam adoption, and **the 4-seam isolation proof**) and returns a maturity assessment with `file:line`-anchored findings + remediation. This *is* the audit; §10's greps are what it automates.
+- `storage-health validate scenario {{TARGET}}` — runs every static storage analyzer (schema layout, per-domain ownership, migration hygiene, persistence-seam adoption, and **the SQL + file isolation proof**) and returns a maturity assessment with `file:line`-anchored findings + remediation. This *is* the audit; §10's greps are what it automates.
 - `storage-health fix preview {{TARGET}}` / `storage-health fix apply {{TARGET}}` — preview/apply the deterministic autofixes it reports (e.g. `ENSURE_SCHEMAS_NOT_WIRED`, `DB_ROWS_NOT_CLOSED`). Idempotent: a second apply over an already-fixed tree is a no-op.
 - `storage-health fleet scan` · `storage-health advisor engines` · `storage-health advisor migrations` — fleet inventory (which scenarios use which engines, isolation-readiness, backup gaps), the Postgres→SQLite fitness advisor, and migration-hygiene intelligence.
-- `vrooli scenario test {{TARGET}}` **storage phase** — the same engine run as a delegated test-genie phase, positioned **before playbooks**. Its L2 verdict is the fail-closed gate: when isolation can't be statically proven (`ROUTED_SEAMS_UNWIRED` / `STORAGE_ISOLATION_UNVERIFIED`), test-genie **refuses** destructive E2E playbooks rather than risk mutating real data. This is the regression gate your changes must keep green.
+- `vrooli scenario test {{TARGET}}` **storage phase** — the same engine run as a delegated test-genie phase, positioned **before playbooks**. Its L2 verdict is the fail-closed gate: when SQL or file isolation can't be statically proven (`ROUTED_SEAMS_UNWIRED`, `FILE_ROUTED_SEAMS_UNWIRED`, `STORAGE_ISOLATION_UNVERIFIED`, or `FILE_ISOLATION_UNVERIFIED`), test-genie **refuses** destructive E2E playbooks rather than risk mutating real data. This is the regression gate your changes must keep green.
 
 > This skill's detection has **graduated into a programmatic engine** (`programmaticHome: storage-health:storage`, dimension `storage`). Treat storage-health as the source of truth for the findings; this steer is the judgment layer over them. storage-health **superseded the five retired `scenario-auditor` DB/storage rules** (`routed_database_drivers`, `routed_database_handle_capture`, `database_backoff`, `db_rows_close`, `storage_namespace_helpers`) — don't reach for those; run the validator.
 
@@ -430,7 +430,7 @@ Before making changes, assess `{{TARGET}}`'s current storage posture against the
 
 #### 10.1 Run the validator (don't hand-roll greps)
 
-`storage-health` automates the entire audit — schema layout, per-domain ownership, the 4-seam isolation proof, persistence hygiene, namespace adoption, migration hygiene. Run it first, read its `file:line` findings, apply the autofixes it offers, and only fall back to manual inspection for things outside its analyzer set.
+`storage-health` automates the entire audit — schema layout, per-domain ownership, SQL and file isolation proof, persistence hygiene, namespace adoption, migration hygiene. Run it first, read its `file:line` findings, apply the autofixes it offers, and only fall back to manual inspection for things outside its analyzer set.
 
 ```bash
 # The full static storage audit, with file:line findings + remediation.

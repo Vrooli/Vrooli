@@ -18,7 +18,7 @@ other runners — your independence is the measurement.
 
 ### Procedure
 
-1. Read the skill under test with `prompt-manager skill read {{.skill_id}}`.
+1. Read the skill under test with `prompt-manager skill read {{.skill_id}}`. When the version input names a variant (anything other than empty or `current`), add `--variant {{.skill_version}}` — that variant text, not the current SKILL.md, is the skill under test.
 2. Read any required-reading files the skill names, so you apply it faithfully.
 3. Apply the skill to the target scenario at `{{.target_path}}` inside your
    sandbox. Follow the skill's own steps. Make and record every concrete choice

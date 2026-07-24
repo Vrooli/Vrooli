@@ -22,6 +22,7 @@ holds the placement map only; each owning skill carries the applied detail.
 | Skill procedural prose itself | STE-100 | `docs/agent-system/SKILL_AUTHORING.md` "Universal quality bars" |
 | Workflow prompt contracts | STE-100 | `docs/agent-system/SKILL_AUTHORING.md` §"Contract skills: machine-invoked workflow prompts" |
 | Procedural docs (operations/, guides/, runbooks) | STE-100 | this skill (no dedicated doc-style skill yet) |
+| Operator-facing decision text / rationale | Plain-summary-first + terms-defined-at-first-use; rationale in normal prose (NOT STE) | `docs/agent-system/DECISIONS.md` §"Operator legibility" |
 
 ### 2. Where the standards do NOT apply
 

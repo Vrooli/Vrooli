@@ -353,6 +353,9 @@ func (h *ExperimentHandlers) ConcludeExperiment(w http.ResponseWriter, r *http.R
 	now := time.Now().UTC().Format(time.RFC3339)
 	decisionID := fmt.Sprintf("dec-experiment-%x", sha256.Sum256([]byte(eid+"|"+req.WinnerVariantID+"|"+now)))
 	rationale := fmt.Sprintf("Experiment %q recommends this variant. Review the protocol, outcome evidence, audit receipts, and holdout validation before accepting.", eid)
+	if summary := h.promotionEvidenceSummary(r.Context(), exp, req.WinnerVariantID); summary != "" {
+		rationale = rationale + "\n" + summary
+	}
 	if gateErr != nil {
 		rationale = fmt.Sprintf("GATE OVERRIDE: the pre-registered recommendation gate failed (%s) and was overridden with justification: %s. %s", gateErr.Error(), strings.TrimSpace(req.OverrideJustification), rationale)
 	}
@@ -431,6 +434,107 @@ func (h *ExperimentHandlers) validateRecommendationEvidence(ctx context.Context,
 		}
 	}
 	return nil
+}
+
+// promotionEvidenceSummary renders the evidence a reviewer needs directly into
+// the promotion decision, so accepting it never requires re-running the report
+// command. Best-effort: an unreadable lane degrades to the pointer sentence in
+// the base rationale rather than blocking the conclude.
+func (h *ExperimentHandlers) promotionEvidenceSummary(ctx context.Context, exp *store.Experiment, winner string) string {
+	assignments, assignmentsOK := h.experiments.(store.ExperimentAssignmentStore)
+	exposures, exposuresOK := h.experiments.(store.ExperimentExposureStore)
+	if !assignmentsOK || !exposuresOK {
+		return ""
+	}
+	assignmentRows, err := assignments.ListAssignments(ctx, exp.ID)
+	if err != nil {
+		return ""
+	}
+	exposureRows, err := exposures.ListExposures(ctx, exp.ID)
+	if err != nil {
+		return ""
+	}
+	outcomes, err := h.experiments.ListOutcomes(ctx, exp.ID)
+	if err != nil {
+		return ""
+	}
+	report := buildControlledReport(exp, assignmentRows, exposureRows, outcomes)
+	sums := map[string]float64{}
+	counts := map[string]int{}
+	for _, o := range outcomes {
+		var payload outcomePayload
+		if err := json.Unmarshal(o.Data, &payload); err != nil || payload.TokensUsed == nil {
+			continue
+		}
+		sums[o.VariantID] += *payload.TokensUsed
+		counts[o.VariantID]++
+	}
+
+	var winnerRow, controlRow *ControlledArmReport
+	for i := range report.Arms {
+		if report.Arms[i].VariantID == winner {
+			winnerRow = &report.Arms[i]
+		}
+		if report.Arms[i].VariantID == store.ControlVariantID {
+			controlRow = &report.Arms[i]
+		}
+	}
+
+	var b strings.Builder
+	// Operator-legibility contract (docs/agent-system/DECISIONS.md § Operator
+	// legibility): plain summary before the metric block.
+	if winnerRow != nil {
+		if winner == store.ControlVariantID {
+			fmt.Fprintf(&b, "In plain terms: no variant beat the current skill content — control stays (%d/%d controlled runs succeeded).\n", winnerRow.Successes, winnerRow.Eligible)
+		} else {
+			fmt.Fprintf(&b, "In plain terms: the winning variant succeeded in %d/%d controlled runs", winnerRow.Successes, winnerRow.Eligible)
+			if controlRow != nil {
+				fmt.Fprintf(&b, " vs the current content's %d/%d", controlRow.Successes, controlRow.Eligible)
+			}
+			if winnerRow.ProbBeatsControl != nil {
+				fmt.Fprintf(&b, "; the chance it is genuinely better (not luck) is %.0f%%", *winnerRow.ProbBeatsControl*100)
+			}
+			if counts[winner] > 0 && counts[store.ControlVariantID] > 0 {
+				winnerMean := sums[winner] / float64(counts[winner])
+				controlMean := sums[store.ControlVariantID] / float64(counts[store.ControlVariantID])
+				if controlMean > 0 {
+					fmt.Fprintf(&b, "; it used %.2fx the tokens of the current content (limit %.2fx)", winnerMean/controlMean, exp.Protocol.CostNonInferiorityRatio)
+				}
+			}
+			b.WriteString(".\n")
+		}
+	}
+	fmt.Fprintf(&b, "Controlled lane: assignments=%d eligible=%d completeness=%.3f (threshold %.3f).",
+		report.Assignments, report.EligibleAssignments, report.OutcomeCompleteness, exp.Protocol.OutcomeCompletenessThreshold)
+	for _, arm := range report.Arms {
+		label := arm.VariantID
+		if arm.VariantID == winner {
+			label += " (winner)"
+		}
+		fmt.Fprintf(&b, "\n- %s: eligible=%d successes=%d", label, arm.Eligible, arm.Successes)
+		if arm.PosteriorMean != nil {
+			fmt.Fprintf(&b, " posterior=%.3f", *arm.PosteriorMean)
+		}
+		if arm.EffectVsControl != nil {
+			fmt.Fprintf(&b, " effect=%+.3f (threshold %.3f)", *arm.EffectVsControl, exp.Protocol.EffectThreshold)
+		}
+		if arm.ProbBeatsControl != nil {
+			fmt.Fprintf(&b, " P(beats control)=%.3f (threshold %.3f)", *arm.ProbBeatsControl, exp.Protocol.ProbabilityThreshold)
+		}
+	}
+	if counts[winner] > 0 && counts[store.ControlVariantID] > 0 {
+		winnerMean := sums[winner] / float64(counts[winner])
+		controlMean := sums[store.ControlVariantID] / float64(counts[store.ControlVariantID])
+		fmt.Fprintf(&b, "\nGuardrail lane: mean tokens winner=%.0f control=%.0f", winnerMean, controlMean)
+		if controlMean > 0 {
+			fmt.Fprintf(&b, " ratio=%.2f (limit %.2fx)", winnerMean/controlMean, exp.Protocol.CostNonInferiorityRatio)
+		}
+		b.WriteString(".")
+	}
+	if serves, err := h.experiments.ListServes(ctx, exp.ID); err == nil {
+		fmt.Fprintf(&b, "\nObservational: serves=%d outcomes=%d.", len(serves), len(outcomes))
+	}
+	return b.String()
 }
 
 // validateCostNonInferiority enforces the frozen equal-budget rule from the
