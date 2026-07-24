@@ -4,31 +4,58 @@ import (
 	"context"
 
 	"swarm-manager/internal/agentsessions"
-	"swarm-manager/internal/backlog"
 )
 
 // sessionDecisionProvider adapts durable ready mutation proposals into the
-// backlog-owned next-action precedence seam. It deliberately returns only a
-// count: rendering and application remain owned by agent sessions.
+// backlog-owned next-action precedence seam. It deliberately returns only
+// counts: rendering and application remain owned by agent sessions.
 type sessionDecisionProvider struct{ sessions *agentsessions.Service }
 
-func (p sessionDecisionProvider) PendingDecisions(ctx context.Context, item backlog.BacklogItem) (int, error) {
+// readyDecisionCounts groups ready proposal counts by the entity domain they
+// target. Both halves of the operator inbox — backlog items and goals — ask
+// the same store the same question, so one pass answers both.
+type readyDecisionCounts struct {
+	items map[string]int
+	goals map[string]int
+}
+
+// countReadyDecisions counts ready, revision-free mutation proposals per
+// target reference in a single pass over the session store. The seam is
+// batch-shaped on purpose: the answer is a property of the whole store, so a
+// per-entity variant would rescan every session once per entity.
+func (p sessionDecisionProvider) countReadyDecisions() (readyDecisionCounts, error) {
+	counts := readyDecisionCounts{items: map[string]int{}, goals: map[string]int{}}
 	if p.sessions == nil {
-		return 0, nil
+		return counts, nil
 	}
-	sessions, err := p.sessions.List(ctx, agentsessions.ListFilters{})
+	// Artifacts are never read while counting proposals, and hydrating them
+	// per session is what made this scan expensive enough to matter.
+	sessions, err := p.sessions.ListWithoutArtifacts(agentsessions.ListFilters{})
 	if err != nil {
-		return 0, err
+		return readyDecisionCounts{}, err
 	}
-	ref := string(item.Kind) + "/" + item.Name
-	count := 0
 	for _, session := range sessions {
 		for _, proposal := range session.Proposals {
-			if proposal.Status == agentsessions.ProposalStatusReady && !proposal.NeedsRevision && proposal.Target != nil &&
-				proposal.Target.Type == agentsessions.ContextBacklogItem && proposal.Target.Ref == ref {
-				count++
+			if proposal.Status != agentsessions.ProposalStatusReady || proposal.NeedsRevision || proposal.Target == nil {
+				continue
+			}
+			switch proposal.Target.Type {
+			case agentsessions.ContextBacklogItem:
+				counts.items[proposal.Target.Ref]++
+			case agentsessions.ContextGoal:
+				counts.goals[proposal.Target.Ref]++
 			}
 		}
 	}
-	return count, nil
+	return counts, nil
+}
+
+// PendingDecisionCounts satisfies the backlog decision seam for callers that
+// resolve actions outside the feed projection.
+func (p sessionDecisionProvider) PendingDecisionCounts(context.Context) (map[string]int, error) {
+	counts, err := p.countReadyDecisions()
+	if err != nil {
+		return nil, err
+	}
+	return counts.items, nil
 }

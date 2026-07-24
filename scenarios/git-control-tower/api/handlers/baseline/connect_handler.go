@@ -441,7 +441,7 @@ func (s *Server) StartCollectionCapture(ctx context.Context, req *connect.Reques
 		targets = append(targets, bl.CollectionTarget{Scenario: target.GetScenario(), BaselineName: target.GetBaselineName(), Required: target.GetRequired()})
 	}
 	started, err := s.svc.StartCollectionCapture(ctx, bl.StartCollectionCaptureRequest{
-		RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, PathSelections: m.GetPathSelections(), PathPolicy: bl.PathSnapshotPolicy{IncludeIgnored: m.GetIncludeIgnored(), RetainContent: m.GetRetainContent()}, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
+		RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, PathSelections: m.GetPathSelections(), PathPolicy: bl.PathSnapshotPolicy{IncludeIgnored: m.GetIncludeIgnored(), RetainContent: m.GetRetainContent()}, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(), AcknowledgeReanchor: m.GetAcknowledgeReanchor(),
 	})
 	if err != nil {
 		var policyErr *bl.PathSnapshotPolicyError

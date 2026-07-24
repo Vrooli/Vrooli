@@ -33,10 +33,13 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 	)
 
 	cfg := planview.Config{
-		Backlog:     store,
-		Gates:       attentionSvc,
-		NextActions: s.backlogHandler,
-		GoalActions: planGoalActionAdapter{feed: nextActionFeed{backlog: s.backlogHandler, goals: s.goalService, sessions: s.agentSessionSvc}},
+		Backlog: store,
+		Gates:   attentionSvc,
+		// Both board inputs read the one shared projection, so a board render
+		// computes it once instead of resolving every item itself and then
+		// running the whole feed again for goal cards.
+		NextActions: s.nextActions,
+		GoalActions: planGoalActionAdapter{projection: s.nextActions},
 	}
 	if s.executionSvc != nil {
 		cfg.Executions = graph.NewExecutionAdapter(s.executionSvc)

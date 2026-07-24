@@ -11,6 +11,7 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
 
@@ -92,6 +93,28 @@ type Service struct {
 	projectRoot               string
 	profileKey                string
 	mutationProposalProcessor MutationProposalProcessor
+	eventDispatcher           dispatch.Invalidator
+}
+
+// SetEventDispatcher installs the graph invalidation seam. Proposal state is
+// read by cross-domain projections — the operator inbox counts pending
+// decisions per entity — so a proposal write must announce itself the same way
+// a backlog or goal write does.
+func (s *Service) SetEventDispatcher(invalidator dispatch.Invalidator) {
+	s.eventDispatcher = invalidator
+}
+
+// saveProposal is the single durable write path for proposal state. Every
+// proposal write goes through it so the announcement cannot be forgotten at a
+// new call site.
+func (s *Service) saveProposal(sessionID string, proposal Proposal) error {
+	if err := s.store.SaveProposal(sessionID, proposal); err != nil {
+		return err
+	}
+	if s.eventDispatcher != nil {
+		s.eventDispatcher.DispatchInvalidate("topology", "plan")
+	}
+	return nil
 }
 
 type ServiceConfig struct {
@@ -301,6 +324,14 @@ func (s *Service) List(ctx context.Context, filters ListFilters) ([]Session, err
 		}
 	}
 	return sessions, nil
+}
+
+// ListWithoutArtifacts lists sessions with their durable record only, skipping
+// the per-session artifact JSONL hydration List performs. Callers that read
+// session-level state such as proposals never touch artifacts, and hydrating
+// them is the dominant cost of a whole-store scan.
+func (s *Service) ListWithoutArtifacts(filters ListFilters) ([]Session, error) {
+	return s.store.ListSessions(filters)
 }
 
 func (s *Service) ResolveSessionForRun(ctx context.Context, runID string) (identity.SessionReference, bool, error) {

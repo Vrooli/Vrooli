@@ -13,10 +13,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type fixedDecisionCount struct{ count int }
+type fixedDecisionCount struct{ counts map[string]int }
 
-func (p fixedDecisionCount) PendingDecisions(context.Context, BacklogItem) (int, error) {
-	return p.count, nil
+func (p fixedDecisionCount) PendingDecisionCounts(context.Context) (map[string]int, error) {
+	return p.counts, nil
 }
 
 // [REQ:SWM-P0-010] item next-action projection driven by execution preflight reasons
@@ -222,7 +222,7 @@ func TestResolveNextActionDispatchesPersistedFollowUp(t *testing.T) {
 func TestResolveNextActionPrioritizesOpenDecisions(t *testing.T) {
 	h, root := setupTestHandler(t)
 	h.SetExecutionQueuer(&mockExecutionQueuer{preflightResult: execution.ProcessPreflight{Ready: true}})
-	h.SetDecisionCountProvider(fixedDecisionCount{count: 2})
+	h.SetDecisionCountProvider(fixedDecisionCount{counts: map[string]int{"idea/proposal": 2}})
 	item := BacklogItem{Name: "proposal", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("proposal")}
 	createTestItem(t, root, item.Kind, item)
 	action, err := h.ResolveNextAction(t.Context(), item)

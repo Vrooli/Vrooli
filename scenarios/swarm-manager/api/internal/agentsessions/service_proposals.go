@@ -21,7 +21,7 @@ func (s *Service) RecordProposal(_ context.Context, sessionID string, proposal P
 		proposal.CreatedAt = now
 	}
 	proposal.UpdatedAt = now
-	if err := s.store.SaveProposal(sessionID, proposal); err != nil {
+	if err := s.saveProposal(sessionID, proposal); err != nil {
 		return Proposal{}, err
 	}
 	s.emitProposalCreated(sessionID, proposal)
@@ -107,7 +107,7 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 	session.Status = StatusWaitingForUser
 	session.FailureReason = ""
 	session.UpdatedAt = proposal.UpdatedAt
-	if err := s.store.SaveProposal(session.ID, proposal); err != nil {
+	if err := s.saveProposal(session.ID, proposal); err != nil {
 		return Session{}, nil, err
 	}
 	if err := s.store.SaveSession(session); err != nil {
@@ -163,7 +163,7 @@ func (s *Service) failProposalApply(session *Session, proposal *Proposal, applyE
 	session.Status = StatusProposalReady
 	session.FailureReason = applyErr.Error()
 	session.UpdatedAt = proposal.UpdatedAt
-	if err := s.store.SaveProposal(session.ID, *proposal); err != nil {
+	if err := s.saveProposal(session.ID, *proposal); err != nil {
 		slog.Warn("agentsessions: persist proposal failed", "session", session.ID, "proposal", proposal.ID, "err", err)
 	}
 	if err := s.store.SaveSession(*session); err != nil {

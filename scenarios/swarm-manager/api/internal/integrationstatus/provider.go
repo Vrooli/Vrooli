@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"swarm-manager/internal/transitions"
@@ -87,18 +88,35 @@ func (p *Provider) Statuses(ctx context.Context) ([]Status, error) {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	statuses := make([]Status, 0, len(ids))
-	for _, id := range ids {
-		status, err := p.checkers[id].Check(ctx)
+	// Each check is an independent probe of a different integration, so the
+	// whole projection costs one probe rather than the sum of all of them.
+	// Results stay in sorted id order regardless of which probe answers first.
+	statuses := make([]Status, len(ids))
+	errs := make([]error, len(ids))
+	var wg sync.WaitGroup
+	for index, id := range ids {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			status, err := p.checkers[id].Check(ctx)
+			if err != nil {
+				errs[index] = fmt.Errorf("check integration %q: %w", id, err)
+				return
+			}
+			status.ID = id
+			status.AffectedTransitions = append([]string(nil), p.affectedTransitions[id]...)
+			if strings.TrimSpace(status.DegradedBehavior) == "" {
+				errs[index] = fmt.Errorf("check integration %q: degraded behavior is required", id)
+				return
+			}
+			statuses[index] = status
+		}()
+	}
+	wg.Wait()
+	for _, err := range errs {
 		if err != nil {
-			return nil, fmt.Errorf("check integration %q: %w", id, err)
+			return nil, err
 		}
-		status.ID = id
-		status.AffectedTransitions = append([]string(nil), p.affectedTransitions[id]...)
-		if strings.TrimSpace(status.DegradedBehavior) == "" {
-			return nil, fmt.Errorf("check integration %q: degraded behavior is required", id)
-		}
-		statuses = append(statuses, status)
 	}
 	return statuses, nil
 }

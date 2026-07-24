@@ -157,12 +157,16 @@ type GateEnumerator interface {
 	Enumerate(ctx context.Context) []Gate
 }
 
-// NextActionResolver is the server-owned per-item action authority. It is
-// optional during the gates-to-projection transition, but production board
-// wiring supplies backlog.Handler so ordinary cards cannot drift from the
-// decision stream's action semantics.
+// NextActionResolver is the server-owned action authority, keyed by item ref.
+// It is optional during the gates-to-projection transition, but production
+// board wiring supplies the shared projection so ordinary cards cannot drift
+// from the decision stream's action semantics.
+//
+// The contract is whole-projection rather than per-item: the board and the
+// operator inbox read the same answer, so the board consumes that answer
+// instead of driving its own resolution loop over it.
 type NextActionResolver interface {
-	ResolveNextAction(ctx context.Context, item backlog.BacklogItem) (backlog.NextActionProjection, error)
+	ResolveNextActions(ctx context.Context) (map[string]backlog.NextActionProjection, error)
 }
 
 // GoalAction is a goal-owned entry already resolved by the cross-entity

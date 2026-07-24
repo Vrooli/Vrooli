@@ -129,8 +129,12 @@ type Handler struct {
 // mutation proposals) that must take precedence over normal item actions.
 // The backlog package intentionally owns only the precedence rule, not the
 // storage or lifecycle of those decisions.
+//
+// The contract is whole-store rather than per-item: the provider answers by
+// scanning a store it owns, so asking once per item would make every list
+// projection quadratic in the number of items.
 type DecisionCountProvider interface {
-	PendingDecisions(ctx context.Context, item BacklogItem) (int, error)
+	PendingDecisionCounts(ctx context.Context) (map[string]int, error)
 }
 
 // SetDecisionCountProvider installs the cross-domain decision reader used by

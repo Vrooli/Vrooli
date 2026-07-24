@@ -28,10 +28,11 @@ type StartCollectionCaptureRequest struct {
 	Targets []CollectionTarget
 	// PathSelections are optional scoped source evidence. They are captured
 	// once at collection creation and remain informational, never behavioral.
-	PathSelections []string
-	PathPolicy     PathSnapshotPolicy
-	CreatedBy      string
-	Reason         string
+	PathSelections      []string
+	PathPolicy          PathSnapshotPolicy
+	CreatedBy           string
+	Reason              string
+	AcknowledgeReanchor bool
 }
 
 type CapturePathSnapshotRequest struct {
@@ -151,23 +152,41 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 	collection := newCollectionManifest(req, branch, s.now().UTC())
 	resumed := false
 	if existing, err := s.storage.LoadCollection(req.RepoID, branch, req.Name); err == nil {
-		if err := compatibleCollectionSelection(existing, collection); err != nil {
-			return StartCollectionCaptureResult{}, err
-		}
-		if len(req.PathSelections) > 0 {
-			snapshot, err := s.storage.LoadPathSnapshot(req.RepoID, branch, req.Name)
-			if err != nil {
-				return StartCollectionCaptureResult{}, fmt.Errorf("load collection source evidence: %w", err)
+		if req.AcknowledgeReanchor {
+			if existing.Coverage().Failed == 0 {
+				return StartCollectionCaptureResult{}, fmt.Errorf("collection %q has no failed member to re-anchor", req.Name)
 			}
-			requested, err := normalizeSnapshotSelections(req.PathSelections)
-			if err != nil {
+			collection = newCollectionManifest(req, branch, s.now().UTC())
+			collection.CreatedAt, collection.Generation, collection.Reanchored = existing.CreatedAt, existing.Generation+1, true
+			if collection.Generation < 2 {
+				collection.Generation = 2
+			}
+			collection.ReanchorDetail = "re-anchored at current source state after prior immutable capture failed"
+			for i := range collection.Members {
+				collection.Members[i].BaselineName = fmt.Sprintf("%s__g%d", collection.Name, collection.Generation)
+			}
+			if err := s.storage.SaveCollection(req.RepoID, collection, Overwrite); err != nil {
 				return StartCollectionCaptureResult{}, err
 			}
-			if !sameStrings(snapshot.Selections, requested) {
-				return StartCollectionCaptureResult{}, fmt.Errorf("collection %q already exists with different source evidence selection", req.Name)
+		} else {
+			if err := compatibleCollectionSelection(existing, collection); err != nil {
+				return StartCollectionCaptureResult{}, err
 			}
+			if len(req.PathSelections) > 0 {
+				snapshot, err := s.storage.LoadPathSnapshot(req.RepoID, branch, req.Name)
+				if err != nil {
+					return StartCollectionCaptureResult{}, fmt.Errorf("load collection source evidence: %w", err)
+				}
+				requested, err := normalizeSnapshotSelections(req.PathSelections)
+				if err != nil {
+					return StartCollectionCaptureResult{}, err
+				}
+				if !sameStrings(snapshot.Selections, requested) {
+					return StartCollectionCaptureResult{}, fmt.Errorf("collection %q already exists with different source evidence selection", req.Name)
+				}
+			}
+			collection, resumed = existing, true
 		}
-		collection, resumed = existing, true
 	} else if errors.Is(err, ErrNotFound) {
 		if len(req.PathSelections) > 0 {
 			captured, err := s.CapturePathSnapshot(ctx, CapturePathSnapshotRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Branch: branch, Name: req.Name, Selections: req.PathSelections, Policy: req.PathPolicy})
@@ -301,7 +320,7 @@ func newCollectionManifest(req StartCollectionCaptureRequest, branch string, now
 	if len(req.PathSelections) > 0 {
 		paths = []string{strings.TrimSpace(req.Name)}
 	}
-	return CollectionManifest{Name: strings.TrimSpace(req.Name), Branch: branch, CreatedAt: now, UpdatedAt: now, SchemaVersion: CollectionSchemaVersion, Members: members, PathSnapshots: paths}.Normalized()
+	return CollectionManifest{Name: strings.TrimSpace(req.Name), Branch: branch, CreatedAt: now, UpdatedAt: now, SchemaVersion: CollectionSchemaVersion, Generation: 1, Members: members, PathSnapshots: paths}.Normalized()
 }
 
 // CapturePathSnapshot creates or resumes one immutable, branch-scoped source

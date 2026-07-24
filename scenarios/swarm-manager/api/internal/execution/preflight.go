@@ -11,13 +11,83 @@ import (
 	"strings"
 )
 
-// ProcessPreflight evaluates whether a backlog item is ready for processing.
+// PreflightSpec is the caller-supplied form of a backlog item's spec. It
+// exists for callers that already hold the item loaded — a list projection
+// reads every spec once, and re-reading each one to answer readiness is pure
+// duplicate IO. Every field readiness consults is present, so a spec built
+// from an already-loaded item produces the same verdict as one read from disk.
+type PreflightSpec struct {
+	Kind               string
+	Name               string
+	Title              string
+	Description        string
+	Status             string
+	SourceScenarioName string
+	AcceptanceAllow    []string
+	AcceptanceDeny     []string
+	Creates            []string
+	ArchivedAt         *string
+	PlanRef            *PlanRefSpec
+	PlanAcceptance     *PlanAcceptanceSpec
+}
+
+// PreflightPlanRef mirrors the plan_ref block of a backlog spec.
+type PlanRefSpec struct {
+	Provider string
+	PlanID   string
+	Slug     string
+	Role     string
+}
+
+// PlanAcceptanceSpec mirrors the plan_acceptance block of a backlog spec.
+type PlanAcceptanceSpec struct {
+	Actor           string
+	AcceptedAt      string
+	PlanContentHash string
+	SubjectVersion  string
+}
+
+// ProcessPreflight evaluates whether a backlog item is ready for processing,
+// reading the item's spec from disk.
 func (s *Service) ProcessPreflight(ctx context.Context, backlogKind, backlogName string) (ProcessPreflight, error) {
 	item, err := s.loadBacklogItem(backlogKind, backlogName)
 	if err != nil {
 		return ProcessPreflight{}, err
 	}
 	return s.processPreflightForItem(ctx, item, true), nil
+}
+
+// ProcessPreflightForSpec evaluates readiness from an already-loaded spec.
+func (s *Service) ProcessPreflightForSpec(ctx context.Context, spec PreflightSpec) ProcessPreflight {
+	return s.processPreflightForItem(ctx, spec.toBacklogItem(), true)
+}
+
+func (spec PreflightSpec) toBacklogItem() backlogItem {
+	item := backlogItem{
+		Name:               strings.TrimSpace(spec.Name),
+		Title:              spec.Title,
+		Description:        spec.Description,
+		Status:             spec.Status,
+		Kind:               strings.ToLower(strings.TrimSpace(spec.Kind)),
+		SourceScenarioName: spec.SourceScenarioName,
+		AcceptanceAllow:    spec.AcceptanceAllow,
+		AcceptanceDeny:     spec.AcceptanceDeny,
+		Creates:            spec.Creates,
+		ArchivedAt:         spec.ArchivedAt,
+		Tags:               []string{},
+	}
+	if spec.PlanRef != nil {
+		item.PlanRef = &planRef{Provider: spec.PlanRef.Provider, PlanID: spec.PlanRef.PlanID, Slug: spec.PlanRef.Slug, Role: spec.PlanRef.Role}
+	}
+	if spec.PlanAcceptance != nil {
+		item.PlanAcceptance = &planAcceptance{
+			Actor:           spec.PlanAcceptance.Actor,
+			AcceptedAt:      spec.PlanAcceptance.AcceptedAt,
+			PlanContentHash: spec.PlanAcceptance.PlanContentHash,
+			SubjectVersion:  spec.PlanAcceptance.SubjectVersion,
+		}
+	}
+	return item
 }
 
 func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem, checkQueueable bool) ProcessPreflight {

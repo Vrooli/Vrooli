@@ -77,6 +77,7 @@ func collectionToProto(collection bl.CollectionManifest) *baselinesv1.BaselineCo
 			Failed: int32(coverage.Failed), Skipped: int32(coverage.Skipped), Stale: int32(coverage.Stale), Complete: coverage.Complete(),
 		},
 	}
+	out.Generation, out.Reanchored, out.ReanchorDetail = int32(collection.Generation), collection.Reanchored, collection.ReanchorDetail
 	for _, member := range collection.Members {
 		out.Members = append(out.Members, &baselinesv1.CollectionMember{
 			Scenario: member.Scenario, BaselineName: member.BaselineName, Required: member.Required,

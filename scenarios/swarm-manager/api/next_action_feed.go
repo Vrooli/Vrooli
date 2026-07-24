@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"sort"
 
-	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/execution"
 	"swarm-manager/internal/goals"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/planview"
@@ -16,9 +16,16 @@ import (
 // nextActionFeed is the cross-entity operator inbox projection. It deliberately
 // composes domain-owned resolvers rather than reimplementing status logic.
 type nextActionFeed struct {
-	backlog  *backlog.Handler
-	goals    *goals.Service
-	sessions *agentsessions.Service
+	backlog   *backlog.Handler
+	goals     *goals.Service
+	decisions decisionCounter
+}
+
+// decisionCounter reads ready mutation proposals for a whole request. The
+// projection depends on exactly one call per request, so the seam exists to
+// let a test assert that count rather than infer it from latency.
+type decisionCounter interface {
+	countReadyDecisions() (readyDecisionCounts, error)
 }
 
 type nextActionFeedEntry struct {
@@ -34,11 +41,13 @@ type nextActionFeedEntry struct {
 }
 
 // planGoalActionAdapter lets planview display goal-owned actions without
-// importing the HTTP composition layer or duplicating the goal funnel.
-type planGoalActionAdapter struct{ feed nextActionFeed }
+// importing the HTTP composition layer or duplicating the goal funnel. It
+// reads the shared projection, so the board's goal cards cost nothing beyond
+// the projection its item cards already needed.
+type planGoalActionAdapter struct{ projection *nextActionProjectionCache }
 
 func (a planGoalActionAdapter) ListGoalActions(ctx context.Context) ([]planview.GoalAction, error) {
-	entries, err := a.feed.resolve(ctx)
+	entries, err := a.projection.Entries(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +77,8 @@ func planActionFor(id backlog.NextActionID) string {
 }
 
 // NextActionsFeed serves one ranked feed for the decision drawer and board.
-func (f nextActionFeed) NextActionsFeed(w http.ResponseWriter, r *http.Request) {
-	entries, err := f.resolve(r.Context())
+func (c *nextActionProjectionCache) NextActionsFeed(w http.ResponseWriter, r *http.Request) {
+	entries, err := c.Entries(r.Context())
 	if err != nil {
 		apierr.MapError(w, "[next-actions] feed", apierr.Internal("failed to resolve next-action feed"))
 		return
@@ -79,38 +88,68 @@ func (f nextActionFeed) NextActionsFeed(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// nextActionProjection is one whole-request answer: the resolved action for
+// every backlog item plus the ranked inbox feed built from it. Both readers —
+// the feed endpoint and the Plan board — take the same computation, so neither
+// can pay for it twice nor drift from the other.
+type nextActionProjection struct {
+	actions map[string]backlog.NextActionProjection
+	entries []nextActionFeedEntry
+}
+
 func (f nextActionFeed) resolve(ctx context.Context) ([]nextActionFeedEntry, error) {
-	items, err := f.backlog.Store().LoadAll(nil)
+	projection, err := f.project(ctx)
 	if err != nil {
 		return nil, err
+	}
+	return projection.entries, nil
+}
+
+func (f nextActionFeed) project(ctx context.Context) (nextActionProjection, error) {
+	// Items that share a plan share its rendered content; without this scope
+	// each one would issue its own plan-manager render RPC.
+	ctx = execution.WithPlanRenderMemo(ctx)
+	items, err := f.backlog.Store().LoadAll(nil)
+	if err != nil {
+		return nextActionProjection{}, err
 	}
 	itemByRef := make(map[string]backlog.BacklogItem, len(items))
 	for _, item := range items {
-		itemByRef[string(item.Kind)+"/"+item.Name] = item
+		itemByRef[backlog.ItemRef(item)] = item
 	}
-	priorities, err := f.goals.ItemGoalPriorities()
+	// One pass over the session store answers both halves of the inbox, and
+	// one pass over the review archives answers every item.
+	decisions := readyDecisionCounts{items: map[string]int{}, goals: map[string]int{}}
+	if f.decisions != nil {
+		decisions, err = f.decisions.countReadyDecisions()
+		if err != nil {
+			return nextActionProjection{}, err
+		}
+	}
+	inputs := f.backlog.NextActionInputs(items, decisions.items)
+	// The goal list and the item priority map come from one scope computation
+	// over the items already loaded above: requesting them separately reloaded
+	// the goal and backlog stores twice more.
+	goalList, priorities, err := f.goals.ListWithItemPriorities(items)
 	if err != nil {
-		return nil, err
+		return nextActionProjection{}, err
 	}
+	actions := make(map[string]backlog.NextActionProjection, len(items))
 	entries := make([]nextActionFeedEntry, 0, len(items))
-	goalProposalCounts, err := f.readyGoalProposalCounts(ctx)
-	if err != nil {
-		return nil, err
-	}
 	for _, item := range items {
-		action, resolveErr := f.backlog.ResolveNextAction(ctx, item)
-		if resolveErr != nil || !isInboxAction(action) {
+		ref := backlog.ItemRef(item)
+		action, resolveErr := f.backlog.ResolveNextActionWith(ctx, item, inputs[ref])
+		if resolveErr != nil {
 			continue
 		}
-		ref := string(item.Kind) + "/" + item.Name
+		actions[ref] = action
+		if !isInboxAction(action) {
+			continue
+		}
 		entries = append(entries, nextActionFeedEntry{EntityKind: "backlog_item", EntityRef: ref, EntityTitle: item.Title, Action: action, Tier: actionTier(action.ID), GoalPriority: priorities[ref], BacklogRank: item.Priority, CreatedAt: item.Created})
 	}
-	goalList, err := f.goals.List()
-	if err != nil {
-		return nil, err
-	}
 	for _, listed := range goalList {
-		if entry, ok := f.goalEntry(ctx, listed, itemByRef, goalProposalCounts[listed.Goal.Name]); ok {
+		if entry, ok := goalEntry(listed, itemByRef, actions, decisions.goals[listed.Goal.Name]); ok {
 			entries = append(entries, entry)
 		}
 	}
@@ -127,43 +166,21 @@ func (f nextActionFeed) resolve(ctx context.Context) ([]nextActionFeedEntry, err
 		}
 		return left.CreatedAt < right.CreatedAt
 	})
-	return entries, nil
+	return nextActionProjection{actions: actions, entries: entries}, nil
 }
 
-// readyGoalProposalCounts reads the durable proposal state used by the goal
-// funnel. Backlog proposal counts are supplied to the backlog resolver, so a
-// feed never duplicates one entity as both a proposal and a backlog entry.
-func (f nextActionFeed) readyGoalProposalCounts(ctx context.Context) (map[string]int, error) {
-	counts := map[string]int{}
-	if f.sessions == nil {
-		return counts, nil
-	}
-	sessions, err := f.sessions.List(ctx, agentsessions.ListFilters{})
-	if err != nil {
-		return nil, err
-	}
-	for _, session := range sessions {
-		for _, proposal := range session.Proposals {
-			if proposal.Status != agentsessions.ProposalStatusReady || proposal.NeedsRevision || proposal.Target == nil || proposal.Target.Type != agentsessions.ContextGoal {
-				continue
-			}
-			counts[proposal.Target.Ref]++
-		}
-	}
-	return counts, nil
-}
-
-func (f nextActionFeed) goalEntry(ctx context.Context, listed goals.GoalWithScope, items map[string]backlog.BacklogItem, proposalCount int) (nextActionFeedEntry, bool) {
+// goalEntry reads the item actions the projection already resolved rather than
+// resolving a goal's closure members a second time.
+func goalEntry(listed goals.GoalWithScope, items map[string]backlog.BacklogItem, actions map[string]backlog.NextActionProjection, proposalCount int) (nextActionFeedEntry, bool) {
 	goal := listed.Goal
 	entry := nextActionFeedEntry{EntityKind: "goal", EntityRef: goal.Name, EntityTitle: goal.Title, GoalPriority: goal.Priority, CreatedAt: goal.Created}
 	input := goals.NextActionInput{ReadyProposalCount: proposalCount, ReviewMilestone: goals.ReviewableMilestone(goal, items)}
 	for _, ref := range listed.Scope.Closure {
-		item, ok := items[ref]
-		if !ok {
+		if _, ok := items[ref]; !ok {
 			continue
 		}
-		action, err := f.backlog.ResolveNextAction(ctx, item)
-		if err == nil && isInboxAction(action) {
+		action, ok := actions[ref]
+		if ok && isInboxAction(action) {
 			input.ChainedAction, input.ChainedRef = action, ref
 			break
 		}

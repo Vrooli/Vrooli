@@ -256,6 +256,34 @@
           "completion": "optional"
         },
         {
+          "path": "perf/2026-07-24-perf-audit-ui.md",
+          "docType": "performance-audit",
+          "title": "2026-07-24 — Plan board and drawer render path",
+          "description": "UI render-path audit: invalidation coalescing fixed, render timings blocked by a capture-race defect (status: in-progress)",
+          "audience": [
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "perf/2026-07-24-perf-audit-api.md",
+          "docType": "performance-audit",
+          "title": "2026-07-24 — API read-path audit",
+          "description": "API route sweep and CPU profile after the next-action hot-path fixes (status: fixed)",
+          "audience": [
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
           "path": "perf/2026-05-03-sidebar-resize-and-backlog-scroll.md",
           "docType": "performance-audit",
           "title": "2026-05-03 \u2014 Sidebar resize + Backlog scroll",

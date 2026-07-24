@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "plan-decision-drawer",
+    "description": "Performance capture for the ranked decision drawer. Opens /plan with the decision drawer routed open, waits for the ranked next-action list, and records how many entries rendered.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "interaction": "load-only"
+    },
+    "version": "1",
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": {
+    "viewport_width": 1600,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "open-drawer",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "swarm-manager",
+          "scenario_path": "/plan?drawer=decisions",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the Plan board with the decision drawer routed open"
+        }
+      }
+    },
+    {
+      "id": "wait-ranked-feed",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='ranked-next-action-feed']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Wait for the ranked next-action list"
+        }
+      }
+    },
+    {
+      "id": "record-feed-size",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const list = document.querySelector('[data-testid=\"ranked-next-action-feed\"]'); const entries = list ? list.querySelectorAll('article').length : 0; performance.mark('bas.plan-decision-drawer.ready'); window.localStorage.setItem('swarm-manager.perf.plan-decision-drawer.size', JSON.stringify({ entries })); return { entries }; })()"
+        },
+        "metadata": {
+          "label": "Record rendered ranked-entry count for trace notes"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "source": "open-drawer", "target": "wait-ranked-feed" },
+    { "source": "wait-ranked-feed", "target": "record-feed-size" }
+  ]
+}

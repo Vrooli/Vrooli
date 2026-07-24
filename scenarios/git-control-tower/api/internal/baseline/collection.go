@@ -48,7 +48,10 @@ type CollectionManifest struct {
 	Members       []CollectionMember `json:"members"`
 	// PathSnapshots are source-evidence references only. They do not enter the
 	// behavioral collection coverage or verdict algebra.
-	PathSnapshots []string `json:"path_snapshots,omitempty"`
+	PathSnapshots  []string `json:"path_snapshots,omitempty"`
+	Generation     int      `json:"generation,omitempty"`
+	Reanchored     bool     `json:"reanchored,omitempty"`
+	ReanchorDetail string   `json:"reanchor_detail,omitempty"`
 }
 
 func (m CollectionManifest) Validate() error {
@@ -60,6 +63,9 @@ func (m CollectionManifest) Validate() error {
 	}
 	if m.SchemaVersion != CollectionSchemaVersion {
 		return fmt.Errorf("unsupported collection schema version %d", m.SchemaVersion)
+	}
+	if m.Generation < 0 {
+		return fmt.Errorf("collection generation cannot be negative")
 	}
 	if len(m.Members) == 0 {
 		return fmt.Errorf("collection requires at least one member")
@@ -104,6 +110,7 @@ func (m CollectionManifest) Validate() error {
 // storage/diffs. It does not invent member state or silently widen selection.
 func (m CollectionManifest) Normalized() CollectionManifest {
 	m.Name = strings.TrimSpace(m.Name)
+	m.ReanchorDetail = strings.TrimSpace(m.ReanchorDetail)
 	m.Branch = strings.TrimSpace(m.Branch)
 	for i := range m.Members {
 		m.Members[i].Scenario = strings.TrimSpace(m.Members[i].Scenario)

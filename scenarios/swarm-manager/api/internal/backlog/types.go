@@ -104,23 +104,28 @@ var backlogKindDirs = func() map[BacklogKind]string {
 
 // BacklogItem represents a unit of work stored on disk.
 type BacklogItem struct {
-	Name            string        `json:"name"`
-	Title           string        `json:"title"`
-	Description     string        `json:"description"`
-	Status          BacklogStatus `json:"status"`
-	Priority        int           `json:"priority"`
-	Tags            []string      `json:"tags"`
-	Created         string        `json:"created"`
-	Updated         string        `json:"updated"`
-	Kind            BacklogKind   `json:"kind"`
-	DependsOn       []string      `json:"depends_on,omitempty"`
-	Milestone       string        `json:"milestone,omitempty"`
-	Effort          string        `json:"effort,omitempty"`
-	AcceptanceAllow []string      `json:"acceptance_allow,omitempty"`
-	AcceptanceDeny  []string      `json:"acceptance_deny,omitempty"`
-	Creates         []string      `json:"creates,omitempty"`
-	SpawnedFrom     string        `json:"spawned_from,omitempty"`
-	PlanRef         *PlanRef      `json:"plan_ref,omitempty"`
+	Name        string        `json:"name"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	Status      BacklogStatus `json:"status"`
+	Priority    int           `json:"priority"`
+	Tags        []string      `json:"tags"`
+	Created     string        `json:"created"`
+	Updated     string        `json:"updated"`
+	Kind        BacklogKind   `json:"kind"`
+	// SourceScenarioName names the scenario an archived item was revived from.
+	// Execution readiness reads it to decide whether the target scenario
+	// already exists, so the item type must carry it rather than force a
+	// second read of the same spec.
+	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
+	DependsOn          []string `json:"depends_on,omitempty"`
+	Milestone          string   `json:"milestone,omitempty"`
+	Effort             string   `json:"effort,omitempty"`
+	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
+	Creates            []string `json:"creates,omitempty"`
+	SpawnedFrom        string   `json:"spawned_from,omitempty"`
+	PlanRef            *PlanRef `json:"plan_ref,omitempty"`
 	// PlanAcceptance is the operator's explicit acceptance of the exact
 	// canonical plan revision this item may execute. It is intentionally
 	// separate from workshop history: workshops inform planning, while this

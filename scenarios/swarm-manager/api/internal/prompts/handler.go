@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
@@ -157,15 +158,32 @@ func buildSkillSummary(skill promptmanager.PromptSkill) PromptSkillSummary {
 
 func (h *Handler) ListSkills(w http.ResponseWriter, r *http.Request) {
 	catalogSkills := promptcatalog.SkillEntries()
-	items := make([]PromptSkillSummary, 0, len(catalogSkills))
-	for _, entry := range catalogSkills {
-		skill, err := h.client.GetSkill(r.Context(), entry.SkillID)
+	// One remote read per catalog entry, issued concurrently. Serially these
+	// round trips added up: the catalog is fixed-size and the reads are
+	// independent, so the response cost is one round trip rather than the sum
+	// of all of them. Results stay in catalog order regardless of arrival.
+	items := make([]PromptSkillSummary, len(catalogSkills))
+	errs := make([]error, len(catalogSkills))
+	var wg sync.WaitGroup
+	for index, entry := range catalogSkills {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			skill, err := h.client.GetSkill(r.Context(), entry.SkillID)
+			if err != nil {
+				errs[index] = fmt.Errorf("%s: %w", entry.SkillID, err)
+				return
+			}
+			items[index] = buildSkillSummary(skill)
+		}()
+	}
+	wg.Wait()
+	for index, err := range errs {
 		if err != nil {
 			apierr.MapError(w, "[prompts] list-skills",
-				classifyClientError(err, "[prompts] list-skills", "prompt skill not found: "+entry.SkillID, "failed to load prompt skills"))
+				classifyClientError(err, "[prompts] list-skills", "prompt skill not found: "+catalogSkills[index].SkillID, "failed to load prompt skills"))
 			return
 		}
-		items = append(items, buildSkillSummary(skill))
 	}
 	if err := httputil.JSON(w, map[string]any{"items": items}); err != nil {
 		apierr.MapError(w, "[prompts] list-skills", apierr.Internal("failed to encode response"))

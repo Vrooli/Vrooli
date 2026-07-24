@@ -18,6 +18,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,6 +87,7 @@ type Server struct {
 	settingsStore        *settings.Store
 	integrationStatus    *integrationstatus.Provider
 	backlogHandler       *backlog.Handler
+	nextActions          *nextActionProjectionCache
 	capturesHandler      *captures.Handler
 	recordsService       *records.Service
 	recordsHandler       *records.Handler
@@ -261,11 +263,16 @@ func (s *Server) setupRoutes() {
 
 	// --- Core domain ---
 	backlogHandler := s.registerBacklogRoutes(s.dataRoot, scenarioRoot)
-	backlogHandler.SetDecisionCountProvider(sessionDecisionProvider{sessions: s.agentSessionSvc})
+	decisionProvider := sessionDecisionProvider{sessions: s.agentSessionSvc}
+	backlogHandler.SetDecisionCountProvider(decisionProvider)
 	s.registerPlanWorkshopRoutes(s.dataRoot)
 	goalService := s.registerGoalsRoutes(s.dataRoot, backlogHandler)
-	feed := nextActionFeed{backlog: backlogHandler, goals: goalService, sessions: s.agentSessionSvc}
-	s.router.HandleFunc("/api/v1/next-actions/feed", feed.NextActionsFeed).Methods("GET")
+	feed := nextActionFeed{backlog: backlogHandler, goals: goalService, decisions: decisionProvider}
+	// One projection serves both the inbox feed and the Plan board. It is
+	// registered on the server so plan routes and graph invalidation can reach
+	// the same instance.
+	s.nextActions = newNextActionProjectionCache(feed)
+	s.router.HandleFunc("/api/v1/next-actions/feed", s.nextActions.NextActionsFeed).Methods("GET")
 	s.registerCapturesRoutes(s.cacheRoot, backlogHandler)
 	s.registerRecordsRoutes(s.dataRoot, scenariosDir)
 
@@ -407,6 +414,26 @@ func (s *Server) registerHealthRoutes() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	s.registerProfilingRoutes()
+}
+
+// registerProfilingRoutes exposes the standard Go profiler, off by default.
+//
+// Latency work needs a profile taken against real data volumes, which only the
+// running instance has. The endpoints stay behind an explicit opt-in because
+// they expose process memory and command line, and nothing about normal
+// operation should depend on them being reachable.
+func (s *Server) registerProfilingRoutes() {
+	if os.Getenv("SWARM_MANAGER_ENABLE_PPROF") != "1" {
+		return
+	}
+	slog.Warn("pprof endpoints enabled at /debug/pprof — set SWARM_MANAGER_ENABLE_PPROF=0 to disable")
+	s.router.HandleFunc("/debug/pprof/", pprof.Index)
+	s.router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	s.router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	s.router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	s.router.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	s.router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 }
 
 func (s *Server) registerBacklogRoutes(dataRoot, scenarioRoot string) *backlog.Handler {

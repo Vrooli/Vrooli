@@ -305,28 +305,48 @@ func (s *Service) ReadyGoalItems() ([]ReadyGoalItem, error) {
 // List returns all goals with computed scope and ETA bands. The scope input and
 // estimator are built once and reused across goals.
 func (s *Service) List() ([]GoalWithScope, error) {
+	items, err := s.backlog.LoadAll(nil)
+	if err != nil {
+		return nil, fmt.Errorf("load backlog: %w", err)
+	}
+	listed, _, err := s.ListWithItemPriorities(items)
+	return listed, err
+}
+
+// ListWithItemPriorities returns the scoped goal list and the item-to-priority
+// map together, computed from backlog items the caller already loaded. They are
+// two readings of one scope computation over one item set, so a caller that
+// needs both — the operator inbox does — reads each store exactly once.
+func (s *Service) ListWithItemPriorities(items []backlog.BacklogItem) ([]GoalWithScope, map[string]int, error) {
 	goalsList, err := s.store.LoadAll()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	in, err := s.buildScopeInput()
-	if err != nil {
-		return nil, err
-	}
+	in := scopeInputFrom(items)
 	est := s.newEstimator()
 	out := make([]GoalWithScope, 0, len(goalsList))
+	priorities := make(map[string]int)
 	for i := range goalsList {
 		g := goalsList[i]
 		goalIn := in
 		goalIn.Targets = g.Targets
 		goalIn.Milestones = g.Milestones
 		scope := ComputeScope(goalIn)
+		// Priority is an active-goal concept: a paused or completed goal must
+		// not keep ranking items in the inbox.
+		if g.Status == StatusActive {
+			for _, ref := range scope.Closure {
+				if p, ok := priorities[ref]; !ok || g.Priority > p {
+					priorities[ref] = g.Priority
+				}
+			}
+		}
 		s.recordDrift(&g, scope)
 		gws := GoalWithScope{Goal: g, Scope: scope}
 		attachETA(&gws, goalIn, est)
 		out = append(out, gws)
 	}
-	return out, nil
+	return out, priorities, nil
 }
 
 // attachETA computes and attaches the ETA band for a goal, tolerating a nil
@@ -852,6 +872,11 @@ func (s *Service) buildScopeData() (ScopeInput, []backlog.BacklogItem, error) {
 	if err != nil {
 		return ScopeInput{}, nil, fmt.Errorf("load backlog: %w", err)
 	}
+	return scopeInputFrom(items), items, nil
+}
+
+// scopeInputFrom builds the scope index from items the caller already holds.
+func scopeInputFrom(items []backlog.BacklogItem) ScopeInput {
 	in := ScopeInput{
 		ItemDeps:   make(map[string][]string, len(items)),
 		ItemStatus: make(map[string]string, len(items)),
@@ -863,7 +888,7 @@ func (s *Service) buildScopeData() (ScopeInput, []backlog.BacklogItem, error) {
 		in.ItemDeps[ref] = it.DependsOn
 		in.ItemEffort[ref] = it.Effort
 	}
-	return in, items, nil
+	return in
 }
 
 // buildScopeEntities hydrates the refs the goal detail view renders (targets ∪

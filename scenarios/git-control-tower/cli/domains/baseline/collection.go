@@ -206,6 +206,22 @@ func printCollectionStanding(standing *commonv1.OperationStanding) {
 	}
 }
 
+func collectionCaptureFreezeWarning(collection *baselinesv1.BaselineCollection) string {
+	if collection == nil || collection.GetCoverage().GetPending() == 0 {
+		return ""
+	}
+	var pending []string
+	for _, member := range collection.GetMembers() {
+		if member.GetStatus() == "pending" {
+			pending = append(pending, member.GetScenario())
+		}
+	}
+	if len(pending) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("  IMMUTABLE BASELINE IN PROGRESS for %s: do not edit their captured source scope until this collection is terminal.\n  Why: Test Genie records each member's source fingerprint when capture starts. An edit before its run finalizes means the test evidence no longer describes the intended before-state, so strict provenance rejects the capture rather than creating a misleading baseline.\n  A queued Test Genie run is server-owned work, not permission to continue edits there; wait once or work only outside every pending member's source scope.\n", strings.Join(pending, ", "))
+}
+
 func collectionFlags(fs *flag.FlagSet) (name, branch *string, json *bool) {
 	name = fs.String("name", "", "Collection name (required)")
 	branch = fs.String("branch", "", "Git branch (default: current)")
@@ -234,6 +250,7 @@ func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 	name, branch, asJSON := collectionFlags(fs)
 	includeIgnored := fs.Bool("include-ignored", false, "Include ignored source-evidence files explicitly")
 	retainContent := fs.Bool("retain-content", false, "Retain bounded source text explicitly (default: metadata only)")
+	reanchor := fs.Bool("acknowledge-reanchor", false, "Acknowledge a forward-only re-anchor after failed source-drift capture")
 	var members, paths stringListFlag
 	fs.Var(&members, "member", "Required member as scenario[:baseline-name]; repeat for every scenario")
 	fs.Var(&paths, "path", "Safe repo-relative source-evidence glob; repeat (informational only)")
@@ -253,7 +270,7 @@ func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
 	defer cancel()
-	resp, err := clientFactory(core).StartCollectionCapture(ctx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: *name, Branch: *branch, Targets: targets, PathSelections: paths, IncludeIgnored: *includeIgnored, RetainContent: *retainContent, CreatedBy: "agent"}))
+	resp, err := clientFactory(core).StartCollectionCapture(ctx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: *name, Branch: *branch, Targets: targets, PathSelections: paths, IncludeIgnored: *includeIgnored, RetainContent: *retainContent, AcknowledgeReanchor: *reanchor, CreatedBy: "agent"}))
 	if err != nil {
 		renderPathSnapshotPolicyError(err, *asJSON)
 		return err
@@ -262,6 +279,7 @@ func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 		return printJSON(resp.Msg)
 	}
 	printCollection(resp.Msg.GetCollection(), resp.Msg.GetResumed())
+	fmt.Print(collectionCaptureFreezeWarning(resp.Msg.GetCollection()))
 	fmt.Printf("  wait once: %s\n", collectionFollowupCommand("show", *name, *branch, "--wait"))
 	fmt.Println("  Ctrl-C detaches; rerun that exact command to recover. Do not poll.")
 	return nil
@@ -361,6 +379,7 @@ func runCollectionExtend(core *cliapp.ScenarioApp, args []string) error {
 	}
 	fmt.Printf("Extended collection %q with: %s\n", *name, strings.Join(resp.Msg.GetAddedScenarios(), ", "))
 	printCollection(resp.Msg.GetCollection(), resp.Msg.GetResumed())
+	fmt.Print(collectionCaptureFreezeWarning(resp.Msg.GetCollection()))
 	fmt.Printf("  wait once: %s\n", collectionFollowupCommand("show", *name, *branch, "--wait"))
 	return nil
 }

@@ -77,8 +77,19 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) *graph.Materializer {
 		})
 	}
 
+	// The shared next-action projection is dropped on every lens invalidation.
+	// Deliberately lens-agnostic: over-invalidating costs one recomputation,
+	// while missing a signal would show the operator a decision they already
+	// made. Every mutating service announces here, so no write can escape it.
+	if s.nextActions != nil {
+		dispatch.AddInvalidateHook(func([]graph.Lens) { s.nextActions.Invalidate() })
+	}
+
 	if s.backlogHandler != nil {
 		s.backlogHandler.SetEventDispatcher(dispatch)
+	}
+	if s.agentSessionSvc != nil {
+		s.agentSessionSvc.SetEventDispatcher(dispatch)
 	}
 	if s.capturesHandler != nil {
 		s.capturesHandler.SetEventDispatcher(dispatch)

@@ -95,7 +95,7 @@ func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, pro
 		proposal.NeedsRevision = true
 		proposal.ValidationErrors = []string{applyErr.Error()}
 		proposal.UpdatedAt = nowRFC3339()
-		if saveErr := s.store.SaveProposal(session.ID, proposal); saveErr != nil {
+		if saveErr := s.saveProposal(session.ID, proposal); saveErr != nil {
 			return Session{}, saveErr
 		}
 		return s.store.LoadSession(session.ID)
@@ -111,7 +111,7 @@ func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, pro
 		Outcomes:            application.Outcomes,
 		DecidedAt:           proposal.UpdatedAt,
 	})
-	if err := s.store.SaveProposal(session.ID, proposal); err != nil {
+	if err := s.saveProposal(session.ID, proposal); err != nil {
 		return Session{}, err
 	}
 	return s.store.LoadSession(session.ID)
@@ -138,7 +138,7 @@ func (s *Service) AcceptNoChangeRecommendation(ctx context.Context, sessionID, p
 	proposal.Status = ProposalStatusApplied
 	proposal.UpdatedAt = source.DecidedAt
 	proposal.Decisions = append(proposal.Decisions, ProposalDecision{Kind: "accept_keep", Note: strings.TrimSpace(note), DecidedAt: source.DecidedAt})
-	if err := s.store.SaveProposal(session.ID, proposal); err != nil {
+	if err := s.saveProposal(session.ID, proposal); err != nil {
 		return Session{}, err
 	}
 	return s.store.LoadSession(session.ID)
@@ -188,7 +188,7 @@ func (s *Service) RequestMutationProposalRevision(ctx context.Context, sessionID
 		return Session{}, err
 	}
 	proposal.Status, proposal.UpdatedAt = ProposalStatusSuperseded, now
-	if err := s.store.SaveProposal(session.ID, proposal); err != nil {
+	if err := s.saveProposal(session.ID, proposal); err != nil {
 		return Session{}, err
 	}
 	session.Status, session.UpdatedAt, session.FailureReason = StatusRunning, now, ""

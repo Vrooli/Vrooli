@@ -88,15 +88,13 @@ func (s *Service) Build(ctx context.Context, params Params) (Board, error) {
 		gateList = filterGatesToScope(gateList, inScope)
 	}
 
-	resolvedActions := make(map[string]backlog.NextActionProjection, len(items))
+	resolvedActions := map[string]backlog.NextActionProjection{}
 	if s.cfg.NextActions != nil {
-		for _, item := range items {
-			action, resolveErr := s.cfg.NextActions.ResolveNextAction(ctx, item)
-			if resolveErr != nil {
-				slog.Warn("planview: next action resolution failed; retaining board fallback", "item", itemKey(item), "error", resolveErr)
-				continue
-			}
-			resolvedActions[itemKey(item)] = action
+		resolved, resolveErr := s.cfg.NextActions.ResolveNextActions(ctx)
+		if resolveErr != nil {
+			slog.Warn("planview: next action resolution failed; retaining board fallback", "error", resolveErr)
+		} else {
+			resolvedActions = resolved
 		}
 	}
 	proj := newProjection(items, gateList, resolvedActions)

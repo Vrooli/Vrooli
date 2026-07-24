@@ -81,6 +81,18 @@ func TestCollectionFollowupArgsOmitEmptyBranch(t *testing.T) {
 	}
 }
 
+func TestCollectionCaptureFreezeWarningNamesPendingMembers(t *testing.T) {
+	got := collectionCaptureFreezeWarning(&baselinesv1.BaselineCollection{
+		Coverage: &baselinesv1.CollectionCoverage{Pending: 1},
+		Members:  []*baselinesv1.CollectionMember{{Scenario: "swarm-manager", Status: "pending"}},
+	})
+	for _, want := range []string{"IMMUTABLE BASELINE", "swarm-manager", "do not edit", "source fingerprint", "misleading baseline", "queued Test Genie run"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("freeze warning %q missing %q", got, want)
+		}
+	}
+}
+
 func TestCollectionDiffIdentityErrorGivesExecutableStartShape(t *testing.T) {
 	err := collectionDiffIdentityError("start")
 	for _, want := range []string{"--name", "--operation-id", "stable-operation-id", "--member"} {

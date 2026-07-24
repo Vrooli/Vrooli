@@ -21,6 +21,9 @@ import (
 // allowing tests to inject a mock without constructing a real execution service.
 type ExecutionQueuer interface {
 	ProcessPreflight(ctx context.Context, backlogKind, backlogName string) (execution.ProcessPreflight, error)
+	// ProcessPreflightForSpec answers the same question from an item the
+	// caller already loaded, so a list projection reads each spec once.
+	ProcessPreflightForSpec(ctx context.Context, spec execution.PreflightSpec) execution.ProcessPreflight
 	QueueBacklog(ctx context.Context, req execution.CreateRequest) (execution.Record, error)
 	// ManuallyAcceptLatestForBacklog flips the most recent failed/needs_fixup
 	// execution for the given backlog item to Completed and marks it manually

@@ -48,6 +48,11 @@ func (m *mockExecutionQueuer) ProcessPreflight(_ context.Context, backlogKind, b
 	return m.preflightResult, nil
 }
 
+func (m *mockExecutionQueuer) ProcessPreflightForSpec(_ context.Context, spec execution.PreflightSpec) execution.ProcessPreflight {
+	m.preflightCalls = append(m.preflightCalls, spec.Kind+"/"+spec.Name)
+	return m.preflightResult
+}
+
 func (m *mockExecutionQueuer) QueueBacklog(_ context.Context, req execution.CreateRequest) (execution.Record, error) {
 	m.queueCalls = append(m.queueCalls, req)
 	if m.queueErr != nil {

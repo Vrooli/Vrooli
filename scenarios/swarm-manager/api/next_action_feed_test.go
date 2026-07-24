@@ -38,3 +38,57 @@ func TestNextActionFeedRanksGoalAndBacklogEntries(t *testing.T) {
 		t.Fatalf("second entry = %#v; want suggested backlog item", entries[1])
 	}
 }
+
+// countingDecisionCounter records how many whole-store proposal scans one
+// projection performs.
+type countingDecisionCounter struct {
+	scans  int
+	counts readyDecisionCounts
+}
+
+func (c *countingDecisionCounter) countReadyDecisions() (readyDecisionCounts, error) {
+	c.scans++
+	return c.counts, nil
+}
+
+// The proposal store is scanned once per request, never once per entity. This
+// is the invariant that keeps the operator inbox linear: a per-item scan made
+// the feed cost items x whole-store reads, which dominated request time at
+// production data scale.
+func TestNextActionFeedScansProposalStoreOncePerRequest(t *testing.T) {
+	root := t.TempDir()
+	handler := backlog.NewHandler(root, root)
+	for _, name := range []string{"first", "second", "third", "fourth"} {
+		item := backlog.BacklogItem{Name: name, Title: name, Kind: backlog.KindIdea, Status: backlog.StatusSuggested, Created: "2026-07-24T00:00:00Z", Updated: "2026-07-24T00:00:00Z"}
+		if err := os.MkdirAll(handler.Store().ItemDir(item.Kind, item.Name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := handler.Store().SaveItem(item); err != nil {
+			t.Fatal(err)
+		}
+	}
+	goalService := goals.NewService(goals.NewStore(root), handler.Store())
+	if _, err := goalService.Create(goals.CreateRequest{Name: "scoped-goal", Title: "Scoped goal", Priority: 5, Targets: []string{"idea/first", "idea/second"}}); err != nil {
+		t.Fatal(err)
+	}
+	counter := &countingDecisionCounter{counts: readyDecisionCounts{items: map[string]int{"idea/first": 1}, goals: map[string]int{}}}
+
+	entries, err := (nextActionFeed{backlog: handler, goals: goalService, decisions: counter}).resolve(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counter.scans != 1 {
+		t.Fatalf("proposal store scanned %d times for a 4-item feed; want exactly 1", counter.scans)
+	}
+
+	// The pre-resolved counts must still reach the per-item projection.
+	var decided int
+	for _, entry := range entries {
+		if entry.EntityRef == "idea/first" && entry.Action.ID == backlog.NextActionDecide {
+			decided++
+		}
+	}
+	if decided != 1 {
+		t.Fatalf("entries = %#v; want idea/first to resolve to a decide action from the pre-resolved counts", entries)
+	}
+}
