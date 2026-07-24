@@ -10,7 +10,6 @@
 | `AUDIO_AI_ENABLE_BYOK` | `true` | Enables the BYOK tier in all three provider chains. |
 | `AUDIO_AI_ENABLE_VROOLI` | `false` | Enables the Vrooli/LPBS tier. Defaults off until `execute/lpbs-audio-gateway-endpoints` ships. |
 | `AUDIO_AI_ENABLE_LOCAL` | `true` | Enables the Local tier. |
-| `AUDIO_TOOLS_ENABLE_STREAM_TEST_FAULTS` | `false` | Enables deterministic STT WebSocket qualification faults. Requires `X-Vrooli-Test-Mode: 1` on each request as a second gate; never enable for ordinary deployments. |
 | `AUDIO_WHISPER_URL` | `http://localhost:8090` | Local STT resource. |
 | `AUDIO_KYUTAI_URL` | `http://localhost:8094` | Local Kyutai streaming STT resource. |
 | `AUDIO_KYUTAI_MODEL_ID` | `kyutai/stt-1b-en_fr` | Exact Kyutai model provenance recorded on evaluation and qualification evidence. Set this whenever `KYUTAI_STT_HF_REPO` changes; a new model requires a fresh promotion profile. |
@@ -104,9 +103,10 @@ when they need shared infrastructure.
 
 ## Deterministic streaming-fault values
 
-When—and only when—`AUDIO_TOOLS_ENABLE_STREAM_TEST_FAULTS=true` and the
-request carries `X-Vrooli-Test-Mode: 1`, a qualification client may set
-`X-Audio-Tools-STT-Fault` to exactly one bounded fault value:
+When—and only when—the target has a live server-owned routed-isolation lease
+(both database and file roots) and the request carries `X-Vrooli-Test-Mode: 1`,
+a qualification client may set `X-Audio-Tools-STT-Fault` to exactly one bounded
+fault value:
 
 | Value | Effect |
 |---|---|
@@ -171,7 +171,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 audio-tools configure api_base http://localhost:15001/api/v1
-audio-tools configure token <token>
+audio-tools configure token "<token>"
 ```
 
 ## API-base resolution precedence
@@ -403,17 +403,14 @@ effectively `mode=off`) so the gate adds zero overhead until an operator opts
 in. Turning it on is a single CLI call once a profile is enrolled:
 
 ```bash
-# 1. Enroll your voice (Web Console → Voice Input, or the CLI), then confirm it:
-audio-tools stt speaker-status            # shows profiles + their enrollment seconds
+# Enroll your voice, then confirm it:
+audio-tools stt speaker-status
 
-# 2. Bind the profile and switch on filter mode:
-audio-tools stt speaker-config --enabled true --mode filter \
-    --profile-ids <profile-id> --threshold 0.35
+# Bind the profile and switch on filter mode:
+audio-tools stt speaker-config --enabled true --mode filter --profiles "<profile-id>" --threshold 0.35
 
-# 3. Validate live: speak yourself (text should pass), then have a second
-#    person / play music over you (their text should be dropped). advisory
-#    mode scores without blocking if you want to tune the threshold first:
-audio-tools stt speaker-config --mode advisory   # observe scores, then flip to filter
+# Advisory mode scores without blocking while you tune the threshold:
+audio-tools stt speaker-config --mode advisory
 ```
 
 > **Prerequisite — enrollment fidelity.** Reliable matching depends on the

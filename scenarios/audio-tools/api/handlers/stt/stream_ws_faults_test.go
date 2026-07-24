@@ -22,14 +22,14 @@ func faultRequest(value string, testMode bool) *http.Request {
 func TestStreamTestFaultFromRequest_RequiresBothGates(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
-		faultsEnabled bool
+		isolationActive bool
 		testMode      bool
 	}{
-		{name: "operator switch off", faultsEnabled: false, testMode: true},
-		{name: "request test mode absent", faultsEnabled: true, testMode: false},
+		{name: "isolation inactive", isolationActive: false, testMode: true},
+		{name: "request test mode absent", isolationActive: true, testMode: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			fault, err := streamTestFaultFromRequest(faultRequest("provider_busy", tc.testMode), tc.faultsEnabled)
+			fault, err := streamTestFaultFromRequest(faultRequest("provider_busy", tc.testMode), tc.isolationActive)
 			require.NoError(t, err)
 			require.False(t, fault.enabled())
 		})

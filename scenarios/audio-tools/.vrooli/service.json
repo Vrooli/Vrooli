@@ -133,7 +133,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "run": "cd ui && corepack pnpm install --ignore-workspace",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -141,7 +141,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "run": "cd ui && corepack pnpm --ignore-workspace run build",
           "description": "Build production UI bundle"
         }
       ]
@@ -151,11 +151,11 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./audio-tools-api",
-          "description": "Start Go API server in background",
+          "run": "cd api && GOWORK=off go run .",
+          "description": "Start Go API through the managed Go module lifecycle",
           "background": true,
           "condition": {
-            "file_exists": "api/audio-tools-api"
+            "file_exists": "api/go.mod"
           }
         },
         {
@@ -191,19 +191,8 @@
     "restore": {},
     "production": {},
     "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'audio-tools-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
+      "description": "Lifecycle manager stops registered background processes",
+      "steps": []
     }
   },
   "dependencies": {
@@ -250,6 +239,12 @@
   },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/audio-tools.db",
+    "AUDIO_WHISPER_URL": "http://localhost:8090",
+    "AUDIO_KYUTAI_URL": "http://localhost:8094",
+    "AUDIO_SPEAKER_URL": "http://localhost:11452",
+    "AUDIO_KOKORO_URL": "http://localhost:8880",
+    "AUDIO_OLLAMA_URL": "http://localhost:11434",
+    "AUDIO_LPBS_BASE_URL": "",
     "AUDIO_AI_ENABLE_BYOK": "true",
     "AUDIO_AI_ENABLE_VROOLI": "false",
     "AUDIO_AI_ENABLE_LOCAL": "true",

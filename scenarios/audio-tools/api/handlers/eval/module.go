@@ -1,45 +1,40 @@
-// Package eval hosts shared STT report assembly helpers for the persisted
-// async experiment path. The former blocking public eval RPC has been retired.
+// Package eval contains only the protobuf transport mapping for evaluation
+// reports. Replay execution belongs to internal/eval.
 package eval
 
 import (
-	"audio-tools/internal/ai/sttchain"
-	"audio-tools/internal/clock"
-	intcorpus "audio-tools/internal/corpus"
-	"audio-tools/internal/logx"
-	"audio-tools/internal/stt"
-	sttpipeline "audio-tools/internal/stt/pipeline"
+	"context"
+
+	inteval "audio-tools/internal/eval"
+
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
+	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 )
 
-// Deps is the eval handler's dependency bundle.
-type Deps struct {
-	Logger logx.Logger
-	Clock  clock.Clock
-	// Corpus loads clip audio + references to replay. Required for RunReport.
-	Corpus *intcorpus.Service
-	// NewProvider returns a fresh STT provider per replay (the handler wraps
-	// it in a MeteredProvider). Production wires sttchain.NewLocalProvider
-	// over the live Whisper service; nil disables RunReport (returns
-	// FailedPrecondition).
-	NewProvider func() sttchain.Provider
-	// NewProviderForEngine returns a fresh provider for a declared engine id.
-	// Experiment cells use this instead of silently routing every comparison to
-	// Whisper. NewProvider remains the compatibility default for legacy recipes.
-	NewProviderForEngine func(engineID string) sttchain.Provider
-	// Defaults supplies the overlap/vad config used when an EvalStrategy
-	// leaves a knob unset.
-	Defaults stt.StreamConfig
-	// SpeakerConfig is an optional per-run experiment speaker snapshot. Nil
-	// keeps eval speaker stages off and avoids reading the live speaker config
-	// cell.
-	SpeakerConfig *sttpipeline.SpeakerConfig
-	// SpeakerExtractionEnabled and SpeakerVerificationEnabled select which
-	// speaker stages this eval run binds. They let experiments run attribution
-	// ablations such as extraction-on / verification-off with the same
-	// underlying adapter implementations.
-	SpeakerExtractionEnabled   bool
-	SpeakerVerificationEnabled bool
-	// SpeakerResource is the speaker-verification resource client used only
-	// when SpeakerConfig enables extraction and/or verification.
-	SpeakerResource *sttpipeline.SpeakerClient
+// Deps is a compatibility alias for callers that historically reached the
+// runner through this transport package.
+type Deps = inteval.RunnerDeps
+
+func RunReport(ctx context.Context, deps Deps, clipIDs []string, strategies []*evalv1.EvalStrategy, repeats, chunkMs int32) (inteval.EvalReport, error) {
+	return inteval.RunReportWithOptions(ctx, deps, clipIDs, strategies, repeats, chunkMs, inteval.EvalOptions{})
+}
+
+func RunReportWithOptions(ctx context.Context, deps Deps, clipIDs []string, strategies []*evalv1.EvalStrategy, repeats, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
+	return inteval.RunReportWithOptions(ctx, deps, clipIDs, strategies, repeats, chunkMs, opts)
+}
+
+func RunReportForClips(ctx context.Context, deps Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, repeats, chunkMs int32) (inteval.EvalReport, error) {
+	return inteval.RunReportForClipsWithOptions(ctx, deps, clips, strategies, repeats, chunkMs, inteval.EvalOptions{})
+}
+
+func RunReportForClipsWithOptions(ctx context.Context, deps Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, repeats, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
+	return inteval.RunReportForClipsWithOptions(ctx, deps, clips, strategies, repeats, chunkMs, opts)
+}
+
+func RunReportForCells(ctx context.Context, deps Deps, clips []inteval.Clip, cells []*experimentv1.EvaluationCell, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
+	return inteval.RunReportForCells(ctx, deps, clips, cells, chunkMs, opts)
+}
+
+func RunReportCellsWithOptions(ctx context.Context, deps Deps, clipIDs []string, cells []*experimentv1.EvaluationCell, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
+	return inteval.RunReportCellsWithOptions(ctx, deps, clipIDs, cells, chunkMs, opts)
 }

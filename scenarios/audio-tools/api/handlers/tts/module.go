@@ -7,8 +7,8 @@ import (
 	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
+	"audio-tools/internal/store"
 	inttts "audio-tools/internal/tts"
-	"audio-tools/internal/usagereport"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -24,11 +24,14 @@ type Deps struct {
 	Engine         *audioformat.Engine
 	Logger         logx.Logger
 	Clock          clock.Clock
-	Usage          usagereport.Recorder
+	Usage          UsageRecorder
 	Cache          *inttts.Cache
 	ConfigStore    TTSConfigRepository
 	Playback       PlaybackRepository
 }
+
+// UsageRecorder is the TTS transport's narrow usage submission port.
+type UsageRecorder interface{ Enqueue(store.UsageRow) }
 
 // Module returns the TTS domain's contribution to the API. Deps.Logger
 // and Deps.Clock are required seams; nil values panic via the

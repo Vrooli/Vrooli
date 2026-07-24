@@ -2,6 +2,7 @@ package eval
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,53 +12,9 @@ import (
 	inteval "audio-tools/internal/eval"
 
 	"github.com/stretchr/testify/require"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 )
-
-func TestBuildCellSpecs_UsesDeclaredEngineFactory(t *testing.T) {
-	provider := mocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{Stream: true, Strategies: []sttchain.StrategyKind{sttchain.StrategyPassthrough}})
-	h := reportRunner{deps: Deps{NewProviderForEngine: func(engineID string) sttchain.Provider {
-		if engineID == "kyutai" {
-			return provider
-		}
-		return nil
-	}}}
-	specs, err := h.buildCellSpecs([]*experimentv1.EvaluationCell{{EngineId: "kyutai", Strategy: "passthrough", Label: "kyutai native"}})
-	require.NoError(t, err)
-	require.Len(t, specs, 1)
-	require.Equal(t, sttchain.StrategyPassthrough, specs[0].Kind)
-	require.Equal(t, "fake", specs[0].ModelID)
-	require.Equal(t, "kyutai native", specs[0].Label)
-
-	_, err = h.buildCellSpecs([]*experimentv1.EvaluationCell{{EngineId: "missing", Strategy: "passthrough"}})
-	require.ErrorContains(t, err, "unavailable engine")
-}
-
-func TestEvaluationCellStrategySupportsEveryProviderNeutralStrategy(t *testing.T) {
-	cases := []struct {
-		name      string
-		wantKind  sttchain.StrategyKind
-		wantBatch bool
-		wantOK    bool
-	}{
-		{name: "batch", wantKind: sttchain.StrategyBuffered, wantBatch: true, wantOK: true},
-		{name: "buffered_fallback", wantKind: sttchain.StrategyBuffered, wantBatch: true, wantOK: true},
-		{name: "vad_segment", wantKind: sttchain.StrategyVADSegment, wantOK: true},
-		{name: "overlap_agree", wantKind: sttchain.StrategyOverlapAgree, wantOK: true},
-		{name: "passthrough", wantKind: sttchain.StrategyPassthrough, wantOK: true},
-		{name: "unknown", wantOK: false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, gotKind, gotBatch, gotOK := evaluationCellStrategy(tc.name)
-			require.Equal(t, tc.wantOK, gotOK)
-			if tc.wantOK {
-				require.Equal(t, tc.wantKind, gotKind)
-				require.Equal(t, tc.wantBatch, gotBatch)
-			}
-		})
-	}
-}
 
 func TestRunReportForCells_ExecutesNativeProviderThroughSegmenter(t *testing.T) {
 	provider := mocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{Stream: true, Strategies: []sttchain.StrategyKind{sttchain.StrategyPassthrough}})
@@ -84,6 +41,18 @@ func TestRunReportForCells_ExecutesNativeProviderThroughSegmenter(t *testing.T) 
 	require.Equal(t, 0.0, report.PerStrategy[0].WER)
 	require.Equal(t, "kyutai", report.PerStrategy[0].EngineID)
 	require.Equal(t, "deterministic", report.PerStrategy[0].ReplayLane)
+}
+
+func TestRunReportForClips_ExecutesTheBatchStrategy(t *testing.T) {
+	provider := mocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	provider.Result = &sttchain.Result{Text: "expected", Tier: sttchain.TierLocal}
+	report, err := RunReportForClips(context.Background(), Deps{
+		NewProvider: func() sttchain.Provider { return provider },
+	}, []inteval.Clip{{ID: "clip", PCM: []byte{0, 0, 0, 0}, SampleRate: 16_000, Format: "pcm_s16le", Reference: "expected"}}, []*evalv1.EvalStrategy{{Kind: "batch"}}, 0, 100)
+	require.NoError(t, err)
+	require.Len(t, report.PerStrategy, 1)
+	require.Equal(t, 0.0, report.PerStrategy[0].WER)
+	require.Equal(t, 1, provider.Calls)
 }
 
 func TestRunReportForCells_HonorsRealtimeLaneAndRepeatCount(t *testing.T) {
@@ -276,4 +245,28 @@ func TestReportToProto_MapsScalingAnalysis(t *testing.T) {
 	require.Equal(t, "long-form-60s", point.GetClipId())
 	require.EqualValues(t, 60_000, point.GetRealizedDurationMs())
 	require.InDelta(t, 1_200, point.GetProviderLatencyMs(), 1e-9)
+}
+
+func TestReportToProto_MapsClipEvidenceAndSafetyTimeline(t *testing.T) {
+	report := inteval.EvalReport{PerStrategy: []inteval.StrategyReport{{
+		Strategy: "overlap_agree", Label: "Overlap", EngineID: "kyutai", ModelID: "stream", PolicyProfile: "speaker-filter", ReplayLane: "realtime", FaultProfile: "busy",
+		EditCounts: inteval.EditCounts{Substitutions: 1, Insertions: 2, Deletions: 3}, RefWords: 8, WhisperCalls: 4, WhisperAudioSeconds: 3.5, RTF: 0.4,
+		Safety:           inteval.SafetyGateReport{Passed: false, RetractionFree: false, DroppedSpanFree: false, MaxDroppedSpanWords: 3, DroppedSpanThresholdWords: 2, Reasons: []string{"dropped"}, RetractionEvents: []inteval.RetractionEvent{{PreviousText: "a", CurrentText: "b", AtMs: 10}}},
+		StageAttribution: inteval.StageAttribution{IngressLostWords: 1, StrategyLostWords: 2, EgressLostWords: 3, EgressRejectEvents: 4, Notes: []string{"trace"}},
+		LengthCurves:     []inteval.LengthBucketCurve{{Bucket: "short", MinDurationMs: 1, MaxDurationMs: 2, ClipCount: 1, WER: 0.5, FinalizationLatencyP95Ms: 7, MeanTimeToFirstCommitMs: 3, MaxDroppedSpanWords: 2}},
+		PerClip: []inteval.ClipResult{{
+			ClipID: "clip", Reference: "reference", Hypothesis: "hypothesis", WER: inteval.WERResult{EditCounts: inteval.EditCounts{Substitutions: 1, Insertions: 1}, RefWords: 2, HypWords: 2},
+			NormalizedReference: "ref", NormalizedHypothesis: "hyp", EditOperations: []inteval.EditOperation{{Kind: "substitution", ReferenceToken: "ref", HypothesisToken: "hyp", ReferenceIndex: 1, HypothesisIndex: 2}},
+			CommitTimeline: []inteval.CommitState{{Text: "partial", AtMs: 2, AudioEndMs: 3}}, LatencySamplesMs: []float64{5, 9}, Err: errors.New("provider timeout"),
+			Safety: inteval.SafetyGateReport{Passed: true}, AudioDurationMs: 20, TimeToFirstCommitMs: 4, CommitCount: 1,
+		}},
+	}}}
+
+	got := ReportToProto(report).GetPerStrategy()[0]
+	require.Equal(t, "provider timeout", got.GetPerClip()[0].GetError())
+	require.Equal(t, "substitution", got.GetPerClip()[0].GetEditOperations()[0].GetKind())
+	require.Equal(t, "partial", got.GetPerClip()[0].GetCommitTimeline()[0].GetText())
+	require.Equal(t, int32(3), got.GetSafety().GetMaxDroppedSpanWords())
+	require.Equal(t, int32(1), got.GetStageAttribution().GetIngressLostWords())
+	require.Len(t, got.GetLengthCurves(), 1)
 }

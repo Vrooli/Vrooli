@@ -79,6 +79,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
 
@@ -86,6 +88,25 @@ describe("createScriptProcessorPcmCapture", () => {
 
   it("falls back to ScriptProcessor when AudioWorklet is unavailable", async () => {
     const capture = await createCanonicalPcmCapture(makeFakeStream(), vi.fn());
+    expect(capture.stop).toBeTypeOf("function");
+    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+  });
+
+  it("falls back when an advertised AudioWorklet module load never settles", async () => {
+    vi.useFakeTimers();
+    const addModule = vi.fn(() => new Promise<void>(() => undefined));
+    Object.assign(ctx, { audioWorklet: { addModule } });
+    vi.stubGlobal("AudioWorkletNode", class {});
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:stalled-worklet"),
+      revokeObjectURL: vi.fn(),
+    });
+
+    const capturePromise = createCanonicalPcmCapture(makeFakeStream(), vi.fn());
+    await vi.advanceTimersByTimeAsync(1_000);
+    const capture = await capturePromise;
+
+    expect(addModule).toHaveBeenCalledOnce();
     expect(capture.stop).toBeTypeOf("function");
     expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
   });

@@ -14,9 +14,9 @@
 package stt
 
 import (
-	"fmt"
-
 	"github.com/vrooli/cli-core/cliapp"
+
+	"audio-tools/cli/internal/climanifest"
 )
 
 // GroupName is the manifest group name this package owns.
@@ -41,9 +41,5 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"STTAdminService.ListSpeakerProfileClips":  h.speakerClips,
 		"STTAdminService.DeleteSpeakerProfileClip": h.speakerDeleteClip,
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
-	if err != nil {
-		return cliapp.SubcommandGroup{}, fmt.Errorf("stt: load from manifest: %w", err)
-	}
-	return group, nil
+	return climanifest.LoadGroup(manifest, GroupName, bindings)
 }

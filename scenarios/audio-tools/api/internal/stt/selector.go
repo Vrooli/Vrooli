@@ -367,26 +367,13 @@ func (s *Selector) Select(
 	// global default per provider trait shape.
 	var chosenStrategy strategy.Strategy
 	var chosenKind sttchain.StrategyKind
-	switch pref {
-	case PreferencePassthrough:
-		st, k, err := pick(sttchain.StrategyPassthrough)
+	if requested, explicit := explicitStrategyPreference(pref); explicit {
+		st, k, err := pick(requested)
 		if err != nil {
 			return Selection{Strategy: &strategy.BufferedFallback{Executor: s.BatchExecutor}, Kind: sttchain.StrategyBuffered}, err
 		}
 		chosenStrategy, chosenKind = st, k
-	case PreferenceVAD:
-		st, k, err := pick(sttchain.StrategyVADSegment)
-		if err != nil {
-			return Selection{Strategy: &strategy.BufferedFallback{Executor: s.BatchExecutor}, Kind: sttchain.StrategyBuffered}, err
-		}
-		chosenStrategy, chosenKind = st, k
-	case PreferenceOverlap:
-		st, k, err := pick(sttchain.StrategyOverlapAgree)
-		if err != nil {
-			return Selection{Strategy: &strategy.BufferedFallback{Executor: s.BatchExecutor}, Kind: sttchain.StrategyBuffered}, err
-		}
-		chosenStrategy, chosenKind = st, k
-	default: // auto
+	} else { // auto
 		// Auto-resolution order:
 		//   1. Native streaming (Passthrough) — best UX when the provider
 		//      supports it (Kyutai, Deepgram, future LPBS streaming).
@@ -435,6 +422,19 @@ func (s *Selector) Select(
 		Tier:     chosen.Tier,
 		Kind:     chosenKind,
 	}, nil
+}
+
+func explicitStrategyPreference(pref StrategyPreference) (sttchain.StrategyKind, bool) {
+	switch pref {
+	case PreferencePassthrough:
+		return sttchain.StrategyPassthrough, true
+	case PreferenceVAD:
+		return sttchain.StrategyVADSegment, true
+	case PreferenceOverlap:
+		return sttchain.StrategyOverlapAgree, true
+	default:
+		return "", false
+	}
 }
 
 // eligibleStrategy returns a predicate reporting whether a strategy is allowed

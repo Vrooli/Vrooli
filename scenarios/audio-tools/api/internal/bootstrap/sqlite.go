@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,12 +20,12 @@ import (
 // OpenDB resolves the on-disk SQLite path, opens it via api-core's
 // database.Connect, ensures the audio-tools schemas, and returns the
 // live handle plus the resolved DSN for diagnostics.
-func OpenDB(ctx context.Context, env Env) (*sql.DB, string, error) {
+func OpenDB(ctx context.Context, env Env) (*database.RoutedDB, string, error) {
 	dsn, err := resolveDSN(env)
 	if err != nil {
 		return nil, "", err
 	}
-	db, err := database.Connect(ctx, database.Config{
+	db, err := database.Open(ctx, database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,
 		MaxOpenConns: 1,
@@ -38,17 +37,17 @@ func OpenDB(ctx context.Context, env Env) (*sql.DB, string, error) {
 	// Apply additive repairs before EnsureSchemas performs its declared-shape
 	// drift check. Otherwise an existing table missing a newly declared column
 	// fails startup before the forward migration gets a chance to add it.
-	if err := localdb.ApplyMigrations(ctx, db); err != nil {
+	if err := localdb.ApplyMigrations(ctx, db.Primary()); err != nil {
 		_ = db.Close()
 		return nil, dsn, fmt.Errorf("pre-schema migrations: %w", err)
 	}
-	if err := database.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
+	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
 		_ = db.Close()
 		return nil, dsn, fmt.Errorf("ensure schemas: %w", err)
 	}
 	// Repeat after schema creation so a fresh database sees the same completed
 	// migration set. Duplicate-column outcomes are deliberately idempotent.
-	if err := localdb.ApplyMigrations(ctx, db); err != nil {
+	if err := localdb.ApplyMigrations(ctx, db.Primary()); err != nil {
 		_ = db.Close()
 		return nil, dsn, fmt.Errorf("apply migrations: %w", err)
 	}

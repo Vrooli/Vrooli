@@ -21,16 +21,16 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
-| stt | Speech-to-text (batch + streaming) with three-tier provider routing. | Streaming / chain-routed | Stream config, wakeword phrases, enrolled speaker embeddings, transcription usage rows. | API, CLI, UI, WS, Embed | OT-P0-001, OT-P0-007, OT-P0-008, OT-P1-014 | `api/internal/stt/`, `api/internal/ai/sttchain/`, `api/handlers/stt/`, `cli/domains/stt/`, `ui/src/features/diagnostics/`, `embed/`, `packages/proto/schemas/audio-tools/v1/stt/` |
+| stt | Speech-to-text (batch + streaming) with three-tier provider routing. | Streaming / chain-routed | Stream config, wakeword phrases, enrolled speaker embeddings, transcription usage rows. | API, CLI, UI, WS, Embed | OT-P0-001, OT-P0-007, OT-P0-008, OT-P1-014 | `api/internal/stt/`, `api/internal/ai/sttchain/`, `api/handlers/stt/`, `cli/domains/stt/`, `ui/src/audio-integration/hooks/voice/VoiceStreamProvider.tailDrop.test.ts`, `ui/src/audio-integration/turnJournal.test.ts`, `ui/src/features/diagnostics/`, `embed/`, `bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json`, `bas/cases/01-foundation/01-dictation/deterministic-provider-busy.json`, `bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json`, `packages/proto/schemas/audio-tools/v1/stt/` |
 | tts | Text-to-speech synthesis (batch + streaming) with on-disk cache. | Synthesis / chain-routed | Voice catalog snapshot, TTS config, content-addressable audio cache, playback events. | API, CLI, UI, Embed | OT-P0-002, OT-P0-006 | `api/internal/tts/`, `api/internal/ai/ttschain/`, `api/handlers/tts/`, `cli/domains/tts/`, `ui/src/features/diagnostics/`, `embed/`, `packages/proto/schemas/audio-tools/v1/tts/` |
 | summarize | Text summarization with normalization preprocessing. | Inference / chain-routed | Per-call usage rows. | API, CLI, UI | OT-P0-003, OT-P0-006 | `api/internal/summarize/`, `api/internal/ai/summarizechain/`, `api/handlers/summarize/`, `cli/domains/summarize/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/summarize/` |
 | audio | Audio file processing (transcode/trim/merge/split/fade/volume/normalize/metadata). | Pipeline / shellout | None (operates on multipart payloads). | API, CLI, UI | OT-P0-004 | `api/internal/audio/`, `api/handlers/audio/`, `cli/domains/audio/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/audio/` |
 | session | Voice-session pub/sub fan-out for live STT + TTS streams. | Pub/sub / streaming | Ephemeral in-memory session state. | API, WS | OT-P0-007, OT-P0-008 | `api/internal/session/`, `api/handlers/stt/stream_ws.go`, `api/handlers/session/`, `packages/proto/schemas/audio-tools/v1/session/` |
-| settings | Operator configuration: provider defaults, per-capability precedence, BYOK creds (AES-GCM at rest). | CRUD / config | Provider config, BYOK secrets, voice overrides. | API, CLI, UI | OT-P0-009 | `api/internal/store/`, `api/internal/byokstore/`, `api/handlers/settings/`, `cli/domains/settings/`, `ui/src/features/configuration/`, `packages/proto/schemas/audio-tools/v1/settings/` |
+| settings | Operator configuration: provider defaults, per-capability precedence, BYOK creds (AES-GCM at rest). | CRUD / config | Provider config, BYOK secrets, voice overrides. | API, CLI, UI | OT-P0-009 | `api/internal/settings/`, `api/internal/store/`, `api/internal/byokstore/`, `api/handlers/settings/`, `cli/domains/settings/`, `ui/src/features/configuration/`, `packages/proto/schemas/audio-tools/v1/settings/` |
 | usage | Per-operation usage + cost ledger and rollup queries for the dashboard. | Reporting / ledger | Usage rows (provider, op, ms, credits). | API, CLI, UI | OT-P0-011 | `api/internal/store/usage.go`, `api/internal/usagereport/`, `api/handlers/usage/`, `cli/domains/usage/`, `ui/src/features/usage/`, `packages/proto/schemas/audio-tools/v1/usage/` |
 | corpus | Speech-eval clip store: operator-recorded audio + corrected ground-truth transcripts for the eval harness. | CRUD / blob+metadata | Clip metadata (`corpus` SQLite domain) + audio bytes (blob store, git-ignored). | API, CLI, UI | (eval harness) | `api/internal/corpus/`, `api/handlers/corpus/`, `cli/domains/corpus/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/corpus/` |
 | eval | STT strategy comparison harness: replays the corpus through batch/vad/overlap and reports WER, compute cost, safety, length curves, and backend-owned duration-scaling classifications. | Measurement / replay | None (reads the corpus domain; stateless). | API, CLI, UI report renderer | (eval harness) | `api/internal/eval/`, `api/handlers/eval/`, `packages/proto/schemas/audio-tools/v1/eval/`, shared report rendering under `cli/domains/experiment/` and `ui/src/features/dictation-studio/` |
-| experiment | Persisted async STT experiment lifecycle: reproducible recipes, server-owned execution, stored reports, deterministic long-form, augmentation, speaker-dimension inputs, and comparisons. | Long-running operation / lab | Experiment metadata, lifecycle state, reproducible recipe realization, per-run metric cells, augmentation/speaker condition notes, and report blob references. | API, CLI, UI | STT experiment lab | `api/internal/experiment/`, `api/handlers/experiment/`, `cli/domains/experiment/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/experiment/` |
+| experiment | Persisted async STT experiment lifecycle: reproducible recipes, server-owned execution, stored reports, deterministic long-form, augmentation, speaker-dimension inputs, and comparisons. | Long-running operation / lab | Experiment metadata, lifecycle state, reproducible recipe realization, per-run metric cells, augmentation/speaker condition notes, and report blob references. | API, CLI, UI | STT experiment lab | `api/internal/experiment/`, `api/handlers/experiment/`, `cli/domains/experiment/`, `ui/src/features/dictation-studio/`, `ui/src/services/experiment.test.ts`, `packages/proto/schemas/audio-tools/v1/experiment/` |
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/overview/`, `packages/proto/schemas/audio-tools/v1/health/` |
 
 ## Domain Details
@@ -103,7 +103,7 @@ belong in [`DATA.md`](DATA.md).
 
 - Purpose: operator-facing configuration: provider defaults, per-capability tier order (BYOK → Vrooli → Local), BYOK credentials encrypted at rest, voice overrides.
 - Primary archetype: CRUD / config.
-- Owns: provider config doc, BYOK store + AES-GCM encryptor + fingerprint, voice overrides, settings handlers, chain `Reconfigure` plumbing.
+- Owns: provider config doc, BYOK store + AES-GCM encryptor + fingerprint, voice overrides, settings schema registration, settings handlers, chain `Reconfigure` plumbing.
 - API: `api/handlers/settings/`.
 - CLI: `cli/domains/settings/`.
 - UI: `ui/src/features/configuration/`.
@@ -197,11 +197,30 @@ These are important but should not become product domains:
 - `api/internal/modulekit/` — shared module descriptor type defs.
 - `api/internal/modules/` — thin static registry consumed by `main.go` and `cmd/gen-endpoints`.
 - `api/internal/database/` — cross-cutting database infrastructure.
+- `api/internal/store/` — shared SQLite persistence substrate used by settings, usage, and experiment domains.
 - `api/internal/httpx/`, `api/internal/httpc/` — HTTP request/response helpers.
 - `api/internal/clock/` — clock seam.
+- `api/internal/logx/` — shared logging substrate.
+- `api/internal/envx/` — shared environment configuration substrate.
 - `api/internal/middleware/` — request-pipeline middleware.
+- `api/internal/protomap/` — shared proto-to-domain mapping helpers.
+- `api/internal/qualification/` — provider-neutral experiment qualification
+  rubric shared by evaluation and persisted experiment evidence.
 - `api/internal/testutil/` — cross-domain test harnesses.
 - `api/internal/ai/chains/` — generic per-capability chain primitives shared by stt/tts/summarize.
+- `api/internal/ai/` — provider-neutral chain and adapter substrate; capability-specific chains remain owned by their product domains.
+- `api/internal/byok/` — credential and provider-adapter substrate shared by chain-routed capabilities.
+- `api/internal/byokstore/` — encrypted BYOK secret-store substrate.
+- `api/internal/audioformat/` — shared audio normalization helpers.
+- `api/internal/blobbytes/` — shared byte-oriented blob-store adapter.
+- `api/internal/text/` — shared text normalization helpers.
+- `api/internal/sttbackend/` — engine-agnostic STT backend seam.
+- `api/internal/sttcapacity/` — engine-agnostic STT capacity seam.
+- `api/internal/sttengine/` — engine-agnostic STT engine seam.
+- `api/internal/diagnostics/` — cross-capability diagnostics substrate.
+- `api/internal/health_status/` — cross-capability health-status substrate.
+- `api/internal/provider_lifecycle/` — provider lifecycle substrate.
+- `api/internal/bootstrap/` — composition root; it owns wiring only and must not own product policy.
 - `api/internal/capabilities/` — capability-flag derivation.
 - `api/integrations/lpbs/` — LPBS-tier client adapters + usage reporter (cross-scenario integration, not a product domain).
 - `ui/src/components/` — shared presentation primitives.

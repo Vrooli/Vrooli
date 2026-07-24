@@ -1,11 +1,15 @@
 package session
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 // Registry keeps bounded session ledgers alive across transport reconnects.
@@ -15,7 +19,26 @@ type Registry struct {
 	mu        sync.Mutex
 	maxBytes  int
 	directory string
+	roots     *filerouting.RoutedRoots
 	sessions  map[string]*Ledger
+}
+
+// NewRoutedDiskRegistry persists ledgers beneath the per-request data root.
+// A Test Genie lease changes that root without changing the stream protocol.
+func NewRoutedDiskRegistry(roots *filerouting.RoutedRoots, maxBytes int) (*Registry, error) {
+	if roots == nil {
+		return nil, fmt.Errorf("stt session: routed roots are required")
+	}
+	directory, err := roots.Pick(context.Background(), storage.ClassData)
+	if err != nil {
+		return nil, fmt.Errorf("resolve session persistence directory: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(directory, "stt-session-spool"), 0o700); err != nil {
+		return nil, fmt.Errorf("create session persistence directory: %w", err)
+	}
+	r := NewRegistry(maxBytes)
+	r.roots = roots
+	return r, nil
 }
 
 func NewRegistry(maxBytes int) *Registry {
@@ -43,6 +66,10 @@ func NewDiskRegistry(directory string, maxBytes int) (*Registry, error) {
 // resume token are mandatory; accepting either implicitly would turn a retry
 // into a fresh session and make silent loss possible.
 func (r *Registry) Open(sessionID, resumeToken string) (*Ledger, bool, error) {
+	return r.OpenContext(context.Background(), sessionID, resumeToken)
+}
+
+func (r *Registry) OpenContext(ctx context.Context, sessionID, resumeToken string) (*Ledger, bool, error) {
 	if sessionID == "" || resumeToken == "" {
 		return nil, false, fmt.Errorf("stt session: session id and resume token are required")
 	}
@@ -57,8 +84,8 @@ func (r *Registry) Open(sessionID, resumeToken string) (*Ledger, bool, error) {
 		}
 		return ledger, true, nil
 	}
-	if r.directory != "" {
-		if state, err := r.loadLocked(sessionID); err != nil {
+	if r.directory != "" || r.roots != nil {
+		if state, err := r.loadLocked(ctx, sessionID); err != nil {
 			return nil, false, err
 		} else if state != nil {
 			ledger, err := Restore(*state)
@@ -77,31 +104,42 @@ func (r *Registry) Open(sessionID, resumeToken string) (*Ledger, bool, error) {
 		return nil, false, err
 	}
 	r.sessions[sessionID] = ledger
-	if err := r.persistLocked(ledger); err != nil {
+	if err := r.persistLocked(ctx, ledger); err != nil {
 		return nil, false, err
 	}
 	return ledger, false, nil
 }
 
 func (r *Registry) Persist(ledger *Ledger) error {
-	if r == nil || r.directory == "" || ledger == nil {
+	return r.PersistContext(context.Background(), ledger)
+}
+
+func (r *Registry) PersistContext(ctx context.Context, ledger *Ledger) error {
+	if r == nil || (r.directory == "" && r.roots == nil) || ledger == nil {
 		return nil
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.persistLocked(ledger)
+	return r.persistLocked(ctx, ledger)
 }
 
-func (r *Registry) persistLocked(ledger *Ledger) error {
-	if r.directory == "" {
+func (r *Registry) persistLocked(ctx context.Context, ledger *Ledger) error {
+	if r.directory == "" && r.roots == nil {
 		return nil
 	}
 	state, err := json.Marshal(ledger.PersistedState())
 	if err != nil {
 		return fmt.Errorf("marshal session ledger: %w", err)
 	}
-	path := r.path(ledger.PersistedState().SessionID)
-	temporary, err := os.CreateTemp(r.directory, ".session-*")
+	directory, err := r.directoryFor(ctx)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return fmt.Errorf("create session persistence directory: %w", err)
+	}
+	path := filepath.Join(directory, ledger.PersistedState().SessionID+".json")
+	temporary, err := os.CreateTemp(directory, ".session-*")
 	if err != nil {
 		return fmt.Errorf("create session ledger temporary file: %w", err)
 	}
@@ -121,11 +159,18 @@ func (r *Registry) persistLocked(ledger *Ledger) error {
 	if err := os.Rename(name, path); err != nil {
 		return fmt.Errorf("atomically persist session ledger: %w", err)
 	}
+	if r.roots != nil {
+		r.roots.RecordWrite(ctx)
+	}
 	return nil
 }
 
-func (r *Registry) loadLocked(sessionID string) (*PersistedState, error) {
-	contents, err := os.ReadFile(r.path(sessionID))
+func (r *Registry) loadLocked(ctx context.Context, sessionID string) (*PersistedState, error) {
+	directory, err := r.directoryFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	contents, err := os.ReadFile(filepath.Join(directory, sessionID+".json"))
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -139,6 +184,13 @@ func (r *Registry) loadLocked(sessionID string) (*PersistedState, error) {
 	return &state, nil
 }
 
-func (r *Registry) path(sessionID string) string {
-	return filepath.Join(r.directory, sessionID+".json")
+func (r *Registry) directoryFor(ctx context.Context) (string, error) {
+	if r.roots != nil {
+		root, err := r.roots.Pick(ctx, storage.ClassData)
+		if err != nil {
+			return "", fmt.Errorf("resolve session persistence root: %w", err)
+		}
+		return filepath.Join(root, "stt-session-spool"), nil
+	}
+	return r.directory, nil
 }

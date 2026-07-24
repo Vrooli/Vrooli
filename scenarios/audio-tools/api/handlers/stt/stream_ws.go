@@ -239,7 +239,7 @@ func StreamWSHandler(d Deps) http.Handler {
 			http.Error(w, "stt streaming pipeline not configured", http.StatusServiceUnavailable)
 			return
 		}
-		fault, err := streamTestFaultFromRequest(r, d.EnableStreamTestFaults)
+		fault, err := streamTestFaultFromRequest(r, streamTestFaultsAuthorized(d))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -288,7 +288,7 @@ func StreamWSHandler(d Deps) http.Handler {
 			if ledgers == nil {
 				ledgers = session.NewRegistry(0)
 			}
-			ledger, resumed, err = ledgers.Open(start.SessionID, start.ResumeToken)
+			ledger, resumed, err = ledgers.OpenContext(ctx, start.SessionID, start.ResumeToken)
 			if err != nil {
 				writer.enqueue(wsMessage{Type: wsMsgError, Code: "invalid_session", Text: err.Error()})
 				writer.enqueue(wsMessage{Type: wsMsgDone})
@@ -334,18 +334,18 @@ func StreamWSHandler(d Deps) http.Handler {
 						parsed, parseErr := decodeWSV2AudioFrame(data)
 						if parseErr != nil {
 							ledger.Fail(session.TerminalReason("malformed_frame"))
-							_ = ledgers.Persist(ledger)
+							_ = ledgers.PersistContext(ctx, ledger)
 							readerErr <- parseErr
 							return
 						}
 						result, receiveErr := ledger.Receive(session.Chunk{Sequence: parsed.Sequence, StartSample: parsed.StartSample, EndSample: parsed.EndSample, Audio: parsed.Audio})
 						if receiveErr != nil {
 							ledger.Fail(session.TerminalReason("receive_failed"))
-							_ = ledgers.Persist(ledger)
+							_ = ledgers.PersistContext(ctx, ledger)
 							readerErr <- receiveErr
 							return
 						}
-						if err := ledgers.Persist(ledger); err != nil {
+						if err := ledgers.PersistContext(ctx, ledger); err != nil {
 							readerErr <- err
 							return
 						}
@@ -369,7 +369,7 @@ func StreamWSHandler(d Deps) http.Handler {
 						// a recoverable missing range for a generic empty transcript.
 						if ledger != nil {
 							ledger.Fail(session.TerminalReason("test_fault_close_after_chunk"))
-							_ = ledgers.Persist(ledger)
+							_ = ledgers.PersistContext(ctx, ledger)
 						}
 						writer.enqueue(wsMessage{Type: wsMsgError, Code: "incomplete_coverage", Text: "Streaming connection closed after deterministic qualification chunk limit."})
 						writer.close(wsWriterDrainTimeout)
@@ -441,12 +441,12 @@ func StreamWSHandler(d Deps) http.Handler {
 						isNew, commitErr := ledger.Commit(session.Segment{ID: segmentID, Text: ev.Segment.Text, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample})
 						if commitErr != nil {
 							ledger.Fail(session.TerminalReason("commit_conflict"))
-							_ = ledgers.Persist(ledger)
+							_ = ledgers.PersistContext(ctx, ledger)
 							providerCloseReason = "commit_conflict"
 							writer.enqueue(wsMessage{Type: wsMsgError, Code: "commit_conflict", Text: "Unable to preserve a durable transcript segment."})
 							continue
 						}
-						if err := ledgers.Persist(ledger); err != nil {
+						if err := ledgers.PersistContext(ctx, ledger); err != nil {
 							ledger.Fail(session.TerminalReason("persistence_failed"))
 							providerCloseReason = "persistence_failed"
 							writer.enqueue(wsMessage{Type: wsMsgError, Code: "persistence_failed", Text: "Unable to preserve transcript recovery state."})
@@ -467,7 +467,7 @@ func StreamWSHandler(d Deps) http.Handler {
 						// reason remains explicit for diagnostics.
 						if ledger != nil {
 							ledger.Fail(session.TerminalReason("test_fault_close_before_done"))
-							_ = ledgers.Persist(ledger)
+							_ = ledgers.PersistContext(ctx, ledger)
 						}
 						writer.enqueue(wsMessage{Type: wsMsgError, Code: "incomplete_coverage", Text: "Streaming connection closed after a committed segment (deterministic qualification fault)."})
 						writer.close(wsWriterDrainTimeout)
@@ -545,7 +545,7 @@ func StreamWSHandler(d Deps) http.Handler {
 					}
 				}
 			}
-			if err := ledgers.Persist(ledger); err != nil {
+			if err := ledgers.PersistContext(ctx, ledger); err != nil {
 				writer.enqueue(wsMessage{Type: wsMsgError, Code: "persistence_failed", Text: "Unable to preserve audio recovery state."})
 			}
 			state = ledger.Snapshot()

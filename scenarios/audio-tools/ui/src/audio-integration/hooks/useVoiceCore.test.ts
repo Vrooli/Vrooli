@@ -123,7 +123,7 @@ const h = vi.hoisted(() => {
       segmentSilenceMs: 0,
       segmentBoundaryEmitted: false,
     })),
-    loadNoiseFloorCache: vi.fn(() => null),
+    loadNoiseFloorCache: vi.fn<() => { timestamp: number; silenceThreshold: number } | null>(() => null),
     saveNoiseFloorCache: vi.fn(),
     extractCacheableFloor: vi.fn(() => ({ speechThreshold: 0.1, silenceThreshold: 0.05 })),
     createVadRefsFromCache: vi.fn(() => ({ state: "watchingSilence" })),
@@ -178,6 +178,47 @@ vi.mock("../index", () => ({
   createWakeWordEngine: h.createWakeWordEngine,
   CAP_CHECK_FAIL_THRESHOLD: 3,
   WHISPER_FAILED_SENTINEL: "whisper-failed",
+}));
+
+vi.mock("./voice/audioUtils", () => ({ createAudioFilterChain: h.createAudioFilterChain }));
+vi.mock("./voice/audioCues", () => ({ playRecordingStartCue: h.playRecordingStartCue, playRecordingStopCue: h.playRecordingStopCue }));
+vi.mock("./voice/activity", () => ({
+  buildVoiceActivitySnapshot: vi.fn(() => ({ idle: true })),
+  IDLE_VOICE_ACTIVITY: { idle: true },
+  voiceActivitySnapshotsEqual: vi.fn(() => true),
+}));
+vi.mock("./voice/vad", () => ({
+  createVadRefs: h.createVadRefs,
+  createVadRefsFromCache: h.createVadRefsFromCache,
+  extractCacheableFloor: h.extractCacheableFloor,
+  loadNoiseFloorCache: h.loadNoiseFloorCache,
+  saveNoiseFloorCache: h.saveNoiseFloorCache,
+  vadTick: h.vadTick,
+  VAD_FLOOR_CACHE_MAX_AGE_MS: 60_000,
+}));
+vi.mock("./voice/sharedAudioContext", () => ({
+  getSharedAudioContext: h.getSharedAudioContext,
+  ensureAudioContextOnGesture: h.ensureAudioContextOnGesture,
+  installAudioContextKeepalive: h.installAudioContextKeepalive,
+  teardownAudioContextKeepalive: h.teardownAudioContextKeepalive,
+}));
+vi.mock("./voice/micReadiness", () => ({
+  acquireStream: h.acquireStream,
+  releaseStream: h.releaseStream,
+  getStream: h.getStream,
+  isStreamAlive: h.isStreamAlive,
+  installVisibilityHandler: h.installVisibilityHandler,
+}));
+vi.mock("./voice/VoiceStreamProvider", () => ({ VoiceStreamProvider: h.FakeVoiceStreamProvider }));
+vi.mock("./voice/WhisperProvider", () => ({ WhisperProvider: h.FakeWhisperProvider }));
+vi.mock("./voice/WebSpeechProvider", () => ({ WebSpeechProvider: h.FakeWebSpeechProvider }));
+vi.mock("./voice/wakeword/engine", () => ({ createWakeWordEngine: h.createWakeWordEngine }));
+vi.mock("./voice/wakeword/passiveListener", () => ({ PassiveListener: h.FakePassiveListener }));
+
+vi.mock("../api/voice", () => ({
+  getVoiceStreamConfig: h.getVoiceStreamConfig,
+  transcribeAudioBypassFilter: h.transcribeAudioBypassFilter,
+  getWakeWordConfig: h.getWakeWordConfig,
 }));
 
 import { useVoiceCore, type UseVoiceCoreOptions } from "./useVoiceCore";
@@ -349,7 +390,7 @@ describe("useVoiceCore — recording lifecycle", () => {
       await result.current.startRecording({ vadEnabled: true });
     });
     await waitFor(() => expect(result.current.isRecording).toBe(true));
-    act(() => lastVSP().onError?.("whisper-failed"));
+    act(() => lastVSP().onError?.("__WHISPER_FAILED__"));
     await waitFor(() => expect(result.current.backend).toBe("web-speech"));
     expect(result.current.fallbackNotice).toMatch(/browser speech recognition/);
   });
@@ -448,6 +489,45 @@ describe("useVoiceCore — VAD tick", () => {
       await Promise.resolve();
     });
     await waitFor(() => expect(result.current.error).toBe("No speech detected"));
+  });
+
+  it("sends a segment boundary when persistent VAD detects a pause", async () => {
+    h.vadTick.mockReturnValue("segment-boundary");
+    const { result } = await mountReady({ persistentMode: true });
+    await act(async () => {
+      await result.current.startRecording({ vadEnabled: true });
+    });
+    await waitFor(() => expect(result.current.isListening).toBe(true));
+    await act(async () => {
+      rafCb?.();
+      await Promise.resolve();
+    });
+    expect(lastVSP().sendSegmentBoundary).toHaveBeenCalled();
+  });
+
+  it("resets persistent VAD after a stop verdict without ending the listener", async () => {
+    h.vadTick.mockReturnValue("stop");
+    const { result } = await mountReady({ persistentMode: true });
+    await act(async () => {
+      await result.current.startRecording({ vadEnabled: true });
+    });
+    await waitFor(() => expect(result.current.isListening).toBe(true));
+    await act(async () => {
+      rafCb?.();
+      await Promise.resolve();
+    });
+    expect(lastVSP().sendSegmentBoundary).toHaveBeenCalled();
+    expect(result.current.isListening).toBe(true);
+  });
+
+  it("hydrates a fresh VAD noise-floor cache before recording", async () => {
+    h.loadNoiseFloorCache.mockReturnValueOnce({ timestamp: Date.now(), silenceThreshold: 0.04 });
+    const { result } = await mountReady();
+    await act(async () => {
+      await result.current.startRecording({ vadEnabled: true });
+    });
+    await waitFor(() => expect(result.current.isRecording).toBe(true));
+    expect(h.createVadRefsFromCache).toHaveBeenCalled();
   });
 });
 

@@ -43,7 +43,7 @@
       "validation": [
         {
           "notes": "[REQ:ATD-P0-002] Provider-neutral trust rubric and qualification profile tests; real-resource duration evidence is required before status promotion.",
-          "ref": "api/internal/stt/trustfloor/rubric_test.go::TestEvaluateRejectsMissingRequiredEvidence",
+          "ref": "api/internal/qualification/rubric_test.go::TestEvaluateRejectsMissingRequiredEvidence",
           "status": "implemented",
           "type": "test"
         },
@@ -61,7 +61,7 @@
         },
         {
           "notes": "[REQ:ATD-P0-002] Provider promotion is evaluated by engine, strategy, and policy cell; strategy-less legacy reports cannot contaminate a current qualification verdict.",
-          "ref": "api/internal/stt/trustfloor/rubric_test.go::TestEvaluateReplayMeasurements_SeparatesProviderStrategyCells",
+          "ref": "api/internal/qualification/rubric_test.go::TestEvaluateReplayMeasurements_SeparatesProviderStrategyCells",
           "status": "implemented",
           "type": "test"
         },
@@ -103,7 +103,7 @@
       "description": "A session has stable identities, monotonic chunk ranges, received and processed acknowledgements, idempotent committed segment IDs, and an explicit terminal reason.",
       "validation": [
         {"type":"test","ref":"ui/src/audio-integration/hooks/voice/VoiceStreamProvider.tailDrop.test.ts","status":"implemented","notes":"[REQ:ATD-P0-004] v2 framing, replay, acknowledged compaction, and terminal cleanup tests."},
-        {"type":"automation","ref":"bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json","status":"implemented","notes":"[REQ:ATD-P0-004] WAV-backed product-path incomplete-coverage case passed on 2026-07-12 (BAS execution ed1006b3-8aff-4c65-8855-2f941a2b7c22). With the boot-only fault gate temporarily enabled, it proves captured PCM reaches the terminal WebSocket path, an intentionally withheld acknowledgement is visible in the product, and the diagnostic exposes incomplete_coverage rather than a false successful final."},
+        {"type":"automation","ref":"bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json","status":"implemented","notes":"[REQ:ATD-P0-004] WAV-backed product-path incomplete-coverage case passed on 2026-07-12 (BAS execution ed1006b3-8aff-4c65-8855-2f941a2b7c22). With a server-owned routed-isolation lease installed, it proves captured PCM reaches the terminal WebSocket path, an intentionally withheld acknowledgement is visible in the product, and the diagnostic exposes incomplete_coverage rather than a false successful final."},
         {"type":"manual","status":"planned","notes":"Required before completion: browser qualification must prove reconnect/replay and terminal coverage over the real product path."}
       ]
     },

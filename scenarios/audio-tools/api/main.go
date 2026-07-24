@@ -11,6 +11,8 @@ import (
 
 	"audio-tools/internal/bootstrap"
 
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	_ "modernc.org/sqlite"
@@ -21,12 +23,18 @@ func main() {
 		return
 	}
 
-	srv, cleanup, err := bootstrap.Build(context.Background())
+	srv, deps, cleanup, err := bootstrap.BuildWithDeps(context.Background())
 	if err != nil {
 		log.Fatalf("bootstrap failed: %v", err)
 	}
 
-	handler := srv.Handler()
+	// Register the dev-only database routing service before the scenario API.
+	// Test-genie installs a leased test pool here; the middleware below routes
+	// explicitly marked test requests to it and leaves ordinary traffic alone.
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, deps.DB, deps.FileRoots)
+	rootMux.Handle("/", srv.Handler())
+	handler := apihttp.TestModeMiddleware(rootMux)
 	var httpServer *http.Server
 	if err := apiserver.Run(apiserver.Config{
 		StartServer: func(addr string) error {

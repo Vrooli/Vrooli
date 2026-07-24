@@ -74,13 +74,13 @@ replace, the following functional cases:
    acknowledgement-withholding proof; it is not reconnect/replay, restart, or
    full provider-resource qualification.
    Browser page-profile headers do not reach a page-created WebSocket handshake,
-   so the case instead uses explicit test URL parameters guarded by Audio Tools'
-   boot-only fault switch. BAS execution
+   so the case instead uses explicit test URL parameters guarded by the active
+   server-owned routed-isolation lease. BAS execution
    `35820ee3-2145-4f83-bac7-d62a56e0b461` (2026-07-12) passed with a visible
    typed provider-busy recovery message, and execution
    `ed1006b3-8aff-4c65-8855-2f941a2b7c22` passed the missing-acknowledgement
-   recovery path. Normal deployments ignore those URL parameters because the
-   server gate remains disabled. The remaining named
+   recovery path. Normal deployments ignore those URL parameters because they
+   never have an active routed-isolation lease. The remaining named
    fault controls are delayed-ready, slow reader, missing acknowledgement,
    close-before-done, backend restart, muted/ended track, journal quota,
    verifier/extractor outage, and page interruption. Each needs a product-path

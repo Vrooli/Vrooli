@@ -2,9 +2,10 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // UsageRow is a single accounted operation.
@@ -50,9 +51,9 @@ type FallbackReasonCount struct {
 	Count  int64
 }
 
-type UsageStore struct{ db *sql.DB }
+type UsageStore struct{ db *database.RoutedDB }
 
-func NewUsageStore(db *sql.DB) *UsageStore { return &UsageStore{db: db} }
+func NewUsageStore(db *database.RoutedDB) *UsageStore { return &UsageStore{db: db} }
 
 // Insert is idempotent on OperationID. Re-inserts with the same id are
 // silently ignored so async retries cannot create duplicates.

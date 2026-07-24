@@ -30,8 +30,13 @@ import (
 	summarizeH "audio-tools/handlers/summarize"
 	ttsH "audio-tools/handlers/tts"
 	usageH "audio-tools/handlers/usage"
+	"audio-tools/internal/byokstore"
 	localdb "audio-tools/internal/database"
 	intexperiment "audio-tools/internal/experiment"
+	intsettings "audio-tools/internal/settings"
+	intstt "audio-tools/internal/stt"
+	inttts "audio-tools/internal/tts"
+	"audio-tools/internal/usagereport"
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
 	corpusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/corpus"
@@ -98,6 +103,11 @@ func AllProtoFiles() []ProtoFileEntry {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(byokstore.Schema),
+		apidb.SchemaProviderFunc(intsettings.Schema),
+		apidb.SchemaProviderFunc(usagereport.Schema),
+		apidb.SchemaProviderFunc(intstt.Schema),
+		apidb.SchemaProviderFunc(inttts.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(hsH.Schema),
 		apidb.SchemaProviderFunc(plH.Schema),

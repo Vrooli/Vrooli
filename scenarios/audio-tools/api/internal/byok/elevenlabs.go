@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"audio-tools/internal/ai/ttschain"
@@ -81,22 +80,7 @@ func (a *ElevenLabsTTS) Synthesize(ctx context.Context, key string, req ttschain
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "audio/mpeg")
 
-	clk := a.Clock
-	if clk == nil {
-		clk = clock.System{}
-	}
-	start := clk.Now()
-	resp, err := a.Doer.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("elevenlabs: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		raw, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("elevenlabs: HTTP %d: %s", resp.StatusCode, truncate(string(raw), 256))
-	}
-	audio, err := io.ReadAll(resp.Body)
+	audio, latency, err := DoAudioRequest(ctx, a.Doer, a.Clock, "elevenlabs", httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +89,6 @@ func (a *ElevenLabsTTS) Synthesize(ctx context.Context, key string, req ttschain
 		ContentType: "audio/mpeg",
 		ModelID:     "eleven_multilingual_v2",
 		VoiceUsed:   voiceID,
-		Latency:     clk.Now().Sub(start),
+		Latency:     latency,
 	}, nil
 }

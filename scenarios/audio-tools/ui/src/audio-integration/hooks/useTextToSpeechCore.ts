@@ -18,10 +18,11 @@
 // adopter's adapter (e.g. web-console's useTextToSpeech.ts).
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchCachedTTS, getTTSVoices, synthesizeTTS } from "../index";
-import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider, TTSVoiceInfo } from "../index";
-import { KokoroProvider } from "../index";
-import { BrowserTTSProvider } from "../index";
+import { fetchCachedTTS, getTTSVoices, synthesizeTTS } from "../api/tts";
+import type { TTSVoiceInfo } from "../api/tts";
+import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider } from "./tts/types";
+import { KokoroProvider } from "./tts/KokoroProvider";
+import { BrowserTTSProvider } from "./tts/BrowserTTSProvider";
 
 /**
  * Playback event emitted by the core. The host wraps this with its own

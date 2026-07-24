@@ -18,9 +18,9 @@ import (
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
 	"audio-tools/internal/clock"
-	localdb "audio-tools/internal/database"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
+	intstt "audio-tools/internal/stt"
 	"audio-tools/internal/testutil/db"
 
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -65,29 +65,29 @@ func newSTTRuntimeClient(t *testing.T, d Deps) sttconnect.STTServiceClient {
 func newSpeakerStoreT(t *testing.T) *store.SpeakerStore {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
-	return store.NewSpeakerStore(d)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(intstt.Schema)))
+	return store.NewSpeakerStore(apidb.NewFromPrimary(d))
 }
 
 func newWakeWordStoreT(t *testing.T) *store.WakeWordStore {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
-	return store.NewWakeWordStore(d)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(intstt.Schema)))
+	return store.NewWakeWordStore(apidb.NewFromPrimary(d))
 }
 
 func newStreamCfgStoreT(t *testing.T) *store.STTStreamConfigStore {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
-	return store.NewSTTStreamConfigStore(d)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(intstt.Schema)))
+	return store.NewSTTStreamConfigStore(apidb.NewFromPrimary(d))
 }
 
 func newSpeakerCfgStoreT(t *testing.T) *store.STTSpeakerConfigStore {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
-	return store.NewSTTSpeakerConfigStore(d)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(intstt.Schema)))
+	return store.NewSTTSpeakerConfigStore(apidb.NewFromPrimary(d))
 }
 
 // Reset the in-process speaker-config cell between tests that mutate it.

@@ -275,57 +275,47 @@ audio-tools corpus list
 
 # 2. Enqueue a persisted quality-only comparison over the corpus:
 audio-tools experiment start --strategies batch,vad_segment,overlap_agree --json
-audio-tools experiment wait <experiment-id> --json
+audio-tools experiment wait "<experiment-id>" --json
 
 # Optional: stream server-owned progress while the worker runs. Canceling this
 # client does not abort the experiment.
-audio-tools experiment watch <experiment-id>
+audio-tools experiment watch "<experiment-id>"
 
 # 3. Add finalization-latency measurement (slower; repeated real-time runs):
 audio-tools experiment start --strategies batch,vad_segment,overlap_agree --realtime-repeats 5 --json
-audio-tools experiment report <experiment-id>
+audio-tools experiment report "<experiment-id>"
 
 # 4. Tune overlap-agree experiment knobs hermetically and compare reports to see
 #    latency/WER deltas without changing live STT settings:
 audio-tools experiment start --strategies overlap_agree --overlap-max-window-ms 12000 --realtime-repeats 5 --json
-audio-tools experiment compare <baseline-id>,<tuned-id>
+audio-tools experiment compare "<baseline-id>,<tuned-id>"
 
 # 5. Enqueue a persisted long-form experiment from the same corpus:
 audio-tools experiment start --long-form true --target-duration-seconds 180 --gap-ms 5000 --seed 42 --json
-audio-tools experiment watch <experiment-id>
+audio-tools experiment watch "<experiment-id>"
 
 # 5b. Measure long-form final-tail latency without pacing the full prefix:
-audio-tools experiment start --long-form true --target-duration-seconds 180 \
-  --realtime-repeats 2 --latency-tail-seconds 8 --json
+audio-tools experiment start --long-form true --target-duration-seconds 180 --realtime-repeats 2 --latency-tail-seconds 8 --json
 
 # 5b-2. Sweep overlap-agree tail-latency knobs hermetically from flags:
-audio-tools experiment start --strategies overlap_agree \
-  --overlap-max-stall-rejects 3 --overlap-window-ms 2000 \
-  --overlap-commit-runs 2 --realtime-repeats 2 \
-  --latency-tail-seconds 8 --json
+audio-tools experiment start --strategies overlap_agree --overlap-max-stall-rejects 3 --overlap-window-ms 2000 --overlap-commit-runs 2 --realtime-repeats 2 --latency-tail-seconds 8 --json
 
 # 5c. Populate the metric-vs-length CURVE in one run: a length sweep builds one
 #     seeded input per duration, so the report's length buckets get multiple
 #     points instead of a single long-form blob collapsing to one bucket:
-audio-tools experiment start --sweep-durations 30,60,120,300 \
-  --realtime-repeats 2 --latency-tail-seconds 8 --seed 42 --json
+audio-tools experiment start --sweep-durations 30,60,120,300 --realtime-repeats 2 --latency-tail-seconds 8 --seed 42 --json
 
 # 6. Add deterministic augmentation conditions over the whole realized input:
-audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 \
-  --noise-types white,fan --snr-db 18,12,6 --json
+audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 --noise-types white,fan --snr-db 18,12,6 --json
 
 # 7. Check/enroll speaker profiles, then add target-speaker extraction /
 #    verification ablations over a mixed input:
 audio-tools stt speaker-status --json
-audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 \
-  --competing-voices af_bella --snr-db 12 --target-profile-id my-voice \
-  --speaker-extraction true --speaker-verification true --speaker-mode filter \
-  --dropped-span-threshold 4 \
-  --speaker-ablation true --json
+audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 --competing-voices af_bella --snr-db 12 --target-profile-id my-voice --speaker-extraction true --speaker-verification true --speaker-mode filter --dropped-span-threshold 4 --speaker-ablation true --json
 
 # 8. Delete terminal experiment artifacts when they are no longer useful.
 #    Running/queued experiments must be canceled or allowed to finish first.
-audio-tools experiment delete <experiment-id> --yes
+audio-tools experiment delete "<experiment-id>" --yes
 ```
 
 A live Whisper backend is required (the harness is an integration tool, not

@@ -22,7 +22,6 @@ import (
 	"audio-tools/internal/testutil/db"
 	inttts "audio-tools/internal/tts"
 
-	localdb "audio-tools/internal/database"
 	apidb "github.com/vrooli/api-core/database"
 
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -51,15 +50,15 @@ func newServer2(t *testing.T, deps ttsH.Deps) ttsconnect.TTSServiceClient {
 func newTTSStoreDB(t *testing.T) *store.TTSConfigStore {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
-	return store.NewTTSConfigStore(d)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(inttts.Schema)))
+	return store.NewTTSConfigStore(apidb.NewFromPrimary(d))
 }
 
 func newPlaybackStoreDB(t *testing.T) *store.PlaybackStore {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
-	return store.NewPlaybackStore(d)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(inttts.Schema)))
+	return store.NewPlaybackStore(apidb.NewFromPrimary(d))
 }
 
 func TestTTS_GetCache_Hit(t *testing.T) {

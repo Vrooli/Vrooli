@@ -312,7 +312,7 @@ emits PCM directly, use the unary transcription endpoint
 path. From the CLI:
 
 ```bash
-audio-tools transcribe ./capture.webm
+audio-tools stt transcribe --file ./capture.webm
 ```
 
 From the UI, prefer the "Upload audio" affordance over "Live
@@ -337,7 +337,7 @@ explanation and the planned fix.
 
 - **UI:** select **Upload audio** (or any non-streaming variant) in
   the voice panel.
-- **CLI:** use `audio-tools transcribe <file>` — it already targets
+- **CLI:** use `audio-tools stt transcribe --file "<file>"` — it targets
   the unary endpoint.
 - **Embed integrators:** call `transcribe()` (unary) instead of
   `transcribeStream()` until the embed signals streaming readiness.
@@ -414,8 +414,8 @@ patching headers by hand.
 To verify from the CLI:
 
 ```bash
-audio-tools settings list-byok
-audio-tools diagnose providers
+audio-tools settings byok-list
+audio-tools settings provider
 ```
 
 A stored credential that still produces a fallback usually means the

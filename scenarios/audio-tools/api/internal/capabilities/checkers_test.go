@@ -11,57 +11,32 @@ import (
 	"time"
 )
 
-func TestResourceChecker_Healthy(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer srv.Close()
-
-	checker := &ResourceChecker{URL: srv.URL, Doer: srv.Client()}
-	status, msg := checker.Check(context.Background())
-
-	if status != StatusAvailable {
-		t.Errorf("status = %q, want %q", status, StatusAvailable)
+func TestResourceChecker_HTTPStatuses(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		statusCode int
+		redirect   bool
+		wantStatus Status
+		wantMsg    string
+	}{
+		{name: "healthy", statusCode: http.StatusOK, wantStatus: StatusAvailable, wantMsg: "resource is healthy"},
+		{name: "redirect", statusCode: http.StatusTemporaryRedirect, redirect: true, wantStatus: StatusAvailable, wantMsg: "resource is healthy"},
+		{name: "unavailable", statusCode: http.StatusInternalServerError, wantStatus: StatusUnavailable, wantMsg: "resource returned unexpected status"},
 	}
-	if msg != "resource is healthy" {
-		t.Errorf("message = %q, want %q", msg, "resource is healthy")
-	}
-}
-
-func TestResourceChecker_Redirect(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusTemporaryRedirect)
-	}))
-	defer srv.Close()
-
-	checker := &ResourceChecker{
-		URL:  srv.URL,
-		Doer: &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
-	}
-	status, msg := checker.Check(context.Background())
-
-	if status != StatusAvailable {
-		t.Errorf("status = %q, want %q", status, StatusAvailable)
-	}
-	if msg != "resource is healthy" {
-		t.Errorf("message = %q, want %q", msg, "resource is healthy")
-	}
-}
-
-func TestResourceChecker_Unavailable(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer srv.Close()
-
-	checker := &ResourceChecker{URL: srv.URL, Doer: srv.Client()}
-	status, msg := checker.Check(context.Background())
-
-	if status != StatusUnavailable {
-		t.Errorf("status = %q, want %q", status, StatusUnavailable)
-	}
-	if msg != "resource returned unexpected status" {
-		t.Errorf("message = %q, want %q", msg, "resource returned unexpected status")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(tt.statusCode) }))
+			defer srv.Close()
+			doer := srv.Client()
+			if tt.redirect {
+				doer = &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+			}
+			status, message := (&ResourceChecker{URL: srv.URL, Doer: doer}).Check(context.Background())
+			if status != tt.wantStatus || message != tt.wantMsg {
+				t.Fatalf("Check() = (%q, %q), want (%q, %q)", status, message, tt.wantStatus, tt.wantMsg)
+			}
+		})
 	}
 }
 
@@ -379,12 +354,7 @@ func TestKokoroChecker_ConnectionRefused(t *testing.T) {
 	url := srv.URL
 	srv.Close()
 
-	checker := &KokoroChecker{
-		BaseURL: url, Doer: &http.Client{Timeout: time.Second},
-		InspectState: func(context.Context, string) (bool, bool, error) {
-			return true, true, nil
-		},
-	}
+	checker := &KokoroChecker{BaseURL: url, Doer: &http.Client{Timeout: time.Second}}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -392,48 +362,6 @@ func TestKokoroChecker_ConnectionRefused(t *testing.T) {
 	}
 	if msg != "resource is not responding" {
 		t.Errorf("message = %q, want %q", msg, "resource is not responding")
-	}
-}
-
-func TestKokoroChecker_NotInstalled(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	url := srv.URL
-	srv.Close()
-
-	checker := &KokoroChecker{
-		BaseURL: url, Doer: &http.Client{Timeout: time.Second},
-		InspectState: func(context.Context, string) (bool, bool, error) {
-			return false, false, nil
-		},
-	}
-	status, msg := checker.Check(context.Background())
-
-	if status != StatusUnavailable {
-		t.Errorf("status = %q, want %q", status, StatusUnavailable)
-	}
-	if msg != "resource is not installed" {
-		t.Errorf("message = %q, want %q", msg, "resource is not installed")
-	}
-}
-
-func TestKokoroChecker_Stopped(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	url := srv.URL
-	srv.Close()
-
-	checker := &KokoroChecker{
-		BaseURL: url, Doer: &http.Client{Timeout: time.Second},
-		InspectState: func(context.Context, string) (bool, bool, error) {
-			return true, false, nil
-		},
-	}
-	status, msg := checker.Check(context.Background())
-
-	if status != StatusUnavailable {
-		t.Errorf("status = %q, want %q", status, StatusUnavailable)
-	}
-	if msg != "resource is stopped" {
-		t.Errorf("message = %q, want %q", msg, "resource is stopped")
 	}
 }
 

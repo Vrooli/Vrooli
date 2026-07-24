@@ -50,8 +50,8 @@ Or check the URL directly:
 vrooli scenario port audio-tools UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+You should see the Dictation Studio and provider status surfaces using the
+local SQLite store.
 
 ## 4 — Talk to the API
 
@@ -60,8 +60,8 @@ automatically):
 
 ```bash
 audio-tools status
-audio-tools notes list
-audio-tools notes create --title "First note" --body "Hello"
+audio-tools diagnostics run
+audio-tools health show
 ```
 
 Or directly via HTTP:
@@ -69,9 +69,6 @@ Or directly via HTTP:
 ```bash
 API_PORT=$(vrooli scenario port audio-tools API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.audio_tools.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
 ```
 
 ## 5 — Run the tests

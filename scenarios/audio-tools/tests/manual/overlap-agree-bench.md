@@ -50,9 +50,10 @@ commit gap (RESOLVED 2026-05-28)" for full history):
 For each wav in your chosen corpus, run:
 
 ```bash
-audio-tools stt transcribe-stream --file <wav>
-# while it runs, in another shell:
-vrooli resource logs whisper --tail 200 | grep -E '(concurrent|asr)'
+audio-tools stt transcribe-stream --file "<wav>"
+
+In another shell, run `vrooli resource logs whisper --tail 200` and inspect
+the output for concurrent ASR requests.
 ```
 
 Record one row per wav in the table below.

@@ -26,6 +26,14 @@ type fakeSvc struct {
 	pullFn    func(*plv1.PullModelRequest) (*plv1.PullModelResponse, error)
 }
 
+func fakeResponse[Request, Response any](fn func(*Request) (*Response, error), req *connect.Request[Request]) (*connect.Response[Response], error) {
+	response, err := fn(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(response), nil
+}
+
 func (f *fakeSvc) ListLocalProviders(_ context.Context, _ *connect.Request[plv1.ListLocalProvidersRequest]) (*connect.Response[plv1.ListLocalProvidersResponse], error) {
 	resp, err := f.listFn()
 	if err != nil {
@@ -35,35 +43,19 @@ func (f *fakeSvc) ListLocalProviders(_ context.Context, _ *connect.Request[plv1.
 }
 
 func (f *fakeSvc) StartProvider(_ context.Context, r *connect.Request[plv1.StartProviderRequest]) (*connect.Response[plv1.StartProviderResponse], error) {
-	resp, err := f.startFn(r.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(resp), nil
+	return fakeResponse(f.startFn, r)
 }
 
 func (f *fakeSvc) StopProvider(_ context.Context, r *connect.Request[plv1.StopProviderRequest]) (*connect.Response[plv1.StopProviderResponse], error) {
-	resp, err := f.stopFn(r.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(resp), nil
+	return fakeResponse(f.stopFn, r)
 }
 
 func (f *fakeSvc) RestartProvider(_ context.Context, r *connect.Request[plv1.RestartProviderRequest]) (*connect.Response[plv1.RestartProviderResponse], error) {
-	resp, err := f.restartFn(r.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(resp), nil
+	return fakeResponse(f.restartFn, r)
 }
 
 func (f *fakeSvc) PullModel(_ context.Context, r *connect.Request[plv1.PullModelRequest]) (*connect.Response[plv1.PullModelResponse], error) {
-	resp, err := f.pullFn(r.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(resp), nil
+	return fakeResponse(f.pullFn, r)
 }
 
 func mount(t *testing.T, svc plconnect.ProviderLifecycleServiceHandler) *cliapp.ScenarioApp {

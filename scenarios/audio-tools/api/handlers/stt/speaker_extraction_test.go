@@ -10,6 +10,7 @@ import (
 
 	"audio-tools/internal/audioformat"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	sttspeaker "audio-tools/internal/stt/speaker"
 )
 
 // fakeExtractResource serves /v1/extract returning `cleaned` as the body plus
@@ -87,10 +88,7 @@ func TestCurrentSpeakerExtraction_NilUnlessEnabled(t *testing.T) {
 func TestSpeakerExtraction_ReturnsCleanedOnMatch(t *testing.T) {
 	cleaned := []byte{9, 9, 9, 9}
 	client, upload := fakeExtractResource(t, cleaned, true)
-	ext := speakerExtraction{
-		cfg:    sttpipeline.SpeakerConfig{ProfileIDs: []string{"p1"}, Threshold: 0.35, Mode: "filter"},
-		client: client,
-	}
+	ext := sttspeaker.NewExtraction(sttpipeline.SpeakerConfig{Enabled: true, ExtractionEnabled: true, ProfileIDs: []string{"p1"}, Threshold: 0.35, Mode: "filter"}, client)
 	out, err := ext.Extract(context.Background(), []byte{1, 2, 3, 4})
 	require.NoError(t, err)
 	require.Equal(t, cleaned, out, "matched profile returns the resource's cleaned audio")
@@ -105,8 +103,5 @@ func TestSpeakerExtraction_ReturnsCleanedOnMatch(t *testing.T) {
 // TestSpeakerExtraction_PassthroughWhenNothingToDo proves the adapter degrades
 // to passthrough (returns the input) when it has nothing to isolate against.
 func TestSpeakerExtraction_PassthroughWhenNothingToDo(t *testing.T) {
-	ext := speakerExtraction{cfg: sttpipeline.SpeakerConfig{}, client: nil}
-	out, err := ext.Extract(context.Background(), []byte{1, 2, 3})
-	require.NoError(t, err)
-	require.Equal(t, []byte{1, 2, 3}, out)
+	require.Nil(t, sttspeaker.NewExtraction(sttpipeline.SpeakerConfig{}, nil))
 }

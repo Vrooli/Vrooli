@@ -8,7 +8,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os/exec"
 	"strings"
 
 	"audio-tools/internal/httpc"
@@ -117,21 +116,8 @@ func (c *WhisperChecker) Check(ctx context.Context) (Status, string) {
 // sending a minimal text input to the /v1/audio/speech endpoint. This
 // catches cases where the voices endpoint responds but synthesis is broken.
 type KokoroChecker struct {
-	BaseURL       string
-	Doer          httpc.Doer
-	ContainerName string
-	InspectState  func(ctx context.Context, containerName string) (exists bool, running bool, err error)
-}
-
-func inspectDockerContainerState(ctx context.Context, containerName string) (exists bool, running bool, err error) {
-	cmd := exec.CommandContext(ctx, "docker", "inspect", "--format", "{{.State.Running}}", containerName)
-	output, err := cmd.Output()
-	if err != nil {
-		return false, false, err
-	}
-
-	state := strings.TrimSpace(string(output))
-	return true, state == "true", nil
+	BaseURL string
+	Doer    httpc.Doer
 }
 
 func (c *KokoroChecker) Check(ctx context.Context) (Status, string) {
@@ -141,22 +127,6 @@ func (c *KokoroChecker) Check(ctx context.Context) (Status, string) {
 	}
 	liveResp, err := c.Doer.Do(liveReq)
 	if err != nil {
-		inspectState := c.InspectState
-		if inspectState == nil {
-			inspectState = inspectDockerContainerState
-		}
-		containerName := c.ContainerName
-		if containerName == "" {
-			containerName = "kokoro"
-		}
-		if exists, running, inspectErr := inspectState(ctx, containerName); inspectErr == nil {
-			if !exists {
-				return StatusUnavailable, "resource is not installed"
-			}
-			if !running {
-				return StatusUnavailable, "resource is stopped"
-			}
-		}
 		return StatusUnavailable, "resource is not responding"
 	}
 	liveResp.Body.Close()

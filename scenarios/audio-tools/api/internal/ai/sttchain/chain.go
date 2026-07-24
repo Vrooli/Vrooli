@@ -1,8 +1,6 @@
 package sttchain
 
 import (
-	"context"
-	"errors"
 	"time"
 
 	"audio-tools/internal/ai/chains/tiered"
@@ -70,13 +68,14 @@ func NewChain(opts Options) *Chain {
 		localEngines: opts.LocalEngines,
 		enableLocal:  opts.EnableLocal,
 	}
-	c.Coordinator = tiered.NewChainFromSet(tiered.ProviderSet[Request, *Result]{
-		BYOK:       sttTier(c.byok),
-		Vrooli:     sttTier(c.vrooli),
-		Local:      sttTier(c.local),
-		Route:      routeFn,
-		IsTerminal: terminalFn,
-		AllFailed:  ErrAllProvidersFailed,
+	c.Coordinator = tiered.NewCredentialChain(tiered.CredentialSet[Request, *Result]{
+		BYOK:        tiered.TierFor(c.byok, (*BYOKProvider).Transcribe, (*BYOKProvider).IsAvailable),
+		Vrooli:      tiered.TierFor(c.vrooli, (*VrooliProvider).Transcribe, (*VrooliProvider).IsAvailable),
+		Local:       tiered.TierFor(c.local, (*LocalProvider).Transcribe, (*LocalProvider).IsAvailable),
+		HasBYOK:     func(req Request) bool { return req.BYOKKey != "" },
+		HasVrooli:   func(req Request) bool { return req.LPBSToken != "" },
+		UnknownBYOK: ErrUnknownBYOKProvider, MissingBYOK: ErrMissingBYOKProvider,
+		InsufficientCredits: ErrInsufficientCredits, AllFailed: ErrAllProvidersFailed,
 	}, tiered.ChainOptions{
 		EnableBYOK:   opts.EnableBYOK,
 		EnableVrooli: opts.EnableVrooli,
@@ -84,53 +83,7 @@ func NewChain(opts Options) *Chain {
 		TTLByOK:      opts.AvailTTLByOK,
 		TTLVrooli:    opts.AvailTTLVrooli,
 		Clock:        opts.Clock,
-		OnFallback:   fallbackLogger("stt", opts.Logx),
+		OnFallback:   tiered.FallbackLogger("stt", opts.Logx),
 	})
 	return c
-}
-
-// fallbackLogger returns a tiered.OnFallback hook that emits a structured
-// log line tagged with the given capability. Returns nil when lg is nil
-// so the coordinator skips invocation entirely.
-func fallbackLogger(capability string, lg logx.Logger) func(ctx context.Context, ev tiered.FallbackEvent) {
-	if lg == nil {
-		return nil
-	}
-	return func(_ context.Context, ev tiered.FallbackEvent) {
-		lg.Printf("event=tier_fallback capability=%s from_tier=%s to_tier=%s reason=%q",
-			capability, ev.From.String(), ev.To.String(), ev.Reason)
-	}
-}
-
-// sttTier wraps a concrete provider as a tiered.Tier. The pointer-shaped
-// type parameter avoids the interface-typed-nil pitfall (a typed-nil
-// *BYOKProvider would otherwise become a non-nil Provider interface).
-func sttTier[T any, P interface {
-	*T
-	Provider
-}](p P) *tiered.Tier[Request, *Result] {
-	if p == nil {
-		return nil
-	}
-	return &tiered.Tier[Request, *Result]{Execute: p.Transcribe, IsAvailable: p.IsAvailable}
-}
-
-func routeFn(slot tiered.Slot, req Request) bool {
-	switch slot {
-	case tiered.SlotBYOK:
-		return req.BYOKKey != ""
-	case tiered.SlotVrooli:
-		return req.LPBSToken != ""
-	}
-	return true
-}
-
-func terminalFn(slot tiered.Slot, err error) bool {
-	switch slot {
-	case tiered.SlotBYOK:
-		return errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider)
-	case tiered.SlotVrooli:
-		return errors.Is(err, ErrInsufficientCredits)
-	}
-	return false
 }

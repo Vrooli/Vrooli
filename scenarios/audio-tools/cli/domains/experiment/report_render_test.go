@@ -27,36 +27,28 @@ type fakeExperimentSvc struct {
 	deleteFn func(*experimentv1.DeleteExperimentRequest) (*experimentv1.DeleteExperimentResponse, error)
 }
 
-func (f *fakeExperimentSvc) StartExperiment(_ context.Context, req *connect.Request[experimentv1.StartExperimentRequest]) (*connect.Response[experimentv1.StartExperimentResponse], error) {
-	resp, err := f.startFn(req.Msg)
+func fakeResponse[Request, Response any](fn func(*Request) (*Response, error), req *connect.Request[Request]) (*connect.Response[Response], error) {
+	response, err := fn(req.Msg)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(resp), nil
+	return connect.NewResponse(response), nil
+}
+
+func (f *fakeExperimentSvc) StartExperiment(_ context.Context, req *connect.Request[experimentv1.StartExperimentRequest]) (*connect.Response[experimentv1.StartExperimentResponse], error) {
+	return fakeResponse(f.startFn, req)
 }
 
 func (f *fakeExperimentSvc) WaitExperiment(_ context.Context, req *connect.Request[experimentv1.WaitExperimentRequest]) (*connect.Response[experimentv1.WaitExperimentResponse], error) {
-	resp, err := f.waitFn(req.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(resp), nil
+	return fakeResponse(f.waitFn, req)
 }
 
 func (f *fakeExperimentSvc) GetExperimentReport(_ context.Context, req *connect.Request[experimentv1.GetExperimentReportRequest]) (*connect.Response[experimentv1.GetExperimentReportResponse], error) {
-	resp, err := f.reportFn(req.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(resp), nil
+	return fakeResponse(f.reportFn, req)
 }
 
 func (f *fakeExperimentSvc) DeleteExperiment(_ context.Context, req *connect.Request[experimentv1.DeleteExperimentRequest]) (*connect.Response[experimentv1.DeleteExperimentResponse], error) {
-	resp, err := f.deleteFn(req.Msg)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(resp), nil
+	return fakeResponse(f.deleteFn, req)
 }
 
 func mountExperiment(t *testing.T, svc experimentconnect.ExperimentServiceHandler) *cliapp.ScenarioApp {

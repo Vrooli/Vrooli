@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 type WakeWordTemplate struct {
@@ -14,9 +16,9 @@ type WakeWordTemplate struct {
 	CreatedAt time.Time
 }
 
-type WakeWordStore struct{ db *sql.DB }
+type WakeWordStore struct{ db *database.RoutedDB }
 
-func NewWakeWordStore(db *sql.DB) *WakeWordStore { return &WakeWordStore{db: db} }
+func NewWakeWordStore(db *database.RoutedDB) *WakeWordStore { return &WakeWordStore{db: db} }
 
 func (s *WakeWordStore) Upsert(ctx context.Context, t WakeWordTemplate) error {
 	if t.CreatedAt.IsZero() {

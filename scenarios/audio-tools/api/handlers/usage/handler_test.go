@@ -14,10 +14,10 @@ import (
 
 	usageH "audio-tools/handlers/usage"
 	"audio-tools/internal/clock"
-	localdb "audio-tools/internal/database"
 	"audio-tools/internal/store"
 	"audio-tools/internal/testutil/db"
 	"audio-tools/internal/testutil/mocks"
+	"audio-tools/internal/usagereport"
 
 	usagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage"
 	usageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage/usage_v1connect"
@@ -26,8 +26,8 @@ import (
 func newServer(t *testing.T) (usageconnect.UsageServiceClient, *store.UsageStore) {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
-	us := store.NewUsageStore(d)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(usagereport.Schema)))
+	us := store.NewUsageStore(apidb.NewFromPrimary(d))
 	mod := usageH.Module(usageH.Deps{Store: us, Logger: &mocks.FakeLogger{}, Clock: clock.System{}})
 	r := mux.NewRouter()
 	mod.Mount(r)

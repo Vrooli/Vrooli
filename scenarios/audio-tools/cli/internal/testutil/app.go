@@ -2,12 +2,24 @@ package testutil
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
+
+// ReadManifest loads the scenario CLI manifest from a domain test package.
+func ReadManifest(tb testing.TB) []byte {
+	tb.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
+	if err != nil {
+		tb.Fatalf("read manifest: %v", err)
+	}
+	return raw
+}
 
 // NewTestApp wires a *cliapp.ScenarioApp pointed at a real httptest
 // server fronting handler. The default APIBase resolves to the test

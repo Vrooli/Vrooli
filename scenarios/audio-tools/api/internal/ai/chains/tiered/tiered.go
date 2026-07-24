@@ -58,6 +58,19 @@ type Tier[Req, Resp any] struct {
 	IsAvailable func(ctx context.Context) bool
 }
 
+// TierFor adapts a concrete pointer provider to a tier. Keeping the provider
+// pointer in the signature preserves nil semantics: a typed-nil provider is
+// absent rather than a non-nil interface that fails later at execution time.
+func TierFor[Provider, Req, Resp any](provider *Provider, execute func(*Provider, context.Context, Req) (Resp, error), available func(*Provider, context.Context) bool) *Tier[Req, Resp] {
+	if provider == nil {
+		return nil
+	}
+	return &Tier[Req, Resp]{
+		Execute:     func(ctx context.Context, req Req) (Resp, error) { return execute(provider, ctx, req) },
+		IsAvailable: func(ctx context.Context) bool { return available(provider, ctx) },
+	}
+}
+
 // Options configures a Coordinator. Any nil Tier slot is skipped at
 // Execute time.
 type Options[Req, Resp any] struct {

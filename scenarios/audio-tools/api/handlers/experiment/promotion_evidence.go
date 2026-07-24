@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	intexp "audio-tools/internal/experiment"
-	"audio-tools/internal/stt/trustfloor"
+	"audio-tools/internal/qualification"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 )

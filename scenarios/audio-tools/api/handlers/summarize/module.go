@@ -8,8 +8,8 @@ import (
 	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
+	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
-	"audio-tools/internal/usagereport"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -24,10 +24,13 @@ type Deps struct {
 	GetSummarizeConfig  func() intsumm.SummarizeConfig
 	SetSummarizeConfig  func(intsumm.SummarizeConfig)
 	ListSummarizeModels func(context.Context) ([]intsumm.SummarizeModelInfo, error)
-	Usage               usagereport.Recorder
+	Usage               UsageRecorder
 }
 
-func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), logger logx.Logger, clk clock.Clock, usage usagereport.Recorder) modulekit.Module {
+// UsageRecorder is the summarize transport's narrow usage submission port.
+type UsageRecorder interface{ Enqueue(store.UsageRow) }
+
+func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), logger logx.Logger, clk clock.Clock, usage UsageRecorder) modulekit.Module {
 	if logger == nil {
 		panic("summarize.Module requires logger")
 	}

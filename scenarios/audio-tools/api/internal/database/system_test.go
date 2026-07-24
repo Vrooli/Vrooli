@@ -14,35 +14,22 @@ import (
 	localdb "audio-tools/internal/database"
 )
 
-// TestSystemSchema_DeclaresCoreTables guards the canonical table set.
-// system.sql owns the full audio-tools schema; per-domain handlers
-// keep Schema() empty and route I/O through internal/store/*.
-func TestSystemSchema_DeclaresCoreTables(t *testing.T) {
-	got := stripComments(localdb.SystemSchema())
-	for _, want := range []string{
-		"byok_credentials",
-		"provider_config",
-		"voice_overrides",
-		"usage_rows",
-		"wakeword_templates",
-		"speaker_profiles",
-		"stt_stream_config",
-		"tts_config",
-		"playback_events",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("system.sql missing table %q", want)
-		}
+// TestSystemSchema_IsCrossCuttingOnly guards the storage ownership boundary.
+// system.sql contains only cross-cutting documentation; each domain exposes
+// its own Schema and the module registry composes those providers at boot.
+func TestSystemSchema_IsCrossCuttingOnly(t *testing.T) {
+	if got := strings.TrimSpace(stripComments(localdb.SystemSchema())); got != "" {
+		t.Fatalf("system.sql must not declare domain tables, got %q", got)
 	}
 }
 
 // TestEnsureSchemas_AppliesSystem proves the canonical bootstrap path
 // works against a real sqlite handle with the system provider only.
-// Per-domain providers (notes, etc.) own their own apply-and-query
-// coverage in their own *_test.go files (see internal/notes/sqlite_test.go).
+// Per-domain providers own their own apply-and-query coverage in their
+// respective packages.
 //
 // This test deliberately does NOT import any per-domain package. Domain
-// deletion must leave this package's tests passing — coupling to notes
+// deletion must leave this package's tests passing — coupling to a domain
 // here would break the deletability invariant Pass-3 establishes.
 func TestEnsureSchemas_AppliesSystem(t *testing.T) {
 	d := db.NewSQLite(t)

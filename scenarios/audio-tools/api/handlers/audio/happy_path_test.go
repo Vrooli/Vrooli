@@ -11,15 +11,12 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
 	intaudio "audio-tools/internal/audio"
 	audiomocks "audio-tools/internal/audio/mocks"
-	"audio-tools/internal/testutil/mocks"
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
-	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 )
 
@@ -36,19 +33,9 @@ func withRunner(t *testing.T, r intaudio.Runner) {
 	})
 }
 
-func newAudioClient(t *testing.T) audioconnect.AudioProcessingServiceClient {
-	t.Helper()
-	mod := Module(&mocks.FakeLogger{})
-	r := mux.NewRouter()
-	mod.Mount(r)
-	srv := httptest.NewServer(r)
-	t.Cleanup(srv.Close)
-	return audioconnect.NewAudioProcessingServiceClient(http.DefaultClient, srv.URL)
-}
-
 func TestTranscode_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("ENCODED"), nil))
-	c := newAudioClient(t)
+	c := newClient(t)
 	res, err := c.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{
 		Audio: []byte("RAW"), OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_MP3, SampleRate: 16000, Channels: 1, Bitrate: 128000,
 	}))
@@ -59,7 +46,7 @@ func TestTranscode_HappyPath(t *testing.T) {
 
 func TestTranscode_DefaultContentType(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("OUT"), nil))
-	c := newAudioClient(t)
+	c := newClient(t)
 	res, err := c.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{Audio: []byte("X")}))
 	require.NoError(t, err)
 	require.Equal(t, "audio/wav", res.Msg.GetContentType())
@@ -71,7 +58,7 @@ func TestTranscode_FfmpegRejectionMapsToInvalidArgument(t *testing.T) {
 	// honest-error contract maps this to InvalidArgument and preserves the
 	// underlying ffmpeg failure in the message.
 	withRunner(t, audiomocks.NewFakeRunner(nil, errors.New("boom")))
-	c := newAudioClient(t)
+	c := newClient(t)
 	_, err := c.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{Audio: []byte("X")}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
@@ -80,7 +67,7 @@ func TestTranscode_FfmpegRejectionMapsToInvalidArgument(t *testing.T) {
 
 func TestTrim_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("TRIM"), nil))
-	c := newAudioClient(t)
+	c := newClient(t)
 	res, err := c.Trim(context.Background(), connect.NewRequest(&audiov1.TrimRequest{
 		Audio: []byte("X"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV, StartSeconds: 1, EndSeconds: 5,
 	}))
@@ -90,7 +77,7 @@ func TestTrim_HappyPath(t *testing.T) {
 
 func TestFade_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("FADE"), nil))
-	c := newAudioClient(t)
+	c := newClient(t)
 	res, err := c.Fade(context.Background(), connect.NewRequest(&audiov1.FadeRequest{
 		Audio: []byte("X"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV, FadeInSeconds: 0.5, FadeOutSeconds: 0.5, OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_MP3,
 	}))
@@ -101,7 +88,7 @@ func TestFade_HappyPath(t *testing.T) {
 
 func TestVolume_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("VOL"), nil))
-	c := newAudioClient(t)
+	c := newClient(t)
 	res, err := c.Volume(context.Background(), connect.NewRequest(&audiov1.VolumeRequest{
 		Audio: []byte("X"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV, GainDb: -3, OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_FLAC,
 	}))
@@ -112,7 +99,7 @@ func TestVolume_HappyPath(t *testing.T) {
 
 func TestNormalize_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("NORM"), nil))
-	c := newAudioClient(t)
+	c := newClient(t)
 	res, err := c.Normalize(context.Background(), connect.NewRequest(&audiov1.NormalizeRequest{
 		Audio:        []byte("X"),
 		Format:       commonv1.AudioFormat_AUDIO_FORMAT_WAV,
@@ -126,7 +113,7 @@ func TestNormalize_HappyPath(t *testing.T) {
 }
 
 func TestMerge_RequiresAtLeastOneSource(t *testing.T) {
-	c := newAudioClient(t)
+	c := newClient(t)
 	_, err := c.Merge(context.Background(), connect.NewRequest(&audiov1.MergeRequest{}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
@@ -134,7 +121,7 @@ func TestMerge_RequiresAtLeastOneSource(t *testing.T) {
 
 func TestMerge_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("MIX"), nil))
-	c := newAudioClient(t)
+	c := newClient(t)
 	res, err := c.Merge(context.Background(), connect.NewRequest(&audiov1.MergeRequest{
 		Sources: []*audiov1.MergeSource{
 			{Audio: []byte("A"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV},
@@ -149,7 +136,7 @@ func TestMerge_HappyPath(t *testing.T) {
 
 func TestSplit_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("CHUNK"), nil))
-	c := newAudioClient(t)
+	c := newClient(t)
 	res, err := c.Split(context.Background(), connect.NewRequest(&audiov1.SplitRequest{
 		Audio: []byte("LONG"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV, ChunkSeconds: 1.0, OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_WAV,
 	}))
@@ -165,7 +152,7 @@ func TestSplit_HappyPath(t *testing.T) {
 func TestExtractMetadata_HappyPath(t *testing.T) {
 	probeJSON := `{"streams":[{"codec_name":"mp3","sample_rate":"48000","channels":2,"bit_rate":"192000"}],"format":{"format_name":"mp3","duration":"3.5","bit_rate":"192000","tags":{"title":"hello"}}}`
 	withRunner(t, audiomocks.NewFakeRunner([]byte(probeJSON), nil))
-	c := newAudioClient(t)
+	c := newClient(t)
 	res, err := c.ExtractMetadata(context.Background(), connect.NewRequest(&audiov1.ExtractMetadataRequest{Audio: []byte("X")}))
 	require.NoError(t, err)
 	require.Equal(t, float64(3.5), res.Msg.GetMetadata().GetDurationSeconds())
@@ -175,7 +162,7 @@ func TestExtractMetadata_HappyPath(t *testing.T) {
 
 func TestExtractMetadata_FfprobeErrorMapsInternal(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner(nil, errors.New("boom")))
-	c := newAudioClient(t)
+	c := newClient(t)
 	_, err := c.ExtractMetadata(context.Background(), connect.NewRequest(&audiov1.ExtractMetadataRequest{Audio: []byte("X")}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))

@@ -11,6 +11,7 @@ import (
 
 	"audio-tools/internal/stt/egress"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	sttspeaker "audio-tools/internal/stt/speaker"
 )
 
 // fakeSpeakerResource stands up an httptest server shaped like the
@@ -65,7 +66,7 @@ func pastWarmupCfg(profiles ...string) sttpipeline.SpeakerConfig {
 // verification adapter maps a matching ECAPA score to an allowed verdict and a
 // non-match (filter mode) to a rejection — the audio-domain egress contract.
 func TestSpeakerVerificationIsolation_AllowsMatch(t *testing.T) {
-	iso := newSpeakerVerification(pastWarmupCfg("sp-1"), fakeSpeakerResourceWithScore(t, 0.9))
+	iso := sttspeaker.NewIsolation(pastWarmupCfg("sp-1"), fakeSpeakerResourceWithScore(t, 0.9), nil)
 	v := iso.Evaluate(context.Background(), []byte("pcm"))
 	require.True(t, v.Allowed)
 	require.False(t, v.FallbackUsed)
@@ -77,7 +78,7 @@ func TestSpeakerVerificationIsolation_AllowsMatch(t *testing.T) {
 }
 
 func TestSpeakerVerificationIsolation_RejectsNonMatch(t *testing.T) {
-	iso := newSpeakerVerification(pastWarmupCfg("sp-1"), fakeSpeakerResourceWithScore(t, 0.1)) // below threshold
+	iso := sttspeaker.NewIsolation(pastWarmupCfg("sp-1"), fakeSpeakerResourceWithScore(t, 0.1), nil) // below threshold
 	dec := egress.SpeakerStage{Isolation: iso}.Apply(context.Background(), egress.SegmentDecision{Text: "nickelback lyrics", Audio: []byte("pcm")})
 	require.Equal(t, egress.Reject, dec.Outcome)
 	require.NotEmpty(t, dec.Reason)
@@ -95,7 +96,7 @@ func TestSpeakerVerificationIsolation_WarmupNeverRejects(t *testing.T) {
 		Enabled: true, Mode: "filter", Threshold: 0.35, ProfileIDs: []string{"sp-1"},
 		MinDecisionSeconds: 10.0, // fixture's 2.0s/segment stays in warm-up
 	}
-	iso := newSpeakerVerification(cfg, fakeSpeakerResourceWithScore(t, 0.1))
+	iso := sttspeaker.NewIsolation(cfg, fakeSpeakerResourceWithScore(t, 0.1), nil)
 	dec := egress.SpeakerStage{Isolation: iso}.Apply(context.Background(), egress.SegmentDecision{Text: "hi", Audio: []byte("pcm"), Outcome: egress.Emit})
 	require.Equal(t, egress.Emit, dec.Outcome, "warm-up window must not reject")
 }
@@ -106,7 +107,7 @@ func TestSpeakerVerificationIsolation_WarmupNeverRejects(t *testing.T) {
 func TestSpeakerVerificationIsolation_FallbackWhenNoProfile(t *testing.T) {
 	cfg := pastWarmupCfg()
 	cfg.FallbackWithoutVerification = true
-	iso := newSpeakerVerification(cfg, fakeSpeakerResourceWithScore(t, 0.9))
+	iso := sttspeaker.NewIsolation(cfg, fakeSpeakerResourceWithScore(t, 0.9), nil)
 	v := iso.Evaluate(context.Background(), []byte("pcm"))
 	require.True(t, v.Allowed)
 	require.True(t, v.FallbackUsed, "no profile bound -> allowed via fallback, flagged unverified")

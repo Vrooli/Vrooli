@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // jsonSingleton implements a one-row table that stores arbitrary
@@ -14,7 +16,7 @@ import (
 // per-call duplication while keeping each public store narrowly typed
 // at the boundary.
 type jsonSingleton struct {
-	db    *sql.DB
+	db    *database.RoutedDB
 	table string
 	cols  []string // mirror config_json / summarize_json column order
 }
@@ -74,7 +76,7 @@ func joinCols(cols []string) string {
 // STTStreamConfigStore persists a single JSON-encoded stream config.
 type STTStreamConfigStore struct{ s jsonSingleton }
 
-func NewSTTStreamConfigStore(db *sql.DB) *STTStreamConfigStore {
+func NewSTTStreamConfigStore(db *database.RoutedDB) *STTStreamConfigStore {
 	return &STTStreamConfigStore{s: jsonSingleton{db: db, table: "stt_stream_config", cols: []string{"config_json"}}}
 }
 
@@ -95,7 +97,7 @@ func (s *STTStreamConfigStore) Set(ctx context.Context, configJSON string) error
 // store; the enrolled profiles themselves live in the speaker_profiles table.
 type STTSpeakerConfigStore struct{ s jsonSingleton }
 
-func NewSTTSpeakerConfigStore(db *sql.DB) *STTSpeakerConfigStore {
+func NewSTTSpeakerConfigStore(db *database.RoutedDB) *STTSpeakerConfigStore {
 	return &STTSpeakerConfigStore{s: jsonSingleton{db: db, table: "stt_speaker_config", cols: []string{"config_json"}}}
 }
 
@@ -116,7 +118,7 @@ func (s *STTSpeakerConfigStore) Set(ctx context.Context, configJSON string) erro
 // pair used by internal/tts).
 type TTSConfigStore struct{ s jsonSingleton }
 
-func NewTTSConfigStore(db *sql.DB) *TTSConfigStore {
+func NewTTSConfigStore(db *database.RoutedDB) *TTSConfigStore {
 	return &TTSConfigStore{s: jsonSingleton{db: db, table: "tts_config", cols: []string{"config_json", "summarize_json"}}}
 }
 

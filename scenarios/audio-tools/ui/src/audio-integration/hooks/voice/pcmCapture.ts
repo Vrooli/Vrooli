@@ -20,6 +20,11 @@ import { getSharedAudioContext } from "./sharedAudioContext";
 
 export type { AsyncPcmCaptureFactory, PcmCapture, PcmCaptureFactory };
 
+// Some fake-media automation drivers advertise AudioWorklet support but leave
+// module loading pending forever. A recorder must still become usable through
+// the broadly supported ScriptProcessor graph.
+const CANONICAL_CAPTURE_START_TIMEOUT_MS = 1_000;
+
 /**
  * Production PCM capture using a ScriptProcessorNode on the shared
  * AudioContext. ScriptProcessor is deprecated but universally supported;
@@ -33,5 +38,28 @@ export type { AsyncPcmCaptureFactory, PcmCapture, PcmCaptureFactory };
 export const createScriptProcessorPcmCapture: PcmCaptureFactory = (stream, onFrame) =>
   createSharedScriptProcessorPcmCapture(getSharedAudioContext(), stream, onFrame);
 
-export const createCanonicalPcmCapture: AsyncPcmCaptureFactory = (stream, onFrame) =>
-  createSharedCanonicalPcmCapture(getSharedAudioContext(), stream, onFrame);
+export const createCanonicalPcmCapture: AsyncPcmCaptureFactory = async (stream, onFrame) => {
+  const context = getSharedAudioContext();
+  let timedOut = false;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const preferred = createSharedCanonicalPcmCapture(context, stream, onFrame).then((capture) => {
+    // If the preferred graph completes after the fallback is active, tear it
+    // down rather than leaving two capture graphs attached to one microphone.
+    if (timedOut) capture.stop();
+    return capture;
+  });
+
+  try {
+    return await Promise.race([
+      preferred,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error("canonical PCM capture startup timed out")), CANONICAL_CAPTURE_START_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    timedOut = true;
+    return createSharedScriptProcessorPcmCapture(context, stream, onFrame);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+};

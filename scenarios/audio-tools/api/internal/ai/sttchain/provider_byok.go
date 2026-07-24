@@ -2,7 +2,8 @@ package sttchain
 
 import (
 	"context"
-	"fmt"
+
+	"audio-tools/internal/ai/chains/tiered"
 )
 
 // seam: BYOKAdapter is the STT BYOK-adapter seam (SEAMS.md row
@@ -44,26 +45,14 @@ func (p *BYOKProvider) IsAvailable(ctx context.Context) bool {
 }
 
 func (p *BYOKProvider) Transcribe(ctx context.Context, req Request) (*Result, error) {
-	if req.BYOKKey == "" {
-		return nil, fmt.Errorf("audio-tools/sttchain: BYOK key required")
-	}
-	if req.BYOKProvider == "" {
-		return nil, ErrMissingBYOKProvider
-	}
-	adapter, ok := p.registry[req.BYOKProvider]
-	if !ok {
-		return nil, fmt.Errorf("%w: %q", ErrUnknownBYOKProvider, req.BYOKProvider)
-	}
-	res, err := adapter.Transcribe(ctx, req.BYOKKey, req)
-	if err != nil {
-		return nil, err
-	}
-	res.Tier = TierBYOK
-	res.ProviderID = adapter.ID()
-	if res.ModelID == "" {
-		res.ModelID = adapter.Model()
-	}
-	return res, nil
+	return tiered.ExecuteBYOK(p.registry, req.BYOKKey, req.BYOKProvider, "sttchain", ErrMissingBYOKProvider, ErrUnknownBYOKProvider,
+		func(adapter BYOKAdapter) (*Result, error) { return adapter.Transcribe(ctx, req.BYOKKey, req) },
+		func(result *Result, adapter BYOKAdapter) {
+			result.Tier, result.ProviderID = TierBYOK, adapter.ID()
+			if result.ModelID == "" {
+				result.ModelID = adapter.Model()
+			}
+		})
 }
 
 func (p *BYOKProvider) Model() string { return "byok-dispatched" }
@@ -98,15 +87,9 @@ func (p *BYOKProvider) Traits() ProviderTraits {
 // returns (nil, nil) when the resolved adapter declined streaming so the
 // chain falls back to the next tier or unary mode.
 func (p *BYOKProvider) TranscribeStreaming(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
-	if start.BYOKKey == "" {
-		return nil, fmt.Errorf("audio-tools/sttchain: BYOK key required")
-	}
-	if start.BYOKProvider == "" {
-		return nil, ErrMissingBYOKProvider
-	}
-	adapter, ok := p.registry[start.BYOKProvider]
-	if !ok {
-		return nil, fmt.Errorf("%w: %q", ErrUnknownBYOKProvider, start.BYOKProvider)
+	adapter, err := tiered.ResolveBYOKAdapter(p.registry, start.BYOKKey, start.BYOKProvider, "sttchain", ErrMissingBYOKProvider, ErrUnknownBYOKProvider)
+	if err != nil {
+		return nil, err
 	}
 	if !adapter.StreamingCapability() {
 		return nil, nil

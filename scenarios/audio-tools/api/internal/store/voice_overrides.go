@@ -2,7 +2,7 @@ package store
 
 import (
 	"context"
-	"database/sql"
+	"github.com/vrooli/api-core/database"
 )
 
 // VoiceOverride maps a canonical voice id to an adapter-specific id
@@ -13,9 +13,11 @@ type VoiceOverride struct {
 	AdapterVoice   string
 }
 
-type VoiceOverrideStore struct{ db *sql.DB }
+type VoiceOverrideStore struct{ db *database.RoutedDB }
 
-func NewVoiceOverrideStore(db *sql.DB) *VoiceOverrideStore { return &VoiceOverrideStore{db: db} }
+func NewVoiceOverrideStore(db *database.RoutedDB) *VoiceOverrideStore {
+	return &VoiceOverrideStore{db: db}
+}
 
 // List returns every override in stable order.
 func (s *VoiceOverrideStore) List(ctx context.Context) ([]VoiceOverride, error) {

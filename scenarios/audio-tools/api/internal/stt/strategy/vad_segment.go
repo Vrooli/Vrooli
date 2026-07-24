@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math"
 	"strings"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	voice "audio-tools/internal/stt/pipeline"
 )
 
@@ -76,6 +76,8 @@ type VADSegmenter struct {
 	// Clock is the wall-clock seam used for per-segment latency
 	// measurement. Defaults to clock.System{}.
 	Clock clock.Clock
+	// Logger records VAD lifecycle diagnostics through the scenario seam.
+	Logger logx.Logger
 }
 
 // Kind reports the strategy kind for selector enforcement.
@@ -96,9 +98,13 @@ func (v *VADSegmenter) Run(
 		return err
 	}
 	v.applyDefaults()
-	log.Printf("[stt-vad] session start: silence_ms=%d silence_rms=%.0f sample_rate=%d frame_ms=%d preroll_ms=%d trailing_pad_ms=%d",
+	logger := v.Logger
+	if logger == nil {
+		logger = logx.Std{}
+	}
+	logger.Printf("[stt-vad] session start: silence_ms=%d silence_rms=%.0f sample_rate=%d frame_ms=%d preroll_ms=%d trailing_pad_ms=%d",
 		v.SilenceMs, v.SilenceRMS, v.SampleRate, v.FrameMs, v.PreRollMs, v.TrailingPadMs)
-	defer log.Printf("[stt-vad] session end")
+	defer logger.Printf("[stt-vad] session end")
 
 	const sampleBytes = 2
 	frameBytes := v.SampleRate * v.FrameMs / 1000 * sampleBytes
@@ -320,7 +326,7 @@ func (v *VADSegmenter) Run(
 				// Observability: diagnosing user-reported "stops too early"
 				// requires knowing the silence window and audio extent of
 				// each cut. Cheap log — one line per cut, not per frame.
-				log.Printf("[stt-vad] segment cut: silence_ms=%d threshold_ms=%d segment_bytes=%d segment_ms=%d rms=%.0f silence_rms=%.0f",
+				logger.Printf("[stt-vad] segment cut: silence_ms=%d threshold_ms=%d segment_bytes=%d segment_ms=%d rms=%.0f silence_rms=%.0f",
 					silentFrames*v.FrameMs, v.SilenceMs,
 					cut-segStart,
 					(cut-segStart)/(v.SampleRate*sampleBytes/1000),

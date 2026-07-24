@@ -34,7 +34,7 @@ func TestOpenDB_MigratesQualificationEvidenceBeforeSchemaDriftCheck(t *testing.T
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 
-	row := db.QueryRow(`SELECT model_id FROM qualification_evidence LIMIT 1`)
+	row := db.QueryRowContext(context.Background(), `SELECT model_id FROM qualification_evidence LIMIT 1`)
 	var model string
 	require.ErrorIs(t, row.Scan(&model), sql.ErrNoRows, "the migrated column must be queryable even with no rows")
 }

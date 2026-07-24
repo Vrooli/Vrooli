@@ -1,14 +1,15 @@
 package bootstrap
 
 import (
-	"database/sql"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
 	"audio-tools/internal/byokstore"
 	"audio-tools/internal/store"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 )
 
 // Stores bundles every persistence-backed store the API handlers need.
@@ -27,7 +28,7 @@ type Stores struct {
 }
 
 // BuildStores constructs every store plus the BYOK encryptor-backed store.
-func BuildStores(db *sql.DB, env Env) (Stores, error) {
+func BuildStores(db *database.RoutedDB, env Env) (Stores, error) {
 	providerStore := store.NewProviderConfigStore(db, store.ProviderConfig{
 		BYOKEnabled:         env.EnableBYOK,
 		VrooliEnabled:       env.EnableVrooli,
@@ -45,7 +46,19 @@ func BuildStores(db *sql.DB, env Env) (Stores, error) {
 
 	keyPath := env.DBKeyPath
 	if keyPath == "" {
-		keyPath = filepath.Join(os.TempDir(), "audio-tools-key")
+		namespace, err := storage.ScenarioNamespace("audio-tools")
+		if err != nil {
+			return Stores{}, fmt.Errorf("resolve BYOK key namespace: %w", err)
+		}
+		resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+		if err != nil {
+			return Stores{}, fmt.Errorf("create BYOK key storage resolver: %w", err)
+		}
+		paths, err := resolver.Resolve(storage.Options{ScenarioID: namespace})
+		if err != nil {
+			return Stores{}, fmt.Errorf("resolve BYOK key storage: %w", err)
+		}
+		keyPath = filepath.Join(paths.DataDir, "byok", "encryption.key")
 	}
 	key, err := byokstore.LoadOrCreateKey(keyPath)
 	if err != nil {

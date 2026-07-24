@@ -11,7 +11,21 @@
   "version": 1,
   "created_at": "2026-07-12T16:40:18.975605268Z",
   "updated_at": "2026-07-12T16:40:18.975605268Z",
+  "metadata": {
+    "name": "audio-tools-dictation-studio-scripted-bench",
+    "description": "Exercise Dictation Studio scripted recording controls and result surfaces.",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
   "flow_definition": {
+    "metadata": {
+      "name": "audio-tools-dictation-studio-scripted-bench",
+      "description": "Exercise Dictation Studio scripted recording controls and result surfaces.",
+      "execution_mode": "mutating"
+    },
     "settings": {
       "viewport_width": 1440,
       "viewport_height": 900

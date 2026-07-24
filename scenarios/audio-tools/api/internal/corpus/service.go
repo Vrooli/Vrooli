@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"audio-tools/internal/blobbytes"
 	"audio-tools/internal/clock"
 
 	"github.com/google/uuid"
@@ -16,12 +17,12 @@ import (
 // the eval harness build on.
 type Service struct {
 	repo  Repository
-	blobs BlobBytes
+	blobs blobbytes.Store
 	clock clock.Clock
 }
 
 // NewService constructs a corpus Service.
-func NewService(repo Repository, blobs BlobBytes, clk clock.Clock) *Service {
+func NewService(repo Repository, blobs blobbytes.Store, clk clock.Clock) *Service {
 	return &Service{repo: repo, blobs: blobs, clock: clk}
 }
 

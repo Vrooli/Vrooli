@@ -87,7 +87,7 @@ func (h *connectHandler) TranscribeStream(
 	if registry == nil {
 		registry = session.NewRegistry(0)
 	}
-	ledger, _, err := registry.Open(startCfg.SessionId, startCfg.ResumeToken)
+	ledger, _, err := registry.OpenContext(ctx, startCfg.SessionId, startCfg.ResumeToken)
 	if err != nil {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
@@ -135,7 +135,7 @@ func (h *connectHandler) TranscribeStream(
 				if result == session.ReceivedDuplicate {
 					continue
 				}
-				if err := registry.Persist(ledger); err != nil {
+				if err := registry.PersistContext(streamCtx, ledger); err != nil {
 					ledger.Fail(session.TerminalReason("persistence_failed"))
 					pumpErr <- err
 					return
@@ -212,7 +212,7 @@ func (h *connectHandler) TranscribeStream(
 				ledger.Fail(session.TerminalReason("commit_conflict"))
 				return connect.NewError(connect.CodeInternal, commitErr)
 			}
-			if err := registry.Persist(ledger); err != nil {
+			if err := registry.PersistContext(ctx, ledger); err != nil {
 				ledger.Fail(session.TerminalReason("persistence_failed"))
 				return connect.NewError(connect.CodeInternal, err)
 			}
@@ -252,7 +252,7 @@ func (h *connectHandler) TranscribeStream(
 		state = ledger.Snapshot()
 	}
 	state = ledger.Snapshot()
-	if err := registry.Persist(ledger); err != nil {
+	if err := registry.PersistContext(ctx, ledger); err != nil {
 		return connect.NewError(connect.CodeInternal, err)
 	}
 	ack := &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Acknowledgement{Acknowledgement: &sttv1.StreamAcknowledgement{

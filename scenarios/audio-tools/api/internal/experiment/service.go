@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"audio-tools/internal/blobbytes"
 )
 
 // Service ties experiment metadata to large report artifacts. The async runner
@@ -11,11 +13,11 @@ import (
 // for callers that need to persist a report and update the result ref.
 type Service struct {
 	repo  Repository
-	blobs BlobBytes
+	blobs blobbytes.Store
 }
 
 // NewService constructs an experiment Service.
-func NewService(repo Repository, blobs BlobBytes) *Service {
+func NewService(repo Repository, blobs blobbytes.Store) *Service {
 	return &Service{repo: repo, blobs: blobs}
 }
 

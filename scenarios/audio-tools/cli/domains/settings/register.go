@@ -5,18 +5,14 @@
 // truth. Register loads the "settings" group and wires each binding to a
 // handler in handlers.go.
 //
-// `settings providers` is a client-side convenience that composes two
-// reads (SettingsService.GetProviderConfig — already bound to `settings
-// provider` — and TTSService.GetStatus) into one availability matrix. It
-// has no unique RPC of its own, so (like image-tools' `models search`)
-// it is hand-appended here rather than declared as a manifest
-// connect-rpc binding.
+// `settings providers` is a declared manifest exception because it composes
+// two reads into one availability matrix and has no single RPC binding.
 package settings
 
 import (
-	"fmt"
-
 	"github.com/vrooli/cli-core/cliapp"
+
+	"audio-tools/cli/internal/climanifest"
 )
 
 // GroupName is the manifest group name this package owns.
@@ -32,15 +28,13 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"SettingsService.UpsertBYOKCredential": h.byokUpsert,
 		"SettingsService.DeleteBYOKCredential": h.byokDelete,
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := climanifest.LoadGroup(manifest, GroupName, bindings)
 	if err != nil {
-		return cliapp.SubcommandGroup{}, fmt.Errorf("settings: load from manifest: %w", err)
+		return cliapp.SubcommandGroup{}, err
 	}
-	// `providers` is a client-side composite over GetProviderConfig +
-	// TTSService.GetStatus; it reuses those RPCs rather than introducing
-	// a new one, so it can't be a manifest connect-rpc binding (those are
-	// keyed by RPC method and `settings provider` already owns
-	// GetProviderConfig). It is appended directly.
+	// `providers` is the manifest-declared client-side composite over
+	// GetProviderConfig and TTSService.GetStatus. It is appended directly
+	// because `settings provider` already owns the former RPC binding.
 	group.Subcommands = append(group.Subcommands, cliapp.Command{
 		Name:        "providers",
 		Description: "Print the per-tier provider-availability matrix (routing config + TTS reachability)",

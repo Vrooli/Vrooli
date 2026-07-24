@@ -19,26 +19,26 @@ func (f *FakeSTTStreamConfig) Get(context.Context) (string, bool, error) {
 }
 func (f *FakeSTTStreamConfig) Set(context.Context, string) error { return f.SetErr }
 
-type FakeWakeword struct {
-	Items     map[string]store.WakeWordTemplate
+type fakeRepository[T any] struct {
+	Items     map[string]T
 	UpsertErr error
 	DeleteErr error
 	GetErr    error
 	ListErr   error
 }
 
-func (f *FakeWakeword) Upsert(_ context.Context, t store.WakeWordTemplate) error {
+func (f *fakeRepository[T]) upsert(value T, id string) error {
 	if f.UpsertErr != nil {
 		return f.UpsertErr
 	}
 	if f.Items == nil {
-		f.Items = map[string]store.WakeWordTemplate{}
+		f.Items = map[string]T{}
 	}
-	f.Items[t.ID] = t
+	f.Items[id] = value
 	return nil
 }
 
-func (f *FakeWakeword) Delete(_ context.Context, id string) (bool, error) {
+func (f *fakeRepository[T]) delete(id string) (bool, error) {
 	if f.DeleteErr != nil {
 		return false, f.DeleteErr
 	}
@@ -47,71 +47,51 @@ func (f *FakeWakeword) Delete(_ context.Context, id string) (bool, error) {
 	return ok, nil
 }
 
-func (f *FakeWakeword) Get(_ context.Context, id string) (store.WakeWordTemplate, bool, error) {
+func (f *fakeRepository[T]) get(id string) (T, bool, error) {
 	if f.GetErr != nil {
-		return store.WakeWordTemplate{}, false, f.GetErr
+		var zero T
+		return zero, false, f.GetErr
 	}
-	t, ok := f.Items[id]
-	return t, ok, nil
+	value, ok := f.Items[id]
+	return value, ok, nil
 }
 
-func (f *FakeWakeword) List(context.Context) ([]store.WakeWordTemplate, error) {
+func (f *fakeRepository[T]) list() ([]T, error) {
 	if f.ListErr != nil {
 		return nil, f.ListErr
 	}
-	out := make([]store.WakeWordTemplate, 0, len(f.Items))
+	out := make([]T, 0, len(f.Items))
 	for _, v := range f.Items {
 		out = append(out, v)
 	}
 	return out, nil
 }
+
+type FakeWakeword struct {
+	fakeRepository[store.WakeWordTemplate]
+}
+
+func (f *FakeWakeword) Upsert(_ context.Context, value store.WakeWordTemplate) error {
+	return f.upsert(value, value.ID)
+}
+func (f *FakeWakeword) Delete(_ context.Context, id string) (bool, error) { return f.delete(id) }
+func (f *FakeWakeword) Get(_ context.Context, id string) (store.WakeWordTemplate, bool, error) {
+	return f.get(id)
+}
+func (f *FakeWakeword) List(context.Context) ([]store.WakeWordTemplate, error) { return f.list() }
 
 type FakeSpeaker struct {
-	Items     map[string]store.SpeakerProfile
-	UpsertErr error
-	DeleteErr error
-	GetErr    error
-	ListErr   error
+	fakeRepository[store.SpeakerProfile]
 }
 
-func (f *FakeSpeaker) Upsert(_ context.Context, p store.SpeakerProfile) error {
-	if f.UpsertErr != nil {
-		return f.UpsertErr
-	}
-	if f.Items == nil {
-		f.Items = map[string]store.SpeakerProfile{}
-	}
-	f.Items[p.ID] = p
-	return nil
+func (f *FakeSpeaker) Upsert(_ context.Context, value store.SpeakerProfile) error {
+	return f.upsert(value, value.ID)
 }
-
-func (f *FakeSpeaker) Delete(_ context.Context, id string) (bool, error) {
-	if f.DeleteErr != nil {
-		return false, f.DeleteErr
-	}
-	_, ok := f.Items[id]
-	delete(f.Items, id)
-	return ok, nil
-}
-
+func (f *FakeSpeaker) Delete(_ context.Context, id string) (bool, error) { return f.delete(id) }
 func (f *FakeSpeaker) Get(_ context.Context, id string) (store.SpeakerProfile, bool, error) {
-	if f.GetErr != nil {
-		return store.SpeakerProfile{}, false, f.GetErr
-	}
-	p, ok := f.Items[id]
-	return p, ok, nil
+	return f.get(id)
 }
-
-func (f *FakeSpeaker) List(context.Context) ([]store.SpeakerProfile, error) {
-	if f.ListErr != nil {
-		return nil, f.ListErr
-	}
-	out := make([]store.SpeakerProfile, 0, len(f.Items))
-	for _, v := range f.Items {
-		out = append(out, v)
-	}
-	return out, nil
-}
+func (f *FakeSpeaker) List(context.Context) ([]store.SpeakerProfile, error) { return f.list() }
 
 var (
 	_ sttH.STTStreamConfigRepository = (*FakeSTTStreamConfig)(nil)

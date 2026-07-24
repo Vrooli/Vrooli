@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 type SpeakerProfile struct {
@@ -27,9 +29,9 @@ type SpeakerProfile struct {
 	ModelName          string
 }
 
-type SpeakerStore struct{ db *sql.DB }
+type SpeakerStore struct{ db *database.RoutedDB }
 
-func NewSpeakerStore(db *sql.DB) *SpeakerStore { return &SpeakerStore{db: db} }
+func NewSpeakerStore(db *database.RoutedDB) *SpeakerStore { return &SpeakerStore{db: db} }
 
 func (s *SpeakerStore) Upsert(ctx context.Context, p SpeakerProfile) error {
 	if p.CreatedAt.IsZero() {

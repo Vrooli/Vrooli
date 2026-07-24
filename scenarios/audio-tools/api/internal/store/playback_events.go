@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 type PlaybackEvent struct {
@@ -16,9 +18,9 @@ type PlaybackEvent struct {
 	ProviderID   string
 }
 
-type PlaybackStore struct{ db *sql.DB }
+type PlaybackStore struct{ db *database.RoutedDB }
 
-func NewPlaybackStore(db *sql.DB) *PlaybackStore { return &PlaybackStore{db: db} }
+func NewPlaybackStore(db *database.RoutedDB) *PlaybackStore { return &PlaybackStore{db: db} }
 
 // Insert is idempotent on EventID; duplicate events from retried writes
 // silently no-op.

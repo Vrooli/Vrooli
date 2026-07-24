@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // ProviderConfig mirrors the persisted provider-routing row.
@@ -39,13 +41,13 @@ type ProviderConfigPatch struct {
 
 // ProviderConfigStore reads/writes the singleton provider_config row.
 type ProviderConfigStore struct {
-	db       *sql.DB
+	db       *database.RoutedDB
 	defaults ProviderConfig
 }
 
 // NewProviderConfigStore returns a store seeded with the given defaults.
 // The defaults apply only when no row exists yet (first boot).
-func NewProviderConfigStore(db *sql.DB, defaults ProviderConfig) *ProviderConfigStore {
+func NewProviderConfigStore(db *database.RoutedDB, defaults ProviderConfig) *ProviderConfigStore {
 	return &ProviderConfigStore{db: db, defaults: defaults}
 }
 

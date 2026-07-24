@@ -6,16 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 
 	intexp "audio-tools/internal/experiment"
-	exprecipe "audio-tools/internal/experiment/recipe"
 	"audio-tools/internal/logx"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
@@ -24,17 +21,10 @@ import (
 )
 
 var (
-	errServiceNotConfigured   = errors.New("experiment service not configured")
-	errSpeakerProfileRequired = errors.New("speaker experiments require a target_profile_id; enroll a voice profile with `audio-tools stt speaker-enroll --file <clip> --activate true` and list profile ids with `audio-tools stt speaker-status`")
+	errServiceNotConfigured = errors.New("experiment service not configured")
 )
 
-// SNR augmentation bounds. dB is an amplitude ratio, so values well outside this
-// window carry no useful signal; the guard only rejects nonsense, not the
-// legitimate 0 dB / negative-dB hard conditions.
 const (
-	minSNRDB = -80.0
-	maxSNRDB = 80.0
-
 	// A known-duration experiment gets 25% headroom plus a small fixed setup
 	// allowance. This leaves room for normal decode/finalization variation while
 	// making an experiment that has stopped making useful progress fail visibly
@@ -87,8 +77,8 @@ func (h *connectHandler) StartExperiment(ctx context.Context, req *connect.Reque
 	if recipe == nil {
 		recipe = &experimentv1.ExperimentRecipe{}
 	}
-	if err := validateRecipe(recipe); err != nil {
-		if errors.Is(err, errSpeakerProfileRequired) {
+	if err := intexp.ValidateRecipe(recipe); err != nil {
+		if errors.Is(err, intexp.ErrSpeakerProfileRequired) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -475,111 +465,6 @@ func (h *connectHandler) reportOrNil(ctx context.Context, exp intexp.Experiment)
 	}
 	h.aggregatePromotionVerdicts(ctx, exp, report)
 	return report
-}
-
-// validateRecipe rejects recipes that would queue only to fail or skip every
-// condition, returning an actionable message instead of a late opaque failure.
-func validateRecipe(recipe *experimentv1.ExperimentRecipe) error {
-	if recipe.GetRealtimeRepeats() < 0 {
-		return errors.New("realtime_repeats must be non-negative")
-	}
-	if recipe.GetChunkMs() < 0 {
-		return errors.New("chunk_ms must be non-negative")
-	}
-	if recipe.GetSeed() < 0 {
-		return errors.New("seed must be non-negative")
-	}
-	if recipe.GetDroppedSpanThresholdWords() < 0 {
-		return errors.New("dropped_span_threshold_words must be non-negative")
-	}
-	if recipe.GetLatencyTailSeconds() < 0 {
-		return errors.New("latency_tail_seconds must be non-negative")
-	}
-	for i, strategy := range recipe.GetStrategies() {
-		switch strategy.GetKind() {
-		case "", "batch", "vad_segment", "overlap_agree":
-		default:
-			return fmt.Errorf("strategies[%d].kind %q is not supported", i, strategy.GetKind())
-		}
-		if strategy.GetOverlapWindowMs() < 0 {
-			return fmt.Errorf("strategies[%d].overlap_window_ms must be non-negative", i)
-		}
-		if strategy.GetOverlapCommitRuns() < 0 {
-			return fmt.Errorf("strategies[%d].overlap_commit_runs must be non-negative", i)
-		}
-		if strategy.GetVadSilenceMs() < 0 {
-			return fmt.Errorf("strategies[%d].vad_silence_ms must be non-negative", i)
-		}
-		if strategy.GetOverlapMaxWindowMs() < 0 {
-			return fmt.Errorf("strategies[%d].overlap_max_window_ms must be non-negative", i)
-		}
-	}
-	for i, cell := range recipe.GetCells() {
-		if strings.TrimSpace(cell.GetEngineId()) == "" {
-			return fmt.Errorf("cells[%d].engine_id is required", i)
-		}
-		switch cell.GetStrategy() {
-		case "batch", "buffered", "buffered_fallback", "vad_segment", "vad", "overlap_agree", "overlap", "passthrough":
-		default:
-			return fmt.Errorf("cells[%d].strategy %q is not supported", i, cell.GetStrategy())
-		}
-		switch cell.GetReplayLane() {
-		case experimentv1.ReplayLane_REPLAY_LANE_DETERMINISTIC, experimentv1.ReplayLane_REPLAY_LANE_REALTIME, experimentv1.ReplayLane_REPLAY_LANE_PRODUCT_PATH:
-		default:
-			return fmt.Errorf("cells[%d].replay_lane is required", i)
-		}
-		if cell.GetRepeatCount() < 1 {
-			return fmt.Errorf("cells[%d].repeat_count must be at least 1", i)
-		}
-		if cell.GetReplayLane() == experimentv1.ReplayLane_REPLAY_LANE_REALTIME && recipe.GetLatencyTailSeconds() > 0 {
-			return fmt.Errorf("cells[%d] realtime evidence cannot use latency_tail_seconds", i)
-		}
-	}
-	if longForm := recipe.GetLongForm(); longForm != nil {
-		if longForm.GetTargetDurationSeconds() < 0 {
-			return errors.New("long_form.target_duration_seconds must be non-negative")
-		}
-		if longForm.GetGapMs() < 0 {
-			return errors.New("long_form.gap_ms must be non-negative")
-		}
-		for i, duration := range longForm.GetSweepDurationsSeconds() {
-			if duration < 0 {
-				return fmt.Errorf("long_form.sweep_durations_seconds[%d] must be non-negative", i)
-			}
-		}
-	}
-	if aug := recipe.GetAugmentation(); aug != nil {
-		for i, snr := range aug.GetSnrDb() {
-			// SNR in dB is routinely zero or negative: 0 dB means the noise is
-			// as loud as the speech and negative dB means it is louder — the
-			// canonical hard conditions this lab exists to measure. Only reject
-			// non-finite or absurd values.
-			if math.IsNaN(snr) || math.IsInf(snr, 0) {
-				return fmt.Errorf("augmentation.snr_db[%d] must be a finite number", i)
-			}
-			if snr < minSNRDB || snr > maxSNRDB {
-				return fmt.Errorf("augmentation.snr_db[%d]=%g is out of range (%g..%g dB)", i, snr, minSNRDB, maxSNRDB)
-			}
-		}
-		for i, noiseType := range aug.GetNoiseTypes() {
-			if strings.TrimSpace(noiseType) == "" {
-				continue
-			}
-			if !exprecipe.IsKnownNoiseType(noiseType) {
-				return fmt.Errorf("augmentation.noise_types[%d] %q is not a supported noise bed; use one of: %s",
-					i, noiseType, strings.Join(exprecipe.KnownNoiseTypes(), ", "))
-			}
-		}
-	}
-	s := recipe.GetSpeaker()
-	if s == nil {
-		return nil
-	}
-	wantsSpeaker := s.GetExtractionEnabled() || s.GetVerificationEnabled() || s.GetAblationEnabled()
-	if wantsSpeaker && s.GetTargetProfileId() == "" {
-		return errSpeakerProfileRequired
-	}
-	return nil
 }
 
 func (h *connectHandler) getWithRuns(ctx context.Context, id string) (intexp.Experiment, []intexp.Run, error) {

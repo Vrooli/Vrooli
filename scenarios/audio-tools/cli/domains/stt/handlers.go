@@ -68,6 +68,20 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
+func applyBoolFlag(ctx cliapp.RunContext, flag, path string, mask *fieldmaskpb.FieldMask, set func(bool)) error {
+	raw := ctx.Flag(flag)
+	if raw == "" {
+		return nil
+	}
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		return fmt.Errorf("--%s must be true|false: %q", flag, raw)
+	}
+	set(value)
+	mask.Paths = append(mask.Paths, path)
+	return nil
+}
+
 func newStreamingSTTClient(core *cliapp.ScenarioApp, baseURL string) sttconnect.STTServiceClient {
 	var timeout time.Duration
 	if core != nil {
@@ -531,21 +545,11 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		cfg.OverlapMaxStallRejects = int32(n)
 		mask.Paths = append(mask.Paths, "overlap_max_stall_rejects")
 	}
-	if v := ctx.Flag("hallucination-filter"); v != "" {
-		b, err := strconv.ParseBool(v)
-		if err != nil {
-			return fmt.Errorf("--hallucination-filter must be true|false: %q", v)
-		}
-		cfg.HallucinationFilterEnabled = b
-		mask.Paths = append(mask.Paths, "hallucination_filter_enabled")
+	if err := applyBoolFlag(ctx, "hallucination-filter", "hallucination_filter_enabled", mask, func(value bool) { cfg.HallucinationFilterEnabled = value }); err != nil {
+		return err
 	}
-	if v := ctx.Flag("vad-filter"); v != "" {
-		b, err := strconv.ParseBool(v)
-		if err != nil {
-			return fmt.Errorf("--vad-filter must be true|false: %q", v)
-		}
-		cfg.VadFilterEnabled = b
-		mask.Paths = append(mask.Paths, "vad_filter_enabled")
+	if err := applyBoolFlag(ctx, "vad-filter", "vad_filter_enabled", mask, func(value bool) { cfg.VadFilterEnabled = value }); err != nil {
+		return err
 	}
 	if v := ctx.Flag("no-speech-threshold"); v != "" {
 		f, err := strconv.ParseFloat(v, 64)
@@ -563,13 +567,8 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		cfg.LogprobThreshold = f
 		mask.Paths = append(mask.Paths, "logprob_threshold")
 	}
-	if v := ctx.Flag("denoise"); v != "" {
-		b, err := strconv.ParseBool(v)
-		if err != nil {
-			return fmt.Errorf("--denoise must be true|false: %q", v)
-		}
-		cfg.DenoiseEnabled = b
-		mask.Paths = append(mask.Paths, "denoise_enabled")
+	if err := applyBoolFlag(ctx, "denoise", "denoise_enabled", mask, func(value bool) { cfg.DenoiseEnabled = value }); err != nil {
+		return err
 	}
 	if len(mask.Paths) == 0 {
 		return fmt.Errorf("at least one streaming/egress lever flag must be set (e.g. --streaming-mode, --strategy-preference, --vad-silence-ms, --overlap-window-ms, --overlap-commit-runs, --overlap-max-stall-rejects, --hallucination-filter, --vad-filter, --no-speech-threshold, --logprob-threshold)")
@@ -757,13 +756,8 @@ func (h *handlers) speakerConfig(ctx cliapp.RunContext) error {
 		cfg.Threshold = f
 		mask.Paths = append(mask.Paths, "threshold")
 	}
-	if v := ctx.Flag("enabled"); v != "" {
-		b, err := strconv.ParseBool(v)
-		if err != nil {
-			return fmt.Errorf("--enabled must be true|false: %q", v)
-		}
-		cfg.Enabled = b
-		mask.Paths = append(mask.Paths, "enabled")
+	if err := applyBoolFlag(ctx, "enabled", "enabled", mask, func(value bool) { cfg.Enabled = value }); err != nil {
+		return err
 	}
 	if v := ctx.Flag("reject-behavior"); v != "" {
 		r, err := rejectBehaviorFromFlag(v)
@@ -773,21 +767,11 @@ func (h *handlers) speakerConfig(ctx cliapp.RunContext) error {
 		cfg.RejectBehavior = r
 		mask.Paths = append(mask.Paths, "reject_behavior")
 	}
-	if v := ctx.Flag("fallback"); v != "" {
-		b, err := strconv.ParseBool(v)
-		if err != nil {
-			return fmt.Errorf("--fallback must be true|false: %q", v)
-		}
-		cfg.FallbackWithoutVerification = b
-		mask.Paths = append(mask.Paths, "fallback_without_verification")
+	if err := applyBoolFlag(ctx, "fallback", "fallback_without_verification", mask, func(value bool) { cfg.FallbackWithoutVerification = value }); err != nil {
+		return err
 	}
-	if v := ctx.Flag("extraction-enabled"); v != "" {
-		b, err := strconv.ParseBool(v)
-		if err != nil {
-			return fmt.Errorf("--extraction-enabled must be true|false: %q", v)
-		}
-		cfg.ExtractionEnabled = b
-		mask.Paths = append(mask.Paths, "extraction_enabled")
+	if err := applyBoolFlag(ctx, "extraction-enabled", "extraction_enabled", mask, func(value bool) { cfg.ExtractionEnabled = value }); err != nil {
+		return err
 	}
 	if v := ctx.Flag("min-decision-seconds"); v != "" {
 		f, err := strconv.ParseFloat(v, 64)

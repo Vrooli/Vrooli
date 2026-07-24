@@ -13,10 +13,30 @@
   "version": 1,
   "created_at": "2026-07-12T19:20:00Z",
   "updated_at": "2026-07-12T19:20:00Z",
+  "metadata": {
+    "name": "audio-tools-deterministic-incomplete-coverage",
+    "description": "Verify Dictation Studio preserves recovery evidence when audio coverage cannot be confirmed.",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
   "flow_definition": {
+    "metadata": {
+      "name": "audio-tools-deterministic-incomplete-coverage",
+      "description": "Verify Dictation Studio reports incomplete terminal coverage and preserves recovery evidence.",
+      "execution_mode": "mutating"
+    },
     "settings": {
       "viewport_width": 390,
       "viewport_height": 844,
+      "browser_profile": {
+        "extra_headers": {
+          "X-Audio-Tools-STT-Fault": "suppress_processed_ack",
+          "X-Vrooli-Test-Mode": "1"
+        }
+      },
       "fake_media": {
         "microphone_wav": "bas/fixtures/dictation-reference.wav"
       }
@@ -50,6 +70,28 @@
           "type": "ACTION_TYPE_CLICK",
           "click": { "selector": "@selector/dictationStudio.recordStart" },
           "metadata": { "label": "Start WAV-backed PCM capture" }
+        }
+      },
+      {
+        "id": "wait-stream-connected",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": { "selector": "@selector/dictationStudio.streamStatus", "state": "WAIT_STATE_UNSPECIFIED", "timeout_ms": 45000 },
+          "metadata": { "label": "Wait until the PCM-v2 stream is connected before measuring capture" }
+        }
+      },
+      {
+        "id": "assert-recording-ready",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": { "string_value": "true" },
+            "attribute_name": "aria-pressed",
+            "timeout_ms": 15000
+          },
+          "metadata": { "label": "Wait until the WAV-backed recorder has actually entered capture before timing fixture audio" }
         }
       },
       {
@@ -128,13 +170,15 @@
     "edges": [
       { "id": "e1", "source": "navigate-dictation", "target": "wait-recorder", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
       { "id": "e2", "source": "wait-recorder", "target": "start-fake-microphone", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e3", "source": "start-fake-microphone", "target": "feed-fixture", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e4", "source": "feed-fixture", "target": "assert-captured", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e5", "source": "assert-captured", "target": "stop-capture", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e6", "source": "stop-capture", "target": "wait-incomplete-coverage", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e7", "source": "wait-incomplete-coverage", "target": "assert-incomplete-coverage", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e8", "source": "assert-incomplete-coverage", "target": "assert-retained-terminal-reason", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e9", "source": "assert-retained-terminal-reason", "target": "capture-incomplete-coverage", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+      { "id": "e3", "source": "start-fake-microphone", "target": "assert-recording-ready", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e4", "source": "assert-recording-ready", "target": "wait-stream-connected", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e5", "source": "wait-stream-connected", "target": "feed-fixture", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e6", "source": "feed-fixture", "target": "assert-captured", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e7", "source": "assert-captured", "target": "stop-capture", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e8", "source": "stop-capture", "target": "wait-incomplete-coverage", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e9", "source": "wait-incomplete-coverage", "target": "assert-incomplete-coverage", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e10", "source": "assert-incomplete-coverage", "target": "assert-retained-terminal-reason", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e11", "source": "assert-retained-terminal-reason", "target": "capture-incomplete-coverage", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
     ]
   }
 }

@@ -102,63 +102,13 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 audio-tools configure api_base http://localhost:15001/api/v1
-audio-tools configure token <token>
+audio-tools configure token "<token>"
 ```
 
 Read values back without an argument:
 
 ```bash
 audio-tools configure api_base
-```
-
-## Scenario commands — `notes` (CRUD reference)
-
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
-
-### `audio-tools notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-audio-tools notes list
-audio-tools notes list --json
-```
-
-### `audio-tools notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-audio-tools notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-### `audio-tools notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-audio-tools notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-### `audio-tools notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-audio-tools notes attach abc123 --file ./example.png
 ```
 
 ## Diagnostics — two-layer STT signal
@@ -207,8 +157,8 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
+For a new command, add a manifest-bound RPC command or a documented
+manifest exception when no single RPC can own the behavior.
 
 For a command inside an existing domain:
 
@@ -244,11 +194,9 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`notes list`, `notes create`) over flat
-  verbs (`list-notes`, `create-note`). Discoverability via `--help`
-  is the goal.
-- **Positional for required, flags for optional.** `notes get <id>`
-  not `notes get --id <id>`.
+- **Subcommand groups** (`stt transcribe`, `experiment start`) over flat
+  verbs. Discoverability via `--help` is the goal.
+- **Positionals for required identifiers, flags for optional inputs.**
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad;

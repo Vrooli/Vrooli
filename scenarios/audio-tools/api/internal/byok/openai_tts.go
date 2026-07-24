@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"audio-tools/internal/ai/ttschain"
@@ -85,22 +84,7 @@ func (a *OpenAITTS) Synthesize(ctx context.Context, key string, req ttschain.Req
 	httpReq.Header.Set("Authorization", "Bearer "+key)
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	clk := a.Clock
-	if clk == nil {
-		clk = clock.System{}
-	}
-	start := clk.Now()
-	resp, err := a.Doer.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("openai-tts: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		raw, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("openai-tts: HTTP %d: %s", resp.StatusCode, truncate(string(raw), 256))
-	}
-	audio, err := io.ReadAll(resp.Body)
+	audio, latency, err := DoAudioRequest(ctx, a.Doer, a.Clock, "openai-tts", httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +93,7 @@ func (a *OpenAITTS) Synthesize(ctx context.Context, key string, req ttschain.Req
 		ContentType: ttsContentType(format),
 		ModelID:     "tts-1",
 		VoiceUsed:   voice,
-		Latency:     clk.Now().Sub(start),
+		Latency:     latency,
 	}, nil
 }
 

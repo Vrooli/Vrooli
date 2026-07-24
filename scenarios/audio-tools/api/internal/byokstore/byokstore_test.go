@@ -10,7 +10,6 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	"audio-tools/internal/byokstore"
-	localdb "audio-tools/internal/database"
 	"audio-tools/internal/store"
 	"audio-tools/internal/testutil/db"
 )
@@ -59,9 +58,9 @@ func TestLoadOrCreateKey_Persistence(t *testing.T) {
 
 func TestStore_UpsertListGetDelete(t *testing.T) {
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(byokstore.Schema)))
 	enc := newEnc(t)
-	s := byokstore.New(enc, store.NewBYOKStore(d))
+	s := byokstore.New(enc, store.NewBYOKStore(apidb.NewFromPrimary(d)))
 	ctx := context.Background()
 
 	c, err := s.Upsert(ctx, "openai-tts", "tts", "sk-supersecret-key")

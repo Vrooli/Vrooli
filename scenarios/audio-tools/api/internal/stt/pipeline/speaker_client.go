@@ -173,6 +173,12 @@ func (c *SpeakerClient) getJSON(ctx context.Context, path string, out any) error
 	return nil
 }
 
+func get[T any](ctx context.Context, client *SpeakerClient, path string) (T, error) {
+	var out T
+	err := client.getJSON(ctx, path, &out)
+	return out, err
+}
+
 func (c *SpeakerClient) doJSON(req *http.Request, out any) error {
 	resp, err := c.Doer.Do(req)
 	if err != nil {
@@ -228,21 +234,15 @@ func (c *SpeakerClient) postMultipart(
 }
 
 func (c *SpeakerClient) Ready(ctx context.Context) (SpeakerResourceReady, error) {
-	var out SpeakerResourceReady
-	err := c.getJSON(ctx, "/ready", &out)
-	return out, err
+	return get[SpeakerResourceReady](ctx, c, "/ready")
 }
 
 func (c *SpeakerClient) Info(ctx context.Context) (SpeakerResourceInfo, error) {
-	var out SpeakerResourceInfo
-	err := c.getJSON(ctx, "/v1/info", &out)
-	return out, err
+	return get[SpeakerResourceInfo](ctx, c, "/v1/info")
 }
 
 func (c *SpeakerClient) ListProfiles(ctx context.Context) (SpeakerProfileList, error) {
-	var out SpeakerProfileList
-	err := c.getJSON(ctx, "/v1/profiles", &out)
-	return out, err
+	return get[SpeakerProfileList](ctx, c, "/v1/profiles")
 }
 
 // Enroll appends one labeled enrollment clip to a profile (creating it if new),
@@ -275,16 +275,12 @@ func (c *SpeakerClient) Enroll(
 
 // GetProfile returns one profile's metadata + clip list.
 func (c *SpeakerClient) GetProfile(ctx context.Context, profileID string) (SpeakerProfileDetail, error) {
-	var out SpeakerProfileDetail
-	err := c.getJSON(ctx, "/v1/profiles/"+profileID, &out)
-	return out, err
+	return get[SpeakerProfileDetail](ctx, c, "/v1/profiles/"+profileID)
 }
 
 // ListClips returns the enrollment clips of a profile.
 func (c *SpeakerClient) ListClips(ctx context.Context, profileID string) (SpeakerProfileClipList, error) {
-	var out SpeakerProfileClipList
-	err := c.getJSON(ctx, "/v1/profiles/"+profileID+"/clips", &out)
-	return out, err
+	return get[SpeakerProfileClipList](ctx, c, "/v1/profiles/"+profileID+"/clips")
 }
 
 // DeleteClip removes one clip from a profile and recomputes its centroid;

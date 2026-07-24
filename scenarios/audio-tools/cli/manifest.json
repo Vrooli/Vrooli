@@ -2,6 +2,13 @@
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "audio-tools",
   "description": "Audio Tools CLI \u2014 speech-to-text, text-to-speech, summarization, audio processing, provider lifecycle, and diagnostics over the audio-tools Connect-RPC API.",
+  "exceptions": [
+    {
+      "command": "settings providers",
+      "class": "passthrough",
+      "reason": "Composes SettingsService.GetProviderConfig and TTSService.GetStatus; no single RPC owns the availability matrix."
+    }
+  ],
   "groups": [
     {
       "name": "stt",

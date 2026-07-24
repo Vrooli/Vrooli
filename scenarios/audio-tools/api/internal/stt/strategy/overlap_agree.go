@@ -3,11 +3,11 @@ package strategy
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	voice "audio-tools/internal/stt/pipeline"
 )
 
@@ -106,6 +106,9 @@ type OverlapAgree struct {
 	FrameMs    int     // frame size for RMS evaluation (default 20)
 
 	Clock clock.Clock
+	// Logger records strategy diagnostics through the scenario logging seam.
+	// Nil uses logx.Std, preserving direct construction in focused tests.
+	Logger logx.Logger
 }
 
 // Kind reports the strategy kind for selector enforcement.
@@ -135,9 +138,13 @@ func (o *OverlapAgree) Run(
 		return err
 	}
 	o.applyDefaults()
-	log.Printf("[stt-overlap] session start: trigger=%s window_ms=%d advance_ms=%d commit_runs=%d max_window_ms=%d max_stall_rejects=%d silence_ms=%d silence_rms=%.0f frame_ms=%d max_agreed_tokens=%d sample_rate=%d",
+	logger := o.Logger
+	if logger == nil {
+		logger = logx.Std{}
+	}
+	logger.Printf("[stt-overlap] session start: trigger=%s window_ms=%d advance_ms=%d commit_runs=%d max_window_ms=%d max_stall_rejects=%d silence_ms=%d silence_rms=%.0f frame_ms=%d max_agreed_tokens=%d sample_rate=%d",
 		o.Trigger, o.WindowMs, o.AdvanceMs, o.CommitRuns, o.MaxWindowMs, o.MaxStallRejects, o.SilenceMs, o.SilenceRMS, o.FrameMs, o.MaxAgreedTokens, o.SampleRate)
-	defer log.Printf("[stt-overlap] session end")
+	defer logger.Printf("[stt-overlap] session end")
 
 	const sampleBytes = 2
 	advanceBytes := o.SampleRate * o.AdvanceMs / 1000 * sampleBytes
@@ -217,6 +224,14 @@ func (o *OverlapAgree) Run(
 		return res, err
 	}
 
+	emitSegment := func(text string, result *sttchain.Result) {
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
+			Text: text, DetectedLanguage: result.DetectedLanguage, ProviderTier: result.Tier,
+			ProviderID: result.ProviderID, ModelID: result.ModelID,
+			LatencyMs: float64(result.Latency.Milliseconds()), Confidence: result.Confidence,
+		}}
+	}
+
 	// wordEndBytes converts the END timestamp of the n-th word into a byte
 	// offset (s16le, mono). Returns -1 when n is out of range, words is
 	// empty, or the timestamp is non-positive — callers then skip the
@@ -268,7 +283,7 @@ func (o *OverlapAgree) Run(
 			} else {
 				if !loggedFirstVoiced {
 					loggedFirstVoiced = true
-					log.Printf("[stt-overlap] first voiced frame: rms=%.0f threshold=%.0f frame_idx=%d",
+					logger.Printf("[stt-overlap] first voiced frame: rms=%.0f threshold=%.0f frame_idx=%d",
 						rms, o.SilenceRMS, nextFrame/frameBytes)
 				}
 				silentFrames = 0
@@ -277,7 +292,7 @@ func (o *OverlapAgree) Run(
 			nextFrame += frameBytes
 			if hasVoiced && silentFrames >= silenceFramesNeeded {
 				boundary := nextFrame
-				log.Printf("[stt-overlap] silence boundary: silence_ms=%d threshold_ms=%d boundary_byte=%d uncommitted_ms=%d",
+				logger.Printf("[stt-overlap] silence boundary: silence_ms=%d threshold_ms=%d boundary_byte=%d uncommitted_ms=%d",
 					silentFrames*o.FrameMs, o.SilenceMs, boundary,
 					(boundary-committedAudioBytes)*1000/(o.SampleRate*sampleBytes))
 				silentFrames = 0
@@ -302,7 +317,7 @@ func (o *OverlapAgree) Run(
 			return false
 		}
 		uncommittedMs := (len(pcm) - committedAudioBytes) * 1000 / (o.SampleRate * sampleBytes)
-		log.Printf("[overlap-agree] force commit: max_window_ms=%d exceeded, transcribing %dms of uncommitted audio (no silence boundary detected)",
+		logger.Printf("[overlap-agree] force commit: max_window_ms=%d exceeded, transcribing %dms of uncommitted audio (no silence boundary detected)",
 			o.MaxWindowMs, uncommittedMs)
 		n := len(pcm) - committedAudioBytes
 		audio := make([]byte, n)
@@ -326,15 +341,7 @@ func (o *OverlapAgree) Run(
 		if res.Text != "" {
 			newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
 			if len(newCommit) > len(committed) && tail != "" {
-				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
-					Text:             tail,
-					DetectedLanguage: res.DetectedLanguage,
-					ProviderTier:     res.Tier,
-					ProviderID:       res.ProviderID,
-					ModelID:          res.ModelID,
-					LatencyMs:        float64(res.Latency.Milliseconds()),
-					Confidence:       res.Confidence,
-				}}
+				emitSegment(tail, res)
 				committed = newCommit
 				lastTier = res.Tier
 				lastProviderID = res.ProviderID
@@ -368,7 +375,7 @@ func (o *OverlapAgree) Run(
 		audio := make([]byte, n)
 		copy(audio, pcm[committedAudioBytes:rightEdge])
 		iterAudioMs := n * 1000 / (o.SampleRate * sampleBytes)
-		log.Printf("[stt-overlap] settle attempt: audio_ms=%d cursor_byte=%d right_edge=%d recent=%d/%d last_advanced=%t",
+		logger.Printf("[stt-overlap] settle attempt: audio_ms=%d cursor_byte=%d right_edge=%d recent=%d/%d last_advanced=%t",
 			iterAudioMs, committedAudioBytes, rightEdge, len(recent), o.CommitRuns, lastAdvanced)
 		res, err := transcribe(audio)
 		nextTriggerAt = len(pcm) + advanceBytes
@@ -377,7 +384,7 @@ func (o *OverlapAgree) Run(
 			// The growing buffer means the next iteration covers a
 			// superset of the same audio, so a single failure is
 			// self-healing.
-			log.Printf("[stt-overlap] settle error: %v", err)
+			logger.Printf("[stt-overlap] settle error: %v", err)
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
 			return
 		}
@@ -394,7 +401,7 @@ func (o *OverlapAgree) Run(
 			texts[i] = h.text
 		}
 		agreed := longestAgreedPrefix(texts, o.CommitRuns, o.MaxAgreedTokens)
-		log.Printf("[stt-overlap] hypothesis: text=%q words=%d agreed=%q recent_now=%d",
+		logger.Printf("[stt-overlap] hypothesis: text=%q words=%d agreed=%q recent_now=%d",
 			voice.TruncateForLog(res.Text, 80), len(res.Words),
 			voice.TruncateForLog(agreed, 80), len(recent))
 
@@ -426,20 +433,12 @@ func (o *OverlapAgree) Run(
 			// MaxWindowMs net (the pathology this lever fixes). It commits
 			// a best-guess — it never silently drops audio.
 			if o.MaxStallRejects > 0 && stallRejects >= o.MaxStallRejects {
-				log.Printf("[stt-overlap] stall-fallback: %d consecutive divergence-rejects >= max_stall_rejects=%d — force-committing freshest hypothesis tail=%q",
+				logger.Printf("[stt-overlap] stall-fallback: %d consecutive divergence-rejects >= max_stall_rejects=%d — force-committing freshest hypothesis tail=%q",
 					stallRejects, o.MaxStallRejects, voice.TruncateForLog(res.Text, 80))
 				if res.Text != "" {
 					newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
 					if len(newCommit) > len(committed) && tail != "" {
-						events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
-							Text:             tail,
-							DetectedLanguage: res.DetectedLanguage,
-							ProviderTier:     res.Tier,
-							ProviderID:       res.ProviderID,
-							ModelID:          res.ModelID,
-							LatencyMs:        float64(res.Latency.Milliseconds()),
-							Confidence:       res.Confidence,
-						}}
+						emitSegment(tail, res)
 						committed = newCommit
 						lastTier = res.Tier
 						lastProviderID = res.ProviderID
@@ -457,23 +456,15 @@ func (o *OverlapAgree) Run(
 				stallRejects = 0
 				return
 			}
-			log.Printf("[stt-overlap] divergence-reject: committed=%q agreed=%q (in-stream wander — no commit, stall=%d/%d)",
+			logger.Printf("[stt-overlap] divergence-reject: committed=%q agreed=%q (in-stream wander — no commit, stall=%d/%d)",
 				voice.TruncateForLog(committed, 60), voice.TruncateForLog(agreed, 60), stallRejects, o.MaxStallRejects)
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: res.Text}}
 			return
 		}
 		if len(newCommit) > len(committed) {
-			log.Printf("[stt-overlap] commit: tail=%q committed_now=%q",
+			logger.Printf("[stt-overlap] commit: tail=%q committed_now=%q",
 				voice.TruncateForLog(tail, 80), voice.TruncateForLog(newCommit, 100))
-			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
-				Text:             tail,
-				DetectedLanguage: res.DetectedLanguage,
-				ProviderTier:     res.Tier,
-				ProviderID:       res.ProviderID,
-				ModelID:          res.ModelID,
-				LatencyMs:        float64(res.Latency.Milliseconds()),
-				Confidence:       res.Confidence,
-			}}
+			emitSegment(tail, res)
 			committed = newCommit
 			// A forward commit happened — the model is making progress
 			// again, so the consecutive-divergence streak resets.

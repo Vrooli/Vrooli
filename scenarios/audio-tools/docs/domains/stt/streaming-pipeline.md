@@ -349,7 +349,7 @@ with a drain-then-close teardown**:
   user speaks instead of stalling as one volatile partial until the end
   flush. This is a sibling knob to `KYUTAI_STT_SILENCE_COMMIT_FRAMES`
   (the pause-triggered commit) — see
-  [`resources/kyutai-stt`](../../../../resources/kyutai-stt/docker/server.py).
+  `resources/kyutai-stt/docker/server.py` in the workspace.
 - **Non-graceful closes are the drop metric.** A `nil` reader error is
   a graceful end (idle-timeout or client `done`) whose final flush was
   delivered; a non-graceful close is counted as a potential tail drop

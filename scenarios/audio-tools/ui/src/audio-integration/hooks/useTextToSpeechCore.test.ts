@@ -1,6 +1,6 @@
 // Tests for useTextToSpeechCore — the generic TTS orchestrator. The provider
 // implementations (Kokoro/Browser) and the audio-integration API surface are
-// stubbed via vi.mock("../index") so the hook's backend selection, speak /
+// stubbed at their concrete module paths so the hook's backend selection, speak /
 // cache / fallback orchestration, playback controls, and error paths run
 // against controllable fakes.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,19 +58,25 @@ const h = vi.hoisted(() => {
   return { caps, kokoroInstances, browserInstances, newProvider };
 });
 
-vi.mock("../index", () => ({
+vi.mock("./tts/KokoroProvider", () => ({
   // eslint-disable-next-line @typescript-eslint/no-extraneous-class
   KokoroProvider: class {
     constructor(_opts?: unknown) {
       return h.newProvider(h.kokoroInstances);
     }
   },
+}));
+
+vi.mock("./tts/BrowserTTSProvider", () => ({
   // eslint-disable-next-line @typescript-eslint/no-extraneous-class
   BrowserTTSProvider: class {
     constructor() {
       return h.newProvider(h.browserInstances);
     }
   },
+}));
+
+vi.mock("../api/tts", () => ({
   synthesizeTTS: vi.fn(() => Promise.resolve(new Blob(["audio"]))),
   getTTSVoices: vi.fn(() => Promise.resolve([{ id: "af_heart", name: "Heart" }])),
   fetchCachedTTS: vi.fn(() => Promise.resolve(null)),
@@ -128,7 +134,7 @@ describe("useTextToSpeechCore — backend selection", () => {
   });
 
   it("falls back to a default Kokoro voice when the voice list fails", async () => {
-    const idx = await import("../index");
+    const idx = await import("../api/tts");
     vi.mocked(idx.getTTSVoices).mockRejectedValueOnce(new Error("no voices"));
     const { result } = renderTTS();
     await waitFor(() => expect(result.current.backend).toBe("kokoro"));
@@ -252,7 +258,7 @@ describe("useTextToSpeechCore — speak", () => {
 
 describe("useTextToSpeechCore — speakParagraphs", () => {
   it("plays cached audio when an eventId is provided and the backend is Kokoro", async () => {
-    const idx = await import("../index");
+    const idx = await import("../api/tts");
     vi.mocked(idx.fetchCachedTTS).mockResolvedValueOnce(new Blob(["cached"]));
     const { result } = renderTTS();
     await waitFor(() => expect(result.current.backend).toBe("kokoro"));
@@ -338,7 +344,7 @@ describe("useTextToSpeechCore — playback controls", () => {
   });
 
   it("refresh re-runs backend resolution", async () => {
-    const idx = await import("../index");
+    const idx = await import("../api/tts");
     const { result } = renderTTS();
     await waitFor(() => expect(result.current.backend).toBe("kokoro"));
     vi.mocked(idx.getTTSVoices).mockClear();

@@ -108,10 +108,7 @@ EOF
 - [ ] Generate and publish the PRD:
 
 ```bash
-business-health wizard start  # (was: prd generate) audio-tools \
-  --context-file /tmp/prd_context_audio-tools.md \
-  --publish \
-  --json
+business-health wizard start audio-tools --json
 ```
 
 - [ ] Validate the PRD:
@@ -163,9 +160,7 @@ EOF
 - [ ] Generate requirements:
 
 ```bash
-business-health wizard apply  # (was: requirements generate) audio-tools \
-  --context-file /tmp/requirements_context_audio-tools.md \
-  --json
+business-health wizard apply audio-tools --json
 ```
 
 - [ ] Validate requirements:

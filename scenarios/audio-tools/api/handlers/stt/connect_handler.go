@@ -24,7 +24,6 @@ import (
 	"audio-tools/internal/stt/session"
 	"audio-tools/internal/sttcapacity"
 	"audio-tools/internal/sttengine"
-	"audio-tools/internal/usagereport"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -42,7 +41,7 @@ type Deps struct {
 	Engine          *audioformat.Engine
 	Logger          logx.Logger
 	Clock           clock.Clock
-	Usage           usagereport.Recorder
+	Usage           UsageRecorder
 	StreamConfig    STTStreamConfigRepository
 	SpeakerConfig   SpeakerConfigRepository
 	Wakeword        WakewordRepository
@@ -54,11 +53,15 @@ type Deps struct {
 	// Sessions is the server-owned replay ledger registry shared by Connect
 	// and WebSocket transports. Module supplies a bounded default when unset.
 	Sessions *session.Registry
-	// EnableStreamTestFaults permits the narrowly-scoped WebSocket fault seam
-	// used by qualification runs. It is false in normal deployments; requests
-	// must additionally opt in with the test-mode header before a fault is read.
-	EnableStreamTestFaults bool
+	// TestIsolationActive reports whether the server currently has the complete
+	// leased DB-and-file isolation session installed. Qualification faults are
+	// accepted only while this is true and the individual request opts in.
+	TestIsolationActive func() bool
 }
+
+// UsageRecorder is the handler-owned port for non-blocking usage submission.
+// The usage domain supplies the concrete asynchronous implementation.
+type UsageRecorder interface{ Enqueue(store.UsageRow) }
 
 type connectHandler struct {
 	deps Deps

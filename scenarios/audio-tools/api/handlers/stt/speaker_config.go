@@ -12,12 +12,12 @@ import (
 
 	"connectrpc.com/connect"
 
-	"audio-tools/internal/audioformat"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/stt/egress"
 	"audio-tools/internal/stt/ingress"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	sttspeaker "audio-tools/internal/stt/speaker"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -84,96 +84,6 @@ func appendUnique(list []string, v string) []string {
 	return append(append([]string{}, list...), v)
 }
 
-// speakerVerification adapts pipeline.EvaluateSpeaker (cosine-similarity
-// verification against the speaker-verification resource) to the
-// egress.SpeakerIsolation seam. It lives in the handler layer — not pipeline —
-// because pipeline cannot import egress (egress imports sttchain, sttchain
-// imports pipeline; that would cycle). It captures the SpeakerConfig + client
-// taken at session start so a mid-session config change does not retune an
-// in-flight stream, and holds a per-session SessionSpeakerState so the decision
-// accumulates across segments (warm-up + EMA) rather than swinging per segment.
-//
-// It is stateful (pointer receiver) and is constructed once per session by
-// currentSpeakerIsolation. The egress pipeline drives Evaluate from a single
-// goroutine (see internal/stt/segmenter runEgress), so the state needs no lock.
-type speakerVerification struct {
-	cfg    sttpipeline.SpeakerConfig
-	client *sttpipeline.SpeakerClient
-	state  *sttpipeline.SessionSpeakerState
-
-	// logger, when non-nil, emits a one-line diagnostic per segment so
-	// operators can see whether the gate is actually receiving evidence
-	// (Applied/Sufficient) and what session score it's accumulating. Set by
-	// currentSpeakerIsolation; tests leave it nil.
-	logger logx.Logger
-}
-
-// newSpeakerVerification builds the per-session stateful isolation adapter.
-func newSpeakerVerification(cfg sttpipeline.SpeakerConfig, client *sttpipeline.SpeakerClient) *speakerVerification {
-	return &speakerVerification{
-		cfg:    cfg,
-		client: client,
-		state:  sttpipeline.NewSessionSpeakerState(cfg),
-	}
-}
-
-// NewSpeakerIsolationFromConfig builds the production speaker-verification
-// egress adapter from an explicit per-session config. Experiment workers use
-// this to exercise the same adapter as live STT without reading or mutating the
-// live speaker-config cell.
-func NewSpeakerIsolationFromConfig(cfg sttpipeline.SpeakerConfig, client *sttpipeline.SpeakerClient, logger logx.Logger) egress.SpeakerIsolation {
-	if !cfg.Enabled || cfg.Mode == "off" {
-		return nil
-	}
-	v := newSpeakerVerification(cfg, client)
-	v.logger = logger
-	return v
-}
-
-func (s *speakerVerification) Evaluate(ctx context.Context, audio []byte) egress.SpeakerVerdict {
-	d := sttpipeline.EvaluateSpeaker(ctx, s.cfg, s.client, audio)
-	allowed, smoothed, reason := s.state.Observe(d)
-
-	score := smoothed
-	if !s.state.HasEvidence() {
-		// No applied segment yet (warm-up / undetermined): surface this
-		// segment's own score for display rather than a still-zero EMA.
-		score = d.Score
-	}
-	v := egress.SpeakerVerdict{Allowed: allowed, Score: score, Threshold: s.cfg.Threshold}
-	if !allowed {
-		if reason == "" {
-			reason = sttpipeline.FormatSpeakerDecisionError(d)
-		}
-		v.Reason = reason
-	}
-	// Allowed but verification never matched a profile => let through under
-	// FallbackWithoutVerification (resource down / no enrolled profile).
-	if allowed && d.Enabled && !d.Applied {
-		v.FallbackUsed = true
-	}
-
-	if s.logger != nil {
-		// One line per segment evaluation. Reads at a glance whether the gate
-		// has evidence to work with: a sticky "applied=false sufficient=false"
-		// means the resource is judging every segment as too-short-voiced and
-		// the gate is functionally inert; "applied=true" with a smoothed score
-		// reveals what cutoff would actually fire.
-		s.logger.Printf(
-			"speaker-verify: allowed=%t applied=%t sufficient=%t voiced=%.2fs raw=%.3f smoothed=%.3f thr=%.2f mode=%s reason=%q",
-			allowed, d.Applied, d.Sufficient, d.VoicedSeconds, d.Score, score, s.cfg.Threshold, s.cfg.Mode, v.Reason,
-		)
-	}
-	return v
-}
-
-// AllowMissingAudio makes the required/advisory policy visible to the shared
-// egress stage. Only advisory or an explicit operator fail-open choice may
-// emit text when a provider span cannot be bound to canonical PCM.
-func (s *speakerVerification) AllowMissingAudio() bool {
-	return s.cfg.Mode == "advisory" || s.cfg.FallbackWithoutVerification
-}
-
 // currentSpeakerIsolation builds the per-session audio-domain isolation from
 // the live speaker-config cell + the resource client. Returns nil when speaker
 // isolation is disabled or off, so the Segmenter omits the audio-domain egress
@@ -197,71 +107,7 @@ func currentSpeakerIsolation(d Deps) egress.SpeakerIsolation {
 		MinDecisionSeconds:          doc.MinDecisionSeconds,
 		ScoreSmoothing:              doc.ScoreSmoothing,
 	}
-	return NewSpeakerIsolationFromConfig(cfg, d.SpeakerResource, d.Logger)
-}
-
-// speakerExtraction adapts the speaker-verification resource's /v1/extract
-// endpoint to the ingress.TargetExtractor seam. Like speakerVerification it
-// lives in the handler layer — pipeline cannot implement an ingress interface
-// without the ingress→sttchain→pipeline cycle. It isolates the enrolled
-// speaker's voice from a window of canonical PCM; on no-match or any failure it
-// returns the input unchanged. Extraction ISOLATES audio (ingress); it never
-// blocks a segment — the egress verification gate is what blocks text.
-type speakerExtraction struct {
-	cfg    sttpipeline.SpeakerConfig
-	client *sttpipeline.SpeakerClient
-}
-
-func (s speakerExtraction) Extract(ctx context.Context, pcm []byte) ([]byte, error) {
-	if s.client == nil || len(s.cfg.ProfileIDs) == 0 {
-		return pcm, nil
-	}
-	// The resource decodes by container sniffing and cannot read headerless
-	// PCM, so wrap the window in a WAV header (mirrors pipeline.EvaluateSpeaker).
-	// The resource returns cleaned canonical PCM (s16le/16kHz/mono) ready to
-	// re-enter the ingress stream with no further decode.
-	wav := audioformat.WAVFromCanonicalPCM(pcm)
-	var best []byte
-	var bestScore float64
-	found := false
-	for _, profileID := range s.cfg.ProfileIDs {
-		res, err := s.client.Extract(ctx, wav, profileID, true)
-		if err != nil {
-			continue
-		}
-		if res.Matched {
-			return res.Audio, nil
-		}
-		if !found || res.Score > bestScore {
-			bestScore = res.Score
-			best = res.Audio
-			found = true
-		}
-	}
-	if !found || len(best) == 0 {
-		return pcm, nil
-	}
-	return best, nil
-}
-
-// NewSpeakerExtractionFromConfig builds the production target-speaker
-// extraction ingress adapter from an explicit per-session config. Experiment
-// workers use this path for hermetic speaker-dimension runs.
-func NewSpeakerExtractionFromConfig(cfg sttpipeline.SpeakerConfig, client *sttpipeline.SpeakerClient) ingress.TargetExtractor {
-	if !cfg.Enabled || cfg.Mode == "off" || !cfg.ExtractionEnabled || len(cfg.ProfileIDs) == 0 {
-		return nil
-	}
-	if client == nil {
-		return nil
-	}
-	return speakerExtraction{
-		cfg: sttpipeline.SpeakerConfig{
-			ProfileIDs: cfg.ProfileIDs,
-			Threshold:  cfg.Threshold,
-			Mode:       cfg.Mode,
-		},
-		client: client,
-	}
+	return sttspeaker.NewIsolation(cfg, d.SpeakerResource, d.Logger)
 }
 
 // currentSpeakerExtraction builds the per-session ingress extractor from the
@@ -277,7 +123,7 @@ func currentSpeakerExtraction(d Deps) ingress.TargetExtractor {
 	if !doc.Enabled || doc.Mode == "off" || !doc.ExtractionEnabled || len(doc.ProfileIDs) == 0 {
 		return nil
 	}
-	return NewSpeakerExtractionFromConfig(sttpipeline.SpeakerConfig{
+	return sttspeaker.NewExtraction(sttpipeline.SpeakerConfig{
 		Enabled:           doc.Enabled,
 		ProfileIDs:        doc.ProfileIDs,
 		Threshold:         doc.Threshold,

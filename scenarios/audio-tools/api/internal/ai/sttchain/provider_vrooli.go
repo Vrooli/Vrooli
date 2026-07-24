@@ -3,6 +3,8 @@ package sttchain
 import (
 	"context"
 	"fmt"
+
+	"audio-tools/internal/ai/chains/tiered"
 )
 
 // seam: VrooliClient is the STT Vrooli-LPBS client seam (SEAMS.md row
@@ -22,48 +24,44 @@ type VrooliClient interface {
 // (AUDIO_AI_ENABLE_VROOLI=false) until execute/lpbs-audio-gateway-endpoints
 // lands.
 type VrooliProvider struct {
-	client VrooliClient
+	*tiered.LPBSProvider[VrooliClient]
 }
 
 func NewVrooliProvider(client VrooliClient) *VrooliProvider {
-	return &VrooliProvider{client: client}
+	return &VrooliProvider{LPBSProvider: tiered.NewLPBSProvider(client,
+		func(client VrooliClient) bool { return client == nil },
+		func(client VrooliClient, ctx context.Context) bool { return client.IsAvailable(ctx) },
+		func(client VrooliClient) string { return client.Model() })}
 }
 
 func (p *VrooliProvider) Type() ProviderTier { return TierVrooli }
 
 func (p *VrooliProvider) IsAvailable(ctx context.Context) bool {
-	if p == nil || p.client == nil {
-		return false
-	}
-	return p.client.IsAvailable(ctx)
-}
-
-func (p *VrooliProvider) Transcribe(ctx context.Context, req Request) (*Result, error) {
-	if p == nil || p.client == nil {
-		return nil, fmt.Errorf("audio-tools/sttchain: vrooli client not configured")
-	}
-	if req.LPBSToken == "" {
-		return nil, fmt.Errorf("audio-tools/sttchain: LPBS token required")
-	}
-	res, err := p.client.Transcribe(ctx, req.LPBSToken, req.UserIdentity, req)
-	if err != nil {
-		return nil, err
-	}
-	res.Tier = TierVrooli
-	if res.ProviderID == "" {
-		res.ProviderID = "lpbs"
-	}
-	if res.ModelID == "" {
-		res.ModelID = p.client.Model()
-	}
-	return res, nil
+	return p != nil && p.LPBSProvider != nil && p.LPBSProvider.IsAvailable(ctx)
 }
 
 func (p *VrooliProvider) Model() string {
-	if p == nil || p.client == nil {
+	if p == nil || p.LPBSProvider == nil {
 		return ""
 	}
-	return p.client.Model()
+	return p.LPBSProvider.Model()
+}
+
+func (p *VrooliProvider) Transcribe(ctx context.Context, req Request) (*Result, error) {
+	return tiered.ExecuteLPBS(p != nil && p.LPBSProvider != nil && p.Configured(), req.LPBSToken,
+		fmt.Errorf("audio-tools/sttchain: vrooli client not configured"),
+		fmt.Errorf("audio-tools/sttchain: LPBS token required"),
+		func() (*Result, error) { return p.Client.Transcribe(ctx, req.LPBSToken, req.UserIdentity, req) },
+		func(result *Result) {
+			result.Tier = TierVrooli
+			if result.ProviderID == "" {
+				result.ProviderID = "lpbs"
+			}
+			if result.ModelID == "" {
+				result.ModelID = p.Model()
+			}
+		},
+	)
 }
 
 // Traits reports the Vrooli tier as batch-only today; LPBS audio-gateway

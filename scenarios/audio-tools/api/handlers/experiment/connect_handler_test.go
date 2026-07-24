@@ -87,7 +87,7 @@ func TestValidateRecipeRejectsInvalidInputs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateRecipe(tc.recipe)
+			err := intexp.ValidateRecipe(tc.recipe)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), tc.want)
 		})
@@ -95,7 +95,7 @@ func TestValidateRecipeRejectsInvalidInputs(t *testing.T) {
 }
 
 func TestValidateRecipeAllowsDefaultsAndOverlapStallDefault(t *testing.T) {
-	err := validateRecipe(&experimentv1.ExperimentRecipe{Strategies: []*evalv1.EvalStrategy{{
+	err := intexp.ValidateRecipe(&experimentv1.ExperimentRecipe{Strategies: []*evalv1.EvalStrategy{{
 		Kind:                   "overlap_agree",
 		OverlapMaxStallRejects: -1,
 	}}})
@@ -103,7 +103,7 @@ func TestValidateRecipeAllowsDefaultsAndOverlapStallDefault(t *testing.T) {
 }
 
 func TestValidateRecipeAllowsProviderNeutralCell(t *testing.T) {
-	err := validateRecipe(&experimentv1.ExperimentRecipe{Cells: []*experimentv1.EvaluationCell{{
+	err := intexp.ValidateRecipe(&experimentv1.ExperimentRecipe{Cells: []*experimentv1.EvaluationCell{{
 		EngineId: "kyutai", Strategy: "passthrough", PolicyProfile: "speaker-filter",
 		ReplayLane: experimentv1.ReplayLane_REPLAY_LANE_PRODUCT_PATH, FaultProfile: "dropped_connection", RepeatCount: 2,
 	}}})
@@ -114,8 +114,8 @@ func TestValidateRecipeAllowsProviderNeutralCell(t *testing.T) {
 // canonical hard conditions the robustness lab exists to measure and must be
 // accepted, not rejected.
 func TestValidateRecipeAllowsZeroAndNegativeSNR(t *testing.T) {
-	for _, snr := range []float64{0, -5, -10, minSNRDB, maxSNRDB} {
-		err := validateRecipe(&experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
+	for _, snr := range []float64{0, -5, -10, -80, 80} {
+		err := intexp.ValidateRecipe(&experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
 			NoiseTypes: []string{"white"},
 			SnrDb:      []float64{snr},
 		}})
@@ -124,7 +124,7 @@ func TestValidateRecipeAllowsZeroAndNegativeSNR(t *testing.T) {
 }
 
 func TestValidateRecipeRejectsNonFiniteSNR(t *testing.T) {
-	err := validateRecipe(&experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
+	err := intexp.ValidateRecipe(&experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
 		SnrDb: []float64{math.Inf(1)},
 	}})
 	require.Error(t, err)
@@ -132,7 +132,7 @@ func TestValidateRecipeRejectsNonFiniteSNR(t *testing.T) {
 }
 
 func TestValidateRecipeAllowsKnownNoiseAliases(t *testing.T) {
-	err := validateRecipe(&experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
+	err := intexp.ValidateRecipe(&experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
 		NoiseTypes: []string{"white", "fan", "percussive", "music", "constant_fan", "dynamic", "music_like"},
 	}})
 	require.NoError(t, err)

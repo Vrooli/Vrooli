@@ -27,24 +27,25 @@
 // that wires their own store and APIs in.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getVoiceStreamConfig, transcribeAudioBypassFilter, getWakeWordConfig } from "../index";
-import { createAudioFilterChain } from "../index";
-import { playRecordingStartCue, playRecordingStopCue } from "../index";
-import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "../index";
-import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "../index";
-import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "../index";
-import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "../index";
-import { VoiceStreamProvider } from "../index";
+import { getVoiceStreamConfig, transcribeAudioBypassFilter, getWakeWordConfig } from "../api/voice";
+import { createAudioFilterChain } from "./voice/audioUtils";
+import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
+import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "./voice/activity";
+import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "./voice/vad";
+import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "./voice/sharedAudioContext";
+import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "./voice/micReadiness";
+import { VoiceStreamProvider } from "./voice/VoiceStreamProvider";
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
-import { WhisperProvider } from "../index";
-import { WebSpeechProvider } from "../index";
-import { createWakeWordEngine, PassiveListener } from "../index";
-import type { WakeWordEngine, WakeWordTemplate } from "../index";
+import { WhisperProvider } from "./voice/WhisperProvider";
+import { WebSpeechProvider } from "./voice/WebSpeechProvider";
+import { createWakeWordEngine } from "./voice/wakeword/engine";
+import { PassiveListener } from "./voice/wakeword/passiveListener";
+import type { WakeWordEngine, WakeWordTemplate } from "./voice/wakeword/types";
 import {
   CAP_CHECK_FAIL_THRESHOLD,
   WHISPER_FAILED_SENTINEL,
-} from "../index";
+} from "./voice/types";
 import type {
   TranscriptionProvider,
   VoiceBackend,
@@ -54,7 +55,7 @@ import type {
   VoiceRejection,
   CommandSuggestion,
   StartRecordingOpts,
-} from "../index";
+} from "./voice/types";
 
 const INITIAL_STATE: VoiceInputState = {
   supported: false,

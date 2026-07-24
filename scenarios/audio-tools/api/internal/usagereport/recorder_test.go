@@ -3,7 +3,6 @@ package usagereport
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"log"
 	"testing"
 	"time"
@@ -11,17 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	localdb "audio-tools/internal/database"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
 	"audio-tools/internal/testutil/db"
 )
 
-func newSchemaDB(t *testing.T) *sql.DB {
+func newSchemaDB(t *testing.T) *apidb.RoutedDB {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
-	return d
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(Schema)))
+	return apidb.NewFromPrimary(d)
 }
 
 func TestAsyncRecorder_EnqueueAndDrain(t *testing.T) {

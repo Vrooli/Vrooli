@@ -29,16 +29,23 @@ domain needs them. Document those decisions in
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
+| Encrypted BYOK credentials | byokstore | SQLite | `api/internal/byokstore/schema.sql` | Until deleted through Settings | Ciphertext only; encryption key is scenario runtime state. |
+| Provider routing and voice overrides | settings | SQLite | `api/internal/settings/schema.sql` | Until changed or deleted through Settings | Local/provider configuration, never raw secrets. |
+| STT configuration, wake words, and speaker profiles | stt | SQLite | `api/internal/stt/schema.sql` | Until user deletion | Speaker resource owns canonical embeddings; this stores metadata and bindings. |
+| TTS configuration and playback events | tts | SQLite | `api/internal/tts/schema.sql` | Config until changed; events are local history | Playback events are idempotent by event ID. |
+| Usage accounting | usagereport | SQLite | `api/internal/usagereport/schema.sql` | Local runtime history | Supports provider and fallback reporting. |
+| Corpus and experiment bytes | corpus, experiment | Filesystem blob stores | Domain blob-store implementations | Explicit domain lifecycle | Mutable bytes are routed through `api-core/storage`. |
 
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-| system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
+| byok_credentials | byokstore | `api/internal/byokstore/schema.sql` | Settings credential repository |
+| provider_config, voice_overrides | settings | `api/internal/settings/schema.sql` | Settings repository |
+| usage_rows | usagereport | `api/internal/usagereport/schema.sql` | Usage recorder and reports |
+| wakeword_templates, speaker_profiles, stt_stream_config, stt_speaker_config | stt | `api/internal/stt/schema.sql` | STT stores and handlers |
+| tts_config, playback_events | tts | `api/internal/tts/schema.sql` | TTS stores and handlers |
+| system schema | infrastructure | `api/internal/database/system.sql` | Cross-cutting infrastructure only; currently empty |
 
 ## Migrations And Compatibility
 
@@ -60,7 +67,9 @@ backfills, add a scenario-specific migration plan here and update
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
+| Encrypted BYOK credentials | Settings deletion | Local runtime data | Key rotation and broader credential retention policy remain an operator concern. |
+| Audio configuration and profiles | Corresponding Settings/STT deletion operation | Local runtime data | Speaker resource data follows its resource lifecycle. |
+| Usage and playback history | Local scenario data lifecycle | Local runtime history | No automatic retention policy is configured yet. |
 
 ## Privacy Notes
 

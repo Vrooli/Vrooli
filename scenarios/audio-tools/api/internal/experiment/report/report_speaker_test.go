@@ -1,4 +1,4 @@
-package bootstrap
+package report
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	evalH "audio-tools/handlers/eval"
 	"audio-tools/internal/ai/sttchain"
 	inteval "audio-tools/internal/eval"
+	"audio-tools/internal/experiment/evaldeps"
 	exprecipe "audio-tools/internal/experiment/recipe"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
@@ -73,7 +74,7 @@ func TestBuildSpeakerConditions_SkipsMissingTargetProfile(t *testing.T) {
 
 func TestExperimentEvalDeps_CarriesSpeakerResource(t *testing.T) {
 	client := &sttpipeline.SpeakerClient{}
-	deps := newExperimentEvalDeps(nil, nil, func(string) sttchain.Provider { return nil }, sttpkg.Defaults(), client)
+	deps := evaldeps.New(nil, nil, func(string) sttchain.Provider { return nil }, sttpkg.Defaults(), client)
 
 	if deps.SpeakerResource != client {
 		t.Fatalf("SpeakerResource not wired into experiment eval deps")

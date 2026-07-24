@@ -2,7 +2,6 @@ package ttschain_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,93 +10,20 @@ import (
 	ttsmocks "audio-tools/internal/ai/ttschain/mocks"
 )
 
-func TestChain_Execute_PrecedenceAndShortCircuits(t *testing.T) {
-	ctx := context.Background()
-	cases := []struct {
-		name      string
-		opts      ttschain.Options
-		req       ttschain.Request
-		wantAudio string
-		wantErr   error
-	}{
-		{
-			name: "byok_wins_when_key_present",
-			opts: ttschain.Options{
-				EnableBYOK: true, EnableVrooli: true,
-				BYOK:   ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{"el": &ttsmocks.FakeBYOK{IDStr: "el", Available: true}}),
-				Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{Available: true}),
-			},
-			req:       ttschain.Request{Text: "hello", BYOKProvider: "el", BYOKKey: "sk", LPBSToken: "tok"},
-			wantAudio: "byok-audio",
-		},
-		{
-			name: "vrooli_used_when_no_byok",
-			opts: ttschain.Options{
-				EnableBYOK: true, EnableVrooli: true,
-				BYOK:   ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{"el": &ttsmocks.FakeBYOK{IDStr: "el", Available: true}}),
-				Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{Available: true}),
-			},
-			req:       ttschain.Request{Text: "hello", LPBSToken: "tok"},
-			wantAudio: "vrooli-audio",
-		},
-		{
-			name: "insufficient_credits_short_circuits",
-			opts: ttschain.Options{
-				EnableBYOK: true, EnableVrooli: true, EnableLocal: true,
-				Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{
-					Available: true,
-					SynthesizeFn: func(context.Context, string, string, ttschain.Request) (*ttschain.Result, error) {
-						return nil, ttschain.ErrInsufficientCredits
-					},
-				}),
-			},
-			req:     ttschain.Request{Text: "x", LPBSToken: "tok"},
-			wantErr: ttschain.ErrInsufficientCredits,
-		},
-		{
-			name: "unknown_byok_provider_terminates",
-			opts: ttschain.Options{
-				EnableBYOK: true,
-				BYOK:       ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{"el": &ttsmocks.FakeBYOK{IDStr: "el", Available: true}}),
-			},
-			req:     ttschain.Request{Text: "x", BYOKProvider: "missing", BYOKKey: "sk"},
-			wantErr: ttschain.ErrUnknownBYOKProvider,
-		},
-		{
-			name: "missing_byok_provider_terminates",
-			opts: ttschain.Options{
-				EnableBYOK: true,
-				BYOK:       ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{"el": &ttsmocks.FakeBYOK{IDStr: "el", Available: true}}),
-			},
-			req:     ttschain.Request{Text: "x", BYOKKey: "sk"},
-			wantErr: ttschain.ErrMissingBYOKProvider,
-		},
-		{
-			name: "vrooli_disabled_falls_through_to_local_missing",
-			opts: ttschain.Options{
-				EnableVrooli: false,
-				Vrooli:       ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{Available: true}),
-			},
-			req:     ttschain.Request{Text: "x", LPBSToken: "tok"},
-			wantErr: ttschain.ErrAllProvidersFailed,
-		},
-	}
+func TestChain_WiresCredentialProviders(t *testing.T) {
+	chain := ttschain.NewChain(ttschain.Options{
+		EnableBYOK: true, EnableVrooli: true,
+		BYOK:   ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{"el": &ttsmocks.FakeBYOK{IDStr: "el", Available: true}}),
+		Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{Available: true}),
+	})
 
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			c := ttschain.NewChain(tc.opts)
-			res, err := c.Execute(ctx, tc.req)
-			if tc.wantErr != nil {
-				require.Error(t, err)
-				require.True(t, errors.Is(err, tc.wantErr), "want %v got %v", tc.wantErr, err)
-				return
-			}
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			require.Equal(t, tc.wantAudio, string(res.Audio))
-		})
-	}
+	byok, err := chain.Execute(context.Background(), ttschain.Request{Text: "hello", BYOKProvider: "el", BYOKKey: "sk", LPBSToken: "tok"})
+	require.NoError(t, err)
+	require.Equal(t, "byok-audio", string(byok.Audio))
+
+	vrooli, err := chain.Execute(context.Background(), ttschain.Request{Text: "hello", LPBSToken: "tok"})
+	require.NoError(t, err)
+	require.Equal(t, "vrooli-audio", string(vrooli.Audio))
 }
 
 func TestChain_Stream_BufferedFallbackEmitsFinalFrame(t *testing.T) {

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // BYOKCredential is a stored credential row. The Cipher field holds the
@@ -21,9 +23,9 @@ type BYOKCredential struct {
 }
 
 // BYOKStore persists encrypted credentials.
-type BYOKStore struct{ db *sql.DB }
+type BYOKStore struct{ db *database.RoutedDB }
 
-func NewBYOKStore(db *sql.DB) *BYOKStore { return &BYOKStore{db: db} }
+func NewBYOKStore(db *database.RoutedDB) *BYOKStore { return &BYOKStore{db: db} }
 
 // Upsert inserts or replaces the credential for (provider, capability).
 func (s *BYOKStore) Upsert(ctx context.Context, c BYOKCredential) error {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
@@ -274,6 +274,11 @@ afterEach(cleanup);
 
 describe("ExperimentLabView", () => {
   it("starts an async experiment from builder controls", async () => {
+    let emit: ((event: { experimentId: string; status: string; progress: number; message: string; at: string }) => void) | undefined;
+    streamExperimentEvents.mockImplementation((_id: string, onEvent: (event: { experimentId: string; status: string; progress: number; message: string; at: string }) => void) => {
+      emit = onEvent;
+      return new Promise<void>(() => {});
+    });
     const user = userEvent.setup();
     renderWithProviders(<ExperimentLabView />);
 
@@ -294,10 +299,10 @@ describe("ExperimentLabView", () => {
       ),
     );
     expect(pushToast).toHaveBeenCalledWith(expect.objectContaining({ title: strings.dictationStudio.experimentStarted }));
-    expect(streamExperimentEvents).toHaveBeenCalledWith("exp-2", expect.any(Function), expect.any(AbortSignal));
-    await waitFor(() =>
-      expect(screen.getByTestId(selectors.dictationStudio.experimentLiveProgress)).toHaveTextContent("storing report"),
-    );
+    await waitFor(() => expect(streamExperimentEvents).toHaveBeenCalledWith("exp-2", expect.any(Function), expect.any(AbortSignal)));
+    await act(async () => emit?.({ experimentId: "exp-2", status: "running", progress: 45, message: "evaluating strategies", at: "" }));
+    expect(await screen.findByTestId(selectors.dictationStudio.experimentLiveProgress)).toHaveTextContent("evaluating strategies");
+    await act(async () => emit?.({ experimentId: "exp-2", status: "succeeded", progress: 100, message: "storing report", at: "" }));
     await waitFor(() => expect(getExperimentReport).toHaveBeenCalledWith("exp-2"));
   });
 

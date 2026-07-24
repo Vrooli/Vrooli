@@ -15,8 +15,8 @@ import (
 
 	settingsH "audio-tools/handlers/settings"
 	"audio-tools/internal/byokstore"
-	localdb "audio-tools/internal/database"
 	"audio-tools/internal/logx"
+	intsettings "audio-tools/internal/settings"
 	"audio-tools/internal/store"
 	"audio-tools/internal/testutil/db"
 
@@ -27,7 +27,8 @@ import (
 func newServer(t *testing.T) (string, settconnect.SettingsServiceClient) {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(intsettings.Schema), apidb.SchemaProviderFunc(byokstore.Schema)))
+	routed := apidb.NewFromPrimary(d)
 
 	k := make([]byte, 32)
 	_, _ = rand.Read(k)
@@ -35,9 +36,9 @@ func newServer(t *testing.T) (string, settconnect.SettingsServiceClient) {
 	require.NoError(t, err)
 
 	m := settingsH.Module(settingsH.Deps{
-		ProviderConfig: store.NewProviderConfigStore(d, store.ProviderConfig{BYOKEnabled: true, LocalEnabled: true, AvailTTLBYOKSeconds: 300, AvailTTLVrooliSecs: 30}),
-		BYOK:           byokstore.New(enc, store.NewBYOKStore(d)),
-		VoiceOverrides: store.NewVoiceOverrideStore(d),
+		ProviderConfig: store.NewProviderConfigStore(routed, store.ProviderConfig{BYOKEnabled: true, LocalEnabled: true, AvailTTLBYOKSeconds: 300, AvailTTLVrooliSecs: 30}),
+		BYOK:           byokstore.New(enc, store.NewBYOKStore(routed)),
+		VoiceOverrides: store.NewVoiceOverrideStore(routed),
 		Logger:         logx.Std{},
 	})
 	r := mux.NewRouter()

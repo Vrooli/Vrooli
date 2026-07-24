@@ -177,11 +177,11 @@ func TestWSMessageDeliveryClass_ProcessedAcknowledgementIsDurable(t *testing.T) 
 
 // TestStreamWS_TestOnlyProviderBusyFault [REQ:ATD-P0-005] verifies the
 // qualification seam is observable on the real WebSocket protocol while
-// remaining disabled unless both the server switch and the per-request
-// test-mode header are present.
+// remaining disabled unless both an active isolation lease and the
+// per-request test-mode header are present.
 func TestStreamWS_TestOnlyProviderBusyFault(t *testing.T) {
 	deps := newNoProviderDeps(t)
-	deps.EnableStreamTestFaults = true
+	deps.TestIsolationActive = func() bool { return true }
 	r := mux.NewRouter()
 	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
 	srv := httptest.NewServer(r)
@@ -217,7 +217,7 @@ func TestStreamWS_TestOnlyProviderBusyFault(t *testing.T) {
 
 func TestStreamWS_TestOnlyCloseAfterChunkFault(t *testing.T) {
 	deps := newNoProviderDeps(t)
-	deps.EnableStreamTestFaults = true
+	deps.TestIsolationActive = func() bool { return true }
 	r := mux.NewRouter()
 	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
 	srv := httptest.NewServer(r)
@@ -268,12 +268,12 @@ func TestStreamWS_TestOnlySuppressProcessedAckFault(t *testing.T) {
 	})
 	sessions := session.NewRegistry(0)
 	deps := Deps{
-		Chain:                  chain,
-		Selector:               sttpkg.NewSelector(chain),
-		Logger:                 &mocks.FakeLogger{},
-		StreamConfig:           staticStreamConfig{raw: `{"streaming_mode":"off"}`},
-		Sessions:               sessions,
-		EnableStreamTestFaults: true,
+		Chain:               chain,
+		Selector:            sttpkg.NewSelector(chain),
+		Logger:              &mocks.FakeLogger{},
+		StreamConfig:        staticStreamConfig{raw: `{"streaming_mode":"off"}`},
+		Sessions:            sessions,
+		TestIsolationActive: func() bool { return true },
 	}
 	r := mux.NewRouter()
 	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
@@ -340,12 +340,12 @@ func TestStreamWS_TestOnlyCloseAfterCommitFault(t *testing.T) {
 	})
 	sessions := session.NewRegistry(0)
 	deps := Deps{
-		Chain:                  chain,
-		Selector:               sttpkg.NewSelector(chain),
-		Logger:                 &mocks.FakeLogger{},
-		StreamConfig:           staticStreamConfig{raw: `{"streaming_mode":"off"}`},
-		Sessions:               sessions,
-		EnableStreamTestFaults: true,
+		Chain:               chain,
+		Selector:            sttpkg.NewSelector(chain),
+		Logger:              &mocks.FakeLogger{},
+		StreamConfig:        staticStreamConfig{raw: `{"streaming_mode":"off"}`},
+		Sessions:            sessions,
+		TestIsolationActive: func() bool { return true },
 	}
 	r := mux.NewRouter()
 	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)

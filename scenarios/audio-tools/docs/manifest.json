@@ -204,7 +204,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "react-coherence",
+            "ui-health",
             "ux"
           ],
           "validation": {
@@ -524,7 +524,7 @@
       "documents": [
         {
           "path": "domains/stt/streaming-pipeline.md",
-          "docType": "domain-deep-dive",
+          "docType": "domain-stt-streaming",
           "title": "STT Streaming Pipeline",
           "aliases": [
             "streaming-stt",
@@ -575,7 +575,7 @@
         },
         {
           "path": "domains/tts/synthesis-pipeline.md",
-          "docType": "domain-deep-dive",
+          "docType": "domain-tts-synthesis",
           "title": "TTS Synthesis Pipeline",
           "aliases": [
             "tts-chain",
@@ -621,7 +621,7 @@
         },
         {
           "path": "domains/summarize/chain.md",
-          "docType": "domain-deep-dive",
+          "docType": "domain-summarize-chain",
           "title": "Summarize Provider Chain",
           "aliases": [
             "summarize-chain",
@@ -666,7 +666,7 @@
         },
         {
           "path": "domains/audio/transformations.md",
-          "docType": "domain-deep-dive",
+          "docType": "domain-audio-transformations",
           "title": "Audio Transformations",
           "aliases": [
             "audio-ops",
@@ -711,7 +711,7 @@
         },
         {
           "path": "domains/session/ephemeral-pubsub.md",
-          "docType": "domain-deep-dive",
+          "docType": "domain-session-pubsub",
           "title": "Session Ephemeral Pub/Sub",
           "aliases": [
             "session",
@@ -757,7 +757,7 @@
         },
         {
           "path": "domains/settings/byok-and-voice-overrides.md",
-          "docType": "domain-deep-dive",
+          "docType": "domain-settings-byok",
           "title": "Settings: BYOK, Voice Overrides, Provider Config",
           "aliases": [
             "settings",
@@ -805,7 +805,7 @@
         },
         {
           "path": "domains/usage/reporting.md",
-          "docType": "domain-deep-dive",
+          "docType": "domain-usage-reporting",
           "title": "Usage Reporting",
           "aliases": [
             "usage",
@@ -851,7 +851,7 @@
         },
         {
           "path": "domains/health/checks.md",
-          "docType": "domain-deep-dive",
+          "docType": "domain-health-checks",
           "title": "Health Checks and Capability Matrix",
           "aliases": [
             "health",
@@ -1378,7 +1378,7 @@
         },
         {
           "path": "reference/adoption.md",
-          "docType": "reference",
+          "docType": "reference-adoption",
           "title": "Adoption",
           "aliases": [
             "adoption",
@@ -1543,6 +1543,40 @@
             ],
             "requiredLinks": [
               "../concepts/FLOWS.md"
+            ]
+          }
+        },
+        {
+          "path": "internal/VOICE-LATENCY.md",
+          "docType": "voice-latency",
+          "title": "Voice Latency",
+          "aliases": [
+            "audio-cues",
+            "microphone-lifecycle",
+            "voice-performance"
+          ],
+          "description": "Client-side voice interaction latency and audio lifecycle guidance",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "voice-latency",
+            "audio-cue-contract",
+            "microphone-lifecycle"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Audio cue contract",
+              "Visibility-based mic lifecycle"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
             ]
           }
         },

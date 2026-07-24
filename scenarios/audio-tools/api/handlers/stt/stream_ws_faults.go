@@ -9,12 +9,12 @@ import (
 	"time"
 )
 
-// The fault seam is deliberately double-gated. The API must be booted with
-// EnableStreamTestFaults and the individual WebSocket upgrade must carry an
-// explicit test-mode signal. Browser qualification uses query parameters
-// because browser JavaScript cannot attach custom headers to a WebSocket
-// handshake. A user cannot trigger a qualification fault in a normal
-// deployment because the boot-only gate remains off.
+// The fault seam is deliberately double-gated. The target must have a live
+// server-owned DB-and-file isolation lease, and the individual WebSocket
+// upgrade must carry an explicit test-mode signal. Browser qualification uses
+// query parameters because browser JavaScript cannot attach custom headers to
+// a WebSocket handshake. Ordinary deployments cannot trigger a qualification
+// fault because they never install the development-only isolation lease.
 const (
 	streamTestModeHeader  = "X-Vrooli-Test-Mode"
 	streamTestFaultHeader = "X-Audio-Tools-STT-Fault"
@@ -39,8 +39,8 @@ func (f streamTestFault) enabled() bool {
 // streamTestFaultFromRequest accepts only deterministic faults with a bounded
 // trigger. It is intentionally not a general fault language: new failure
 // classes should be added with an explicit product-path assertion first.
-func streamTestFaultFromRequest(r *http.Request, faultsEnabled bool) (streamTestFault, error) {
-	if !faultsEnabled {
+func streamTestFaultFromRequest(r *http.Request, isolationActive bool) (streamTestFault, error) {
+	if !isolationActive {
 		return streamTestFault{}, nil
 	}
 	testMode := strings.TrimSpace(r.Header.Get(streamTestModeHeader)) == "1" || r.URL.Query().Get(streamTestModeQuery) == "1"
@@ -99,6 +99,10 @@ func streamTestFaultFromRequest(r *http.Request, faultsEnabled bool) (streamTest
 		return streamTestFault{suppressProcessedAck: true}, nil
 	}
 	return streamTestFault{}, fmt.Errorf("unsupported %s value %q", streamTestFaultHeader, raw)
+}
+
+func streamTestFaultsAuthorized(d Deps) bool {
+	return d.TestIsolationActive != nil && d.TestIsolationActive()
 }
 
 // waitStreamTestFaultDelay is cancellable so a qualification delay never turns
