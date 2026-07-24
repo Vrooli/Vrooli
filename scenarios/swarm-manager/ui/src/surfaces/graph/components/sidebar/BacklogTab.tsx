@@ -14,7 +14,7 @@ import { Download, Loader2, Plus } from "lucide-react";
 import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useBacklogStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";
-import { getItemActions } from "../../../../lib";
+import { itemActionsFromNextAction } from "../../../../lib";
 import { buildBacklogCompareFn, sortBacklogItems } from "../../../../lib/backlog-sort";
 import { computeUnblockingMap } from "../../../../lib/dependency-sort";
 import { filterSnoozed, snoozeKeyForBacklog } from "../../../../lib/snooze-utils";
@@ -434,7 +434,6 @@ interface BacklogRowProps {
 const BacklogRow = memo(function BacklogRow({
   item,
   nextAction,
-  blockingInfo,
   attentionReasons,
   pendingQuestions,
   agentRunning,
@@ -457,17 +456,14 @@ const BacklogRow = memo(function BacklogRow({
   const itemKey = `${item.kind}/${item.name}`;
   const selectionId = backlogSelectionId(item);
   const nodeId = useMemo(() => buildBacklogNodeId(item.kind, item.name), [item.kind, item.name]);
-  const hasPendingDecisions = (pendingQuestions?.length ?? 0) > 0;
   const itemActions = useMemo(
     () =>
-      getItemActions({
+      itemActionsFromNextAction(
         item,
-        blockingInfo,
-        agentRunning,
-        hasPendingDecisions,
-        hasExecutionHistory: item.status === "completed" || item.status === "failed",
-      }),
-    [item, blockingInfo, agentRunning, hasPendingDecisions],
+        nextAction,
+        { agentRunning },
+      ),
+    [item, nextAction, agentRunning],
   );
   const handleClick = useCallback(() => onItemClick(nodeId), [nodeId, onItemClick]);
   const handleStepperCompletedForItem = useCallback(

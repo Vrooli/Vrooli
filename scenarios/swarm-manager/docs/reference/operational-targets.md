@@ -67,13 +67,14 @@ References:
 - [CODE: api/internal/backlog/review_decide.go]
 
 ### OT-P0-009 - Typed follow-up proposals
-Status: Partial — review findings and sessions emit typed proposals with
-policy; raw work.follow_up/work.correct completion applies still only flip
-status.
+Status: Implemented — review and execution outcomes persist one typed
+follow-up instruction. The ranked inbox exposes it as `dispatch_followup`, and
+dispatch deterministically starts a follow-up run, returns work to planning, or
+creates typed backlog proposals according to its disposition.
 References:
-- [CODE: api/routes_plan_workshop.go]
 - [CODE: api/internal/proposals/types.go]
-- [CODE: api/internal/execution/work_workflow.go]
+- [CODE: api/internal/backlog/followup_dispatch.go]
+- [CODE: api/internal/execution/followup_dispatch.go]
 
 ### OT-P0-010 - Item next-action projection
 Status: Implemented.

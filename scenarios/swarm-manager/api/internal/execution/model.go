@@ -238,15 +238,24 @@ type ProcessPreflight struct {
 	SuggestedOperation       string                    `json:"suggested_operation,omitempty"`
 	SuggestedSteerProfileID  string                    `json:"suggested_steer_profile_id,omitempty"`
 	BlockingReasons          []string                  `json:"blocking_reasons,omitempty"`
+	BlockingDetails          []ProcessBlockingReason   `json:"blocking_details,omitempty"`
 	BlockingQuestions        []ProcessBlockingQuestion `json:"blocking_questions,omitempty"`
 	// ForceableBlockingReasons block the queue but can be overridden with
 	// force=true (e.g. the fix-before-feature gate in "block" mode). Kept
 	// separate from BlockingReasons (which are structural / non-forceable) so
 	// callers can render forceability correctly.
-	ForceableBlockingReasons []string `json:"forceable_blocking_reasons,omitempty"`
+	ForceableBlockingReasons []string                `json:"forceable_blocking_reasons,omitempty"`
+	ForceableBlockingDetails []ProcessBlockingReason `json:"forceable_blocking_details,omitempty"`
 	// Advisories are non-blocking messages surfaced to the caller (e.g. the
 	// fix-before-feature gate in "suggest" mode). They never affect Ready.
 	Advisories []string `json:"advisories,omitempty"`
+}
+
+// ProcessBlockingReason is the stable machine-readable counterpart to a
+// human explanation. Consumers must route policy by Code, never by prose.
+type ProcessBlockingReason struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 // ProcessBlockingQuestion represents an unanswered critical question.

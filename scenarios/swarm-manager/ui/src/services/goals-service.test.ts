@@ -75,6 +75,12 @@ describe("Goals Service", () => {
     expect(wrapped[0]?.eta).toBeNull();
   });
 
+  it("preserves the operator-terminal achieved status", async () => {
+    vi.mocked(mockApiClient.get).mockResolvedValueOnce({ items: [{ goal: { name: "done", title: "Done", status: "achieved" }, scope: {} }] });
+    const goals = await service.list();
+    expect(goals[0]?.goal.status).toBe("achieved");
+  });
+
   it("tolerates a legacy `goals` envelope and a bare array", async () => {
     vi.mocked(mockApiClient.get).mockResolvedValueOnce({ goals: [{ goal: { name: "g", title: "G", status: "active" }, scope: {} }] });
     const legacy = await service.list();

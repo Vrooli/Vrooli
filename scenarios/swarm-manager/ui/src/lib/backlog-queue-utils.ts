@@ -1,9 +1,7 @@
 /**
  * Backlog Queue & Action Utilities
  *
- * Centralizes all action-visibility and action-disabled logic for backlog items.
- * Both BacklogCard and BacklogDetailsPage consume `getItemActions()` so that
- * the CTA funnel is defined in exactly one place.
+ * Adapts server-owned action projections and resolves dependency display data.
  *
  * DOC: docs/concepts/ARCHITECTURE.md#backlog-action-funnel
  */
@@ -12,10 +10,9 @@ import type {
   AgentActivityPurpose,
   AgentActivityStatus,
   BacklogItem,
-  BacklogKind,
   BacklogStatus,
-  ItemBlockingInfo,
 } from "../types";
+import type { BacklogNextAction } from "../services/backlog/types";
 import type { AttentionReason, FeedbackItem, MaturityItem } from "./attention";
 import { getAttentionReasons } from "./attention";
 
@@ -23,44 +20,11 @@ import { getAttentionReasons } from "./attention";
 // Status constants
 // ---------------------------------------------------------------------------
 
-export const QUEUEABLE_BACKLOG_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready"];
-
 /** Statuses where the item is mid-execution and should not be edited or re-queued. */
 export const LOCKED_STATUSES = new Set<BacklogStatus>(["queued", "in_progress"]);
 
 /** Statuses that represent a finished execution (success or failure). */
 export const TERMINAL_STATUSES = new Set<BacklogStatus>(["completed", "failed"]);
-
-// ---------------------------------------------------------------------------
-// Queueability helpers
-// ---------------------------------------------------------------------------
-
-interface QueueableBacklogItem {
-  kind: BacklogKind;
-  status: BacklogStatus;
-}
-
-export const isBacklogQueueable = (item: QueueableBacklogItem & { archivedAt?: string }): boolean =>
-  QUEUEABLE_BACKLOG_STATUSES.includes(item.status) ||
-  (item.kind === "idea" && item.archivedAt != null);
-
-export const getBacklogNotQueueableReason = (item: QueueableBacklogItem & { archivedAt?: string }): string | null => {
-  if (isBacklogQueueable(item)) {
-    return null;
-  }
-  switch (item.status) {
-    case "queued":
-      return "Already queued. Check Execution for run progress.";
-    case "in_progress":
-      return "Already in progress. Wait for it to finish before re-queueing.";
-    case "completed":
-      return "Completed items cannot be queued again.";
-    case "failed":
-      return "Reset status to retry. Check Execution History for failure details.";
-    default:
-      return "This item cannot be queued from its current status.";
-  }
-};
 
 // ---------------------------------------------------------------------------
 // Dependency relations (parent/children resolution)
@@ -186,32 +150,6 @@ export function computeDependencyRelations(
 // Action resolver
 // ---------------------------------------------------------------------------
 
-/**
- * Input context for computing item actions. All fields are pre-computed
- * booleans/values so the resolver stays pure and framework-agnostic.
- */
-export interface ActionContext {
-  item: Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn"> & { archivedAt?: string };
-  /** Server-computed blocking info for this item, or null if not available. */
-  blockingInfo: ItemBlockingInfo | null;
-  /** Whether an agent run is currently active for this item. */
-  agentRunning: boolean;
-  /** Whether the agent is actively executing work, not merely blocked in review. */
-  agentExecuting?: boolean;
-  /** Whether the item has unanswered Plan Workshop review decisions. */
-  hasPendingDecisions: boolean;
-  /** Whether execution history exists for this item (details page only; card passes false). */
-  hasExecutionHistory: boolean;
-  /**
-   * Whether the latest execution is in a terminal/effectively-terminal state
-   * (`completed | failed | canceled | needs_fixup`). When true, retry is
-   * available regardless of the item's current status — useful when a user
-   * has manually flipped a failed item back to backlog/ready and now wants
-   * to re-dispatch the prior attempt.
-   */
-  hasTerminalExecution?: boolean;
-}
-
 /** Which single CTA should receive primary visual emphasis. */
 export type PrimaryCta = "run" | "followUp" | "archive" | "review" | "answer" | null;
 
@@ -250,108 +188,48 @@ export interface ItemActions {
 }
 
 /**
- * Compute all action states for a backlog item following the CTA funnel:
- *
- * | Step | Condition                          | Primary CTA     |
- * |------|------------------------------------|-----------------|
- * | -1   | Locked (queued/in_progress)         | none            |
- * |  0   | Blocked by deps                    | disabled        |
- * |  1   | Agent running                      | disabled        |
- * |  2   | Unanswered Plan Workshop decisions  | stepper         |
- * |  3   | Queueable item                      | run             |
- * |  6   | Terminal (completed/failed)         | follow-up/archive |
+ * Adapts the server-owned next-action projection to the legacy card/button
+ * shape. Eligibility is resolved by the server; this only preserves the
+ * rendering contract while those cards are migrated.
  */
-export function getItemActions(ctx: ActionContext): ItemActions {
-  const { item, blockingInfo, agentRunning } = ctx;
-  const agentExecuting = ctx.agentExecuting ?? agentRunning;
-
-  const locked = LOCKED_STATUSES.has(item.status);
-  const blocked = blockingInfo?.blocked ?? false;
-  const blockingDepKeys = blockingInfo?.blockingDepKeys ?? [];
-  const queueable = isBacklogQueueable(item);
-  const notQueueableReason = getBacklogNotQueueableReason(item);
-  // Archived ideas (status=completed + archivedAt) are re-queueable, so they
-  // should not be treated as terminal even though their status is "completed".
-  const terminal = TERMINAL_STATUSES.has(item.status) && !queueable;
-
-  // Retry is gated on having a *terminal* execution to retry — independent
-  // of the item's current status. A user who manually flipped a failed item
-  // back to backlog/ready should still see Retry, because the prior attempt
-  // is what gets re-dispatched (parented to the new attempt).
-  const canRetryFromHistory = ctx.hasTerminalExecution ?? ctx.hasExecutionHistory;
-
-  // Base result with all actions off.
+export function itemActionsFromNextAction(
+  item: Pick<BacklogItem, "status">,
+  action: BacklogNextAction | undefined,
+  options: { agentRunning?: boolean; agentExecuting?: boolean } = {},
+): ItemActions {
+  const agentRunning = options.agentRunning ?? false;
+  const agentExecuting = options.agentExecuting ?? agentRunning;
   const base: ItemActions = {
-    locked,
-    terminal,
-    blocked,
-    blockingDepKeys,
+    locked: action?.id === "none" && LOCKED_STATUSES.has(item.status),
+    terminal: TERMINAL_STATUSES.has(item.status),
+    blocked: (action?.blockers.length ?? 0) > 0,
+    blockingDepKeys: [],
     primaryCta: null,
     canRun: false,
     runDisabled: false,
     canFollowUp: false,
     canRetry: false,
     canArchive: false,
-    showDecisionStepper: false,
+    showDecisionStepper: action?.id === "decide",
     agentRunning,
     agentExecuting,
-    notQueueableReason,
-    disabledReason: null,
+    notQueueableReason: null,
+    disabledReason: action?.enabled === false ? action.reason ?? null : null,
   };
-
-  // Step -1: Locked or archived — no CTAs at all.
-  if (locked) return base;
-  if (item.archivedAt != null) return base;
-
-  // Terminal items should never show a new run regardless of other state.
-  if (terminal) {
-    return {
-      ...base,
-      canFollowUp: ctx.hasExecutionHistory,
-      canRetry: canRetryFromHistory,
-      canArchive: true,
-      primaryCta: ctx.hasExecutionHistory ? "followUp" : "archive",
-    };
+  if (!action) return base;
+  switch (action.id) {
+    case "run":
+      return { ...base, canRun: action.enabled, runDisabled: !action.enabled, primaryCta: "run" };
+    case "retry":
+      return { ...base, canRetry: action.enabled, primaryCta: "run" };
+    case "dispatch_followup":
+    case "author_followup":
+      return { ...base, canFollowUp: action.enabled, primaryCta: "followUp" };
+    case "archive":
+      return { ...base, canArchive: action.enabled, primaryCta: "archive" };
+    case "review":
+      return { ...base, primaryCta: "review" };
+    default:
+      return base;
   }
-
-  // Step 0: Blocked by deps — CTAs remain available so user can override via
-  // the modal (which sends confirm+force). The `blocked` and `blockingDepKeys`
-  // fields on ItemActions signal the UI to show a warning, but buttons are not
-  // hard-disabled. Fall through to normal CTA logic below.
-
-  // Unanswered Plan Workshop decisions keep the inline response surface in
-  // focus. Starting another execution is intentionally deferred until they
-  // are resolved.
-  if (ctx.hasPendingDecisions) {
-    return {
-      ...base,
-      showDecisionStepper: true,
-      canRetry: canRetryFromHistory,
-      primaryCta: null,
-    };
-  }
-
-  // Queueability is determined by lifecycle and server-side execution
-  // preflight. Plan acceptance is enforced by the API, not a stale client
-  // readiness score.
-  if (queueable) {
-    return {
-      ...base,
-      canRun: !agentRunning,
-      runDisabled: agentRunning,
-      canRetry: canRetryFromHistory,
-      primaryCta: "run",
-      disabledReason: agentRunning ? "An agent is already running for this item." : null,
-    };
-  }
-
-  // Non-queueable, non-terminal status (e.g., manually moved to backlog with
-  // no plan yet). Surface Retry if a terminal execution exists so the user
-  // can re-dispatch the prior attempt.
-  if (canRetryFromHistory) {
-    return { ...base, canRetry: true };
-  }
-
-  // Fallback: no primary CTA.
-  return base;
 }

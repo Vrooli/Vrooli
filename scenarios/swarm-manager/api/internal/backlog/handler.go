@@ -121,6 +121,32 @@ type Handler struct {
 	planRepair           *planrepair.Service
 	transitionRegistry   transitions.Registry
 	lifecycleService     *Service
+	decisionCount        DecisionCountProvider
+	followUpDispatcher   FollowUpDispatcher
+}
+
+// DecisionCountProvider supplies cross-domain decisions (for example durable
+// mutation proposals) that must take precedence over normal item actions.
+// The backlog package intentionally owns only the precedence rule, not the
+// storage or lifecycle of those decisions.
+type DecisionCountProvider interface {
+	PendingDecisions(ctx context.Context, item BacklogItem) (int, error)
+}
+
+// SetDecisionCountProvider installs the cross-domain decision reader used by
+// ResolveNextAction. Passing nil restores backlog-only resolution.
+func (h *Handler) SetDecisionCountProvider(provider DecisionCountProvider) {
+	h.decisionCount = provider
+}
+
+// FollowUpDispatcher bridges an item-level recovery instruction to the
+// execution domain without exposing execution records to the HTTP surface.
+type FollowUpDispatcher interface {
+	DispatchFollowUp(ctx context.Context, kind BacklogKind, name, steering string) error
+}
+
+func (h *Handler) SetFollowUpDispatcher(dispatcher FollowUpDispatcher) {
+	h.followUpDispatcher = dispatcher
 }
 
 // SetExecutionActivityChecker installs the execution-active guard used by
@@ -428,6 +454,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Unarchive).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review-decide", h.ReviewDecide).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/follow-up/author", h.AuthorFollowUp).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/follow-up/dispatch", h.DispatchFollowUp).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/recover-review", h.RecoverReview).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/retry", h.Retry).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/recreate", h.Recreate).Methods("POST")

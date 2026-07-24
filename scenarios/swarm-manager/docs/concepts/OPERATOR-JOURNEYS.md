@@ -133,11 +133,18 @@ The item lands in `review_pending`, and the operator makes the only decision
 that reaches a terminal status:
 
 - **Accept** → `completed`. **Fail** → `failed`. **Needs follow-up** →
-  `needs_followup` with the follow-up shaped as real work.
-- Review findings arrive as **typed proposals** in one inbox: a follow-up run
-  on the current work, a correction run, or new backlog items for unrelated
-  issues the run uncovered. Each proposal states its policy (operator-required
-  vs. automation-allowed) and is applied exactly once on acceptance.
+  `needs_followup` with one required, typed dispatch instruction. That
+  instruction is `{steering, disposition}` where disposition is
+  `follow_up_run`, `replan`, or `new_items`; `new_items` additionally carries
+  item specifications. Review agents and operators author the same shape.
+- `needs_followup` is a live attention state, not an archive dead end. Its
+  next action is `dispatch_followup` when the instruction is present and
+  `author_followup` only when legacy or incomplete state must be repaired.
+  Dispatch either starts the steered follow-up run, clears plan acceptance and
+  writes the steering into workshop input, or applies the proposed items.
+- Review findings arrive as **typed proposals** in one inbox. Each proposal
+  states its policy (operator-required vs. automation-allowed) and is applied
+  exactly once on acceptance.
 - No terminal status is ever written by an agent, a scheduler, or a review
   verdict.
 
@@ -153,13 +160,14 @@ One server-owned projection computes the single recommended next action per
 item. Precedence, highest first:
 
 1. Archived / terminal → no action (or archive housekeeping).
-2. Active execution → view execution.
+2. Active execution → view execution (excluded from the operator inbox).
 3. Awaiting review decision → review.
 4. Open decisions or pending proposals → decide.
-5. No valid plan → author or repair plan.
-6. Plan not accepted (or acceptance stale) → accept plan.
-7. Dependency blockers → resolve dependencies.
-8. Everything ready → run.
+5. A pending follow-up → dispatch follow-up.
+6. No valid plan → author or repair plan.
+7. Plan not accepted (or acceptance stale) → accept plan.
+8. Dependency or policy blockers → their mapped recovery action.
+9. Everything ready → run.
 
 Rules that keep the funnel honest:
 
@@ -168,6 +176,29 @@ Rules that keep the funnel honest:
 - A disabled action always shows its reason. A categorically inapplicable
   action is hidden, not disabled.
 - `plan_ref` existence is never treated as readiness.
+
+### Canonical next-action vocabulary
+
+This is the sole normative vocabulary for projection producers and consumers.
+The ranked inbox sorts by tier, then goal priority, backlog rank, and age.
+Wait states (`queued`, `in_progress`, and `in_review`) never enter that feed.
+
+| Action ID | Tier | Scope | Meaning |
+| --- | ---: | --- | --- |
+| `decide` | 1 | backlog, goal | Resolve workshop questions or ready proposals. |
+| `review` | 1 | backlog, goal | Decide review evidence or a milestone review. |
+| `accept_plan`, `author_plan`, `repair_plan`, `plan_goal` | 2 | backlog / goal | Establish or authorize executable structure. |
+| `run`, `dispatch_followup`, `author_followup`, `resolve_dependencies` | 3 | backlog | Start or unblock actionable work. |
+| `accept_suggestion`, `retry`, `archive`, `close_out` | 4 | backlog / goal | Intake, recovery, or housekeeping decisions. |
+| `chain` | inherited | goal | Delegates to the top-priority member item's action; it is not a second action. |
+| `none`, `view_execution` | excluded | backlog, goal | Respectively terminal/inapplicable and wait-state visibility. |
+
+| Blocker code | Primary action |
+| --- | --- |
+| `plan_changed`, `plan_not_accepted` | `accept_plan` |
+| `plan_invalid` | `repair_plan` |
+| `unmet_dependencies` | `resolve_dependencies` |
+| `queue_cap`, `cost_cap`, `circuit_open` | `run` with the typed blocker and recovery guidance |
 
 ## Journey 2: a goal, end to end
 
@@ -238,10 +269,12 @@ and proposes items to close them.
 
 The goal surfaces derived progress (rollup, ETA bands from simulation,
 scope-creep history) and, as the layer matures, velocity against trajectory.
-The goal-level next action follows the same funnel philosophy: pending goal
-proposals → decide; a milestone awaiting review → review it; otherwise the
-goal's next action **chains into the top-priority member item's next action**,
-so "work the goal" always resolves to one concrete step.
+The goal-level next action is a complete funnel: pending goal proposals →
+`decide`; a milestone awaiting review → `review`; no milestones and no targets
+→ `plan_goal`; all milestones verified-delivered → `close_out`; otherwise it
+**chains into the top-priority member item's next action**, so "work the goal"
+always resolves to one concrete step. `close_out` is an operator decision that
+changes the goal to `achieved`; archived and achieved goals have no action.
 
 ## Authority guarantees (both journeys)
 

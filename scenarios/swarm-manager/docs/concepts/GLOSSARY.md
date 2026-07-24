@@ -19,17 +19,30 @@ only through an explicit operator review decision. The status vocabulary and
 its writer policy live in `api/internal/backlogstatus/statuses.go`.
 
 ## Next Action
-The server-owned, read-only projection of the highest-priority operator step
-for one backlog item. It carries a stable action ID, compact and expanded
-labels, enabled state, reason, blockers, and a target. It is not a command
-endpoint: plan authoring, acceptance, review, retry, archive, and queueing
-continue through their existing authorized operations.
+The server-owned, read-only projection of the single enabled primary operator
+step for one open backlog item or active goal. It carries a stable action ID,
+action tier, labels, typed blockers, target, and any action payload. It is not
+a command endpoint: authorized domain operations remain the mutation boundary.
+The projection reuses the same preflight that gates queueing, so recommendation
+and enforcement cannot disagree.
 
-The precedence is: archived and terminal states; active execution; review;
-missing canonical plan; plan acceptance or quality repair; dependency blockers;
-then `run` only when `ProcessPreflight` and dependency evaluation are ready.
-The projection reuses the same preflight that gates queueing, so the
-recommendation can never disagree with enforcement.
+## Action Tier
+The rank class used by the cross-entity next-action feed: tier 1 is judgment
+(`decide`, `review`), tier 2 is plan structure/acceptance, tier 3 is execution
+or unblocking, and tier 4 is close-out/housekeeping. Within a tier, the feed
+sorts goal priority, backlog rank, then age. Wait states are deliberately not
+inbox entries.
+
+## Follow-up Disposition
+The required execution choice on a typed follow-up instruction: `follow_up_run`
+starts a steered run, `replan` clears acceptance and sends steering to the
+workshop, and `new_items` applies the supplied item specifications. A
+follow-up instruction always includes operator-readable steering text.
+
+## Achieved
+The terminal goal status set only by the operator's close-out decision after
+every milestone is verified-delivered. It is distinct from `archived`, which
+removes a goal from active operation without asserting outcome delivery.
 
 ## Goal
 An operator intent statement — a few sentences of higher-level outcome — with

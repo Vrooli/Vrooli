@@ -97,6 +97,8 @@ export interface BacklogFormValues {
  * Mirrors the proto BlockingReason message.
  */
 export interface BlockingReason {
+  /** Stable server-owned category; display text is carried separately. */
+  code?: string;
   message: string;
   forceable: boolean;
 }

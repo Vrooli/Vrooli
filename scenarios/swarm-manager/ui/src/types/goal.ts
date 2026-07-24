@@ -9,7 +9,7 @@ import type { PlanEtaBandData } from "../surfaces/plan/types";
 import type { BacklogItem } from "./backlog";
 import type { BacklogFile } from "./backlog";
 
-export const GOAL_STATUSES = ["active", "archived"] as const;
+export const GOAL_STATUSES = ["active", "achieved", "archived"] as const;
 export type GoalStatus = (typeof GOAL_STATUSES)[number];
 
 /** A point-in-time record of a goal's closure size (scope-creep tracking). */
@@ -29,6 +29,7 @@ export interface GoalMilestone {
   acceptanceCriteria: string[];
   dependsOn: string[];
   archivedAt?: string;
+  verifiedDeliveredAt?: string;
 }
 
 /** A file held in a goal's editable on-disk workspace. */

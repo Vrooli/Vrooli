@@ -80,5 +80,9 @@ export function createQueueMethods(apiClient: IApiClient) {
         status: data.status,
       };
     },
+
+    async dispatchFollowUp(kind: BacklogKind, name: string): Promise<void> {
+      await apiClient.post(API_ENDPOINTS.backlogDispatchFollowUp(kind, name), {});
+    },
   };
 }

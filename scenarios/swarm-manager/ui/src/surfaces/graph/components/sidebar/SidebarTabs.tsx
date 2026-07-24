@@ -3,8 +3,10 @@
  */
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CompactTabBar, type CompactTabItem } from "../../../../components/ui/compact-tab-bar";
 import { groupActionItems } from "../../../../lib/command-post-utils";
+import { nextActionService } from "../../../../services/next-action-service";
 import type { FeedbackItem, MaturityItem } from "../../../../lib/attention";
 import { useAgentSessionStore, useBacklogStore, useCaptureStore, useExecutionStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";
@@ -38,6 +40,11 @@ export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
   const executions = useExecutionStore((s) => s.items);
   const sessions = useAgentSessionStore((s) => s.sessions);
   const snoozedKeys = useSnoozedKeys();
+  const { data: nextActionFeed } = useQuery({
+    queryKey: ["next-actions-feed"],
+    queryFn: () => nextActionService.getFeed(),
+    staleTime: 15_000,
+  });
 
   const feedbackMap = useMemo(() => new Map<string, FeedbackItem>(), []);
 
@@ -48,14 +55,13 @@ export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
 
     return {
       backlog:
-        (groupById.get("ready-to-run")?.count ?? 0)
-        + (groupById.get("pending-decisions")?.count ?? 0)
+        (nextActionFeed?.entries.filter((entry) => entry.entity_kind === "backlog_item").length ?? 0)
         + (needsReview?.items.filter((item) => item.type === "backlog").length ?? 0),
       captures: groupById.get("needs-classification")?.items.filter((item) => item.type === "capture").length ?? 0,
       executions: needsReview?.items.filter((item) => item.type === "execution").length ?? 0,
       sessions: sessions.filter((session) => SESSION_ATTENTION_STATUSES.has(session.status)).length,
     };
-  }, [backlogItems, captures, executions, feedbackMap, sessions, snoozedKeys]);
+  }, [backlogItems, captures, executions, feedbackMap, nextActionFeed, sessions, snoozedKeys]);
 
   const items: CompactTabItem<SidebarTab>[] = SIDEBAR_TABS.map((tab) => ({
     value: tab,

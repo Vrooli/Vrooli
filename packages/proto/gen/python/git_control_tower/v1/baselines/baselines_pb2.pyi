@@ -449,7 +449,7 @@ class CollectionCoverage(_message.Message):
     def __init__(self, required: _Optional[int] = ..., ready: _Optional[int] = ..., pending: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., stale: _Optional[int] = ..., complete: _Optional[bool] = ...) -> None: ...
 
 class BaselineCollection(_message.Message):
-    __slots__ = ("name", "branch", "created_at", "updated_at", "schema_version", "members", "coverage", "path_snapshots")
+    __slots__ = ("name", "branch", "created_at", "updated_at", "schema_version", "members", "coverage", "path_snapshots", "reanchored", "reanchor_detail", "generation")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -458,6 +458,9 @@ class BaselineCollection(_message.Message):
     MEMBERS_FIELD_NUMBER: _ClassVar[int]
     COVERAGE_FIELD_NUMBER: _ClassVar[int]
     PATH_SNAPSHOTS_FIELD_NUMBER: _ClassVar[int]
+    REANCHORED_FIELD_NUMBER: _ClassVar[int]
+    REANCHOR_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     created_at: str
@@ -466,10 +469,13 @@ class BaselineCollection(_message.Message):
     members: _containers.RepeatedCompositeFieldContainer[CollectionMember]
     coverage: CollectionCoverage
     path_snapshots: _containers.RepeatedCompositeFieldContainer[PathSnapshotReference]
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., schema_version: _Optional[int] = ..., members: _Optional[_Iterable[_Union[CollectionMember, _Mapping]]] = ..., coverage: _Optional[_Union[CollectionCoverage, _Mapping]] = ..., path_snapshots: _Optional[_Iterable[_Union[PathSnapshotReference, _Mapping]]] = ...) -> None: ...
+    reanchored: bool
+    reanchor_detail: str
+    generation: int
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., schema_version: _Optional[int] = ..., members: _Optional[_Iterable[_Union[CollectionMember, _Mapping]]] = ..., coverage: _Optional[_Union[CollectionCoverage, _Mapping]] = ..., path_snapshots: _Optional[_Iterable[_Union[PathSnapshotReference, _Mapping]]] = ..., reanchored: _Optional[bool] = ..., reanchor_detail: _Optional[str] = ..., generation: _Optional[int] = ...) -> None: ...
 
 class StartCollectionCaptureRequest(_message.Message):
-    __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id", "path_selections", "include_ignored", "retain_content")
+    __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id", "path_selections", "include_ignored", "retain_content", "acknowledge_reanchor")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     TARGETS_FIELD_NUMBER: _ClassVar[int]
@@ -479,6 +485,7 @@ class StartCollectionCaptureRequest(_message.Message):
     PATH_SELECTIONS_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_IGNORED_FIELD_NUMBER: _ClassVar[int]
     RETAIN_CONTENT_FIELD_NUMBER: _ClassVar[int]
+    ACKNOWLEDGE_REANCHOR_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     targets: _containers.RepeatedCompositeFieldContainer[CollectionTarget]
@@ -488,7 +495,8 @@ class StartCollectionCaptureRequest(_message.Message):
     path_selections: _containers.RepeatedScalarFieldContainer[str]
     include_ignored: bool
     retain_content: bool
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[CollectionTarget, _Mapping]]] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ..., path_selections: _Optional[_Iterable[str]] = ..., include_ignored: _Optional[bool] = ..., retain_content: _Optional[bool] = ...) -> None: ...
+    acknowledge_reanchor: bool
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[CollectionTarget, _Mapping]]] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ..., path_selections: _Optional[_Iterable[str]] = ..., include_ignored: _Optional[bool] = ..., retain_content: _Optional[bool] = ..., acknowledge_reanchor: _Optional[bool] = ...) -> None: ...
 
 class StartCollectionCaptureResponse(_message.Message):
     __slots__ = ("collection", "resumed")

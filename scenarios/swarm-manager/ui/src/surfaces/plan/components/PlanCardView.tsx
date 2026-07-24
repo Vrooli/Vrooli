@@ -11,6 +11,7 @@ import {
   backlogDetailPath,
   captureDetailPath,
   executionDetailPath,
+  goalDetailPath,
 } from "../../../app/routes/route-paths";
 import { BoardCard, type BoardCardTone } from "../../../components/cards/BoardCard";
 import { cn } from "../../../lib/utils";
@@ -93,6 +94,10 @@ export function PlanCardView({ card, showWave = false, dimmed = false, highlight
     }
     if (card.id.startsWith("capture/")) {
       navigate(captureDetailPath(card.id.slice("capture/".length)));
+      return;
+    }
+    if (card.id.startsWith("goal/")) {
+      navigate(goalDetailPath(card.id.slice("goal/".length)));
       return;
     }
     if (card.id.startsWith("milestone/")) {

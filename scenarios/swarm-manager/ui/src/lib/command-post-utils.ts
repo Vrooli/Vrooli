@@ -15,8 +15,8 @@ import type {
   PendingQuestion,
   PendingQuestionsItem,
 } from "../types";
-import { getAttentionReasons, type AttentionReason, type FeedbackItem, type MaturityItem } from "./attention";
-import { getItemActions, type ActionContext, type PrimaryCta } from "./backlog-queue-utils";
+import type { AttentionReason, FeedbackItem, MaturityItem } from "./attention";
+import type { PrimaryCta } from "./backlog-queue-utils";
 
 import { filterSnoozed, snoozeKeyForBacklog, snoozeKeyForCapture, snoozeKeyForExecution } from "./snooze-utils";
 import { sortBacklogItems, buildCommandPostCompare } from "./backlog-sort";
@@ -78,8 +78,8 @@ const GROUP_LABELS: Record<ActionGroupId, string> = {
 /**
  * Classify non-snoozed items into action groups.
  *
- * Uses getAttentionReasons() and getItemActions() from existing libs
- * to determine group membership and primary CTA.
+ * Backlog actionability is supplied by the ranked server next-action feed.
+ * This legacy helper only groups executions and captures.
  */
 export function groupActionItems(
   backlogItems: BacklogItem[],
@@ -148,58 +148,11 @@ export function groupActionItems(
     }
   }
 
-  // --- Backlog items ---
-  const nonSnoozedBacklog = filterSnoozed(
-    backlogItems,
-    (i) => snoozeKeyForBacklog(i.kind, i.name),
-    snoozedKeys,
-  );
-  for (const item of nonSnoozedBacklog) {
-    // Skip archived items — they shouldn't surface as actionable
-    if (item.archivedAt != null) continue;
-
-    const key = snoozeKeyForBacklog(item.kind, item.name);
-    const reasons = getAttentionReasons(item, feedbackMap, maturityMap);
-
-    // Build a minimal ActionContext to get the primary CTA.
-    const feedback = feedbackMap.get(`${item.kind}/${item.name}`);
-
-    const ctx: ActionContext = {
-      item,
-      blockingInfo: null, // Command post doesn't need blocking state — items are grouped by CTA
-      agentRunning: false,
-      hasPendingDecisions: (feedback?.pendingDecisions ?? 0) > 0,
-      hasExecutionHistory: false,
-    };
-    const actions = getItemActions(ctx);
-
-    // Skip locked/terminal items with no attention reasons
-    if (actions.locked) continue;
-
-    const actionable: ActionableItem = {
-      type: "backlog",
-      key,
-      title: item.title || item.name,
-      kind: item.kind,
-      name: item.name,
-      reasons,
-      primaryCta: actions.primaryCta,
-      backlogItem: item,
-    };
-
-    // Classify into groups
-    if (actions.terminal) {
-      // All terminal items (completed, failed) need review before archiving
-      groups.get("needs-review")?.push(actionable);
-      continue;
-    }
-
-    if (ctx.hasPendingDecisions) {
-      groups.get("pending-decisions")?.push({ ...actionable, primaryCta: "answer" });
-    } else if (actions.primaryCta === "run") {
-      groups.get("ready-to-run")?.push(actionable);
-    }
-  }
+  // Backlog actionability and ranking come from GET /api/v1/next-actions/feed.
+  // Preserve this helper's signature while sidebar consumers transition to it.
+  void backlogItems;
+  void feedbackMap;
+  void maturityMap;
 
   // Build result array preserving group order. Most cards count parent items,
   // but Pending Decisions counts actual questions so it matches the stream.
@@ -263,6 +216,7 @@ export function aggregateCrossItemQuestions(
     if (activeItemKeys && !activeItemKeys.has(`${pqi.kind}/${pqi.name}`)) continue;
 
     for (const question of pqi.questions) {
+      if (question.selected != null) continue;
       if (question.source === "review" && (question.review_status === "approved" || question.review_status === "flagged")) continue;
 
       result.push({

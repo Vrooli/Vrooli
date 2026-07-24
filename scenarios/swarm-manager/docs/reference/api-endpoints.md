@@ -96,8 +96,8 @@ API boundary.
 Returns the Plan-lens board projection (`PlanBoardResponse`): a Now header
 summary (active count, queue depth, lane utilization), Next/Later/Done card
 columns, and meta (generated_at, effective `window_seconds`, max dependency
-wave, cycle diagnostics). Next mixes human gate cards (decide / review /
-classify from the gates read-model) with runnable and needs-workshop item
+wave, cycle diagnostics). Next mixes server-owned next-action cards (decide /
+review / plan) with capture-classification markers and runnable item
 cards at dependency wave 0; Later groups blocked items by nearest blocker
 with ordinal wave badges from `depgraph.Waves` frontier peeling; Done carries
 window-capped recent outcomes. Now-column *cards* come from

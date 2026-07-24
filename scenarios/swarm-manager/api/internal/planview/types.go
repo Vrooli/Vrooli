@@ -1,5 +1,5 @@
 // Package planview composes topology data, dependency-wave peeling
-// (depgraph.Waves), and the gates read-model into the Plan-lens board
+// (depgraph.Waves), and server-owned next-action markers into the Plan-lens board
 // projection: Now / Next / Later / Done.
 //
 // Column semantics (plan decision D2) are actionability, not agent-vs-human:
@@ -17,7 +17,6 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eta"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/gates"
 	"swarm-manager/internal/operations"
 )
 
@@ -82,22 +81,22 @@ type LaneStatus struct {
 
 // Card is one board card.
 type Card struct {
-	ID          string      `json:"id"`
-	CardType    string      `json:"card_type"`
-	Action      string      `json:"action"`
-	ItemKind    string      `json:"item_kind,omitempty"`
-	ItemName    string      `json:"item_name,omitempty"`
-	Title       string      `json:"title"`
-	Status      string      `json:"status,omitempty"`
-	Priority    int         `json:"priority,omitempty"`
-	Wave        int         `json:"wave"`
-	Milestone  string      `json:"milestone,omitempty"`
-	Effort      string      `json:"effort,omitempty"`
-	Gate        *gates.Gate `json:"gate,omitempty"`
-	Outcome     string      `json:"outcome,omitempty"`
-	FinishedAt  string      `json:"finished_at,omitempty"`
-	ExecutionID string      `json:"execution_id,omitempty"`
-	Unblocks    int         `json:"unblocks"`
+	ID          string `json:"id"`
+	CardType    string `json:"card_type"`
+	Action      string `json:"action"`
+	ItemKind    string `json:"item_kind,omitempty"`
+	ItemName    string `json:"item_name,omitempty"`
+	Title       string `json:"title"`
+	Status      string `json:"status,omitempty"`
+	Priority    int    `json:"priority,omitempty"`
+	Wave        int    `json:"wave"`
+	Milestone   string `json:"milestone,omitempty"`
+	Effort      string `json:"effort,omitempty"`
+	Gate        *Gate  `json:"gate,omitempty"`
+	Outcome     string `json:"outcome,omitempty"`
+	FinishedAt  string `json:"finished_at,omitempty"`
+	ExecutionID string `json:"execution_id,omitempty"`
+	Unblocks    int    `json:"unblocks"`
 }
 
 // CardGroup is an ordered group of cards within a column.
@@ -153,9 +152,31 @@ type BacklogLister interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
-// GateEnumerator provides the gates read-model (gates.Service satisfies it).
+// GateEnumerator provides the attention read-model.
 type GateEnumerator interface {
-	Enumerate(ctx context.Context) []gates.Gate
+	Enumerate(ctx context.Context) []Gate
+}
+
+// NextActionResolver is the server-owned per-item action authority. It is
+// optional during the gates-to-projection transition, but production board
+// wiring supplies backlog.Handler so ordinary cards cannot drift from the
+// decision stream's action semantics.
+type NextActionResolver interface {
+	ResolveNextAction(ctx context.Context, item backlog.BacklogItem) (backlog.NextActionProjection, error)
+}
+
+// GoalAction is a goal-owned entry already resolved by the cross-entity
+// next-action authority. Planview consumes it as data and never reimplements
+// the goal funnel.
+type GoalAction struct {
+	Name     string
+	Title    string
+	Action   string
+	Priority int
+}
+
+type GoalActionLister interface {
+	ListGoalActions(ctx context.Context) ([]GoalAction, error)
 }
 
 // ExecutionLister lists execution records.
@@ -187,11 +208,13 @@ type ETAEstimatorFactory func() (*eta.Estimator, error)
 // Executions and Ops degrade gracefully when nil (empty Done executions / zero
 // Now counts). Now defaults to time.Now.
 type Config struct {
-	Backlog    BacklogLister
-	Gates      GateEnumerator
-	Executions ExecutionLister
-	Ops        OpsSummarizer
-	Goals      GoalScoper
-	ETA        ETAEstimatorFactory
-	Now        func() time.Time
+	Backlog     BacklogLister
+	Gates       GateEnumerator
+	NextActions NextActionResolver
+	GoalActions GoalActionLister
+	Executions  ExecutionLister
+	Ops         OpsSummarizer
+	Goals       GoalScoper
+	ETA         ETAEstimatorFactory
+	Now         func() time.Time
 }

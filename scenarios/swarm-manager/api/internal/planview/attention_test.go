@@ -1,4 +1,4 @@
-package gates
+package planview
 
 import (
 	"context"
@@ -239,7 +239,7 @@ func (s stubSource) Name() string                              { return s.name }
 func (s stubSource) Enumerate(context.Context) ([]Gate, error) { return s.gates, s.err }
 
 func TestService_ConcatsAndSorts(t *testing.T) {
-	svc := NewService(
+	svc := NewAttentionService(
 		stubSource{name: "b", gates: []Gate{{ID: "review:backlog/fix/z", Kind: KindReview, OwnerType: "backlog", OwnerName: "z"}}},
 		stubSource{name: "a", gates: []Gate{{ID: "decide:backlog/fix/a", Kind: KindDecide, OwnerType: "backlog", OwnerName: "a"}}},
 	)
@@ -253,7 +253,7 @@ func TestService_ConcatsAndSorts(t *testing.T) {
 }
 
 func TestService_DegradesOnSourceError(t *testing.T) {
-	svc := NewService(
+	svc := NewAttentionService(
 		stubSource{name: "broken", err: errors.New("boom")},
 		stubSource{name: "ok", gates: []Gate{{ID: "decide:backlog/fix/a", Kind: KindDecide}}},
 	)

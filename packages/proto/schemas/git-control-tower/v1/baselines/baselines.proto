@@ -324,6 +324,11 @@ message BaselineCollection {
   CollectionCoverage coverage = 7;
   // Informational source-evidence snapshots attached at collection capture.
   repeated PathSnapshotReference path_snapshots = 8;
+  // True when this stable collection identity was deliberately re-anchored at
+  // a later source state after a failed immutable capture.
+  bool reanchored = 9;
+  string reanchor_detail = 10;
+  int32 generation = 11;
 }
 
 message StartCollectionCaptureRequest {
@@ -337,6 +342,9 @@ message StartCollectionCaptureRequest {
   repeated string path_selections = 7;
   bool include_ignored = 8;
   bool retain_content = 9;
+  // Explicitly accepts a new forward-only anchor generation for an existing
+  // collection whose prior capture failed because source changed.
+  bool acknowledge_reanchor = 10;
 }
 
 message StartCollectionCaptureResponse {

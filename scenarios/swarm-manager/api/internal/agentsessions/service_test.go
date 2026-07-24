@@ -56,6 +56,17 @@ func TestServiceCreateMakesDraftWithoutSpawning(t *testing.T) {
 	}
 }
 
+func TestBuildInitialPromptExplainsGoalProposalBaseVersion(t *testing.T) {
+	prompt := buildInitialPrompt(
+		Session{ID: "sess-proposal", Kind: KindSwarmOperations, SkillID: SkillProposals, ProposalTarget: &ProposalTarget{Type: ContextGoal, Ref: "delivery", Name: "Delivery"}},
+		Message{Content: "Propose a milestone.", Context: []ContextItem{{Type: ContextGoal, Ref: "delivery", Title: "Delivery", MetadataJSON: `{"base_version":"2026-07-24T16:00:00Z"}`}}},
+		nil,
+	)
+	if !strings.Contains(prompt, "Metadata.base_version exactly") || !strings.Contains(prompt, "base_version field") || !strings.Contains(prompt, "goal_milestone object") {
+		t.Fatalf("goal proposal prompt omitted base-version instruction: %s", prompt)
+	}
+}
+
 func TestServiceStartSpawnsSessionWithFirstMessageEnvironmentAndActivitySpec(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
@@ -712,6 +723,22 @@ func TestServiceDeleteTerminalSessionDoesNotStopRun(t *testing.T) {
 		t.Fatalf("SaveSession() error = %v", err)
 	}
 
+	if err := svc.Delete(context.Background(), session.ID); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if spawner.stoppedRunID != "" {
+		t.Fatalf("stopped run = %q, want empty", spawner.stoppedRunID)
+	}
+}
+
+func TestServiceDeleteProposalReadySessionDoesNotStopTerminalRun(t *testing.T) {
+	spawner := &fakeSessionSpawner{}
+	svc := newTestService(t, spawner)
+	session := createStartedSession(t, svc, KindSwarmOperations, "Proposal", "Propose.")
+	session.Status = StatusProposalReady
+	if err := svc.store.SaveSession(session); err != nil {
+		t.Fatalf("SaveSession() error = %v", err)
+	}
 	if err := svc.Delete(context.Background(), session.ID); err != nil {
 		t.Fatalf("Delete() error = %v", err)
 	}

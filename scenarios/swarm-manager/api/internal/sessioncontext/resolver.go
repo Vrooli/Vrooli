@@ -358,6 +358,15 @@ func itemFromMap(ref agentsessions.ContextRef, payload map[string]any, nodeID st
 			metadata[key] = value
 		}
 	}
+	// Goal mutation proposals use the durable Updated value as their optimistic
+	// concurrency base_version. Expose that value under its proposal-contract
+	// name as well as the generic metadata field so an agent never has to infer
+	// which snapshot field is required by the envelope.
+	if ref.Type == agentsessions.ContextGoal {
+		if updated, ok := payload["updated"]; ok {
+			metadata["base_version"] = updated
+		}
+	}
 	metadataJSON := ""
 	if len(metadata) > 0 {
 		data, err := json.Marshal(metadata)

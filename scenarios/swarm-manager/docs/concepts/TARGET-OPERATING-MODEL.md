@@ -116,6 +116,21 @@ operator approval satisfy the item's or milestone's completion policy. Swarm
 then applies the terminal domain change, writes the learning record, and emits
 events that power throughput, quality, and regression statistics.
 
+### Operator inbox and goal completion
+
+The next-action projection is the single authority for operator attention. It
+gives every open backlog item and active goal exactly one enabled primary
+action, with a typed reason when execution cannot proceed. The cross-entity
+inbox ranks judgment before plan work, execution/unblocking, and close-out;
+`queued`, `in_progress`, and `in_review` are wait states shown on the board,
+not interruptions in the inbox.
+
+Goals have three statuses: `active`, `achieved`, and `archived`. Only an
+operator can move a goal to `achieved`, through close-out after its milestones
+are verified-delivered. Follow-up instructions are likewise operator-decidable
+typed values: a steering string plus `follow_up_run`, `replan`, or `new_items`.
+Dispatch starts the selected recovery path; it never merely flips a status.
+
 ## Integration model
 
 Each integration has a narrow responsibility and should appear in one

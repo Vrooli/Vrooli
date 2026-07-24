@@ -44,6 +44,7 @@ import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { goalsService } from "../services/goals-service";
+import { nextActionService } from "../services/next-action-service";
 import { createGoalFileServiceAdapter } from "../services/goals-file-service-adapter";
 import { GOALS_QUERY_KEY } from "../surfaces/plan/hooks/useGoals";
 import type { BacklogFile } from "../types/backlog";
@@ -302,6 +303,12 @@ export function GoalDetailsPage() {
     enabled: decodedName.length > 0 && activeTab === "files",
     ...defaultQueryOptions,
   });
+  const nextActionsQuery = useQuery({
+    queryKey: ["next-actions-feed", "goal", decodedName],
+    queryFn: () => nextActionService.getFeed(),
+    enabled: decodedName.length > 0,
+    staleTime: 15_000,
+  });
 
   const invalidateGoal = () => {
     void queryClient.invalidateQueries({ queryKey: ["goal", decodedName] });
@@ -329,6 +336,7 @@ export function GoalDetailsPage() {
     },
   });
   const planMutation = useMutation({ mutationFn: () => goalsService.startPlan(decodedName), onSuccess: invalidateGoal });
+  const closeOutMutation = useMutation({ mutationFn: () => goalsService.closeOut(decodedName), onSuccess: invalidateGoal });
   const discoverMutation = useMutation({ mutationFn: () => goalsService.startDiscover(decodedName), onSuccess: invalidateGoal });
   const saveMilestoneMutation = useMutation({
     mutationFn: (milestone: GoalMilestone) => milestoneEditor ? goalsService.updateMilestone(decodedName, milestone) : goalsService.createMilestone(decodedName, milestone),
@@ -393,6 +401,16 @@ export function GoalDetailsPage() {
   const scope = query.data.scope;
   const eta = query.data.eta;
   const busy = priorityMutation.isPending || archiveMutation.isPending || deleteMutation.isPending;
+  const goalAction = nextActionsQuery.data?.entries.find((entry) => entry.entity_kind === "goal" && entry.entity_ref === decodedName);
+  const runGoalAction = () => {
+    if (!goalAction) return;
+    switch (goalAction.action.id) {
+      case "close_out": closeOutMutation.mutate(); break;
+      case "plan_goal": planMutation.mutate(); break;
+      case "decide": setActiveTab("decide"); setSearchParams({ tab: "decide" }, { replace: true }); break;
+      default: navigate(`/goals/${encodeURIComponent(decodedName)}?drawer=decisions`);
+    }
+  };
 
   const changePriority = (delta: number) => {
     const next = Math.max(MIN_PRIORITY, Math.min(MAX_PRIORITY, goal.priority + delta));
@@ -416,7 +434,7 @@ export function GoalDetailsPage() {
       onSelect: () => { setGoalDraft({ title: goal.title, description: goal.description ?? "", priority: goal.priority }); setGoalEditorOpen(true); },
       testId: "goal-edit",
     },
-    ...(goal.status !== "archived" ? [{
+    ...(goal.status === "active" ? [{
       label: "Archive",
       icon: <Archive />,
       disabled: busy,
@@ -444,6 +462,7 @@ export function GoalDetailsPage() {
           nodeId={nodeId}
           lenses={GOAL_LENSES}
           onDrillToLens={() => navigate(graphPath({ lens: "plan", goal: goal.name }))}
+          primaryAction={goalAction ? <Button size="sm" onClick={runGoalAction} disabled={closeOutMutation.isPending || planMutation.isPending}>{closeOutMutation.isPending || planMutation.isPending ? "Working…" : goalAction.action.compact_label}</Button> : undefined}
           menuActions={menuActions}
           showLenses={activeTab === "overview"}
           tabBar={
@@ -603,7 +622,7 @@ export function GoalDetailsPage() {
               isLoadingFiles={filesQuery.isLoading}
               filesError={filesQuery.error instanceof Error ? filesQuery.error : null}
               selectedFile={selectedFile}
-              isLocked={goal.status === "archived"}
+              isLocked={goal.status !== "active"}
               onFileSelect={setSelectedFile}
               onRefetchFiles={() => void filesQuery.refetch()}
               onUploadComplete={() => void queryClient.invalidateQueries({ queryKey: ["goal", decodedName, "files"] })}

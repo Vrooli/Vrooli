@@ -119,6 +119,7 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 	}
 	if s.backlogHandler != nil {
 		s.backlogHandler.SetExecutionQueuer(s.executionSvc)
+		s.backlogHandler.SetFollowUpDispatcher(executionFollowUpDispatcher{service: s.executionSvc})
 		if s.goalsHandler != nil {
 			goalHandler := s.goalsHandler
 			s.backlogHandler.AddItemTerminalHandler(func(ctx context.Context, kind, name string, status backlog.BacklogStatus) {

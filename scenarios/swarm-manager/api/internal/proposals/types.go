@@ -3,6 +3,17 @@ package proposals
 import (
 	"encoding/json"
 	"fmt"
+
+	"swarm-manager/internal/followup"
+)
+
+type FollowUp = followup.Contract
+type FollowUpDisposition = followup.Disposition
+
+const (
+	FollowUpRun      = followup.DispositionRun
+	FollowUpReplan   = followup.DispositionReplan
+	FollowUpNewItems = followup.DispositionNewItems
 )
 
 // Form discriminates between the two wire shapes an agent may emit. A

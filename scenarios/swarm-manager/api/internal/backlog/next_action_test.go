@@ -1,6 +1,7 @@
 package backlog
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,12 @@ import (
 
 	"github.com/gorilla/mux"
 )
+
+type fixedDecisionCount struct{ count int }
+
+func (p fixedDecisionCount) PendingDecisions(context.Context, BacklogItem) (int, error) {
+	return p.count, nil
+}
 
 // [REQ:SWM-P0-010] item next-action projection driven by execution preflight reasons
 func TestResolveNextActionDecisionTable(t *testing.T) {
@@ -23,10 +30,11 @@ func TestResolveNextActionDecisionTable(t *testing.T) {
 		{name: "no canonical plan authors plan", item: BacklogItem{Name: "no-plan", Kind: KindIdea, Status: StatusBacklog}, want: NextActionAuthorPlan},
 		{name: "suggestion is accepted before planning", item: BacklogItem{Name: "suggested", Kind: KindIdea, Status: StatusSuggested}, want: NextActionAcceptSuggestion},
 		{name: "ready item runs", item: BacklogItem{Name: "ready", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("ready")}, preflight: execution.ProcessPreflight{Ready: true}, want: NextActionRun},
-		{name: "unaccepted plan is accepted", item: BacklogItem{Name: "unaccepted", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("unaccepted")}, preflight: execution.ProcessPreflight{BlockingReasons: []string{"canonical plan has not been explicitly accepted — accept the current plan revision before queueing"}}, want: NextActionAcceptPlan},
-		{name: "invalid plan is repaired", item: BacklogItem{Name: "invalid", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("invalid")}, preflight: execution.ProcessPreflight{BlockingReasons: []string{"canonical plan is not valid: quality status is \"fail\""}}, want: NextActionRepairPlan},
+		{name: "unaccepted plan is accepted", item: BacklogItem{Name: "unaccepted", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("unaccepted")}, preflight: execution.ProcessPreflight{BlockingReasons: []string{"canonical plan has not been explicitly accepted — accept the current plan revision before queueing"}, BlockingDetails: []execution.ProcessBlockingReason{{Code: "plan_not_accepted", Message: "canonical plan has not been explicitly accepted — accept the current plan revision before queueing"}}}, want: NextActionAcceptPlan},
+		{name: "invalid plan is repaired", item: BacklogItem{Name: "invalid", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("invalid")}, preflight: execution.ProcessPreflight{BlockingReasons: []string{"canonical plan is not valid: quality status is \"fail\""}, BlockingDetails: []execution.ProcessBlockingReason{{Code: "plan_invalid", Message: "canonical plan is not valid: quality status is \"fail\""}}}, want: NextActionRepairPlan},
 		{name: "dependencies are resolved", item: BacklogItem{Name: "blocked", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("blocked"), DependsOn: []string{"idea/upstream"}}, preflight: execution.ProcessPreflight{Ready: true}, want: NextActionResolveDependencies},
 		{name: "review is reviewed", item: BacklogItem{Name: "review", Kind: KindIdea, Status: StatusReviewPending}, want: NextActionReview},
+		{name: "active review views execution", item: BacklogItem{Name: "in-review", Kind: KindIdea, Status: StatusInReview}, want: NextActionViewExecution},
 		{name: "active item views execution", item: BacklogItem{Name: "active", Kind: KindIdea, Status: StatusInProgress}, want: NextActionViewExecution},
 		{name: "failed item retries", item: BacklogItem{Name: "failed", Kind: KindIdea, Status: StatusFailed}, want: NextActionRetry},
 	}
@@ -48,6 +56,43 @@ func TestResolveNextActionDecisionTable(t *testing.T) {
 			}
 			if got.ID == NextActionRun && !got.Enabled {
 				t.Fatal("run action must be enabled only when preflight is ready")
+			}
+		})
+	}
+}
+
+// Every canonical lifecycle state has a deterministic projection. Open states
+// must remain operator-actionable; active wait states deliberately resolve to
+// view_execution so the ranked inbox can exclude them without inventing a
+// disabled primary CTA.
+func TestResolveNextActionLifecycleMatrix(t *testing.T) {
+	tests := []struct {
+		status BacklogStatus
+		want   NextActionID
+	}{
+		{StatusSuggested, NextActionAcceptSuggestion},
+		{StatusBacklog, NextActionAuthorPlan},
+		{StatusResearching, NextActionAuthorPlan},
+		{StatusReady, NextActionAuthorPlan},
+		{StatusQueued, NextActionViewExecution},
+		{StatusInProgress, NextActionViewExecution},
+		{StatusInReview, NextActionViewExecution},
+		{StatusReviewPending, NextActionReview},
+		{StatusCompleted, NextActionArchive},
+		{StatusFailed, NextActionRetry},
+		{StatusNeedsFollowup, NextActionAuthorFollowup},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.status), func(t *testing.T) {
+			h, _ := setupTestHandler(t)
+			h.SetExecutionQueuer(&mockExecutionQueuer{preflightResult: execution.ProcessPreflight{Ready: true}})
+			item := BacklogItem{Name: string(tt.status), Kind: KindIdea, Status: tt.status}
+			action, err := h.ResolveNextAction(t.Context(), item)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action.ID != tt.want || !action.Enabled {
+				t.Fatalf("status %q resolved %#v, want enabled %q", tt.status, action, tt.want)
 			}
 		})
 	}
@@ -104,5 +149,87 @@ func TestNextActionEndpointsSingleAndBoundedBatch(t *testing.T) {
 	}
 	if batchBody.Results[1].Error == "" || batchBody.Results[2].Error == "" {
 		t.Fatalf("mixed batch must preserve per-item errors: %+v", batchBody.Results)
+	}
+}
+
+func TestResolveNextActionRejectsUnmappedBlockerCode(t *testing.T) {
+	h, root := setupTestHandler(t)
+	h.SetExecutionQueuer(&mockExecutionQueuer{preflightResult: execution.ProcessPreflight{
+		BlockingReasons: []string{"a new blocker"},
+		BlockingDetails: []execution.ProcessBlockingReason{{Code: "unknown", Message: "a new blocker"}},
+	}})
+	item := BacklogItem{Name: "unknown-blocker", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("unknown-blocker")}
+	createTestItem(t, root, item.Kind, item)
+	if _, err := h.ResolveNextAction(t.Context(), item); err == nil {
+		t.Fatal("ResolveNextAction accepted an unmapped blocker code")
+	}
+}
+
+// [REQ:SWM-P0-010] Every execution blocker that can reach the shared
+// preflight response must resolve to an explicit, enabled operator action.
+// This is intentionally a closed table: adding a new code requires choosing
+// its action here and in ResolveNextAction rather than silently falling back
+// to an ambiguous generic state.
+func TestResolveNextActionCoversCanonicalBlockerCodes(t *testing.T) {
+	tests := []struct {
+		code string
+		want NextActionID
+	}{
+		{code: "plan_changed", want: NextActionAcceptPlan},
+		{code: "plan_not_accepted", want: NextActionAcceptPlan},
+		{code: "plan_invalid", want: NextActionRepairPlan},
+		{code: "unmet_dependencies", want: NextActionResolveDependencies},
+		{code: "queue_cap", want: NextActionRun},
+		{code: "cost_cap", want: NextActionRun},
+		{code: "circuit_open", want: NextActionRun},
+	}
+	for _, tt := range tests {
+		t.Run(tt.code, func(t *testing.T) {
+			h, root := setupTestHandler(t)
+			h.SetExecutionQueuer(&mockExecutionQueuer{preflightResult: execution.ProcessPreflight{
+				BlockingReasons: []string{tt.code},
+				BlockingDetails: []execution.ProcessBlockingReason{{Code: tt.code, Message: tt.code}},
+			}})
+			item := BacklogItem{Name: tt.code, Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef(tt.code)}
+			if tt.code == "unmet_dependencies" {
+				item.DependsOn = []string{"idea/upstream"}
+				createTestItem(t, root, KindIdea, BacklogItem{Name: "upstream", Kind: KindIdea, Status: StatusBacklog})
+			}
+			createTestItem(t, root, item.Kind, item)
+			action, err := h.ResolveNextAction(t.Context(), item)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action.ID != tt.want || !action.Enabled {
+				t.Fatalf("action = %#v, want enabled %q", action, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveNextActionDispatchesPersistedFollowUp(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	item := BacklogItem{Name: "follow-up", Kind: KindExecute, Status: StatusNeedsFollowup, PendingFollowUp: &FollowUp{Steering: "Repair the regression.", Disposition: FollowUpReplan}}
+	action, err := h.ResolveNextAction(t.Context(), item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if action.ID != NextActionDispatchFollowup || action.FollowUp == nil || action.FollowUp.Disposition != FollowUpReplan {
+		t.Fatalf("action = %#v", action)
+	}
+}
+
+func TestResolveNextActionPrioritizesOpenDecisions(t *testing.T) {
+	h, root := setupTestHandler(t)
+	h.SetExecutionQueuer(&mockExecutionQueuer{preflightResult: execution.ProcessPreflight{Ready: true}})
+	h.SetDecisionCountProvider(fixedDecisionCount{count: 2})
+	item := BacklogItem{Name: "proposal", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("proposal")}
+	createTestItem(t, root, item.Kind, item)
+	action, err := h.ResolveNextAction(t.Context(), item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if action.ID != NextActionDecide || !action.Enabled || !strings.Contains(action.Reason, "2") {
+		t.Fatalf("action = %#v", action)
 	}
 }

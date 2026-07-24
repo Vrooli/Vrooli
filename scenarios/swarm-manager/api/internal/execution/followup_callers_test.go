@@ -10,7 +10,8 @@ import (
 )
 
 // TestFollowUp_OnlyCalledFromHandlerLifecycle pins that Service.FollowUp has
-// exactly one caller: the HTTP handler in handler_lifecycle.go. If the
+// only operator-dispatched callers: the HTTP handler in handler_lifecycle.go
+// and the item-level dispatch adapter in followup_dispatch.go. If the
 // execution system ever gains an auto-FollowUp path (e.g. from finalization
 // or polling), this test fails and forces a deliberate review — the W1
 // plan routes post-run state through in_review / review_pending so the
@@ -61,6 +62,10 @@ func TestFollowUp_OnlyCalledFromHandlerLifecycle(t *testing.T) {
 	// test fixture or doc example would. Whitelist explicitly.
 	allowed := map[string]bool{
 		"handler_lifecycle.go": true,
+		// This method is reached only from backlog's explicit
+		// POST .../follow-up/dispatch operator action; it is not a polling or
+		// finalization auto-follow-up path.
+		"followup_dispatch.go": true,
 	}
 	for file := range callers {
 		if !allowed[file] {

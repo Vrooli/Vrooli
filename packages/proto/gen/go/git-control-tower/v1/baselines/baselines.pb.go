@@ -2383,8 +2383,13 @@ type BaselineCollection struct {
 	Coverage      *CollectionCoverage    `protobuf:"bytes,7,opt,name=coverage,proto3" json:"coverage,omitempty"`
 	// Informational source-evidence snapshots attached at collection capture.
 	PathSnapshots []*PathSnapshotReference `protobuf:"bytes,8,rep,name=path_snapshots,json=pathSnapshots,proto3" json:"path_snapshots,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// True when this stable collection identity was deliberately re-anchored at
+	// a later source state after a failed immutable capture.
+	Reanchored     bool   `protobuf:"varint,9,opt,name=reanchored,proto3" json:"reanchored,omitempty"`
+	ReanchorDetail string `protobuf:"bytes,10,opt,name=reanchor_detail,json=reanchorDetail,proto3" json:"reanchor_detail,omitempty"`
+	Generation     int32  `protobuf:"varint,11,opt,name=generation,proto3" json:"generation,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *BaselineCollection) Reset() {
@@ -2473,6 +2478,27 @@ func (x *BaselineCollection) GetPathSnapshots() []*PathSnapshotReference {
 	return nil
 }
 
+func (x *BaselineCollection) GetReanchored() bool {
+	if x != nil {
+		return x.Reanchored
+	}
+	return false
+}
+
+func (x *BaselineCollection) GetReanchorDetail() string {
+	if x != nil {
+		return x.ReanchorDetail
+	}
+	return ""
+}
+
+func (x *BaselineCollection) GetGeneration() int32 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
 type StartCollectionCaptureRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Name      string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -2485,8 +2511,11 @@ type StartCollectionCaptureRequest struct {
 	PathSelections []string `protobuf:"bytes,7,rep,name=path_selections,json=pathSelections,proto3" json:"path_selections,omitempty"`
 	IncludeIgnored bool     `protobuf:"varint,8,opt,name=include_ignored,json=includeIgnored,proto3" json:"include_ignored,omitempty"`
 	RetainContent  bool     `protobuf:"varint,9,opt,name=retain_content,json=retainContent,proto3" json:"retain_content,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Explicitly accepts a new forward-only anchor generation for an existing
+	// collection whose prior capture failed because source changed.
+	AcknowledgeReanchor bool `protobuf:"varint,10,opt,name=acknowledge_reanchor,json=acknowledgeReanchor,proto3" json:"acknowledge_reanchor,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *StartCollectionCaptureRequest) Reset() {
@@ -2578,6 +2607,13 @@ func (x *StartCollectionCaptureRequest) GetIncludeIgnored() bool {
 func (x *StartCollectionCaptureRequest) GetRetainContent() bool {
 	if x != nil {
 		return x.RetainContent
+	}
+	return false
+}
+
+func (x *StartCollectionCaptureRequest) GetAcknowledgeReanchor() bool {
+	if x != nil {
+		return x.AcknowledgeReanchor
 	}
 	return false
 }
@@ -5202,7 +5238,7 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x06failed\x18\x04 \x01(\x05R\x06failed\x12\x18\n" +
 	"\askipped\x18\x05 \x01(\x05R\askipped\x12\x14\n" +
 	"\x05stale\x18\x06 \x01(\x05R\x05stale\x12\x1a\n" +
-	"\bcomplete\x18\a \x01(\bR\bcomplete\"\xb4\x03\n" +
+	"\bcomplete\x18\a \x01(\bR\bcomplete\"\x9d\x04\n" +
 	"\x12BaselineCollection\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1d\n" +
@@ -5213,7 +5249,15 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x0eschema_version\x18\x05 \x01(\x05R\rschemaVersion\x12Q\n" +
 	"\amembers\x18\x06 \x03(\v27.vrooli.git_control_tower.v1.baselines.CollectionMemberR\amembers\x12U\n" +
 	"\bcoverage\x18\a \x01(\v29.vrooli.git_control_tower.v1.baselines.CollectionCoverageR\bcoverage\x12c\n" +
-	"\x0epath_snapshots\x18\b \x03(\v2<.vrooli.git_control_tower.v1.baselines.PathSnapshotReferenceR\rpathSnapshots\"\xe7\x02\n" +
+	"\x0epath_snapshots\x18\b \x03(\v2<.vrooli.git_control_tower.v1.baselines.PathSnapshotReferenceR\rpathSnapshots\x12\x1e\n" +
+	"\n" +
+	"reanchored\x18\t \x01(\bR\n" +
+	"reanchored\x12'\n" +
+	"\x0freanchor_detail\x18\n" +
+	" \x01(\tR\x0ereanchorDetail\x12\x1e\n" +
+	"\n" +
+	"generation\x18\v \x01(\x05R\n" +
+	"generation\"\x9a\x03\n" +
 	"\x1dStartCollectionCaptureRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12Q\n" +
@@ -5224,7 +5268,9 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\arepo_id\x18\x06 \x01(\x03R\x06repoId\x12'\n" +
 	"\x0fpath_selections\x18\a \x03(\tR\x0epathSelections\x12'\n" +
 	"\x0finclude_ignored\x18\b \x01(\bR\x0eincludeIgnored\x12%\n" +
-	"\x0eretain_content\x18\t \x01(\bR\rretainContent\"\x95\x01\n" +
+	"\x0eretain_content\x18\t \x01(\bR\rretainContent\x121\n" +
+	"\x14acknowledge_reanchor\x18\n" +
+	" \x01(\bR\x13acknowledgeReanchor\"\x95\x01\n" +
 	"\x1eStartCollectionCaptureResponse\x12Y\n" +
 	"\n" +
 	"collection\x18\x01 \x01(\v29.vrooli.git_control_tower.v1.baselines.BaselineCollectionR\n" +

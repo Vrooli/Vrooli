@@ -524,7 +524,7 @@
       {
         "domain": "plan",
         "stateful": false,
-        "reason": "plan is the Plan-lens board projection (dependency waves + gates read-model) computed on read from backlog/execution/capture state; it owns no persisted rows of its own."
+        "reason": "plan is the Plan-lens board projection (dependency waves + next-action markers) computed on read from backlog/execution/capture state; it owns no persisted rows of its own."
       },
       {
         "domain": "scenario",

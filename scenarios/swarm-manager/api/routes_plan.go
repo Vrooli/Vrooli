@@ -3,16 +3,14 @@ package main
 import (
 	"log"
 
-	"swarm-manager/internal/gates"
 	"swarm-manager/internal/graph"
-	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/planview"
 	"swarm-manager/internal/stats"
 )
 
 // registerPlanRoutes wires the Plan-lens board projection:
 //
-//	GET /api/v1/plan — Now/Next/Later/Done board (waves + gates read-model)
+//	GET /api/v1/plan — Now/Next/Later/Done board (waves + next-action markers)
 //
 // Must run after registerBacklogRoutes (item store), registerExecutionRoutes
 // (review gates / Done outcomes), and registerOperationsRoutes (Now summary
@@ -25,20 +23,20 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 	}
 	store := s.backlogHandler.Store()
 
-	reviewSource := gates.ReviewSource{Store: store}
+	reviewSource := planview.ReviewSource{Store: store}
 	if s.executionSvc != nil {
 		reviewSource.Executions = graph.NewExecutionAdapter(s.executionSvc)
 	}
-	gateSvc := gates.NewService(
-		gates.WorkshopSource{Store: store, Plans: planclient.NewConnectClient(nil, nil)},
+	attentionSvc := planview.NewAttentionService(
 		reviewSource,
-		gates.ClassifySource{Captures: planCaptureAdapter{inner: graph.NewCaptureAdapter(scenarioRoot)}},
-		gates.ProposalSource{Store: s.agentSessionStore},
+		planview.ClassifySource{Captures: planCaptureAdapter{inner: graph.NewCaptureAdapter(scenarioRoot)}},
 	)
 
 	cfg := planview.Config{
-		Backlog: store,
-		Gates:   gateSvc,
+		Backlog:     store,
+		Gates:       attentionSvc,
+		NextActions: s.backlogHandler,
+		GoalActions: planGoalActionAdapter{feed: nextActionFeed{backlog: s.backlogHandler, goals: s.goalService, sessions: s.agentSessionSvc}},
 	}
 	if s.executionSvc != nil {
 		cfg.Executions = graph.NewExecutionAdapter(s.executionSvc)
@@ -69,19 +67,19 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 }
 
 // planCaptureAdapter converts the graph capture adapter's entries into the
-// gates classify-source shape.
+// planview attention-source shape.
 type planCaptureAdapter struct {
 	inner graph.CaptureLister
 }
 
-func (a planCaptureAdapter) ListCaptures() ([]gates.CaptureEntry, error) {
+func (a planCaptureAdapter) ListCaptures() ([]planview.CaptureEntry, error) {
 	caps, err := a.inner.ListCaptures()
 	if err != nil {
 		return nil, err
 	}
-	out := make([]gates.CaptureEntry, 0, len(caps))
+	out := make([]planview.CaptureEntry, 0, len(caps))
 	for _, c := range caps {
-		out = append(out, gates.CaptureEntry{
+		out = append(out, planview.CaptureEntry{
 			ID:              c.ID,
 			Text:            c.Text,
 			Status:          c.Status,

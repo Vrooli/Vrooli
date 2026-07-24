@@ -1,4 +1,4 @@
-package gates
+package planview
 
 import (
 	"context"
@@ -17,21 +17,21 @@ type ItemStore interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
-// lockedStatuses are mid-execution statuses: the item is in flight, so its
+// attentionLockedStatuses are mid-execution statuses: the item is in flight, so its
 // gates are not presented (mirrors the Command Post's locked skip).
-var lockedStatuses = map[backlog.BacklogStatus]bool{
+var attentionLockedStatuses = map[backlog.BacklogStatus]bool{
 	backlog.StatusQueued:     true,
 	backlog.StatusInProgress: true,
 }
 
-// terminalStatuses are finished-execution statuses. Terminal items surface
+// attentionTerminalStatuses are finished-execution statuses. Terminal items surface
 // as Done outcomes, not gates.
-var terminalStatuses = map[backlog.BacklogStatus]bool{
+var attentionTerminalStatuses = map[backlog.BacklogStatus]bool{
 	backlog.StatusCompleted: true,
 	backlog.StatusFailed:    true,
 }
 
-func itemKey(item backlog.BacklogItem) string {
+func attentionItemKey(item backlog.BacklogItem) string {
 	return string(item.Kind) + "/" + item.Name
 }
 
@@ -44,7 +44,7 @@ func directDependents(items []backlog.BacklogItem) map[string][]string {
 		if backlog.IsArchived(item) {
 			continue
 		}
-		key := itemKey(item)
+		key := attentionItemKey(item)
 		for _, dep := range item.DependsOn {
 			out[dep] = append(out[dep], key)
 		}
@@ -60,7 +60,7 @@ func gateEligible(item backlog.BacklogItem) bool {
 	if backlog.IsArchived(item) {
 		return false
 	}
-	if lockedStatuses[item.Status] || terminalStatuses[item.Status] {
+	if attentionLockedStatuses[item.Status] || attentionTerminalStatuses[item.Status] {
 		return false
 	}
 	return true
@@ -116,7 +116,7 @@ func (s WorkshopSource) Enumerate(ctx context.Context) ([]Gate, error) {
 			}
 		}
 
-		key := itemKey(item)
+		key := attentionItemKey(item)
 		gate := Gate{
 			ID:         GateID(KindWorkshop, "backlog", key),
 			Kind:       KindWorkshop,

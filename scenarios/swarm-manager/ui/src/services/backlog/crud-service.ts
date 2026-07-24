@@ -23,6 +23,7 @@ import type { BacklogNextAction, BacklogUpdatePatch } from "./types";
 const MAX_NEXT_ACTION_BATCH_SIZE = 100;
 
 function mapNextAction(raw: Record<string, unknown>): BacklogNextAction {
+	const followUp = raw.follow_up ?? raw.followUp;
   return {
     id: String(raw.id) as BacklogNextAction["id"],
     compactLabel: String(raw.compact_label ?? raw.compactLabel ?? ""),
@@ -31,6 +32,7 @@ function mapNextAction(raw: Record<string, unknown>): BacklogNextAction {
     reason: typeof raw.reason === "string" ? raw.reason : undefined,
     blockers: Array.isArray(raw.blockers) ? raw.blockers as BacklogNextAction["blockers"] : [],
     target: typeof raw.target === "string" ? raw.target : undefined,
+	followUp: typeof followUp === "object" && followUp !== null ? followUp as BacklogNextAction["followUp"] : undefined,
   };
 }
 

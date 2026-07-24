@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/independent-review",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Gather bounded independent evidence for one completed backlog execution. Swarm owns the immutable execution snapshot, review ledger, and operator gate.",
   "inputSchema": {
     "type": "object",
@@ -103,7 +103,17 @@
                   "kind": {"type": "string", "enum": ["plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention"]},
                   "rationale": {"type": "string", "minLength": 1, "maxLength": 8192},
                   "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-                  "scope": {"type": "string", "maxLength": 4096}
+                  "scope": {"type": "string", "maxLength": 4096},
+                  "follow_up": {
+                    "type": "object",
+                    "properties": {
+                      "steering": {"type": "string", "minLength": 1, "maxLength": 8192},
+                      "disposition": {"type": "string", "enum": ["follow_up_run", "replan", "new_items"]},
+                      "items": {"type": "array", "maxItems": 25, "items": {"type": "object", "properties": {"kind": {"type": "string"}, "name": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"}, "priority": {"type": "integer", "minimum": 1, "maximum": 10}, "depends_on": {"type": "array", "items": {"type": "string"}}}, "required": ["kind", "name", "title"], "additionalProperties": false}}
+                    },
+                    "required": ["steering", "disposition"],
+                    "additionalProperties": false
+                  }
                 },
                 "required": ["kind", "rationale", "confidence"],
                 "additionalProperties": false
@@ -202,7 +212,17 @@
                       "kind": {"type": "string", "enum": ["plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention"]},
                       "rationale": {"type": "string", "minLength": 1, "maxLength": 8192},
                       "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-                      "scope": {"type": "string", "maxLength": 4096}
+                      "scope": {"type": "string", "maxLength": 4096},
+                      "follow_up": {
+                        "type": "object",
+                        "properties": {
+                          "steering": {"type": "string", "minLength": 1, "maxLength": 8192},
+                          "disposition": {"type": "string", "enum": ["follow_up_run", "replan", "new_items"]},
+                          "items": {"type": "array", "maxItems": 25, "items": {"type": "object", "properties": {"kind": {"type": "string"}, "name": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"}, "priority": {"type": "integer", "minimum": 1, "maximum": 10}, "depends_on": {"type": "array", "items": {"type": "string"}}}, "required": ["kind", "name", "title"], "additionalProperties": false}}
+                        },
+                        "required": ["steering", "disposition"],
+                        "additionalProperties": false
+                      }
                     },
                     "required": ["kind", "rationale", "confidence"],
                     "additionalProperties": false

@@ -35,11 +35,9 @@ export { sanitizeBacklogName, parseTagsInput, tagsToInput } from "./backlog-util
 export {
   LOCKED_STATUSES,
   TERMINAL_STATUSES,
-  getBacklogNotQueueableReason,
-  getItemActions,
-  isBacklogQueueable,
+  itemActionsFromNextAction,
 } from "./backlog-queue-utils";
-export type { ActionContext, ItemActions, PrimaryCta } from "./backlog-queue-utils";
+export type { ItemActions, PrimaryCta } from "./backlog-queue-utils";
 
 // Theme Utilities
 export { applyTheme, resolveTheme, useResolvedTheme, watchSystemTheme } from "./theme-utils";

@@ -51,9 +51,10 @@ create one idempotent finding on the matching Plan Workshop session, with a type
 disposition (`plan_revision`, `plan_authoring`, `follow_up`, `archive`,
 `supersede`, or `attention`), rationale, and confidence. The disposition is an
 operator recommendation, not a mutation instruction: the operator still uses
-the workshop response and existing `work.follow_up` or `work.correct`
-transitions for authorized work. Research evidence is not itself an
-implementation plan.
+the ranked inbox to authorize the typed `follow_up.dispatch` transition. The
+selected disposition deterministically starts a follow-up run, returns the
+item to planning with the steering note, or creates typed proposed items.
+Research evidence is not itself an implementation plan.
 
 Automatic follow-up creation is denied by default. An operator may explicitly
 opt in with `SWARM_MANAGER_AUTO_FOLLOW_UP=true`; even then the bounded policy

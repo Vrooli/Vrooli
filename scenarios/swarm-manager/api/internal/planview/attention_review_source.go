@@ -1,4 +1,4 @@
-package gates
+package planview
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 	"swarm-manager/internal/execution"
 )
 
-// ExecutionLister is the narrow slice of the execution service the review
+// AttentionExecutionLister is the narrow slice of the execution service the review
 // source needs.
-type ExecutionLister interface {
+type AttentionExecutionLister interface {
 	List(ctx context.Context, filters execution.ListFilters) ([]execution.Record, error)
 }
 
@@ -24,7 +24,7 @@ type ExecutionLister interface {
 // they are distinct decisions (run outcome vs item terminal status).
 type ReviewSource struct {
 	Store      ItemStore
-	Executions ExecutionLister
+	Executions AttentionExecutionLister
 }
 
 // Name identifies the source in degradation logs.
@@ -45,7 +45,7 @@ func (s ReviewSource) Enumerate(ctx context.Context) ([]Gate, error) {
 	dependents := directDependents(items)
 	itemsByKey := make(map[string]backlog.BacklogItem, len(items))
 	for _, item := range items {
-		itemsByKey[itemKey(item)] = item
+		itemsByKey[attentionItemKey(item)] = item
 	}
 
 	var out []Gate
@@ -53,7 +53,7 @@ func (s ReviewSource) Enumerate(ctx context.Context) ([]Gate, error) {
 		if backlog.IsArchived(item) || item.Status != backlog.StatusReviewPending {
 			continue
 		}
-		key := itemKey(item)
+		key := attentionItemKey(item)
 		out = append(out, Gate{
 			ID:             GateID(KindReview, "backlog", key),
 			Kind:           KindReview,

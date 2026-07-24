@@ -1,56 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { getItemActions, type ActionContext } from "./backlog-queue-utils";
+import { itemActionsFromNextAction } from "./backlog-queue-utils";
 
-const context = (overrides: Partial<ActionContext> = {}): ActionContext => ({
-  item: { kind: "idea", name: "test-item", status: "ready", dependsOn: [] },
-  blockingInfo: null,
-  agentRunning: false,
-  hasPendingDecisions: false,
-  hasExecutionHistory: false,
-  ...overrides,
-});
+const item = { kind: "idea" as const, name: "test-item", status: "ready" as const, dependsOn: [] };
 
-describe("getItemActions", () => {
-  it("offers Run for a queueable item without consulting a client readiness score", () => {
-    const result = getItemActions(context());
+describe("itemActionsFromNextAction", () => {
+  it("uses the server projection instead of deriving a runnable CTA locally", () => {
+    const result = itemActionsFromNextAction(
+      item,
+      {
+        id: "accept_plan",
+        compactLabel: "Accept plan",
+        expandedLabel: "Accept the plan",
+        enabled: true,
+        blockers: [],
+      },
+    );
 
-    expect(result.primaryCta).toBe("run");
-    expect(result.canRun).toBe(true);
-  });
-
-  it("disables Run while an agent is active", () => {
-    const result = getItemActions(context({ agentRunning: true }));
-
-    expect(result.primaryCta).toBe("run");
-    expect(result.runDisabled).toBe(true);
-    expect(result.disabledReason).toMatch(/already running/i);
-  });
-
-  it("holds execution behind unresolved Plan Workshop decisions", () => {
-    const result = getItemActions(context({ hasPendingDecisions: true }));
-
-    expect(result.showDecisionStepper).toBe(true);
-    expect(result.primaryCta).toBeNull();
     expect(result.canRun).toBe(false);
+    expect(result.primaryCta).toBeNull();
   });
 
-  it("shows follow-up and archive controls for completed work", () => {
-    const result = getItemActions(context({
-      item: { kind: "idea", name: "test-item", status: "completed", dependsOn: [] },
-      hasExecutionHistory: true,
-    }));
+  it("keeps a server-projected run disabled with its reason", () => {
+    const result = itemActionsFromNextAction(
+      item,
+      {
+        id: "run",
+        compactLabel: "Run",
+        expandedLabel: "Run now",
+        enabled: false,
+        reason: "A dependency must finish first.",
+        blockers: [{ code: "dependency_unmet", message: "A dependency must finish first.", forceable: false }],
+      },
+    );
 
-    expect(result.primaryCta).toBe("followUp");
-    expect(result.canFollowUp).toBe(true);
-    expect(result.canArchive).toBe(true);
-  });
-
-  it("keeps lifecycle-blocked items informational instead of launching an override", () => {
-    const result = getItemActions(context({
-      blockingInfo: { blocked: true, blockingDepKeys: ["idea/dependency"], allForceable: false },
-    }));
-
-    expect(result.blocked).toBe(true);
-    expect(result.canRun).toBe(true);
+    expect(result.runDisabled).toBe(true);
+    expect(result.disabledReason).toMatch(/dependency/i);
   });
 });

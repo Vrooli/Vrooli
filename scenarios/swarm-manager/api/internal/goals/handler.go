@@ -66,6 +66,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/goals/{name}/targets", h.AddTargets).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/targets", h.RemoveTargets).Methods("DELETE")
 	r.HandleFunc("/api/v1/goals/{name}/archive-item", h.Archive).Methods("PATCH")
+	r.HandleFunc("/api/v1/goals/{name}/close-out", h.CloseOut).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/plan-run", h.StartPlan).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/discover-run", h.StartDiscover).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/milestones", h.CreateMilestone).Methods("POST")
@@ -241,6 +242,17 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, "[goals] archive", g)
+}
+
+// CloseOut is the operator-only endpoint for asserting the delivered goal
+// outcome. Service validation rejects incomplete or unverified milestones.
+func (h *Handler) CloseOut(w http.ResponseWriter, r *http.Request) {
+	goal, err := h.service.CloseOut(nameVar(r))
+	if err != nil {
+		mapServiceError(w, "[goals] close-out", err)
+		return
+	}
+	writeJSON(w, "[goals] close-out", goal)
 }
 
 type targetsRequest struct {

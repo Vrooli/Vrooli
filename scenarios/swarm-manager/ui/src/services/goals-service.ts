@@ -60,6 +60,8 @@ interface RawGoal {
   updated?: string;
   archived_at?: string;
   archivedAt?: string;
+  verified_delivered_at?: string;
+  verifiedDeliveredAt?: string;
 }
 
 interface RawGoalMilestone {
@@ -152,8 +154,9 @@ function normalizeSnapshot(raw: RawSnapshot): GoalScopeSnapshot {
 
 function normalizeGoal(raw: RawGoal): Goal {
   const history = raw.scopeHistory ?? raw.scope_history ?? [];
-  const status = raw.status === "archived" ? "archived" : "active";
+  const status = raw.status === "archived" || raw.status === "achieved" ? raw.status : "active";
   const archivedAt = raw.archivedAt ?? raw.archived_at;
+  const verifiedDeliveredAt = raw.verifiedDeliveredAt ?? raw.verified_delivered_at;
   return {
     name: raw.name ?? "",
     title: raw.title ?? raw.name ?? "",
@@ -167,6 +170,7 @@ function normalizeGoal(raw: RawGoal): Goal {
     created: raw.created ?? "",
     updated: raw.updated ?? "",
     ...(archivedAt ? { archivedAt } : {}),
+    ...(verifiedDeliveredAt ? { verifiedDeliveredAt } : {}),
   };
 }
 
@@ -267,9 +271,11 @@ export interface IGoalsService {
   assignMilestoneItems(name: string, milestone: string, items: string[]): Promise<GoalWithScope>;
   unassignMilestoneItems(name: string, milestone: string, items: string[]): Promise<GoalWithScope>;
   archive(name: string): Promise<void>;
+  closeOut(name: string): Promise<void>;
   remove(name: string): Promise<void>;
   startPlan(name: string): Promise<{ execution_id: string; run_id?: string; definition_digest: string }>;
   startDiscover(name: string): Promise<{ execution_id: string; run_id?: string; definition_digest: string }>;
+  startMilestoneReview(name: string, milestone: string): Promise<{ execution_id: string; run_id?: string; definition_digest: string }>;
   getFiles(name: string): Promise<GoalFile[]>;
   getFileContent(name: string, filePath: string): Promise<string>;
   uploadFile(name: string, file: File, path?: string): Promise<BacklogFile>;
@@ -381,6 +387,10 @@ export function createGoalsService(apiClient: IApiClient = defaultApiClient): IG
       await apiClient.patch<unknown>(API_ENDPOINTS.goalArchiveItem(name), {});
     },
 
+    async closeOut(name: string): Promise<void> {
+      await apiClient.post<unknown>(API_ENDPOINTS.goalCloseOut(name), {});
+    },
+
     async remove(name: string): Promise<void> {
       await apiClient.delete<unknown>(API_ENDPOINTS.goalByName(name));
     },
@@ -391,6 +401,10 @@ export function createGoalsService(apiClient: IApiClient = defaultApiClient): IG
 
     startDiscover(name: string) {
       return apiClient.post<{ execution_id: string; run_id?: string; definition_digest: string }>(API_ENDPOINTS.goalDiscoverRun(name), {});
+    },
+
+    startMilestoneReview(name: string, milestone: string) {
+      return apiClient.post<{ execution_id: string; run_id?: string; definition_digest: string }>(API_ENDPOINTS.goalMilestoneReviewRun(name, milestone), {});
     },
 
     async getFiles(name: string): Promise<GoalFile[]> {

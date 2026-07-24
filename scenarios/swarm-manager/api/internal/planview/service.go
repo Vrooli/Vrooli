@@ -14,7 +14,6 @@ import (
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/eta"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/gates"
 	"swarm-manager/internal/operations"
 )
 
@@ -89,11 +88,31 @@ func (s *Service) Build(ctx context.Context, params Params) (Board, error) {
 		gateList = filterGatesToScope(gateList, inScope)
 	}
 
-	proj := newProjection(items, gateList)
+	resolvedActions := make(map[string]backlog.NextActionProjection, len(items))
+	if s.cfg.NextActions != nil {
+		for _, item := range items {
+			action, resolveErr := s.cfg.NextActions.ResolveNextAction(ctx, item)
+			if resolveErr != nil {
+				slog.Warn("planview: next action resolution failed; retaining board fallback", "item", itemKey(item), "error", resolveErr)
+				continue
+			}
+			resolvedActions[itemKey(item)] = action
+		}
+	}
+	proj := newProjection(items, gateList, resolvedActions)
+	next := proj.buildNext()
+	if s.cfg.GoalActions != nil {
+		goalActions, goalErr := s.cfg.GoalActions.ListGoalActions(ctx)
+		if goalErr != nil {
+			slog.Warn("planview: goal action read failed; omitting goal cards", "error", goalErr)
+		} else {
+			next = appendGoalActions(next, goalActions)
+		}
+	}
 
 	board := Board{
 		Now:   s.buildNowSummary(ctx),
-		Next:  proj.buildNext(),
+		Next:  next,
 		Later: proj.buildLater(),
 		Done:  proj.buildDone(execs, now, window),
 		Meta: Meta{
@@ -108,6 +127,31 @@ func (s *Service) Build(ctx context.Context, params Params) (Board, error) {
 		board.Meta.Cycles = []string{}
 	}
 	return board, nil
+}
+
+func appendGoalActions(next Column, actions []GoalAction) Column {
+	if len(actions) == 0 {
+		return next
+	}
+	cards := make([]Card, 0, len(actions))
+	for _, action := range actions {
+		cards = append(cards, Card{ID: "goal/" + action.Name, CardType: CardGate, Action: action.Action, Title: action.Title, Priority: action.Priority, Gate: &Gate{ID: "next-action:goal/" + action.Name, Kind: goalMarkerKind(action.Action), OwnerType: "goal", OwnerName: action.Name, OwnerTitle: action.Title, Count: 1, Suggested: action.Action}})
+	}
+	sort.SliceStable(cards, func(i, j int) bool { return cards[i].Priority > cards[j].Priority })
+	next.Groups = append([]CardGroup{{ID: "goals", Label: "Goal decisions", BlockerKind: BlockerNone, Cards: cards}}, next.Groups...)
+	next.CardCount += len(cards)
+	return next
+}
+
+func goalMarkerKind(action string) Kind {
+	switch action {
+	case ActionDecide:
+		return KindDecide
+	case ActionReview:
+		return KindReview
+	default:
+		return KindWorkshop
+	}
 }
 
 // buildETA computes the board-wide completion band over the projection's
@@ -170,8 +214,8 @@ func filterExecsToScope(execs []execution.Record, inScope map[string]bool) []exe
 // filterGatesToScope keeps backlog/execution gates whose owning item is in
 // scope. Classify gates (capture-owned, not item-closure work) are dropped when
 // the board is goal-scoped.
-func filterGatesToScope(gateList []gates.Gate, inScope map[string]bool) []gates.Gate {
-	out := make([]gates.Gate, 0, len(gateList))
+func filterGatesToScope(gateList []Gate, inScope map[string]bool) []Gate {
+	out := make([]Gate, 0, len(gateList))
 	for _, g := range gateList {
 		switch g.OwnerType {
 		case "backlog", "execution":
@@ -218,23 +262,25 @@ type projection struct {
 	depthMap   map[string]int
 	unblocking map[string]int
 
-	decideByKey         map[string]gates.Gate
-	reviewByKey         map[string]gates.Gate
-	workshopByKey       map[string]gates.Gate
-	execReview          []gates.Gate
-	classify            []gates.Gate
-	milestoneProposals []gates.Gate
-	etaInput            eta.GoalClosureInput
+	decideByKey        map[string]Gate
+	reviewByKey        map[string]Gate
+	workshopByKey      map[string]Gate
+	execReview         []Gate
+	classify           []Gate
+	milestoneProposals []Gate
+	nextActions        map[string]backlog.NextActionProjection
+	etaInput           eta.GoalClosureInput
 }
 
-func newProjection(items []backlog.BacklogItem, gateList []gates.Gate) *projection {
+func newProjection(items []backlog.BacklogItem, gateList []Gate, nextActions map[string]backlog.NextActionProjection) *projection {
 	p := &projection{
 		items:         items,
 		itemsByKey:    make(map[string]backlog.BacklogItem, len(items)),
 		satisfied:     make(map[string]bool, len(items)),
-		decideByKey:   map[string]gates.Gate{},
-		reviewByKey:   map[string]gates.Gate{},
-		workshopByKey: map[string]gates.Gate{},
+		decideByKey:   map[string]Gate{},
+		reviewByKey:   map[string]Gate{},
+		workshopByKey: map[string]Gate{},
+		nextActions:   nextActions,
 	}
 
 	graphMap := make(map[string][]string, len(items))
@@ -263,20 +309,43 @@ func newProjection(items []backlog.BacklogItem, gateList []gates.Gate) *projecti
 
 	for _, g := range gateList {
 		switch {
-		case g.Kind == gates.KindDecide && g.OwnerType == "backlog":
+		case g.Kind == KindDecide && g.OwnerType == "backlog":
 			p.decideByKey[g.OwnerKind+"/"+g.OwnerName] = g
-		case g.Kind == gates.KindReview && g.OwnerType == "backlog":
+		case g.Kind == KindReview && g.OwnerType == "backlog":
 			p.reviewByKey[g.OwnerKind+"/"+g.OwnerName] = g
-		case g.Kind == gates.KindProposal && g.OwnerType == "backlog":
+		case g.Kind == KindProposal && g.OwnerType == "backlog":
 			p.decideByKey[g.OwnerKind+"/"+g.OwnerName] = g
-		case g.Kind == gates.KindProposal && g.OwnerType == "milestone":
+		case g.Kind == KindProposal && g.OwnerType == "milestone":
 			p.milestoneProposals = append(p.milestoneProposals, g)
-		case g.Kind == gates.KindReview && g.OwnerType == "execution":
+		case g.Kind == KindReview && g.OwnerType == "execution":
 			p.execReview = append(p.execReview, g)
-		case g.Kind == gates.KindWorkshop && g.OwnerType == "backlog":
+		case g.Kind == KindWorkshop && g.OwnerType == "backlog":
 			p.workshopByKey[g.OwnerKind+"/"+g.OwnerName] = g
-		case g.Kind == gates.KindClassify:
+		case g.Kind == KindClassify:
 			p.classify = append(p.classify, g)
+		}
+	}
+	// Backlog attention is derived from the same resolver that powers the
+	// operator inbox. The remaining source list supplies only execution review
+	// and capture-classification markers, which have no backlog next-action
+	// entity of their own.
+	for key, action := range nextActions {
+		item, ok := p.itemsByKey[key]
+		if !ok || backlog.IsArchived(item) {
+			continue
+		}
+		marker := Gate{ID: "next-action:backlog/" + key, OwnerType: "backlog", OwnerKind: string(item.Kind), OwnerName: item.Name, OwnerTitle: titleOf(item), Count: 1}
+		switch action.ID {
+		case backlog.NextActionDecide:
+			marker.Kind = KindDecide
+			p.decideByKey[key] = marker
+		case backlog.NextActionReview:
+			marker.Kind = KindReview
+			p.reviewByKey[key] = marker
+		case backlog.NextActionAuthorPlan, backlog.NextActionAcceptPlan, backlog.NextActionRepairPlan:
+			marker.Kind = KindWorkshop
+			marker.Suggested = string(action.ID)
+			p.workshopByKey[key] = marker
 		}
 	}
 	return p
@@ -347,22 +416,22 @@ func (p *projection) itemCard(item backlog.BacklogItem, action string) Card {
 		wave = 0
 	}
 	return Card{
-		ID:         "backlog-item/" + key,
-		CardType:   CardItem,
-		Action:     action,
-		ItemKind:   string(item.Kind),
-		ItemName:   item.Name,
-		Title:      titleOf(item),
-		Status:     string(item.Status),
-		Priority:   item.Priority,
-		Wave:       wave,
+		ID:        "backlog-item/" + key,
+		CardType:  CardItem,
+		Action:    action,
+		ItemKind:  string(item.Kind),
+		ItemName:  item.Name,
+		Title:     titleOf(item),
+		Status:    string(item.Status),
+		Priority:  item.Priority,
+		Wave:      wave,
 		Milestone: item.Milestone,
-		Effort:     item.Effort,
-		Unblocks:   p.unblocking[key],
+		Effort:    item.Effort,
+		Unblocks:  p.unblocking[key],
 	}
 }
 
-func (p *projection) gateCard(g gates.Gate, action string) Card {
+func (p *projection) gateCard(g Gate, action string) Card {
 	gate := g
 	card := Card{
 		CardType: CardGate,
@@ -415,6 +484,18 @@ func titleOf(item backlog.BacklogItem) string {
 // actionFor resolves the item card's primary action from the gates
 // read-model (workshop gate → workshop/finalize; none → run).
 func (p *projection) actionFor(key string) string {
+	if action, ok := p.nextActions[key]; ok {
+		switch action.ID {
+		case backlog.NextActionRun:
+			return ActionRun
+		case backlog.NextActionDecide:
+			return ActionDecide
+		case backlog.NextActionReview:
+			return ActionReview
+		case backlog.NextActionAuthorPlan, backlog.NextActionAcceptPlan, backlog.NextActionRepairPlan:
+			return ActionWorkshop
+		}
+	}
 	if g, ok := p.workshopByKey[key]; ok {
 		if g.Suggested == "finalize" {
 			return ActionFinalize
@@ -519,10 +600,10 @@ func (p *projection) itemCards(items []backlog.BacklogItem) []Card {
 }
 
 // gateKindOrder ranks gate kinds for the Next gates band.
-var gateKindOrder = map[gates.Kind]int{
-	gates.KindDecide:   0,
-	gates.KindReview:   1,
-	gates.KindClassify: 2,
+var gateKindOrder = map[Kind]int{
+	KindDecide:   0,
+	KindReview:   1,
+	KindClassify: 2,
 }
 
 func sortGateCards(cards []Card) {
@@ -655,9 +736,9 @@ func (p *projection) unmetDeps(item backlog.BacklogItem) []string {
 
 // nearestGate finds the human gate (decide/review) on the closest-to-
 // runnable unmet dependency, if any.
-func (p *projection) nearestGate(unmet []string) (gates.Gate, bool) {
+func (p *projection) nearestGate(unmet []string) (Gate, bool) {
 	type candidate struct {
-		gate gates.Gate
+		gate Gate
 		wave int
 		key  string
 	}
@@ -677,7 +758,7 @@ func (p *projection) nearestGate(unmet []string) (gates.Gate, bool) {
 		}
 	}
 	if best == nil {
-		return gates.Gate{}, false
+		return Gate{}, false
 	}
 	return best.gate, true
 }
@@ -746,7 +827,7 @@ func (p *projection) buildDone(execs []execution.Record, now time.Time, windowSe
 			ItemName:    rec.BacklogName,
 			Title:       title,
 			Status:      string(rec.Status),
-			Milestone:  milestone,
+			Milestone:   milestone,
 			Outcome:     outcome,
 			FinishedAt:  ts.Format(time.RFC3339),
 			ExecutionID: rec.ExecutionID,
@@ -779,7 +860,7 @@ func (p *projection) buildDone(execs []execution.Record, now time.Time, windowSe
 			ItemName:   item.Name,
 			Title:      titleOf(item),
 			Status:     string(item.Status),
-			Milestone: item.Milestone,
+			Milestone:  item.Milestone,
 			Outcome:    outcome,
 			FinishedAt: ts.Format(time.RFC3339),
 		}})

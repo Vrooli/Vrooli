@@ -12,7 +12,6 @@ import (
 	"swarm-manager/internal/eta"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/gates"
 	"swarm-manager/internal/operations"
 	"swarm-manager/internal/stats"
 
@@ -31,9 +30,9 @@ func (s stubBacklog) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogItem, er
 	return s.items, s.err
 }
 
-type stubGates struct{ gates []gates.Gate }
+type stubGates struct{ gates []Gate }
 
-func (s stubGates) Enumerate(context.Context) []gates.Gate { return s.gates }
+func (s stubGates) Enumerate(context.Context) []Gate { return s.gates }
 
 type stubExecs struct {
 	records []execution.Record
@@ -76,20 +75,20 @@ func bItem(kind, name string, status backlog.BacklogStatus, deps ...string) back
 	}
 }
 
-func decideGate(kind, name string, count int, blocks ...string) gates.Gate {
-	return gates.Gate{
+func decideGate(kind, name string, count int, blocks ...string) Gate {
+	return Gate{
 		ID:        fmt.Sprintf("decide:backlog/%s/%s", kind, name),
-		Kind:      gates.KindDecide,
+		Kind:      KindDecide,
 		OwnerType: "backlog",
 		OwnerKind: kind, OwnerName: name, OwnerTitle: name + " title",
 		Count: count, Blocks: blocks,
 	}
 }
 
-func workshopGate(kind, name, suggested string) gates.Gate {
-	return gates.Gate{
+func workshopGate(kind, name, suggested string) Gate {
+	return Gate{
 		ID:        fmt.Sprintf("workshop:backlog/%s/%s", kind, name),
-		Kind:      gates.KindWorkshop,
+		Kind:      KindWorkshop,
 		OwnerType: "backlog",
 		OwnerKind: kind, OwnerName: name, OwnerTitle: name + " title",
 		Count: 1, Suggested: suggested,
@@ -123,7 +122,7 @@ func TestBuild_NextSplitsReadyWorkshopAndGates(t *testing.T) {
 	}
 	svc := newTestService(t, Config{
 		Backlog: stubBacklog{items: items},
-		Gates: stubGates{gates: []gates.Gate{
+		Gates: stubGates{gates: []Gate{
 			workshopGate("fix", "raw", "workshop"),
 			decideGate("fix", "questions", 3),
 		}},
@@ -163,7 +162,7 @@ func TestBuild_DecideGateCarriesItemNotDuplicated(t *testing.T) {
 	}
 	svc := newTestService(t, Config{
 		Backlog: stubBacklog{items: items},
-		Gates:   stubGates{gates: []gates.Gate{decideGate("fix", "questions", 2)}},
+		Gates:   stubGates{gates: []Gate{decideGate("fix", "questions", 2)}},
 	})
 	board, err := svc.Build(context.Background(), Params{})
 	if err != nil {
@@ -190,7 +189,7 @@ func TestBuild_LaterGroupsByNearestBlocker(t *testing.T) {
 	}
 	svc := newTestService(t, Config{
 		Backlog: stubBacklog{items: items},
-		Gates:   stubGates{gates: []gates.Gate{decideGate("fix", "gated", 1, "fix/after-gate")}},
+		Gates:   stubGates{gates: []Gate{decideGate("fix", "gated", 1, "fix/after-gate")}},
 	})
 	board, err := svc.Build(context.Background(), Params{})
 	if err != nil {
@@ -254,13 +253,13 @@ func TestBuild_LockedTerminalReviewItemsExcludedFromNextLater(t *testing.T) {
 		bItem("fix", "old-done", backlog.StatusCompleted),
 	}
 	// review_pending surfaces via its review gate only.
-	reviewGate := gates.Gate{
-		ID: "review:backlog/fix/waiting", Kind: gates.KindReview,
+	reviewGate := Gate{
+		ID: "review:backlog/fix/waiting", Kind: KindReview,
 		OwnerType: "backlog", OwnerKind: "fix", OwnerName: "waiting", OwnerTitle: "waiting title", Count: 1,
 	}
 	svc := newTestService(t, Config{
 		Backlog: stubBacklog{items: items},
-		Gates:   stubGates{gates: []gates.Gate{reviewGate}},
+		Gates:   stubGates{gates: []Gate{reviewGate}},
 	})
 	board, err := svc.Build(context.Background(), Params{})
 	if err != nil {
@@ -429,14 +428,14 @@ func TestBuild_ExecutionReviewGateCard(t *testing.T) {
 	items := []backlog.BacklogItem{
 		bItem("fix", "flagged", backlog.StatusInProgress),
 	}
-	execGate := gates.Gate{
-		ID: "review:execution/e1", Kind: gates.KindReview,
+	execGate := Gate{
+		ID: "review:execution/e1", Kind: KindReview,
 		OwnerType: "execution", OwnerKind: "fix", OwnerName: "flagged",
 		OwnerTitle: "flagged title", Count: 1,
 	}
 	svc := newTestService(t, Config{
 		Backlog: stubBacklog{items: items},
-		Gates:   stubGates{gates: []gates.Gate{execGate}},
+		Gates:   stubGates{gates: []Gate{execGate}},
 	})
 	board, err := svc.Build(context.Background(), Params{})
 	if err != nil {
@@ -455,17 +454,17 @@ func TestBuild_GateCardOrdering(t *testing.T) {
 		bItem("fix", "r-item", backlog.StatusReviewPending),
 		bItem("fix", "big-child-1", backlog.StatusBacklog, "fix/d-big"),
 	}
-	classifyGate := gates.Gate{
-		ID: "classify:capture/c1", Kind: gates.KindClassify,
+	classifyGate := Gate{
+		ID: "classify:capture/c1", Kind: KindClassify,
 		OwnerType: "capture", OwnerName: "c1", OwnerTitle: "capture text", Count: 2,
 	}
-	reviewGate := gates.Gate{
-		ID: "review:backlog/fix/r-item", Kind: gates.KindReview,
+	reviewGate := Gate{
+		ID: "review:backlog/fix/r-item", Kind: KindReview,
 		OwnerType: "backlog", OwnerKind: "fix", OwnerName: "r-item", OwnerTitle: "r title", Count: 1,
 	}
 	svc := newTestService(t, Config{
 		Backlog: stubBacklog{items: items},
-		Gates: stubGates{gates: []gates.Gate{
+		Gates: stubGates{gates: []Gate{
 			classifyGate,
 			reviewGate,
 			decideGate("fix", "d-small", 1),
@@ -755,5 +754,17 @@ func TestBuild_GoalRequestedButNoScoperErrors(t *testing.T) {
 	_, err := svc.Build(context.Background(), Params{Goal: "goal-x"})
 	if !errors.Is(err, ErrGoalScope) {
 		t.Fatalf("want ErrGoalScope when no scoper, got %v", err)
+	}
+}
+
+func TestAppendGoalActionsPlacesGoalDecisionBeforeBacklogGroups(t *testing.T) {
+	next := Column{Groups: []CardGroup{{ID: "ready", Label: "Ready to run", Cards: []Card{{ID: "backlog-item/idea/ready"}}}}, CardCount: 1}
+	got := appendGoalActions(next, []GoalAction{{Name: "portfolio", Title: "Portfolio", Action: ActionDecide, Priority: 9}})
+	if len(got.Groups) != 2 || got.Groups[0].ID != "goals" || got.CardCount != 2 {
+		t.Fatalf("goal group = %#v", got)
+	}
+	card := got.Groups[0].Cards[0]
+	if card.ID != "goal/portfolio" || card.Gate == nil || card.Gate.OwnerType != "goal" || card.Gate.Kind != KindDecide || card.Action != ActionDecide {
+		t.Fatalf("goal card = %#v", card)
 	}
 }

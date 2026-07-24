@@ -261,8 +261,11 @@ func (s *Server) setupRoutes() {
 
 	// --- Core domain ---
 	backlogHandler := s.registerBacklogRoutes(s.dataRoot, scenarioRoot)
+	backlogHandler.SetDecisionCountProvider(sessionDecisionProvider{sessions: s.agentSessionSvc})
 	s.registerPlanWorkshopRoutes(s.dataRoot)
-	s.registerGoalsRoutes(s.dataRoot, backlogHandler)
+	goalService := s.registerGoalsRoutes(s.dataRoot, backlogHandler)
+	feed := nextActionFeed{backlog: backlogHandler, goals: goalService, sessions: s.agentSessionSvc}
+	s.router.HandleFunc("/api/v1/next-actions/feed", feed.NextActionsFeed).Methods("GET")
 	s.registerCapturesRoutes(s.cacheRoot, backlogHandler)
 	s.registerRecordsRoutes(s.dataRoot, scenariosDir)
 
@@ -433,10 +436,6 @@ func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Ha
 	s.goalsHandler = goalHandler
 	goalHandler.RegisterRoutes(s.router)
 	goals.RegisterConnectRoutes(s.router, goalService)
-	// Goal proposals share the session-backed mutation-list decision store.
-	// Wiring after both services exist avoids a second goal-specific inbox.
-	s.agentSessionSvc.SetMutationProposalProcessor(newGoalMutationProcessor(goalService))
-
 	assigner := goals.NewBacklogMilestoneAssigner(goalService)
 	backlogHandler.SetMilestoneAssigner(assigner)
 	s.milestoneAssigner = assigner
@@ -445,6 +444,13 @@ func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Ha
 		panic(err)
 	}
 	backlogHandler.SetLifecycleService(lifecycleService)
+	// Session-backed proposals dispatch by target while preserving one decision
+	// endpoint and the canonical proposal apply flow for backlog mutations.
+	processor, err := newCompositeMutationProcessor(goalService, backlogHandler.Store(), assigner, lifecycleService)
+	if err != nil {
+		panic(err)
+	}
+	s.agentSessionSvc.SetMutationProposalProcessor(processor)
 	s.goalService = goalService
 	return goalService
 }

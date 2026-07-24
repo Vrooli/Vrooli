@@ -16,7 +16,7 @@ func TestResolveGoal(t *testing.T) {
 	if err := os.MkdirAll(goalDir, 0o755); err != nil {
 		t.Fatalf("mkdir goal: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(goalDir, "goal.json"), []byte(`{"name":"ship-goal","title":"Ship the feature","status":"active","priority":8}`), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(goalDir, "goal.json"), []byte(`{"name":"ship-goal","title":"Ship the feature","status":"active","priority":8,"updated":"2026-07-24T16:00:00Z"}`), 0o600); err != nil {
 		t.Fatalf("write goal: %v", err)
 	}
 
@@ -27,6 +27,9 @@ func TestResolveGoal(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].Title != "Ship the feature" || items[0].NodeID != "goal/ship-goal" {
 		t.Fatalf("resolved goal = %+v", items)
+	}
+	if !strings.Contains(items[0].MetadataJSON, `"base_version":"2026-07-24T16:00:00Z"`) {
+		t.Fatalf("goal metadata omits proposal base version: %s", items[0].MetadataJSON)
 	}
 }
 

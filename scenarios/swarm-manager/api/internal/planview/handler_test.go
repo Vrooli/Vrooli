@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/gates"
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -37,7 +36,7 @@ func TestGetBoard_ProtoShape(t *testing.T) {
 	}
 	router := newTestHandler(t, Config{
 		Backlog: stubBacklog{items: items},
-		Gates:   stubGates{gates: []gates.Gate{decideGate("fix", "runnable", 2, "fix/blocked")}},
+		Gates:   stubGates{gates: []Gate{decideGate("fix", "runnable", 2, "fix/blocked")}},
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/plan?window_seconds=3600", nil)

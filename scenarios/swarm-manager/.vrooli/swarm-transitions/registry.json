@@ -282,6 +282,18 @@
   },
   {
     "schemaVersion": "swarm-transition/v1",
+    "key": "follow_up.dispatch",
+    "subject": "backlog-item",
+    "kind": "deterministic",
+    "inputContract": "follow-up-dispatch-input/v1",
+    "terminalOutcomes": [
+      "dispatched",
+      "needs_attention"
+    ],
+    "applyAction": "dispatch_follow_up"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
     "key": "goal.discover",
     "subject": "goal",
     "kind": "workflow",
@@ -346,6 +358,18 @@
       "needs_attention"
     ],
     "applyAction": "apply_milestone_review"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "goal.close_out",
+    "subject": "goal",
+    "kind": "deterministic",
+    "inputContract": "goal-close-out-input/v1",
+    "terminalOutcomes": [
+      "achieved",
+      "needs_attention"
+    ],
+    "applyAction": "mark_goal_achieved"
   },
   {
     "schemaVersion": "swarm-transition/v1",

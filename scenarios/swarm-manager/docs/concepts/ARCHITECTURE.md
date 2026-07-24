@@ -201,11 +201,11 @@ Swarm Manager exposes two operator navigation surfaces: **Plan** and **Graph**. 
 Four columns computed by the server plan projection (`GET /api/v1/plan`, `internal/planview`):
 
 - **Now** — in-flight agent runs (cards from `GET /api/v1/operations` via the proven polling path) with lane utilization bars, queue chip, group-by milestone/phase, select-mode bulk stop, spawn and refresh actions.
-- **Next** — actionable immediately: human gate cards (decide / review / classify, from the `internal/gates` read-model) plus runnable and needs-workshop item cards at dependency wave 0. Header bulk actions: Run all ready (threshold-confirmed) and Answer all (decision drawer).
+- **Next** — actionable immediately: server-owned next-action cards (decide / review / plan / run) at dependency wave 0, plus capture classification markers. Header bulk actions: Run all ready (threshold-confirmed) and Answer all (decision drawer).
 - **Later** — not yet actionable, grouped by nearest blocker (gate-blocked groups sort above item-blocked), with honest ordinal wave badges from `depgraph.Waves` frontier peeling. Waves deeper than 5 collapse into a "beyond horizon" rollup; dependency cycles surface as diagnostics.
 - **Done** — window-capped recent outcomes (1h–24h picker on the column header).
 
-Filters (search / status / owner-type / lane / group-by / show-snoozed) live in a shared drawer and persist in URL query params. Snooze remains client-side (localStorage). The decision drawer hosts the full decision stream (`?drawer=decisions` deep link) and per-item scoped answering from decide gate cards. No drag: columns are derived, so cards act through explicit menus mapped to real levers (run / workshop / finalize / archive / status / snooze / focus).
+Filters (search / status / owner-type / lane / group-by / show-snoozed) live in a shared drawer and persist in URL query params. Snooze remains client-side (localStorage). The decision drawer hosts the full decision stream (`?drawer=decisions` deep link) and per-item scoped answering from server-owned decide cards. No drag: columns are derived, so cards act through explicit menus mapped to real levers (run / workshop / finalize / archive / status / snooze / focus).
 
 **Navigation:** First-class `/plan` route; the default landing for `/`, `/graph/plan`, and all retired-surface redirects. Keyboard shortcut: `1`.
 
@@ -337,7 +337,7 @@ api/internal/
 - `/api/v1/overview` - aggregated view (backlog, milestones, dependency graph, summary stats)
 - `/api/v1/operations/brief` - bounded current operations briefing for CLI, UI, and Swarm operations session prompts
 - `/api/v1/graph?lens=topology` - the topology projection (Graph focus mode filters it client-side)
-- `/api/v1/plan?window_seconds=...` - the Plan board projection (waves + gates read-model)
+- `/api/v1/plan?window_seconds=...` - the Plan board projection (waves + next-action markers)
 - `/ws/graph` - graph invalidation and node pulse websocket
 - `/api/v1/captures/*` - capture CRUD and AI classification
 - `/api/v1/scenarios/*` - scenario list/detail/lifecycle/delete/archive

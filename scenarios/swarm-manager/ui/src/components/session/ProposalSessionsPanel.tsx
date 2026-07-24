@@ -13,7 +13,7 @@ interface ProposalSessionsPanelProps {
   target?: { type: ProposalSessionTargetType; ref: string; name: string };
 }
 
-interface MutationPreview {
+export interface MutationPreview {
   id: string;
   op: string;
   target: string;
@@ -21,13 +21,13 @@ interface MutationPreview {
   reset_scope?: string[];
 }
 
-interface ProposalPayload {
+export interface ProposalPayload {
   form?: string;
   rationale?: string;
   mutations?: MutationPreview[];
 }
 
-function proposalPayload(proposal: ProposalSessionProposal): ProposalPayload {
+export function proposalPayload(proposal: ProposalSessionProposal): ProposalPayload {
   try {
     return JSON.parse(proposal.payload_json) as ProposalPayload;
   } catch {
@@ -35,7 +35,7 @@ function proposalPayload(proposal: ProposalSessionProposal): ProposalPayload {
   }
 }
 
-function mutationPreviews(proposal: ProposalSessionProposal): MutationPreview[] {
+export function mutationPreviews(proposal: ProposalSessionProposal): MutationPreview[] {
   return (proposalPayload(proposal).mutations ?? []).filter((mutation): mutation is MutationPreview => Boolean(mutation.id));
 }
 
@@ -239,7 +239,7 @@ function NoChangeRecommendation({ proposal }: { proposal: ProposalSessionProposa
   );
 }
 
-function ProposalReview({ mutations, proposal }: { mutations: MutationPreview[]; proposal: ProposalSessionProposal }) {
+export function ProposalReview({ mutations, proposal }: { mutations: MutationPreview[]; proposal: ProposalSessionProposal }) {
   return (
     <details className="mt-4 rounded-lg border border-slate-800 bg-slate-950/35" open>
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-slate-200">

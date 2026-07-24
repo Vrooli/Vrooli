@@ -17,6 +17,10 @@ func buildInitialPrompt(session Session, message Message, attachments []Attachme
 	fmt.Fprintf(&b, "Session ID: %s\n", session.ID)
 	if session.ProposalTarget != nil {
 		fmt.Fprintf(&b, "This is a proposal session for %s %q. Return any recommended graph change as the skill's fenced mutation_list JSON envelope; never mutate files directly.\n", session.ProposalTarget.Type, session.ProposalTarget.Ref)
+		if session.ProposalTarget.Type == ContextGoal {
+			b.WriteString("For a goal proposal, copy the attached goal context Metadata.base_version exactly into the envelope's base_version field. The server rejects goal proposals without that optimistic-concurrency value.\n")
+			b.WriteString("For create_milestone or update_milestone, use a goal_milestone object (not milestone) with at least name and title; goal proposals may use only goal graph operations.\n")
+		}
 	}
 	if hasContextType(message.Context, ContextStartupBrief) {
 		b.WriteString("Startup brief context is attached below. For broad status, planning, or authoring questions, answer from this brief first and run at most one targeted refresh/drill-down command before the first useful answer.\n")

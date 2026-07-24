@@ -49,7 +49,7 @@ export interface RenderedBacklogPlan {
   planRef?: PlanRef;
 }
 
-export type BacklogNextActionID = "none" | "accept_suggestion" | "author_plan" | "accept_plan" | "repair_plan" | "resolve_dependencies" | "review" | "view_execution" | "run" | "retry" | "archive";
+export type BacklogNextActionID = "none" | "decide" | "accept_suggestion" | "author_plan" | "accept_plan" | "repair_plan" | "resolve_dependencies" | "review" | "view_execution" | "run" | "retry" | "archive" | "dispatch_followup" | "author_followup" | "plan_goal" | "close_out" | "chain";
 
 export interface BacklogNextAction {
   id: BacklogNextActionID;
@@ -59,6 +59,7 @@ export interface BacklogNextAction {
   reason?: string;
   blockers: BlockingReason[];
   target?: string;
+  followUp?: { steering: string; disposition: "follow_up_run" | "replan" | "new_items"; items?: Array<{ kind: string; name: string; title: string }> };
 }
 
 /**
@@ -114,6 +115,7 @@ export interface IBacklogService {
     name: string,
     note?: string,
   ): Promise<{ newExecutionId: string; parentExecutionId: string; status: string }>;
+  dispatchFollowUp(kind: BacklogKind, name: string): Promise<void>;
   getArchiveTargets(kind: BacklogKind, name: string): Promise<import("../../types").ArchiveTargetsResponse>;
   createArchiveTarget(kind: string, name: string, target: import("../../types").ArchiveTargetFormValues): Promise<void>;
   updateArchiveTarget(kind: string, name: string, targetId: string, target: import("../../types").ArchiveTargetFormValues): Promise<void>;

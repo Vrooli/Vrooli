@@ -363,11 +363,9 @@ Center + Command Post + Topology/Operations lens retirement):
 - The Operations Center URL-filter vocabulary was extracted into
   `plan-url-state.ts` instead of duplicating the page-local helpers it
   replaced; old `/operations?...` links keep working through the redirect.
-- `lib/command-post-utils.ts` (groupActionItems etc.) survives with its three
-  remaining consumers (SidebarTabs, badge hook, board menus via
-  `useCommandPostItemActions`); the server `internal/gates` read-model is the
-  authoritative reimplementation of the same predicates, and the two are kept
-  aligned by the parity tests in `gates_test.go`.
+- `lib/command-post-utils.ts` survives only for execution/capture grouping and
+  question aggregation. Backlog actionability is supplied by the server-owned
+  next-action feed, so no client predicate needs parity with planview.
 
 **Deleted rather than unified** (single-consumer code that died with its page):
 `OpsHeader`, `OpsFilterBar`, `OpsBody`, `ByInitiativeView`, `ByPhaseView`,

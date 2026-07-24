@@ -39,9 +39,11 @@ the prompt, Runs, validation, routing, waits, retries, and provenance.
 | `review.evidence_request` | Workflow | `swarm-manager/evidence-request` | `apply_review_evidence_request` |
 | `work.correct` | Workflow | `swarm-manager/work-correct`; evidence-gated | `apply_correction_outcome` |
 | `work.follow_up` | Workflow | `swarm-manager/work-follow-up` | `apply_follow_up` |
+| `follow_up.dispatch` | Deterministic | typed follow-up `{steering, disposition}`; `follow_up_run`, `replan`, or `new_items` | `dispatch_follow_up` |
 | `goal.discover` | Workflow | `swarm-manager/goal-discover` | `apply_goal_proposal` |
 | `goal.plan` | Workflow | `swarm-manager/goal-plan` | `apply_goal_proposal` |
 | `milestone.review` | Workflow | `swarm-manager/milestone-review`; evidence-gated | `apply_milestone_review` |
+| `goal.close_out` | Deterministic | active goal with every milestone verified-delivered; operator authority required | `mark_goal_achieved` |
 | `scenario.spec_sync` | Workflow | `swarm-manager/scenario-spec-sync` | `apply_scenario_spec_sync` |
 
 The table deliberately does not manufacture a one-to-one replacement for

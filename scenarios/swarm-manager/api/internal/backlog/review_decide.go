@@ -46,6 +46,7 @@ type ReviewDecideRequest struct {
 	Rationale string         `json:"rationale,omitempty"`
 	DecidedBy string         `json:"decided_by,omitempty"`
 	NoRecord  bool           `json:"no_record,omitempty"`
+	FollowUp  *FollowUp      `json:"follow_up,omitempty"`
 }
 
 // ReviewDecideResponse echoes the decision back plus the resulting status.
@@ -65,12 +66,13 @@ type ReviewDecideResponse struct {
 // reviewDecisionRecord is the on-disk record of a terminal decision. Stored
 // under `review/decisions/{timestamp}-{decision}.json` inside the item folder.
 type reviewDecisionRecord struct {
-	Decision    string `json:"decision"`
-	Status      string `json:"status"`
-	Rationale   string `json:"rationale,omitempty"`
-	DecidedBy   string `json:"decided_by,omitempty"`
-	DecidedAt   string `json:"decided_at"`
-	PriorStatus string `json:"prior_status"`
+	Decision    string    `json:"decision"`
+	Status      string    `json:"status"`
+	Rationale   string    `json:"rationale,omitempty"`
+	DecidedBy   string    `json:"decided_by,omitempty"`
+	DecidedAt   string    `json:"decided_at"`
+	PriorStatus string    `json:"prior_status"`
+	FollowUp    *FollowUp `json:"follow_up,omitempty"`
 }
 
 // decisionToStatus maps a decision to the resulting backlog status.
@@ -110,6 +112,12 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[backlog] review-decide", apierr.BadRequest("%s", err.Error()))
 		return
 	}
+	if req.Decision == ReviewDecisionFollowup {
+		if err := validateFollowUp(req.FollowUp); err != nil {
+			apierr.MapError(w, "[backlog] review-decide", apierr.BadRequest("%s", err))
+			return
+		}
+	}
 
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
@@ -134,6 +142,7 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 	decidedAt := time.Now().UTC().Format(time.RFC3339)
 
 	item.Status = targetStatus
+	item.PendingFollowUp = req.FollowUp
 	item.Updated = decidedAt
 	if err := h.store.SaveItem(item); err != nil {
 		slog.Error("review-decide: save item", "kind", kind, "name", name, "err", err)
@@ -151,6 +160,7 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 		DecidedBy:   req.DecidedBy,
 		DecidedAt:   decidedAt,
 		PriorStatus: string(priorStatus),
+		FollowUp:    req.FollowUp,
 	}); writeErr != nil {
 		slog.Warn("review-decide: failed to write decision record (status change persisted)",
 			"kind", kind, "name", name, "err", writeErr)
@@ -176,7 +186,7 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 			Title:           item.Title,
 			Description:     item.Description,
 			AcceptanceAllow: item.AcceptanceAllow,
-			Milestone:      item.Milestone,
+			Milestone:       item.Milestone,
 			Status:          targetStatus,
 			DecidedBy:       req.DecidedBy,
 		})
@@ -207,6 +217,25 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] review-decide", apierr.Internal("failed to encode response"))
 	}
+}
+
+func validateFollowUp(followUp *FollowUp) error {
+	if followUp == nil || strings.TrimSpace(followUp.Steering) == "" {
+		return errors.New("followup decision requires follow_up.steering")
+	}
+	switch followUp.Disposition {
+	case FollowUpRun, FollowUpReplan:
+		if len(followUp.Items) > 0 {
+			return errors.New("items is only valid for disposition new_items")
+		}
+	case FollowUpNewItems:
+		if len(followUp.Items) == 0 {
+			return errors.New("new_items disposition requires follow_up.items")
+		}
+	default:
+		return errors.New("followup decision requires a valid follow_up.disposition")
+	}
+	return nil
 }
 
 // writeDecisionRecord persists the terminal decision to the item's review/decisions

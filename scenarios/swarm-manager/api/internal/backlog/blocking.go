@@ -19,8 +19,9 @@ func (n backlogNode) Status() string { return string(n.item.Status) }
 
 // BlockingReason represents a single blocking reason with forceability.
 type BlockingReason struct {
-	Message   string
-	Forceable bool
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	Forceable bool   `json:"forceable"`
 }
 
 // blockingDepStatuses are statuses that indicate a dependency is not yet
@@ -48,6 +49,7 @@ func EvaluateDependencyBlocking(item BacklogItem, store Store) ([]BlockingReason
 		return nil, nil
 	}
 	return []BlockingReason{{
+		Code:      "unmet_dependencies",
 		Message:   fmt.Sprintf("unmet dependencies: %s", strings.Join(unmet, ", ")),
 		Forceable: true,
 	}}, nil
@@ -85,7 +87,7 @@ func DedupeReasons(reasons []BlockingReason) []BlockingReason {
 			continue
 		}
 		seen[trimmed] = struct{}{}
-		result = append(result, BlockingReason{Message: trimmed, Forceable: r.Forceable})
+		result = append(result, BlockingReason{Code: r.Code, Message: trimmed, Forceable: r.Forceable})
 	}
 	return result
 }

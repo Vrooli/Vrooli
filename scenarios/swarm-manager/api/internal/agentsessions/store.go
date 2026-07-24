@@ -536,6 +536,19 @@ func isActiveSessionStatus(status Status) bool {
 	}
 }
 
+// hasStoppableRun distinguishes an operator-visible active session from an
+// Agent Manager execution that can still accept StopRun. Proposal review and
+// application states retain an active UI presence after their attributed run
+// has completed, so stopping them would turn a harmless delete into a 409.
+func hasStoppableRun(status Status) bool {
+	switch status {
+	case StatusStarting, StatusRunning, StatusWaitingForUser:
+		return true
+	default:
+		return false
+	}
+}
+
 func appendJSONL(path string, value any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err

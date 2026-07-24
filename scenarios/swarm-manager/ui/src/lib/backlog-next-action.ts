@@ -10,6 +10,9 @@ export function nextActionDetailTab(action: BacklogNextAction): BacklogNextActio
     case "plan_repair":
       return "prompt";
     case "review":
+	case "decision_stream":
+	case "follow_up_dispatch":
+	case "follow_up_author":
       return "decide";
     case "execution":
       return "activity";

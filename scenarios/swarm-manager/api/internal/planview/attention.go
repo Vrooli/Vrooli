@@ -1,4 +1,4 @@
-// Package gates provides a read-model over existing swarm state that
+// Package planview provides a read-model over existing swarm state that
 // enumerates decision points ("gates") requiring a human or agent action
 // before dependent work can proceed: review-pending items and runs, captures
 // awaiting classification, accepted-plan checks, and pending proposals.
@@ -6,7 +6,7 @@
 // The package owns no storage and no policy — it only projects sources
 // that already exist. Sources sit behind the Source interface so a future
 // gate pre-approval / autonomy-policy layer has a single seam to plug into.
-package gates
+package planview
 
 import (
 	"context"
@@ -68,21 +68,21 @@ type Source interface {
 	Enumerate(ctx context.Context) ([]Gate, error)
 }
 
-// Service concatenates all sources into one gate list. A failing source
+// AttentionService concatenates all sources into one attention list. A failing source
 // degrades gracefully (logged, skipped) — the board stays useful with the
 // remaining sources.
-type Service struct {
+type AttentionService struct {
 	sources []Source
 }
 
-// NewService builds a Service over the given sources.
-func NewService(sources ...Source) *Service {
-	return &Service{sources: sources}
+// NewAttentionService builds an AttentionService over the given sources.
+func NewAttentionService(sources ...Source) *AttentionService {
+	return &AttentionService{sources: sources}
 }
 
 // Enumerate returns all gates from all sources, deterministically sorted
 // by (kind, owner type, owner name).
-func (s *Service) Enumerate(ctx context.Context) []Gate {
+func (s *AttentionService) Enumerate(ctx context.Context) []Gate {
 	var all []Gate
 	for _, src := range s.sources {
 		gs, err := src.Enumerate(ctx)

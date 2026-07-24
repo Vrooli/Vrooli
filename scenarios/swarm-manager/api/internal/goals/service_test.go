@@ -53,6 +53,30 @@ func TestService_CreateComputesScopeAndBaseline(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P0-011] Only evidence-verified milestone delivery can close out a goal.
+func TestService_CloseOutRequiresVerifiedMilestones(t *testing.T) {
+	svc := newTestService(t, []backlog.BacklogItem{item("execute", "a", "completed", nil)})
+	if _, err := svc.Create(CreateRequest{Name: "release", Targets: []string{"execute/a"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreateMilestone("release", Milestone{Name: "ship", Title: "Ship", Items: []string{"execute/a"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CloseOut("release"); err == nil {
+		t.Fatal("CloseOut accepted an unverified milestone")
+	}
+	if _, err := svc.MarkMilestoneDelivered("release", "ship"); err != nil {
+		t.Fatalf("MarkMilestoneDelivered: %v", err)
+	}
+	goal, err := svc.CloseOut("release")
+	if err != nil {
+		t.Fatalf("CloseOut: %v", err)
+	}
+	if goal.Status != StatusAchieved {
+		t.Fatalf("status = %q, want %q", goal.Status, StatusAchieved)
+	}
+}
+
 func TestBacklogMilestoneAssignerAddsScopeBeforeMembership(t *testing.T) {
 	svc := newTestService(t, []backlog.BacklogItem{
 		item("execute", "a", "ready", nil),

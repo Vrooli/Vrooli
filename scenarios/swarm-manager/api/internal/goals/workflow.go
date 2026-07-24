@@ -111,6 +111,11 @@ func (h *Handler) applyWorkflow(ctx context.Context, goalName, executionID strin
 	if err != nil {
 		return nil, err
 	}
+	if pending.Transition == "milestone.review" && result.Outcome == "delivered" {
+		if _, err := h.service.MarkMilestoneDelivered(goalName, pending.Milestone); err != nil {
+			return nil, err
+		}
+	}
 	receipt, err := h.proposalRecorder.RecordGoalWorkflowProposals(ctx, GoalWorkflowProposal{GoalName: goalName, GoalVersion: pending.GoalVersion, Title: pending.Transition + " for " + goal.Goal.Title, Summary: result.Summary, ExecutionID: executionID, WorkflowKey: pending.Transition, Payloads: result.Payloads})
 	if err != nil {
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -29,6 +30,12 @@ const (
 	NextActionRun                 NextActionID = "run"
 	NextActionRetry               NextActionID = "retry"
 	NextActionArchive             NextActionID = "archive"
+	NextActionDecide              NextActionID = "decide"
+	NextActionDispatchFollowup    NextActionID = "dispatch_followup"
+	NextActionAuthorFollowup      NextActionID = "author_followup"
+	NextActionPlanGoal            NextActionID = "plan_goal"
+	NextActionCloseOut            NextActionID = "close_out"
+	NextActionChain               NextActionID = "chain"
 )
 
 // NextActionProjection is a read-only resolution. Existing backlog, plan,
@@ -41,6 +48,7 @@ type NextActionProjection struct {
 	Reason        string           `json:"reason,omitempty"`
 	Blockers      []BlockingReason `json:"blockers,omitempty"`
 	Target        string           `json:"target,omitempty"`
+	FollowUp      *FollowUp        `json:"follow_up,omitempty"`
 }
 
 type nextActionBatchRequest struct {
@@ -61,8 +69,27 @@ func (h *Handler) ResolveNextAction(ctx context.Context, item BacklogItem) (Next
 	if IsArchived(item) {
 		return nextAction(NextActionNone, "", "", false, "This backlog item is archived.", nil, ""), nil
 	}
+	decisionCount := len(collectReviewQuestions(h.store.ItemDir(item.Kind, item.Name), item.Kind, item.Name))
+	if h.decisionCount != nil {
+		count, err := h.decisionCount.PendingDecisions(ctx, item)
+		if err != nil {
+			return NextActionProjection{}, err
+		}
+		decisionCount += count
+	}
+	if decisionCount > 0 {
+		return nextAction(NextActionDecide, "Decide", "Resolve decisions", true, fmt.Sprintf("%d operator decision(s) are waiting on this item.", decisionCount), nil, "decision_stream"), nil
+	}
 	if item.Status == StatusSuggested {
 		return nextAction(NextActionAcceptSuggestion, "Accept", "Accept suggestion", true, "Accept this suggestion before planning or execution.", nil, "suggestion_accept"), nil
+	}
+	if item.Status == StatusNeedsFollowup {
+		if item.PendingFollowUp != nil {
+			action := nextAction(NextActionDispatchFollowup, "Dispatch", "Dispatch follow-up", true, "This review decision has pending recovery work.", nil, "follow_up_dispatch")
+			action.FollowUp = item.PendingFollowUp
+			return action, nil
+		}
+		return nextAction(NextActionAuthorFollowup, "Follow-up", "Author follow-up", true, "This legacy follow-up decision needs a dispatch instruction.", nil, "follow_up_author"), nil
 	}
 	if IsTerminalStatus(item.Status) {
 		if item.Status == StatusFailed {
@@ -70,10 +97,10 @@ func (h *Handler) ResolveNextAction(ctx context.Context, item BacklogItem) (Next
 		}
 		return nextAction(NextActionArchive, "Archive", "Archive item", true, "Work is complete.", nil, "archive"), nil
 	}
-	if IsReviewStatus(item.Status) {
+	if item.Status == StatusReviewPending {
 		return nextAction(NextActionReview, "Review", "Review evidence", true, "This item is awaiting review.", nil, "review"), nil
 	}
-	if item.Status == StatusQueued || item.Status == StatusInProgress {
+	if item.Status == StatusQueued || item.Status == StatusInProgress || item.Status == StatusInReview {
 		return nextAction(NextActionViewExecution, "View run", "View execution", true, "Work is already active.", nil, "execution"), nil
 	}
 	if !hasCanonicalExecutionPlan(item) {
@@ -90,19 +117,22 @@ func (h *Handler) ResolveNextAction(ctx context.Context, item BacklogItem) (Next
 	if err != nil {
 		return NextActionProjection{}, err
 	}
+	if err := validateBlockerCodes(blockers); err != nil {
+		return NextActionProjection{}, err
+	}
 	if preflight.Ready && len(blockers) == 0 {
 		return nextAction(NextActionRun, "Run", "Run item", true, "The current accepted plan is ready for execution.", nil, "run"), nil
 	}
-	if hasBlocker(blockers, "changed after acceptance") || hasBlocker(blockers, "not been explicitly accepted") {
+	if hasBlockerCode(blockers, "plan_changed") || hasBlockerCode(blockers, "plan_not_accepted") {
 		return nextAction(NextActionAcceptPlan, "Plan", "Accept plan", true, firstBlocker(blockers), blockers, "plan_accept"), nil
 	}
-	if hasBlocker(blockers, "not valid") || hasBlocker(blockers, "not executable") {
+	if hasBlockerCode(blockers, "plan_invalid") {
 		return nextAction(NextActionRepairPlan, "Plan", "Repair plan", true, firstBlocker(blockers), blockers, "plan_repair"), nil
 	}
-	if hasBlocker(blockers, "unmet dependencies") {
+	if hasBlockerCode(blockers, "unmet_dependencies") {
 		return nextAction(NextActionResolveDependencies, "Blocked", "Resolve dependencies", true, firstBlocker(blockers), blockers, "dependencies"), nil
 	}
-	return nextAction(NextActionNone, "Blocked", "Resolve blockers", false, firstBlocker(blockers), blockers, ""), nil
+	return nextAction(NextActionRun, "Run", "Retry queue when capacity clears", true, firstBlocker(blockers), blockers, "run"), nil
 }
 
 func hasCanonicalExecutionPlan(item BacklogItem) bool {
@@ -115,13 +145,25 @@ func nextAction(id NextActionID, compact, expanded string, enabled bool, reason 
 	return NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: enabled, Reason: reason, Blockers: blockers, Target: target}
 }
 
-func hasBlocker(blockers []BlockingReason, fragment string) bool {
+func hasBlockerCode(blockers []BlockingReason, code string) bool {
 	for _, blocker := range blockers {
-		if strings.Contains(strings.ToLower(blocker.Message), strings.ToLower(fragment)) {
+		if blocker.Code == code {
 			return true
 		}
 	}
 	return false
+}
+
+func validateBlockerCodes(blockers []BlockingReason) error {
+	for _, blocker := range blockers {
+		switch blocker.Code {
+		case "plan_changed", "plan_not_accepted", "plan_invalid", "unmet_dependencies", "queue_cap", "cost_cap", "circuit_open":
+			continue
+		default:
+			return fmt.Errorf("unmapped next-action blocker code %q", blocker.Code)
+		}
+	}
+	return nil
 }
 
 func firstBlocker(blockers []BlockingReason) string {

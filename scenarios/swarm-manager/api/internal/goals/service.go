@@ -499,6 +499,81 @@ func (s *Service) Archive(name string) (*Goal, error) {
 	return g, nil
 }
 
+// CloseOut marks a goal achieved after independently verified milestone
+// delivery. It intentionally does not infer delivery from member item status:
+// the milestone review is the evidence authority for a goal-level outcome.
+func (s *Service) CloseOut(name string) (*Goal, error) {
+	g, err := s.store.Load(name)
+	if err != nil {
+		return nil, err
+	}
+	if g.Status == StatusAchieved {
+		return g, nil
+	}
+	if g.Status != StatusActive {
+		return nil, validationErr("only active goals can be closed out")
+	}
+	if !allMilestonesVerifiedDelivered(g.Milestones) {
+		return nil, validationErr("every non-archived milestone must be verified delivered before close-out")
+	}
+	g.Status = StatusAchieved
+	g.Updated = nowRFC3339()
+	if err := s.store.Save(g); err != nil {
+		return nil, err
+	}
+	s.indexGoalAsync(*g)
+	s.invalidate()
+	return g, nil
+}
+
+// MarkMilestoneDelivered records the independent-review verdict used by
+// CloseOut. It is deliberately package-owned so workflow application cannot
+// bypass the goal lifecycle boundary.
+func (s *Service) MarkMilestoneDelivered(goalName, milestoneName string) (*GoalWithScope, error) {
+	g, err := s.store.Load(goalName)
+	if err != nil {
+		return nil, err
+	}
+	index := milestoneIndex(g.Milestones, milestoneName)
+	if index < 0 {
+		return nil, validationErr("milestone %q not found", milestoneName)
+	}
+	now := nowRFC3339()
+	g.Milestones[index].VerifiedDeliveredAt = &now
+	g.Updated = now
+	scope, err := s.computeScope(g)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.store.Save(g); err != nil {
+		return nil, err
+	}
+	s.indexGoalAsync(*g)
+	s.invalidate()
+	return &GoalWithScope{Goal: *g, Scope: scope}, nil
+}
+
+func allMilestonesVerifiedDelivered(milestones []Milestone) bool {
+	count := 0
+	for _, milestone := range milestones {
+		if milestone.ArchivedAt != nil {
+			continue
+		}
+		count++
+		if milestone.VerifiedDeliveredAt == nil || strings.TrimSpace(*milestone.VerifiedDeliveredAt) == "" {
+			return false
+		}
+	}
+	return count > 0
+}
+
+// IsCloseOutReady reports whether the goal has evidence for the operator-only
+// close-out action. It is intentionally read-only so projections never need to
+// attempt a mutation merely to discover eligibility.
+func IsCloseOutReady(goal Goal) bool {
+	return goal.Status == StatusActive && allMilestonesVerifiedDelivered(goal.Milestones)
+}
+
 // Unarchive restores a goal to active status without discarding its history.
 func (s *Service) Unarchive(name string) (*Goal, error) {
 	g, err := s.store.Load(name)

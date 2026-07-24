@@ -4,12 +4,12 @@
  * Renders everything inside `<ResponsiveListItem>`. The wrapper/Link stays
  * in the parent component so routing context is controlled by the caller.
  *
- * Action visibility/disabled logic comes from the `itemActions` prop
- * (computed by `getItemActions()` in the parent) — this component only renders.
+ * Primary action visibility and labels come from the server next-action
+ * projection. While it loads, the card shows a truthful loading state.
  */
 
 import { memo } from "react";
-import { Archive, ArrowRight, CheckSquare, Clock, Lock, MessageSquare, Play } from "lucide-react";
+import { Archive, ArrowRight, Clock, Lock, Play } from "lucide-react";
 import { Button } from "../ui/button";
 import { TagList } from "../ui/tag-list";
 import { formatRelativeTime } from "../../lib";
@@ -109,15 +109,7 @@ function BacklogCardImpl({
   batchMode = false,
   isSelected = false,
   onToggleSelection = () => {},
-  onRun = () => {},
   onNextAction = () => {},
-  onArchive = () => {},
-  onFollowUp = () => {},
-  onAcceptSuggestion = () => {},
-  onDismissSuggestion = () => {},
-  archivePending = false,
-  dismissPending = false,
-  runningLabel = "Agent running…",
   onStatusChange,
   statusChangePending,
   showSnooze,
@@ -161,10 +153,8 @@ function BacklogCardImpl({
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
   const showBatchCheckbox = batchMode;
   const KindIcon = BACKLOG_KIND_ICONS[item.kind];
-  const hasPrimaryActionRow = nextAction
-    ? nextAction.id !== "none"
-    : (itemActions.canRun || itemActions.runDisabled) && !itemActions.blocked;
-  const hasServerActionProjection = nextAction !== undefined;
+  const hasPrimaryActionRow = nextAction?.id !== "none";
+  const actionProjectionPending = nextAction === undefined;
   const snoozeItemKey = snoozeKeyForBacklog(item.kind, item.name);
   const actionRowClass = "mt-3 flex flex-nowrap items-center gap-2 overflow-x-auto pb-1";
 
@@ -264,58 +254,8 @@ function BacklogCardImpl({
             </div>
           )}
 
-          {!hasServerActionProjection && item.status === "suggested" && !item.archivedAt && (
-            <div className={actionRowClass} data-testid="backlog-card-actions" onClick={(event) => event.preventDefault()}>
-              <Button
-                size="sm"
-                variant="default"
-                disabled={statusChangePending}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onAcceptSuggestion();
-                }}
-              >
-                <CheckSquare className="mr-1 h-3 w-3" />
-                Accept
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={dismissPending}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onDismissSuggestion();
-                }}
-              >
-                <Archive className="mr-1 h-3 w-3" />
-                {dismissPending ? "Dismissing..." : "Dismiss"}
-              </Button>
-            </div>
-          )}
-
-          {/* Blocked state */}
-          {!hasServerActionProjection && itemActions.blocked && !itemActions.locked && (
-            <div className="mt-3 space-y-2" onClick={(event) => event.preventDefault()}>
-              {itemActions.runDisabled && (
-                <div className={actionRowClass} data-testid="backlog-card-actions">
-                  {(itemActions.runDisabled) && (
-                    <Button
-                      size="sm"
-                      disabled
-                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                    >
-                      <Play className="mr-1 h-3 w-3" />
-                      Run
-                    </Button>
-                  )}
-                </div>
-              )}
-              <p className="text-xs text-slate-500">
-                Blocked by dependencies
-              </p>
-            </div>
+          {actionProjectionPending && !item.archivedAt && (
+            <p className="mt-3 text-xs text-slate-500" data-testid="backlog-card-action-loading">Loading next action…</p>
           )}
 
           {/* Primary action row */}
@@ -336,62 +276,7 @@ function BacklogCardImpl({
                   <Play className="mr-1 h-3 w-3" />
                   {nextAction.expandedLabel}
                 </Button>
-              ) : (itemActions.canRun || itemActions.runDisabled) && (
-                <Button
-                  size="sm"
-                  variant={itemActions.primaryCta === "run" ? "default" : "outline"}
-                  disabled={itemActions.runDisabled}
-                  title={itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onRun();
-                  }}
-                >
-                  <Play className="mr-1 h-3 w-3" />
-                  {itemActions.agentExecuting ? runningLabel : "Run"}
-                </Button>
-              )}
-              {showSnooze && onSnooze && (
-                <SnoozePopover itemKey={snoozeItemKey} onSnooze={onSnooze}>
-                  <Clock className="h-3.5 w-3.5" />
-                </SnoozePopover>
-              )}
-            </div>
-          )}
-
-          {/* Terminal actions: Follow Up + Archive in a single row */}
-          {!hasServerActionProjection && (itemActions.canFollowUp || itemActions.canArchive) && (
-            <div className={actionRowClass} data-testid="backlog-card-actions" onClick={(event) => event.preventDefault()}>
-              {itemActions.canFollowUp && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onFollowUp();
-                  }}
-                >
-                  <MessageSquare className="mr-1 h-3 w-3" />
-                  Follow Up
-                </Button>
-              )}
-              {itemActions.canArchive && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={archivePending}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onArchive();
-                  }}
-                >
-                  <Archive className="mr-1 h-3 w-3" />
-                  {archivePending ? "Archiving..." : "Archive"}
-                </Button>
-              )}
+              ) : null}
               {showSnooze && onSnooze && (
                 <SnoozePopover itemKey={snoozeItemKey} onSnooze={onSnooze}>
                   <Clock className="h-3.5 w-3.5" />
@@ -401,7 +286,7 @@ function BacklogCardImpl({
           )}
 
           {/* Standalone snooze when no action rows are shown */}
-          {showSnooze && onSnooze && !hasPrimaryActionRow && !itemActions.canFollowUp && !itemActions.canArchive && !itemActions.blocked && (
+          {showSnooze && onSnooze && !hasPrimaryActionRow && !actionProjectionPending && (
             <div className={actionRowClass} onClick={(event) => event.preventDefault()}>
               <SnoozePopover itemKey={snoozeItemKey} onSnooze={onSnooze}>
                 <Clock className="h-3.5 w-3.5" />

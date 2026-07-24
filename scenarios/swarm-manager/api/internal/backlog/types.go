@@ -9,6 +9,7 @@ import (
 
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/backlogstatus"
+	"swarm-manager/internal/followup"
 	"swarm-manager/internal/identity"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -113,7 +114,7 @@ type BacklogItem struct {
 	Updated         string        `json:"updated"`
 	Kind            BacklogKind   `json:"kind"`
 	DependsOn       []string      `json:"depends_on,omitempty"`
-	Milestone      string        `json:"milestone,omitempty"`
+	Milestone       string        `json:"milestone,omitempty"`
 	Effort          string        `json:"effort,omitempty"`
 	AcceptanceAllow []string      `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string      `json:"acceptance_deny,omitempty"`
@@ -131,7 +132,20 @@ type BacklogItem struct {
 	CreatedBy       *identity.Provenance `json:"created_by,omitempty"`
 	ArchivedAt      *string              `json:"archived_at,omitempty"`
 	LastReview      *ReviewRecord        `json:"last_review,omitempty"`
+	// PendingFollowUp is the operator-authored or agent-proposed recovery
+	// instruction attached by review-decide. needs_followup is actionable only
+	// while this durable instruction remains undispatched.
+	PendingFollowUp *FollowUp `json:"pending_follow_up,omitempty"`
 }
+
+type FollowUp = followup.Contract
+type FollowUpDisposition = followup.Disposition
+
+const (
+	FollowUpRun      = followup.DispositionRun
+	FollowUpReplan   = followup.DispositionReplan
+	FollowUpNewItems = followup.DispositionNewItems
+)
 
 // ReviewRecord captures an accepted no-change review without altering the
 // work item's content-update timestamp.

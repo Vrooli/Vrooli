@@ -44,7 +44,7 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 
 	isArchived := item.ArchivedAt != nil
 	if checkQueueable && !isQueueableStatus(item.Kind, item.Status) && !(isArchived && strings.ToLower(strings.TrimSpace(item.Kind)) == "idea") {
-		preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("backlog item cannot be queued from current status: %s", item.Status))
+		appendPreflightBlocker(&preflight, "circuit_open", fmt.Sprintf("backlog item cannot be queued from current status: %s", item.Status), false)
 	}
 
 	// Execution requires an explicit acceptance of the current canonical plan.
@@ -52,12 +52,12 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 	// deliberately not a release gate.
 	hasDeliverable := hasExecutionPlanRef(item)
 	if !hasDeliverable {
-		preflight.BlockingReasons = append(preflight.BlockingReasons, missingDeliverableReason(item.Kind, ""))
+		appendPreflightBlocker(&preflight, "plan_invalid", missingDeliverableReason(item.Kind, ""), false)
 	}
 	if hasDeliverable {
-		acceptanceReason := s.planAcceptanceBlockingReason(ctx, item)
-		if acceptanceReason != "" {
-			preflight.BlockingReasons = append(preflight.BlockingReasons, acceptanceReason)
+		acceptanceBlocker := s.planAcceptanceBlockingReason(ctx, item)
+		if acceptanceBlocker.Message != "" {
+			appendPreflightBlocker(&preflight, acceptanceBlocker.Code, acceptanceBlocker.Message, false)
 		}
 	}
 
@@ -71,36 +71,46 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 	return preflight
 }
 
-func (s *Service) planAcceptanceBlockingReason(ctx context.Context, item backlogItem) string {
+func appendPreflightBlocker(preflight *ProcessPreflight, code, message string, forceable bool) {
+	if forceable {
+		preflight.ForceableBlockingReasons = append(preflight.ForceableBlockingReasons, message)
+		preflight.ForceableBlockingDetails = append(preflight.ForceableBlockingDetails, ProcessBlockingReason{Code: code, Message: message})
+		return
+	}
+	preflight.BlockingReasons = append(preflight.BlockingReasons, message)
+	preflight.BlockingDetails = append(preflight.BlockingDetails, ProcessBlockingReason{Code: code, Message: message})
+}
+
+func (s *Service) planAcceptanceBlockingReason(ctx context.Context, item backlogItem) ProcessBlockingReason {
 	if item.PlanAcceptance == nil {
-		return "canonical plan has not been explicitly accepted — accept the current plan revision before queueing"
+		return ProcessBlockingReason{Code: "plan_not_accepted", Message: "canonical plan has not been explicitly accepted — accept the current plan revision before queueing"}
 	}
 	// Production wiring always supplies the Plan Manager renderer. The nil
 	// seam is retained for narrow domain tests and embedded callers that can
 	// verify stored acceptance but do not own a Plan Manager connection.
 	if s.planRenderer == nil {
-		return ""
+		return ProcessBlockingReason{}
 	}
 	rendered, err := resolveRenderedPlanContent(ctx, item, s.planRenderer)
 	if err != nil {
-		return fmt.Sprintf("canonical plan validation unavailable: %s", err)
+		return ProcessBlockingReason{Code: "plan_invalid", Message: fmt.Sprintf("canonical plan validation unavailable: %s", err)}
 	}
 	if strings.TrimSpace(rendered.QualityStatus) != "pass" {
-		return fmt.Sprintf("canonical plan is not valid: quality status is %q", rendered.QualityStatus)
+		return ProcessBlockingReason{Code: "plan_invalid", Message: fmt.Sprintf("canonical plan is not valid: quality status is %q", rendered.QualityStatus)}
 	}
 	if rendered.Status == "PLAN_STATUS_DRAFT" || rendered.Status == "PLAN_STATUS_ARCHIVED" {
-		return fmt.Sprintf("canonical plan is not executable in status %q", rendered.Status)
+		return ProcessBlockingReason{Code: "plan_invalid", Message: fmt.Sprintf("canonical plan is not executable in status %q", rendered.Status)}
 	}
 	if strings.TrimSpace(rendered.ContentHash) == "" {
-		return "canonical plan validation unavailable: plan-manager returned no content hash"
+		return ProcessBlockingReason{Code: "plan_invalid", Message: "canonical plan validation unavailable: plan-manager returned no content hash"}
 	}
 	if strings.TrimSpace(item.PlanAcceptance.PlanContentHash) != strings.TrimSpace(rendered.ContentHash) {
-		return "canonical plan changed after acceptance — accept the current revision before queueing"
+		return ProcessBlockingReason{Code: "plan_changed", Message: "canonical plan changed after acceptance — accept the current revision before queueing"}
 	}
 	if strings.TrimSpace(item.PlanAcceptance.SubjectVersion) != executionPlanAcceptanceSubjectVersion(item) {
-		return "work contract changed after plan acceptance — accept the current revision before queueing"
+		return ProcessBlockingReason{Code: "plan_changed", Message: "work contract changed after plan acceptance — accept the current revision before queueing"}
 	}
-	return ""
+	return ProcessBlockingReason{}
 }
 
 func executionPlanAcceptanceSubjectVersion(item backlogItem) string {

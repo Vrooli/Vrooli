@@ -30,7 +30,7 @@ export const CYCLE_WAVE = -1;
 export interface PlanGateData {
   id: string;
   kind: PlanGateKind;
-  ownerType: "backlog" | "execution" | "capture" | "milestone";
+  ownerType: "backlog" | "execution" | "capture" | "milestone" | "goal";
   ownerKind: string;
   ownerName: string;
   ownerTitle: string;

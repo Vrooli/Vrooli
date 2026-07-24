@@ -11,9 +11,22 @@ import (
 	"strings"
 	"testing"
 
+	"swarm-manager/internal/followup"
+
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
+
+type recordingFollowUpDispatcher struct {
+	called   bool
+	steering string
+}
+
+func (d *recordingFollowUpDispatcher) DispatchFollowUp(_ context.Context, _ BacklogKind, _ string, steering string) error {
+	d.called = true
+	d.steering = steering
+	return nil
+}
 
 // TestReviewDecide_AcceptFromReviewPending verifies that an item in
 // review_pending can be flipped to completed via the accept decision, and
@@ -174,7 +187,7 @@ func TestReviewDecide_FollowupMapsToNeedsFollowup(t *testing.T) {
 		Kind:   KindExecute,
 	})
 
-	body, _ := json.Marshal(ReviewDecideRequest{Decision: ReviewDecisionFollowup, Rationale: "UI needs another pass"})
+	body, _ := json.Marshal(ReviewDecideRequest{Decision: ReviewDecisionFollowup, Rationale: "UI needs another pass", FollowUp: &FollowUp{Steering: "Correct the mobile layout and revalidate it.", Disposition: FollowUpRun}})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/followup-item/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "followup-item"})
 	rec := httptest.NewRecorder()
@@ -187,6 +200,26 @@ func TestReviewDecide_FollowupMapsToNeedsFollowup(t *testing.T) {
 	updated, _ := h.store.LoadItem(KindExecute, "followup-item")
 	if updated.Status != StatusNeedsFollowup {
 		t.Errorf("status = %q, want %q", updated.Status, StatusNeedsFollowup)
+	}
+	if updated.PendingFollowUp == nil || updated.PendingFollowUp.Disposition != FollowUpRun {
+		t.Fatalf("pending follow-up = %#v", updated.PendingFollowUp)
+	}
+}
+
+func TestReviewDecide_FollowupRequiresTypedInstruction(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindExecute, BacklogItem{Name: "missing-followup", Status: StatusReviewPending, Kind: KindExecute})
+	body, _ := json.Marshal(ReviewDecideRequest{Decision: ReviewDecisionFollowup})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/missing-followup/review-decide", bytes.NewReader(body))
+	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "missing-followup"})
+	rec := httptest.NewRecorder()
+	h.ReviewDecide(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	item, _ := h.store.LoadItem(KindExecute, "missing-followup")
+	if item.Status != StatusReviewPending {
+		t.Fatalf("status mutated to %q", item.Status)
 	}
 }
 
@@ -406,5 +439,95 @@ func TestReviewDecide_MissingRationaleOK(t *testing.T) {
 	}
 	if len(entries) != 1 {
 		t.Fatalf("expected 1 decision file, got %d", len(entries))
+	}
+}
+
+// [REQ:SWM-P0-009] A persisted recovery instruction is executable, not a
+// terminal status dead-end. Each disposition consumes the instruction.
+func TestDispatchFollowUpDispositions(t *testing.T) {
+	tests := []struct {
+		name       string
+		followUp   *FollowUp
+		wantStatus BacklogStatus
+		wantChild  bool
+	}{
+		{name: "replan", followUp: &FollowUp{Steering: "Revise the plan.", Disposition: FollowUpReplan}, wantStatus: StatusBacklog},
+		{name: "new items", followUp: &FollowUp{Steering: "Split the work.", Disposition: FollowUpNewItems, Items: []followup.ItemSpec{{Kind: "execute", Name: "child", Title: "Child"}}}, wantStatus: StatusCompleted, wantChild: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h, root := setupTestHandler(t)
+			lifecycle, err := NewService(ServiceConfig{Store: h.store})
+			if err != nil {
+				t.Fatal(err)
+			}
+			h.SetLifecycleService(lifecycle)
+			item := BacklogItem{Name: "parent", Title: "Parent", Kind: KindExecute, Status: StatusNeedsFollowup, PlanAcceptance: &PlanAcceptance{}, PendingFollowUp: tt.followUp}
+			createTestItem(t, root, item.Kind, item)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/parent/follow-up/dispatch", nil)
+			req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "parent"})
+			rec := httptest.NewRecorder()
+			h.DispatchFollowUp(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+			}
+			updated, err := h.store.LoadItem(KindExecute, "parent")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if updated.Status != tt.wantStatus || updated.PendingFollowUp != nil {
+				t.Fatalf("updated = %#v", updated)
+			}
+			if tt.name == "replan" && (updated.PlanAcceptance != nil || !strings.Contains(updated.Note, "Revise the plan.")) {
+				t.Fatalf("replan did not clear acceptance and preserve steering: %#v", updated)
+			}
+			if tt.wantChild {
+				if _, err := h.store.LoadItem(KindExecute, "child"); err != nil {
+					t.Fatalf("follow-up child not created: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestDispatchFollowUpRunUsesExecutionBridge(t *testing.T) {
+	h, root := setupTestHandler(t)
+	dispatcher := &recordingFollowUpDispatcher{}
+	h.SetFollowUpDispatcher(dispatcher)
+	item := BacklogItem{Name: "parent", Title: "Parent", Kind: KindExecute, Status: StatusNeedsFollowup, PendingFollowUp: &FollowUp{Steering: "Address the failing check.", Disposition: FollowUpRun}}
+	createTestItem(t, root, item.Kind, item)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/parent/follow-up/dispatch", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "parent"})
+	rec := httptest.NewRecorder()
+	h.DispatchFollowUp(rec, req)
+	if rec.Code != http.StatusOK || !dispatcher.called || dispatcher.steering != "Address the failing check." {
+		t.Fatalf("status=%d dispatcher=%#v", rec.Code, dispatcher)
+	}
+	updated, err := h.store.LoadItem(KindExecute, "parent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Status != StatusQueued || updated.PendingFollowUp != nil {
+		t.Fatalf("updated = %#v", updated)
+	}
+}
+
+func TestAuthorFollowUpConvertsLegacyItemToTypedInstruction(t *testing.T) {
+	h, root := setupTestHandler(t)
+	item := BacklogItem{Name: "legacy", Title: "Legacy", Kind: KindExecute, Status: StatusNeedsFollowup}
+	createTestItem(t, root, item.Kind, item)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/legacy/follow-up/author", bytes.NewBufferString(`{"follow_up":{"steering":"Replan around the evidence.","disposition":"replan"}}`))
+	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "legacy"})
+	rec := httptest.NewRecorder()
+	h.AuthorFollowUp(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	updated, err := h.store.LoadItem(KindExecute, "legacy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.PendingFollowUp == nil || updated.PendingFollowUp.Steering != "Replan around the evidence." || updated.PendingFollowUp.Disposition != FollowUpReplan {
+		t.Fatalf("pending follow-up = %#v", updated.PendingFollowUp)
 	}
 }

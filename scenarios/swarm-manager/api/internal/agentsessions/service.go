@@ -480,8 +480,8 @@ func (s *Service) Cancel(ctx context.Context, sessionID string) (Session, error)
 	if err != nil {
 		return Session{}, mapStoreError(err)
 	}
-	if strings.TrimSpace(session.RunID) != "" && s.spawner != nil && isActiveSessionStatus(session.Status) {
-		if err := s.spawner.StopRun(ctx, session.RunID); err != nil {
+	if strings.TrimSpace(session.RunID) != "" && s.spawner != nil && hasStoppableRun(session.Status) {
+		if err := s.spawner.StopRun(ctx, session.RunID); err != nil && !isTerminalRunStopConflict(err) {
 			return Session{}, mapSpawnError(err)
 		}
 	}
@@ -499,8 +499,8 @@ func (s *Service) Delete(ctx context.Context, sessionID string) error {
 	if err != nil {
 		return mapStoreError(err)
 	}
-	if strings.TrimSpace(session.RunID) != "" && s.spawner != nil && isActiveSessionStatus(session.Status) {
-		if err := s.spawner.StopRun(ctx, session.RunID); err != nil {
+	if strings.TrimSpace(session.RunID) != "" && s.spawner != nil && hasStoppableRun(session.Status) {
+		if err := s.spawner.StopRun(ctx, session.RunID); err != nil && !isTerminalRunStopConflict(err) {
 			return mapSpawnError(err)
 		}
 	}
@@ -509,4 +509,12 @@ func (s *Service) Delete(ctx context.Context, sessionID string) error {
 	}
 	s.emitDeleted(session)
 	return nil
+}
+
+func isTerminalRunStopConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "status 409") && (strings.Contains(message, "state_terminal") || strings.Contains(message, "cannot stop run in"))
 }

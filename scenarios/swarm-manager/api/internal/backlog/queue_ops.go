@@ -271,16 +271,26 @@ func (h *Handler) collectQueueBlockingReasons(item BacklogItem, kind BacklogKind
 	// Convert preflight reasons to structured BlockingReasons.
 	// Preflight reasons from the execution service are non-forceable structural blockers.
 	var blockingReasons []BlockingReason
-	for _, reason := range preflight.BlockingReasons {
+	for i, reason := range preflight.BlockingReasons {
+		code := "circuit_open"
+		if i < len(preflight.BlockingDetails) && preflight.BlockingDetails[i].Code != "" {
+			code = preflight.BlockingDetails[i].Code
+		}
 		blockingReasons = append(blockingReasons, BlockingReason{
+			Code:      code,
 			Message:   reason,
 			Forceable: false,
 		})
 	}
 	// Forceable preflight reasons (e.g. the fix-before-feature gate in "block"
 	// mode) block the queue but can be overridden with force=true.
-	for _, reason := range preflight.ForceableBlockingReasons {
+	for i, reason := range preflight.ForceableBlockingReasons {
+		code := "circuit_open"
+		if i < len(preflight.ForceableBlockingDetails) && preflight.ForceableBlockingDetails[i].Code != "" {
+			code = preflight.ForceableBlockingDetails[i].Code
+		}
 		blockingReasons = append(blockingReasons, BlockingReason{
+			Code:      code,
 			Message:   reason,
 			Forceable: true,
 		})

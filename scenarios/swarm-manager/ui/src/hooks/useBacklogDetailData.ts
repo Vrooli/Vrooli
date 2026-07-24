@@ -10,10 +10,7 @@
  */
 
 import { useMemo } from "react";
-import {
-  getItemActions,
-  scenariosFromGlobs,
-} from "../lib";
+import { itemActionsFromNextAction, scenariosFromGlobs } from "../lib";
 import type { ItemActions, ResolvedDependencyActivity } from "../lib/backlog-queue-utils";
 import { computeDependencyRelations } from "../lib/backlog-queue-utils";
 import { isAgentActivityBlocking } from "../lib/agent-activity-utils";
@@ -53,7 +50,6 @@ export function useBacklogDetailData({
   agentRunIsBlocking,
 }: UseBacklogDetailDataOptions) {
   const allBacklogItems = useBacklogStore((state) => state.items);
-  const blockingMap = useBacklogStore((state) => state.blockingMap);
 
   // -----------------------------------------------------------------------
   // Queries
@@ -135,26 +131,15 @@ export function useBacklogDetailData({
     [item, allBacklogItems, activityByKey],
   );
 
-  // Default client-side CTA funnel, then gated by the canonical workflow
-  // projection's legal_actions when a workflow document exists for the item.
-  // No workflow (found=false → the item has not run an operation yet) → the
-  // client funnel applies unchanged. See lib/workflow-legal-actions.ts.
+  // The server resolves eligibility and ordering. This adapter only preserves
+  // the existing button component's rendering shape during its migration.
   const itemActions: ItemActions | null = useMemo(() => {
     if (!item) return null;
-    const itemKey = `${item.kind}/${item.name}`;
-    const clientActions = getItemActions({
-      item,
-      blockingInfo: blockingMap[itemKey] ?? null,
+    return itemActionsFromNextAction(item, nextAction, {
       agentRunning: agentRunIsBlocking,
       agentExecuting: agentRunIsExecuting,
-      hasPendingDecisions: false,
-      hasExecutionHistory: (executionHistory?.length ?? 0) > 0,
-      hasTerminalExecution: (executionHistory ?? []).some(
-        (e) => e.status === "completed" || e.status === "failed" || e.status === "canceled" || e.status === "needs_fixup",
-      ),
     });
-    return clientActions;
-  }, [item, blockingMap, agentRunIsBlocking, agentRunIsExecuting, executionHistory]);
+  }, [item, nextAction, agentRunIsBlocking, agentRunIsExecuting]);
 
   const isLocked = itemActions?.locked ?? false;
   const isTerminal = itemActions?.terminal ?? false;

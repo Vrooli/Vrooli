@@ -231,7 +231,7 @@ message CreatePlanRequest {
 }
 ```
 
-**Note**: For UI applications, Protovalidate is typically used server-side. Client-side validation (Zod) provides immediate feedback to users, while Protovalidate provides a backend safety net. See the `react-stability` skill in prompt-manager for client-side validation patterns.
+**Note**: For UI applications, Protovalidate is typically used server-side. Client-side validation (Zod) provides immediate feedback to users, while Protovalidate provides a backend safety net. See the `ui-health` skill in prompt-manager for client-side validation patterns.
 
 ## Troubleshooting
 
