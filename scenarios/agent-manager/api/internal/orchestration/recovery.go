@@ -303,6 +303,9 @@ func (r *Reconciler) startTailer(run *domain.Run, transcriptPath string, state *
 			delete(r.tailers, run.ID)
 			r.recoveryMu.Unlock()
 		}()
+		// Log-only containment: the process may still be healthy, so the run
+		// must not be failed here; the stale sweep is the backstop.
+		defer obs.RecoverToFailure("recovery transcript tailer", nil)
 
 		ticker := time.NewTicker(r.levers.Recovery.TranscriptTailInterval)
 		defer ticker.Stop()

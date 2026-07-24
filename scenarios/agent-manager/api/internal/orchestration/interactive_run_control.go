@@ -253,6 +253,9 @@ func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run) {
 	ctx, driver := o.interactiveDrivers.register(context.Background(), run.ID)
 	go func() {
 		defer o.interactiveDrivers.finish(run.ID, driver)
+		defer obs.RecoverToFailure("interactive continuation driver", func(failure obs.PanicFailure) {
+			o.recoverPanickedRun(&runCopy, failure)
+		})
 		terminal, tailErr := coord.TailToCompletion(ctx, &runCopy)
 		if err := coord.Finalize(ctx, &runCopy, terminal, tailErr); err != nil {
 			obs.Component("interactive").Warn("interactive continuation finalize failed",

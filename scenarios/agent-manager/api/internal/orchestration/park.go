@@ -403,6 +403,7 @@ func (o *Orchestrator) endParkedTurn(run *domain.Run) {
 	runID := run.ID
 	grace := o.parkTurnEndGrace()
 	go func() {
+		defer obs.RecoverToFailure("park turn-end stop", nil)
 		if grace > 0 {
 			time.Sleep(grace)
 		}

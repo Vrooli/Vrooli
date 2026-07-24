@@ -99,7 +99,10 @@ func (r *AwaitRegistry) Register(runID uuid.UUID, handle *domain.AwaitHandle) {
 	r.wg.Add(1)
 	r.mu.Unlock()
 
-	go r.watch(ctx, runID, *handle)
+	go func() {
+		defer obs.RecoverToFailure("await watcher", nil)
+		r.watch(ctx, runID, *handle)
+	}()
 }
 
 // Cancel stops the watcher for a run without waking it (used when the run is

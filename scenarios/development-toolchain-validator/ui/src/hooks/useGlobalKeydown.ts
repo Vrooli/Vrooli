@@ -4,7 +4,7 @@ import { emitShortcutIntent } from "@vrooli/iframe-bridge";
 /**
  * Single central keyboard shortcut hook.
  *
- * Per `react-coherence` §0.5: one shortcut manager per app shell. All
+ * Per `ui-health`: one shortcut manager per app shell. All
  * `document.addEventListener("keydown", …)` calls outside this hook are a
  * regression — route shortcut handling through here instead.
  *

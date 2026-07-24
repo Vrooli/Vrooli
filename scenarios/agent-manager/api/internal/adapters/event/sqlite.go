@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -298,6 +299,11 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 
 	// Send existing events from the database in a goroutine
 	go func() {
+		defer func() {
+			if v := recover(); v != nil {
+				s.log.WithField("panic", fmt.Sprint(v)).WithField("stack", string(debug.Stack())).Error("historical event stream panic recovered")
+			}
+		}()
 		// Build type filter if needed
 		var typeFilter []domain.RunEventType
 		if len(opts.EventTypes) > 0 {

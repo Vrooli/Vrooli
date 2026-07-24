@@ -40,6 +40,9 @@ type HeartbeatLoopInput struct {
 // caller's ctx is cancelled. Closes Done when it exits.
 func RunHeartbeatLoop(ctx context.Context, in HeartbeatLoopInput) {
 	defer close(in.Done)
+	// A contained panic stops heartbeats (the reconciler will eventually reap
+	// the run as stale) but must not take down the API with it.
+	defer obs.RecoverToFailure("run heartbeat loop", nil)
 
 	hbLog := obs.Component("heartbeat").With(
 		obs.KeyRunID, in.Run.ID.String(),

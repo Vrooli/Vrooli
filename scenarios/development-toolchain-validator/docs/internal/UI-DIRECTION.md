@@ -1,6 +1,6 @@
 # DTV UI — Visual Direction Brief
 
-This brief precedes code per `react-coherence` §5.1. It captures intent, references, and constraints for the DTV UI revamp. The detailed implementation plan lives at `~/.vrooli/plans/dtv-ui-revamp-layered-architecture-design-system-and-navigation-contract.md`.
+This brief precedes code per `ui-health` It captures intent, references, and constraints for the DTV UI revamp. The detailed implementation plan lives at `~/.vrooli/plans/dtv-ui-revamp-layered-architecture-design-system-and-navigation-contract.md`.
 
 ## Intent
 
@@ -35,7 +35,7 @@ Ships in P0 with mirrored tokens via `:root[data-theme="light"]`. Final polish i
 - en / ja / aR locales must render. Every user-facing string flows through `consts/strings.generated.ts`.
 - No horizontal scroll at 360w. Sidebar collapses to drawer below `md`; bottom nav appears with `pb-safe`.
 - `data-testid` selectors on every interactive element via `selectors.ts`.
-- Keyboard navigation reaches every primary affordance. One central `useGlobalKeydown` per `react-coherence` §0.5.
+- Keyboard navigation reaches every primary affordance. One central `useGlobalKeydown` per `ui-health`
 - No raw color values in TSX surface markup. Tokens only.
 - WCAG AA contrast for core text/status pairs in both themes.
 - Preserve the existing i18n pipeline; cimode-default tests; cross-locale parity test.

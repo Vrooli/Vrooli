@@ -360,7 +360,7 @@ func (r *Reconciler) loop(ctx context.Context) {
 	defer close(r.doneCh)
 
 	// Run once immediately on startup.
-	stats := r.reconcile(ctx)
+	stats := r.reconcileGuarded(ctx)
 	r.updateStats(stats)
 
 	r.mu.Lock()
@@ -376,7 +376,7 @@ func (r *Reconciler) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
-			stats := r.reconcile(ctx)
+			stats := r.reconcileGuarded(ctx)
 			r.updateStats(stats)
 			// Re-read interval (may have changed via UpdateConfig).
 			r.mu.Lock()
@@ -408,6 +408,14 @@ func (r *Reconciler) updateStats(stats ReconcileStats) {
 }
 
 // reconcile performs the actual reconciliation work.
+// reconcileGuarded contains a panic from any sweep inside one cycle so the
+// reconciliation loop — the process-wide recovery safety net — keeps ticking
+// on the next interval instead of taking down the API.
+func (r *Reconciler) reconcileGuarded(ctx context.Context) (stats ReconcileStats) {
+	defer obs.RecoverToFailure("reconciler cycle", nil)
+	return r.reconcile(ctx)
+}
+
 func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	start := r.now()
 	stats := ReconcileStats{Timestamp: start}

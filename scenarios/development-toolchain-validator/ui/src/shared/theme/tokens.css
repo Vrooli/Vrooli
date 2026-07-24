@@ -6,7 +6,7 @@
  * from styles.css; this file is the authoritative source for any token
  * that did not exist in the template.
  *
- * Naming follows react-coherence §4 (semantic, not palette): consumers
+ * Naming follows ui-health (semantic, not palette): consumers
  * reference `text-status-pass`, never `text-emerald-400`.
  */
 

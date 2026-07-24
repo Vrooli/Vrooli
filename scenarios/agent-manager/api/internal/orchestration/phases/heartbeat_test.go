@@ -8,6 +8,7 @@ import (
 
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
@@ -49,5 +50,35 @@ func TestRunHeartbeatLoopStopsWithoutWaitingForNextTick(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("heartbeat loop did not stop")
+	}
+}
+
+// panickingHeartbeatRepo simulates a defect inside the heartbeat persist path.
+type panickingHeartbeatRepo struct{ repository.RunRepository }
+
+func (panickingHeartbeatRepo) Update(context.Context, *domain.Run) error {
+	panic("simulated heartbeat persist defect")
+}
+
+// A panic inside the heartbeat loop must be contained: Done still closes so
+// the executor is not wedged, and the API stays up.
+func TestRunHeartbeatLoopContainsPanic(t *testing.T) {
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	run := &domain.Run{ID: uuid.New(), Tag: "heartbeat-panic"}
+	levers := config.DefaultLevers()
+	levers.Heartbeat.RunHeartbeatInterval = time.Hour
+	go RunHeartbeatLoop(context.Background(), HeartbeatLoopInput{
+		Deps:   Deps{Runs: panickingHeartbeatRepo{}, Clock: time.Now},
+		Run:    run,
+		Mu:     &sync.Mutex{},
+		Levers: levers,
+		Stop:   stop,
+		Done:   done,
+	})
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("heartbeat loop did not exit after contained panic")
 	}
 }

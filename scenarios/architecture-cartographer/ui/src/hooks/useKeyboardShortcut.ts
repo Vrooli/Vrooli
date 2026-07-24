@@ -3,7 +3,7 @@ import * as React from "react";
 /**
  * useKeyboardShortcut — register a single, global keyboard shortcut.
  *
- * Per `react-coherence` §0.5 there is one shortcut manager for the whole
+ * Per `ui-health` there is one shortcut manager for the whole
  * shell. This hook is the public API for that manager: components register
  * their interest, the hook attaches one `keydown` listener per-mount, and
  * the matcher fires the handler when the chord matches.

@@ -545,3 +545,48 @@ func TestDispatcher_RecoversPanickingJob(t *testing.T) {
 		return stats.ActiveCount == 0 && stats.StartingCount == 0
 	})
 }
+
+// panicOnSecondEmitSink lets the request-path EmitSpawnEnqueued succeed, then
+// panics on the worker-path EmitSpawnStarted.
+type panicOnSecondEmitSink struct{ calls atomic.Int32 }
+
+func (s *panicOnSecondEmitSink) Emit(*domain.RunEvent) error {
+	if s.calls.Add(1) == 2 {
+		panic("simulated sink defect")
+	}
+	return nil
+}
+
+// A sink panic between slot acquisition and runJob must be contained without
+// leaking the starting slot: the panicking job still executes and subsequent
+// jobs still flow through the (sole) spawn path.
+func TestDispatcher_WorkerSurvivesSinkPanic(t *testing.T) {
+	t.Parallel()
+
+	d := New(Config{MaxStartingConcurrency: 1, QueueCapacity: 2})
+	defer d.Close()
+
+	badExecuted := make(chan struct{})
+	bad := makeJob(t, nil, func(started StartedFn) { started(); close(badExecuted) })
+	bad.Sink = &panicOnSecondEmitSink{}
+	if err := d.Enqueue(bad); err != nil {
+		t.Fatal(err)
+	}
+
+	goodExecuted := make(chan struct{})
+	good := makeJob(t, nil, func(started StartedFn) { started(); close(goodExecuted) })
+	if err := d.Enqueue(good); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-badExecuted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("panicking-sink job never executed")
+	}
+	select {
+	case <-goodExecuted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("subsequent job never executed — spawn path wedged after contained sink panic")
+	}
+}

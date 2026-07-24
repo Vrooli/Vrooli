@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/protoconv"
 
 	"github.com/google/uuid"
@@ -248,6 +249,8 @@ func (c *WebSocketClient) readPump() {
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
+	// A pump panic disconnects this client only, never the API.
+	defer obs.RecoverToFailure("websocket read pump", nil)
 
 	c.conn.SetReadLimit(512 * 1024) // 512KB max message size
 	_ = c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -378,6 +381,8 @@ func (c *WebSocketClient) writePump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
+	// A pump panic disconnects this client only, never the API.
+	defer obs.RecoverToFailure("websocket write pump", nil)
 
 	for {
 		select {

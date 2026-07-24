@@ -205,8 +205,22 @@ func (r *idempotencyRepository) Reserve(ctx context.Context, key string, ttl tim
 		ExpiresAt: now.Add(ttl),
 	}
 
+	// A reservation row must be reclaimable once it expires or its request
+	// failed — a crash between Reserve and Complete/Failed must not wedge the
+	// key forever (workflow dispatch keys are deterministic, so a permanently
+	// held key permanently blocks that node). Live pending or completed rows
+	// win the conflict and the reserve fails.
 	query := `INSERT INTO idempotency_records (key, status, created_at, expires_at)
-		VALUES (:key, :status, :created_at, :expires_at)`
+		VALUES (:key, :status, :created_at, :expires_at)
+		ON CONFLICT(key) DO UPDATE SET
+			status = excluded.status,
+			created_at = excluded.created_at,
+			expires_at = excluded.expires_at,
+			entity_id = NULL,
+			entity_type = NULL,
+			response = NULL
+		WHERE idempotency_records.expires_at <= excluded.created_at
+		   OR idempotency_records.status = 'failed'`
 
 	row := struct {
 		Key       string     `db:"key"`
@@ -220,9 +234,12 @@ func (r *idempotencyRepository) Reserve(ctx context.Context, key string, ttl tim
 		ExpiresAt: SQLiteTime(record.ExpiresAt),
 	}
 
-	_, err := r.db.NamedExecContext(ctx, query, row)
+	res, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
 		return nil, wrapDBError("reserve_idempotency", "IdempotencyRecord", key, err)
+	}
+	if affected, err := res.RowsAffected(); err == nil && affected == 0 {
+		return nil, fmt.Errorf("reserve_idempotency: key %q is held by an in-flight or completed request", key)
 	}
 	return record, nil
 }

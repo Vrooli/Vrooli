@@ -115,7 +115,7 @@ func runInterop(core *cliapp.ScenarioApp, args []string) error {
 	nextSteps := []string{}
 	if failCount > 0 {
 		nextSteps = append(nextSteps,
-			"Read the interop skill: prompt-manager skill read vrooli-ui-interop",
+			"Read the interop skill: prompt-manager skill read ui-health",
 			fmt.Sprintf("%s diagnostics interop %s --json", support.CLIName, id),
 		)
 	}

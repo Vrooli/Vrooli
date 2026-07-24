@@ -17,7 +17,7 @@ import { cn } from "../lib/utils";
  * Mobile: sticky top header + scrollable outlet + fixed bottom nav + a
  * hamburger sheet revealing the same nav targets as the desktop sidebar.
  *
- * All shortcuts route through `useGlobalKeydown` per react-coherence §0.5.
+ * All shortcuts route through `useGlobalKeydown` per ui-health
  */
 export function AppShell(): ReactNode {
   const isMobile = useIsMobile();
@@ -32,7 +32,7 @@ export function AppShell(): ReactNode {
   }, [location.pathname]);
 
   // Global keyboard shortcuts (chord-based). One central registration per
-  // react-coherence §0.5; surfaces do NOT register their own document
+  // ui-health; surfaces do NOT register their own document
   // keydown listeners.
   useGlobalKeydown((sequence, event) => {
     // Ignore modified keys for navigation chords (cmd/ctrl/alt should not

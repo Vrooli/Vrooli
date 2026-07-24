@@ -42,9 +42,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -628,6 +630,14 @@ func (p *sandboxLaunchedProcess) Wait() error {
 // process's exit info under sync.Once.
 func (p *sandboxLaunchedProcess) runStream(ctx context.Context, stream string, w *io.PipeWriter, wg *sync.WaitGroup) {
 	defer wg.Done()
+	// Contain a panic to this stream: close the pipe with an error so the
+	// reader unblocks instead of the panic killing the API.
+	defer func() {
+		if v := recover(); v != nil {
+			slog.Error("sandbox log stream panic recovered", "stream", stream, "panic", fmt.Sprint(v), "stack", string(debug.Stack()))
+			_ = w.CloseWithError(fmt.Errorf("sandbox %s stream panic: %v", stream, v))
+		}
+	}()
 
 	endpoint := fmt.Sprintf("/api/v1/sandboxes/%s/processes/%d/logs/stream?stream=%s", p.launcher.sandboxID, p.pid, stream)
 	// Use the streaming client (no total deadline) so long-running agent

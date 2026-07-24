@@ -702,6 +702,7 @@ func (r *Runner) spawnStderrAccumulator(proc runner.LaunchedProcess) *stderrAccu
 	a := &stderrAccumulator{done: make(chan struct{})}
 	go func() {
 		defer close(a.done)
+		defer obs.RecoverToFailure("stderr accumulator", nil)
 		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			a.mu.Lock()
@@ -907,6 +908,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	stdoutDone := make(chan struct{})
 	go func() {
 		defer close(stdoutDone)
+		defer obs.RecoverToFailure("stdout transcript tee", nil)
 		if _, err := io.Copy(in.transcript.StdoutFile, proc.Stdout()); err != nil {
 			r.reportTranscriptError(in.runID, in.sink, "stdout transcript tee", err)
 		}
@@ -914,6 +916,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 
 	// Stderr drainer mirrors into transcript.StderrFile when present.
 	go func() {
+		defer obs.RecoverToFailure("stderr transcript drainer", nil)
 		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -937,6 +940,9 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	transcriptParser := r.codec.NewTranscriptParser()
 	go func() {
 		defer close(liveDone)
+		// The live consumer parses untrusted agent transcript output — the
+		// most realistic panic source in the process.
+		defer obs.RecoverToFailure("transcript live consumer", nil)
 		cursor, liveTerminal, consumeErr := runner.Consume(consumeCtx, runner.ConsumeArgs{
 			RunID:       in.runID,
 			Transcript:  in.transcript.TranscriptPath,

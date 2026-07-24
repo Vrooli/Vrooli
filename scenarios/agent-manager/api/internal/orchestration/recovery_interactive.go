@@ -144,6 +144,9 @@ func (r *Reconciler) startInteractiveTailer(run *domain.Run, coord *interactive.
 			delete(r.tailers, run.ID)
 			r.recoveryMu.Unlock()
 		}()
+		// Log-only containment: the session may still be healthy, so the run
+		// must not be failed here; the stale sweep is the backstop.
+		defer obs.RecoverToFailure("interactive reattach tailer", nil)
 		terminal, tailErr := coord.TailToCompletion(ctx, run)
 		if err := coord.Finalize(ctx, run, terminal, tailErr); err != nil {
 			obs.Component("recovery").Warn("interactive reattach finalize failed",

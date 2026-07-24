@@ -11,6 +11,7 @@ import (
 
 	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 )
 
 type sandboxAvailabilityChecker interface {
@@ -91,6 +92,9 @@ func (e *CommandWorkspaceSandboxEnsurer) runEnsure(ctx context.Context, call *en
 			e.mu.Unlock()
 			close(call.done)
 		}()
+		defer obs.RecoverToFailure("workspace sandbox ensure", func(failure obs.PanicFailure) {
+			call.err = failure
+		})
 
 		timeout := e.levers.EnsureStartTimeout
 		if timeout <= 0 {

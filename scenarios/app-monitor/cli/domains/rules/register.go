@@ -80,7 +80,7 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 		ResultsHeading: "Rules",
 		Results:        results,
 		RetrievalHints: []string{
-			"prompt-manager skill read vrooli-ui-interop",
+			"prompt-manager skill read ui-health",
 			fmt.Sprintf("%s rules --severity critical,high", support.CLIName),
 		},
 	}

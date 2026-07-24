@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 )
 
@@ -163,50 +164,52 @@ func (o *statsOrchestrator) GetSummary(ctx context.Context, filter repository.St
 
 	wg.Add(9)
 
-	go func() {
-		defer wg.Done()
+	// goStat contains a panic in any single stat query: the corresponding
+	// section is simply absent from the summary instead of the panic killing
+	// the whole API.
+	goStat := func(fn func()) {
+		go func() {
+			defer wg.Done()
+			defer obs.RecoverToFailure("stats query", nil)
+			fn()
+		}()
+	}
+
+	goStat(func() {
 		statusCounts, statusErr = o.stats.GetRunStatusCounts(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		successRate, successErr = o.stats.GetSuccessRate(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		durationStats, durationErr = o.stats.GetDurationStats(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		costStats, costErr = o.stats.GetCostStats(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		runnerBreakdown, runnerErr = o.stats.GetRunnerBreakdown(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		profileBreakdown, profileErr = o.stats.GetProfileBreakdown(ctx, filter, 10)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		modelBreakdown, modelErr = o.stats.GetModelBreakdown(ctx, filter, 10)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		toolUsage, toolErr = o.stats.GetToolUsageStats(ctx, filter, 20)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		errorPatterns, errorErr = o.stats.GetErrorPatterns(ctx, filter, 10)
-	}()
+	})
 
 	wg.Wait()
 

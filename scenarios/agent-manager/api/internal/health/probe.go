@@ -3,7 +3,9 @@ package health
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -156,7 +158,16 @@ func (p *Probe) Stop() {
 	p.cease()
 }
 
+// recoverHealthLoop contains a panic in a background health loop: the loop
+// dies (health data goes stale) but the API stays up.
+func recoverHealthLoop(name string) {
+	if v := recover(); v != nil {
+		slog.Error(name+" panic recovered", "panic", fmt.Sprint(v), "stack", string(debug.Stack()))
+	}
+}
+
 func (p *Probe) runProbeLoop(ctx context.Context) {
+	defer recoverHealthLoop("health.probe: probe loop")
 	p.RunOnce(ctx)
 	if p.config.Interval <= 0 {
 		return
@@ -174,6 +185,7 @@ func (p *Probe) runProbeLoop(ctx context.Context) {
 }
 
 func (p *Probe) runEvictionLoop(ctx context.Context) {
+	defer recoverHealthLoop("health.probe: eviction loop")
 	interval := p.config.EvictionInterval
 	if interval <= 0 {
 		interval = 24 * time.Hour

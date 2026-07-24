@@ -46,4 +46,4 @@ this pass.
 
 - `storage-health validate scenario agent-manager`
 - `packages/api-core/database/schemas.go`
-- `docs/concepts/test-isolation-contract.md`
+- `scenarios/storage-health/docs/concepts/test-isolation-contract.md`

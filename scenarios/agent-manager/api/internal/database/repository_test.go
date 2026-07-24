@@ -2181,3 +2181,58 @@ func TestStatsGetErrorPatterns_ParsesLastSeenTimestamp(t *testing.T) {
 		t.Fatal("expected non-zero last_seen timestamp")
 	}
 }
+
+func TestIdempotencyReserveReclaimsExpiredAndFailed(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// A live pending reservation blocks a second reserve.
+	live := "live-key"
+	if _, err := repos.Idempotency.Reserve(ctx, live, time.Hour); err != nil {
+		t.Fatalf("Reserve live: %v", err)
+	}
+	if _, err := repos.Idempotency.Reserve(ctx, live, time.Hour); err == nil {
+		t.Fatal("second reserve on a live key must fail")
+	}
+
+	// A completed reservation stays held even after a reserve attempt.
+	done := "done-key"
+	if _, err := repos.Idempotency.Reserve(ctx, done, time.Hour); err != nil {
+		t.Fatalf("Reserve done: %v", err)
+	}
+	if err := repos.Idempotency.Complete(ctx, done, uuid.New(), "run", nil); err != nil {
+		t.Fatalf("Complete: %v", err)
+	}
+	if _, err := repos.Idempotency.Reserve(ctx, done, time.Hour); err == nil {
+		t.Fatal("reserve on a completed key must fail")
+	}
+
+	// An expired pending reservation (crash between Reserve and Complete) is
+	// reclaimed by the next reserve instead of wedging the key forever.
+	expired := "expired-key"
+	if _, err := repos.Idempotency.Reserve(ctx, expired, -time.Minute); err != nil {
+		t.Fatalf("Reserve expired: %v", err)
+	}
+	if _, err := repos.Idempotency.Reserve(ctx, expired, time.Hour); err != nil {
+		t.Fatalf("reserve must reclaim an expired reservation: %v", err)
+	}
+	record, err := repos.Idempotency.Check(ctx, expired)
+	if err != nil || record == nil || record.Status != domain.IdempotencyStatusPending {
+		t.Fatalf("reclaimed key should be live pending, got %+v err=%v", record, err)
+	}
+
+	// A failed reservation is reclaimed (the documented allow-retry path).
+	failed := "failed-key"
+	if _, err := repos.Idempotency.Reserve(ctx, failed, time.Hour); err != nil {
+		t.Fatalf("Reserve failed-key: %v", err)
+	}
+	if err := repos.Idempotency.Fail(ctx, failed); err != nil {
+		t.Fatalf("Fail: %v", err)
+	}
+	if _, err := repos.Idempotency.Reserve(ctx, failed, time.Hour); err != nil {
+		t.Fatalf("reserve must reclaim a failed reservation: %v", err)
+	}
+}

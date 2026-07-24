@@ -9,7 +9,7 @@ import { useTranslation } from "../i18n";
  * RouteErrorFallback — the standard router `errorElement`. Renders when a
  * loader/action throws or when a route's render boundary catches an error.
  *
- * Per `react-stability` §2, this is the route-level boundary; feature-level
+ * Per `ui-health`, this is the route-level boundary; feature-level
  * boundaries wrap heavier components inside the route.
  */
 export function RouteErrorFallback() {

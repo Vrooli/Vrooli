@@ -2956,6 +2956,10 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 // Each continuation turn gets its own timeout from RunTimeoutMinutes, so a timed-out
 // run can be continued indefinitely — each "continue" message resets the clock.
 func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment, continueEnv map[string]string, transcript *runner.TranscriptConfig, cleanupTranscript func()) {
+	// Registered before cleanupTranscript so it also contains a cleanup panic.
+	defer obs.RecoverToFailure("run continuation", func(failure obs.PanicFailure) {
+		o.recoverPanickedRun(run, failure)
+	})
 	if cleanupTranscript != nil {
 		defer cleanupTranscript()
 	}
@@ -3060,7 +3064,9 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		}
 		if o.events != nil {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_timeout", run.ErrorMsg, true)
-			_ = o.appendAndBroadcastEvents(ctx, run.ID, errorEvent)
+			if err := o.appendAndBroadcastEvents(ctx, run.ID, errorEvent); err != nil {
+				obs.Component("orchestrator").Warn("failed to append continuation_timeout event", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+			}
 		}
 	} else if err != nil {
 		transition.NewStatus = domain.RunStatusFailed
@@ -3069,7 +3075,9 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		run.ErrorMsg = transition.ErrorMsg
 		if o.events != nil {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", err.Error(), false)
-			_ = o.appendAndBroadcastEvents(ctx, run.ID, errorEvent)
+			if appendErr := o.appendAndBroadcastEvents(ctx, run.ID, errorEvent); appendErr != nil {
+				obs.Component("orchestrator").Warn("failed to append continuation_error event", obs.KeyRunID, run.ID.String(), obs.KeyError, appendErr.Error())
+			}
 		}
 	} else if result != nil && !result.Success {
 		transition.NewStatus = domain.RunStatusFailed
@@ -3081,7 +3089,9 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		run.ErrorMsg = transition.ErrorMsg
 		if o.events != nil && result.ErrorMessage != "" {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", result.ErrorMessage, false)
-			_ = o.appendAndBroadcastEvents(ctx, run.ID, errorEvent)
+			if appendErr := o.appendAndBroadcastEvents(ctx, run.ID, errorEvent); appendErr != nil {
+				obs.Component("orchestrator").Warn("failed to append continuation_error event", obs.KeyRunID, run.ID.String(), obs.KeyError, appendErr.Error())
+			}
 		}
 	} else if result != nil {
 		transition.NewStatus = domain.RunStatusComplete
@@ -3456,6 +3466,13 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 			o.recoverPanickedRun(run, failure)
 		},
 	}); err != nil {
+		// Revert so the run stays resumable instead of stranded as a
+		// running row with no process (until the stale sweep reaps it).
+		run.Status = domain.RunStatusPending
+		run.UpdatedAt = o.now()
+		if revertErr := o.runs.Update(ctx, run); revertErr != nil {
+			obs.Component("orchestrator").Error("failed to revert run status after enqueue failure", obs.KeyRunID, run.ID.String(), obs.KeyError, revertErr.Error())
+		}
 		return nil, err
 	}
 

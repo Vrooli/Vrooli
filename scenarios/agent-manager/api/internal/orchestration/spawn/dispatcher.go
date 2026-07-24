@@ -294,6 +294,18 @@ func (d *Dispatcher) Close() {
 // StartedFn is called or ExecuteFn returns.
 func (d *Dispatcher) worker() {
 	defer close(d.workerDone)
+	for {
+		if d.workerLoop() {
+			return
+		}
+	}
+}
+
+// workerLoop is one supervised incarnation of the drain loop. It returns true
+// on clean shutdown; a recovered panic returns false so worker() restarts it,
+// keeping the only spawn path in the process alive.
+func (d *Dispatcher) workerLoop() (clean bool) {
+	defer obs.RecoverToFailure("spawn dispatcher worker", nil)
 
 	var lastSpawn time.Time
 	for {
@@ -301,7 +313,7 @@ func (d *Dispatcher) worker() {
 		select {
 		case <-d.workerStop:
 			d.drainQueueOnClose()
-			return
+			return true
 		case job = <-d.queue:
 		}
 
@@ -318,7 +330,7 @@ func (d *Dispatcher) worker() {
 					timer.Stop()
 					d.discardPickedJob(job)
 					d.drainQueueOnClose()
-					return
+					return true
 				}
 			}
 		}
@@ -330,7 +342,7 @@ func (d *Dispatcher) worker() {
 		case <-d.workerStop:
 			d.discardPickedJob(job)
 			d.drainQueueOnClose()
-			return
+			return true
 		}
 
 		// Slot acquired: counter crosses from "queued" to "starting".
@@ -341,12 +353,18 @@ func (d *Dispatcher) worker() {
 		d.startingCount.Add(1)
 		lastSpawn = d.clock()
 
-		obs.EmitSpawnStarted(job.Sink, job.RunID, obs.SpawnStartedFields{
-			RunMode:     job.RunMode,
-			RunnerType:  job.RunnerType,
-			QueuedFor:   lastSpawn.Sub(job.enqueuedAt),
-			ActiveCount: int(d.activeCount.Load()),
-		})
+		// Contained separately: a panicking sink here would otherwise unwind
+		// the loop between slot acquisition and runJob, leaking the starting
+		// slot and wedging the only spawn path.
+		func() {
+			defer obs.RecoverToFailure("spawn started emit", nil)
+			obs.EmitSpawnStarted(job.Sink, job.RunID, obs.SpawnStartedFields{
+				RunMode:     job.RunMode,
+				RunnerType:  job.RunnerType,
+				QueuedFor:   lastSpawn.Sub(job.enqueuedAt),
+				ActiveCount: int(d.activeCount.Load()),
+			})
+		}()
 
 		go d.runJob(job)
 	}

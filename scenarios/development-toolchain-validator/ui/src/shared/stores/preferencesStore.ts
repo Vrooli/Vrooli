@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 /**
  * App-wide UI preferences.
  *
- * Scope check (react-coherence §1): these settings are shared across every
+ * Scope check (ui-health): these settings are shared across every
  * surface (theme, density, sidebar collapsed, last visited golden), they
  * persist across reloads, and they're not server state — so an app-wide
  * store is the right primitive. Per-surface UI state stays as local

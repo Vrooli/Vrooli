@@ -16,6 +16,7 @@ func ScheduleDeclarationReconcile(orch *orchestration.Orchestrator, repoRoot str
 		return
 	}
 	go func() {
+		defer obs.RecoverToFailure("deferred declaration reconcile", nil)
 		for _, delay := range []time.Duration{5 * time.Second, 30 * time.Second, 2 * time.Minute} {
 			time.Sleep(delay)
 			summary := orch.ReconcileDeclaringScenarios(context.Background(), repoRoot)
