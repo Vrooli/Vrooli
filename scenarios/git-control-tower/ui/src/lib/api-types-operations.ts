@@ -202,6 +202,37 @@ export interface GitignoreMoveRequest {
   target_pattern: string;
 }
 
+// Tracked-binary health types
+export interface TrackedBinariesResponse {
+  binaries: TrackedBinary[];
+  total_bytes: number;
+  /** Stated plainly so the UI never implies untracking reclaims repo size. */
+  history_warning?: string;
+}
+
+export interface TrackedBinary {
+  path: string;
+  bytes: number;
+  format: "elf" | "mach-o" | "pe";
+  /** Scenario/resource dir that should ignore this path; "" means repo root. */
+  owner_dir: string;
+  ignore_pattern: string;
+  already_ignored: boolean;
+}
+
+export interface UntrackBinaryRequest {
+  path: string;
+  owner_dir: string;
+  ignore_pattern: string;
+}
+
+export interface UntrackBinaryResponse {
+  success: boolean;
+  removed_from_index: boolean;
+  ignore_added_to?: string;
+  error?: string;
+}
+
 export interface GitignoreMoveResponse {
   success: boolean;
   removed_from?: string;

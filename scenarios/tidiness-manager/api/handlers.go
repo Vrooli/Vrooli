@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -276,21 +277,25 @@ func (s *Server) handleSmartScan(w http.ResponseWriter, r *http.Request) {
 // the shared ScenarioValidationService native_detail. It intentionally excludes
 // lint/type/static-quality policy findings, which are owned by quality-health.
 type TidinessScanResponse struct {
-	Scenario   string                       `json:"scenario"`
-	Status     string                       `json:"status"`
-	Findings   []TidinessFinding            `json:"findings"`
-	Violations []TidinessFinding            `json:"violations"` // compatibility alias for simple consumers
-	Summary    TidinessScanSummary          `json:"summary"`
-	Assessment *commonv1.MaturityAssessment `json:"assessment"`
+	Scenario      string                       `json:"scenario"`
+	Status        string                       `json:"status"`
+	Findings      []TidinessFinding            `json:"findings"`
+	Violations    []TidinessFinding            `json:"violations"` // compatibility alias for simple consumers
+	Summary       TidinessScanSummary          `json:"summary"`
+	Opportunities []DuplicationOpportunity     `json:"opportunities,omitempty"`
+	Assessment    *commonv1.MaturityAssessment `json:"assessment"`
 }
 
 type TidinessScanSummary struct {
-	TotalFindings int `json:"total_findings"`
-	LongFiles     int `json:"long_files"`
-	Complexity    int `json:"complexity"`
-	Duplication   int `json:"duplication"`
-	TechDebt      int `json:"tech_debt"`
-	Coupling      int `json:"coupling"`
+	TotalFindings          int `json:"total_findings"`
+	LongFiles              int `json:"long_files"`
+	Complexity             int `json:"complexity"`
+	Duplication            int `json:"duplication"`
+	TechDebt               int `json:"tech_debt"`
+	Coupling               int `json:"coupling"`
+	DroppedDuplicateGroups int `json:"dropped_duplicate_groups,omitempty"`
+	DroppedDuplicateLines  int `json:"dropped_duplicate_lines,omitempty"`
+	DuplicationLineDebt    int `json:"duplication_line_debt,omitempty"`
 }
 
 type TidinessFinding struct {
@@ -332,6 +337,7 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 	roles := newRoleCache(scenarioPath)
 
 	findings := make([]TidinessFinding, 0)
+	droppedDuplicateGroups, droppedDuplicateLines := 0, 0
 	const longFileThreshold = 500
 	const longTestFileThreshold = 1250
 	for _, metric := range fileMetrics {
@@ -400,6 +406,10 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 			}
 		}
 
+		if metrics.Duplicates != nil {
+			droppedDuplicateGroups += metrics.Duplicates.DroppedGroups
+			droppedDuplicateLines += metrics.Duplicates.DroppedLines
+		}
 		findings = append(findings, duplicationFindings(scenarioName, scenarioPath, roles, metrics.Duplicates)...)
 	}
 
@@ -414,6 +424,13 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 	})
 
 	summary := summarizeTidinessFindings(findings)
+	summary.DroppedDuplicateGroups = droppedDuplicateGroups
+	summary.DroppedDuplicateLines = droppedDuplicateLines
+	if budgetFinding := tidinessBudgetFinding(scenarioName, scenarioPath, summary); budgetFinding != nil {
+		findings = append(findings, *budgetFinding)
+		summary = summarizeTidinessFindings(findings)
+		summary.DroppedDuplicateGroups, summary.DroppedDuplicateLines = droppedDuplicateGroups, droppedDuplicateLines
+	}
 	status := "passed"
 	if len(findings) > 0 {
 		status = "issues_found"
@@ -432,15 +449,18 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 		maturityStage.End()
 		return nil, err
 	}
+	opportunities := rankDuplicationOpportunities(findings)
+	applyDuplicationOpportunityPresentation(maturityAssessment, opportunities)
 	maturityStage.End()
 
 	return &TidinessScanResponse{
-		Scenario:   scenarioName,
-		Status:     status,
-		Findings:   findings,
-		Violations: findings,
-		Summary:    summary,
-		Assessment: maturityAssessment,
+		Scenario:      scenarioName,
+		Status:        status,
+		Findings:      findings,
+		Violations:    findings,
+		Summary:       summary,
+		Opportunities: opportunities,
+		Assessment:    maturityAssessment,
 	}, nil
 }
 
@@ -558,6 +578,11 @@ func summarizeTidinessFindings(findings []TidinessFinding) TidinessScanSummary {
 			summary.Complexity++
 		case "duplication":
 			summary.Duplication++
+			if finding.RuleID == "DUPLICATED_CODE" {
+				if debt, ok := finding.Evidence["duplication_line_debt"].(int); ok {
+					summary.DuplicationLineDebt += debt
+				}
+			}
 		case "technical_debt":
 			summary.TechDebt++
 		case "coupling":
@@ -566,6 +591,57 @@ func summarizeTidinessFindings(findings []TidinessFinding) TidinessScanSummary {
 	}
 	return summary
 }
+
+type tidinessTestingConfig struct {
+	Phases struct {
+		Tidiness struct {
+			Budgets struct {
+				DuplicationLineDebt         int  `json:"duplication_line_debt"`
+				BaselineDuplicationLineDebt int  `json:"baseline_duplication_line_debt"`
+				LongFiles                   int  `json:"long_files"`
+				Complexity                  int  `json:"complexity_over_threshold"`
+				Coupling                    int  `json:"coupling_over_threshold"`
+				DebtMarkers                 int  `json:"debt_markers"`
+				Ratchet                     bool `json:"ratchet"`
+			} `json:"budgets"`
+		} `json:"tidiness"`
+	} `json:"phases"`
+}
+
+func tidinessBudgetFinding(scenario, scenarioPath string, summary TidinessScanSummary) *TidinessFinding {
+	data, err := os.ReadFile(filepath.Join(scenarioPath, ".vrooli", "testing.json"))
+	if err != nil {
+		return nil
+	}
+	var config tidinessTestingConfig
+	if json.Unmarshal(data, &config) != nil {
+		return nil
+	}
+	budgets := config.Phases.Tidiness.Budgets
+	if budgets.Ratchet && budgets.BaselineDuplicationLineDebt > 0 && budgets.DuplicationLineDebt > budgets.BaselineDuplicationLineDebt {
+		return ptrFinding(newTidinessFinding(scenario, "tidiness-budget-exceeded", "budget", "high", "", "", 0, "Tidiness budget loosens recorded baseline", fmt.Sprintf("duplication_line_debt budget is %d; recorded baseline is %d (loosening +%d).", budgets.DuplicationLineDebt, budgets.BaselineDuplicationLineDebt, budgets.DuplicationLineDebt-budgets.BaselineDuplicationLineDebt), map[string]any{"metric": "duplication_line_debt", "budget": budgets.DuplicationLineDebt, "baseline": budgets.BaselineDuplicationLineDebt, "delta": budgets.DuplicationLineDebt - budgets.BaselineDuplicationLineDebt, "violation": "ratchet_loosened_budget"}, "A ratcheted maintainability budget may not be loosened.", "Tighten the configured budget to the recorded baseline or below.", "tidiness-budget"))
+	}
+	if budgets.Ratchet && budgets.BaselineDuplicationLineDebt > 0 && summary.DuplicationLineDebt > budgets.BaselineDuplicationLineDebt {
+		return ptrFinding(newTidinessFinding(scenario, "tidiness-budget-exceeded", "budget", "high", "", "", 0, "Tidiness debt worsened from recorded baseline", fmt.Sprintf("duplication_line_debt is %d; recorded baseline is %d (delta +%d).", summary.DuplicationLineDebt, budgets.BaselineDuplicationLineDebt, summary.DuplicationLineDebt-budgets.BaselineDuplicationLineDebt), map[string]any{"metric": "duplication_line_debt", "baseline": budgets.BaselineDuplicationLineDebt, "observed": summary.DuplicationLineDebt, "delta": summary.DuplicationLineDebt - budgets.BaselineDuplicationLineDebt, "violation": "ratchet_worsened_debt"}, "A ratcheted maintainability baseline must not worsen.", "Reduce duplication debt to the recorded baseline or below.", "tidiness-budget"))
+	}
+	for _, check := range []struct {
+		name            string
+		limit, observed int
+	}{
+		{"duplication_line_debt", budgets.DuplicationLineDebt, summary.DuplicationLineDebt},
+		{"long_files", budgets.LongFiles, summary.LongFiles},
+		{"complexity_over_threshold", budgets.Complexity, summary.Complexity},
+		{"coupling_over_threshold", budgets.Coupling, summary.Coupling},
+		{"debt_markers", budgets.DebtMarkers, summary.TechDebt},
+	} {
+		if check.limit > 0 && check.observed > check.limit {
+			return ptrFinding(newTidinessFinding(scenario, "tidiness-budget-exceeded", "budget", "high", "", "", 0, "Tidiness budget exceeded", fmt.Sprintf("%s is %d; budget is %d (delta +%d).", check.name, check.observed, check.limit, check.observed-check.limit), map[string]any{"metric": check.name, "budget": check.limit, "observed": check.observed, "delta": check.observed - check.limit}, "A configured maintainability budget regressed.", "Reduce the metric or explicitly tighten a truthful budget.", "tidiness-budget"))
+		}
+	}
+	return nil
+}
+
+func ptrFinding(f TidinessFinding) *TidinessFinding { return &f }
 
 func supportRank(severity string) int {
 	switch strings.ToLower(strings.TrimSpace(severity)) {

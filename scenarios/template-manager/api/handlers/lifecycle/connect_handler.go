@@ -104,6 +104,34 @@ func (h *connectHandler) DetemplateScenario(ctx context.Context, req *connect.Re
 	}), nil
 }
 
+func (h *connectHandler) DestroyScenario(ctx context.Context, req *connect.Request[lifecyclev1.DestroyScenarioRequest]) (*connect.Response[lifecyclev1.DestroyScenarioResponse], error) {
+	engine, err := h.requireEngine()
+	if err != nil {
+		return nil, err
+	}
+	result, err := engine.DestroyScenario(ctx, templatecontracts.DestroyRequest{
+		Name:      req.Msg.Scenario,
+		DryRun:    req.Msg.DryRun,
+		ProtoOnly: req.Msg.ProtoOnly,
+		Force:     req.Msg.Force,
+	})
+	if err != nil {
+		// A refused destroy (missing --force, bad id) is a caller error, not a
+		// server fault: surfacing it as Internal would hide the actionable
+		// message behind a 500.
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&lifecyclev1.DestroyScenarioResponse{
+		Scenario:           result.Scenario,
+		DryRun:             result.DryRun,
+		ProtoOnly:          result.ProtoOnly,
+		PathsRemoved:       result.PathsRemoved,
+		PathsAbsent:        result.PathsAbsent,
+		NeedsProtoGenerate: result.NeedsProtoGenerate,
+		Message:            result.Message,
+	}), nil
+}
+
 func (h *connectHandler) ValidateTemplate(ctx context.Context, req *connect.Request[lifecyclev1.ValidateTemplateRequest]) (*connect.Response[lifecyclev1.ValidateTemplateResponse], error) {
 	if h.validation == nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("validation runner unavailable"))

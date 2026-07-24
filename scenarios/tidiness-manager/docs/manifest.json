@@ -166,8 +166,8 @@
           "requiredBy": ["implemented"],
           "completion": "required"
         },
-        {
-          "path": "reference/configuration.md",
+    {
+      "path": "reference/configuration.md",
           "docType": "configuration-reference",
           "title": "Configuration",
           "description": "Lifecycle, environment, and scenario config.",
@@ -175,8 +175,30 @@
           "canonicalFor": ["configuration"],
           "maturity": "active",
           "requiredBy": ["implemented"],
-          "completion": "required"
-        }
+      "completion": "required"
+    },
+    {
+      "path": "reference/file-roles.md",
+      "docType": "configuration-reference",
+      "title": "File Roles",
+      "description": "Structural role-manifest contract for tidiness classification.",
+      "audience": ["developers", "agents"],
+      "canonicalFor": ["file-role-contract"],
+      "maturity": "active",
+      "requiredBy": ["implemented"],
+      "completion": "required"
+    },
+    {
+      "path": "reference/debt-semantics.md",
+      "docType": "configuration-reference",
+      "title": "Debt Semantics",
+      "description": "Actionable duplication debt, classifications, and budget semantics.",
+      "audience": ["developers", "agents", "operators"],
+      "canonicalFor": ["tidiness-debt-semantics"],
+      "maturity": "active",
+      "requiredBy": ["implemented"],
+      "completion": "required"
+    }
       ]
     },
     {

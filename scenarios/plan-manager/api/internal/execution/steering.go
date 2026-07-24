@@ -196,6 +196,20 @@ func baselineRequiredStep(state BaselineSetState) GuidedStep {
 	if state.PreflightUnavailable {
 		return GuidedStep{StepKind: "baseline_preflight_unavailable", Title: "Baseline Source Preflight Unavailable", Summary: state.Detail, Instructions: []string{"Do not assume source evidence is safe while Git Control Tower is unavailable. Restore the provider and continue so Plan Manager can issue a fresh authoritative preflight."}}
 	}
+	if state.Status == BaselineSetStatusPartial && state.Failed > 0 {
+		reanchor := append([]string(nil), state.CaptureArgv...)
+		reanchor = append(reanchor, "--acknowledge-reanchor")
+		return GuidedStep{
+			StepKind: "baseline_reanchor_required", Title: "Baseline Re-anchor Required",
+			Summary:      "A prior immutable capture failed after source changed. Continue forward by re-anchoring this same collection at the current source state; do not revert source or create a differently named ticket.",
+			Instructions: []string{"The failed attempt remains in Git Control Tower history. This acknowledged recapture creates a new immutable generation under the same collection name. Future diffs are valid from that generation forward, but it does not represent the original pre-work state."},
+			NextActions: []NextAction{
+				{ID: "baseline-reanchor", Kind: NextActionRecommended, Label: "Re-anchor baseline at current source", Reason: "Explicit acknowledgement is required because the original before-state was invalidated; this never resets or stashes source.", Argv: reanchor},
+				{ID: "baseline-wait", Kind: NextActionRecovery, Label: "Wait for re-anchored baseline", Reason: "Git Control Tower owns the durable wait.", Argv: state.WaitArgv},
+				{ID: "baseline-sync", Kind: NextActionRecovery, Label: "Synchronize re-anchored baseline", Reason: "Record the terminal collection generation in this execution.", Argv: state.SyncArgv},
+			},
+		}
+	}
 	return GuidedStep{
 		StepKind: "baseline_required", Title: "Baseline Required",
 		Summary:      "Git Control Tower must capture the immutable before-state before normal phase work can begin.",

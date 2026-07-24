@@ -60,6 +60,9 @@ export {
   useSaveGroupingRules,
   useGitignoreHealth,
   useGitignoreMove,
+  useTrackedBinaries,
+  useUntrackBinary,
+  useHealthIssueCount,
 } from "./hooks-settings";
 
 export {

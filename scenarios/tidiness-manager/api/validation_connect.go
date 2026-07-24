@@ -51,6 +51,14 @@ func (h *scenarioValidationHandler) ValidateScenario(ctx context.Context, req *c
 		})
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("tidiness scan failed: %w", err))
 	}
+	if h.server.store != nil {
+		if _, err := h.server.store.ResolveLegacyPercentageDuplicationIssues(ctx, scenarioName); err != nil {
+			h.server.log("failed to resolve legacy percentage duplication issues", map[string]interface{}{
+				"scenario": scenarioName,
+				"error":    err.Error(),
+			})
+		}
+	}
 	native, err := tidinessScanToProto(result)
 	if err != nil {
 		collector.Stop()

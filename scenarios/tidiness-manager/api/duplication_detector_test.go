@@ -169,6 +169,54 @@ func TestParseDuplOutput_SingleBlock(t *testing.T) {
 	assertEqual(t, blocks[0].Lines, 6, "lines") // 10-5+1
 }
 
+func TestNormalizeDuplicateBlocks_MergesOverlapsDeduplicatesAndAppliesFloor(t *testing.T) {
+	blocks, droppedGroups, droppedLines := normalizeDuplicateBlocks([]DuplicateBlock{
+		{Files: []DuplicateLocation{{Path: "handler_test.go", StartLine: 40, EndLine: 67}, {Path: "copy.go", StartLine: 1, EndLine: 28}}},
+		{Files: []DuplicateLocation{{Path: "handler_test.go", StartLine: 44, EndLine: 71}, {Path: "copy.go", StartLine: 1, EndLine: 28}}},
+		{Files: []DuplicateLocation{{Path: "signature.go", StartLine: 13, EndLine: 13}, {Path: "other.go", StartLine: 8, EndLine: 8}}},
+	})
+	if droppedGroups != 1 || droppedLines != 1 {
+		t.Fatalf("dropped = (%d, %d), want (1, 1)", droppedGroups, droppedLines)
+	}
+	if len(blocks) != 1 || blocks[0].Lines != 32 || len(blocks[0].Files) != 2 {
+		t.Fatalf("normalized blocks = %#v", blocks)
+	}
+	if got := blocks[0].Files[0]; got != (DuplicateLocation{Path: "copy.go", StartLine: 1, EndLine: 28}) {
+		t.Fatalf("copy location = %#v", got)
+	}
+	if got := blocks[0].Files[1]; got != (DuplicateLocation{Path: "handler_test.go", StartLine: 40, EndLine: 71}) {
+		t.Fatalf("overlapping handler ranges were not merged: %#v", got)
+	}
+}
+
+func TestNormalizeDuplicateBlocks_UsesLargestLocationSpan(t *testing.T) {
+	blocks, _, _ := normalizeDuplicateBlocks([]DuplicateBlock{{Files: []DuplicateLocation{
+		{Path: "short.go", StartLine: 1, EndLine: 5},
+		{Path: "long.go", StartLine: 10, EndLine: 20},
+	}}})
+	if len(blocks) != 1 || blocks[0].Lines != 11 {
+		t.Fatalf("block lines = %#v, want largest span 11", blocks)
+	}
+}
+
+func TestNormalizeDuplicateBlocks_DropsGroupsCollapsedToOneLocation(t *testing.T) {
+	blocks, _, _ := normalizeDuplicateBlocks([]DuplicateBlock{
+		{Files: []DuplicateLocation{{Path: "handler.go", StartLine: 40, EndLine: 67}, {Path: "copy.go", StartLine: 1, EndLine: 28}}},
+		{Files: []DuplicateLocation{{Path: "handler.go", StartLine: 44, EndLine: 71}, {Path: "copy.go", StartLine: 1, EndLine: 28}}},
+	})
+	if len(blocks) != 1 || len(blocks[0].Files) != 2 {
+		t.Fatalf("blocks = %#v, want two merged locations", blocks)
+	}
+
+	blocks, droppedGroups, droppedLines := normalizeDuplicateBlocks([]DuplicateBlock{
+		{Files: []DuplicateLocation{{Path: "handler.go", StartLine: 40, EndLine: 67}}},
+		{Files: []DuplicateLocation{{Path: "handler.go", StartLine: 44, EndLine: 71}}},
+	})
+	if len(blocks) != 0 || droppedGroups != 1 || droppedLines != 32 {
+		t.Fatalf("collapsed group = blocks:%#v dropped:(%d, %d), want empty and (1, 32)", blocks, droppedGroups, droppedLines)
+	}
+}
+
 // [REQ:TM-LS-005] Test parseDuplOutput with malformed output
 func TestParseDuplOutput_Malformed(t *testing.T) {
 	dd := newTestDetector()

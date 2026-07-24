@@ -1,6 +1,85 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestRoleCache_ManifestDeclaresNonGoLayout(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".vrooli", "file-roles.json"), []byte(`{"roles":[{"glob":"src/*.py","role":"declarative-wiring"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := newRoleCache(dir).role("src/wiring.py"); got != FileRoleDeclarativeWiring {
+		t.Fatalf("manifest role = %v", got)
+	}
+}
+
+func TestParseFileRolesManifest_ValidatesSchemaContract(t *testing.T) {
+	valid := []byte(`{"roles":[{"glob":"src/*.py","role":"declarative-wiring"}]}`)
+	if _, err := parseFileRolesManifest(valid); err != nil {
+		t.Fatalf("valid manifest: %v", err)
+	}
+	for _, tc := range []struct {
+		name string
+		data string
+		want string
+	}{
+		{"bad role", `{"roles":[{"glob":"src/*.py","role":"unknown"}]}`, "roles[0].role"},
+		{"bad glob type", `{"roles":[{"glob":7,"role":"test"}]}`, "invalid JSON"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parseFileRolesManifest([]byte(tc.data))
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("parseFileRolesManifest() error = %v, want named %q violation", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestClassifyDuplicateBlockSignals_UsesContentAndTopologyBeforeRolePrior(t *testing.T) {
+	cases := []struct {
+		name  string
+		block DuplicateBlock
+		lines []string
+		roles []FileRole
+		want  DuplicationClass
+	}{
+		{
+			name:  "production structural wiring remains structural",
+			block: DuplicateBlock{Lines: 5, Files: []DuplicateLocation{{Path: "api/a.go"}, {Path: "api/b.go"}}},
+			lines: []string{"item := Thing{", "Name: \"a\",", "Value: 1,", "}", "register(item)"},
+			roles: []FileRole{FileRoleProduction, FileRoleProduction},
+			want:  DuplicationClassStructural,
+		},
+		{
+			name:  "test logic is an opportunity even when small and local",
+			block: DuplicateBlock{Lines: 6, Files: []DuplicateLocation{{Path: "api/a_test.go"}, {Path: "api/b_test.go"}}},
+			lines: []string{"if err != nil {", "return err", "}", "if ready {", "return run()", "}"},
+			roles: []FileRole{FileRoleTest, FileRoleTest},
+			want:  DuplicationClassOpportunity,
+		},
+		{
+			name:  "cross package long logic is high leverage",
+			block: DuplicateBlock{Lines: 20, Files: []DuplicateLocation{{Path: "api/stt/a.go"}, {Path: "api/tts/b.go"}}},
+			lines: []string{"if err != nil {", "return err", "}", "if ready {", "return run()", "}"},
+			roles: []FileRole{FileRoleProduction, FileRoleProduction},
+			want:  DuplicationClassHighLeverage,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := classifyDuplicateBlockSignals(tc.block, tc.lines, tc.roles); got != tc.want {
+				t.Fatalf("classifyDuplicateBlockSignals() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
 
 func TestClassifyFileRole_PathConventions(t *testing.T) {
 	cases := []struct {

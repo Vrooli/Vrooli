@@ -2,7 +2,7 @@
 // Core Git/Repo API Functions
 // ============================================================================
 
-import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-internals";
+import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl, extractErrorMessage } from "./api-internals";
 import type { HealthResponse, RepoStatus, RepoHistoryResponse, RepoBranchesResponse, BranchCreateResponse, BranchSwitchResponse, BranchPublishResponse, CreateBranchRequest, SwitchBranchRequest, PublishBranchRequest } from "./api-types-repo";
 import {
   FileContentConflictError,
@@ -203,7 +203,11 @@ export async function runPrecommitStream(
     signal: handlers.signal,
   });
   if (!res.ok || !res.body) {
-    throw new Error(`precommit stream failed: ${res.status} ${res.statusText}`);
+    // The API reports the real cause in the JSON body (e.g. {"error":"streaming
+    // unsupported by response writer"}). Reporting only status/statusText turns
+    // every failure into an undiagnosable "500 Internal Server Error", so read
+    // the body through the same extractor the non-streaming calls use.
+    throw new Error(`precommit stream failed: ${await extractErrorMessage(res)}`);
   }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

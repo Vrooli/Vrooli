@@ -387,6 +387,32 @@ func (ts *TidinessStore) ResolveStaleMetricIssues(ctx context.Context, scenario 
 	return int(rows), nil
 }
 
+// ResolveLegacyPercentageDuplicationIssues closes the retired per-file
+// percentage issues. Normalized block findings are now the sole duplication
+// signal, so retaining these records makes the issue queue stale and
+// contradictory.
+func (ts *TidinessStore) ResolveLegacyPercentageDuplicationIssues(ctx context.Context, scenario string) (int, error) {
+	result, err := ts.db.ExecContext(ctx, `
+		UPDATE issues
+		SET status = 'resolved',
+			resolution_notes = 'auto-resolved: superseded by normalized duplication findings',
+			updated_at = CURRENT_TIMESTAMP
+		WHERE scenario = $1
+			AND category = 'duplication'
+			AND status = 'open'
+			AND description LIKE '%duplicated code%'
+			AND description LIKE '%threshold%'
+	`, scenario)
+	if err != nil {
+		return 0, fmt.Errorf("resolve legacy percentage duplication issues: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("read resolved legacy percentage duplication issues: %w", err)
+	}
+	return int(rows), nil
+}
+
 func stringInClause(column string, startIndex int, values []string) (string, []interface{}) {
 	placeholders := make([]string, 0, len(values))
 	args := make([]interface{}, 0, len(values))

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Settings, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
+import { useHealthIssueCount } from "../lib/hooks";
 import { SettingsTabLayout } from "./SettingsTabLayout";
 import { SettingsTabCredentials } from "./SettingsTabCredentials";
 import { SettingsTabHealth } from "./SettingsTabHealth";
@@ -65,6 +66,9 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+  // Actionable findings only -- see useHealthIssueCount for why informational
+  // items are excluded from the badge.
+  const healthIssueCount = useHealthIssueCount(repoId);
 
   if (!isOpen) return null;
 
@@ -110,6 +114,14 @@ export function SettingsModal({
               }`}
             >
               {tabLabels[tab]}
+              {tab === "health" && healthIssueCount > 0 && (
+                <span
+                  className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-amber-300"
+                  aria-label={`${healthIssueCount} health ${healthIssueCount === 1 ? "issue" : "issues"} need attention`}
+                >
+                  {healthIssueCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -238,6 +250,14 @@ export function SettingsModal({
               }`}
             >
               {tabLabels[tab]}
+              {tab === "health" && healthIssueCount > 0 && (
+                <span
+                  className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-amber-300"
+                  aria-label={`${healthIssueCount} health ${healthIssueCount === 1 ? "issue" : "issues"} need attention`}
+                >
+                  {healthIssueCount}
+                </span>
+              )}
             </button>
           ))}
         </div>

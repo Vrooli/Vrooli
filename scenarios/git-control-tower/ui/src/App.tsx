@@ -65,7 +65,8 @@ import {
   useRepoSelection,
   useGroupingRules,
   useSaveGroupingRules,
-  queryKeys
+  queryKeys,
+  useHealthIssueCount,
 } from "./lib/hooks";
 
 type GroupingRuleLike = Partial<GroupingRule> & { prefix?: string };
@@ -415,6 +416,9 @@ export default function App() {
   const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern, historyNeedsDetails);
   const syncStatusQuery = useSyncStatus(repoId);
   const approvedChangesQuery = useApprovedChanges(repoId);
+  // Actionable repository-health findings, surfaced as a badge on the settings
+  // gear so hygiene problems are visible without opening the modal.
+  const healthIssueCount = useHealthIssueCount(repoId);
   const diffQuery = useDiff(
     selectedFile,
     viewingCommit || isViewingAnyFile ? false : selectedIsStaged,
@@ -2806,6 +2810,7 @@ export default function App() {
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        healthIssueCount={healthIssueCount}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
         onOpenFileSearch={() => setIsFileSearchOpen(true)}
         onOpenReview={() => setPrimaryPanel("review")}

@@ -159,11 +159,6 @@
       }
     }
   },
-  "phases": {
-    "standards": {
-      "timeout": "4m"
-    }
-  },
   "business": {
     "checks": {
       "endpoints": {

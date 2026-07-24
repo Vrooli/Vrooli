@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -19,11 +21,60 @@ const roleHeadBytes = 1024
 type roleCache struct {
 	scenarioPath string
 	cache        map[string]FileRole
+	declared     []fileRoleDeclaration
+}
+
+type fileRoleDeclaration struct {
+	Glob string `json:"glob"`
+	Role string `json:"role"`
+}
+type fileRolesManifest struct {
+	Roles []fileRoleDeclaration `json:"roles"`
 }
 
 // newRoleCache returns a roleCache rooted at scenarioPath.
 func newRoleCache(scenarioPath string) *roleCache {
-	return &roleCache{scenarioPath: scenarioPath, cache: make(map[string]FileRole)}
+	rc := &roleCache{scenarioPath: scenarioPath, cache: make(map[string]FileRole)}
+	if data, err := os.ReadFile(filepath.Join(scenarioPath, ".vrooli", "file-roles.json")); err == nil {
+		if manifest, err := parseFileRolesManifest(data); err == nil {
+			rc.declared = manifest.Roles
+		}
+	}
+	return rc
+}
+
+// parseFileRolesManifest applies the same constraints advertised by
+// .vrooli/schemas/file-roles.schema.json. Keeping validation beside the
+// consumer prevents a malformed structural declaration from silently becoming
+// production and making scans stricter than intended.
+func parseFileRolesManifest(data []byte) (fileRolesManifest, error) {
+	var manifest fileRolesManifest
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&manifest); err != nil {
+		return fileRolesManifest{}, fmt.Errorf("file-roles manifest: invalid JSON: %w", err)
+	}
+	if len(manifest.Roles) == 0 {
+		return fileRolesManifest{}, fmt.Errorf("file-roles manifest: roles is required")
+	}
+	for i, declaration := range manifest.Roles {
+		if strings.TrimSpace(declaration.Glob) == "" {
+			return fileRolesManifest{}, fmt.Errorf("file-roles manifest: roles[%d].glob must be a non-empty string", i)
+		}
+		if !isDeclaredFileRole(declaration.Role) {
+			return fileRolesManifest{}, fmt.Errorf("file-roles manifest: roles[%d].role %q is not a supported role", i, declaration.Role)
+		}
+	}
+	return manifest, nil
+}
+
+func isDeclaredFileRole(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "production", "test", "test-support", "generated", "composition-root", "declarative-wiring":
+		return true
+	default:
+		return false
+	}
 }
 
 // role returns the FileRole for a repo-relative path, reading the file's leading
@@ -37,7 +88,10 @@ func (rc *roleCache) role(relPath string) FileRole {
 	}
 	// Cheap path-only pass first; only read the file when it is still ambiguous
 	// (path conventions did not already classify it as Generated).
-	role := ClassifyFileRole(relPath, nil)
+	role := rc.declaredRole(relPath)
+	if role == FileRoleProduction {
+		role = ClassifyFileRole(relPath, nil)
+	}
 	if role == FileRoleProduction || role == FileRoleCompositionRoot || role == FileRoleDeclarativeWiring {
 		if head := rc.readHead(relPath); len(head) > 0 && isGeneratedMarker(head) {
 			role = FileRoleGenerated
@@ -45,6 +99,32 @@ func (rc *roleCache) role(relPath string) FileRole {
 	}
 	rc.cache[relPath] = role
 	return role
+}
+
+func (rc *roleCache) declaredRole(relPath string) FileRole {
+	for _, declaration := range rc.declared {
+		if matched, _ := path.Match(declaration.Glob, filepath.ToSlash(relPath)); matched {
+			return parseFileRole(declaration.Role)
+		}
+	}
+	return FileRoleProduction
+}
+
+func parseFileRole(raw string) FileRole {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "test":
+		return FileRoleTest
+	case "test-support":
+		return FileRoleTestSupport
+	case "generated":
+		return FileRoleGenerated
+	case "composition-root":
+		return FileRoleCompositionRoot
+	case "declarative-wiring":
+		return FileRoleDeclarativeWiring
+	default:
+		return FileRoleProduction
+	}
 }
 
 // readHead reads up to roleHeadBytes from the file; returns nil on any error.
@@ -59,10 +139,22 @@ func (rc *roleCache) readHead(relPath string) []byte {
 	return buf[:n]
 }
 
-// duplicationFindings converts detected duplicate blocks into tidiness findings,
-// applying role-aware severity. Generated files are excluded entirely; structural
-// duplication in a cappable role (test/test-support/declarative-wiring) is
-// downgraded to a warning, while genuine logic keeps its base severity.
+// DuplicationClass expresses the actionability of a normalized detector group.
+// Structural and incidental repetition stay visible but carry no refactor debt;
+// opportunity and high-leverage groups are actionable duplicated code.
+type DuplicationClass string
+
+const (
+	DuplicationClassStructural   DuplicationClass = "structural"
+	DuplicationClassIncidental   DuplicationClass = "incidental"
+	DuplicationClassOpportunity  DuplicationClass = "opportunity"
+	DuplicationClassHighLeverage DuplicationClass = "high-leverage"
+
+	duplicationHighLeverageWeight = 2
+)
+
+// duplicationFindings converts detector groups through the single signal-quality
+// classifier. Roles are a conservative prior; content and topology decide debt.
 func duplicationFindings(scenarioName, scenarioPath string, roles *roleCache, dup *DuplicateResult) []TidinessFinding {
 	if dup == nil || dup.Skipped {
 		return nil
@@ -76,26 +168,25 @@ func duplicationFindings(scenarioName, scenarioPath string, roles *roleCache, du
 			line = block.Files[0].StartLine
 		}
 		primaryRole := roles.role(primaryPath)
-		// Generated code is fully excluded.
-		if primaryRole == FileRoleGenerated {
+		if duplicateBlockHasGeneratedLocation(roles, block) {
 			continue
 		}
-		// Cap structural duplication at warning: a uniform descriptor list or
-		// test-scaffolding block is enforced consistency, not logic debt.
-		// Content-confirm (IsStructuralBlock) guards against masking — a genuine
-		// logic block in a role-named file keeps its normal severity.
-		var blockLines []string
-		if roleAllowsStructuralCap(primaryRole) && primaryPath != "" {
-			blockLines, _ = readBlockLines(filepath.Join(scenarioPath, primaryPath), line, block.Lines)
+		class := classifyDuplicateBlock(scenarioPath, roles, block)
+		severity := severityForDuplicateLineDebt(float64(block.Lines), 10)
+		ruleID := "duplicated-code"
+		lineDebt := block.Lines * max(0, len(block.Files)-1)
+		if class == DuplicationClassHighLeverage {
+			lineDebt *= duplicationHighLeverageWeight
 		}
-		severity, structural := resolveDuplicationSeverity(severityForDuplication(float64(block.Lines), 10), primaryRole, blockLines)
-		evidence := map[string]any{"lines": block.Lines, "locations": block.Files, "tool": dup.Tool, "file_role": primaryRole.String()}
-		if structural {
-			evidence["structural"] = true
+		if class == DuplicationClassStructural || class == DuplicationClassIncidental {
+			ruleID = "duplicated-boilerplate"
+			severity = "info"
+			lineDebt = 0
 		}
-		findings = append(findings, newTidinessFinding(scenarioName, "duplicated-code", "duplication", severity, primaryPath, "", line,
+		evidence := map[string]any{"lines": block.Lines, "locations": block.Files, "tool": dup.Tool, "file_role": primaryRole.String(), "duplication_class": string(class), "duplication_line_debt": lineDebt}
+		findings = append(findings, newTidinessFinding(scenarioName, ruleID, "duplication", severity, primaryPath, "", line,
 			fmt.Sprintf("Duplicated block spans %d lines", block.Lines),
-			fmt.Sprintf("Duplicated code block #%d spans %d lines across %d locations.", i+1, block.Lines, len(block.Files)),
+			fmt.Sprintf("Duplicated code block #%d spans %d lines across %d locations (%s; line debt: %d).", i+1, block.Lines, len(block.Files), formatDuplicateLocations(block.Files), lineDebt),
 			evidence,
 			"Duplicated code multiplies future fixes and makes behavior drift likely.",
 			"Extract the shared behavior or intentionally document why the copies must diverge.",
@@ -104,27 +195,82 @@ func duplicationFindings(scenarioName, scenarioPath string, roles *roleCache, du
 	return findings
 }
 
-// resolveDuplicationSeverity returns the final severity for a duplicated block
-// and whether it was confirmed structural. Structural duplication in a
-// cappable role (test, test-support, declarative-wiring) is downgraded to a
-// warning; everything else — including genuine logic in a role-named file —
-// keeps its base severity. blockLines may be nil (treated as non-structural).
-func resolveDuplicationSeverity(baseSeverity string, role FileRole, blockLines []string) (severity string, structural bool) {
-	if roleAllowsStructuralCap(role) && IsStructuralBlock(blockLines) {
-		return capSeverityAtMedium(baseSeverity), true
+func duplicateBlockHasGeneratedLocation(roles *roleCache, block DuplicateBlock) bool {
+	for _, location := range block.Files {
+		if roles.role(location.Path) == FileRoleGenerated {
+			return true
+		}
 	}
-	return baseSeverity, false
+	return false
 }
 
-// roleAllowsStructuralCap reports whether duplication in a file of this role may
-// be downgraded to a warning when its content is confirmed structural.
-func roleAllowsStructuralCap(role FileRole) bool {
-	switch role {
-	case FileRoleTest, FileRoleTestSupport, FileRoleDeclarativeWiring:
-		return true
-	default:
-		return false
+func classifyDuplicateBlock(scenarioPath string, roles *roleCache, block DuplicateBlock) DuplicationClass {
+	var source []string
+	for _, location := range block.Files {
+		lines, err := readBlockLines(filepath.Join(scenarioPath, location.Path), location.StartLine, location.EndLine-location.StartLine+1)
+		if err == nil && len(lines) > 0 {
+			source = lines
+			break
+		}
 	}
+	return classifyDuplicateBlockSignals(block, source, duplicateBlockRoles(roles, block))
+}
+
+func classifyDuplicateBlockSignals(block DuplicateBlock, source []string, roles []FileRole) DuplicationClass {
+	// A long clone crossing package boundaries couples independently changing
+	// components even when its syntax is declarative. Keep this explicit canary
+	// ahead of the structural heuristic so large shared transport/data shapes are
+	// surfaced as an extraction opportunity rather than silently zeroed out.
+	if block.Lines >= 20 && !duplicateBlockSamePackage(block) {
+		return DuplicationClassHighLeverage
+	}
+	if IsStructuralBlock(source) {
+		return DuplicationClassStructural
+	}
+	if block.Lines <= 8 && len(block.Files) <= 2 && duplicateBlockSamePackage(block) && !duplicateBlockHasTestRole(roles) {
+		return DuplicationClassIncidental
+	}
+	return DuplicationClassOpportunity
+}
+
+func duplicateBlockRoles(roles *roleCache, block DuplicateBlock) []FileRole {
+	result := make([]FileRole, 0, len(block.Files))
+	for _, location := range block.Files {
+		result = append(result, roles.role(location.Path))
+	}
+	return result
+}
+
+func duplicateBlockHasTestRole(roles []FileRole) bool {
+	for _, role := range roles {
+		if role == FileRoleTest || role == FileRoleTestSupport {
+			return true
+		}
+	}
+	return false
+}
+
+func duplicateBlockSamePackage(block DuplicateBlock) bool {
+	packagePath := ""
+	for _, location := range block.Files {
+		current := path.Dir(filepath.ToSlash(location.Path))
+		if packagePath == "" {
+			packagePath = current
+			continue
+		}
+		if current != packagePath {
+			return false
+		}
+	}
+	return true
+}
+
+func formatDuplicateLocations(locations []DuplicateLocation) string {
+	parts := make([]string, 0, len(locations))
+	for _, location := range locations {
+		parts = append(parts, fmt.Sprintf("%s:%d-%d", location.Path, location.StartLine, location.EndLine))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // FileRole is the structural role a file plays in a screaming-architecture

@@ -90,9 +90,17 @@
           },
           {
             "id": "L3",
+            "name": "Local debt managed",
+            "status_label": "Open work",
+            "description": "Local debt is measured and prioritized; opportunity-class findings remain visible.",
+            "capability_summary": "Local maintainability debt has open work.",
+            "next_unlock": "Resolve opportunity-class local debt findings."
+          },
+          {
+            "id": "L4",
             "name": "Local debt clean",
             "status_label": "Complete",
-            "description": "No long-file or dense technical-debt findings remain.",
+            "description": "No opportunity-class local debt findings remain.",
             "capability_summary": "Local maintainability debt is clean."
           }
         ]
@@ -128,9 +136,17 @@
           },
           {
             "id": "L3",
+            "name": "Complexity managed",
+            "status_label": "Open work",
+            "description": "Complexity and coupling are measured and prioritized; opportunity-class findings remain visible.",
+            "capability_summary": "Complexity and coupling have open work.",
+            "next_unlock": "Resolve opportunity-class complexity and coupling findings."
+          },
+          {
+            "id": "L4",
             "name": "Complexity clean",
             "status_label": "Complete",
-            "description": "No high-complexity or high-coupling findings remain.",
+            "description": "No opportunity-class complexity or coupling findings remain.",
             "capability_summary": "Complexity and coupling are clean."
           }
         ]
@@ -166,9 +182,17 @@
           },
           {
             "id": "L3",
+            "name": "Duplication managed",
+            "status_label": "Open work",
+            "description": "Duplication opportunities are measured and prioritized; structural and incidental repetition carry no debt.",
+            "capability_summary": "Duplication has open refactor opportunities.",
+            "next_unlock": "Resolve opportunity-class duplication findings."
+          },
+          {
+            "id": "L4",
             "name": "Duplication clean",
             "status_label": "Complete",
-            "description": "No duplicated-code findings remain.",
+            "description": "No opportunity-class duplication findings remain.",
             "capability_summary": "Duplication posture is clean."
           }
         ]
@@ -177,11 +201,11 @@
     "findings": {
       "LONG_FILE": {
         "capability_id": "local_debt_control",
-        "local_level_impact": "L2",
+        "local_level_impact": "L4",
         "global_impact": "hardening_gap",
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "tidiness",
           "cognitive-load-reduction"
@@ -189,11 +213,11 @@
       },
       "TECH_DEBT_MARKERS": {
         "capability_id": "local_debt_control",
-        "local_level_impact": "L2",
+        "local_level_impact": "L4",
         "global_impact": "hardening_gap",
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "tidiness",
           "domain-clarity"
@@ -201,11 +225,11 @@
       },
       "HIGH_COMPLEXITY": {
         "capability_id": "complexity_coupling",
-        "local_level_impact": "L2",
+        "local_level_impact": "L4",
         "global_impact": "hardening_gap",
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "tidiness",
           "cognitive-load-reduction",
@@ -214,11 +238,11 @@
       },
       "HIGH_COUPLING": {
         "capability_id": "complexity_coupling",
-        "local_level_impact": "L2",
+        "local_level_impact": "L4",
         "global_impact": "evolvability_gap",
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "tidiness",
           "boundary-of-responsibility-enforcement"
@@ -226,14 +250,36 @@
       },
       "DUPLICATED_CODE": {
         "capability_id": "duplication_control",
-        "local_level_impact": "L2",
+        "local_level_impact": "L4",
         "global_impact": "evolvability_gap",
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "tidiness",
           "utils-unification"
+        ]
+      },
+      "DUPLICATED_BOILERPLATE": {
+        "capability_id": "duplication_control",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "tidiness",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "uncheckable",
+        "recommended_skill_ids": [
+          "tidiness"
+        ]
+      },
+      "TIDINESS_BUDGET_EXCEEDED": {
+        "capability_id": "duplication_control",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "tidiness",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "tidiness"
         ]
       }
     },

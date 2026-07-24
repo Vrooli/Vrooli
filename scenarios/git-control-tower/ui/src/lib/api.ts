@@ -100,6 +100,10 @@ export type {
   SaveFileContentRequest,
   SaveFileContentResponse,
   SaveFileContentConflictResponse,
+  TrackedBinariesResponse,
+  TrackedBinary,
+  UntrackBinaryRequest,
+  UntrackBinaryResponse,
 } from "./api-types-operations";
 export { FileContentConflictError } from "./api-types-operations";
 
@@ -171,6 +175,8 @@ export {
   saveGroupingRules,
   fetchGitignoreHealth,
   moveGitignoreEntry,
+  fetchTrackedBinaries,
+  untrackBinary,
   fetchCredentials,
   saveCredential,
   deleteCredential,

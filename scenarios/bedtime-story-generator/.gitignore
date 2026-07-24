@@ -33,3 +33,5 @@ coverage/
 *.tmp
 /tmp/
 api/bedtime-story-generator
+/api/main
+/api/bedtime-story-generator-api.old

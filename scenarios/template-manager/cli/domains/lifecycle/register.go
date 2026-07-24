@@ -49,6 +49,19 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 					Flags:       []cliapp.Flag{{Name: "dry-run", Bool: true}},
 				},
 			}).WithPrimitive(cliapp.ProtoMutation(h.detemplateCall, h.detemplateReport)),
+			(cliapp.Command{
+				Name:        "destroy",
+				Description: "Remove a scenario and its full packages/proto codegen footprint",
+				NeedsAPI:    true,
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{{Name: "scenario", Required: true}},
+					Flags: []cliapp.Flag{
+						{Name: "dry-run", Bool: true},
+						{Name: "proto-only", Bool: true},
+						{Name: "force", Bool: true},
+					},
+				},
+			}).WithPrimitive(cliapp.ProtoMutation(h.destroyCall, h.destroyReport)),
 		},
 	}}
 }
@@ -58,7 +71,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		{
 			Name:        "lifecycle",
-			Description: "Generate, orient, and detemplate scenarios",
+			Description: "Generate, orient, detemplate, and destroy scenarios",
 			NeedsAPI:    true,
 			Subcommands: []cliapp.Command{
 				(cliapp.Command{
@@ -95,6 +108,18 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 						Flags:       []cliapp.Flag{{Name: "dry-run", Bool: true}},
 					},
 				}).WithPrimitive(cliapp.ProtoMutation(h.detemplateCall, h.detemplateReport)),
+				(cliapp.Command{
+					Name:        "destroy",
+					Description: "Remove a scenario and its full packages/proto codegen footprint",
+					Args: cliapp.ArgSchema{
+						Positionals: []cliapp.Positional{{Name: "scenario", Required: true}},
+						Flags: []cliapp.Flag{
+							{Name: "dry-run", Bool: true},
+							{Name: "proto-only", Bool: true},
+							{Name: "force", Bool: true},
+						},
+					},
+				}).WithPrimitive(cliapp.ProtoMutation(h.destroyCall, h.destroyReport)),
 			},
 		},
 		{

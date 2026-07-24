@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"sort"
 	"strings"
 	"time"
@@ -126,6 +127,7 @@ func runTidiness(core *cliapp.ScenarioApp, target string, timeout int, jsonOutpu
 		report.Summary = append(report.Summary, maturity.Summary...)
 		report.RetrievalHints = append(report.RetrievalHints, maturity.RetrievalHints...)
 	}
+	report.Summary = append(report.Summary, duplicationOpportunitySummary(findings)...)
 
 	if err := cliapp.RenderListReport(os.Stdout, report); err != nil {
 		return err
@@ -137,6 +139,63 @@ func runTidiness(core *cliapp.ScenarioApp, target string, timeout int, jsonOutpu
 		return fmt.Errorf("scenario %s tidiness validation errored", msg.GetScenario())
 	}
 	return nil
+}
+
+func duplicationOpportunitySummary(findings []*validationv1.TidinessFinding) []string {
+	type opportunity struct {
+		class string
+		debt  float64
+	}
+	byFamily := map[string]*opportunity{}
+	for _, finding := range findings {
+		if finding.GetRuleId() != "DUPLICATED_CODE" || finding.GetEvidence() == nil {
+			continue
+		}
+		fields := finding.GetEvidence().GetFields()
+		class := fields["duplication_class"].GetStringValue()
+		debt := fields["duplication_line_debt"].GetNumberValue()
+		if class == "" || debt <= 0 {
+			continue
+		}
+		family := path.Dir(finding.GetFilePath())
+		if family == "." || family == "" {
+			family = finding.GetFilePath()
+		}
+		item := byFamily[family]
+		if item == nil {
+			item = &opportunity{class: class}
+			byFamily[family] = item
+		}
+		item.debt += debt
+		if class == "high-leverage" {
+			item.class = class
+		}
+	}
+	type ranked struct {
+		family string
+		opportunity
+	}
+	rankedItems := make([]ranked, 0, len(byFamily))
+	for family, item := range byFamily {
+		rankedItems = append(rankedItems, ranked{family: family, opportunity: *item})
+	}
+	sort.Slice(rankedItems, func(i, j int) bool {
+		if rankedItems[i].debt != rankedItems[j].debt {
+			return rankedItems[i].debt > rankedItems[j].debt
+		}
+		return rankedItems[i].class == "high-leverage"
+	})
+	if len(rankedItems) == 0 {
+		return nil
+	}
+	if len(rankedItems) > 5 {
+		rankedItems = rankedItems[:5]
+	}
+	rows := []string{"Top duplication opportunities:"}
+	for _, item := range rankedItems {
+		rows = append(rows, fmt.Sprintf("- %s (%s, %.0f line-debt)", item.family, item.class, item.debt))
+	}
+	return rows
 }
 
 func runLight(core *cliapp.ScenarioApp, target string, timeout int, jsonOutput bool) error {

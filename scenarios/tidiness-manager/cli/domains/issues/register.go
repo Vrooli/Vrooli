@@ -88,13 +88,6 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 		RetrievalHints: issueHints(*scenario),
 	}
 
-	if stale, err := stalenessInfo(core, *scenario); err == nil && stale != nil && stale.IsStale {
-		report.RetrievalHints = append([]string{fmt.Sprintf("Stale data: %s", stale.StaleReason)}, report.RetrievalHints...)
-		if stale.RescanCommand != "" {
-			report.RetrievalHints = append(report.RetrievalHints, stale.RescanCommand)
-		}
-	}
-
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
@@ -167,18 +160,4 @@ func issueHints(scenario string) []string {
 		fmt.Sprintf("%s issues resolve <issue-id> --notes \"...\"", cliName),
 		fmt.Sprintf("%s scan %s --type light", cliName, scenario),
 	}
-}
-
-func stalenessInfo(core *cliapp.ScenarioApp, scenario string) (*support.StalenessInfo, error) {
-	query := url.Values{}
-	query.Set("scenario", scenario)
-	body, err := core.Get("/agent/staleness", query)
-	if err != nil {
-		return nil, err
-	}
-	var info support.StalenessInfo
-	if err := support.Decode(body, &info); err != nil {
-		return nil, err
-	}
-	return &info, nil
 }

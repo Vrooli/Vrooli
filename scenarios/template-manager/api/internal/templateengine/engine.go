@@ -56,6 +56,10 @@ func (e *Engine) DetemplateScenario(ctx context.Context, req templatecontracts.D
 	return runDetemplate(e.deps(), ctx, req)
 }
 
+func (e *Engine) DestroyScenario(ctx context.Context, req templatecontracts.DestroyRequest) (templatecontracts.DestroyResult, error) {
+	return runDestroy(e.deps(), ctx, req)
+}
+
 func (e *Engine) ValidateTemplate(ctx context.Context, req templatecontracts.TemplateValidateRequest) (templatecontracts.TemplateValidationReport, error) {
 	return runTemplateValidate(e.deps(), ctx, req)
 }

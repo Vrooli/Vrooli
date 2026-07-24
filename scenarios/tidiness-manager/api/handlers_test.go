@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/maturity-go/assessment"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Test helpers for handler testing
@@ -248,21 +250,79 @@ func TestTidinessMaturitySpecCoversEmittedRules(t *testing.T) {
 	if got.GetHighestPriorityCapability().GetCapabilityId() != "local_debt_control" {
 		t.Fatalf("warning-only focus = %#v, want local_debt_control", got.GetHighestPriorityCapability())
 	}
+	duplication := maturityCapability(got, "duplication_control")
+	if duplication == nil || duplication.GetCurrentLevel() != "L4" || !duplication.GetClean() {
+		t.Fatalf("structural-only duplication capability = %#v, want clean L4", duplication)
+	}
 
 	blocking, err := buildTidinessMaturityAssessment("demo", []TidinessFinding{
-		newTidinessFinding("demo", "duplicated-code", "duplication", "high", "api/server.go", "", 1, "duplicated code", "duplicate", nil, "why", "extract", "duplication"),
+		newTidinessFinding("demo", "tidiness-budget-exceeded", "budget", "high", "", "", 0, "budget exceeded", "duplicate debt exceeded budget", nil, "why", "reduce debt", "tidiness-budget"),
 	}, spec)
 	if err != nil {
 		t.Fatalf("buildTidinessMaturityAssessment(blocking) error = %v", err)
 	}
 	if blocking.GetFindings()[0].GetMaturity().GetCapabilityId() != "duplication_control" {
-		t.Fatalf("duplicated-code capability = %q, want duplication_control", blocking.GetFindings()[0].GetMaturity().GetCapabilityId())
+		t.Fatalf("budget capability = %q, want duplication_control", blocking.GetFindings()[0].GetMaturity().GetCapabilityId())
 	}
 	if blocking.GetHighestPriorityCapability().GetCapabilityId() != "duplication_control" {
 		t.Fatalf("blocking focus = %#v, want duplication_control", blocking.GetHighestPriorityCapability())
 	}
-	if blocking.GetLocal().GetCurrentLevel() != "L1" {
-		t.Fatalf("blocking assessment current level = %q, want L1", blocking.GetLocal().GetCurrentLevel())
+	if blocking.GetLocal().GetCurrentLevel() != "L2" {
+		t.Fatalf("blocking assessment current level = %q, want L2", blocking.GetLocal().GetCurrentLevel())
+	}
+	blockingDuplication := maturityCapability(blocking, "duplication_control")
+	if blockingDuplication == nil || blockingDuplication.GetCurrentLevel() != "L2" || blockingDuplication.GetClean() {
+		t.Fatalf("budget-breached duplication capability = %#v, want non-clean L2", blockingDuplication)
+	}
+
+	opportunity, err := buildTidinessMaturityAssessment("demo", []TidinessFinding{
+		newTidinessFinding("demo", "duplicated-code", "duplication", "medium", "api/copy.go", "", 1, "duplicate", "open refactor opportunity", nil, "why", "extract", "duplication"),
+	}, spec)
+	if err != nil {
+		t.Fatalf("buildTidinessMaturityAssessment(opportunity) error = %v", err)
+	}
+	opportunityDuplication := maturityCapability(opportunity, "duplication_control")
+	if opportunityDuplication == nil || opportunityDuplication.GetCurrentLevel() != "L3" || opportunityDuplication.GetClean() {
+		t.Fatalf("open-opportunity duplication capability = %#v, want non-clean L3", opportunityDuplication)
+	}
+}
+
+func maturityCapability(assessment *commonv1.MaturityAssessment, id string) *commonv1.CapabilityMaturityAssessment {
+	for _, capability := range assessment.GetCapabilities() {
+		if capability.GetId() == id {
+			return capability
+		}
+	}
+	return nil
+}
+
+func TestTidinessBudgetFinding_RatchetRejectsDebtRegressionAndBudgetLoosening(t *testing.T) {
+	scenarioPath := t.TempDir()
+	if err := os.Mkdir(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("create testing config directory: %v", err)
+	}
+	writeConfig := func(t *testing.T, budget, baseline int) {
+		t.Helper()
+		config := fmt.Sprintf(`{"phases":{"tidiness":{"budgets":{"duplication_line_debt":%d,"baseline_duplication_line_debt":%d,"ratchet":true}}}}`, budget, baseline)
+		if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "testing.json"), []byte(config), 0o600); err != nil {
+			t.Fatalf("write testing config: %v", err)
+		}
+	}
+
+	writeConfig(t, 120, 100)
+	loosened := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{DuplicationLineDebt: 80})
+	if loosened == nil || loosened.Evidence["violation"] != "ratchet_loosened_budget" {
+		t.Fatalf("ratchet budget loosening = %#v, want named violation", loosened)
+	}
+
+	writeConfig(t, 100, 100)
+	worsened := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{DuplicationLineDebt: 101})
+	if worsened == nil || worsened.Evidence["violation"] != "ratchet_worsened_debt" || worsened.Evidence["delta"] != 1 {
+		t.Fatalf("ratchet debt regression = %#v, want named delta", worsened)
+	}
+
+	if stable := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{DuplicationLineDebt: 100}); stable != nil {
+		t.Fatalf("ratchet at recorded baseline = %#v, want no finding", stable)
 	}
 }
 

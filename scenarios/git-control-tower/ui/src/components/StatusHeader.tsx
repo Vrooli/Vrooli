@@ -26,6 +26,8 @@ interface StatusHeaderProps {
   isLoading: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
+  /** Actionable repository-health findings; drives the settings badge. */
+  healthIssueCount?: number;
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
   onOpenReview?: () => void;
@@ -49,6 +51,7 @@ export function StatusHeader({
   isLoading,
   onRefresh,
   onOpenSettings,
+  healthIssueCount = 0,
   onOpenUpstreamInfo,
   onOpenFileSearch,
   onOpenReview,
@@ -139,10 +142,23 @@ export function StatusHeader({
 
         <IconButton
           onClick={onOpenSettings}
-          label="Open settings"
+          label={
+            healthIssueCount > 0
+              ? `Open settings (${healthIssueCount} health ${healthIssueCount === 1 ? "issue" : "issues"})`
+              : "Open settings"
+          }
           data-testid="settings-button"
         >
-          <Settings className="h-4 w-4 text-slate-400" />
+          <span className="relative inline-flex">
+            <Settings className="h-4 w-4 text-slate-400" />
+            {/* Actionable findings only, so a lit dot always means something to do. */}
+            {healthIssueCount > 0 && (
+              <span
+                className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-slate-900"
+                data-testid="settings-health-badge"
+              />
+            )}
+          </span>
         </IconButton>
 
         <IconButton

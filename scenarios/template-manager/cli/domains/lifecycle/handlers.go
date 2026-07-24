@@ -96,6 +96,38 @@ func (h *handlers) detemplateReport(_ cliapp.OperationContext, msg *lifecyclev1.
 	}
 }
 
+func (h *handlers) destroyCall(ctx cliapp.OperationContext) (*lifecyclev1.DestroyScenarioResponse, error) {
+	resp, err := h.lifecycle.DestroyScenario(context.Background(), connect.NewRequest(&lifecyclev1.DestroyScenarioRequest{
+		Scenario:  ctx.Positional("scenario"),
+		DryRun:    ctx.BoolFlag("dry-run"),
+		ProtoOnly: ctx.BoolFlag("proto-only"),
+		Force:     ctx.BoolFlag("force"),
+	}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("destroy scenario", err, nil)
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) destroyReport(_ cliapp.OperationContext, msg *lifecyclev1.DestroyScenarioResponse) cliapp.MutationReport {
+	// List every path rather than a count: a teardown that touches the shared
+	// proto tree should be auditable at a glance, especially under --dry-run.
+	changes := make([]string, 0, len(msg.PathsRemoved)+len(msg.PathsAbsent)+1)
+	for _, path := range msg.PathsRemoved {
+		changes = append(changes, "removed "+path)
+	}
+	for _, path := range msg.PathsAbsent {
+		changes = append(changes, "absent  "+path)
+	}
+	if msg.NeedsProtoGenerate && !msg.DryRun {
+		changes = append(changes, "next: (cd packages/proto && make generate)")
+	}
+	return cliapp.MutationReport{
+		Result:  []string{msg.Message},
+		Changes: changes,
+	}
+}
+
 func (h *handlers) validateCall(ctx cliapp.OperationContext) (*lifecyclev1.ValidateTemplateResponse, error) {
 	resp, err := h.validationLifecycle.ValidateTemplate(context.Background(), connect.NewRequest(&lifecyclev1.ValidateTemplateRequest{
 		Template:      ctx.Flag("template"),

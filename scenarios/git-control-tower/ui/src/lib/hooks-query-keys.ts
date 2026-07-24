@@ -33,6 +33,7 @@ export const queryKeys = {
   credentials: (repoId?: string | null) => ["credentials", repoId ?? "default"] as const,
   groupingRules: (repoId?: string | null) => ["repo", "grouping-rules", repoId ?? "default"] as const,
   gitignoreHealth: (repoId?: string | null) => ["repo", "gitignore", "health", repoId ?? "default"] as const,
+  trackedBinaries: (repoId?: string | null) => ["repo", "tracked-binaries", repoId ?? "default"] as const,
   capabilities: ["capabilities"] as const,
   sshKeys: ["ssh", "keys"] as const,
   repos: ["repos"] as const,
