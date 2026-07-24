@@ -15,7 +15,7 @@ SlotFile: ui/src/
 TechStack: api-base
 Recommendation: Remove the window.location.origin override and use the
   value from resolveApiBase() directly for all API calls.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     import { resolveApiBase } from "@vrooli/api-base";

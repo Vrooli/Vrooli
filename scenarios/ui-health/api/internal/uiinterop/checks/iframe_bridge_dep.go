@@ -15,7 +15,7 @@ SlotFile: ui/package.json
 TechStack: *
 Recommendation: Run `pnpm add @vrooli/iframe-bridge` in the ui/ directory,
   then call initIframeBridgeChild() in your entry file.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     {

@@ -2,7 +2,7 @@
 Rule: ESLint Stability Rules
 ID: standard_eslint_stability
 Description: A UI's ESLint config (ui/eslint.config.{js,cjs,mjs,ts}) must enable
-  the react-stability safety rules at error severity: react-hooks/rules-of-hooks,
+  the ui-health safety rules at error severity: react-hooks/rules-of-hooks,
   import/no-cycle, @typescript-eslint/no-explicit-any, and
   @typescript-eslint/no-non-null-assertion.
 Why: These four rules catch the highest-frequency UI crash sources that the type
@@ -89,7 +89,7 @@ var eslintConfigCandidates = []string{
 	"eslint.config.ts",
 }
 
-// requiredStabilityRules are the react-stability ESLint rules that must be set
+// requiredStabilityRules are the ui-health ESLint rules that must be set
 // to "error".
 var requiredStabilityRules = []string{
 	"react-hooks/rules-of-hooks",
@@ -121,13 +121,13 @@ func checkESLintStability(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		return uiinterop.RuleResult{
 			RuleID:  ruleID,
 			Passed:  true,
-			Message: "all react-stability ESLint rules are set to error",
+			Message: "all ui-health ESLint rules are set to error",
 		}
 	}
 	return uiinterop.RuleResult{
 		RuleID:  ruleID,
 		Passed:  false,
-		Message: "react-stability ESLint rules not enforced at error: " + strings.Join(missing, ", "),
+		Message: "ui-health ESLint rules not enforced at error: " + strings.Join(missing, ", "),
 		Violations: []uiinterop.Violation{{
 			RuleID:         ruleID,
 			Severity:       "medium",

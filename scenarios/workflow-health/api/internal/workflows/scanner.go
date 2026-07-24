@@ -126,17 +126,23 @@ func (s scanner) scanWorkflowAsset(absPath string, typ AssetType, role AssetRole
 	if err != nil {
 		asset.ParseError = err.Error()
 	} else {
-		asset.Name = firstNonEmpty(getString(doc, "metadata", "name"), strings.TrimSuffix(filepath.Base(relPath), filepath.Ext(relPath)))
-		asset.Description = getString(doc, "metadata", "description")
-		asset.Version = getString(doc, "metadata", "version")
-		asset.ExecutionMode = normalizeMode(getString(doc, "metadata", "execution_mode"))
-		asset.Labels = labelsMap(doc)
-		asset.Reset = normalizeReset(firstNonEmpty(asset.Labels["reset"], getString(doc, "metadata", "reset")))
-		asset.NodeCount = nodeCount(doc)
-		asset.Requirements = s.requirementLinks(doc, relPath, requirementsByPath)
-		asset.Selectors = extractSelectorRefs(doc)
-		asset.Routes = extractRouteRefs(doc)
-		asset.Dependencies = s.extractDependencyEdges(asset.ID, relPath, doc)
+		catalogDoc, definition := doc, doc
+		if resolved, resolveErr := ResolveBASDocument(doc); resolveErr == nil {
+			catalogDoc = resolved.Catalog
+			definition = resolved.Definition
+			asset.EnvelopeUnknownFields = resolved.UnknownEnvelopeFields
+		}
+		asset.Name = firstNonEmpty(getString(catalogDoc, "metadata", "name"), strings.TrimSuffix(filepath.Base(relPath), filepath.Ext(relPath)))
+		asset.Description = getString(catalogDoc, "metadata", "description")
+		asset.Version = getString(catalogDoc, "metadata", "version")
+		asset.ExecutionMode = normalizeMode(getString(catalogDoc, "metadata", "execution_mode"))
+		asset.Labels = labelsMap(catalogDoc)
+		asset.Reset = normalizeReset(firstNonEmpty(asset.Labels["reset"], getString(catalogDoc, "metadata", "reset")))
+		asset.NodeCount = nodeCount(definition)
+		asset.Requirements = s.requirementLinks(catalogDoc, relPath, requirementsByPath)
+		asset.Selectors = extractSelectorRefs(definition)
+		asset.Routes = extractRouteRefs(definition)
+		asset.Dependencies = s.extractDependencyEdges(asset.ID, relPath, definition)
 	}
 
 	if entry, ok := registryByPath[relPath]; ok {

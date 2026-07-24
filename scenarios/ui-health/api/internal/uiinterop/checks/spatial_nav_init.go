@@ -17,7 +17,7 @@ TechStack: React
 Recommendation: Add `import { initSpatialNav } from '@vrooli/iframe-bridge/spatial';`
   and call `initSpatialNav();` in the main entry, or add a
   `// spatial-nav: disabled` comment to opt out.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     // main.tsx

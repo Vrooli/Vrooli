@@ -106,14 +106,6 @@ type RunContext struct {
 	// terminate the live process running the suite, so the self-host guard
 	// forbids it.
 	TargetIsSelf bool
-	// RoutedEligible reports that the target qualifies for the in-place routed
-	// test-DB path. Drives whether a DBIsolationRouted phase can isolate at all:
-	// when false there is no restart-based fallback, so the phase is refused.
-	RoutedEligible bool
-	// RoutedReason carries the human-readable explanation of the routed-vs-
-	// refuse decision (the absorbed playbooks PathDecision reason). Optional;
-	// surfaced in Verdict reasons when present.
-	RoutedReason string
 	// LiveSurfaces records which target surfaces are already running and can be
 	// reused without a lifecycle start.
 	LiveSurfaces Surfaces

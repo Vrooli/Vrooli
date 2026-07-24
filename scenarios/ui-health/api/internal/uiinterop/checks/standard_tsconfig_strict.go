@@ -2,7 +2,7 @@
 Rule: TypeScript Strict Config
 ID: standard_tsconfig_strict
 Description: A UI's ui/tsconfig.json must enable TypeScript strict mode
-  ("strict": true). Strict mode is the foundation of the react-stability safety
+  ("strict": true). Strict mode is the foundation of the ui-health safety
   net (null-safety, implicit-any bans, strict function types) that prevents the
   most common class of runtime UI crashes.
 Why: "X is not a function" and "cannot read property Y of undefined" are the #1

@@ -44,7 +44,7 @@ func (StandardResolver) Resolve(caps PhaseCapabilities, rc RunContext) Verdict {
 	if startNeeded && rc.TargetIsSelf {
 		return Verdict{
 			Kind:        VerdictSkip,
-			Reason:      joinReason(selfHostReason(caps, missingSurf), rc.RoutedReason),
+			Reason:      selfHostReason(caps, missingSurf),
 			Remediation: selfHostRemediation(caps),
 		}
 	}
@@ -55,29 +55,8 @@ func (StandardResolver) Resolve(caps PhaseCapabilities, rc RunContext) Verdict {
 		return Verdict{Kind: VerdictRun}
 	}
 
-	// 3. Routed DB-isolation phase whose routed eligibility is not proven: the
-	//    restart-based fallback was deleted, so it cannot obtain an isolated test
-	//    database and is refused fail-closed rather than run mutations against
-	//    real data.
-	if caps.DBIsolation == DBIsolationRouted && !rc.RoutedEligible {
-		return Verdict{
-			Kind: VerdictSkip,
-			Reason: joinReason(
-				fmt.Sprintf("%s cannot prove routed test-DB isolation and the restart fallback was removed", phaseLabel(caps)),
-				rc.RoutedReason),
-			Remediation: "Wire the routed test-DB seams (run storage-health to see which are missing) so the phase can isolate in place.",
-		}
-	}
-
-	// 4. Routed-eligible DB-isolation phase: runs in place via the routed path.
-	if caps.DBIsolation == DBIsolationRouted && rc.RoutedEligible {
-		return Verdict{
-			Kind:   VerdictRun,
-			Reason: joinReason(fmt.Sprintf("%s runs on the routed test-DB path — no restart", phaseLabel(caps)), rc.RoutedReason),
-		}
-	}
-
-	// 5. Plain phase (static, or a surface phase whose surface is already live).
+	// 3. Plain phase (static, or a surface phase whose surface is already live).
+	// Providers own test-storage leases and fail-closed execution decisions.
 	return Verdict{Kind: VerdictRun}
 }
 

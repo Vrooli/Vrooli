@@ -28,7 +28,7 @@
     "20-design-token-theming-standard/module.json",
     "21-accessibility-axe-wcag-standard/module.json",
     "22-favicon-webmanifest-viewport-standard/module.json",
-    "23-strict-config-react-stability-lint-standard/module.json"
+    "23-strict-config-ui-health-lint-standard/module.json"
   ],
   "modules": [
     {
@@ -165,9 +165,9 @@
     },
     {
       "id": "MOD-P1-023",
-      "path": "23-strict-config-react-stability-lint-standard",
+      "path": "23-strict-config-ui-health-lint-standard",
       "priority": "P1",
-      "title": "strict-config + react-stability lint standard"
+      "title": "strict-config + ui-health lint standard"
     }
   ]
 }

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"test-genie/internal/playbooks/types"
+	"test-genie/internal/basprobe/types"
 
 	"connectrpc.com/connect"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"

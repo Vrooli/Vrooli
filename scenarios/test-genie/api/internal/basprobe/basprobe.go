@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/playbooks/execution"
+	"test-genie/internal/basprobe/execution"
 
 	"github.com/vrooli/api-core/discovery"
 )

@@ -646,11 +646,9 @@ type healCandidate struct {
 }
 
 // getHealPriority returns priority for a check (lower = more important)
-// Priority order: API (0) > Resources (1) > Scenarios (2) > Others (3)
+// Priority order: Resources (1) > Scenarios (2) > Others (3)
 func getHealPriority(checkID string) int {
 	switch {
-	case checkID == "vrooli-api":
-		return 0 // API is most critical - other services depend on it
 	case len(checkID) > 9 && checkID[:9] == "resource-":
 		return 1 // Resources (postgres, redis, etc.) are infrastructure
 	case len(checkID) > 9 && checkID[:9] == "scenario-":

@@ -37,7 +37,7 @@ import (
 
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 
-	playbooksconfig "test-genie/internal/playbooks/config"
+	playbooksconfig "test-genie/internal/orchestrator/testconfig/config"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 
@@ -555,7 +555,7 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 	// resource map is probed from the selected phases' declared requirements so
 	// BAS-dependent phases skip/degrade when BAS is unreachable rather than
 	// failing hard.
-	rc := resolveRunContext(env, targetruntime.URLs{}, false, "", resolveResources(ctx, defs))
+	rc := resolveRunContext(env, targetruntime.URLs{}, resolveResources(ctx, defs))
 	return env, rc, lease, manager, nil
 }
 

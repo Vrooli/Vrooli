@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -121,6 +122,17 @@ func (e *Engine) evaluate(ctx context.Context, target string, catalog *workflows
 		}
 		findings = append(findings, e.evaluateAsset(target, asset, assetPaths, profile)...)
 	}
+	// An observer label is a safety classification, not an assertion of intent.
+	// Resolve referenced flows/actions as well so an observer case cannot hide a
+	// write behind a subflow boundary.
+	for _, asset := range catalog.Assets {
+		if asset.Type == workflows.AssetTypeSeed || asset.Type == workflows.AssetTypeRegistryOnly || asset.ExecutionMode != "observer" || asset.ParseError != "" {
+			continue
+		}
+		if nodes := observerUnsafeNodes(target, asset, catalog); len(nodes) > 0 {
+			findings = append(findings, finding(CodeObserverContentUnsafe, asset.Path, asset.ID, fmt.Sprintf("Observer workflow contains non-read-only action node(s): %s.", strings.Join(nodes, ", ")), true))
+		}
+	}
 	if e.ReadinessFetcher != nil {
 		if profileErr != nil {
 			if hasExperienceDirectory(target) {
@@ -134,6 +146,87 @@ func (e *Engine) evaluate(ctx context.Context, target string, catalog *workflows
 	return findings
 }
 
+var observerActionAllowlist = map[string]struct{}{
+	"ACTION_TYPE_NAVIGATE":   {},
+	"ACTION_TYPE_SCREENSHOT": {},
+	"ACTION_TYPE_ASSERT":     {},
+	"ACTION_TYPE_EXTRACT":    {},
+	"ACTION_TYPE_WAIT":       {},
+}
+
+// observerUnsafeNodes returns node IDs whose BAS actions can alter state. It
+// follows cataloged dependencies, which is necessary because a case may invoke
+// a mutating action indirectly through one or more flows.
+func observerUnsafeNodes(root string, asset workflows.WorkflowAsset, catalog *workflows.ScenarioWorkflowCatalog) []string {
+	byPath := make(map[string]workflows.WorkflowAsset, len(catalog.Assets))
+	for _, candidate := range catalog.Assets {
+		byPath[candidate.Path] = candidate
+	}
+	seen := make(map[string]bool)
+	var unsafe []string
+	var visit func(workflows.WorkflowAsset)
+	visit = func(current workflows.WorkflowAsset) {
+		if seen[current.Path] {
+			return
+		}
+		seen[current.Path] = true
+		unsafe = append(unsafe, observerUnsafeNodesInFile(root, current)...)
+		for _, dependency := range current.Dependencies {
+			path := "bas/" + strings.TrimPrefix(filepath.ToSlash(dependency.ToPath), "bas/")
+			if child, ok := byPath[path]; ok {
+				visit(child)
+			}
+		}
+	}
+	visit(asset)
+	sort.Strings(unsafe)
+	return unsafe
+}
+
+func observerUnsafeNodesInFile(root string, asset workflows.WorkflowAsset) []string {
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(asset.Path)))
+	if err != nil {
+		return nil
+	}
+	var authored map[string]any
+	if json.Unmarshal(data, &authored) != nil {
+		return nil
+	}
+	document, err := workflows.ResolveBASDocument(authored)
+	if err != nil {
+		return nil
+	}
+	definition, err := json.Marshal(document.Definition)
+	if err != nil {
+		return nil
+	}
+	var doc struct {
+		Nodes []struct {
+			ID     string `json:"id"`
+			Action struct {
+				Type string `json:"type"`
+			} `json:"action"`
+		} `json:"nodes"`
+	}
+	if json.Unmarshal(definition, &doc) != nil {
+		return nil
+	}
+	unsafe := make([]string, 0)
+	for _, node := range doc.Nodes {
+		if _, ok := observerActionAllowlist[node.Action.Type]; !ok {
+			unsafe = append(unsafe, fmt.Sprintf("%s (%s)", firstNonEmptyNodeID(node.ID), node.Action.Type))
+		}
+	}
+	return unsafe
+}
+
+func firstNonEmptyNodeID(id string) string {
+	if strings.TrimSpace(id) == "" {
+		return "<unnamed>"
+	}
+	return id
+}
+
 func hasExperienceDirectory(target string) bool {
 	info, err := os.Stat(filepath.Join(target, "experience"))
 	return err == nil && info.IsDir()
@@ -144,6 +237,13 @@ func (e *Engine) evaluateAsset(target string, asset workflows.WorkflowAsset, ass
 	if asset.ParseError != "" {
 		findings = append(findings, finding(CodeParseError, asset.Path, asset.ID, asset.ParseError, false))
 		return findings
+	}
+	if err := validateBASSchema(target, asset); err != nil {
+		findings = append(findings, finding(CodeSchemaInvalid, asset.Path, asset.ID, err.Error(), false))
+		return findings
+	}
+	if len(asset.EnvelopeUnknownFields) > 0 {
+		findings = append(findings, finding(CodeEnvelopeUnknownField, asset.Path, asset.ID, fmt.Sprintf("BAS persistence envelope contains fields Workflow Health does not interpret: %s. They are retained for BAS compatibility and do not affect validation of flow_definition.", strings.Join(asset.EnvelopeUnknownFields, ", ")), false))
 	}
 	if asset.Name == "" || asset.Description == "" {
 		findings = append(findings, finding(CodeMetadataIncomplete, asset.Path, asset.ID, "Workflow metadata must include name and description.", true))
@@ -178,6 +278,17 @@ func (e *Engine) evaluateAsset(target string, asset workflows.WorkflowAsset, ass
 		findings = append(findings, finding(CodeSeedMissing, asset.Path, asset.ID, "Full-reset mutating workflows must declare a seed or fixture dependency.", false))
 	}
 	return findings
+}
+
+func validateBASSchema(target string, asset workflows.WorkflowAsset) error {
+	data, err := os.ReadFile(filepath.Join(target, filepath.FromSlash(asset.Path)))
+	if err != nil {
+		return fmt.Errorf("read authored workflow for BAS schema validation: %w", err)
+	}
+	if _, err := workflows.DecodeBASDefinitionJSON(data); err != nil {
+		return fmt.Errorf("BAS WorkflowDefinitionV2 schema is invalid: %w", err)
+	}
+	return nil
 }
 
 // isAuthoredExperienceBinding permits the exact runtime binding declared by an
@@ -240,6 +351,10 @@ func titleForCode(code string) string {
 		return "Workflow registry stale"
 	case CodeParseError:
 		return "Workflow JSON parse error"
+	case CodeSchemaInvalid:
+		return "Workflow does not match the BAS schema"
+	case CodeEnvelopeUnknownField:
+		return "BAS envelope field not interpreted"
 	case CodeMetadataIncomplete:
 		return "Workflow metadata incomplete"
 	case CodeRequirementUnlinked:
@@ -250,6 +365,8 @@ func titleForCode(code string) string {
 		return "Workflow dependency unresolved"
 	case CodeExecutionModeInvalid:
 		return "Execution mode invalid"
+	case CodeObserverContentUnsafe:
+		return "Observer workflow contains a mutating action"
 	case CodeResetLegacy:
 		return "Legacy reset metadata"
 	case CodeMutatingSafety:
@@ -277,10 +394,16 @@ func remediationForCode(code string) string {
 	switch code {
 	case CodeRegistryMissing, CodeRegistryStale:
 		return "Regenerate bas/registry.json from cataloged validation cases."
+	case CodeSchemaInvalid:
+		return "For a persisted BAS workflow, keep catalog metadata in the outer envelope and make flow_definition a valid WorkflowDefinitionV2. For a bare workflow, make the document itself a valid WorkflowDefinitionV2."
+	case CodeEnvelopeUnknownField:
+		return "No change is required unless Workflow Health needs to enforce one of these envelope fields; the nested flow_definition remains the executable BAS workflow."
 	case CodeMetadataIncomplete:
 		return "Add workflow metadata name and description."
 	case CodeExecutionModeInvalid:
 		return "Set metadata.execution_mode to observer, mutating, or destructive."
+	case CodeObserverContentUnsafe:
+		return "Relabel this workflow mutating, add confirmation and routed-isolation labels, or remove the mutating action."
 	case CodeResetLegacy:
 		return "Replace metadata.labels.reset=database with full."
 	case CodeRequirementUnlinked:

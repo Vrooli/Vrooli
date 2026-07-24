@@ -19,7 +19,7 @@ TechStack: *
 Recommendation: Replace the custom server with startScenarioServer() or
   createScenarioServer() from @vrooli/api-base/server. Use the
   setupRoutes callback for custom routes.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     // ui/server.js — uses the standard Vrooli server function

@@ -126,7 +126,7 @@ func (h *connectHandler) launch(id string) {
 			return
 		}
 		h.signal(id)
-		report, err := h.run(ctx, record.Run.Target.Scenario, record.Run.Target.Path, execution.Options{IncludeExecution: true, RunID: id})
+		report, err := h.run(ctx, record.Run.Target.Scenario, record.Run.Target.Path, execution.Options{IncludeExecution: true, RunID: id, Isolation: execution.NewRoutingIsolation()})
 		if err != nil {
 			h.finish(record, core.EventFail, nil, nil, err)
 			return

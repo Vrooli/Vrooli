@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"test-genie/internal/playbooks/dbdetect"
+	"test-genie/internal/orchestrator/phases/dbdetect"
 )
 
 // fixedCollector is a test collector that returns a canned observation list.

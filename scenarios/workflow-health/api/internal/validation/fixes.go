@@ -24,6 +24,7 @@ func NewFixRegistry() *FixRegistry {
 		autofix.Fixer{RuleID: CodeRegistryStale, Preview: previewRegistryFix, CanFix: canFixRegistry},
 		autofix.Fixer{RuleID: CodeMetadataIncomplete, Preview: previewMetadataFix, CanFix: canFixWorkflowFile},
 		autofix.Fixer{RuleID: CodeExecutionModeInvalid, Preview: previewExecutionModeFix, CanFix: canFixWorkflowFile},
+		autofix.Fixer{RuleID: CodeObserverContentUnsafe, Preview: previewObserverContentFix, CanFix: canFixWorkflowFile},
 		autofix.Fixer{RuleID: CodeResetLegacy, Preview: previewResetFix, CanFix: canFixWorkflowFile},
 	)}
 }
@@ -34,7 +35,7 @@ func (r *FixRegistry) Preview(root string, ruleIDs []string) ([]autofix.Candidat
 
 func (r *FixRegistry) Apply(root string, ruleIDs []string) ([]autofix.Candidate, error) {
 	if len(ruleIDs) == 0 {
-		ruleIDs = []string{CodeRegistryMissing, CodeRegistryStale, CodeMetadataIncomplete, CodeExecutionModeInvalid, CodeResetLegacy}
+		ruleIDs = []string{CodeRegistryMissing, CodeRegistryStale, CodeMetadataIncomplete, CodeExecutionModeInvalid, CodeObserverContentUnsafe, CodeResetLegacy}
 	}
 	var applied []autofix.Candidate
 	for _, ruleID := range ruleIDs {
@@ -200,6 +201,16 @@ func previewExecutionModeFix(root string) ([]autofix.Candidate, error) {
 			return false
 		}
 		setNestedString(doc, "observer", "metadata", "execution_mode")
+		return true
+	})
+}
+
+func previewObserverContentFix(root string) ([]autofix.Candidate, error) {
+	return previewWorkflowJSONEdits(root, CodeObserverContentUnsafe, "Relabel observer workflow with mutating actions to mutating.", func(_ string, doc map[string]any) bool {
+		if strings.ToLower(strings.TrimSpace(getString(doc, "metadata", "execution_mode"))) != "observer" {
+			return false
+		}
+		setNestedString(doc, "mutating", "metadata", "execution_mode")
 		return true
 	})
 }

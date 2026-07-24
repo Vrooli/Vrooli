@@ -16,7 +16,7 @@ SlotFile: ui/src/
 TechStack: React
 Recommendation: Move addEventListener('keydown') calls into a dedicated
   hook (e.g., useKeyboard) in ui/src/hooks/ and import it where needed.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     // ui/src/hooks/useKeyboard.ts — centralized

@@ -96,6 +96,39 @@ func TestScanScenarioToleratesMissingRegistryAndInvalidWorkflowJSON(t *testing.T
 	require.Equal(t, AssetRoleValidationCase, catalog.Cases[0].Role)
 }
 
+func TestScanScenarioUsesEnvelopeMetadataAndNestedWorkflowGraph(t *testing.T) {
+	scenarioDir := t.TempDir()
+	writeJSON(t, filepath.Join(scenarioDir, "bas", "cases", "enveloped.json"), map[string]any{
+		"id":         "workflow-1",
+		"project_id": "project-1",
+		"created_at": "2026-07-23T12:00:00Z",
+		"metadata": map[string]any{
+			"name": "Catalog title", "description": "Catalog description", "execution_mode": "mutating",
+			"labels": map[string]any{"requires_confirmation": "true", "routed_isolation": "true"},
+		},
+		"flow_definition": map[string]any{
+			"metadata": map[string]any{"name": "Graph title", "execution_mode": "mutating"},
+			"nodes": []map[string]any{
+				{
+					"id": "nav",
+					"action": map[string]any{
+						"navigate": map[string]any{"scenario": "@scenario/self", "scenario_path": "/status"},
+					},
+				},
+			},
+		},
+	})
+
+	catalog, err := ScanScenario(scenarioDir)
+	require.NoError(t, err)
+	asset := findAsset(t, catalog.Assets, "bas/cases/enveloped.json")
+	require.Equal(t, "Catalog title", asset.Name)
+	require.Equal(t, 1, asset.NodeCount)
+	require.True(t, asset.Safety.Mutating)
+	require.True(t, asset.Safety.RequiresConfirmation)
+	require.Equal(t, []RouteRef{{NodeID: "nav", Scenario: "@scenario/self", Path: "/status", Source: "action.navigate.scenario_path"}}, asset.Routes)
+}
+
 func makeScenarioFixture(t *testing.T) string {
 	t.Helper()
 

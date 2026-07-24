@@ -16,7 +16,7 @@ TechStack: iframe-bridge
 Recommendation: Import initIframeBridgeChild from '@vrooli/iframe-bridge' and
   call it at the top of your main entry file, before ReactDOM.render
   or equivalent.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     import { initIframeBridgeChild } from '@vrooli/iframe-bridge';

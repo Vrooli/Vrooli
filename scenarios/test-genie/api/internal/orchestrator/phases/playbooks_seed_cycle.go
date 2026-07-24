@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/orchestrator/phases/dbdetect"
+	"test-genie/internal/orchestrator/phases/isolation"
+	"test-genie/internal/orchestrator/phases/seeds"
+	"test-genie/internal/orchestrator/testconfig/config"
 	"test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/playbooks/config"
-	"test-genie/internal/playbooks/dbdetect"
-	"test-genie/internal/playbooks/isolation"
-	"test-genie/internal/playbooks/seeds"
 	"test-genie/internal/shared"
 	"test-genie/internal/storage/sqlfiles"
 

@@ -237,6 +237,9 @@ func (s *Server) startBaselineCollectionReconciler() {
 				return
 			}
 			for _, repo := range repos {
+				if err := s.baselineService.ReconcileCollectionCaptures(ctx, repo.ID); err != nil {
+					log.Printf("warn: reconcile collection captures for repo %d: %v", repo.ID, err)
+				}
 				if err := s.baselineService.ReconcileCollectionDiffOperations(ctx, repo.ID); err != nil {
 					log.Printf("warn: reconcile collection diffs for repo %d: %v", repo.ID, err)
 				}

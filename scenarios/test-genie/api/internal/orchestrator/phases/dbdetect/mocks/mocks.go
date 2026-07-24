@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/playbooks/dbdetect"
+	"test-genie/internal/orchestrator/phases/dbdetect"
 )
 
 // FakeFilesystem is an in-memory dbdetect.Filesystem for tests.

@@ -47,42 +47,12 @@ func TestStandardResolver_Matrix(t *testing.T) {
 			wantKind: runnability.VerdictRun,
 		},
 		{
-			name: "playbooks routed-eligible runs (no restart) even on self when surface live",
-			caps: runnability.PhaseCapabilities{
-				Phase: "playbooks", NeedsUI: true, MutatesLifecycle: true,
-				DBIsolation: runnability.DBIsolationRouted,
-			},
-			rc:        runnability.RunContext{TargetIsSelf: true, RoutedEligible: true, LiveSurfaces: allLive, RoutedReason: "routed e2e path"},
-			wantKind:  runnability.VerdictRun,
-			reasonHas: "routed",
-		},
-		{
-			name: "playbooks not-routed on self refuses fail-closed (no restart fallback)",
-			caps: runnability.PhaseCapabilities{
-				Phase: "playbooks", NeedsUI: true, MutatesLifecycle: true,
-				DBIsolation: runnability.DBIsolationRouted,
-			},
-			rc:        runnability.RunContext{TargetIsSelf: true, RoutedEligible: false, LiveSurfaces: allLive, RoutedReason: "storage-health flagged unwired routed-DB seams"},
-			wantKind:  runnability.VerdictSkip,
-			reasonHas: "restart fallback was removed",
-		},
-		{
-			name: "playbooks not-routed on other target refuses fail-closed (no restart fallback)",
-			caps: runnability.PhaseCapabilities{
-				Phase: "playbooks", NeedsUI: true, MutatesLifecycle: true,
-				DBIsolation: runnability.DBIsolationRouted,
-			},
-			rc:        runnability.RunContext{TargetIsSelf: false, RoutedEligible: false, LiveSurfaces: allLive, RoutedReason: "storage-health flagged unwired routed-DB seams"},
-			wantKind:  runnability.VerdictSkip,
-			reasonHas: "cannot prove routed test-DB isolation",
-		},
-		{
-			name: "deferred-lifecycle phase runs on self when surface live (phase decides routed-or-refuse itself)",
+			name: "deferred-lifecycle phase runs on self when surface live (provider decides isolation)",
 			caps: runnability.PhaseCapabilities{
 				Phase: "playbooks", NeedsUI: true, MutatesLifecycle: true,
 				DBIsolation: runnability.DBIsolationRouted, LifecycleDecisionDeferred: true,
 			},
-			rc:       runnability.RunContext{TargetIsSelf: true, RoutedEligible: false, LiveSurfaces: allLive},
+			rc:       runnability.RunContext{TargetIsSelf: true, LiveSurfaces: allLive},
 			wantKind: runnability.VerdictRun,
 		},
 		{

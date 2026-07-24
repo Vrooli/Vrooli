@@ -14,7 +14,7 @@ SlotFile: ui/src/
 TechStack: *
 Recommendation: Replace localhost:PORT references with the value returned
   by resolveApiBase() from @vrooli/api-base.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     import { resolveApiBase } from "@vrooli/api-base";

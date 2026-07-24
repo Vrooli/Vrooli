@@ -144,8 +144,8 @@ provider; start it via `vrooli scenario start storage-health`).
   backs this phase (analyzers, maturity ladder, auto-fix, fleet intelligence)
 - [Workflow Phase](../workflow/README.md) — the destructive E2E phase this
   gate protects
-- [Test-Isolation Contract](../../../../storage-health/docs/concepts/test-isolation-contract.md) —
-  the canonical routed test-DB contract owned by storage-health
+- [Routed Test-Storage Contract](../../../../docs/agent-system/routed-test-db.md) —
+  the canonical routed database and file-storage contract
 
 ## See Also
 

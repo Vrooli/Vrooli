@@ -18,7 +18,7 @@ TechStack: React
 Recommendation: Prefer moving focus (which spatial navigation scrolls into
   view) over cross-boundary scrollIntoView()/window.scrollTo(). For restoration
   or panel navigation, call scrollTo() only on the explicitly owned container.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     // Move focus; spatial-nav brings it into view.

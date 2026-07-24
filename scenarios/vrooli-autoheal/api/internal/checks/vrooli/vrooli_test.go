@@ -80,74 +80,6 @@ func TestScenarioCheckCriticality(t *testing.T) {
 	}
 }
 
-// TestAPICheckInterface verifies APICheck implements Check
-// [REQ:VROOLI-API-001]
-func TestAPICheckInterface(t *testing.T) {
-	var _ checks.Check = (*APICheck)(nil)
-
-	check := NewAPICheck()
-	if check.ID() != "vrooli-api" {
-		t.Errorf("ID() = %q, want %q", check.ID(), "vrooli-api")
-	}
-	if check.Description() == "" {
-		t.Error("Description() is empty")
-	}
-	if check.IntervalSeconds() <= 0 {
-		t.Error("IntervalSeconds() should be positive")
-	}
-	// API check should run on all platforms
-	if check.Platforms() != nil {
-		t.Error("APICheck should run on all platforms")
-	}
-}
-
-// TestAPICheckHealable verifies APICheck implements HealableCheck
-// [REQ:HEAL-ACTION-001]
-func TestAPICheckHealable(t *testing.T) {
-	var _ checks.HealableCheck = (*APICheck)(nil)
-
-	check := NewAPICheck()
-
-	// Test recovery actions with nil result
-	actions := check.RecoveryActions(nil)
-	if len(actions) == 0 {
-		t.Error("RecoveryActions() should return actions")
-	}
-
-	// Verify expected actions exist
-	expectedActions := map[string]bool{
-		"restart":   false,
-		"kill-port": false,
-		"logs":      false,
-		"diagnose":  false,
-	}
-	for _, action := range actions {
-		if _, exists := expectedActions[action.ID]; exists {
-			expectedActions[action.ID] = true
-		}
-	}
-	for id, found := range expectedActions {
-		if !found {
-			t.Errorf("Expected action %q not found in RecoveryActions()", id)
-		}
-	}
-}
-
-// TestAPICheckOptions verifies APICheck configuration options
-func TestAPICheckOptions(t *testing.T) {
-	check := NewAPICheck(
-		WithAPIURL("http://localhost:9000/health"),
-		WithAPITimeout(10*time.Second),
-	)
-
-	if check.url != "http://localhost:9000/health" {
-		t.Errorf("url = %q, want %q", check.url, "http://localhost:9000/health")
-	}
-	if check.timeout != 10*time.Second {
-		t.Errorf("timeout = %v, want %v", check.timeout, 10*time.Second)
-	}
-}
-
 // TestResourceCheckHealable verifies ResourceCheck implements HealableCheck
 // [REQ:HEAL-ACTION-001]
 func TestResourceCheckHealable(t *testing.T) {
@@ -761,133 +693,6 @@ func TestScenarioCheckExecuteActionWithMock(t *testing.T) {
 	}
 }
 
-// TestAPICheckRunWithMock tests APICheck.Run() using mock HTTP client
-// [REQ:VROOLI-API-001] [REQ:TEST-SEAM-001]
-func TestAPICheckRunWithMock(t *testing.T) {
-	tests := []struct {
-		name           string
-		httpStatus     int
-		httpBody       string
-		httpError      error
-		expectedStatus checks.Status
-		expectMsgPart  string // Check that message contains this substring
-	}{
-		{
-			name:           "API healthy",
-			httpStatus:     200,
-			httpBody:       `{"status":"healthy"}`,
-			httpError:      nil,
-			expectedStatus: checks.StatusOK,
-			expectMsgPart:  "Vrooli API healthy",
-		},
-		{
-			name:           "API unhealthy response",
-			httpStatus:     503,
-			httpBody:       `{"status":"unhealthy"}`,
-			httpError:      nil,
-			expectedStatus: checks.StatusCritical,
-			expectMsgPart:  "Vrooli API reports unhealthy status",
-		},
-		{
-			name:           "API connection error",
-			httpStatus:     0,
-			httpBody:       "",
-			httpError:      checks.ErrConnectionRefused,
-			expectedStatus: checks.StatusCritical,
-			expectMsgPart:  "Vrooli API is not responding",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockHTTP := checks.NewMockHTTPClient()
-			mockHTTP.DefaultResponse = checks.MockHTTPResponse{
-				StatusCode: tt.httpStatus,
-				Body:       tt.httpBody,
-				Error:      tt.httpError,
-			}
-
-			check := NewAPICheck(WithHTTPClient(mockHTTP))
-			result := check.Run(context.Background())
-
-			if result.Status != tt.expectedStatus {
-				t.Errorf("Status = %v, want %v", result.Status, tt.expectedStatus)
-			}
-			if !strings.Contains(result.Message, tt.expectMsgPart) {
-				t.Errorf("Message = %q, want to contain %q", result.Message, tt.expectMsgPart)
-			}
-
-			// Verify the mock was called
-			if len(mockHTTP.Calls) != 1 {
-				t.Errorf("Expected 1 HTTP call, got %d", len(mockHTTP.Calls))
-			}
-		})
-	}
-}
-
-// TestAPICheckExecuteActionWithMock tests APICheck.ExecuteAction() using mock
-// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
-func TestAPICheckExecuteActionWithMock(t *testing.T) {
-	tests := []struct {
-		name          string
-		actionID      string
-		cmdKey        string
-		cmdOutput     string
-		cmdError      error
-		expectSuccess bool
-	}{
-		{
-			name:          "diagnose success",
-			actionID:      "diagnose",
-			cmdKey:        "vrooli api diagnose",
-			cmdOutput:     "API diagnostics: all OK",
-			cmdError:      nil,
-			expectSuccess: true,
-		},
-		{
-			name:          "logs success",
-			actionID:      "logs",
-			cmdKey:        "vrooli api logs --tail 100",
-			cmdOutput:     "API logs...",
-			cmdError:      nil,
-			expectSuccess: true,
-		},
-		{
-			name:          "unknown action",
-			actionID:      "invalid-action",
-			cmdKey:        "",
-			cmdOutput:     "",
-			cmdError:      nil,
-			expectSuccess: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
-			if tt.cmdKey != "" {
-				mockExecutor.Responses[tt.cmdKey] = checks.MockResponse{
-					Output: []byte(tt.cmdOutput),
-					Error:  tt.cmdError,
-				}
-			}
-
-			check := NewAPICheck(WithAPIExecutor(mockExecutor))
-			result := check.ExecuteAction(context.Background(), tt.actionID)
-
-			if result.Success != tt.expectSuccess {
-				t.Errorf("Success = %v, want %v", result.Success, tt.expectSuccess)
-			}
-			if result.ActionID != tt.actionID {
-				t.Errorf("ActionID = %q, want %q", result.ActionID, tt.actionID)
-			}
-			if result.CheckID != check.ID() {
-				t.Errorf("CheckID = %q, want %q", result.CheckID, check.ID())
-			}
-		})
-	}
-}
-
 // Note: CLI status classification is thoroughly tested in status_classifier_test.go
 
 // TestExtractPorts tests the port extraction logic
@@ -1148,23 +953,6 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 	}
 }
 
-// TestAPICheckExecuteAction_UnknownAction tests unknown action handling
-// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
-func TestAPICheckExecuteAction_UnknownAction(t *testing.T) {
-	check := NewAPICheck()
-	result := check.ExecuteAction(context.Background(), "invalid-action")
-
-	if result.Success {
-		t.Error("Success should be false for unknown action")
-	}
-	if result.Error != "unknown action: invalid-action" {
-		t.Errorf("Error = %q, want %q", result.Error, "unknown action: invalid-action")
-	}
-	if result.ActionID != "invalid-action" {
-		t.Errorf("ActionID = %q, want %q", result.ActionID, "invalid-action")
-	}
-}
-
 // Note: restart and kill-port actions have complex implementations that
 // involve file system operations, environment variables, and HTTP calls.
 // They are tested through integration tests rather than unit tests with mocks.
@@ -1392,35 +1180,6 @@ func TestScenarioCheckExecuteAction_SetupRestart(t *testing.T) {
 	}
 }
 
-// TestAPICheckRecoveryActionsDangerous tests dangerous action marking
-// [REQ:HEAL-ACTION-001]
-func TestAPICheckRecoveryActionsDangerous(t *testing.T) {
-	check := NewAPICheck()
-	actions := check.RecoveryActions(nil)
-
-	actionMap := make(map[string]checks.RecoveryAction)
-	for _, a := range actions {
-		actionMap[a.ID] = a
-	}
-
-	// kill-port should be dangerous
-	if action, ok := actionMap["kill-port"]; ok {
-		if !action.Dangerous {
-			t.Error("kill-port action should be dangerous")
-		}
-	}
-
-	// logs and diagnose should be safe
-	safeActions := []string{"logs", "diagnose"}
-	for _, id := range safeActions {
-		if action, ok := actionMap[id]; ok {
-			if action.Dangerous {
-				t.Errorf("%s action should not be dangerous", id)
-			}
-		}
-	}
-}
-
 // TestResourceCheckExecutorInjection verifies executor is properly injected
 func TestResourceCheckExecutorInjection(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
@@ -1438,25 +1197,5 @@ func TestScenarioCheckExecutorInjection(t *testing.T) {
 
 	if check.executor != mockExec {
 		t.Error("Executor was not properly injected")
-	}
-}
-
-// TestAPICheckExecutorInjection verifies executor is properly injected
-func TestAPICheckExecutorInjection(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	check := NewAPICheck(WithAPIExecutor(mockExec))
-
-	if check.executor != mockExec {
-		t.Error("Executor was not properly injected")
-	}
-}
-
-// TestAPICheckHTTPClientInjection verifies HTTP client is properly injected
-func TestAPICheckHTTPClientInjection(t *testing.T) {
-	mockHTTP := checks.NewMockHTTPClient()
-	check := NewAPICheck(WithHTTPClient(mockHTTP))
-
-	if check.client != mockHTTP {
-		t.Error("HTTP client was not properly injected")
 	}
 }

@@ -17,7 +17,7 @@ SlotFile: ui/src
 TechStack: React
 Recommendation: Replace h-screen with h-full (and min-h-screen with min-h-full,
   w-screen with w-full); replace raw 100vh/100vw with 100%.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     <div className="h-full w-full">...</div>

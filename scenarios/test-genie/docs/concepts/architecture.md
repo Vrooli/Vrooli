@@ -38,7 +38,7 @@ flowchart TB
 | `internal/orchestrator` | Phase planning, execution, artifacts, presets | Central coordinator for phased runs |
 | `internal/orchestrator/phases` | Phase-specific orchestration adapters | Structure, quality, workflow, business, performance, etc. |
 | `internal/playbooks` | Legacy BAS registry, seed, and artifact compatibility | Workflow validation/execution is delegated to workflow-health |
-| `internal/playbooks/dbdetect` | Evidence-based DB detection (postgres/redis/sqlite) for legacy seed isolation | Declarative profile table + collectors + resolver; no silent fallback, no `service.json` schema changes |
+| `internal/orchestrator/phases/dbdetect` | Evidence-based DB detection (postgres/redis/sqlite) for workflow seed isolation | Declarative profile table + collectors + resolver; no silent fallback, no `service.json` schema changes |
 | `internal/scenarios` | Scenario summaries and local test-run adapters | Bridges scenario metadata into API/CLI surfaces |
 | `internal/requirements` | Requirement parsing, reporting, sync, evidence | Independent of any single phase |
 | `internal/app/httpserver` requirements handlers | Requirement view projection | Loads cached requirement snapshots, enriches them from source modules, and attaches sync metadata |

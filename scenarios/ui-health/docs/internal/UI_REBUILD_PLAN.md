@@ -11,7 +11,7 @@
 Executing agent must load before starting:
 
 ```
-prompt-manager skill read ux react-coherence test seam-discovery-and-enforcement
+prompt-manager skill read ux ui-health test seam-discovery-and-enforcement
 ```
 
 Then read in this repo:

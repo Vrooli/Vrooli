@@ -16,7 +16,7 @@ SlotFile: ui/vite.config.ts, ui/src/main.tsx
 TechStack: Vite, iframe-bridge
 Recommendation: Add // INTEROP-CRITICAL comments above interop-sensitive
   code in both vite.config.ts and the main entry file.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     // vite.config.ts

@@ -512,6 +512,75 @@ func (s *Service) ResumeCollectionCapture(ctx context.Context, repoID int64, bra
 	return collection, nil
 }
 
+// GetCollectionCaptureStatus is the non-blocking read/reconciliation path for
+// collection capture. A Test Genie run is the execution authority, so a
+// terminal child must be projected on every status read even when the original
+// asynchronous finalizer was lost to a restart. Unlike ResumeCollectionCapture
+// this never waits for an active child.
+func (s *Service) GetCollectionCaptureStatus(ctx context.Context, repoID int64, branch, name string) (CollectionManifest, error) {
+	collection, err := s.storage.LoadCollection(repoID, branch, name)
+	if err != nil {
+		return CollectionManifest{}, err
+	}
+	for _, member := range collection.Members {
+		if member.Status != CollectionMemberPending || member.RunID == "" {
+			continue
+		}
+		status, statusErr := s.GetSnapshotStatus(ctx, SnapshotStatusRequest{
+			RepoID: repoID, Scenario: member.Scenario, Branch: branch, Name: member.BaselineName, RunID: member.RunID,
+		})
+		if statusErr != nil || status.Status == "pending" {
+			// Status transport failures are recoverable. Preserve the durable
+			// pending member; the periodic reconciler and later reads retry.
+			continue
+		}
+		switch status.Status {
+		case "ready":
+			if status.Baseline == nil {
+				continue
+			}
+			collection, err = s.storage.UpdateCollectionMember(repoID, branch, name, member.Scenario, func(target *CollectionMember) error {
+				target.Status, target.RunID, target.GitSHA, target.Error, target.UpdatedAt = CollectionMemberReady, status.Baseline.RunID(), status.Baseline.Git.Sha, "reconciled from terminal durable child", s.now().UTC()
+				return nil
+			})
+		case "failed", "missing":
+			detail := strings.TrimSpace(status.Error)
+			if detail == "" {
+				detail = "terminal snapshot child has no baseline result"
+			}
+			collection, err = s.storage.UpdateCollectionMember(repoID, branch, name, member.Scenario, func(target *CollectionMember) error {
+				target.Status, target.Error, target.UpdatedAt = CollectionMemberFailed, detail, s.now().UTC()
+				return nil
+			})
+		}
+		if err != nil {
+			return CollectionManifest{}, err
+		}
+	}
+	return s.storage.LoadCollection(repoID, branch, name)
+}
+
+// ReconcileCollectionCaptures is the detached-client/restart backstop for
+// capture parents. It complements collection-diff reconciliation: both parent
+// types must project terminal Test Genie truth without a particular client
+// remembering to issue a wait command.
+func (s *Service) ReconcileCollectionCaptures(ctx context.Context, repoID int64) error {
+	collections, err := s.storage.ListCollections(repoID)
+	if err != nil {
+		return err
+	}
+	var firstErr error
+	for _, collection := range collections {
+		if collection.Coverage().Pending == 0 {
+			continue
+		}
+		if _, reconcileErr := s.GetCollectionCaptureStatus(ctx, repoID, collection.Branch, collection.Name); reconcileErr != nil && firstErr == nil {
+			firstErr = reconcileErr
+		}
+	}
+	return firstErr
+}
+
 // StartCollectionDiff dispatches one existing per-scenario diff for every
 // selected ready member. Individual StartDiff intents remain the durable child
 // operation records; the returned handles make an interrupted aggregate wait
@@ -1275,7 +1344,7 @@ func selectCollectionMembers(collection CollectionManifest, scenarios []string) 
 // Collection policy and transitions remain owned by this package rather than
 // letting handlers reach into storage directly.
 func (s *Service) StorageLoadCollection(repoID int64, branch, name string) (CollectionManifest, error) {
-	return s.storage.LoadCollection(repoID, branch, name)
+	return s.GetCollectionCaptureStatus(context.Background(), repoID, branch, name)
 }
 
 // CollectionCaptureStanding projects durable capture state for every transport.
@@ -1285,13 +1354,16 @@ func CollectionCaptureStanding(collection CollectionManifest) *commonv1.Operatio
 		standing.Lifecycle, standing.TerminalOutcome, standing.Directive = "terminal", "passed", ""
 		return standing
 	}
-	standing.Lifecycle = "executing"
 	for _, member := range collection.Members {
 		if member.Status == CollectionMemberFailed {
-			standing.Directive, standing.Detail = "inspect", member.Error
+			// A failed member is terminal capture evidence, not active work. If
+			// we report it as executing, callers correctly refuse to advance but
+			// have no terminal state to synchronize or recover from.
+			standing.Lifecycle, standing.TerminalOutcome, standing.Directive, standing.Detail = "terminal", "failed", "inspect", member.Error
 			return standing
 		}
 	}
+	standing.Lifecycle = "executing"
 	args := []string{"git-control-tower", "baseline", "collection", "show", "--name", collection.Name}
 	if collection.Branch != "" {
 		args = append(args, "--branch", collection.Branch)

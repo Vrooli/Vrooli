@@ -16,7 +16,7 @@ SlotFile: ui/src/main.tsx
 TechStack: iframe-bridge
 Recommendation: Wrap the initIframeBridgeChild call in a guard:
   if (window.parent !== window) { initIframeBridgeChild({...}); }
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     import { initIframeBridgeChild } from '@vrooli/iframe-bridge';

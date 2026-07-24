@@ -15,11 +15,14 @@ const (
 	CodeRegistryMissing          = "workflow.registry_missing"
 	CodeRegistryStale            = "workflow.registry_stale"
 	CodeParseError               = "workflow.parse_error"
+	CodeSchemaInvalid            = "workflow.schema_invalid"
+	CodeEnvelopeUnknownField     = "workflow.envelope_field_unknown"
 	CodeMetadataIncomplete       = "workflow.metadata_incomplete"
 	CodeRequirementUnlinked      = "workflow.requirement_unlinked"
 	CodeSelectorUnregistered     = "workflow.selector_unregistered"
 	CodeSubflowUnresolved        = "workflow.subflow_unresolved"
 	CodeExecutionModeInvalid     = "workflow.execution_mode_invalid"
+	CodeObserverContentUnsafe    = "workflow.observer_content_unsafe"
 	CodeResetLegacy              = "workflow.reset_legacy"
 	CodeMutatingSafety           = "workflow.mutating_safety_missing"
 	CodeSeedMissing              = "workflow.seed_missing"
@@ -36,11 +39,14 @@ var codeSeverity = map[string]Severity{
 	CodeRegistryMissing:          SeverityWarning,
 	CodeRegistryStale:            SeverityWarning,
 	CodeParseError:               SeverityError,
+	CodeSchemaInvalid:            SeverityError,
+	CodeEnvelopeUnknownField:     SeverityWarning,
 	CodeMetadataIncomplete:       SeverityWarning,
 	CodeRequirementUnlinked:      SeverityError,
 	CodeSelectorUnregistered:     SeverityWarning,
 	CodeSubflowUnresolved:        SeverityError,
 	CodeExecutionModeInvalid:     SeverityError,
+	CodeObserverContentUnsafe:    SeverityError,
 	CodeResetLegacy:              SeverityWarning,
 	CodeMutatingSafety:           SeverityError,
 	CodeSeedMissing:              SeverityError,

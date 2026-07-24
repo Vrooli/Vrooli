@@ -15,7 +15,7 @@ SlotFile: ui/package.json
 TechStack: *
 Recommendation: Run `pnpm add @vrooli/api-base` in the ui/ directory, then
   import and configure the client in your app bootstrap.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     {

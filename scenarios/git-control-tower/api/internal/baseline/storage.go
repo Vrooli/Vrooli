@@ -891,6 +891,53 @@ func (s *Storage) ListCollectionDiffOperations(repoID int64) ([]CollectionDiffOp
 	return operations, nil
 }
 
+// ListCollections returns every durable collection manifest for a repository.
+// It is deliberately a server-owned reconciliation seam; callers that know a
+// collection identity should use LoadCollection instead.
+func (s *Storage) ListCollections(repoID int64) ([]CollectionManifest, error) {
+	root, err := s.resolver.Path(s.opts(), storage.ClassData, fmt.Sprintf("%d/baseline-collections", repoID))
+	if err != nil {
+		return nil, err
+	}
+	branches, err := os.ReadDir(root)
+	if os.IsNotExist(err) {
+		return []CollectionManifest{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read collection root: %w", err)
+	}
+	var collections []CollectionManifest
+	for _, branch := range branches {
+		if !branch.IsDir() {
+			continue
+		}
+		entries, readErr := os.ReadDir(filepath.Join(root, branch.Name()))
+		if readErr != nil {
+			return nil, fmt.Errorf("read collection directory: %w", readErr)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+				continue
+			}
+			data, readErr := os.ReadFile(filepath.Join(root, branch.Name(), entry.Name()))
+			if readErr != nil {
+				return nil, fmt.Errorf("read collection: %w", readErr)
+			}
+			var collection CollectionManifest
+			if err := json.Unmarshal(data, &collection); err != nil {
+				return nil, fmt.Errorf("decode collection: %w", err)
+			}
+			collection = collection.Normalized()
+			if err := collection.Validate(); err != nil {
+				return nil, fmt.Errorf("validate collection: %w", err)
+			}
+			collections = append(collections, collection)
+		}
+	}
+	sort.SliceStable(collections, func(i, j int) bool { return collections[i].UpdatedAt.After(collections[j].UpdatedAt) })
+	return collections, nil
+}
+
 // UpdateCollectionDiffOperation is the compare-and-write boundary for
 // multi-process dispatch claims. Callers must put any decision derived from a
 // child lease inside mutate; separate Load/Save calls are not safe across two

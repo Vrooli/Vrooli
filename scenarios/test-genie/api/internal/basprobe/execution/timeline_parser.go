@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/playbooks/types"
+	"test-genie/internal/basprobe/types"
 
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"

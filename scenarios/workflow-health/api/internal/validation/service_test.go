@@ -24,7 +24,7 @@ func TestEngineFindsWorkflowMaturityGates(t *testing.T) {
 	require.Contains(t, codes, CodeRequirementUnlinked)
 	require.Contains(t, codes, CodeSelectorUnregistered)
 	require.Contains(t, codes, CodeSubflowUnresolved)
-	require.Contains(t, codes, CodeExecutionModeInvalid)
+	require.Contains(t, codes, CodeSchemaInvalid)
 	require.Contains(t, codes, CodeResetLegacy)
 	require.Contains(t, codes, CodeMutatingSafety)
 	require.Contains(t, codes, CodeSeedMissing)
@@ -195,6 +195,68 @@ func TestEngineReportsPresentRegistryThatOmitsCatalogedCase(t *testing.T) {
 	report, err := NewEngine().ValidateScenario(t.Context(), "", root)
 	require.NoError(t, err)
 	requireFinding(t, report.Findings, CodeRegistryStale, "bas/cases/smoke.json")
+}
+
+func TestEngineReportsBASSchemaViolationBeforeExecution(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "sample-scenario")
+	writeJSON(t, filepath.Join(root, "bas", "cases", "schema-invalid.json"), map[string]any{
+		"metadata": map[string]any{
+			"name":           "Schema invalid",
+			"description":    "Has a non-BAS metadata field.",
+			"execution_mode": "observer",
+			"requirements":   []string{"REQ-SCHEMA"},
+		},
+		"nodes": []map[string]any{},
+	})
+
+	report, err := NewEngine().ValidateScenario(t.Context(), "", root)
+	require.NoError(t, err)
+	finding := requireFinding(t, report.Findings, CodeSchemaInvalid, "bas/cases/schema-invalid.json")
+	require.Contains(t, finding.Description, "unknown field \"requirements\"")
+	require.Contains(t, finding.Remediation, "WorkflowDefinitionV2")
+}
+
+func TestEngineRejectsObserverWorkflowWithMutatingActionIncludingSubflow(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "sample-scenario")
+	writeJSON(t, filepath.Join(root, "bas", "cases", "observer.json"), map[string]any{
+		"metadata": map[string]any{"name": "Observer", "description": "Observer case.", "execution_mode": "observer"},
+		"nodes": []map[string]any{{
+			"id": "call-write", "action": map[string]any{"type": "ACTION_TYPE_SUBFLOW", "subflow": map[string]any{"workflow_path": "actions/write.json"}},
+		}},
+	})
+	writeJSON(t, filepath.Join(root, "bas", "actions", "write.json"), map[string]any{
+		"metadata": map[string]any{"name": "Write", "description": "Writes state.", "execution_mode": "observer"},
+		"nodes":    []map[string]any{{"id": "write-button", "action": map[string]any{"type": "ACTION_TYPE_CLICK"}}},
+	})
+
+	report, err := NewEngine().ValidateScenario(t.Context(), "", root)
+	require.NoError(t, err)
+	finding := requireFinding(t, report.Findings, CodeObserverContentUnsafe, "bas/cases/observer.json")
+	require.Contains(t, finding.Description, "call-write (ACTION_TYPE_SUBFLOW)")
+	require.Contains(t, finding.Description, "write-button (ACTION_TYPE_CLICK)")
+
+	candidates, err := NewFixRegistry().Preview(root, []string{CodeObserverContentUnsafe})
+	require.NoError(t, err)
+	require.Len(t, candidates, 2)
+	for _, candidate := range candidates {
+		require.Contains(t, candidate.After, "\"execution_mode\": \"mutating\"")
+	}
+}
+
+func TestEngineAllowsReadOnlyObserverActions(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "sample-scenario")
+	writeJSON(t, filepath.Join(root, "bas", "cases", "observer.json"), map[string]any{
+		"metadata": map[string]any{"name": "Observer", "description": "Observer case.", "execution_mode": "observer"},
+		"nodes": []map[string]any{
+			{"id": "navigate", "action": map[string]any{"type": "ACTION_TYPE_NAVIGATE"}},
+			{"id": "assert", "action": map[string]any{"type": "ACTION_TYPE_ASSERT"}},
+			{"id": "wait", "action": map[string]any{"type": "ACTION_TYPE_WAIT"}},
+		},
+	})
+
+	report, err := NewEngine().ValidateScenario(t.Context(), "", root)
+	require.NoError(t, err)
+	require.NotContains(t, findingCodes(report.Findings), CodeObserverContentUnsafe)
 }
 
 func makeValidationFixture(t *testing.T) string {

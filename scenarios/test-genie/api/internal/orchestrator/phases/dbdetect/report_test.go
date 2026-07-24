@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"test-genie/internal/playbooks/dbdetect"
+	"test-genie/internal/orchestrator/phases/dbdetect"
 )
 
 func TestFormatHumanRequired(t *testing.T) {

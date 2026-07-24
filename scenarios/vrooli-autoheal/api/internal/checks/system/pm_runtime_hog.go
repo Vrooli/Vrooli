@@ -91,10 +91,14 @@ func (c *PMRuntimeHogCheck) Run(ctx context.Context) checks.Result {
 	}
 	r.Details["journalAvailable"] = true
 
+	// Query one check interval, not one hour: when another kernel source is
+	// flooding the journal (e.g. a runaway drm client), an hour-wide grep
+	// exceeds the 30s check budget and the check times out instead of
+	// reporting. Thresholds are per-hour; scale the interval count up.
 	entries, err := c.reader.QueryLogs(ctx, journal.QueryOpts{
 		Kernel: true,
 		Grep:   "pm_runtime_work .* hogged CPU",
-		Since:  "1 hour ago",
+		Since:  fmt.Sprintf("-%d seconds", c.IntervalSeconds()),
 		Tail:   1000,
 	})
 	if err != nil {
@@ -104,20 +108,23 @@ func (c *PMRuntimeHogCheck) Run(ctx context.Context) checks.Result {
 		return r
 	}
 	count := len(entries)
+	hourlyRate := count * 3600 / c.IntervalSeconds()
 	r.Details["count"] = count
+	r.Details["windowSeconds"] = c.IntervalSeconds()
+	r.Details["hourlyRate"] = hourlyRate
 	r.Details["warnThreshold"] = c.warnPerHour
 	r.Details["criticalThreshold"] = c.criticalPerHr
 
 	switch {
-	case count >= c.criticalPerHr:
+	case hourlyRate >= c.criticalPerHr:
 		r.Status = checks.StatusCritical
-		r.Message = fmt.Sprintf("%d pm_runtime hog warnings in last hour — investigate misbehaving driver", count)
-	case count >= c.warnPerHour:
+		r.Message = fmt.Sprintf("%d pm_runtime hog warnings in %ds (~%d/hr) — investigate misbehaving driver", count, c.IntervalSeconds(), hourlyRate)
+	case hourlyRate >= c.warnPerHour:
 		r.Status = checks.StatusWarning
-		r.Message = fmt.Sprintf("%d pm_runtime hog warnings in last hour", count)
+		r.Message = fmt.Sprintf("%d pm_runtime hog warnings in %ds (~%d/hr)", count, c.IntervalSeconds(), hourlyRate)
 	default:
 		r.Status = checks.StatusOK
-		r.Message = fmt.Sprintf("pm_runtime hog rate normal (%d/hr)", count)
+		r.Message = fmt.Sprintf("pm_runtime hog rate normal (~%d/hr)", hourlyRate)
 	}
 	r.Timestamp = c.now()
 	return r

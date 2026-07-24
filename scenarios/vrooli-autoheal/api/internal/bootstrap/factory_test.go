@@ -177,15 +177,12 @@ func TestDefaultCheckFactory_CreateVrooliChecks(t *testing.T) {
 	}
 
 	// Count by type
-	apiCount := 0
 	resourceCount := 0
 	scenarioCount := 0
 
 	for _, check := range vrooliChecks {
 		id := check.ID()
 		switch {
-		case id == "vrooli-api":
-			apiCount++
 		case len(id) > 9 && id[:9] == "resource-":
 			resourceCount++
 		case len(id) > 9 && id[:9] == "scenario-":
@@ -193,9 +190,6 @@ func TestDefaultCheckFactory_CreateVrooliChecks(t *testing.T) {
 		}
 	}
 
-	if apiCount != 1 {
-		t.Errorf("API check count = %d, want 1", apiCount)
-	}
 	if resourceCount != len(factory.resources) {
 		t.Errorf("resource check count = %d, want %d", resourceCount, len(factory.resources))
 	}

@@ -257,7 +257,16 @@ func RunDurable(ctx context.Context, provider Provider, targetScenario, scenario
 		if err == nil {
 			err = errors.New("provider returned empty durable wait response")
 		}
-		return unavailable(provider, targetScenario, fmt.Errorf("wait for durable provider run %s: %w", run.GetRunId(), err))
+		out := unavailable(provider, targetScenario, fmt.Errorf("wait for durable provider run %s: %w", run.GetRunId(), err))
+		// A wait failure does not erase a successfully-started durable child.
+		// Preserve its identity so the parent run provides an actionable recovery
+		// path instead of a bare transport timeout.
+		out.Summary.ProviderRunID = run.GetRunId()
+		out.Summary.ProviderParentRunID = parentRunID
+		out.Summary.ProviderRunState = strings.TrimPrefix(strings.ToLower(run.GetState().String()), "validation_run_state_")
+		out.Summary.ProviderETASeconds = int64(run.GetEstimatedRemaining().AsDuration().Seconds())
+		out.Remediation = fmt.Sprintf("Provider run %s may still be active. %s", run.GetRunId(), out.Remediation)
+		return out
 	}
 	terminal := waited.Msg.GetRun().GetTerminalResult()
 	if terminal == nil {

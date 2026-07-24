@@ -24,19 +24,19 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 
 ### Workflow seed DB detection
 
-- Package: `api/internal/playbooks/dbdetect`
+- Package: `api/internal/orchestrator/phases/dbdetect`
 - Surface: `Collector`, `Filesystem`, `Manifest` interfaces; `Resolver` + declarative `Profile` table; `DetectionReport`
 - Why it exists: legacy workflow seed helpers need to decide which databases a target scenario actually uses (Postgres, Redis, SQLite, or any combination) before they provision temp resources. Putting the decision behind a resolver with explicit evidence sources keeps the rules in one declarative place: collectors emit raw observations, profiles pick which observations count for each DB, the resolver records the highest-priority decision plus corroboration and conflicts, and the result is printed as a `db-detect:` block in compatibility logs so every decision is traceable.
 
 ### Playbooks registry normalization
 
-- Package: `api/internal/playbooks/registry`
+- Package: `cli/internal/playbookregistry`
 - Surface: `Builder.Build()` and `Loader.Load()`
 - Why it exists: BAS workflow files are authoring inputs; `bas/registry.json` is the execution contract. Registry normalization is where legacy labels, execution-mode hints, ordering, fixtures, and requirements become one stable manifest.
 
 ### Legacy workflow execution mode
 
-- Package: `api/internal/playbooks/types`
+- Package: `api/internal/basprobe/types`
 - Surface: `Registry.Metadata.ExecutionMode`, `Registry.UsesObserverMode()`
 - Why it exists: observer-mode vs mutating workflow metadata is a configuration decision that should be expressed in data. The active workflow phase delegates that safety decision to workflow-health; Test Genie keeps this type for compatibility with legacy seed/artifact paths.
 
@@ -55,7 +55,7 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 ### Registry-build ownership
 
 - Package: `cli/internal/registry`
-- Surface: thin wrapper over `api/internal/playbooks/registry`
+- Surface: thin wrapper over `cli/internal/playbookregistry`
 - Why it exists: the CLI command is a delivery surface, not a second source of truth for registry schema. The wrapper keeps the command UX local while making the shared API builder the only normalization pipeline.
 
 ### Tree digest (run freshness identity)

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"test-genie/internal/playbooks/types"
+	"test-genie/internal/basprobe/types"
 )
 
 const (

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/phases/isolation"
 	"test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/playbooks/isolation"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"

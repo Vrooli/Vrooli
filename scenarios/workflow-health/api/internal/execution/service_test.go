@@ -62,6 +62,35 @@ func TestRunScenarioExecutesObserverCaseAndWritesArtifacts(t *testing.T) {
 	require.FileExists(t, filepath.Join(root, run.Artifact.Timeline))
 }
 
+func TestRunScenarioInstallsIsolationForEveryCaseAndClosesLease(t *testing.T) {
+	root := makeExecutionFixture(t, true)
+	client := &fakeBASClient{result: &ExecuteResult{ExecutionID: "exec-1", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}}
+	isolation := &fakeIsolation{evidence: IsolationEvidence{Installed: true, LeaseID: "lease-1", TestPoolRequests: 1, TestRootWrites: 1}}
+	service := NewService(client)
+
+	report, err := service.RunScenario(context.Background(), "sample", root, Options{IncludeExecution: true, RunID: "run-1", Isolation: isolation})
+	require.NoError(t, err)
+	require.True(t, isolation.acquired)
+	require.True(t, isolation.closed)
+	require.Equal(t, "1", client.lastRequest.Parameters.ExtraHeaders["X-Vrooli-Test-Mode"])
+	require.Equal(t, 1, report.Summary.Passed)
+	require.True(t, report.Isolation.Installed)
+	require.Equal(t, int64(1), report.Isolation.TestRootWrites)
+}
+
+func TestRunScenarioRefusesMutatingCaseWhenIsolationInstallFails(t *testing.T) {
+	root := makeExecutionFixture(t, true)
+	client := &fakeBASClient{}
+	service := NewService(client)
+
+	report, err := service.RunScenario(context.Background(), "sample", root, Options{IncludeExecution: true, Isolation: &fakeIsolation{acquireErr: os.ErrPermission}})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Refused)
+	require.Zero(t, client.executeCalls)
+	require.Contains(t, report.Isolation.InstallError, "permission")
+	require.NotEmpty(t, requireFindingCode(t, report.Findings, validation.CodeExecutionRefused))
+}
+
 func TestRunScenarioAbsolutizesRelativeTargetProjectRoot(t *testing.T) {
 	root := makeExecutionFixture(t, false)
 	cwd, err := os.Getwd()
@@ -86,14 +115,14 @@ func TestRunScenarioAbsolutizesRelativeTargetProjectRoot(t *testing.T) {
 	require.Equal(t, filepath.Join(root, "bas"), got)
 }
 
-func TestRunScenarioRefusesMutatingCaseBeforeBASWithoutIsolationProof(t *testing.T) {
+func TestRunScenarioRefusesMutatingCaseBeforeBASWithoutProviderOwnedIsolation(t *testing.T) {
 	root := makeExecutionFixture(t, true)
 	client := &fakeBASClient{}
 	service := NewService(client)
 
 	report, err := service.RunScenario(context.Background(), "sample", root, Options{
 		IncludeExecution: true,
-		ConfirmMutating:  true,
+		ExtraHeaders:     map[string]string{"X-Vrooli-Test-Mode": "1"},
 	})
 	require.NoError(t, err)
 
@@ -123,9 +152,8 @@ func TestRunScenarioRefusesMutatingCaseMissingSafetyMetadataBeforeBAS(t *testing
 	service := NewService(client)
 
 	report, err := service.RunScenario(context.Background(), "sample", root, Options{
-		IncludeExecution:      true,
-		ConfirmMutating:       true,
-		RoutedIsolationProven: true,
+		IncludeExecution: true,
+		Isolation:        &fakeIsolation{},
 	})
 	require.NoError(t, err)
 
@@ -150,9 +178,8 @@ func TestRunScenarioRefusesDestructiveCaseMissingSafetyMetadataBeforeBAS(t *test
 	service := NewService(client)
 
 	report, err := service.RunScenario(context.Background(), "sample", root, Options{
-		IncludeExecution:      true,
-		ConfirmMutating:       true,
-		RoutedIsolationProven: true,
+		IncludeExecution: true,
+		Isolation:        &fakeIsolation{},
 	})
 	require.NoError(t, err)
 
@@ -179,6 +206,12 @@ func TestRunScenarioFailedExecutionAddsFinding(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, 1, report.Summary.Failed)
+	require.Len(t, report.Runs, 1)
+	require.NotEmpty(t, report.Runs[0].Artifact.Latest)
+	require.FileExists(t, filepath.Join(root, report.Runs[0].Artifact.Latest))
+	artifact, err := os.ReadFile(filepath.Join(root, report.Runs[0].Artifact.Latest))
+	require.NoError(t, err)
+	require.Contains(t, string(artifact), "button not found")
 	finding := requireFindingCode(t, report.Findings, validation.CodeExecutionFailed)
 	require.Equal(t, "bas/cases/dashboard.json", finding.FilePath)
 	require.Contains(t, finding.Description, "button not found")
@@ -235,6 +268,28 @@ type fakeBASClient struct {
 	result        *ExecuteResult
 	timeline      *bastimeline.ExecutionTimeline
 	lastRequest   ExecuteRequest
+}
+
+type fakeIsolation struct {
+	evidence   IsolationEvidence
+	acquireErr error
+	acquired   bool
+	closed     bool
+}
+
+func (f *fakeIsolation) Acquire(context.Context, string, string) (IsolationLease, error) {
+	f.acquired = true
+	if f.acquireErr != nil {
+		return nil, f.acquireErr
+	}
+	return f, nil
+}
+
+func (f *fakeIsolation) Evidence() IsolationEvidence { return f.evidence }
+
+func (f *fakeIsolation) Close(context.Context) IsolationEvidence {
+	f.closed = true
+	return f.evidence
 }
 
 func (f *fakeBASClient) ValidateResolved(context.Context, map[string]any) (*ValidationResult, error) {

@@ -164,7 +164,6 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 // CreateVrooliChecks creates all Vrooli-specific checks
 func (f *DefaultCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []checks.Check {
 	vrooliChecks := []checks.Check{
-		vrooli.NewAPICheck(),
 		vrooli.NewWatchdogCheck(caps), // OS watchdog boot recovery check
 		vrooli.NewRuntimeSupervisorCheck(),
 		vrooli.NewStaleLockCheck(), // Stale port lock detection

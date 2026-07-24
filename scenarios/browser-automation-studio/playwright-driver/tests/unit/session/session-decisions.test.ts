@@ -10,6 +10,7 @@ function makeSession(overrides: {
   executionId?: string;
   labels?: Record<string, string>;
   phase?: SessionPhase;
+  leaseReleasedAt?: Date;
 }): SessionState {
   return {
     id: `session-${overrides.executionId ?? 'x'}`,
@@ -18,13 +19,23 @@ function makeSession(overrides: {
       labels: overrides.labels ?? { mode: 'execution' },
     },
     phase: overrides.phase ?? 'ready',
+    leaseReleasedAt: overrides.leaseReleasedAt,
   } as unknown as SessionState;
 }
 
 describe('session decisions', () => {
   describe('isSafeForLabelReuse', () => {
-    it('allows pooling of ready sessions only', () => {
-      expect(isSafeForLabelReuse(makeSession({ phase: 'ready' }))).toBe(true);
+    it('allows pooling of ready sessions whose lease was released', () => {
+      expect(
+        isSafeForLabelReuse(makeSession({ phase: 'ready', leaseReleasedAt: new Date() }))
+      ).toBe(true);
+    });
+
+    it('rejects a ready session whose owner never released its lease', () => {
+      expect(isSafeForLabelReuse(makeSession({ phase: 'ready' }))).toBe(false);
+    });
+
+    it('rejects busy phases even with a released lease', () => {
       const busyPhases: SessionPhase[] = [
         'initializing',
         'executing',
@@ -33,7 +44,9 @@ describe('session decisions', () => {
         'closing',
       ];
       for (const phase of busyPhases) {
-        expect(isSafeForLabelReuse(makeSession({ phase }))).toBe(false);
+        expect(isSafeForLabelReuse(makeSession({ phase, leaseReleasedAt: new Date() }))).toBe(
+          false
+        );
       }
     });
   });
@@ -49,15 +62,23 @@ describe('session decisions', () => {
       expect(found).toBeNull();
     });
 
-    it('returns an idle session with matching labels', () => {
+    it('returns a released idle session with matching labels', () => {
       const busy = makeSession({ executionId: 'exec-1', phase: 'executing' });
-      const idle = makeSession({ executionId: 'exec-2', phase: 'ready' });
+      const idle = makeSession({
+        executionId: 'exec-2',
+        phase: 'ready',
+        leaseReleasedAt: new Date(),
+      });
       const found = findByLabels([busy, idle], { mode: 'execution' });
       expect(found).toBe(idle);
     });
 
     it('returns null when labels do not match', () => {
-      const idle = makeSession({ executionId: 'exec-1', labels: { mode: 'record' } });
+      const idle = makeSession({
+        executionId: 'exec-1',
+        labels: { mode: 'record' },
+        leaseReleasedAt: new Date(),
+      });
       expect(findByLabels([idle], { mode: 'execution' })).toBeNull();
     });
   });

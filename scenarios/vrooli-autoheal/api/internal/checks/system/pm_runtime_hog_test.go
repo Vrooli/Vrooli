@@ -18,7 +18,7 @@ func newPMRuntimeWithMock(avail bool, count int, queryErr error) (*PMRuntimeHogC
 		mock.Responses["journalctl --version"] = checks.MockResponse{Error: errors.New("not found")}
 	}
 
-	queryKey := "journalctl --no-pager -o json -k --since 1 hour ago -g pm_runtime_work .* hogged CPU -n 1000"
+	queryKey := "journalctl --no-pager -o json -k --since -300 seconds -g pm_runtime_work .* hogged CPU -n 1000"
 	if queryErr != nil {
 		mock.Responses[queryKey] = checks.MockResponse{Error: queryErr}
 	} else {
@@ -46,16 +46,16 @@ func TestPMRuntimeJournalUnavailable(t *testing.T) {
 }
 
 func TestPMRuntimeOKBelowWarn(t *testing.T) {
-	c, _ := newPMRuntimeWithMock(true, 10, nil)
+	c, _ := newPMRuntimeWithMock(true, 3, nil)
 	r := c.Run(context.Background())
 	if r.Status != checks.StatusOK {
-		t.Errorf("Status = %s, want OK for low count", r.Status)
+		t.Errorf("Status = %s, want OK for low count (3 in 300s ~ 36/hr)", r.Status)
 	}
 }
 
 func TestPMRuntimeEmptyJournalGrepExitOneIsOK(t *testing.T) {
 	c, mock := newPMRuntimeWithMock(true, 0, nil)
-	queryKey := "journalctl --no-pager -o json -k --since 1 hour ago -g pm_runtime_work .* hogged CPU -n 1000"
+	queryKey := "journalctl --no-pager -o json -k --since -300 seconds -g pm_runtime_work .* hogged CPU -n 1000"
 	mock.Responses[queryKey] = checks.MockResponse{Error: errors.New("exit status 1")}
 
 	r := c.Run(context.Background())
@@ -71,18 +71,18 @@ func TestPMRuntimeEmptyJournalGrepExitOneIsOK(t *testing.T) {
 }
 
 func TestPMRuntimeWarningAtThreshold(t *testing.T) {
-	c, _ := newPMRuntimeWithMock(true, 75, nil)
+	c, _ := newPMRuntimeWithMock(true, 6, nil)
 	r := c.Run(context.Background())
 	if r.Status != checks.StatusWarning {
-		t.Errorf("Status = %s, want WARNING at 75/hr", r.Status)
+		t.Errorf("Status = %s, want WARNING at 6 in 300s (~72/hr)", r.Status)
 	}
 }
 
 func TestPMRuntimeCriticalAtFlood(t *testing.T) {
-	c, _ := newPMRuntimeWithMock(true, 250, nil)
+	c, _ := newPMRuntimeWithMock(true, 20, nil)
 	r := c.Run(context.Background())
 	if r.Status != checks.StatusCritical {
-		t.Errorf("Status = %s, want CRITICAL at 250/hr", r.Status)
+		t.Errorf("Status = %s, want CRITICAL at 20 in 300s (~240/hr)", r.Status)
 	}
 }
 

@@ -59,6 +59,32 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	if s.Client == nil && !opts.DryRun {
 		return report, fmt.Errorf("BAS client is required when execution is enabled")
 	}
+	isolationInstalled := false
+	if opts.Isolation != nil && !opts.DryRun {
+		lease, err := opts.Isolation.Acquire(ctx, scenario, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().UnixNano())))
+		if err != nil {
+			report.Isolation.InstallError = err.Error()
+			report.Findings = append(report.Findings, isolationFinding("routed test isolation was not installed: "+err.Error()))
+		} else {
+			report.Isolation = lease.Evidence()
+			report.Isolation.Installed = true
+			isolationInstalled = true
+			if opts.ExtraHeaders == nil {
+				opts.ExtraHeaders = map[string]string{}
+			}
+			opts.ExtraHeaders["X-Vrooli-Test-Mode"] = "1"
+			defer func() {
+				report.Isolation = lease.Close(context.Background())
+				if report.Isolation.ClearError != "" {
+					report.Findings = append(report.Findings, isolationFinding("routed test isolation cleanup failed: "+report.Isolation.ClearError))
+				}
+				if report.Isolation.Leaked() {
+					report.Findings = append(report.Findings, isolationFinding("routed test isolation leaked primary storage requests or writes"))
+				}
+				validation.SortFindings(report.Findings)
+			}()
+		}
+	}
 	// Resolve the target to an absolute path before it feeds workflow reads or
 	// the BAS ProjectRoot; BAS resolves ProjectRoot against its own CWD, so a
 	// relative value there loads the wrong selector manifest.
@@ -68,7 +94,7 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	}
 	writer := artifacts.NewWriter(targetDir, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().Unix())))
 	for _, asset := range selected {
-		run := s.runAsset(ctx, writer, asset, targetDir, opts)
+		run := s.runAsset(ctx, writer, asset, targetDir, opts, isolationInstalled)
 		report.Runs = append(report.Runs, run)
 		switch {
 		case run.Refused:
@@ -89,15 +115,48 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	return report, nil
 }
 
-func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options) WorkflowRun {
+func isolationFinding(description string) validation.Finding {
+	return validation.Finding{
+		Code:        validation.CodeExecutionRefused,
+		Severity:    validation.SeverityError,
+		Title:       "Routed test isolation unavailable",
+		Description: description,
+		Remediation: "Wire database.RoutedDB, test-mode middleware, and devrouting file roots on the target scenario.",
+	}
+}
+
+func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options, isolationInstalled bool) (run WorkflowRun) {
 	started := s.now()
-	run := WorkflowRun{Asset: asset, StartedAt: started}
+	run = WorkflowRun{Asset: asset, StartedAt: started}
 	defer func() {
 		if run.CompletedAt.IsZero() {
 			run.CompletedAt = s.now()
 		}
+		// Persist a per-workflow diagnostic even when BAS rejects a request or
+		// its execution-status lookup fails. Previously those early returns
+		// discarded the only actionable error and left the durable provider with
+		// a generic aggregate finding.
+		if writer == nil || run.Artifact.Latest != "" {
+			return
+		}
+		latest := artifacts.WorkflowLatest{
+			RunID:       opts.RunID,
+			AssetID:     asset.ID,
+			AssetPath:   asset.Path,
+			ExecutionID: run.ExecutionID,
+			Status:      run.Status,
+			Success:     run.Success,
+			Error:       run.Error,
+			StartedAt:   run.StartedAt,
+			CompletedAt: run.CompletedAt,
+			DurationMs:  run.CompletedAt.Sub(run.StartedAt).Milliseconds(),
+			Summary:     artifacts.Counts(run.Timeline),
+		}
+		if artifact, err := writer.WriteWorkflow(asset.ID, asset.Path, run.Timeline, latest); err == nil {
+			run.Artifact = artifact
+		}
 	}()
-	if reason := refusalReason(asset, opts); reason != "" {
+	if reason := refusalReason(asset, isolationInstalled); reason != "" {
 		run.Refused = true
 		run.Status = "refused"
 		run.Error = reason
@@ -166,22 +225,6 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 			run.Timeline = timeline
 		}
 	}
-	latest := artifacts.WorkflowLatest{
-		RunID:       opts.RunID,
-		AssetID:     asset.ID,
-		AssetPath:   asset.Path,
-		ExecutionID: run.ExecutionID,
-		Status:      run.Status,
-		Success:     run.Success,
-		Error:       run.Error,
-		StartedAt:   run.StartedAt,
-		CompletedAt: s.now(),
-		DurationMs:  s.now().Sub(run.StartedAt).Milliseconds(),
-		Summary:     artifacts.Counts(run.Timeline),
-	}
-	if artifact, err := writer.WriteWorkflow(asset.ID, asset.Path, run.Timeline, latest); err == nil {
-		run.Artifact = artifact
-	}
 	return run
 }
 
@@ -216,7 +259,7 @@ func selectAssets(catalog *workflows.ScenarioWorkflowCatalog, opts Options) []wo
 	return out
 }
 
-func refusalReason(asset workflows.WorkflowAsset, opts Options) string {
+func refusalReason(asset workflows.WorkflowAsset, isolationInstalled bool) string {
 	if asset.ParseError != "" {
 		return "workflow JSON did not parse; static validation must pass before execution"
 	}
@@ -226,13 +269,10 @@ func refusalReason(asset workflows.WorkflowAsset, opts Options) string {
 	if !asset.Safety.RequiresConfirmation {
 		return "mutating or destructive workflow execution requires metadata.labels.requires_confirmation=true"
 	}
-	if !opts.ConfirmMutating {
-		return "mutating workflow execution requires explicit confirmation"
-	}
 	if !asset.Safety.RequiresIsolation {
 		return "mutating or destructive workflow execution requires metadata.labels.routed_isolation=true"
 	}
-	if !opts.RoutedIsolationProven {
+	if !isolationInstalled {
 		return "mutating workflow execution requires proven routed test isolation"
 	}
 	return ""
@@ -247,7 +287,11 @@ func readWorkflowDefinition(path string) (map[string]any, error) {
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("parse workflow %s: %w", filepath.ToSlash(path), err)
 	}
-	return doc, nil
+	resolved, err := workflows.ResolveBASDocument(doc)
+	if err != nil {
+		return nil, fmt.Errorf("resolve BAS workflow %s: %w", filepath.ToSlash(path), err)
+	}
+	return resolved.Definition, nil
 }
 
 func summarizeValidationIssues(issues []ValidationIssue) string {

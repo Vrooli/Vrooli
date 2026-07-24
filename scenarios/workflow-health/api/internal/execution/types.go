@@ -19,23 +19,22 @@ type AssetSelector struct {
 }
 
 type Options struct {
-	IncludeExecution      bool
-	DryRun                bool
-	RunID                 string
-	Selector              AssetSelector
-	AllowFlowExecution    bool
-	ConfirmMutating       bool
-	RoutedIsolationProven bool
-	InitialParams         map[string]any
-	InitialStore          map[string]any
-	Env                   map[string]any
-	ExtraHeaders          map[string]string
-	CollectConsole        bool
-	CollectNetwork        bool
-	CollectDOM            bool
-	RequiresVideo         bool
-	RequiresTrace         bool
-	RequiresHAR           bool
+	IncludeExecution   bool
+	DryRun             bool
+	RunID              string
+	Selector           AssetSelector
+	AllowFlowExecution bool
+	InitialParams      map[string]any
+	InitialStore       map[string]any
+	Env                map[string]any
+	ExtraHeaders       map[string]string
+	CollectConsole     bool
+	CollectNetwork     bool
+	CollectDOM         bool
+	RequiresVideo      bool
+	RequiresTrace      bool
+	RequiresHAR        bool
+	Isolation          IsolationCoordinator
 }
 
 type Report struct {
@@ -46,6 +45,36 @@ type Report struct {
 	Runs      []WorkflowRun
 	Findings  []validation.Finding
 	Summary   Summary
+	Isolation IsolationEvidence
+}
+
+// IsolationEvidence is the durable, provider-owned proof collected from the
+// target scenario after a workflow suite completes.
+type IsolationEvidence struct {
+	Installed                       bool
+	LeaseID                         string
+	InstallError                    string
+	ClearError                      string
+	TestPoolRequests                int64
+	PrimaryDuringTestModeRequests   int64
+	TestRootWrites                  int64
+	PrimaryRootWritesDuringTestMode int64
+}
+
+func (e IsolationEvidence) Leaked() bool {
+	return e.PrimaryDuringTestModeRequests > 0 || e.PrimaryRootWritesDuringTestMode > 0
+}
+
+// IsolationCoordinator owns one target-scenario lease around a workflow run.
+// It deliberately lives at the execution boundary, so static validation and
+// direct unit tests remain independent of network routing.
+type IsolationCoordinator interface {
+	Acquire(context.Context, string, string) (IsolationLease, error)
+}
+
+type IsolationLease interface {
+	Evidence() IsolationEvidence
+	Close(context.Context) IsolationEvidence
 }
 
 type Summary struct {

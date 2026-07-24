@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"test-genie/internal/playbooks/dbdetect"
-	"test-genie/internal/playbooks/dbdetect/mocks"
+	"test-genie/internal/orchestrator/phases/dbdetect"
+	"test-genie/internal/orchestrator/phases/dbdetect/mocks"
 )
 
 func TestManifestCollector(t *testing.T) {

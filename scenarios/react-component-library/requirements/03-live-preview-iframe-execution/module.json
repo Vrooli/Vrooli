@@ -60,7 +60,7 @@
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "The harness page is served by the library's own API on a dedicated harness path so the bridge can inspect freely. The `\u003ciframe\u003e` carries the sandbox attribute set documented in `vrooli-ui-interop`; no third-party origins are loaded.",
+      "description": "The harness page is served by the library's own API on a dedicated harness path so the bridge can inspect freely. The `\u003ciframe\u003e` carries the sandbox attribute set documented in `ui-health`; no third-party origins are loaded.",
       "tags": [
         "preview",
         "security"

@@ -147,11 +147,12 @@ func (h *connectHandler) fix(ctx context.Context, req *scenariovalidationv1.FixR
 }
 
 type providerReport struct {
-	Scenario string
-	Findings []internalvalidation.Finding
-	Catalog  *workflows.ScenarioWorkflowCatalog
-	Runs     []execution.WorkflowRun
-	Summary  execution.Summary
+	Scenario  string
+	Findings  []internalvalidation.Finding
+	Catalog   *workflows.ScenarioWorkflowCatalog
+	Runs      []execution.WorkflowRun
+	Summary   execution.Summary
+	Isolation execution.IsolationEvidence
 }
 
 func (h *connectHandler) run(ctx context.Context, scenario, path string, opts execution.Options) (providerReport, error) {
@@ -173,11 +174,12 @@ func (h *connectHandler) run(ctx context.Context, scenario, path string, opts ex
 		return providerReport{}, err
 	}
 	return providerReport{
-		Scenario: report.Scenario,
-		Findings: report.Findings,
-		Catalog:  report.Catalog,
-		Runs:     report.Runs,
-		Summary:  report.Summary,
+		Scenario:  report.Scenario,
+		Findings:  report.Findings,
+		Catalog:   report.Catalog,
+		Runs:      report.Runs,
+		Summary:   report.Summary,
+		Isolation: report.Isolation,
 	}, nil
 }
 
@@ -215,6 +217,16 @@ func nativeDetail(report providerReport) (*structpb.Struct, error) {
 			"failed":   report.Summary.Failed,
 			"passed":   report.Summary.Passed,
 			"runs":     runSummaries(report.Runs),
+			"isolation": map[string]any{
+				"installed":                            report.Isolation.Installed,
+				"lease_id":                             report.Isolation.LeaseID,
+				"install_error":                        report.Isolation.InstallError,
+				"clear_error":                          report.Isolation.ClearError,
+				"test_pool_requests":                   report.Isolation.TestPoolRequests,
+				"primary_during_test_mode_requests":    report.Isolation.PrimaryDuringTestModeRequests,
+				"test_root_writes":                     report.Isolation.TestRootWrites,
+				"primary_root_writes_during_test_mode": report.Isolation.PrimaryRootWritesDuringTestMode,
+			},
 		},
 	}
 	return structpb.NewStruct(payload)

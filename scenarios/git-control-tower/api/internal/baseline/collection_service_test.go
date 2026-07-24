@@ -199,6 +199,32 @@ func TestResumeCollectionCaptureRepairsPendingProjectionFromReadyChild(t *testin
 	}
 }
 
+func TestCollectionCaptureStatusReconcilesTerminalFailureWithoutWait(t *testing.T) {
+	svc, exec := collectionService(t)
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil || len(started.Pending) != 1 {
+		t.Fatalf("start collection capture = %#v err=%v", started, err)
+	}
+	// Simulate the lost async finalizer boundary: Test Genie has already made
+	// the run terminal, but no client invokes the blocking collection wait.
+	exec.statusInfo = &RunStatusInfo{Status: "failed", Terminal: true}
+	exec.err = errors.New("terminal comprehensive failure")
+	collection, err := svc.GetCollectionCaptureStatus(context.Background(), 1, "agi", "before")
+	if err != nil || collection.Coverage().Failed != 1 || collection.Coverage().Pending != 0 {
+		t.Fatalf("terminal child was not projected by status: %#v err=%v", collection.Coverage(), err)
+	}
+	if got := collection.Members[0].Error; !strings.Contains(got, "terminal comprehensive failure") {
+		t.Fatalf("terminal failure detail = %q", got)
+	}
+	standing := CollectionCaptureStanding(collection)
+	if standing.GetLifecycle() != "terminal" || standing.GetTerminalOutcome() != "failed" || standing.GetDirective() != "inspect" {
+		t.Fatalf("failed capture standing = %#v", standing)
+	}
+}
+
 func TestResumeCollectionCaptureWaitsConcurrentlyAndReturnsTypedIncomplete(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
 	secondDone := make(chan struct{})
 	exec := &blockingFinalizeExecutor{firstAwaitStarted: make(chan struct{}), releaseFirst: make(chan struct{}), secondAwaitDone: secondDone}

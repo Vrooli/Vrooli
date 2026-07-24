@@ -271,13 +271,6 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		IntervalSeconds: 60,
 	},
 
-	// Vrooli API check
-	"vrooli-api": {
-		Enabled:         true,
-		AutoHeal:        true,
-		AutoHealOn:      "critical",
-		IntervalSeconds: 30,
-	},
 	"os-watchdog": {
 		Enabled:         true,
 		AutoHeal:        true,

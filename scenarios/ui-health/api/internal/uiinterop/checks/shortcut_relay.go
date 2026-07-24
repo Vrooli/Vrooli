@@ -15,7 +15,7 @@ SlotFile: ui/src/hooks/
 TechStack: iframe-bridge
 Recommendation: Import emitShortcutIntent from @vrooli/iframe-bridge and
   call it in your keyboard hook before or after local handling.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     // ui/src/hooks/useKeyboard.ts

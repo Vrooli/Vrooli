@@ -16,7 +16,7 @@ TechStack: api-base
 Recommendation: Consolidate resolveApiBase usage into a single config or
   hook file (e.g., ui/src/config/api.ts) and import the resolved value
   from there everywhere else.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     // ui/src/config/api.ts — single source of truth

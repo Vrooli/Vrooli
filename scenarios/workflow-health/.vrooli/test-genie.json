@@ -170,6 +170,30 @@
         "fix_class": "manual",
         "reason": "Malformed workflow JSON needs source-level repair."
       },
+      "workflow.schema_invalid": {
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "browser-automation-studio"
+        ],
+        "fix_class": "manual",
+        "reason": "Workflow JSON that does not decode as BAS WorkflowDefinitionV2 cannot execute."
+      },
+      "workflow.envelope_field_unknown": {
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "browser-automation-studio"
+        ],
+        "fix_class": "manual",
+        "reason": "Unknown BAS persistence-envelope fields are preserved for forward compatibility; review them only when Workflow Health needs to enforce their meaning."
+      },
       "workflow.metadata_incomplete": {
         "local_level_impact": "L2",
         "global_impact": "evolvability_gap",
@@ -269,6 +293,18 @@
         "reason": "Resolving a broken subflow may require renaming or rewriting workflow behavior."
       },
       "workflow.execution_mode_invalid": {
+        "local_level_impact": "L3",
+        "global_impact": "safety_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "browser-automation-studio"
+        ],
+        "fix_class": "auto",
+        "fixer_status": "implemented"
+      },
+      "workflow.observer_content_unsafe": {
         "local_level_impact": "L3",
         "global_impact": "safety_blocker",
         "dimension": "tests",

@@ -14,7 +14,7 @@ SlotFile: ui/src/main.tsx
 TechStack: iframe-bridge
 Recommendation: Pass appId in the config object, e.g.
   initIframeBridgeChild({ appId: 'my-scenario' }).
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     initIframeBridgeChild({ appId: 'my-scenario', captureLogs: true });

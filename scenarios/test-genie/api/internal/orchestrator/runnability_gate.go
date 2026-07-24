@@ -20,23 +20,15 @@ var runnabilityResolver runnability.Resolver = runnability.NewResolver()
 
 // resolveRunContext builds the phase-independent runnability.RunContext for one
 // suite execution: who the target is relative to us, which surfaces are live,
-// whether the target is routed-eligible, and which resources are available.
-//
-// It performs no lifecycle mutation — only reads. live carries the already-
-// probed surfaces (so callers that probed once don't re-probe); routedEligible
-// is supplied by the caller because computing it requires the (cached) auditor
-// scan the playbooks phase owns.
+// and which resources are available. Providers own any execution-isolation
+// decision; test-genie remains scenario-agnostic.
 func resolveRunContext(
 	env workspacepkg.Environment,
 	live targetruntime.URLs,
-	routedEligible bool,
-	routedReason string,
 	resources map[string]bool,
 ) runnability.RunContext {
 	return runnability.RunContext{
-		TargetIsSelf:   selfidentity.Is(strings.TrimSpace(env.ScenarioName)),
-		RoutedEligible: routedEligible,
-		RoutedReason:   routedReason,
+		TargetIsSelf: selfidentity.Is(strings.TrimSpace(env.ScenarioName)),
 		LiveSurfaces: runnability.Surfaces{
 			UI:  strings.TrimSpace(firstNonEmpty(env.UIURL, live.UI)) != "",
 			API: strings.TrimSpace(firstNonEmpty(env.APIURL, live.API)) != "",

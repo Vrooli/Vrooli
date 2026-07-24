@@ -16,7 +16,7 @@ SlotFile: ui/vite.config.ts
 TechStack: Vite
 Recommendation: In your vite.config.ts, add `base: './'` to the config object
   exported by defineConfig.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     import { defineConfig } from 'vite';

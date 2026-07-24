@@ -87,7 +87,7 @@ run confirming that new ui-health screenshots and workflow-health recordings
 are persisted and streamed through opaque routes. Copied historical evidence is
 strong migration evidence, but it is not an authoritative post-repair run.
 
-- Detection refactor 2026-05: playbooks DB detection moved to `internal/playbooks/dbdetect`; the silent Postgres+Redis fallback is eliminated. Scenarios with no manifest/godeps/source evidence now provision nothing for legacy workflow seed helpers — fix at the source (declare the resource or add the driver import) rather than reinstating a fallback.
+- Detection refactor 2026-05: DB detection lives in `internal/orchestrator/phases/dbdetect`; the silent Postgres+Redis fallback is eliminated. Scenarios with no manifest/godeps/source evidence now provision nothing for workflow seed helpers — fix at the source (declare the resource or add the driver import) rather than reinstating a fallback.
 - Historical queue, generation, and separate fix/requirements-improve gaps listed here were retired in July 2026. The supported workflow is now evidence-backed remediation from a completed execution; do not reintroduce those independent paths to address old ledger entries.
 
 # Failure Topography (2025-12-03)

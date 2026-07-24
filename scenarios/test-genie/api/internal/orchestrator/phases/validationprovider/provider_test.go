@@ -118,6 +118,11 @@ func TestRunDurableStartsOnceAndWaitsForSharedTerminalResponse(t *testing.T) {
 	if cap.start.GetIdempotencyKey() != "parent-run-1:proto" || cap.start.GetParentRunId() != "parent-run-1" {
 		t.Fatalf("start identity = %+v", cap.start)
 	}
+	// The generic durable contract carries target and run identity only. Provider
+	// safety authorization (including routed isolation) remains provider-owned.
+	if cap.start.GetScenario() != "demo" || cap.start.GetPath() != "/tmp/demo" {
+		t.Fatalf("start target = %+v", cap.start)
+	}
 	if cap.wait.GetRunId() != "provider-run-1" {
 		t.Fatalf("wait run id = %q", cap.wait.GetRunId())
 	}
@@ -144,6 +149,25 @@ func TestRunDurablePropagatesExplicitParentCancellation(t *testing.T) {
 	_ = RunDurable(ctx, testProvider(false), "demo", "/tmp/demo", "parent-run-1")
 	if cap.abort == nil || cap.abort.GetRunId() != "provider-run-1" {
 		t.Fatalf("abort = %+v, want durable child cancellation", cap.abort)
+	}
+}
+
+func TestRunDurablePreservesChildReferenceWhenWaitFails(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewDurableClient
+	cap := &capturingDurableClient{run: &scenariovalidationv1.ValidationRun{RunId: "provider-run-1"}, waitErr: context.DeadlineExceeded}
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewDurableClient = func(time.Duration, string) DurableClient { return cap }
+	t.Cleanup(func() { ResolveBaseURL, NewDurableClient = prevResolve, prevClient })
+
+	result := RunDurable(context.Background(), testProvider(false), "demo", "/tmp/demo", "parent-run-1")
+	if result.Success {
+		t.Fatal("expected wait failure")
+	}
+	if result.Summary.ProviderRunID != "provider-run-1" || result.Summary.ProviderParentRunID != "parent-run-1" {
+		t.Fatalf("durable child reference = %+v", result.Summary)
+	}
+	if !strings.Contains(result.Remediation, "provider-run-1") {
+		t.Fatalf("remediation = %q", result.Remediation)
 	}
 }
 

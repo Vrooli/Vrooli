@@ -16,7 +16,7 @@ TechStack: *
 Recommendation: Import startScenarioServer or createScenarioServer from
   @vrooli/api-base/server. Use createScenarioServer with the setupRoutes
   callback when custom routes are needed.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     // ui/server.js — standard server with no custom routes

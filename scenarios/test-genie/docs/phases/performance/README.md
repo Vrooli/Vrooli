@@ -83,12 +83,12 @@ fail the phase, so warnings and infos are honest, non-failing debt.
   component-commit avg/max) → a real performance regression against a declared
   budget: profile and investigate the regressed axis and bring it back under
   budget — do not merely raise the budget. Load the `performance` skill (add
-  `react-stability` for component-commit axes).
+  `ui-health` for component-commit axes).
 - **`PERF_LIGHTHOUSE_BELOW_ERROR_THRESHOLD`** → a Lighthouse category scored below
   its configured error threshold in `.vrooli/lighthouse.json`: investigate the
   UI quality/performance regression driving the low score.
 - **`PERF_COMPONENT_COMMIT_OVER_BUDGET`** → a slow component-commit hot spot:
-  profile the component and reduce its commit cost (`performance`, `react-stability`).
+  profile the component and reduce its commit cost (`performance`, `ui-health`).
 - **`perf_build_*` profiling-infra findings** → auto-fixable instrumentation gaps:
   add the Vite profiling aliases, `build:profile` script, profiler utility, and
   React.Profiler boundary (the implemented fixer scaffolds these).

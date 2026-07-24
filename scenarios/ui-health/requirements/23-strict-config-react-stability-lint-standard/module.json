@@ -1,5 +1,5 @@
 {
-  "description": "A strict-config + react-stability lint standard. Static checks verify `tsconfig` has `strict:true` and that eslint rules `rules-of-hooks`, `no-cycle`, `no-any`, and `no-non-null-assert` are set at error level. Auto-fix can flip these config flags behind a preview.",
+  "description": "A strict-config + ui-health lint standard. Static checks verify `tsconfig` has `strict:true` and that eslint rules `rules-of-hooks`, `no-cycle`, `no-any`, and `no-non-null-assert` are set at error level. Auto-fix can flip these config flags behind a preview.",
   "module_id": "MOD-P1-023",
   "prd_ref": "OT-P1-009",
   "priority": "P1",
@@ -41,7 +41,7 @@
           "type": "test"
         },
         {
-          "notes": "The strict-config + react-stability standard enforces type-safety and hook-stability lint rules across UI scenarios",
+          "notes": "The strict-config + ui-health standard enforces type-safety and hook-stability lint rules across UI scenarios",
           "phase": "business",
           "ref": "",
           "status": "pending",
@@ -98,5 +98,5 @@
       ]
     }
   ],
-  "title": "strict-config + react-stability lint standard"
+  "title": "strict-config + ui-health lint standard"
 }

@@ -132,7 +132,8 @@ The first rule set covers static workflow readiness:
 | `workflow.requirement_unlinked` | Validation case has no requirement link. | Manual traceability decision. |
 | `workflow.selector_unregistered` | Selector bypasses `@selector/` registry indirection. | Manual UI contract decision. |
 | `workflow.subflow_unresolved` | Subflow or fixture dependency does not resolve. | Manual workflow repair. |
-| `workflow.execution_mode_invalid` | `execution_mode` is not `observer` or `mutating`. | Auto: normalize to `observer`. |
+| `workflow.execution_mode_invalid` | `execution_mode` is not `observer`, `mutating`, or `destructive`. | Auto: normalize to `observer`. |
+| `workflow.observer_content_unsafe` | An observer-labeled workflow, including its resolved subflows, contains a non-read-only action. | Auto: relabel to `mutating`. |
 | `workflow.reset_legacy` | Legacy `reset=database` is present. | Auto: normalize to `full`. |
 | `workflow.mutating_safety_missing` | Mutating workflow lacks confirmation or routed isolation metadata. | Manual safety decision. |
 | `workflow.seed_missing` | Full-reset mutating workflow lacks seed/fixture setup. | Manual data safety decision. |

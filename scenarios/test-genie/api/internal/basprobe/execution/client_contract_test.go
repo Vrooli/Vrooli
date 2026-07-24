@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"test-genie/internal/playbooks/execution"
-	"test-genie/internal/playbooks/types"
+	"test-genie/internal/basprobe/execution"
+	"test-genie/internal/basprobe/types"
 
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 )
@@ -23,7 +23,7 @@ import (
 // To run these tests:
 //   1. Start browser-automation-studio: make -C scenarios/browser-automation-studio start
 //   2. Set BAS_API_URL environment variable (default: http://localhost:8080/api/v1)
-//   3. Run: go test -v ./internal/playbooks/execution/... -run Contract
+//   3. Run: go test -v ./internal/basprobe/execution/... -run Contract
 
 const (
 	defaultBASURL = "http://localhost:8080/api/v1"

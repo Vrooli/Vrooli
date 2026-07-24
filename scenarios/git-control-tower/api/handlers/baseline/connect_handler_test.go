@@ -63,11 +63,11 @@ func (e *recordingExecutor) FindReusableRun(_ context.Context, _ string) (bl.Reu
 }
 
 type recordingRuns struct {
-	mu      sync.Mutex
-	pins    int
-	unpins  int
+	mu       sync.Mutex
+	pins     int
+	unpins   int
 	unpinErr error
-	compare bl.CompareResult
+	compare  bl.CompareResult
 }
 
 func (r *recordingRuns) PinRun(_ context.Context, _, _, _, _ string) error {
@@ -263,8 +263,8 @@ func TestCollectionCaptureAsyncFinalizersProjectSiblingAndLogLifecycle(t *testin
 		t.Fatal(err)
 	}
 	coverage := partial.Msg.GetCollection().GetCoverage()
-	if coverage.GetReady() != 0 || coverage.GetPending() != 2 || coverage.GetComplete() {
-		t.Fatalf("pure status must not reconcile child finalizers: %#v", coverage)
+	if coverage.GetReady() != 1 || coverage.GetPending() != 1 || coverage.GetComplete() {
+		t.Fatalf("status must project the terminal child without waiting for its sibling: %#v", coverage)
 	}
 	if !strings.Contains(logs.String(), "finalizer started collection=before scenario=blocked run=run-1") {
 		t.Fatalf("lifecycle logs = %q", logs.String())

@@ -15,7 +15,7 @@ SlotFile: ui/server.js
 TechStack: *
 Recommendation: Define a proxyToApi function in your custom server that
   forwards /api requests through the Vrooli tunnel endpoint.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     import express from "express";

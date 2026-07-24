@@ -14,7 +14,7 @@ SlotFile: ui/src/App.tsx
 TechStack: React
 Recommendation: Add a proxy-aware basename prop to BrowserRouter using
   getProxyInfo() from @vrooli/api-base to resolve the deployment path.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     import { BrowserRouter } from "react-router-dom";

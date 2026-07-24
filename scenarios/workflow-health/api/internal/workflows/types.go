@@ -58,25 +58,26 @@ type RegistryEntry struct {
 
 // WorkflowAsset is the shared normalized representation of cases, flows, and actions.
 type WorkflowAsset struct {
-	ID            string            `json:"id"`
-	Scenario      string            `json:"scenario"`
-	Path          string            `json:"path"`
-	Type          AssetType         `json:"type"`
-	Role          AssetRole         `json:"role"`
-	Name          string            `json:"name,omitempty"`
-	Description   string            `json:"description,omitempty"`
-	Version       string            `json:"version,omitempty"`
-	Order         string            `json:"order,omitempty"`
-	ExecutionMode string            `json:"execution_mode,omitempty"`
-	Reset         string            `json:"reset,omitempty"`
-	Labels        map[string]string `json:"labels,omitempty"`
-	Requirements  []RequirementLink `json:"requirements,omitempty"`
-	Selectors     []SelectorRef     `json:"selectors,omitempty"`
-	Routes        []RouteRef        `json:"routes,omitempty"`
-	Safety        SafetyProfile     `json:"safety"`
-	Dependencies  []DependencyEdge  `json:"dependencies,omitempty"`
-	NodeCount     int               `json:"node_count"`
-	ParseError    string            `json:"parse_error,omitempty"`
+	ID                    string            `json:"id"`
+	Scenario              string            `json:"scenario"`
+	Path                  string            `json:"path"`
+	Type                  AssetType         `json:"type"`
+	Role                  AssetRole         `json:"role"`
+	Name                  string            `json:"name,omitempty"`
+	Description           string            `json:"description,omitempty"`
+	Version               string            `json:"version,omitempty"`
+	Order                 string            `json:"order,omitempty"`
+	ExecutionMode         string            `json:"execution_mode,omitempty"`
+	Reset                 string            `json:"reset,omitempty"`
+	Labels                map[string]string `json:"labels,omitempty"`
+	Requirements          []RequirementLink `json:"requirements,omitempty"`
+	Selectors             []SelectorRef     `json:"selectors,omitempty"`
+	Routes                []RouteRef        `json:"routes,omitempty"`
+	Safety                SafetyProfile     `json:"safety"`
+	Dependencies          []DependencyEdge  `json:"dependencies,omitempty"`
+	NodeCount             int               `json:"node_count"`
+	EnvelopeUnknownFields []string          `json:"envelope_unknown_fields,omitempty"`
+	ParseError            string            `json:"parse_error,omitempty"`
 }
 
 type WorkflowCase struct {

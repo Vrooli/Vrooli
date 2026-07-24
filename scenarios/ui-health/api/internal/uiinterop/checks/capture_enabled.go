@@ -15,7 +15,7 @@ SlotFile: ui/src/main.tsx
 TechStack: iframe-bridge
 Recommendation: Remove `captureLogs: false` and `captureNetwork: false` from
   the bridge config. Both default to true when omitted.
-Standard: vrooli-ui-interop-v1
+Standard: ui-health-v1
 
 GoodExample:
     initIframeBridgeChild({

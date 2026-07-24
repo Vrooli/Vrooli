@@ -96,7 +96,7 @@
           "maturity": "active",
           "requiredBy": ["generated", "oriented"],
           "completion": "required",
-          "ownerSkills": ["react-coherence", "ux"],
+          "ownerSkills": ["ui-health", "ux"],
           "validation": {
             "requiredHeadings": ["Intent", "Feedback & State", "Request Lifecycle"],
             "forbiddenPlaceholders": ["[TODO]"]

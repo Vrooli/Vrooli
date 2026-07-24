@@ -16,8 +16,8 @@ import (
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
+	"workflow-health/internal/workflows"
 )
 
 type ConnectClient struct {
@@ -67,8 +67,12 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 		return nil, err
 	}
 	basReq := &basexecution.ExecuteAdhocRequest{
-		FlowDefinition:    def,
-		WaitForCompletion: true,
+		FlowDefinition: def,
+		// BAS's synchronous endpoint is intentionally protected by its regular
+		// request timeout. A workflow suite can legitimately run longer than
+		// that, so start asynchronously and make the durable provider own the
+		// completion wait through the execution-status contract instead.
+		WaitForCompletion: false,
 		Metadata: &basexecution.ExecutionMetadata{
 			Name:        strings.TrimSpace(req.Name),
 			Description: strings.TrimSpace(req.Description),
@@ -84,14 +88,42 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	out := &ExecuteResult{
-		ExecutionID: strings.TrimSpace(resp.Msg.GetExecutionId()),
-		Status:      resp.Msg.GetStatus(),
+	executionID := strings.TrimSpace(resp.Msg.GetExecutionId())
+	if executionID == "" {
+		return nil, fmt.Errorf("BAS started an adhoc workflow without an execution id")
 	}
-	if resp.Msg.Error != nil {
-		out.Error = strings.TrimSpace(resp.Msg.GetError())
+	return c.waitForExecution(ctx, executionID)
+}
+
+func (c *ConnectClient) waitForExecution(ctx context.Context, executionID string) (*ExecuteResult, error) {
+	waitCtx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		resp, err := c.executions.GetExecution(waitCtx, connect.NewRequest(&basapi.GetExecutionRequest{ExecutionId: executionID}))
+		if err != nil {
+			return nil, fmt.Errorf("read BAS execution %s: %w", executionID, err)
+		}
+		if resp == nil || resp.Msg == nil || resp.Msg.GetExecution() == nil {
+			return nil, fmt.Errorf("BAS returned an empty execution status for %s", executionID)
+		}
+		execution := resp.Msg.GetExecution()
+		if execution.GetCompletedAt() != nil {
+			return &ExecuteResult{
+				ExecutionID: executionID,
+				Status:      execution.GetStatus(),
+				Error:       strings.TrimSpace(execution.GetError()),
+				Execution:   execution,
+			}, nil
+		}
+		select {
+		case <-waitCtx.Done():
+			return nil, fmt.Errorf("BAS execution %s did not complete within %s: %w", executionID, c.timeout, waitCtx.Err())
+		case <-ticker.C:
+		}
 	}
-	return out, nil
 }
 
 func (c *ConnectClient) Timeline(ctx context.Context, executionID string) (*bastimeline.ExecutionTimeline, error) {
@@ -103,42 +135,7 @@ func (c *ConnectClient) Timeline(ctx context.Context, executionID string) (*bast
 }
 
 func definitionToProto(definition map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
-	data, err := json.Marshal(normalizeWorkflowDefinitionAliases(definition))
-	if err != nil {
-		return nil, fmt.Errorf("marshal workflow definition: %w", err)
-	}
-	var out basworkflows.WorkflowDefinitionV2
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("decode workflow definition: %w", err)
-	}
-	return &out, nil
-}
-
-func normalizeWorkflowDefinitionAliases(definition map[string]any) map[string]any {
-	out := make(map[string]any, len(definition))
-	for key, value := range definition {
-		out[key] = value
-	}
-	metadata, ok := definition["metadata"].(map[string]any)
-	if !ok {
-		return out
-	}
-	metadataOut := make(map[string]any, len(metadata))
-	for key, value := range metadata {
-		metadataOut[key] = value
-	}
-	if mode, ok := metadataOut["execution_mode"].(string); ok {
-		switch strings.ToLower(strings.TrimSpace(mode)) {
-		case "observer":
-			metadataOut["execution_mode"] = "EXECUTION_MODE_OBSERVER"
-		case "mutating":
-			metadataOut["execution_mode"] = "EXECUTION_MODE_MUTATING"
-		case "destructive":
-			metadataOut["execution_mode"] = "EXECUTION_MODE_DESTRUCTIVE"
-		}
-	}
-	out["metadata"] = metadataOut
-	return out
+	return workflows.DecodeBASDefinition(definition)
 }
 
 func parametersToProto(params Parameters) *basexecution.ExecutionParameters {
