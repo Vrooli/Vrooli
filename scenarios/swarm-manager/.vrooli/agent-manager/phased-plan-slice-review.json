@@ -122,7 +122,7 @@
   "budgets": {
     "wallTimeSeconds": 420,
     "maxTurns": 4,
-    "maxTokens": 8000,
+    "maxTokens": 200000,
     "maxCostUsd": 1,
     "maxNodeAttempts": 2,
     "maxChildren": 1,

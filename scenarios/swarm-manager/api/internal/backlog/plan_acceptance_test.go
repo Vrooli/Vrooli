@@ -28,6 +28,7 @@ func (c acceptancePlanClient) RenderMarkdown(context.Context, string, bool) (pla
 	return planclient.RenderMarkdownResult{Markdown: "# plan", Plan: c.plan, QualityStatus: "pass"}, nil
 }
 
+// [REQ:SWM-P0-004] acceptance gate: operator accept pins canonical plan
 func TestAcceptPlanPinsCanonicalHashAndScopeVersion(t *testing.T) {
 	h, root := setupTestHandler(t)
 	item := BacklogItem{Name: "accept-me", Title: "Accept me", Description: "scope", Status: StatusBacklog, Priority: 5, PlanRef: &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: "plan-1", Slug: "plan-1", Role: PlanRefRoleExecutionSpec}}
@@ -50,6 +51,7 @@ func TestAcceptPlanPinsCanonicalHashAndScopeVersion(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P0-004] acceptance gate: acceptance cleared when plan/contract changes
 func TestPlanAcceptanceIsClearedWhenWorkContractChanges(t *testing.T) {
 	item := BacklogItem{
 		Kind: KindFix, Name: "example", Title: "before",

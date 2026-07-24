@@ -252,6 +252,7 @@ scenario owns a duplicate loop/branch engine.
 
 ## Sources and implementation anchors
 
+- [DOC: OPERATOR-JOURNEYS.md] — the operator-facing narrative of both journeys
 - [DOC: ../../../agent-manager/docs/reference/scenario-declarations.md#the-declared-run-doctrine]
 - [DOC: ARCHITECTURE.md#typed-workflow-pilots]
 - [DOC: ../internal/AGENT-SESSIONS.md#supported-kinds]

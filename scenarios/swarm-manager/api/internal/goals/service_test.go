@@ -152,6 +152,7 @@ func TestService_SeedFromTags(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P1-002] goal progress: per-goal ETA band attached
 func TestService_AttachesETABand(t *testing.T) {
 	items := []backlog.BacklogItem{
 		{Name: "a", Kind: "execute", Status: "ready", Effort: "M"},
@@ -243,6 +244,7 @@ func TestService_RejectsLegacyInitiativeTargets(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P0-011] goals own scoped milestones over member backlog items
 func TestService_MilestonesAreOwnedScopedAndRoundTrip(t *testing.T) {
 	svc := newTestService(t, []backlog.BacklogItem{
 		item("execute", "a", "ready", nil, "execute/b"),

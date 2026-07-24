@@ -88,6 +88,7 @@ func TestList_UsesSnapshotWithoutRefreshingRunState(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P0-005] declared strategy registry exposed for operator selection
 func TestStrategies_ReturnsDeclaredExecutionChoiceWithCost(t *testing.T) {
 	service := NewService(ServiceConfig{DataRoot: t.TempDir(), StorePath: filepath.Join(t.TempDir(), "executions.json"), PlanRenderer: testPlanRenderer()})
 	recorder := httptest.NewRecorder()

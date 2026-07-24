@@ -235,6 +235,7 @@ func TestUpdatePatch_HTTP_RejectsInternalStatusesAsTarget(t *testing.T) {
 // cannot flip an item out of in_review or review_pending to any other status;
 // the review-decide endpoint is the only allowed path. This is the guard that
 // preserves the audit trail (decision record + itemTerminalHandler).
+// [REQ:SWM-P0-008] terminal status reachable only through operator review decision
 func TestUpdatePatch_HTTP_RejectsStatusChangeFromReviewStates(t *testing.T) {
 	cases := []struct {
 		existing BacklogStatus

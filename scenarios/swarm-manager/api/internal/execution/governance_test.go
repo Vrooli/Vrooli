@@ -134,6 +134,7 @@ func TestConcurrencyGate_StartLocked(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P1-008] execution policy: queue depth cap enforced
 func TestQueueDepthEnforcement(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "new-item", map[string]any{

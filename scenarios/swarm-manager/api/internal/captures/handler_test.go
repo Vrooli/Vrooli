@@ -415,6 +415,7 @@ func (m *mockBacklogCreator) SaveItem(kind, name, title, description string, tag
 	return nil
 }
 
+// [REQ:SWM-P0-001] backlog work intake: item from classified capture
 func TestCreateItem_Success(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 	creator := &mockBacklogCreator{}

@@ -159,6 +159,7 @@ func TestServiceStartRejectsContextOverKindCaps(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P1-004] swarm sessions primed with the operator-loop skill
 func TestServiceStartSwarmOperationsUsesOperationsSkillAndPurpose(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()

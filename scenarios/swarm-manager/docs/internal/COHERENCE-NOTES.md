@@ -332,7 +332,7 @@ export function createIdeasService(apiClient: IApiClient = defaultApiClient): II
 3. **Danger zone border in ScenarioDetailsPage**: Intentionally red border for visual differentiation.
 
 ### Tracked Files
-Recorded 17 visits via visited-tracker react-coherence campaign:
+Recorded 17 visits via visited-tracker ui-health campaign:
 - 6 pages (ScenariosPage, IdeasPage, ScenarioDetailsPage, IdeaDetailsPage, SettingsPage, RecommendationsPage)
 - 5 UI components (Button, Card, Input, SearchBar, ErrorState)
 - 3 services (ideas-service, scenarios-service, index)
@@ -379,7 +379,7 @@ Fourth and final coherence verification iteration confirming no regressions and 
 3. **SettingsPage option buttons** - Placeholder page, documented as future work
 
 ### Files Audited This Iteration
-Recorded 8 visits via visited-tracker react-coherence campaign:
+Recorded 8 visits via visited-tracker ui-health campaign:
 - 4 pages: ScenariosPage, ScenarioDetailsPage, IdeaDetailsPage, IdeasPage
 - 3 components: ConfirmDialog, FileTree, FilePreview
 - 1 service: services/index.ts

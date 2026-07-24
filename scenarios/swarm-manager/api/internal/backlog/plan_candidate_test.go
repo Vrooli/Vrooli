@@ -33,6 +33,7 @@ func (c *candidateApplyClient) ApplyCandidateRevision(_ context.Context, id, has
 	return &plansv1.ApplyCandidateRevisionResponse{Candidate: &plansv1.CandidateRevision{Id: id}, Plan: c.plan}, nil
 }
 
+// [REQ:SWM-P0-002] one evolving plan per item revised in place via candidate apply
 func TestApplyPlanCandidateClearsAcceptanceAfterPlanManagerApply(t *testing.T) {
 	h, root := setupTestHandler(t)
 	item := BacklogItem{Name: "candidate", Title: "Candidate", Status: StatusBacklog, Priority: 5, PlanRef: &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: "plan-1", Role: PlanRefRoleExecutionSpec}, PlanAcceptance: &PlanAcceptance{Actor: "operator", PlanContentHash: "sha256:base", SubjectVersion: "subject"}}

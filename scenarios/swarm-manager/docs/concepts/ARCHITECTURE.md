@@ -40,41 +40,27 @@ records and event projections remain read-only for audit and migration history.
 
 ## Mental Model
 
-Swarm Manager is the **staging and review layer** for agent-generated plans. Its primary role is to receive work proposals from prompt-manager agent teams, let operators review and refine them, and then control when and how they execute.
+Swarm Manager is the **operator command center for autonomous change work**. A backlog item moves through one arc — create → workshop one evolving plan → explicit operator acceptance → strategy-selected execution → evidence-backed review → operator decision → follow-up proposals — and Goals sit above the items as intent statements with milestones and acceptance criteria. The narrative version of both arcs lives in [OPERATOR-JOURNEYS.md](./OPERATOR-JOURNEYS.md); the authority model lives in [TARGET-OPERATING-MODEL.md](./TARGET-OPERATING-MODEL.md).
 
-The primary operator surface is now the **graph workspace**. Operators navigate backlog items, milestones, scenarios, executions, agent activities, runs, and captures primarily through a graph-first view, with sidebar lists and detail routes serving as search, drill-down, and non-graph navigation paths.
+The primary operator surface is the **Plan board** at `/plan`; the **Graph workspace** at `/graph` is the secondary, topology-first navigation surface (see "Operator Surfaces" below).
 
 ```
-prompt-manager                         swarm-manager
-┌────────────────────────┐             ┌──────────────────────────────────┐
-│  Agent Teams           │             │  STAGING / REVIEW / EXECUTION    │
-│  ┌──────────────────┐  │             │                                  │
-│  │ Feature Team     │──┼── idea ────▶│  ┌──────────┐                    │
-│  │ QA Team          │──┼── fix ─────▶│  │ BACKLOG  │  Operator reviews  │
-│  │                  │──┼── execute ─▶│  │ items    │  plans, uses       │
-│  │                  │  │            ▶│  └────┬─────┘  transitions       │
-│  └──────────────────┘  │             │       │        and plans          │
-│                        │             │       ▼                           │
-│  Skills define reviewed│             │  ┌──────────┐                    │
-│  workflow or session   │             │  │ DECLARED │  typed result      │
-│  instructions          │             │  │ WORKFLOW │  → plan_ref        │
-│                        │             │  └────┬─────┘                    │
-└────────────────────────┘             │       │                           │
-                                       │       ▼                           │
-                                       │  ┌──────────────┐                │
-                                       │  │  EXECUTION   │  manual /      │
-                                       │  │  CONTROL     │  scheduled /   │
-                                       │  └──────┬───────┘  yolo          │
-                                       │         │                         │
-                                       │         ▼                         │
-                                       │  Generator / Improver agents      │
-                                       │  build or iterate the scenario    │
-                                       └──────────────────────────────────┘
+   intake                    swarm-manager                     substrate
+┌───────────────┐   ┌────────────────────────────────┐   ┌─────────────────┐
+│ operator      │──▶│ BACKLOG ITEM                   │   │ plan-manager    │
+│ captures      │──▶│  workshop → accept → run       │◀─▶│ (canonical plan)│
+│ session/goal  │──▶│  → review → decide → follow-up │   ├─────────────────┤
+│ proposals     │   ├────────────────────────────────┤   │ agent-manager   │
+└───────────────┘   │ GOALS + MILESTONES             │◀─▶│ (declared       │
+                    │  intent → proposals → DoD      │   │  workflows)     │
+                    │  review → progress truth       │   ├─────────────────┤
+                    └────────────────────────────────┘   │ test-genie /    │
+                                                         │ git-control-    │
+                                                         │ tower (evidence)│
+                                                         └─────────────────┘
 ```
 
-**Why this matters:** Agent teams in Prompt Manager can analyze and produce proposals, but they do not mutate project work directly. Swarm Manager is the single place to review proposals, retain a Plan Manager plan reference, authorize execution, and retain evidence. Programmatic refinement is selected from the registered workflow catalog; an operator can instead use a natural Session when the next step is conversation rather than a typed result. This is the project-work equivalent of a pull-request review boundary.
-
-Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
+**Why this matters:** agents (sessions, workshop rounds, reviews, goal workflows) analyze and propose, but they never mutate project work directly. Swarm Manager is the single place where proposals are decided, plan references are accepted, execution is authorized, evidence is retained, and terminal statuses are written — the project-work equivalent of a pull-request review boundary.
 
 ## Domain Concepts
 
@@ -327,7 +313,7 @@ api/internal/
 ├── overview/          # Aggregation endpoint (backlog + milestones + graph + stats)
 ├── captures/          # Capture CRUD and classification
 ├── promptcatalog/     # Canonical runtime prompt inventory and resolvers
-├── workshop/          # Readiness scoring, round I/O
+├── workshop/          # Legacy round I/O helpers (readiness scoring retired; active loop lives in planworkshop/)
 ├── execution/         # Execution run lifecycle
 ├── graph/             # Graph projection + websocket invalidation
 ├── scenarios/         # Scenario CRUD and lifecycle

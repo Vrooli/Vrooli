@@ -6,6 +6,7 @@ import (
 	"swarm-manager/internal/planworkshop"
 )
 
+// [REQ:SWM-P0-009] typed follow-up proposals gated by explicit operator decision policy
 func TestAutomaticFollowUpPolicyIsExplicitAndBounded(t *testing.T) {
 	proposal := planworkshop.FollowUpProposal{
 		Route:             "work.correct",

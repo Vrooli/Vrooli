@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+// [REQ:SWM-P0-001] backlog work intake: direct item creation
 func TestCreate_Success(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 

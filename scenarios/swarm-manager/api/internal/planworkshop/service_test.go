@@ -127,6 +127,7 @@ func TestResponseRejectsForeignProposalAndOpenPreservesPacketHistory(t *testing.
 	}
 }
 
+// [REQ:SWM-P0-003] workshop loop projects typed proposals and open decisions
 func TestReviewRunProjectsTypedResultOnce(t *testing.T) {
 	version := "v1"
 	svc := NewService(NewStore(t.TempDir()), func(Subject) (string, string, string, error) { return version, "plan-1", "hash-1", nil })

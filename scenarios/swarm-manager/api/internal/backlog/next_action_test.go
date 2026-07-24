@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// [REQ:SWM-P0-010] item next-action projection driven by execution preflight reasons
 func TestResolveNextActionDecisionTable(t *testing.T) {
 	tests := []struct {
 		name      string

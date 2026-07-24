@@ -33,6 +33,22 @@
   },
   {
     "schemaVersion": "swarm-transition/v1",
+    "key": "session.workflow_authoring",
+    "subject": "agent-session",
+    "kind": "session",
+    "requires": [
+      "agent-manager"
+    ],
+    "inputContract": "session-input/v1",
+    "terminalOutcomes": [
+      "proposal",
+      "closed",
+      "abstained"
+    ],
+    "applyAction": "apply_session_proposal"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
     "key": "proposal.apply",
     "subject": "proposal",
     "kind": "deterministic",

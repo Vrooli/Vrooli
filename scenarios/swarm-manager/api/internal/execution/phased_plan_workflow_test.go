@@ -124,6 +124,7 @@ func TestProcessActiveExecutionsDoesNotApplyPhasedPlanWorkflow(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P0-006] phased slice execution: bounded slices and handoff plumbing into workflow input
 func TestStartBindsIdempotentPlanManagerExecutionIntoWorkflowInput(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "execute", "plan-binding", map[string]any{
@@ -161,6 +162,7 @@ func TestStartBindsIdempotentPlanManagerExecutionIntoWorkflowInput(t *testing.T)
 	}
 }
 
+// [REQ:SWM-P0-005] strategy selection validated against the declared registry
 func TestQueueBacklogRejectsUnknownStrategy(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "execute", "unknown-strategy", map[string]any{

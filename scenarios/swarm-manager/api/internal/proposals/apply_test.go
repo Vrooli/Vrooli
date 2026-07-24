@@ -243,6 +243,7 @@ func (e *applyEnv) loadItem(kind, name string) backlog.BacklogItem {
 	return item
 }
 
+// [REQ:SWM-P0-001] backlog work intake: item from accepted proposal
 func TestApply_AddItem_CreatesItemAndAttaches(t *testing.T) {
 	env := newApplyEnv(t)
 	p := Proposal{

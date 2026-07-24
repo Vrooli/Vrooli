@@ -1,111 +1,182 @@
 # Operational Target Coverage
 
-This reference maps PRD operational targets to current documentation and implementation touchpoints.
+This reference maps the PRD operational targets (regenerated 2026-07-23) to
+current documentation and implementation touchpoints. Statuses here are an
+audited snapshot for orientation; the earned source of truth is the
+`requirements/` registry synced by test evidence. The retired 2026-01 target
+set (OT-P0-001..011 idea-backlog era, OT-P05-*) is superseded; its historical
+mapping lives in git history.
+
+## P0 Targets
+
+### OT-P0-001 - Backlog work intake
+Status: Implemented.
+References:
+- [DOC: docs/concepts/OPERATOR-JOURNEYS.md]
+- [CODE: api/internal/backlog/handler.go]
+- [CODE: api/internal/captures/classify.go]
+- [CODE: api/internal/proposals/types.go]
+
+### OT-P0-002 - One evolving plan per item
+Status: Implemented.
+References:
+- [DOC: docs/guides/workshop-workflow.md]
+- [CODE: api/internal/backlog/plan_author.go]
+- [CODE: api/internal/backlog/plan_candidate.go]
+
+### OT-P0-003 - Plan workshop loop
+Status: Implemented.
+References:
+- [DOC: docs/guides/workshop-workflow.md]
+- [CODE: api/internal/planworkshop/service.go]
+- [CODE: api/routes_plan_workshop.go]
+
+### OT-P0-004 - Explicit plan acceptance gate
+Status: Implemented.
+References:
+- [DOC: docs/concepts/GLOSSARY.md] (Plan Acceptance)
+- [CODE: api/internal/backlog/plan_acceptance.go]
+- [CODE: api/internal/execution/preflight.go]
+
+### OT-P0-005 - Strategy-selectable execution
+Status: Partial — registry seam, validation, and picker endpoint exist; only
+the phased-plan-drain strategy is declared, and the run sheet auto-submits
+rather than presenting a picker.
+References:
+- [CODE: api/internal/execution/service_queue.go]
+- [CODE: api/internal/execution/strategies.go]
+- [CODE: .vrooli/swarm-transitions/registry.json]
+
+### OT-P0-006 - Phased slice execution
+Status: Implemented.
+References:
+- [CODE: api/internal/execution/phased_plan_workflow.go]
+- [CODE: .vrooli/agent-manager/phased-plan-drain.json]
+
+### OT-P0-007 - Independent post-run review
+Status: Implemented.
+References:
+- [CODE: api/internal/execution/finalization.go]
+- [CODE: api/internal/review/workflow_apply.go]
+- [CODE: .vrooli/agent-manager/independent-review.json]
+
+### OT-P0-008 - Operator-owned terminal decisions
+Status: Implemented (enforced invariant).
+References:
+- [CODE: api/internal/backlogstatus/statuses.go]
+- [CODE: api/internal/backlog/review_decide.go]
+
+### OT-P0-009 - Typed follow-up proposals
+Status: Partial — review findings and sessions emit typed proposals with
+policy; raw work.follow_up/work.correct completion applies still only flip
+status.
+References:
+- [CODE: api/routes_plan_workshop.go]
+- [CODE: api/internal/proposals/types.go]
+- [CODE: api/internal/execution/work_workflow.go]
+
+### OT-P0-010 - Item next-action projection
+Status: Implemented.
+References:
+- [DOC: docs/concepts/GLOSSARY.md] (Next Action)
+- [CODE: api/internal/backlog/next_action.go]
+
+### OT-P0-011 - Goals with milestones
+Status: Implemented.
+References:
+- [DOC: docs/concepts/OPERATOR-JOURNEYS.md] (Journey 2)
+- [CODE: api/internal/goals/model.go]
+- [CODE: api/internal/goals/service.go]
+
+### OT-P0-012 - Goal planning loop
+Status: Partial — launch paths, typed proposal schemas, and apply/validation
+logic exist; no production caller invokes the workflow-run apply endpoint, and
+the proposal vocabulary cannot yet author new backlog items.
+References:
+- [CODE: api/internal/goals/handler.go]
+- [CODE: api/goal_workflow_adapter.go]
+- [CODE: api/goal_mutation_processor.go]
+- [CODE: .vrooli/agent-manager/goal-plan.json]
+
+### OT-P0-013 - Milestone review on completion
+Status: Partial — auto-trigger, idempotency, and DoD delivery are wired; the
+verdict is stranded by the same missing apply caller as OT-P0-012.
+References:
+- [CODE: api/internal/goals/workflow.go]
+- [CODE: api/routes_execution.go]
+- [CODE: .vrooli/agent-manager/milestone-review.json]
+
+### OT-P0-014 - Governed workflow execution
+Status: Implemented.
+References:
+- [DOC: docs/concepts/TARGET-OPERATING-MODEL.md]
+- [DOC: docs/reference/transition-catalog.md]
+- [CODE: api/internal/transitions/registry.go]
+- [CODE: api/internal/agentmanager/workflow.go]
 
 ## P1 Targets
 
-### OT-P1-001 - Execution control policy
+### OT-P1-001 - Goal next-action chaining
+Status: Not implemented.
+References:
+- [DOC: docs/concepts/OPERATOR-JOURNEYS.md] (Journey 2, step 7)
+- [CODE: api/internal/backlog/next_action.go] (item-level precedent)
+
+### OT-P1-002 - Goal progress and velocity
+Status: Partial — progress rollup, Monte-Carlo ETA bands, and scope-creep
+history exist; velocity/trajectory reporting does not.
+References:
+- [CODE: api/internal/eta/montecarlo.go]
+- [CODE: api/internal/goals/service.go]
+
+### OT-P1-003 - Goal-scoped discovery
+Status: Partial — workflow and launch path exist; stranded by the missing
+apply caller and item-authoring vocabulary (see OT-P0-012).
+References:
+- [CODE: api/internal/goals/handler.go]
+- [CODE: .vrooli/agent-manager/goal-discover.json]
+
+### OT-P1-004 - Swarm management sessions
+Status: Partial — session kinds and skills exist (meta_orchestration,
+swarm_operations, workflow_authoring, proposals); no single operator-loop
+skill drives the full cycle.
+References:
+- [DOC: docs/internal/AGENT-SESSIONS.md]
+- [CODE: api/internal/agentsessions/service.go]
+
+### OT-P1-005 - One-shot execution strategy
+Status: Not implemented (strategy registry seam is ready for it).
+References:
+- [CODE: api/internal/execution/service_queue.go]
+
+### OT-P1-006 - Live execution progress
+Status: Partial — the agent-manager execution-trace client exists; records
+collect terminal-only, and no live slice panel renders.
+References:
+- [CODE: api/internal/agentmanager/workflow.go]
+
+### OT-P1-007 - Unified work activity feed
+Status: Partial — activity timeline merges executions and session spawns;
+review rounds, workshop runs, and operator decisions are not yet in one feed.
+References:
+- [CODE: ui/src/components/backlog/activity-surface/]
+
+### OT-P1-008 - Execution policy modes
 Status: Implemented.
 References:
 - [DOC: docs/reference/configuration.md]
-- [CODE: api/internal/execution/store.go]
-- [CODE: ui/src/services/execution-service.ts]
+- [CODE: api/internal/execution/service_queue.go]
+- [CODE: api/internal/settings/]
 
-### OT-P1-002 - Execution operations page
-Status: Implemented.
-References:
-- [DOC: docs/concepts/ARCHITECTURE.md]
-- [CODE: ui/src/surfaces/plan/components/NowColumn.tsx]
-- [CODE: api/internal/execution/handler.go]
+## P2 Targets
 
-### OT-P1-003 - Insights engine
-Status: Draft.
-References:
-- [DOC: docs/reference/configuration.md]
-- [DOC: docs/internal/ASSUMPTIONS.md]
+### OT-P2-001 - Portfolio analytics
+Status: Not implemented (stats surfaces exist per goal, not cross-goal).
 
-### OT-P1-004 - Research agent modal
-Status: Implemented (workshop-based refinement flow).
-References:
-- [DOC: docs/concepts/ARCHITECTURE.md]
-- [DOC: docs/guides/workshop-workflow.md]
-- [CODE: ui/src/pages/BacklogDetailsPage.tsx]
-- [CODE: ui/src/components/backlog/backlog-agent-dialog.tsx]
-- [CODE: ui/src/components/backlog/workshop-panel.tsx]
-- [CODE: ui/src/components/backlog/plan-panel.tsx]
-- [CODE: api/internal/backlog/handler.go]
-- [CODE: api/internal/prompttrace/model.go]
+### OT-P2-002 - Green-path auto-accept policies
+Status: Not implemented (only the bounded SWARM_MANAGER_AUTO_FOLLOW_UP opt-in
+exists; terminal decisions remain operator-only by design).
 
-### OT-P1-005 - visited-tracker integration
-Status: Draft.
-References:
-- [DOC: docs/internal/INTEROP_AUDIT.md]
-- [DOC: docs/internal/ASSUMPTIONS.md]
-
-### OT-P1-006 - knowledge-observatory integration
-Status: Draft.
-References:
-- [DOC: docs/internal/INTEROP_AUDIT.md]
-- [DOC: docs/internal/PROBLEMS.md]
-
-### OT-P1-007 - scenario-completeness-scoring integration
-Status: Draft.
-References:
-- [DOC: docs/internal/INTEROP_AUDIT.md]
-- [DOC: docs/reference/configuration.md]
-
-### OT-P1-008 - app-issue-tracker integration
-Status: Draft.
-References:
-- [DOC: docs/internal/INTEROP_AUDIT.md]
-- [DOC: docs/internal/ASSUMPTIONS.md]
-
-### OT-P1-009 - test-genie integration
-Status: Draft.
-References:
-- [DOC: docs/internal/INTEROP_AUDIT.md]
-- [DOC: docs/internal/PROBLEMS.md]
-
-### OT-P1-010 - Settings modal
-Status: Implemented.
-References:
-- [DOC: docs/reference/configuration.md]
-- [CODE: ui/src/pages/SettingsPage.tsx]
-- [CODE: api/internal/settings/handler.go]
-
-## P0.5 Targets (Implemented but not in original PRD)
-
-### OT-P05-001 - Prompts management
-Status: Implemented.
-References:
-- [CODE: ui/src/pages/PromptsPage.tsx]
-- [CODE: api/internal/prompts/handler.go]
-- [CODE: cli/cmd_prompts.go]
-
-### OT-P05-002 - Backlog CRUD form dialog
-Status: Implemented.
-References:
-- [CODE: ui/src/components/backlog/backlog-form-dialog.tsx]
-
-### OT-P05-003 - Scenario lifecycle control
-Status: Implemented.
-References:
-- [CODE: ui/src/pages/ScenarioDetailsPage.tsx]
-- [CODE: api/internal/scenarios/handler.go]
-- [CODE: cli/cmd_scenarios.go]
-
-### OT-P05-004 - Scenario spec-sync-archive
-Status: Implemented.
-References:
-- [CODE: api/internal/scenarios/handler.go]
-- [CODE: cli/cmd_scenarios.go]
-
-### OT-P05-005 - Backlog convert
-Status: Removed. Research items now follow the same plan-authoring and plan-acceptance lifecycle as every other backlog kind; the old convert flow is retired.
-
-### OT-P05-006 - Backlog prompt trace
-Status: Implemented.
-References:
-- [CODE: api/internal/prompttrace/model.go]
-- [CODE: cli/cmd_backlog.go]
-- [CODE: cli/cmd_execution.go]
+### OT-P2-003 - Mid-run steering
+Status: Not implemented (slice-approval signal and cancel are the only
+channels into a running execution).

@@ -25,6 +25,7 @@ func setupHandlerTest(t *testing.T, records []Record, raw *stubAgentService) (*m
 	return router, service
 }
 
+// [REQ:SWM-P1-007] unified per-item activity feed retrieval and filtering
 func TestHandlerList_FiltersAgentActivities(t *testing.T) {
 	t.Parallel()
 

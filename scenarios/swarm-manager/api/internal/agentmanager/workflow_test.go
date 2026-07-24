@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// [REQ:SWM-P1-006] live execution progress read from workflow trace (slice count, node, cost)
 func TestWorkflowServiceProgressReadsLiveTrace(t *testing.T) {
 	now := timestamppb.New(time.Now().UTC())
 	execution := &domainpb.WorkflowExecution{Id: "workflow-1", CurrentNodeId: "slice_review", UpdatedAt: now, BudgetUsage: &domainpb.WorkflowBudgetUsage{Turns: 4, Tokens: 900, CostUsd: 0.12}, EdgeTraversals: map[string]int32{"review": 2}}

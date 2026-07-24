@@ -32,12 +32,13 @@ func TestDeclaredRegistryCoversEveryTargetTransition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadDir declared registry: %v", err)
 	}
-	if got, want := len(registry.Definitions()), 17; got != want {
+	if got, want := len(registry.Definitions()), 18; got != want {
 		t.Fatalf("registered transition count = %d, want %d", got, want)
 	}
 	for _, key := range []string{
 		"capture.classify", "plan.workshop.review", "plan.workshop.reconcile", "plan.author", "plan.repair", "plan.execute",
 		"work.review", "review.evidence_request", "goal.discover", "goal.plan", "milestone.review", "scenario.spec_sync",
+		"session.meta_orchestration", "session.swarm_operations", "session.workflow_authoring",
 	} {
 		if _, ok := registry.Get(key); !ok {
 			t.Errorf("registry is missing %q", key)
@@ -97,6 +98,7 @@ func TestEveryRegisteredWorkflowHasAMatchingDeclaration(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P0-014] governed workflows use canon-conformant contract-skill prompt refs
 func TestRegisteredWorkflowNodesUseGovernedPromptReferences(t *testing.T) {
 	registry, err := LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
 	if err != nil {

@@ -23,8 +23,12 @@ agent prompt and consumes a typed outcome, Swarm supplies only the typed input
 snapshot and applies the typed result while Agent Manager owns the declared
 Workflow's execution, validation, branching, retries, waits, and provenance.
 
-The future-state model for intake, domain concepts, integrations, and all
-transition types is documented in
+The end-to-end operator experience — the backlog-item journey (create →
+workshop → accept → execute → review → decide → follow-up) and the goal
+journey above it — is narrated in
+[Operator Journeys](./docs/concepts/OPERATOR-JOURNEYS.md). The authority
+model for intake, domain concepts, integrations, and all transition types is
+documented in
 [Target Operating Model](./docs/concepts/TARGET-OPERATING-MODEL.md). It is a
 documentation-first migration contract; the current architecture and its narrow
 workflow pilots are described separately in

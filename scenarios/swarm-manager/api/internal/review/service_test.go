@@ -189,6 +189,7 @@ func TestStartReview_RequiresWorkflow(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P0-007] independent post-run review verdict projected into terminal round
 func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 	itemDir := t.TempDir()
 	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "task", "name": "item", "executionId": "exec-1", "version": "sha256:snapshot"}, "snapshot": map[string]any{}})

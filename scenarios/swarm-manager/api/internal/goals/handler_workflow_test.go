@@ -96,6 +96,7 @@ func TestMilestoneWorkflowLaunchRejectsUnknownMilestone(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P0-012] goal planning loop files typed proposals into the decision inbox
 func TestGoalWorkflowApplyFilesTypedProposalExactlyOnce(t *testing.T) {
 	svc := newTestService(t, []backlog.BacklogItem{item("execute", "a", "ready", nil)})
 	created, err := svc.Create(CreateRequest{Name: "delivery", Targets: []string{"execute/a"}})

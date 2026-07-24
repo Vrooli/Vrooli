@@ -1,0 +1,309 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "The system shall let operators and agents create backlog items (idea, research, fix, execute, chore) directly, from classified captures, and from accepted proposals",
+      "id": "SWM-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Backlog work intake",
+      "validation": [
+        {
+          "notes": "TestCreate_Success (direct create) and TestCreate_StoresAgentProvenanceFromIdentityMiddleware (agent-created item) write a real backlog spec.json.",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler_create_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "TestCreateItem_Success creates a backlog item from a classified capture via the BacklogItemCreator.",
+          "phase": "unit",
+          "ref": "api/internal/captures/handler_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "TestApply_AddItem_CreatesItemAndAttaches and TestApply_SkipsUnacceptedMutations create items only from accepted proposals.",
+          "phase": "unit",
+          "ref": "api/internal/proposals/apply_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Each backlog item shall carry exactly one evolving implementation plan that is authored and revised in place through workshop rounds",
+      "id": "SWM-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "One evolving plan per item",
+      "validation": [
+        {
+          "notes": "TestApplyPlanCandidateClearsAcceptanceAfterPlanManagerApply revises the item's single plan in place (candidate preview/apply against the one PlanRef). The exactly-one-plan-per-item uniqueness invariant is not separately asserted (audit 2026-07-23).",
+          "phase": "unit",
+          "ref": "api/internal/backlog/plan_candidate_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When a workshop round runs, the system shall present typed proposals and open decisions and shall change the plan only through operator-approved responses",
+      "id": "SWM-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Plan workshop loop",
+      "validation": [
+        {
+          "notes": "TestReviewRunProjectsTypedResultOnce projects typed proposals + open decisions; TestProposalResponseRequiresOneReconciliation and TestApplyReconciliationCreatesCandidateWithoutCanonicalApply change the plan only through operator-approved responses (canonical apply requires acknowledgement).",
+          "phase": "unit",
+          "ref": "api/internal/planworkshop/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall block execution queueing until the operator accepts the current plan revision, and shall clear acceptance whenever the plan changes",
+      "id": "SWM-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Explicit plan acceptance gate",
+      "validation": [
+        {
+          "notes": "TestAcceptPlanPinsCanonicalHashAndScopeVersion (operator accept pins canonical hash) and TestPlanAcceptanceIsClearedWhenWorkContractChanges (acceptance cleared when the plan/contract changes).",
+          "phase": "unit",
+          "ref": "api/internal/backlog/plan_acceptance_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "TestResolveNextActionDecisionTable asserts the 'not been explicitly accepted' preflight reason maps to AcceptPlan. The execution-side queue block (execution/preflight.go planAcceptanceBlockingReason) has no direct execution-package test yet (audit 2026-07-23).",
+          "phase": "unit",
+          "ref": "api/internal/backlog/next_action_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When an accepted item is run, the system shall let the operator select an execution strategy from a declared strategy registry",
+      "id": "SWM-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Strategy-selectable execution",
+      "validation": [
+        {
+          "notes": "TestStrategies_ReturnsDeclaredExecutionChoiceWithCost exposes the declared strategy registry (with cost) to the operator. The in-repo registry currently declares one strategy (phased-plan-drain).",
+          "phase": "unit",
+          "ref": "api/internal/execution/handler_create_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "TestQueueBacklogRejectsUnknownStrategy validates operator strategy selection against the declared registry (unknown strategy rejected).",
+          "phase": "unit",
+          "ref": "api/internal/execution/phased_plan_workflow_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "While a phased execution runs, the system shall implement and validate one plan slice at a time with access to prior-slice handoffs, per-slice review, and bounded correction turns",
+      "id": "SWM-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Phased slice execution",
+      "validation": [
+        {
+          "notes": "TestStartBindsIdempotentPlanManagerExecutionIntoWorkflowInput (bounded maxSlices + handoff plumbing), TestApplyPhasedPlanWorkflow_BlockedExactlyOnce (per-slice blocker/handoff + review pause), TestApprovePhasedPlanWorkflow_PersistsDecisionBeforeIdempotentSignal (per-slice review gate). The per-slice implement/correction-turn internals are exercised in the agent-manager scenario workflow, not here (audit 2026-07-23).",
+          "phase": "unit",
+          "ref": "api/internal/execution/phased_plan_workflow_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When an execution completes, the system shall produce an independent review verdict over the deliverable, baseline diff, and test evidence as advisory input to the operator",
+      "id": "SWM-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "Independent post-run review",
+      "validation": [
+        {
+          "notes": "TestStartReview_StartsDeclaredWorkflowAndWritesRound and TestApplyWorkflowRound_ExactlyOnce produce a typed review verdict; TestBuildReviewAttachments_BaselineDiffPresentIffData asserts the review packet carries deliverable, changed-paths/diff, and test-evidence inputs.",
+          "phase": "unit",
+          "ref": "api/internal/review/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "TestSummarizeFinalization_RegressionGatesWhenEnabled and siblings assert the review verdict combined over baseline-diff evidence.",
+          "phase": "unit",
+          "ref": "api/internal/execution/finalization_gate_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall reach a terminal item status (completed, failed, needs follow-up) only through an explicit operator review decision",
+      "id": "SWM-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "Operator-owned terminal decisions",
+      "validation": [
+        {
+          "notes": "TestReviewDecide_AcceptFromReviewPending and TestReviewDecide_FollowupMapsToNeedsFollowup reach terminal status only via the operator review-decide path; TestUpdatePatch_HTTP_RejectsStatusChangeFromReviewStates blocks generic PATCH from setting a terminal status out of review states.",
+          "phase": "unit",
+          "ref": "api/internal/backlog/review_decide_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When review or execution surfaces further work, the system shall record typed proposals (follow-up run, correction, new backlog item) for operator decision in a single inbox",
+      "id": "SWM-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Typed follow-up proposals",
+      "validation": [
+        {
+          "notes": "TestAutomaticFollowUpPolicyIsExplicitAndBounded asserts typed FollowUpProposal auto-apply is denied by default (operator decides).",
+          "phase": "unit",
+          "ref": "api/routes_plan_workshop_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "TestFollowUp_SourceProposalIsExactlyOnce records a typed follow-up run/correction from a source proposal exactly once; TestFollowUp_OnlyCalledFromHandlerLifecycle (followup_callers_test.go) forbids any auto-follow-up path. The 'single inbox' recording of all three proposal types is not asserted end-to-end (audit 2026-07-23).",
+          "phase": "unit",
+          "ref": "api/internal/execution/handler_followup_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall compute one recommended next action per backlog item using the same preflight checks that gate execution",
+      "id": "SWM-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Item next-action projection",
+      "validation": [
+        {
+          "notes": "TestResolveNextActionDecisionTable (9-row table mapping shared ProcessPreflight reasons to the single recommended action) and TestNextActionEndpointsSingleAndBoundedBatch (single + bounded-batch endpoints).",
+          "phase": "unit",
+          "ref": "api/internal/backlog/next_action_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall model goals as operator intent statements with owned milestones, each carrying acceptance criteria over member backlog items",
+      "id": "SWM-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "Goals with milestones",
+      "validation": [
+        {
+          "notes": "TestService_MilestonesAreOwnedScopedAndRoundTrip (goal-owned, scoped milestones over member items) and TestService_CreateComputesScopeAndBaseline (goal created from operator intent). Acceptance-criteria-over-member-items is not directly asserted (audit 2026-07-23).",
+          "phase": "unit",
+          "ref": "api/internal/goals/service_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "TestConnectService_GoalAndMilestoneLifecycle: create goal -> create milestone -> assign items over the Connect RPC surface.",
+          "phase": "unit",
+          "ref": "api/internal/goals/connect_service_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When goal planning runs, the system shall clarify goal intent and emit typed proposals (milestones, acceptance criteria, item assignments, new backlog items) into the operator's decision inbox",
+      "id": "SWM-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Goal planning loop",
+      "validation": [
+        {
+          "notes": "TestGoalWorkflowApplyFilesTypedProposalExactlyOnce files a typed goal-plan proposal (create_milestone mutation) into the proposal-recorder inbox seam; TestGoalWorkflowLaunchPinsGoalSnapshot launches the declared swarm-manager/goal-plan workflow. 'Clarify goal intent' is the workflow's internal job and is not separately asserted (audit 2026-07-23).",
+          "phase": "unit",
+          "ref": "api/internal/goals/handler_workflow_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When all member items of a milestone reach terminal status, the system shall review the milestone's acceptance criteria against repository evidence and propose follow-up items for unmet criteria",
+      "id": "SWM-P0-013",
+      "prd_ref": "OT-P0-013",
+      "status": "planned",
+      "title": "Milestone review on completion",
+      "validation": [
+        {
+          "notes": "No coverage yet: milestone review-on-completion (goals/workflow.go StartMilestoneReviewsForTerminalItem / allMilestoneItemsTerminal) is untested — no test exercises all-members-terminal -> evaluate acceptance criteria against repository evidence -> propose follow-up items. Only TestMilestoneWorkflowLaunchRejectsUnknownMilestone (a 404 guard) is adjacent (audit 2026-07-23).",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall run all agentic work through declared agent-manager workflows whose prompts are canon-conformant contract skills with typed result schemas",
+      "id": "SWM-P0-014",
+      "prd_ref": "OT-P0-014",
+      "status": "planned",
+      "title": "Governed workflow execution",
+      "validation": [
+        {
+          "notes": "TestRegisteredWorkflowNodesUseGovernedPromptReferences (every workflow node uses a governed contract-skill promptRef; inline templates rejected), TestValidateRejectsWorkflowMechanismFields, TestDeclaredRegistryCoversEveryTargetTransition.",
+          "phase": "unit",
+          "ref": "api/internal/transitions/registry_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "TestWorkflowServiceCommandResultHandshake asserts the typed workflow input/output result contract via the agent-manager seam.",
+          "phase": "unit",
+          "ref": "api/internal/agentmanager/workflow_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "TestNoDirectAgentSpawnInDomainPackages: AST guardrail that domain packages never spawn agents directly, so all agentic work routes through declared workflows.",
+          "phase": "unit",
+          "ref": "api/internal/archtest/spawn_boundary_test.go",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}
