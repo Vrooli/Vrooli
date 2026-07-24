@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "dev-routing",
-  "input_digest": "sha256:1540354a26389976f4fdee6a08c6f3242ad5d448228685ed1bdacbfe35192987",
+  "input_digest": "sha256:676d6f7d6ff1c83fd016da8549ee756c1dce29497b343fbaa732e847a67e3370",
   "input_files": [
     "schemas/dev-routing/v1/routing/routing.proto"
   ],
@@ -16,14 +16,14 @@
     }
   },
   "outputs": {
-    "gen/go/dev-routing/v1/routing/routing.pb.go": "sha256:ee4618910c8a1a9ee472071c9ffd4d1cf391cc77cafc6c8fd812ddaad2e016df",
+    "gen/go/dev-routing/v1/routing/routing.pb.go": "sha256:6091e3c2bbec64283d1c748a89c86f5599970d5e26f071044b119b7a1722c0e2",
     "gen/go/dev-routing/v1/routing/routing_v1connect/routing.connect.go": "sha256:939650f297e2bb89ee2e4a2a4dd45ec63603d936df4ec144ba8f2dbc396e550b",
     "gen/python/dev_routing/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/dev_routing/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/dev_routing/v1/routing/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/dev_routing/v1/routing/routing_pb2.py": "sha256:42c9cf144ab3ccd4d08cde09f6d8ccdd3a4d476db4435202288a2d8b775f2470",
-    "gen/python/dev_routing/v1/routing/routing_pb2.pyi": "sha256:3bf8dfd78f50e2589e481d33a2baf9791e66c3fb228e5fdae6e8a6fa6d43e422",
-    "gen/typescript/dev-routing/v1/routing/routing_pb.ts": "sha256:fa07a9fdd68c58efdb737ad6158698bdf631e6b45571876e063bced9b92445ad",
-    "gen/typescript/js/dev-routing/v1/routing/routing_pb.js": "sha256:b98991fdfd88df9dc31878fa681c71fe755d01755f6da9de989ca43da96516aa"
+    "gen/python/dev_routing/v1/routing/routing_pb2.py": "sha256:71d279aedb293732135e0718771eba9c3ce9ed86e3807103d6242b7712951d1d",
+    "gen/python/dev_routing/v1/routing/routing_pb2.pyi": "sha256:a403f43858dd17ff52595b519e9afc7463ba1e051d821f043bea800043b47af6",
+    "gen/typescript/dev-routing/v1/routing/routing_pb.ts": "sha256:ca617d12a732f440b4d365395430403f170bf3b53da7c89e6c659ae3174a6c9a",
+    "gen/typescript/js/dev-routing/v1/routing/routing_pb.js": "sha256:791dbaa9c0371b53d5889f621fdbed283e14a70b58b96a1548417c42903006de"
   }
 }

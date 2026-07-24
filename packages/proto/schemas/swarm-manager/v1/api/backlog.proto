@@ -388,6 +388,10 @@ message QueueBacklogItemRequest {
   // Override queue readiness feedback gates (unanswered questions / pending
   // suggestions). API-level safety checks remain for non-overridable constraints.
   optional bool force = 6;
+  // Declared execution strategy. Omitted selects the sole default strategy.
+  optional string strategy = 7;
+  // Maximum plan slices for this execution, inclusive range 1..6.
+  optional int32 max_slices = 8 [(buf.validate.field).int32 = {gte: 1, lte: 6}];
 }
 
 // QueueBacklogItemResponse returns queue results.

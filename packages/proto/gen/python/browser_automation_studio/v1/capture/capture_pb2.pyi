@@ -83,7 +83,7 @@ class CaptureRequest(_message.Message):
     def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ..., interaction_flow_json: _Optional[str] = ..., inline_accessibility: _Optional[bool] = ...) -> None: ...
 
 class CaptureArtifact(_message.Message):
-    __slots__ = ("type", "path", "size_bytes", "metadata")
+    __slots__ = ("type", "path", "size_bytes", "metadata", "primary")
     class MetadataEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -95,11 +95,13 @@ class CaptureArtifact(_message.Message):
     PATH_FIELD_NUMBER: _ClassVar[int]
     SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
+    PRIMARY_FIELD_NUMBER: _ClassVar[int]
     type: CaptureType
     path: str
     size_bytes: int
     metadata: _containers.ScalarMap[str, str]
-    def __init__(self, type: _Optional[_Union[CaptureType, str]] = ..., path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    primary: bool
+    def __init__(self, type: _Optional[_Union[CaptureType, str]] = ..., path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., metadata: _Optional[_Mapping[str, str]] = ..., primary: _Optional[bool] = ...) -> None: ...
 
 class CaptureResponse(_message.Message):
     __slots__ = ("execution_id", "out_dir", "artifacts", "duration_ms", "dry_run", "dom_html", "accessibility_json", "readiness")

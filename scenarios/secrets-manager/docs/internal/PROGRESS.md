@@ -1,6 +1,6 @@
 # Development Progress Log
 
-This log tracks all development iterations on the secrets-manager scenario. Each entry represents a distinct session with measurable changes.
+This internal log tracks all development iterations on the secrets-manager scenario. Each entry represents a distinct session with measurable changes.
 
 ## Format
 | Date | Author | % Δ | Summary | Files Changed |
@@ -8,6 +8,8 @@ This log tracks all development iterations on the secrets-manager scenario. Each
 | 2025-11-20 21:45 | Codex (secrets-manager-upgrade) | +3% | **DB/Provisioning/Deployment Refresh**: Re-enabled Postgres-backed validator/scanner initialization (with optional skip env) so health + resource operations stop running in degraded mode. Implemented real `/api/v1/secrets/provision` flow that stores secrets locally, syncs to Vault, and powers the UI journeys/CLI, then refactored `/vault/secrets/provision` to share the helper. Added analyzer auto-refresh fallback that queries `scenario-dependency-analyzer` via lifecycle ports, persists reports, and feeds manifest exports. Updated docs/requirements to mark deployment + UX targets as complete. | api/main.go, api/main_test.go, api/performance_test.go, docs/PROBLEMS.md, requirements/index.json |
 
 ## Entries
+
+| 2026-07-23 02:06 | Codex | +0.2% | **Validated runtime configuration**: Replaced ad-hoc environment flag reads with typed parsing through the existing environment seam; malformed booleans now fail explicitly, lifecycle roots must be absolute, and production UI ports are range-validated. Removed unvalidated `USER` attribution. Structure Health now has zero `PROFILE_ENV_VALIDATION` findings. | api/environment_config.go, api/environment_config_test.go, api/main.go, api/postgres_schema.go, api/security_handlers.go, api/security_scan.go, api/vault_handlers.go, api/vault_status.go, ui/vite.config.ts |
 
 | Date | Author | % Δ | Summary | Files Changed |
 |------|--------|-----|---------|---------------|

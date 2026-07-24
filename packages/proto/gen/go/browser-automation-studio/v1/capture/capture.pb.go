@@ -475,7 +475,9 @@ type CaptureArtifact struct {
 	// Free-form metadata keyed by artifact type — e.g. screenshots emit
 	// {"width": "1440", "height": "900"}; network captures emit
 	// {"request_count": "27"}.
-	Metadata      map[string]string `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metadata map[string]string `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// True only for the final screenshot produced by a successful capture.
+	Primary       bool `protobuf:"varint,5,opt,name=primary,proto3" json:"primary,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -536,6 +538,13 @@ func (x *CaptureArtifact) GetMetadata() map[string]string {
 		return x.Metadata
 	}
 	return nil
+}
+
+func (x *CaptureArtifact) GetPrimary() bool {
+	if x != nil {
+		return x.Primary
+	}
+	return false
 }
 
 type CaptureResponse struct {
@@ -813,13 +822,14 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\n" +
 	"inline_dom\x18\a \x01(\bR\tinlineDom\x122\n" +
 	"\x15interaction_flow_json\x18\b \x01(\tR\x13interactionFlowJson\x121\n" +
-	"\x14inline_accessibility\x18\t \x01(\bR\x13inlineAccessibility\"\xa9\x02\n" +
+	"\x14inline_accessibility\x18\t \x01(\bR\x13inlineAccessibility\"\xc3\x02\n" +
 	"\x0fCaptureArtifact\x12E\n" +
 	"\x04type\x18\x01 \x01(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n" +
 	"\n" +
 	"size_bytes\x18\x03 \x01(\x03R\tsizeBytes\x12_\n" +
-	"\bmetadata\x18\x04 \x03(\v2C.browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntryR\bmetadata\x1a;\n" +
+	"\bmetadata\x18\x04 \x03(\v2C.browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntryR\bmetadata\x12\x18\n" +
+	"\aprimary\x18\x05 \x01(\bR\aprimary\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x87\x03\n" +

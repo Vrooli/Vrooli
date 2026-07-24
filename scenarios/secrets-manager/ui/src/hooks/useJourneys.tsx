@@ -120,10 +120,10 @@ export const useJourneys = (options: UseJourneysOptions) => {
   });
 
   useEffect(() => {
-    if (options.selectedScenario && options.selectedScenario !== deploymentScenario) {
+    if (options.selectedScenario) {
       setDeploymentScenario(options.selectedScenario);
     }
-  }, [options.selectedScenario, deploymentScenario]);
+  }, [options.selectedScenario]);
 
   const parseResources = useCallback((value: string) => {
     if (!value.trim()) return undefined;
@@ -199,6 +199,9 @@ export const useJourneys = (options: UseJourneysOptions) => {
             include_optional: false
           });
           if (cancelled) return;
+          if (!data) {
+            throw new Error("Deployment readiness response was empty");
+          }
           setTierSnapshots((prev) => ({
             ...prev,
             [tier]: {

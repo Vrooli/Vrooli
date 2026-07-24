@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"secrets-manager-api/internal/envx"
 )
 
 const scanCacheTTL = 60 * time.Second
@@ -211,7 +212,11 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 		return cached, nil
 	}
 
-	if os.Getenv("SECRETS_MANAGER_TEST_MODE") == "true" {
+	testMode, err := testModeEnabled(envx.OS{})
+	if err != nil {
+		return nil, fmt.Errorf("invalid test-mode configuration: %w", err)
+	}
+	if testMode {
 		result := buildEmptySecurityScan(componentFilter, componentTypeFilter, severityFilter, true)
 		storeCachedSecurityScan(cacheKey, result)
 		return result, nil

@@ -13,7 +13,7 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // AllowlistRule exempts matching findings from being reported. When a file's
@@ -37,12 +37,12 @@ type allowlistUpsertRequest struct {
 
 // AllowlistHandlers owns HTTP handlers for CRUD against scan_allowlist_rules.
 type AllowlistHandlers struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger *Logger
 }
 
 // NewAllowlistHandlers returns a configured handler set.
-func NewAllowlistHandlers(db *sql.DB, logger *Logger) *AllowlistHandlers {
+func NewAllowlistHandlers(db *database.RoutedDB, logger *Logger) *AllowlistHandlers {
 	return &AllowlistHandlers{db: db, logger: logger}
 }
 
@@ -92,10 +92,15 @@ func (h *AllowlistHandlers) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	id := uuid.New().String()
 	now := time.Now()
+	excludedTypes, err := json.Marshal(req.ExcludedTypes)
+	if err != nil {
+		http.Error(w, "invalid excluded_types", http.StatusBadRequest)
+		return
+	}
 	if _, err := h.db.ExecContext(r.Context(), `
 		INSERT INTO scan_allowlist_rules (id, path_pattern, excluded_types, description, enabled, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, id, req.PathPattern, pq.Array(req.ExcludedTypes), nullString(req.Description), enabled, now); err != nil {
+		VALUES ($1, $2, ARRAY(SELECT jsonb_array_elements_text($3::jsonb)), $4, $5, $6)
+	`, id, req.PathPattern, string(excludedTypes), nullString(req.Description), enabled, now); err != nil {
 		http.Error(w, fmt.Sprintf("failed to create rule: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -133,14 +138,19 @@ func (h *AllowlistHandlers) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Enabled != nil {
 		enabled = *req.Enabled
 	}
+	excludedTypes, err := json.Marshal(req.ExcludedTypes)
+	if err != nil {
+		http.Error(w, "invalid excluded_types", http.StatusBadRequest)
+		return
+	}
 	res, err := h.db.ExecContext(r.Context(), `
 		UPDATE scan_allowlist_rules
 		SET path_pattern = $1,
-		    excluded_types = $2,
+		    excluded_types = ARRAY(SELECT jsonb_array_elements_text($2::jsonb)),
 		    description = $3,
 		    enabled = $4
 		WHERE id = $5
-	`, req.PathPattern, pq.Array(req.ExcludedTypes), nullString(req.Description), enabled, id)
+	`, req.PathPattern, string(excludedTypes), nullString(req.Description), enabled, id)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to update rule: %v", err), http.StatusInternalServerError)
 		return
@@ -204,12 +214,12 @@ func validateAllowlistRule(req allowlistUpsertRequest) error {
 
 // loadAllowlistRules reads all rules from the DB. When enabledOnly is true,
 // only rules with enabled = true are returned.
-func loadAllowlistRules(ctx context.Context, database *sql.DB, enabledOnly bool) ([]AllowlistRule, error) {
+func loadAllowlistRules(ctx context.Context, database *database.RoutedDB, enabledOnly bool) ([]AllowlistRule, error) {
 	if database == nil {
 		return nil, nil
 	}
 	query := `
-		SELECT id, path_pattern, excluded_types, description, enabled, created_at
+		SELECT id, path_pattern, array_to_json(excluded_types), description, enabled, created_at
 		FROM scan_allowlist_rules
 	`
 	if enabledOnly {
@@ -227,11 +237,13 @@ func loadAllowlistRules(ctx context.Context, database *sql.DB, enabledOnly bool)
 	for rows.Next() {
 		var rule AllowlistRule
 		var description sql.NullString
-		var types pq.StringArray
-		if err := rows.Scan(&rule.ID, &rule.PathPattern, &types, &description, &rule.Enabled, &rule.CreatedAt); err != nil {
+		var typesJSON []byte
+		if err := rows.Scan(&rule.ID, &rule.PathPattern, &typesJSON, &description, &rule.Enabled, &rule.CreatedAt); err != nil {
 			return nil, err
 		}
-		rule.ExcludedTypes = []string(types)
+		if err := json.Unmarshal(typesJSON, &rule.ExcludedTypes); err != nil {
+			return nil, fmt.Errorf("decode excluded types: %w", err)
+		}
 		rule.Description = description.String
 		rules = append(rules, rule)
 	}

@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"secrets-manager-api/internal/testutil/mocks"
 )
 
 // TestNewSecretValidator tests validator initialization
@@ -96,6 +98,31 @@ func TestValidateSecret(t *testing.T) {
 		}
 	})
 
+	t.Run("ValidVaultSecret", func(t *testing.T) {
+		setVaultCLIForTest(t, vaultCLIStub{
+			secret:         "valid-secret-value-1234",
+			secretResource: "test-resource",
+			secretKey:      "TEST_VAULT_SECRET_KEY",
+		})
+		validator := NewSecretValidator(nil)
+
+		secret := ResourceSecret{
+			ID:           "vault-secret-id",
+			ResourceName: "test-resource",
+			SecretKey:    "TEST_VAULT_SECRET_KEY",
+			SecretType:   "api_key",
+			Required:     true,
+		}
+
+		result := validator.validateSecret(secret)
+		if result.ValidationStatus != "valid" {
+			t.Fatalf("expected Vault-backed secret to be valid, got %q (%v)", result.ValidationStatus, result.ErrorMessage)
+		}
+		if result.ValidationMethod != string(ValidationMethodVault) {
+			t.Fatalf("expected validation method %q, got %q", ValidationMethodVault, result.ValidationMethod)
+		}
+	})
+
 	t.Run("MissingRequiredSecret", func(t *testing.T) {
 		validator := NewSecretValidator(nil)
 
@@ -155,6 +182,20 @@ func TestValidateEnvironmentVariable(t *testing.T) {
 		valid, err := validator.validateEnvironmentVariable(secret)
 		if !valid {
 			t.Errorf("Expected valid=true, got valid=%v, err=%v", valid, err)
+		}
+	})
+
+	t.Run("UsesInjectedEnvironmentLookup", func(t *testing.T) {
+		validator := NewSecretValidatorWithEnv(nil, mocks.FakeEnv{
+			"INJECTED_API_KEY": "injected-api-key-value",
+		})
+
+		valid, err := validator.validateEnvironmentVariable(ResourceSecret{
+			SecretKey:  "INJECTED_API_KEY",
+			SecretType: "api_key",
+		})
+		if !valid || err != nil {
+			t.Fatalf("injected environment lookup valid=%v err=%v", valid, err)
 		}
 	})
 
@@ -471,42 +512,6 @@ func TestSecretValidationStructures(t *testing.T) {
 	})
 }
 
-// TestVaultValidationIntegration tests vault validation integration
-func TestVaultValidationIntegration(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("GetVaultSecretsStatus", func(t *testing.T) {
-		t.Skip("Requires vault CLI - integration test only")
-	})
-
-	t.Run("GetVaultSecretsStatus_WithFilter", func(t *testing.T) {
-		t.Skip("Requires vault CLI - integration test only")
-	})
-
-	t.Run("GetVaultSecretsStatusFromCLI", func(t *testing.T) {
-		t.Skip("Requires vault CLI - integration test only")
-	})
-}
-
-// TestValidationErrorCases tests error handling in validation
-func TestValidationErrorCases(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("InvalidResourceFilter", func(t *testing.T) {
-		t.Skip("Requires database connection - integration test only")
-	})
-
-	t.Run("VeryLongResourceName", func(t *testing.T) {
-		t.Skip("Requires database connection - integration test only")
-	})
-
-	t.Run("SpecialCharacters", func(t *testing.T) {
-		t.Skip("Requires database connection - integration test only")
-	})
-}
-
 // TestValidationPatterns tests systematic validation patterns
 func TestValidationPatterns(t *testing.T) {
 	t.Run("RequiredSecretValidation", func(t *testing.T) {
@@ -516,7 +521,7 @@ func TestValidationPatterns(t *testing.T) {
 		for _, key := range secretKeys {
 			required := IsLikelyRequired(key)
 			if !required {
-				t.Logf("Secret '%s' not marked as required (may be intentional)", key)
+				t.Errorf("IsLikelyRequired(%q) = false, want true", key)
 			}
 		}
 	})
@@ -528,7 +533,7 @@ func TestValidationPatterns(t *testing.T) {
 		for _, key := range secretKeys {
 			required := IsLikelyRequired(key)
 			if required {
-				t.Logf("Secret '%s' marked as required (may be intentional)", key)
+				t.Errorf("IsLikelyRequired(%q) = true, want false", key)
 			}
 		}
 	})
@@ -541,15 +546,14 @@ func TestValidationPatterns(t *testing.T) {
 			{"API_KEY", "api_key"},
 			{"DATABASE_PASSWORD", "password"},
 			{"AUTH_TOKEN", "token"},
-			{"API_ENDPOINT", "endpoint"},
+			{"API_ENDPOINT", "env_var"},
 			{"SSL_CERTIFICATE", "certificate"},
 		}
 
 		for _, tc := range testCases {
 			actualType := ClassifySecretType(tc.key)
 			if actualType != tc.expectedType {
-				t.Logf("Secret '%s' classified as '%s', expected '%s'",
-					tc.key, actualType, tc.expectedType)
+				t.Errorf("ClassifySecretType(%q) = %q, want %q", tc.key, actualType, tc.expectedType)
 			}
 		}
 	})

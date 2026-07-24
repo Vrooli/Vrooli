@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +16,53 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
+
+type vaultCLIStub struct {
+	status         *VaultSecretsStatus
+	secret         string
+	secretResource string
+	secretKey      string
+	err            error
+	putErr         error
+}
+
+func (s vaultCLIStub) GetSecretsStatus(context.Context, string) (*VaultSecretsStatus, error) {
+	return s.status, s.err
+}
+
+func (s vaultCLIStub) GetSecret(_ context.Context, resourceName, key string) (string, error) {
+	if s.secretResource != "" && s.secretResource != resourceName {
+		return "", fmt.Errorf("unexpected secret resource %q", resourceName)
+	}
+	if s.secretKey != "" && s.secretKey != key {
+		return "", fmt.Errorf("unexpected secret key %q", key)
+	}
+	return s.secret, s.err
+}
+
+func (s vaultCLIStub) PutSecret(context.Context, string, string, string) error {
+	return s.putErr
+}
+
+func setVaultCLIForTest(t *testing.T, cli VaultCLI) {
+	t.Helper()
+	original := defaultVaultCLI
+	SetVaultCLI(cli)
+	t.Cleanup(func() { SetVaultCLI(original) })
+}
+
+func TestResolveVaultSecretMappingUsesResourceScopedFallback(t *testing.T) {
+	mapping, ok := resolveVaultSecretMapping("test-resource", "TEST_VAULT_SECRET_KEY")
+	if !ok {
+		t.Fatal("expected resource-scoped fallback mapping")
+	}
+	if mapping.Path != "secret/resources/test-resource/test_vault_secret_key" {
+		t.Fatalf("fallback path = %q", mapping.Path)
+	}
+	if mapping.VaultKey != "value" {
+		t.Fatalf("fallback Vault key = %q", mapping.VaultKey)
+	}
+}
 
 // TestHealthHandler tests the health check endpoint
 func TestHealthHandler(t *testing.T) {
@@ -93,6 +143,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 	router := server.routes()
 
 	t.Run("Success_NoFilter", func(t *testing.T) {
+		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
 		req, err := http.NewRequest("GET", "/api/v1/vault/secrets/status", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -116,6 +167,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 	})
 
 	t.Run("Success_WithFilter", func(t *testing.T) {
+		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
 		req, err := http.NewRequest("GET", "/api/v1/vault/secrets/status?resource=postgres", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -129,7 +181,21 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("VaultUnavailable", func(t *testing.T) {
+		setVaultCLIForTest(t, vaultCLIStub{err: errors.New("resource-vault unavailable")})
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/vault/secrets/status", nil)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusServiceUnavailable {
+			t.Fatalf("handler returned %d, want %d", rr.Code, http.StatusServiceUnavailable)
+		}
+		if strings.Contains(rr.Body.String(), "resource-vault unavailable") {
+			t.Fatalf("status response exposed internal Vault error: %s", rr.Body.String())
+		}
+	})
+
 	t.Run("POST_Success", func(t *testing.T) {
+		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
 		scanReq := ScanRequest{
 			Resources: []string{"postgres", "vault"},
 		}
@@ -150,6 +216,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 	})
 
 	t.Run("POST_InvalidJSON", func(t *testing.T) {
+		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
 		req, err := http.NewRequest("POST", "/api/v1/vault/secrets/status", bytes.NewReader([]byte("invalid json")))
 		if err != nil {
 			t.Fatal(err)
@@ -205,6 +272,7 @@ func TestValidateHandler(t *testing.T) {
 	})
 }
 
+// [REQ:SEC-VLT-005] Guided secret provisioning
 // TestProvisionHandler tests the provision endpoint
 func TestProvisionHandler(t *testing.T) {
 	cleanup := setupTestLogger()
@@ -213,7 +281,9 @@ func TestProvisionHandler(t *testing.T) {
 	router := server.routes()
 
 	t.Run("Success", func(t *testing.T) {
+		setVaultCLIForTest(t, vaultCLIStub{})
 		provReq := ProvisionRequest{
+			Resource: "test-resource",
 			Secrets: map[string]string{
 				"TEST_API_KEY": "test-value-123",
 			},
@@ -231,6 +301,18 @@ func TestProvisionHandler(t *testing.T) {
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+	})
+
+	t.Run("MissingResource", func(t *testing.T) {
+		provReq := ProvisionRequest{Secrets: map[string]string{"TEST_API_KEY": "test-value-123"}}
+		body, _ := json.Marshal(provReq)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/secrets/provision", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusBadRequest)
 		}
 	})
 
@@ -270,28 +352,11 @@ func TestProvisionHandler(t *testing.T) {
 	})
 }
 
-// TestSecurityScanHandler tests the security scan endpoint
-func TestSecurityScanHandler(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	// [REQ:SEC-SCAN-001] Security scanner detects vulnerabilities
-	// Note: Full scan times out in test, skipping to avoid 30s timeout
-	t.Run("Success_NoFilter", func(t *testing.T) {
-		t.Skip("Security scan walks entire filesystem and times out - needs scoped test fixtures")
-		// TODO: Create api/testdata/ with minimal test files for faster scanning
-	})
-
-	t.Run("Success_WithFilters", func(t *testing.T) {
-		t.Skip("Security scan walks entire filesystem and times out - needs scoped test fixtures")
-		// TODO: Create api/testdata/ with minimal test files for faster scanning
-	})
-}
-
 // TestComplianceHandler tests the compliance endpoint
 func TestComplianceHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
 	server := newAPIServer(nil, logger)
 	router := server.routes()
 
@@ -476,33 +541,6 @@ func TestIsLikelyRequired(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestGetLocalSecretsPath tests local secrets path resolution
-// [REQ:SEC-DATA-001] Secret storage and retrieval
-func TestGetLocalSecretsPath(t *testing.T) {
-	// Save and restore VROOLI_ROOT
-	oldRoot := os.Getenv("VROOLI_ROOT")
-	defer func() {
-		if oldRoot != "" {
-			os.Setenv("VROOLI_ROOT", oldRoot)
-		} else {
-			os.Unsetenv("VROOLI_ROOT")
-		}
-	}()
-
-	t.Run("WithVROOLI_ROOT", func(t *testing.T) {
-		home := t.TempDir()
-		os.Setenv("HOME", home)
-		path, err := getLocalSecretsPath()
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		expected := filepath.Join(home, ".vrooli", "secrets.json")
-		if path != expected {
-			t.Errorf("getLocalSecretsPath() = %q, want %q", path, expected)
-		}
-	})
 }
 
 func TestGetVrooliRootCanonicalizesContractRoots(t *testing.T) {
@@ -1097,118 +1135,6 @@ func TestGetLanguageFromPath(t *testing.T) {
 				t.Errorf("getLanguageFromPath(%s) = %s, want %s", tt.path, result, tt.expected)
 			}
 		})
-	}
-}
-
-// TestLoadLocalSecretsFile tests local secrets file loading
-func TestLoadLocalSecretsFile(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	// Test with non-existent file (should return error or empty secrets gracefully)
-	secrets, err := loadLocalSecretsFile()
-	if err != nil {
-		t.Logf("loadLocalSecretsFile returned error (acceptable): %v", err)
-	}
-	// Accept nil or empty secrets map
-	if len(secrets) > 0 {
-		t.Logf("Found %d secrets in local file", len(secrets))
-	}
-}
-
-// TestStoreScanRecord tests scan record storage
-func TestStoreScanRecord(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	// Should not crash with nil DB
-	storeScanRecord(SecretScan{
-		ID:       "test-id",
-		ScanType: "quick",
-	})
-}
-
-// TestSaveSecretsToLocalStore tests saving secrets to local store
-func TestSaveSecretsToLocalStore(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("NilSecrets", func(t *testing.T) {
-		// Should not crash with nil secrets map
-		count, err := saveSecretsToLocalStore(nil)
-		if err != nil {
-			t.Errorf("Expected no error with nil secrets, got %v", err)
-		}
-		if count != 0 {
-			t.Errorf("Expected count 0, got %d", count)
-		}
-	})
-
-	t.Run("EmptySecrets", func(t *testing.T) {
-		count, err := saveSecretsToLocalStore(map[string]string{})
-		if err != nil {
-			t.Errorf("Expected no error with empty secrets, got %v", err)
-		}
-		if count != 0 {
-			t.Errorf("Expected count 0, got %d", count)
-		}
-	})
-}
-
-func TestLocalSecretsStoreRoundTripPreservesMetadata(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	root := t.TempDir()
-	path := filepath.Join(root, ".vrooli", "secrets.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	if err := os.WriteFile(path, []byte(`{"_metadata":{"environment":"development","last_updated":"before"},"API_KEY":"old"}`), 0o600); err != nil {
-		t.Fatalf("write seed: %v", err)
-	}
-
-	t.Setenv("VROOLI_ROOT", root)
-
-	count, err := saveSecretsToLocalStore(map[string]string{
-		"API_KEY":   "updated",
-		"EXTRA_KEY": "extra",
-	})
-	if err != nil {
-		t.Fatalf("saveSecretsToLocalStore: %v", err)
-	}
-	if count != 2 {
-		t.Fatalf("count = %d, want 2", count)
-	}
-
-	store, err := loadLocalSecretsFile()
-	if err != nil {
-		t.Fatalf("loadLocalSecretsFile: %v", err)
-	}
-	if got := store["API_KEY"]; got != "updated" {
-		t.Fatalf("API_KEY = %#v, want updated", got)
-	}
-	if got := store["EXTRA_KEY"]; got != "extra" {
-		t.Fatalf("EXTRA_KEY = %#v, want extra", got)
-	}
-	meta, ok := store["_metadata"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("_metadata = %#v, want map", store["_metadata"])
-	}
-	if got := meta["environment"]; got != "development" {
-		t.Fatalf("metadata environment = %#v, want development", got)
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read secrets file: %v", err)
-	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("unmarshal saved file: %v", err)
-	}
-	if _, ok := raw["_metadata"]; !ok {
-		t.Fatal("expected _metadata to remain in saved file")
 	}
 }
 

@@ -76,8 +76,8 @@ make test-cli  # BATS CLI tests
 
 - **[PRD](PRD.md)**: Operational targets (P0/P1/P2), success metrics, and integration requirements
 - **[Requirements Index](requirements/index.json)**: Detailed requirement specs with validation criteria
-- **[Progress Log](docs/PROGRESS.md)**: Development history and % completion tracking
-- **[Known Issues](docs/PROBLEMS.md)**: Current blockers and follow-up tasks
+- **[Progress Log](docs/internal/PROGRESS.md)**: Development history and % completion tracking
+- **[Known Issues](docs/internal/PROBLEMS.md)**: Current blockers and follow-up tasks
 - **[Research Notes](docs/RESEARCH.md)**: References and implementation learnings
 
 ## 🔌 Integration Points
@@ -90,7 +90,7 @@ make test-cli  # BATS CLI tests
 secrets-manager status
 
 # List vault coverage
-secrets-manager vault list --resource postgres
+secrets-manager vault status
 
 # Scan for vulnerabilities
 secrets-manager security scan --severity high
@@ -156,16 +156,16 @@ const manifest = await response.json();
 - ⚠️  Deployment tier strategies (P0) - planned
 - ⚠️  Guided remediation flows (P0) - planned
 
-See [docs/PROGRESS.md](docs/PROGRESS.md) for detailed completion metrics.
+See [docs/internal/PROGRESS.md](docs/internal/PROGRESS.md) for detailed completion metrics.
 
 ## 🤝 Contributing
 
 1. Agents detect gaps via `scenario status` and `scenario-auditor`
 2. Improvements tracked in `requirements/index.json` with `[REQ:ID]` tags
 3. Tests validate operational targets → automatically update PRD checkboxes
-4. Progress logged in `docs/PROGRESS.md` for future agents
+4. Progress logged in `docs/internal/PROGRESS.md` for future agents
 
-See [Testing Architecture](../../docs/testing/architecture/PHASED_TESTING.md) for test conventions.
+Run `vrooli scenario test secrets-manager` for the scenario's server-owned test conventions and evidence.
 
 ## 📜 License
 

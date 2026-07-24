@@ -4,8 +4,11 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,11 +35,13 @@ func TestManifestBuilder_Build_ContextCancelled(t *testing.T) {
 	cancel() // Cancel immediately
 
 	req := DeploymentManifestRequest{Scenario: "test", Tier: "desktop"}
-	_, err := builder.Build(ctx, req)
+	manifest, err := builder.Build(ctx, req)
 
-	// Cancelled context should cause Build to return (may succeed if fast or fail with context error)
-	if err != nil && !errors.Is(err, context.Canceled) {
-		t.Logf("Build with cancelled context returned: %v (acceptable)", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Build() error = %v, want context.Canceled", err)
+	}
+	if manifest != nil {
+		t.Fatalf("Build() manifest = %#v, want nil for cancelled context", manifest)
 	}
 }
 
@@ -52,19 +57,17 @@ func TestManifestBuilder_Build_ContextTimeout(t *testing.T) {
 	}
 	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
 
-	// Very short timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer cancel()
 
-	// Allow some time for timeout to trigger
-	time.Sleep(1 * time.Millisecond)
-
 	req := DeploymentManifestRequest{Scenario: "test", Tier: "desktop"}
-	_, err := builder.Build(ctx, req)
+	manifest, err := builder.Build(ctx, req)
 
-	// Timeout context may cause Build to return with context deadline exceeded
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		t.Logf("Build with expired context returned: %v (acceptable)", err)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Build() error = %v, want context.DeadlineExceeded", err)
+	}
+	if manifest != nil {
+		t.Fatalf("Build() manifest = %#v, want nil for expired context", manifest)
 	}
 }
 
@@ -79,6 +82,14 @@ type mockSecretStore struct {
 	persistErr  error
 	persistedAt []string // tracks scenario+tier combinations persisted
 }
+
+type fixedManifestClock struct {
+	now time.Time
+}
+
+func (c fixedManifestClock) Now() time.Time { return c.now }
+
+var _ ManifestClock = fixedManifestClock{}
 
 func (m *mockSecretStore) FetchSecrets(ctx context.Context, scenario, tier string, resources []string, includeOptional bool) ([]DeploymentSecretEntry, error) {
 	if m.fetchErr != nil {
@@ -113,6 +124,19 @@ type mockResourceResolver struct {
 	resolved ResolvedResources
 }
 
+type fakeHTTPDoer struct {
+	request  *http.Request
+	response *http.Response
+	err      error
+}
+
+func (d *fakeHTTPDoer) Do(request *http.Request) (*http.Response, error) {
+	d.request = request
+	return d.response, d.err
+}
+
+var _ HTTPDoer = (*fakeHTTPDoer)(nil)
+
 func (m *mockResourceResolver) ResolveResources(ctx context.Context, scenario string, requestedResources []string) ResolvedResources {
 	return m.resolved
 }
@@ -121,6 +145,7 @@ func (m *mockResourceResolver) ResolveResources(ctx context.Context, scenario st
 // ManifestBuilder Tests
 // -----------------------------------------------------------------------------
 
+// [REQ:SEC-DEP-002] Tier-aware deployment manifest
 func TestManifestBuilder_Build_Success(t *testing.T) {
 	secrets := []DeploymentSecretEntry{
 		{
@@ -438,6 +463,27 @@ func TestHTTPAnalyzerClientReportPathUsesContractScenarioPath(t *testing.T) {
 	}
 }
 
+func TestHTTPAnalyzerClientFetchFromServiceUsesInjectedHTTPDependencies(t *testing.T) {
+	doer := &fakeHTTPDoer{response: &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"scenario":"demo"}`)),
+	}}
+	client := NewHTTPAnalyzerClientWithDeps(nil, doer, func(context.Context) (string, error) {
+		return "http://analyzer.test", nil
+	})
+
+	report, err := client.fetchFromService(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("fetchFromService() error = %v", err)
+	}
+	if report == nil || report.Scenario != "demo" {
+		t.Fatalf("fetchFromService() report = %#v, want scenario demo", report)
+	}
+	if doer.request == nil || doer.request.URL.String() != "http://analyzer.test/api/v1/scenarios/demo/deployment" {
+		t.Fatalf("request URL = %v, want analyzer deployment endpoint", doer.request)
+	}
+}
+
 // -----------------------------------------------------------------------------
 // BundlePlanBuilder Tests
 // -----------------------------------------------------------------------------
@@ -732,10 +778,30 @@ func TestManifestBuilder_PersistError(t *testing.T) {
 	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
 
 	req := DeploymentManifestRequest{Scenario: "test", Tier: "desktop"}
-	_, err := builder.Build(context.Background(), req)
-	// Persist error may or may not fail the build depending on implementation
+	manifest, err := builder.Build(context.Background(), req)
 	if err != nil {
-		t.Logf("Build with persist error returned: %v (implementation-dependent)", err)
+		t.Fatalf("Build() error = %v, want nil because persistence is non-blocking", err)
+	}
+	if manifest == nil {
+		t.Fatal("Build() manifest = nil, want manifest despite persistence error")
+	}
+	if got := store.persistedAt; len(got) != 1 || got[0] != "test:desktop" {
+		t.Fatalf("PersistManifest calls = %v, want [test:desktop]", got)
+	}
+}
+
+func TestManifestBuilder_Build_UsesInjectedClock(t *testing.T) {
+	wantTime := time.Date(2026, time.July, 23, 5, 0, 0, 0, time.UTC)
+	store := &mockSecretStore{secrets: []DeploymentSecretEntry{{ID: "s1", SecretKey: "KEY", HandlingStrategy: "prompt"}}}
+	resolver := &mockResourceResolver{resolved: ResolvedResources{Effective: []string{"vault"}}}
+	builder := NewManifestBuilderWithDepsAndClock(store, &mockAnalyzerClient{}, resolver, fixedManifestClock{now: wantTime}, nil)
+
+	manifest, err := builder.Build(context.Background(), DeploymentManifestRequest{Scenario: "secrets-manager", Tier: "tier-2-desktop"})
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if !manifest.GeneratedAt.Equal(wantTime) {
+		t.Fatalf("GeneratedAt = %s, want %s", manifest.GeneratedAt, wantTime)
 	}
 }
 

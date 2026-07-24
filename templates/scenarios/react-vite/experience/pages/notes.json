@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "page": {
     "id": "notes",
     "title": "Notes",

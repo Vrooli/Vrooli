@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 // ScanFilesOptions mirrors the request body's `options` object.
@@ -100,7 +101,7 @@ func snapshotActiveFileScan(id string) *ScanFilesResult {
 // The returned ScanFilesResult is the same pointer that gets written into
 // `target`, allowing a background goroutine to update status/findings while
 // the synchronous handler observes the same state.
-func scanFileList(ctx context.Context, database *sql.DB, files []string, opts ScanFilesOptions, target *ScanFilesResult) {
+func scanFileList(ctx context.Context, database *database.RoutedDB, files []string, opts ScanFilesOptions, target *ScanFilesResult) {
 	start := time.Now()
 
 	rules, err := loadAllowlistRules(ctx, database, true)
@@ -354,12 +355,12 @@ func snippetFromCode(code string, lineNum int) string {
 
 // ScanFilesHandlers owns the scan-files HTTP surface.
 type ScanFilesHandlers struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger *Logger
 }
 
 // NewScanFilesHandlers returns a configured handler set.
-func NewScanFilesHandlers(db *sql.DB, logger *Logger) *ScanFilesHandlers {
+func NewScanFilesHandlers(db *database.RoutedDB, logger *Logger) *ScanFilesHandlers {
 	return &ScanFilesHandlers{db: db, logger: logger}
 }
 
@@ -469,7 +470,7 @@ func (h *ScanFilesHandlers) GetScanRun(w http.ResponseWriter, r *http.Request) {
 
 // loadScanFilesResult reconstructs a ScanFilesResult from persisted scan
 // rows. Returns nil (no error) when the scan id isn't present.
-func loadScanFilesResult(ctx context.Context, database *sql.DB, scanID string) (*ScanFilesResult, error) {
+func loadScanFilesResult(ctx context.Context, database *database.RoutedDB, scanID string) (*ScanFilesResult, error) {
 	if database == nil {
 		return nil, nil
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -8,20 +9,33 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
+	"secrets-manager-api/internal/envx"
 )
 
 // SecretValidator owns secret validation so handlers and jobs share a single pipeline
 // instead of duplicating logic across the codebase.
 type SecretValidator struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger Logger
+	env    envx.Reader
 }
 
 // NewSecretValidator creates a new secret validator
-func NewSecretValidator(db *sql.DB) *SecretValidator {
+func NewSecretValidator(db *database.RoutedDB) *SecretValidator {
+	return NewSecretValidatorWithEnv(db, envx.OS{})
+}
+
+// NewSecretValidatorWithEnv creates a validator with an explicit environment
+// reader. The caller can provide a deterministic implementation in tests.
+func NewSecretValidatorWithEnv(db *database.RoutedDB, env envx.Reader) *SecretValidator {
+	if env == nil {
+		env = envx.OS{}
+	}
 	return &SecretValidator{
 		db:     db,
 		logger: *NewLogger("validator"),
+		env:    env,
 	}
 }
 
@@ -60,13 +74,20 @@ func determineValidationFailureStatus(isRequired bool) string {
 
 // ValidateSecrets validates secrets for a specific resource or all resources
 func (v *SecretValidator) ValidateSecrets(resource string) (*ValidationResponse, error) {
+	return v.ValidateSecretsContext(context.Background(), resource)
+}
+
+// ValidateSecretsContext validates secrets using the caller's context. HTTP
+// handlers pass their request context so apihttp test-mode routing reaches the
+// per-run database instead of the primary database.
+func (v *SecretValidator) ValidateSecretsContext(ctx context.Context, resource string) (*ValidationResponse, error) {
 	validationID := uuid.New().String()
 	_ = time.Now() // startTime for future use
 
 	v.logger.Info(fmt.Sprintf("Starting secret validation (ID: %s, Resource: %s)", validationID, resource))
 
 	// Get secrets to validate
-	secrets, err := v.getSecretsForValidation(resource)
+	secrets, err := v.getSecretsForValidationContext(ctx, resource)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secrets for validation: %w", err)
 	}
@@ -80,7 +101,7 @@ func (v *SecretValidator) ValidateSecrets(resource string) (*ValidationResponse,
 		validation := v.validateSecret(secret)
 
 		// Store validation result in database
-		if err := v.storeValidationResult(validation); err != nil {
+		if err := v.storeValidationResultContext(ctx, validation); err != nil {
 			v.logger.Error(fmt.Sprintf("Failed to store validation for %s", secret.SecretKey), err)
 		}
 
@@ -96,7 +117,7 @@ func (v *SecretValidator) ValidateSecrets(resource string) (*ValidationResponse,
 	}
 
 	// Generate health summary
-	healthSummary, err := v.generateHealthSummary(resource)
+	healthSummary, err := v.generateHealthSummaryContext(ctx, resource)
 	if err != nil {
 		v.logger.Error("Failed to generate health summary", err)
 		healthSummary = []SecretHealthSummary{}
@@ -118,6 +139,10 @@ func (v *SecretValidator) ValidateSecrets(resource string) (*ValidationResponse,
 
 // getSecretsForValidation retrieves secrets that need validation
 func (v *SecretValidator) getSecretsForValidation(resource string) ([]ResourceSecret, error) {
+	return v.getSecretsForValidationContext(context.Background(), resource)
+}
+
+func (v *SecretValidator) getSecretsForValidationContext(ctx context.Context, resource string) ([]ResourceSecret, error) {
 	if v.db == nil {
 		// If no database, return empty list
 		return []ResourceSecret{}, nil
@@ -147,7 +172,7 @@ func (v *SecretValidator) getSecretsForValidation(resource string) ([]ResourceSe
 		args = []interface{}{}
 	}
 
-	rows, err := v.db.Query(query, args...)
+	rows, err := v.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +272,7 @@ func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation
 
 // validateEnvironmentVariable checks if the secret is available as an environment variable
 func (v *SecretValidator) validateEnvironmentVariable(secret ResourceSecret) (bool, error) {
-	value := os.Getenv(secret.SecretKey)
+	value := v.env.Getenv(secret.SecretKey)
 	if value == "" {
 		return false, fmt.Errorf("environment variable %s is not set", secret.SecretKey)
 	}
@@ -262,21 +287,14 @@ func (v *SecretValidator) validateEnvironmentVariable(secret ResourceSecret) (bo
 
 // validateVaultSecret checks if the secret is available in vault
 func (v *SecretValidator) validateVaultSecret(secret ResourceSecret) (bool, error) {
-	// This is a placeholder implementation
-	// In a real implementation, you would integrate with HashiCorp Vault
-	// or another secret management system
-
-	// For now, we'll simulate vault validation by checking for vault-specific env vars
-	vaultToken := os.Getenv("VAULT_TOKEN")
-	vaultAddr := os.Getenv("VAULT_ADDR")
-
-	if vaultToken == "" || vaultAddr == "" {
-		return false, fmt.Errorf("vault not configured (VAULT_TOKEN or VAULT_ADDR missing)")
+	value, err := getVaultSecret(secret.ResourceName, secret.SecretKey)
+	if err != nil {
+		return false, fmt.Errorf("vault secret %s unavailable: %w", secret.SecretKey, err)
 	}
-
-	// Simulate vault lookup - in reality you would make API calls to vault
-	// Return false for now since this is just a placeholder
-	return false, fmt.Errorf("vault integration not implemented")
+	if err := v.validateSecretValue(value, secret); err != nil {
+		return false, fmt.Errorf("vault secret %s is invalid: %w", secret.SecretKey, err)
+	}
+	return true, nil
 }
 
 // validateFileSecret checks if the secret is available in configuration files
@@ -359,6 +377,10 @@ func (v *SecretValidator) validateSecretValue(value string, secret ResourceSecre
 
 // storeValidationResult stores a validation result in the database
 func (v *SecretValidator) storeValidationResult(validation SecretValidation) error {
+	return v.storeValidationResultContext(context.Background(), validation)
+}
+
+func (v *SecretValidator) storeValidationResultContext(ctx context.Context, validation SecretValidation) error {
 	if v.db == nil {
 		return nil // Skip if no database connection
 	}
@@ -370,7 +392,7 @@ func (v *SecretValidator) storeValidationResult(validation SecretValidation) err
 		) VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
-	_, err := v.db.Exec(query,
+	_, err := v.db.ExecContext(ctx, query,
 		validation.ID, validation.ResourceSecretID, validation.ValidationStatus,
 		validation.ValidationMethod, validation.ValidationTimestamp,
 		validation.ErrorMessage, validation.ValidationDetails,
@@ -381,6 +403,10 @@ func (v *SecretValidator) storeValidationResult(validation SecretValidation) err
 
 // generateHealthSummary generates a health summary for resources
 func (v *SecretValidator) generateHealthSummary(resourceFilter string) ([]SecretHealthSummary, error) {
+	return v.generateHealthSummaryContext(context.Background(), resourceFilter)
+}
+
+func (v *SecretValidator) generateHealthSummaryContext(ctx context.Context, resourceFilter string) ([]SecretHealthSummary, error) {
 	if v.db == nil {
 		return []SecretHealthSummary{}, nil
 	}
@@ -423,7 +449,7 @@ func (v *SecretValidator) generateHealthSummary(resourceFilter string) ([]Secret
 		args = []interface{}{}
 	}
 
-	rows, err := v.db.Query(query, args...)
+	rows, err := v.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +514,7 @@ func (v *SecretValidator) GetValidationHistory(resourceName string, limit int) (
 		args = []interface{}{limit}
 	}
 
-	rows, err := v.db.Query(query, args...)
+	rows, err := v.db.QueryContext(context.Background(), query, args...)
 	if err != nil {
 		return nil, err
 	}

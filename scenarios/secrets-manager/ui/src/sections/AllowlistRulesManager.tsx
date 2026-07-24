@@ -244,13 +244,19 @@ export function AllowlistRulesManager() {
                   />
                   Enabled
                 </label>
-                <Button variant="ghost" size="sm" onClick={() => beginEdit(rule)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => beginEdit(rule)}
+                  aria-label={`Edit allowlist rule ${rule.path_pattern}`}
+                >
                   <Pencil className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setPendingDelete(rule)}
+                  aria-label={`Delete allowlist rule ${rule.path_pattern}`}
                   className="text-rose-300 hover:bg-rose-500/10"
                 >
                   <Trash2 className="h-4 w-4" />

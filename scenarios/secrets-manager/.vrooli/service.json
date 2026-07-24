@@ -1,6 +1,14 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-07-23T02:42:50Z",
+    "adopted": true
+  },
   "service": {
     "parent": "vrooli",
     "name": "secrets-manager",

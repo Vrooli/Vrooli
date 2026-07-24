@@ -760,7 +760,7 @@ func TestDetermineSecretType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotType := ClassifySecretType(tt.secretKey)
 			if gotType != tt.wantType {
-				t.Logf("ClassifySecretType(%s) = %s, want %s", tt.secretKey, gotType, tt.wantType)
+				t.Errorf("ClassifySecretType(%s) = %s, want %s", tt.secretKey, gotType, tt.wantType)
 			}
 		})
 	}

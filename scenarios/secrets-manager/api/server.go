@@ -1,15 +1,14 @@
 package main
 
 import (
-	"database/sql"
-
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 // APIServer centralizes the HTTP surface for the scenario so routes reflect the
 // core domains: health, vault coverage, security scanning, resources, and deployment.
 type APIServer struct {
-	db       *sql.DB
+	db       *database.RoutedDB
 	handlers handlerSet
 }
 
@@ -29,7 +28,7 @@ type handlerSet struct {
 	watchlist      *WatchlistHandlers
 }
 
-func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
+func newAPIServer(db *database.RoutedDB, logger *Logger) *APIServer {
 	var validator *SecretValidator
 	var orientationBuilder *OrientationBuilder
 	var campaignStore CampaignStore
@@ -42,6 +41,7 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 	// Create manifest builder for deployment handlers
 	manifestBuilder := NewManifestBuilder(ManifestBuilderConfig{
 		DB:     db,
+		Clock:  systemManifestClock{},
 		Logger: logger,
 	})
 

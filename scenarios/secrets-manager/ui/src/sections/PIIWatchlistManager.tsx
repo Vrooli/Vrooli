@@ -185,6 +185,7 @@ export function PIIWatchlistManager() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setPendingDelete({ id: entry.id, label: entry.label })}
+                    aria-label={`Delete watchlist entry ${entry.label}`}
                     className="text-rose-300 hover:bg-rose-500/10"
                   >
                     <Trash2 className="h-4 w-4" />

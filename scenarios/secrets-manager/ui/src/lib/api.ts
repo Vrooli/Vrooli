@@ -458,7 +458,8 @@ export const fetchDeploymentReadiness = (payload: DeploymentManifestRequest) =>
     body: JSON.stringify(payload)
   });
 
-export const fetchResourceDetail = (resource: string) => jsonFetch<ResourceDetail>(`/resources/${resource}`);
+export const fetchResourceDetail = (resource: string) =>
+  jsonFetch<ResourceDetail>(`/resources/${encodeURIComponent(resource)}`);
 
 export interface UpdateResourceSecretPayload {
   classification?: string;
@@ -469,7 +470,7 @@ export interface UpdateResourceSecretPayload {
 }
 
 export const updateResourceSecret = (resource: string, secret: string, payload: UpdateResourceSecretPayload) =>
-  jsonFetch<ResourceSecretDetail>(`/resources/${resource}/secrets/${secret}`, {
+  jsonFetch<ResourceSecretDetail>(`/resources/${encodeURIComponent(resource)}/secrets/${encodeURIComponent(secret)}`, {
     method: "PATCH",
     body: JSON.stringify(payload)
   });
@@ -486,7 +487,7 @@ export interface UpdateSecretStrategyPayload {
 }
 
 export const updateSecretStrategy = (resource: string, secret: string, payload: UpdateSecretStrategyPayload) =>
-  jsonFetch<ResourceSecretDetail>(`/resources/${resource}/secrets/${secret}/strategy`, {
+  jsonFetch<ResourceSecretDetail>(`/resources/${encodeURIComponent(resource)}/secrets/${encodeURIComponent(secret)}/strategy`, {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -497,7 +498,7 @@ export interface UpdateVulnerabilityStatusPayload {
 }
 
 export const updateVulnerabilityStatus = (id: string, payload: UpdateVulnerabilityStatusPayload) =>
-  jsonFetch<{ id: string; status: string }>(`/vulnerabilities/${id}/status`, {
+  jsonFetch<{ id: string; status: string }>(`/vulnerabilities/${encodeURIComponent(id)}/status`, {
     method: "POST",
     body: JSON.stringify(payload)
   });

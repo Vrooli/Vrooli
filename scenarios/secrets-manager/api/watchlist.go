@@ -5,7 +5,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 const watchlistEncryptionKeyEnv = "SECRETS_MANAGER_WATCHLIST_KEY"
@@ -160,12 +160,12 @@ type watchlistCreateRequest struct {
 
 // WatchlistHandlers exposes CRUD for the encrypted watchlist.
 type WatchlistHandlers struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger *Logger
 }
 
 // NewWatchlistHandlers returns a configured handler set.
-func NewWatchlistHandlers(db *sql.DB, logger *Logger) *WatchlistHandlers {
+func NewWatchlistHandlers(db *database.RoutedDB, logger *Logger) *WatchlistHandlers {
 	return &WatchlistHandlers{db: db, logger: logger}
 }
 
@@ -306,7 +306,7 @@ func (h *WatchlistHandlers) Delete(w http.ResponseWriter, r *http.Request) {
 // loadWatchlistValues returns all entries with their decrypted values, ready
 // for scan-time matching. Returns an empty slice (and nil error) when the key
 // is unset so callers can degrade gracefully.
-func loadWatchlistValues(ctx context.Context, database *sql.DB) ([]watchlistValue, error) {
+func loadWatchlistValues(ctx context.Context, database *database.RoutedDB) ([]watchlistValue, error) {
 	if database == nil {
 		return nil, nil
 	}

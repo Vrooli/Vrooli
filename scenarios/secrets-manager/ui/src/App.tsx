@@ -98,8 +98,9 @@ export default function App() {
   } = useCampaigns(selectedScenario);
 
   const topResourceNeedingAttention = useMemo(() => {
-    if (resourceInsights.length > 0) {
-      return resourceInsights[0].resource_name;
+    const firstInsight = resourceInsights[0];
+    if (firstInsight) {
+      return firstInsight.resource_name;
     }
     const resourceStatuses = vaultQuery.data?.resource_statuses ?? [];
     return resourceStatuses.find((status) => status.secrets_missing > 0)?.resource_name;
@@ -142,11 +143,14 @@ export default function App() {
     vulnerabilitySummary.critical + vulnerabilitySummary.high + vulnerabilitySummary.medium + vulnerabilitySummary.low;
   const missingSecretsCount = heroStats?.missing_secrets ?? missingSecrets.length ?? 0;
 
-  const scrollToAnchor = (anchorId?: string) => {
+  const focusAnchor = (anchorId?: string) => {
     if (typeof document === "undefined" || !anchorId) return;
     const el = document.getElementById(anchorId);
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!el.hasAttribute("tabindex")) {
+        el.setAttribute("tabindex", "-1");
+      }
+      el.focus({ preventScroll: false });
     }
   };
 
@@ -227,14 +231,14 @@ export default function App() {
     const anchor = tutorialAnchors[journey]?.[startIndex] ?? target.anchor;
     setTutorialAnchor(anchor);
     setShowTutorialOverlay(true);
-    scrollToAnchor(anchor);
+    focusAnchor(anchor);
   }
 
   useEffect(() => {
     if (!showTutorialOverlay || !activeJourney) return;
     const nextAnchor = tutorialAnchors[activeJourney]?.[journeyStep];
     setTutorialAnchor(nextAnchor);
-    scrollToAnchor(nextAnchor);
+    focusAnchor(nextAnchor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showTutorialOverlay, activeJourney, journeyStep]);
 
@@ -262,7 +266,7 @@ export default function App() {
   ];
 
   return (
-    <div className="relative min-h-screen bg-slate-950 text-slate-50">
+    <div className="relative min-h-full bg-slate-950 text-slate-50">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_50%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.15),_transparent_60%)]" />
 
       {/* Initial loading overlay */}

@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// [REQ:SEC-CLI-001] Automation-friendly command normalization
 func TestNormalizeArgs(t *testing.T) {
 	app := &App{}
 	tests := []struct {

@@ -1,19 +1,19 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 type HealthHandlers struct {
-	db *sql.DB
+	db *database.RoutedDB
 }
 
-func NewHealthHandlers(db *sql.DB) *HealthHandlers {
+func NewHealthHandlers(db *database.RoutedDB) *HealthHandlers {
 	return &HealthHandlers{db: db}
 }
 

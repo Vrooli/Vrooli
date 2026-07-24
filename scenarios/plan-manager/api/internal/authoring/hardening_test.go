@@ -493,7 +493,7 @@ func (f fakeSkillResolver) SuggestSkills(context.Context, planmodel.ChangeBounda
 func TestSkillContextIsAdvisoryAndResolverSuggestionsAutoAdd(t *testing.T) {
 	ctx := context.Background()
 	resolver := fakeSkillResolver{suggestions: []authoring.SkillSuggestion{
-		{Slug: "react-coherence", Reason: "The boundary touches a React UI."},
+		{Slug: "ui-health", Reason: "The boundary touches a React UI."},
 	}}
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, SkillResolver: resolver})
 	sess, _, err := svc.StartSession(ctx, "Gate v3", "gate-v3", "")
@@ -504,7 +504,7 @@ func TestSkillContextIsAdvisoryAndResolverSuggestionsAutoAdd(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, violations)
 	require.Len(t, added, 1)
-	require.Equal(t, "react-coherence", added[0].Target)
+	require.Equal(t, "ui-health", added[0].Target)
 	require.Len(t, updated.RelevantContext, 1)
 
 	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)

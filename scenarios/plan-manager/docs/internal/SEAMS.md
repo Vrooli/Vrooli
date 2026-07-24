@@ -158,7 +158,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Interface** | `api/internal/authoring/seams.go::SkillApplicabilityResolver` — `SuggestSkills(ctx, ChangeBoundary) []SkillSuggestion`. Suggestions enter the same accept/reject disposition flow as probe-discovered candidates. |
 | **Production wiring** | `NoopSkillApplicabilityResolver{}` (via `resolverOrNoop` in `NewService`). The intended future sources are the health scenarios' self-declared applicability rules and the maturity system's phase→skill links; the seam ships no-op because a hard-coded path→skill table is prohibited (D7). |
 | **Test fake** | `api/internal/authoring/hardening_test.go::fakeSkillResolver` proves suggestions flow through disposition like any candidate (`TestSkillCheckpointGateV2`). |
-| **Why it exists** | Text-similarity discovery cannot know that a plan touching a React UI should load `react-coherence`; applicability is a property of the change boundary. The seam reserves that slot without hard-coding skill routing into plan-manager. |
+| **Why it exists** | Text-similarity discovery cannot know that a plan touching a React UI should load `ui-health`; applicability is a property of the change boundary. The seam reserves that slot without hard-coding skill routing into plan-manager. |
 
 ### Authoring PlanRenderer + PosturePreparer (preview parity)
 

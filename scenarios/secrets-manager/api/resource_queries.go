@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
 
-func fetchResourceDetail(ctx context.Context, db *sql.DB, resourceName string) (*ResourceDetail, error) {
+func fetchResourceDetail(ctx context.Context, db *database.RoutedDB, resourceName string) (*ResourceDetail, error) {
 	resourceName = strings.TrimSpace(resourceName)
 	if resourceName == "" {
 		return nil, fmt.Errorf("resource name is required")
@@ -47,21 +48,17 @@ func fetchResourceDetail(ctx context.Context, db *sql.DB, resourceName string) (
 		SELECT rs.id, rs.secret_key, rs.secret_type, COALESCE(rs.description,''),
 		       COALESCE(rs.classification,'service'), rs.required,
 		       COALESCE(rs.owner_team,''), COALESCE(rs.owner_contact,''),
-		       COALESCE(tiers.tier_map, '{}'::jsonb),
-		       COALESCE(v.validation_status,'unknown') as validation_status,
-		       v.validation_timestamp
+		       COALESCE((
+				SELECT validation_status FROM secret_validations
+				WHERE resource_secret_id = rs.id
+				ORDER BY validation_timestamp DESC LIMIT 1
+			), 'unknown') AS validation_status,
+		       (
+				SELECT validation_timestamp FROM secret_validations
+				WHERE resource_secret_id = rs.id
+				ORDER BY validation_timestamp DESC LIMIT 1
+			) AS validation_timestamp
 		FROM resource_secrets rs
-		LEFT JOIN (
-			SELECT DISTINCT ON (resource_secret_id)
-				resource_secret_id, validation_status, validation_timestamp
-			FROM secret_validations
-			ORDER BY resource_secret_id, validation_timestamp DESC
-		) v ON v.resource_secret_id = rs.id
-		LEFT JOIN (
-			SELECT resource_secret_id, jsonb_object_agg(tier, handling_strategy) AS tier_map
-			FROM secret_deployment_strategies
-			GROUP BY resource_secret_id
-		) tiers ON tiers.resource_secret_id = rs.id
 		WHERE rs.resource_name = $1
 		ORDER BY rs.secret_key
 	`, resourceName)
@@ -79,11 +76,10 @@ func fetchResourceDetail(ctx context.Context, db *sql.DB, resourceName string) (
 			required       bool
 			ownerTeam      string
 			ownerContact   string
-			tierJSON       []byte
 			validation     string
 			validationTime sql.NullTime
 		)
-		if err := secretRows.Scan(&id, &secretKey, &secretType, &description, &classification, &required, &ownerTeam, &ownerContact, &tierJSON, &validation, &validationTime); err != nil {
+		if err := secretRows.Scan(&id, &secretKey, &secretType, &description, &classification, &required, &ownerTeam, &ownerContact, &validation, &validationTime); err != nil {
 			return nil, err
 		}
 		secret := ResourceSecretDetail{
@@ -95,7 +91,7 @@ func fetchResourceDetail(ctx context.Context, db *sql.DB, resourceName string) (
 			Required:        required,
 			OwnerTeam:       ownerTeam,
 			OwnerContact:    ownerContact,
-			TierStrategies:  decodeStringMap(tierJSON),
+			TierStrategies:  make(map[string]string),
 			ValidationState: validation,
 		}
 		if validationTime.Valid {
@@ -104,7 +100,21 @@ func fetchResourceDetail(ctx context.Context, db *sql.DB, resourceName string) (
 		detail.Secrets = append(detail.Secrets, secret)
 	}
 	if err := secretRows.Err(); err != nil {
+		_ = secretRows.Close()
 		return nil, err
+	}
+	// Desktop SQLite intentionally uses a single connection. Close the outer
+	// cursor before querying each secret's deployment strategies, otherwise a
+	// nested query waits indefinitely for the connection held by secretRows.
+	if err := secretRows.Close(); err != nil {
+		return nil, err
+	}
+	for i := range detail.Secrets {
+		tierStrategies, err := fetchTierStrategies(ctx, db, detail.Secrets[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		detail.Secrets[i].TierStrategies = tierStrategies
 	}
 
 	// If nothing is stored yet, seed from the resource's secrets.yaml and try again so the UI isn't empty.
@@ -234,7 +244,7 @@ func buildDetailFromConfig(resourceName string) (*ResourceDetail, error) {
 }
 
 // seedResourceSecretsFromConfig persists secrets.yaml declarations into the DB when none exist.
-func seedResourceSecretsFromConfig(ctx context.Context, db *sql.DB, resourceName string) error {
+func seedResourceSecretsFromConfig(ctx context.Context, db *database.RoutedDB, resourceName string) error {
 	if db == nil {
 		return nil
 	}
@@ -339,7 +349,7 @@ func countMissingRequired(secrets []ResourceSecretDetail) int {
 	return count
 }
 
-func fetchSingleSecretDetail(ctx context.Context, db *sql.DB, resourceName, secretKey string) (*ResourceSecretDetail, error) {
+func fetchSingleSecretDetail(ctx context.Context, db *database.RoutedDB, resourceName, secretKey string) (*ResourceSecretDetail, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -347,20 +357,17 @@ func fetchSingleSecretDetail(ctx context.Context, db *sql.DB, resourceName, secr
 		SELECT rs.id, rs.secret_key, rs.secret_type, COALESCE(rs.description,''),
 		       COALESCE(rs.classification,'service'), rs.required,
 		       COALESCE(rs.owner_team,''), COALESCE(rs.owner_contact,''),
-		       COALESCE(tiers.tier_map, '{}'::jsonb),
-		       COALESCE(v.validation_status,'unknown'), v.validation_timestamp
+		       COALESCE((
+				SELECT validation_status FROM secret_validations
+				WHERE resource_secret_id = rs.id
+				ORDER BY validation_timestamp DESC LIMIT 1
+			), 'unknown'),
+		       (
+				SELECT validation_timestamp FROM secret_validations
+				WHERE resource_secret_id = rs.id
+				ORDER BY validation_timestamp DESC LIMIT 1
+			)
 		FROM resource_secrets rs
-		LEFT JOIN (
-			SELECT DISTINCT ON (resource_secret_id)
-				resource_secret_id, validation_status, validation_timestamp
-			FROM secret_validations
-			ORDER BY resource_secret_id, validation_timestamp DESC
-		) v ON v.resource_secret_id = rs.id
-		LEFT JOIN (
-			SELECT resource_secret_id, jsonb_object_agg(tier, handling_strategy) AS tier_map
-			FROM secret_deployment_strategies
-			GROUP BY resource_secret_id
-		) tiers ON tiers.resource_secret_id = rs.id
 		WHERE rs.resource_name = $1 AND rs.secret_key = $2
 	`, resourceName, secretKey)
 	var (
@@ -371,11 +378,14 @@ func fetchSingleSecretDetail(ctx context.Context, db *sql.DB, resourceName, secr
 		required       bool
 		ownerTeam      string
 		ownerContact   string
-		tierJSON       []byte
 		validation     string
 		validationTime sql.NullTime
 	)
-	if err := row.Scan(&id, &secretKey, &secretType, &description, &classification, &required, &ownerTeam, &ownerContact, &tierJSON, &validation, &validationTime); err != nil {
+	if err := row.Scan(&id, &secretKey, &secretType, &description, &classification, &required, &ownerTeam, &ownerContact, &validation, &validationTime); err != nil {
+		return nil, err
+	}
+	tierStrategies, err := fetchTierStrategies(ctx, db, id)
+	if err != nil {
 		return nil, err
 	}
 	secret := &ResourceSecretDetail{
@@ -387,7 +397,7 @@ func fetchSingleSecretDetail(ctx context.Context, db *sql.DB, resourceName, secr
 		Required:        required,
 		OwnerTeam:       ownerTeam,
 		OwnerContact:    ownerContact,
-		TierStrategies:  decodeStringMap(tierJSON),
+		TierStrategies:  tierStrategies,
 		ValidationState: validation,
 	}
 	if validationTime.Valid {
@@ -396,7 +406,29 @@ func fetchSingleSecretDetail(ctx context.Context, db *sql.DB, resourceName, secr
 	return secret, nil
 }
 
-func getResourceSecretID(ctx context.Context, db *sql.DB, resourceName, secretKey string) (string, error) {
+func fetchTierStrategies(ctx context.Context, db *database.RoutedDB, resourceSecretID string) (map[string]string, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT tier, handling_strategy
+		FROM secret_deployment_strategies
+		WHERE resource_secret_id = $1
+		ORDER BY tier
+	`, resourceSecretID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	strategies := make(map[string]string)
+	for rows.Next() {
+		var tier, strategy string
+		if err := rows.Scan(&tier, &strategy); err != nil {
+			return nil, err
+		}
+		strategies[tier] = strategy
+	}
+	return strategies, rows.Err()
+}
+
+func getResourceSecretID(ctx context.Context, db *database.RoutedDB, resourceName, secretKey string) (string, error) {
 	if db == nil {
 		return "", fmt.Errorf("database not initialized")
 	}

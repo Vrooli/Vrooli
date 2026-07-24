@@ -12,3 +12,8 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Delay newly published packages for one week before they are eligible for
+# installation. This is the workspace-level supply-chain policy enforced by
+# Scenario Dependency Analyzer.
+minimumReleaseAge: 10080

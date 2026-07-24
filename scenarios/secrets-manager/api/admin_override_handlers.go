@@ -2,11 +2,11 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 // AdminOverrideHandlers handles admin operations for scenario overrides.
@@ -16,7 +16,7 @@ type AdminOverrideHandlers struct {
 }
 
 // NewAdminOverrideHandlers creates handlers for admin override operations.
-func NewAdminOverrideHandlers(db *sql.DB, logger *Logger) *AdminOverrideHandlers {
+func NewAdminOverrideHandlers(db *database.RoutedDB, logger *Logger) *AdminOverrideHandlers {
 	return &AdminOverrideHandlers{
 		store:  NewScenarioOverrideStore(db, logger),
 		logger: logger,

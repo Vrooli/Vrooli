@@ -24,6 +24,8 @@ var cliClient = vroolicli.New()
 // ScenarioCLI abstracts scenario CLI operations for testability.
 // This interface enables mocking scenario list responses in tests without
 // requiring the actual vrooli CLI to be installed.
+//
+// seam: ScenarioCLI isolates Vrooli scenario-list command execution.
 type ScenarioCLI interface {
 	// ListScenarios retrieves the list of available scenarios.
 	ListScenarios(ctx context.Context) ([]scenarioSummary, error)

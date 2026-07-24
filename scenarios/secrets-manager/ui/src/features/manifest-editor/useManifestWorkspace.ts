@@ -74,10 +74,10 @@ export function useManifestWorkspace({
 
   // Sync external scenario changes
   useEffect(() => {
-    if (initialScenario && initialScenario !== scenario) {
+    if (initialScenario) {
       setScenarioInternal(initialScenario);
     }
-  }, [initialScenario, scenario]);
+  }, [initialScenario]);
 
   // Debounce scenario input to prevent excessive API calls
   useEffect(() => {

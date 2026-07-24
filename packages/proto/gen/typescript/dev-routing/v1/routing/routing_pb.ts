@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file dev-routing/v1/routing/routing.proto.
  */
 export const file_dev_routing_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiRkZXYtcm91dGluZy92MS9yb3V0aW5nL3JvdXRpbmcucHJvdG8SHXZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nIk0KFkluc3RhbGxUZXN0UG9vbFJlcXVlc3QSCwoDZHNuGAEgASgJEhAKCGxlYXNlX2lkGAIgASgJEhQKDGxlYXNlX3R0bF9tcxgDIAEoAyIyChdJbnN0YWxsVGVzdFBvb2xSZXNwb25zZRIXCg9hY3RpdmVfbGVhc2VfaWQYASABKAkiKAoUQ2xlYXJUZXN0UG9vbFJlcXVlc3QSEAoIbGVhc2VfaWQYASABKAkiUQoVQ2xlYXJUZXN0UG9vbFJlc3BvbnNlEjgKBXN0YXRzGAEgASgLMikudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuTGVhc2VTdGF0cyIsChhIZWFydGJlYXRUZXN0UG9vbFJlcXVlc3QSEAoIbGVhc2VfaWQYASABKAkiNwoZSGVhcnRiZWF0VGVzdFBvb2xSZXNwb25zZRIaChJleHBpcmVzX2F0X3VuaXhfbXMYASABKAMiUwoKTGVhc2VTdGF0cxIaChJ0ZXN0X3Bvb2xfcmVxdWVzdHMYASABKAMSKQohcHJpbWFyeV9kdXJpbmdfdGVzdF9tb2RlX3JlcXVlc3RzGAIgASgDMpgDCg5Sb3V0aW5nU2VydmljZRKAAQoPSW5zdGFsbFRlc3RQb29sEjUudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuSW5zdGFsbFRlc3RQb29sUmVxdWVzdBo2LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkluc3RhbGxUZXN0UG9vbFJlc3BvbnNlEnoKDUNsZWFyVGVzdFBvb2wSMy52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5DbGVhclRlc3RQb29sUmVxdWVzdBo0LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkNsZWFyVGVzdFBvb2xSZXNwb25zZRKGAQoRSGVhcnRiZWF0VGVzdFBvb2wSNy52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5IZWFydGJlYXRUZXN0UG9vbFJlcXVlc3QaOC52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5IZWFydGJlYXRUZXN0UG9vbFJlc3BvbnNlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZGV2LXJvdXRpbmcvdjEvcm91dGluZztyb3V0aW5nX3YxYgZwcm90bzM");
+  fileDesc("CiRkZXYtcm91dGluZy92MS9yb3V0aW5nL3JvdXRpbmcucHJvdG8SHXZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nImMKFkluc3RhbGxUZXN0UG9vbFJlcXVlc3QSCwoDZHNuGAEgASgJEhAKCGxlYXNlX2lkGAIgASgJEhQKDGxlYXNlX3R0bF9tcxgDIAEoAxIUCgxlbXB0eV9jb25maWcYBCABKAgiUAoXSW5zdGFsbFRlc3RQb29sUmVzcG9uc2USFwoPYWN0aXZlX2xlYXNlX2lkGAEgASgJEhwKFGZpbGVfcm9vdHNfaW5zdGFsbGVkGAIgASgIIigKFENsZWFyVGVzdFBvb2xSZXF1ZXN0EhAKCGxlYXNlX2lkGAEgASgJIlEKFUNsZWFyVGVzdFBvb2xSZXNwb25zZRI4CgVzdGF0cxgBIAEoCzIpLnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkxlYXNlU3RhdHMiLAoYSGVhcnRiZWF0VGVzdFBvb2xSZXF1ZXN0EhAKCGxlYXNlX2lkGAEgASgJIjcKGUhlYXJ0YmVhdFRlc3RQb29sUmVzcG9uc2USGgoSZXhwaXJlc19hdF91bml4X21zGAEgASgDIpsBCgpMZWFzZVN0YXRzEhoKEnRlc3RfcG9vbF9yZXF1ZXN0cxgBIAEoAxIpCiFwcmltYXJ5X2R1cmluZ190ZXN0X21vZGVfcmVxdWVzdHMYAiABKAMSGAoQdGVzdF9yb290X3dyaXRlcxgDIAEoAxIsCiRwcmltYXJ5X3Jvb3Rfd3JpdGVzX2R1cmluZ190ZXN0X21vZGUYBCABKAMymAMKDlJvdXRpbmdTZXJ2aWNlEoABCg9JbnN0YWxsVGVzdFBvb2wSNS52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5JbnN0YWxsVGVzdFBvb2xSZXF1ZXN0GjYudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuSW5zdGFsbFRlc3RQb29sUmVzcG9uc2USegoNQ2xlYXJUZXN0UG9vbBIzLnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkNsZWFyVGVzdFBvb2xSZXF1ZXN0GjQudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuQ2xlYXJUZXN0UG9vbFJlc3BvbnNlEoYBChFIZWFydGJlYXRUZXN0UG9vbBI3LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkhlYXJ0YmVhdFRlc3RQb29sUmVxdWVzdBo4LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkhlYXJ0YmVhdFRlc3RQb29sUmVzcG9uc2VCUlpQZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kZXYtcm91dGluZy92MS9yb3V0aW5nO3JvdXRpbmdfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.dev_routing.v1.routing.InstallTestPoolRequest
@@ -45,6 +45,14 @@ export type InstallTestPoolRequest = Message<"vrooli.dev_routing.v1.routing.Inst
    * @generated from field: int64 lease_ttl_ms = 3;
    */
   leaseTtlMs: bigint;
+
+  /**
+   * empty_config disables copying the primary config-class tree into the
+   * leased file roots. Every other file-storage class starts empty.
+   *
+   * @generated from field: bool empty_config = 4;
+   */
+  emptyConfig: boolean;
 };
 
 /**
@@ -66,6 +74,15 @@ export type InstallTestPoolResponse = Message<"vrooli.dev_routing.v1.routing.Ins
    * @generated from field: string active_lease_id = 1;
    */
   activeLeaseId: string;
+
+  /**
+   * file_roots_installed proves this target also mounted the file-storage
+   * routing leg for the lease. A workflow provider must not treat a database-
+   * only install as complete isolation for a file-persisting target.
+   *
+   * @generated from field: bool file_roots_installed = 2;
+   */
+  fileRootsInstalled: boolean;
 };
 
 /**
@@ -176,6 +193,16 @@ export type LeaseStats = Message<"vrooli.dev_routing.v1.routing.LeaseStats"> & {
    * @generated from field: int64 primary_during_test_mode_requests = 2;
    */
   primaryDuringTestModeRequests: bigint;
+
+  /**
+   * @generated from field: int64 test_root_writes = 3;
+   */
+  testRootWrites: bigint;
+
+  /**
+   * @generated from field: int64 primary_root_writes_during_test_mode = 4;
+   */
+  primaryRootWritesDuringTestMode: bigint;
 };
 
 /**

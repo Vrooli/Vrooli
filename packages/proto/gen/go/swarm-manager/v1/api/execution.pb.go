@@ -162,6 +162,8 @@ type CreateExecutionRequest struct {
 	Mode          string                 `protobuf:"bytes,3,opt,name=mode,proto3" json:"mode,omitempty"`
 	StartedBy     *string                `protobuf:"bytes,5,opt,name=started_by,json=startedBy,proto3,oneof" json:"started_by,omitempty"`
 	Operation     *string                `protobuf:"bytes,6,opt,name=operation,proto3,oneof" json:"operation,omitempty"`
+	Strategy      *string                `protobuf:"bytes,7,opt,name=strategy,proto3,oneof" json:"strategy,omitempty"`
+	MaxSlices     *int32                 `protobuf:"varint,8,opt,name=max_slices,json=maxSlices,proto3,oneof" json:"max_slices,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -229,6 +231,20 @@ func (x *CreateExecutionRequest) GetOperation() string {
 		return *x.Operation
 	}
 	return ""
+}
+
+func (x *CreateExecutionRequest) GetStrategy() string {
+	if x != nil && x.Strategy != nil {
+		return *x.Strategy
+	}
+	return ""
+}
+
+func (x *CreateExecutionRequest) GetMaxSlices() int32 {
+	if x != nil && x.MaxSlices != nil {
+		return *x.MaxSlices
+	}
+	return 0
 }
 
 // FollowUpExecutionRequest triggers a follow-up from a completed/failed execution.
@@ -313,17 +329,22 @@ const file_swarm_manager_v1_api_execution_proto_rawDesc = "" +
 	"\x11ExecutionResponse\x12?\n" +
 	"\texecution\x18\x01 \x01(\v2!.swarm_manager.v1.ExecutionRecordR\texecution\"T\n" +
 	"\x17ExecutionPolicyResponse\x129\n" +
-	"\x06policy\x18\x01 \x01(\v2!.swarm_manager.v1.ExecutionPolicyR\x06policy\"\x83\x02\n" +
+	"\x06policy\x18\x01 \x01(\v2!.swarm_manager.v1.ExecutionPolicyR\x06policy\"\xef\x02\n" +
 	"\x16CreateExecutionRequest\x12*\n" +
 	"\fbacklog_kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12'\n" +
 	"\x04mode\x18\x03 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\"\n" +
 	"\n" +
 	"started_by\x18\x05 \x01(\tH\x00R\tstartedBy\x88\x01\x01\x12!\n" +
-	"\toperation\x18\x06 \x01(\tH\x01R\toperation\x88\x01\x01B\r\n" +
+	"\toperation\x18\x06 \x01(\tH\x01R\toperation\x88\x01\x01\x12\x1f\n" +
+	"\bstrategy\x18\a \x01(\tH\x02R\bstrategy\x88\x01\x01\x12-\n" +
+	"\n" +
+	"max_slices\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x06(\x01H\x03R\tmaxSlices\x88\x01\x01B\r\n" +
 	"\v_started_byB\f\n" +
 	"\n" +
-	"_operationJ\x04\b\x04\x10\x05\"\xe8\x01\n" +
+	"_operationB\v\n" +
+	"\t_strategyB\r\n" +
+	"\v_max_slicesJ\x04\b\x04\x10\x05\"\xe8\x01\n" +
 	"\x18FollowUpExecutionRequest\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12D\n" +
 	"\x0efollow_up_type\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19R\x05fixupR\bfollowupR\x06customR\ffollowUpType\x12\x1d\n" +

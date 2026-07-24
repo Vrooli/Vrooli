@@ -1,8 +1,18 @@
 # Known Issues & Follow-Up Tasks
 
-This document tracks unresolved problems, blockers, and technical debt for the secrets-manager scenario.
+This internal ledger tracks unresolved problems, blockers, and technical debt for the secrets-manager scenario.
 
 **Last Updated**: 2025-11-18 22:58 (scenario-improver-20251118-134731-p13)
+
+---
+
+## Current Validation Gates (2026-07-23)
+
+- Linux Tier 1 Vault acceptance is intentionally fail-closed until the active user has the declared `secret-tool` host prerequisite. `vrooli host install secret-tool --sudo-mode=ask --json` requires an interactive privileged operator on this host; do not bypass it with a raw system package command.
+- Secrets Manager's unit policy now has a shared API test utility and valid UI coverage configuration. The UI suite covers API contracts plus manifest-editor, app-shell, journey, resource-panel, data-hook, campaign, tier-readiness, dashboard snapshot, live security/compliance, resource-tree, scenario-selection, deployment failure states, JSON manifest previews, and per-resource workbench behavior. `pnpm test:coverage` meets the enforced global thresholds without lowering them; use that command as the current coverage source of truth and continue expanding behavior tests and production seams as the UI evolves.
+- The UI deployment surface is validated statically at interop and PWA L5. Remaining UI Health component-location and governed-primitive findings are advisory refactoring debt; they do not change route or secret-storage behavior.
+- The deployment-readiness journey now treats an empty successful response as a retryable readiness error instead of dereferencing it. The regression was caused by asynchronous hook work observing a cleared test mock during teardown; hooks are now cleaned up before mocks reset, and the response guard protects the same runtime failure mode. Evidence: `pnpm test:coverage` and Unit Health run `uh-20260723-045127` (zero blocking findings).
+- Database-backed override tests now use the repository-standard `TEST_DATABASE_URL` contract instead of a hard-coded developer credential. Test Genie or CI must provide an isolated database with the Secrets Manager schema; otherwise those integration tests skip with an actionable reason and never target a shared scenario database.
 
 ---
 
@@ -95,32 +105,24 @@ Refactor into:
 
 ---
 
-### 4. Requirements Schema Validation Failing
-**Severity**: 2/5 (reduced - schema fixed, validation tags missing)
-**Impact**: 29 critical requirements missing validation entries
+### 4. Requirements Traceability Evidence Refresh
+**Severity**: 1/5
+**Impact**: Requirement completion is pending a fresh comprehensive Test Genie snapshot.
 **Components**: Requirements, Tests
 
 **Description**:
-`requirements/index.json` schema validation now passes (fixed null → empty string for timestamps), but 29 critical P0/P1 requirements are missing `validation` entries. Requirements without validation cannot auto-sync to PRD checkboxes.
+The imported registry module maps all 12 PRD operational targets to focused requirements with resolvable validation references. `vrooli scenario requirements validate secrets-manager` passes and reports zero unproven claims. The current requirements snapshot predates the latest server-owned suite, so no requirement status or PRD checkbox may be promoted until Test Genie records live evidence.
 
-**Proposed Solution**:
-- Add `validation` array to each requirement with test command and `[REQ:ID]` tag location
-- Example:
-  ```json
-  "validation": [
-    {
-      "type": "test",
-      "command": "go test ./api -run TestHealthHandler",
-      "tag_location": "api/main_test.go:45"
-    }
-  ]
-  ```
+**Evidence**:
+- `requirements/01-operational-targets/module.json`
+- `vrooli scenario requirements validate secrets-manager`
+- `swarm-manager` record `rec-961a96c0f5a31dc6`
 
 **Next Steps**:
-- [x] Fix schema validation (timestamps null → empty string)
-- [ ] Add validation entries for all P0/P1 requirements
-- [ ] Ensure tests tag `[REQ:ID]` in assertions
-- [ ] Confirm PRD checkboxes update when tests pass
+- [x] Normalize exact PRD target references and move authoritative claims into an imported module.
+- [x] Tag the existing API, CLI, and UI tests that exercise the registered claims.
+- [ ] Let the comprehensive Test Genie suite update `coverage/requirements-sync/latest.json`.
+- [ ] Promote requirement statuses and PRD checkboxes only if the updated snapshot proves them.
 
 ---
 
@@ -304,6 +306,29 @@ Dark chrome theme looks good but hasn't been tested with accessibility tools. Co
 - [ ] Audit all UI pages
 - [ ] Fix identified violations
 - [ ] Document accessibility compliance in README
+
+---
+
+### 10. Ambient Clock and Environment Seams Require an API-Wide Injection Migration
+**Severity**: 2/5
+**Impact**: API tests cannot substitute all wall-clock and environment behavior deterministically.
+**Components**: API, Testing Architecture
+
+**Description**:
+Unit Health run `uh-20260723-043923` reported `MISSING_INJECTABLE_SEAM` because production API code directly called `time.Now()` and `os.Getenv()` / `os.LookupEnv()`. The deployment manifest path has a real `ManifestClock` seam, and the validation path now has a real `envx.Reader` seam: `SecretValidator` receives `envx.Reader` through `NewSecretValidatorWithEnv`, production uses `envx.OS`, and tests use `mocks.FakeEnv`. This is not a detector-only declaration.
+
+The API-wide migration remains incomplete. Direct environment reads still exist in `security_handlers.go`, `security_scan.go`, `receipt_signing_handlers.go`, `watchlist.go`, `vault_handlers.go`, `postgres_schema.go`, `http_utils.go`, `desktop_storage.go`, and `logger.go`; composition-root reads in `main.go` are intentionally retained there. Pattern strings in scanners are not process reads.
+
+**Proposed Solution**:
+- Migrate the remaining direct environment reads to narrow injected readers, starting with security and storage boundaries.
+- Continue wiring clock dependencies at the composition root or server dependency boundary while preserving observable behavior.
+- Keep the seam registry current and add a structural registry-drift test before considering this debt closed.
+
+**Evidence**:
+- `unit-health validate scenario secrets-manager --execution --json`
+- `docs/internal/SEAMS.md`
+- `docs/concepts/ARCHITECTURE.md`
+- `go test ./... -run 'TestManifestBuilder_Build_UsesInjectedClock|TestValidateEnvironmentVariable'` in `scenarios/secrets-manager/api`
 
 ---
 

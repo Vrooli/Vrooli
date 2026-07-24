@@ -3,16 +3,19 @@ package main
 import (
 	"context"
 	"database/sql"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // TestScenarioOverrideQueries contains integration tests for the scenario override system.
 // These tests require a PostgreSQL database connection to run.
 //
-// Run with: go test -v -run TestScenarioOverride ./...
+// Run with: TEST_DATABASE_URL='postgres://...' go test -v -run TestScenarioOverride ./...
 //
 // For unit testing without a database, these tests will be skipped.
 
@@ -212,7 +215,7 @@ func TestDeleteOverride(t *testing.T) {
 	}
 
 	// Cleanup remaining resource
-	_, _ = db.Exec("DELETE FROM resource_secrets WHERE id = $1", resourceSecretID)
+	_, _ = db.ExecContext(context.Background(), "DELETE FROM resource_secrets WHERE id = $1", resourceSecretID)
 }
 
 // TestCopyOverridesFromTier tests copying overrides between tiers
@@ -261,8 +264,8 @@ func TestCopyOverridesFromTier(t *testing.T) {
 	}
 
 	// Cleanup
-	_, _ = db.Exec("DELETE FROM scenario_secret_strategy_overrides WHERE scenario_name = $1", "test-scenario")
-	_, _ = db.Exec("DELETE FROM resource_secrets WHERE id = $1", resourceSecretID)
+	_, _ = db.ExecContext(context.Background(), "DELETE FROM scenario_secret_strategy_overrides WHERE scenario_name = $1", "test-scenario")
+	_, _ = db.ExecContext(context.Background(), "DELETE FROM resource_secrets WHERE id = $1", resourceSecretID)
 	_ = o1 // silence unused warning
 }
 
@@ -339,7 +342,7 @@ func TestDeleteOverridesByID(t *testing.T) {
 	}
 
 	// Cleanup resource
-	_, _ = db.Exec("DELETE FROM resource_secrets WHERE id = $1", resourceSecretID)
+	_, _ = db.ExecContext(context.Background(), "DELETE FROM resource_secrets WHERE id = $1", resourceSecretID)
 }
 
 // TestDeleteOverridesByIDEmpty tests deleting with empty slice
@@ -369,15 +372,17 @@ func TestDeleteOverridesByIDEmpty(t *testing.T) {
 
 // Test helper functions
 
-func getTestDB(t *testing.T) *sql.DB {
+func getTestDB(t *testing.T) *database.RoutedDB {
 	t.Helper()
 
-	// Try to connect to the test database
-	connStr := "host=localhost port=5432 user=secrets_manager password=dev_password dbname=secrets_manager_test sslmode=disable"
+	connStr := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
+	if connStr == "" {
+		t.Skip("TEST_DATABASE_URL not set; database integration tests require an isolated PostgreSQL database")
+	}
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		t.Logf("could not open database: %v", err)
-		return nil
+		t.Fatalf("open TEST_DATABASE_URL: %v", err)
 	}
 
 	// Test the connection
@@ -385,28 +390,27 @@ func getTestDB(t *testing.T) *sql.DB {
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
-		t.Logf("could not ping database: %v", err)
 		db.Close()
-		return nil
+		t.Fatalf("ping TEST_DATABASE_URL: %v", err)
 	}
 
-	return db
+	return database.NewFromPrimary(db)
 }
 
-func setupTestResourceSecret(t *testing.T, db *sql.DB) (id, resourceName, secretKey string) {
+func setupTestResourceSecret(t *testing.T, db *database.RoutedDB) (id, resourceName, secretKey string) {
 	return setupTestResourceSecretWithKey(t, db, "TEST_SECRET_KEY")
 }
 
-func setupTestResourceSecretWithKey(t *testing.T, db *sql.DB, secretKey string) (id, resourceName, key string) {
+func setupTestResourceSecretWithKey(t *testing.T, db *database.RoutedDB, secretKey string) (id, resourceName, key string) {
 	t.Helper()
 
 	resourceName = "test-resource"
 	key = secretKey
 
 	// Check if the secret already exists and delete it
-	_, _ = db.Exec("DELETE FROM resource_secrets WHERE resource_name = $1 AND secret_key = $2", resourceName, key)
+	_, _ = db.ExecContext(context.Background(), "DELETE FROM resource_secrets WHERE resource_name = $1 AND secret_key = $2", resourceName, key)
 
-	err := db.QueryRow(`
+	err := db.QueryRowContext(context.Background(), `
 		INSERT INTO resource_secrets (resource_name, secret_key, secret_type, classification, required)
 		VALUES ($1, $2, 'credential', 'infrastructure', true)
 		RETURNING id
@@ -418,13 +422,13 @@ func setupTestResourceSecretWithKey(t *testing.T, db *sql.DB, secretKey string) 
 	return id, resourceName, key
 }
 
-func cleanupTestData(t *testing.T, db *sql.DB, resourceSecretID, overrideID string) {
+func cleanupTestData(t *testing.T, db *database.RoutedDB, resourceSecretID, overrideID string) {
 	t.Helper()
 
 	if overrideID != "" {
-		_, _ = db.Exec("DELETE FROM scenario_secret_strategy_overrides WHERE id = $1", overrideID)
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM scenario_secret_strategy_overrides WHERE id = $1", overrideID)
 	}
 	if resourceSecretID != "" {
-		_, _ = db.Exec("DELETE FROM resource_secrets WHERE id = $1", resourceSecretID)
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM resource_secrets WHERE id = $1", resourceSecretID)
 	}
 }

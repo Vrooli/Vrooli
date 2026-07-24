@@ -6,20 +6,21 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
+	"secrets-manager-api/internal/envx"
 )
 
 type SecurityHandlers struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger *Logger
 }
 
-func NewSecurityHandlers(db *sql.DB, logger *Logger) *SecurityHandlers {
+func NewSecurityHandlers(db *database.RoutedDB, logger *Logger) *SecurityHandlers {
 	return &SecurityHandlers{db: db, logger: logger}
 }
 
@@ -102,7 +103,12 @@ func (h *SecurityHandlers) Vulnerabilities(w http.ResponseWriter, r *http.Reques
 	}
 
 	// In quick mode or test mode, return minimal results
-	if quickMode || os.Getenv("SECRETS_MANAGER_TEST_MODE") == "true" {
+	testMode, err := testModeEnabled(envx.OS{})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid test-mode configuration: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if quickMode || testMode {
 		quickResults := buildQuickSecurityScanResult()
 		response := buildVulnerabilityPayload(quickResults, component, severity, "quick")
 		writeJSON(w, http.StatusOK, response)

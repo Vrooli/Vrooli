@@ -63,6 +63,10 @@ message InstallTestPoolRequest {
   // routing to the primary pool — a defensive timeout for an orchestrator
   // crashing between Install and Clear.
   int64 lease_ttl_ms = 3;
+
+  // empty_config disables copying the primary config-class tree into the
+  // leased file roots. Every other file-storage class starts empty.
+  bool empty_config = 4;
 }
 
 message InstallTestPoolResponse {
@@ -70,6 +74,11 @@ message InstallTestPoolResponse {
   // successful install it equals the request's lease_id; on a conflict
   // response detail it reports the existing holder.
   string active_lease_id = 1;
+
+  // file_roots_installed proves this target also mounted the file-storage
+  // routing leg for the lease. A workflow provider must not treat a database-
+  // only install as complete isolation for a file-persisting target.
+  bool file_roots_installed = 2;
 }
 
 message ClearTestPoolRequest {
@@ -106,4 +115,6 @@ message HeartbeatTestPoolResponse {
 message LeaseStats {
   int64 test_pool_requests = 1;
   int64 primary_during_test_mode_requests = 2;
+  int64 test_root_writes = 3;
+  int64 primary_root_writes_during_test_mode = 4;
 }

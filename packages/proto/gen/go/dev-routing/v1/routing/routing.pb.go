@@ -37,7 +37,10 @@ type InstallTestPoolRequest struct {
 	// "use the scenario default" (currently 90s). On expiry, RoutedDB reverts
 	// routing to the primary pool — a defensive timeout for an orchestrator
 	// crashing between Install and Clear.
-	LeaseTtlMs    int64 `protobuf:"varint,3,opt,name=lease_ttl_ms,json=leaseTtlMs,proto3" json:"lease_ttl_ms,omitempty"`
+	LeaseTtlMs int64 `protobuf:"varint,3,opt,name=lease_ttl_ms,json=leaseTtlMs,proto3" json:"lease_ttl_ms,omitempty"`
+	// empty_config disables copying the primary config-class tree into the
+	// leased file roots. Every other file-storage class starts empty.
+	EmptyConfig   bool `protobuf:"varint,4,opt,name=empty_config,json=emptyConfig,proto3" json:"empty_config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -93,14 +96,25 @@ func (x *InstallTestPoolRequest) GetLeaseTtlMs() int64 {
 	return 0
 }
 
+func (x *InstallTestPoolRequest) GetEmptyConfig() bool {
+	if x != nil {
+		return x.EmptyConfig
+	}
+	return false
+}
+
 type InstallTestPoolResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// active_lease_id reports the lease that owns the installed pool. On a
 	// successful install it equals the request's lease_id; on a conflict
 	// response detail it reports the existing holder.
 	ActiveLeaseId string `protobuf:"bytes,1,opt,name=active_lease_id,json=activeLeaseId,proto3" json:"active_lease_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// file_roots_installed proves this target also mounted the file-storage
+	// routing leg for the lease. A workflow provider must not treat a database-
+	// only install as complete isolation for a file-persisting target.
+	FileRootsInstalled bool `protobuf:"varint,2,opt,name=file_roots_installed,json=fileRootsInstalled,proto3" json:"file_roots_installed,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *InstallTestPoolResponse) Reset() {
@@ -138,6 +152,13 @@ func (x *InstallTestPoolResponse) GetActiveLeaseId() string {
 		return x.ActiveLeaseId
 	}
 	return ""
+}
+
+func (x *InstallTestPoolResponse) GetFileRootsInstalled() bool {
+	if x != nil {
+		return x.FileRootsInstalled
+	}
+	return false
 }
 
 type ClearTestPoolRequest struct {
@@ -332,11 +353,13 @@ func (x *HeartbeatTestPoolResponse) GetExpiresAtUnixMs() int64 {
 // primary pool anyway — a sign that some code path holds a raw *sql.DB
 // instead of going through RoutedDB.
 type LeaseStats struct {
-	state                         protoimpl.MessageState `protogen:"open.v1"`
-	TestPoolRequests              int64                  `protobuf:"varint,1,opt,name=test_pool_requests,json=testPoolRequests,proto3" json:"test_pool_requests,omitempty"`
-	PrimaryDuringTestModeRequests int64                  `protobuf:"varint,2,opt,name=primary_during_test_mode_requests,json=primaryDuringTestModeRequests,proto3" json:"primary_during_test_mode_requests,omitempty"`
-	unknownFields                 protoimpl.UnknownFields
-	sizeCache                     protoimpl.SizeCache
+	state                           protoimpl.MessageState `protogen:"open.v1"`
+	TestPoolRequests                int64                  `protobuf:"varint,1,opt,name=test_pool_requests,json=testPoolRequests,proto3" json:"test_pool_requests,omitempty"`
+	PrimaryDuringTestModeRequests   int64                  `protobuf:"varint,2,opt,name=primary_during_test_mode_requests,json=primaryDuringTestModeRequests,proto3" json:"primary_during_test_mode_requests,omitempty"`
+	TestRootWrites                  int64                  `protobuf:"varint,3,opt,name=test_root_writes,json=testRootWrites,proto3" json:"test_root_writes,omitempty"`
+	PrimaryRootWritesDuringTestMode int64                  `protobuf:"varint,4,opt,name=primary_root_writes_during_test_mode,json=primaryRootWritesDuringTestMode,proto3" json:"primary_root_writes_during_test_mode,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *LeaseStats) Reset() {
@@ -383,18 +406,34 @@ func (x *LeaseStats) GetPrimaryDuringTestModeRequests() int64 {
 	return 0
 }
 
+func (x *LeaseStats) GetTestRootWrites() int64 {
+	if x != nil {
+		return x.TestRootWrites
+	}
+	return 0
+}
+
+func (x *LeaseStats) GetPrimaryRootWritesDuringTestMode() int64 {
+	if x != nil {
+		return x.PrimaryRootWritesDuringTestMode
+	}
+	return 0
+}
+
 var File_dev_routing_v1_routing_routing_proto protoreflect.FileDescriptor
 
 const file_dev_routing_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
-	"$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"g\n" +
+	"$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"\x8a\x01\n" +
 	"\x16InstallTestPoolRequest\x12\x10\n" +
 	"\x03dsn\x18\x01 \x01(\tR\x03dsn\x12\x19\n" +
 	"\blease_id\x18\x02 \x01(\tR\aleaseId\x12 \n" +
 	"\flease_ttl_ms\x18\x03 \x01(\x03R\n" +
-	"leaseTtlMs\"A\n" +
+	"leaseTtlMs\x12!\n" +
+	"\fempty_config\x18\x04 \x01(\bR\vemptyConfig\"s\n" +
 	"\x17InstallTestPoolResponse\x12&\n" +
-	"\x0factive_lease_id\x18\x01 \x01(\tR\ractiveLeaseId\"1\n" +
+	"\x0factive_lease_id\x18\x01 \x01(\tR\ractiveLeaseId\x120\n" +
+	"\x14file_roots_installed\x18\x02 \x01(\bR\x12fileRootsInstalled\"1\n" +
 	"\x14ClearTestPoolRequest\x12\x19\n" +
 	"\blease_id\x18\x01 \x01(\tR\aleaseId\"X\n" +
 	"\x15ClearTestPoolResponse\x12?\n" +
@@ -402,11 +441,13 @@ const file_dev_routing_v1_routing_routing_proto_rawDesc = "" +
 	"\x18HeartbeatTestPoolRequest\x12\x19\n" +
 	"\blease_id\x18\x01 \x01(\tR\aleaseId\"H\n" +
 	"\x19HeartbeatTestPoolResponse\x12+\n" +
-	"\x12expires_at_unix_ms\x18\x01 \x01(\x03R\x0fexpiresAtUnixMs\"\x84\x01\n" +
+	"\x12expires_at_unix_ms\x18\x01 \x01(\x03R\x0fexpiresAtUnixMs\"\xfd\x01\n" +
 	"\n" +
 	"LeaseStats\x12,\n" +
 	"\x12test_pool_requests\x18\x01 \x01(\x03R\x10testPoolRequests\x12H\n" +
-	"!primary_during_test_mode_requests\x18\x02 \x01(\x03R\x1dprimaryDuringTestModeRequests2\x98\x03\n" +
+	"!primary_during_test_mode_requests\x18\x02 \x01(\x03R\x1dprimaryDuringTestModeRequests\x12(\n" +
+	"\x10test_root_writes\x18\x03 \x01(\x03R\x0etestRootWrites\x12M\n" +
+	"$primary_root_writes_during_test_mode\x18\x04 \x01(\x03R\x1fprimaryRootWritesDuringTestMode2\x98\x03\n" +
 	"\x0eRoutingService\x12\x80\x01\n" +
 	"\x0fInstallTestPool\x125.vrooli.dev_routing.v1.routing.InstallTestPoolRequest\x1a6.vrooli.dev_routing.v1.routing.InstallTestPoolResponse\x12z\n" +
 	"\rClearTestPool\x123.vrooli.dev_routing.v1.routing.ClearTestPoolRequest\x1a4.vrooli.dev_routing.v1.routing.ClearTestPoolResponse\x12\x86\x01\n" +

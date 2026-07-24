@@ -2,24 +2,24 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
+	"os/user"
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 type VaultHandlers struct {
-	db        *sql.DB
+	db        *database.RoutedDB
 	logger    *Logger
 	validator *SecretValidator
 }
 
-func NewVaultHandlers(db *sql.DB, logger *Logger, validator *SecretValidator) *VaultHandlers {
+func NewVaultHandlers(db *database.RoutedDB, logger *Logger, validator *SecretValidator) *VaultHandlers {
 	return &VaultHandlers{
 		db:        db,
 		logger:    logger,
@@ -47,10 +47,10 @@ func (h *VaultHandlers) Status(w http.ResponseWriter, r *http.Request) {
 	status, err := getVaultSecretsStatus(resourceFilter)
 	if err != nil {
 		if h.logger != nil {
-			h.logger.Info("Error getting vault status: %v, using mock data", err)
+			h.logger.Info("Vault status unavailable: %v", err)
 		}
-		// Use mock data as ultimate fallback
-		status = getMockVaultStatus()
+		http.Error(w, "Vault status is unavailable", http.StatusServiceUnavailable)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -115,28 +115,19 @@ func (h *VaultHandlers) performSecretProvision(ctx context.Context, resource str
 	if len(secrets) == 0 {
 		return nil, fmt.Errorf("no secrets provided")
 	}
-
-	saved, err := saveSecretsToLocalStore(secrets)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update local secrets store: %w", err)
+	resource = strings.TrimSpace(resource)
+	if resource == "" {
+		return nil, fmt.Errorf("resource is required for Vault-backed provisioning")
 	}
 
 	response := &ProvisionResponse{
-		Resource:      resource,
-		StoredSecrets: saved,
-	}
-
-	// Decision: Local-only provision (no resource specified)
-	// Outcome: Success, but remind user to provide resource for vault sync
-	if isLocalOnlyProvision(resource) {
-		response.Success = true
-		response.Message = "Secrets stored locally. Provide a resource to sync with Vault."
-		return response, nil
+		Resource: resource,
 	}
 
 	results, provisionErr := h.provisionSecretsToVault(ctx, resource, secrets)
 	response.Details = results
 	response.VaultStored = countSuccessfullyStoredSecrets(results)
+	response.StoredSecrets = response.VaultStored
 
 	// Decision: Determine provision outcome based on vault results
 	outcome := determineProvisionOutcome(provisionErr, response.VaultStored)
@@ -149,12 +140,6 @@ func (h *VaultHandlers) performSecretProvision(ctx context.Context, resource str
 		response.Message = provisionErr.Error()
 	}
 	return response, nil
-}
-
-// isLocalOnlyProvision returns true when no resource is specified,
-// meaning secrets should only be stored locally without vault sync.
-func isLocalOnlyProvision(resource string) bool {
-	return strings.TrimSpace(resource) == ""
 }
 
 // countSuccessfullyStoredSecrets counts how many secrets were stored in vault.
@@ -244,10 +229,14 @@ func (h *VaultHandlers) recordSecretProvision(ctx context.Context, resourceName,
 	if err != nil {
 		return
 	}
+	provisionedBy := "unknown"
+	if currentUser, userErr := user.Current(); userErr == nil && currentUser.Username != "" {
+		provisionedBy = currentUser.Username
+	}
 	_, err = h.db.ExecContext(ctx, `
-		INSERT INTO secret_provisions (resource_secret_id, storage_method, storage_location, provisioned_at, provisioned_by, provision_status)
-		VALUES ($1, 'vault', $2, CURRENT_TIMESTAMP, $3, 'active')
-	`, secretID, vaultPath, os.Getenv("USER"))
+			INSERT INTO secret_provisions (resource_secret_id, storage_method, storage_location, provisioned_at, provisioned_by, provision_status)
+			VALUES ($1, 'vault', $2, CURRENT_TIMESTAMP, $3, 'active')
+		`, secretID, vaultPath, provisionedBy)
 	if err != nil {
 		if h.logger != nil {
 			h.logger.Info("failed to record secret provision for %s: %v", envKey, err)
@@ -268,7 +257,7 @@ func (h *VaultHandlers) Validate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := h.validator.ValidateSecrets(req.Resource)
+	response, err := h.validator.ValidateSecretsContext(r.Context(), req.Resource)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Validation failed: %v", err), http.StatusInternalServerError)
 		return
@@ -300,8 +289,13 @@ func (h *VaultHandlers) LegacyProvision(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "no secrets provided", http.StatusBadRequest)
 		return
 	}
+	resource := strings.TrimSpace(req.Resource)
+	if resource == "" {
+		http.Error(w, "resource is required for Vault-backed provisioning", http.StatusBadRequest)
+		return
+	}
 
-	result, err := h.performSecretProvision(r.Context(), strings.TrimSpace(req.Resource), secrets)
+	result, err := h.performSecretProvision(r.Context(), resource, secrets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

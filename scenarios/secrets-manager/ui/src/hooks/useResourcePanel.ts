@@ -183,7 +183,10 @@ export const useResourcePanel = (options?: UseResourcePanelOptions) => {
     }
     const exists = resourceDetailQuery.data.secrets.some((secret) => secret.secret_key === selectedSecretKey);
     if (!exists) {
-      setSelectedSecretKey(resourceDetailQuery.data.secrets[0].secret_key);
+      const firstSecret = resourceDetailQuery.data.secrets[0];
+      if (firstSecret) {
+        setSelectedSecretKey(firstSecret.secret_key);
+      }
     }
   }, [resourceDetailQuery.data, selectedSecretKey]);
 

@@ -1,6 +1,6 @@
 # Secrets Manager - Seams Documentation
 
-This document captures:
+This internal document captures:
 1. **Responsibility Zones** - where each concern lives (from Boundary Enforcement phase)
 2. **Interface Seams** - abstraction boundaries for testability and substitution (from Seam Discovery phase)
 
@@ -174,6 +174,31 @@ These enable testing, swapping implementations, and isolating side effects.
 
 These interfaces already exist and enable dependency injection:
 
+| Seam | Production implementation | Test substitute | Primary consumer |
+|------|---------------------------|-----------------|------------------|
+| `envx.Reader` (`api/internal/envx/env.go`) | `envx.OS` | `mocks.FakeEnv` | `SecretValidator` |
+| `ManifestClock` (`deployment_manifest_builder.go`) | `systemManifestClock` | `fixedManifestClock` | `ManifestBuilder` |
+| `VaultCLI` (`vault_status.go`) | `DefaultVaultCLI` | `vaultCLIStub` | Vault status and validation |
+| `ScenarioCLI` (`scenario_list.go`) | `DefaultScenarioCLI` | scenario-list test fakes | `ScenarioHandlers` |
+
+`envx.Reader` was introduced on 2026-07-23 and is constructor-injected through
+`NewSecretValidatorWithEnv`. It is intentionally narrow: the validator needs a
+single named value, and tests can now validate environment-backed secrets
+without changing global process state. The remaining direct environment reads
+are tracked in `PROBLEMS.md`; new domain code must use an injected reader.
+
+#### 0. ManifestClock (`deployment_manifest_builder.go`)
+
+```go
+type ManifestClock interface {
+    Now() time.Time
+}
+```
+
+**Implementation:** `systemManifestClock`, constructed by `APIServer`
+**Used by:** `ManifestBuilder` for generated manifest timestamps
+**Testability:** `fixedManifestClock` gives deployment tests an exact timestamp without wall-clock coupling
+
 #### 1. SecretStore (`deployment_manifest_fetcher.go:32`)
 
 ```go
@@ -198,6 +223,17 @@ type AnalyzerClient interface {
 **Implementation:** `HTTPAnalyzerClient`
 **Used by:** `ManifestBuilder`, `ResourceResolver` for analyzer integration
 **Testability:** Fully mockable; isolates HTTP calls to external service
+
+#### 2a. HTTPDoer (`deployment_manifest_fetcher.go`)
+
+**Status:** Implemented (2026-07-23)
+
+`HTTPAnalyzerClient` owns the narrow outbound `HTTPDoer` seam and receives both
+the HTTP transport and analyzer URL resolver through
+`NewHTTPAnalyzerClientWithDeps()`. Production wires a standard `http.Client`;
+the test fake records the request and returns a deterministic response. This
+keeps the analyzer boundary testable without network access or a live
+scenario-dependency-analyzer service.
 
 #### 3. ResourceResolver (`deployment_manifest_resolver.go:20`)
 
@@ -234,7 +270,7 @@ func NewManifestBuilderWithDeps(
 ```go
 type VaultCLI interface {
     GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error)
-    GetSecret(ctx context.Context, key string) (string, error)
+    GetSecret(ctx context.Context, resourceName, key string) (string, error)
     PutSecret(ctx context.Context, path, vaultKey, value string) error
 }
 ```
@@ -337,6 +373,7 @@ func (RealClock) Now() time.Time { return time.Now() }
 |------|--------------|------------------|
 | `SecretStore` | Mock interface | `deployment_manifest_test.go` |
 | `AnalyzerClient` | Mock interface | `deployment_manifest_test.go` |
+| `HTTPDoer` | Recording fake transport | `deployment_manifest_test.go` |
 | `ResourceResolver` | Mock interface | Use `NewManifestBuilderWithDeps()` |
 | `VaultCLI` | Mock interface | Use `SetVaultCLI()` |
 | `ScenarioCLI` | Mock interface | Use `SetScenarioCLI()` or `NewScenarioHandlersWithCLI()` |

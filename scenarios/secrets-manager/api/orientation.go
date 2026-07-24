@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 type OrientationSummary struct {
@@ -108,13 +108,13 @@ func (h *OrientationHandlers) Summary(w http.ResponseWriter, r *http.Request) {
 }
 
 type OrientationBuilder struct {
-	db                    *sql.DB
+	db                    *database.RoutedDB
 	logger                *Logger
 	vaultStatusFn         func(string) (*VaultSecretsStatus, error)
 	vulnerabilityScanFunc func(string, string, string) (*SecurityScanResult, error)
 }
 
-func NewOrientationBuilder(db *sql.DB, logger *Logger) *OrientationBuilder {
+func NewOrientationBuilder(db *database.RoutedDB, logger *Logger) *OrientationBuilder {
 	return &OrientationBuilder{
 		db:                    db,
 		logger:                logger,

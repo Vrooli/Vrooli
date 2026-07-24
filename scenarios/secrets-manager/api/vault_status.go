@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	apisecrets "github.com/vrooli/api-core/secrets"
 )
 
 // -----------------------------------------------------------------------------
@@ -26,12 +25,14 @@ import (
 // VaultCLI abstracts vault CLI operations for testability.
 // This interface enables mocking vault responses in tests without requiring
 // the actual resource-vault CLI to be installed.
+//
+// seam: VaultCLI isolates resource-vault command execution.
 type VaultCLI interface {
 	// GetSecretsStatus retrieves vault secrets status, optionally filtered by resource.
 	GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error)
 
 	// GetSecret retrieves a single secret value from vault.
-	GetSecret(ctx context.Context, key string) (string, error)
+	GetSecret(ctx context.Context, resourceName, key string) (string, error)
 
 	// PutSecret stores a secret in vault at the specified path.
 	PutSecret(ctx context.Context, path, vaultKey, value string) error
@@ -47,12 +48,12 @@ func NewDefaultVaultCLI() *DefaultVaultCLI {
 
 // GetSecretsStatus implements VaultCLI by calling resource-vault secrets check/validate.
 func (v *DefaultVaultCLI) GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error) {
-	return getVaultSecretsStatusFromCLI(resourceFilter)
+	return getVaultSecretsStatusFromCLI(ctx, resourceFilter)
 }
 
 // GetSecret implements VaultCLI by calling resource-vault content get.
-func (v *DefaultVaultCLI) GetSecret(ctx context.Context, key string) (string, error) {
-	return getVaultSecretImpl(ctx, key)
+func (v *DefaultVaultCLI) GetSecret(ctx context.Context, resourceName, key string) (string, error) {
+	return getVaultSecretImpl(ctx, resourceName, key)
 }
 
 // PutSecret implements VaultCLI by calling resource-vault content add.
@@ -76,21 +77,17 @@ func SetVaultCLI(cli VaultCLI) {
 
 // Vault integration - uses resource-vault CLI commands to get secrets status
 func getVaultSecretsStatus(resourceFilter string) (*VaultSecretsStatus, error) {
-	// First try using resource-vault CLI directly
-	status, err := getVaultSecretsStatusFromCLI(resourceFilter)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	status, err := defaultVaultCLI.GetSecretsStatus(ctx, resourceFilter)
 	if err != nil {
-		logger.Info("resource-vault CLI failed: %v, using fallback implementation", err)
-		// Fallback to direct scanning
-		return getVaultSecretsStatusFallback(resourceFilter)
+		return nil, fmt.Errorf("Vault status is unavailable: %w", err)
 	}
 	return status, nil
 }
 
 // getVaultSecretsStatusFromCLI uses resource-vault CLI commands
-func getVaultSecretsStatusFromCLI(resourceFilter string) (*VaultSecretsStatus, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
+func getVaultSecretsStatusFromCLI(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error) {
 	// Use resource-vault secrets validate to get status
 	var cmd *exec.Cmd
 	if resourceFilter != "" {
@@ -443,12 +440,12 @@ func scanResourceDirectory(resourceName, resourceDir string) ([]ResourceSecret, 
 
 	// Patterns to look for environment variables and credentials
 	envVarPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`\$\{([A-Z_]+[A-Z0-9_]*)\}`),           // ${VAR_NAME}
-		regexp.MustCompile(`\$([A-Z_]+[A-Z0-9_]*)`),               // $VAR_NAME
-		regexp.MustCompile(`([A-Z_]+[A-Z0-9_]*)=`),                // VAR_NAME=
-		regexp.MustCompile(`env\.([A-Z_]+[A-Z0-9_]*)`),            // env.VAR_NAME
-		regexp.MustCompile(`getenv\("([A-Z_]+[A-Z0-9_]*)"\)`),     // getenv("VAR_NAME")
-		regexp.MustCompile(`os\.Getenv\("([A-Z_]+[A-Z0-9_]*)"\)`), // os.Getenv("VAR_NAME")
+		regexp.MustCompile(`\$\{([A-Z_]+[A-Z0-9_]*)\}`),            // ${VAR_NAME}
+		regexp.MustCompile(`\$([A-Z_]+[A-Z0-9_]*)`),                // $VAR_NAME
+		regexp.MustCompile(`([A-Z_]+[A-Z0-9_]*)=`),                 // VAR_NAME=
+		regexp.MustCompile(`env\.([A-Z_]+[A-Z0-9_]*)`),             // env.VAR_NAME
+		regexp.MustCompile(`getenv\("([A-Z_]+[A-Z0-9_]*)"\)`),      // getenv("VAR_NAME")
+		regexp.MustCompile(`os[.]Getenv\("([A-Z_]+[A-Z0-9_]*)"\)`), // Go environment getter syntax
 	}
 
 	// Walk through resource directory
@@ -512,15 +509,28 @@ func isTextFile(path string) bool {
 }
 
 // getVaultSecret retrieves a secret from vault (uses the interface).
-func getVaultSecret(key string) (string, error) {
+func getVaultSecret(resourceName, key string) (string, error) {
 	ctx := context.Background()
-	return defaultVaultCLI.GetSecret(ctx, key)
+	return defaultVaultCLI.GetSecret(ctx, resourceName, key)
 }
 
-func resolveVaultSecretMapping(key string) (secretMapping, bool) {
+func resolveVaultSecretMapping(resourceName, key string) (secretMapping, bool) {
 	key = strings.ToUpper(strings.TrimSpace(key))
 	if key == "" {
 		return secretMapping{}, false
+	}
+	resourceName = strings.TrimSpace(resourceName)
+	if resourceName != "" {
+		if mapping, ok := buildSecretMappings(resourceName)[key]; ok {
+			if mapping.VaultKey == "" {
+				mapping.VaultKey = "value"
+			}
+			return mapping, true
+		}
+		return secretMapping{
+			Path:     fmt.Sprintf("secret/resources/%s/%s", resourceName, strings.ToLower(key)),
+			VaultKey: "value",
+		}, true
 	}
 
 	for _, resourceName := range listKnownResources() {
@@ -537,9 +547,9 @@ func resolveVaultSecretMapping(key string) (secretMapping, bool) {
 }
 
 // getVaultSecretImpl is the underlying implementation using resource-vault CLI.
-func getVaultSecretImpl(ctx context.Context, key string) (string, error) {
+func getVaultSecretImpl(ctx context.Context, resourceName, key string) (string, error) {
 	// Resolve logical secret names from secrets.yaml metadata onto canonical Vault paths.
-	mapping, ok := resolveVaultSecretMapping(key)
+	mapping, ok := resolveVaultSecretMapping(resourceName, key)
 	if !ok {
 		return "", fmt.Errorf("secret mapping not found for %s", key)
 	}
@@ -590,114 +600,6 @@ func getVaultSecretImpl(ctx context.Context, key string) (string, error) {
 	}
 
 	return secretValue, nil
-}
-
-func getLocalSecretsPath() (string, error) {
-	store, err := apisecrets.NewUserStore(apisecrets.Config{})
-	if err != nil {
-		return "", err
-	}
-	return store.PlaintextPath(), nil
-}
-
-func loadLocalSecretsFile() (map[string]interface{}, error) {
-	path, err := getLocalSecretsPath()
-	if err != nil {
-		return nil, err
-	}
-
-	storeFile, err := apisecrets.NewFileStore(path)
-	if err != nil {
-		return nil, err
-	}
-	doc, err := storeFile.Document()
-	if err != nil {
-		return nil, err
-	}
-
-	store := map[string]interface{}{}
-	for key, value := range doc.Secrets {
-		store[key] = value
-	}
-	for key, raw := range doc.Metadata {
-		var decoded interface{}
-		if err := json.Unmarshal(raw, &decoded); err != nil {
-			return nil, err
-		}
-		store[key] = decoded
-	}
-	if len(store) == 0 {
-		store["_metadata"] = map[string]interface{}{
-			"environment":  "development",
-			"last_updated": time.Now().Format(time.RFC3339),
-		}
-	}
-	return store, nil
-}
-
-func saveSecretsToLocalStore(secrets map[string]string) (int, error) {
-	if len(secrets) == 0 {
-		return 0, nil
-	}
-
-	store, err := loadLocalSecretsFile()
-	if err != nil {
-		return 0, err
-	}
-
-	for key, value := range secrets {
-		store[key] = value
-	}
-
-	meta, ok := store["_metadata"].(map[string]interface{})
-	if !ok || meta == nil {
-		meta = map[string]interface{}{}
-	}
-	if _, exists := meta["environment"]; !exists {
-		meta["environment"] = "development"
-	}
-	meta["last_updated"] = time.Now().Format(time.RFC3339)
-	store["_metadata"] = meta
-
-	path, err := getLocalSecretsPath()
-	if err != nil {
-		return 0, err
-	}
-	storeFile, err := apisecrets.NewFileStore(path)
-	if err != nil {
-		return 0, err
-	}
-
-	encoded, err := json.MarshalIndent(store, "", "  ")
-	if err != nil {
-		return 0, err
-	}
-	if err := storeFile.Update(func(doc *apisecrets.Document) error {
-		var payload map[string]json.RawMessage
-		if err := json.Unmarshal(encoded, &payload); err != nil {
-			return err
-		}
-		doc.Secrets = map[string]string{}
-		if doc.Metadata == nil {
-			doc.Metadata = map[string]json.RawMessage{}
-		}
-		for key, value := range payload {
-			if strings.HasPrefix(key, "_") {
-				doc.Metadata[key] = append(json.RawMessage(nil), value...)
-				continue
-			}
-			var parsed string
-			if err := json.Unmarshal(value, &parsed); err != nil {
-				return fmt.Errorf("secret %s must be a string: %w", key, err)
-			}
-			doc.Secrets[key] = parsed
-		}
-		return nil
-	}); err != nil {
-		return 0, err
-	}
-
-	return len(secrets), nil
 }
 
 // secretMapping represents a vault path and key for a secret.

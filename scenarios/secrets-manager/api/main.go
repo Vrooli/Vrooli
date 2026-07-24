@@ -4,17 +4,20 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite"
+	"secrets-manager-api/internal/envx"
 
 	"github.com/gorilla/handlers"
 )
@@ -23,14 +26,25 @@ import (
 var logger *Logger
 
 // Database connection
-var db *sql.DB
+var db *database.RoutedDB
 
-func initDB() *sql.DB {
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
-	})
+func initDB(desktopMode bool) *database.RoutedDB {
+	config := database.Config{Driver: database.DriverPostgres}
+	if desktopMode {
+		var err error
+		db, err = openDesktopDatabase(context.Background())
+		if err != nil {
+			log.Fatal("Desktop database initialization failed:", err)
+		}
+		return db
+	}
+	db, err := database.Open(context.Background(), config)
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
+	}
+	if err := ensurePostgresSchema(context.Background(), db); err != nil {
+		_ = db.Close()
+		log.Fatal("Database schema initialization failed:", err)
 	}
 	return db
 }
@@ -45,12 +59,15 @@ func main() {
 
 	// Initialize structured logger
 	logger = NewLogger("secrets-manager")
+	startup, err := loadStartupEnvironment(envx.OS{})
+	if err != nil {
+		log.Fatal("invalid Secrets Manager environment:", err)
+	}
 
-	skipDB := strings.EqualFold(os.Getenv("SECRETS_MANAGER_SKIP_DB"), "true")
-	if skipDB {
+	if startup.skipDB {
 		logger.Info("⚠️ Skipping database initialization (SECRETS_MANAGER_SKIP_DB=true)")
 	} else {
-		db = initDB()
+		db = initDB(startup.desktopMode)
 		defer db.Close()
 		warmSecurityScanCache()
 	}
@@ -58,6 +75,11 @@ func main() {
 
 	apiServer := newAPIServer(db, logger)
 	r := apiServer.routes()
+	rootMux := http.NewServeMux()
+	if db != nil {
+		devrouting.Register(rootMux, db)
+	}
+	rootMux.Handle("/", r)
 
 	// CORS headers
 	corsHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
@@ -67,10 +89,7 @@ func main() {
 	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = os.Getenv("PORT") // Fallback to PORT
-		if port == "" {
-			log.Fatal("❌ API_PORT or PORT environment variable is required")
-		}
+		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
 	logger.Info("🔐 Secrets Manager API starting on port %s", port)
@@ -86,15 +105,25 @@ func main() {
 		log.Fatal("receipt-signing TLS configuration failed:", err)
 	}
 
-	server := &http.Server{
+	httpServer := &http.Server{
 		Addr:      ":" + port,
-		Handler:   handlers.CORS(corsHeaders, corsMethods, corsOrigins)(r),
+		Handler:   handlers.CORS(corsHeaders, corsMethods, corsOrigins)(apihttp.TestModeMiddleware(rootMux)),
 		TLSConfig: tlsConfig,
 	}
-	if tlsConfig != nil {
-		log.Fatal(server.ListenAndServeTLS("", ""))
+	if err := apiserver.Run(apiserver.Config{
+		Port: port,
+		StartServer: func(addr string) error {
+			httpServer.Addr = addr
+			if tlsConfig != nil {
+				return httpServer.ListenAndServeTLS("", "")
+			}
+			return httpServer.ListenAndServe()
+		},
+		ShutdownServer: httpServer.Shutdown,
+		Logger:         logger.Info,
+	}); err != nil {
+		log.Fatal("Secrets Manager API server failed:", err)
 	}
-	log.Fatal(server.ListenAndServe())
 }
 
 // receiptSigningServerTLSConfig loads only lifecycle-declared file locations.
@@ -110,7 +139,10 @@ func receiptSigningServerTLSConfig() (*tls.Config, error) {
 	type manifest struct {
 		TrustSigning *trustSigning `json:"trust_signing"`
 	}
-	scenarioDir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR"))
+	scenarioDir, err := optionalScenarioDirectory(envx.OS{})
+	if err != nil {
+		return nil, err
+	}
 	if scenarioDir == "" {
 		return nil, nil // Development lifecycle has no rotation authority.
 	}

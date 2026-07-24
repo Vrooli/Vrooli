@@ -234,18 +234,22 @@ class BacklogFileOperationResponse(_message.Message):
     def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ..., deleted_path: _Optional[str] = ...) -> None: ...
 
 class QueueBacklogItemRequest(_message.Message):
-    __slots__ = ("operation", "mode", "started_by", "confirm", "force")
+    __slots__ = ("operation", "mode", "started_by", "confirm", "force", "strategy", "max_slices")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     STARTED_BY_FIELD_NUMBER: _ClassVar[int]
     CONFIRM_FIELD_NUMBER: _ClassVar[int]
     FORCE_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    MAX_SLICES_FIELD_NUMBER: _ClassVar[int]
     operation: str
     mode: str
     started_by: str
     confirm: bool
     force: bool
-    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ...) -> None: ...
+    strategy: str
+    max_slices: int
+    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ..., strategy: _Optional[str] = ..., max_slices: _Optional[int] = ...) -> None: ...
 
 class QueueBacklogItemResponse(_message.Message):
     __slots__ = ("item", "task_id", "run_id", "base_url", "created", "dry_run", "queued", "message", "blocking_reasons", "unanswered_questions", "pending_suggestions", "advisories")

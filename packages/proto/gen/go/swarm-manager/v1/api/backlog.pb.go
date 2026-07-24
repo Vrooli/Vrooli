@@ -1313,7 +1313,11 @@ type QueueBacklogItemRequest struct {
 	Confirm *bool `protobuf:"varint,5,opt,name=confirm,proto3,oneof" json:"confirm,omitempty"`
 	// Override queue readiness feedback gates (unanswered questions / pending
 	// suggestions). API-level safety checks remain for non-overridable constraints.
-	Force         *bool `protobuf:"varint,6,opt,name=force,proto3,oneof" json:"force,omitempty"`
+	Force *bool `protobuf:"varint,6,opt,name=force,proto3,oneof" json:"force,omitempty"`
+	// Declared execution strategy. Omitted selects the sole default strategy.
+	Strategy *string `protobuf:"bytes,7,opt,name=strategy,proto3,oneof" json:"strategy,omitempty"`
+	// Maximum plan slices for this execution, inclusive range 1..6.
+	MaxSlices     *int32 `protobuf:"varint,8,opt,name=max_slices,json=maxSlices,proto3,oneof" json:"max_slices,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1381,6 +1385,20 @@ func (x *QueueBacklogItemRequest) GetForce() bool {
 		return *x.Force
 	}
 	return false
+}
+
+func (x *QueueBacklogItemRequest) GetStrategy() string {
+	if x != nil && x.Strategy != nil {
+		return *x.Strategy
+	}
+	return ""
+}
+
+func (x *QueueBacklogItemRequest) GetMaxSlices() int32 {
+	if x != nil && x.MaxSlices != nil {
+		return *x.MaxSlices
+	}
+	return 0
 }
 
 // QueueBacklogItemResponse returns queue results.
@@ -3196,21 +3214,26 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04file\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogFileH\x00R\x04file\x88\x01\x01\x12&\n" +
 	"\fdeleted_path\x18\x02 \x01(\tH\x01R\vdeletedPath\x88\x01\x01B\a\n" +
 	"\x05_fileB\x0f\n" +
-	"\r_deleted_path\"\xa6\x02\n" +
+	"\r_deleted_path\"\x92\x03\n" +
 	"\x17QueueBacklogItemRequest\x12=\n" +
 	"\toperation\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\tgeneratorR\bimproverH\x00R\toperation\x88\x01\x01\x12,\n" +
 	"\x04mode\x18\x02 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloH\x01R\x04mode\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"started_by\x18\x04 \x01(\tH\x02R\tstartedBy\x88\x01\x01\x12\x1d\n" +
 	"\aconfirm\x18\x05 \x01(\bH\x03R\aconfirm\x88\x01\x01\x12\x19\n" +
-	"\x05force\x18\x06 \x01(\bH\x04R\x05force\x88\x01\x01B\f\n" +
+	"\x05force\x18\x06 \x01(\bH\x04R\x05force\x88\x01\x01\x12\x1f\n" +
+	"\bstrategy\x18\a \x01(\tH\x05R\bstrategy\x88\x01\x01\x12-\n" +
+	"\n" +
+	"max_slices\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x06(\x01H\x06R\tmaxSlices\x88\x01\x01B\f\n" +
 	"\n" +
 	"_operationB\a\n" +
 	"\x05_modeB\r\n" +
 	"\v_started_byB\n" +
 	"\n" +
 	"\b_confirmB\b\n" +
-	"\x06_forceJ\x04\b\x03\x10\x04\"\xce\x03\n" +
+	"\x06_forceB\v\n" +
+	"\t_strategyB\r\n" +
+	"\v_max_slicesJ\x04\b\x03\x10\x04\"\xce\x03\n" +
 	"\x18QueueBacklogItemResponse\x121\n" +
 	"\x04item\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogItemR\x04item\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x15\n" +

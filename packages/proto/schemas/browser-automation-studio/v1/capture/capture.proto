@@ -157,6 +157,8 @@ message CaptureArtifact {
   // {"width": "1440", "height": "900"}; network captures emit
   // {"request_count": "27"}.
   map<string, string> metadata = 4;
+  // True only for the final screenshot produced by a successful capture.
+  bool primary = 5;
 }
 
 message CaptureResponse {

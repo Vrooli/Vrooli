@@ -1,7 +1,7 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,16 +11,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
 
 // SecretScanner handles resource scanning for secret discovery
 type SecretScanner struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger Logger
 }
 
 // NewSecretScanner creates a new secret scanner
-func NewSecretScanner(db *sql.DB) *SecretScanner {
+func NewSecretScanner(db *database.RoutedDB) *SecretScanner {
 	return &SecretScanner{
 		db:     db,
 		logger: *NewLogger("scanner"),
@@ -357,7 +358,7 @@ func (s *SecretScanner) storeScanRecord(scan SecretScan) error {
 			scan_status = EXCLUDED.scan_status
 	`
 
-	_, err := s.db.Exec(query,
+	_, err := s.db.ExecContext(context.Background(), query,
 		scan.ID, scan.ScanType, resourcesJSON, scan.SecretsDiscovered,
 		scan.ScanDurationMs, scan.ScanTimestamp, scan.ScanStatus,
 	)
@@ -383,7 +384,7 @@ func (s *SecretScanner) storeResourceSecret(secret ResourceSecret) error {
 			updated_at = EXCLUDED.updated_at
 	`
 
-	_, err := s.db.Exec(query,
+	_, err := s.db.ExecContext(context.Background(), query,
 		secret.ID, secret.ResourceName, secret.SecretKey, secret.SecretType,
 		secret.Required, secret.Description, secret.CreatedAt, secret.UpdatedAt,
 	)
@@ -405,7 +406,7 @@ func (s *SecretScanner) GetScanHistory(limit int) ([]SecretScan, error) {
 		LIMIT $1
 	`
 
-	rows, err := s.db.Query(query, limit)
+	rows, err := s.db.QueryContext(context.Background(), query, limit)
 	if err != nil {
 		return nil, err
 	}

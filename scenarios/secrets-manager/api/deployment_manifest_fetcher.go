@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/storage"
 )
@@ -45,18 +45,26 @@ type AnalyzerClient interface {
 	FetchDeploymentReport(ctx context.Context, scenario string) (*analyzerDeploymentReport, error)
 }
 
+// seam: HTTPDoer performs outbound analyzer requests. Production wires an
+// http.Client; tests provide a deterministic response without a network call.
+type HTTPDoer interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+var _ HTTPDoer = (*http.Client)(nil)
+
 // -----------------------------------------------------------------------------
 // PostgresSecretStore Implementation
 // -----------------------------------------------------------------------------
 
 // PostgresSecretStore implements SecretStore using PostgreSQL.
 type PostgresSecretStore struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger *Logger
 }
 
 // NewPostgresSecretStore creates a production SecretStore backed by PostgreSQL.
-func NewPostgresSecretStore(db *sql.DB, logger *Logger) *PostgresSecretStore {
+func NewPostgresSecretStore(db *database.RoutedDB, logger *Logger) *PostgresSecretStore {
 	return &PostgresSecretStore{db: db, logger: logger}
 }
 
@@ -106,8 +114,12 @@ func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, scenario, tier s
 	argPos := 3
 
 	if len(resources) > 0 {
-		filters = append(filters, fmt.Sprintf("rs.resource_name = ANY($%d)", argPos))
-		args = append(args, pq.Array(resources))
+		resourcesJSON, err := json.Marshal(resources)
+		if err != nil {
+			return nil, fmt.Errorf("encode resource filter: %w", err)
+		}
+		filters = append(filters, fmt.Sprintf("rs.resource_name = ANY(ARRAY(SELECT jsonb_array_elements_text($%d::jsonb)))", argPos))
+		args = append(args, string(resourcesJSON))
 	}
 	if !includeOptional {
 		filters = append(filters, "rs.required = TRUE")
@@ -233,7 +245,9 @@ func (s *PostgresSecretStore) PersistManifest(ctx context.Context, scenario, tie
 
 // HTTPAnalyzerClient implements AnalyzerClient using HTTP calls to the analyzer service.
 type HTTPAnalyzerClient struct {
-	logger *Logger
+	logger     *Logger
+	httpClient HTTPDoer
+	resolveURL func(context.Context) (string, error)
 }
 
 // reportStalenessThreshold defines when cached reports should be refreshed.
@@ -241,9 +255,15 @@ const reportStalenessThreshold = 24 * time.Hour
 
 // NewHTTPAnalyzerClient creates a production AnalyzerClient using HTTP.
 func NewHTTPAnalyzerClient(logger *Logger) *HTTPAnalyzerClient {
-	return &HTTPAnalyzerClient{
-		logger: logger,
-	}
+	return NewHTTPAnalyzerClientWithDeps(logger, &http.Client{}, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "scenario-dependency-analyzer")
+	})
+}
+
+// NewHTTPAnalyzerClientWithDeps constructs an analyzer client with explicit
+// outbound dependencies for deterministic tests and alternate transports.
+func NewHTTPAnalyzerClientWithDeps(logger *Logger, httpClient HTTPDoer, resolveURL func(context.Context) (string, error)) *HTTPAnalyzerClient {
+	return &HTTPAnalyzerClient{logger: logger, httpClient: httpClient, resolveURL: resolveURL}
 }
 
 // FetchDeploymentReport retrieves the analyzer report for a scenario.
@@ -363,7 +383,14 @@ func (c *HTTPAnalyzerClient) reportPath(scenario string) string {
 
 // fetchFromService makes an HTTP request to the analyzer service.
 func (c *HTTPAnalyzerClient) fetchFromService(ctx context.Context, scenario string) (*analyzerDeploymentReport, error) {
-	baseURL, err := c.discoverAnalyzerURL(ctx)
+	if c.httpClient == nil {
+		return nil, fmt.Errorf("analyzer HTTP client is not configured")
+	}
+	if c.resolveURL == nil {
+		return nil, fmt.Errorf("analyzer URL resolver is not configured")
+	}
+
+	baseURL, err := c.resolveURL(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +404,7 @@ func (c *HTTPAnalyzerClient) fetchFromService(ctx context.Context, scenario stri
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -398,9 +425,4 @@ func (c *HTTPAnalyzerClient) fetchFromService(ctx context.Context, scenario stri
 		return nil, err
 	}
 	return &report, nil
-}
-
-// discoverAnalyzerURL finds the URL where scenario-dependency-analyzer is running.
-func (c *HTTPAnalyzerClient) discoverAnalyzerURL(ctx context.Context) (string, error) {
-	return discovery.ResolveScenarioURLDefault(ctx, "scenario-dependency-analyzer")
 }

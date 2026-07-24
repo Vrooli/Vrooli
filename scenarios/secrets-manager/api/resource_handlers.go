@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 type ResourceHandlers struct {
-	db *sql.DB
+	db *database.RoutedDB
 }
 
-func NewResourceHandlers(db *sql.DB) *ResourceHandlers {
+func NewResourceHandlers(db *database.RoutedDB) *ResourceHandlers {
 	return &ResourceHandlers{db: db}
 }
 
