@@ -21,6 +21,13 @@ export interface DetailPageLayoutProps {
   children: ReactNode;
   className?: string;
   bodyClassName?: string;
+  /**
+   * Edge-to-edge body: drops the body gutters and pins the page to the
+   * available height so the child owns its own scrolling. Tabs that render a
+   * self-contained workspace (Files) use this so their header sits flush under
+   * the tab bar instead of floating inside the page gutters.
+   */
+  fullBleed?: boolean;
 }
 
 export function DetailPageLayout({
@@ -28,19 +35,31 @@ export function DetailPageLayout({
   children,
   className,
   bodyClassName,
+  fullBleed = false,
 }: DetailPageLayoutProps) {
   return (
     <div
-      className={cn("flex min-h-full flex-col bg-slate-950 text-slate-50", className)}
+      className={cn(
+        "flex flex-col bg-slate-950 text-slate-50",
+        fullBleed ? "h-full overflow-hidden" : "min-h-full",
+        className,
+      )}
       data-testid="detail-page-layout"
+      data-full-bleed={fullBleed ? "true" : undefined}
     >
       {/* Sticky header on mobile, static on desktop */}
-      <div className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur">
+      <div className="sticky top-0 z-30 shrink-0 bg-slate-950/95 backdrop-blur">
         {header}
       </div>
 
       {/* Page body */}
-      <div className={cn("flex-1 px-2 py-3 md:px-6 md:py-6", bodyClassName)}>
+      <div
+        className={cn(
+          "flex-1",
+          fullBleed ? "min-h-0 overflow-hidden" : "px-2 py-3 md:px-6 md:py-6",
+          bodyClassName,
+        )}
+      >
         {children}
       </div>
     </div>

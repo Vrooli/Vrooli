@@ -34,6 +34,12 @@ export interface DecisionStreamViewProps {
   finalActionLabel?: string;
   currentQuestionId?: string | null;
   onCurrentQuestionChange?: (id: string | null) => void;
+  /**
+   * Rendered inside the decision drawer's shell, which already shows the
+   * entity title and the queue counter. Suppresses this view's own header so
+   * the operator sees one title and one position, not two.
+   */
+  embedded?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -51,6 +57,7 @@ export function DecisionStreamView({
   finalActionLabel,
   currentQuestionId,
   onCurrentQuestionChange,
+  embedded = false,
 }: DecisionStreamViewProps) {
   // Navigator state
   const [navigatorOpen, setNavigatorOpen] = useState(false);
@@ -158,6 +165,7 @@ export function DecisionStreamView({
   return (
     <div ref={containerRef} className="flex h-full flex-col" data-testid={selectors.commandPost.decisionStream.container}>
       {/* Header keeps the decision identity visible and navigates to its full detail page. */}
+      {!embedded && (
       <div
         className="relative z-[70] flex shrink-0 items-center gap-2 border-b border-slate-700/50 bg-slate-950 px-3"
         data-testid={selectors.commandPost.decisionStream.header}
@@ -209,7 +217,7 @@ export function DecisionStreamView({
           />
         </div>
       </div>
-
+      )}
 
       {/* Question content */}
       <div

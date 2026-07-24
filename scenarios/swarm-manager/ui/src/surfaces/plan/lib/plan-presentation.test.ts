@@ -5,6 +5,7 @@ import {
   cardSnoozeKey,
   countCards,
   gateActionLabel,
+  gateBadgeLabel,
   laterWaveSummary,
   outcomeGlyph,
   splitBeyondHorizon,
@@ -92,8 +93,24 @@ describe("gateActionLabel", () => {
     expect(gateActionLabel(gate("decide", 1))).toBe("Answer 1 question");
     expect(gateActionLabel(gate("review"))).toBe("Review");
     expect(gateActionLabel(gate("classify", 2))).toBe("Classify (2)");
-    expect(gateActionLabel(gate("workshop", 1, "finalize"))).toBe("Finalize");
-    expect(gateActionLabel(gate("workshop", 1, "workshop"))).toBe("Workshop");
+    // The server's actual suggestions, not the never-emitted "finalize" the
+    // old branch tested for.
+    expect(gateActionLabel(gate("workshop", 1, "author-plan"))).toBe("Author plan");
+    expect(gateActionLabel(gate("workshop", 1, "accept-plan"))).toBe("Accept plan");
+    expect(gateActionLabel(gate("workshop", 1, "validate-plan"))).toBe("Validate plan");
+    // Goal-derived gates send the raw action name.
+    expect(gateActionLabel(gate("workshop", 1, "workshop"))).toBe("Plan");
+    expect(gateActionLabel(gate("workshop", 1, "unrecognised"))).toBe("Plan");
+  });
+});
+
+describe("gateBadgeLabel", () => {
+  it("never renders the raw wire enum", () => {
+    expect(gateBadgeLabel(gate("workshop"))).toBe("Plan");
+    expect(gateBadgeLabel(gate("decide"))).toBe("Decide");
+    expect(gateBadgeLabel(gate("proposal"))).toBe("Proposal");
+    expect(gateBadgeLabel(gate("review"))).toBe("Review");
+    expect(gateBadgeLabel(gate("classify"))).toBe("Classify");
   });
 });
 

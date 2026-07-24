@@ -261,6 +261,66 @@ describe("FilePreview", () => {
     expect(screen.getByTestId(selectors.error.title)).toHaveTextContent("Unable to load file");
   });
 
+  it("renders read-only file content instead of a blank pane", async () => {
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue('{"title":"Protected spec"}'),
+    });
+
+    renderWithProviders(
+      <FilePreview filePath="spec.json" fileName="spec.json" readOnly />,
+      svc,
+    );
+
+    const editor = await screen.findByTestId("file-preview-editor");
+    expect(editor).toHaveValue('{"title":"Protected spec"}');
+    expect(editor).toHaveAttribute("data-read-only", "true");
+  });
+
+  it("renders read-only markdown in its raw default view", async () => {
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("# Protected"),
+    });
+
+    renderWithProviders(
+      <FilePreview filePath="NOTES.md" fileName="NOTES.md" readOnly />,
+      svc,
+    );
+
+    const editor = await screen.findByTestId("file-preview-editor");
+    expect(editor).toHaveValue("# Protected");
+    expect(editor).toHaveAttribute("data-read-only", "true");
+  });
+
+  it("hides save and discard controls for read-only files", async () => {
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("content"),
+    });
+
+    renderWithProviders(
+      <FilePreview filePath="spec.json" fileName="spec.json" readOnly />,
+      svc,
+    );
+
+    await screen.findByTestId("file-preview-editor");
+    expect(screen.queryByTestId("file-preview-save")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("file-preview-discard")).not.toBeInTheDocument();
+  });
+
+  it("keeps editable files writable", async () => {
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("content"),
+    });
+
+    renderWithProviders(
+      <FilePreview filePath="notes.txt" fileName="notes.txt" />,
+      svc,
+    );
+
+    const editor = await screen.findByTestId("file-preview-editor");
+    expect(editor).toHaveAttribute("data-read-only", "false");
+    expect(screen.getByTestId("file-preview-save")).toBeInTheDocument();
+  });
+
   it("displays file path in header", async () => {
     const svc = createMockFileService({
       getFileContent: vi.fn().mockResolvedValue("content"),

@@ -8,8 +8,8 @@
  * "something is running" indicator without a dedicated agents chip.
  */
 
-import { Bot, Home, Inbox, PanelLeft, Settings, X } from "lucide-react";
-import { useCommandPostBadgeCount } from "../../../../hooks/useCommandPostBadgeCount";
+import { Bot, Home, PanelLeft, Settings, X } from "lucide-react";
+import { DecisionsInboxButton } from "../../../../components/command-post/DecisionsInboxButton";
 import { selectActiveCount, useOperationsStore } from "../../../../stores/operations-store";
 
 export interface SidebarHeaderProps {
@@ -25,7 +25,6 @@ export function SidebarHeader({
   onGoHome,
   onOpenCommandPost,
 }: SidebarHeaderProps) {
-  const commandPostBadgeCount = useCommandPostBadgeCount();
   const activeAgentCount = useOperationsStore(selectActiveCount);
 
   return (
@@ -60,20 +59,7 @@ export function SidebarHeader({
       {/* Right: decisions inbox + Settings + Collapse/Close */}
       <div className="flex items-center gap-1">
         {onOpenCommandPost && (
-          <button
-            type="button"
-            onClick={onOpenCommandPost}
-            className="flex items-center gap-1 rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
-            aria-label="Open decisions"
-            data-testid="sidebar-decisions-button"
-          >
-            <Inbox className="h-4 w-4" />
-            {commandPostBadgeCount > 0 && (
-              <span className="rounded-full bg-cyan-500/20 px-1.5 py-0.5 text-xs text-cyan-200">
-                {commandPostBadgeCount}
-              </span>
-            )}
-          </button>
+          <DecisionsInboxButton onOpen={onOpenCommandPost} testId="sidebar-decisions-button" />
         )}
         <button
           type="button"

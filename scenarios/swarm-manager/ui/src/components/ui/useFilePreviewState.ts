@@ -205,7 +205,11 @@ export function useFilePreviewState({
 
   // Derived booleans for rendering decisions
   const showMarkdownToggle = fileType === "markdown" && !isDiffMode;
-  const showEditor = isEditable && !isDiffMode && (fileType !== "markdown" || markdownView === "raw");
+  // Viewing is independent of editing: read-only files still render in the
+  // editor, which receives `readOnly: !isEditable`. Gating this on `isEditable`
+  // left protected files (spec.json / goal.json — the default selection) with a
+  // blank content pane.
+  const showEditor = !isImage && !isDiffMode && (fileType !== "markdown" || markdownView === "raw");
   const showRenderedMarkdown = fileType === "markdown" && markdownView === "rendered" && !isDiffMode;
   const showDiff = isEditable && isDiffMode && !isLoading && !error;
   const canSave = isEditable && isDirty && !isSaving && !isLoading && !error;

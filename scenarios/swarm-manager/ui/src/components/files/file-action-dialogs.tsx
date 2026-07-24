@@ -10,7 +10,7 @@ import { Drawer } from "../ui/drawer";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { Input } from "../ui/input";
 import { useFileService } from "../../contexts/FileServiceContext";
-import type { FileActionType } from "./backlog-file-browser";
+import type { FileActionType } from "./entity-file-browser";
 import type { BacklogFile } from "../../types";
 
 export interface FileActionDialogsProps {

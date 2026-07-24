@@ -5,8 +5,9 @@
  * Presentation-layer code should import these rather than defining their own.
  */
 
-import { Activity, Bot, Bug, Circle, CheckCircle, AlertCircle, Cpu, Lightbulb, MessageSquare, Package, Rocket, Search, Trophy, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { Activity, AlertCircle, Archive, ArrowRight, Bot, Bug, Check, CheckCircle, CheckCircle2, Circle, ClipboardCheck, Cpu, Flag, Lightbulb, Link2, MessageCircleQuestion, MessageSquare, Package, PenLine, Play, Rocket, RotateCcw, Search, Send, Sparkles, Trophy, Wrench, Zap, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
+import type { PlanGateKind } from "../surfaces/plan/types";
 import type { BacklogKind, BacklogStatus } from "./backlog";
 import type { CaptureStatus } from "./capture";
 import type { ScenarioStatus } from "./scenario";
@@ -292,3 +293,70 @@ export const AGENT_ACTIVITY_STATUSES = [
 export const AGENT_RUN_STATUSES: AgentRunStatus[] = [
   "pending", "starting", "running", "needs_review", "complete", "failed", "cancelled", "unspecified",
 ];
+
+// ============================================================================
+// Plan Gate Display
+// ============================================================================
+
+/**
+ * Display labels for plan-board gate kinds.
+ *
+ * The wire enum is deliberately stable — `workshop` still names "this item's
+ * canonical plan needs authoring, validation, or fresh acceptance". Only the
+ * operator-facing word changed to "Plan", so the label lives here rather than
+ * being read off the enum at the render site.
+ */
+export const PLAN_GATE_LABELS: Record<PlanGateKind, string> = {
+  decide: "Decide",
+  proposal: "Proposal",
+  review: "Review",
+  classify: "Classify",
+  workshop: "Plan",
+};
+
+/**
+ * Labels for the `suggested` hint carried by a plan gate.
+ *
+ * Backlog-derived gates send `author-plan` / `accept-plan` / `validate-plan`;
+ * goal-derived gates send the raw action name (`workshop`). Anything
+ * unrecognised falls back to the gate-kind label.
+ */
+export const PLAN_GATE_SUGGESTION_LABELS: Record<string, string> = {
+  "author-plan": "Author plan",
+  "accept-plan": "Accept plan",
+  "validate-plan": "Validate plan",
+  workshop: "Plan",
+};
+
+// ============================================================================
+// Next Action Display
+// ============================================================================
+
+/**
+ * Icons for operator next-actions, keyed by `NextActionID`.
+ *
+ * Next-action labels arrive from the API per item, so any button rendering one
+ * must resolve its icon here — otherwise the label ships without the leading
+ * icon every other button in the app carries.
+ */
+export const NEXT_ACTION_ICONS: Record<string, LucideIcon> = {
+  decide: MessageCircleQuestion,
+  review: ClipboardCheck,
+  accept_plan: CheckCircle2,
+  author_plan: Sparkles,
+  repair_plan: Wrench,
+  plan_goal: Sparkles,
+  run: Play,
+  dispatch_followup: Send,
+  author_followup: PenLine,
+  resolve_dependencies: Link2,
+  accept_suggestion: Check,
+  retry: RotateCcw,
+  archive: Archive,
+  close_out: Flag,
+};
+
+/** Resolve a next-action icon, falling back to a neutral "proceed" glyph. */
+export function nextActionIcon(actionId: string | undefined): LucideIcon {
+  return (actionId && NEXT_ACTION_ICONS[actionId]) || ArrowRight;
+}

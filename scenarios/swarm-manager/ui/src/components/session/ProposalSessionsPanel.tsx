@@ -136,12 +136,16 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
   };
 
   return (
-    <section className="space-y-4 py-4" data-testid="proposal-sessions-panel">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-100">Proposals</h2>
-          <p className="mt-1 text-sm text-slate-400">Review recommended changes or a documented conclusion that no changes are needed.</p>
-        </div>
+    <section className="space-y-3 py-3" data-testid="proposal-sessions-panel">
+      {/* One row, not three: the standing explainer moved into the empty state,
+          where it is the only thing an operator actually needs it for. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-100">
+          Proposals
+          {proposals.length > 0 && (
+            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-normal text-slate-400">{proposals.length}</span>
+          )}
+        </h2>
         <div className="flex flex-wrap gap-2">
           {batchableProposals.length > 1 && (
             <Button size="sm" variant={selectionMode ? "default" : "outline"} onClick={toggleSelectionMode}>
@@ -176,20 +180,27 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
 
       {target && <EntityAttachToSessionSheet isOpen={startSheetOpen} onClose={() => setStartSheetOpen(false)} option={{ type: target.type, ref: target.ref, title: target.name }} proposalMode />}
       {error && <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error instanceof Error ? error.message : "Unable to load proposals."}</p>}
-      {isLoading ? <p className="py-8 text-sm text-slate-500">Loading proposals…</p> : proposals.length === 0 ? <p className="rounded-lg border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">No proposal sessions yet.</p> : proposals.map(({ session, proposal }) => {
+      {isLoading ? <p className="py-8 text-sm text-slate-500">Loading proposals…</p> : proposals.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-700 p-6 text-center">
+          <p className="text-sm text-slate-400">No proposals yet.</p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500">Proposals carry an agent&apos;s recommended changes, or a documented conclusion that no changes are needed, for you to accept or reject.</p>
+        </div>
+      ) : proposals.map(({ session, proposal }) => {
         const mutations = mutationPreviews(proposal);
         const noChangeRecommendation = isNoChangeRecommendation(proposal);
         const canAcceptKeep = noChangeRecommendation && session.proposal_target?.type === "backlog_item";
         const note = notes[proposal.id] ?? "";
         const selected = selectedCards.has(proposal.id);
         return (
-          <article key={proposal.id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <div className="flex items-start gap-3">
+          // Flat card: the old icon gutter + nested content column cost ~44px
+          // of horizontal space before any text on a phone.
+          <article key={proposal.id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 sm:p-4">
+            <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
               {selectionMode && isMutationProposal(proposal) && (
                 <input
                   type="checkbox"
                   aria-label={`Select ${proposal.summary || "proposal"}`}
-                  className="mt-1 h-4 w-4 accent-violet-400"
+                  className="mt-1.5 h-4 w-4 shrink-0 accent-violet-400"
                   checked={selected}
                   onChange={(event) => setSelectedCards((current) => {
                     const next = new Set(current);
@@ -198,28 +209,22 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
                   })}
                 />
               )}
-              <GitPullRequestArrow className={`mt-0.5 h-5 w-5 shrink-0 ${noChangeRecommendation ? "text-emerald-300" : "text-violet-300"}`} />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <h3 className="text-base font-medium text-slate-100">{noChangeRecommendation ? proposal.status === "applied" ? "Keep recommendation accepted" : "No changes recommended" : proposal.summary || "Mutation list"}</h3>
-                    <button type="button" onClick={() => navigate(sessionDetailPath(session.id))} className="mt-1 text-xs text-slate-400 hover:text-cyan-300">From session: {session.title}</button>
-                  </div>
-                  <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs text-slate-300">{formatDisplayText(proposal.status)}</span>
-                </div>
-                {noChangeRecommendation ? <NoChangeRecommendation proposal={proposal} /> : <ProposalReview mutations={mutations} proposal={proposal} />}
-                {(proposal.parse_warnings?.length || proposal.validation_errors?.length) ? <div className="mt-3 space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">{[...(proposal.parse_warnings ?? []), ...(proposal.validation_errors ?? [])].map((message) => <p key={message}>{message}</p>)}</div> : null}
-                {isRevisable(proposal.status) && !selectionMode && <input value={note} onChange={(event) => setNotes((current) => ({ ...current, [proposal.id]: event.target.value }))} placeholder={proposal.status === "needs_revision" ? "Revision guidance" : "Decision note (optional)"} className="mt-4 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />}
-                {!selectionMode && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {isMutationProposal(proposal) && isDecidable(proposal.status) && <Button size="sm" onClick={() => decide.mutate({ sessionId: session.id, proposalId: proposal.id, ids: mutations.map((mutation) => mutation.id), note })} disabled={decide.isPending}><CheckCircle2 className="mr-2 h-4 w-4" />Apply proposal</Button>}
-                    {isMutationProposal(proposal) && isDecidable(proposal.status) && <Button size="sm" variant="outline" onClick={() => decide.mutate({ sessionId: session.id, proposalId: proposal.id, ids: [], note })} disabled={decide.isPending}><XCircle className="mr-2 h-4 w-4" />Reject</Button>}
-                    {canAcceptKeep && isDecidable(proposal.status) && <Button size="sm" onClick={() => acceptKeep.mutate({ sessionId: session.id, proposalId: proposal.id, note })} disabled={acceptKeep.isPending}><CheckCircle2 className="mr-2 h-4 w-4" />Accept keep recommendation</Button>}
-                    {isRevisable(proposal.status) && <Button size="sm" variant="outline" onClick={() => revise.mutate({ sessionId: session.id, proposalId: proposal.id, note })} disabled={revise.isPending}><RefreshCw className="mr-2 h-4 w-4" />Request revision</Button>}
-                  </div>
-                )}
-              </div>
+              <GitPullRequestArrow className={`mt-1 h-4 w-4 shrink-0 ${noChangeRecommendation ? "text-emerald-300" : "text-violet-300"}`} aria-hidden />
+              <h3 className="min-w-0 flex-1 text-base font-medium text-slate-100">{noChangeRecommendation ? proposal.status === "applied" ? "Keep recommendation accepted" : "No changes recommended" : proposal.summary || "Mutation list"}</h3>
+              <span className="shrink-0 rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">{formatDisplayText(proposal.status)}</span>
             </div>
+            <button type="button" onClick={() => navigate(sessionDetailPath(session.id))} className="mt-0.5 block truncate text-xs text-slate-400 hover:text-cyan-300">From session: {session.title}</button>
+            {noChangeRecommendation ? <NoChangeRecommendation proposal={proposal} /> : <ProposalReview mutations={mutations} proposal={proposal} defaultOpen={proposals.length === 1} />}
+            {(proposal.parse_warnings?.length || proposal.validation_errors?.length) ? <div className="mt-3 space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">{[...(proposal.parse_warnings ?? []), ...(proposal.validation_errors ?? [])].map((message) => <p key={message}>{message}</p>)}</div> : null}
+            {isRevisable(proposal.status) && !selectionMode && <input value={note} onChange={(event) => setNotes((current) => ({ ...current, [proposal.id]: event.target.value }))} placeholder={proposal.status === "needs_revision" ? "Revision guidance" : "Decision note (optional)"} className="mt-3 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />}
+            {!selectionMode && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {isMutationProposal(proposal) && isDecidable(proposal.status) && <Button size="sm" onClick={() => decide.mutate({ sessionId: session.id, proposalId: proposal.id, ids: mutations.map((mutation) => mutation.id), note })} disabled={decide.isPending}><CheckCircle2 className="mr-2 h-4 w-4" />Apply proposal</Button>}
+                {isMutationProposal(proposal) && isDecidable(proposal.status) && <Button size="sm" variant="outline" onClick={() => decide.mutate({ sessionId: session.id, proposalId: proposal.id, ids: [], note })} disabled={decide.isPending}><XCircle className="mr-2 h-4 w-4" />Reject</Button>}
+                {canAcceptKeep && isDecidable(proposal.status) && <Button size="sm" onClick={() => acceptKeep.mutate({ sessionId: session.id, proposalId: proposal.id, note })} disabled={acceptKeep.isPending}><CheckCircle2 className="mr-2 h-4 w-4" />Accept keep recommendation</Button>}
+                {isRevisable(proposal.status) && <Button size="sm" variant="outline" onClick={() => revise.mutate({ sessionId: session.id, proposalId: proposal.id, note })} disabled={revise.isPending}><RefreshCw className="mr-2 h-4 w-4" />Request revision</Button>}
+              </div>
+            )}
           </article>
         );
       })}
@@ -239,23 +244,35 @@ function NoChangeRecommendation({ proposal }: { proposal: ProposalSessionProposa
   );
 }
 
-export function ProposalReview({ mutations, proposal }: { mutations: MutationPreview[]; proposal: ProposalSessionProposal }) {
+/**
+ * Collapsible change set. Mutations are separated by rules rather than each
+ * getting its own bordered card — three nested borders pushed the actual
+ * mutation text into a narrow gutter on a phone.
+ */
+export function ProposalReview({ mutations, proposal, defaultOpen = true }: { mutations: MutationPreview[]; proposal: ProposalSessionProposal; defaultOpen?: boolean }) {
   return (
-    <details className="mt-4 rounded-lg border border-slate-800 bg-slate-950/35" open>
+    <details className="mt-3 rounded-lg border border-slate-800 bg-slate-950/35" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-slate-200">
-        <FileSearch className="h-4 w-4 text-cyan-300" />
+        <FileSearch className="h-4 w-4 shrink-0 text-cyan-300" />
         Review change set ({mutations.length})
-        <ChevronDown className="ml-auto h-4 w-4 text-slate-500" />
+        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-slate-500" />
       </summary>
-      <div className="space-y-2 border-t border-slate-800 p-3">
-        {mutations.length === 0 ? <p className="text-xs text-slate-400">This proposal has no individually reviewable mutations.</p> : mutations.map((mutation) => (
-          <div key={mutation.id} className="rounded-md border border-slate-800 bg-slate-900/70 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span className="font-medium text-slate-100">{formatDisplayText(mutation.op)}</span><code className="text-xs text-cyan-200">{mutation.target}</code></div>
-            {mutation.rationale && <p className="mt-2 text-xs leading-5 text-slate-400">{mutation.rationale}</p>}
-            {mutation.reset_scope && mutation.reset_scope.length > 0 && <p className="mt-2 text-xs text-slate-500">Scope: {mutation.reset_scope.map(formatDisplayText).join(", ")}</p>}
-          </div>
-        ))}
-        {proposal.decisions && proposal.decisions.length > 0 && <p className="text-xs text-slate-500">Decision history: {proposal.decisions.length} recorded.</p>}
+      <div className="border-t border-slate-800 px-3 py-2">
+        {mutations.length === 0 ? <p className="text-xs text-slate-400">This proposal has no individually reviewable mutations.</p> : (
+          <ul className="divide-y divide-slate-800/70">
+            {mutations.map((mutation) => (
+              <li key={mutation.id} className="py-2 first:pt-0 last:pb-0">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+                  <span className="font-medium text-slate-100">{formatDisplayText(mutation.op)}</span>
+                  <code className="min-w-0 break-all text-xs text-cyan-200">{mutation.target}</code>
+                </div>
+                {mutation.rationale && <p className="mt-1 text-xs leading-5 text-slate-400">{mutation.rationale}</p>}
+                {mutation.reset_scope && mutation.reset_scope.length > 0 && <p className="mt-1 text-xs text-slate-500">Scope: {mutation.reset_scope.map(formatDisplayText).join(", ")}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+        {proposal.decisions && proposal.decisions.length > 0 && <p className="mt-2 border-t border-slate-800/70 pt-2 text-xs text-slate-500">Decision history: {proposal.decisions.length} recorded.</p>}
       </div>
     </details>
   );

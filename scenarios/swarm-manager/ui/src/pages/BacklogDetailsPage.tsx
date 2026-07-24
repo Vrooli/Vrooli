@@ -15,7 +15,7 @@ import { PlanPanel } from "../components/backlog/plan-panel";
 import { useUrlState } from "../hooks/use-url-state";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
-import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
+import { EntityFileWorkspace } from "../components/files/entity-file-workspace";
 import { BacklogDetailsPanel } from "../components/backlog/backlog-details-panel";
 import { BacklogNotesPanel } from "../components/backlog/backlog-notes-panel";
 import { buildBacklogActionMenuItems } from "../components/backlog/backlog-action-buttons";
@@ -41,6 +41,7 @@ import { findBacklogFileByPath } from "../lib/workshop-files";
 import { isAgentActivityBlocking, isAgentActivityExecuting } from "../lib/agent-activity-utils";
 import { selectors } from "../consts/selectors";
 import { BACKLOG_KIND_LABELS, BACKLOG_KINDS } from "../types";
+import { nextActionIcon } from "../types/constants";
 import type { BacklogFile, BacklogKind } from "../types";
 import {
   selectLatestActivityForBacklog,
@@ -496,7 +497,7 @@ export function BacklogDetailsPage() {
 
   const fileWorkspaceElement = fileService ? (
     <FileServiceProvider value={fileService}>
-      <BacklogFileWorkspace
+      <EntityFileWorkspace
         files={files}
         isLoadingFiles={isLoadingFiles}
         filesError={filesError}
@@ -587,6 +588,10 @@ export function BacklogDetailsPage() {
             menuActions={menuActions}
             primaryAction={nextAction && nextAction.id !== "none" ? (
               <Button size="sm" onClick={handleNextAction} disabled={!nextAction.enabled} title={nextAction.reason}>
+                {(() => {
+                  const ActionIcon = nextActionIcon(nextAction.id);
+                  return <ActionIcon className="h-4 w-4" aria-hidden />;
+                })()}
                 {nextAction.compactLabel}
               </Button>
             ) : undefined}
@@ -596,9 +601,13 @@ export function BacklogDetailsPage() {
             showLenses={activeTab === "info"}
           />
         }
+        fullBleed={activeTab === "files"}
       >
         {attachToSession.sheet}
-        <div className="space-y-0 lg:space-y-6" data-testid={selectors.backlogDetails.page}>
+        <div
+          className={activeTab === "files" ? "flex h-full min-h-0 flex-col" : "space-y-0 lg:space-y-6"}
+          data-testid={selectors.backlogDetails.page}
+        >
           {isPageLoading && (
             <PageLoadingState label="Loading backlog details..." variant="detail" testId="backlog-details-loading-state" />
           )}

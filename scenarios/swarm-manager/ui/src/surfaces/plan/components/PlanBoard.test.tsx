@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLocation } from "react-router-dom";
 import { selectors } from "../../../consts/selectors";
-import { renderWithProviders } from "../../../test-utils";
+import { createTestQueryClient, renderWithProviders } from "../../../test-utils";
+import type { NextActionFeedEntry } from "../../../services/next-action-service";
 import type { IPlanService } from "../../../services/plan-service";
 import type { IOperationsService } from "../../../services/operations-service";
 import {
@@ -41,6 +42,16 @@ function emptyOpsView(): OperationsView {
     generatedAt: "2026-07-02T00:00:00Z",
     windowSeconds: 10800,
   };
+}
+
+function feedEntry(name: string): NextActionFeedEntry {
+  return {
+    entity_kind: "backlog_item",
+    entity_ref: `fix/${name}`,
+    entity_title: `${name} title`,
+    tier: 1,
+    action: { id: "decide", compact_label: "Decide", expanded_label: "Decide on proposals", enabled: true },
+  } as NextActionFeedEntry;
 }
 
 function stubOpsService(): IOperationsService {
@@ -199,8 +210,9 @@ describe("PlanBoard", () => {
     expect(screen.getByTestId(selectors.plan.columnLater)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.plan.columnDone)).toBeInTheDocument();
 
-    // Gate card is visually distinct (badge) and carries its count.
-    expect(screen.getByTestId(selectors.plan.cardGateBadge)).toHaveTextContent("decide 3");
+    // Gate card is visually distinct (badge) and carries its count. The badge
+    // shows the display label, never the raw wire enum.
+    expect(screen.getByTestId(selectors.plan.cardGateBadge)).toHaveTextContent("Decide 3");
     // Later cards carry wave badges.
     expect(screen.getAllByTestId(selectors.plan.cardWaveBadge).length).toBeGreaterThan(0);
     // Done outcome glyph renders.
@@ -465,7 +477,28 @@ describe("PlanBoard", () => {
 
     await screen.findByTestId(selectors.plan.board);
     expect(screen.queryByTestId(selectors.plan.nextRunAll)).not.toBeInTheDocument();
-    expect(screen.getByTestId(selectors.plan.nextAnswerAll)).toHaveTextContent("3");
+  });
+
+  it("counts pending decisions from the same feed the drawer paginates", async () => {
+    // The badge used to sum gate counts off the board while the drawer counted
+    // feed entries, so the two advertised different sizes for one queue.
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(["next-actions-feed"], { entries: [feedEntry("a"), feedEntry("b")] });
+    setPlanStoreService(stubService(makeBoard()));
+    renderWithProviders(<PlanBoard />, { queryClient });
+
+    await screen.findByTestId(selectors.plan.board);
+    expect(screen.getByTestId(selectors.plan.nextAnswerAll)).toHaveTextContent("2");
+  });
+
+  it("hides the decisions inbox when the feed is empty", async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(["next-actions-feed"], { entries: [] });
+    setPlanStoreService(stubService(makeBoard()));
+    renderWithProviders(<PlanBoard />, { queryClient });
+
+    await screen.findByTestId(selectors.plan.board);
+    expect(screen.queryByTestId(selectors.plan.nextAnswerAll)).not.toBeInTheDocument();
   });
 
   it("surfaces dependency-cycle diagnostics", async () => {

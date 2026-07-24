@@ -16,6 +16,7 @@ import {
   Files,
   GitPullRequestArrow,
   ListChecks,
+  Loader2,
   Network,
   Plus,
   ShieldAlert,
@@ -25,8 +26,8 @@ import {
   X,
 } from "lucide-react";
 import { BacklogCard } from "../components/backlog/backlog-card";
-import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
-import type { FileActionType } from "../components/backlog/backlog-file-browser";
+import { EntityFileWorkspace } from "../components/files/entity-file-workspace";
+import type { FileActionType } from "../components/files/entity-file-browser";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
@@ -49,7 +50,7 @@ import { createGoalFileServiceAdapter } from "../services/goals-file-service-ada
 import { GOALS_QUERY_KEY } from "../surfaces/plan/hooks/useGoals";
 import type { BacklogFile } from "../types/backlog";
 import type { GoalMilestone, GoalScope, GoalScopeEntities, GoalWithScope } from "../types/goal";
-import { ENTITY_TYPE_ICONS } from "../types/constants";
+import { ENTITY_TYPE_ICONS, nextActionIcon } from "../types/constants";
 import {
   backlogDetailPath,
   graphPath,
@@ -457,12 +458,13 @@ export function GoalDetailsPage() {
         <DetailPageHeader
           entityType="Goal"
           title={goal.title || goal.name}
-          subtitle={goal.description || goal.name}
+          // No subtitle: the description is rendered in full (and editable) in
+          // the Overview tab. A truncated copy here only added header clutter.
           status={goal.status}
           nodeId={nodeId}
           lenses={GOAL_LENSES}
           onDrillToLens={() => navigate(graphPath({ lens: "plan", goal: goal.name }))}
-          primaryAction={goalAction ? <Button size="sm" onClick={runGoalAction} disabled={closeOutMutation.isPending || planMutation.isPending}>{closeOutMutation.isPending || planMutation.isPending ? "Working…" : goalAction.action.compact_label}</Button> : undefined}
+          primaryAction={goalAction ? <GoalPrimaryAction actionId={goalAction.action.id} label={goalAction.action.compact_label} pending={closeOutMutation.isPending || planMutation.isPending} onRun={runGoalAction} /> : undefined}
           menuActions={menuActions}
           showLenses={activeTab === "overview"}
           tabBar={
@@ -481,9 +483,10 @@ export function GoalDetailsPage() {
           }
         />
       }
-      bodyClassName={activeTab === "files" ? "w-full px-0 py-0 md:px-0 md:py-0" : "mx-auto w-full max-w-3xl"}
+      fullBleed={activeTab === "files"}
+      bodyClassName={activeTab === "files" ? undefined : "mx-auto w-full max-w-3xl"}
     >
-      <div className={activeTab === "files" ? "min-w-0 h-full" : "min-w-0 space-y-4"} data-testid={selectors.goalDetails.page}>
+      <div className={activeTab === "files" ? "flex h-full min-h-0 min-w-0 flex-col" : "min-w-0 space-y-4"} data-testid={selectors.goalDetails.page}>
         {activeTab === "overview" && <DetailSection title="Overview" icon={ENTITY_TYPE_ICONS.goal} hideDivider data-testid="goal-overview">
           <div className="space-y-4">
             <DetailSection title="Description" action={<button type="button" onClick={() => { setGoalDraft({ title: goal.title, description: goal.description ?? "", priority: goal.priority }); setGoalEditorOpen(true); }} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" aria-label="Edit goal description"><Edit className="h-3.5 w-3.5" /></button>}>
@@ -617,7 +620,7 @@ export function GoalDetailsPage() {
         )}
         {activeTab === "files" && (
           <FileServiceProvider value={goalFileService}>
-            <BacklogFileWorkspace
+            <EntityFileWorkspace
               files={filesQuery.data}
               isLoadingFiles={filesQuery.isLoading}
               filesError={filesQuery.error instanceof Error ? filesQuery.error : null}
@@ -676,5 +679,20 @@ export function GoalDetailsPage() {
         testIds={{ dialog: "goal-delete-confirm", confirmButton: "goal-delete-confirm-submit" }}
       />
     </DetailPageLayout>
+  );
+}
+
+/**
+ * The goal's single header action. Its label arrives from the API per goal, so
+ * the icon is resolved from the shared next-action registry rather than being
+ * hardcoded — otherwise this button ships as bare text.
+ */
+function GoalPrimaryAction({ actionId, label, pending, onRun }: { actionId: string; label: string; pending: boolean; onRun: () => void }) {
+  const ActionIcon = nextActionIcon(actionId);
+  return (
+    <Button size="sm" onClick={onRun} disabled={pending}>
+      {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ActionIcon className="h-4 w-4" aria-hidden />}
+      {pending ? "Working…" : label}
+    </Button>
   );
 }

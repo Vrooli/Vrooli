@@ -8,8 +8,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ArrowRight, ChevronDown, Clock, CornerDownLeft, MessageCircleQuestion, Play, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, Clock, CornerDownLeft, Play, X } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { DecisionsInboxButton } from "../../../components/command-post/DecisionsInboxButton";
 import { OpsBulkActions } from "../../../components/operations/OpsBulkActions";
 import type { RunSheetTarget } from "../../../components/backlog/run-sheet";
 import { Button } from "../../../components/ui/button";
@@ -73,9 +74,6 @@ function NextHeaderActions({ groups, goal }: { groups: import("../types").PlanCa
   const readyTargets: RunSheetTarget[] = (groups.find((g) => g.id === "ready")?.cards ?? [])
     .filter((c) => c.itemKind && c.itemName && actions.getNextAction(c.itemKind, c.itemName)?.id === "run")
     .map((c) => ({ kind: c.itemKind as BacklogKind, name: c.itemName, title: c.title }));
-  const decideCount = (groups.find((g) => g.id === "gates")?.cards ?? [])
-    .filter((c) => c.gate?.kind === "decide" || c.gate?.kind === "proposal")
-    .reduce((sum, c) => sum + (c.gate?.count ?? 0), 0);
   // When the board is goal-scoped, the ready group already holds only the
   // goal's ready closure, so this bulk run IS "run all ready in goal".
   const runTitle = goal
@@ -96,18 +94,14 @@ function NextHeaderActions({ groups, goal }: { groups: import("../types").PlanCa
           {readyTargets.length}
         </button>
       )}
-      {decideCount > 0 && (
-        <button
-          type="button"
-          onClick={() => actions.openDecisions()}
-          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-amber-400 transition-colors hover:bg-slate-800"
-          title={`Review all ${decideCount} pending decisions and proposals`}
-          data-testid="plan-next-answer-all"
-        >
-          <MessageCircleQuestion className="h-3.5 w-3.5" aria-hidden />
-          {decideCount}
-        </button>
-      )}
+      {/* Same component, count, and look as the sidebar's decisions inbox —
+          these two used to disagree on all three. */}
+      <DecisionsInboxButton
+        onOpen={() => actions.openDecisions()}
+        hideWhenEmpty
+        className="p-1"
+        testId="plan-next-answer-all"
+      />
     </>
   );
 }

@@ -83,14 +83,20 @@ vi.mock("@monaco-editor/react", () => ({
   default: ({
     value = "",
     onChange,
+    options,
     "data-testid": testId,
   }: {
     value?: string;
     onChange?: (value?: string) => void;
+    options?: { readOnly?: boolean };
     "data-testid"?: string;
   }) =>
     React.createElement("textarea", {
       "data-testid": testId ?? "monaco-editor",
+      // Surfaced so tests can assert view-vs-edit separately: a read-only file
+      // must still render its content.
+      "data-read-only": options?.readOnly ? "true" : "false",
+      readOnly: Boolean(options?.readOnly),
       value,
       onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
         onChange?.(event.target.value),

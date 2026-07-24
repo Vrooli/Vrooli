@@ -1,9 +1,13 @@
 /**
- * BacklogFileBrowser
+ * EntityFileBrowser
  *
- * Extracted from BacklogDetailsPage — encapsulates the file tree browser
- * with search, upload toggle, context menu, and file action dialogs
- * (rename/move/copy/delete).
+ * File tree browser with search, upload toggle, context menu, and file
+ * action dialogs (rename/move/copy/delete). Entity-agnostic — it reads the
+ * active file service from FileServiceContext, so backlog items and goals
+ * share it.
+ *
+ * Owns its own horizontal padding so it renders identically in the desktop
+ * split pane and the mobile files sheet; containers must not add their own.
  */
 
 import { useState, useCallback, useEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
@@ -20,7 +24,7 @@ import type { BacklogFile } from "../../types";
 import { FileActionDialogs } from "./file-action-dialogs";
 import { useRuntimeConfig } from "../../hooks/useRuntimeConfig";
 import { useFileActionMenuRenderer } from "./file-action-menu";
-import { FileSearchResults, FileSearchResultsList } from "./file-search-results";
+import { FileSearchInput, FileSearchResultsList, RecentFilesList } from "./file-search-results";
 
 export type FileActionType = "rename" | "move" | "copy" | "delete";
 
@@ -37,7 +41,7 @@ interface FileActionMenuState {
 
 const RECENT_FILES_LIMIT = 5;
 
-export interface BacklogFileBrowserProps {
+export interface EntityFileBrowserProps {
   files: BacklogFile[] | undefined;
   isLoadingFiles: boolean;
   filesError: Error | null;
@@ -63,7 +67,7 @@ export interface HeaderSlotProps {
   headerFileActionsRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function BacklogFileBrowser({
+export function EntityFileBrowser({
   files,
   isLoadingFiles,
   filesError,
@@ -75,7 +79,7 @@ export function BacklogFileBrowser({
   fileActionPending,
   onFileAction,
   onHeaderSlotChange,
-}: BacklogFileBrowserProps) {
+}: EntityFileBrowserProps) {
   const { getDeleteConfirmLevel } = useRuntimeConfig();
   const [fileSearch, setFileSearch] = useState("");
   const [recentFiles, setRecentFiles] = useState<BacklogFile[]>([]);
@@ -218,33 +222,37 @@ export function BacklogFileBrowser({
 
   return (
     <>
-      <div className="flex h-full flex-col">
-        <div className="flex items-center justify-end border-b border-white/10 px-3 py-2">
+      <div className="flex h-full min-h-0 flex-col">
+        {/* Search is the primary action here, so it owns the row; upload is a
+            secondary icon affordance rather than a dedicated full-width row. */}
+        <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <FileSearchInput fileSearch={fileSearch} onFileSearchChange={setFileSearch} />
+          </div>
           <Button
-            variant="outline"
-            size="sm"
+            variant={showUpload ? "default" : "outline"}
+            size="icon"
+            className="h-8 w-8 shrink-0"
             onClick={() => setShowUpload(!showUpload)}
             disabled={isLocked}
+            aria-label={showUpload ? "Hide upload" : "Upload files"}
+            aria-pressed={showUpload}
+            title={showUpload ? "Hide upload" : "Upload files"}
             data-testid="toggle-upload"
           >
-            <Upload className="mr-2 h-4 w-4" />
-            {showUpload ? "Hide Upload" : "Upload Files"}
+            <Upload className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex-1 space-y-4 overflow-y-auto px-3 pb-4 pt-4">
-          <FileSearchResults
-            fileSearch={fileSearch}
-            onFileSearchChange={setFileSearch}
-            searchResults={searchResults}
-            recentFiles={recentFiles}
-            onFileSelect={handleFileSelect}
-          />
-
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
           {showUpload && (
             <FileUpload
               onUploadComplete={onUploadComplete}
               data-testid={selectors.backlogDetails.fileUpload}
             />
+          )}
+
+          {fileSearch.trim().length === 0 && (
+            <RecentFilesList recentFiles={recentFiles} onFileSelect={handleFileSelect} />
           )}
 
           {isLoadingFiles ? (

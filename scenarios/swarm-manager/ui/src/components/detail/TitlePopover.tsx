@@ -1,22 +1,32 @@
 /**
  * TitlePopover
  *
- * Clickable header title that reveals a popover with the full (untruncated)
- * title text and a copy-to-clipboard button. Convenience for entity detail
- * headers where long titles get truncated.
+ * Header title that wraps to `clampLines` lines (two by default — enough for
+ * nearly every entity title) and reveals the full text plus a copy button on
+ * click. The popover is the overflow escape hatch, not the only way to read a
+ * title: a single-line clamp made long titles unreadable everywhere.
  */
 
 import { useCallback, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { cn } from "../../lib/utils";
 import { Popover } from "../ui/popover";
+
+const CLAMP_CLASS: Record<number, string> = {
+  1: "line-clamp-1",
+  2: "line-clamp-2",
+  3: "line-clamp-3",
+};
 
 interface TitlePopoverProps {
   title: string;
   /** Optional className applied to the inline title button. */
   className?: string;
+  /** How many lines the title may wrap to before clamping. Defaults to 2. */
+  clampLines?: 1 | 2 | 3;
 }
 
-export function TitlePopover({ title, className }: TitlePopoverProps) {
+export function TitlePopover({ title, className, clampLines = 2 }: TitlePopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [copied, setCopied] = useState(false);
@@ -72,10 +82,13 @@ export function TitlePopover({ title, className }: TitlePopoverProps) {
         type="button"
         onClick={handleOpen}
         title={title}
+        aria-label={`${title} — show full title`}
         className={className}
         data-testid="detail-title-button"
       >
-        <span className="block truncate text-left">{title}</span>
+        <span className={cn("block text-left", CLAMP_CLASS[clampLines] ?? CLAMP_CLASS[2])}>
+          {title}
+        </span>
       </button>
 
       <Popover

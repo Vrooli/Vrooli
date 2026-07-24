@@ -3,6 +3,7 @@
  * grouping/sorting/labeling logic only.
  */
 
+import { PLAN_GATE_LABELS, PLAN_GATE_SUGGESTION_LABELS } from "../../../types/constants";
 import { CYCLE_WAVE, type PlanCardData, type PlanCardGroupData, type PlanGateData } from "../types";
 
 /**
@@ -55,6 +56,11 @@ export function waveBadgeLabel(wave: number): string {
   return `w${wave}`;
 }
 
+/** Short badge label for a gate card — never the raw wire enum. */
+export function gateBadgeLabel(gate: PlanGateData): string {
+  return PLAN_GATE_LABELS[gate.kind] ?? gate.kind;
+}
+
 /** Human label for a gate card's primary action. */
 export function gateActionLabel(gate: PlanGateData): string {
   switch (gate.kind) {
@@ -67,7 +73,9 @@ export function gateActionLabel(gate: PlanGateData): string {
     case "classify":
       return gate.count > 0 ? `Classify (${gate.count})` : "Classify";
     case "workshop":
-      return gate.suggested === "finalize" ? "Finalize" : "Workshop";
+      // The server sends author-plan / accept-plan / validate-plan here; say
+      // which one rather than repeating the generic gate name.
+      return PLAN_GATE_SUGGESTION_LABELS[gate.suggested] ?? PLAN_GATE_LABELS.workshop;
   }
 }
 

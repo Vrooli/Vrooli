@@ -16,7 +16,7 @@ import {
 import { BoardCard, type BoardCardTone } from "../../../components/cards/BoardCard";
 import { cn } from "../../../lib/utils";
 import { formatRelativeTime } from "../../../lib";
-import { gateActionLabel, outcomeGlyph, waveBadgeLabel } from "../lib/plan-presentation";
+import { gateActionLabel, gateBadgeLabel, outcomeGlyph, waveBadgeLabel } from "../lib/plan-presentation";
 import { CYCLE_WAVE, type PlanCardData } from "../types";
 import { PlanCardMenu } from "./PlanCardMenu";
 import { usePlanCardActions } from "./plan-card-actions-context";
@@ -116,7 +116,7 @@ export function PlanCardView({ card, showWave = false, dimmed = false, highlight
           className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300"
           data-testid="plan-card-gate-badge"
         >
-          {card.gate.kind}
+          {gateBadgeLabel(card.gate)}
           {card.gate.count > 1 ? ` ${card.gate.count}` : ""}
         </span>
       ) : null}

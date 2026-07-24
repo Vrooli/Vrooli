@@ -50,6 +50,32 @@ describe("DetailPageLayout", () => {
     expect(screen.getByTestId("test-body").parentElement).toHaveClass("test-body-class");
   });
 
+  it("keeps body gutters by default", () => {
+    render(
+      <DetailPageLayout header={<div>Header</div>}>
+        <div data-testid="test-body">Body</div>
+      </DetailPageLayout>,
+    );
+
+    expect(screen.getByTestId("test-body").parentElement).toHaveClass("px-2");
+    expect(screen.getByTestId("detail-page-layout")).not.toHaveAttribute("data-full-bleed");
+  });
+
+  it("drops body gutters and bounds the height when full-bleed", () => {
+    // The Files tab renders its own header; page gutters left it inset from
+    // the tab bar and stopped it filling the available height.
+    render(
+      <DetailPageLayout header={<div>Header</div>} fullBleed>
+        <div data-testid="test-body">Body</div>
+      </DetailPageLayout>,
+    );
+
+    const body = screen.getByTestId("test-body").parentElement;
+    expect(body).not.toHaveClass("px-2");
+    expect(body).toHaveClass("min-h-0");
+    expect(screen.getByTestId("detail-page-layout")).toHaveClass("h-full", "overflow-hidden");
+  });
+
   it("never renders the legacy mobile actions FAB", () => {
     mockIsMobile = true;
 

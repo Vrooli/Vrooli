@@ -12,9 +12,10 @@ import { MemoryRouter } from "react-router-dom";
 import { SidebarHeader } from "./SidebarHeader";
 import { useOperationsStore } from "../../../../stores/operations-store";
 
-// Mock useCommandPostBadgeCount to avoid QueryClientProvider dependency.
-vi.mock("../../../../hooks/useCommandPostBadgeCount", () => ({
-  useCommandPostBadgeCount: () => 0,
+// Mock the pending-decision count to avoid a QueryClientProvider dependency.
+vi.mock("../../../../hooks/usePendingDecisionCount", () => ({
+  NEXT_ACTION_FEED_QUERY_KEY: ["next-actions-feed"],
+  usePendingDecisionCount: () => 0,
 }));
 
 function renderHeader(overrides?: Partial<React.ComponentProps<typeof SidebarHeader>>) {

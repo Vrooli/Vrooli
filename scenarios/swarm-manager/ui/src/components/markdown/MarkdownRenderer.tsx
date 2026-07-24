@@ -34,6 +34,7 @@ export interface MarkdownRendererProps {
   onLinkClick?: (href: string, event: MouseEvent<HTMLAnchorElement>) => void;
   onFileReferenceClick?: (path: string) => void;
   onMermaidOpen?: (code: string) => void;
+  "data-testid"?: string;
 }
 
 class MarkdownErrorBoundary extends Component<{ content: string; children: ReactNode }, { failed: boolean }> {
@@ -52,7 +53,7 @@ const markdownTokens: CSSProperties & Record<`--${string}`, string> = {
   "--markdown-error": "var(--color-danger, currentColor)",
 };
 
-export function MarkdownRenderer({ content, className, inline = false, resolveInlineToken, looksLikeFileReference, onLinkClick, onFileReferenceClick, onMermaidOpen }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className, inline = false, resolveInlineToken, looksLikeFileReference, onLinkClick, onFileReferenceClick, onMermaidOpen, "data-testid": testId }: MarkdownRendererProps) {
   const components = useMemo(() => ({
     code: ({ children, className: codeClass }: { children?: ReactNode; className?: string }) => {
       const text = String(children ?? "").replace(/\n$/, "");
@@ -69,7 +70,7 @@ export function MarkdownRenderer({ content, className, inline = false, resolveIn
   }), [looksLikeFileReference, onFileReferenceClick, onLinkClick, onMermaidOpen, resolveInlineToken]);
   if (!content) return null;
   const Wrapper = inline ? "span" : "div";
-  return <MarkdownErrorBoundary content={content}><Wrapper className={className} style={markdownTokens}><ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>{content}</ReactMarkdown></Wrapper></MarkdownErrorBoundary>;
+  return <MarkdownErrorBoundary content={content}><Wrapper className={className} style={markdownTokens} data-testid={testId}><ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>{content}</ReactMarkdown></Wrapper></MarkdownErrorBoundary>;
 }
 
 export default MarkdownRenderer;
