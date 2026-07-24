@@ -17,12 +17,19 @@
           "status": "failing",
           "notes": "WorldCanvas component renders 3D scene"
         },
-        {
-          "type": "test",
-          "phase": "performance",
-          "status": "implemented",
-          "notes": "Renders at 60fps on mid-tier hardware"
-        }
+      {
+        "type": "test",
+        "phase": "performance",
+        "status": "implemented",
+        "notes": "Renders at 60fps on mid-tier hardware"
+      },
+      {
+        "type": "bas",
+        "phase": "workflow",
+        "status": "implemented",
+        "notes": "World canvas smoke journey",
+        "ref": "bas/cases/01-foundation/01-smoke/world-ui-loads.json"
+      }
       ]
     },
     {
@@ -55,12 +62,19 @@
       "category": "ui",
       "description": "Zustand state management for 3D world state",
       "validation": [
-        {
-          "type": "test",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "cameraStore, graphicsStore, environmentStore functional"
-        }
+      {
+        "type": "test",
+        "phase": "unit",
+        "status": "failing",
+        "notes": "cameraStore, graphicsStore, environmentStore functional"
+      },
+      {
+        "type": "bas",
+        "phase": "workflow",
+        "status": "implemented",
+        "notes": "Environment scene switch journey",
+        "ref": "bas/cases/01-foundation/02-world/environment-scene-switch.json"
+      }
       ]
     }
   ]

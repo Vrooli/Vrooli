@@ -120,11 +120,13 @@ func buildControlledReport(exp *store.Experiment, assignments []store.Experiment
 		}
 	}
 	controlMean := math.NaN()
+	var control *counts
 	for _, id := range ordered {
 		if id == store.ControlVariantID {
 			c := armCounts[id]
 			if c.eligible > 0 {
 				controlMean = betaPosteriorMean(c.successes, c.eligible)
+				control = c
 			}
 		}
 	}
@@ -137,11 +139,34 @@ func buildControlledReport(exp *store.Experiment, assignments []store.Experiment
 			if !math.IsNaN(controlMean) && id != store.ControlVariantID {
 				effect := mean - controlMean
 				row.EffectVsControl = &effect
+				prob := betaProbBeats(c.successes, c.eligible, control.successes, control.eligible)
+				row.ProbBeatsControl = &prob
 			}
 		}
 		report.Arms = append(report.Arms, row)
 	}
 	return report
+}
+
+// betaProbBeats computes P(V > C) exactly for V ~ Beta(sv+1, nv-sv+1) and
+// C ~ Beta(sc+1, nc-sc+1) — the Beta(1,1)-posterior probability that the
+// variant's true success rate exceeds control's. Unlike the credible
+// intervals above, this feeds a pre-registered gate, so the exact
+// integer-parameter closed form is used rather than a normal approximation.
+func betaProbBeats(sv, nv, sc, nc int) float64 {
+	a1, b1 := float64(sv+1), float64(nv-sv+1)
+	a2, b2 := float64(sc+1), float64(nc-sc+1)
+	lnBeta := func(x, y float64) float64 {
+		lx, _ := math.Lgamma(x)
+		ly, _ := math.Lgamma(y)
+		lxy, _ := math.Lgamma(x + y)
+		return lx + ly - lxy
+	}
+	total := 0.0
+	for i := 0.0; i < a1; i++ {
+		total += math.Exp(lnBeta(a2+i, b1+b2) - math.Log(b1+i) - lnBeta(1+i, b1) - lnBeta(a2, b2))
+	}
+	return total
 }
 
 // betaSummary reports the Beta(1,1)-posterior mean and a normal approximation
@@ -154,6 +179,7 @@ func betaSummary(successes, n int) (mean, low, high float64) {
 	delta := 1.96 * math.Sqrt(variance)
 	return mean, math.Max(0, mean-delta), math.Min(1, mean+delta)
 }
+
 func betaPosteriorMean(successes, n int) float64 {
 	mean, _, _ := betaSummary(successes, n)
 	return mean

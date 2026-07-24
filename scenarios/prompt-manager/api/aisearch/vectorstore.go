@@ -12,6 +12,7 @@ import (
 	"time"
 
 	sharedsearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/storage"
 )
 
 // SearchResult represents a single vector search result.
@@ -66,7 +67,11 @@ var resolveEmbeddingPolicy = sharedsearch.ResolveEmbeddingPolicy
 // dimensions stay owned by resource-ollama policy metadata.
 func NewVectorStore(baseURL, apiKey, collection string, vectorSize int) VectorStore {
 	if collection == "" {
-		collection = "prompt-manager-skills"
+		var err error
+		collection, err = storage.Collection("skills")
+		if err != nil {
+			panic(fmt.Sprintf("resolve skills collection: %v", err))
+		}
 	}
 	return &qdrantVectorStore{
 		baseURL:    baseURL,
@@ -82,7 +87,11 @@ func NewVectorStore(baseURL, apiKey, collection string, vectorSize int) VectorSt
 // EnsureCollection time.
 func NewVectorStoreForRole(baseURL, apiKey, collection, embeddingRole string) VectorStore {
 	if collection == "" {
-		collection = "prompt-manager-skills"
+		var err error
+		collection, err = storage.Collection("skills")
+		if err != nil {
+			panic(fmt.Sprintf("resolve skills collection: %v", err))
+		}
 	}
 	embeddingRole = strings.TrimSpace(embeddingRole)
 	if embeddingRole == "" {

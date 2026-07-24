@@ -5,6 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 // newSkillStoreWithCorePack builds a FileSkillStore over a temp dir with an
@@ -17,6 +21,37 @@ func newSkillStoreWithCorePack(t *testing.T) *FileSkillStore {
 		t.Fatalf("mkdir core pack: %v", err)
 	}
 	return NewFileSkillStore(dir)
+}
+
+func TestRoutedFileSkillStoreWritesOnlyToLeasedConfigRoot(t *testing.T) {
+	primary := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(primary, "skills", "packs", "local"), 0o755); err != nil {
+		t.Fatalf("prepare primary pack: %v", err)
+	}
+	roots := filerouting.New(storage.Paths{ConfigDir: primary})
+	if _, err := roots.InstallLeasedTestRoots("lease", 0, false); err != nil {
+		t.Fatalf("install test roots: %v", err)
+	}
+	defer func() { _ = roots.ClearTestRoots("lease") }()
+
+	s := NewRoutedFileSkillStore(roots)
+	ctx := database.WithTestMode(context.Background())
+	if err := s.Create(ctx, "local", &Skill{ID: "isolated", Name: "Isolated", Status: StatusActive}, "# Isolated"); err != nil {
+		t.Fatalf("create into leased root: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(primary, "skills", "packs", "local", "isolated")); !os.IsNotExist(err) {
+		t.Fatalf("primary config received isolated write, stat err=%v", err)
+	}
+	testConfig, err := roots.Pick(ctx, storage.ClassConfig)
+	if err != nil {
+		t.Fatalf("pick test config: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(testConfig, "skills", "packs", "local", "isolated", "skill.json")); err != nil {
+		t.Fatalf("leased config missing skill: %v", err)
+	}
+	if got := roots.LeaseStats().TestRootWrites; got != 1 {
+		t.Fatalf("test-root writes = %d, want 1", got)
+	}
 }
 
 // TestSkillStore_Update_PersistsProgrammaticHomeSetAndClear is the regression

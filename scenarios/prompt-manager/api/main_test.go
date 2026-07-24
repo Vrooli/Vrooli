@@ -1,12 +1,28 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/receiptsigning"
 )
+
+func TestGorillaMuxAdapterMountsTrailingSlashServicesAsPrefixes(t *testing.T) {
+	router := mux.NewRouter()
+	gorillaMuxAdapter{router: router}.Handle("/service/", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/service/operation", nil))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("service prefix status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+}
 
 func TestDiscoverScenarioNames(t *testing.T) {
 	// Create a temporary directory structure mimicking scenarios/<name>/store

@@ -933,7 +933,7 @@ func (h *Handlers) GetLog(w http.ResponseWriter, r *http.Request) {
 		logID += ".log"
 	}
 
-	logPath := h.teamStore.GetMemberLogPath(teamID, agentID, strings.TrimSuffix(logID, ".log"))
+	logPath := h.teamStore.GetMemberLogPathForContext(ctx, teamID, agentID, strings.TrimSuffix(logID, ".log"))
 	content, err := store.ReadContent(logPath)
 	if err != nil {
 		http.Error(w, "Log not found", http.StatusNotFound)

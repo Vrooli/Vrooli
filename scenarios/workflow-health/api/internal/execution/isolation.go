@@ -14,6 +14,9 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const isolationLeaseTTL = 90 * time.Second
@@ -29,10 +32,11 @@ type routingClient interface {
 // provisioner; the default safely serves SQLite-based scenarios such as
 // prompt-manager with a disposable local database.
 type RoutingIsolation struct {
-	ResolveTarget func(context.Context, string) (string, error)
-	NewClient     func(string) routingClient
-	NewDSN        func(string) (string, func(), error)
-	TTL           time.Duration
+	ResolveTarget     func(context.Context, string) (string, error)
+	NewClient         func(string) routingClient
+	NewDSN            func(string) (string, func(), error)
+	RequiresFileRoots func(context.Context, string) (bool, error)
+	TTL               time.Duration
 }
 
 func NewRoutingIsolation() *RoutingIsolation {
@@ -41,8 +45,9 @@ func NewRoutingIsolation() *RoutingIsolation {
 		NewClient: func(base string) routingClient {
 			return routing_v1connect.NewRoutingServiceClient(http.DefaultClient, base)
 		},
-		NewDSN: disposableSQLiteDSN,
-		TTL:    isolationLeaseTTL,
+		NewDSN:            disposableSQLiteDSN,
+		RequiresFileRoots: storageHealthRequiresFileRoots,
+		TTL:               isolationLeaseTTL,
 	}
 }
 
@@ -63,12 +68,22 @@ func (r *RoutingIsolation) Acquire(ctx context.Context, scenario, leaseID string
 		ttl = isolationLeaseTTL
 	}
 	client := r.NewClient(base)
+	requiresFileRoots := r.RequiresFileRoots
+	if requiresFileRoots == nil {
+		cleanup()
+		return nil, fmt.Errorf("storage file-isolation classification is not configured")
+	}
+	filePersisting, err := requiresFileRoots(ctx, scenario)
+	if err != nil {
+		cleanup()
+		return nil, fmt.Errorf("prove target file-isolation requirement: %w", err)
+	}
 	installed, err := client.InstallTestPool(ctx, connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: dsn, LeaseId: leaseID, LeaseTtlMs: ttl.Milliseconds()}))
 	if err != nil {
 		cleanup()
 		return nil, fmt.Errorf("install target test pool: %w", err)
 	}
-	if !installed.Msg.GetFileRootsInstalled() {
+	if filePersisting && !installed.Msg.GetFileRootsInstalled() {
 		_, _ = client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: leaseID}))
 		cleanup()
 		return nil, fmt.Errorf("target scenario did not install leased file roots; run storage-health validation and wire RoutedRoots")
@@ -77,6 +92,33 @@ func (r *RoutingIsolation) Acquire(ctx context.Context, scenario, leaseID string
 	lease := &routingLease{client: client, leaseID: leaseID, cleanup: cleanup, cancel: cancel, evidence: IsolationEvidence{Installed: true, LeaseID: leaseID}}
 	go lease.heartbeat(leaseCtx, ttl)
 	return lease, nil
+}
+
+func storageHealthRequiresFileRoots(ctx context.Context, scenario string) (bool, error) {
+	base, err := discovery.ResolveScenarioURLDefault(ctx, "storage-health")
+	if err != nil {
+		return false, fmt.Errorf("resolve storage-health: %w", err)
+	}
+	client := scenariovalidationv1connect.NewScenarioValidationServiceClient(http.DefaultClient, base)
+	resp, err := client.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: scenario}))
+	if err != nil {
+		return false, fmt.Errorf("validate target through storage-health: %w", err)
+	}
+	if resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		return false, fmt.Errorf("storage-health did not prove target isolation (status %s)", resp.Msg.GetStatus())
+	}
+	detail := &structpb.Struct{}
+	if native := resp.Msg.GetNativeDetail(); native == nil || native.UnmarshalTo(detail) != nil {
+		return false, fmt.Errorf("storage-health response omitted file-persistence classification")
+	}
+	field, ok := detail.Fields["file_persisting"]
+	if !ok {
+		return false, fmt.Errorf("storage-health response has invalid file-persistence classification")
+	}
+	if _, ok := field.Kind.(*structpb.Value_BoolValue); !ok {
+		return false, fmt.Errorf("storage-health response has invalid file-persistence classification")
+	}
+	return field.GetBoolValue(), nil
 }
 
 type routingLease struct {

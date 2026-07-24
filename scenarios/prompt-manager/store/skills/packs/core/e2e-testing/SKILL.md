@@ -508,25 +508,36 @@ Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARG
 
 ---
 
-### **9. Database Isolation (Automatic)**
+### **9. Two-Engine Test Isolation (Automatic)**
 
-When test-genie runs your playbooks, the scenario's database is automatically isolated — every test run hits a per-run test database, not the real one. **You write your workflows exactly the same way** regardless; nothing about the BAS JSON changes.
+Mutating workflow execution is allowed only when workflow-health installs a
+lease on the running target scenario. The lease covers both the test database
+and leased file roots. There is no restart fallback.
 
-How it works (two paths, test-genie picks one):
+workflow-health attaches `X-Vrooli-Test-Mode: 1` to every BAS execution,
+including observer-labeled cases. The header is a safety net for a mistaken
+label; do not add it manually to workflow JSON.
 
-| Path | What happens | When |
-|---|---|---|
-| **Routed** | A per-run test pool is installed on the running scenario via RPC. test-genie injects `X-Vrooli-Test-Mode: 1` as a browser-context header so every UI→API request from your playbook hits the test pool. No restart. | Scenario uses `*database.RoutedDB` + mounts `apihttp.TestModeMiddleware` (the `react-vite` template ships in this shape — new scenarios get it for free). |
-| **Fallback** | Scenario is stopped, restarted with env pointing at the test DB, playbooks run, then restarted normally. | Scenario still holds raw `*sql.DB` handles or otherwise can't be routed. |
+| Execution mode | Allowed node types | Required labels | Meaning |
+|---|---|---|---|
+| `observer` | `navigate`, `screenshot`, `assert`, `extract`, `wait` | `reset: none` | Read-only observation. A click, input, or subflow that resolves to a mutating action fails catalog validation. |
+| `mutating` | Any supported action | `requires_confirmation: "true"`, `routed_isolation: "true"`, plus `reset` | Creates or changes state only in the lease. |
+| `destructive` | Any supported action | Same as `mutating` | Deletes or irreversibly changes leased state; use only when the journey requires it. |
+
+`reset` is one of `none`, `partial`, or `full`. Use `full` only when the case
+declares deterministic seed or fixture setup. Config-class file writes route
+to the leased root under test mode; data, cache, logs, and state roots begin
+empty. ClearTestPool returns SQL and file leak counters. Any primary-storage
+counter is a hard failure.
 
 What this means for test authors:
 
-- **Seed data**: any `bas/seeds/seed.go` runs against the test DB, not prod. Seed freely — it won't leak.
-- **Mutations are safe**: workflows can create, update, delete — the changes go to the test DB and are torn down after the run.
+- **Seed data**: any `bas/seeds/seed.go` runs against the leased test database and file roots, not production storage.
+- **Mutations are safe only after proof**: workflows can create, update, delete after the target passes storage-health's SQL and file seam checks; otherwise workflow-health refuses them.
 - **Don't try to set the test-mode header yourself** in workflow JSON. It's already attached at the browser context for every request; doing it again per-step is redundant and confusing.
 - **If your test only passes against prod data**, it's not really an E2E test — it's an observation. Fix it: seed what you need.
 
-Full details (mode flag, opt-in for new scenarios, lease/concurrency model) live in `path:scenarios/storage-health/docs/concepts/test-isolation-contract.md`. Test authors usually don't need to read it.
+Full details (mode flag, opt-in for new scenarios, lease/concurrency model) live in `path:docs/agent-system/routed-test-db.md`. Test authors usually don't need to read it.
 
 ---
 

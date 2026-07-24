@@ -29,12 +29,19 @@
           "status": "not_implemented",
           "notes": "Agent stored in file-based store (store/agents/)"
         },
-        {
-          "type": "test",
-          "phase": "performance",
-          "status": "implemented",
-          "notes": "Agent API response time under 100ms"
-        }
+      {
+        "type": "test",
+        "phase": "performance",
+        "status": "implemented",
+        "notes": "Agent API response time under 100ms"
+      },
+      {
+        "type": "bas",
+        "phase": "workflow",
+        "status": "implemented",
+        "notes": "Member creation journey",
+        "ref": "bas/cases/01-foundation/04-members/member-create.json"
+      }
       ]
     },
     {

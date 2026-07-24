@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"time"
+
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 // skillIDRegex validates skill IDs: lowercase letters, numbers, hyphens.
@@ -26,11 +29,39 @@ func isValidSkillID(id string) bool {
 // FileSkillStore implements SkillStore using the file system
 type FileSkillStore struct {
 	configDir string
+	roots     *filerouting.RoutedRoots
 }
 
 // NewFileSkillStore creates a new file-based skill store
 func NewFileSkillStore(configDir string) *FileSkillStore {
 	return &FileSkillStore{configDir: configDir}
+}
+
+// NewRoutedFileSkillStore creates a skill store whose Config-class root is
+// selected for every request. The primary root stays in use outside test mode;
+// a dev-routing lease redirects only test-mode requests to its disposable copy.
+func NewRoutedFileSkillStore(roots *filerouting.RoutedRoots) *FileSkillStore {
+	return &FileSkillStore{roots: roots}
+}
+
+func (s *FileSkillStore) forContext(ctx context.Context) (*FileSkillStore, error) {
+	if s.roots == nil {
+		return s, nil
+	}
+	configDir, err := s.roots.Pick(ctx, storage.ClassConfig)
+	if err != nil {
+		return nil, fmt.Errorf("resolve routed config root: %w", err)
+	}
+	copy := *s
+	copy.configDir = configDir
+	copy.roots = nil
+	return &copy, nil
+}
+
+func (s *FileSkillStore) recordWrite(ctx context.Context) {
+	if s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
 }
 
 // skillsDir returns the path to the skills directory
@@ -61,6 +92,11 @@ func (s *FileSkillStore) getActivePacks() ([]string, error) {
 
 // List returns all skills from active packs
 func (s *FileSkillStore) List(ctx context.Context) ([]Skill, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	packs, err := s.getActivePacks()
 	if err != nil {
 		return nil, fmt.Errorf("getting active packs: %w", err)
@@ -98,6 +134,11 @@ func (s *FileSkillStore) List(ctx context.Context) ([]Skill, error) {
 
 // Get retrieves a skill by ID, searching through active packs
 func (s *FileSkillStore) Get(ctx context.Context, id string) (*Skill, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	packs, err := s.getActivePacks()
 	if err != nil {
 		return nil, fmt.Errorf("getting active packs: %w", err)
@@ -116,6 +157,11 @@ func (s *FileSkillStore) Get(ctx context.Context, id string) (*Skill, error) {
 
 // GetWithContent retrieves a skill with its content
 func (s *FileSkillStore) GetWithContent(ctx context.Context, id string) (*Skill, string, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, "", err
+	}
 	skill, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, "", err
@@ -132,6 +178,12 @@ func (s *FileSkillStore) GetWithContent(ctx context.Context, id string) (*Skill,
 
 // Create creates a new skill in the specified pack
 func (s *FileSkillStore) Create(ctx context.Context, pack string, skill *Skill, content string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	// Validate pack is active
 	packs, err := s.getActivePacks()
 	if err != nil {
@@ -189,11 +241,18 @@ func (s *FileSkillStore) Create(ctx context.Context, pack string, skill *Skill, 
 		return fmt.Errorf("writing history: %w", err)
 	}
 
+	original.recordWrite(ctx)
 	return nil
 }
 
 // Update updates an existing skill
 func (s *FileSkillStore) Update(ctx context.Context, id string, updates *Skill, content *string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	skill, err := s.Get(ctx, id)
 	if err != nil {
 		return err
@@ -262,22 +321,38 @@ func (s *FileSkillStore) Update(ctx context.Context, id string, updates *Skill, 
 		return fmt.Errorf("writing history: %w", err)
 	}
 
+	original.recordWrite(ctx)
 	return nil
 }
 
 // Delete removes a skill
 func (s *FileSkillStore) Delete(ctx context.Context, id string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	skill, err := s.Get(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	skillDir := filepath.Join(s.packsDir(), skill.Pack, id)
-	return DeleteDirectory(skillDir)
+	if err := DeleteDirectory(skillDir); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // GetVersionHistory returns version history for a skill
 func (s *FileSkillStore) GetVersionHistory(ctx context.Context, id string) ([]HistoryEntry, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	skill, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -323,10 +398,30 @@ func (s *FileSkillStore) ContentPath(pack, skillID string) string {
 	return filepath.Join(s.packsDir(), pack, skillID, "SKILL.md")
 }
 
+// ContentPathContext resolves the direct-content compatibility path through
+// the same request-scoped Config root as normal skill operations.
+func (s *FileSkillStore) ContentPathContext(ctx context.Context, pack, skillID string) (string, error) {
+	resolved, err := s.forContext(ctx)
+	if err != nil {
+		return "", err
+	}
+	return resolved.ContentPath(pack, skillID), nil
+}
+
+// RecordWrite is used by compatibility adapters that perform a direct content
+// write before skill metadata exists.
+func (s *FileSkillStore) RecordWrite(ctx context.Context) { s.recordWrite(ctx) }
+
 // Rename renames a skill by changing its directory name and updating skill.json.
 // This is an atomic operation: if any step fails, the original state is preserved.
 // Implements store.SkillStore.Rename()
 func (s *FileSkillStore) Rename(ctx context.Context, oldID, newID string) (*Skill, error) {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	// Validate new ID format
 	if !isValidSkillID(newID) {
 		return nil, fmt.Errorf("invalid skill ID format: %s", newID)
@@ -374,5 +469,6 @@ func (s *FileSkillStore) Rename(ctx context.Context, oldID, newID string) (*Skil
 		fmt.Printf("[skill_store] Warning: failed to write history for rename: %v\n", err)
 	}
 
+	original.recordWrite(ctx)
 	return skill, nil
 }

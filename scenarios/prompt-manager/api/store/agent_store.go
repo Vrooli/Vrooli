@@ -7,11 +7,38 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 // FileAgentStore implements AgentStore using the file system
 type FileAgentStore struct {
 	configDir string
+	roots     *filerouting.RoutedRoots
+}
+
+func NewRoutedFileAgentStore(roots *filerouting.RoutedRoots) *FileAgentStore {
+	return &FileAgentStore{roots: roots}
+}
+
+func (s *FileAgentStore) forContext(ctx context.Context) (*FileAgentStore, error) {
+	if s.roots == nil {
+		return s, nil
+	}
+	configDir, err := s.roots.Pick(ctx, storage.ClassConfig)
+	if err != nil {
+		return nil, fmt.Errorf("resolve routed config root: %w", err)
+	}
+	copy := *s
+	copy.configDir, copy.roots = configDir, nil
+	return &copy, nil
+}
+
+func (s *FileAgentStore) recordWrite(ctx context.Context) {
+	if s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
 }
 
 var defaultAgentMarkdownOrder = []string{"SOUL.md", "AGENTS.md", "TOOLS.md"}
@@ -49,6 +76,11 @@ func (s *FileAgentStore) agentsDir() string {
 
 // List returns all agents
 func (s *FileAgentStore) List(ctx context.Context) ([]Agent, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	agentDirs, err := ListDirectories(s.agentsDir())
 	if err != nil {
 		return nil, fmt.Errorf("listing agent directories: %w", err)
@@ -68,11 +100,22 @@ func (s *FileAgentStore) List(ctx context.Context) ([]Agent, error) {
 
 // Get retrieves an agent by ID
 func (s *FileAgentStore) Get(ctx context.Context, id string) (*Agent, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return s.loadAgent(id)
 }
 
 // Create creates a new agent
 func (s *FileAgentStore) Create(ctx context.Context, agent *Agent) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	// Check agent doesn't already exist
 	if _, err := s.Get(ctx, agent.ID); err == nil {
 		return fmt.Errorf("agent already exists: %s", agent.ID)
@@ -106,11 +149,18 @@ func (s *FileAgentStore) Create(ctx context.Context, agent *Agent) error {
 		return fmt.Errorf("creating default agent files: %w", err)
 	}
 
+	original.recordWrite(ctx)
 	return nil
 }
 
 // Update updates an existing agent
 func (s *FileAgentStore) Update(ctx context.Context, id string, updates *Agent) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	agent, err := s.Get(ctx, id)
 	if err != nil {
 		return err
@@ -137,17 +187,31 @@ func (s *FileAgentStore) Update(ctx context.Context, id string, updates *Agent) 
 
 	// Write updated agent.json
 	agentPath := filepath.Join(s.agentsDir(), id, "agent.json")
-	return SaveJSON(agentPath, agent)
+	if err := SaveJSON(agentPath, agent); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // Delete removes an agent
 func (s *FileAgentStore) Delete(ctx context.Context, id string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	if _, err := s.Get(ctx, id); err != nil {
 		return err
 	}
 
 	agentDir := filepath.Join(s.agentsDir(), id)
-	return DeleteDirectory(agentDir)
+	if err := DeleteDirectory(agentDir); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // loadAgent loads an agent from the agents directory
@@ -158,6 +222,11 @@ func (s *FileAgentStore) loadAgent(agentID string) (*Agent, error) {
 
 // GetSoul reads the SOUL.md content for an agent
 func (s *FileAgentStore) GetSoul(ctx context.Context, agentID string) (string, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return "", err
+	}
 	// Verify agent exists
 	if _, err := s.Get(ctx, agentID); err != nil {
 		return "", err
@@ -173,13 +242,23 @@ func (s *FileAgentStore) GetSoul(ctx context.Context, agentID string) (string, e
 
 // SetSoul writes the SOUL.md content for an agent
 func (s *FileAgentStore) SetSoul(ctx context.Context, agentID string, content string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	// Verify agent exists
 	if _, err := s.Get(ctx, agentID); err != nil {
 		return err
 	}
 
 	soulPath := filepath.Join(s.agentsDir(), agentID, "SOUL.md")
-	return WriteContent(soulPath, content)
+	if err := WriteContent(soulPath, content); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // AgentFileEntry represents a file or directory within an agent folder.
@@ -191,6 +270,11 @@ type AgentFileEntry struct {
 
 // ListFiles returns all files and directories under an agent folder.
 func (s *FileAgentStore) ListFiles(ctx context.Context, agentID string) ([]AgentFileEntry, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := s.Get(ctx, agentID); err != nil {
 		return nil, err
 	}
@@ -198,7 +282,7 @@ func (s *FileAgentStore) ListFiles(ctx context.Context, agentID string) ([]Agent
 	agentDir := filepath.Join(s.agentsDir(), agentID)
 	var entries []AgentFileEntry
 
-	err := filepath.WalkDir(agentDir, func(path string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(agentDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -243,6 +327,11 @@ func (s *FileAgentStore) ListFiles(ctx context.Context, agentID string) ([]Agent
 
 // ReadFile returns file content for a path within an agent folder.
 func (s *FileAgentStore) ReadFile(ctx context.Context, agentID, relPath string) (string, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return "", err
+	}
 	if _, err := s.Get(ctx, agentID); err != nil {
 		return "", err
 	}
@@ -257,6 +346,12 @@ func (s *FileAgentStore) ReadFile(ctx context.Context, agentID, relPath string) 
 
 // WriteFile overwrites file content within an agent folder.
 func (s *FileAgentStore) WriteFile(ctx context.Context, agentID, relPath, content string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	if _, err := s.Get(ctx, agentID); err != nil {
 		return err
 	}
@@ -269,11 +364,21 @@ func (s *FileAgentStore) WriteFile(ctx context.Context, agentID, relPath, conten
 		return err
 	}
 
-	return WriteContent(fullPath, content)
+	if err := WriteContent(fullPath, content); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // CreateFile creates a new file or directory within an agent folder.
 func (s *FileAgentStore) CreateFile(ctx context.Context, agentID, relPath, content string, isDir bool) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	if _, err := s.Get(ctx, agentID); err != nil {
 		return err
 	}
@@ -290,14 +395,27 @@ func (s *FileAgentStore) CreateFile(ctx context.Context, agentID, relPath, conte
 	}
 
 	if isDir {
-		return os.MkdirAll(fullPath, 0o755)
+		if err := os.MkdirAll(fullPath, 0o755); err != nil {
+			return err
+		}
+		original.recordWrite(ctx)
+		return nil
 	}
-
-	return WriteContent(fullPath, content)
+	if err := WriteContent(fullPath, content); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // RenameFile renames or moves a file within an agent folder.
 func (s *FileAgentStore) RenameFile(ctx context.Context, agentID, fromPath, toPath string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	if _, err := s.Get(ctx, agentID); err != nil {
 		return err
 	}
@@ -338,11 +456,18 @@ func (s *FileAgentStore) RenameFile(ctx context.Context, agentID, fromPath, toPa
 		return err
 	}
 
+	original.recordWrite(ctx)
 	return nil
 }
 
 // DeleteFile deletes a file or directory within an agent folder.
 func (s *FileAgentStore) DeleteFile(ctx context.Context, agentID, relPath string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	if _, err := s.Get(ctx, agentID); err != nil {
 		return err
 	}
@@ -361,9 +486,14 @@ func (s *FileAgentStore) DeleteFile(ctx context.Context, agentID, relPath string
 	}
 
 	if info.IsDir() {
-		return DeleteDirectory(fullPath)
+		if err := DeleteDirectory(fullPath); err != nil {
+			return err
+		}
+	} else if err := DeleteFile(fullPath); err != nil {
+		return err
 	}
-	return DeleteFile(fullPath)
+	original.recordWrite(ctx)
+	return nil
 }
 
 func (s *FileAgentStore) ensureDefaultAgentFiles(agentDir string) error {

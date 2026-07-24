@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 // maxAncestorDepth guards against circular parent references.
@@ -13,6 +16,30 @@ const maxAncestorDepth = 20
 // FileTopicStore implements TopicStore using the file system.
 type FileTopicStore struct {
 	configDir string
+	roots     *filerouting.RoutedRoots
+}
+
+func NewRoutedFileTopicStore(roots *filerouting.RoutedRoots) *FileTopicStore {
+	return &FileTopicStore{roots: roots}
+}
+
+func (s *FileTopicStore) forContext(ctx context.Context) (*FileTopicStore, error) {
+	if s.roots == nil {
+		return s, nil
+	}
+	configDir, err := s.roots.Pick(ctx, storage.ClassConfig)
+	if err != nil {
+		return nil, fmt.Errorf("resolve routed config root: %w", err)
+	}
+	copy := *s
+	copy.configDir, copy.roots = configDir, nil
+	return &copy, nil
+}
+
+func (s *FileTopicStore) recordWrite(ctx context.Context) {
+	if s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
 }
 
 // NewFileTopicStore creates a new file-based topic store.
@@ -28,6 +55,11 @@ func (s *FileTopicStore) topicsDir() string {
 
 // List returns all topics.
 func (s *FileTopicStore) List(ctx context.Context) ([]Topic, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	topicDirs, err := ListDirectories(s.topicsDir())
 	if err != nil {
 		return nil, fmt.Errorf("listing topic directories: %w", err)
@@ -47,11 +79,21 @@ func (s *FileTopicStore) List(ctx context.Context) ([]Topic, error) {
 
 // Get retrieves a topic by ID.
 func (s *FileTopicStore) Get(ctx context.Context, id string) (*Topic, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return s.loadTopic(id)
 }
 
 // GetWithContent retrieves a topic with its markdown content.
 func (s *FileTopicStore) GetWithContent(ctx context.Context, id string) (*Topic, string, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, "", err
+	}
 	topic, err := s.loadTopic(id)
 	if err != nil {
 		return nil, "", err
@@ -72,6 +114,12 @@ func (s *FileTopicStore) GetWithContent(ctx context.Context, id string) (*Topic,
 
 // Create creates a new topic.
 func (s *FileTopicStore) Create(ctx context.Context, topic *Topic, content string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	if _, err := s.Get(ctx, topic.ID); err == nil {
 		return fmt.Errorf("topic already exists: %s", topic.ID)
 	}
@@ -105,11 +153,18 @@ func (s *FileTopicStore) Create(ctx context.Context, topic *Topic, content strin
 		}
 	}
 
+	original.recordWrite(ctx)
 	return nil
 }
 
 // Update updates an existing topic.
 func (s *FileTopicStore) Update(ctx context.Context, id string, updates *Topic, content *string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	topic, err := s.Get(ctx, id)
 	if err != nil {
 		return err
@@ -170,21 +225,37 @@ func (s *FileTopicStore) Update(ctx context.Context, id string, updates *Topic, 
 		}
 	}
 
+	original.recordWrite(ctx)
 	return nil
 }
 
 // Delete removes a topic.
 func (s *FileTopicStore) Delete(ctx context.Context, id string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	if _, err := s.Get(ctx, id); err != nil {
 		return err
 	}
 
 	topicDir := filepath.Join(s.topicsDir(), id)
-	return DeleteDirectory(topicDir)
+	if err := DeleteDirectory(topicDir); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // GetAncestors returns the ancestor chain for a topic (parent, grandparent, etc.).
 func (s *FileTopicStore) GetAncestors(ctx context.Context, id string) ([]Topic, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	topic, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -219,6 +290,11 @@ func (s *FileTopicStore) GetAncestors(ctx context.Context, id string) ([]Topic, 
 
 // GetChildren returns direct children of a topic.
 func (s *FileTopicStore) GetChildren(ctx context.Context, id string) ([]Topic, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	// Verify topic exists
 	if _, err := s.Get(ctx, id); err != nil {
 		return nil, err
@@ -241,6 +317,11 @@ func (s *FileTopicStore) GetChildren(ctx context.Context, id string) ([]Topic, e
 
 // AccumulateSkills returns deduplicated skills from a topic and all its ancestors.
 func (s *FileTopicStore) AccumulateSkills(ctx context.Context, id string) ([]string, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	topic, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err

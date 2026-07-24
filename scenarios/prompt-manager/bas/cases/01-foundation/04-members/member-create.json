@@ -3,9 +3,11 @@
     "name": "member-create",
     "description": "Validate agent creation adds a new agent row",
     "labels": {
-      "reset": "none"
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

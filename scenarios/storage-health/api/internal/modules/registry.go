@@ -60,6 +60,10 @@ func AllEndpoints() []module.EndpointDescriptor {
 type ProtoFileEntry struct {
 	Module string
 	File   protoreflect.FileDescriptor
+	// Services optionally narrows parity validation to services mounted by this
+	// module. Shared proto files can declare services owned by other scenarios.
+	// An empty list retains the normal "all services in this file" behavior.
+	Services []protoreflect.FullName
 }
 
 // AllProtoFiles returns the proto FileDescriptor backing each
@@ -68,7 +72,9 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "advisor", File: advisorH.ProtoFile},
 		{Module: "fleet", File: fleetH.ProtoFile},
-		{Module: "validation", File: validationH.ProtoFile},
+		{Module: "validation", File: validationH.ProtoFile, Services: []protoreflect.FullName{
+			"vrooli.scenario_validation.v1.ScenarioValidationService",
+		}},
 	}
 }
 

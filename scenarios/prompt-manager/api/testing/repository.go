@@ -2,6 +2,7 @@
 package testing
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"time"
@@ -12,12 +13,28 @@ import (
 // Repository handles database operations for test results.
 // This is a testing seam: inject a mock Repository in tests to avoid database access.
 type Repository struct {
-	db *sql.DB
+	db  databaseExecutor
+	ctx context.Context
+}
+
+type databaseExecutor interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
 // NewRepository creates a new testing repository.
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db databaseExecutor) *Repository {
+	return &Repository{db: db, ctx: context.Background()}
+}
+
+func (r *Repository) WithContext(ctx context.Context) *Repository {
+	copy := *r
+	copy.ctx = ctx
+	return &copy
+}
+
+func (r *Repository) WithRequestContext(ctx context.Context) TestRepository {
+	return r.WithContext(ctx)
 }
 
 // Save stores a test result in the database.
@@ -40,7 +57,7 @@ func (r *Repository) Save(result *TestResult) error {
 		testedAt = time.Now()
 	}
 
-	_, err := r.db.Exec(`
+	_, err := r.db.ExecContext(r.ctx, `
 		INSERT INTO test_results (id, skill_id, model, input_variables, response, response_time, token_count, tested_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`, result.ID, result.SkillID, result.Role, inputVars, result.Response, result.ResponseTime, result.TokenCount, testedAt.UTC().Format(time.RFC3339Nano))
@@ -62,7 +79,7 @@ func (r *Repository) GetHistory(skillID string, limit int) ([]TestResult, error)
 		LIMIT ?
 	`
 
-	rows, err := r.db.Query(query, skillID, limit)
+	rows, err := r.db.QueryContext(r.ctx, query, skillID, limit)
 	if err != nil {
 		return nil, err
 	}

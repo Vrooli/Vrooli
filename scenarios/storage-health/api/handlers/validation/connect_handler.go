@@ -10,6 +10,7 @@ import (
 	"log"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"storage-health/internal/autofix"
 	"storage-health/internal/validation"
@@ -68,7 +69,13 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
 	execMetrics := collector.Stop()
-	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil, execMetrics)
+	nativeDetail, err := structpb.NewStruct(map[string]any{
+		"file_persisting": report.HasEngine(validation.EngineFile),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build storage native detail: %w", err))
+	}
+	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nativeDetail, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}

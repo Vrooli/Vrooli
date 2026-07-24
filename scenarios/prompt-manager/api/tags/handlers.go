@@ -4,6 +4,7 @@
 package tags
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 )
@@ -18,9 +19,18 @@ func NewHandlers(repo TagRepository) *Handlers {
 	return &Handlers{repo: repo}
 }
 
+func (h *Handlers) repoFor(ctx context.Context) TagRepository {
+	if scoped, ok := h.repo.(interface {
+		WithRequestContext(context.Context) TagRepository
+	}); ok {
+		return scoped.WithRequestContext(ctx)
+	}
+	return h.repo
+}
+
 // List handles GET /tags - returns all tags.
 func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
-	tags, err := h.repo.GetAll()
+	tags, err := h.repoFor(r.Context()).GetAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -43,7 +53,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo.Create(&tag); err != nil {
+	if err := h.repoFor(r.Context()).Create(&tag); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

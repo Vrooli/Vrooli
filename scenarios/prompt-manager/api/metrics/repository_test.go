@@ -2,12 +2,31 @@ package metrics
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
+	internalskills "prompt-manager/internal/skills"
 	"prompt-manager/internal/testsqlite"
 
 	"github.com/vrooli/api-core/database"
 )
+
+type contextRecordingDB struct{ ctx context.Context }
+
+func (d *contextRecordingDB) QueryContext(ctx context.Context, _ string, _ ...any) (*sql.Rows, error) {
+	d.ctx = ctx
+	return nil, nil
+}
+
+func (d *contextRecordingDB) QueryRowContext(ctx context.Context, _ string, _ ...any) *sql.Row {
+	d.ctx = ctx
+	return nil
+}
+
+func (d *contextRecordingDB) ExecContext(ctx context.Context, _ string, _ ...any) (sql.Result, error) {
+	d.ctx = ctx
+	return nil, nil
+}
 
 func TestNewRepositoryStoresDatabaseHandle(t *testing.T) {
 	repo := NewRepository(nil)
@@ -19,9 +38,20 @@ func TestNewRepositoryStoresDatabaseHandle(t *testing.T) {
 	}
 }
 
+func TestRepositoryWithContextForwardsTestModeToMutatingQuery(t *testing.T) {
+	db := &contextRecordingDB{}
+	repo := NewRepository(db).WithContext(database.WithTestMode(context.Background()))
+	if err := repo.SetRating("skill-1", 5, nil); err != nil {
+		t.Fatalf("set rating: %v", err)
+	}
+	if !database.IsTestMode(db.ctx) {
+		t.Fatal("mutating query did not receive the request test-mode context")
+	}
+}
+
 func TestRepositoryRecordsUsageAndRatingInSQLite(t *testing.T) {
 	db := testsqlite.Open(t)
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), database.SchemaProviderFunc(Schema)); err != nil {
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), database.SchemaProviderFunc(internalskills.Schema)); err != nil {
 		t.Fatalf("apply metrics schema: %v", err)
 	}
 	repo := NewRepository(db.Primary())

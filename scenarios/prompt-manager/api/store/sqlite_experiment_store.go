@@ -5,32 +5,28 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/vrooli/api-core/database"
 )
 
 // SQLiteExperimentStore is the durable evidence store for skill experiments.
 // The JSON payload keeps experiment evolution additive while event rows have a
 // database identity and idempotency constraint instead of append-only logs.
-type SQLiteExperimentStore struct{ db *sql.DB }
+type SQLiteExperimentStore struct{ db *database.RoutedDB }
 
-func NewSQLiteExperimentStore(runtimeDataDir string) (*SQLiteExperimentStore, error) {
-	db, err := sql.Open("sqlite", filepath.Join(runtimeDataDir, "experiments.sqlite"))
-	if err != nil {
-		return nil, fmt.Errorf("open experiment sqlite: %w", err)
-	}
-	s := &SQLiteExperimentStore{db: db}
-	if err := s.migrate(context.Background()); err != nil {
-		_ = db.Close()
-		return nil, err
-	}
-	return s, nil
+// NewSQLiteExperimentStore stores experiment evidence in the scenario's
+// RoutedDB. This is intentionally not a separately opened SQLite file: every
+// request must use the same leased test pool as the rest of prompt-manager.
+func NewSQLiteExperimentStore(db *database.RoutedDB) *SQLiteExperimentStore {
+	return &SQLiteExperimentStore{db: db}
 }
 
-func (s *SQLiteExperimentStore) migrate(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, `
+// ExperimentSchema owns the experiment-evidence tables. It is registered by
+// internal/modules so both primary and newly leased test pools are prepared
+// before routed requests can reach this store.
+func ExperimentSchema() string {
+	return `
 CREATE TABLE IF NOT EXISTS experiments (id TEXT PRIMARY KEY, skill_id TEXT NOT NULL, payload BLOB NOT NULL);
 CREATE INDEX IF NOT EXISTS experiments_skill_idx ON experiments(skill_id);
 CREATE TABLE IF NOT EXISTS experiment_outcomes (
@@ -65,15 +61,7 @@ CREATE TABLE IF NOT EXISTS experiment_audit_receipts (
   challenge_state TEXT NOT NULL, anomaly_count INTEGER NOT NULL,
   gaming_count INTEGER NOT NULL, completed_at TEXT NOT NULL,
   signature TEXT NOT NULL DEFAULT '', signature_envelope BLOB NOT NULL DEFAULT '', idempotency_key TEXT NOT NULL UNIQUE);
-`)
-	if err != nil {
-		return err
-	}
-	// Existing development databases may contain historical HMAC receipts. Keep
-	// their legacy signature readable solely so promotion can reject it; all new
-	// trusted receipts use the versioned envelope column.
-	_, _ = s.db.ExecContext(ctx, `ALTER TABLE experiment_audit_receipts ADD COLUMN signature_envelope BLOB NOT NULL DEFAULT ''`)
-	return err
+`
 }
 
 func (s *SQLiteExperimentStore) RecordAuditReceipt(ctx context.Context, receipt ExperimentAuditReceipt) error {

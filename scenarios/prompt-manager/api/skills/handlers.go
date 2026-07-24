@@ -40,6 +40,27 @@ type Handlers struct {
 	configDir        string                // Absolute path to store directory for computing file paths
 }
 
+// storeFor binds the legacy SkillStore API to the request context when its
+// implementation supports it. This keeps test-mode file routing scoped to the
+// request instead of storing mutable context on a shared handler.
+func (h *Handlers) storeFor(ctx context.Context) SkillStore {
+	if scoped, ok := h.store.(interface {
+		WithContext(context.Context) SkillStore
+	}); ok {
+		return scoped.WithContext(ctx)
+	}
+	return h.store
+}
+
+func (h *Handlers) metricsFor(ctx context.Context) MetricsService {
+	if scoped, ok := h.metrics.(interface {
+		WithContext(context.Context) MetricsService
+	}); ok {
+		return scoped.WithContext(ctx)
+	}
+	return h.metrics
+}
+
 func (h *Handlers) SetIdentityVerifier(verifier IdentityVerifier) { h.identityVerifier = verifier }
 
 // NewHandlers creates a new skills handler.
@@ -108,12 +129,13 @@ func (h *Handlers) triggerDeleteAsync(skillID string) {
 
 // List handles GET /skills - returns all skills with optional filtering.
 func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
 	tag := r.URL.Query().Get("tag")
 	folder := r.URL.Query().Get("folder")
 	modes := r.URL.Query()["modes"]
 	withoutProgrammaticHome := r.URL.Query().Get("withoutProgrammaticHome") == "true"
 
-	skills, err := h.store.GetAll()
+	skills, err := store.GetAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -139,9 +161,10 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 
 // Sync handles GET /skills/sync - returns skills with content for syncing.
 func (h *Handlers) Sync(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
 	tag := r.URL.Query().Get("tag")
 
-	skills, err := h.store.GetAll()
+	skills, err := store.GetAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -160,7 +183,7 @@ func (h *Handlers) Sync(w http.ResponseWriter, r *http.Request) {
 	var lastUpdated time.Time
 
 	for _, p := range skills {
-		response := h.toResponseWithContent(p)
+		response := h.toResponseWithContent(store, p)
 		responses = append(responses, response)
 
 		// Track latest update time
@@ -188,17 +211,18 @@ func (h *Handlers) Sync(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /skills/{id} - returns a single skill.
 func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	skill, folder, err := h.store.FindByID(id)
+	skill, folder, err := store.FindByID(id)
 	if err != nil {
 		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
 	}
 
 	// Load content
-	content, err := h.store.GetContent(folder, skill.File)
+	content, err := store.GetContent(folder, skill.File)
 	if err != nil {
 		http.Error(w, "Failed to load skill content", http.StatusInternalServerError)
 		return
@@ -215,6 +239,7 @@ func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 
 // Create handles POST /skills - creates a new skill.
 func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
 	var req CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -236,7 +261,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	// Generate unique ID if not provided
 	if req.ID == "" {
 		idExists := func(id string) bool {
-			_, _, err := h.store.FindByID(id)
+			_, _, err := store.FindByID(id)
 			return err == nil
 		}
 
@@ -248,7 +273,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		req.ID = uniqueID
 	} else {
 		// User provided explicit ID - check for conflict
-		if _, _, err := h.store.FindByID(req.ID); err == nil {
+		if _, _, err := store.FindByID(req.ID); err == nil {
 			http.Error(w, "Skill with this ID already exists", http.StatusConflict)
 			return
 		}
@@ -276,7 +301,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load existing skills for the folder
-	skills, err := h.store.LoadMetadata(req.Folder)
+	skills, err := store.LoadMetadata(req.Folder)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -286,15 +311,15 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	skills = append(skills, metadata)
 
 	// Save content file
-	if err := h.store.SaveContent(req.Folder, filename, req.Content); err != nil {
+	if err := store.SaveContent(req.Folder, filename, req.Content); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Save metadata
-	if err := h.store.SaveMetadata(req.Folder, skills); err != nil {
+	if err := store.SaveMetadata(req.Folder, skills); err != nil {
 		// Clean up content file on failure
-		_ = h.store.DeleteContent(req.Folder, filename)
+		_ = store.DeleteContent(req.Folder, filename)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -314,6 +339,8 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /skills/{id} - updates an existing skill.
 func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
+	metrics := h.metricsFor(r.Context())
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -323,7 +350,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	skill, folder, err := h.store.FindByID(id)
+	skill, folder, err := store.FindByID(id)
 	if err != nil {
 		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
@@ -359,7 +386,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 		// If the ID is changing, perform a rename operation
 		if newID != id {
-			renamedSkill, err := h.store.Rename(id, newID)
+			renamedSkill, err := store.Rename(id, newID)
 			if err != nil {
 				// Check for known error types
 				errStr := err.Error()
@@ -380,15 +407,15 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 			h.triggerIndexAsync(newID)
 
 			// Migrate metrics (best effort)
-			if oldMetrics, err := h.metrics.Get(id); err == nil && oldMetrics != nil {
+			if oldMetrics, err := metrics.Get(id); err == nil && oldMetrics != nil {
 				// Copy usage data to new ID, then delete old
 				for i := 0; i < oldMetrics.UsageCount; i++ {
-					_, _, _ = h.metrics.RecordUsage(newID)
+					_, _, _ = metrics.RecordUsage(newID)
 				}
 				if oldMetrics.EffectivenessRating != nil {
-					_ = h.metrics.SetRating(newID, *oldMetrics.EffectivenessRating, oldMetrics.Notes)
+					_ = metrics.SetRating(newID, *oldMetrics.EffectivenessRating, oldMetrics.Notes)
 				}
-				_ = h.metrics.Delete(id)
+				_ = metrics.Delete(id)
 			}
 
 			// Continue with the renamed skill and new ID
@@ -438,7 +465,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	// Handle folder move
 	if targetFolder != folder {
 		// Read current content
-		currentContent, err := h.store.GetContent(folder, oldFile)
+		currentContent, err := store.GetContent(folder, oldFile)
 		if err != nil {
 			http.Error(w, "Failed to read existing content for move", http.StatusInternalServerError)
 			return
@@ -451,16 +478,16 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Save content to new folder
-		if err := h.store.SaveContent(targetFolder, skill.File, contentToSave); err != nil {
+		if err := store.SaveContent(targetFolder, skill.File, contentToSave); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		// Remove from old folder's metadata
-		oldSkills, err := h.store.LoadMetadata(folder)
+		oldSkills, err := store.LoadMetadata(folder)
 		if err != nil {
 			// Rollback: delete from new folder
-			_ = h.store.DeleteContent(targetFolder, skill.File)
+			_ = store.DeleteContent(targetFolder, skill.File)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -470,35 +497,35 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 				filteredOld = append(filteredOld, p)
 			}
 		}
-		if err := h.store.SaveMetadata(folder, filteredOld); err != nil {
-			_ = h.store.DeleteContent(targetFolder, skill.File)
+		if err := store.SaveMetadata(folder, filteredOld); err != nil {
+			_ = store.DeleteContent(targetFolder, skill.File)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		// Add to new folder's metadata
-		newSkills, err := h.store.LoadMetadata(targetFolder)
+		newSkills, err := store.LoadMetadata(targetFolder)
 		if err != nil {
 			// Rollback is complex here, but proceed - metadata was already removed
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		newSkills = append(newSkills, *skill)
-		if err := h.store.SaveMetadata(targetFolder, newSkills); err != nil {
+		if err := store.SaveMetadata(targetFolder, newSkills); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		// Move version history
-		h.moveVersionHistory(id, folder, targetFolder)
+		h.moveVersionHistory(store, id, folder, targetFolder)
 
 		// Delete old content file
-		_ = h.store.DeleteContent(folder, oldFile)
+		_ = store.DeleteContent(folder, oldFile)
 	} else {
 		// Same folder - handle file rename or content update
 		if skill.File != oldFile {
 			// Read old content
-			oldContent, err := h.store.GetContent(folder, oldFile)
+			oldContent, err := store.GetContent(folder, oldFile)
 			if err != nil {
 				http.Error(w, "Failed to read existing content for rename", http.StatusInternalServerError)
 				return
@@ -508,22 +535,22 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 			if req.Content != nil {
 				newContent = *req.Content
 			}
-			if err := h.store.SaveContent(folder, skill.File, newContent); err != nil {
+			if err := store.SaveContent(folder, skill.File, newContent); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			// Delete old file
-			_ = h.store.DeleteContent(folder, oldFile)
+			_ = store.DeleteContent(folder, oldFile)
 		} else if req.Content != nil {
 			// No rename, just update content
-			if err := h.store.SaveContent(folder, skill.File, *req.Content); err != nil {
+			if err := store.SaveContent(folder, skill.File, *req.Content); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		}
 
 		// Load all skills and update the matching one
-		skills, err := h.store.LoadMetadata(folder)
+		skills, err := store.LoadMetadata(folder)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -536,7 +563,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if err := h.store.SaveMetadata(folder, skills); err != nil {
+		if err := store.SaveMetadata(folder, skills); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -546,7 +573,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	response.Folder = targetFolder
 
 	// Load content for response
-	if content, err := h.store.GetContent(targetFolder, skill.File); err == nil {
+	if content, err := store.GetContent(targetFolder, skill.File); err == nil {
 		response.Content = content
 	}
 
@@ -559,9 +586,9 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 // moveVersionHistory moves version history from one folder to another.
-func (h *Handlers) moveVersionHistory(skillID, fromFolder, toFolder string) {
+func (h *Handlers) moveVersionHistory(store SkillStore, skillID, fromFolder, toFolder string) {
 	// Load versions from source folder
-	fromVersions, err := h.store.LoadVersions(fromFolder)
+	fromVersions, err := store.LoadVersions(fromFolder)
 	if err != nil {
 		return
 	}
@@ -572,7 +599,7 @@ func (h *Handlers) moveVersionHistory(skillID, fromFolder, toFolder string) {
 	}
 
 	// Load versions for target folder
-	toVersions, err := h.store.LoadVersions(toFolder)
+	toVersions, err := store.LoadVersions(toFolder)
 	if err != nil {
 		toVersions = make(map[string]*VersionFile)
 	}
@@ -582,16 +609,18 @@ func (h *Handlers) moveVersionHistory(skillID, fromFolder, toFolder string) {
 	delete(fromVersions, skillID)
 
 	// Save both
-	_ = h.store.SaveVersions(toFolder, toVersions)
-	_ = h.store.SaveVersions(fromFolder, fromVersions)
+	_ = store.SaveVersions(toFolder, toVersions)
+	_ = store.SaveVersions(fromFolder, fromVersions)
 }
 
 // Delete handles DELETE /skills/{id} - deletes a skill.
 func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
+	metrics := h.metricsFor(r.Context())
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	skill, folder, err := h.store.FindByID(id)
+	skill, folder, err := store.FindByID(id)
 	if err != nil {
 		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
@@ -604,7 +633,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove from metadata
-	skills, err := h.store.LoadMetadata(folder)
+	skills, err := store.LoadMetadata(folder)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -617,16 +646,16 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := h.store.SaveMetadata(folder, filtered); err != nil {
+	if err := store.SaveMetadata(folder, filtered); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Delete content file (ignore error - best effort)
-	_ = h.store.DeleteContent(folder, skill.File)
+	_ = store.DeleteContent(folder, skill.File)
 
 	// Delete metrics from database
-	_ = h.metrics.Delete(id)
+	_ = metrics.Delete(id)
 
 	// Trigger async AI index delete
 	h.triggerDeleteAsync(id)
@@ -637,16 +666,18 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 
 // RecordUsage handles POST /skills/{id}/use - records skill usage.
 func (h *Handlers) RecordUsage(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
+	metrics := h.metricsFor(r.Context())
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	// Verify skill exists
-	if _, _, err := h.store.FindByID(id); err != nil {
+	if _, _, err := store.FindByID(id); err != nil {
 		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
 	}
 
-	usageCount, lastUsed, err := h.metrics.RecordUsage(id)
+	usageCount, lastUsed, err := metrics.RecordUsage(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -662,6 +693,8 @@ func (h *Handlers) RecordUsage(w http.ResponseWriter, r *http.Request) {
 
 // SetRating handles PUT /skills/{id}/rating - sets effectiveness rating.
 func (h *Handlers) SetRating(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
+	metrics := h.metricsFor(r.Context())
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -680,12 +713,12 @@ func (h *Handlers) SetRating(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify skill exists
-	if _, _, err := h.store.FindByID(id); err != nil {
+	if _, _, err := store.FindByID(id); err != nil {
 		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
 	}
 
-	if err := h.metrics.SetRating(id, req.Rating, req.Notes); err != nil {
+	if err := metrics.SetRating(id, req.Rating, req.Notes); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -749,13 +782,13 @@ func (h *Handlers) toResponse(p Metadata) Response {
 	return response
 }
 
-func (h *Handlers) toResponseWithContent(p Metadata) Response {
+func (h *Handlers) toResponseWithContent(store SkillStore, p Metadata) Response {
 	response := h.toResponse(p)
 
 	// Extract folder and filename
 	parts := strings.SplitN(p.File, "/", 2)
 	if len(parts) == 2 {
-		content, err := h.store.GetContent(parts[0], parts[1])
+		content, err := store.GetContent(parts[0], parts[1])
 		if err == nil {
 			response.Content = content
 			response.Variables = ExtractVariables(content)
@@ -767,10 +800,11 @@ func (h *Handlers) toResponseWithContent(p Metadata) Response {
 
 // GetVersions handles GET /skills/{id}/versions - returns version history.
 func (h *Handlers) GetVersions(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	versions, err := h.store.GetVersions(id)
+	versions, err := store.GetVersions(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -798,6 +832,7 @@ func (h *Handlers) GetVersions(w http.ResponseWriter, r *http.Request) {
 
 // RevertToVersion handles POST /skills/{id}/revert/{version} - reverts to a version.
 func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
+	store := h.storeFor(r.Context())
 	vars := mux.Vars(r)
 	id := vars["id"]
 	versionStr := vars["version"]
@@ -809,7 +844,7 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	skill, folder, err := h.store.FindByID(id)
+	skill, folder, err := store.FindByID(id)
 	if err != nil {
 		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
@@ -822,22 +857,22 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the version to revert to
-	targetVersion, err := h.store.GetVersionContent(id, version)
+	targetVersion, err := store.GetVersionContent(id, version)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
 	// Save current state as a new version before reverting
-	currentContent, err := h.store.GetContent(folder, skill.File)
+	currentContent, err := store.GetContent(folder, skill.File)
 	if err != nil {
 		http.Error(w, "Failed to read current content", http.StatusInternalServerError)
 		return
 	}
-	_ = h.store.SaveVersion(id, folder, skill, currentContent)
+	_ = store.SaveVersion(id, folder, skill, currentContent)
 
 	// Restore the old content
-	if err := h.store.SaveContent(folder, skill.File, targetVersion.Content); err != nil {
+	if err := store.SaveContent(folder, skill.File, targetVersion.Content); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -847,7 +882,7 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 	skill.UpdatedAt = now
 
 	// Save metadata
-	skills, err := h.store.LoadMetadata(folder)
+	skills, err := store.LoadMetadata(folder)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -858,13 +893,13 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	if err := h.store.SaveMetadata(folder, skills); err != nil {
+	if err := store.SaveMetadata(folder, skills); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Get updated version list to determine new version number
-	versions, _ := h.store.GetVersions(id)
+	versions, _ := store.GetVersions(id)
 	newVersion := 1
 	if len(versions) > 0 {
 		newVersion = versions[len(versions)-1].Version + 1

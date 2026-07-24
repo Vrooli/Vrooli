@@ -3,9 +3,11 @@
     "name": "skill-search-filter",
     "description": "Validate skill search filters update the empty state",
     "labels": {
-      "reset": "none"
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

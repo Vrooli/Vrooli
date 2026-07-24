@@ -2,6 +2,7 @@
 package metrics
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
@@ -11,12 +12,27 @@ import (
 // Repository handles database operations for skill metrics.
 // This is a testing seam: inject a mock Repository in tests to avoid database access.
 type Repository struct {
-	db *sql.DB
+	db  databaseExecutor
+	ctx context.Context
+}
+
+type databaseExecutor interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
 // NewRepository creates a new metrics repository.
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db databaseExecutor) *Repository {
+	return &Repository{db: db, ctx: context.Background()}
+}
+
+// WithContext returns a request-scoped repository. RoutedDB uses this context
+// to select a leased test pool without mutable shared request state.
+func (r *Repository) WithContext(ctx context.Context) *Repository {
+	copy := *r
+	copy.ctx = ctx
+	return &copy
 }
 
 func formatTime(t time.Time) string {
@@ -40,7 +56,7 @@ func (r *Repository) Get(skillID string) (*SkillMetrics, error) {
 		metrics  SkillMetrics
 		lastUsed sql.NullString
 	)
-	err := r.db.QueryRow(`
+	err := r.db.QueryRowContext(r.ctx, `
 		SELECT skill_id, usage_count, last_used, effectiveness_rating, notes
 		FROM skill_metrics WHERE skill_id = ?
 	`, skillID).Scan(&metrics.SkillID, &metrics.UsageCount, &lastUsed, &metrics.EffectivenessRating, &metrics.Notes)
@@ -75,7 +91,7 @@ func (r *Repository) RecordUsage(skillID string) (int, time.Time, error) {
 	`
 
 	var usageCount int
-	err := r.db.QueryRow(query, uuid.NewString(), skillID, nowText, nowText, nowText).Scan(&usageCount)
+	err := r.db.QueryRowContext(r.ctx, query, uuid.NewString(), skillID, nowText, nowText, nowText).Scan(&usageCount)
 	if err != nil {
 		return 0, time.Time{}, err
 	}
@@ -94,12 +110,12 @@ func (r *Repository) SetRating(skillID string, rating int, notes *string) error 
 		    notes = COALESCE(excluded.notes, skill_metrics.notes),
 		    updated_at = excluded.updated_at
 	`
-	_, err := r.db.Exec(query, uuid.NewString(), skillID, rating, notes, now, now)
+	_, err := r.db.ExecContext(r.ctx, query, uuid.NewString(), skillID, rating, notes, now, now)
 	return err
 }
 
 // Delete removes metrics for a skill (used when deleting a skill).
 func (r *Repository) Delete(skillID string) error {
-	_, err := r.db.Exec("DELETE FROM skill_metrics WHERE skill_id = ?", skillID)
+	_, err := r.db.ExecContext(r.ctx, "DELETE FROM skill_metrics WHERE skill_id = ?", skillID)
 	return err
 }

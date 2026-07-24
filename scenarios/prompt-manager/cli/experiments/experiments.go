@@ -380,22 +380,31 @@ func cmdConclude(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("conclude", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	notes := fs.String("notes", "", "Conclusion notes")
+	override := fs.Bool("override", false, "Bypass the pre-registered statistical and cost gates (requires --justification; the signed audit receipt is never bypassed)")
+	justification := fs.String("justification", "", "Recorded reason for --override")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: experiment conclude <eid> <winner-variant-id> [--notes TEXT]")
+		return fmt.Errorf("usage: experiment conclude <eid> <winner-variant-id> [--notes TEXT] [--override --justification TEXT]")
+	}
+	if *override && *justification == "" {
+		return fmt.Errorf("--override requires --justification")
 	}
 	eid := fs.Arg(0)
 	winnerVID := fs.Arg(1)
 
 	req := struct {
-		WinnerVariantID string `json:"winnerVariantId"`
-		Notes           string `json:"notes,omitempty"`
+		WinnerVariantID       string `json:"winnerVariantId"`
+		Notes                 string `json:"notes,omitempty"`
+		Override              bool   `json:"override,omitempty"`
+		OverrideJustification string `json:"overrideJustification,omitempty"`
 	}{
-		WinnerVariantID: winnerVID,
-		Notes:           *notes,
+		WinnerVariantID:       winnerVID,
+		Notes:                 *notes,
+		Override:              *override,
+		OverrideJustification: *justification,
 	}
 
 	var exp ExperimentResponse

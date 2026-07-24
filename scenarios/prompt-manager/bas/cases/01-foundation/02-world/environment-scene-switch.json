@@ -3,9 +3,11 @@
     "name": "environment-scene-switch",
     "description": "Validate environment scene buttons toggle active state",
     "labels": {
-      "reset": "none"
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

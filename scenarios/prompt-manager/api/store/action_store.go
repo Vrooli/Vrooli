@@ -8,6 +8,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 const (
@@ -225,11 +228,35 @@ func isValidActionInputName(name string) bool {
 // FileActionStore implements ActionStore using the file system.
 type FileActionStore struct {
 	configDir string
+	roots     *filerouting.RoutedRoots
 }
 
 // NewFileActionStore creates a new file-based Action store.
 func NewFileActionStore(configDir string) *FileActionStore {
 	return &FileActionStore{configDir: configDir}
+}
+
+func NewRoutedFileActionStore(roots *filerouting.RoutedRoots) *FileActionStore {
+	return &FileActionStore{roots: roots}
+}
+
+func (s *FileActionStore) forContext(ctx context.Context) (*FileActionStore, error) {
+	if s.roots == nil {
+		return s, nil
+	}
+	configDir, err := s.roots.Pick(ctx, storage.ClassConfig)
+	if err != nil {
+		return nil, fmt.Errorf("resolve routed config root: %w", err)
+	}
+	copy := *s
+	copy.configDir, copy.roots = configDir, nil
+	return &copy, nil
+}
+
+func (s *FileActionStore) recordWrite(ctx context.Context) {
+	if s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
 }
 
 func (s *FileActionStore) actionsDir() string {
@@ -255,6 +282,11 @@ func (s *FileActionStore) getActivePacks() ([]string, error) {
 
 // List returns all Actions from active packs.
 func (s *FileActionStore) List(ctx context.Context) ([]Action, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	packs, err := s.getActivePacks()
 	if err != nil {
 		return nil, fmt.Errorf("getting active packs: %w", err)
@@ -288,6 +320,11 @@ func (s *FileActionStore) List(ctx context.Context) ([]Action, error) {
 
 // Get retrieves an Action by ID, searching through active packs.
 func (s *FileActionStore) Get(ctx context.Context, id string) (*Action, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if !IsValidActionID(id) {
 		return nil, fmt.Errorf("invalid action ID format: %s", id)
 	}
@@ -311,6 +348,12 @@ func (s *FileActionStore) Get(ctx context.Context, id string) (*Action, error) {
 
 // Create creates a new Action in the specified pack.
 func (s *FileActionStore) Create(ctx context.Context, pack string, action *Action) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	if err := s.validatePack(pack); err != nil {
 		return err
 	}
@@ -336,11 +379,21 @@ func (s *FileActionStore) Create(ctx context.Context, pack string, action *Actio
 	if err := SaveJSON(filepath.Join(actionDir, "action.json"), action); err != nil {
 		return fmt.Errorf("writing action.json: %w", err)
 	}
-	return s.appendHistory(actionDir, action.Revision, "created", "Initial version")
+	if err := s.appendHistory(actionDir, action.Revision, "created", "Initial version"); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // Update updates an existing Action.
 func (s *FileActionStore) Update(ctx context.Context, id string, updates *Action) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	action, err := s.Get(ctx, id)
 	if err != nil {
 		return err
@@ -359,7 +412,11 @@ func (s *FileActionStore) Update(ctx context.Context, id string, updates *Action
 	if err := SaveJSON(filepath.Join(actionDir, "action.json"), action); err != nil {
 		return fmt.Errorf("writing action.json: %w", err)
 	}
-	return s.appendHistory(actionDir, action.Revision, "updated", "Updated action")
+	if err := s.appendHistory(actionDir, action.Revision, "updated", "Updated action"); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // Archive marks an Action archived without deleting its files.
@@ -369,15 +426,31 @@ func (s *FileActionStore) Archive(ctx context.Context, id string) error {
 
 // Delete removes an Action.
 func (s *FileActionStore) Delete(ctx context.Context, id string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	action, err := s.Get(ctx, id)
 	if err != nil {
 		return err
 	}
-	return DeleteDirectory(filepath.Join(s.packsDir(), action.Pack, id))
+	if err := DeleteDirectory(filepath.Join(s.packsDir(), action.Pack, id)); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // AppendRunHistory appends a bounded Action execution audit entry.
 func (s *FileActionStore) AppendRunHistory(ctx context.Context, id string, entry ActionRunHistoryEntry) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	action, err := s.Get(ctx, id)
 	if err != nil {
 		return err
@@ -390,7 +463,11 @@ func (s *FileActionStore) AppendRunHistory(ctx context.Context, id string, entry
 	if err := AppendJSONL(path, entry); err != nil {
 		return fmt.Errorf("writing action run history: %w", err)
 	}
-	return trimJSONLLines(path, maxActionRunHistoryEntries)
+	if err := trimJSONLLines(path, maxActionRunHistoryEntries); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 func (s *FileActionStore) validatePack(pack string) error {

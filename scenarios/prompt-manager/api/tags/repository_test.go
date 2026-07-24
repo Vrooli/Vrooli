@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	internaltags "prompt-manager/internal/tags"
 	"prompt-manager/internal/testsqlite"
 
 	"github.com/vrooli/api-core/database"
@@ -11,7 +12,7 @@ import (
 
 func TestRepositoryCreatesAndListsTagsInSQLite(t *testing.T) {
 	db := testsqlite.Open(t)
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), database.SchemaProviderFunc(Schema)); err != nil {
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), database.SchemaProviderFunc(internaltags.Schema)); err != nil {
 		t.Fatalf("apply tags schema: %v", err)
 	}
 	repo := NewRepository(db.Primary())

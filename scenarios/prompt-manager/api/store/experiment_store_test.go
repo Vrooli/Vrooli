@@ -2,11 +2,31 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/database"
 )
+
+func newRoutedExperimentStore(t *testing.T) *SQLiteExperimentStore {
+	t.Helper()
+	db, err := database.Open(context.Background(), database.Config{
+		Driver: database.DriverSQLite,
+		DSN:    filepath.Join(t.TempDir(), "experiments.sqlite"),
+	})
+	if err != nil {
+		t.Fatalf("open routed experiment database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), database.SchemaProviderFunc(ExperimentSchema)); err != nil {
+		t.Fatalf("initialize experiment schema: %v", err)
+	}
+	return NewSQLiteExperimentStore(db)
+}
 
 func TestExperimentStore_CreateAndGet(t *testing.T) {
 	storeDir := t.TempDir()
@@ -425,10 +445,7 @@ func TestExperimentStore_RecordOutcomeNotFound(t *testing.T) {
 
 func TestSQLiteExperimentStore_DeduplicatesEvidenceWrites(t *testing.T) {
 	ctx := context.Background()
-	es, err := NewSQLiteExperimentStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	es := newRoutedExperimentStore(t)
 	if err := es.Create(ctx, &Experiment{ID: "exp-1", SkillID: "s1", Name: "test"}); err != nil {
 		t.Fatal(err)
 	}
@@ -470,10 +487,7 @@ func TestSQLiteExperimentStore_DeduplicatesEvidenceWrites(t *testing.T) {
 
 func TestSQLiteExperimentStore_AssignmentSnapshotIsDurableAndIdempotent(t *testing.T) {
 	ctx := context.Background()
-	es, err := NewSQLiteExperimentStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	es := newRoutedExperimentStore(t)
 	assignment := ExperimentAssignment{ExperimentID: "exp-1", SkillID: "s1", VariantID: "treatment", ExecutionID: "execution-1", NodeID: "node-1", AttemptKey: "1", IdempotencyKey: "workflow/execution-1/node/node-1/attempt/1", Content: "immutable prompt", ContentHash: "sha256:one"}
 	if err := es.CreateAssignment(ctx, assignment); err != nil {
 		t.Fatal(err)
@@ -492,10 +506,7 @@ func TestSQLiteExperimentStore_AssignmentSnapshotIsDurableAndIdempotent(t *testi
 
 func TestSQLiteExperimentStore_PersistsAuditReceipt(t *testing.T) {
 	ctx := context.Background()
-	es, err := NewSQLiteExperimentStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	es := newRoutedExperimentStore(t)
 	receipt := ExperimentAuditReceipt{ExperimentID: "exp-1", ProtocolHash: "sha256:protocol", SampledAssignmentIDs: []string{"a-1"}, FindingsHash: "sha256:findings", ChallengeState: "clear", CompletedAt: "2026-01-01T00:00:00Z", SignatureEnvelope: json.RawMessage(`{"version":"vrooli.receipt-signature.v1","keyId":"key:v1"}`), IdempotencyKey: "audit/exp-1"}
 	if err := es.RecordAuditReceipt(ctx, receipt); err != nil {
 		t.Fatal(err)
@@ -506,5 +517,38 @@ func TestSQLiteExperimentStore_PersistsAuditReceipt(t *testing.T) {
 	}
 	if got.ProtocolHash != receipt.ProtocolHash || string(got.SignatureEnvelope) != string(receipt.SignatureEnvelope) || len(got.SampledAssignmentIDs) != 1 {
 		t.Fatalf("unexpected audit receipt: %#v", got)
+	}
+}
+
+func TestSQLiteExperimentStore_RoutesTestModeWritesToLeasedPool(t *testing.T) {
+	ctx := context.Background()
+	primaryPath := filepath.Join(t.TempDir(), "primary.sqlite")
+	testPath := filepath.Join(t.TempDir(), "test.sqlite")
+	db, err := database.Open(ctx, database.Config{Driver: database.DriverSQLite, DSN: primaryPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := database.EnsureSchemas(ctx, db.Primary(), database.SchemaProviderFunc(ExperimentSchema)); err != nil {
+		t.Fatal(err)
+	}
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return database.EnsureSchemas(ctx, pool, database.SchemaProviderFunc(ExperimentSchema))
+	})
+	if err := db.InstallTestPool(ctx, testPath, "experiment-isolation", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.ClearTestPool("experiment-isolation") })
+
+	es := NewSQLiteExperimentStore(db)
+	testCtx := database.WithTestMode(ctx)
+	if err := es.Create(testCtx, &Experiment{ID: "test-only", SkillID: "skill", Name: "isolated"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := es.Get(ctx, "test-only"); err == nil {
+		t.Fatal("test-mode experiment write leaked into the primary database")
+	}
+	if _, err := es.Get(testCtx, "test-only"); err != nil {
+		t.Fatalf("test-mode experiment missing from leased pool: %v", err)
 	}
 }

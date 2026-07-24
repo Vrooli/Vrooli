@@ -5,11 +5,38 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 // FileRelationStore implements RelationStore using the file system
 type FileRelationStore struct {
 	configDir string
+	roots     *filerouting.RoutedRoots
+}
+
+func NewRoutedFileRelationStore(roots *filerouting.RoutedRoots) *FileRelationStore {
+	return &FileRelationStore{roots: roots}
+}
+
+func (s *FileRelationStore) forContext(ctx context.Context) (*FileRelationStore, error) {
+	if s.roots == nil {
+		return s, nil
+	}
+	configDir, err := s.roots.Pick(ctx, storage.ClassConfig)
+	if err != nil {
+		return nil, fmt.Errorf("resolve routed config root: %w", err)
+	}
+	copy := *s
+	copy.configDir, copy.roots = configDir, nil
+	return &copy, nil
+}
+
+func (s *FileRelationStore) recordWrite(ctx context.Context) {
+	if s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
 }
 
 // NewFileRelationStore creates a new file-based relation store
@@ -31,6 +58,11 @@ func (s *FileRelationStore) teamMemberDir() string {
 
 // GetTeamMember retrieves a team-member relation
 func (s *FileRelationStore) GetTeamMember(ctx context.Context, teamID, agentID string) (*TeamMemberRelation, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	filename := fmt.Sprintf("%s__%s.json", teamID, agentID)
 	path := filepath.Join(s.teamMemberDir(), filename)
 	return LoadJSON[TeamMemberRelation](path)
@@ -38,6 +70,12 @@ func (s *FileRelationStore) GetTeamMember(ctx context.Context, teamID, agentID s
 
 // SetTeamMember creates or updates a team-member relation
 func (s *FileRelationStore) SetTeamMember(ctx context.Context, rel *TeamMemberRelation) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	rel.Kind = KindTeamMember
 	rel.SchemaVersion = CurrentSchemaVersion
 	if rel.Status == "" {
@@ -46,18 +84,37 @@ func (s *FileRelationStore) SetTeamMember(ctx context.Context, rel *TeamMemberRe
 
 	filename := fmt.Sprintf("%s__%s.json", rel.TeamID, rel.AgentID)
 	path := filepath.Join(s.teamMemberDir(), filename)
-	return SaveJSON(path, rel)
+	if err := SaveJSON(path, rel); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // DeleteTeamMember removes a team-member relation
 func (s *FileRelationStore) DeleteTeamMember(ctx context.Context, teamID, agentID string) error {
+	original := s
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return err
+	}
 	filename := fmt.Sprintf("%s__%s.json", teamID, agentID)
 	path := filepath.Join(s.teamMemberDir(), filename)
-	return DeleteFile(path)
+	if err := DeleteFile(path); err != nil {
+		return err
+	}
+	original.recordWrite(ctx)
+	return nil
 }
 
 // ListTeamMembers returns all members of a team
 func (s *FileRelationStore) ListTeamMembers(ctx context.Context, teamID string) ([]TeamMemberRelation, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	files, err := ListFiles(s.teamMemberDir(), fmt.Sprintf("%s__*.json", teamID))
 	if err != nil {
 		return nil, fmt.Errorf("listing team members: %w", err)
@@ -77,6 +134,11 @@ func (s *FileRelationStore) ListTeamMembers(ctx context.Context, teamID string) 
 
 // ListAllTeamMembers returns all team-member relations
 func (s *FileRelationStore) ListAllTeamMembers(ctx context.Context) ([]TeamMemberRelation, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	files, err := ListFiles(s.teamMemberDir(), "*.json")
 	if err != nil {
 		return nil, fmt.Errorf("listing all team members: %w", err)
@@ -96,6 +158,11 @@ func (s *FileRelationStore) ListAllTeamMembers(ctx context.Context) ([]TeamMembe
 
 // ListAgentTeams returns all teams an agent belongs to
 func (s *FileRelationStore) ListAgentTeams(ctx context.Context, agentID string) ([]TeamMemberRelation, error) {
+	var err error
+	s, err = s.forContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	files, err := ListFiles(s.teamMemberDir(), "*.json")
 	if err != nil {
 		return nil, fmt.Errorf("listing agent teams: %w", err)

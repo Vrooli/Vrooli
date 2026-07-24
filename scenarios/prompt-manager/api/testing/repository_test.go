@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	internaltesting "prompt-manager/internal/testing"
 	"prompt-manager/internal/testsqlite"
 
 	"github.com/vrooli/api-core/database"
@@ -12,7 +13,7 @@ import (
 
 func TestRepositorySavesHistoryForNonUUIDSkillID(t *testing.T) {
 	db := testsqlite.Open(t)
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), database.SchemaProviderFunc(Schema)); err != nil {
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), database.SchemaProviderFunc(internaltesting.Schema)); err != nil {
 		t.Fatalf("apply testing schema: %v", err)
 	}
 	repo := NewRepository(db.Primary())

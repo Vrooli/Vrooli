@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"prompt-manager/store"
@@ -29,12 +31,15 @@ func (m *mockExperimentStore) RecordExposure(_ context.Context, exposure store.E
 	m.exposures = append(m.exposures, exposure)
 	return nil
 }
+
 func (m *mockExperimentStore) ListExposures(_ context.Context, _ string) ([]store.ExperimentExposure, error) {
 	return append([]store.ExperimentExposure(nil), m.exposures...), nil
 }
+
 func (m *mockExperimentStore) ListAssignments(_ context.Context, _ string) ([]store.ExperimentAssignment, error) {
 	return append([]store.ExperimentAssignment(nil), m.assignments...), nil
 }
+
 func (m *mockExperimentStore) GetAssignment(_ context.Context, experimentID, key string) (*store.ExperimentAssignment, error) {
 	for i := range m.assignments {
 		if m.assignments[i].ExperimentID == experimentID && m.assignments[i].IdempotencyKey == key {
@@ -43,14 +48,17 @@ func (m *mockExperimentStore) GetAssignment(_ context.Context, experimentID, key
 	}
 	return nil, errors.New("assignment not found")
 }
+
 func (m *mockExperimentStore) CreateAssignment(_ context.Context, assignment store.ExperimentAssignment) error {
 	m.assignments = append(m.assignments, assignment)
 	return nil
 }
+
 func (m *mockExperimentStore) RecordAuditReceipt(_ context.Context, receipt store.ExperimentAuditReceipt) error {
 	m.auditReceipt = &receipt
 	return nil
 }
+
 func (m *mockExperimentStore) GetAuditReceipt(_ context.Context, _ string) (*store.ExperimentAuditReceipt, error) {
 	if m.auditReceipt == nil {
 		return nil, errors.New("audit receipt not found")
@@ -64,6 +72,7 @@ func (m *mockDecisionPublisher) AppendDecision(_ context.Context, _ string, entr
 	m.entries = append(m.entries, entry)
 	return nil
 }
+
 func (m *mockDecisionPublisher) GetDecisions(_ context.Context, teamID, contextTag, status string, _ int) ([]store.DecisionEntry, int, error) {
 	if teamID != "meta-optimization" {
 		return nil, 0, errors.New("unexpected team")
@@ -329,7 +338,12 @@ func TestExperimentHandlers_Lifecycle(t *testing.T) {
 	}
 	controlSuccess := false
 	es.assignments = append(es.assignments, store.ExperimentAssignment{ExperimentID: "exp-1", SkillID: "s1", VariantID: "control", ExecutionID: "execution-2", NodeID: "treatment", IdempotencyKey: "assignment-control"})
-	es.outcomes["exp-1"] = append(es.outcomes["exp-1"], store.ExperimentOutcome{VariantID: "control", Controlled: &store.ControlledExperimentOutcome{AssignmentID: "assignment-control", ExecutionID: "execution-2", EvaluatorAttemptID: "eval-control", EvaluatorRunID: "eval-run-control", Verdict: "fail", Success: &controlSuccess, OutcomeStatus: "complete", RubricHash: "sha256:rubric", EvaluatorPromptHash: "sha256:evaluator", StructuredSchemaHash: "sha256:schema"}})
+	es.outcomes["exp-1"] = append(es.outcomes["exp-1"], store.ExperimentOutcome{VariantID: "control", Data: json.RawMessage(`{"tokensUsed":1000}`), Controlled: &store.ControlledExperimentOutcome{AssignmentID: "assignment-control", ExecutionID: "execution-2", EvaluatorAttemptID: "eval-control", EvaluatorRunID: "eval-run-control", Verdict: "fail", Success: &controlSuccess, OutcomeStatus: "complete", RubricHash: "sha256:rubric", EvaluatorPromptHash: "sha256:evaluator", StructuredSchemaHash: "sha256:schema"}})
+	// The pre-registered probabilistic gate needs real evidence, not a single
+	// observation per arm: add enough clean assignments to push P(v1>control)
+	// past the frozen 0.95 threshold, with token guardrail data on both arms.
+	seedControlledEvidence(es, "exp-1", "v1", 6, true, 1000)
+	seedControlledEvidence(es, "exp-1", "control", 6, false, 1000)
 
 	// Conclude
 	audit := &store.ExperimentAuditReceipt{ExperimentID: "exp-1", ProtocolHash: es.experiments["exp-1"].Protocol.ProtocolHash, SampledAssignmentIDs: []string{"attempt-1"}, FindingsHash: "sha256:findings", ChallengeState: "clear", CompletedAt: "2026-01-01T00:00:00Z", IdempotencyKey: "audit/exp-1"}
@@ -529,5 +543,102 @@ func TestExperimentHandlers_ListOutcomes(t *testing.T) {
 	}
 	if resp[0].Controlled == nil || resp[0].Controlled.AssignmentID != "assignment-1" {
 		t.Fatalf("expected controlled evaluator provenance in response, got %#v", resp[0].Controlled)
+	}
+}
+
+// seedControlledEvidence bulk-adds clean assignment+outcome pairs for one arm,
+// each with a complete evaluator verdict and token guardrail data.
+func seedControlledEvidence(es *mockExperimentStore, eid, variant string, n int, success bool, tokens float64) {
+	for i := 0; i < n; i++ {
+		key := fmt.Sprintf("seed-%s-%s-%d", eid, variant, i)
+		execID := fmt.Sprintf("seed-exec-%s-%s-%d", eid, variant, i)
+		es.assignments = append(es.assignments, store.ExperimentAssignment{ExperimentID: eid, SkillID: "s1", VariantID: variant, ExecutionID: execID, NodeID: "treatment", IdempotencyKey: key})
+		ok := success
+		es.outcomes[eid] = append(es.outcomes[eid], store.ExperimentOutcome{VariantID: variant, Data: json.RawMessage(fmt.Sprintf(`{"tokensUsed":%g}`, tokens)), Controlled: &store.ControlledExperimentOutcome{AssignmentID: key, ExecutionID: execID, EvaluatorAttemptID: "eval-" + key, EvaluatorRunID: "evalrun-" + key, Verdict: "seed", Success: &ok, OutcomeStatus: "complete", RubricHash: "sha256:rubric", EvaluatorPromptHash: "sha256:evaluator", StructuredSchemaHash: "sha256:schema"}})
+	}
+}
+
+// newRunningGateExperiment builds a handler + running experiment with a valid
+// signed audit receipt, ready for conclude-gate scenarios.
+func newRunningGateExperiment(t *testing.T, eid string) (*ExperimentHandlers, *mockExperimentStore, *mockDecisionPublisher) {
+	t.Helper()
+	es := newMockExperimentStore()
+	vs := newMockVariantStore()
+	ss := newMockPackSkillStore()
+	ss.skills["s1"] = &store.Skill{ID: "s1", Name: "S1", Pack: "local"}
+	if err := vs.Create(context.Background(), "s1", &store.Variant{ID: "v1", Name: "V1"}, "winner content"); err != nil {
+		t.Fatal(err)
+	}
+	h := NewExperimentHandlers(es, vs, ss)
+	publisher := &mockDecisionPublisher{}
+	h.SetDecisionPublisher(publisher)
+	h.SetReceiptSigner(receiptsigning.NewDevelopmentSigner())
+	protocol := validProtocol()
+	normalizeProtocol(&protocol)
+	protocol.ProtocolHash = protocolHash(protocol)
+	running := "2026-01-01T00:00:00Z"
+	if err := es.Create(context.Background(), &store.Experiment{ID: eid, SkillID: "s1", Name: "Gate", Status: store.ExperimentStatusRunning, StartedAt: &running, Protocol: protocol, Arms: []store.ExperimentArm{{VariantID: "control", Weight: 0.5}, {VariantID: "v1", Weight: 0.5}}}); err != nil {
+		t.Fatal(err)
+	}
+	audit := &store.ExperimentAuditReceipt{ExperimentID: eid, ProtocolHash: protocol.ProtocolHash, SampledAssignmentIDs: []string{"seed"}, FindingsHash: "sha256:findings", ChallengeState: "clear", CompletedAt: running, IdempotencyKey: "audit/" + eid}
+	envelope, err := h.signAuditReceipt(context.Background(), audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	audit.SignatureEnvelope, _ = json.Marshal(envelope)
+	es.auditReceipt = audit
+	return h, es, publisher
+}
+
+func concludeGateRequest(t *testing.T, h *ExperimentHandlers, eid string, body ConcludeExperimentRequest) *httptest.ResponseRecorder {
+	t.Helper()
+	raw, _ := json.Marshal(body)
+	req := httptest.NewRequest("POST", "/experiments/"+eid+"/conclude", bytes.NewReader(raw))
+	req = mux.SetURLVars(req, map[string]string{"eid": eid})
+	w := httptest.NewRecorder()
+	h.ConcludeExperiment(w, req)
+	return w
+}
+
+func TestConcludeProbabilisticGateBlocksWeakEvidence(t *testing.T) {
+	h, es, _ := newRunningGateExperiment(t, "exp-gate")
+	// One observation per arm: effect clears its threshold, but P(v1>control)
+	// on a single pair is ~0.83 — below the frozen 0.95 gate.
+	seedControlledEvidence(es, "exp-gate", "v1", 1, true, 1000)
+	seedControlledEvidence(es, "exp-gate", "control", 1, false, 1000)
+	w := concludeGateRequest(t, h, "exp-gate", ConcludeExperimentRequest{WinnerVariantID: "v1"})
+	if w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "posterior probability") {
+		t.Fatalf("expected 409 posterior-probability gate, got %d: %s", w.Code, w.Body.String())
+	}
+	// Override without justification is not an override.
+	w = concludeGateRequest(t, h, "exp-gate", ConcludeExperimentRequest{WinnerVariantID: "v1", Override: true})
+	if w.Code != http.StatusConflict {
+		t.Fatalf("override without justification should 409, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestConcludeCostGateBlocksExpensiveWinner(t *testing.T) {
+	h, es, _ := newRunningGateExperiment(t, "exp-cost")
+	seedControlledEvidence(es, "exp-cost", "v1", 6, true, 2000)
+	seedControlledEvidence(es, "exp-cost", "control", 6, false, 1000)
+	w := concludeGateRequest(t, h, "exp-cost", ConcludeExperimentRequest{WinnerVariantID: "v1"})
+	if w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "token cost") {
+		t.Fatalf("expected 409 cost gate, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestConcludeOverrideRecordsJustification(t *testing.T) {
+	h, es, publisher := newRunningGateExperiment(t, "exp-override")
+	seedControlledEvidence(es, "exp-override", "v1", 1, true, 1000)
+	seedControlledEvidence(es, "exp-override", "control", 1, false, 1000)
+	w := concludeGateRequest(t, h, "exp-override", ConcludeExperimentRequest{WinnerVariantID: "v1", Override: true, OverrideJustification: "operator-approved pilot"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("override with justification should conclude, got %d: %s", w.Code, w.Body.String())
+	}
+	if len(publisher.entries) != 1 || !strings.Contains(publisher.entries[0].Rationale, "GATE OVERRIDE") || !strings.Contains(publisher.entries[0].Rationale, "operator-approved pilot") {
+		t.Fatalf("published decision must record the override, got %+v", publisher.entries)
+	}
+	if exp := es.experiments["exp-override"]; exp.Notes == "" || !strings.Contains(exp.Notes, "gate-override") {
+		t.Fatalf("experiment notes must record the override, got %q", exp.Notes)
 	}
 }

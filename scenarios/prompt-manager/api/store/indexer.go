@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"time"
+
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 // FileIndexStore implements IndexStore using the file system. Indexes are
@@ -18,6 +21,25 @@ type FileIndexStore struct {
 	teamStore     TeamStore
 	topicStore    TopicStore
 	relationStore RelationStore
+	roots         *filerouting.RoutedRoots
+}
+
+// NewRoutedFileIndexStore routes derived cache writes per request.
+func NewRoutedFileIndexStore(roots *filerouting.RoutedRoots, skillStore SkillStore, agentStore AgentStore, teamStore TeamStore, topicStore TopicStore, relationStore RelationStore) *FileIndexStore {
+	return &FileIndexStore{skillStore: skillStore, agentStore: agentStore, teamStore: teamStore, topicStore: topicStore, relationStore: relationStore, roots: roots}
+}
+
+func (s *FileIndexStore) forContext(ctx context.Context) *FileIndexStore {
+	if s.roots == nil {
+		return s
+	}
+	cacheRoot, err := s.roots.Pick(ctx, storage.ClassCache)
+	if err != nil {
+		return s
+	}
+	copy := *s
+	copy.cacheRoot = cacheRoot
+	return &copy
 }
 
 // NewFileIndexStore creates a new file-based index store. cacheRoot is the
@@ -40,6 +62,7 @@ func (s *FileIndexStore) indexesDir() string {
 
 // RegenerateAll regenerates all indexes from entity files
 func (s *FileIndexStore) RegenerateAll(ctx context.Context) error {
+	s = s.forContext(ctx)
 	if err := s.RegenerateSkills(ctx); err != nil {
 		return fmt.Errorf("regenerating skills index: %w", err)
 	}
@@ -57,6 +80,7 @@ func (s *FileIndexStore) RegenerateAll(ctx context.Context) error {
 
 // RegenerateSkills regenerates the skills index
 func (s *FileIndexStore) RegenerateSkills(ctx context.Context) error {
+	s = s.forContext(ctx)
 	skills, err := s.skillStore.List(ctx)
 	if err != nil {
 		return fmt.Errorf("listing skills: %w", err)
@@ -80,11 +104,16 @@ func (s *FileIndexStore) RegenerateSkills(ctx context.Context) error {
 	}
 
 	indexPath := filepath.Join(s.indexesDir(), "skills.index.json")
-	return SaveJSON(indexPath, index)
+	err = SaveJSON(indexPath, index)
+	if err == nil && s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
+	return err
 }
 
 // RegenerateAgents regenerates the agents index
 func (s *FileIndexStore) RegenerateAgents(ctx context.Context) error {
+	s = s.forContext(ctx)
 	agents, err := s.agentStore.List(ctx)
 	if err != nil {
 		return fmt.Errorf("listing agents: %w", err)
@@ -105,11 +134,16 @@ func (s *FileIndexStore) RegenerateAgents(ctx context.Context) error {
 	}
 
 	indexPath := filepath.Join(s.indexesDir(), "agents.index.json")
-	return SaveJSON(indexPath, index)
+	err = SaveJSON(indexPath, index)
+	if err == nil && s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
+	return err
 }
 
 // RegenerateTeams regenerates the teams index
 func (s *FileIndexStore) RegenerateTeams(ctx context.Context) error {
+	s = s.forContext(ctx)
 	teams, err := s.teamStore.List(ctx)
 	if err != nil {
 		return fmt.Errorf("listing teams: %w", err)
@@ -138,11 +172,16 @@ func (s *FileIndexStore) RegenerateTeams(ctx context.Context) error {
 	}
 
 	indexPath := filepath.Join(s.indexesDir(), "teams.index.json")
-	return SaveJSON(indexPath, index)
+	err = SaveJSON(indexPath, index)
+	if err == nil && s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
+	return err
 }
 
 // GetSkillsIndex returns the current skills index
 func (s *FileIndexStore) GetSkillsIndex(ctx context.Context) (*SkillsIndex, error) {
+	s = s.forContext(ctx)
 	indexPath := filepath.Join(s.indexesDir(), "skills.index.json")
 	if !FileExists(indexPath) {
 		// Generate if doesn't exist
@@ -155,6 +194,7 @@ func (s *FileIndexStore) GetSkillsIndex(ctx context.Context) (*SkillsIndex, erro
 
 // GetAgentsIndex returns the current agents index
 func (s *FileIndexStore) GetAgentsIndex(ctx context.Context) (*AgentsIndex, error) {
+	s = s.forContext(ctx)
 	indexPath := filepath.Join(s.indexesDir(), "agents.index.json")
 	if !FileExists(indexPath) {
 		// Generate if doesn't exist
@@ -167,6 +207,7 @@ func (s *FileIndexStore) GetAgentsIndex(ctx context.Context) (*AgentsIndex, erro
 
 // GetTeamsIndex returns the current teams index
 func (s *FileIndexStore) GetTeamsIndex(ctx context.Context) (*TeamsIndex, error) {
+	s = s.forContext(ctx)
 	indexPath := filepath.Join(s.indexesDir(), "teams.index.json")
 	if !FileExists(indexPath) {
 		// Generate if doesn't exist
@@ -179,6 +220,7 @@ func (s *FileIndexStore) GetTeamsIndex(ctx context.Context) (*TeamsIndex, error)
 
 // RegenerateTopics regenerates the topics index
 func (s *FileIndexStore) RegenerateTopics(ctx context.Context) error {
+	s = s.forContext(ctx)
 	topics, err := s.topicStore.List(ctx)
 	if err != nil {
 		return fmt.Errorf("listing topics: %w", err)
@@ -201,11 +243,16 @@ func (s *FileIndexStore) RegenerateTopics(ctx context.Context) error {
 	}
 
 	indexPath := filepath.Join(s.indexesDir(), "topics.index.json")
-	return SaveJSON(indexPath, index)
+	err = SaveJSON(indexPath, index)
+	if err == nil && s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
+	return err
 }
 
 // GetTopicsIndex returns the current topics index
 func (s *FileIndexStore) GetTopicsIndex(ctx context.Context) (*TopicsIndex, error) {
+	s = s.forContext(ctx)
 	indexPath := filepath.Join(s.indexesDir(), "topics.index.json")
 	if !FileExists(indexPath) {
 		if err := s.RegenerateTopics(ctx); err != nil {

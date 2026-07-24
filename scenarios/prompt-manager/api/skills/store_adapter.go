@@ -24,6 +24,7 @@ import (
 type StoreAdapter struct {
 	skillStore store.SkillStore
 	contentIO  store.ContentIO
+	ctx        context.Context
 }
 
 // NewStoreAdapter creates a new store adapter with the given skill store and content I/O.
@@ -35,10 +36,45 @@ func NewStoreAdapter(skillStore store.SkillStore, contentIO store.ContentIO) *St
 	}
 }
 
+// WithContext returns a shallow request-scoped adapter. Legacy SkillStore
+// methods do not accept a context, so HTTP handlers opt into this method at
+// their boundary; the underlying pack store then resolves RoutedRoots per
+// request instead of writing to its startup Config root.
+func (a *StoreAdapter) WithContext(ctx context.Context) SkillStore {
+	copy := *a
+	copy.ctx = ctx
+	return &copy
+}
+
+func (a *StoreAdapter) requestContext() context.Context {
+	if a.ctx != nil {
+		return a.ctx
+	}
+	return context.Background()
+}
+
+type contextualContentPathStore interface {
+	ContentPathContext(context.Context, string, string) (string, error)
+	RecordWrite(context.Context)
+}
+
+func (a *StoreAdapter) contentPath(ctx context.Context, folder, id string) (string, error) {
+	if routed, ok := a.skillStore.(contextualContentPathStore); ok {
+		return routed.ContentPathContext(ctx, folder, id)
+	}
+	return a.skillStore.ContentPath(folder, id), nil
+}
+
+func (a *StoreAdapter) recordDirectContentWrite(ctx context.Context) {
+	if routed, ok := a.skillStore.(contextualContentPathStore); ok {
+		routed.RecordWrite(ctx)
+	}
+}
+
 // GetAll returns all skills from active packs, converting to the old Metadata format.
 // Implements skills.SkillStore.GetAll()
 func (a *StoreAdapter) GetAll() ([]Metadata, error) {
-	ctx := context.Background()
+	ctx := a.requestContext()
 	skills, err := a.skillStore.List(ctx)
 	if err != nil {
 		return nil, err
@@ -55,7 +91,7 @@ func (a *StoreAdapter) GetAll() ([]Metadata, error) {
 // Returns the skill metadata and the pack (folder) it was found in.
 // Implements skills.SkillStore.FindByID()
 func (a *StoreAdapter) FindByID(id string) (*Metadata, string, error) {
-	ctx := context.Background()
+	ctx := a.requestContext()
 	skill, err := a.skillStore.Get(ctx, id)
 	if err != nil {
 		return nil, "", err
@@ -68,7 +104,7 @@ func (a *StoreAdapter) FindByID(id string) (*Metadata, string, error) {
 // LoadMetadata loads skills from a pack's skill directories.
 // Implements skills.SkillStore.LoadMetadata()
 func (a *StoreAdapter) LoadMetadata(folder string) ([]Metadata, error) {
-	ctx := context.Background()
+	ctx := a.requestContext()
 	skills, err := a.skillStore.List(ctx)
 	if err != nil {
 		return nil, err
@@ -89,7 +125,7 @@ func (a *StoreAdapter) LoadMetadata(folder string) ([]Metadata, error) {
 // spurious revision increments and history.jsonl entries.
 // Implements skills.SkillStore.SaveMetadata()
 func (a *StoreAdapter) SaveMetadata(folder string, skills []Metadata) error {
-	ctx := context.Background()
+	ctx := a.requestContext()
 
 	// Get existing skills in this pack for deletion detection and change comparison
 	existing, err := a.LoadMetadata(folder)
@@ -210,7 +246,7 @@ func stringPtrEqual(a, b *string) bool {
 // In the new storage, content is at packs/{pack}/{id}/SKILL.md
 // Implements skills.SkillStore.GetContent()
 func (a *StoreAdapter) GetContent(folder, filename string) (string, error) {
-	ctx := context.Background()
+	ctx := a.requestContext()
 
 	// Extract skill ID from filename
 	// Filename may be "id.md" or "folder/id.md" (from toMetadata)
@@ -236,14 +272,17 @@ func (a *StoreAdapter) GetContent(folder, filename string) (string, error) {
 	// Skill doesn't exist in store yet - try reading directly from disk
 	// This handles the case during move operations where content was
 	// pre-written by SaveContent but skill.json doesn't exist yet
-	contentPath := a.skillStore.ContentPath(folder, id)
+	contentPath, pathErr := a.contentPath(ctx, folder, id)
+	if pathErr != nil {
+		return "", pathErr
+	}
 	return a.contentIO.ReadContent(contentPath)
 }
 
 // SaveContent writes a skill's markdown content.
 // Implements skills.SkillStore.SaveContent()
 func (a *StoreAdapter) SaveContent(folder, filename, content string) error {
-	ctx := context.Background()
+	ctx := a.requestContext()
 
 	// Extract skill ID from filename
 	// Filename may be "id.md" or "folder/id.md" (from toMetadata)
@@ -267,8 +306,15 @@ func (a *StoreAdapter) SaveContent(folder, filename, content string) error {
 	if err != nil {
 		// Skill doesn't exist yet - write content directly to target location
 		// so that SaveMetadata can find it when creating the skill
-		contentPath := a.skillStore.ContentPath(folder, id)
-		return a.contentIO.WriteContent(contentPath, content)
+		contentPath, pathErr := a.contentPath(ctx, folder, id)
+		if pathErr != nil {
+			return pathErr
+		}
+		if err := a.contentIO.WriteContent(contentPath, content); err != nil {
+			return err
+		}
+		a.recordDirectContentWrite(ctx)
+		return nil
 	}
 
 	// Update with new content
@@ -287,7 +333,7 @@ func (a *StoreAdapter) DeleteContent(folder, filename string) error {
 // GetVersions returns version history for a skill.
 // Implements skills.SkillStore.GetVersions()
 func (a *StoreAdapter) GetVersions(skillID string) ([]SkillVersion, error) {
-	ctx := context.Background()
+	ctx := a.requestContext()
 	entries, err := a.skillStore.GetVersionHistory(ctx, skillID)
 	if err != nil {
 		return nil, err

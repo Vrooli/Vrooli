@@ -2,9 +2,10 @@ package modules
 
 import (
 	localdb "prompt-manager/internal/database"
-	"prompt-manager/metrics"
-	"prompt-manager/tags"
-	"prompt-manager/testing"
+	internalskills "prompt-manager/internal/skills"
+	internaltags "prompt-manager/internal/tags"
+	internaltesting "prompt-manager/internal/testing"
+	"prompt-manager/store"
 
 	"github.com/vrooli/api-core/database"
 )
@@ -12,8 +13,9 @@ import (
 func AllSchemas() []database.SchemaProvider {
 	return []database.SchemaProvider{
 		database.SchemaProviderFunc(localdb.SystemSchema),
-		database.SchemaProviderFunc(metrics.Schema),
-		database.SchemaProviderFunc(tags.Schema),
-		database.SchemaProviderFunc(testing.Schema),
+		database.SchemaProviderFunc(internalskills.Schema),
+		database.SchemaProviderFunc(internaltags.Schema),
+		database.SchemaProviderFunc(internaltesting.Schema),
+		database.SchemaProviderFunc(store.ExperimentSchema),
 	}
 }

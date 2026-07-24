@@ -193,7 +193,7 @@ prompt-manager skill read <identifier> [<identifier>...] [--resolve=auto|id|file
 
 **Example:**
 ```bash
-prompt-manager skill read react-coherence domain-clarity --output=combined --format=markdown --copy
+prompt-manager skill read ui-health domain-clarity --output=combined --format=markdown --copy
 ```
 
 ### prompt-manager skill rate

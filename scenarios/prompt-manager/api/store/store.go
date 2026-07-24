@@ -2,10 +2,13 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
 	"prompt-manager/internal/paths"
 )
 
@@ -32,27 +35,54 @@ type FileStore struct {
 }
 
 // NewFileStore creates a new file-based store rooted at the given Roots.
-func NewFileStore(roots paths.Roots) *FileStore {
+func NewFileStore(roots paths.Roots, routedRoots ...*filerouting.RoutedRoots) *FileStore {
 	// Ensure on-disk layout exists for every class FileStore writes to.
 	ensureStoreDirectories(roots)
 
 	// Create relation store first (needed by others)
 	relationStore := NewFileRelationStore(roots.Config)
+	if len(routedRoots) > 0 && routedRoots[0] != nil {
+		relationStore = NewRoutedFileRelationStore(routedRoots[0])
+	}
 
 	// Create entity stores
 	skillStore := NewFileSkillStore(roots.Config)
 	actionStore := NewFileActionStore(roots.Config)
-	variantStore := NewFileVariantStore(skillStore)
-	experimentStore, err := NewSQLiteExperimentStore(roots.RuntimeData)
-	if err != nil {
-		panic("initialize durable experiment store: " + err.Error())
+	if len(routedRoots) > 0 && routedRoots[0] != nil {
+		skillStore = NewRoutedFileSkillStore(routedRoots[0])
+		actionStore = NewRoutedFileActionStore(routedRoots[0])
 	}
-	teamStore := NewFileTeamStore(roots.Config, roots.RuntimeData, relationStore)
+	variantStore := NewFileVariantStore(skillStore)
+	// Standalone store users (mostly unit tests) get a local RoutedDB. Runtime
+	// construction replaces this with the scenario database through
+	// SetExperimentStoreDatabase below before handlers are wired.
+	experimentDB, err := database.Open(context.Background(), database.Config{
+		Driver: database.DriverSQLite,
+		DSN:    filepath.Join(roots.RuntimeData, "store.sqlite"),
+	})
+	if err != nil {
+		panic("open experiment database: " + err.Error())
+	}
+	if err := database.EnsureSchemas(context.Background(), experimentDB.Primary(), database.SchemaProviderFunc(ExperimentSchema)); err != nil {
+		panic("initialize experiment schema: " + err.Error())
+	}
+	experimentDB.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return database.EnsureSchemas(ctx, pool, database.SchemaProviderFunc(ExperimentSchema))
+	})
+	experimentStore := NewSQLiteExperimentStore(experimentDB)
+	teamStore := NewFileTeamStore(roots.Config, roots.RuntimeData, relationStore, routedRoots...)
 	agentStore := NewFileAgentStore(roots.Config)
 	topicStore := NewFileTopicStore(roots.Config)
+	if len(routedRoots) > 0 && routedRoots[0] != nil {
+		topicStore = NewRoutedFileTopicStore(routedRoots[0])
+		agentStore = NewRoutedFileAgentStore(routedRoots[0])
+	}
 
 	// Index store writes derived caches under the RuntimeCache class root.
 	indexStore := NewFileIndexStore(roots.RuntimeCache, skillStore, agentStore, teamStore, topicStore, relationStore)
+	if len(routedRoots) > 0 && routedRoots[0] != nil {
+		indexStore = NewRoutedFileIndexStore(routedRoots[0], skillStore, agentStore, teamStore, topicStore, relationStore)
+	}
 
 	return &FileStore{
 		roots:       roots,
@@ -66,6 +96,17 @@ func NewFileStore(roots paths.Roots) *FileStore {
 		relations:   relationStore,
 		indexes:     indexStore,
 	}
+}
+
+// SetExperimentStoreDatabase replaces FileStore's experiment persistence with
+// the scenario-wide RoutedDB. It must be called during startup before handlers
+// are constructed, so experiment mutations share test-mode routing with every
+// other database-backed repository.
+func (s *FileStore) SetExperimentStoreDatabase(db *database.RoutedDB) {
+	if db == nil {
+		panic("experiment database is nil")
+	}
+	s.experiments = NewSQLiteExperimentStore(db)
 }
 
 // Roots returns the storage roots this FileStore was constructed against.

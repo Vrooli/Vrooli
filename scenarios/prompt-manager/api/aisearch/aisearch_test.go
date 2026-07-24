@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	sharedsearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/storage"
 
 	"prompt-manager/search"
 	"prompt-manager/skills"
@@ -165,8 +166,12 @@ func TestVectorStore_NewVectorStore_Defaults_CreateUsesDefaults(t *testing.T) {
 	if err := vs.EnsureCollection(context.Background()); err != nil {
 		t.Fatalf("EnsureCollection: %v", err)
 	}
-	if !strings.HasSuffix(gotPath, "/collections/prompt-manager-skills") {
-		t.Errorf("expected default collection 'prompt-manager-skills' in path, got %q", gotPath)
+	wantCollection, err := storage.Collection("skills")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(gotPath, "/collections/"+wantCollection) {
+		t.Errorf("expected default collection %q in path, got %q", wantCollection, gotPath)
 	}
 	if gotSize != 3 {
 		t.Errorf("expected resolved vector size 3, got %d", gotSize)

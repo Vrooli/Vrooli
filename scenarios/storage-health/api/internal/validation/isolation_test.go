@@ -107,6 +107,16 @@ func main() {
 	dr.Register(mux, h)
 	_ = httpx.TestModeMiddleware(mux)
 }
+
+func TestRoutedSeams_CombinedFileRegistrationSatisfiesDatabaseSeam(t *testing.T) {
+	combined := strings.Replace(isoWiredMain, "dr.Register(mux, h)", "dr.RegisterWithFileRoots(mux, h, roots)", 1)
+	combined = strings.Replace(combined, "devrouting.Register(mux, db)", "devrouting.RegisterWithFileRoots(mux, db, roots)", 1)
+	ac := isoCtx(t, combined, []Engine{EngineSQLite}, "go")
+	got, _ := (isoRoutedSeams{}).Analyze(context.Background(), ac)
+	if len(got) != 0 {
+		t.Fatalf("combined devrouting registration should satisfy DB seam, got %+v", got)
+	}
+}
 `
 	ac := isoCtx(t, aliased, []Engine{EngineSQLite}, "go")
 	got, _ := (isoRoutedSeams{}).Analyze(context.Background(), ac)
@@ -119,6 +129,43 @@ func TestRoutedSeams_NonRelationalDoesNotApply(t *testing.T) {
 	ac := isoCtx(t, "package main\nfunc main() {}\n", []Engine{EngineRedis}, "go")
 	if (isoRoutedSeams{}).Applies(ac) {
 		t.Fatal("routed-seams must not apply to a Redis-only (non-relational) scenario")
+	}
+}
+
+func TestFileRoutedSeamsRequireRootsAndDevRoutingRegistration(t *testing.T) {
+	ac := isoCtx(t, `package main
+import "github.com/vrooli/api-core/filerouting"
+func main() { _ = filerouting.New }
+`, []Engine{EngineFile}, "go")
+	got, _ := (isoFileRoutedSeams{}).Analyze(context.Background(), ac)
+	if len(got) != 1 || got[0].Code != "FILE_ROUTED_SEAMS_UNWIRED" {
+		t.Fatalf("expected FILE_ROUTED_SEAMS_UNWIRED, got %+v", got)
+	}
+
+	wired := isoCtx(t, `package main
+import (
+ "github.com/vrooli/api-core/devrouting"
+ "github.com/vrooli/api-core/filerouting"
+)
+func main() { roots := filerouting.New(paths); _ = roots.Pick(ctx, class); devrouting.RegisterWithFileRoots(mux, db, roots) }
+`, []Engine{EngineFile}, "go")
+	got, _ = (isoFileRoutedSeams{}).Analyze(context.Background(), wired)
+	if len(got) != 0 {
+		t.Fatalf("expected routed file seams clean, got %+v", got)
+	}
+}
+
+func TestFileRoutedSeamsDetectsUndeclaredDirectFilePersistence(t *testing.T) {
+	ac := isoCtx(t, `package main
+import "os"
+func main() { _ = os.WriteFile("state.json", nil, 0o644) }
+`, nil, "go")
+	if !(isoFileRoutedSeams{}).Applies(ac) {
+		t.Fatal("direct os file persistence must enter the file-isolation gate")
+	}
+	got, _ := (isoFileRoutedSeams{}).Analyze(context.Background(), ac)
+	if len(got) != 1 || got[0].Code != "FILE_ROUTED_SEAMS_UNWIRED" {
+		t.Fatalf("expected FILE_ROUTED_SEAMS_UNWIRED, got %+v", got)
 	}
 }
 

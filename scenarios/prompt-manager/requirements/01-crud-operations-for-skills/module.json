@@ -64,13 +64,27 @@
           "status": "pending",
           "type": "test"
         },
-        {
-          "notes": "Data persistence verified",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        }
+      {
+        "notes": "Data persistence verified",
+        "phase": "business",
+        "ref": "",
+        "status": "pending",
+        "type": "test"
+      },
+      {
+        "notes": "New skill editor opens without persisting before save",
+        "phase": "workflow",
+        "ref": "bas/cases/01-foundation/02-editor/new-skill-opens-editor.json",
+        "status": "implemented",
+        "type": "bas"
+      },
+      {
+        "notes": "Skill save and discard journey",
+        "phase": "workflow",
+        "ref": "bas/cases/01-foundation/03-editor/skill-save-discard.json",
+        "status": "implemented",
+        "type": "bas"
+      }
       ]
     },
     {

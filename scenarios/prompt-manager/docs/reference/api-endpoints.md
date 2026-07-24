@@ -575,7 +575,7 @@ Semantic search powered by embeddings, with optional combined output formatting.
 {
   "results": [
     {
-      "id": "react-coherence",
+      "id": "ui-health",
       "name": "React Coherence",
       "description": "Architectural patterns for React",
       "folder": "core",

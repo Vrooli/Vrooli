@@ -573,6 +573,15 @@ For automated testing patterns, see the **e2e-testing** skill section on "Authen
 
 ### **11. Output Expectations**
 
+### **Execution safety labels**
+
+Set `metadata.execution_mode` on every workflow. `observer` workflows may use
+only navigate, screenshot, assert, extract, and wait nodes. A click, input, or
+mutating subflow is rejected by workflow-health before execution. Relabel such
+a case `mutating` and add `requires_confirmation: "true"` and
+`routed_isolation: "true"`; the platform supplies the test-mode header only
+after it proves the target's SQL and file isolation lease.
+
 When using BAS for investigation, use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then document findings under the **E2E Issues** section with execution IDs, output paths, root causes, fixes, and status.
 
 You may:

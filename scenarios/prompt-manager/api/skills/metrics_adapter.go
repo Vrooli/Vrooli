@@ -2,8 +2,10 @@
 package skills
 
 import (
-	"prompt-manager/metrics"
+	"context"
 	"time"
+
+	"prompt-manager/metrics"
 )
 
 // MetricsAdapter adapts metrics.Repository to the MetricsService interface.
@@ -16,6 +18,12 @@ type MetricsAdapter struct {
 // NewMetricsAdapter creates a new adapter wrapping a metrics.Repository.
 func NewMetricsAdapter(repo *metrics.Repository) *MetricsAdapter {
 	return &MetricsAdapter{repo: repo}
+}
+
+// WithContext returns a request-scoped metrics adapter when handlers run
+// against a routed database.
+func (a *MetricsAdapter) WithContext(ctx context.Context) MetricsService {
+	return &MetricsAdapter{repo: a.repo.WithContext(ctx)}
 }
 
 // Get retrieves metrics for a specific skill.

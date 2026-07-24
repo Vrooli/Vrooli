@@ -1,7 +1,7 @@
 # Test-Isolation Contract
 
-This is the canonical, durable contract for how a scenario's database is
-isolated during test-genie's destructive (playbooks / E2E) phase. It is
+This is the canonical, durable contract for how a scenario's database and
+file storage are isolated during test-genie's destructive (playbooks / E2E) phase. It is
 owned by `storage-health` and migrated here from the former
 `docs/agent-system/routed-test-db.md`.
 
@@ -13,8 +13,8 @@ real database. There is no restart-based fallback.
 
 ## The routed path (the only path)
 
-A scenario routes test traffic to a per-run isolated test pool by wiring
-four `api-core` seams. test-genie installs the test pool on the **running**
+A scenario routes test traffic to per-run isolated SQL and file stores by wiring
+the `api-core` seams. workflow-health installs the lease on the **running**
 process at runtime via a Connect-RPC call (`InstallTestPool`); the scenario
 is never restarted. Static proof that all four seams are wired ⟹ the routed
 path is eligible ⟹ the test pool installs on the live process ⟹ isolation
@@ -38,9 +38,13 @@ one is four changes. `storage-health`'s L2 analyzers check exactly these:
 3. **`apihttp.TestModeMiddleware`.** In `main`, mount the middleware around
    the API handler. It honors the test-mode header and self-disables in
    production mode.
-4. **`devrouting.Register(rootMux, db)`.** Register the dev-only
-   `RoutingService` against the `*database.RoutedDB`. It self-disables in
-   production mode.
+4. **`devrouting.RegisterWithFileRoots(rootMux, db, roots)`.** Construct
+   `filerouting.RoutedRoots` from startup class roots and register the dev-only
+   `RoutingService` against both routing seams. It self-disables in production
+   mode.
+5. **Context-aware file paths.** File-persisting stores resolve their class root
+   through `RoutedRoots.Pick(ctx, class)` at read and write time; they do not
+   capture a startup root string.
 
 `database.EnsureSchemas` applies the embedded schema; it is the schema-side
 companion to these seams.
@@ -73,8 +77,9 @@ else — reference those constants rather than re-stringing the literal.
 
 ### How the header reaches the API during a routed run
 
-1. test-genie builds `{apihttp.TestModeHeader: apihttp.TestModeValue}` and
-   passes it as `WithExtraHeaders(...)` to the playbooks runner.
+1. workflow-health installs the target lease, then builds
+   `{apihttp.TestModeHeader: apihttp.TestModeValue}` for every BAS execution,
+   including observer-labeled cases.
 2. The runner forwards it as `ExecutionParams.ExtraHeaders`, which the BAS
    execution client serializes into the request as
    `parameters.browser_profile.extra_headers`.
@@ -121,9 +126,10 @@ service RoutingService {
 }
 ```
 
-`packages/api-core/devrouting.Register(mux, db)` mounts the handler against
-`*database.RoutedDB`. test-genie calls `InstallTestPool(dsn=…,
-lease_id=<runID>)` at the start of each routed playbooks run and
+`packages/api-core/devrouting.RegisterWithFileRoots(mux, db, roots)` mounts
+the handler against both `*database.RoutedDB` and `*filerouting.RoutedRoots`.
+workflow-health calls `InstallTestPool(dsn=…, lease_id=<runID>)` at the start
+of each routed workflow run and
 `ClearTestPool(lease_id=<runID>)` in its defer block; the scenario is never
 restarted.
 
@@ -171,10 +177,13 @@ run, `ClearTestPool` returns a `LeaseStats` snapshot:
 |---|---|
 | `test_pool_requests` | Requests served from the installed test pool — proof routing actually fired. |
 | `primary_during_test_mode_requests` | Requests that carried `X-Vrooli-Test-Mode: 1` but were served from the **primary** pool — a sign some code path holds a raw `*sql.DB` instead of going through `RoutedDB`. |
+| `test_root_writes` | Successful file writes routed into the leased temporary roots. |
+| `primary_root_writes_during_test_mode` | Successful file writes that carried test mode but reached primary roots. This is a hard leak. |
 
 test-genie promotes both to hard failures by default:
 
-- `primary_during_test_mode_requests > 0` — always a real defect (some call
+- `primary_during_test_mode_requests > 0` or
+  `primary_root_writes_during_test_mode > 0` — always a real defect (some call
   site holds a raw `*sql.DB`). This is exactly what `storage-health`'s L3
   `SQL_DB_HANDLE_CAPTURE` / `RAW_SQL_OPEN` analyzers catch statically, ahead
   of the run.

@@ -140,7 +140,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 
 	// Generate log path
 	timestamp := startedAt.Format("2006-01-02T15-04-05Z")
-	logPath := e.teamStore.GetMemberLogPath(teamID, agentID, timestamp)
+	logPath := e.teamStore.GetMemberLogPathForContext(ctx, teamID, agentID, timestamp)
 	result.LogPath = logPath
 	attemptID := uuid.NewString()
 

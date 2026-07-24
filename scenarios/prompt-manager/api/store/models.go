@@ -459,6 +459,8 @@ type ExperimentProtocol struct {
 	RandomizationUnit            string   `json:"randomizationUnit"`
 	PrimaryMetric                string   `json:"primaryMetric"`
 	EffectThreshold              float64  `json:"effectThreshold"`
+	ProbabilityThreshold         float64  `json:"probabilityThreshold"`
+	CostNonInferiorityRatio      float64  `json:"costNonInferiorityRatio"`
 	Strata                       []string `json:"strata"`
 	ExposurePolicy               string   `json:"exposurePolicy"`
 	OutcomeCompletenessThreshold float64  `json:"outcomeCompletenessThreshold"`

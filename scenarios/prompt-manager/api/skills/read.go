@@ -54,7 +54,8 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		allowMissing = *req.AllowMissing
 	}
 
-	indexed, err := loadIndexedSkills(h.store)
+	skillStore := h.storeFor(r.Context())
+	indexed, err := loadIndexedSkills(skillStore)
 	if err != nil {
 		http.Error(w, "Failed to load skills", http.StatusInternalServerError)
 		return
@@ -72,7 +73,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 				Reason:     "not_found",
 			})
 		case 1:
-			readSkill, err := h.buildReadResponse(matches[0], req.Variables)
+			readSkill, err := h.buildReadResponse(skillStore, matches[0], req.Variables)
 			if err != nil {
 				http.Error(w, "Failed to load skill content", http.StatusInternalServerError)
 				return
@@ -148,7 +149,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		// Explicit scope requested
 		scopeMatches := resolveIdentifier(req.Scope, "id", indexed)
 		if len(scopeMatches) == 1 {
-			s, err := h.buildReadResponse(scopeMatches[0], req.Variables)
+			s, err := h.buildReadResponse(skillStore, scopeMatches[0], req.Variables)
 			if err == nil {
 				scopeSkill = &s
 			}
@@ -159,7 +160,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 			if skill.DefaultScope != "" {
 				scopeMatches := resolveIdentifier(skill.DefaultScope, "id", indexed)
 				if len(scopeMatches) == 1 {
-					s, err := h.buildReadResponse(scopeMatches[0], req.Variables)
+					s, err := h.buildReadResponse(skillStore, scopeMatches[0], req.Variables)
 					if err == nil {
 						scopeSkill = &s
 					}
@@ -371,12 +372,12 @@ func outputIncludesCombined(output string) bool {
 	return output == "combined" || output == "both"
 }
 
-func (h *Handlers) buildReadResponse(skill indexedSkill, variables map[string]string) (Response, error) {
+func (h *Handlers) buildReadResponse(store SkillStore, skill indexedSkill, variables map[string]string) (Response, error) {
 	resp := h.toResponse(skill.meta)
 	resp.Folder = skill.folder
 	resp.File = skill.filename
 
-	content, err := h.store.GetContent(skill.folder, skill.filename)
+	content, err := store.GetContent(skill.folder, skill.filename)
 	if err != nil {
 		return Response{}, err
 	}

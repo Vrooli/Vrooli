@@ -70,8 +70,35 @@
         "cloud-api",
         "desktop-app",
         "manual",
-        "native-cli"
+        "native-cli",
+        "managed-service"
       ]
+    },
+    "managed_service": {
+      "$ref": "#/definitions/managedService",
+      "description": "Authority and provider-selection contract for a Vrooli-owned local service. This declaration never grants lifecycle authority over an external endpoint."
+    },
+    "provider_policy": {
+      "type": "object",
+      "description": "Verified reuse policy for a non-service host tool. It never grants process lifecycle authority.",
+      "required": ["default_mode", "allowed_modes"],
+      "properties": {
+        "default_mode": { "$ref": "#/definitions/managedServiceProviderMode" },
+        "allowed_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/managedServiceProviderMode" }
+        },
+        "shared_reuse_requires_consent": { "type": "boolean" },
+        "external_management": { "type": "string", "enum": ["forbidden"] },
+        "external_access_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["read-only", "read-write"] }
+        }
+      },
+      "additionalProperties": false
     },
     "compose_file": {
       "type": "string"
@@ -228,6 +255,14 @@
               "http",
               "tcp",
               "command"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "description": "Semantics of the check. readiness (the default interpretation) must fail until the resource can serve its primary capability, including model/data load; liveness means process-alive only.",
+            "enum": [
+              "readiness",
+              "liveness"
             ]
           },
           "target": {
@@ -475,7 +510,7 @@
       "required": ["support", "mode"],
       "properties": {
         "support": { "type": "string", "enum": ["supported", "conditional", "degraded", "unsupported"] },
-        "mode": { "type": "string", "enum": ["bundled-client", "native-host-tool", "docker-desktop", "remote-service", "manual"] },
+        "mode": { "type": "string", "enum": ["bundled-client", "bundled-service", "native-host-tool", "docker-desktop", "remote-service", "manual"] },
         "architectures": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["amd64", "arm64"] } },
         "requires": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 } },
@@ -488,6 +523,107 @@
         { "if": { "not": { "properties": { "support": { "const": "unsupported" } } } }, "then": { "required": ["architectures", "limitations", "evidence"] } }
       ],
       "additionalProperties": false
+    },
+    "managedService": {
+      "type": "object",
+      "required": ["provider_policy", "artifact"],
+      "properties": {
+        "provider_policy": {
+          "type": "object",
+          "required": ["allowed_modes", "target_defaults"],
+          "properties": {
+            "allowed_modes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/definitions/managedServiceProviderMode" }
+            },
+            "target_defaults": {
+              "type": "object",
+              "description": "Runtime-specific defaults. Control-plane hosting uses a Vrooli-owned shared service; desktop bundles start private unless shared reuse is explicitly selected and consented.",
+              "required": ["control-plane", "desktop-bundle"],
+              "properties": {
+                "control-plane": { "$ref": "#/definitions/managedServiceProviderMode" },
+                "desktop-bundle": { "$ref": "#/definitions/managedServiceProviderMode" }
+              },
+              "additionalProperties": false
+            },
+            "shared_reuse_requires_consent": {
+              "type": "boolean",
+              "default": true,
+              "description": "A desktop app must obtain explicit consent before it joins a user-level shared instance."
+            },
+            "external_management": {
+              "type": "string",
+              "enum": ["forbidden"],
+              "default": "forbidden",
+              "description": "External endpoints are attach-only: Vrooli may validate and use them but never initializes, unseals, stops, or rewrites them."
+            }
+			,
+            "external_access_capabilities": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "enum": ["read-only", "read-write"] },
+              "description": "The only application access that an attach-only external provider may request. This never grants lifecycle authority."
+            }
+          },
+          "additionalProperties": false
+        },
+        "artifact": {
+          "type": "object",
+          "description": "An immutable executable staged beneath the resource or bundle root. The release pipeline verifies its signed checksum set; the lifecycle driver verifies this SHA-256 before launch.",
+          "required": ["path", "version"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 },
+            "bundle_artifact": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Target template for the separately signed server asset included in a bundled-service release (for example vault_${os}_${arch})."
+            },
+            "sha256": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+            "sha256_by_platform": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" }
+            }
+          },
+          "anyOf": [
+            { "required": ["sha256"] },
+            { "required": ["sha256_by_platform"] }
+          ],
+          "additionalProperties": false
+        },
+        "attach_health_path": {
+          "type": "string",
+          "pattern": "^/[^?#]*$",
+          "description": "Health request path used only when an operator explicitly selects attach-only provider mode."
+        },
+        "arguments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Literal argv passed directly to the verified executable. Shell interpolation is never performed."
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Literal environment values supplied only to the managed process. Secrets are not permitted here; resolve them through provider-scoped credentials."
+        },
+        "config": {
+          "type": "object",
+          "required": ["path", "content"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "content": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "managedServiceProviderMode": {
+      "type": "string",
+      "enum": ["managed-private", "managed-shared", "attach-only", "remote-vrooli", "managed-discovered"]
     },
     "hostRequirement": {
       "type": "object",

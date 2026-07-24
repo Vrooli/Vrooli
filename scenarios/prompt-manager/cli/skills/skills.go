@@ -333,9 +333,11 @@ func cmdRead(ctx appctx.Context, args []string) error {
 		"format":  true,
 		"sep":     true,
 		"scope":   true,
+		"variant": true,
 	})
 	fs := flag.NewFlagSet("read", flag.ContinueOnError)
 	resolve := fs.String("resolve", "auto", "Resolution mode (auto|id|file|name)")
+	variant := fs.String("variant", "", "Read one skill's named variant content instead of the current SKILL.md")
 	jsonOut := fs.Bool("json", false, "Output full JSON response")
 	strict := fs.Bool("strict", false, "Fail if any identifier is missing or ambiguous")
 	separator := fs.String("sep", "\n\n---\n\n", "Separator between skills")
@@ -349,7 +351,28 @@ func cmdRead(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: skill read <identifier> [identifier...] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--with-scope] [--scope=<scope-id>] [--strict] [--copy] [--json]")
+		return fmt.Errorf("usage: skill read <identifier> [identifier...] [--variant=<variant-id>] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--with-scope] [--scope=<scope-id>] [--strict] [--copy] [--json]")
+	}
+
+	if *variant != "" {
+		if fs.NArg() != 1 {
+			return fmt.Errorf("--variant reads exactly one skill")
+		}
+		var v struct {
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			Content string `json:"content"`
+		}
+		if err := ctx.Get(fmt.Sprintf("/skills/%s/variants/%s", fs.Arg(0), *variant), &v); err != nil {
+			return fmt.Errorf("failed to read variant: %w", err)
+		}
+		if *jsonOut {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(v)
+		}
+		fmt.Println(v.Content)
+		return nil
 	}
 
 	req := ReadRequest{

@@ -50,5 +50,5 @@
 
 ## 📎 Appendix
 - Source plan: `docs/plans/storage-health-scenario-and-test-genie-producer-plan.md`.
-- Relocated contract: the durable test-isolation contract lives at `docs/concepts/test-isolation-contract.md` (migrated from `docs/agent-system/routed-test-db.md`).
+- Relocated contract: the durable test-isolation contract lives at `scenarios/storage-health/docs/concepts/test-isolation-contract.md` (migrated from `docs/agent-system/routed-test-db.md`).
 - Maturity ladder + finding catalog: `.vrooli/maturity.json` (L0–L4, `dimension: storage`).

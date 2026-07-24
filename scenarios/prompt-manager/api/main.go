@@ -9,9 +9,11 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -39,8 +41,11 @@ import (
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
 
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/receiptsigning"
@@ -51,6 +56,19 @@ import (
 	"github.com/gorilla/mux"
 	_ "modernc.org/sqlite"
 )
+
+// gorillaMuxAdapter gives api-core's development-only Connect registration a
+// minimal, router-agnostic mount surface without coupling that package to
+// gorilla/mux's fluent Handle return value.
+type gorillaMuxAdapter struct{ router *mux.Router }
+
+func (m gorillaMuxAdapter) Handle(pattern string, handler http.Handler) {
+	if strings.HasSuffix(pattern, "/") {
+		m.router.PathPrefix(pattern).Handler(handler)
+		return
+	}
+	m.router.Handle(pattern, handler)
+}
 
 func sqliteDSN() (string, error) {
 	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
@@ -262,17 +280,28 @@ func main() {
 	if err := database.EnsureSchemas(dbCtx, db.Primary(), localmodules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	// A leased test pool starts empty. Initialize its schema before devrouting
+	// makes it visible, so test-mode requests cannot race into an unprepared DB.
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return database.EnsureSchemas(ctx, pool, localmodules.AllSchemas()...)
+	})
 	log.Println("SQLite database connected and schemas initialized")
 
 	// Initialize the new file-based store
-	fileStore := store.NewFileStore(roots)
+	fileRoots := filerouting.New(storage.Paths{
+		ConfigDir: roots.Config,
+		DataDir:   roots.RuntimeData,
+		CacheDir:  roots.RuntimeCache,
+	})
+	fileStore := store.NewFileStore(roots, fileRoots)
+	fileStore.SetExperimentStoreDatabase(db)
 
 	// Initialize domain components (seams for testing)
 	// Use the store adapter to bridge new storage to existing handlers
 	skillStoreAdapter := skills.NewStoreAdapter(fileStore.FileSkills(), store.NewFileContentIO())
-	metricsRepo := metrics.NewRepository(db.Primary())
-	tagsRepo := tags.NewRepository(db.Primary())
-	testingRepo := testing.NewRepository(db.Primary())
+	metricsRepo := metrics.NewRepository(db)
+	tagsRepo := tags.NewRepository(db)
+	testingRepo := testing.NewRepository(db)
 	ollamaClient := testing.NewOllamaClient(ollamaEnabled, ollamaGatewayBin)
 
 	// Initialize handlers with interface adapters
@@ -304,10 +333,7 @@ func main() {
 	qdrantURL := resolveQdrantURL()
 	qdrantAPIKey := os.Getenv("QDRANT_API_KEY")
 
-	aiSearchCollection := os.Getenv("AI_SEARCH_COLLECTION")
-	if aiSearchCollection == "" {
-		aiSearchCollection = "prompt-manager-skills"
-	}
+	aiSearchCollection := collectionForDomain("AI_SEARCH_COLLECTION", "skills")
 
 	aiSearchThreshold := 0.5
 	if thresholdStr := os.Getenv("AI_SEARCH_THRESHOLD"); thresholdStr != "" {
@@ -352,28 +378,16 @@ func main() {
 	}
 
 	// Agent and team AI search vector stores
-	agentAICollection := os.Getenv("AI_SEARCH_AGENT_COLLECTION")
-	if agentAICollection == "" {
-		agentAICollection = "prompt-manager-agents"
-	}
+	agentAICollection := collectionForDomain("AI_SEARCH_AGENT_COLLECTION", "agents")
 	agentVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, agentAICollection, embeddingRole)
 
-	teamAICollection := os.Getenv("AI_SEARCH_TEAM_COLLECTION")
-	if teamAICollection == "" {
-		teamAICollection = "prompt-manager-teams"
-	}
+	teamAICollection := collectionForDomain("AI_SEARCH_TEAM_COLLECTION", "teams")
 	teamVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, teamAICollection, embeddingRole)
 
-	topicAICollection := os.Getenv("AI_SEARCH_TOPIC_COLLECTION")
-	if topicAICollection == "" {
-		topicAICollection = "prompt-manager-topics"
-	}
+	topicAICollection := collectionForDomain("AI_SEARCH_TOPIC_COLLECTION", "topics")
 	topicVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, topicAICollection, embeddingRole)
 
-	actionAICollection := os.Getenv("AI_SEARCH_ACTION_COLLECTION")
-	if actionAICollection == "" {
-		actionAICollection = "prompt-manager-actions"
-	}
+	actionAICollection := collectionForDomain("AI_SEARCH_ACTION_COLLECTION", "actions")
 	actionVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, actionAICollection, embeddingRole)
 
 	// Wire agent/team/topic AI search into the service
@@ -509,6 +523,9 @@ func main() {
 
 	// Setup routes
 	router := mux.NewRouter()
+	if !devrouting.RegisterWithFileRoots(gorillaMuxAdapter{router: router}, db, fileRoots) {
+		log.Println("test-mode RoutingService disabled: scenario is not in development mode")
+	}
 
 	// CORS middleware
 	corsHandler := handlers.CORS(
@@ -893,7 +910,7 @@ func main() {
 		log.Printf("Ollama gateway: %s", ollamaGatewayBin)
 	}
 
-	handler := corsHandler(router)
+	handler := apihttp.TestModeMiddleware(corsHandler(router))
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
@@ -1003,6 +1020,20 @@ func resolveQdrantURL() string {
 		return "http://localhost:" + port
 	}
 	return ""
+}
+
+// collectionForDomain preserves explicit operator overrides while deriving the
+// default from the active storage namespace. Shadow/test-mode processes must
+// never fall back to a live prompt-manager collection name.
+func collectionForDomain(envName, domain string) string {
+	if collection := strings.TrimSpace(os.Getenv(envName)); collection != "" {
+		return collection
+	}
+	collection, err := storage.Collection(domain)
+	if err != nil {
+		log.Fatalf("resolve %s collection: %v", domain, err)
+	}
+	return collection
 }
 
 // actionSemanticAdapter adapts the aisearch service to the actions package's

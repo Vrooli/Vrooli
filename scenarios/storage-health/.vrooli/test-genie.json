@@ -282,6 +282,19 @@
         "fix_class": "auto",
         "fixer_status": "pending"
       },
+      "FILE_ROUTED_SEAMS_UNWIRED": {
+        "capability_id": "isolation_safety",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Routing file persistence through request-context roots requires adapting each store's path construction and write accounting."
+      },
       "STORAGE_NAMESPACE_HARDCODED": {
         "capability_id": "isolation_safety",
         "local_level_impact": "L2",

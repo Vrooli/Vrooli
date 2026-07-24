@@ -2,6 +2,7 @@ package skills
 
 import (
 	"encoding/json"
+
 	"prompt-manager/store"
 )
 
@@ -63,6 +64,10 @@ type UpdateExperimentRequest struct {
 type ConcludeExperimentRequest struct {
 	WinnerVariantID string `json:"winnerVariantId"`
 	Notes           string `json:"notes,omitempty"`
+	// Override bypasses the pre-registered statistical and cost gates with a
+	// recorded justification. It never bypasses the signed audit receipt.
+	Override              bool   `json:"override,omitempty"`
+	OverrideJustification string `json:"overrideJustification,omitempty"`
 }
 
 // RecordOutcomeRequest is the request body for recording an experiment outcome.
@@ -140,15 +145,16 @@ type ControlledReport struct {
 }
 
 type ControlledArmReport struct {
-	VariantID       string   `json:"variantId"`
-	Assignments     int      `json:"assignments"`
-	Eligible        int      `json:"eligible"`
-	Complete        int      `json:"complete"`
-	Successes       int      `json:"successes"`
-	PosteriorMean   *float64 `json:"posteriorMean,omitempty"`
-	CredibleLow     *float64 `json:"credibleLow,omitempty"`
-	CredibleHigh    *float64 `json:"credibleHigh,omitempty"`
-	EffectVsControl *float64 `json:"effectVsControl,omitempty"`
+	VariantID        string   `json:"variantId"`
+	Assignments      int      `json:"assignments"`
+	Eligible         int      `json:"eligible"`
+	Complete         int      `json:"complete"`
+	Successes        int      `json:"successes"`
+	PosteriorMean    *float64 `json:"posteriorMean,omitempty"`
+	CredibleLow      *float64 `json:"credibleLow,omitempty"`
+	CredibleHigh     *float64 `json:"credibleHigh,omitempty"`
+	EffectVsControl  *float64 `json:"effectVsControl,omitempty"`
+	ProbBeatsControl *float64 `json:"probBeatsControl,omitempty"`
 }
 
 // ExperimentArmReport aggregates serve and outcome data for a single arm.

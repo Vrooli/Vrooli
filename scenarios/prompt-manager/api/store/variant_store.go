@@ -20,33 +20,41 @@ func NewFileVariantStore(skillStore *FileSkillStore) *FileVariantStore {
 	return &FileVariantStore{skillStore: skillStore}
 }
 
-// variantsDir returns the variants directory for a skill within a specific pack.
-func (s *FileVariantStore) variantsDir(pack, skillID string) string {
-	return filepath.Join(s.skillStore.packsDir(), pack, skillID, "variants")
+// variantsDir returns the variants directory for a skill within a specific
+// pack, rooted at the context-resolved skill store. Path methods must never
+// run on the unrouted store template — its configDir is empty, so relative
+// paths would silently resolve against the process working directory.
+func (s *FileVariantStore) variantsDir(ss *FileSkillStore, pack, skillID string) string {
+	return filepath.Join(ss.packsDir(), pack, skillID, "variants")
 }
 
 // variantDir returns the directory for a specific variant.
-func (s *FileVariantStore) variantDir(pack, skillID, variantID string) string {
-	return filepath.Join(s.variantsDir(pack, skillID), variantID)
+func (s *FileVariantStore) variantDir(ss *FileSkillStore, pack, skillID, variantID string) string {
+	return filepath.Join(s.variantsDir(ss, pack, skillID), variantID)
 }
 
-// resolveSkillPack finds the pack for a skill, returning the skill and its pack name.
-func (s *FileVariantStore) resolveSkillPack(ctx context.Context, skillID string) (*Skill, error) {
-	skill, err := s.skillStore.Get(ctx, skillID)
+// resolveSkillPack resolves the routed skill store for this request and finds
+// the pack for a skill, returning both.
+func (s *FileVariantStore) resolveSkillPack(ctx context.Context, skillID string) (*FileSkillStore, *Skill, error) {
+	ss, err := s.skillStore.forContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("skill not found: %s", skillID)
+		return nil, nil, err
 	}
-	return skill, nil
+	skill, err := ss.Get(ctx, skillID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("skill not found: %s", skillID)
+	}
+	return ss, skill, nil
 }
 
 // List returns all variants for a skill.
 func (s *FileVariantStore) List(ctx context.Context, skillID string) ([]Variant, error) {
-	skill, err := s.resolveSkillPack(ctx, skillID)
+	ss, skill, err := s.resolveSkillPack(ctx, skillID)
 	if err != nil {
 		return nil, err
 	}
 
-	varDir := s.variantsDir(skill.Pack, skillID)
+	varDir := s.variantsDir(ss, skill.Pack, skillID)
 	dirs, err := ListDirectories(varDir)
 	if err != nil {
 		return nil, nil // No variants directory = no variants
@@ -54,7 +62,7 @@ func (s *FileVariantStore) List(ctx context.Context, skillID string) ([]Variant,
 
 	var variants []Variant
 	for _, vid := range dirs {
-		v, err := s.loadVariant(skill.Pack, skillID, vid)
+		v, err := s.loadVariant(ss, skill.Pack, skillID, vid)
 		if err != nil {
 			continue // Skip malformed variants
 		}
@@ -66,12 +74,12 @@ func (s *FileVariantStore) List(ctx context.Context, skillID string) ([]Variant,
 
 // Get retrieves a variant by skill ID and variant ID.
 func (s *FileVariantStore) Get(ctx context.Context, skillID, variantID string) (*Variant, error) {
-	skill, err := s.resolveSkillPack(ctx, skillID)
+	ss, skill, err := s.resolveSkillPack(ctx, skillID)
 	if err != nil {
 		return nil, err
 	}
 
-	v, err := s.loadVariant(skill.Pack, skillID, variantID)
+	v, err := s.loadVariant(ss, skill.Pack, skillID, variantID)
 	if err != nil {
 		return nil, fmt.Errorf("variant not found: %s/%s", skillID, variantID)
 	}
@@ -80,17 +88,17 @@ func (s *FileVariantStore) Get(ctx context.Context, skillID, variantID string) (
 
 // GetWithContent retrieves a variant with its markdown content.
 func (s *FileVariantStore) GetWithContent(ctx context.Context, skillID, variantID string) (*Variant, string, error) {
-	skill, err := s.resolveSkillPack(ctx, skillID)
+	ss, skill, err := s.resolveSkillPack(ctx, skillID)
 	if err != nil {
 		return nil, "", err
 	}
 
-	v, err := s.loadVariant(skill.Pack, skillID, variantID)
+	v, err := s.loadVariant(ss, skill.Pack, skillID, variantID)
 	if err != nil {
 		return nil, "", fmt.Errorf("variant not found: %s/%s", skillID, variantID)
 	}
 
-	contentPath := filepath.Join(s.variantDir(skill.Pack, skillID, variantID), v.Entry)
+	contentPath := filepath.Join(s.variantDir(ss, skill.Pack, skillID, variantID), v.Entry)
 	content, err := ReadContent(contentPath)
 	if err != nil {
 		return v, "", fmt.Errorf("reading variant content: %w", err)
@@ -101,7 +109,7 @@ func (s *FileVariantStore) GetWithContent(ctx context.Context, skillID, variantI
 
 // Create creates a new variant for a skill.
 func (s *FileVariantStore) Create(ctx context.Context, skillID string, variant *Variant, content string) error {
-	skill, err := s.resolveSkillPack(ctx, skillID)
+	ss, skill, err := s.resolveSkillPack(ctx, skillID)
 	if err != nil {
 		return err
 	}
@@ -110,7 +118,7 @@ func (s *FileVariantStore) Create(ctx context.Context, skillID string, variant *
 		return fmt.Errorf("cannot use reserved variant ID %q", ControlVariantID)
 	}
 
-	vDir := s.variantDir(skill.Pack, skillID, variant.ID)
+	vDir := s.variantDir(ss, skill.Pack, skillID, variant.ID)
 	if FileExists(filepath.Join(vDir, "variant.json")) {
 		return fmt.Errorf("variant already exists: %s/%s", skillID, variant.ID)
 	}
@@ -138,12 +146,12 @@ func (s *FileVariantStore) Create(ctx context.Context, skillID string, variant *
 
 // Update updates an existing variant.
 func (s *FileVariantStore) Update(ctx context.Context, skillID, variantID string, updates *Variant, content *string) error {
-	skill, err := s.resolveSkillPack(ctx, skillID)
+	ss, skill, err := s.resolveSkillPack(ctx, skillID)
 	if err != nil {
 		return err
 	}
 
-	v, err := s.loadVariant(skill.Pack, skillID, variantID)
+	v, err := s.loadVariant(ss, skill.Pack, skillID, variantID)
 	if err != nil {
 		return fmt.Errorf("variant not found: %s/%s", skillID, variantID)
 	}
@@ -156,7 +164,7 @@ func (s *FileVariantStore) Update(ctx context.Context, skillID, variantID string
 	}
 	v.UpdateTimestamp()
 
-	vDir := s.variantDir(skill.Pack, skillID, variantID)
+	vDir := s.variantDir(ss, skill.Pack, skillID, variantID)
 
 	if err := SaveJSON(filepath.Join(vDir, "variant.json"), v); err != nil {
 		return fmt.Errorf("writing variant.json: %w", err)
@@ -173,12 +181,12 @@ func (s *FileVariantStore) Update(ctx context.Context, skillID, variantID string
 
 // Delete removes a variant.
 func (s *FileVariantStore) Delete(ctx context.Context, skillID, variantID string) error {
-	skill, err := s.resolveSkillPack(ctx, skillID)
+	ss, skill, err := s.resolveSkillPack(ctx, skillID)
 	if err != nil {
 		return err
 	}
 
-	vDir := s.variantDir(skill.Pack, skillID, variantID)
+	vDir := s.variantDir(ss, skill.Pack, skillID, variantID)
 	if !FileExists(filepath.Join(vDir, "variant.json")) {
 		return fmt.Errorf("variant not found: %s/%s", skillID, variantID)
 	}
@@ -187,7 +195,7 @@ func (s *FileVariantStore) Delete(ctx context.Context, skillID, variantID string
 }
 
 // loadVariant loads a variant from its JSON file.
-func (s *FileVariantStore) loadVariant(pack, skillID, variantID string) (*Variant, error) {
-	path := filepath.Join(s.variantDir(pack, skillID, variantID), "variant.json")
+func (s *FileVariantStore) loadVariant(ss *FileSkillStore, pack, skillID, variantID string) (*Variant, error) {
+	path := filepath.Join(s.variantDir(ss, pack, skillID, variantID), "variant.json")
 	return LoadJSON[Variant](path)
 }

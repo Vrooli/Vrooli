@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"prompt-manager/store"
@@ -52,6 +53,7 @@ func (h *ExperimentHandlers) SetDecisionPublisher(p decisionPublisher) { h.decis
 func (h *ExperimentHandlers) SetReceiptSigner(signer receiptsigning.ReceiptSigner) {
 	h.receiptSigner = signer
 }
+
 func (h *ExperimentHandlers) SetProductionReceiptSigningRequired(required bool) {
 	h.productionReceiptSigning = required
 }
@@ -122,6 +124,7 @@ func (h *ExperimentHandlers) CreateExperiment(w http.ResponseWriter, r *http.Req
 		http.Error(w, "at least 2 arms are required", http.StatusBadRequest)
 		return
 	}
+	normalizeProtocol(&req.Protocol)
 	if err := validateProtocol(req.Protocol); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -205,6 +208,7 @@ func (h *ExperimentHandlers) UpdateExperiment(w http.ResponseWriter, r *http.Req
 		existing.Hypothesis = *req.Hypothesis
 	}
 	if req.Protocol != nil {
+		normalizeProtocol(req.Protocol)
 		if err := validateProtocol(*req.Protocol); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -263,6 +267,7 @@ func (h *ExperimentHandlers) StartExperiment(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "can only start draft experiments", http.StatusConflict)
 		return
 	}
+	normalizeProtocol(&exp.Protocol)
 	if err := validateProtocol(exp.Protocol); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -321,8 +326,9 @@ func (h *ExperimentHandlers) ConcludeExperiment(w http.ResponseWriter, r *http.R
 		http.Error(w, "winnerVariantId must be one of the experiment's arms", http.StatusBadRequest)
 		return
 	}
-	if err := h.validateRecommendationEvidence(r.Context(), exp, req.WinnerVariantID); err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
+	gateErr := h.validateRecommendationEvidence(r.Context(), exp, req.WinnerVariantID)
+	if gateErr != nil && (!req.Override || strings.TrimSpace(req.OverrideJustification) == "") {
+		http.Error(w, gateErr.Error(), http.StatusConflict)
 		return
 	}
 	if err := h.requireReceiptSigner(r.Context()); err != nil {
@@ -346,7 +352,11 @@ func (h *ExperimentHandlers) ConcludeExperiment(w http.ResponseWriter, r *http.R
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	decisionID := fmt.Sprintf("dec-experiment-%x", sha256.Sum256([]byte(eid+"|"+req.WinnerVariantID+"|"+now)))
-	decision := &store.DecisionEntry{ID: decisionID, At: now, By: "skill-optimizer", Status: store.DecisionStatusPending, Context: "skill-experiment-promotion", Decision: fmt.Sprintf("Adopt variant %q for skill %q", req.WinnerVariantID, exp.SkillID), Rationale: fmt.Sprintf("Experiment %q recommends this variant. Review the protocol, outcome evidence, audit receipts, and holdout validation before accepting.", eid)}
+	rationale := fmt.Sprintf("Experiment %q recommends this variant. Review the protocol, outcome evidence, audit receipts, and holdout validation before accepting.", eid)
+	if gateErr != nil {
+		rationale = fmt.Sprintf("GATE OVERRIDE: the pre-registered recommendation gate failed (%s) and was overridden with justification: %s. %s", gateErr.Error(), strings.TrimSpace(req.OverrideJustification), rationale)
+	}
+	decision := &store.DecisionEntry{ID: decisionID, At: now, By: "skill-optimizer", Status: store.DecisionStatusPending, Context: "skill-experiment-promotion", Decision: fmt.Sprintf("Adopt variant %q for skill %q", req.WinnerVariantID, exp.SkillID), Rationale: rationale}
 	if err := h.decisions.AppendDecision(r.Context(), "meta-optimization", decision); err != nil {
 		http.Error(w, "publish promotion decision: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -355,6 +365,9 @@ func (h *ExperimentHandlers) ConcludeExperiment(w http.ResponseWriter, r *http.R
 	exp.ConcludedAt = &now
 	exp.WinnerVariantID = &req.WinnerVariantID
 	exp.Notes = req.Notes
+	if gateErr != nil {
+		exp.Notes = strings.TrimSpace(fmt.Sprintf("[gate-override] %s — justification: %s\n%s", gateErr.Error(), strings.TrimSpace(req.OverrideJustification), req.Notes))
+	}
 	exp.PromotionDecisionID = decisionID
 
 	if err := h.experiments.Update(r.Context(), eid, exp); err != nil {
@@ -404,6 +417,44 @@ func (h *ExperimentHandlers) validateRecommendationEvidence(ctx context.Context,
 	}
 	if winner != store.ControlVariantID && (winnerArm.EffectVsControl == nil || *winnerArm.EffectVsControl < exp.Protocol.EffectThreshold) {
 		return fmt.Errorf("winner effect does not meet frozen threshold %.3f", exp.Protocol.EffectThreshold)
+	}
+	if winner != store.ControlVariantID {
+		if winnerArm.ProbBeatsControl == nil || *winnerArm.ProbBeatsControl < exp.Protocol.ProbabilityThreshold {
+			observed := 0.0
+			if winnerArm.ProbBeatsControl != nil {
+				observed = *winnerArm.ProbBeatsControl
+			}
+			return fmt.Errorf("winner posterior probability of beating control %.3f does not meet frozen threshold %.3f", observed, exp.Protocol.ProbabilityThreshold)
+		}
+		if err := validateCostNonInferiority(exp, outcomes, winner); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateCostNonInferiority enforces the frozen equal-budget rule from the
+// guardrail lane: a winner whose mean token cost exceeds the pre-registered
+// ratio of control's is not "better", it is more expensive. Token data is
+// required — a comparison at unknown budget is not a comparison.
+func validateCostNonInferiority(exp *store.Experiment, outcomes []store.ExperimentOutcome, winner string) error {
+	sums := map[string]float64{}
+	counts := map[string]int{}
+	for _, o := range outcomes {
+		var payload outcomePayload
+		if err := json.Unmarshal(o.Data, &payload); err != nil || payload.TokensUsed == nil {
+			continue
+		}
+		sums[o.VariantID] += *payload.TokensUsed
+		counts[o.VariantID]++
+	}
+	if counts[winner] == 0 || counts[store.ControlVariantID] == 0 {
+		return fmt.Errorf("cost non-inferiority cannot be verified: token guardrail data is missing for %q or control", winner)
+	}
+	winnerMean := sums[winner] / float64(counts[winner])
+	controlMean := sums[store.ControlVariantID] / float64(counts[store.ControlVariantID])
+	if controlMean > 0 && winnerMean > exp.Protocol.CostNonInferiorityRatio*controlMean {
+		return fmt.Errorf("winner mean token cost %.0f exceeds %.2fx control mean %.0f", winnerMean, exp.Protocol.CostNonInferiorityRatio, controlMean)
 	}
 	return nil
 }
@@ -461,6 +512,7 @@ func canonicalAuditReceipt(receipt *store.ExperimentAuditReceipt) ([]byte, error
 		AnomalyCount, GamingCount                                                             int
 	}{receipt.ExperimentID, receipt.ProtocolHash, receipt.FindingsHash, receipt.ChallengeState, receipt.CompletedAt, receipt.IdempotencyKey, samples, receipt.AnomalyCount, receipt.GamingCount})
 }
+
 func (h *ExperimentHandlers) signAuditReceipt(ctx context.Context, receipt *store.ExperimentAuditReceipt) (receiptsigning.SignatureEnvelope, error) {
 	if err := h.requireReceiptSigner(ctx); err != nil {
 		return receiptsigning.SignatureEnvelope{}, err
@@ -471,6 +523,7 @@ func (h *ExperimentHandlers) signAuditReceipt(ctx context.Context, receipt *stor
 	}
 	return h.receiptSigner.Sign(ctx, receiptsigning.PurposeExperimentAuditReceipt, canonical)
 }
+
 func (h *ExperimentHandlers) verifyAuditReceipt(ctx context.Context, receipt *store.ExperimentAuditReceipt) bool {
 	if receipt == nil || len(receipt.SignatureEnvelope) == 0 {
 		return false
@@ -551,6 +604,7 @@ func canonicalHoldoutReceipt(exp *store.Experiment, idempotencyKey string) ([]by
 		ExperimentID, ProtocolHash, DecisionID, FindingsHash, CompletedAt, IdempotencyKey string
 	}{exp.ID, exp.Protocol.ProtocolHash, exp.PromotionDecisionID, exp.HoldoutFindingsHash, exp.HoldoutCompletedAt, idempotencyKey})
 }
+
 func (h *ExperimentHandlers) signHoldoutReceipt(ctx context.Context, exp *store.Experiment, idempotencyKey string) (receiptsigning.SignatureEnvelope, error) {
 	if err := h.requireReceiptSigner(ctx); err != nil {
 		return receiptsigning.SignatureEnvelope{}, err
@@ -940,9 +994,28 @@ func experimentError(format string, args ...any) error {
 	return fmt.Errorf(format, args...)
 }
 
+// normalizeProtocol fills the pre-registered statistical gates with their
+// doctrine defaults when the author left them unset. It runs before the
+// protocol is validated and hashed at start, so the effective thresholds are
+// always part of the frozen contract.
+func normalizeProtocol(p *store.ExperimentProtocol) {
+	if p.ProbabilityThreshold == 0 {
+		p.ProbabilityThreshold = 0.95
+	}
+	if p.CostNonInferiorityRatio == 0 {
+		p.CostNonInferiorityRatio = 1.10
+	}
+}
+
 func validateProtocol(p store.ExperimentProtocol) error {
 	if p.Population == "" || p.RandomizationUnit != "workflow-node-per-execution" || p.PrimaryMetric == "" || p.EffectThreshold < 0 || p.ExposurePolicy == "" || p.OutcomeCompletenessThreshold <= 0 || p.OutcomeCompletenessThreshold > 1 || p.Budget == "" || p.StoppingRule == "" || !p.HoldoutRequired || p.HoldoutPopulationHash == "" || p.PromotionAuthority != "operator" || p.EvaluatorRubricHash == "" || p.EvaluatorAuthor == "" {
 		return fmt.Errorf("protocol requires population, workflow-node-per-execution randomization, primary metric, non-negative effect threshold, exposure policy, completeness threshold in (0,1], budget, stopping rule, holdout requirement and population hash, operator promotion authority, evaluator rubric hash, and evaluator author")
+	}
+	if p.ProbabilityThreshold < 0.5 || p.ProbabilityThreshold >= 1 {
+		return fmt.Errorf("protocol probability threshold must be in [0.5, 1)")
+	}
+	if p.CostNonInferiorityRatio < 1 {
+		return fmt.Errorf("protocol cost non-inferiority ratio must be >= 1")
 	}
 	return nil
 }

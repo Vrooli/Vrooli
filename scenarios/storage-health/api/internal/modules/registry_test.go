@@ -9,6 +9,7 @@ import (
 	"storage-health/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -118,6 +119,9 @@ func TestProtoConnectParity(t *testing.T) {
 
 		for s := 0; s < services.Len(); s++ {
 			svc := services.Get(s)
+			if len(entry.Services) > 0 && !containsService(entry.Services, svc.FullName()) {
+				continue
+			}
 			methods := svc.Methods()
 			for m := 0; m < methods.Len(); m++ {
 				method := methods.Get(m)
@@ -132,4 +136,13 @@ func TestProtoConnectParity(t *testing.T) {
 			}
 		}
 	}
+}
+
+func containsService(services []protoreflect.FullName, name protoreflect.FullName) bool {
+	for _, service := range services {
+		if service == name {
+			return true
+		}
+	}
+	return false
 }

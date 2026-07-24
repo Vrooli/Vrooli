@@ -2,6 +2,7 @@
 package tags
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/google/uuid"
@@ -10,19 +11,35 @@ import (
 // Repository handles database operations for tags.
 // This is a testing seam: inject a mock Repository in tests to avoid database access.
 type Repository struct {
-	db *sql.DB
+	db  databaseExecutor
+	ctx context.Context
+}
+
+type databaseExecutor interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
 // NewRepository creates a new tags repository.
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db databaseExecutor) *Repository {
+	return &Repository{db: db, ctx: context.Background()}
+}
+
+func (r *Repository) WithContext(ctx context.Context) *Repository {
+	copy := *r
+	copy.ctx = ctx
+	return &copy
+}
+
+func (r *Repository) WithRequestContext(ctx context.Context) TagRepository {
+	return r.WithContext(ctx)
 }
 
 // GetAll retrieves all tags ordered by name.
 func (r *Repository) GetAll() ([]Tag, error) {
 	query := `SELECT id, name, color, description FROM tags ORDER BY name`
 
-	rows, err := r.db.Query(query)
+	rows, err := r.db.QueryContext(r.ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +74,6 @@ func (r *Repository) Create(tag *Tag) error {
 	}
 
 	query := `INSERT INTO tags (id, name, color, description) VALUES (?, ?, ?, ?)`
-	_, err := r.db.Exec(query, tag.ID, tag.Name, tag.Color, tag.Description)
+	_, err := r.db.ExecContext(r.ctx, query, tag.ID, tag.Name, tag.Color, tag.Description)
 	return err
 }

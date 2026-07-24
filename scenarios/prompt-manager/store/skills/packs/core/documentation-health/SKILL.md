@@ -55,19 +55,7 @@ Required reading:
                (The actual solution)
 ```
 
-**Decision Tree: Where Does This Doc Belong?**
-
-```
-                    What type of content?
-                           │
-         ┌─────────────────┼─────────────────┐
-         ▼                 ▼                 ▼
-    Business/Why      Technical How     Reference/API
-         │                 │                 │
-         ▼                 ▼                 ▼
-    PRD.md or         docs/guides/      docs/reference/
-    docs/concepts/    docs/architecture/ or inline JSDoc
-```
+**Genre placement follows the Diátaxis model** (diataxis.fr): every reader-facing doc is one of tutorial, how-to guide, reference, or explanation — decide which *before* writing, and never mix modes in one document. Repo mapping: tutorial → `QUICKSTART.md`, how-to → `docs/guides/`, reference → `docs/reference/`, explanation → `docs/concepts/`. `docs/internal/` is deliberately outside Diátaxis: it is agent memory, not reader documentation.
 
 ---
 

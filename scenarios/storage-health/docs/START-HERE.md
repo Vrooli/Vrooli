@@ -17,7 +17,7 @@ Before writing code, read the two durable concept docs that define what
 this scenario enforces: `docs/concepts/storage-model.md` (the engines,
 the api-core namespace seams, the per-domain embedded-schema convention,
 and the L0–L4 maturity ladder) and
-`docs/concepts/test-isolation-contract.md` (the statically-proven,
+`scenarios/storage-health/docs/concepts/test-isolation-contract.md` (the statically-proven,
 fail-closed test-isolation contract — the safety throughline).
 `docs/concepts/overview.md` indexes both.
 

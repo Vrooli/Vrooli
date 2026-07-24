@@ -5,6 +5,7 @@
 package testing
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -30,6 +31,15 @@ func NewHandlers(repo TestRepository, llmClient LLMClient, store skills.SkillSto
 		llmClient: llmClient,
 		store:     store,
 	}
+}
+
+func (h *Handlers) repoFor(ctx context.Context) TestRepository {
+	if scoped, ok := h.repo.(interface {
+		WithRequestContext(context.Context) TestRepository
+	}); ok {
+		return scoped.WithRequestContext(ctx)
+	}
+	return h.repo
 }
 
 // Test handles POST /skills/{id}/test - tests a skill with Ollama.
@@ -103,7 +113,7 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Best effort save - don't fail the request if storage fails
-	_ = h.repo.Save(result)
+	_ = h.repoFor(r.Context()).Save(result)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(TestResponse{
@@ -121,7 +131,7 @@ func (h *Handlers) GetHistory(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	results, err := h.repo.GetHistory(id, 20)
+	results, err := h.repoFor(r.Context()).GetHistory(id, 20)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

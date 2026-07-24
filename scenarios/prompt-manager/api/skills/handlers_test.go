@@ -20,6 +20,22 @@ type MockStore struct {
 	contents map[string]string     // folder/filename -> content
 }
 
+type storeContextKey struct{}
+
+// contextualMockStore models the Routed FileSkillStore contract: selecting a
+// request-scoped view must keep mutations out of the primary store.
+type contextualMockStore struct {
+	*MockStore
+	test *MockStore
+}
+
+func (m *contextualMockStore) WithContext(ctx context.Context) SkillStore {
+	if testMode, _ := ctx.Value(storeContextKey{}).(bool); testMode {
+		return m.test
+	}
+	return m.MockStore
+}
+
 type fixedIdentityVerifier struct {
 	identity *VerifiedWorkflowIdentity
 	err      error
@@ -217,6 +233,30 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 	}
 }
 
+func TestCreate_UsesRequestScopedStore(t *testing.T) {
+	primary := NewMockStore()
+	testStore := NewMockStore()
+	handlers := NewHandlers(&contextualMockStore{MockStore: primary, test: testStore}, &MockMetricsService{}, "/test/store")
+
+	body, err := json.Marshal(CreateRequest{Name: "Isolated Skill", Content: "test content", Folder: "local"})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/skills", bytes.NewReader(body)).WithContext(context.WithValue(context.Background(), storeContextKey{}, true))
+	response := httptest.NewRecorder()
+	handlers.Create(response, req)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", response.Code, response.Body.String())
+	}
+	if len(primary.skills["local"]) != 0 || len(primary.contents) != 0 {
+		t.Fatalf("primary store was mutated by a request-scoped write: skills=%d contents=%d", len(primary.skills["local"]), len(primary.contents))
+	}
+	if len(testStore.skills["local"]) != 1 || testStore.contents["local/isolated-skill.md"] != "test content" {
+		t.Fatalf("test store did not receive scoped write: skills=%#v contents=%#v", testStore.skills, testStore.contents)
+	}
+}
+
 func TestCreate_ExplicitIDConflict(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
@@ -353,9 +393,9 @@ func TestRead_ResolveAutoByID(t *testing.T) {
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics, "/test/store")
 
-	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
+	addMockSkill(store, "core", "ui-health", "ui-health.md", "React Coherence", "content-a")
 
-	req := ReadRequest{Identifiers: []string{"react-coherence"}}
+	req := ReadRequest{Identifiers: []string{"ui-health"}}
 	body, _ := json.Marshal(req)
 	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
 	w := httptest.NewRecorder()
@@ -373,8 +413,8 @@ func TestRead_ResolveAutoByID(t *testing.T) {
 	if len(resp.Skills) != 1 {
 		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
 	}
-	if resp.Skills[0].ID != "react-coherence" {
-		t.Errorf("expected ID 'react-coherence', got '%s'", resp.Skills[0].ID)
+	if resp.Skills[0].ID != "ui-health" {
+		t.Errorf("expected ID 'ui-health', got '%s'", resp.Skills[0].ID)
 	}
 	if resp.Skills[0].Content != "content-a" {
 		t.Errorf("expected content 'content-a', got '%s'", resp.Skills[0].Content)
@@ -386,9 +426,9 @@ func TestRead_ResolveFileWithoutExtension(t *testing.T) {
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics, "/test/store")
 
-	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
+	addMockSkill(store, "core", "ui-health", "ui-health.md", "React Coherence", "content-a")
 
-	req := ReadRequest{Identifiers: []string{"react-coherence"}, Resolve: "file"}
+	req := ReadRequest{Identifiers: []string{"ui-health"}, Resolve: "file"}
 	body, _ := json.Marshal(req)
 	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
 	w := httptest.NewRecorder()
@@ -406,8 +446,8 @@ func TestRead_ResolveFileWithoutExtension(t *testing.T) {
 	if len(resp.Skills) != 1 {
 		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
 	}
-	if resp.Skills[0].ID != "react-coherence" {
-		t.Errorf("expected ID 'react-coherence', got '%s'", resp.Skills[0].ID)
+	if resp.Skills[0].ID != "ui-health" {
+		t.Errorf("expected ID 'ui-health', got '%s'", resp.Skills[0].ID)
 	}
 }
 
@@ -416,9 +456,9 @@ func TestRead_ResolveFilePath(t *testing.T) {
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics, "/test/store")
 
-	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
+	addMockSkill(store, "core", "ui-health", "ui-health.md", "React Coherence", "content-a")
 
-	req := ReadRequest{Identifiers: []string{"core/react-coherence.md"}, Resolve: "file"}
+	req := ReadRequest{Identifiers: []string{"core/ui-health.md"}, Resolve: "file"}
 	body, _ := json.Marshal(req)
 	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
 	w := httptest.NewRecorder()
@@ -436,8 +476,8 @@ func TestRead_ResolveFilePath(t *testing.T) {
 	if len(resp.Skills) != 1 {
 		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
 	}
-	if resp.Skills[0].ID != "react-coherence" {
-		t.Errorf("expected ID 'react-coherence', got '%s'", resp.Skills[0].ID)
+	if resp.Skills[0].ID != "ui-health" {
+		t.Errorf("expected ID 'ui-health', got '%s'", resp.Skills[0].ID)
 	}
 }
 
@@ -506,10 +546,10 @@ func TestRead_CombinedResolveFileWithoutExtension(t *testing.T) {
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics, "/test/store")
 
-	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
+	addMockSkill(store, "core", "ui-health", "ui-health.md", "React Coherence", "content-a")
 
 	req := ReadRequest{
-		Identifiers: []string{"react-coherence"},
+		Identifiers: []string{"ui-health"},
 		Resolve:     "file",
 		Output:      "combined",
 		Format:      "xml",

@@ -166,8 +166,9 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 **Actions:**
 1. Present pending strategist decisions from the prep deliverable (max 3).
 2. These relate to Command Center metrics, outcome gaps, and strategic direction.
-3. Same interaction pattern as Phase 3 — present, discuss, execute or defer.
-4. If the strategist is disabled (awaiting Command Center), note it briefly: "The strategist agent is waiting on the Command Center scenario to come online. Once it does, this section will surface metric-driven questions."
+3. Present the prep deliverable's `### Prediction scores` section: matured-prediction verdicts (hit / miss / unmeasurable) and any systematic-misprediction signal — this is the calibration evidence the portfolio loop learns from. If it is empty or inventory-only, say so in one line and move on.
+4. Same interaction pattern as Phase 3 — present, discuss, execute or defer.
+5. If the strategist lane is paused, note it briefly and name which outcome categories still lack sensors per the Outcomes Charter §"Sensor map".
 
 **Exit criteria:**
 - [ ] Strategist decisions addressed, or section noted as not yet active
@@ -345,11 +346,12 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
    - Is the next step research, skill/action/scenario proposal, backlog item, or just preserving the source?
    - What raw context must be preserved so the downstream agent does not have to reconstruct the conversation?
 3. If the user naturally gravitates toward a specific idea, follow them deeper — use the idea-workshop convergence patterns (listen, synthesize, sharpen, converge).
-4. If no strong ideas emerge from outside-Vrooli signals, use the prep deliverable's Big Picture Context to suggest:
+4. Read the prep deliverable's `### Self-Improvement Loop Ladder` and surface any loop whose claimed level changed since the last walk. A loop claiming above Level 0 must show its measured evidence — challenge the claim if none is attached. This grounds ideation in which self-improvement loops are actually running versus merely built.
+5. If no strong ideas emerge from outside-Vrooli signals, use the prep deliverable's Big Picture Context to suggest:
    - Stalled initiatives that might benefit from fresh thinking
    - Unexplored areas of the bundle roadmap
    - Cross-cutting patterns noticed across recent work
-5. **Tech tree integration (future):** When the tech-tree-designer scenario is available, use it here to map ideas onto the hierarchy, assess feasibility based on prerequisite nodes, and identify frontier opportunities. Until then, do this assessment conversationally.
+6. **Tech tree integration (future):** When the tech-tree-designer scenario is available, use it here to map ideas onto the hierarchy, assess feasibility based on prerequisite nodes, and identify frontier opportunities. Until then, do this assessment conversationally.
 
 **Convergence patterns (from idea-workshop):**
 

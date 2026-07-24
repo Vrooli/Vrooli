@@ -42,7 +42,7 @@ deliberately out of the local-coding-readiness scope.
 | G8 | Build / repurpose a scenario | `ecosystem-fit`, `scenario-generation`, `scenario-capability-extraction` | COVERED | — | |
 | G9 | Add / modify a CLI command | `cli-steer` | COVERED | — | |
 | G10 | Add / modify a proto / RPC | `api-steer`, `interoperability-steer`, `proto-contract-audit` | COVERED | — | |
-| G11 | Add / modify UI | `react-coherence`, `react-stability`, `experience-architecture-audit`, `polish` | COVERED | — | |
+| G11 | Add / modify UI | `ui-health`, `ui-health`, `experience-architecture-audit`, `polish` | COVERED | — | |
 | G12 | Storage / DB work | `storage-steer` | COVERED | — | |
 | G13 | Bundle / integration | `bundle-integration-steer` | COVERED | — | |
 | **Test** | | | | | |
@@ -71,7 +71,7 @@ deliberately out of the local-coding-readiness scope.
 | **Candidate gaps (`SKETCH`)** | | | | | |
 | G31 | Concurrency / race hardening | _(adjacent: `idempotency-replay-safety-hardening`)_ | MISSING | — | No dedicated skill; adjacent to G19. |
 | G32 | Observability / telemetry wiring | _(none)_ | MISSING | — | Pairs with Validate V18. |
-| G33 | Internationalization (i18n) | _(adjacent: `react-coherence`)_ | MISSING | — | No dedicated i18n skill; adjacent to `react-coherence`. Candidate gap (see below). |
+| G33 | Internationalization (i18n) | _(adjacent: `ui-health`)_ | MISSING | — | No dedicated i18n skill; adjacent to `ui-health`. Candidate gap (see below). |
 
 ## Known Gaps & Approaches
 

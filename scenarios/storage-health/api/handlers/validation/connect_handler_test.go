@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/maturity-go/assessment"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // stubValidator returns a fixed report so the handler can be exercised without
@@ -53,6 +54,31 @@ func TestValidateScenario_CleanAssessment(t *testing.T) {
 	}
 	if len(a.GetFindings()) != 0 {
 		t.Fatalf("findings = %d, want 0", len(a.GetFindings()))
+	}
+	var detail structpb.Struct
+	if err := resp.Msg.GetNativeDetail().UnmarshalTo(&detail); err != nil {
+		t.Fatalf("unmarshal native detail: %v", err)
+	}
+	if detail.Fields["file_persisting"].GetBoolValue() {
+		t.Fatal("file_persisting = true, want false for a report without file engine")
+	}
+}
+
+func TestValidateScenarioPublishesFilePersistenceClassification(t *testing.T) {
+	h := NewConnectHandler(Deps{
+		Validator:    stubValidator{report: validation.Report{Scenario: "demo", Language: "go", Engines: []validation.Engine{validation.EngineFile}}},
+		MaturitySpec: loadRealSpec(t),
+	})
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"}))
+	if err != nil {
+		t.Fatalf("ValidateScenario error = %v", err)
+	}
+	var detail structpb.Struct
+	if err := resp.Msg.GetNativeDetail().UnmarshalTo(&detail); err != nil {
+		t.Fatalf("unmarshal native detail: %v", err)
+	}
+	if !detail.Fields["file_persisting"].GetBoolValue() {
+		t.Fatal("file_persisting = false, want true for file engine")
 	}
 }
 
