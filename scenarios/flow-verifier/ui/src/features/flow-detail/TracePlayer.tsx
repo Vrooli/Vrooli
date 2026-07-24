@@ -47,7 +47,7 @@ export interface TracePlayerProps {
  * time. The current state is fed into the shared StateGraph so the
  * highlighted node moves with the player.
  *
- * Pure useReducer (no Context) — scope discipline per react-coherence.
+ * Pure useReducer (no Context) — scope discipline per ui-health.
  */
 export function TracePlayer({ traces, graphProps }: TracePlayerProps) {
   const { t } = useTranslation();

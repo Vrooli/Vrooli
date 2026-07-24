@@ -1,5 +1,5 @@
 /**
- * Custom render function with providers for testing.
+ * Canonical render function with providers for testing.
  * Wraps components with QueryClientProvider configured for testing.
  */
 

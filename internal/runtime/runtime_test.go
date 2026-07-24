@@ -183,6 +183,24 @@ func TestEnsureRequirementsReportsFailedInstallWithoutPretendingSuccess(t *testi
 	}
 }
 
+func TestMissingRequiredErrorIncludesToolInstallRemediation(t *testing.T) {
+	err := missingRequiredError(Report{
+		Environment:     "development",
+		MissingRequired: []string{"secret-tool"},
+		Tools: []ToolStatus{{
+			Name:     "secret-tool",
+			Kind:     hostreq.KindTool,
+			Required: true,
+		}},
+	}, EnsureOptions{})
+	if err == nil {
+		t.Fatal("expected missing host requirement error")
+	}
+	if !strings.Contains(err.Error(), "secret-tool") || !strings.Contains(err.Error(), "vrooli host install secret-tool") {
+		t.Fatalf("missing requirement error = %q, want tool name and install remediation", err)
+	}
+}
+
 func TestInspectRequirementsMarksUnknownHandlerUnsupported(t *testing.T) {
 	report, err := InspectRequirements("development", hostreq.Resolution{
 		Tools: []hostreq.ResolvedRequirement{
@@ -514,7 +532,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 		"mcelog", "node", "openbox", "pnpm", "protoc", "protoc-gen-connect-go",
 		"protoc-gen-es", "protoc-gen-go",
 		"python", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "sd", "sd-gpu",
-		"stripe", "tmux", "uv", "vault", "websockify",
+		"secret-tool", "stripe", "tmux", "uv", "vault", "websockify",
 		"x11vnc", "xdotool", "yq",
 	}
 	if len(toolNames) != len(expectedTools) {

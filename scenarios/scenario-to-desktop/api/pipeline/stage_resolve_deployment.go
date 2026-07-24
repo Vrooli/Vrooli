@@ -40,6 +40,11 @@ func (s *ResolveDeploymentStage) CanSkip(input *StageInput) bool {
 func (s *ResolveDeploymentStage) Execute(ctx context.Context, input *StageInput) *StageResult {
 	result := newStageResult(s.Name(), s.timeProvider)
 	if s.CanSkip(input) {
+		if err := validateThinClientProxyURL(input.Config.ProxyURL); err != nil {
+			failStage(result, s.timeProvider, errors.New(errors.CodeValidation, err.Error()).
+				WithRecovery(errors.RecoveryFixInput, "Use the Vrooli scenario proxy URL, not a Vault listener or /v1/ API endpoint."))
+			return result
+		}
 		skipStage(result, s.timeProvider, "Skipping resource deployment resolution: deployment mode is proxy")
 		return result
 	}

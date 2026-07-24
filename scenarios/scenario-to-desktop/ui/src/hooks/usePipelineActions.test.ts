@@ -60,7 +60,9 @@ beforeEach(() => {
 });
 
 const defaultProps: UsePipelineActionsProps = {
-  scenarioName: "test-scenario",
+  // Most tests exercise mutations or selectors and do not need the hook's
+  // scenario-loading effect. Keep that effect isolated to its dedicated test.
+  scenarioName: "",
 };
 
 describe("usePipelineActions", () => {
@@ -376,7 +378,7 @@ describe("usePipelineActions", () => {
     });
 
     it("filters empty secrets before running preflight", async () => {
-      const { result } = renderHook(() => usePipelineActions(defaultProps), {
+      const { result } = renderHook(() => usePipelineActions({ scenarioName: "test-scenario" }), {
         wrapper: createWrapper(),
       });
 

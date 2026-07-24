@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.T) {
@@ -97,7 +99,7 @@ func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	serverSum := sha256.Sum256(serverBody)
-	resource := `{"cli":{"distribution":{"kind":"prebuilt_artifact","artifact_name":"resource-vault_${os}_${arch}"}},"managed_service":{"provider_policy":{"default_mode":"managed-private","allowed_modes":["managed-private"]},"artifact":{"path":"bin/vault","version":"1.17.6","bundle_artifact":"vault_${os}_${arch}","sha256":"` + hex.EncodeToString(serverSum[:]) + `"}},"ports":[{"name":"http","host":8200}],"health_checks":[{"type":"http","target":"http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health","expected_status":[200,501],"timeout_seconds":5}],"deployment":{"profiles":{"desktop":{"linux":{"support":"supported","mode":"bundled-service","architectures":["amd64"],"limitations":["test"],"evidence":["test"]},"macos":{"support":"unsupported","mode":"bundled-service","reason":"test"},"windows":{"support":"unsupported","mode":"bundled-service","reason":"test"}}}}}`
+	resource := `{"cli":{"distribution":{"kind":"prebuilt_artifact","artifact_name":"resource-vault_${os}_${arch}"}},"managed_service":{"provider_policy":{"target_defaults":{"control-plane":"managed-shared","desktop-bundle":"managed-private"},"allowed_modes":["managed-private","managed-shared"],"shared_reuse_requires_consent":true},"artifact":{"path":"bin/vault","version":"1.17.6","bundle_artifact":"vault_${os}_${arch}","sha256":"` + hex.EncodeToString(serverSum[:]) + `"}},"ports":[{"name":"http","host":8200}],"health_checks":[{"type":"http","target":"http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health","expected_status":[200,501],"timeout_seconds":5}],"deployment":{"profiles":{"desktop":{"linux":{"support":"supported","mode":"bundled-service","architectures":["amd64"],"limitations":["test"],"evidence":["test"]},"macos":{"support":"unsupported","mode":"bundled-service","reason":"test"},"windows":{"support":"unsupported","mode":"bundled-service","reason":"test"}}}}}`
 	resourceDir := filepath.Join(root, "resources", "vault")
 	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -129,7 +131,7 @@ func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 	if item.Service == nil || item.Service.Artifact != serverName || len(item.Service.Files) != 1 {
 		t.Fatalf("bundled service plan = %#v", item.Service)
 	}
-	if item.Service.ProviderPolicy.DefaultMode != "managed-private" || len(item.Service.ProviderPolicy.AllowedModes) != 1 || item.Service.ProviderPolicy.AllowedModes[0] != "managed-private" {
+	if item.Service.ProviderPolicy.TargetDefaults[resourcedeployment.ProviderTargetControlPlane] != resourcedeployment.ProviderManagedShared || item.Service.ProviderPolicy.TargetDefaults[resourcedeployment.ProviderTargetDesktopBundle] != resourcedeployment.ProviderManagedPrivate || !item.Service.ProviderPolicy.SharedReuseRequiresConsent {
 		t.Fatalf("bundled service provider policy = %#v", item.Service.ProviderPolicy)
 	}
 	if len(item.Service.Ports) != 1 || item.Service.Ports[0].Name != "http" || item.Service.Ports[0].Host != 8200 {
@@ -147,6 +149,23 @@ func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "bundle", "resources", "vault", serverName)); err != nil {
 		t.Fatalf("staged server: %v", err)
+	}
+}
+
+func TestResolveResourceForTargetRejectsStaticManagedServicePolicy(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "vault")
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	legacy := `{"cli":{"distribution":{"kind":"prebuilt_artifact","artifact_name":"resource-vault_${os}_${arch}"}},"managed_service":{"provider_policy":{"default_mode":"managed-private","allowed_modes":["managed-private"]}},"deployment":{"profiles":{"desktop":{"linux":{"support":"supported","mode":"bundled-service","architectures":["amd64"]}}}}}`
+	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err := resolveResourceForTarget(root, "vault", "vault", nil, resourcedeployment.Platform{OS: "linux", Arch: "amd64"}, map[string]bool{})
+	if err == nil || !strings.Contains(err.Error(), "invalid managed-service provider policy") {
+		t.Fatalf("expected static managed-service policy rejection, got %v", err)
 	}
 }
 
@@ -182,6 +201,18 @@ func TestStageBundledResourceArtifactsRejectsChecksumMismatch(t *testing.T) {
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
 	if _, err := resolveResourceDeploymentPlan(scenarioPath, artifactRoot, []string{"linux-amd64"}); err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Fatalf("expected checksum mismatch, got %v", err)
+	}
+}
+
+func TestLoadReleaseChecksumsExplainsMissingReleaseSignature(t *testing.T) {
+	artifactRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(artifactRoot, "SHA256SUMS"), []byte(strings.Repeat("0", 64)+"  resource-vault_linux_amd64\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := loadReleaseChecksums(artifactRoot, filepath.Join(artifactRoot, "vrooli-release.pub"))
+	if err == nil || !strings.Contains(err.Error(), "Vrooli release signing authority") || !strings.Contains(err.Error(), "SHA256SUMS.sig") {
+		t.Fatalf("missing signature error = %v, want release-authority guidance", err)
 	}
 }
 

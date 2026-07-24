@@ -3,7 +3,30 @@ package pipeline
 import (
 	"encoding/json"
 	"testing"
+	"time"
+
+	"scenario-to-desktop/cli/internal/testutil"
 )
+
+type fixedClock struct{ value time.Time }
+
+func (c fixedClock) Now() time.Time { return c.value }
+
+func TestCommandsNowUsesInjectedClock(t *testing.T) {
+	want := time.Date(2026, time.July, 23, 6, 30, 0, 0, time.UTC)
+	commands := &Commands{clock: fixedClock{value: want}}
+	testutil.RequireEqual(t, commands.now(), want, "injected clock value")
+}
+
+func TestBuildRunRequestPreservesResourceArtifactRoot(t *testing.T) {
+	request := buildRunRequest("secrets-manager", &runFlags{
+		platforms:            "linux-amd64",
+		resourceArtifactRoot: "/verified/releases/v1.0.0",
+	})
+	if got := request["resource_artifact_root"]; got != "/verified/releases/v1.0.0" {
+		t.Fatalf("resource_artifact_root = %#v, want verified release root", got)
+	}
+}
 
 func TestLifecycleStateDescription(t *testing.T) {
 	tests := []struct {
@@ -497,4 +520,3 @@ func findSubstring(s, substr string) bool {
 	}
 	return false
 }
-

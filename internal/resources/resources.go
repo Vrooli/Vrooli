@@ -268,11 +268,30 @@ func (c *Controller) resolveCLIPath(name string) (string, bool) {
 
 func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd, error) {
 	if path, ok := c.resolveCLIPath(name); ok {
+		env := resourceEnvForResource(c.Root, c.Home, name)
+		// Resource CLIs need the same provider-selected, non-secret runtime
+		// context as lifecycle operations. In particular, a managed-service
+		// client must not fall back to a legacy Docker adapter simply because it
+		// was invoked through `vrooli resource` rather than by the supervisor.
+		if manifest, err := c.LoadManifest(filepath.Join(c.Root, "resources", name, "resource.json")); err == nil && manifest.ManagedService != nil {
+			for _, port := range manifest.Ports {
+				if port.Host > 0 {
+					env = setEnvValue(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
+				}
+			}
+			for key, value := range manifest.ManagedService.Environment {
+				env = setEnvValue(env, key, value)
+			}
+			env = renderManagedServiceEnvironment(env, manifest.ManagedService.Environment)
+			if artifact, err := managedServiceArtifactPath(c, manifest); err == nil {
+				env = setEnvValue(env, "VROOLI_MANAGED_SERVICE_ARTIFACT", artifact)
+			}
+		}
 		return shell.Command(shell.Spec{
 			Name: path,
 			Args: args,
 			Dir:  c.Root,
-			Env:  resourceEnvForResource(c.Root, c.Home, name),
+			Env:  env,
 		}), nil
 	}
 

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@/test-utils";
 import { act } from "@testing-library/react";
 import { GenerateSection } from "./GenerateSection";
 import { usePipelineStore } from "../../../store";

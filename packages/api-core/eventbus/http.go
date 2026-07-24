@@ -1,7 +1,9 @@
 package eventbus
 
 import (
+	"bufio"
 	"bytes"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -136,6 +138,22 @@ type statusWriter struct {
 	status int
 	body   bytes.Buffer
 }
+
+// Hijack preserves WebSocket support through the receipt-capturing wrapper.
+// gorilla/websocket requires the concrete ResponseWriter to implement
+// http.Hijacker; embedding alone does not promote an interface implemented by
+// the wrapped concrete writer.
+func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	return hijacker.Hijack()
+}
+
+// Unwrap lets net/http helpers reach optional interfaces on the underlying
+// writer as the middleware stack evolves.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func (w *statusWriter) WriteHeader(status int) {
 	w.status = status

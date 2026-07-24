@@ -6,10 +6,11 @@
 // Custom render utilities
 export {
   renderWithProviders,
+  renderWithProviders as render,
   createHookWrapper,
   createTestQueryClient,
   type RenderWithProvidersOptions,
-} from "./render";
+} from "./renderWithProviders";
 
 // Mock factories
 export {

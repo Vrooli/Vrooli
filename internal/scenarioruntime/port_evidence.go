@@ -8,6 +8,7 @@ const (
 	PortRecommendationInspectionUnavailable     = "port-inspection-unavailable"
 	PortRecommendationStaleClaimExpire          = "stale-claim-expire"
 	PortRecommendationOrphanListenerInvestigate = "orphan-listener-investigate"
+	PortRecommendationClaimResolved             = "claim-resolved"
 )
 
 type PortEvidenceInput struct {
@@ -29,6 +30,16 @@ type PortEvidenceRecommendation struct {
 
 func ClassifyPortEvidence(in PortEvidenceInput) PortEvidenceRecommendation {
 	claim := in.Claim
+	if !IsActivePortClaimStatus(claim.Status) {
+		// Expired/released rows are resolved history awaiting retention pruning.
+		// Recommending expiry for them would make every stale-claim consumer
+		// count tombstones forever.
+		return PortEvidenceRecommendation{
+			Code:       PortRecommendationClaimResolved,
+			Confidence: "high",
+			Rationale:  "claim is already " + claim.Status + "; no action needed",
+		}
+	}
 	if !in.HasAuthoritative || !in.Authoritative {
 		if in.Reconciliation == ReconcileStaleClaim || in.Reconciliation == ReconcileStaleInstance {
 			return PortEvidenceRecommendation{

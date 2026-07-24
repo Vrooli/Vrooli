@@ -61,8 +61,8 @@ func (r BrokerSharedServiceResolver) ResolveSharedService(ctx context.Context, i
 	if item.Service == nil {
 		return SharedServiceBinding{}, fmt.Errorf("resource %s has no managed service declaration", item.Resource)
 	}
-	if _, err := serviceProviderPolicy(item.Service).ResolveProvider(resourcedeployment.ProviderRequest{
-		Mode: resourcedeployment.ProviderManagedShared, SharedConsented: r.SharedReuseConsented,
+	if _, err := item.Service.ProviderPolicy.ResolveProvider(resourcedeployment.ProviderRequest{
+		Target: resourcedeployment.ProviderTargetDesktopBundle, Mode: resourcedeployment.ProviderManagedShared, SharedConsented: r.SharedReuseConsented,
 	}); err != nil {
 		return SharedServiceBinding{}, err
 	}
@@ -81,7 +81,7 @@ func (r BrokerSharedServiceResolver) ResolveSharedService(ctx context.Context, i
 	if err != nil {
 		return SharedServiceBinding{}, fmt.Errorf("obtain shared %s broker grant: %w", item.Resource, err)
 	}
-	if strings.TrimSpace(grant.Endpoint) == "" || strings.TrimSpace(grant.Credential) == "" || grant.ExpiresAt.IsZero() {
+	if strings.TrimSpace(grant.Endpoint) == "" || strings.TrimSpace(grant.Credential) == "" || grant.ExpiresAt.IsZero() || !grant.ExpiresAt.After(time.Now()) {
 		return SharedServiceBinding{}, fmt.Errorf("broker returned an invalid scoped %s grant", item.Resource)
 	}
 	environment := make(map[string]string, len(configuration.Environment))

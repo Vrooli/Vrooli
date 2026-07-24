@@ -29,6 +29,17 @@ func TestRunChecksHTTPHealthy(t *testing.T) {
 	}
 }
 
+func TestRunCheckHTTPRendersEnvironmentTarget(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+	result, err := RunCheck(context.Background(), manifestpkg.ResourceHealthCheck{Type: "http", Target: "${HEALTH_ENDPOINT}", ExpectedStatus: []int{http.StatusNoContent}}, Config{Env: []string{"HEALTH_ENDPOINT=" + srv.URL}})
+	if err != nil || !result.Healthy {
+		t.Fatalf("rendered HTTP health = %#v, %v", result, err)
+	}
+}
+
 func TestRunCheckCommandFailureReturnsUnhealthy(t *testing.T) {
 	result, err := RunCheck(context.Background(), manifestpkg.ResourceHealthCheck{
 		Type:    "command",

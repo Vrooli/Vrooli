@@ -147,8 +147,11 @@ func verifyService(bundleRoot string, item Item) error {
 		return fmt.Errorf("bundled-service resource %s is missing its server artifact", item.Resource)
 	}
 	service := item.Service
-	if _, err := serviceProviderPolicy(service).ResolveProvider(resourcedeployment.ProviderRequest{}); err != nil {
+	if err := service.ProviderPolicy.ValidateManagedServiceTargets(); err != nil {
 		return fmt.Errorf("resource %s has invalid bundled service provider policy: %w", item.Resource, err)
+	}
+	if _, err := service.ProviderPolicy.ResolveProvider(resourcedeployment.ProviderRequest{Target: resourcedeployment.ProviderTargetDesktopBundle}); err != nil {
+		return fmt.Errorf("resource %s cannot resolve the desktop bundled provider: %w", item.Resource, err)
 	}
 	if strings.TrimSpace(service.Version) == "" || !resourcedeployment.IsSafeArtifactName(service.Artifact) || len(service.SHA256) != sha256.Size*2 {
 		return fmt.Errorf("resource %s has an invalid bundled service identity", item.Resource)
@@ -187,20 +190,6 @@ func verifyService(bundleRoot string, item Item) error {
 		return fmt.Errorf("bundled service artifact hash mismatch for %s", service.Artifact)
 	}
 	return nil
-}
-
-// serviceProviderPolicy treats plans created before provider_policy was added
-// as private-only. That is the fail-closed legacy interpretation: an older
-// signed bundle can still start its own artifact, but can never opt into reuse.
-func serviceProviderPolicy(service *Service) resourcedeployment.ProviderPolicy {
-	if service.ProviderPolicy.DefaultMode == "" && len(service.ProviderPolicy.AllowedModes) == 0 && service.ProviderPolicy.ExternalManagement == "" {
-		return resourcedeployment.ProviderPolicy{
-			DefaultMode:        resourcedeployment.ProviderManagedPrivate,
-			AllowedModes:       []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate},
-			ExternalManagement: "forbidden",
-		}
-	}
-	return service.ProviderPolicy
 }
 
 func runtimeOS() string {

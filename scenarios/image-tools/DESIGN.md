@@ -369,7 +369,7 @@ motion respects `prefers-reduced-motion` (instant static states).
 
 Exposed to Tailwind as `app-brand*`. Surfaces must consume tokens
 (`bg-app-surface`, `text-app-foreground`, `text-app-brand`, …), never raw
-palette classes (`bg-black/20`, `text-slate-400`) — see the react-coherence
+palette classes (`bg-black/20`, `text-slate-400`) — see the ui-health
 styling contract.
 
 ### Staging

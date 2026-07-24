@@ -17,7 +17,7 @@ import {
   type ProxyHintsResponse,
   type PipelineConfig,
 } from "../../lib/api";
-import type { DeploymentManagerBundleHelperHandle, BundleResult } from "../runtime/DeploymentManagerBundleHelper";
+import type { BundleSectionHandle, BundleResult } from "../sections/bundle/BundleSection";
 import type { DesktopConnectionConfig, ScenariosResponse } from "../scenario-inventory/types";
 import {
   DEFAULT_DEPLOYMENT_MODE,
@@ -136,7 +136,7 @@ export function useGeneratorFormState({
   // Bundle result seed from server state - similar pattern to preflightSeed
   const [bundleResultSeed, setBundleResultSeed] = useState<BundleResult | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
-  const bundleHelperRef = useRef<DeploymentManagerBundleHelperHandle>(null);
+  const bundleHelperRef = useRef<BundleSectionHandle>(null);
 
   // Pipeline store for preflight
   const {

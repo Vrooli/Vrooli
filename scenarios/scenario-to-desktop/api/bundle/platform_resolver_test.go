@@ -112,6 +112,16 @@ func TestDefaultPlatformResolverResolveBinaryForPlatform(t *testing.T) {
 			shouldFindMatch: true,
 		},
 		{
+			name: "architecture alias match (linux-amd64 to linux-x64)",
+			service: bundlemanifest.Service{
+				ID:       "test-svc",
+				Binaries: map[string]bundlemanifest.Binary{"linux-x64": {Path: "/path/linux-x64"}},
+			},
+			platform:        "linux-amd64",
+			expectPath:      "/path/linux-x64",
+			shouldFindMatch: true,
+		},
+		{
 			name: "shorthand expansion match (linux finds linux-x64)",
 			service: bundlemanifest.Service{
 				ID: "test-svc",

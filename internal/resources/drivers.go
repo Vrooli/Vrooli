@@ -23,6 +23,7 @@ import (
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 const StatusCodeUnsupportedPlatform = "unsupported_platform"
@@ -48,6 +49,8 @@ func driverForManifest(manifest ResourceManifest) (resourceDriver, error) {
 		return externalCLIDriver{}, nil
 	case "native-cli":
 		return nativeCLIDriver{}, nil
+	case "managed-service":
+		return managedServiceDriver{}, nil
 	case "cloud-api":
 		return cloudAPIDriver{}, nil
 	default:
@@ -1205,6 +1208,15 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 			_, err := fmt.Fprintf(stdout, "%s does not require a managed start step\n", item.Name)
 			return err
 		}
+		if usesManagedDiscoveredProvider(manifest) {
+			return &Error{
+				Code:      ErrorCodeCommandUnavailable,
+				Resource:  item.Name,
+				Operation: action,
+				Category:  "Provider",
+				Err:       fmt.Errorf("managed-discovered provider will not install or adopt an unverified host tool; run explicit install or select a Vrooli-managed fallback"),
+			}
+		}
 		return runInstallCommand(ctx, controller, manifest)
 	case "stop":
 		_, err := fmt.Fprintf(stdout, "%s does not run as a managed background service\n", item.Name)
@@ -1228,6 +1240,14 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 			Err:       fmt.Errorf("action %q is not supported by driver %q", action, d.Name()),
 		}
 	}
+}
+
+func usesManagedDiscoveredProvider(manifest ResourceManifest) bool {
+	if manifest.ProviderPolicy == nil {
+		return false
+	}
+	mode, err := manifest.ProviderPolicy.ResolveProvider(resourcedeployment.ProviderRequest{})
+	return err == nil && mode == resourcedeployment.ProviderManagedDiscovered
 }
 
 func (d nativeCLIDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {

@@ -81,6 +81,10 @@ type RoutedDB struct {
 	lease   leaseState
 	cfg     Config
 	clock   Clock
+	// testPoolInitializer prepares each newly installed pool before it becomes
+	// visible to test-mode requests (for example, by applying scenario schemas).
+	// It is deliberately process-owned, not part of the devrouting request.
+	testPoolInitializer func(context.Context, *sql.DB) error
 	// stats are per-lease atomic counters reset on each install.
 	stats leaseStats
 	// expiryWarned is reset on install/clear; ensures the slog.Warn that
@@ -188,6 +192,15 @@ func (r *RoutedDB) SetClock(clock Clock) {
 	}
 	r.mu.Lock()
 	r.clock = clock
+	r.mu.Unlock()
+}
+
+// SetTestPoolInitializer configures setup run once for every newly installed
+// test pool. A failing initializer rejects the install and leaves any prior
+// lease untouched, preventing requests from reaching an uninitialized pool.
+func (r *RoutedDB) SetTestPoolInitializer(initializer func(context.Context, *sql.DB) error) {
+	r.mu.Lock()
+	r.testPoolInitializer = initializer
 	r.mu.Unlock()
 }
 
@@ -316,6 +329,15 @@ func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string, ttl
 	pool, err := Connect(ctx, testCfg)
 	if err != nil {
 		return fmt.Errorf("install test pool: %w", err)
+	}
+	r.mu.RLock()
+	initializer := r.testPoolInitializer
+	r.mu.RUnlock()
+	if initializer != nil {
+		if err := initializer(ctx, pool); err != nil {
+			_ = pool.Close()
+			return fmt.Errorf("initialize test pool: %w", err)
+		}
 	}
 
 	r.mu.Lock()

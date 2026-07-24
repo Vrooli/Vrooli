@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -183,6 +184,9 @@ func resolveResourceForTarget(root, requested, candidate string, alternatives []
 			if target.Mode == "bundled-service" {
 				if manifest.ManagedService == nil {
 					return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resource %s uses bundled-service but has no managed_service contract", candidate)
+				}
+				if err := manifest.ManagedService.ProviderPolicy.ValidateManagedServiceTargets(); err != nil {
+					return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resource %s has an invalid managed-service provider policy: %w", candidate, err)
 				}
 				serviceArtifact, err := manifest.ManagedService.Artifact.ForPlatform(platform.OS, platform.Arch)
 				if err != nil {
@@ -386,6 +390,9 @@ func loadReleaseChecksums(root, trustedPublicKeyPath string) (map[string]string,
 		return nil, fmt.Errorf("read signed release checksums: %w", err)
 	}
 	if err := verifyReleaseChecksumSignature(data, filepath.Join(root, "SHA256SUMS.sig"), trustedPublicKeyPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("release artifact root is unsigned: Vrooli release signing authority must provide SHA256SUMS.sig for this exact SHA256SUMS manifest")
+		}
 		return nil, err
 	}
 	checksums := map[string]string{}

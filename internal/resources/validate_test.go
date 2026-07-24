@@ -19,7 +19,7 @@ func TestValidateResourcesRejectsRepoLocalDataVolumeSourcesWithoutLegacyMarker(t
 		Template:        "docker-service",
 		PortabilityTier: "full",
 		Runtime: manifestpkg.ResourceRuntime{
-			Image: "fixture:latest",
+			Image: "fixture:1.0.0",
 			Volumes: []manifestpkg.ResourceVolume{
 				{Source: "${ROOT}/data/resources/fixture/data", Target: "/var/lib/fixture"},
 			},
@@ -84,7 +84,7 @@ func TestValidateResourcesAllowsExplicitLegacyRepoDataVolumeSources(t *testing.T
 		PortabilityTier:       "full",
 		LegacyRepoDataAllowed: true,
 		Runtime: manifestpkg.ResourceRuntime{
-			Image: "fixture:latest",
+			Image: "fixture:1.0.0",
 			Volumes: []manifestpkg.ResourceVolume{
 				{Source: "${ROOT}/data/resources/fixture/data", Target: "/var/lib/fixture"},
 			},

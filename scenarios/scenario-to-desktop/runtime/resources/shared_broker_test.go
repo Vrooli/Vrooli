@@ -28,7 +28,7 @@ func TestBrokerSharedServiceResolverUsesScopedBinding(t *testing.T) {
 		}},
 	}}
 	binding, err := resolver.ResolveSharedService(context.Background(), Item{Resource: "vault", Service: &Service{ProviderPolicy: resourcedeployment.ProviderPolicy{
-		DefaultMode:                resourcedeployment.ProviderManagedPrivate,
+		TargetDefaults:             map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedShared, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate},
 		AllowedModes:               []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared},
 		SharedReuseRequiresConsent: true,
 		ExternalManagement:         "forbidden",
@@ -44,7 +44,7 @@ func TestBrokerSharedServiceResolverUsesScopedBinding(t *testing.T) {
 func TestBrokerSharedServiceResolverRejectsPolicyWithoutSharedMode(t *testing.T) {
 	resolver := BrokerSharedServiceResolver{}
 	_, err := resolver.ResolveSharedService(context.Background(), Item{Resource: "vault", Service: &Service{ProviderPolicy: resourcedeployment.ProviderPolicy{
-		DefaultMode:        resourcedeployment.ProviderManagedPrivate,
+		TargetDefaults:     map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate},
 		AllowedModes:       []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate},
 		ExternalManagement: "forbidden",
 	}}})
@@ -57,7 +57,7 @@ func TestBrokerSharedServiceResolverRequiresExplicitConsent(t *testing.T) {
 	client := &testSharedBrokerClient{grant: SharedBrokerGrant{Endpoint: "http://127.0.0.1:8200", Credential: "scoped", ExpiresAt: time.Now().Add(time.Minute)}}
 	resolver := BrokerSharedServiceResolver{Resources: map[string]BrokerSharedServiceConfig{"vault": {Client: client}}}
 	_, err := resolver.ResolveSharedService(context.Background(), Item{Resource: "vault", Service: &Service{ProviderPolicy: resourcedeployment.ProviderPolicy{
-		DefaultMode:                resourcedeployment.ProviderManagedPrivate,
+		TargetDefaults:             map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedShared, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate},
 		AllowedModes:               []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared},
 		SharedReuseRequiresConsent: true,
 		ExternalManagement:         "forbidden",
@@ -67,5 +67,24 @@ func TestBrokerSharedServiceResolverRequiresExplicitConsent(t *testing.T) {
 	}
 	if client.resource != "" {
 		t.Fatalf("broker client was used without consent for resource %q", client.resource)
+	}
+}
+
+func TestBrokerSharedServiceResolverRejectsExpiredGrant(t *testing.T) {
+	client := &testSharedBrokerClient{grant: SharedBrokerGrant{
+		Endpoint: "http://127.0.0.1:8200", Credential: "expired", ExpiresAt: time.Now().Add(-time.Minute),
+	}}
+	resolver := BrokerSharedServiceResolver{
+		SharedReuseConsented: true,
+		Resources:            map[string]BrokerSharedServiceConfig{"vault": {Client: client}},
+	}
+	_, err := resolver.ResolveSharedService(context.Background(), Item{Resource: "vault", Service: &Service{ProviderPolicy: resourcedeployment.ProviderPolicy{
+		TargetDefaults:             map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedShared, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate},
+		AllowedModes:               []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared},
+		SharedReuseRequiresConsent: true,
+		ExternalManagement:         "forbidden",
+	}}})
+	if err == nil {
+		t.Fatal("expected expired broker grant rejection")
 	}
 }

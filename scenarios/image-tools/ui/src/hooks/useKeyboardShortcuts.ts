@@ -20,7 +20,7 @@ function isEditableTarget(el: EventTarget | null): boolean {
 }
 
 /**
- * The single app-level keydown owner (vrooli-ui-interop slot [G]). Components
+ * The single app-level keydown owner (ui-health slot [G]). Components
  * must not register their own window keydown listeners for app shortcuts; a
  * dialog-local Escape handler is fine. Shortcuts are suppressed while focus is
  * in a text field so typing values is never hijacked.

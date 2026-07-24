@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@/test-utils";
 import { AppMetadataSection } from "./AppMetadataSection";
 
 /** Helper: expand the collapsible section by clicking its header button. */

@@ -71,6 +71,34 @@ try {
 	Test-VrooliChecksum $manifest $asset $binary
 	Test-VrooliChecksum $manifest $sidecarAsset $sidecar
 
+	# Managed-service servers are separately signed release assets. Keep them in
+	# a versioned per-user store so a native control plane never needs a source
+	# checkout or an unsigned host-installed server binary.
+	$resourceIndexAsset = 'resource-artifacts-v1.txt'
+	$indexManifestLine = Get-Content -LiteralPath $manifest | Where-Object { ($_ -split '\s+', 2)[1].TrimStart('*') -eq $resourceIndexAsset } | Select-Object -First 1
+	if ($indexManifestLine) {
+		$resourceIndex = Join-Path $workDir $resourceIndexAsset
+		Invoke-VrooliDownload "$ReleaseBaseUrl/$resourceIndexAsset" $resourceIndex
+		Test-VrooliChecksum $manifest $resourceIndexAsset $resourceIndex
+		$artifactRoot = if ($env:VROOLI_RESOURCE_ARTIFACT_DIR) { $env:VROOLI_RESOURCE_ARTIFACT_DIR } else { Join-Path $HOME '.vrooli\artifacts' }
+		foreach ($line in Get-Content -LiteralPath $resourceIndex) {
+			if ([string]::IsNullOrWhiteSpace($line)) { continue }
+			$fields = $line -split "`t", 5
+			if ($fields.Count -ne 5 -or ($fields | Where-Object { $_ -notmatch '^[A-Za-z0-9._-]+$' -or $_.Contains('..') })) {
+				throw 'Resource artifact index contains unsafe fields.'
+			}
+			$resourceName, $resourceVersion, $resourceOS, $resourceArch, $resourceAsset = $fields
+			if ($resourceOS -ne 'windows' -or $resourceArch -ne $arch) { continue }
+			$serverPath = Join-Path $workDir $resourceAsset
+			Invoke-VrooliDownload "$ReleaseBaseUrl/$resourceAsset" $serverPath
+			Test-VrooliChecksum $manifest $resourceAsset $serverPath
+			$destinationDir = Join-Path (Join-Path (Join-Path $artifactRoot $resourceName) $resourceVersion) ''
+			New-Item -ItemType Directory -Force -Path $destinationDir | Out-Null
+			Move-Item -Force -LiteralPath $serverPath -Destination (Join-Path $destinationDir $resourceAsset)
+			Write-Output "Installed authenticated $resourceName service artifact to $(Join-Path $destinationDir $resourceAsset)"
+		}
+	}
+
 	if (-not $InstallDir) { $InstallDir = Get-VrooliDefaultInstallDir }
 	New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 	Move-Item -Force -LiteralPath $sidecar -Destination (Join-Path $InstallDir 'vrooli.exe.fp')

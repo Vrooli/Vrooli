@@ -86,6 +86,12 @@ func (p *defaultPlatformResolver) ResolveBinaryForPlatform(svc bundlemanifest.Se
 	keys := []string{platform}
 	if alias := aliasPlatformKey(platform); alias != "" {
 		keys = append(keys, alias)
+		if architectureAlias := aliasArchitecturePlatformKey(alias); architectureAlias != "" {
+			keys = append(keys, architectureAlias)
+		}
+	}
+	if alias := aliasArchitecturePlatformKey(platform); alias != "" {
+		keys = append(keys, alias)
 	}
 	// Try exact and aliased matches first
 	for _, key := range keys {
@@ -162,4 +168,22 @@ func aliasPlatformKey(key string) string {
 		return "darwin-" + strings.TrimPrefix(key, "mac-")
 	}
 	return ""
+}
+
+// aliasArchitecturePlatformKey treats the two common architecture spellings as
+// one target. Resource deployment uses Go's amd64 spelling while desktop
+// manifests conventionally use x64, so both must resolve the same binary.
+func aliasArchitecturePlatformKey(key string) string {
+	switch {
+	case strings.HasSuffix(key, "-amd64"):
+		return strings.TrimSuffix(key, "-amd64") + "-x64"
+	case strings.HasSuffix(key, "-x64"):
+		return strings.TrimSuffix(key, "-x64") + "-amd64"
+	case strings.HasSuffix(key, "-aarch64"):
+		return strings.TrimSuffix(key, "-aarch64") + "-arm64"
+	case strings.HasSuffix(key, "-arm64"):
+		return strings.TrimSuffix(key, "-arm64") + "-aarch64"
+	default:
+		return ""
+	}
 }

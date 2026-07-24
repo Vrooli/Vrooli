@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 func TestLoadValidatesBundledClientArtifacts(t *testing.T) {
@@ -156,7 +158,7 @@ func TestLoadValidatesSeparatelyPinnedBundledService(t *testing.T) {
 	plan := Plan{SchemaVersion: "v2", Resources: []Item{{
 		RequestedResource: "demo", Resource: "demo", OS: runtimeOS(), Architecture: runtime.GOARCH,
 		Mode: "bundled-service", Support: "supported", Artifact: controller, Files: artifacts,
-		Service: &Service{Artifact: serverName, Version: "1.0.0", SHA256: hex.EncodeToString(serverSum[:]), Files: []Artifact{{Name: serverName, SHA256: hex.EncodeToString(serverSum[:])}}},
+		Service: &Service{ProviderPolicy: resourcedeployment.ProviderPolicy{TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedShared, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate}, AllowedModes: []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared}, SharedReuseRequiresConsent: true, ExternalManagement: "forbidden"}, Artifact: serverName, Version: "1.0.0", SHA256: hex.EncodeToString(serverSum[:]), Files: []Artifact{{Name: serverName, SHA256: hex.EncodeToString(serverSum[:])}}},
 	}}}
 	data, _ := json.Marshal(plan)
 	if err := os.WriteFile(filepath.Join(root, "resource-deployment-plan.json"), data, 0o644); err != nil {

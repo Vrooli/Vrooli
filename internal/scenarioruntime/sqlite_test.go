@@ -962,3 +962,66 @@ func newTestStore(t *testing.T, clk Clock) *SQLiteStore {
 	})
 	return store
 }
+
+func TestPruneTerminalPortClaims(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-prune", Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("CreateInstance error = %v", err)
+	}
+
+	if _, err := store.AcquirePortClaim(ctx, PortClaim{
+		ClaimID: "claim-old", InstanceID: instance.InstanceID, Scenario: instance.Scenario,
+		PortName: "api", Port: 15080, BindHost: "127.0.0.1",
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim(old) error = %v", err)
+	}
+	if _, err := store.ExpirePortClaim(ctx, "claim-old"); err != nil {
+		t.Fatalf("ExpirePortClaim(old) error = %v", err)
+	}
+
+	clk.Advance(20 * 24 * time.Hour)
+
+	if _, err := store.AcquirePortClaim(ctx, PortClaim{
+		ClaimID: "claim-fresh", InstanceID: instance.InstanceID, Scenario: instance.Scenario,
+		PortName: "ui", Port: 15081, BindHost: "127.0.0.1",
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim(fresh) error = %v", err)
+	}
+	if _, err := store.ExpirePortClaim(ctx, "claim-fresh"); err != nil {
+		t.Fatalf("ExpirePortClaim(fresh) error = %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, PortClaim{
+		ClaimID: "claim-live", InstanceID: instance.InstanceID, Scenario: instance.Scenario,
+		PortName: "ws", Port: 15082, BindHost: "127.0.0.1",
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim(live) error = %v", err)
+	}
+
+	pruned, err := store.PruneTerminalPortClaims(ctx, clk.Now().Add(-14*24*time.Hour))
+	if err != nil {
+		t.Fatalf("PruneTerminalPortClaims error = %v", err)
+	}
+	if pruned != 1 {
+		t.Fatalf("pruned = %d, want 1 (only the 20-day-old tombstone)", pruned)
+	}
+	remaining, err := store.ListPortClaims(ctx, PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims error = %v", err)
+	}
+	byID := make(map[string]PortClaim, len(remaining))
+	for _, claim := range remaining {
+		byID[claim.ClaimID] = claim
+	}
+	if _, ok := byID["claim-old"]; ok {
+		t.Fatalf("claim-old should have been pruned; remaining = %#v", remaining)
+	}
+	if _, ok := byID["claim-fresh"]; !ok {
+		t.Fatalf("claim-fresh (inside retention window) should survive; remaining = %#v", remaining)
+	}
+	if claim, ok := byID["claim-live"]; !ok || !IsActivePortClaimStatus(claim.Status) {
+		t.Fatalf("claim-live (active) should survive untouched; remaining = %#v", remaining)
+	}
+}

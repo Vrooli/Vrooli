@@ -300,5 +300,20 @@ func missingRequiredError(report Report, opts EnsureOptions) error {
 	if len(report.MissingRequired) == 0 {
 		return nil
 	}
-	return fmt.Errorf("missing required host requirements for %s: %s", hostreq.NormalizeEnvironment(report.Environment), strings.Join(report.MissingRequired, ", "))
+	message := fmt.Sprintf("missing required host requirements for %s: %s", hostreq.NormalizeEnvironment(report.Environment), strings.Join(report.MissingRequired, ", "))
+	if commands := missingRequiredToolInstallCommands(report); len(commands) > 0 {
+		message += "; install missing tools with: " + strings.Join(commands, "; ")
+	}
+	return fmt.Errorf("%s", message)
+}
+
+func missingRequiredToolInstallCommands(report Report) []string {
+	commands := make([]string, 0, len(report.Tools))
+	for _, tool := range report.Tools {
+		if !tool.Required || requirementSatisfied(tool) {
+			continue
+		}
+		commands = append(commands, "vrooli host install "+tool.Name)
+	}
+	return commands
 }

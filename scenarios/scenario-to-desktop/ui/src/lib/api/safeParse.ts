@@ -5,7 +5,7 @@
  * at system boundaries. Components receive validated, typed data and can handle
  * validation failures gracefully with explicit error states.
  *
- * Key principle from react-stability.md:
+ * Key principle from ui-health.md:
  * - Validate once at the system boundary (in Services)
  * - Then trust the data as it flows through the application
  */

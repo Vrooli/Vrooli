@@ -24,3 +24,22 @@ func TestResolveDeploymentStageLeavesResourcesServerSideForThinClient(t *testing
 		t.Fatalf("logs = %#v, want thin-client proxy explanation", result.Logs)
 	}
 }
+
+func TestResolveDeploymentStageRejectsDirectVaultEndpointForThinClient(t *testing.T) {
+	stage := NewResolveDeploymentStage()
+	input := &StageInput{Config: &Config{
+		DeploymentMode: DeploymentModeExternalServer,
+		ScenarioName:   "secrets-manager",
+		ProxyURL:       "http://127.0.0.1:8200/v1/sys/health",
+	}}
+	result := stage.Execute(context.Background(), input)
+	if result.Status != StatusFailed {
+		t.Fatalf("status = %q, want %q", result.Status, StatusFailed)
+	}
+	if result.Error == "" || !strings.Contains(result.Error, "cannot connect directly to a Vault endpoint") {
+		t.Fatalf("error = %q, want actionable direct-Vault rejection", result.Error)
+	}
+	if input.ResourceDeploymentPlan != nil {
+		t.Fatalf("direct Vault endpoint must not receive a resource deployment plan: %#v", input.ResourceDeploymentPlan)
+	}
+}

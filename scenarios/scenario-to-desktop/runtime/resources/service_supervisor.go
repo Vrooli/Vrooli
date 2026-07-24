@@ -100,6 +100,12 @@ func (s *ServiceSupervisor) tryShared(ctx context.Context, item Item) bool {
 		s.mu.Unlock()
 		return false
 	}
+	if binding.ExpiresAt.IsZero() || !binding.ExpiresAt.After(time.Now()) {
+		s.mu.Lock()
+		s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Message: "shared binding was expired; using private bundled service"}
+		s.mu.Unlock()
+		return false
+	}
 	s.mu.Lock()
 	s.bindings[item.Resource] = SharedServiceBinding{Endpoint: binding.Endpoint, Environment: cloneEnvironment(binding.Environment), ExpiresAt: binding.ExpiresAt}
 	s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Running: true, Message: "using consented shared service", Provider: "managed-shared"}

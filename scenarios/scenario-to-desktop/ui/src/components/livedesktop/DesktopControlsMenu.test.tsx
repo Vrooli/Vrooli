@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@/test-utils";
 import { DesktopControlsMenu } from "./DesktopControlsMenu";
 
 // Mock the store
@@ -123,10 +123,10 @@ describe("DesktopControlsMenu", () => {
     fireEvent.click(screen.getByText("Controls"));
     fireEvent.click(screen.getByText("Launch App"));
 
-    expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
+    await waitFor(() => expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
       action: "launch_app",
       params: undefined,
-    });
+    }));
   });
 
   it("calls executeDesktopControl with params for dark mode toggle", async () => {
@@ -135,9 +135,9 @@ describe("DesktopControlsMenu", () => {
     fireEvent.click(screen.getByText("Controls"));
     fireEvent.click(screen.getByText("Dark Mode"));
 
-    expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
+    await waitFor(() => expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
       action: "dark_mode",
       params: { enabled: true },
-    });
+    }));
   });
 });

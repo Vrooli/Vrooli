@@ -89,6 +89,12 @@ pnpm --version    # or npm --version
 | `scenario-dependency-analyzer` | Dependency DAG computation | Yes (auto-started) |
 | `secrets-manager` | Secret classification | Yes (auto-started) |
 
+`secrets-manager` is started on a best-effort basis so ordinary deployment
+planning remains available when a host cannot yet provide its Vault-backed
+secret storage. Any bundle assembly that requires secret classifications still
+fails explicitly until `secrets-manager` is healthy; do not treat degraded
+planning as authorization to omit or embed secrets.
+
 ### Target Scenario Requirements
 
 The scenario you want to deploy must:

@@ -40,19 +40,10 @@ export interface BundleResult {
   generatedAt?: string;
 }
 
-/**
- * Handle for imperative bundle control.
- * Compatible with legacy DeploymentManagerBundleHelperHandle.
- */
+/** Handle for imperative bundle control. */
 export type BundleSectionHandle = {
   exportBundle: () => void;
 };
-
-/**
- * @deprecated Use BundleSectionHandle instead.
- * Kept for backwards compatibility.
- */
-export type DeploymentManagerBundleHelperHandle = BundleSectionHandle;
 
 interface BundleSectionProps {
   scenarioName: string;

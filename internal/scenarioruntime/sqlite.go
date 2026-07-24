@@ -132,7 +132,7 @@ func (s *SQLiteStore) CreateInstance(ctx context.Context, in Instance) (Instance
 	in.UpdatedAt = now
 	in.SchemaVersion = SchemaVersion
 
-	err := s.withTx(ctx, func(tx *sql.Tx) error {
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
 		if in.Generation <= 0 {
 			next, err := nextGeneration(ctx, tx, in.Scenario, in.Variant)
 			if err != nil {
@@ -548,6 +548,25 @@ func (s *SQLiteStore) ListExpiredActivePortClaims(ctx context.Context, at time.T
 	}
 	defer rows.Close()
 	return scanPortClaims(rows)
+}
+
+// PruneTerminalPortClaims deletes expired/released claim rows whose last
+// update is older than the cutoff. Terminal rows are resolved history; without
+// retention they accumulate forever and every stale-claim consumer ends up
+// counting tombstones.
+func (s *SQLiteStore) PruneTerminalPortClaims(ctx context.Context, before time.Time) (int, error) {
+	result, err := s.db.ExecContext(ctx, `
+DELETE FROM runtime_port_claims
+ WHERE status IN (?, ?) AND updated_at < ?`,
+		ClaimStatusExpired, ClaimStatusReleased, formatTime(before.UTC()))
+	if err != nil {
+		return 0, fmt.Errorf("prune terminal runtime port claims: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("prune terminal runtime port claims: %w", err)
+	}
+	return int(affected), nil
 }
 
 func (s *SQLiteStore) UpdatePortClaimListenerEvidence(ctx context.Context, claimID string, evidence ListenerObservation) (PortClaim, error) {

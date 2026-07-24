@@ -2,7 +2,24 @@
 
 ## Current Issues
 
-None - All known issues have been resolved. Scenario is production-ready.
+### UI Coverage Floor (OPEN)
+
+**Severity**: High
+**Date Discovered**: 2026-07-23
+
+**Problem**: The declared React/Vite test policy requires 85% V8 coverage for
+lines, functions, branches, and statements. The current UI suite passes 1,275
+tests but records 51.90% statement coverage across the explicitly scoped
+production source tree.
+
+**Impact**: `pnpm test:coverage` correctly fails its 85% threshold, so the
+Test Genie unit phase remains blocked by `TEST_EXECUTION_FAILURE`. The native
+test policy is now correctly projected; lowering the threshold or excluding
+production modules would hide the gap rather than resolve it.
+
+**Next Step**: Add behavior-focused tests for the uncovered UI modules until
+the measured coverage reaches the declared floor, then re-run the Test Genie
+unit phase.
 
 ## Recently Resolved Issues
 

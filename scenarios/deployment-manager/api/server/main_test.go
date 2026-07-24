@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -55,6 +57,37 @@ func TestRequireEnv(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSecretsManagerIsDegradableLifecycleDependency(t *testing.T) {
+	_, testFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test source path")
+	}
+	servicePath := filepath.Join(filepath.Dir(testFile), "..", "..", ".vrooli", "service.json")
+	data, err := os.ReadFile(servicePath)
+	if err != nil {
+		t.Fatalf("read service manifest: %v", err)
+	}
+	var manifest struct {
+		Dependencies struct {
+			Scenarios map[string]struct {
+				Required         bool   `json:"required"`
+				StartupPolicy    string `json:"startup_policy"`
+				DegradedBehavior string `json:"degraded_behavior"`
+			} `json:"scenarios"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("parse service manifest: %v", err)
+	}
+	dependency, ok := manifest.Dependencies.Scenarios["secrets-manager"]
+	if !ok {
+		t.Fatal("deployment-manager must declare secrets-manager for secret-dependent operations")
+	}
+	if !dependency.Required || dependency.StartupPolicy != "try_start" || !strings.Contains(dependency.DegradedBehavior, "bundle assembly") {
+		t.Fatalf("secrets-manager lifecycle dependency = %+v, want required try_start with bundle-assembly degradation", dependency)
 	}
 }
 

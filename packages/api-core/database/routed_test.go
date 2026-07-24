@@ -106,6 +106,31 @@ func TestRoutedDB_RoutesByContext(t *testing.T) {
 	}
 }
 
+func TestRoutedDB_InitializesNewTestPoolBeforeRouting(t *testing.T) {
+	dir := t.TempDir()
+	r, err := openSQLitePool(t, filepath.Join(dir, "primary.db"))
+	if err != nil {
+		t.Fatalf("open routed: %v", err)
+	}
+	defer r.Close()
+
+	r.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		_, err := pool.ExecContext(ctx, `CREATE TABLE initialized (value TEXT NOT NULL); INSERT INTO initialized(value) VALUES ('ready')`)
+		return err
+	})
+	if err := r.InstallTestPool(context.Background(), filepath.Join(dir, "test.db"), "lease-init", 0); err != nil {
+		t.Fatalf("install initialized pool: %v", err)
+	}
+
+	var value string
+	if err := r.QueryRowContext(database.WithTestMode(context.Background()), `SELECT value FROM initialized`).Scan(&value); err != nil {
+		t.Fatalf("test-mode query against initialized pool: %v", err)
+	}
+	if value != "ready" {
+		t.Fatalf("initialized value = %q, want ready", value)
+	}
+}
+
 // TestRoutedDB_TransactionsArePoolBound verifies the §8.4 contract: a tx
 // commits to whichever pool was picked when BeginTx ran.
 func TestRoutedDB_TransactionsArePoolBound(t *testing.T) {

@@ -238,10 +238,12 @@ describe("useScenarioSync", () => {
       // Simulate state loaded callback
       const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { selected_template?: string } }) => void } }).__testCallbacks;
       if (callbacks.onStateLoaded) {
-        callbacks.onStateLoaded({
-          form_state: {
-            selected_template: "advanced",
-          },
+        act(() => {
+          callbacks.onStateLoaded?.({
+            form_state: {
+              selected_template: "advanced",
+            },
+          });
         });
       }
 
@@ -258,13 +260,15 @@ describe("useScenarioSync", () => {
       // Simulate state loaded callback
       const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { preflight_result?: unknown; preflight_error?: string; preflight_override?: boolean; preflight_secrets?: Record<string, string> } }) => void } }).__testCallbacks;
       if (callbacks.onStateLoaded) {
-        callbacks.onStateLoaded({
-          form_state: {
-            preflight_result: { validation: { valid: true } },
-            preflight_error: undefined,
-            preflight_override: true,
-            preflight_secrets: { API_KEY: "secret" },
-          },
+        act(() => {
+          callbacks.onStateLoaded?.({
+            form_state: {
+              preflight_result: { validation: { valid: true } },
+              preflight_error: undefined,
+              preflight_override: true,
+              preflight_secrets: { API_KEY: "secret" },
+            },
+          });
         });
       }
 
@@ -291,10 +295,12 @@ describe("useScenarioSync", () => {
       // Simulate state loaded callback
       const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { bundle_result?: unknown } }) => void } }).__testCallbacks;
       if (callbacks.onStateLoaded) {
-        callbacks.onStateLoaded({
-          form_state: {
-            bundle_result: mockBundleResult,
-          },
+        act(() => {
+          callbacks.onStateLoaded?.({
+            form_state: {
+              bundle_result: mockBundleResult,
+            },
+          });
         });
       }
 
@@ -311,7 +317,9 @@ describe("useScenarioSync", () => {
       // Simulate state cleared callback
       const callbacks = (globalThis as unknown as { __testCallbacks: { onStateCleared?: () => void } }).__testCallbacks;
       if (callbacks.onStateCleared) {
-        callbacks.onStateCleared();
+        act(() => {
+          callbacks.onStateCleared?.();
+        });
       }
 
       expect(onBundleSeedLoaded).toHaveBeenCalledWith(null);
@@ -327,15 +335,17 @@ describe("useScenarioSync", () => {
       // Simulate state loaded callback with form state
       const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: unknown }) => void } }).__testCallbacks;
       if (callbacks.onStateLoaded) {
-        callbacks.onStateLoaded({
-          form_state: {
-            app_display_name: "Loaded App",
-            app_description: "Loaded Description",
-            framework: "tauri",
-            deployment_mode: "external-server",
-            server_type: "node",
-            platforms: { win: true, mac: false, linux: true },
-          },
+        act(() => {
+          callbacks.onStateLoaded?.({
+            form_state: {
+              app_display_name: "Loaded App",
+              app_description: "Loaded Description",
+              framework: "tauri",
+              deployment_mode: "external-server",
+              server_type: "node",
+              platforms: { win: true, mac: false, linux: true },
+            },
+          });
         });
       }
 
@@ -363,7 +373,9 @@ describe("useScenarioSync", () => {
       // Simulate state cleared callback
       const callbacks = (globalThis as unknown as { __testCallbacks: { onStateCleared?: () => void } }).__testCallbacks;
       if (callbacks.onStateCleared) {
-        callbacks.onStateCleared();
+        act(() => {
+          callbacks.onStateCleared?.();
+        });
       }
 
       // Check that form store was reset

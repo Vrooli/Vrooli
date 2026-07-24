@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useScenarioState, type UseScenarioStateResult } from "./useScenarioState";
 import { useFormStore } from "../store/formStore";
 import type { FormState, BundlePreflightResponse } from "../lib/api";
-import type { BundleResult } from "../components/runtime/DeploymentManagerBundleHelper";
+import type { BundleResult } from "../components/sections/bundle/BundleSection";
 import type { ProbeResponse } from "../lib/api";
 import type {
   DeploymentMode,

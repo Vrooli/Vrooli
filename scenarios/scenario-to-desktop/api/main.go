@@ -334,6 +334,9 @@ func initPipelineStack(deps pipelineInitDeps) (*pipeline.DefaultOrchestrator, *p
 	deployTargetRepo := deploy.NewTargetRepository(deployTargetsPath)
 
 	stages := []pipeline.Stage{
+		pipeline.NewResolveDeploymentStage(
+			pipeline.WithResolveDeploymentScenarioRoot(deps.scenarioRoot),
+		),
 		pipeline.NewBundleStage(
 			pipeline.WithScenarioRoot(deps.scenarioRoot),
 			pipeline.WithBundlePackager(deps.bundlePackager),
@@ -566,19 +569,20 @@ func (s *Server) Router() http.Handler {
 
 // Main function
 func main() {
+	// The stale-source guard must run before every command path so a rebuilt
+	// binary re-execs before it can initialize any scenario-owned state.
+	if preflight.Run(preflight.Config{
+		ScenarioName: "scenario-to-desktop",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "storage-relocate" {
 		if err := runStorageRelocate(os.Args[2:]); err != nil {
 			globalLogger.Error("storage relocation failed", "error", err)
 			log.Fatal(err)
 		}
 		return
-	}
-
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "scenario-to-desktop",
-	}) {
-		return // Process was re-exec'd after rebuild
 	}
 
 	// SECURITY: Validate port environment variables - prefer API_PORT, fallback to PORT

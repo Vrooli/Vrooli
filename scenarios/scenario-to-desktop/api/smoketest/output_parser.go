@@ -2,6 +2,7 @@ package smoketest
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -159,6 +160,9 @@ func (p *DefaultOutputParser) ValidateSequence(output string) SequenceValidation
 	for name, lineNum := range stageLines {
 		validation.Stages = append(validation.Stages, SequenceStage{Name: name, LineNumber: lineNum})
 	}
+	sort.Slice(validation.Stages, func(i, j int) bool {
+		return validation.Stages[i].LineNumber < validation.Stages[j].LineNumber
+	})
 
 	checkMissingStages(&validation, expectedOrder, stageLines)
 	checkSequenceOrder(&validation, expectedOrder, stageLines)

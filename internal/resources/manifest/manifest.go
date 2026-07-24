@@ -25,12 +25,14 @@ var AllowedDrivers = []string{
 	"desktop-app",
 	"manual",
 	"native-cli",
+	"managed-service",
 }
 
 var (
 	AllowedPortabilityTiers      = []string{"full", "partial", "platform-specific"}
 	AllowedPlatformSupportStates = []string{"supported", "partial", "unsupported"}
 	AllowedGPUProbes             = []string{"nvidia"}
+	AllowedHealthCheckKinds      = []string{"readiness", "liveness"}
 )
 
 type ResourceManifest struct {
@@ -66,6 +68,11 @@ type ResourceManifest struct {
 	HostSafeguards        []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
 	GPU                   *ResourceGPU                 `json:"gpu,omitempty"`
 	Deployment            ResourceDeployment           `json:"deployment,omitempty"`
+	ManagedService        *ResourceManagedService      `json:"managed_service,omitempty"`
+	// ProviderPolicy declares verified reuse policy for non-service resources
+	// such as host tools. It has no lifecycle authority and is intentionally
+	// separate from managed_service.provider_policy.
+	ProviderPolicy *resourcedeployment.ProviderPolicy `json:"provider_policy,omitempty"`
 	// Companions are long-lived HOST-side processes the compose-service driver
 	// starts after the container(s) come up and stops when the resource stops.
 	// They exist for resources whose container alone cannot do everything on the
@@ -83,9 +90,12 @@ type ResourceManifest struct {
 
 // ResourceDeployment is the resource-owned, target-specific delivery claim.
 // Scenarios may select a declared fallback, but cannot invent a portable route.
-type ResourceDeployment = resourcedeployment.Deployment
-type ResourceDeploymentProfile = resourcedeployment.Profile
-type ResourceDeploymentTarget = resourcedeployment.Target
+type (
+	ResourceDeployment        = resourcedeployment.Deployment
+	ResourceDeploymentProfile = resourcedeployment.Profile
+	ResourceDeploymentTarget  = resourcedeployment.Target
+	ResourceManagedService    = resourcedeployment.ManagedService
+)
 
 // ResourceRuntimeEnvCommand declares a CLI invocation the compose
 // driver runs to harvest dynamic env variables. Stdout is parsed as
@@ -174,12 +184,18 @@ type ResourcePort struct {
 }
 
 type ResourceHealthCheck struct {
-	Type            string   `json:"type"`
-	Target          string   `json:"target,omitempty"`
-	Command         []string `json:"command,omitempty"`
-	ExpectedStatus  []int    `json:"expected_status,omitempty"`
-	IntervalSeconds int      `json:"interval_seconds,omitempty"`
-	TimeoutSeconds  int      `json:"timeout_seconds,omitempty"`
+	Type    string   `json:"type"`
+	Target  string   `json:"target,omitempty"`
+	Command []string `json:"command,omitempty"`
+	// Kind declares the check's semantics: "readiness" means the check must
+	// fail until the resource can actually serve its primary capability
+	// (including model/data load), "liveness" means process-alive only.
+	// Manifest-level health checks are treated as readiness probes by the
+	// control plane; declare "liveness" only for supplementary checks.
+	Kind            string `json:"kind,omitempty"`
+	ExpectedStatus  []int  `json:"expected_status,omitempty"`
+	IntervalSeconds int    `json:"interval_seconds,omitempty"`
+	TimeoutSeconds  int    `json:"timeout_seconds,omitempty"`
 }
 
 type ResourceInstall struct {
@@ -373,10 +389,24 @@ func Validate(manifest ResourceManifest) error {
 	if err := validateDeployment(manifest); err != nil {
 		return err
 	}
+	if manifest.ProviderPolicy != nil {
+		if manifest.Driver != "external-cli" && manifest.Driver != "native-cli" {
+			return fmt.Errorf("provider_policy is only supported by external-cli and native-cli resources")
+		}
+		if _, err := manifest.ProviderPolicy.ResolveProvider(resourcedeployment.ProviderRequest{}); err != nil {
+			return fmt.Errorf("provider_policy: %w", err)
+		}
+		if manifest.ProviderPolicy.DefaultMode != resourcedeployment.ProviderManagedDiscovered {
+			return fmt.Errorf("non-service provider_policy default_mode must be managed-discovered")
+		}
+	}
 	switch manifest.Driver {
 	case "docker-service":
 		if strings.TrimSpace(manifest.Runtime.Image) == "" {
 			return fmt.Errorf("runtime.image is required for docker-service resources")
+		}
+		if err := ValidatePinnedImageRef(manifest.Runtime.Image); err != nil {
+			return err
 		}
 	case "compose-service":
 		if strings.TrimSpace(manifest.ComposeFile) == "" {
@@ -390,17 +420,50 @@ func Validate(manifest ResourceManifest) error {
 		if strings.TrimSpace(manifest.Endpoint) == "" {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
+	case "managed-service":
+		if manifest.ManagedService == nil {
+			return fmt.Errorf("managed_service is required for managed-service resources")
+		}
+		if err := manifest.ManagedService.ProviderPolicy.ValidateManagedServiceTargets(); err != nil {
+			return fmt.Errorf("managed_service.provider_policy: %w", err)
+		}
+		if slices.Contains(manifest.ManagedService.ProviderPolicy.AllowedModes, resourcedeployment.ProviderAttachOnly) {
+			if err := manifest.ManagedService.ValidateAttachHealthPath(); err != nil {
+				return err
+			}
+		}
+		if err := manifest.ManagedService.Artifact.Validate(); err != nil {
+			return fmt.Errorf("managed_service.artifact: %w", err)
+		}
+		if manifest.ManagedService.Config != nil {
+			if err := manifest.ManagedService.Config.Validate(); err != nil {
+				return fmt.Errorf("managed_service.config: %w", err)
+			}
+		}
+		for key, value := range manifest.ManagedService.Environment {
+			if !envNamePattern.MatchString(key) {
+				return fmt.Errorf("managed_service.environment key %q is invalid", key)
+			}
+			if strings.ContainsRune(value, '\x00') {
+				return fmt.Errorf("managed_service.environment value for %q contains NUL", key)
+			}
+		}
 	}
 	return nil
 }
 
 var (
 	AllowedDeploymentSupports = []string{"supported", "conditional", "degraded", "unsupported"}
-	AllowedDeploymentModes    = []string{"bundled-client", "native-host-tool", "docker-desktop", "remote-service", "manual"}
+	AllowedDeploymentModes    = []string{"bundled-client", "bundled-service", "native-host-tool", "docker-desktop", "remote-service", "manual"}
 	AllowedDeploymentArchs    = []string{"amd64", "arm64"}
 )
 
 func validateDeployment(manifest ResourceManifest) error {
+	platformSupport := map[string]string{
+		"linux":   strings.TrimSpace(manifest.Platforms.Linux),
+		"macos":   strings.TrimSpace(manifest.Platforms.MacOS),
+		"windows": strings.TrimSpace(manifest.Platforms.Windows),
+	}
 	for profileName, profile := range manifest.Deployment.Profiles {
 		if strings.TrimSpace(profileName) == "" {
 			return fmt.Errorf("deployment profile name must not be empty")
@@ -408,6 +471,9 @@ func validateDeployment(manifest ResourceManifest) error {
 		for platform, target := range map[string]*ResourceDeploymentTarget{"linux": profile.Linux, "macos": profile.MacOS, "windows": profile.Windows} {
 			if target == nil {
 				return fmt.Errorf("deployment.profiles.%s.%s is required", profileName, platform)
+			}
+			if platformSupport[platform] == "unsupported" && target.Support != "unsupported" {
+				return fmt.Errorf("deployment.profiles.%s.%s.support %q contradicts platforms.%s \"unsupported\"", profileName, platform, target.Support, platform)
 			}
 			if !slices.Contains(AllowedDeploymentSupports, target.Support) {
 				return fmt.Errorf("deployment.profiles.%s.%s.support %q is invalid", profileName, platform, target.Support)
@@ -448,6 +514,19 @@ func validateDeployment(manifest ResourceManifest) error {
 			if strings.HasPrefix(target.Mode, "bundled-") && (manifest.CLI == nil || manifest.CLI.Adapter.Kind != "go_module" || manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact") {
 				return fmt.Errorf("deployment.profiles.%s.%s bundled mode requires cli.adapter.kind=go_module and cli.distribution.kind=prebuilt_artifact", profileName, platform)
 			}
+			if target.Mode == "bundled-service" {
+				if manifest.ManagedService == nil {
+					return fmt.Errorf("deployment.profiles.%s.%s bundled-service requires managed_service", profileName, platform)
+				}
+				for _, arch := range target.Architectures {
+					if _, err := manifest.ManagedService.Artifact.ForPlatform(platform, arch); err != nil {
+						return fmt.Errorf("deployment.profiles.%s.%s bundled-service artifact: %w", profileName, platform, err)
+					}
+					if _, err := manifest.ManagedService.Artifact.BundleArtifactForPlatform(platform, arch); err != nil {
+						return fmt.Errorf("deployment.profiles.%s.%s bundled-service artifact: %w", profileName, platform, err)
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -463,6 +542,7 @@ func deploymentModeAllowedForDriver(driver, mode string) bool {
 		"docker-service":  {"docker-desktop", "manual"},
 		"compose-service": {"docker-desktop", "manual"},
 		"external-cli":    {"native-host-tool", "bundled-client", "manual"},
+		"managed-service": {"bundled-service", "remote-service", "manual"},
 		"desktop-app":     {"native-host-tool", "manual"},
 		"manual":          {"manual"},
 	}
@@ -478,7 +558,7 @@ func validateDurableData(driver string, dd *ResourceDurableData) error {
 		return nil
 	}
 	switch strings.TrimSpace(driver) {
-	case "external-cli", "native-cli", "desktop-app", "manual":
+	case "external-cli", "native-cli", "desktop-app", "manual", "managed-service":
 		// Host-filesystem-bearing drivers may declare durable host data.
 	default:
 		return fmt.Errorf("durable_data is only valid for host-filesystem drivers (external-cli, native-cli, desktop-app, manual), not %q", driver)
@@ -739,7 +819,10 @@ func validateGPU(gpu *ResourceGPU) error {
 	return nil
 }
 
-var runtimeMemoryLimitPattern = regexp.MustCompile(`^[1-9][0-9]*[bBkKmMgG]?$`)
+var (
+	runtimeMemoryLimitPattern = regexp.MustCompile(`^[1-9][0-9]*[bBkKmMgG]?$`)
+	envNamePattern            = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+)
 
 func validateRuntimeMemoryLimit(value string) error {
 	v := strings.TrimSpace(value)
@@ -764,6 +847,34 @@ func validateHealthCheck(check ResourceHealthCheck) error {
 		}
 	default:
 		return fmt.Errorf("health check type %q is invalid", check.Type)
+	}
+	if kind := strings.TrimSpace(check.Kind); kind != "" && !slices.Contains(AllowedHealthCheckKinds, kind) {
+		return fmt.Errorf("health check kind %q is invalid", check.Kind)
+	}
+	return nil
+}
+
+// ValidatePinnedImageRef enforces the Pinned Runtime Principle
+// (docs/resources/deployment-contract.md): a container image must be an
+// immutable reference — a version tag or digest — so install/pull can never
+// silently change the running engine. Used for docker-service runtime.image
+// at manifest validation and by the fleet lint over compose-service files.
+func ValidatePinnedImageRef(image string) error {
+	ref := strings.TrimSpace(image)
+	if at := strings.Index(ref, "@"); at >= 0 {
+		if strings.TrimSpace(ref[at+1:]) == "" {
+			return fmt.Errorf("runtime.image %q has an empty digest", image)
+		}
+		return nil
+	}
+	slash := strings.LastIndex(ref, "/")
+	colon := strings.LastIndex(ref, ":")
+	if colon <= slash {
+		return fmt.Errorf("runtime.image %q must pin a version tag or digest", image)
+	}
+	tag := ref[colon+1:]
+	if tag == "" || tag == "latest" || tag == "stable" || strings.HasPrefix(tag, "latest-") {
+		return fmt.Errorf("runtime.image %q must pin a version tag or digest, not a floating tag", image)
 	}
 	return nil
 }

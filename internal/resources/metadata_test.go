@@ -69,7 +69,7 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 		Driver:          "docker-service",
 		PortabilityTier: "full",
 		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 3000, Host: 4110}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "example/fixturehttp:stable"},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "example/fixturehttp:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:         map[string]string{"FIXTUREHTTP_HOST": "localhost"},
 			FromPorts:      map[string]string{"FIXTUREHTTP_PORT": "http"},
@@ -319,7 +319,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 			{Name: "http", Container: 6333, Host: 6333},
 			{Name: "grpc", Container: 6334, Host: 6334},
 		},
-		Runtime: manifestpkg.ResourceRuntime{Image: "qdrant/qdrant:latest"},
+		Runtime: manifestpkg.ResourceRuntime{Image: "qdrant/qdrant:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"QDRANT_HOST": "localhost"},
 			FromPorts: map[string]string{"QDRANT_PORT": "http", "QDRANT_GRPC_PORT": "grpc"},
@@ -335,7 +335,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		Driver:          "docker-service",
 		PortabilityTier: "partial",
 		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 11434, Host: 11434}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "ollama/ollama:latest"},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "ollama/ollama:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"OLLAMA_HOST": "localhost"},
 			FromPorts: map[string]string{"OLLAMA_PORT": "http"},
@@ -354,7 +354,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 			{Name: "console", Container: 9001, Host: 9001},
 		},
 		Runtime: manifestpkg.ResourceRuntime{
-			Image: "minio/minio:latest",
+			Image: "minio/minio:1.0.0",
 			Env: map[string]string{
 				"MINIO_ROOT_USER":     "minioadmin",
 				"MINIO_ROOT_PASSWORD": "minioadmin",
@@ -398,7 +398,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 			{Name: "influxdb-line", Container: 9009, Host: 9011},
 		},
 		Runtime: manifestpkg.ResourceRuntime{
-			Image: "example/timeseries:latest",
+			Image: "example/timeseries:1.0.0",
 			Env: map[string]string{
 				"TIMESERIES_PG_USER":     "admin",
 				"TIMESERIES_PG_PASSWORD": "password",
@@ -428,7 +428,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		Driver:          "docker-service",
 		PortabilityTier: "full",
 		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8080, Host: 8280}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "searxng/searxng:latest"},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "searxng/searxng:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"SEARXNG_SERVICE_HOST": "localhost"},
 			FromPorts: map[string]string{"SEARXNG_PORT": "http"},
@@ -443,7 +443,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		Driver:          "docker-service",
 		PortabilityTier: "full",
 		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8000, Host: 11450}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "downloads.unstructured.io/unstructured-api:latest"},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "downloads.unstructured.io/unstructured-api:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"UNSTRUCTURED_HOST": "localhost"},
 			FromPorts: map[string]string{"UNSTRUCTURED_PORT": "http"},

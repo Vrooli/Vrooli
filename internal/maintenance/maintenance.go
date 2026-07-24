@@ -113,6 +113,10 @@ type PortPolicyReport struct {
 	AboveCanonicalMax    bool   `json:"above_canonical_max"`
 }
 
+// terminalPortClaimRetention is how long expired/released registry claim rows
+// are kept for forensics before `vrooli cleanup locks` deletes them.
+const terminalPortClaimRetention = 14 * 24 * time.Hour
+
 var (
 	inspectPortListenersFn    = network.InspectPortListeners
 	captureListenerSnapshotFn = network.CaptureTCPListenerSnapshot
@@ -200,6 +204,13 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 				continue
 			}
 			stopped = append(stopped, control.Stopped(fmt.Sprintf("%d", expired.Port), "Expired abandoned registry port reservation"))
+		}
+
+		prunedClaims, err := store.PruneTerminalPortClaims(ctx, now.Add(-terminalPortClaimRetention))
+		if err != nil {
+			failed = append(failed, control.Failed("claim-retention", err))
+		} else if prunedClaims > 0 {
+			stopped = append(stopped, control.Stopped("registry-claims", fmt.Sprintf("Pruned %d expired/released registry claim rows older than %s", prunedClaims, terminalPortClaimRetention)))
 		}
 	}
 

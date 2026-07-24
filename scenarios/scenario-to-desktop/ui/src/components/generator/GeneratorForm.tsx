@@ -1,4 +1,4 @@
-import type { DeploymentManagerBundleHelperHandle, BundleResult } from "../runtime/DeploymentManagerBundleHelper";
+import type { BundleSectionHandle, BundleResult } from "../sections/bundle/BundleSection";
 import { DeploymentSummarySection } from "./DeploymentSummarySection";
 import { PlatformSelector } from "./PlatformSelector";
 import {
@@ -26,7 +26,7 @@ export interface ExposedFormState {
   // Bundle-related handlers for BundleSection
   onBundleManifestChange: (path: string) => void;
   onBundleComplete: (result: BundleResult) => void;
-  bundleHelperRef: React.RefObject<DeploymentManagerBundleHelperHandle>;
+  bundleHelperRef: React.RefObject<BundleSectionHandle>;
 }
 
 /** Validation state exposed to parent for the submit button in GenerateSection */

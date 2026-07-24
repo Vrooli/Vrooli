@@ -49,12 +49,14 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -168,8 +170,58 @@ func Run(cfg Config) error {
 	// request-context capture without custom server wiring. Verification failure
 	// remains an explicit context state rather than a request failure.
 	cfg.Handler = provenance.Middleware(provenance.CLIUtilVerifier{})(cfg.Handler)
+	cfg.Handler = accessLog(cfg.log, cfg.Handler)
+	cfg.Handler = recoverPanics(cfg.log, cfg.Handler)
 
 	return runStandardServer(cfg)
+}
+
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+	wrote  bool
+}
+
+func (w *statusWriter) WriteHeader(status int) {
+	if w.wrote {
+		return
+	}
+	w.status = status
+	w.wrote = true
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *statusWriter) Write(data []byte) (int, error) {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(data)
+}
+
+func accessLog(logf func(string, ...interface{}), next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tracked := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		started := time.Now()
+		next.ServeHTTP(tracked, r)
+		logf("HTTP access method=%s path=%s status=%d duration=%s", r.Method, r.URL.Path, tracked.status, time.Since(started).Round(time.Millisecond))
+	})
+}
+
+func recoverPanics(logf func(string, ...interface{}), next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tracked := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				logf("HTTP panic method=%s path=%s panic=%v stack=%s", r.Method, r.URL.Path, recovered, debug.Stack())
+				if !tracked.wrote {
+					tracked.Header().Set("Content-Type", "application/json")
+					tracked.WriteHeader(http.StatusInternalServerError)
+					_ = json.NewEncoder(tracked).Encode(map[string]string{"error": "internal server error"})
+				}
+			}
+		}()
+		next.ServeHTTP(tracked, r)
+	})
 }
 
 // runStandardServer runs a standard net/http server.

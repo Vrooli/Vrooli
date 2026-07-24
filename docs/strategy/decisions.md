@@ -4,12 +4,7 @@ This document records durable project-level decisions that still shape how Vrool
 
 ## How To Read This File
 
-Each entry captures:
-
-- context
-- decision
-- consequences
-- current status
+Entries follow the Nygard ADR format (context / decision / consequences / status), the industry-standard architecture-decision-record shape — write new entries to it rather than inventing a structure. This format governs this file only; plan-manager decision records and agent-system lifecycle decisions have their own contracts.
 
 This file is for enduring decisions, not short-lived implementation details.
 

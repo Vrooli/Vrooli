@@ -72,6 +72,6 @@ the theme.
   dependencies and screenshot descriptions.
 - [`docs/reference/api-endpoints.md`](../reference/api-endpoints.md) —
   JSON contract for every endpoint the UI consumes.
-- `react-coherence` skill (`prompt-manager skill read react-coherence`)
+- `ui-health` skill (`prompt-manager skill read ui-health`)
   — scope-discipline rules every screen follows.
-- `vrooli-ui-interop` skill — proxy basename + router slot expectations.
+- `ui-health` skill — proxy basename + router slot expectations.

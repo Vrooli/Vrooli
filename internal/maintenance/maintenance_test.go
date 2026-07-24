@@ -1839,3 +1839,51 @@ func TestReclaimSquattedPortEvictsOnlyVrooliOrphans(t *testing.T) {
 		t.Fatalf("absent PID must not be signaled, got %v", killed)
 	}
 }
+
+func TestCleanStaleLocksExpiresClaimsUnderTerminalInstances(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	// An unclean stop leaves the claim bound while the instance row is already
+	// terminal — the active-instance walk cannot see it, so only the orphaned-
+	// claims pass can expire it.
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID: "inst-crashed",
+		Scenario:   "web-console",
+		Status:     scenarioruntime.StatusStopped,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-crashed-ui",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "ui",
+		Port:       21998,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	stubListenerSnapshot(t, true, nil)
+
+	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+
+	afterClaims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(afterClaims) != 1 || afterClaims[0].Status != scenarioruntime.ClaimStatusExpired {
+		t.Fatalf("orphaned bound claim should be expired by cleanup; got %#v", afterClaims)
+	}
+}

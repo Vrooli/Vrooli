@@ -23,7 +23,7 @@ interface State {
 /**
  * Error Boundary component that catches JavaScript errors in child component tree.
  *
- * Strategic placement guidelines (from react-stability.md):
+ * Strategic placement guidelines (from ui-health.md):
  * - Wrap route-level views or pages
  * - Wrap complex feature panels (modals, sidebars, dashboards)
  * - Wrap components that render dynamic or external data

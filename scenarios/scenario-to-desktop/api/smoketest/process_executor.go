@@ -140,29 +140,7 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 	type execResult struct {
 		err error
 	}
-	resultCh := make(chan execResult, 1)
-
-	go func() {
-		// Notify test hooks that the process is starting
-		if e.onProcessStarted != nil {
-			e.onProcessStarted()
-		}
-
-		// Split Start/Wait so we can expose the PID for monitoring.
-		if startErr := cmd.Start(); startErr != nil {
-			resultCh <- execResult{err: startErr}
-			return
-		}
-
-		// Notify PID-aware hooks (e.g. process monitoring).
-		if e.onProcessStartedPID != nil && cmd.Process != nil {
-			e.onProcessStartedPID(cmd.Process.Pid)
-		}
-
-		resultCh <- execResult{err: cmd.Wait()}
-	}()
-
-	buildResult := func() *ExecutionResult {
+	buildResult := func(waitCompleted bool) *ExecutionResult {
 		duration := e.clock.Now().Sub(startTime)
 		truncatedBytes := stdoutWriter.truncatedBytes + stderrWriter.truncatedBytes
 		result := &ExecutionResult{
@@ -174,15 +152,38 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 			Truncated:      truncatedBytes > 0,
 			TruncatedBytes: truncatedBytes,
 		}
-		if cmd.ProcessState != nil {
+		if waitCompleted && cmd.ProcessState != nil {
 			result.ExitCode = cmd.ProcessState.ExitCode()
 		}
 		return result
 	}
+	if err := execCtx.Err(); err != nil {
+		if err == context.DeadlineExceeded {
+			return buildResult(false), fmt.Errorf("command timed out after %s", timeout)
+		}
+		return buildResult(false), fmt.Errorf("command cancelled")
+	}
+
+	// Start synchronously so cancellation only ever observes a fully initialized
+	// os/exec.Cmd. cmd.Start mutates Process and must not race with termination.
+	if err := cmd.Start(); err != nil {
+		return buildResult(false), err
+	}
+	if e.onProcessStarted != nil {
+		e.onProcessStarted()
+	}
+	if e.onProcessStartedPID != nil && cmd.Process != nil {
+		e.onProcessStartedPID(cmd.Process.Pid)
+	}
+
+	resultCh := make(chan execResult, 1)
+	go func() {
+		resultCh <- execResult{err: cmd.Wait()}
+	}()
 
 	select {
 	case res := <-resultCh:
-		return buildResult(), res.err
+		return buildResult(true), res.err
 
 	case <-execCtx.Done():
 		e.terminateProcess(cmd)
@@ -190,13 +191,13 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 		// Wait briefly for process to exit and collect output
 		select {
 		case <-resultCh:
-			result := buildResult()
+			result := buildResult(true)
 			if execCtx.Err() == context.DeadlineExceeded {
 				return result, fmt.Errorf("command timed out after %s", timeout)
 			}
 			return result, fmt.Errorf("command cancelled")
 		case <-e.clock.After(e.killGracePeriod):
-			result := buildResult()
+			result := buildResult(false)
 			if execCtx.Err() == context.DeadlineExceeded {
 				return result, fmt.Errorf("command timed out after %s", timeout)
 			}

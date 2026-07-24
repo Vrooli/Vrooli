@@ -17,6 +17,7 @@ func TestClassifyPortEvidence(t *testing.T) {
 			name: "healthy running scenario with repeated unbound custom port suggests manifest drift",
 			input: PortEvidenceInput{
 				Claim: PortClaim{
+					Status:                    ClaimStatusBound,
 					PortName:                  "metrics",
 					EnvVar:                    "METRICS_PORT",
 					ListenerStatus:            ListenerStatusNotListening,
@@ -32,7 +33,7 @@ func TestClassifyPortEvidence(t *testing.T) {
 		{
 			name: "unhealthy scenario with unbound declared port suggests runtime failure",
 			input: PortEvidenceInput{
-				Claim:    PortClaim{PortName: "control", EnvVar: "CONTROL_PORT", ListenerStatus: ListenerStatusNotListening},
+				Claim:    PortClaim{Status: ClaimStatusBound, PortName: "control", EnvVar: "CONTROL_PORT", ListenerStatus: ListenerStatusNotListening},
 				Instance: Instance{Status: StatusRunning},
 				Health:   HealthSnapshot{Status: HealthStatusUnhealthy},
 			},
@@ -43,7 +44,7 @@ func TestClassifyPortEvidence(t *testing.T) {
 		{
 			name: "inspection unavailable stays low confidence",
 			input: PortEvidenceInput{
-				Claim:    PortClaim{PortName: "api", EnvVar: "API_PORT", ListenerStatus: ListenerStatusInspectionUnavailable},
+				Claim:    PortClaim{Status: ClaimStatusBound, PortName: "api", EnvVar: "API_PORT", ListenerStatus: ListenerStatusInspectionUnavailable},
 				Instance: Instance{Status: StatusRunning},
 				Health:   HealthSnapshot{Status: HealthStatusHealthy},
 			},
@@ -54,7 +55,7 @@ func TestClassifyPortEvidence(t *testing.T) {
 		{
 			name: "listening claim is ok for arbitrary env var",
 			input: PortEvidenceInput{
-				Claim:    PortClaim{PortName: "playwright-driver", EnvVar: "DRIVER_PORT", ListenerStatus: ListenerStatusListening},
+				Claim:    PortClaim{Status: ClaimStatusBound, PortName: "playwright-driver", EnvVar: "DRIVER_PORT", ListenerStatus: ListenerStatusListening},
 				Instance: Instance{Status: StatusRunning},
 				Health:   HealthSnapshot{Status: HealthStatusHealthy},
 			},
@@ -65,7 +66,7 @@ func TestClassifyPortEvidence(t *testing.T) {
 		{
 			name: "stale reconciliation recommends expiration",
 			input: PortEvidenceInput{
-				Claim:             PortClaim{PortName: "api", EnvVar: "API_PORT", ListenerStatus: ListenerStatusNotListening},
+				Claim:             PortClaim{Status: ClaimStatusBound, PortName: "api", EnvVar: "API_PORT", ListenerStatus: ListenerStatusNotListening},
 				Reconciliation:    ReconcileStaleClaim,
 				HasAuthoritative:  true,
 				Authoritative:     false,
@@ -76,9 +77,31 @@ func TestClassifyPortEvidence(t *testing.T) {
 			wantReason: "non-authoritative",
 		},
 		{
+			name: "expired claim is resolved history, never a stale-expire recommendation",
+			input: PortEvidenceInput{
+				Claim:            PortClaim{Status: ClaimStatusExpired, PortName: "api", EnvVar: "API_PORT", ListenerStatus: ListenerStatusNotListening},
+				Reconciliation:   ReconcileStaleClaim,
+				HasAuthoritative: true,
+				Authoritative:    false,
+			},
+			wantCode:   PortRecommendationClaimResolved,
+			wantConf:   "high",
+			wantReason: "already expired",
+		},
+		{
+			name: "released claim is resolved history",
+			input: PortEvidenceInput{
+				Claim:    PortClaim{Status: ClaimStatusReleased, PortName: "api", EnvVar: "API_PORT", ListenerStatus: ListenerStatusListening},
+				Instance: Instance{Status: StatusRunning},
+			},
+			wantCode:   PortRecommendationClaimResolved,
+			wantConf:   "high",
+			wantReason: "already released",
+		},
+		{
 			name: "host listener contradicting stored unbound evidence asks for orphan investigation",
 			input: PortEvidenceInput{
-				Claim:             PortClaim{PortName: "api", EnvVar: "API_PORT", ListenerStatus: ListenerStatusNotListening},
+				Claim:             PortClaim{Status: ClaimStatusBound, PortName: "api", EnvVar: "API_PORT", ListenerStatus: ListenerStatusNotListening},
 				Instance:          Instance{Status: StatusRunning},
 				Health:            HealthSnapshot{Status: HealthStatusHealthy},
 				HostListenerInUse: true,

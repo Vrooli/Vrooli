@@ -25,6 +25,7 @@ type runtimeMaintenanceStore interface {
 	scenarioruntime.EventRepository
 	ListSupervisorSessions(ctx context.Context, filter scenarioruntime.SupervisorSessionFilter) ([]scenarioruntime.SupervisorSession, error)
 	ListExpiredActivePortClaims(ctx context.Context, at time.Time) ([]scenarioruntime.PortClaim, error)
+	PruneTerminalPortClaims(ctx context.Context, before time.Time) (int, error)
 	ReleaseActivePortClaimsForInstance(ctx context.Context, instanceID string) ([]scenarioruntime.PortClaim, error)
 	StopLease(ctx context.Context, instanceID string, generation int64, reason string) (scenarioruntime.Instance, error)
 	GetInstances(ctx context.Context, instanceIDs []string) (map[string]scenarioruntime.Instance, error)
@@ -303,6 +304,58 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 					}
 				}
 			}
+		}
+	}
+
+	// A claim can still be reserved/bound while its instance has already left
+	// the active statuses (unclean stop, crash, reaped lease). Such claims are
+	// invisible to the active-instance walk above, so without this pass they
+	// accumulate forever and no cleanup can ever expire them.
+	activeInstanceIDs := make(map[string]struct{}, len(instances))
+	for _, instance := range instances {
+		activeInstanceIDs[instance.InstanceID] = struct{}{}
+	}
+	orphanIDs := make([]string, 0)
+	orphanSeen := make(map[string]struct{})
+	for _, claim := range activeClaims {
+		if _, ok := activeInstanceIDs[claim.InstanceID]; ok {
+			continue
+		}
+		if _, ok := orphanSeen[claim.InstanceID]; ok {
+			continue
+		}
+		orphanSeen[claim.InstanceID] = struct{}{}
+		orphanIDs = append(orphanIDs, claim.InstanceID)
+	}
+	if len(orphanIDs) > 0 {
+		// Re-read the candidate instances: one may have become active between
+		// the ListInstances and ListPortClaims queries above, and expiring a
+		// claim that just went live would break its scenario. Only instances in
+		// a TERMINAL status (or gone from the store) orphan their claims —
+		// "stopping" is in-flight: the graceful stop path releases its own
+		// claims, and stuck stops belong to finalizeStuckStoppingInstances.
+		currentInstances, err := store.GetInstances(ctx, orphanIDs)
+		if err != nil {
+			return nil, nil, err
+		}
+		terminalStatuses := map[string]struct{}{
+			scenarioruntime.StatusStopped: {},
+			scenarioruntime.StatusFailed:  {},
+			scenarioruntime.StatusExpired: {},
+		}
+		for _, claim := range activeClaims {
+			if _, ok := activeInstanceIDs[claim.InstanceID]; ok {
+				continue
+			}
+			if instance, ok := currentInstances[claim.InstanceID]; ok {
+				if _, terminal := terminalStatuses[instance.Status]; !terminal {
+					continue
+				}
+			}
+			if _, err := store.ExpirePortClaim(ctx, claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+				return nil, nil, err
+			}
+			stopped = append(stopped, control.Stopped(strconv.Itoa(claim.Port), "Expired orphaned registry claim "+claim.ClaimID+" (instance no longer active)"))
 		}
 	}
 	return stopped, reclaim, nil

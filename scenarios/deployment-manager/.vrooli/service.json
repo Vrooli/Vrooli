@@ -230,6 +230,8 @@
       },
       "secrets-manager": {
         "required": true,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Deployment Manager starts for non-secret deployment planning; bundle assembly that requires secret classifications returns its explicit Secrets Manager unavailable error until the service is ready.",
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
         "purpose": "Secret classification, template generation, and tier-specific secret strategies"

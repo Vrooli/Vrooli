@@ -87,5 +87,22 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
     },
-  }
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}", "src/test-utils/**", "src/test-setup.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/test-utils/**", "**/features/*/mocks/**"],
+              message: "Production modules must not import test helpers or feature mocks.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

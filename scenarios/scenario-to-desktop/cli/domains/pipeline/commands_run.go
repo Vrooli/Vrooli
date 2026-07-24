@@ -14,7 +14,7 @@ func (c *Commands) waitForPipeline(pipelineID string, timeoutSeconds int, deploy
 	// Human-first progress: print only when the status/progress meaningfully changes.
 	fmt.Printf("Pipeline: %s\n", pipelineID)
 
-	deadline := time.Now().Add(time.Duration(timeoutSeconds) * time.Second)
+	deadline := c.now().Add(time.Duration(timeoutSeconds) * time.Second)
 	var lastKey string
 
 	for {
@@ -43,7 +43,7 @@ func (c *Commands) waitForPipeline(pipelineID string, timeoutSeconds int, deploy
 			return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
 		}
 
-		if time.Now().After(deadline) {
+		if c.now().After(deadline) {
 			fmt.Printf("Pipeline still running after %ds: %s\n", timeoutSeconds, pipelineID)
 			fmt.Printf("Check status: %s pipeline-status %s --verbose\n", appName, pipelineID)
 			return fmt.Errorf("pipeline timed out")
@@ -70,28 +70,29 @@ func printProgressLine(status *pipelineStatus) {
 
 // runFlags holds parsed flags for the Run command.
 type runFlags struct {
-	stages            string
-	platforms         string
-	deploymentMode    string
-	locationMode      string
-	clean             bool
-	version           string
-	setVersion        string
-	bumpVersion       string
-	versionSource     string
-	allowDowngrade    bool
-	wait              bool
-	timeout           int
-	debug             bool
-	showOutput        bool
-	deployTarget      string
-	deployTo          string
-	remoteProfile     string
-	appKey            string
-	deploymentProfile string
-	gateTimeout       string
-	gatePollInterval  string
-	jsonOutput        bool
+	stages               string
+	platforms            string
+	deploymentMode       string
+	locationMode         string
+	resourceArtifactRoot string
+	clean                bool
+	version              string
+	setVersion           string
+	bumpVersion          string
+	versionSource        string
+	allowDowngrade       bool
+	wait                 bool
+	timeout              int
+	debug                bool
+	showOutput           bool
+	deployTarget         string
+	deployTo             string
+	remoteProfile        string
+	appKey               string
+	deploymentProfile    string
+	gateTimeout          string
+	gatePollInterval     string
+	jsonOutput           bool
 }
 
 func parseRunFlags(args []string) (*runFlags, *flag.FlagSet, error) {
@@ -101,6 +102,7 @@ func parseRunFlags(args []string) (*runFlags, *flag.FlagSet, error) {
 	fs.StringVar(&f.platforms, "platforms", "", "Comma-separated target platforms (default: current platform)")
 	fs.StringVar(&f.deploymentMode, "deployment-mode", "", "Deployment mode: bundled (default), external-server, cloud-api, proxy")
 	fs.StringVar(&f.locationMode, "location-mode", "", "Output location: proper (default), staging, temp")
+	fs.StringVar(&f.resourceArtifactRoot, "resource-artifact-root", "", "Verified Vrooli release directory containing signed resource artifacts")
 	fs.BoolVar(&f.clean, "clean", false, "Remove existing desktop output before running the pipeline")
 	fs.StringVar(&f.version, "version", "", "Override version for this run (no file updates)")
 	fs.StringVar(&f.setVersion, "set-version", "", "Persist scenario version before running the pipeline")
@@ -143,6 +145,9 @@ func buildRunRequest(scenario string, f *runFlags) map[string]interface{} {
 	}
 	if f.locationMode != "" {
 		req["location_mode"] = f.locationMode
+	}
+	if f.resourceArtifactRoot != "" {
+		req["resource_artifact_root"] = f.resourceArtifactRoot
 	}
 	if f.clean {
 		req["clean"] = true
@@ -289,29 +294,6 @@ func (c *Commands) runWaitMode(scenario string, req map[string]interface{}, f *r
 		cliutil.PrintJSON(createBody)
 		return nil
 	}
-
-	startReq := map[string]interface{}{}
-	if f.platforms != "" {
-		startReq["platforms"] = strings.Split(f.platforms, ",")
-	}
-	if f.stages != "" {
-		startReq["stages"] = strings.Split(f.stages, ",")
-	}
-	if deployConfig != nil {
-		startReq["deploy"] = deployConfig
-	}
-
-	var startBody []byte
-	if len(startReq) > 0 {
-		startBody, err = c.deps.Request("POST", "/scenarios/"+scenario+"/pipeline/start", nil, startReq)
-	} else {
-		startBody, err = c.deps.Request("POST", "/scenarios/"+scenario+"/pipeline/start", nil, nil)
-	}
-	if err != nil {
-		printAPIError(err, f.debug)
-		return &ErrAlreadyPrinted{Err: err}
-	}
-	_ = startBody
 
 	return c.waitForPipeline(createResp.PipelineID, f.timeout, deployRequested, notice, f.showOutput)
 }

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@/test-utils";
 import { act } from "@testing-library/react";
 import { SmokeTestSection } from "./SmokeTestSection";
 import { usePipelineStore } from "../../../store";

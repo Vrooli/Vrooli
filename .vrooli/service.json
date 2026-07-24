@@ -42,11 +42,6 @@
         "required": false,
         "timezone": "America/New_York"
       },
-      "judge0": {
-        "description": "Code execution and testing platform",
-        "enabled": true,
-        "required": false
-      },
       "k6": {
         "description": "Modern load testing tool with JavaScript scripting",
         "enabled": true,

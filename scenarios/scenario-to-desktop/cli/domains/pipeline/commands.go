@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"time"
 
 	"scenario-to-desktop/cli/internal/support"
 
@@ -41,12 +42,30 @@ func IsAlreadyPrinted(err error) bool {
 
 // Commands provides pipeline CLI commands.
 type Commands struct {
-	deps support.Dependencies
+	deps  support.Dependencies
+	clock Clock
 }
+
+// Clock is the narrow time seam used by pipeline polling. Production uses the
+// system clock while tests can provide deterministic deadlines.
+type Clock interface {
+	Now() time.Time
+}
+
+type systemClock struct{}
+
+func (systemClock) Now() time.Time { return time.Now() }
 
 // New creates a new pipeline Commands instance.
 func New(deps support.Dependencies) *Commands {
-	return &Commands{deps: deps}
+	return &Commands{deps: deps, clock: systemClock{}}
+}
+
+func (c *Commands) now() time.Time {
+	if c.clock == nil {
+		return time.Now()
+	}
+	return c.clock.Now()
 }
 
 func (c *Commands) apiGet(path string, query map[string]string) ([]byte, error) {

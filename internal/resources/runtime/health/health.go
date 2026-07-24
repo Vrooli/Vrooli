@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -52,24 +53,26 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 
 	switch check.Type {
 	case "tcp":
-		conn, err := (&net.Dialer{}).DialContext(checkCtx, "tcp", check.Target)
+		target := renderTarget(check.Target, cfg.Env)
+		conn, err := (&net.Dialer{}).DialContext(checkCtx, "tcp", target)
 		if err != nil {
-			return Result{Message: fmt.Sprintf("tcp check failed for %s", check.Target)}, nil
+			return Result{Message: fmt.Sprintf("tcp check failed for %s", target)}, nil
 		}
 		_ = conn.Close()
 		return Result{Healthy: true, Message: "healthy"}, nil
 	case "http":
+		target := renderTarget(check.Target, cfg.Env)
 		client := cfg.HTTPClient
 		if client == nil {
 			client = http.DefaultClient
 		}
-		req, err := http.NewRequestWithContext(checkCtx, http.MethodGet, check.Target, nil)
+		req, err := http.NewRequestWithContext(checkCtx, http.MethodGet, target, nil)
 		if err != nil {
 			return Result{}, err
 		}
 		resp, err := client.Do(req)
 		if err != nil {
-			return Result{Message: fmt.Sprintf("http check failed for %s", check.Target)}, nil
+			return Result{Message: fmt.Sprintf("http check failed for %s", target)}, nil
 		}
 		defer resp.Body.Close()
 		if len(check.ExpectedStatus) == 0 {
@@ -104,4 +107,19 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 	default:
 		return Result{}, fmt.Errorf("unsupported health check type %q", check.Type)
 	}
+}
+
+func renderTarget(target string, env []string) string {
+	values := make(map[string]string, len(env))
+	for _, entry := range env {
+		if key, value, ok := strings.Cut(entry, "="); ok {
+			values[key] = value
+		}
+	}
+	return os.Expand(target, func(key string) string {
+		if value, ok := values[key]; ok {
+			return value
+		}
+		return "${" + key + "}"
+	})
 }

@@ -70,8 +70,8 @@ root, with the most recent run status for each, and trigger a verification
 + "Verify all" controls strip on top, then a table of flow rows. Each row is a
 `<Link>` to `/flows/:flowId` plus a status chip (color-coded `passed` /
 `failed` / `error`) plus a per-row "Verify" button (disabled while
-`Verify all` is pending — see the `react-coherence` skill (load via
-`prompt-manager skill read react-coherence`) §1 for the scope-discipline
+`Verify all` is pending — see the `ui-health` skill (load via
+`prompt-manager skill read ui-health`) §1 for the scope-discipline
 rationale.
 
 **Empty / loading / error states.** `inventory-loading`, `inventory-error`,
@@ -148,9 +148,9 @@ parse error is surfaced inline (`run-detail-counterexample-parse-error`).
 - [`concepts/ARCHITECTURE.md`](ARCHITECTURE.md) — overall scenario architecture
   (API / CLI / UI split).
 - [`concepts/FLOWS.md`](FLOWS.md) — the underlying flow model the UI visualizes.
-- `react-coherence` skill (load via `prompt-manager skill read react-coherence`)
+- `ui-health` skill (load via `prompt-manager skill read ui-health`)
   — scope-discipline rules every screen follows (useReducer over Context,
   parent-driven step state for the trace player, etc.).
-- `vrooli-ui-interop` skill (load via `prompt-manager skill read vrooli-ui-interop`)
+- `ui-health` skill (load via `prompt-manager skill read ui-health`)
   — basename + router slot the UI binds to so the proxied URL works under any
   deployment.

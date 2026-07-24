@@ -1,5 +1,11 @@
 # SEAMS · scenario-to-desktop
 
+## Explicit runtime seams
+
+| Seam | Production implementation | Test implementation | Owner |
+|---|---|---|---|
+| Pipeline polling clock | `pipeline.systemClock` delegates to `time.Now` | `pipeline.Clock` implementations provide deterministic deadlines | `cli/domains/pipeline` |
+
 This document captures the architectural seams, boundaries, and responsibility zones for the scenario-to-desktop codebase. It serves as the source of truth for understanding where behavior can vary, where responsibilities live, and how to test each layer.
 
 ## Domain Model
@@ -838,7 +844,7 @@ export function createErrorInfo(err: unknown): ErrorInfo
 - `components/docs/DocsPanel.tsx` - Now uses `writeToClipboard()`
 - `components/preflight/DiagnosticsPanels.tsx` - Now uses `writeToClipboard()`
 - `components/BundledPreflightSection.tsx` - Now uses `writeToClipboard()`
-- `components/BundledRuntimeSection.tsx` - Now uses `writeToClipboard()`
+- `components/sections/bundle/BundleSection.tsx` - Now uses `writeToClipboard()`
 - `components/scenario-inventory/GenerateDesktopButton.tsx` - Now uses `writeToClipboard()`
 
 **Benefits**:
@@ -854,7 +860,7 @@ export function createErrorInfo(err: unknown): ErrorInfo
 
 **Files Updated**:
 - `components/BundledPreflightSection.tsx` - Now uses `triggerBlobDownload()`
-- `components/BundledRuntimeSection.tsx` - Now uses `triggerBlobDownload()`
+- `components/sections/bundle/BundleSection.tsx` - Now uses `triggerBlobDownload()`
 
 **Code Eliminated**:
 ```typescript

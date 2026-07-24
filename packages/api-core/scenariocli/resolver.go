@@ -27,10 +27,8 @@ type cliConfig struct {
 }
 
 type cliAdapterConfig struct {
-	Kind          string `json:"kind,omitempty"`
-	ModuleDir     string `json:"module_dir,omitempty"`
-	ScriptPath    string `json:"script_path,omitempty"`
-	InstallScript string `json:"install_script,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	ModuleDir string `json:"module_dir,omitempty"`
 }
 
 type cliFreshnessCheck struct {
@@ -127,13 +125,6 @@ func discoverScenarioCLI(root, name string) (scenarioCLI, error) {
 		if err := requireFile(filepath.Join(item.modulePath, "go.mod")); err != nil {
 			return scenarioCLI{}, fmt.Errorf("discover scenario CLI %q: %w", name, err)
 		}
-	case "shell_script":
-		if err := requireFile(filepath.Join(scenarioRoot, filepath.FromSlash(item.config.Adapter.ScriptPath))); err != nil {
-			return scenarioCLI{}, fmt.Errorf("discover scenario CLI %q: %w", name, err)
-		}
-		if err := requireFile(filepath.Join(scenarioRoot, filepath.FromSlash(item.config.Adapter.InstallScript))); err != nil {
-			return scenarioCLI{}, fmt.Errorf("discover scenario CLI %q: %w", name, err)
-		}
 	default:
 		return scenarioCLI{}, fmt.Errorf("discover scenario CLI %q: unsupported adapter kind %q", name, item.config.Adapter.Kind)
 	}
@@ -164,8 +155,6 @@ func (cfg *cliConfig) validate() error {
 	cfg.Command = strings.TrimSpace(cfg.Command)
 	cfg.Adapter.Kind = strings.TrimSpace(cfg.Adapter.Kind)
 	cfg.Adapter.ModuleDir = strings.TrimSpace(cfg.Adapter.ModuleDir)
-	cfg.Adapter.ScriptPath = strings.TrimSpace(cfg.Adapter.ScriptPath)
-	cfg.Adapter.InstallScript = strings.TrimSpace(cfg.Adapter.InstallScript)
 	if cfg.Command == "" {
 		return errors.New("command is required when cli.enabled=true")
 	}
@@ -173,13 +162,6 @@ func (cfg *cliConfig) validate() error {
 	case "go_module":
 		if cfg.Adapter.ModuleDir == "" {
 			return errors.New("adapter.module_dir is required for cli.adapter.kind=go_module")
-		}
-	case "shell_script":
-		if cfg.Adapter.ScriptPath == "" {
-			return errors.New("adapter.script_path is required for cli.adapter.kind=shell_script")
-		}
-		if cfg.Adapter.InstallScript == "" {
-			return errors.New("adapter.install_script is required for cli.adapter.kind=shell_script")
 		}
 	default:
 		return fmt.Errorf("unsupported cli.adapter.kind %q", cfg.Adapter.Kind)
@@ -236,29 +218,9 @@ func installScenarioCLI(ctx context.Context, root, home string, item scenarioCLI
 		if err != nil {
 			return err
 		}
-		args := []string{
-			"run", "./cmd/cli-installer",
-			"--module", item.modulePath,
-			"--name", item.binaryName,
-			"--install-dir", installDir,
-		}
-		if strings.TrimSpace(spec.ContextRoot) != "" && filepath.Clean(spec.ContextRoot) != filepath.Clean(item.modulePath) {
-			args = append(args, "--context-root", spec.ContextRoot)
-		}
-		for _, input := range spec.Inputs {
-			args = append(args, "--freshness-input", input)
-		}
+		args := cliutil.GoModuleInstallerArgs(item.modulePath, item.servicePath, item.binaryName, installDir, spec)
 		cmd := exec.CommandContext(ctx, "go", args...)
 		cmd.Dir = installerDir
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		if err := cmd.Run(); err != nil {
-			return err
-		}
-	case "shell_script":
-		cmd := exec.CommandContext(ctx, "bash", filepath.Join(item.scenarioPath, filepath.FromSlash(item.config.Adapter.InstallScript)))
-		cmd.Dir = item.scenarioPath
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
@@ -290,12 +252,6 @@ func scenarioFreshnessSpec(item scenarioCLI) (cliutil.FreshnessSpec, error) {
 	switch item.config.Adapter.Kind {
 	case "go_module":
 		return cliutil.CanonicalScenarioGoModuleFreshnessSpec(item.scenarioPath, item.modulePath, item.binaryName, customInputs), nil
-	case "shell_script":
-		manifestRel, err := filepath.Rel(item.scenarioPath, item.servicePath)
-		if err != nil {
-			return cliutil.FreshnessSpec{}, err
-		}
-		return cliutil.CanonicalShellScriptFreshnessSpec(item.scenarioPath, item.config.Adapter.ScriptPath, item.config.Adapter.InstallScript, manifestRel, item.binaryName, customInputs), nil
 	default:
 		return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported scenario CLI adapter kind %q", item.config.Adapter.Kind)
 	}

@@ -7,7 +7,7 @@ This directory contains React components organized by feature area.
 ### Suffix Meanings
 
 - **`*Section`** - UI components that represent visual containers/regions of the page
-  - Example: `PreflightSection`, `ConfigurationSection`, `BundledRuntimeSection`
+  - Example: `PreflightSection`, `ConfigurationSection`, `BundleSection`
   - These are presentational components focused on layout and visual grouping
 
 - **`*Stage`** - Components representing pipeline execution stages

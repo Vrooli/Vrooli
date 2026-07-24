@@ -11,6 +11,7 @@ package devrouting
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/projectmeta"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
@@ -28,12 +30,17 @@ import (
 // Service implements the generated routing_v1connect.RoutingServiceHandler
 // by forwarding calls into a *database.RoutedDB.
 type Service struct {
-	db *database.RoutedDB
+	db    *database.RoutedDB
+	roots *filerouting.RoutedRoots
 }
 
 // NewService returns a Service bound to db.
-func NewService(db *database.RoutedDB) *Service {
-	return &Service{db: db}
+func NewService(db *database.RoutedDB, roots ...*filerouting.RoutedRoots) *Service {
+	service := &Service{db: db}
+	if len(roots) > 0 {
+		service.roots = roots[0]
+	}
+	return service
 }
 
 // InstallTestPool implements routing_v1connect.RoutingServiceHandler.
@@ -51,7 +58,13 @@ func (s *Service) InstallTestPool(ctx context.Context, req *connect.Request[rout
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&routingv1.InstallTestPoolResponse{ActiveLeaseId: leaseID}), nil
+	if s.roots != nil {
+		if _, err := s.roots.InstallLeasedTestRoots(leaseID, ttl, req.Msg.GetEmptyConfig()); err != nil {
+			_ = s.db.ClearTestPool(leaseID)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("install test file roots: %w", err))
+		}
+	}
+	return connect.NewResponse(&routingv1.InstallTestPoolResponse{ActiveLeaseId: leaseID, FileRootsInstalled: s.roots != nil}), nil
 }
 
 // ClearTestPool implements routing_v1connect.RoutingServiceHandler.
@@ -62,6 +75,10 @@ func (s *Service) InstallTestPool(ctx context.Context, req *connect.Request[rout
 // pool.
 func (s *Service) ClearTestPool(ctx context.Context, req *connect.Request[routingv1.ClearTestPoolRequest]) (*connect.Response[routingv1.ClearTestPoolResponse], error) {
 	snapshot := s.db.LeaseStats()
+	fileSnapshot := filerouting.LeaseStatsSnapshot{}
+	if s.roots != nil {
+		fileSnapshot = s.roots.LeaseStats()
+	}
 	if err := s.db.ClearTestPool(req.Msg.GetLeaseId()); err != nil {
 		var mismatch *database.ErrLeaseMismatch
 		if errors.As(err, &mismatch) {
@@ -69,10 +86,17 @@ func (s *Service) ClearTestPool(ctx context.Context, req *connect.Request[routin
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if s.roots != nil {
+		if err := s.roots.ClearTestRoots(req.Msg.GetLeaseId()); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
 	return connect.NewResponse(&routingv1.ClearTestPoolResponse{
 		Stats: &routingv1.LeaseStats{
-			TestPoolRequests:               snapshot.TestPoolRequests,
-			PrimaryDuringTestModeRequests:  snapshot.PrimaryDuringTestModeRequests,
+			TestPoolRequests:                snapshot.TestPoolRequests,
+			PrimaryDuringTestModeRequests:   snapshot.PrimaryDuringTestModeRequests,
+			TestRootWrites:                  fileSnapshot.TestRootWrites,
+			PrimaryRootWritesDuringTestMode: fileSnapshot.PrimaryWritesDuringTestMode,
 		},
 	}), nil
 }
@@ -87,6 +111,11 @@ func (s *Service) HeartbeatTestPool(ctx context.Context, req *connect.Request[ro
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if s.roots != nil {
+		if _, err := s.roots.HeartbeatTestRoots(req.Msg.GetLeaseId(), 0); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
 	}
 	return connect.NewResponse(&routingv1.HeartbeatTestPoolResponse{
 		ExpiresAtUnixMs: expiresAt.UnixMilli(),
@@ -113,6 +142,18 @@ func Register(mux Mux, db *database.RoutedDB, opts ...connect.HandlerOption) boo
 		return false
 	}
 	path, handler := routing_v1connect.NewRoutingServiceHandler(NewService(db), opts...)
+	mux.Handle(path, handler)
+	return true
+}
+
+// RegisterWithFileRoots mounts the development routing surface with both the
+// database and file-storage legs of a test lease. Existing database-only
+// adopters remain valid through Register.
+func RegisterWithFileRoots(mux Mux, db *database.RoutedDB, roots *filerouting.RoutedRoots, opts ...connect.HandlerOption) bool {
+	if !enabled() {
+		return false
+	}
+	path, handler := routing_v1connect.NewRoutingServiceHandler(NewService(db, roots), opts...)
 	mux.Handle(path, handler)
 	return true
 }

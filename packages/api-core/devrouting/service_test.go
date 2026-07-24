@@ -14,7 +14,9 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/projectmeta"
+	"github.com/vrooli/api-core/storage"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect"
@@ -135,5 +137,47 @@ func TestRegister_ForceEnableOverridesProduction(t *testing.T) {
 	mux := http.NewServeMux()
 	if !devrouting.Register(mux, db) {
 		t.Fatalf("Register returned false despite force-enable")
+	}
+}
+
+func TestRegisterWithFileRootsOwnsLeasedRoots(t *testing.T) {
+	writeMode(t, "development")
+	db := openRouted(t)
+	primary := filepath.Join(t.TempDir(), "primary-config")
+	if err := os.MkdirAll(primary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(primary, "seed.txt"), []byte("seed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	roots := filerouting.New(storage.Paths{ConfigDir: primary, DataDir: filepath.Join(t.TempDir(), "data"), CacheDir: filepath.Join(t.TempDir(), "cache"), LogsDir: filepath.Join(t.TempDir(), "logs"), StateDir: filepath.Join(t.TempDir(), "state")})
+	mux := http.NewServeMux()
+	if !devrouting.RegisterWithFileRoots(mux, db, roots) {
+		t.Fatal("RegisterWithFileRoots returned false")
+	}
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	client := routing_v1connect.NewRoutingServiceClient(http.DefaultClient, srv.URL)
+	leaseID := "lease-files"
+	if _, err := client.InstallTestPool(context.Background(), connect.NewRequest(&routingv1.InstallTestPoolRequest{Dsn: filepath.Join(t.TempDir(), "test.db"), LeaseId: leaseID})); err != nil {
+		t.Fatalf("InstallTestPool: %v", err)
+	}
+	testConfig, err := roots.Pick(database.WithTestMode(context.Background()), storage.ClassConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(testConfig, "seed.txt")); err != nil {
+		t.Fatalf("expected copied config seed: %v", err)
+	}
+	roots.RecordWrite(database.WithTestMode(context.Background()))
+	cleared, err := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: leaseID}))
+	if err != nil {
+		t.Fatalf("ClearTestPool: %v", err)
+	}
+	if cleared.Msg.GetStats().GetTestRootWrites() != 1 || cleared.Msg.GetStats().GetPrimaryRootWritesDuringTestMode() != 0 {
+		t.Fatalf("unexpected file stats: %+v", cleared.Msg.GetStats())
+	}
+	if _, err := os.Stat(testConfig); !os.IsNotExist(err) {
+		t.Fatalf("leased test root remains: %v", err)
 	}
 }

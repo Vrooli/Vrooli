@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	apicoresecrets "github.com/vrooli/api-core/secrets"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
@@ -230,7 +232,7 @@ func TestDiscoverMarksManifestNativeResources(t *testing.T) {
 		testresource.WithResourceTemplate("docker-service"),
 		testresource.WithResourceDescription("Fixture resource"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:latest",
+			Image:         "fixture:1.0.0",
 			ContainerName: "vrooli-fixture",
 		}),
 		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
@@ -279,7 +281,7 @@ func TestStatusForManifestNativeDockerResource(t *testing.T) {
 		testresource.WithResourceTemplate("docker-service"),
 		testresource.WithResourceDescription("Fixture resource"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:latest",
+			Image:         "fixture:1.0.0",
 			ContainerName: "vrooli-fixture",
 		}),
 		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
@@ -318,7 +320,7 @@ func TestRunManifestNativeDockerLifecycle(t *testing.T) {
 		testresource.WithResourceTemplate("docker-service"),
 		testresource.WithResourceDescription("Fixture resource"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:latest",
+			Image:         "fixture:1.0.0",
 			ContainerName: "vrooli-fixture",
 		}),
 		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
@@ -377,7 +379,7 @@ func TestStatusForManifestNativeDockerResourceAcceptsExternalHealthyService(t *t
 		testresource.WithResourceTemplate("docker-service"),
 		testresource.WithResourceDescription("Fixture resource"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:latest",
+			Image:         "fixture:1.0.0",
 			ContainerName: "vrooli-fixture",
 		}),
 		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
@@ -425,7 +427,7 @@ func TestRunManifestNativeDockerStartNoopsWhenExternalServiceIsHealthy(t *testin
 		testresource.WithResourceTemplate("docker-service"),
 		testresource.WithResourceDescription("Fixture resource"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:latest",
+			Image:         "fixture:1.0.0",
 			ContainerName: "vrooli-fixture",
 		}),
 		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
@@ -467,7 +469,7 @@ func TestRunManifestNativeDockerStartPrefersExternalHealthyServiceOverStoppedCon
 		testresource.WithResourceTemplate("docker-service"),
 		testresource.WithResourceDescription("Fixture resource"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:latest",
+			Image:         "fixture:1.0.0",
 			ContainerName: "vrooli-fixture",
 		}),
 		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
@@ -658,7 +660,7 @@ func TestStatusForManifestNativeUnsupportedPlatform(t *testing.T) {
 			Windows: "unsupported",
 		}),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image: "fixture:latest",
+			Image: "fixture:1.0.0",
 		}),
 	))
 
@@ -863,6 +865,36 @@ func TestRunManifestNativeExternalCLIStartInstallsWhenUnavailable(t *testing.T) 
 	}
 }
 
+func TestManagedDiscoveredExternalCLIRefusesImplicitInstall(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	installMarker := filepath.Join(root, "install.marker")
+	manifest := testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture discovered CLI resource"),
+		testresource.WithResourceBinary("definitely-missing-discovered-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"}),
+		testresource.WithResourceInstall(manifestpkg.ResourceInstall{Platforms: map[string][]string{
+			"linux": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+		}}),
+	)
+	manifest.CLI.Enabled = false
+	manifest.ProviderPolicy = &resourcedeployment.ProviderPolicy{DefaultMode: resourcedeployment.ProviderManagedDiscovered, AllowedModes: []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedDiscovered}, ExternalManagement: "forbidden"}
+	testresource.WriteResourceManifest(t, root, "fixture", manifest)
+
+	err := NewController(root, home).Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{})
+	if err == nil || !strings.Contains(err.Error(), "will not install or adopt") {
+		t.Fatalf("managed-discovered start error = %v", err)
+	}
+	if _, statErr := os.Stat(installMarker); !os.IsNotExist(statErr) {
+		t.Fatalf("managed-discovered start unexpectedly ran install, stat error = %v", statErr)
+	}
+}
+
 func TestStatusForManifestNativeCloudAPIResource(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -985,7 +1017,7 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		"postgres":        "docker-service",
 		"redis":           "docker-service",
 		"qdrant":          "docker-service",
-		"vault":           "docker-service",
+		"vault":           "managed-service",
 		"minio":           "docker-service",
 		"searxng":         "docker-service",
 		"home-assistant":  "compose-service",
@@ -1042,6 +1074,53 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	}
 }
 
+func TestVaultManagedServiceDoesNotOverclaimTargetReadiness(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+	manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, "vault"))
+	if err != nil {
+		t.Fatalf("load Vault manifest: %v", err)
+	}
+
+	if manifest.Driver != "managed-service" {
+		t.Fatalf("Vault driver = %q, want managed-service", manifest.Driver)
+	}
+	if len(manifest.HostTools) != 1 {
+		t.Fatalf("Vault hostTools = %+v, want one Linux Secret Service declaration", manifest.HostTools)
+	}
+	secretTool := manifest.HostTools[0]
+	if secretTool.Name != "secret-tool" || !secretTool.Required || !slices.Contains(secretTool.Platforms, "linux") || !slices.Contains(secretTool.When, "develop") {
+		t.Fatalf("Vault secret-tool declaration = %+v, want required Linux develop host tool", secretTool)
+	}
+	if manifest.PortabilityTier != "partial" {
+		t.Fatalf("Vault portability_tier = %q, want partial until every target artifact has native-host evidence", manifest.PortabilityTier)
+	}
+	for platform, support := range map[string]string{
+		"linux":   manifest.Platforms.Linux,
+		"macos":   manifest.Platforms.MacOS,
+		"windows": manifest.Platforms.Windows,
+	} {
+		if support != "partial" {
+			t.Errorf("Vault %s platform support = %q, want partial until native-host smoke coverage is complete", platform, support)
+		}
+	}
+
+	desktop := manifest.Deployment.Profiles["desktop"]
+	for platform, target := range map[string]*manifestpkg.ResourceDeploymentTarget{
+		"linux":   desktop.Linux,
+		"macos":   desktop.MacOS,
+		"windows": desktop.Windows,
+	} {
+		if target == nil {
+			t.Errorf("Vault desktop target %s is missing", platform)
+			continue
+		}
+		if target.Support != "conditional" || target.Mode != "bundled-service" {
+			t.Errorf("Vault desktop target %s = support %q mode %q, want conditional bundled-service", platform, target.Support, target.Mode)
+		}
+	}
+}
+
 func TestLoadResourceManifestParsesHostRequirements(t *testing.T) {
 	root := t.TempDir()
 	controller := NewController(root, t.TempDir())
@@ -1092,8 +1171,8 @@ func TestProjectMigratedResourcesUseNativeDrivers(t *testing.T) {
 	controller := NewController(root, t.TempDir())
 
 	expected := map[string]string{
-		"kokoro":        "compose-service",
-		"whisper":       "compose-service",
+		"kokoro":  "compose-service",
+		"whisper": "compose-service",
 	}
 
 	for name, driver := range expected {
@@ -1148,12 +1227,10 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 	redisPort := mustAllocatePort(t)
 	qdrantPort := mustAllocatePort(t)
 	qdrantGRPCPort := mustAllocatePort(t)
-	vaultPort := mustAllocatePort(t)
 
 	copyManifestWithOverrides(t, projectRoot, root, "postgres", postgresPort, postgresPort, "tcp", "")
 	copyManifestWithOverrides(t, projectRoot, root, "redis", redisPort, redisPort, "tcp", "")
 	copyManifestWithOverrides(t, projectRoot, root, "qdrant", qdrantPort, qdrantGRPCPort, "http", "/")
-	copyManifestWithOverrides(t, projectRoot, root, "vault", vaultPort, vaultPort, "http", "/v1/sys/health")
 
 	postgresListener := mustListenTCP(t, "127.0.0.1:"+strconv.Itoa(postgresPort))
 	defer postgresListener.Close()
@@ -1165,20 +1242,11 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 	})
 	defer qdrantServer.Shutdown(context.Background())
 
-	vaultServer := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(vaultPort), func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/sys/health" {
-			http.NotFound(w, r)
-			return
-		}
-		_, _ = w.Write([]byte(`{"initialized":true,"sealed":false}`))
-	})
-	defer vaultServer.Shutdown(context.Background())
-
 	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
 		t.Fatalf("write fake docker state: %v", err)
 	}
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "vault"} {
+	for _, name := range []string{"postgres", "redis", "qdrant"} {
 		status, err := controller.Status(name, true)
 		if err != nil {
 			t.Fatalf("Status(%s): %v", name, err)

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/test-utils";
 import { act } from "@testing-library/react";
 import { BundleSection } from "./BundleSection";
 import { usePipelineStore } from "../../../store";

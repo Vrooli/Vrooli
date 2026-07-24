@@ -127,7 +127,7 @@ func TestDiscoverExcludesDeprecatedResources(t *testing.T) {
 			Windows: "partial",
 		}),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image: "active:latest",
+			Image: "active:1.0.0",
 		}),
 	))
 	testresource.WriteResourceCLI(t, root, "active", "#!/usr/bin/env bash\nexit 0\n")

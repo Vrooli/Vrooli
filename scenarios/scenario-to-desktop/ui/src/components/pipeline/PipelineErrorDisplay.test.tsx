@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@/test-utils";
 import { PipelineErrorDisplay, PipelineErrorRecovery, InlineError } from "./PipelineErrorDisplay";
 import { suggestRecovery } from "./pipelineUtils";
 import type { PipelineErrorInfo } from "../../store/pipelineTypes";

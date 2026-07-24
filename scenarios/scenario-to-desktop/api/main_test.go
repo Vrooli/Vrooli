@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"scenario-to-desktop-api/internal/testutil"
 )
 
 // TestHealthHandler tests the health check endpoint comprehensively
@@ -20,9 +21,7 @@ func TestHealthHandler(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/health", nil)
-		w := httptest.NewRecorder()
-
-		server.router.ServeHTTP(w, req)
+		w := testutil.Serve(t, server.router, req)
 
 		response := assertJSONResponse(t, w, http.StatusOK)
 		assertFieldValue(t, response, "service", "scenario-to-desktop-api")

@@ -9,7 +9,7 @@ import type {
   DeploymentMode,
   ServerType,
 } from "../domain/deployment";
-import type { BundleResult } from "../components/runtime/DeploymentManagerBundleHelper";
+import type { BundleResult } from "../components/sections/bundle/BundleSection";
 // Use the correct output location type from domain
 export type OutputLocation = "proper" | "temp" | "custom";
 // Import ValidationError from domain - single source of truth

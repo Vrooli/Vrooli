@@ -38,7 +38,7 @@ func TestServiceSupervisorStartsOnlyVerifiedPlanService(t *testing.T) {
 	plan := &Plan{Resources: []Item{{
 		Resource: "fixture", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-service",
 		Service: &Service{
-			ProviderPolicy: resourcedeployment.ProviderPolicy{DefaultMode: resourcedeployment.ProviderManagedPrivate, AllowedModes: []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared}, SharedReuseRequiresConsent: true, ExternalManagement: "forbidden"},
+			ProviderPolicy: resourcedeployment.ProviderPolicy{TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedShared, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate}, AllowedModes: []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared}, SharedReuseRequiresConsent: true, ExternalManagement: "forbidden"},
 			Artifact:       "fixture", Version: "1.0.0", SHA256: hex.EncodeToString(sum[:]),
 			Arguments:   []string{"-test.run=TestBundledServiceFixtureProcess", "--"},
 			Environment: map[string]string{"VROOLI_BUNDLED_SERVICE_FIXTURE": "1"},
@@ -112,11 +112,12 @@ func TestServiceSupervisorUsesConsentedSharedBinding(t *testing.T) {
 	resolver := &testSharedResolver{binding: SharedServiceBinding{
 		Endpoint:    "http://127.0.0.1:8200",
 		Environment: map[string]string{"VAULT_ADDR": "http://127.0.0.1:8200", "VAULT_TOKEN": "scoped-token"},
+		ExpiresAt:   time.Now().Add(time.Minute),
 	}}
 	plan := &Plan{Resources: []Item{{
 		Resource: "vault", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-service",
 		Service: &Service{ProviderPolicy: resourcedeployment.ProviderPolicy{
-			DefaultMode:                resourcedeployment.ProviderManagedPrivate,
+			TargetDefaults:             map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedShared, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate},
 			AllowedModes:               []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared},
 			SharedReuseRequiresConsent: true,
 			ExternalManagement:         "forbidden",
@@ -135,6 +136,56 @@ func TestServiceSupervisorUsesConsentedSharedBinding(t *testing.T) {
 	}
 	if environment := supervisor.Environment(); environment["VAULT_TOKEN"] != "scoped-token" || environment["VAULT_ADDR"] != "http://127.0.0.1:8200" {
 		t.Fatalf("shared environment = %#v", environment)
+	}
+}
+
+func TestServiceSupervisorFallsBackToPrivateServiceForExpiredSharedBinding(t *testing.T) {
+	if testing.Short() {
+		t.Skip("uses a helper service process")
+	}
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "fixture")
+	if err := os.MkdirAll(resourceDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(resourceDir, "fixture")
+	body, err := os.ReadFile(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, body, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(body)
+	plan := &Plan{Resources: []Item{{
+		Resource: "fixture", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-service",
+		Service: &Service{
+			ProviderPolicy: resourcedeployment.ProviderPolicy{TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedShared, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate}, AllowedModes: []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared}, SharedReuseRequiresConsent: true, ExternalManagement: "forbidden"},
+			Artifact:       "fixture", Version: "1.0.0", SHA256: hex.EncodeToString(sum[:]),
+			Arguments:   []string{"-test.run=TestBundledServiceFixtureProcess", "--"},
+			Environment: map[string]string{"VROOLI_BUNDLED_SERVICE_FIXTURE": "1"},
+			Ports:       []ServicePort{{Name: "http", Host: 8200}},
+			Files:       []Artifact{{Name: "fixture", SHA256: hex.EncodeToString(sum[:])}},
+		},
+	}}}
+	resolver := &testSharedResolver{binding: SharedServiceBinding{
+		Endpoint: "http://127.0.0.1:8200", Environment: map[string]string{"VAULT_TOKEN": "expired-token"}, ExpiresAt: time.Now().Add(-time.Minute),
+	}}
+	supervisor := NewServiceSupervisor(root, filepath.Join(root, "app-data"), resolver)
+	if err := supervisor.Start(context.Background(), plan); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	status := supervisor.Statuses()["fixture"]
+	if !resolver.called || !status.Running || status.Provider != "managed-private" || status.PID <= 0 {
+		t.Fatalf("expired shared binding did not fall back to private service: %#v", status)
+	}
+	if _, ok := supervisor.Environment()["VAULT_TOKEN"]; ok {
+		t.Fatal("expired shared credential was exposed to the private fallback")
+	}
+	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := supervisor.Stop(stopCtx); err != nil {
+		t.Fatalf("Stop: %v", err)
 	}
 }
 
