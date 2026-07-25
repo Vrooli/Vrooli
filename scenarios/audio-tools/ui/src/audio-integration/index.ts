@@ -11,6 +11,8 @@ export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";
 export { useVoiceConfigStore } from "./hooks/useVoiceConfigStore";
 export type { VoiceConfigState } from "./hooks/useVoiceConfigStore";
 export { useHydrateVoiceConfig } from "./hooks/useHydrateVoiceConfig";
+export { useStreamDegradation, BUFFERED_MODE_NOTICE } from "./hooks/useStreamDegradation";
+export { StreamingDegradationNotice } from "../components/streaming/StreamingDegradationNotice";
 export {
   useServerVadStateStore,
   setServerVadState,

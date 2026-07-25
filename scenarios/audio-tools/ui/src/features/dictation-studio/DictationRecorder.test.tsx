@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
-import { closeSharedAudioContext } from "../../audio-integration/hooks/voice/sharedAudioContext";
 
 interface FakeProvider {
   onResult: ((s: string) => void) | null;
@@ -78,7 +77,7 @@ afterEach(() => {
 });
 
 describe("DictationRecorder", () => {
-  it("resumes the shared capture context in the record-button gesture", async () => {
+  it("does not activate an AudioContext before the provider acquires the microphone", async () => {
     const resume = vi.fn().mockResolvedValue(undefined);
     class SuspendedAudioContext {
       state: AudioContextState = "suspended";
@@ -91,8 +90,7 @@ describe("DictationRecorder", () => {
 
     await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
 
-    expect(resume).toHaveBeenCalledOnce();
-    closeSharedAudioContext();
+    expect(resume).not.toHaveBeenCalled();
   });
 
   it("starts recording and flips the button to Stop", async () => {

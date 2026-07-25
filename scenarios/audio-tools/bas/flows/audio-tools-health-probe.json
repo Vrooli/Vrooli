@@ -48,7 +48,7 @@
         "action": {
           "type": "ACTION_TYPE_WAIT",
           "wait": {
-            "selector": "[data-testid='suite-run']",
+            "selector": "@selector/diagnostics.suiteRun",
             "state": "WAIT_STATE_UNSPECIFIED",
             "timeout_ms": 15000
           },
@@ -62,7 +62,7 @@
         "action": {
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
-            "selector": "[data-testid='suite-run']"
+            "selector": "@selector/diagnostics.suiteRun"
           },
           "metadata": {
             "label": "Assert the diagnostics suite control exists"

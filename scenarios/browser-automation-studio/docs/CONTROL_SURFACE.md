@@ -37,14 +37,27 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 
 ## Real-time audio capability
 
-The driver exposes `POST /observability/diagnostics/run` with
-`{"type":"audio"}`. It creates (or uses) a managed session and reports the
-real-time `AudioContext` clock delta, render callback count, output latency,
-and state. It also includes `bare_context`, the same probe in an uninitialized
-context from the managed browser process, so operators can distinguish context
-initialization faults from browser-process delivery faults.
-`realtime_audio_unavailable` is an explicit capability finding: callers must
-not interpret zero samples as successful audio capture.
+The driver measures browser audio output once per process. It never selects an
+audio path from the operating system, sound server, or deployment tier.
+
+- `device_available` means a bare `AudioContext` advanced by at least 0.5
+  seconds during the 1200 ms probe. The session uses `host_device` unchanged.
+- `no_device` means that clock did not advance in the probe window. The session
+  uses `synthetic_sink`, which transparently passes `{ type: "none" }` as the
+  AudioContext sink.
+- `detection_failed` means the probe threw. The driver records the error and
+  also selects `synthetic_sink`, because a missing output is otherwise fatal.
+
+Audio-bearing diagnostics include `audio_strategy`, `host_audio_outcome`, and
+`host_audio_reason`. A `synthetic_sink` result proves deterministic browser
+rendering without a physical output device; it must not be described as a
+host-device result. If audio still fails with that strategy, the finding is
+`realtime_audio_driver_failure`; otherwise the finding names the host output
+state, strategy, measured clock delta, and window.
+
+For deterministic fake-microphone sessions, the anti-detection AnalyserNode
+noise patch is excluded. This avoids randomised level data contaminating audio
+measurements.
 
 The equivalent workflow probe is
 `bas/flows/realtime-audio-capability-probe.json`; execute it with

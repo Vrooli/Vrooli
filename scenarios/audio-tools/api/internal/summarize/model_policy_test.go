@@ -1,6 +1,16 @@
 package summarize
 
-import "testing"
+import (
+	"context"
+	"io"
+	"net/http"
+	"strings"
+	"testing"
+)
+
+type roundTripDoer func(*http.Request) (*http.Response, error)
+
+func (fn roundTripDoer) Do(req *http.Request) (*http.Response, error) { return fn(req) }
 
 func TestModelPolicy_CoercesUnsafeStoredModels(t *testing.T) {
 	cases := []struct {
@@ -76,5 +86,33 @@ func TestSelectorIsRole(t *testing.T) {
 		if got := SelectorIsRole(tc.selector); got != tc.want {
 			t.Errorf("SelectorIsRole(%q) = %v, want %v", tc.selector, got, tc.want)
 		}
+	}
+}
+
+func TestModelPolicy_KnownAndEligibilityAreDefensive(t *testing.T) {
+	known := KnownSummarizeModels()
+	known[0].ID = "mutated"
+	if KnownSummarizeModels()[0].ID == "mutated" {
+		t.Fatal("known model catalog must return a copy")
+	}
+	if !IsDefaultEligibleSummarizeModel("chat.small") || IsDefaultEligibleSummarizeModel("fixture-reasoning-model") || IsDefaultEligibleSummarizeModel("") {
+		t.Fatal("default eligibility must reject empty and reasoning selectors")
+	}
+}
+
+func TestModelPolicy_FetchAndListModels(t *testing.T) {
+	doer := roundTripDoer(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/api/tags" {
+			t.Fatalf("path = %s", req.URL.Path)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"models":[{"name":"chat.small","size":12,"details":{"parameter_size":"3B"}}]}`)), Header: make(http.Header)}, nil
+	})
+	models, err := FetchOllamaModels(context.Background(), "http://ollama/", doer)
+	if err != nil || len(models) != 1 || models[0].ParameterSize != "3B" {
+		t.Fatalf("models=%+v err=%v", models, err)
+	}
+	listed, err := ListSummarizeModels(context.Background(), "http://ollama", doer)
+	if err != nil || len(listed) == 0 {
+		t.Fatalf("listed=%+v err=%v", listed, err)
 	}
 }

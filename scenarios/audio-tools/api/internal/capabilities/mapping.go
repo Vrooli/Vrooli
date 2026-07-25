@@ -19,7 +19,7 @@ import (
 //	(transcode is in-process, not a capability provider)
 func CapabilityForFeature(feature string) (diagv1.Capability, bool) {
 	switch feature {
-	case "voice-input", "voice-streaming", "voice-speaker-verification", "voice-enrollment":
+	case "voice-input", "voice-streaming", "voice-streaming-realtime", "voice-speaker-verification", "voice-enrollment":
 		return diagv1.Capability_CAPABILITY_STT, true
 	case "voice-output":
 		return diagv1.Capability_CAPABILITY_TTS, true
@@ -41,7 +41,7 @@ func TierForProviderID(id string) commonv1.ProviderTier {
 	switch id {
 	case "openrouter":
 		return commonv1.ProviderTier_PROVIDER_TIER_BYOK
-	case "whisper-stt", "kokoro-tts", "ollama", "speaker-verification":
+	case "whisper-stt", "kyutai-stt", "kokoro-tts", "ollama", "speaker-verification":
 		return commonv1.ProviderTier_PROVIDER_TIER_LOCAL
 	default:
 		return commonv1.ProviderTier_PROVIDER_TIER_UNSPECIFIED

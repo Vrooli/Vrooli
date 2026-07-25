@@ -4,6 +4,7 @@ import type { BrowserProfile } from './browser-profile';
 import type { ServiceWorkerControl } from './service-worker';
 import type { ServiceWorkerController } from '../service-worker';
 import type { PerformanceTracer, AccessibilitySnapshotter } from '../tracing';
+import type { AudioStrategy, HostAudioCapability } from '../session/audio';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
 
@@ -204,6 +205,9 @@ export interface SessionState {
   leaseId: string;
   leaseReleasedAt?: Date;
   browser: Browser;
+  /** Audio delivery evidence selected for this session. */
+  audioStrategy?: AudioStrategy;
+  audioCapability?: HostAudioCapability;
   context: BrowserContext;
   page: Page;
   spec: SessionSpec;

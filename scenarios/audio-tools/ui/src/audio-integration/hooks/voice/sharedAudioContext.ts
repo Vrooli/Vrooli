@@ -154,7 +154,7 @@ function _teardownKeepalive(): void {
 
 /**
  * Install a one-shot event listener that creates the AudioContext on the first
- * user gesture (pointerdown or keydown). This ensures the context is available
+ * pointer gesture. This ensures the context is available
  * and in "running" state before the user presses the mic button.
  *
  * Safe to call multiple times — subsequent calls are no-ops.
@@ -178,12 +178,10 @@ export function ensureAudioContextOnGesture(): void {
 
     // Self-remove after first trigger — we only need one gesture.
     document.removeEventListener("pointerdown", handler, true);
-    document.removeEventListener("keydown", handler, true);
   };
 
   // Use capture phase so we fire before any stopPropagation in the app.
   document.addEventListener("pointerdown", handler, { capture: true, passive: true, once: true });
-  document.addEventListener("keydown", handler, { capture: true, passive: true, once: true });
 }
 
 /**

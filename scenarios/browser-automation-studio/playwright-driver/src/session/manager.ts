@@ -1,33 +1,21 @@
 import type { SessionSpec, SessionState, SessionPhase, SessionCloseResult } from '../types';
-import type { Video } from 'rebrowser-playwright';
-import { rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from '../config';
-import {
-  logger,
-  metrics,
-  SessionNotFoundError,
-  ResourceLimitError,
-  scopedLog,
-  LogContext,
-} from '../utils';
+import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
 import { buildContext, type ActualViewport } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
-import { removeRecordingBuffer, RecordingPipelineManager } from '../recording';
-import { cleanupSession, createInFlightGuard, type InFlightGuard } from '../infra';
+import { RecordingPipelineManager } from '../recording';
+import { createInFlightGuard, type InFlightGuard } from '../infra';
 import { BrowserManager, type BrowserStatus } from './browser-manager';
-import { measureRealtimeAudio, type AudioCapabilityResult } from './audio-capability';
+import { applySilentSinkToCurrentPage, generateSilentSinkPatch, type AudioStrategy } from './audio';
 import { transition, canTransition, canAcceptInstructions } from './state-machine';
-import {
-  findByExecutionId,
-  findByLabels,
-  shouldAttemptReuse,
-  makeReuseDecision,
-  findIdleSessions,
-} from './session-decisions';
+import { findByExecutionId, findByLabels, shouldAttemptReuse, makeReuseDecision, findIdleSessions } from './session-decisions';
 import { setupDiagnosticLogging } from './diagnostic-logger';
 import { resolveInstrumentation, safeInvoke, type Instrumentation } from '../instrumentation';
 import { PerformanceTracer, injectWebVitalsObserver, AccessibilitySnapshotter } from '../tracing';
+import { countActiveSessions, inspectSession, listSessions, summarizeSessions, type SessionInfo, type SessionListEntry, type SessionSummary } from './session-inspection';
+import { resetSessionState } from './session-reset';
+import { teardownSessionResources } from './session-teardown';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -125,24 +113,6 @@ export class SessionManager {
    */
   getBrowserStatus(): BrowserStatus {
     return this.browserManager.getBrowserStatus();
-  }
-
-  /**
-   * Runs the Web Audio probe in a bare context from the same managed browser.
-   * Comparing it with a normal session isolates context initialization from
-   * browser-process delivery without launching an out-of-band browser.
-   */
-  async measureBareRealtimeAudio(durationMs = 2000): Promise<AudioCapabilityResult> {
-    const browser = await this.browserManager.getBrowser();
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    try {
-      await page.goto('about:blank');
-      return await measureRealtimeAudio(page, durationMs);
-    } finally {
-      await page.close().catch(() => undefined);
-      await context.close();
-    }
   }
 
   /**
@@ -312,7 +282,9 @@ export class SessionManager {
       permissions.add('microphone');
       spec = { ...spec, permissions: [...permissions] };
     }
-    const browser = await this.browserManager.getBrowser(fakeMicrophoneWav);
+    const audioCapability = await this.browserManager.getHostAudioCapability();
+    const audioStrategy: AudioStrategy = await this.browserManager.getAudioStrategy();
+    const browser = await this.browserManager.getBrowser(fakeMicrophoneWav, audioStrategy);
 
     // Build context (includes actualViewport with source attribution)
     const {
@@ -323,10 +295,13 @@ export class SessionManager {
       serviceWorkerController,
       recordingInitializer,
       actualViewport,
-    } = await buildContext(browser, spec, this.config);
+    } = await buildContext(browser, spec, this.config, audioStrategy);
 
-    // Create initial page
     const page = await context.newPage();
+    if (audioStrategy === 'synthetic_sink') {
+      // Init scripts do not retroactively patch the initial about:blank page.
+      await applySilentSinkToCurrentPage(page, generateSilentSinkPatch());
+    }
 
     // Log page errors (warn level - these are important signals for debugging)
     page.on('pageerror', (err: unknown) => {
@@ -363,6 +338,8 @@ export class SessionManager {
       ownerExecutionId: spec.execution_id,
       leaseId: uuidv4(),
       browser,
+      audioCapability,
+      audioStrategy,
       context,
       page,
       spec,
@@ -399,129 +376,134 @@ export class SessionManager {
     this.sessions.set(sessionId, session);
 
     try {
+      // Setup diagnostic logging for redirect loop debugging
+      // Enable with DIAGNOSTIC_LOGGING=true environment variable
+      setupDiagnosticLogging(context, sessionId);
 
-    // Setup diagnostic logging for redirect loop debugging
-    // Enable with DIAGNOSTIC_LOGGING=true environment variable
-    setupDiagnosticLogging(context, sessionId);
-
-    // Initialize recording pipeline (early verification)
-    // This runs injection and verification so the pipeline is ready before recording starts
-    // The promise is stored in session.pipelineReadyPromise so consumers can await it
-    const pipelineReadyPromise = pipelineManager
-      .initialize()
-      .then(() => {
-        return pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 });
-      })
-      .then((verification) => {
-        if (verification.scriptLoaded && verification.scriptReady && verification.inMainContext) {
-          logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
+      // Initialize recording pipeline (early verification)
+      // This runs injection and verification so the pipeline is ready before recording starts
+      // The promise is stored in session.pipelineReadyPromise so consumers can await it
+      const pipelineReadyPromise = pipelineManager
+        .initialize()
+        .then(() => {
+          return pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 });
+        })
+        .then((verification) => {
+          if (verification.scriptLoaded && verification.scriptReady && verification.inMainContext) {
+            logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
+              sessionId,
+              handlersCount: verification.handlersCount,
+            });
+            return true;
+          } else {
+            logger.warn(
+              scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'),
+              {
+                sessionId,
+                verification,
+                hint: 'Recording may require re-verification on first use',
+              }
+            );
+            return false;
+          }
+        })
+        .catch((err: unknown) => {
+          logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
             sessionId,
-            handlersCount: verification.handlersCount,
-          });
-          return true;
-        } else {
-          logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'), {
-            sessionId,
-            verification,
-            hint: 'Recording may require re-verification on first use',
+            error: getErrorMessage(err),
+            hint: 'Recording will retry initialization when started',
           });
           return false;
-        }
-      })
-      .catch((err: unknown) => {
-        logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
-          sessionId,
-          error: getErrorMessage(err),
-          hint: 'Recording will retry initialization when started',
         });
-        return false;
+
+      // Store the promise in session state for consumers to await
+      session.pipelineReadyPromise = pipelineReadyPromise;
+
+      // Enable service worker monitoring and handle unregisterOnStart
+      await serviceWorkerController.enable(page);
+      const swControl = spec.service_worker_control;
+      if (swControl?.unregisterOnStart || swControl?.mode === 'unregister-all') {
+        const unregisteredCount = await serviceWorkerController.unregisterAll();
+        if (unregisteredCount > 0) {
+          logger.debug(scopedLog(LogContext.SESSION, 'SWs unregistered on start'), {
+            sessionId,
+            count: unregisteredCount,
+          });
+        }
+      }
+
+      logger.info(scopedLog(LogContext.SESSION, 'ready'), {
+        sessionId,
+        executionId: spec.execution_id,
+        phase: 'ready',
+        totalSessions: this.sessions.size,
+        viewport: spec.viewport,
+        initialPageId,
       });
 
-    // Store the promise in session state for consumers to await
-    session.pipelineReadyPromise = pipelineReadyPromise;
+      // Update metrics
+      metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
+      metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
 
-    // Enable service worker monitoring and handle unregisterOnStart
-    await serviceWorkerController.enable(page);
-    const swControl = spec.service_worker_control;
-    if (swControl?.unregisterOnStart || swControl?.mode === 'unregister-all') {
-      const unregisteredCount = await serviceWorkerController.unregisterAll();
-      if (unregisteredCount > 0) {
-        logger.debug(scopedLog(LogContext.SESSION, 'SWs unregistered on start'), {
-          sessionId,
-          count: unregisteredCount,
-        });
+      // Performance tracing (Tier 0 CDP trace + web-vitals). Started here —
+      // after the page exists but before the first navigate instruction — so
+      // the web-vitals init script applies to the page under test and the CDP
+      // trace spans the entire session. Best-effort: a failure leaves the
+      // session fully functional, just without a perf artifact.
+      if (spec.required_capabilities?.performance_trace) {
+        const perfDir =
+          spec.artifact_paths?.perf_dir?.trim() ||
+          (spec.artifact_paths?.root?.trim()
+            ? path.join(spec.artifact_paths.root.trim(), 'performance')
+            : '');
+        if (perfDir) {
+          await injectWebVitalsObserver(context);
+          const tracer = new PerformanceTracer(perfDir);
+          await tracer.start(page);
+          session.perfTracer = tracer;
+        } else {
+          logger.warn(
+            scopedLog(LogContext.TELEMETRY, 'performance trace requested without artifact path'),
+            {
+              sessionId,
+              hint: 'set artifact_paths.perf_dir or artifact_paths.root to capture a perf trace',
+            }
+          );
+        }
       }
-    }
 
-    logger.info(scopedLog(LogContext.SESSION, 'ready'), {
-      sessionId,
-      executionId: spec.execution_id,
-      phase: 'ready',
-      totalSessions: this.sessions.size,
-      viewport: spec.viewport,
-      initialPageId,
-    });
-
-    // Update metrics
-    metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
-    metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
-
-    // Performance tracing (Tier 0 CDP trace + web-vitals). Started here —
-    // after the page exists but before the first navigate instruction — so
-    // the web-vitals init script applies to the page under test and the CDP
-    // trace spans the entire session. Best-effort: a failure leaves the
-    // session fully functional, just without a perf artifact.
-    if (spec.required_capabilities?.performance_trace) {
-      const perfDir =
-        spec.artifact_paths?.perf_dir?.trim() ||
-        (spec.artifact_paths?.root?.trim()
-          ? path.join(spec.artifact_paths.root.trim(), 'performance')
-          : '');
-      if (perfDir) {
-        await injectWebVitalsObserver(context);
-        const tracer = new PerformanceTracer(perfDir);
-        await tracer.start(page);
-        session.perfTracer = tracer;
-      } else {
-        logger.warn(
-          scopedLog(LogContext.TELEMETRY, 'performance trace requested without artifact path'),
-          {
-            sessionId,
-            hint: 'set artifact_paths.perf_dir or artifact_paths.root to capture a perf trace',
-          }
-        );
+      // Accessibility snapshot. Registered here (no session-spanning state to
+      // start) so the output dir + capability gate are captured at start; the
+      // snapshot itself fires at session close, on the final settled page —
+      // after wait_for and any interaction, the same point the final screenshot
+      // fires. Best-effort: a missing artifact path just skips the capability.
+      if (spec.required_capabilities?.accessibility) {
+        const accessibilityDir =
+          spec.artifact_paths?.accessibility_dir?.trim() ||
+          (spec.artifact_paths?.root?.trim()
+            ? path.join(spec.artifact_paths.root.trim(), 'accessibility')
+            : '');
+        if (accessibilityDir) {
+          session.accessibilitySnapshotter = new AccessibilitySnapshotter(accessibilityDir);
+        } else {
+          logger.warn(
+            scopedLog(
+              LogContext.TELEMETRY,
+              'accessibility snapshot requested without artifact path'
+            ),
+            {
+              sessionId,
+              hint: 'set artifact_paths.accessibility_dir or artifact_paths.root to capture an AX snapshot',
+            }
+          );
+        }
       }
-    }
 
-    // Accessibility snapshot. Registered here (no session-spanning state to
-    // start) so the output dir + capability gate are captured at start; the
-    // snapshot itself fires at session close, on the final settled page —
-    // after wait_for and any interaction, the same point the final screenshot
-    // fires. Best-effort: a missing artifact path just skips the capability.
-    if (spec.required_capabilities?.accessibility) {
-      const accessibilityDir =
-        spec.artifact_paths?.accessibility_dir?.trim() ||
-        (spec.artifact_paths?.root?.trim()
-          ? path.join(spec.artifact_paths.root.trim(), 'accessibility')
-          : '');
-      if (accessibilityDir) {
-        session.accessibilitySnapshotter = new AccessibilitySnapshotter(accessibilityDir);
-      } else {
-        logger.warn(
-          scopedLog(LogContext.TELEMETRY, 'accessibility snapshot requested without artifact path'),
-          {
-            sessionId,
-            hint: 'set artifact_paths.accessibility_dir or artifact_paths.root to capture an AX snapshot',
-          }
-        );
-      }
-    }
-
-    // Session-level instrumentation hook (no-op by default).
-    await safeInvoke(this.instrumentation.onSessionStart?.bind(this.instrumentation), {
-      sessionId,
-      executionId: spec.execution_id,
-    });
+      // Session-level instrumentation hook (no-op by default).
+      await safeInvoke(this.instrumentation.onSessionStart?.bind(this.instrumentation), {
+        sessionId,
+        executionId: spec.execution_id,
+      });
 
       // Return actualViewport from buildContext (includes source attribution)
       return { sessionId, leaseId: session.leaseId, reused: false, createdAt, actualViewport };
@@ -578,7 +560,11 @@ export class SessionManager {
   }
 
   /** Close only if this exact execution still owns the active lease. */
-  async closeSessionForLease(sessionId: string, executionId: string, leaseId: string): Promise<SessionCloseResult> {
+  async closeSessionForLease(
+    sessionId: string,
+    executionId: string,
+    leaseId: string
+  ): Promise<SessionCloseResult> {
     const session = this.sessions.get(sessionId);
     if (!session || session.ownerExecutionId !== executionId || session.leaseId !== leaseId) {
       throw new SessionNotFoundError(sessionId);
@@ -735,110 +721,15 @@ export class SessionManager {
    *   edge cases where page might have been closed/detached unexpectedly
    * - page.url() can throw if page has navigated to an error state or been closed
    */
-  getSessionInfo(sessionId: string): {
-    id: string;
-    phase: SessionPhase;
-    instructionCount: number;
-    createdAt: string;
-    lastUsedAt: string;
-    isRecording: boolean;
-    url: string;
-  } {
-    const session = this.peekSession(sessionId);
-
-    // Hardened: page.url() can throw if page is in an error state
-    let currentUrl = 'about:blank';
-    try {
-      if (session.page && !session.page.isClosed()) {
-        currentUrl = session.page.url();
-      }
-    } catch {
-      // Page may have crashed or been detached - use fallback
-      currentUrl = 'about:blank';
-    }
-
-    return {
-      id: session.id,
-      phase: session.phase,
-      instructionCount: session.instructionCount,
-      createdAt: session.createdAt.toISOString(),
-      lastUsedAt: session.lastUsedAt.toISOString(),
-      isRecording: session.pipelineManager?.isRecording() ?? false,
-      url: currentUrl,
-    };
+  getSessionInfo(sessionId: string): SessionInfo {
+    return inspectSession(this.peekSession(sessionId));
   }
 
   /**
    * Reset session (navigate to about:blank, clear state)
    */
   async resetSession(sessionId: string): Promise<void> {
-    const session = this.getSession(sessionId);
-    const previousPhase = session.phase;
-
-    session.phase = 'resetting';
-    logger.info(scopedLog(LogContext.SESSION, 'resetting'), {
-      sessionId,
-      previousPhase,
-      instructionCount: session.instructionCount,
-    });
-
-    // Navigate to blank page
-    await session.page.goto('about:blank');
-
-    // Clear cookies and permissions
-    await session.context.clearCookies();
-    await session.context.clearPermissions();
-
-    // Clear storage
-    await session.page.evaluate(() => {
-      window.localStorage.clear();
-      window.sessionStorage.clear();
-    });
-
-    // Reset frame stack
-    session.frameStack = [];
-
-    // Close extra pages (tabs)
-    if (session.pages.length > 1) {
-      const extraPages = session.pages.slice(1);
-      for (const page of extraPages) {
-        await page.close().catch((err: unknown) => {
-          logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
-            sessionId,
-            error: getErrorMessage(err),
-          });
-          metrics.cleanupFailures.inc({ operation: 'page_close' });
-        });
-      }
-      session.pages = [session.page];
-      session.currentPageIndex = 0;
-    }
-
-    // Clear network mocks from session state
-    session.activeMocks.clear();
-
-    // Unroute all Playwright route handlers to match cleared state
-    await session.page.unroute('**/*').catch((err: unknown) => {
-      logger.warn(scopedLog(LogContext.CLEANUP, 'unroute failed'), {
-        sessionId,
-        error: getErrorMessage(err),
-      });
-    });
-
-    // Clear handler-specific caches via the cleanup registry
-    // This consolidates cleanup operations and eliminates direct handler imports
-    await cleanupSession(sessionId);
-
-    // Clear executed instructions tracking for fresh state
-    session.executedInstructions?.clear();
-
-    session.lastUsedAt = new Date();
-    session.phase = 'ready';
-
-    logger.info(scopedLog(LogContext.SESSION, 'reset complete'), {
-      sessionId,
-      phase: 'ready',
-    });
+    await resetSessionState(this.getSession(sessionId));
   }
 
   /**
@@ -890,93 +781,9 @@ export class SessionManager {
 
     const startTime = Date.now();
 
-    const videoPaths: string[] = [];
+    let videoPaths: string[] = [];
     try {
-      // Stop recording if active (use pipelineManager as single source of truth)
-      if (session.pipelineManager?.isRecording()) {
-        await session.pipelineManager.stopRecording().catch((err: unknown) => {
-          logger.warn(scopedLog(LogContext.CLEANUP, 'recording stop failed'), {
-            sessionId,
-            error: getErrorMessage(err),
-          });
-          metrics.cleanupFailures.inc({ operation: 'recording_stop' });
-        });
-      }
-
-      // Clean up recording buffer
-      removeRecordingBuffer(sessionId);
-
-      // Disable service worker monitoring
-      if (session.serviceWorkerController) {
-        await session.serviceWorkerController.disable().catch((err: unknown) => {
-          logger.warn(scopedLog(LogContext.CLEANUP, 'SW controller disable failed'), {
-            sessionId,
-            error: getErrorMessage(err),
-          });
-        });
-      }
-
-      // Capture the accessibility-tree snapshot before context teardown, on
-      // the final settled page (after wait_for + any interaction). Mirrors the
-      // perf tracer's terminal read below. Best-effort: never blocks cleanup.
-      if (session.accessibilitySnapshotter) {
-        await session.accessibilitySnapshotter.capture(session.page).catch((err: unknown) => {
-          logger.warn(scopedLog(LogContext.TELEMETRY, 'accessibility snapshot capture failed'), {
-            sessionId,
-            error: getErrorMessage(err),
-          });
-        });
-      }
-
-      // Stop performance tracing (CDP trace + web-vitals) before context
-      // teardown so the trace stream and the page's web-vitals global are
-      // still readable. Best-effort: never blocks session cleanup.
-      if (session.perfTracer) {
-        await session.perfTracer.stop(session.page).catch((err: unknown) => {
-          logger.warn(scopedLog(LogContext.TELEMETRY, 'performance tracer stop failed'), {
-            sessionId,
-            error: getErrorMessage(err),
-          });
-        });
-      }
-
-      // Stop tracing if enabled
-      if (session.tracing && session.tracePath) {
-        await session.context.tracing.stop({ path: session.tracePath }).catch((err: unknown) => {
-          logger.warn(scopedLog(LogContext.CLEANUP, 'tracing stop failed'), {
-            sessionId,
-            error: getErrorMessage(err),
-          });
-          metrics.cleanupFailures.inc({ operation: 'tracing_stop' });
-        });
-      }
-
-      // Close all pages and collect video artifacts (if enabled)
-      for (const [index, page] of session.pages.entries()) {
-        const video = page.video();
-        await page.close().catch((err: unknown) => {
-          logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
-            sessionId,
-            error: getErrorMessage(err),
-          });
-          metrics.cleanupFailures.inc({ operation: 'page_close' });
-        });
-        if (video) {
-          const videoPath = await resolveVideoPath(video, session, index);
-          if (videoPath) {
-            videoPaths.push(videoPath);
-          }
-        }
-      }
-
-      // Close context
-      await session.context.close().catch((err: unknown) => {
-        logger.warn(scopedLog(LogContext.CLEANUP, 'context close failed'), {
-          sessionId,
-          error: getErrorMessage(err),
-        });
-        metrics.cleanupFailures.inc({ operation: 'context_close' });
-      });
+      videoPaths = await teardownSessionResources(session);
 
       const duration = Date.now() - startTime;
       metrics.sessionDuration.observe(duration);
@@ -1016,17 +823,7 @@ export class SessionManager {
    * Get count of active sessions
    */
   private getActiveSessionCount(): number {
-    const now = Date.now();
-    let activeCount = 0;
-
-    for (const session of this.sessions.values()) {
-      const idleTimeMs = now - session.lastUsedAt.getTime();
-      if (idleTimeMs < this.config.session.idleTimeoutMs) {
-        activeCount++;
-      }
-    }
-
-    return activeCount;
+    return countActiveSessions(this.sessions.values(), this.config.session.idleTimeoutMs);
   }
 
   /**
@@ -1068,105 +865,16 @@ export class SessionManager {
    * Get a summary of session statistics for observability.
    * Used by the /observability endpoint.
    */
-  getSessionSummary(): {
-    total: number;
-    active: number;
-    idle: number;
-    active_recordings: number;
-    idle_timeout_ms: number;
-    capacity: number;
-  } {
-    const now = Date.now();
-    let active = 0;
-    let idle = 0;
-    let activeRecordings = 0;
-
-    for (const session of this.sessions.values()) {
-      const idleTimeMs = now - session.lastUsedAt.getTime();
-      if (idleTimeMs < this.config.session.idleTimeoutMs) {
-        active++;
-      } else {
-        idle++;
-      }
-
-      if (session.pipelineManager?.isRecording()) {
-        activeRecordings++;
-      }
-    }
-
-    return {
-      total: this.sessions.size,
-      active,
-      idle,
-      active_recordings: activeRecordings,
-      idle_timeout_ms: this.config.session.idleTimeoutMs,
-      capacity: this.config.session.maxConcurrent,
-    };
+  getSessionSummary(): SessionSummary {
+    return summarizeSessions(this.sessions.values(), this.config);
   }
 
   /**
    * Get detailed list of all sessions for observability/diagnostics.
    * Returns non-sensitive session metadata.
    */
-  getSessionList(): Array<{
-    id: string;
-    phase: SessionPhase;
-    created_at: string;
-    last_used_at: string;
-    idle_time_ms: number;
-    is_idle: boolean;
-    is_recording: boolean;
-    instruction_count: number;
-    owner_execution_id: string;
-    workflow_id?: string;
-    current_url?: string;
-    page_count: number;
-  }> {
-    const now = Date.now();
-    const list: Array<{
-      id: string;
-      phase: SessionPhase;
-      created_at: string;
-      last_used_at: string;
-      idle_time_ms: number;
-      is_idle: boolean;
-      is_recording: boolean;
-      instruction_count: number;
-      owner_execution_id: string;
-      workflow_id?: string;
-      current_url?: string;
-      page_count: number;
-    }> = [];
-
-    for (const session of this.sessions.values()) {
-      const idleTimeMs = now - session.lastUsedAt.getTime();
-      let currentUrl: string | undefined;
-      try {
-        currentUrl = session.page?.url();
-      } catch {
-        // Page may be closed
-      }
-
-      list.push({
-        id: session.id,
-        phase: session.phase,
-        created_at: session.createdAt.toISOString(),
-        last_used_at: session.lastUsedAt.toISOString(),
-        idle_time_ms: idleTimeMs,
-        is_idle: idleTimeMs >= this.config.session.idleTimeoutMs,
-        is_recording: session.pipelineManager?.isRecording() ?? false,
-        instruction_count: session.instructionCount,
-        owner_execution_id: session.ownerExecutionId,
-        workflow_id: session.spec.workflow_id,
-        current_url: currentUrl,
-        page_count: session.pages.length,
-      });
-    }
-
-    // Sort by last used (most recent first)
-    return list.sort(
-      (a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime()
-    );
+  getSessionList(): SessionListEntry[] {
+    return listSessions(this.sessions.values(), this.config);
   }
 
   /**
@@ -1183,49 +891,5 @@ export class SessionManager {
     await this.browserManager.shutdown();
 
     logger.info('session-manager: shutdown complete');
-  }
-}
-
-async function resolveVideoPath(
-  video: Video,
-  session: SessionState,
-  pageIndex: number
-): Promise<string | null> {
-  let sourcePath = '';
-  try {
-    sourcePath = await video.path();
-  } catch (error) {
-    logger.warn(scopedLog(LogContext.CLEANUP, 'video path unavailable'), {
-      sessionId: session.id,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
-
-  if (!sourcePath) {
-    return null;
-  }
-
-  const ext = path.extname(sourcePath) || '.webm';
-  const targetDir = session.videoDir || path.dirname(sourcePath);
-  const targetName = `execution-${session.spec.execution_id}-page-${pageIndex + 1}${ext}`;
-  const targetPath = path.join(targetDir, targetName);
-
-  if (targetPath === sourcePath) {
-    return sourcePath;
-  }
-
-  try {
-    await mkdir(targetDir, { recursive: true });
-    await rename(sourcePath, targetPath);
-    return targetPath;
-  } catch (error) {
-    logger.warn(scopedLog(LogContext.CLEANUP, 'video rename failed'), {
-      sessionId: session.id,
-      sourcePath,
-      targetPath,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return sourcePath;
   }
 }

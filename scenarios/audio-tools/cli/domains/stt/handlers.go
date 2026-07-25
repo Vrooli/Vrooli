@@ -336,7 +336,7 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 		case *sttv1.TranscribeStreamEvent_Done:
 			fallback := ""
 			if e.Done.FellBackToUnary {
-				fallback = " (fellback=unary)"
+				fallback = " (streaming degraded: buffered mode)"
 			}
 			fmt.Fprintf(ctx.Stdout(), "done [%s/%s %.0fms%s]: %s\n",
 				providerTierLabel(e.Done.ProviderTier), e.Done.ModelId, e.Done.LatencyMs, fallback, e.Done.FinalText)

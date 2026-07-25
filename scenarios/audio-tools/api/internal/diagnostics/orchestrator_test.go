@@ -1,9 +1,11 @@
 package diagnostics_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -13,8 +15,15 @@ import (
 	intaudio "audio-tools/internal/audio"
 	"audio-tools/internal/diagnostics"
 	"audio-tools/internal/diagnostics/mocks"
+	"audio-tools/internal/logx"
+	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	intsumm "audio-tools/internal/summarize"
+	"audio-tools/internal/testutil/db"
+	"audio-tools/internal/usagereport"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
 )
 
 func okSTT() *mocks.STT {
@@ -60,6 +69,20 @@ func TestRunSuite_AllPass(t *testing.T) {
 			t.Errorf("step %s should be ok, got %s/%s", s.Capability, s.ErrorCode, s.ErrorMessage)
 		}
 	}
+}
+
+func TestRunSuite_RecordsUsageForMappedCapabilities(t *testing.T) {
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(usagereport.Schema)))
+	recorder := usagereport.New(store.NewUsageStore(apidb.NewFromPrimary(d)), logx.Std{L: log.New(&bytes.Buffer{}, "", 0)})
+	t.Cleanup(recorder.Close)
+	o := diagnostics.New(diagnostics.Deps{
+		STT: okSTT(), TTS: okTTS(), Summarize: okSumm(), Transcode: okTranscode(), Usage: recorder,
+		NewRunID: func() string { return "diagnostic-usage" },
+	})
+	_, err := o.RunSuite(context.Background(), nil)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return recorder.Stats().EnqueuedTotal == 4 }, time.Second, 10*time.Millisecond)
 }
 
 func TestRunSuite_STTPassDoesNotClaimQualityMeasured(t *testing.T) {

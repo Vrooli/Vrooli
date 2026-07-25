@@ -89,3 +89,35 @@ func TestSetConfigLogger(t *testing.T) {
 	prev := SetConfigLogger(nil)
 	t.Cleanup(func() { SetConfigLogger(prev) })
 }
+
+func TestWaitForSummarizeFuture_RespectsCancellationAndCompletion(t *testing.T) {
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := waitForSummarizeFuture(canceled, &summarizeFuture{done: make(chan struct{})})
+	require.ErrorIs(t, err, context.Canceled)
+
+	future := &summarizeFuture{done: make(chan struct{}), result: SummarizeResult{Summary: "ready"}}
+	close(future.done)
+	result, err := waitForSummarizeFuture(context.Background(), future)
+	require.NoError(t, err)
+	require.Equal(t, "ready", result.Summary)
+}
+
+func TestSummarizeErrorMessage_CategorizesEveryPublicFailure(t *testing.T) {
+	require.Empty(t, SummarizeErrorMessage(nil))
+	require.Contains(t, SummarizeErrorMessage(ErrSummarizeBudgetInThink), "token budget")
+	require.Contains(t, SummarizeErrorMessage(ErrSummarizeEmptyAfterStrip), "reasoning")
+	require.Contains(t, SummarizeErrorMessage(ErrSummarizeTrulyEmpty), "empty")
+	require.Contains(t, SummarizeErrorMessage(ErrSummarizeCoolingDown), "cooling")
+	require.Contains(t, SummarizeErrorMessage(context.DeadlineExceeded), "timed out")
+	require.Contains(t, SummarizeErrorMessage(errors.New("network down")), "network down")
+}
+
+func TestNewSummarizer_DefaultsAndMissingGateway(t *testing.T) {
+	s := NewSummarizer("ignored", nil)
+	require.Equal(t, defaultOllamaGatewayBin, s.Bin)
+	configured := NewSummarizerWithRunner("", nil)
+	require.Equal(t, defaultOllamaGatewayBin, configured.Bin)
+	_, err := runGatewayCLI(context.Background(), "definitely-not-an-audio-tools-binary", nil, "")
+	require.Error(t, err)
+}

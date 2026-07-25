@@ -28,4 +28,4 @@ export * from './cleanup';
 export * from './context-builder';
 export * from './cdp-session';
 export * from './state-machine';
-export * from './audio-capability';
+export * from './audio';

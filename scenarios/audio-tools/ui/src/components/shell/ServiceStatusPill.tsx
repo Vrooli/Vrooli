@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { State } from "@vrooli/proto-types/audio-tools/v1/health_status/health_status_pb";
+import { ProviderState } from "@vrooli/proto-types/audio-tools/v1/shared/shared_pb";
 import { fetchHealth } from "../../api/health";
 import { getProviderHealth } from "../../api/healthStatus";
 import { StatusDot } from "../ui/status-dot";
@@ -55,7 +55,7 @@ export function ServiceStatusPill() {
   let downCount = 0;
   for (const c of caps) {
     for (const p of c.providers) {
-      if (p.state === State.UNAVAILABLE) downCount += 1;
+      if (p.state === ProviderState.UNAVAILABLE) downCount += 1;
     }
   }
 

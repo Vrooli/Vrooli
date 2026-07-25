@@ -593,11 +593,13 @@ export function getEnabledPatches(antiDetection: AntiDetectionSettings): string[
  */
 export function composePatches(
   antiDetection: AntiDetectionSettings,
-  fingerprint: FingerprintSettings
+  fingerprint: FingerprintSettings,
+  options: { deterministicAudio?: boolean } = {},
 ): string {
   const patches: string[] = [];
 
   for (const entry of PATCH_REGISTRY) {
+    if (entry.id === 'audio' && options.deterministicAudio) continue;
     if (entry.isEnabled(antiDetection)) {
       patches.push(entry.generate(antiDetection, fingerprint));
     }

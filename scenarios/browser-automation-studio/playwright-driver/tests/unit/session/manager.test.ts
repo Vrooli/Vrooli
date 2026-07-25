@@ -215,7 +215,8 @@ describe('SessionManager', () => {
 
       expect(enable).toHaveBeenCalledTimes(1);
       expect(manager.getSessionCount()).toBe(0);
-      expect(mockContext.close).toHaveBeenCalledTimes(1);
+      // The cached host-audio probe owns a separate context.
+      expect(mockContext.close).toHaveBeenCalledTimes(2);
     });
   });
 

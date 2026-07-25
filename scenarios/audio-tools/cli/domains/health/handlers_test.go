@@ -16,6 +16,7 @@ import (
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
 	hsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status/health_status_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 
 	"audio-tools/cli/internal/testutil"
 )
@@ -57,16 +58,16 @@ func sampleResp() *hsv1.GetProviderHealthResponse {
 		Capabilities: []*hsv1.CapabilityHealth{
 			{
 				Capability:     diagv1.Capability_CAPABILITY_STT,
-				EffectiveState: hsv1.State_STATE_AVAILABLE,
-				Providers: []*hsv1.ProviderHealth{
-					{Capability: diagv1.Capability_CAPABILITY_STT, Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "whisper-stt", State: hsv1.State_STATE_AVAILABLE, LastCheckedAt: "2026-05-17T00:00:00Z"},
+				EffectiveState: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE,
+				Providers: []*sharedv1.ProviderHealth{
+					{Capability: diagv1.Capability_CAPABILITY_STT, Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "whisper-stt", State: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE, LastCheckedAt: "2026-05-17T00:00:00Z"},
 				},
 			},
 			{
 				Capability:     diagv1.Capability_CAPABILITY_TTS,
-				EffectiveState: hsv1.State_STATE_UNAVAILABLE,
-				Providers: []*hsv1.ProviderHealth{
-					{Capability: diagv1.Capability_CAPABILITY_TTS, Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "kokoro-tts", State: hsv1.State_STATE_UNAVAILABLE, ErrorMessage: "kokoro down", LastCheckedAt: "2026-05-17T00:00:00Z"},
+				EffectiveState: sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE,
+				Providers: []*sharedv1.ProviderHealth{
+					{Capability: diagv1.Capability_CAPABILITY_TTS, Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "kokoro-tts", State: sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, ErrorMessage: "kokoro down", LastCheckedAt: "2026-05-17T00:00:00Z"},
 				},
 			},
 		},

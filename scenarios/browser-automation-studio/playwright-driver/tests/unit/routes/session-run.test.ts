@@ -16,12 +16,22 @@ jest.mock('../../../src/execution', () => ({
 }));
 
 import { getIdempotencyCache } from '../../../src/infra';
-import { executeInstruction, validateInstruction, createInstructionKey } from '../../../src/execution';
+import {
+  executeInstruction,
+  validateInstruction,
+  createInstructionKey,
+} from '../../../src/execution';
 
-const mockGetIdempotencyCache = getIdempotencyCache as jest.MockedFunction<typeof getIdempotencyCache>;
+const mockGetIdempotencyCache = getIdempotencyCache as jest.MockedFunction<
+  typeof getIdempotencyCache
+>;
 const mockExecuteInstruction = executeInstruction as jest.MockedFunction<typeof executeInstruction>;
-const mockValidateInstruction = validateInstruction as jest.MockedFunction<typeof validateInstruction>;
-const mockCreateInstructionKey = createInstructionKey as jest.MockedFunction<typeof createInstructionKey>;
+const mockValidateInstruction = validateInstruction as jest.MockedFunction<
+  typeof validateInstruction
+>;
+const mockCreateInstructionKey = createInstructionKey as jest.MockedFunction<
+  typeof createInstructionKey
+>;
 
 describe('handleSessionRun', () => {
   const config = createTestConfig();
@@ -49,17 +59,26 @@ describe('handleSessionRun', () => {
       getInstrumentation: jest.fn().mockReturnValue({}),
     }) as unknown as SessionManager;
 
-  const buildSession = (overrides?: Partial<{
-    phase: 'ready' | 'executing' | 'recording';
-    executedInstructions: Map<string, unknown>;
-    pipelineManager: { isRecording: jest.Mock<boolean, []> };
-  }>) => ({
+  const buildSession = (
+    overrides?: Partial<{
+      phase: 'ready' | 'executing' | 'recording';
+      executedInstructions: Map<string, unknown>;
+      pipelineManager: { isRecording: jest.Mock<boolean, []> };
+    }>
+  ) => ({
     id: 'session-1',
     phase: 'ready' as const,
     page: {},
     context: {},
     executedInstructions: new Map<string, unknown>(),
     pipelineManager: { isRecording: jest.fn().mockReturnValue(false) },
+    audioStrategy: 'synthetic_sink' as const,
+    audioCapability: {
+      outcome: 'no_device' as const,
+      currentTimeDelta: 0,
+      durationMs: 1200,
+      reason: 'test host has no output',
+    },
     ...overrides,
   });
 
@@ -83,7 +102,16 @@ describe('handleSessionRun', () => {
     });
     const res = createMockHttpResponse();
 
-    await handleSessionRun(req, res, session.id, sessionManager, handlerRegistry, config, logger, metrics);
+    await handleSessionRun(
+      req,
+      res,
+      session.id,
+      sessionManager,
+      handlerRegistry,
+      config,
+      logger,
+      metrics
+    );
 
     expect(idempotencyCache.lookup).toHaveBeenCalledWith('idem-1', session.id);
     expect(mockExecuteInstruction).not.toHaveBeenCalled();
@@ -105,7 +133,16 @@ describe('handleSessionRun', () => {
     });
     const res = createMockHttpResponse();
 
-    await handleSessionRun(req, res, session.id, sessionManager, handlerRegistry, config, logger, metrics);
+    await handleSessionRun(
+      req,
+      res,
+      session.id,
+      sessionManager,
+      handlerRegistry,
+      config,
+      logger,
+      metrics
+    );
 
     expect(res.statusCode).toBe(409);
     expect(res.getJSON().error.code).toBe('SESSION_BUSY');
@@ -129,7 +166,16 @@ describe('handleSessionRun', () => {
     });
     const res = createMockHttpResponse();
 
-    await handleSessionRun(req, res, session.id, sessionManager, handlerRegistry, config, logger, metrics);
+    await handleSessionRun(
+      req,
+      res,
+      session.id,
+      sessionManager,
+      handlerRegistry,
+      config,
+      logger,
+      metrics
+    );
 
     expect(sessionManager.setSessionPhase).toHaveBeenCalledWith(session.id, 'ready');
     expect(res.statusCode).toBe(400);
@@ -174,10 +220,24 @@ describe('handleSessionRun', () => {
     });
     const res = createMockHttpResponse();
 
-    await handleSessionRun(req, res, session.id, sessionManager, handlerRegistry, config, logger, metrics);
+    await handleSessionRun(
+      req,
+      res,
+      session.id,
+      sessionManager,
+      handlerRegistry,
+      config,
+      logger,
+      metrics
+    );
 
     expect(sessionManager.setSessionPhase).toHaveBeenCalledWith(session.id, 'recording');
-    expect(idempotencyCache.store).toHaveBeenCalledWith('idem-2', session.id, instructionKey, cachedOutcome);
+    expect(idempotencyCache.store).toHaveBeenCalledWith(
+      'idem-2',
+      session.id,
+      instructionKey,
+      cachedOutcome
+    );
     expect(res.statusCode).toBe(200);
     expect(res.getJSON()).toEqual(cachedOutcome);
   });
@@ -208,13 +268,34 @@ describe('handleSessionRun', () => {
     });
     const res = createMockHttpResponse();
 
-    await handleSessionRun(req, res, session.id, sessionManager, handlerRegistry, config, logger, metrics);
+    await handleSessionRun(
+      req,
+      res,
+      session.id,
+      sessionManager,
+      handlerRegistry,
+      config,
+      logger,
+      metrics
+    );
 
     expect(mockExecuteInstruction).toHaveBeenCalled();
     expect(session.executedInstructions?.has('key-2')).toBe(true);
-    expect(idempotencyCache.store).toHaveBeenCalledWith('idem-3', session.id, 'key-2', { success: true, ok: true });
+    expect(idempotencyCache.store).toHaveBeenCalledWith('idem-3', session.id, 'key-2', {
+      success: true,
+      ok: true,
+      audio_strategy: 'synthetic_sink',
+      host_audio_outcome: 'no_device',
+      host_audio_reason: 'test host has no output',
+    });
     expect(res.statusCode).toBe(200);
-    expect(res.getJSON()).toEqual({ success: true, ok: true });
+    expect(res.getJSON()).toEqual({
+      success: true,
+      ok: true,
+      audio_strategy: 'synthetic_sink',
+      host_audio_outcome: 'no_device',
+      host_audio_reason: 'test host has no output',
+    });
   });
 
   it('handles execution errors and increments metrics', async () => {
@@ -237,10 +318,22 @@ describe('handleSessionRun', () => {
     });
     const res = createMockHttpResponse();
 
-    await handleSessionRun(req, res, session.id, sessionManager, handlerRegistry, config, logger, metrics);
+    await handleSessionRun(
+      req,
+      res,
+      session.id,
+      sessionManager,
+      handlerRegistry,
+      config,
+      logger,
+      metrics
+    );
 
     expect(sessionManager.setSessionPhase).toHaveBeenCalledWith(session.id, 'ready');
-    expect(metrics.instructionErrors.inc).toHaveBeenCalledWith({ type: 'unknown', error_kind: 'engine' });
+    expect(metrics.instructionErrors.inc).toHaveBeenCalledWith({
+      type: 'unknown',
+      error_kind: 'engine',
+    });
     expect(res.statusCode).toBe(500);
     expect(res.getJSON().error.code).toBe('INTERNAL_ERROR');
   });

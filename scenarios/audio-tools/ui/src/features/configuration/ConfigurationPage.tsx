@@ -4,7 +4,6 @@ import { Panel } from "../../components/ui/panel";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import { StatusDot } from "../../components/ui/status-dot";
 import { Table, TBody, TD, TH, THead, TR } from "../../components/ui/table";
 import { PageHeader } from "../../components/composites/PageHeader";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
@@ -18,6 +17,7 @@ import {
 } from "../../services/settings";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
+import { TierBadge } from "./components/TierBadge";
 
 const CAPABILITIES = ["STT", "TTS", "Summarize"] as const;
 
@@ -196,14 +196,5 @@ export function ConfigurationPage() {
         <p className="mt-3 text-xs text-app-muted-foreground">{t(strings.config.envFollowUp)}</p>
       </Panel>
     </div>
-  );
-}
-
-function TierBadge({ enabled }: { enabled: boolean }) {
-  const { t } = useTranslation();
-  return enabled ? (
-    <StatusDot tone="success" label={t(strings.status.enabled)} />
-  ) : (
-    <StatusDot tone="neutral" label={t(strings.status.off)} />
   );
 }

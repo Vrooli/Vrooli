@@ -16,7 +16,7 @@ import (
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	diagnosticsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
-	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 )
 
@@ -95,18 +95,18 @@ func (h *connectHandler) UpdateConfig(ctx context.Context, req *connect.Request[
 
 func (h *connectHandler) GetStatus(ctx context.Context, _ *connect.Request[ttsv1.GetStatusRequest]) (*connect.Response[ttsv1.GetStatusResponse], error) {
 	cfg := h.loadConfig(ctx)
-	avail := []*healthstatusv1.ProviderHealth{}
+	avail := []*sharedv1.ProviderHealth{}
 	if h.deps.Chain != nil {
 		p := h.deps.Chain.Probe(ctx)
 		ts := h.deps.Clock.Now().UTC().Format(time.RFC3339Nano)
-		avail = []*healthstatusv1.ProviderHealth{
+		avail = []*sharedv1.ProviderHealth{
 			ttsProviderHealth(protomap.ProviderTierToProto("local"), "kokoro", p.Local, ts),
 			ttsProviderHealth(protomap.ProviderTierToProto("byok"), "", p.BYOK, ts),
 			ttsProviderHealth(protomap.ProviderTierToProto("vrooli"), "", p.Vrooli, ts),
 		}
 	}
 	capLabel := "unavailable"
-	if len(avail) > 0 && avail[0].GetState() == healthstatusv1.State_STATE_AVAILABLE {
+	if len(avail) > 0 && avail[0].GetState() == sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE {
 		capLabel = "available"
 	}
 	return connect.NewResponse(&ttsv1.GetStatusResponse{Status: &ttsv1.Status{
@@ -121,12 +121,12 @@ func (h *connectHandler) GetStatus(ctx context.Context, _ *connect.Request[ttsv1
 // surface. capability is always CAPABILITY_TTS here; latency/error/
 // serving fields are left at their zero values since the legacy
 // chain.Probe shape does not surface them.
-func ttsProviderHealth(tier commonv1.ProviderTier, providerID string, available bool, checkedAt string) *healthstatusv1.ProviderHealth {
-	state := healthstatusv1.State_STATE_UNAVAILABLE
+func ttsProviderHealth(tier commonv1.ProviderTier, providerID string, available bool, checkedAt string) *sharedv1.ProviderHealth {
+	state := sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE
 	if available {
-		state = healthstatusv1.State_STATE_AVAILABLE
+		state = sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE
 	}
-	return &healthstatusv1.ProviderHealth{
+	return &sharedv1.ProviderHealth{
 		Capability:    diagnosticsv1.Capability_CAPABILITY_TTS,
 		Tier:          tier,
 		ProviderId:    providerID,

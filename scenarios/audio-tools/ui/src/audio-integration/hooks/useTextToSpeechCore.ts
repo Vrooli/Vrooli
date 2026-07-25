@@ -23,6 +23,7 @@ import type { TTSVoiceInfo } from "../api/tts";
 import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider } from "./tts/types";
 import { KokoroProvider } from "./tts/KokoroProvider";
 import { BrowserTTSProvider } from "./tts/BrowserTTSProvider";
+import { useFirstUserGesture } from "../../hooks/useFirstUserGesture";
 
 /**
  * Playback event emitted by the core. The host wraps this with its own
@@ -183,9 +184,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     onPlaybackEventRef.current?.({ stage, backend, message });
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onGesture = () => {
+  useFirstUserGesture(() => {
       // Always flip the flag that gates BrowserTTSProvider — that only needs
       // to know a gesture occurred. The media-element unlock is separate.
       audioUnlockedRef.current = true;
@@ -200,16 +199,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
           setState((s) => (s.needsUnlock ? { ...s, needsUnlock: false } : s));
         }
       });
-    };
-    window.addEventListener("pointerdown", onGesture, { passive: true });
-    window.addEventListener("keydown", onGesture, { passive: true });
-    window.addEventListener("touchstart", onGesture, { passive: true });
-    return () => {
-      window.removeEventListener("pointerdown", onGesture);
-      window.removeEventListener("keydown", onGesture);
-      window.removeEventListener("touchstart", onGesture);
-    };
-  }, []);
+  });
 
   // Wire progress callback so playback position updates flow into React state.
   // Only the small AudioPlayerBar re-renders from this (~4 Hz from timeupdate).

@@ -128,12 +128,12 @@
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o audio-tools-api .",
+        "run": "go -C api mod download && go -C api build -o audio-tools-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && corepack pnpm install --ignore-workspace",
+        "run": "corepack pnpm --dir ui install --ignore-workspace",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -141,7 +141,7 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && corepack pnpm --ignore-workspace run build",
+        "run": "corepack pnpm --dir ui --ignore-workspace run build",
           "description": "Build production UI bundle"
         }
       ]
@@ -151,7 +151,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && GOWORK=off go run .",
+        "run": "go -C api run .",
           "description": "Start Go API through the managed Go module lifecycle",
           "background": true,
           "condition": {
@@ -160,7 +160,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
+        "run": "node ui/server.js",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {
@@ -238,6 +238,7 @@
     }
   },
   "environment": {
+    "GOWORK": "off",
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/audio-tools.db",
     "AUDIO_WHISPER_URL": "http://localhost:8090",
     "AUDIO_KYUTAI_URL": "http://localhost:8094",

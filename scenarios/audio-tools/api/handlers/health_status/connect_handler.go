@@ -11,6 +11,7 @@ import (
 
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 )
 
 // minStreamTick clamps StreamProviderHealth's tick interval so a
@@ -98,7 +99,7 @@ func ttlSeconds(d time.Duration) int32 {
 //   - latency_ms: registry.State doesn't carry per-check latency yet.
 func buildCapabilities(states []capabilities.State) []*hsv1.CapabilityHealth {
 	type key = diagv1.Capability
-	byCap := make(map[key][]*hsv1.ProviderHealth)
+	byCap := make(map[key][]*sharedv1.ProviderHealth)
 	order := make([]key, 0, 4)
 
 	for _, st := range states {
@@ -118,7 +119,7 @@ func buildCapabilities(states []capabilities.State) []*hsv1.CapabilityHealth {
 			}
 			seen[cap] = struct{}{}
 
-			row := &hsv1.ProviderHealth{
+			row := &sharedv1.ProviderHealth{
 				Capability:    cap,
 				Tier:          capabilities.TierForProviderID(st.Def.ID),
 				ProviderId:    st.Def.ID,
@@ -153,36 +154,36 @@ func buildCapabilities(states []capabilities.State) []*hsv1.CapabilityHealth {
 	return out
 }
 
-func rollup(providers []*hsv1.ProviderHealth) hsv1.State {
+func rollup(providers []*sharedv1.ProviderHealth) sharedv1.ProviderState {
 	hasUnknown := false
 	hasUnavailable := false
 	for _, p := range providers {
 		switch p.GetState() {
-		case hsv1.State_STATE_AVAILABLE:
-			return hsv1.State_STATE_AVAILABLE
-		case hsv1.State_STATE_UNAVAILABLE:
+		case sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE:
+			return sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE
+		case sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE:
 			hasUnavailable = true
 		default:
 			hasUnknown = true
 		}
 	}
 	if hasUnavailable {
-		return hsv1.State_STATE_UNAVAILABLE
+		return sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE
 	}
 	if hasUnknown {
-		return hsv1.State_STATE_UNKNOWN
+		return sharedv1.ProviderState_PROVIDER_STATE_UNKNOWN
 	}
-	return hsv1.State_STATE_UNSPECIFIED
+	return sharedv1.ProviderState_PROVIDER_STATE_UNSPECIFIED
 }
 
-func stateToProto(s capabilities.Status) hsv1.State {
+func stateToProto(s capabilities.Status) sharedv1.ProviderState {
 	switch s {
 	case capabilities.StatusAvailable:
-		return hsv1.State_STATE_AVAILABLE
+		return sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE
 	case capabilities.StatusUnavailable:
-		return hsv1.State_STATE_UNAVAILABLE
+		return sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE
 	case capabilities.StatusUnknown:
-		return hsv1.State_STATE_UNKNOWN
+		return sharedv1.ProviderState_PROVIDER_STATE_UNKNOWN
 	}
-	return hsv1.State_STATE_UNSPECIFIED
+	return sharedv1.ProviderState_PROVIDER_STATE_UNSPECIFIED
 }

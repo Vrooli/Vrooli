@@ -1246,8 +1246,8 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": [
-              "System",
-              "Notes (CRUD reference)",
+              "Service map",
+              "REST and transport exceptions",
               "Adding a new endpoint",
               "Cross-references"
             ],
@@ -1287,7 +1287,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands — `notes` (CRUD reference)",
+              "Command map",
               "Output contracts",
               "Adding a new command",
               "Cross-references"

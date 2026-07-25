@@ -28,6 +28,7 @@ import {
   logAntiDetectionApplied,
   logAdBlockerConfig,
 } from './diagnostic-logger';
+import { generateSilentSinkPatch, type AudioStrategy } from './audio';
 
 // Re-export for backward compatibility (canonical location is browser-profile)
 export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
@@ -71,7 +72,8 @@ export interface ActualViewport {
 export async function buildContext(
   browser: Browser,
   spec: SessionSpec,
-  config: Config
+  config: Config,
+  audioStrategy: AudioStrategy = 'host_device',
 ): Promise<{
   context: BrowserContext;
   harPath?: string;
@@ -259,6 +261,13 @@ export async function buildContext(
   // Create context
   const context = await browser.newContext(contextOptions);
 
+  if (audioStrategy === 'synthetic_sink') {
+    await context.addInitScript({ content: generateSilentSinkPatch() });
+    logger.info('Synthetic Web Audio sink enabled for host without output device', {
+      executionId: spec.execution_id,
+    });
+  }
+
   // A fixture is a driver-level test-only opt-in. Chromium still obtains a
   // real getUserMedia stream; BrowserManager supplies its deterministic fake
   // device only when BAS_FAKE_MICROPHONE_FILE is configured. The isolated
@@ -351,7 +360,9 @@ export async function buildContext(
     const enabledPatches = Object.entries(antiDetection)
       .filter(([, v]) => v)
       .map(([k]) => k);
-    await applyAntiDetection(context, antiDetection, fingerprint);
+    await applyAntiDetection(context, antiDetection, fingerprint, {
+      deterministicAudio: Boolean(spec.fake_media?.microphone_wav),
+    });
     logger.debug('Anti-detection patches applied', {
       executionId: spec.execution_id,
       patches: enabledPatches,

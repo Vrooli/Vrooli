@@ -199,3 +199,27 @@ func TestDefaultSummarizeConfigWith_ReplacesReasoningEnvModel(t *testing.T) {
 		t.Errorf("reasoning env model should default to %q, got %q", DefaultSummarizeModel, cfg.Model)
 	}
 }
+
+func TestSummarizeConfigPatch_AppliesAllFieldsAndNormalizesBlankModel(t *testing.T) {
+	base := SummarizeConfig{Enabled: true, CharThreshold: 500, Level: "moderate", Model: "old", TimeoutSeconds: 120}
+	disabled := false
+	threshold, timeout := 42, 75
+	level, blank := "heavy", "  "
+	got := (SummarizeConfigPatch{
+		Enabled: &disabled, CharThreshold: &threshold, Level: &level, Model: &blank, TimeoutSeconds: &timeout,
+	}).Apply(base)
+	if got.Enabled || got.CharThreshold != threshold || got.Level != level || got.Model != DefaultSummarizeModel || got.TimeoutSeconds != timeout {
+		t.Fatalf("unexpected patched config: %+v", got)
+	}
+}
+
+func TestLoadSummarizeConfig_ReadFailureIsReported(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "directory")
+	if err := os.Mkdir(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadSummarizeConfig(path)
+	if err == nil {
+		t.Fatal("expected directory read error")
+	}
+}

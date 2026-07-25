@@ -87,3 +87,21 @@ func TestGetEngineSwitchImpact_ScenariosDirUnknown(t *testing.T) {
 	require.False(t, resp.Msg.GetConsumersKnown())
 	require.False(t, resp.Msg.GetSafeToStop())
 }
+
+func TestListEngines_ProjectsManifestAndAvailability(t *testing.T) {
+	c := newSTTRuntimeClient(t, Deps{Registry: sttengine.Default()})
+	resp, err := c.ListEngines(context.Background(), connect.NewRequest(&sttv1.ListEnginesRequest{}))
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Msg.GetEngines())
+	for _, engine := range resp.Msg.GetEngines() {
+		require.NotEmpty(t, engine.GetId())
+		require.NotEmpty(t, engine.GetDisplayName())
+	}
+}
+
+func TestListEngines_EmptyWithoutRegistry(t *testing.T) {
+	c := newSTTRuntimeClient(t, Deps{})
+	resp, err := c.ListEngines(context.Background(), connect.NewRequest(&sttv1.ListEnginesRequest{}))
+	require.NoError(t, err)
+	require.Empty(t, resp.Msg.GetEngines())
+}

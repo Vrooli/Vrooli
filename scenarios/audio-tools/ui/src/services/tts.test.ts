@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { ProviderTier, ResponseFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
-import { State } from "@vrooli/proto-types/audio-tools/v1/health_status/health_status_pb";
+import { ProviderState } from "@vrooli/proto-types/audio-tools/v1/shared/shared_pb";
 
 const synthesizeRpc = vi.fn();
 const listVoicesRpc = vi.fn();
@@ -92,8 +92,8 @@ describe("getStatus", () => {
         capability: "tts",
         capabilityLabel: "Text to Speech",
         availability: [
-          { tier: ProviderTier.LOCAL, providerId: "kokoro", state: State.AVAILABLE },
-          { tier: ProviderTier.BYOK, providerId: "openai", state: State.UNAVAILABLE },
+          { tier: ProviderTier.LOCAL, providerId: "kokoro", state: ProviderState.AVAILABLE },
+          { tier: ProviderTier.BYOK, providerId: "openai", state: ProviderState.UNAVAILABLE },
         ],
       },
     });

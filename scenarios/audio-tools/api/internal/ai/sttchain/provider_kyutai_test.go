@@ -550,3 +550,28 @@ func TestNewKyutaiProvider_UsesExplicitModelProvenance(t *testing.T) {
 	t.Setenv("AUDIO_KYUTAI_MODEL_ID", "kyutai/stt-1b-en_fr@operator-pin")
 	require.Equal(t, "kyutai/stt-1b-en_fr@operator-pin", sttchain.NewKyutaiProvider("http://example.invalid").Model())
 }
+
+func TestKyutaiProvider_Health(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"status":"ok","model_loaded":true}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	p := sttchain.NewKyutaiProvider(server.URL + "/")
+	require.True(t, p.IsAvailable(context.Background()))
+}
+
+func TestKyutaiProvider_ModelProvenanceFallbacks(t *testing.T) {
+	t.Setenv("AUDIO_KYUTAI_MODEL_ID", "  ")
+	t.Setenv("KYUTAI_STT_HF_REPO", " kyutai/operator-fallback ")
+	require.Equal(t, "kyutai/operator-fallback", sttchain.NewKyutaiProvider("http://example.invalid").Model())
+
+	t.Setenv("KYUTAI_STT_HF_REPO", "")
+	require.Equal(t, "kyutai/stt-1b-en_fr", sttchain.NewKyutaiProvider("http://example.invalid").Model())
+}

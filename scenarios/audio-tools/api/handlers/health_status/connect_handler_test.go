@@ -17,6 +17,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 )
 
 // canonicalNow is the deterministic time every test uses so timestamp
@@ -76,27 +77,27 @@ func TestGetProviderHealth_GroupsByCapabilityAndSkipsRollup(t *testing.T) {
 	require.Len(t, stt.GetProviders(), 1)
 	require.Equal(t, "whisper-stt", stt.GetProviders()[0].GetProviderId())
 	require.Equal(t, commonv1.ProviderTier_PROVIDER_TIER_LOCAL, stt.GetProviders()[0].GetTier())
-	require.Equal(t, hsv1.State_STATE_AVAILABLE, stt.GetProviders()[0].GetState())
-	require.Equal(t, hsv1.State_STATE_AVAILABLE, stt.GetEffectiveState())
+	require.Equal(t, sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE, stt.GetProviders()[0].GetState())
+	require.Equal(t, sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE, stt.GetEffectiveState())
 
 	// TTS: one provider (kokoro-tts), UNAVAILABLE; rollup UNAVAILABLE.
 	tts := byCap[diagv1.Capability_CAPABILITY_TTS]
 	require.Len(t, tts.GetProviders(), 1)
-	require.Equal(t, hsv1.State_STATE_UNAVAILABLE, tts.GetProviders()[0].GetState())
+	require.Equal(t, sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, tts.GetProviders()[0].GetState())
 	require.Equal(t, "provider_unavailable", tts.GetProviders()[0].GetErrorCode())
-	require.Equal(t, hsv1.State_STATE_UNAVAILABLE, tts.GetEffectiveState())
+	require.Equal(t, sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, tts.GetEffectiveState())
 
 	// SUMMARIZE: ollama (LOCAL, AVAILABLE) + openrouter (BYOK, UNAVAILABLE);
 	// rollup AVAILABLE because at least one provider is AVAILABLE.
 	summ := byCap[diagv1.Capability_CAPABILITY_SUMMARIZE]
 	require.Len(t, summ.GetProviders(), 2)
-	tiers := map[commonv1.ProviderTier]hsv1.State{}
+	tiers := map[commonv1.ProviderTier]sharedv1.ProviderState{}
 	for _, p := range summ.GetProviders() {
 		tiers[p.GetTier()] = p.GetState()
 	}
-	require.Equal(t, hsv1.State_STATE_AVAILABLE, tiers[commonv1.ProviderTier_PROVIDER_TIER_LOCAL])
-	require.Equal(t, hsv1.State_STATE_UNAVAILABLE, tiers[commonv1.ProviderTier_PROVIDER_TIER_BYOK])
-	require.Equal(t, hsv1.State_STATE_AVAILABLE, summ.GetEffectiveState())
+	require.Equal(t, sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE, tiers[commonv1.ProviderTier_PROVIDER_TIER_LOCAL])
+	require.Equal(t, sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, tiers[commonv1.ProviderTier_PROVIDER_TIER_BYOK])
+	require.Equal(t, sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE, summ.GetEffectiveState())
 
 	// Exact-timestamp assertion: handler must read clock.Now() (not
 	// time.Now()) — substituting an empty string would slip past a

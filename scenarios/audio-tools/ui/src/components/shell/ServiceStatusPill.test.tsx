@@ -16,7 +16,7 @@ vi.mock("../../api/healthStatus", () => ({
 import { ServiceStatusPill } from "./ServiceStatusPill";
 import { fetchHealth } from "../../api/health";
 import { getProviderHealth } from "../../api/healthStatus";
-import { State } from "@vrooli/proto-types/audio-tools/v1/health_status/health_status_pb";
+import { ProviderState } from "@vrooli/proto-types/audio-tools/v1/shared/shared_pb";
 
 const SERVICE_NAME = "audio-tools";
 
@@ -26,7 +26,7 @@ function makeHealthyProviders() {
   return {
     capabilities: [
       {
-        providers: [{ state: State.AVAILABLE }],
+        providers: [{ state: ProviderState.AVAILABLE }],
       },
     ],
     cacheTtlSeconds: 30,
@@ -37,7 +37,7 @@ function makeDegradedProviders(downCount: number) {
   return {
     capabilities: [
       {
-        providers: Array.from({ length: downCount }, () => ({ state: State.UNAVAILABLE })),
+        providers: Array.from({ length: downCount }, () => ({ state: ProviderState.UNAVAILABLE })),
       },
     ],
     cacheTtlSeconds: 30,

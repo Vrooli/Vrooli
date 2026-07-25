@@ -1,10 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Activity, Mic, Server, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Card, CardDescription, CardTitle } from "../../components/ui/card";
 import { Panel } from "../../components/ui/panel";
 import { Badge } from "../../components/ui/badge";
-import { StatusDot } from "../../components/ui/status-dot";
 import { Button } from "../../components/ui/button";
 import { PageHeader } from "../../components/composites/PageHeader";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
@@ -14,6 +12,7 @@ import { getProviderConfig } from "../../services/settings";
 import { listRecent } from "../../services/usage";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
+import { SummaryCard } from "./components/SummaryCard";
 
 export function OverviewPage() {
   const { t } = useTranslation();
@@ -127,35 +126,5 @@ export function OverviewPage() {
         ) : null}
       </Panel>
     </div>
-  );
-}
-
-function SummaryCard({
-  icon,
-  title,
-  value,
-  hint,
-  tone,
-  statusLabel,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  value: string;
-  hint?: string;
-  tone: "neutral" | "info" | "success" | "warning" | "danger";
-  statusLabel: string;
-}) {
-  return (
-    <Card padding="md">
-      <div className="flex items-start justify-between gap-2">
-        <CardTitle>{title}</CardTitle>
-        <span className="text-app-muted-foreground">{icon}</span>
-      </div>
-      <p className="mt-2 text-2xl font-semibold text-app-foreground">{value}</p>
-      {hint ? <CardDescription className="mt-1">{hint}</CardDescription> : null}
-      <div className="mt-2">
-        <StatusDot tone={tone} label={statusLabel} />
-      </div>
-    </Card>
   );
 }

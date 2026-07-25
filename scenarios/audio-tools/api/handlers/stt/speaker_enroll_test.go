@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
@@ -32,6 +33,14 @@ func newCapturingEnrollResource(t *testing.T, seconds float64) (*capturingEnroll
 	res := &capturingEnrollResource{}
 	res.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/clips") {
+			_ = json.NewEncoder(w).Encode(map[string]any{"profile_id": "profile-1", "count": 1, "clips": []map[string]any{{"clip_id": "clip-1", "label": "office", "voiced_seconds": 1.25, "audio_seconds": 2.0, "created_at": "2026-07-24T20:00:00Z", "embedding_dim": 192}}})
+			return
+		}
+		if r.Method == http.MethodDelete && strings.Contains(r.URL.Path, "/clips/") {
+			_ = json.NewEncoder(w).Encode(map[string]any{"profile_id": "profile-1", "clip_id": "clip-1", "clip_count": 1, "total_voiced_seconds": 1.25})
+			return
+		}
 		if r.Method == http.MethodPost && r.URL.Path == "/v1/profiles" {
 			require.NoError(t, r.ParseMultipartForm(1<<20))
 			f, _, err := r.FormFile("audio")
@@ -161,4 +170,44 @@ func TestEnrollSpeakerProfile_UnknownFormatEnrollsRaw(t *testing.T) {
 	}))
 	require.NoError(t, err)
 	require.Equal(t, []byte("raw-unsniffable-bytes"), res.audio(), "unknown format -> raw bytes passed through")
+}
+
+func TestSpeakerClipToProto_PreservesMetadataAndToleratesInvalidTime(t *testing.T) {
+	clip := speakerClipToProto(sttpipeline.SpeakerProfileClip{
+		ClipID: "clip-1", Label: "office", VoicedSeconds: 1.25, AudioSeconds: 2,
+		CreatedAt: "2026-07-24T20:00:00Z", EmbeddingDim: 192,
+	})
+	require.Equal(t, "clip-1", clip.GetClipId())
+	require.Equal(t, "office", clip.GetLabel())
+	require.Equal(t, int32(192), clip.GetEmbeddingDim())
+	require.NotNil(t, clip.GetCreatedAt())
+	invalid := speakerClipToProto(sttpipeline.SpeakerProfileClip{CreatedAt: "not-a-time"})
+	require.Nil(t, invalid.GetCreatedAt())
+}
+
+func TestListSpeakerProfileClips_ProjectsResourceMetadata(t *testing.T) {
+	_, resource := newCapturingEnrollResource(t, 1)
+	c := newSTTClient(t, Deps{SpeakerResource: resource})
+	resp, err := c.ListSpeakerProfileClips(context.Background(), connect.NewRequest(&sttv1.ListSpeakerProfileClipsRequest{ProfileId: "profile-1"}))
+	require.NoError(t, err)
+	require.Equal(t, int32(1), resp.Msg.GetCount())
+	require.Equal(t, "office", resp.Msg.GetClips()[0].GetLabel())
+}
+
+func TestSpeakerClipOperations_RequireResource(t *testing.T) {
+	c := newSTTClient(t, Deps{})
+	_, err := c.ListSpeakerProfileClips(context.Background(), connect.NewRequest(&sttv1.ListSpeakerProfileClipsRequest{ProfileId: "missing"}))
+	require.Error(t, err)
+	_, err = c.DeleteSpeakerProfileClip(context.Background(), connect.NewRequest(&sttv1.DeleteSpeakerProfileClipRequest{ProfileId: "missing", ClipId: "clip"}))
+	require.Error(t, err)
+}
+
+func TestDeleteSpeakerProfileClip_ProjectsResourceResult(t *testing.T) {
+	_, resource := newCapturingEnrollResource(t, 1)
+	c := newSTTClient(t, Deps{SpeakerResource: resource})
+	resp, err := c.DeleteSpeakerProfileClip(context.Background(), connect.NewRequest(&sttv1.DeleteSpeakerProfileClipRequest{ProfileId: "profile-1", ClipId: "clip-1"}))
+	require.NoError(t, err)
+	require.Equal(t, "profile-1", resp.Msg.GetProfileId())
+	require.Equal(t, "clip-1", resp.Msg.GetClipId())
+	require.Equal(t, int32(1), resp.Msg.GetClipCount())
 }

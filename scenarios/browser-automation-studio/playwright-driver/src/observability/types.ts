@@ -342,8 +342,9 @@ export interface AudioCapabilityDiagnostics {
   state: string;
   duration_ms: number;
   finding?: string;
-  /** Same browser process without BAS context initialization, for bisection. */
-  bare_context?: Omit<AudioCapabilityDiagnostics, 'bare_context'>;
+  audio_strategy?: 'host_device' | 'synthetic_sink';
+  host_audio_outcome?: 'device_available' | 'no_device' | 'detection_failed';
+  host_audio_reason?: string;
 }
 
 export interface DiagnosticRunResults {

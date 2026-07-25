@@ -101,9 +101,11 @@ func (h *connectHandler) GetEngineSwitchImpact(_ context.Context, req *connect.R
 // consumer scan (audio-tools should not count itself). Derived from
 // VROOLI_SCENARIO_DIR's basename, defaulting to "audio-tools".
 func currentScenarioID() string {
-	if dir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR")); dir != "" {
-		if base := filepath.Base(filepath.Clean(dir)); base != "" && base != "." && base != string(filepath.Separator) {
-			return base
+	if raw, configured := os.LookupEnv("VROOLI_SCENARIO_DIR"); configured {
+		if dir := strings.TrimSpace(raw); dir != "" {
+			if base := filepath.Base(filepath.Clean(dir)); base != "" && base != "." && base != string(filepath.Separator) {
+				return base
+			}
 		}
 	}
 	return "audio-tools"

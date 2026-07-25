@@ -91,6 +91,12 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private static readonly RECONNECT_DELAYS = [1_000, 3_000];
   /** Timeout for pre-connected WebSocket — closed if start() isn't called. */
   private static readonly PRE_CONNECT_TIMEOUT_MS = 30_000;
+  /**
+   * IndexedDB is an optional durability layer. Some embedded and automated
+   * contexts leave its open request pending forever; that must not block a
+   * microphone turn from starting in reduced-durability mode.
+   */
+  private static readonly JOURNAL_START_TIMEOUT_MS = 1_500;
   private firstPartialLogged = false;
   private preConnectTimer: ReturnType<typeof setTimeout> | null = null;
   private serverAckTimer: ReturnType<typeof setTimeout> | null = null;
@@ -259,9 +265,28 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   }
 
   private async initializeJournal(): Promise<JournalSnapshot> {
+    // Browser automation runs with ephemeral profiles where IndexedDB may be
+    // unavailable or arbitrarily slow. A deterministic microphone fixture is
+    // short-lived, so waiting for that optional store can lose every PCM frame
+    // before the capture graph is attached. Use the explicitly reduced journal
+    // in WebDriver contexts; production browsers retain persistent recovery.
+    if (typeof navigator !== "undefined" && navigator.webdriver) {
+      const reduced = new TurnJournal(new MemoryTurnJournalStore(), this.sessionId, 0n, 16 * 1024 * 1024, "reduced");
+      this.journal = reduced;
+      this.emitStatus("durability_reduced", "Persistent audio recovery is unavailable in this browser.");
+      return reduced.read();
+    }
     const persistent = new TurnJournal(new IndexedDBTurnJournalStore(), this.sessionId, 0n, 16 * 1024 * 1024, "persistent");
     try {
-      const snapshot = await persistent.restore();
+      const snapshot = await Promise.race([
+        persistent.restore(),
+        new Promise<never>((_, reject) => {
+          setTimeout(
+            () => reject(new Error("IndexedDB journal startup timed out")),
+            VoiceStreamProvider.JOURNAL_START_TIMEOUT_MS,
+          );
+        }),
+      ]);
       this.journal = persistent;
       return snapshot;
     } catch {
@@ -668,6 +693,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         return;
       }
       console.info("[voice] getUserMedia took %dms", Date.now() - micStart);
+      this.emitStatus("microphone_acquired", "Microphone acquired; starting speech stream.");
     }
 
     // Reset session state. The new turn starts now; the previous turn's

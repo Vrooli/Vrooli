@@ -30,12 +30,13 @@ const (
 )
 
 type Def struct {
-	ID             string         `json:"id"`
-	Name           string         `json:"name"`
-	Description    string         `json:"description"`
-	DependencyKind DependencyKind `json:"dependencyKind"`
-	DependencySlug string         `json:"dependencySlug"`
-	Features       []string       `json:"features"`
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	Description    string          `json:"description"`
+	DependencyKind DependencyKind  `json:"dependencyKind"`
+	DependencySlug string          `json:"dependencySlug"`
+	Features       []string        `json:"features"`
+	Platform       PlatformVerdict `json:"platform"`
 }
 
 type State struct {
@@ -63,6 +64,14 @@ var Known = []Def{
 		DependencyKind: DependencyResource,
 		DependencySlug: "whisper",
 		Features:       []string{"voice-input", "voice-streaming"},
+	},
+	{
+		ID:             "kyutai-stt",
+		Name:           "Kyutai Streaming STT",
+		Description:    "Real-time speech-to-text via Kyutai",
+		DependencyKind: DependencyResource,
+		DependencySlug: "kyutai-stt",
+		Features:       []string{"voice-input", "voice-streaming-realtime"},
 	},
 	{
 		ID:             "speaker-verification",
@@ -194,6 +203,15 @@ func (r *Registry) Resolve(ctx context.Context) []State {
 			Status:    StatusUnknown,
 			CheckedAt: now.Format(time.RFC3339),
 		}
+		if def.Platform.Support == PlatformUnsupported {
+			state.Status = StatusUnavailable
+			state.Message = "unavailable by design"
+			if def.Platform.Reason != "" {
+				state.Message += ": " + def.Platform.Reason
+			}
+			states[i] = state
+			continue
+		}
 		if checker, ok := r.checkers[def.ID]; ok {
 			state.Status, state.Message = checker.Check(ctx)
 		}
@@ -223,6 +241,15 @@ func (r *Registry) ResolveForce(ctx context.Context) []State {
 			Def:       def,
 			Status:    StatusUnknown,
 			CheckedAt: now.Format(time.RFC3339),
+		}
+		if def.Platform.Support == PlatformUnsupported {
+			state.Status = StatusUnavailable
+			state.Message = "unavailable by design"
+			if def.Platform.Reason != "" {
+				state.Message += ": " + def.Platform.Reason
+			}
+			states[i] = state
+			continue
 		}
 		if checker, ok := r.checkers[def.ID]; ok {
 			state.Status, state.Message = checker.Check(ctx)
@@ -270,6 +297,15 @@ func (r *Registry) ResolveLiveness(ctx context.Context) []State {
 			Def:       def,
 			Status:    StatusUnknown,
 			CheckedAt: now.Format(time.RFC3339),
+		}
+		if def.Platform.Support == PlatformUnsupported {
+			state.Status = StatusUnavailable
+			state.Message = "unavailable by design"
+			if def.Platform.Reason != "" {
+				state.Message += ": " + def.Platform.Reason
+			}
+			states[i] = state
+			continue
 		}
 		if checker, ok := checkers[def.ID]; ok {
 			state.Status, state.Message = checker.Check(ctx)

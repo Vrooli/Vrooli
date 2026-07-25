@@ -1,3 +1,4 @@
+// provider-free-exception: hook test uses renderHook and no application component.
 /**
  * Unit tests for useGamepad.
  *

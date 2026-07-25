@@ -28,7 +28,7 @@ func TestNewHTTPServer_ServesAndCleansUp(t *testing.T) {
 
 func TestNewAPIServer_SetsAPIBaseURL(t *testing.T) {
 	server := NewAPIServer(t, okHandler())
-	if got := os.Getenv("API_BASE_URL"); got != server.URL {
+	if got, configured := os.LookupEnv("API_BASE_URL"); !configured || got != server.URL {
 		t.Fatalf("API_BASE_URL = %q, want %q", got, server.URL)
 	}
 }
@@ -44,12 +44,12 @@ func TestNewAPIServer_RestoresEnvOnCleanup(t *testing.T) {
 
 	t.Run("inner", func(tt *testing.T) {
 		_ = NewAPIServer(tt, okHandler())
-		if got := os.Getenv("API_BASE_URL"); got == sentinel {
+		if got, _ := os.LookupEnv("API_BASE_URL"); got == sentinel {
 			tt.Fatal("inner subtest did not override API_BASE_URL")
 		}
 	})
 
-	if got := os.Getenv("API_BASE_URL"); got != sentinel {
+	if got, _ := os.LookupEnv("API_BASE_URL"); got != sentinel {
 		t.Fatalf("API_BASE_URL after inner cleanup = %q, want %q", got, sentinel)
 	}
 }

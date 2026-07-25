@@ -2,13 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Panel } from "../../components/ui/panel";
 import { Badge } from "../../components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "../../components/ui/table";
-import { Card, CardDescription, CardTitle } from "../../components/ui/card";
 import { PageHeader } from "../../components/composites/PageHeader";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { LoadingRows } from "../../components/composites/LoadingRows";
 import { getSummary, listRecent } from "../../services/usage";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
+import { UsageStat } from "./components/UsageStat";
+import { DistributionBar } from "./components/DistributionBar";
 
 export function UsagePage() {
   const { t } = useTranslation();
@@ -22,9 +23,9 @@ export function UsagePage() {
       <PageHeader title={t(strings.usage.title)} description={t(strings.usage.description)} />
 
       <div className="grid gap-3 md:grid-cols-3">
-        <Stat title={t(strings.usage.operations)} value={summary.data?.ok ? summary.data.data.operationsTotal : dash} />
-        <Stat title={t(strings.usage.creditsCharged)} value={summary.data?.ok ? summary.data.data.creditsTotal : dash} />
-        <Stat
+        <UsageStat title={t(strings.usage.operations)} value={summary.data?.ok ? summary.data.data.operationsTotal : dash} />
+        <UsageStat title={t(strings.usage.creditsCharged)} value={summary.data?.ok ? summary.data.data.creditsTotal : dash} />
+        <UsageStat
           title={t(strings.usage.errors)}
           value={summary.data?.ok ? summary.data.data.errorCount : dash}
           tone={summary.data?.ok && summary.data.data.errorCount > 0 ? "danger" : "neutral"}
@@ -99,34 +100,6 @@ export function UsagePage() {
         ) : null}
       </Panel>
     </div>
-  );
-}
-
-function Stat({ title, value, tone = "neutral" }: { title: string; value: string | number; tone?: "neutral" | "danger" }) {
-  const { t } = useTranslation();
-  return (
-    <Card padding="md">
-      <CardTitle>{title}</CardTitle>
-      <p className={"mt-2 text-2xl font-semibold " + (tone === "danger" ? "text-app-danger" : "text-app-foreground")}>
-        {value}
-      </p>
-      <CardDescription className="mt-1">{t(strings.common.last24h)}</CardDescription>
-    </Card>
-  );
-}
-
-function DistributionBar({ label, value, total }: { label: string; value: number; total: number }) {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-  return (
-    <li>
-      <div className="mb-1 flex items-center justify-between text-xs text-app-muted-foreground">
-        <span>{label}</span>
-        <span>{value} · {pct}%</span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-pill bg-app-surface-muted">
-        <div className="h-full bg-app-primary" style={{ width: `${pct}%` }} aria-hidden="true" />
-      </div>
-    </li>
   );
 }
 

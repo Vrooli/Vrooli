@@ -1,4 +1,5 @@
 import * as React from "react";
+import { emitShortcutIntent } from "@vrooli/iframe-bridge";
 
 export interface Shortcut {
   /** Lowercase key from KeyboardEvent.key. */
@@ -39,6 +40,12 @@ export function useKeyboardShortcuts(shortcuts: Shortcut[]): void {
         if (!sc.allowInInputs && isFormTarget(event.target)) continue;
         event.preventDefault();
         sc.handler(event);
+        emitShortcutIntent({
+          action: "audio-tools.shortcut",
+          outcome: "handled",
+          chord: event.key,
+          source: "keyboard",
+        });
         return;
       }
     };

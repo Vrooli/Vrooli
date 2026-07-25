@@ -19,41 +19,12 @@ import {
   type EngineSwitchImpact,
 } from "../../services/sttEngines";
 import { OverlapStallGuard } from "./OverlapStallGuard";
+import { CopyableCommand } from "./components/CopyableCommand";
 
 interface PendingSwitch {
   target: Engine;
   fromEngineId: string;
   impact: EngineSwitchImpact;
-}
-
-function CopyableCommand({ command, copyLabel, copiedLabel }: {
-  command: string;
-  copyLabel: string;
-  copiedLabel: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="flex items-center gap-2">
-      <code className="flex-1 overflow-x-auto rounded-control border border-app-border bg-app-surface-muted px-2 py-1 font-mono text-xs">
-        {command}
-      </code>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          // The UI NEVER runs the command; it only places it on the clipboard.
-          // Older WebViews / jsdom omit navigator.clipboard despite the
-          // lib.dom type asserting it is always present.
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if (navigator.clipboard) void navigator.clipboard.writeText(command);
-          setCopied(true);
-        }}
-      >
-        {copied ? copiedLabel : copyLabel}
-      </Button>
-    </div>
-  );
 }
 
 export function StreamConfigPage() {

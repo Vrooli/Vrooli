@@ -304,6 +304,10 @@ const literalSelectors = {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
   },
+  diagnostics: {
+    suiteRun: "suite-run",
+    suiteLastRun: "suite-last-run",
+  },
   streamConfig: {
     enginePicker: "stream-config-engine-picker",
     switchPrompt: "stream-config-switch-prompt",

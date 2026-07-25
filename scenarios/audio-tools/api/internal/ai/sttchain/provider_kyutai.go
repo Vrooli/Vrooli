@@ -79,10 +79,12 @@ func NewKyutaiProvider(baseURL string) *KyutaiProvider {
 // the resource configuration; promotion evidence then cannot cross that model
 // boundary. The bundled resource's declared default is used otherwise.
 func kyutaiModelID() string {
-	if model := strings.TrimSpace(os.Getenv("AUDIO_KYUTAI_MODEL_ID")); model != "" {
+	if raw, configured := os.LookupEnv("AUDIO_KYUTAI_MODEL_ID"); configured && strings.TrimSpace(raw) != "" {
+		model := strings.TrimSpace(raw)
 		return model
 	}
-	if model := strings.TrimSpace(os.Getenv("KYUTAI_STT_HF_REPO")); model != "" {
+	if raw, configured := os.LookupEnv("KYUTAI_STT_HF_REPO"); configured && strings.TrimSpace(raw) != "" {
+		model := strings.TrimSpace(raw)
 		return model
 	}
 	return "kyutai/stt-1b-en_fr"
@@ -171,7 +173,11 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 			return
 		}
 
-		dialCtx, dialCancel := context.WithTimeout(context.Background(), kyutaiDrainTimeout)
+		// Keep request values but deliberately detach cancellation for this short
+		// dial. A request can cancel after its first PCM chunk is accepted and
+		// before the socket exists; we must still establish the connection long
+		// enough to send its terminal drain marker and retain Kyutai's tail.
+		dialCtx, dialCancel := context.WithTimeout(context.WithoutCancel(ctx), kyutaiDrainTimeout)
 		conn, _, err := websocket.DefaultDialer.DialContext(dialCtx, streamURL, nil)
 		dialCancel()
 		if err != nil {
@@ -245,7 +251,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		sendEnd := func() {
 			endOnce.Do(func() { send(websocket.TextMessage, []byte(`{"type":"end"}`), false) })
 		}
-		go func() {
+		go func(done <-chan struct{}) {
 			defer close(writerGone)
 			for {
 				select {
@@ -253,18 +259,18 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 					if req.audio {
 						select {
 						case <-credits:
-						case <-streamDone:
+						case <-done:
 							return
 						}
 					}
 					if err := conn.WriteMessage(req.mt, req.data); err != nil {
 						return
 					}
-				case <-streamDone:
+				case <-done:
 					return
 				}
 			}
-		}()
+		}(streamDone)
 
 		// ctx watcher: DRAIN-THEN-CLOSE. Cancelling the session must not cold-close
 		// the socket (that drops kyutai's flush and the trailing segment). Instead

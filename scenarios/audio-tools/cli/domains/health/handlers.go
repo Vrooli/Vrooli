@@ -13,6 +13,7 @@ import (
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
 	hsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status/health_status_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 )
 
 type handlers struct {
@@ -136,13 +137,13 @@ func tierLabel(t commonv1.ProviderTier) string {
 	return "-"
 }
 
-func stateLabel(s hsv1.State) string {
+func stateLabel(s sharedv1.ProviderState) string {
 	switch s {
-	case hsv1.State_STATE_AVAILABLE:
+	case sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE:
 		return "AVAILABLE"
-	case hsv1.State_STATE_UNAVAILABLE:
+	case sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE:
 		return "UNAVAILABLE"
-	case hsv1.State_STATE_UNKNOWN:
+	case sharedv1.ProviderState_PROVIDER_STATE_UNKNOWN:
 		return "UNKNOWN"
 	}
 	return "-"

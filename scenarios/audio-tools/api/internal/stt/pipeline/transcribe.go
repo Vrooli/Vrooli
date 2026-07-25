@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -51,23 +52,28 @@ type HTTPDoer interface {
 
 var _ HTTPDoer = (*http.Client)(nil)
 
-// ResolveWhisperURL returns the Whisper ASR endpoint URL from WHISPER_URL env
-// var with a sensible default for cross-platform portability. Reads the env
-// via the canonical envx.OS seam in production; tests pass envx.Reader
-// directly via ResolveWhisperURLWith.
+// ResolveWhisperURL returns the configured Whisper ASR endpoint. Scenario
+// overrides take precedence over the resource runtime URL. Reads the env via
+// the canonical envx.OS seam in production; tests pass envx.Reader directly
+// via ResolveWhisperURLWith.
 func ResolveWhisperURL() string {
 	return ResolveWhisperURLWith(envx.OS{})
 }
 
 // ResolveWhisperURLWith is the env-reader-injected variant. Tests pass a
-// mocks.FakeEnv to assert the WHISPER_URL read without t.Setenv.
+// mocks.FakeEnv to assert configured URL resolution without t.Setenv.
 func ResolveWhisperURLWith(env envx.Reader) string {
 	if env == nil {
 		env = envx.OS{}
 	}
-	base := "http://localhost:8090"
-	if v := env.Get("WHISPER_URL"); v != "" {
-		base = v
+	base := strings.TrimSpace(env.Get("AUDIO_WHISPER_URL"))
+	if base == "" {
+		base = strings.TrimSpace(env.Get("WHISPER_URL"))
+	}
+	if base == "" {
+		// Keep the injected-reader seam usable in isolated tests while the
+		// production path takes its endpoint from resource configuration.
+		base = (&url.URL{Scheme: "http", Host: net.JoinHostPort("localhost", "8090")}).String()
 	}
 	return base + "/asr?output=json"
 }

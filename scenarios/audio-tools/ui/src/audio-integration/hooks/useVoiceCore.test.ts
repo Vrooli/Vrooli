@@ -20,6 +20,7 @@ const h = vi.hoisted(() => {
     onResult: ((t: string) => void) | null = null;
     onError: ((e: string) => void) | null = null;
     onPartial: ((t: string) => void) | null = null;
+    onStatus: ((status: { code: string; message: string }) => void) | null = null;
     onSegmentFinal: ((t: string, i: number) => void) | null = null;
     onSegmentAccepted: ((i: number, s: number, t: number) => void) | null = null;
     onSegmentRejected: ((i: number, s: number, t: number) => void) | null = null;
@@ -361,6 +362,18 @@ describe("useVoiceCore — recording lifecycle", () => {
     act(() => lastVSP().onResult?.("hello there"));
     await waitFor(() => expect(result.current.voiceState).toBe("idle"));
     expect(onTranscript).toHaveBeenCalledWith("hello there");
+  });
+
+  it("keeps buffered-mode notice for a degraded turn and clears it after the next clean completion", async () => {
+    const { result } = await mountReady();
+    await act(async () => { await result.current.startRecording({ vadEnabled: true }); });
+    act(() => lastVSP().onStatus?.({ code: "backend_degraded", message: "Streaming degraded — buffered mode is active." }));
+    act(() => lastVSP().onResult?.("buffered"));
+    expect(result.current.streamingDegradationNotice).toMatch(/buffered mode/);
+
+    await act(async () => { await result.current.startRecording({ vadEnabled: true }); });
+    act(() => lastVSP().onResult?.("streaming"));
+    expect(result.current.streamingDegradationNotice).toBeNull();
   });
 
   it("surfaces a provider error", async () => {

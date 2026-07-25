@@ -14,7 +14,7 @@ import (
 	"github.com/vrooli/cli-core/cliapptest"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
-	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
 	settconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings/settings_v1connect"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -65,9 +65,9 @@ func TestProvidersHappyPath(t *testing.T) {
 			return &settv1.ProviderConfig{ByokEnabled: true, VrooliEnabled: false, LocalEnabled: true}, nil
 		}},
 		&fakeProviderTTS{status: func() (*ttsv1.Status, error) {
-			return &ttsv1.Status{Availability: []*healthstatusv1.ProviderHealth{
-				{Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "kokoro", State: healthstatusv1.State_STATE_AVAILABLE},
-				{Tier: commonv1.ProviderTier_PROVIDER_TIER_BYOK, ProviderId: "openai-tts", State: healthstatusv1.State_STATE_UNAVAILABLE},
+			return &ttsv1.Status{Availability: []*sharedv1.ProviderHealth{
+				{Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "kokoro", State: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE},
+				{Tier: commonv1.ProviderTier_PROVIDER_TIER_BYOK, ProviderId: "openai-tts", State: sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE},
 			}}, nil
 		}},
 	)

@@ -13,7 +13,7 @@ import { ProviderTraceCard, type TraceEntry, type TraceFilter } from "./Provider
 //   Top : SuiteCard summary strip (sticky on the page background).
 //   Body: 2-col responsive grid — capability panels (left/wide) + provider
 //         trace rail (right, sticky on lg+, stacks below on mobile).
-//   Tile clicks scroll to the matching panel and, on failure, narrow the
+//   Tile clicks move focus to the matching panel and, on failure, narrow the
 //   trace rail to that capability.
 export function DiagnosticsPage() {
   const { t } = useTranslation();
@@ -31,7 +31,7 @@ export function DiagnosticsPage() {
   };
 
   const handleTileClick = (capability: SuiteCapability, failed: boolean) => {
-    panelRefs[capability].current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    panelRefs[capability].current?.focus();
     if (failed) setFilter(capability);
   };
 
@@ -52,16 +52,16 @@ export function DiagnosticsPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr,22rem]">
         <div className="grid gap-4 md:grid-cols-2">
-          <div ref={panelRefs.stt} className="scroll-mt-24">
+          <div ref={panelRefs.stt} className="scroll-mt-24" tabIndex={-1}>
             <TranscribeTryIt onTrace={(tr) => recordTrace("stt", tr)} />
           </div>
-          <div ref={panelRefs.tts} className="scroll-mt-24">
+          <div ref={panelRefs.tts} className="scroll-mt-24" tabIndex={-1}>
             <SynthesizeTryIt onTrace={(tr) => recordTrace("tts", tr)} />
           </div>
-          <div ref={panelRefs.summarize} className="scroll-mt-24">
+          <div ref={panelRefs.summarize} className="scroll-mt-24" tabIndex={-1}>
             <SummarizeTryIt onTrace={(tr) => recordTrace("summarize", tr)} />
           </div>
-          <div ref={panelRefs.transcode} className="scroll-mt-24">
+          <div ref={panelRefs.transcode} className="scroll-mt-24" tabIndex={-1}>
             <TranscodeTryIt />
           </div>
         </div>

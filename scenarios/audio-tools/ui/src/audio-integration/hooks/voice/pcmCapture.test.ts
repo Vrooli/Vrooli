@@ -42,6 +42,7 @@ function makeSourceNode() {
 
 interface FakeAudioCtx {
   state: AudioContextState;
+  resume?: ReturnType<typeof vi.fn>;
   sampleRate: number;
   destination: object;
   createMediaStreamSource: ReturnType<typeof vi.fn>;
@@ -72,6 +73,7 @@ function makeFakeStream(): MediaStream {
 // ---------------------------------------------------------------------------
 
 let ctx: FakeAudioCtx;
+const originalWebdriverDescriptor = Object.getOwnPropertyDescriptor(navigator, "webdriver");
 
 beforeEach(() => {
   ctx = makeFakeAudioContext();
@@ -82,9 +84,29 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  if (originalWebdriverDescriptor) Object.defineProperty(navigator, "webdriver", originalWebdriverDescriptor);
+  else Reflect.deleteProperty(navigator, "webdriver");
 });
 
 describe("createScriptProcessorPcmCapture", () => {
+
+  it("resumes a suspended shared context after microphone acquisition", async () => {
+    const resume = vi.fn().mockResolvedValue(undefined);
+    ctx.state = "suspended";
+    ctx.resume = resume;
+
+    await createCanonicalPcmCapture(makeFakeStream(), vi.fn());
+
+    expect(resume).toHaveBeenCalledOnce();
+  });
+
+  it("uses ScriptProcessor immediately for WebDriver fake-media capture", async () => {
+    Object.defineProperty(navigator, "webdriver", { configurable: true, value: true });
+
+    await createCanonicalPcmCapture(makeFakeStream(), vi.fn());
+
+    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+  });
 
   it("falls back to ScriptProcessor when AudioWorklet is unavailable", async () => {
     const capture = await createCanonicalPcmCapture(makeFakeStream(), vi.fn());

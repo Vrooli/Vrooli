@@ -292,12 +292,12 @@ describe("teardownAudioContextKeepalive", () => {
 // ---------------------------------------------------------------------------
 
 describe("ensureAudioContextOnGesture", () => {
-  it("adds pointerdown and keydown listeners on document", () => {
+  it("adds a pointer listener on document", () => {
     const addSpy = vi.spyOn(document, "addEventListener");
     ensureAudioContextOnGesture();
     const events = addSpy.mock.calls.map((c) => c[0]);
     expect(events).toContain("pointerdown");
-    expect(events).toContain("keydown");
+    expect(events).not.toContain("keydown");
     addSpy.mockRestore();
   });
 
@@ -305,7 +305,7 @@ describe("ensureAudioContextOnGesture", () => {
     const addSpy = vi.spyOn(document, "addEventListener");
     ensureAudioContextOnGesture();
     ensureAudioContextOnGesture();
-    // Should only add 2 listeners (pointerdown + keydown once)
+    // The pointer listener is installed only once.
     const ourEvents = addSpy.mock.calls.map((c) => c[0]);
     const pointerdownCount = ourEvents.filter((e) => e === "pointerdown").length;
     expect(pointerdownCount).toBe(1);

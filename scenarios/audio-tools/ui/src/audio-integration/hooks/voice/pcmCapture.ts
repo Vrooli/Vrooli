@@ -10,7 +10,7 @@
 // not provide). Production wires createScriptProcessorPcmCapture.
 
 import {
-	createCanonicalPcmCapture as createSharedCanonicalPcmCapture,
+  createCanonicalPcmCapture as createSharedCanonicalPcmCapture,
   createScriptProcessorPcmCapture as createSharedScriptProcessorPcmCapture,
 	type AsyncPcmCaptureFactory,
   type PcmCapture,
@@ -40,6 +40,18 @@ export const createScriptProcessorPcmCapture: PcmCaptureFactory = (stream, onFra
 
 export const createCanonicalPcmCapture: AsyncPcmCaptureFactory = async (stream, onFrame) => {
   const context = getSharedAudioContext();
+  // Acquire the microphone before creating/resuming an AudioContext. Chromium
+  // fake-device and some embedded contexts can leave getUserMedia pending when
+  // a context is activated first. Once media is available, resume the shared
+  // context before attaching either capture graph.
+  if (context.state === "suspended") await context.resume();
+  // Chromium automation can advertise AudioWorklet while never scheduling its
+  // processor. Start the proven ScriptProcessor graph immediately in that
+  // environment: a deterministic WAV fixture may be shorter than the
+  // worklet-fallback timeout, so waiting would lose the entire turn.
+  if (typeof navigator !== "undefined" && navigator.webdriver) {
+    return createSharedScriptProcessorPcmCapture(context, stream, onFrame);
+  }
   let timedOut = false;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const preferred = createSharedCanonicalPcmCapture(context, stream, onFrame).then((capture) => {

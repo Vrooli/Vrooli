@@ -1,4 +1,5 @@
 {
+  "id": ".",
   "name": "Audio Tools",
   "short_name": "audio-tools",
   "description": "Shared audio capabilities: STT, TTS, summarization, audio processing, provider routing (BYOK/LPBS/Local)",

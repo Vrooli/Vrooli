@@ -125,26 +125,27 @@
         }
       },
       {
-        "id": "click-corpus-tab",
+        "id": "assert-recorder-still-ready",
         "action": {
-          "type": "ACTION_TYPE_CLICK",
-          "click": {
-            "selector": "#tab-corpus"
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.audioMeter",
+            "timeout_ms": 5000
           },
           "metadata": {
-            "label": "Open the Corpus tab"
+            "label": "Confirm recorder remains ready after scripted setup"
           }
         }
       },
       {
-        "id": "wait-corpus-state",
+        "id": "wait-scripted-state",
         "action": {
           "type": "ACTION_TYPE_WAIT",
           "wait": {
             "duration_ms": 1500
           },
           "metadata": {
-            "label": "Let the corpus query settle"
+            "label": "Let scripted setup settle"
           }
         }
       },
@@ -161,14 +162,15 @@
         }
       },
       {
-        "id": "click-report-tab",
+        "id": "assert-experiment-surface",
         "action": {
-          "type": "ACTION_TYPE_CLICK",
-          "click": {
-            "selector": "#tab-report"
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.startExperiment",
+            "timeout_ms": 5000
           },
           "metadata": {
-            "label": "Open the Eval Report tab"
+            "label": "Confirm the experiment surface is available"
           }
         }
       },
@@ -237,30 +239,30 @@
       {
         "id": "e7",
         "source": "assert-recorder-ready",
-        "target": "click-corpus-tab",
+        "target": "assert-recorder-still-ready",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e8",
-        "source": "click-corpus-tab",
-        "target": "wait-corpus-state",
+        "source": "assert-recorder-still-ready",
+        "target": "wait-scripted-state",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e9",
-        "source": "wait-corpus-state",
+        "source": "wait-scripted-state",
         "target": "assert-corpus-surface",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e10",
         "source": "assert-corpus-surface",
-        "target": "click-report-tab",
+        "target": "assert-experiment-surface",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e11",
-        "source": "click-report-tab",
+        "source": "assert-experiment-surface",
         "target": "assert-eval-empty",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },

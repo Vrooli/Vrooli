@@ -12,6 +12,7 @@ import {
 import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
 import { usePreferences } from "../../hooks/usePreferences";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 interface Props {
   open: boolean;
@@ -23,14 +24,7 @@ export function SettingsDrawer({ open, onClose }: Props) {
   const { preferences, setTheme, setFontScale, setReducedMotion } = usePreferences();
   const currentLocale = getCurrentLocale();
 
-  React.useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  useEscapeKey(onClose, open);
 
   if (!open) return null;
 

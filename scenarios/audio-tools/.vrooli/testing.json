@@ -178,5 +178,14 @@
         "enabled": true
       }
     }
+  },
+  "phases": {
+    "tidiness": {
+      "budgets": {
+        "duplication_line_debt": 8530,
+        "baseline_duplication_line_debt": 8530,
+        "ratchet": true
+      }
+    }
   }
 }

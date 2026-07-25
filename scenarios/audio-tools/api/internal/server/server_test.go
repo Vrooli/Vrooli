@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"audio-tools/internal/clock"
+	inteval "audio-tools/internal/eval"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
 	"audio-tools/internal/testutil/httpx"
@@ -92,6 +93,22 @@ func TestServer_NewRequiresLogger(t *testing.T) {
 	require.PanicsWithValue(t, "server.New requires Deps.Logger", func() {
 		server.New(server.Deps{Clock: clock.System{}})
 	})
+}
+
+// Composition must fail closed when bootstrap forgets its required logger.
+// This invokes the production composition boundary with deliberately absent
+// optional services, exercising the dependency adaptation before New rejects
+// the invalid root dependency.
+func TestCompose_RejectsMissingRootLogger(t *testing.T) {
+	require.Panics(t, func() {
+		server.Compose(server.CompositionDeps{})
+	})
+}
+
+func TestReportToProto_MapsTransportBoundary(t *testing.T) {
+	report := server.ReportToProto(inteval.EvalReport{})
+	require.NotNil(t, report)
+	require.NotNil(t, report.Summary)
 }
 
 func newTestDeps() server.Deps {

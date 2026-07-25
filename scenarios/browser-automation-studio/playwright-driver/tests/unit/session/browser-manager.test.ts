@@ -32,7 +32,8 @@ jest.mock('../../../src/utils', () => ({
 
 import { chromium } from 'rebrowser-playwright';
 import type { Browser, BrowserContext, Page } from 'rebrowser-playwright';
-import { BrowserManager, createBrowserManager } from '../../../src/session/browser-manager';
+import { BrowserManager, createBrowserManager, getBrowserPoolKey } from '../../../src/session/browser-manager';
+import { getAudioLaunchArgs } from '../../../src/session/audio';
 import type { Config } from '../../../src/config';
 
 // Helper to create mock browser
@@ -387,6 +388,28 @@ describe('BrowserManager', () => {
       mockBrowser.isConnected.mockReturnValue(false);
       expect(manager.isConnected()).toBe(false);
     });
+  });
+});
+
+describe('getBrowserPoolKey', () => {
+  it('separates audio strategies for one fake microphone WAV', () => {
+    expect(getBrowserPoolKey('/tmp/input.wav', 'host_device'))
+      .not.toBe(getBrowserPoolKey('/tmp/input.wav', 'synthetic_sink'));
+  });
+
+  it('separates host and synthetic strategies without fake media', () => {
+    expect(getBrowserPoolKey('', 'host_device'))
+      .not.toBe(getBrowserPoolKey('', 'synthetic_sink'));
+  });
+});
+
+describe('getAudioLaunchArgs', () => {
+  it('enables the muted AudioContext API only for the synthetic pool', () => {
+    expect(getAudioLaunchArgs('host_device')).toEqual([]);
+    expect(getAudioLaunchArgs('synthetic_sink')).toEqual(expect.arrayContaining([
+      '--enable-blink-features=AudioContextSetSinkId',
+      '--enable-features=AudioContextSetSinkId',
+    ]));
   });
 });
 

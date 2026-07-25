@@ -292,7 +292,7 @@ rg -n 'log\.Default\(\)' . -g '!*_test.go' -g '!internal/bootstrap/**' -g '!inte
 rg -n 'time\.Now\(\)' handlers/ -g '!*_test.go'
 
 # L4 — coverage floors per package (now under -race)
-bash scripts/check_coverage.sh
+go test -run TestCoverageFloors -count=1 .
 
 # L5 — seam registry / docs cross-reference
 go test ./internal/testutil/ -run TestSeamRegistry -count=1

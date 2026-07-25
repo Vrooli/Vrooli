@@ -91,12 +91,14 @@ func ScanResourceConsumers(fsys fs.FS, resource, exclude string) ([]Consumer, er
 // no scenarios directory can be located — the caller treats the consumer list
 // as unknown (the informed prompt still works, just without the list).
 func ScenariosFS() (fsys fs.FS, root string, ok bool) {
-	if dir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIOS_DIR")); dir != "" {
+	if raw, configured := os.LookupEnv("VROOLI_SCENARIOS_DIR"); configured && strings.TrimSpace(raw) != "" {
+		dir := strings.TrimSpace(raw)
 		if isDir(dir) {
 			return os.DirFS(dir), dir, true
 		}
 	}
-	if scenarioDir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR")); scenarioDir != "" {
+	if raw, configured := os.LookupEnv("VROOLI_SCENARIO_DIR"); configured && strings.TrimSpace(raw) != "" {
+		scenarioDir := strings.TrimSpace(raw)
 		parent := filepath.Dir(filepath.Clean(scenarioDir))
 		if isDir(parent) {
 			return os.DirFS(parent), parent, true

@@ -86,6 +86,16 @@ func (a *DeepgramSTT) TranscribeStreaming(ctx context.Context, key string, start
 	}
 
 	events := make(chan sttchain.StreamEvent, 16)
+	streamDone := make(chan struct{})
+	// ReadMessage cannot observe ctx directly. Closing the connection is the
+	// gorilla-websocket cancellation mechanism and releases both pumps.
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+		case <-streamDone:
+		}
+	}()
 	// Pump chunks → vendor WS as binary frames.
 	go func() {
 		defer func() {
@@ -106,7 +116,8 @@ func (a *DeepgramSTT) TranscribeStreaming(ctx context.Context, key string, start
 		}
 	}()
 	// Reader: vendor WS → events channel.
-	go func() {
+	go func(done <-chan struct{}) {
+		defer close(streamDone)
 		defer close(events)
 		defer conn.Close()
 		var finalText string
@@ -150,7 +161,7 @@ func (a *DeepgramSTT) TranscribeStreaming(ctx context.Context, key string, start
 				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: text}}
 			}
 		}
-	}()
+	}(streamDone)
 	return events, nil
 }
 

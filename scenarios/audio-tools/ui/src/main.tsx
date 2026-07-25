@@ -6,6 +6,10 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { API_BASE } from "./api/base";
 import { AudioToolsProvider, createAudioToolsClient } from "./audio-integration";
+import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { onProfilerRender } from "./lib/profiler";
+import "./i18n";
 import "./styles.css";
 
 // INTEROP-CRITICAL: only init the iframe bridge when actually embedded.
@@ -18,6 +22,14 @@ if (typeof window !== "undefined" && window.parent !== window) {
 // INTEROP-CRITICAL: spatial-nav must init in both embedded and standalone
 // modes so gamepad navigation works in the dev UI too.
 initSpatialNav();
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((error: unknown) => {
+      console.warn("Service worker registration failed", error);
+    });
+  });
+}
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next
@@ -39,14 +51,7 @@ const appRoot = rootEl;
 
 const queryClient = new QueryClient();
 
-async function bootstrap() {
-  const [{ default: App }, { ErrorBoundary }, { onProfilerRender }] = await Promise.all([
-    import("./App"),
-    import("./components/ErrorBoundary"),
-    import("./lib/profiler"),
-    import("./i18n"),
-  ]);
-
+function bootstrap() {
   ReactDOM.createRoot(appRoot).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>

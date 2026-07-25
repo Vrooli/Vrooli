@@ -112,6 +112,8 @@ export interface VoiceInputState {
   voiceActivity: VoiceActivitySnapshot;
   /** Transient notice shown when falling back to a different backend. */
   fallbackNotice: string | null;
+  /** Per-stream buffered-mode notice. This is not provider health. */
+  streamingDegradationNotice: string | null;
   /** Partial transcript from streaming transcription. */
   partialTranscript: string;
   /** Active voice mode for the current session. */

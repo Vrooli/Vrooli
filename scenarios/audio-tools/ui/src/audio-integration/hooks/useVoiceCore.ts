@@ -65,6 +65,7 @@ const INITIAL_STATE: VoiceInputState = {
   audioLevel: 0,
   voiceActivity: IDLE_VOICE_ACTIVITY,
   fallbackNotice: null,
+  streamingDegradationNotice: null,
   partialTranscript: "",
   voiceMode: "one-shot",
   segments: [],
@@ -149,6 +150,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const voiceLanguageRef = useRef(voiceLanguage);
   voiceLanguageRef.current = voiceLanguage;
   const [state, setState] = useState<VoiceInputState>(INITIAL_STATE);
+  // A degraded stream remains visible after its terminal result. The next
+  // clean completion clears it; service health must not decide this state.
+  const streamDegradedThisTurnRef = useRef(false);
 
   // Derived booleans for backward compatibility with UI components
   const isRecording = state.voiceState === "recording";
@@ -753,6 +757,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   }, [voiceEnabled]);
 
   const startRecording = useCallback(async (startOpts?: StartRecordingOpts) => {
+	streamDegradedThisTurnRef.current = false;
     if (state.voiceState !== "idle" || startingRef.current) return;
     startingRef.current = true;
     stopRequestedRef.current = false;
@@ -928,6 +933,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           voiceActivity: IDLE_VOICE_ACTIVITY,
           partialTranscript: "",
           segments: [],
+		  streamingDegradationNotice: streamDegradedThisTurnRef.current ? s.streamingDegradationNotice : null,
         }));
         // Turn ended — surface any pending rejection as a persistent banner.
         // At this point the streaming provider has already snapshotted its
@@ -1008,6 +1014,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       }
       if (provider.onStatus !== undefined) {
         provider.onStatus = ({ code, message }) => {
+		  if (code === "backend_degraded") {
+			streamDegradedThisTurnRef.current = true;
+			setState((s) => ({ ...s, streamingDegradationNotice: message || "Streaming degraded — buffered mode is active for this transcription." }));
+			return;
+		  }
           if (code === "stream_connected") {
             setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
             return;

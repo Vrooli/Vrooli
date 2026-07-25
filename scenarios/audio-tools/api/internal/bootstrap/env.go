@@ -31,6 +31,21 @@ func Or(key, def string) string {
 	return def
 }
 
+// Optional returns a trimmed optional environment value. The boolean is
+// intentionally discarded because callers use an empty value as "not
+// configured" rather than treating it as a startup failure.
+func Optional(key string) string {
+	v, _ := os.LookupEnv(key)
+	return strings.TrimSpace(v)
+}
+
+// ResourceURL lets scenario-specific overrides win while keeping the resource
+// runtime's configured endpoint authoritative. Resource URLs are injected by
+// the control plane, so this package does not duplicate local host defaults.
+func ResourceURL(overrideKey, resourceKey string) string {
+	return Or(overrideKey, Optional(resourceKey))
+}
+
 // Duration parses a time.Duration env var, falling back to def on
 // empty or parse error.
 func Duration(key string, def time.Duration) time.Duration {
@@ -66,31 +81,31 @@ type Env struct {
 	EnableBYOK   bool
 	EnableVrooli bool
 	EnableLocal  bool
-	DBKeyPath  string
-	SqlitePath string
-	SqliteDB   string
+	DBKeyPath    string
+	SqlitePath   string
+	SqliteDB     string
 }
 
 // Load reads all audio-tools env vars at process start. No side effects.
 func Load() Env {
 	return Env{
-		WhisperURL:             Or("AUDIO_WHISPER_URL", "http://localhost:8090"),
-		KyutaiURL:              Or("AUDIO_KYUTAI_URL", "http://localhost:8094"),
-		SpeakerURL:             Or("AUDIO_SPEAKER_URL", "http://localhost:11452"),
-		KokoroURL:              Or("AUDIO_KOKORO_URL", "http://localhost:8880"),
-		OllamaURL:              Or("AUDIO_OLLAMA_URL", "http://localhost:11434"),
-		OpenRouterURL:          Or("AUDIO_OPENROUTER_URL", "https://openrouter.ai"),
-		OpenRouterAPIKey:       strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")),
-		LPBSBaseURL:            Or("AUDIO_LPBS_BASE_URL", ""),
-		LPBSAppBundleKey:       Or("AUDIO_LPBS_APP_BUNDLE_KEY", ""),
-		SummarizeDefaultModel:  intsumm.CoerceUnsafeStoredModel(Or("AUDIO_SUMMARIZE_DEFAULT_MODEL", intsumm.DefaultSummarizeModel), nil).Model,
-		AvailTTLBYOK:           Duration("AUDIO_AVAIL_TTL_BYOK", 5*time.Minute),
-		AvailTTLVrooli:         Duration("AUDIO_AVAIL_TTL_VROOLI", 30*time.Second),
-		EnableBYOK:             Bool("AUDIO_AI_ENABLE_BYOK", true),
-		EnableVrooli:           Bool("AUDIO_AI_ENABLE_VROOLI", false),
-		EnableLocal:            Bool("AUDIO_AI_ENABLE_LOCAL", true),
-		DBKeyPath:              Or("AUDIO_TOOLS_DB_KEY_PATH", ""),
-		SqlitePath:             strings.TrimSpace(os.Getenv("SQLITE_PATH")),
-		SqliteDB:               strings.TrimSpace(os.Getenv("SQLITE_DB")),
+		WhisperURL:            ResourceURL("AUDIO_WHISPER_URL", "WHISPER_URL"),
+		KyutaiURL:             ResourceURL("AUDIO_KYUTAI_URL", "KYUTAI_URL"),
+		SpeakerURL:            ResourceURL("AUDIO_SPEAKER_URL", "SPEAKER_URL"),
+		KokoroURL:             ResourceURL("AUDIO_KOKORO_URL", "KOKORO_URL"),
+		OllamaURL:             ResourceURL("AUDIO_OLLAMA_URL", "OLLAMA_URL"),
+		OpenRouterURL:         Or("AUDIO_OPENROUTER_URL", "https://openrouter.ai"),
+		OpenRouterAPIKey:      Optional("OPENROUTER_API_KEY"),
+		LPBSBaseURL:           Or("AUDIO_LPBS_BASE_URL", ""),
+		LPBSAppBundleKey:      Or("AUDIO_LPBS_APP_BUNDLE_KEY", ""),
+		SummarizeDefaultModel: intsumm.CoerceUnsafeStoredModel(Or("AUDIO_SUMMARIZE_DEFAULT_MODEL", intsumm.DefaultSummarizeModel), nil).Model,
+		AvailTTLBYOK:          Duration("AUDIO_AVAIL_TTL_BYOK", 5*time.Minute),
+		AvailTTLVrooli:        Duration("AUDIO_AVAIL_TTL_VROOLI", 30*time.Second),
+		EnableBYOK:            Bool("AUDIO_AI_ENABLE_BYOK", true),
+		EnableVrooli:          Bool("AUDIO_AI_ENABLE_VROOLI", false),
+		EnableLocal:           Bool("AUDIO_AI_ENABLE_LOCAL", true),
+		DBKeyPath:             Or("AUDIO_TOOLS_DB_KEY_PATH", ""),
+		SqlitePath:            Optional("SQLITE_PATH"),
+		SqliteDB:              Optional("SQLITE_DB"),
 	}
 }

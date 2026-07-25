@@ -89,8 +89,16 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 		return summCfg.Model
 	}}
 	openRouterChecker := &capabilities.OpenRouterChecker{APIKey: env.OpenRouterAPIKey, BaseURL: env.OpenRouterURL, Doer: doer}
+	defs := append([]capabilities.Def(nil), capabilities.Known...)
+	platforms := capabilities.NewResourcePlatformResolver(capabilities.ResourcesFS(), "")
+	for i := range defs {
+		if defs[i].DependencyKind == capabilities.DependencyResource {
+			defs[i].Platform = platforms.Resolve(defs[i].DependencySlug)
+		}
+	}
 	capsCheckers := map[string]capabilities.Checker{
 		"whisper-stt":          whisperChecker,
+		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: doer},
 		"kokoro-tts":           kokoroChecker,
 		"speaker-verification": speakerChecker,
 		"ollama":               ollamaChecker,
@@ -99,9 +107,10 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 			whisperChecker, speakerChecker, kokoroChecker, ollamaChecker,
 		}},
 	}
-	capsRegistry := capabilities.NewRegistry(capabilities.Known, capsCheckers, 30*time.Second)
+	capsRegistry := capabilities.NewRegistry(defs, capsCheckers, 30*time.Second)
 	capsRegistry.SetLivenessCheckers(map[string]capabilities.Checker{
 		"whisper-stt":          &capabilities.ResourceChecker{URL: env.WhisperURL + "/", Doer: livenessDoer},
+		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: livenessDoer},
 		"kokoro-tts":           &capabilities.ResourceChecker{URL: env.KokoroURL + "/v1/audio/voices", Doer: livenessDoer},
 		"speaker-verification": &capabilities.ResourceChecker{URL: env.SpeakerURL + "/ready", Doer: livenessDoer},
 		"ollama":               &capabilities.ResourceChecker{URL: env.OllamaURL + "/api/tags", Doer: livenessDoer},

@@ -17,8 +17,8 @@ The generated scaffold is intentionally not the product. Treat every
 generated UI surface as placeholder unless it is explicitly listed as
 durable infrastructure below. In particular:
 
-- The `notes` domain is a worked example. Build one real domain beside
-  it, prove that domain is green, then remove the example.
+- The generated reference domain is illustrative only. Build and prove
+  the real audio domain instead of retaining example-domain assumptions.
 - The `AppShell` layout, the centered single-panel home page, the title
   / description / eyebrow text, and the bare-minimum settings surface
   are placeholders. They exist so the template boots green; they are
@@ -33,8 +33,8 @@ durable infrastructure below. In particular:
   behaviors just because you delete the visual placeholder.
 
 Binding contract vs. illustrative example: every reference doc this
-scenario ships with — `DESIGN.md`, `PRD.md`, the placeholder shell,
-and the `notes` example — mixes two kinds of guidance. Tokens, motion,
+scenario ships with — `DESIGN.md`, `PRD.md`, and the placeholder shell —
+mixes two kinds of guidance. Tokens, motion,
 status-color semantics, accessibility floors, i18n, and the
 domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
 Specific lists of components, settings, page surfaces, or copy
@@ -207,8 +207,8 @@ it exists, and which files it will touch before writing code.
       in `PRD.md` during the charter gate and in
       `docs/concepts/INTEGRATIONS.md` before editing
       `.vrooli/service.json`.
-- [ ] Confirm no dependency is added only because the example `notes`
-      domain happens to use a local SQLite store.
+- [ ] Confirm every dependency is justified by an audio-tools domain
+      rather than by generated scaffold behavior.
 
 **Exit criteria:** `.vrooli/service.json` reflects only dependencies
 the real scenario needs.
@@ -289,7 +289,7 @@ deferred, or explicitly not-applicable for a reason.
 
 ### Gate 6 — First Real Vertical Slice
 
-- [ ] Add the first real domain beside the example `notes` domain.
+- [ ] Add the first real audio-tools domain.
 - [ ] **Start in proto.** Author `packages/proto/schemas/audio-tools/v1/<domain>/<domain>.proto`
       with a `service` block FIRST, run `make generate`, then write
       handlers/CLI/UI against the generated `*Procedure` constants and
@@ -388,5 +388,4 @@ For a normal proto-backed CRUD domain:
 8. Run string/code generation as needed, then run `make test`.
 
 If the domain needs opaque binary uploads, keep bytes on a REST
-multipart edge and keep metadata proto-typed. The example `notes`
-attachments path demonstrates that exception.
+multipart edge and keep metadata proto-typed.

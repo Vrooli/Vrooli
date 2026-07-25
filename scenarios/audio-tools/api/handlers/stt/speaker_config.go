@@ -24,11 +24,11 @@ import (
 
 // loadPersistedSpeakerCfg hydrates the in-process speaker-config cell from the
 // persisted row. Best-effort: a missing or corrupt row leaves the defaults.
-func loadPersistedSpeakerCfg(ctx context.Context, repo SpeakerConfigRepository, log logx.Logger) {
+func loadPersistedSpeakerCfg(ctx context.Context, repo SpeakerConfigRepository, logger logx.Logger) {
 	raw, ok, err := repo.Get(ctx)
 	if err != nil {
-		if log != nil {
-			log.Printf("speaker-config: load failed, using defaults: %v", err)
+		if logger != nil {
+			logger.Printf("speaker-config: load failed, using defaults: %v", err)
 		}
 		return
 	}
@@ -37,8 +37,8 @@ func loadPersistedSpeakerCfg(ctx context.Context, repo SpeakerConfigRepository, 
 	}
 	var d speakerCfgDoc
 	if err := json.Unmarshal([]byte(raw), &d); err != nil {
-		if log != nil {
-			log.Printf("speaker-config: corrupt persisted config, using defaults: %v", err)
+		if logger != nil {
+			logger.Printf("speaker-config: corrupt persisted config, using defaults: %v", err)
 		}
 		return
 	}

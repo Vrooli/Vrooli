@@ -8,7 +8,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
-	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
 	settconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings/settings_v1connect"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -64,7 +64,7 @@ func (h *handlers) providers(ctx cliapp.RunContext) error {
 	fmt.Fprintln(out, "TTS availability")
 	for _, a := range status.Msg.GetStatus().GetAvailability() {
 		state := "down"
-		if a.GetState() == healthstatusv1.State_STATE_AVAILABLE {
+		if a.GetState() == sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE {
 			state = "up"
 		}
 		fmt.Fprintf(out, "  %-7s %-12s %s\n", providerTierLabel(a.GetTier()), a.GetProviderId(), state)

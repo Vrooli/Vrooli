@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 import { Capability } from "@vrooli/proto-types/audio-tools/v1/diagnostics/diagnostics_pb";
-import { State, type CapabilityHealth } from "@vrooli/proto-types/audio-tools/v1/health_status/health_status_pb";
+import { type CapabilityHealth } from "@vrooli/proto-types/audio-tools/v1/health_status/health_status_pb";
+import { ProviderState } from "@vrooli/proto-types/audio-tools/v1/shared/shared_pb";
 import { ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 
 import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
@@ -12,7 +13,7 @@ function makeCap(overrides: Partial<CapabilityHealth> = {}): CapabilityHealth {
   return {
     $typeName: "audio_tools.v1.health_status.CapabilityHealth",
     capability: Capability.STT,
-    effectiveState: State.AVAILABLE,
+    effectiveState: ProviderState.AVAILABLE,
     providers: [],
     ...overrides,
   } as unknown as CapabilityHealth;
@@ -28,7 +29,7 @@ describe("CapabilityRow", () => {
       <CapabilityRow
         capability={makeCap({
           capability: Capability.SUMMARIZE,
-          effectiveState: State.AVAILABLE,
+          effectiveState: ProviderState.AVAILABLE,
           providers: [],
         })}
       />,
@@ -46,14 +47,14 @@ describe("CapabilityRow", () => {
     render(
       <CapabilityRow
         capability={makeCap({
-          effectiveState: State.UNAVAILABLE,
+          effectiveState: ProviderState.UNAVAILABLE,
           providers: [
             {
               $typeName: "audio_tools.v1.health_status.ProviderHealth",
               capability: Capability.STT,
               tier: ProviderTier.LOCAL,
               providerId: "whisper-stt",
-              state: State.UNAVAILABLE,
+              state: ProviderState.UNAVAILABLE,
               lastCheckedAt: "2026-05-17T00:00:00Z",
               errorMessage: "whisper down",
               // proto-message field defaults
@@ -73,8 +74,8 @@ describe("CapabilityRow", () => {
       <CapabilityRow
         capability={makeCap({
           providers: [
-            { $typeName: "audio_tools.v1.health_status.ProviderHealth", capability: Capability.STT, tier: ProviderTier.LOCAL, providerId: "p1", state: State.AVAILABLE, lastCheckedAt: "", errorMessage: "" } as never,
-            { $typeName: "audio_tools.v1.health_status.ProviderHealth", capability: Capability.STT, tier: ProviderTier.LOCAL, providerId: "p2", state: State.AVAILABLE, lastCheckedAt: "", errorMessage: "" } as never,
+            { $typeName: "vrooli.audio_tools.v1.shared.ProviderHealth", capability: Capability.STT, tier: ProviderTier.LOCAL, providerId: "p1", state: ProviderState.AVAILABLE, lastCheckedAt: "", errorMessage: "" } as never,
+            { $typeName: "vrooli.audio_tools.v1.shared.ProviderHealth", capability: Capability.STT, tier: ProviderTier.LOCAL, providerId: "p2", state: ProviderState.AVAILABLE, lastCheckedAt: "", errorMessage: "" } as never,
           ],
         })}
         renderProviderActions={(id) => <button type="button">act-{id}</button>}

@@ -6,8 +6,8 @@ import { Toaster } from "./components/ui/toast";
 import { PreferencesProvider } from "./hooks/usePreferences";
 import { useTranslation } from "./i18n";
 import { strings } from "./consts/strings";
+import { OverviewPage } from "./features/overview/OverviewPage";
 
-const OverviewPage = lazy(() => import("./features/overview/OverviewPage").then((m) => ({ default: m.OverviewPage })));
 const DiagnosticsPage = lazy(() => import("./features/diagnostics/DiagnosticsPage").then((m) => ({ default: m.DiagnosticsPage })));
 const StatusPage = lazy(() => import("./features/status/StatusPage").then((m) => ({ default: m.StatusPage })));
 const ConfigurationPage = lazy(() => import("./features/configuration/ConfigurationPage").then((m) => ({ default: m.ConfigurationPage })));
