@@ -239,6 +239,10 @@ type MilestoneRollup struct {
 	Completed     int32                  `protobuf:"varint,3,opt,name=completed,proto3" json:"completed,omitempty"`
 	Ready         int32                  `protobuf:"varint,4,opt,name=ready,proto3" json:"ready,omitempty"`
 	Blocked       int32                  `protobuf:"varint,5,opt,name=blocked,proto3" json:"blocked,omitempty"`
+	// Members the milestone claims that are outside the goal's derived closure.
+	// They are counted in no rollup above, so without this field the discrepancy
+	// is invisible to every operator surface.
+	Orphaned      []string `protobuf:"bytes,6,rep,name=orphaned,proto3" json:"orphaned,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -306,6 +310,13 @@ func (x *MilestoneRollup) GetBlocked() int32 {
 		return x.Blocked
 	}
 	return 0
+}
+
+func (x *MilestoneRollup) GetOrphaned() []string {
+	if x != nil {
+		return x.Orphaned
+	}
+	return nil
 }
 
 type GoalScope struct {
@@ -431,13 +442,14 @@ const file_swarm_manager_v1_domain_goal_proto_rawDesc = "" +
 	"depends_on\x18\x06 \x03(\tR\tdependsOn\x12$\n" +
 	"\varchived_at\x18\a \x01(\tH\x00R\n" +
 	"archivedAt\x88\x01\x01B\x0e\n" +
-	"\f_archived_at\"\x9c\x01\n" +
+	"\f_archived_at\"\xb8\x01\n" +
 	"\x0fMilestoneRollup\x12%\n" +
 	"\x0emilestone_name\x18\x01 \x01(\tR\rmilestoneName\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x05R\x05total\x12\x1c\n" +
 	"\tcompleted\x18\x03 \x01(\x05R\tcompleted\x12\x14\n" +
 	"\x05ready\x18\x04 \x01(\x05R\x05ready\x12\x18\n" +
-	"\ablocked\x18\x05 \x01(\x05R\ablocked\"\xf0\x01\n" +
+	"\ablocked\x18\x05 \x01(\x05R\ablocked\x12\x1a\n" +
+	"\borphaned\x18\x06 \x03(\tR\borphaned\"\xf0\x01\n" +
 	"\tGoalScope\x12\x18\n" +
 	"\atargets\x18\x01 \x03(\tR\atargets\x12\x18\n" +
 	"\aclosure\x18\x02 \x03(\tR\aclosure\x12\x1c\n" +

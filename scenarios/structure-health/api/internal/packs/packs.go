@@ -181,11 +181,6 @@ var registry = []entry{
 		run: func(c, p, s string) []auditrules.Violation { return hardcodedvalues.CheckHardcodedValues([]byte(c), p) },
 	},
 	{
-		Code: "PROFILE_HARDCODED_VALUES", Name: "No Hardcoded Values",
-		Feed: feedPerFile, Target: scan.TargetTest, Severity: "high",
-		run: func(c, p, s string) []auditrules.Violation { return hardcodedvalues.CheckHardcodedValues([]byte(c), p) },
-	},
-	{
 		Code: "PROFILE_RUNTIME_STORAGE", Name: "No Legacy Runtime Storage Paths",
 		Feed: feedPerFile, Target: scan.TargetAPI, Severity: "high",
 		run: func(c, p, s string) []auditrules.Violation {

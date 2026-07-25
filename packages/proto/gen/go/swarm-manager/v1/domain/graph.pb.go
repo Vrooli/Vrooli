@@ -77,12 +77,15 @@ func (x *GraphPosition) GetY() float64 {
 
 // GraphGoalRollup summarizes the derived backlog state for a goal.
 type GraphGoalRollup struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
-	Completed     int32                  `protobuf:"varint,2,opt,name=completed,proto3" json:"completed,omitempty"`
-	InProgress    int32                  `protobuf:"varint,3,opt,name=in_progress,json=inProgress,proto3" json:"in_progress,omitempty"`
-	Failed        int32                  `protobuf:"varint,4,opt,name=failed,proto3" json:"failed,omitempty"`
-	Pending       int32                  `protobuf:"varint,5,opt,name=pending,proto3" json:"pending,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Total      int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Completed  int32                  `protobuf:"varint,2,opt,name=completed,proto3" json:"completed,omitempty"`
+	InProgress int32                  `protobuf:"varint,3,opt,name=in_progress,json=inProgress,proto3" json:"in_progress,omitempty"`
+	Failed     int32                  `protobuf:"varint,4,opt,name=failed,proto3" json:"failed,omitempty"`
+	Pending    int32                  `protobuf:"varint,5,opt,name=pending,proto3" json:"pending,omitempty"`
+	// Items the operator decided not to do: neither an achievement (completed)
+	// nor outstanding work (pending).
+	Dropped       int32 `protobuf:"varint,6,opt,name=dropped,proto3" json:"dropped,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -152,14 +155,26 @@ func (x *GraphGoalRollup) GetPending() int32 {
 	return 0
 }
 
+func (x *GraphGoalRollup) GetDropped() int32 {
+	if x != nil {
+		return x.Dropped
+	}
+	return 0
+}
+
 // GraphBacklogNodeData describes a backlog item node.
 type GraphBacklogNodeData struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Kind     string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Title    string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Status   string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Priority int32                  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Kind  string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Title string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	// Backlog lifecycle status. Not constrained to an inline allowlist — see the
+	// note on BacklogItem.status in domain/backlog.proto. This list is the reason
+	// for that note: it had drifted from the real vocabulary, omitting
+	// `suggested` and admitting `archived`, which is not a status at all (archival
+	// is the separate archived_at timestamp).
+	Status   string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Priority int32  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
 	// Cross-lens execution status annotation (topology enrichment).
 	ActiveExecutionStatus *string `protobuf:"bytes,6,opt,name=active_execution_status,json=activeExecutionStatus,proto3,oneof" json:"active_execution_status,omitempty"`
 	ActiveExecutionCount  int32   `protobuf:"varint,7,opt,name=active_execution_count,json=activeExecutionCount,proto3" json:"active_execution_count,omitempty"`
@@ -1118,19 +1133,20 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"#swarm-manager/v1/domain/graph.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"+\n" +
 	"\rGraphPosition\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
-	"\x01y\x18\x02 \x01(\x01R\x01y\"\xc5\x01\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\"\xe8\x01\n" +
 	"\x0fGraphGoalRollup\x12\x1d\n" +
 	"\x05total\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x05total\x12%\n" +
 	"\tcompleted\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\tcompleted\x12(\n" +
 	"\vin_progress\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\n" +
 	"inProgress\x12\x1f\n" +
 	"\x06failed\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06failed\x12!\n" +
-	"\apending\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\apending\"\xe2\x03\n" +
+	"\apending\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\apending\x12!\n" +
+	"\adropped\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\adropped\"\xe9\x02\n" +
 	"\x14GraphBacklogNodeData\x12>\n" +
 	"\x04kind\x18\x01 \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
-	"\x05title\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12\x97\x01\n" +
-	"\x06status\x18\x04 \x01(\tB\x7f\xbaH|rzR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tin_reviewR\x0ereview_pendingR\tcompletedR\x06failedR\x0eneeds_followupR\barchivedR\x06status\x12%\n" +
+	"\x05title\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12\x1f\n" +
+	"\x06status\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06status\x12%\n" +
 	"\bpriority\x18\x05 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01R\bpriority\x12;\n" +
 	"\x17active_execution_status\x18\x06 \x01(\tH\x00R\x15activeExecutionStatus\x88\x01\x01\x124\n" +

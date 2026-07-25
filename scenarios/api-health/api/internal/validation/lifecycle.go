@@ -181,7 +181,10 @@ func validateServerRunner(_ *Target, file *ast.File, fset *token.FileSet, mainPa
 		}
 		return true
 	})
-	if directLine != 0 {
+	// StartServer is the sanctioned api-core extension point. A callback may
+	// legitimately call ListenAndServe (for example to configure h2c), so the
+	// intent to use server.Run must win over an implementation detail inside it.
+	if !usesServerRun && directLine != 0 {
 		return lifecycleFinding(CodeServerRunnerMissing, "Direct ListenAndServe bypasses api-core server", mainPath, directLine, "API entrypoint starts an HTTP server directly instead of using api-core/server.Run", "use github.com/vrooli/api-core/server.Run so shutdown, signals, and cleanup are consistent")
 	}
 	if len(serverAliases) > 0 && !usesServerRun {

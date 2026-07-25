@@ -119,3 +119,21 @@ func TestExistingCredentialCasesStillFire(t *testing.T) {
 		t.Errorf("Hardcoded Api Key count = %d, want 1 (violations: %+v)", n, got)
 	}
 }
+
+func TestHardcodedIPRejectsVersionsAndTestFiles(t *testing.T) {
+	if got := CheckHardcodedValues([]byte(`const ua = "Chrome/120.0.0.0"`), "ui/shared.test.ts"); countByTitle(got, "Hardcoded Ip") != 0 {
+		t.Fatalf("test browser version produced violations: %+v", got)
+	}
+	if got := CheckHardcodedValues([]byte(`const ip = "10.0.0.1"`), "api/config.go"); countByTitle(got, "Hardcoded Ip") != 1 {
+		t.Fatalf("valid dotted quad must remain detectable: %+v", got)
+	}
+	if got := CheckHardcodedValues([]byte(`const version = "1.2.3.4"`), "api/version.go"); countByTitle(got, "Hardcoded Ip") != 0 {
+		t.Fatalf("semantic version produced violations: %+v", got)
+	}
+}
+
+func TestHardcodedURLAllowsJSONSchemaIdentifier(t *testing.T) {
+	if got := CheckHardcodedValues([]byte(`"$schema": "https://json-schema.org/draft/2020-12/schema"`), "ui/schema.json"); countByTitle(got, "Hardcoded Url") != 0 {
+		t.Fatalf("schema identifier produced violations: %+v", got)
+	}
+}

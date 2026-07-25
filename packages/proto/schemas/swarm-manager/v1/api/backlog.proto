@@ -117,22 +117,12 @@ message UpdateBacklogItemRequest {
   optional string description = 2;
 
   // Lifecycle status.
-  // @constraint one of: suggested, backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
-  optional string status = 3 [(buf.validate.field).string = {
-    in: [
-      "suggested",
-      "backlog",
-      "researching",
-      "ready",
-      "queued",
-      "in_progress",
-      "in_review",
-      "review_pending",
-      "completed",
-      "failed",
-      "needs_followup"
-    ]
-  }];
+  //
+  // Not constrained to an inline allowlist — see the note on
+  // BacklogItem.status in domain/backlog.proto. The server's status table is
+  // the single source of truth and rejects unknown values, including the
+  // narrower rule that most statuses are not settable by a client at all.
+  optional string status = 3 [(buf.validate.field).string.min_len = 1];
 
   // Priority level (1-10).
   optional int32 priority = 4 [(buf.validate.field).int32 = {

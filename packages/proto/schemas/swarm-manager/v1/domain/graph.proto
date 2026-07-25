@@ -37,6 +37,9 @@ message GraphGoalRollup {
   int32 in_progress = 3 [(buf.validate.field).int32.gte = 0];
   int32 failed = 4 [(buf.validate.field).int32.gte = 0];
   int32 pending = 5 [(buf.validate.field).int32.gte = 0];
+  // Items the operator decided not to do: neither an achievement (completed)
+  // nor outstanding work (pending).
+  int32 dropped = 6 [(buf.validate.field).int32.gte = 0];
 }
 
 // GraphBacklogNodeData describes a backlog item node.
@@ -52,21 +55,12 @@ message GraphBacklogNodeData {
   }];
   string name = 2 [(buf.validate.field).string.min_len = 1];
   string title = 3 [(buf.validate.field).string.min_len = 1];
-  string status = 4 [(buf.validate.field).string = {
-    in: [
-      "backlog",
-      "researching",
-      "ready",
-      "queued",
-      "in_progress",
-      "in_review",
-      "review_pending",
-      "completed",
-      "failed",
-      "needs_followup",
-      "archived"
-    ]
-  }];
+  // Backlog lifecycle status. Not constrained to an inline allowlist — see the
+  // note on BacklogItem.status in domain/backlog.proto. This list is the reason
+  // for that note: it had drifted from the real vocabulary, omitting
+  // `suggested` and admitting `archived`, which is not a status at all (archival
+  // is the separate archived_at timestamp).
+  string status = 4 [(buf.validate.field).string.min_len = 1];
   int32 priority = 5 [(buf.validate.field).int32 = {
     gte: 1
     lte: 10

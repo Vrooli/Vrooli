@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"structure-health/internal/packs/filekind"
 )
 
 /*
@@ -583,11 +585,7 @@ func shouldScanPortUsageFile(path string) bool {
 
 func isRuntimePortUsageFile(relativePath string) bool {
 	lower := strings.ToLower(relativePath)
-	if strings.HasPrefix(lower, "test/") || strings.HasPrefix(lower, "tests/") ||
-		strings.HasPrefix(lower, "docs/") || strings.Contains(lower, "/testdata/") ||
-		strings.Contains(lower, "/__tests__/") || strings.Contains(lower, ".test.") ||
-		strings.Contains(lower, ".spec.") || strings.HasSuffix(lower, "_test.go") ||
-		strings.HasSuffix(lower, ".md") {
+	if filekind.IsTestSupportFile(lower) || strings.HasSuffix(lower, ".md") {
 		return false
 	}
 	return strings.HasPrefix(lower, "api/") || strings.HasPrefix(lower, "cli/") ||

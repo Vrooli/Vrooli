@@ -259,7 +259,7 @@ func routeFromCall(call *ast.CallExpr, fset *token.FileSet, filePath string, met
 }
 
 func classifyRoute(path string, meta endpointMetadata) string {
-	if meta.RestException || meta.Category == "system" || path == "/health" || path == "/metrics" || path == "/ready" || path == "/live" {
+	if meta.RestException || meta.Category == "system" || path == "/" || strings.HasPrefix(path, "/debug/pprof/") || path == "/health" || path == "/metrics" || path == "/ready" || path == "/live" {
 		return "ops_probe"
 	}
 	if strings.Contains(path, ".") && strings.Contains(path, "/") {
@@ -437,7 +437,7 @@ func collectFunctionContentTypes(fn *ast.FuncDecl, writers map[string]bool) map[
 }
 
 func rawStatusFinding(call *ast.CallExpr, fset *token.FileSet, filePath string) *Finding {
-	idx := -1
+	var idx int
 	switch {
 	case selectorMethod(call.Fun, "WriteHeader"):
 		idx = 0
@@ -448,7 +448,7 @@ func rawStatusFinding(call *ast.CallExpr, fset *token.FileSet, filePath string) 
 	default:
 		return nil
 	}
-	if idx < 0 || idx >= len(call.Args) {
+	if idx >= len(call.Args) {
 		return nil
 	}
 	lit, ok := call.Args[idx].(*ast.BasicLit)

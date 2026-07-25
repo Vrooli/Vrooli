@@ -14,7 +14,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 //
 // @layer 5  (api surface)
 // @domain experiment
-// @stability experimental
+// @stability stable
 //
 // Long-running operation surface for Dictation Studio's STT experiment lab.
 // StartExperiment persists a reproducible recipe and returns immediately; the

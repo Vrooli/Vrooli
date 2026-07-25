@@ -443,6 +443,16 @@ func TestCheckHandshakeFails(t *testing.T) {
 	}
 }
 
+func TestCheckNamesBASExecutionFailure(t *testing.T) {
+	bas := &fakeBAS{res: &runResult{loaded: true, executionID: "exec-42", executionError: "navigation required before step", handshakeSignaled: false}}
+	r := newRunner("http://localhost:5173", nil, bas)
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	finding, found := findingForCode(finds, "runtime_bas_execution_failed")
+	if !found || !strings.Contains(finding.Message, "exec-42") || !strings.Contains(finding.Message, "navigation required") {
+		t.Fatalf("BAS failure finding must name execution and cause, got %#v", finds)
+	}
+}
+
 func TestCheckConsoleErrorsSurfaceAsWarningAlongsidePass(t *testing.T) {
 	bas := &fakeBAS{run: func(_ context.Context, definition map[string]any) (*runResult, error) {
 		width, height := viewportFromDef(definition)

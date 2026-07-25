@@ -3,7 +3,7 @@ syntax = "proto3";
 package vrooli.audio_tools.v1.tts;
 
 import "audio-tools/v1/common/common.proto";
-import "audio-tools/v1/health_status/health_status.proto";
+import "audio-tools/v1/shared/shared.proto";
 import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 
@@ -221,13 +221,13 @@ message UpdateConfigResponse {
 
 // Status is the TTS-domain snapshot of "what the chain looks like right
 // now". The per-provider availability list is modeled as a slice of
-// health_status.ProviderHealth so the shape is identical to the canonical
+// shared.ProviderHealth so the shape is identical to the canonical
 // HealthStatusService surface — consumers that already render
 // ProviderHealth can reuse the same code. The capability field on each
 // ProviderHealth is always CAPABILITY_TTS here.
 message Status {
   Config config = 1;
-  repeated vrooli.audio_tools.v1.health_status.ProviderHealth availability = 2;
+  repeated vrooli.audio_tools.v1.shared.ProviderHealth availability = 2;
   string capability = 3;
   string capability_label = 4;
 }

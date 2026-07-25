@@ -24,9 +24,10 @@ _sym_db = _symbol_database.Default()
 
 from audio_tools.v1.common import common_pb2 as audio__tools_dot_v1_dot_common_dot_common__pb2
 from audio_tools.v1.diagnostics import diagnostics_pb2 as audio__tools_dot_v1_dot_diagnostics_dot_diagnostics__pb2
+from audio_tools.v1.shared import shared_pb2 as audio__tools_dot_v1_dot_shared_dot_shared__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n0audio-tools/v1/health_status/health_status.proto\x12#vrooli.audio_tools.v1.health_status\x1a\"audio-tools/v1/common/common.proto\x1a,audio-tools/v1/diagnostics/diagnostics.proto\"\xa7\x03\n\x0eProviderHealth\x12M\n\ncapability\x18\x01 \x01(\x0e\x32-.vrooli.audio_tools.v1.diagnostics.CapabilityR\ncapability\x12>\n\x04tier\x18\x02 \x01(\x0e\x32*.vrooli.audio_tools.v1.common.ProviderTierR\x04tier\x12\x1f\n\x0bprovider_id\x18\x03 \x01(\tR\nproviderId\x12@\n\x05state\x18\x04 \x01(\x0e\x32*.vrooli.audio_tools.v1.health_status.StateR\x05state\x12&\n\x0flast_checked_at\x18\x05 \x01(\tR\rlastCheckedAt\x12\x1d\n\nlatency_ms\x18\x06 \x01(\x01R\tlatencyMs\x12\x1d\n\nerror_code\x18\x07 \x01(\tR\terrorCode\x12#\n\rerror_message\x18\x08 \x01(\tR\x0c\x65rrorMessage\x12\x18\n\x07serving\x18\t \x01(\x08R\x07serving\"\x89\x02\n\x10\x43\x61pabilityHealth\x12M\n\ncapability\x18\x01 \x01(\x0e\x32-.vrooli.audio_tools.v1.diagnostics.CapabilityR\ncapability\x12Q\n\tproviders\x18\x02 \x03(\x0b\x32\x33.vrooli.audio_tools.v1.health_status.ProviderHealthR\tproviders\x12S\n\x0f\x65\x66\x66\x65\x63tive_state\x18\x03 \x01(\x0e\x32*.vrooli.audio_tools.v1.health_status.StateR\x0e\x65\x66\x66\x65\x63tiveState\"\x1a\n\x18GetProviderHealthRequest\"\xc5\x01\n\x19GetProviderHealthResponse\x12Y\n\x0c\x63\x61pabilities\x18\x01 \x03(\x0b\x32\x35.vrooli.audio_tools.v1.health_status.CapabilityHealthR\x0c\x63\x61pabilities\x12!\n\x0cgenerated_at\x18\x02 \x01(\tR\x0bgeneratedAt\x12*\n\x11\x63\x61\x63he_ttl_seconds\x18\x03 \x01(\x05R\x0f\x63\x61\x63heTtlSeconds\"\x1e\n\x1cRefreshProviderHealthRequest\"\xc9\x01\n\x1dRefreshProviderHealthResponse\x12Y\n\x0c\x63\x61pabilities\x18\x01 \x03(\x0b\x32\x35.vrooli.audio_tools.v1.health_status.CapabilityHealthR\x0c\x63\x61pabilities\x12!\n\x0cgenerated_at\x18\x02 \x01(\tR\x0bgeneratedAt\x12*\n\x11\x63\x61\x63he_ttl_seconds\x18\x03 \x01(\x05R\x0f\x63\x61\x63heTtlSeconds\"\x1d\n\x1bStreamProviderHealthRequest\"\x93\x01\n\x13ProviderHealthEvent\x12!\n\x0cgenerated_at\x18\x01 \x01(\tR\x0bgeneratedAt\x12Y\n\x0c\x63\x61pabilities\x18\x02 \x03(\x0b\x32\x35.vrooli.audio_tools.v1.health_status.CapabilityHealthR\x0c\x63\x61pabilities*]\n\x05State\x12\x15\n\x11STATE_UNSPECIFIED\x10\x00\x12\x13\n\x0fSTATE_AVAILABLE\x10\x01\x12\x15\n\x11STATE_UNAVAILABLE\x10\x02\x12\x11\n\rSTATE_UNKNOWN\x10\x03\x32\xe2\x03\n\x13HealthStatusService\x12\x92\x01\n\x11GetProviderHealth\x12=.vrooli.audio_tools.v1.health_status.GetProviderHealthRequest\x1a>.vrooli.audio_tools.v1.health_status.GetProviderHealthResponse\x12\x9e\x01\n\x15RefreshProviderHealth\x12\x41.vrooli.audio_tools.v1.health_status.RefreshProviderHealthRequest\x1a\x42.vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse\x12\x94\x01\n\x14StreamProviderHealth\x12@.vrooli.audio_tools.v1.health_status.StreamProviderHealthRequest\x1a\x38.vrooli.audio_tools.v1.health_status.ProviderHealthEvent0\x01\x42^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status;health_status_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n0audio-tools/v1/health_status/health_status.proto\x12#vrooli.audio_tools.v1.health_status\x1a\"audio-tools/v1/common/common.proto\x1a,audio-tools/v1/diagnostics/diagnostics.proto\x1a\"audio-tools/v1/shared/shared.proto\"\x83\x02\n\x10\x43\x61pabilityHealth\x12M\n\ncapability\x18\x01 \x01(\x0e\x32-.vrooli.audio_tools.v1.diagnostics.CapabilityR\ncapability\x12J\n\tproviders\x18\x02 \x03(\x0b\x32,.vrooli.audio_tools.v1.shared.ProviderHealthR\tproviders\x12T\n\x0f\x65\x66\x66\x65\x63tive_state\x18\x03 \x01(\x0e\x32+.vrooli.audio_tools.v1.shared.ProviderStateR\x0e\x65\x66\x66\x65\x63tiveState\"\x1a\n\x18GetProviderHealthRequest\"\xc5\x01\n\x19GetProviderHealthResponse\x12Y\n\x0c\x63\x61pabilities\x18\x01 \x03(\x0b\x32\x35.vrooli.audio_tools.v1.health_status.CapabilityHealthR\x0c\x63\x61pabilities\x12!\n\x0cgenerated_at\x18\x02 \x01(\tR\x0bgeneratedAt\x12*\n\x11\x63\x61\x63he_ttl_seconds\x18\x03 \x01(\x05R\x0f\x63\x61\x63heTtlSeconds\"\x1e\n\x1cRefreshProviderHealthRequest\"\xc9\x01\n\x1dRefreshProviderHealthResponse\x12Y\n\x0c\x63\x61pabilities\x18\x01 \x03(\x0b\x32\x35.vrooli.audio_tools.v1.health_status.CapabilityHealthR\x0c\x63\x61pabilities\x12!\n\x0cgenerated_at\x18\x02 \x01(\tR\x0bgeneratedAt\x12*\n\x11\x63\x61\x63he_ttl_seconds\x18\x03 \x01(\x05R\x0f\x63\x61\x63heTtlSeconds\"\x1d\n\x1bStreamProviderHealthRequest\"\x93\x01\n\x13ProviderHealthEvent\x12!\n\x0cgenerated_at\x18\x01 \x01(\tR\x0bgeneratedAt\x12Y\n\x0c\x63\x61pabilities\x18\x02 \x03(\x0b\x32\x35.vrooli.audio_tools.v1.health_status.CapabilityHealthR\x0c\x63\x61pabilities2\xe2\x03\n\x13HealthStatusService\x12\x92\x01\n\x11GetProviderHealth\x12=.vrooli.audio_tools.v1.health_status.GetProviderHealthRequest\x1a>.vrooli.audio_tools.v1.health_status.GetProviderHealthResponse\x12\x9e\x01\n\x15RefreshProviderHealth\x12\x41.vrooli.audio_tools.v1.health_status.RefreshProviderHealthRequest\x1a\x42.vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse\x12\x94\x01\n\x14StreamProviderHealth\x12@.vrooli.audio_tools.v1.health_status.StreamProviderHealthRequest\x1a\x38.vrooli.audio_tools.v1.health_status.ProviderHealthEvent0\x01\x42^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status;health_status_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,24 +35,20 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'audio_tools.v1.health_statu
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z\\github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status;health_status_v1'
-  _globals['_STATE']._serialized_start=1510
-  _globals['_STATE']._serialized_end=1603
-  _globals['_PROVIDERHEALTH']._serialized_start=172
-  _globals['_PROVIDERHEALTH']._serialized_end=595
-  _globals['_CAPABILITYHEALTH']._serialized_start=598
-  _globals['_CAPABILITYHEALTH']._serialized_end=863
-  _globals['_GETPROVIDERHEALTHREQUEST']._serialized_start=865
-  _globals['_GETPROVIDERHEALTHREQUEST']._serialized_end=891
-  _globals['_GETPROVIDERHEALTHRESPONSE']._serialized_start=894
-  _globals['_GETPROVIDERHEALTHRESPONSE']._serialized_end=1091
-  _globals['_REFRESHPROVIDERHEALTHREQUEST']._serialized_start=1093
-  _globals['_REFRESHPROVIDERHEALTHREQUEST']._serialized_end=1123
-  _globals['_REFRESHPROVIDERHEALTHRESPONSE']._serialized_start=1126
-  _globals['_REFRESHPROVIDERHEALTHRESPONSE']._serialized_end=1327
-  _globals['_STREAMPROVIDERHEALTHREQUEST']._serialized_start=1329
-  _globals['_STREAMPROVIDERHEALTHREQUEST']._serialized_end=1358
-  _globals['_PROVIDERHEALTHEVENT']._serialized_start=1361
-  _globals['_PROVIDERHEALTHEVENT']._serialized_end=1508
-  _globals['_HEALTHSTATUSSERVICE']._serialized_start=1606
-  _globals['_HEALTHSTATUSSERVICE']._serialized_end=2088
+  _globals['_CAPABILITYHEALTH']._serialized_start=208
+  _globals['_CAPABILITYHEALTH']._serialized_end=467
+  _globals['_GETPROVIDERHEALTHREQUEST']._serialized_start=469
+  _globals['_GETPROVIDERHEALTHREQUEST']._serialized_end=495
+  _globals['_GETPROVIDERHEALTHRESPONSE']._serialized_start=498
+  _globals['_GETPROVIDERHEALTHRESPONSE']._serialized_end=695
+  _globals['_REFRESHPROVIDERHEALTHREQUEST']._serialized_start=697
+  _globals['_REFRESHPROVIDERHEALTHREQUEST']._serialized_end=727
+  _globals['_REFRESHPROVIDERHEALTHRESPONSE']._serialized_start=730
+  _globals['_REFRESHPROVIDERHEALTHRESPONSE']._serialized_end=931
+  _globals['_STREAMPROVIDERHEALTHREQUEST']._serialized_start=933
+  _globals['_STREAMPROVIDERHEALTHREQUEST']._serialized_end=962
+  _globals['_PROVIDERHEALTHEVENT']._serialized_start=965
+  _globals['_PROVIDERHEALTHEVENT']._serialized_end=1112
+  _globals['_HEALTHSTATUSSERVICE']._serialized_start=1115
+  _globals['_HEALTHSTATUSSERVICE']._serialized_end=1597
 # @@protoc_insertion_point(module_scope)

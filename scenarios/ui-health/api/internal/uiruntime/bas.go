@@ -39,6 +39,8 @@ var errBASUnavailable = errors.New("browser-automation-studio unavailable")
 // needs: the handshake assert outcome, a screenshot-present flag, and
 // best-effort console/network observations.
 type runResult struct {
+	executionID       string
+	executionError    string
 	loaded            bool
 	loadError         string
 	handshakeSignaled bool
@@ -132,6 +134,7 @@ func (c *connectRunner) Run(ctx context.Context, def map[string]any) (*runResult
 		return nil, errBASUnavailable
 	}
 	result := readTimeline(tlResp.Msg)
+	result.executionID = execID
 	if png, ref := c.downloadExecutionScreenshot(ctx, ex, baseURL, execID); len(png) > 0 {
 		result.screenshotPNG = png
 		result.screenshotRef = firstNonEmpty(ref, result.screenshotRef)
@@ -285,6 +288,9 @@ func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
 	}
 	handshakeSeen := false
 	for _, e := range tl.GetEntries() {
+		if r.executionError == "" && strings.TrimSpace(e.GetContext().GetError()) != "" {
+			r.executionError = e.GetContext().GetError()
+		}
 		// A lost Playwright session is causal infrastructure failure, never an
 		// iframe handshake failure. Preserve the first such timeline error even
 		// if the later handshake assertion reports a timeout.
@@ -328,6 +334,9 @@ func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
 	if !handshakeSeen {
 		// The handshake step never ran (an earlier step failed) — fail closed.
 		r.handshakeError = "handshake step did not execute"
+	}
+	if r.executionError != "" && !r.handshakeSignaled {
+		r.handshakeError = fmt.Sprintf("BAS execution %s failed: %s", r.executionID, r.executionError)
 	}
 	for _, l := range tl.GetLogs() {
 		r.console = append(r.console, evidence.ConsoleEntry{

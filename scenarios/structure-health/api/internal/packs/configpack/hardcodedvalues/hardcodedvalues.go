@@ -3,7 +3,10 @@ package hardcodedvalues
 import (
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"structure-health/internal/packs/filekind"
 )
 
 /*
@@ -174,13 +177,32 @@ func looksLikeConfigName(v string) bool {
 	return envVarNameValue.MatchString(v) || httpHeaderNameValue.MatchString(v)
 }
 
+var ipv4Candidate = regexp.MustCompile(`\b\d{1,3}(?:\.\d{1,3}){3}\b`)
+
+func containsValidIPv4(line string) bool {
+	for _, candidate := range ipv4Candidate.FindAllString(line, -1) {
+		valid := true
+		for _, octet := range strings.Split(candidate, ".") {
+			n, err := strconv.Atoi(octet)
+			if err != nil || n > 255 {
+				valid = false
+				break
+			}
+		}
+		if valid {
+			return true
+		}
+	}
+	return false
+}
+
 // CheckHardcodedValues detects hardcoded configuration values
 func CheckHardcodedValues(content []byte, filePath string) []Violation {
 	var violations []Violation
 	contentStr := string(content)
 
 	// Skip test files and migrations
-	if strings.HasSuffix(filePath, "_test.go") ||
+	if filekind.IsTestSupportFile(filePath) ||
 		strings.Contains(filePath, "migration") {
 		return violations
 	}
@@ -331,7 +353,10 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 			if pattern.name == "hardcoded_url" && (strings.Contains(line, "example.com") || strings.Contains(line, "localhost")) {
 				continue
 			}
-			if pattern.name == "hardcoded_ip" && strings.Contains(line, "127.0.0.1") {
+			if pattern.name == "hardcoded_ip" && (!containsValidIPv4(line) || strings.Contains(line, "127.0.0.1") || strings.Contains(strings.ToLower(line), "version")) {
+				continue
+			}
+			if pattern.name == "hardcoded_url" && strings.Contains(line, `"$schema"`) {
 				continue
 			}
 
@@ -354,8 +379,13 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 			}
 			lineMatches[i][pattern.name] = true
 
-			title := strings.ReplaceAll(pattern.name, "_", " ")
-			title = strings.Title(title)
+			titleParts := strings.Split(strings.ReplaceAll(pattern.name, "_", " "), " ")
+			for partIndex, part := range titleParts {
+				if part != "" {
+					titleParts[partIndex] = strings.ToUpper(part[:1]) + part[1:]
+				}
+			}
+			title := strings.Join(titleParts, " ")
 
 			violations = append(violations, Violation{
 				Type:           "hardcoded_values",

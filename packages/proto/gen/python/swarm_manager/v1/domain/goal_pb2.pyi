@@ -50,18 +50,20 @@ class Milestone(_message.Message):
     def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., items: _Optional[_Iterable[str]] = ..., acceptance_criteria: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., archived_at: _Optional[str] = ...) -> None: ...
 
 class MilestoneRollup(_message.Message):
-    __slots__ = ("milestone_name", "total", "completed", "ready", "blocked")
+    __slots__ = ("milestone_name", "total", "completed", "ready", "blocked", "orphaned")
     MILESTONE_NAME_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_FIELD_NUMBER: _ClassVar[int]
     READY_FIELD_NUMBER: _ClassVar[int]
     BLOCKED_FIELD_NUMBER: _ClassVar[int]
+    ORPHANED_FIELD_NUMBER: _ClassVar[int]
     milestone_name: str
     total: int
     completed: int
     ready: int
     blocked: int
-    def __init__(self, milestone_name: _Optional[str] = ..., total: _Optional[int] = ..., completed: _Optional[int] = ..., ready: _Optional[int] = ..., blocked: _Optional[int] = ...) -> None: ...
+    orphaned: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, milestone_name: _Optional[str] = ..., total: _Optional[int] = ..., completed: _Optional[int] = ..., ready: _Optional[int] = ..., blocked: _Optional[int] = ..., orphaned: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class GoalScope(_message.Message):
     __slots__ = ("targets", "closure", "completed", "ready", "blocked", "milestones", "unassigned")

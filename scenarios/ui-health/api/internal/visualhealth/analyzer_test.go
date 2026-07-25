@@ -88,6 +88,18 @@ func TestAnalyzeReportsPixelBlank(t *testing.T) {
 	}
 }
 
+func TestAnalyzeDoesNotTreatMeaningfulLightDOMAsBlank(t *testing.T) {
+	a := NewAnalyzer(pixel.DefaultThresholds())
+	resp := a.Analyze(&visualpb.AnalyzeArtifactsRequest{Scenario: "demo", Steps: []*visualpb.VisualStepArtifact{{
+		StepId:        "light-ui",
+		ScreenshotPng: testSolidPNG(t),
+		DomHtml:       "<main><h1>Audio Tools</h1><button>Open diagnostics</button></main>",
+	}}})
+	if resp.GetVerdict() != "passed" {
+		t.Fatalf("verdict = %q, want passed; findings=%+v", resp.GetVerdict(), resp.GetFindings())
+	}
+}
+
 func TestAnalyzeHealthyScreenshotPasses(t *testing.T) {
 	a := NewAnalyzer(pixel.DefaultThresholds())
 	resp := a.Analyze(&visualpb.AnalyzeArtifactsRequest{Scenario: "demo", Steps: []*visualpb.VisualStepArtifact{{

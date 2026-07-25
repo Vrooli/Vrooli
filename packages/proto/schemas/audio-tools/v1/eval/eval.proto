@@ -10,7 +10,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 //
 // @layer 5  (api surface)
 // @domain eval
-// @stability experimental
+// @stability stable
 //
 // Shared report messages used by the persisted async ExperimentService. The
 // former blocking eval RPC was retired so one async path owns

@@ -2,96 +2,26 @@
 // @generated from file audio-tools/v1/health_status/health_status.proto (package vrooli.audio_tools.v1.health_status, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { ProviderTier } from "../common/common_pb";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_audio_tools_v1_common_common } from "../common/common_pb";
 import type { Capability } from "../diagnostics/diagnostics_pb";
 import { file_audio_tools_v1_diagnostics_diagnostics } from "../diagnostics/diagnostics_pb";
+import type { ProviderHealth, ProviderState } from "../shared/shared_pb";
+import { file_audio_tools_v1_shared_shared } from "../shared/shared_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file audio-tools/v1/health_status/health_status.proto.
  */
 export const file_audio_tools_v1_health_status_health_status: GenFile = /*@__PURE__*/
-  fileDesc("CjBhdWRpby10b29scy92MS9oZWFsdGhfc3RhdHVzL2hlYWx0aF9zdGF0dXMucHJvdG8SI3Zyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzIsYCCg5Qcm92aWRlckhlYWx0aBJBCgpjYXBhYmlsaXR5GAEgASgOMi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmRpYWdub3N0aWNzLkNhcGFiaWxpdHkSOAoEdGllchgCIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyEhMKC3Byb3ZpZGVyX2lkGAMgASgJEjkKBXN0YXRlGAQgASgOMioudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmhlYWx0aF9zdGF0dXMuU3RhdGUSFwoPbGFzdF9jaGVja2VkX2F0GAUgASgJEhIKCmxhdGVuY3lfbXMYBiABKAESEgoKZXJyb3JfY29kZRgHIAEoCRIVCg1lcnJvcl9tZXNzYWdlGAggASgJEg8KB3NlcnZpbmcYCSABKAgi4gEKEENhcGFiaWxpdHlIZWFsdGgSQQoKY2FwYWJpbGl0eRgBIAEoDjItLnZyb29saS5hdWRpb190b29scy52MS5kaWFnbm9zdGljcy5DYXBhYmlsaXR5EkYKCXByb3ZpZGVycxgCIAMoCzIzLnZyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzLlByb3ZpZGVySGVhbHRoEkMKD2VmZmVjdGl2ZV9zdGF0ZRgDIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzLlN0YXRlIhoKGEdldFByb3ZpZGVySGVhbHRoUmVxdWVzdCKZAQoZR2V0UHJvdmlkZXJIZWFsdGhSZXNwb25zZRJLCgxjYXBhYmlsaXRpZXMYASADKAsyNS52cm9vbGkuYXVkaW9fdG9vbHMudjEuaGVhbHRoX3N0YXR1cy5DYXBhYmlsaXR5SGVhbHRoEhQKDGdlbmVyYXRlZF9hdBgCIAEoCRIZChFjYWNoZV90dGxfc2Vjb25kcxgDIAEoBSIeChxSZWZyZXNoUHJvdmlkZXJIZWFsdGhSZXF1ZXN0Ip0BCh1SZWZyZXNoUHJvdmlkZXJIZWFsdGhSZXNwb25zZRJLCgxjYXBhYmlsaXRpZXMYASADKAsyNS52cm9vbGkuYXVkaW9fdG9vbHMudjEuaGVhbHRoX3N0YXR1cy5DYXBhYmlsaXR5SGVhbHRoEhQKDGdlbmVyYXRlZF9hdBgCIAEoCRIZChFjYWNoZV90dGxfc2Vjb25kcxgDIAEoBSIdChtTdHJlYW1Qcm92aWRlckhlYWx0aFJlcXVlc3QieAoTUHJvdmlkZXJIZWFsdGhFdmVudBIUCgxnZW5lcmF0ZWRfYXQYASABKAkSSwoMY2FwYWJpbGl0aWVzGAIgAygLMjUudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmhlYWx0aF9zdGF0dXMuQ2FwYWJpbGl0eUhlYWx0aCpdCgVTdGF0ZRIVChFTVEFURV9VTlNQRUNJRklFRBAAEhMKD1NUQVRFX0FWQUlMQUJMRRABEhUKEVNUQVRFX1VOQVZBSUxBQkxFEAISEQoNU1RBVEVfVU5LTk9XThADMuIDChNIZWFsdGhTdGF0dXNTZXJ2aWNlEpIBChFHZXRQcm92aWRlckhlYWx0aBI9LnZyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzLkdldFByb3ZpZGVySGVhbHRoUmVxdWVzdBo+LnZyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzLkdldFByb3ZpZGVySGVhbHRoUmVzcG9uc2USngEKFVJlZnJlc2hQcm92aWRlckhlYWx0aBJBLnZyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzLlJlZnJlc2hQcm92aWRlckhlYWx0aFJlcXVlc3QaQi52cm9vbGkuYXVkaW9fdG9vbHMudjEuaGVhbHRoX3N0YXR1cy5SZWZyZXNoUHJvdmlkZXJIZWFsdGhSZXNwb25zZRKUAQoUU3RyZWFtUHJvdmlkZXJIZWFsdGgSQC52cm9vbGkuYXVkaW9fdG9vbHMudjEuaGVhbHRoX3N0YXR1cy5TdHJlYW1Qcm92aWRlckhlYWx0aFJlcXVlc3QaOC52cm9vbGkuYXVkaW9fdG9vbHMudjEuaGVhbHRoX3N0YXR1cy5Qcm92aWRlckhlYWx0aEV2ZW50MAFCXlpcZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9oZWFsdGhfc3RhdHVzO2hlYWx0aF9zdGF0dXNfdjFiBnByb3RvMw", [file_audio_tools_v1_common_common, file_audio_tools_v1_diagnostics_diagnostics]);
+  fileDesc("CjBhdWRpby10b29scy92MS9oZWFsdGhfc3RhdHVzL2hlYWx0aF9zdGF0dXMucHJvdG8SI3Zyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzItwBChBDYXBhYmlsaXR5SGVhbHRoEkEKCmNhcGFiaWxpdHkYASABKA4yLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZGlhZ25vc3RpY3MuQ2FwYWJpbGl0eRI/Cglwcm92aWRlcnMYAiADKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2hhcmVkLlByb3ZpZGVySGVhbHRoEkQKD2VmZmVjdGl2ZV9zdGF0ZRgDIAEoDjIrLnZyb29saS5hdWRpb190b29scy52MS5zaGFyZWQuUHJvdmlkZXJTdGF0ZSIaChhHZXRQcm92aWRlckhlYWx0aFJlcXVlc3QimQEKGUdldFByb3ZpZGVySGVhbHRoUmVzcG9uc2USSwoMY2FwYWJpbGl0aWVzGAEgAygLMjUudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmhlYWx0aF9zdGF0dXMuQ2FwYWJpbGl0eUhlYWx0aBIUCgxnZW5lcmF0ZWRfYXQYAiABKAkSGQoRY2FjaGVfdHRsX3NlY29uZHMYAyABKAUiHgocUmVmcmVzaFByb3ZpZGVySGVhbHRoUmVxdWVzdCKdAQodUmVmcmVzaFByb3ZpZGVySGVhbHRoUmVzcG9uc2USSwoMY2FwYWJpbGl0aWVzGAEgAygLMjUudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmhlYWx0aF9zdGF0dXMuQ2FwYWJpbGl0eUhlYWx0aBIUCgxnZW5lcmF0ZWRfYXQYAiABKAkSGQoRY2FjaGVfdHRsX3NlY29uZHMYAyABKAUiHQobU3RyZWFtUHJvdmlkZXJIZWFsdGhSZXF1ZXN0IngKE1Byb3ZpZGVySGVhbHRoRXZlbnQSFAoMZ2VuZXJhdGVkX2F0GAEgASgJEksKDGNhcGFiaWxpdGllcxgCIAMoCzI1LnZyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzLkNhcGFiaWxpdHlIZWFsdGgy4gMKE0hlYWx0aFN0YXR1c1NlcnZpY2USkgEKEUdldFByb3ZpZGVySGVhbHRoEj0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmhlYWx0aF9zdGF0dXMuR2V0UHJvdmlkZXJIZWFsdGhSZXF1ZXN0Gj4udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmhlYWx0aF9zdGF0dXMuR2V0UHJvdmlkZXJIZWFsdGhSZXNwb25zZRKeAQoVUmVmcmVzaFByb3ZpZGVySGVhbHRoEkEudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmhlYWx0aF9zdGF0dXMuUmVmcmVzaFByb3ZpZGVySGVhbHRoUmVxdWVzdBpCLnZyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzLlJlZnJlc2hQcm92aWRlckhlYWx0aFJlc3BvbnNlEpQBChRTdHJlYW1Qcm92aWRlckhlYWx0aBJALnZyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzLlN0cmVhbVByb3ZpZGVySGVhbHRoUmVxdWVzdBo4LnZyb29saS5hdWRpb190b29scy52MS5oZWFsdGhfc3RhdHVzLlByb3ZpZGVySGVhbHRoRXZlbnQwAUJeWlxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL2hlYWx0aF9zdGF0dXM7aGVhbHRoX3N0YXR1c192MWIGcHJvdG8z", [file_audio_tools_v1_common_common, file_audio_tools_v1_diagnostics_diagnostics, file_audio_tools_v1_shared_shared]);
 
 /**
- * @generated from message vrooli.audio_tools.v1.health_status.ProviderHealth
- */
-export type ProviderHealth = Message<"vrooli.audio_tools.v1.health_status.ProviderHealth"> & {
-  /**
-   * @generated from field: vrooli.audio_tools.v1.diagnostics.Capability capability = 1;
-   */
-  capability: Capability;
-
-  /**
-   * @generated from field: vrooli.audio_tools.v1.common.ProviderTier tier = 2;
-   */
-  tier: ProviderTier;
-
-  /**
-   * Stable id from api/internal/capabilities.Known[].ID (e.g.
-   * "whisper-stt", "kokoro-tts", "ollama", "openrouter"). Never the
-   * resource slug — see internal/capabilities/mapping.go.
-   *
-   * @generated from field: string provider_id = 3;
-   */
-  providerId: string;
-
-  /**
-   * @generated from field: vrooli.audio_tools.v1.health_status.State state = 4;
-   */
-  state: State;
-
-  /**
-   * RFC3339 timestamp of the most recent observation.
-   *
-   * @generated from field: string last_checked_at = 5;
-   */
-  lastCheckedAt: string;
-
-  /**
-   * Last observed checker latency, in milliseconds. Zero when the
-   * registry has not yet recorded latency.
-   *
-   * @generated from field: double latency_ms = 6;
-   */
-  latencyMs: number;
-
-  /**
-   * Stable machine code (e.g. "provider_unavailable"). Empty when the
-   * provider is AVAILABLE.
-   *
-   * @generated from field: string error_code = 7;
-   */
-  errorCode: string;
-
-  /**
-   * Human-readable message; mirrors the checker output.
-   *
-   * @generated from field: string error_message = 8;
-   */
-  errorMessage: string;
-
-  /**
-   * True iff this provider is currently the live serving tier for its
-   * capability. Reserved for Phase-2 routing visibility; Phase-1
-   * implementations leave this false.
-   *
-   * @generated from field: bool serving = 9;
-   */
-  serving: boolean;
-};
-
-/**
- * Describes the message vrooli.audio_tools.v1.health_status.ProviderHealth.
- * Use `create(ProviderHealthSchema)` to create a new message.
- */
-export const ProviderHealthSchema: GenMessage<ProviderHealth> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_health_status_health_status, 0);
-
-/**
+ * State is the per-provider availability flag. UNKNOWN means no checker
+ * has reported yet (or the registry has no checker for this provider);
+ * AVAILABLE/UNAVAILABLE follow the last checker observation.
+ *
  * @generated from message vrooli.audio_tools.v1.health_status.CapabilityHealth
  */
 export type CapabilityHealth = Message<"vrooli.audio_tools.v1.health_status.CapabilityHealth"> & {
@@ -101,7 +31,7 @@ export type CapabilityHealth = Message<"vrooli.audio_tools.v1.health_status.Capa
   capability: Capability;
 
   /**
-   * @generated from field: repeated vrooli.audio_tools.v1.health_status.ProviderHealth providers = 2;
+   * @generated from field: repeated vrooli.audio_tools.v1.shared.ProviderHealth providers = 2;
    */
   providers: ProviderHealth[];
 
@@ -109,9 +39,9 @@ export type CapabilityHealth = Message<"vrooli.audio_tools.v1.health_status.Capa
    * Effective rollup: AVAILABLE if any provider AVAILABLE, else
    * UNAVAILABLE if any UNAVAILABLE, else UNKNOWN.
    *
-   * @generated from field: vrooli.audio_tools.v1.health_status.State effective_state = 3;
+   * @generated from field: vrooli.audio_tools.v1.shared.ProviderState effective_state = 3;
    */
-  effectiveState: State;
+  effectiveState: ProviderState;
 };
 
 /**
@@ -119,7 +49,7 @@ export type CapabilityHealth = Message<"vrooli.audio_tools.v1.health_status.Capa
  * Use `create(CapabilityHealthSchema)` to create a new message.
  */
 export const CapabilityHealthSchema: GenMessage<CapabilityHealth> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_health_status_health_status, 1);
+  messageDesc(file_audio_tools_v1_health_status_health_status, 0);
 
 /**
  * @generated from message vrooli.audio_tools.v1.health_status.GetProviderHealthRequest
@@ -132,7 +62,7 @@ export type GetProviderHealthRequest = Message<"vrooli.audio_tools.v1.health_sta
  * Use `create(GetProviderHealthRequestSchema)` to create a new message.
  */
 export const GetProviderHealthRequestSchema: GenMessage<GetProviderHealthRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_health_status_health_status, 2);
+  messageDesc(file_audio_tools_v1_health_status_health_status, 1);
 
 /**
  * @generated from message vrooli.audio_tools.v1.health_status.GetProviderHealthResponse
@@ -164,7 +94,7 @@ export type GetProviderHealthResponse = Message<"vrooli.audio_tools.v1.health_st
  * Use `create(GetProviderHealthResponseSchema)` to create a new message.
  */
 export const GetProviderHealthResponseSchema: GenMessage<GetProviderHealthResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_health_status_health_status, 3);
+  messageDesc(file_audio_tools_v1_health_status_health_status, 2);
 
 /**
  * @generated from message vrooli.audio_tools.v1.health_status.RefreshProviderHealthRequest
@@ -177,7 +107,7 @@ export type RefreshProviderHealthRequest = Message<"vrooli.audio_tools.v1.health
  * Use `create(RefreshProviderHealthRequestSchema)` to create a new message.
  */
 export const RefreshProviderHealthRequestSchema: GenMessage<RefreshProviderHealthRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_health_status_health_status, 4);
+  messageDesc(file_audio_tools_v1_health_status_health_status, 3);
 
 /**
  * @generated from message vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse
@@ -204,7 +134,7 @@ export type RefreshProviderHealthResponse = Message<"vrooli.audio_tools.v1.healt
  * Use `create(RefreshProviderHealthResponseSchema)` to create a new message.
  */
 export const RefreshProviderHealthResponseSchema: GenMessage<RefreshProviderHealthResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_health_status_health_status, 5);
+  messageDesc(file_audio_tools_v1_health_status_health_status, 4);
 
 /**
  * @generated from message vrooli.audio_tools.v1.health_status.StreamProviderHealthRequest
@@ -217,7 +147,7 @@ export type StreamProviderHealthRequest = Message<"vrooli.audio_tools.v1.health_
  * Use `create(StreamProviderHealthRequestSchema)` to create a new message.
  */
 export const StreamProviderHealthRequestSchema: GenMessage<StreamProviderHealthRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_health_status_health_status, 6);
+  messageDesc(file_audio_tools_v1_health_status_health_status, 5);
 
 /**
  * @generated from message vrooli.audio_tools.v1.health_status.ProviderHealthEvent
@@ -239,42 +169,7 @@ export type ProviderHealthEvent = Message<"vrooli.audio_tools.v1.health_status.P
  * Use `create(ProviderHealthEventSchema)` to create a new message.
  */
 export const ProviderHealthEventSchema: GenMessage<ProviderHealthEvent> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_health_status_health_status, 7);
-
-/**
- * State is the per-provider availability flag. UNKNOWN means no checker
- * has reported yet (or the registry has no checker for this provider);
- * AVAILABLE/UNAVAILABLE follow the last checker observation.
- *
- * @generated from enum vrooli.audio_tools.v1.health_status.State
- */
-export enum State {
-  /**
-   * @generated from enum value: STATE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: STATE_AVAILABLE = 1;
-   */
-  AVAILABLE = 1,
-
-  /**
-   * @generated from enum value: STATE_UNAVAILABLE = 2;
-   */
-  UNAVAILABLE = 2,
-
-  /**
-   * @generated from enum value: STATE_UNKNOWN = 3;
-   */
-  UNKNOWN = 3,
-}
-
-/**
- * Describes the enum vrooli.audio_tools.v1.health_status.State.
- */
-export const StateSchema: GenEnum<State> = /*@__PURE__*/
-  enumDesc(file_audio_tools_v1_health_status_health_status, 0);
+  messageDesc(file_audio_tools_v1_health_status_health_status, 6);
 
 /**
  * @generated from service vrooli.audio_tools.v1.health_status.HealthStatusService

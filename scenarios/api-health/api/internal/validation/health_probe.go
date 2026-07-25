@@ -117,7 +117,7 @@ func (p httpHealthProbe) Probe(ctx context.Context, target Target, timeout time.
 	if !strings.Contains(strings.ToLower(result.ContentType), "application/json") {
 		result.FailureClass = "non_json"
 		result.Error = "health endpoint did not return application/json"
-		io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
 		return result
 	}
 

@@ -44,6 +44,9 @@ const (
 	// TemplateLifecycleServiceDetemplateScenarioProcedure is the fully-qualified name of the
 	// TemplateLifecycleService's DetemplateScenario RPC.
 	TemplateLifecycleServiceDetemplateScenarioProcedure = "/vrooli.template_manager.v1.lifecycle.TemplateLifecycleService/DetemplateScenario"
+	// TemplateLifecycleServiceDestroyScenarioProcedure is the fully-qualified name of the
+	// TemplateLifecycleService's DestroyScenario RPC.
+	TemplateLifecycleServiceDestroyScenarioProcedure = "/vrooli.template_manager.v1.lifecycle.TemplateLifecycleService/DestroyScenario"
 	// TemplateLifecycleServiceValidateTemplateProcedure is the fully-qualified name of the
 	// TemplateLifecycleService's ValidateTemplate RPC.
 	TemplateLifecycleServiceValidateTemplateProcedure = "/vrooli.template_manager.v1.lifecycle.TemplateLifecycleService/ValidateTemplate"
@@ -70,6 +73,10 @@ type TemplateLifecycleServiceClient interface {
 	GenerateScenario(context.Context, *connect.Request[lifecycle.GenerateScenarioRequest]) (*connect.Response[lifecycle.GenerateScenarioResponse], error)
 	OrientScenario(context.Context, *connect.Request[lifecycle.OrientScenarioRequest]) (*connect.Response[lifecycle.OrientScenarioResponse], error)
 	DetemplateScenario(context.Context, *connect.Request[lifecycle.DetemplateScenarioRequest]) (*connect.Response[lifecycle.DetemplateScenarioResponse], error)
+	// DestroyScenario is the inverse of GenerateScenario. Generation writes the
+	// scenario directory AND six codegen outputs into the shared packages/proto
+	// tree; without a matching teardown, deleting the directory strands all six.
+	DestroyScenario(context.Context, *connect.Request[lifecycle.DestroyScenarioRequest]) (*connect.Response[lifecycle.DestroyScenarioResponse], error)
 	ValidateTemplate(context.Context, *connect.Request[lifecycle.ValidateTemplateRequest]) (*connect.Response[lifecycle.ValidateTemplateResponse], error)
 	DriftReport(context.Context, *connect.Request[lifecycle.DriftReportRequest]) (*connect.Response[lifecycle.DriftReportResponse], error)
 	CleanupRuns(context.Context, *connect.Request[lifecycle.CleanupRunsRequest]) (*connect.Response[lifecycle.CleanupRunsResponse], error)
@@ -105,6 +112,12 @@ func NewTemplateLifecycleServiceClient(httpClient connect.HTTPClient, baseURL st
 			connect.WithSchema(templateLifecycleServiceMethods.ByName("DetemplateScenario")),
 			connect.WithClientOptions(opts...),
 		),
+		destroyScenario: connect.NewClient[lifecycle.DestroyScenarioRequest, lifecycle.DestroyScenarioResponse](
+			httpClient,
+			baseURL+TemplateLifecycleServiceDestroyScenarioProcedure,
+			connect.WithSchema(templateLifecycleServiceMethods.ByName("DestroyScenario")),
+			connect.WithClientOptions(opts...),
+		),
 		validateTemplate: connect.NewClient[lifecycle.ValidateTemplateRequest, lifecycle.ValidateTemplateResponse](
 			httpClient,
 			baseURL+TemplateLifecycleServiceValidateTemplateProcedure,
@@ -131,6 +144,7 @@ type templateLifecycleServiceClient struct {
 	generateScenario   *connect.Client[lifecycle.GenerateScenarioRequest, lifecycle.GenerateScenarioResponse]
 	orientScenario     *connect.Client[lifecycle.OrientScenarioRequest, lifecycle.OrientScenarioResponse]
 	detemplateScenario *connect.Client[lifecycle.DetemplateScenarioRequest, lifecycle.DetemplateScenarioResponse]
+	destroyScenario    *connect.Client[lifecycle.DestroyScenarioRequest, lifecycle.DestroyScenarioResponse]
 	validateTemplate   *connect.Client[lifecycle.ValidateTemplateRequest, lifecycle.ValidateTemplateResponse]
 	driftReport        *connect.Client[lifecycle.DriftReportRequest, lifecycle.DriftReportResponse]
 	cleanupRuns        *connect.Client[lifecycle.CleanupRunsRequest, lifecycle.CleanupRunsResponse]
@@ -152,6 +166,12 @@ func (c *templateLifecycleServiceClient) OrientScenario(ctx context.Context, req
 // vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DetemplateScenario.
 func (c *templateLifecycleServiceClient) DetemplateScenario(ctx context.Context, req *connect.Request[lifecycle.DetemplateScenarioRequest]) (*connect.Response[lifecycle.DetemplateScenarioResponse], error) {
 	return c.detemplateScenario.CallUnary(ctx, req)
+}
+
+// DestroyScenario calls
+// vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DestroyScenario.
+func (c *templateLifecycleServiceClient) DestroyScenario(ctx context.Context, req *connect.Request[lifecycle.DestroyScenarioRequest]) (*connect.Response[lifecycle.DestroyScenarioResponse], error) {
+	return c.destroyScenario.CallUnary(ctx, req)
 }
 
 // ValidateTemplate calls
@@ -176,6 +196,10 @@ type TemplateLifecycleServiceHandler interface {
 	GenerateScenario(context.Context, *connect.Request[lifecycle.GenerateScenarioRequest]) (*connect.Response[lifecycle.GenerateScenarioResponse], error)
 	OrientScenario(context.Context, *connect.Request[lifecycle.OrientScenarioRequest]) (*connect.Response[lifecycle.OrientScenarioResponse], error)
 	DetemplateScenario(context.Context, *connect.Request[lifecycle.DetemplateScenarioRequest]) (*connect.Response[lifecycle.DetemplateScenarioResponse], error)
+	// DestroyScenario is the inverse of GenerateScenario. Generation writes the
+	// scenario directory AND six codegen outputs into the shared packages/proto
+	// tree; without a matching teardown, deleting the directory strands all six.
+	DestroyScenario(context.Context, *connect.Request[lifecycle.DestroyScenarioRequest]) (*connect.Response[lifecycle.DestroyScenarioResponse], error)
 	ValidateTemplate(context.Context, *connect.Request[lifecycle.ValidateTemplateRequest]) (*connect.Response[lifecycle.ValidateTemplateResponse], error)
 	DriftReport(context.Context, *connect.Request[lifecycle.DriftReportRequest]) (*connect.Response[lifecycle.DriftReportResponse], error)
 	CleanupRuns(context.Context, *connect.Request[lifecycle.CleanupRunsRequest]) (*connect.Response[lifecycle.CleanupRunsResponse], error)
@@ -206,6 +230,12 @@ func NewTemplateLifecycleServiceHandler(svc TemplateLifecycleServiceHandler, opt
 		connect.WithSchema(templateLifecycleServiceMethods.ByName("DetemplateScenario")),
 		connect.WithHandlerOptions(opts...),
 	)
+	templateLifecycleServiceDestroyScenarioHandler := connect.NewUnaryHandler(
+		TemplateLifecycleServiceDestroyScenarioProcedure,
+		svc.DestroyScenario,
+		connect.WithSchema(templateLifecycleServiceMethods.ByName("DestroyScenario")),
+		connect.WithHandlerOptions(opts...),
+	)
 	templateLifecycleServiceValidateTemplateHandler := connect.NewUnaryHandler(
 		TemplateLifecycleServiceValidateTemplateProcedure,
 		svc.ValidateTemplate,
@@ -232,6 +262,8 @@ func NewTemplateLifecycleServiceHandler(svc TemplateLifecycleServiceHandler, opt
 			templateLifecycleServiceOrientScenarioHandler.ServeHTTP(w, r)
 		case TemplateLifecycleServiceDetemplateScenarioProcedure:
 			templateLifecycleServiceDetemplateScenarioHandler.ServeHTTP(w, r)
+		case TemplateLifecycleServiceDestroyScenarioProcedure:
+			templateLifecycleServiceDestroyScenarioHandler.ServeHTTP(w, r)
 		case TemplateLifecycleServiceValidateTemplateProcedure:
 			templateLifecycleServiceValidateTemplateHandler.ServeHTTP(w, r)
 		case TemplateLifecycleServiceDriftReportProcedure:
@@ -257,6 +289,10 @@ func (UnimplementedTemplateLifecycleServiceHandler) OrientScenario(context.Conte
 
 func (UnimplementedTemplateLifecycleServiceHandler) DetemplateScenario(context.Context, *connect.Request[lifecycle.DetemplateScenarioRequest]) (*connect.Response[lifecycle.DetemplateScenarioResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DetemplateScenario is not implemented"))
+}
+
+func (UnimplementedTemplateLifecycleServiceHandler) DestroyScenario(context.Context, *connect.Request[lifecycle.DestroyScenarioRequest]) (*connect.Response[lifecycle.DestroyScenarioResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.template_manager.v1.lifecycle.TemplateLifecycleService.DestroyScenario is not implemented"))
 }
 
 func (UnimplementedTemplateLifecycleServiceHandler) ValidateTemplate(context.Context, *connect.Request[lifecycle.ValidateTemplateRequest]) (*connect.Response[lifecycle.ValidateTemplateResponse], error) {

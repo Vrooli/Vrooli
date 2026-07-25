@@ -4,6 +4,7 @@ package vrooli.audio_tools.v1.health_status;
 
 import "audio-tools/v1/common/common.proto";
 import "audio-tools/v1/diagnostics/diagnostics.proto";
+import "audio-tools/v1/shared/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status;health_status_v1";
 
@@ -43,43 +44,12 @@ service HealthStatusService {
 // State is the per-provider availability flag. UNKNOWN means no checker
 // has reported yet (or the registry has no checker for this provider);
 // AVAILABLE/UNAVAILABLE follow the last checker observation.
-enum State {
-  STATE_UNSPECIFIED = 0;
-  STATE_AVAILABLE = 1;
-  STATE_UNAVAILABLE = 2;
-  STATE_UNKNOWN = 3;
-}
-
-message ProviderHealth {
-  vrooli.audio_tools.v1.diagnostics.Capability capability = 1;
-  vrooli.audio_tools.v1.common.ProviderTier tier = 2;
-  // Stable id from api/internal/capabilities.Known[].ID (e.g.
-  // "whisper-stt", "kokoro-tts", "ollama", "openrouter"). Never the
-  // resource slug — see internal/capabilities/mapping.go.
-  string provider_id = 3;
-  State state = 4;
-  // RFC3339 timestamp of the most recent observation.
-  string last_checked_at = 5;
-  // Last observed checker latency, in milliseconds. Zero when the
-  // registry has not yet recorded latency.
-  double latency_ms = 6;
-  // Stable machine code (e.g. "provider_unavailable"). Empty when the
-  // provider is AVAILABLE.
-  string error_code = 7;
-  // Human-readable message; mirrors the checker output.
-  string error_message = 8;
-  // True iff this provider is currently the live serving tier for its
-  // capability. Reserved for Phase-2 routing visibility; Phase-1
-  // implementations leave this false.
-  bool serving = 9;
-}
-
 message CapabilityHealth {
   vrooli.audio_tools.v1.diagnostics.Capability capability = 1;
-  repeated ProviderHealth providers = 2;
+  repeated vrooli.audio_tools.v1.shared.ProviderHealth providers = 2;
   // Effective rollup: AVAILABLE if any provider AVAILABLE, else
   // UNAVAILABLE if any UNAVAILABLE, else UNKNOWN.
-  State effective_state = 3;
+  vrooli.audio_tools.v1.shared.ProviderState effective_state = 3;
 }
 
 message GetProviderHealthRequest {}

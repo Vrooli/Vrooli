@@ -39,22 +39,14 @@ message BacklogItem {
   string description = 3;
 
   // Lifecycle state for the backlog item.
-  // @constraint one of: suggested, backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
-  string status = 4 [(buf.validate.field).string = {
-    in: [
-      "suggested",
-      "backlog",
-      "researching",
-      "ready",
-      "queued",
-      "in_progress",
-      "in_review",
-      "review_pending",
-      "completed",
-      "failed",
-      "needs_followup"
-    ]
-  }];
+  //
+  // Intentionally NOT constrained to an inline allowlist. The vocabulary's
+  // single source of truth is the server's status table
+  // (swarm-manager/api/internal/backlogstatus/statuses.go), which validates
+  // every write. Duplicating the list here meant adding a status required
+  // editing three .proto files in lockstep, and they had already drifted apart
+  // — one omitted `suggested` and admitted a bogus `archived`.
+  string status = 4 [(buf.validate.field).string.min_len = 1];
 
   // Priority level (1 = highest, 10 = lowest).
   // @constraint 1-10

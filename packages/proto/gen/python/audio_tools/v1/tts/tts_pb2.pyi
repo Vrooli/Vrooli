@@ -1,5 +1,5 @@
 from audio_tools.v1.common import common_pb2 as _common_pb2
-from audio_tools.v1.health_status import health_status_pb2 as _health_status_pb2
+from audio_tools.v1.shared import shared_pb2 as _shared_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import field_mask_pb2 as _field_mask_pb2
 from google.protobuf.internal import containers as _containers
@@ -177,10 +177,10 @@ class Status(_message.Message):
     CAPABILITY_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_LABEL_FIELD_NUMBER: _ClassVar[int]
     config: Config
-    availability: _containers.RepeatedCompositeFieldContainer[_health_status_pb2.ProviderHealth]
+    availability: _containers.RepeatedCompositeFieldContainer[_shared_pb2.ProviderHealth]
     capability: str
     capability_label: str
-    def __init__(self, config: _Optional[_Union[Config, _Mapping]] = ..., availability: _Optional[_Iterable[_Union[_health_status_pb2.ProviderHealth, _Mapping]]] = ..., capability: _Optional[str] = ..., capability_label: _Optional[str] = ...) -> None: ...
+    def __init__(self, config: _Optional[_Union[Config, _Mapping]] = ..., availability: _Optional[_Iterable[_Union[_shared_pb2.ProviderHealth, _Mapping]]] = ..., capability: _Optional[str] = ..., capability_label: _Optional[str] = ...) -> None: ...
 
 class GetStatusRequest(_message.Message):
     __slots__ = ()

@@ -203,7 +203,13 @@ func (a Analyzer) analyzeStep(step *visualpb.VisualStepArtifact) *visualpb.StepV
 				metric("visual_luminance_variance", health.Variance),
 			)
 			out.Findings = append(out.Findings, chromeColorFindings(step, pngBytes)...)
-			if health.Broken {
+			// A mostly uniform screenshot is evidence of a blank render only when
+			// the captured DOM cannot demonstrate meaningful content.  Light,
+			// content-dense operator UIs legitimately have a dominant background
+			// color, and their visible text/controls are the stronger signal.
+			// Keep a solid screenshot fatal when the DOM snapshot is absent so a
+			// failed artifact channel cannot turn into a false pass.
+			if health.Broken && (strings.TrimSpace(step.GetDomHtml()) == "" || domTextBlank(step.GetDomHtml())) {
 				out.Findings = append(out.Findings, &visualpb.VisualFinding{
 					Code:        "visual_pixel_blank",
 					Severity:    visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR,

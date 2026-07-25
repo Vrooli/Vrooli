@@ -57,6 +57,17 @@ substitute your scenario's prefix for `<PREFIX>`:
 > when CLIs run inside web-console terminals it leaks across scenarios.
 > Use the scenario-prefixed form or the `--api-base` flag.
 
+## Source-pack file classification
+
+Source packs share one `IsTestSupportFile` predicate. It recognizes Go,
+JavaScript/TypeScript, and common documentation/test-data layouts (`_test.go`,
+`.test.`, `.spec.`, `test/`, `tests/`, `__tests__/`, `testdata/`, and `docs/`).
+Rules that intentionally inspect production configuration must use this
+predicate instead of implementing language-specific exceptions. The
+`PROFILE_HARDCODED_VALUES` pack therefore scans production files only; this
+keeps browser version strings and fixtures from being treated as deployment
+configuration while retaining detection of real production hardcoded IPs.
+
 ## Service manifest (`.vrooli/service.json`)
 
 Single source of truth for everything the lifecycle needs to know.

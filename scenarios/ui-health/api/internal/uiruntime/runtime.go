@@ -223,6 +223,15 @@ func (r *Runner) checkProfile(ctx context.Context, url string, index int, profil
 		return profileResult{index: index, err: err}
 	}
 	ev := res.evidenceFor(url)
+	if res.executionError != "" && !res.handshakeSignaled {
+		return profileResult{index: index, findings: []manifestvalidation.Finding{{
+			Severity:   manifestvalidation.SeverityError,
+			Code:       "runtime_bas_execution_failed",
+			Location:   url,
+			Message:    fmt.Sprintf("BAS execution %s failed before the iframe handshake: %s", res.executionID, res.executionError),
+			Suggestion: "Inspect the BAS execution timeline and repair the reported executor or browser-session failure.",
+		}}}
+	}
 	visualFinds := applyVisualHealth(&ev, res.visualStep(url, profile.id))
 	finds := findingsFromEvidence(ev, profile.id)
 	finds = append(finds, readinessSurfaceFindings(res.layoutJSON, expected, url, profile.id)...)

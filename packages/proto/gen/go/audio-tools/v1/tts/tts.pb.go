@@ -9,7 +9,7 @@ package tts_v1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	common "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
-	health_status "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -975,16 +975,16 @@ func (x *UpdateConfigResponse) GetConfig() *Config {
 
 // Status is the TTS-domain snapshot of "what the chain looks like right
 // now". The per-provider availability list is modeled as a slice of
-// health_status.ProviderHealth so the shape is identical to the canonical
+// shared.ProviderHealth so the shape is identical to the canonical
 // HealthStatusService surface — consumers that already render
 // ProviderHealth can reuse the same code. The capability field on each
 // ProviderHealth is always CAPABILITY_TTS here.
 type Status struct {
-	state           protoimpl.MessageState          `protogen:"open.v1"`
-	Config          *Config                         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
-	Availability    []*health_status.ProviderHealth `protobuf:"bytes,2,rep,name=availability,proto3" json:"availability,omitempty"`
-	Capability      string                          `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
-	CapabilityLabel string                          `protobuf:"bytes,4,opt,name=capability_label,json=capabilityLabel,proto3" json:"capability_label,omitempty"`
+	state           protoimpl.MessageState   `protogen:"open.v1"`
+	Config          *Config                  `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	Availability    []*shared.ProviderHealth `protobuf:"bytes,2,rep,name=availability,proto3" json:"availability,omitempty"`
+	Capability      string                   `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
+	CapabilityLabel string                   `protobuf:"bytes,4,opt,name=capability_label,json=capabilityLabel,proto3" json:"capability_label,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1026,7 +1026,7 @@ func (x *Status) GetConfig() *Config {
 	return nil
 }
 
-func (x *Status) GetAvailability() []*health_status.ProviderHealth {
+func (x *Status) GetAvailability() []*shared.ProviderHealth {
 	if x != nil {
 		return x.Availability
 	}
@@ -1592,7 +1592,7 @@ var File_audio_tools_v1_tts_tts_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_tts_tts_proto_rawDesc = "" +
 	"\n" +
-	"\x1caudio-tools/v1/tts/tts.proto\x12\x19vrooli.audio_tools.v1.tts\x1a\"audio-tools/v1/common/common.proto\x1a0audio-tools/v1/health_status/health_status.proto\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\"\x9b\x01\n" +
+	"\x1caudio-tools/v1/tts/tts.proto\x12\x19vrooli.audio_tools.v1.tts\x1a\"audio-tools/v1/common/common.proto\x1a\"audio-tools/v1/shared/shared.proto\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\"\x9b\x01\n" +
 	"\x0eAdapterMapping\x12>\n" +
 	"\x04tier\x18\x01 \x01(\x0e2*.vrooli.audio_tools.v1.common.ProviderTierR\x04tier\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
@@ -1671,10 +1671,10 @@ const file_audio_tools_v1_tts_tts_proto_rawDesc = "" +
 	"updateMask\x129\n" +
 	"\x06config\x18\x02 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\"Q\n" +
 	"\x14UpdateConfigResponse\x129\n" +
-	"\x06config\x18\x01 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\"\xe7\x01\n" +
+	"\x06config\x18\x01 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\"\xe0\x01\n" +
 	"\x06Status\x129\n" +
-	"\x06config\x18\x01 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\x12W\n" +
-	"\favailability\x18\x02 \x03(\v23.vrooli.audio_tools.v1.health_status.ProviderHealthR\favailability\x12\x1e\n" +
+	"\x06config\x18\x01 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\x12P\n" +
+	"\favailability\x18\x02 \x03(\v2,.vrooli.audio_tools.v1.shared.ProviderHealthR\favailability\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x03 \x01(\tR\n" +
 	"capability\x12)\n" +
@@ -1740,36 +1740,36 @@ func file_audio_tools_v1_tts_tts_proto_rawDescGZIP() []byte {
 
 var file_audio_tools_v1_tts_tts_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_audio_tools_v1_tts_tts_proto_goTypes = []any{
-	(*AdapterMapping)(nil),               // 0: vrooli.audio_tools.v1.tts.AdapterMapping
-	(*SynthesizeRequest)(nil),            // 1: vrooli.audio_tools.v1.tts.SynthesizeRequest
-	(*SynthesizeResponse)(nil),           // 2: vrooli.audio_tools.v1.tts.SynthesizeResponse
-	(*AudioFrame)(nil),                   // 3: vrooli.audio_tools.v1.tts.AudioFrame
-	(*Voice)(nil),                        // 4: vrooli.audio_tools.v1.tts.Voice
-	(*ListVoicesRequest)(nil),            // 5: vrooli.audio_tools.v1.tts.ListVoicesRequest
-	(*ListVoicesResponse)(nil),           // 6: vrooli.audio_tools.v1.tts.ListVoicesResponse
-	(*GetCacheRequest)(nil),              // 7: vrooli.audio_tools.v1.tts.GetCacheRequest
-	(*GetCacheResponse)(nil),             // 8: vrooli.audio_tools.v1.tts.GetCacheResponse
-	(*Config)(nil),                       // 9: vrooli.audio_tools.v1.tts.Config
-	(*GetConfigRequest)(nil),             // 10: vrooli.audio_tools.v1.tts.GetConfigRequest
-	(*GetConfigResponse)(nil),            // 11: vrooli.audio_tools.v1.tts.GetConfigResponse
-	(*UpdateConfigRequest)(nil),          // 12: vrooli.audio_tools.v1.tts.UpdateConfigRequest
-	(*UpdateConfigResponse)(nil),         // 13: vrooli.audio_tools.v1.tts.UpdateConfigResponse
-	(*Status)(nil),                       // 14: vrooli.audio_tools.v1.tts.Status
-	(*GetStatusRequest)(nil),             // 15: vrooli.audio_tools.v1.tts.GetStatusRequest
-	(*GetStatusResponse)(nil),            // 16: vrooli.audio_tools.v1.tts.GetStatusResponse
-	(*PlaybackEvent)(nil),                // 17: vrooli.audio_tools.v1.tts.PlaybackEvent
-	(*RecordPlaybackEventRequest)(nil),   // 18: vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest
-	(*RecordPlaybackEventResponse)(nil),  // 19: vrooli.audio_tools.v1.tts.RecordPlaybackEventResponse
-	(*GetSupportedFormatsRequest)(nil),   // 20: vrooli.audio_tools.v1.tts.GetSupportedFormatsRequest
-	(*GetSupportedFormatsResponse)(nil),  // 21: vrooli.audio_tools.v1.tts.GetSupportedFormatsResponse
-	(*NormalizeForSpeechRequest)(nil),    // 22: vrooli.audio_tools.v1.tts.NormalizeForSpeechRequest
-	(*NormalizeForSpeechResponse)(nil),   // 23: vrooli.audio_tools.v1.tts.NormalizeForSpeechResponse
-	(*SplitParagraphsRequest)(nil),       // 24: vrooli.audio_tools.v1.tts.SplitParagraphsRequest
-	(*SplitParagraphsResponse)(nil),      // 25: vrooli.audio_tools.v1.tts.SplitParagraphsResponse
-	(common.ProviderTier)(0),             // 26: vrooli.audio_tools.v1.common.ProviderTier
-	(common.ResponseFormat)(0),           // 27: vrooli.audio_tools.v1.common.ResponseFormat
-	(*fieldmaskpb.FieldMask)(nil),        // 28: google.protobuf.FieldMask
-	(*health_status.ProviderHealth)(nil), // 29: vrooli.audio_tools.v1.health_status.ProviderHealth
+	(*AdapterMapping)(nil),              // 0: vrooli.audio_tools.v1.tts.AdapterMapping
+	(*SynthesizeRequest)(nil),           // 1: vrooli.audio_tools.v1.tts.SynthesizeRequest
+	(*SynthesizeResponse)(nil),          // 2: vrooli.audio_tools.v1.tts.SynthesizeResponse
+	(*AudioFrame)(nil),                  // 3: vrooli.audio_tools.v1.tts.AudioFrame
+	(*Voice)(nil),                       // 4: vrooli.audio_tools.v1.tts.Voice
+	(*ListVoicesRequest)(nil),           // 5: vrooli.audio_tools.v1.tts.ListVoicesRequest
+	(*ListVoicesResponse)(nil),          // 6: vrooli.audio_tools.v1.tts.ListVoicesResponse
+	(*GetCacheRequest)(nil),             // 7: vrooli.audio_tools.v1.tts.GetCacheRequest
+	(*GetCacheResponse)(nil),            // 8: vrooli.audio_tools.v1.tts.GetCacheResponse
+	(*Config)(nil),                      // 9: vrooli.audio_tools.v1.tts.Config
+	(*GetConfigRequest)(nil),            // 10: vrooli.audio_tools.v1.tts.GetConfigRequest
+	(*GetConfigResponse)(nil),           // 11: vrooli.audio_tools.v1.tts.GetConfigResponse
+	(*UpdateConfigRequest)(nil),         // 12: vrooli.audio_tools.v1.tts.UpdateConfigRequest
+	(*UpdateConfigResponse)(nil),        // 13: vrooli.audio_tools.v1.tts.UpdateConfigResponse
+	(*Status)(nil),                      // 14: vrooli.audio_tools.v1.tts.Status
+	(*GetStatusRequest)(nil),            // 15: vrooli.audio_tools.v1.tts.GetStatusRequest
+	(*GetStatusResponse)(nil),           // 16: vrooli.audio_tools.v1.tts.GetStatusResponse
+	(*PlaybackEvent)(nil),               // 17: vrooli.audio_tools.v1.tts.PlaybackEvent
+	(*RecordPlaybackEventRequest)(nil),  // 18: vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest
+	(*RecordPlaybackEventResponse)(nil), // 19: vrooli.audio_tools.v1.tts.RecordPlaybackEventResponse
+	(*GetSupportedFormatsRequest)(nil),  // 20: vrooli.audio_tools.v1.tts.GetSupportedFormatsRequest
+	(*GetSupportedFormatsResponse)(nil), // 21: vrooli.audio_tools.v1.tts.GetSupportedFormatsResponse
+	(*NormalizeForSpeechRequest)(nil),   // 22: vrooli.audio_tools.v1.tts.NormalizeForSpeechRequest
+	(*NormalizeForSpeechResponse)(nil),  // 23: vrooli.audio_tools.v1.tts.NormalizeForSpeechResponse
+	(*SplitParagraphsRequest)(nil),      // 24: vrooli.audio_tools.v1.tts.SplitParagraphsRequest
+	(*SplitParagraphsResponse)(nil),     // 25: vrooli.audio_tools.v1.tts.SplitParagraphsResponse
+	(common.ProviderTier)(0),            // 26: vrooli.audio_tools.v1.common.ProviderTier
+	(common.ResponseFormat)(0),          // 27: vrooli.audio_tools.v1.common.ResponseFormat
+	(*fieldmaskpb.FieldMask)(nil),       // 28: google.protobuf.FieldMask
+	(*shared.ProviderHealth)(nil),       // 29: vrooli.audio_tools.v1.shared.ProviderHealth
 }
 var file_audio_tools_v1_tts_tts_proto_depIdxs = []int32{
 	26, // 0: vrooli.audio_tools.v1.tts.AdapterMapping.tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
@@ -1786,7 +1786,7 @@ var file_audio_tools_v1_tts_tts_proto_depIdxs = []int32{
 	9,  // 11: vrooli.audio_tools.v1.tts.UpdateConfigRequest.config:type_name -> vrooli.audio_tools.v1.tts.Config
 	9,  // 12: vrooli.audio_tools.v1.tts.UpdateConfigResponse.config:type_name -> vrooli.audio_tools.v1.tts.Config
 	9,  // 13: vrooli.audio_tools.v1.tts.Status.config:type_name -> vrooli.audio_tools.v1.tts.Config
-	29, // 14: vrooli.audio_tools.v1.tts.Status.availability:type_name -> vrooli.audio_tools.v1.health_status.ProviderHealth
+	29, // 14: vrooli.audio_tools.v1.tts.Status.availability:type_name -> vrooli.audio_tools.v1.shared.ProviderHealth
 	14, // 15: vrooli.audio_tools.v1.tts.GetStatusResponse.status:type_name -> vrooli.audio_tools.v1.tts.Status
 	17, // 16: vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest.event:type_name -> vrooli.audio_tools.v1.tts.PlaybackEvent
 	27, // 17: vrooli.audio_tools.v1.tts.GetSupportedFormatsResponse.emitted_formats:type_name -> vrooli.audio_tools.v1.common.ResponseFormat

@@ -212,7 +212,11 @@ type UpdateBacklogItemRequest struct {
 	// Description. Set to the empty string to clear.
 	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// Lifecycle status.
-	// @constraint one of: suggested, backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
+	//
+	// Not constrained to an inline allowlist — see the note on
+	// BacklogItem.status in domain/backlog.proto. The server's status table is
+	// the single source of truth and rejects unknown values, including the
+	// narrower rule that most statuses are not settable by a client at all.
 	Status *string `protobuf:"bytes,3,opt,name=status,proto3,oneof" json:"status,omitempty"`
 	// Priority level (1-10).
 	Priority *int32 `protobuf:"varint,4,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
@@ -3113,11 +3117,11 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\v\n" +
 	"\t_plan_refJ\x04\b\a\x10\bJ\x04\b\n" +
-	"\x10\vJ\x04\b\f\x10\r\"\xb1\x06\n" +
+	"\x10\vJ\x04\b\f\x10\r\"\xb6\x05\n" +
 	"\x18UpdateBacklogItemRequest\x12\"\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05title\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x9e\x01\n" +
-	"\x06status\x18\x03 \x01(\tB\x80\x01\xbaH}r{R\tsuggestedR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tin_reviewR\x0ereview_pendingR\tcompletedR\x06failedR\x0eneeds_followupH\x02R\x06status\x88\x01\x01\x12*\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12$\n" +
+	"\x06status\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x02R\x06status\x88\x01\x01\x12*\n" +
 	"\bpriority\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01H\x03R\bpriority\x88\x01\x01\x12\x1c\n" +
 	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12\x1d\n" +

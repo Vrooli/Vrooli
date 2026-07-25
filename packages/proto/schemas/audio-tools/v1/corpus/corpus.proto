@@ -12,7 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 //
 // @layer 5  (api surface)
 // @domain corpus
-// @stability experimental
+// @stability stable
 //
 // Holds operator-recorded audio clips with corrected ground-truth
 // transcripts for the offline STT eval harness. Metadata lives in the

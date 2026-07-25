@@ -10,6 +10,10 @@ service TemplateLifecycleService {
   rpc GenerateScenario(GenerateScenarioRequest) returns (GenerateScenarioResponse);
   rpc OrientScenario(OrientScenarioRequest) returns (OrientScenarioResponse);
   rpc DetemplateScenario(DetemplateScenarioRequest) returns (DetemplateScenarioResponse);
+  // DestroyScenario is the inverse of GenerateScenario. Generation writes the
+  // scenario directory AND six codegen outputs into the shared packages/proto
+  // tree; without a matching teardown, deleting the directory strands all six.
+  rpc DestroyScenario(DestroyScenarioRequest) returns (DestroyScenarioResponse);
   rpc ValidateTemplate(ValidateTemplateRequest) returns (ValidateTemplateResponse);
   rpc DriftReport(DriftReportRequest) returns (DriftReportResponse);
   rpc CleanupRuns(CleanupRunsRequest) returns (CleanupRunsResponse);
@@ -75,6 +79,34 @@ message DetemplateScenarioResponse {
   int32 lines_stripped = 6;
   repeated string paths_deleted = 7;
   string message = 8;
+}
+
+message DestroyScenarioRequest {
+  // Scenario id as generated (hyphenated). Also names the proto surface.
+  string scenario = 1;
+  // Preview every path that would be removed without deleting anything.
+  bool dry_run = 2;
+  // Remove only the packages/proto footprint, leaving the scenario directory.
+  // This is how an already-deleted scenario's stranded codegen gets reaped.
+  bool proto_only = 3;
+  // Required when the scenario directory still exists: destroying a live
+  // scenario is not something to do by accident.
+  bool force = 4;
+}
+
+message DestroyScenarioResponse {
+  string scenario = 1;
+  bool dry_run = 2;
+  bool proto_only = 3;
+  // Every path removed (or that would be removed under dry_run), including the
+  // scenario directory and all six codegen outputs.
+  repeated string paths_removed = 4;
+  // Paths that were part of the footprint but did not exist. Reported rather
+  // than hidden so a partial teardown is visible.
+  repeated string paths_absent = 5;
+  // True when codegen must be re-run to drop the surface from descriptor sets.
+  bool needs_proto_generate = 6;
+  string message = 7;
 }
 
 message ValidateTemplateRequest {

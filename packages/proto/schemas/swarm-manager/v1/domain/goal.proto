@@ -37,6 +37,10 @@ message MilestoneRollup {
   int32 completed = 3;
   int32 ready = 4;
   int32 blocked = 5;
+  // Members the milestone claims that are outside the goal's derived closure.
+  // They are counted in no rollup above, so without this field the discrepancy
+  // is invisible to every operator surface.
+  repeated string orphaned = 6;
 }
 
 message GoalScope {

@@ -7,8 +7,9 @@
 package health_status_v1
 
 import (
-	common "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	diagnostics "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -26,192 +27,20 @@ const (
 // State is the per-provider availability flag. UNKNOWN means no checker
 // has reported yet (or the registry has no checker for this provider);
 // AVAILABLE/UNAVAILABLE follow the last checker observation.
-type State int32
-
-const (
-	State_STATE_UNSPECIFIED State = 0
-	State_STATE_AVAILABLE   State = 1
-	State_STATE_UNAVAILABLE State = 2
-	State_STATE_UNKNOWN     State = 3
-)
-
-// Enum value maps for State.
-var (
-	State_name = map[int32]string{
-		0: "STATE_UNSPECIFIED",
-		1: "STATE_AVAILABLE",
-		2: "STATE_UNAVAILABLE",
-		3: "STATE_UNKNOWN",
-	}
-	State_value = map[string]int32{
-		"STATE_UNSPECIFIED": 0,
-		"STATE_AVAILABLE":   1,
-		"STATE_UNAVAILABLE": 2,
-		"STATE_UNKNOWN":     3,
-	}
-)
-
-func (x State) Enum() *State {
-	p := new(State)
-	*p = x
-	return p
-}
-
-func (x State) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (State) Descriptor() protoreflect.EnumDescriptor {
-	return file_audio_tools_v1_health_status_health_status_proto_enumTypes[0].Descriptor()
-}
-
-func (State) Type() protoreflect.EnumType {
-	return &file_audio_tools_v1_health_status_health_status_proto_enumTypes[0]
-}
-
-func (x State) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use State.Descriptor instead.
-func (State) EnumDescriptor() ([]byte, []int) {
-	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{0}
-}
-
-type ProviderHealth struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	Capability diagnostics.Capability `protobuf:"varint,1,opt,name=capability,proto3,enum=vrooli.audio_tools.v1.diagnostics.Capability" json:"capability,omitempty"`
-	Tier       common.ProviderTier    `protobuf:"varint,2,opt,name=tier,proto3,enum=vrooli.audio_tools.v1.common.ProviderTier" json:"tier,omitempty"`
-	// Stable id from api/internal/capabilities.Known[].ID (e.g.
-	// "whisper-stt", "kokoro-tts", "ollama", "openrouter"). Never the
-	// resource slug — see internal/capabilities/mapping.go.
-	ProviderId string `protobuf:"bytes,3,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	State      State  `protobuf:"varint,4,opt,name=state,proto3,enum=vrooli.audio_tools.v1.health_status.State" json:"state,omitempty"`
-	// RFC3339 timestamp of the most recent observation.
-	LastCheckedAt string `protobuf:"bytes,5,opt,name=last_checked_at,json=lastCheckedAt,proto3" json:"last_checked_at,omitempty"`
-	// Last observed checker latency, in milliseconds. Zero when the
-	// registry has not yet recorded latency.
-	LatencyMs float64 `protobuf:"fixed64,6,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
-	// Stable machine code (e.g. "provider_unavailable"). Empty when the
-	// provider is AVAILABLE.
-	ErrorCode string `protobuf:"bytes,7,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
-	// Human-readable message; mirrors the checker output.
-	ErrorMessage string `protobuf:"bytes,8,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
-	// True iff this provider is currently the live serving tier for its
-	// capability. Reserved for Phase-2 routing visibility; Phase-1
-	// implementations leave this false.
-	Serving       bool `protobuf:"varint,9,opt,name=serving,proto3" json:"serving,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ProviderHealth) Reset() {
-	*x = ProviderHealth{}
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ProviderHealth) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ProviderHealth) ProtoMessage() {}
-
-func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ProviderHealth.ProtoReflect.Descriptor instead.
-func (*ProviderHealth) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *ProviderHealth) GetCapability() diagnostics.Capability {
-	if x != nil {
-		return x.Capability
-	}
-	return diagnostics.Capability(0)
-}
-
-func (x *ProviderHealth) GetTier() common.ProviderTier {
-	if x != nil {
-		return x.Tier
-	}
-	return common.ProviderTier(0)
-}
-
-func (x *ProviderHealth) GetProviderId() string {
-	if x != nil {
-		return x.ProviderId
-	}
-	return ""
-}
-
-func (x *ProviderHealth) GetState() State {
-	if x != nil {
-		return x.State
-	}
-	return State_STATE_UNSPECIFIED
-}
-
-func (x *ProviderHealth) GetLastCheckedAt() string {
-	if x != nil {
-		return x.LastCheckedAt
-	}
-	return ""
-}
-
-func (x *ProviderHealth) GetLatencyMs() float64 {
-	if x != nil {
-		return x.LatencyMs
-	}
-	return 0
-}
-
-func (x *ProviderHealth) GetErrorCode() string {
-	if x != nil {
-		return x.ErrorCode
-	}
-	return ""
-}
-
-func (x *ProviderHealth) GetErrorMessage() string {
-	if x != nil {
-		return x.ErrorMessage
-	}
-	return ""
-}
-
-func (x *ProviderHealth) GetServing() bool {
-	if x != nil {
-		return x.Serving
-	}
-	return false
-}
-
 type CapabilityHealth struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	Capability diagnostics.Capability `protobuf:"varint,1,opt,name=capability,proto3,enum=vrooli.audio_tools.v1.diagnostics.Capability" json:"capability,omitempty"`
-	Providers  []*ProviderHealth      `protobuf:"bytes,2,rep,name=providers,proto3" json:"providers,omitempty"`
+	state      protoimpl.MessageState   `protogen:"open.v1"`
+	Capability diagnostics.Capability   `protobuf:"varint,1,opt,name=capability,proto3,enum=vrooli.audio_tools.v1.diagnostics.Capability" json:"capability,omitempty"`
+	Providers  []*shared.ProviderHealth `protobuf:"bytes,2,rep,name=providers,proto3" json:"providers,omitempty"`
 	// Effective rollup: AVAILABLE if any provider AVAILABLE, else
 	// UNAVAILABLE if any UNAVAILABLE, else UNKNOWN.
-	EffectiveState State `protobuf:"varint,3,opt,name=effective_state,json=effectiveState,proto3,enum=vrooli.audio_tools.v1.health_status.State" json:"effective_state,omitempty"`
+	EffectiveState shared.ProviderState `protobuf:"varint,3,opt,name=effective_state,json=effectiveState,proto3,enum=vrooli.audio_tools.v1.shared.ProviderState" json:"effective_state,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CapabilityHealth) Reset() {
 	*x = CapabilityHealth{}
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[1]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -223,7 +52,7 @@ func (x *CapabilityHealth) String() string {
 func (*CapabilityHealth) ProtoMessage() {}
 
 func (x *CapabilityHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[1]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -236,7 +65,7 @@ func (x *CapabilityHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityHealth.ProtoReflect.Descriptor instead.
 func (*CapabilityHealth) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{1}
+	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *CapabilityHealth) GetCapability() diagnostics.Capability {
@@ -246,18 +75,18 @@ func (x *CapabilityHealth) GetCapability() diagnostics.Capability {
 	return diagnostics.Capability(0)
 }
 
-func (x *CapabilityHealth) GetProviders() []*ProviderHealth {
+func (x *CapabilityHealth) GetProviders() []*shared.ProviderHealth {
 	if x != nil {
 		return x.Providers
 	}
 	return nil
 }
 
-func (x *CapabilityHealth) GetEffectiveState() State {
+func (x *CapabilityHealth) GetEffectiveState() shared.ProviderState {
 	if x != nil {
 		return x.EffectiveState
 	}
-	return State_STATE_UNSPECIFIED
+	return shared.ProviderState(0)
 }
 
 type GetProviderHealthRequest struct {
@@ -268,7 +97,7 @@ type GetProviderHealthRequest struct {
 
 func (x *GetProviderHealthRequest) Reset() {
 	*x = GetProviderHealthRequest{}
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[2]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -280,7 +109,7 @@ func (x *GetProviderHealthRequest) String() string {
 func (*GetProviderHealthRequest) ProtoMessage() {}
 
 func (x *GetProviderHealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[2]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -293,7 +122,7 @@ func (x *GetProviderHealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProviderHealthRequest.ProtoReflect.Descriptor instead.
 func (*GetProviderHealthRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{2}
+	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{1}
 }
 
 type GetProviderHealthResponse struct {
@@ -310,7 +139,7 @@ type GetProviderHealthResponse struct {
 
 func (x *GetProviderHealthResponse) Reset() {
 	*x = GetProviderHealthResponse{}
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[3]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -322,7 +151,7 @@ func (x *GetProviderHealthResponse) String() string {
 func (*GetProviderHealthResponse) ProtoMessage() {}
 
 func (x *GetProviderHealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[3]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -335,7 +164,7 @@ func (x *GetProviderHealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProviderHealthResponse.ProtoReflect.Descriptor instead.
 func (*GetProviderHealthResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{3}
+	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetProviderHealthResponse) GetCapabilities() []*CapabilityHealth {
@@ -367,7 +196,7 @@ type RefreshProviderHealthRequest struct {
 
 func (x *RefreshProviderHealthRequest) Reset() {
 	*x = RefreshProviderHealthRequest{}
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[4]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -379,7 +208,7 @@ func (x *RefreshProviderHealthRequest) String() string {
 func (*RefreshProviderHealthRequest) ProtoMessage() {}
 
 func (x *RefreshProviderHealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[4]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -392,7 +221,7 @@ func (x *RefreshProviderHealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshProviderHealthRequest.ProtoReflect.Descriptor instead.
 func (*RefreshProviderHealthRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{4}
+	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{3}
 }
 
 type RefreshProviderHealthResponse struct {
@@ -406,7 +235,7 @@ type RefreshProviderHealthResponse struct {
 
 func (x *RefreshProviderHealthResponse) Reset() {
 	*x = RefreshProviderHealthResponse{}
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[5]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -418,7 +247,7 @@ func (x *RefreshProviderHealthResponse) String() string {
 func (*RefreshProviderHealthResponse) ProtoMessage() {}
 
 func (x *RefreshProviderHealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[5]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +260,7 @@ func (x *RefreshProviderHealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshProviderHealthResponse.ProtoReflect.Descriptor instead.
 func (*RefreshProviderHealthResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{5}
+	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RefreshProviderHealthResponse) GetCapabilities() []*CapabilityHealth {
@@ -463,7 +292,7 @@ type StreamProviderHealthRequest struct {
 
 func (x *StreamProviderHealthRequest) Reset() {
 	*x = StreamProviderHealthRequest{}
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[6]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -475,7 +304,7 @@ func (x *StreamProviderHealthRequest) String() string {
 func (*StreamProviderHealthRequest) ProtoMessage() {}
 
 func (x *StreamProviderHealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[6]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -488,7 +317,7 @@ func (x *StreamProviderHealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamProviderHealthRequest.ProtoReflect.Descriptor instead.
 func (*StreamProviderHealthRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{6}
+	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{5}
 }
 
 type ProviderHealthEvent struct {
@@ -501,7 +330,7 @@ type ProviderHealthEvent struct {
 
 func (x *ProviderHealthEvent) Reset() {
 	*x = ProviderHealthEvent{}
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[7]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -513,7 +342,7 @@ func (x *ProviderHealthEvent) String() string {
 func (*ProviderHealthEvent) ProtoMessage() {}
 
 func (x *ProviderHealthEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[7]
+	mi := &file_audio_tools_v1_health_status_health_status_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -526,7 +355,7 @@ func (x *ProviderHealthEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderHealthEvent.ProtoReflect.Descriptor instead.
 func (*ProviderHealthEvent) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{7}
+	return file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ProviderHealthEvent) GetGeneratedAt() string {
@@ -547,28 +376,13 @@ var File_audio_tools_v1_health_status_health_status_proto protoreflect.FileDescr
 
 const file_audio_tools_v1_health_status_health_status_proto_rawDesc = "" +
 	"\n" +
-	"0audio-tools/v1/health_status/health_status.proto\x12#vrooli.audio_tools.v1.health_status\x1a\"audio-tools/v1/common/common.proto\x1a,audio-tools/v1/diagnostics/diagnostics.proto\"\xa7\x03\n" +
-	"\x0eProviderHealth\x12M\n" +
-	"\n" +
-	"capability\x18\x01 \x01(\x0e2-.vrooli.audio_tools.v1.diagnostics.CapabilityR\n" +
-	"capability\x12>\n" +
-	"\x04tier\x18\x02 \x01(\x0e2*.vrooli.audio_tools.v1.common.ProviderTierR\x04tier\x12\x1f\n" +
-	"\vprovider_id\x18\x03 \x01(\tR\n" +
-	"providerId\x12@\n" +
-	"\x05state\x18\x04 \x01(\x0e2*.vrooli.audio_tools.v1.health_status.StateR\x05state\x12&\n" +
-	"\x0flast_checked_at\x18\x05 \x01(\tR\rlastCheckedAt\x12\x1d\n" +
-	"\n" +
-	"latency_ms\x18\x06 \x01(\x01R\tlatencyMs\x12\x1d\n" +
-	"\n" +
-	"error_code\x18\a \x01(\tR\terrorCode\x12#\n" +
-	"\rerror_message\x18\b \x01(\tR\ferrorMessage\x12\x18\n" +
-	"\aserving\x18\t \x01(\bR\aserving\"\x89\x02\n" +
+	"0audio-tools/v1/health_status/health_status.proto\x12#vrooli.audio_tools.v1.health_status\x1a\"audio-tools/v1/common/common.proto\x1a,audio-tools/v1/diagnostics/diagnostics.proto\x1a\"audio-tools/v1/shared/shared.proto\"\x83\x02\n" +
 	"\x10CapabilityHealth\x12M\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\x0e2-.vrooli.audio_tools.v1.diagnostics.CapabilityR\n" +
-	"capability\x12Q\n" +
-	"\tproviders\x18\x02 \x03(\v23.vrooli.audio_tools.v1.health_status.ProviderHealthR\tproviders\x12S\n" +
-	"\x0feffective_state\x18\x03 \x01(\x0e2*.vrooli.audio_tools.v1.health_status.StateR\x0eeffectiveState\"\x1a\n" +
+	"capability\x12J\n" +
+	"\tproviders\x18\x02 \x03(\v2,.vrooli.audio_tools.v1.shared.ProviderHealthR\tproviders\x12T\n" +
+	"\x0feffective_state\x18\x03 \x01(\x0e2+.vrooli.audio_tools.v1.shared.ProviderStateR\x0eeffectiveState\"\x1a\n" +
 	"\x18GetProviderHealthRequest\"\xc5\x01\n" +
 	"\x19GetProviderHealthResponse\x12Y\n" +
 	"\fcapabilities\x18\x01 \x03(\v25.vrooli.audio_tools.v1.health_status.CapabilityHealthR\fcapabilities\x12!\n" +
@@ -582,12 +396,7 @@ const file_audio_tools_v1_health_status_health_status_proto_rawDesc = "" +
 	"\x1bStreamProviderHealthRequest\"\x93\x01\n" +
 	"\x13ProviderHealthEvent\x12!\n" +
 	"\fgenerated_at\x18\x01 \x01(\tR\vgeneratedAt\x12Y\n" +
-	"\fcapabilities\x18\x02 \x03(\v25.vrooli.audio_tools.v1.health_status.CapabilityHealthR\fcapabilities*]\n" +
-	"\x05State\x12\x15\n" +
-	"\x11STATE_UNSPECIFIED\x10\x00\x12\x13\n" +
-	"\x0fSTATE_AVAILABLE\x10\x01\x12\x15\n" +
-	"\x11STATE_UNAVAILABLE\x10\x02\x12\x11\n" +
-	"\rSTATE_UNKNOWN\x10\x032\xe2\x03\n" +
+	"\fcapabilities\x18\x02 \x03(\v25.vrooli.audio_tools.v1.health_status.CapabilityHealthR\fcapabilities2\xe2\x03\n" +
 	"\x13HealthStatusService\x12\x92\x01\n" +
 	"\x11GetProviderHealth\x12=.vrooli.audio_tools.v1.health_status.GetProviderHealthRequest\x1a>.vrooli.audio_tools.v1.health_status.GetProviderHealthResponse\x12\x9e\x01\n" +
 	"\x15RefreshProviderHealth\x12A.vrooli.audio_tools.v1.health_status.RefreshProviderHealthRequest\x1aB.vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse\x12\x94\x01\n" +
@@ -605,42 +414,37 @@ func file_audio_tools_v1_health_status_health_status_proto_rawDescGZIP() []byte 
 	return file_audio_tools_v1_health_status_health_status_proto_rawDescData
 }
 
-var file_audio_tools_v1_health_status_health_status_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_audio_tools_v1_health_status_health_status_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_audio_tools_v1_health_status_health_status_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_audio_tools_v1_health_status_health_status_proto_goTypes = []any{
-	(State)(0),                            // 0: vrooli.audio_tools.v1.health_status.State
-	(*ProviderHealth)(nil),                // 1: vrooli.audio_tools.v1.health_status.ProviderHealth
-	(*CapabilityHealth)(nil),              // 2: vrooli.audio_tools.v1.health_status.CapabilityHealth
-	(*GetProviderHealthRequest)(nil),      // 3: vrooli.audio_tools.v1.health_status.GetProviderHealthRequest
-	(*GetProviderHealthResponse)(nil),     // 4: vrooli.audio_tools.v1.health_status.GetProviderHealthResponse
-	(*RefreshProviderHealthRequest)(nil),  // 5: vrooli.audio_tools.v1.health_status.RefreshProviderHealthRequest
-	(*RefreshProviderHealthResponse)(nil), // 6: vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse
-	(*StreamProviderHealthRequest)(nil),   // 7: vrooli.audio_tools.v1.health_status.StreamProviderHealthRequest
-	(*ProviderHealthEvent)(nil),           // 8: vrooli.audio_tools.v1.health_status.ProviderHealthEvent
-	(diagnostics.Capability)(0),           // 9: vrooli.audio_tools.v1.diagnostics.Capability
-	(common.ProviderTier)(0),              // 10: vrooli.audio_tools.v1.common.ProviderTier
+	(*CapabilityHealth)(nil),              // 0: vrooli.audio_tools.v1.health_status.CapabilityHealth
+	(*GetProviderHealthRequest)(nil),      // 1: vrooli.audio_tools.v1.health_status.GetProviderHealthRequest
+	(*GetProviderHealthResponse)(nil),     // 2: vrooli.audio_tools.v1.health_status.GetProviderHealthResponse
+	(*RefreshProviderHealthRequest)(nil),  // 3: vrooli.audio_tools.v1.health_status.RefreshProviderHealthRequest
+	(*RefreshProviderHealthResponse)(nil), // 4: vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse
+	(*StreamProviderHealthRequest)(nil),   // 5: vrooli.audio_tools.v1.health_status.StreamProviderHealthRequest
+	(*ProviderHealthEvent)(nil),           // 6: vrooli.audio_tools.v1.health_status.ProviderHealthEvent
+	(diagnostics.Capability)(0),           // 7: vrooli.audio_tools.v1.diagnostics.Capability
+	(*shared.ProviderHealth)(nil),         // 8: vrooli.audio_tools.v1.shared.ProviderHealth
+	(shared.ProviderState)(0),             // 9: vrooli.audio_tools.v1.shared.ProviderState
 }
 var file_audio_tools_v1_health_status_health_status_proto_depIdxs = []int32{
-	9,  // 0: vrooli.audio_tools.v1.health_status.ProviderHealth.capability:type_name -> vrooli.audio_tools.v1.diagnostics.Capability
-	10, // 1: vrooli.audio_tools.v1.health_status.ProviderHealth.tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	0,  // 2: vrooli.audio_tools.v1.health_status.ProviderHealth.state:type_name -> vrooli.audio_tools.v1.health_status.State
-	9,  // 3: vrooli.audio_tools.v1.health_status.CapabilityHealth.capability:type_name -> vrooli.audio_tools.v1.diagnostics.Capability
-	1,  // 4: vrooli.audio_tools.v1.health_status.CapabilityHealth.providers:type_name -> vrooli.audio_tools.v1.health_status.ProviderHealth
-	0,  // 5: vrooli.audio_tools.v1.health_status.CapabilityHealth.effective_state:type_name -> vrooli.audio_tools.v1.health_status.State
-	2,  // 6: vrooli.audio_tools.v1.health_status.GetProviderHealthResponse.capabilities:type_name -> vrooli.audio_tools.v1.health_status.CapabilityHealth
-	2,  // 7: vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse.capabilities:type_name -> vrooli.audio_tools.v1.health_status.CapabilityHealth
-	2,  // 8: vrooli.audio_tools.v1.health_status.ProviderHealthEvent.capabilities:type_name -> vrooli.audio_tools.v1.health_status.CapabilityHealth
-	3,  // 9: vrooli.audio_tools.v1.health_status.HealthStatusService.GetProviderHealth:input_type -> vrooli.audio_tools.v1.health_status.GetProviderHealthRequest
-	5,  // 10: vrooli.audio_tools.v1.health_status.HealthStatusService.RefreshProviderHealth:input_type -> vrooli.audio_tools.v1.health_status.RefreshProviderHealthRequest
-	7,  // 11: vrooli.audio_tools.v1.health_status.HealthStatusService.StreamProviderHealth:input_type -> vrooli.audio_tools.v1.health_status.StreamProviderHealthRequest
-	4,  // 12: vrooli.audio_tools.v1.health_status.HealthStatusService.GetProviderHealth:output_type -> vrooli.audio_tools.v1.health_status.GetProviderHealthResponse
-	6,  // 13: vrooli.audio_tools.v1.health_status.HealthStatusService.RefreshProviderHealth:output_type -> vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse
-	8,  // 14: vrooli.audio_tools.v1.health_status.HealthStatusService.StreamProviderHealth:output_type -> vrooli.audio_tools.v1.health_status.ProviderHealthEvent
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	7, // 0: vrooli.audio_tools.v1.health_status.CapabilityHealth.capability:type_name -> vrooli.audio_tools.v1.diagnostics.Capability
+	8, // 1: vrooli.audio_tools.v1.health_status.CapabilityHealth.providers:type_name -> vrooli.audio_tools.v1.shared.ProviderHealth
+	9, // 2: vrooli.audio_tools.v1.health_status.CapabilityHealth.effective_state:type_name -> vrooli.audio_tools.v1.shared.ProviderState
+	0, // 3: vrooli.audio_tools.v1.health_status.GetProviderHealthResponse.capabilities:type_name -> vrooli.audio_tools.v1.health_status.CapabilityHealth
+	0, // 4: vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse.capabilities:type_name -> vrooli.audio_tools.v1.health_status.CapabilityHealth
+	0, // 5: vrooli.audio_tools.v1.health_status.ProviderHealthEvent.capabilities:type_name -> vrooli.audio_tools.v1.health_status.CapabilityHealth
+	1, // 6: vrooli.audio_tools.v1.health_status.HealthStatusService.GetProviderHealth:input_type -> vrooli.audio_tools.v1.health_status.GetProviderHealthRequest
+	3, // 7: vrooli.audio_tools.v1.health_status.HealthStatusService.RefreshProviderHealth:input_type -> vrooli.audio_tools.v1.health_status.RefreshProviderHealthRequest
+	5, // 8: vrooli.audio_tools.v1.health_status.HealthStatusService.StreamProviderHealth:input_type -> vrooli.audio_tools.v1.health_status.StreamProviderHealthRequest
+	2, // 9: vrooli.audio_tools.v1.health_status.HealthStatusService.GetProviderHealth:output_type -> vrooli.audio_tools.v1.health_status.GetProviderHealthResponse
+	4, // 10: vrooli.audio_tools.v1.health_status.HealthStatusService.RefreshProviderHealth:output_type -> vrooli.audio_tools.v1.health_status.RefreshProviderHealthResponse
+	6, // 11: vrooli.audio_tools.v1.health_status.HealthStatusService.StreamProviderHealth:output_type -> vrooli.audio_tools.v1.health_status.ProviderHealthEvent
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_health_status_health_status_proto_init() }
@@ -653,14 +457,13 @@ func file_audio_tools_v1_health_status_health_status_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_health_status_health_status_proto_rawDesc), len(file_audio_tools_v1_health_status_health_status_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   8,
+			NumEnums:      0,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_audio_tools_v1_health_status_health_status_proto_goTypes,
 		DependencyIndexes: file_audio_tools_v1_health_status_health_status_proto_depIdxs,
-		EnumInfos:         file_audio_tools_v1_health_status_health_status_proto_enumTypes,
 		MessageInfos:      file_audio_tools_v1_health_status_health_status_proto_msgTypes,
 	}.Build()
 	File_audio_tools_v1_health_status_health_status_proto = out.File

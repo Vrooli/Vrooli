@@ -15,18 +15,20 @@ class GraphPosition(_message.Message):
     def __init__(self, x: _Optional[float] = ..., y: _Optional[float] = ...) -> None: ...
 
 class GraphGoalRollup(_message.Message):
-    __slots__ = ("total", "completed", "in_progress", "failed", "pending")
+    __slots__ = ("total", "completed", "in_progress", "failed", "pending", "dropped")
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_FIELD_NUMBER: _ClassVar[int]
     IN_PROGRESS_FIELD_NUMBER: _ClassVar[int]
     FAILED_FIELD_NUMBER: _ClassVar[int]
     PENDING_FIELD_NUMBER: _ClassVar[int]
+    DROPPED_FIELD_NUMBER: _ClassVar[int]
     total: int
     completed: int
     in_progress: int
     failed: int
     pending: int
-    def __init__(self, total: _Optional[int] = ..., completed: _Optional[int] = ..., in_progress: _Optional[int] = ..., failed: _Optional[int] = ..., pending: _Optional[int] = ...) -> None: ...
+    dropped: int
+    def __init__(self, total: _Optional[int] = ..., completed: _Optional[int] = ..., in_progress: _Optional[int] = ..., failed: _Optional[int] = ..., pending: _Optional[int] = ..., dropped: _Optional[int] = ...) -> None: ...
 
 class GraphBacklogNodeData(_message.Message):
     __slots__ = ("kind", "name", "title", "status", "priority", "active_execution_status", "active_execution_count")

@@ -111,6 +111,36 @@ class DetemplateScenarioResponse(_message.Message):
     message: str
     def __init__(self, scenario: _Optional[str] = ..., scenario_path: _Optional[str] = ..., marker: _Optional[str] = ..., dry_run: _Optional[bool] = ..., blocks_removed: _Optional[int] = ..., lines_stripped: _Optional[int] = ..., paths_deleted: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ...) -> None: ...
 
+class DestroyScenarioRequest(_message.Message):
+    __slots__ = ("scenario", "dry_run", "proto_only", "force")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    PROTO_ONLY_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    dry_run: bool
+    proto_only: bool
+    force: bool
+    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ..., proto_only: _Optional[bool] = ..., force: _Optional[bool] = ...) -> None: ...
+
+class DestroyScenarioResponse(_message.Message):
+    __slots__ = ("scenario", "dry_run", "proto_only", "paths_removed", "paths_absent", "needs_proto_generate", "message")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    PROTO_ONLY_FIELD_NUMBER: _ClassVar[int]
+    PATHS_REMOVED_FIELD_NUMBER: _ClassVar[int]
+    PATHS_ABSENT_FIELD_NUMBER: _ClassVar[int]
+    NEEDS_PROTO_GENERATE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    dry_run: bool
+    proto_only: bool
+    paths_removed: _containers.RepeatedScalarFieldContainer[str]
+    paths_absent: _containers.RepeatedScalarFieldContainer[str]
+    needs_proto_generate: bool
+    message: str
+    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ..., proto_only: _Optional[bool] = ..., paths_removed: _Optional[_Iterable[str]] = ..., paths_absent: _Optional[_Iterable[str]] = ..., needs_proto_generate: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+
 class ValidateTemplateRequest(_message.Message):
     __slots__ = ("template", "mode", "test_preset", "warning_policy", "retain_temp")
     TEMPLATE_FIELD_NUMBER: _ClassVar[int]

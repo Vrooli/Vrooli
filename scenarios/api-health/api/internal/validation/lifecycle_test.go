@@ -126,6 +126,19 @@ func main() {
 	require.True(t, report.Target.Lifecycle.DirectListenAndServe)
 }
 
+func TestValidateScenarioAllowsServerRunStartServerCallback(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "scenarios", "api-app", ".vrooli", "service.json"), validServiceJSON())
+	writeFile(t, filepath.Join(root, "scenarios", "api-app", "api", "main.go"), `package main
+import ("net/http"; "github.com/vrooli/api-core/preflight"; apiserver "github.com/vrooli/api-core/server")
+func main() { if preflight.Run(preflight.Config{ScenarioName:"api-app"}) { return }; _ = apiserver.Run(apiserver.Config{StartServer: func(*http.Server) error { return http.ListenAndServe(":8080", nil) }}) }`)
+	report, err := New(Deps{RepoRoot: root}).ValidateScenario(context.Background(), "api-app", "", false)
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		require.NotEqual(t, CodeServerRunnerMissing, finding.Code)
+	}
+}
+
 func requireFinding(t *testing.T, report Report, code string) Finding {
 	t.Helper()
 	for _, finding := range report.Findings {
