@@ -12,18 +12,18 @@ Load context before you propose a target, milestone, dependency, or item-assignm
 swarm-manager goals context --name "<goal-name>"
 ```
 
-The command returns the goal identity, target roots, derived scope, milestones, milestone rollups, unassigned scope items, and direct goal dependencies. Use the default human output for reasoning. Use `--json` only for programmatic parsing.
+The command returns the goal's derived scope: target roots, closure, ready and blocked counts, milestones with their rollups, and unassigned scope items. Use the default human output for reasoning. Use `--json` only for programmatic parsing.
 
 ## Scope interpretation
 
 - The derived scope is the authoritative closure from the goal targets. Do not replace it with client-side traversal.
 - A milestone owns only its assigned scope items. An unassigned item remains visible in the goal but does not count as milestone work.
 - An item can belong to one milestone in a goal. Use milestone assignment instead of duplicating membership.
-- Goal dependencies describe cross-goal ordering. A milestone dependency describes ordering inside one goal. Escalate a cross-goal milestone dependency to operator review.
+- A milestone dependency describes ordering inside one goal. There is no goal-to-goal dependency: ordering between goals is expressed by item dependencies, which is why an item in one goal's closure can block another goal's work.
 
 ## Reuse-before-create
 
-Inspect existing milestones and their items before proposing new work. Prefer assigning or updating an existing in-scope item when it can meet the stated acceptance criterion. Propose a new item only when no existing scope item can absorb the work; state that evidence in the proposal.
+Search before you propose new work: `swarm-manager backlog search-ai "<intent>" --json`. Then inspect existing milestones and their items. Prefer assigning or updating an existing in-scope item when it can meet the stated acceptance criterion. Propose a new item only when neither the search nor the scope surfaces one that can absorb the work; name what you searched and why nothing fit.
 
 ## Authority boundary
 

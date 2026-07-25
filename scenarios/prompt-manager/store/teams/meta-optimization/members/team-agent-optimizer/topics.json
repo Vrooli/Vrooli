@@ -7,6 +7,9 @@
       "prefix": "agent-audit/YYYY-MM-DD"
     },
     {
+      "prefix": "framework-health-audit/YYYY-MM-DD"
+    },
+    {
       "prefix": "team-visited/<team-id>"
     },
     {
@@ -45,6 +48,10 @@
     },
     {
       "prefix": "agent-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "framework-health-audit/*",
       "destination_kind": "knowledge"
     },
     {

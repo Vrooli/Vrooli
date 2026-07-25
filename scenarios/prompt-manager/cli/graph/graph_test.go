@@ -173,8 +173,10 @@ func TestCmdHealthFiltersTeamSortsWorstAndEmitsJSON(t *testing.T) {
 	})
 	ctx.Respond("GET", "/graph", graphIndex{Graph: graph{
 		Nodes: []node{
-			{ID: "team-a", Type: "team"}, {ID: "member-a", Type: "agent"},
-			{ID: "member-b", Type: "agent"}, {ID: "skill-1", Type: "skill"},
+			{ID: "team-a", Type: "team"},
+			{ID: "member-a", Type: "agent"},
+			{ID: "member-b", Type: "agent"},
+			{ID: "skill-1", Type: "skill"},
 		},
 		Edges: []edge{{From: "team-a", To: "member-a", Kind: "membership"}, {From: "team-a", To: "member-b", Kind: "membership"}},
 	}})
@@ -185,7 +187,11 @@ func TestCmdHealthFiltersTeamSortsWorstAndEmitsJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cmdHealth: %v", err)
 	}
-	if !strings.Contains(stdout, "Health summary: 2 scored nodes | mean 0.15 | below 0.30: 2") {
+	// The summary covers every node the filters kept (team-a, member-a,
+	// member-b), not just the two rows --worst prints. Summarising the
+	// truncated rows would report the mean of the worst N as if it were the
+	// corpus score.
+	if !strings.Contains(stdout, "Health summary: 3 scored nodes | mean 0.23 | below 0.30: 2") {
 		t.Fatalf("missing summary: %s", stdout)
 	}
 	if strings.Index(stdout, "member-b") > strings.Index(stdout, "team-a") {
@@ -203,5 +209,61 @@ func TestCmdHealthFiltersTeamSortsWorstAndEmitsJSON(t *testing.T) {
 	}
 	if !strings.HasPrefix(strings.TrimSpace(jsonOut), "[") || !strings.Contains(jsonOut, `"score": 0.1`) {
 		t.Fatalf("expected parseable score JSON: %s", jsonOut)
+	}
+}
+
+func TestCmdHealthExcludesSyntheticCLINodesByDefault(t *testing.T) {
+	respond := func(ctx *clitest.Context) {
+		ctx.Respond("GET", "/graph/health", []healthScore{
+			{NodeID: "cli:awk", Score: 0.0},
+			{NodeID: "cli:cat", Score: 0.0},
+			{NodeID: "skill-1", Score: 0.4},
+		})
+		ctx.Respond("GET", "/graph", graphIndex{Graph: graph{
+			Nodes: []node{
+				{ID: "cli:awk", Type: "cli"},
+				{ID: "cli:cat", Type: "cli"},
+				{ID: "skill-1", Type: "skill"},
+			},
+		}})
+	}
+
+	ctx := clitest.NewContext(t)
+	respond(ctx)
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdHealth(ctx, []string{"--worst", "3"})
+	})
+	if err != nil {
+		t.Fatalf("cmdHealth: %v", err)
+	}
+	// cli nodes are synthetic and score 0 by construction, so an unfiltered
+	// ranking would bury every authored finding under cli:awk / cli:cat.
+	if strings.Contains(stdout, "cli:awk") || strings.Contains(stdout, "cli:cat") {
+		t.Fatalf("synthetic cli nodes leaked into default ranking: %s", stdout)
+	}
+	if !strings.Contains(stdout, "skill-1") {
+		t.Fatalf("authored node missing from ranking: %s", stdout)
+	}
+
+	ctx2 := clitest.NewContext(t)
+	respond(ctx2)
+	cliOut, _, err := clitest.Output(t, func() error {
+		return cmdHealth(ctx2, []string{"--type", "cli", "--worst", "3"})
+	})
+	if err != nil {
+		t.Fatalf("cmdHealth --type cli: %v", err)
+	}
+	if !strings.Contains(cliOut, "cli:awk") {
+		t.Fatalf("explicit --type cli should surface cli nodes: %s", cliOut)
+	}
+}
+
+func TestHealthTypeFilterAcceptsCommaSeparatedTypes(t *testing.T) {
+	allowed := healthTypeFilter("skill, agent")
+	if !allowed["skill"] || !allowed["agent"] {
+		t.Fatalf("comma-separated types not parsed: %#v", allowed)
+	}
+	if allowed["cli"] || allowed["team"] {
+		t.Fatalf("unnamed types must not be allowed: %#v", allowed)
 	}
 }

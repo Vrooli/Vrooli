@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "meta-optimization",
   "displayName": "Meta Optimization Team",
-  "mission": "Apply evolutionary pressure to Vrooli's dev meta-layer \u2014 toolchain, skills, agents, teams, and recent agent runs \u2014 so the system gets measurably sharper, cheaper, and more programmatic over time.",
+  "mission": "Apply evolutionary pressure to Vrooli's dev meta-layer — toolchain, skills, agents, teams, and recent agent runs — so the system gets measurably sharper, cheaper, and more programmatic over time.",
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -89,6 +89,11 @@
       "prefix": "agent-audit/YYYY-MM-DD",
       "status": "live",
       "purpose": "Snapshot audit of member and agent file structure, responsibilities, prompts, and role drift."
+    },
+    {
+      "prefix": "framework-health-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Dated reading of every sensor in `path:docs/agent-system/FRAMEWORK_HEALTH.md` plus the findings that cycle produced, so framework health has a trend rather than a single current value."
     },
     {
       "prefix": "team-visited/<team-id>",
@@ -227,7 +232,7 @@
             "scenario-qa"
           ],
           "rationale": "Canonical home for the prompt-manager self-improvement framework: definitions, layer model, promotion ladder, intake pipeline, skill authoring rules, deprecation policy, and reference scenarios. Every team's audit and skill work cites this hub.",
-          "useFor": "framework canon \u2014 definitions of skill/agent/team/PoR/Action/CLI, the layering rule, the promotion ladder, the 9-layer team-member architecture, the intake-collection-analysis-promotion pipeline"
+          "useFor": "framework canon — definitions of skill/agent/team/PoR/Action/CLI, the layering rule, the promotion ladder, the 9-layer team-member architecture, the intake-collection-analysis-promotion pipeline"
         },
         {
           "id": "meta-optimization-operating-model",
@@ -420,13 +425,13 @@
         "ownerMemberIds": [
           "skill-optimizer"
         ],
-        "description": "Record that a steer skill's detection has graduated into a programmatic engine: propose setting the skill's programmaticHome pointer (format 'engine:identifier', e.g. 'test-genie:architecture') via `prompt-manager skill update --programmatic-home`. This is a record-of-fact \u2014 propose ONLY when the programmatic home actually exists and runs. The write executes when the decision is applied (the optimizer has no skill-write tool). Graduation auto-prunes the lens from the scenario-qa quality-auditor's derived rotation."
+        "description": "Record that a steer skill's detection has graduated into a programmatic engine: propose setting the skill's programmaticHome pointer (format 'engine:identifier', e.g. 'test-genie:architecture') via `prompt-manager skill update --programmatic-home`. This is a record-of-fact — propose ONLY when the programmatic home actually exists and runs. The write executes when the decision is applied (the optimizer has no skill-write tool). Graduation auto-prunes the lens from the scenario-qa quality-auditor's derived rotation."
       },
       "skill-experiment-promotion": {
         "ownerMemberIds": [
           "skill-optimizer"
         ],
-        "description": "Adopt an experiment's winning variant as the skill's content. Minted as a pending decision by the server on `prompt-manager experiment conclude` (By skill-optimizer) and gated by `prompt-manager experiment promote`, which applies only an operator-accepted matching decision. Evidence: the experiment report (per-arm serves/outcomes, posterior, cost), a server-verifiable clear audit receipt, and a separately signed holdout confirmation. Reviewed and challenged by meta-contrarian against the frozen protocol gates and the substrate-validity rule in skill-optimizer RESPONSIBILITIES \u00a7Skill Experiments before operator acceptance."
+        "description": "Adopt an experiment's winning variant as the skill's content. Minted as a pending decision by the server on `prompt-manager experiment conclude` (By skill-optimizer) and gated by `prompt-manager experiment promote`, which applies only an operator-accepted matching decision. Evidence: the experiment report (per-arm serves/outcomes, posterior, cost), a server-verifiable clear audit receipt, and a separately signed holdout confirmation. Reviewed and challenged by meta-contrarian against the frozen protocol gates and the substrate-validity rule in skill-optimizer RESPONSIBILITIES §Skill Experiments before operator acceptance."
       },
       "action-candidate": {
         "ownerMemberIds": [
@@ -607,7 +612,7 @@
         "ownerMemberId": "friction-curator",
         "supersedesPrevious": false,
         "retention": "drained-on-close",
-        "comment": "Universal-source intake (source_team: \"*\") \u2014 any team's members may write via the report-friction skill. The friction-curator drains, classifies the scope, and routes to friction-report/<scope>/<date>/<slug> on the owning sub-member's behalf."
+        "comment": "Universal-source intake (source_team: \"*\") — any team's members may write via the report-friction skill. The friction-curator drains, classifies the scope, and routes to friction-report/<scope>/<date>/<slug> on the owning sub-member's behalf."
       },
       "friction-triage-record/<YYYY-MM-DD>": {
         "ownerMemberId": "friction-curator",
@@ -890,7 +895,7 @@
         }
       },
       "friction-curator": {
-        "lane": "Drain friction-inbox/* (universal-source \u2014 any team's members may file via report-friction). Classify scope, route by writing to the appropriate friction-report/<scope>/<date>/<slug> topic on the owning sub-member's behalf, or handoff to debt-curator when classification fails. Maintain daily friction-triage-record/<YYYY-MM-DD> snapshot. Router, not analyst.",
+        "lane": "Drain friction-inbox/* (universal-source — any team's members may file via report-friction). Classify scope, route by writing to the appropriate friction-report/<scope>/<date>/<slug> topic on the owning sub-member's behalf, or handoff to debt-curator when classification fails. Maintain daily friction-triage-record/<YYYY-MM-DD> snapshot. Router, not analyst.",
         "ownedDecisionContexts": [],
         "newDecisionCapPerHeartbeat": 0,
         "pendingOwnedDecisionCap": 0,
@@ -912,7 +917,7 @@
         "safetyCriticalRules": [
           "Never originate friction-report/<scope>/* content from your own observations; writes to those topics are only valid when delivering a routed friction-inbox entry.",
           "Never silently delete a friction-inbox entry; every drained entry leaves a record in friction-triage-record/<YYYY-MM-DD> (routed, dropped, reclassified, or handed off).",
-          "Reclassify unknown-scope entries before routing; if reclassification fails after one heartbeat, handoff to debt-curator \u2014 never direct-write friction-report/recurring-workaround/* from unknown.",
+          "Reclassify unknown-scope entries before routing; if reclassification fails after one heartbeat, handoff to debt-curator — never direct-write friction-report/recurring-workaround/* from unknown.",
           "Cap daily inbox drain at dailyInboxDrainCap; above that, emit inbox-overflow triage entry, handoff to debt-curator, and pause further routing this heartbeat."
         ],
         "readOnlyModeBehavior": {

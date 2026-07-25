@@ -202,10 +202,7 @@ func (s *Scanner) scanRepositoryReferences(validIDs map[string]bool) []Edge {
 		edges = append(edges, skillReferenceEdges("system:agents", "AGENTS.md", string(content), validIDs)...)
 	}
 
-	for _, workflowRoot := range []string{
-		filepath.Join(s.repositoryRoot, "scenarios", "swarm-manager", ".vrooli", "agent-manager"),
-		filepath.Join(s.repositoryRoot, "scenarios", "swarm-manager", "api"),
-	} {
+	for _, workflowRoot := range s.workflowRoots() {
 		_ = filepath.WalkDir(workflowRoot, func(path string, entry os.DirEntry, err error) error {
 			if err != nil || entry.IsDir() {
 				return nil
@@ -232,6 +229,28 @@ func (s *Scanner) scanRepositoryReferences(validIDs map[string]bool) []Edge {
 		})
 	}
 	return edges
+}
+
+// workflowRoots returns every directory that can hold Agent Manager workflow
+// definitions. Any scenario may own workflows that dispatch a skill, so the
+// scan covers `scenarios/*/.vrooli/agent-manager` rather than one scenario.
+// Skills reached only through workflow dispatch are genuinely reachable, and
+// omitting a scenario reports them as orphans.
+func (s *Scanner) workflowRoots() []string {
+	roots := []string{filepath.Join(s.repositoryRoot, "scenarios", "swarm-manager", "api")}
+
+	scenariosDir := filepath.Join(s.repositoryRoot, "scenarios")
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		return roots
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		roots = append(roots, filepath.Join(scenariosDir, entry.Name(), ".vrooli", "agent-manager"))
+	}
+	return roots
 }
 
 func workflowPromptReferenceEdges(sourceID, sourceFile, content string, validIDs map[string]bool) []Edge {

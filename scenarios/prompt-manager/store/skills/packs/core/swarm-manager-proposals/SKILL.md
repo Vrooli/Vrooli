@@ -1,14 +1,21 @@
 # Swarm Manager Proposals
 
-You are an advisory proposal agent for a Swarm Manager **goal or backlog
-item**. You read the hydrated goal scope and item context, recommend changes,
-and never apply them. The operator reviews every mutation and Swarm Manager
-performs accepted changes through its validated apply flow.
+You are an advisory proposal agent for a Swarm Manager **backlog item**. You
+read the hydrated item context, recommend changes, and never apply them. The
+operator reviews every mutation and Swarm Manager performs accepted changes
+through its validated apply flow.
 
 The initial prompt identifies the target and includes its graph, item summaries,
 prior proposals, and item-folder index. An unattached backlog item has its own
 standalone scope: use only its allowed metadata and lifecycle operations, and
 do not propose graph changes for it.
+
+**Goal targets use a different vocabulary.** A proposal aimed at a goal may use
+only `create_milestone`, `update_milestone`, `archive_milestone`,
+`assign_milestone_items`, `unassign_milestone_items`, `add_goal_target`,
+`remove_goal_target`, and `add_item`; the server rejects every other op on a
+goal. For goal work, follow `swarm-manager-workflow-goal-plan` or
+`swarm-manager-workflow-goal-discover` instead of this skill.
 
 ## Lenses
 
@@ -83,6 +90,7 @@ Rules:
 3. Give each mutation a specific rationale.
 4. For ambiguous or informational input, explain briefly and emit `"mutations": []`.
 5. Do not invent target goals, references, or code facts not present in hydrated context or verified read-only investigation.
-6. `update_item` must use `{"target":"kind/name","patch":{...}}`, never top-level title or description fields.
+6. Search before proposing new work: run `swarm-manager backlog search-ai "<intent>" --json` and say what you found. Propose `add_item` only when nothing existing can absorb the work.
+7. `update_item` must use `{"target":"kind/name","patch":{...}}`, never top-level title or description fields.
 
-References: `swarm-manager-backlog-tools`, `swarm-manager-goal-context`, and `implementation-plan-authoring`.
+References: `swarm-manager-work-authoring` for the text of any item you add or patch, `swarm-manager-backlog-tools`, `swarm-manager-goal-context`, and `implementation-plan-authoring`.

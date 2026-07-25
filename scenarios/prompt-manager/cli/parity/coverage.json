@@ -1,217 +1,770 @@
 {
-  "GET /health": {"status": "intentionally-absent", "reason": "Liveness probe — never invoked from a CLI"},
-  "GET /og-metadata": {"status": "intentionally-absent", "reason": "Server-side metadata fetch for landing pages — operator does not call directly"},
-
-  "GET /skills": {"status": "covered", "cli": "skill list"},
-  "GET /skills/sync": {"status": "covered", "cli": "skill sync"},
-  "POST /skills": {"status": "covered", "cli": "skill add"},
-  "POST /skills/read": {"status": "covered", "cli": "skill read"},
-  "GET /skills/{id}": {"status": "covered", "cli": "skill show <id>"},
-  "PUT /skills/{id}": {"status": "covered", "cli": "skill update <id>"},
-  "DELETE /skills/{id}": {"status": "covered", "cli": "skill delete <id>"},
-  "GET /skills/{id}/versions": {"status": "covered", "cli": "skill versions <id>"},
-  "POST /skills/{id}/revert/{version}": {"status": "covered", "cli": "skill revert <id> <version>"},
-  "GET /skills/{id}/variants": {"status": "covered", "cli": "skill variants <id>"},
-  "GET /skills/{id}/variants/{vid}": {"status": "covered", "cli": "skill variants <id> <vid>"},
-  "POST /skills/{id}/variants": {"status": "covered", "cli": "skill add-variant <id>"},
-  "PUT /skills/{id}/variants/{vid}": {"status": "audit-pending", "reason": "No explicit update-variant subcommand visible; verify whether add-variant overwrites or a separate update is needed"},
-  "DELETE /skills/{id}/variants/{vid}": {"status": "covered", "cli": "skill rm-variant <id> <vid>"},
-  "POST /skills/{id}/use": {"status": "covered", "cli": "skill use <id>"},
-  "PUT /skills/{id}/rating": {"status": "covered", "cli": "skill rate <id>"},
-  "GET /skills/{id}/experiments": {"status": "covered", "cli": "experiment list --skill=<id>"},
-
-  "GET /actions": {"status": "covered", "cli": "action list"},
-  "POST /actions/preview": {"status": "covered", "cli": "action create (preview by default)"},
-  "POST /actions": {"status": "covered", "cli": "action create --apply (or --file=action.json)"},
-  "GET /actions/{id}": {"status": "covered", "cli": "action show <id>"},
-  "PUT /actions/{id}": {"status": "covered", "cli": "action update <id> --file=action.json"},
-  "DELETE /actions/{id}": {"status": "covered", "cli": "action delete <id>"},
-  "POST /actions/{id}/validate": {"status": "covered", "cli": "action validate <id>"},
-  "POST /actions/{id}/run": {"status": "covered", "cli": "action run <id>"},
-
-  "GET /experiments": {"status": "covered", "cli": "experiment list"},
-  "POST /experiments": {"status": "covered", "cli": "experiment create"},
-  "GET /experiments/{eid}": {"status": "covered", "cli": "experiment show <eid>"},
-  "PUT /experiments/{eid}": {"status": "audit-pending", "reason": "No explicit update case in experiments dispatch — verify whether create overwrites or update is missing"},
-  "DELETE /experiments/{eid}": {"status": "covered", "cli": "experiment delete <eid>"},
-  "POST /experiments/{eid}/start": {"status": "covered", "cli": "experiment start <eid>"},
-  "POST /experiments/{eid}/conclude": {"status": "covered", "cli": "experiment conclude <eid>"},
-  "POST /experiments/{eid}/assignments": {"status": "intentionally-absent", "reason": "Agent-manager dispatch-only assignment boundary; exposing it to operators would bypass workflow provenance"},
-  "POST /experiments/{eid}/audit-receipt": {"status": "audit-pending", "reason": "Audit workflow producer is not yet exposed as a standalone operator CLI command"},
-  "POST /experiments/{eid}/holdout-receipt": {"status": "covered", "cli": "experiment holdout <eid> --findings-hash HASH --idempotency-key KEY"},
-  "POST /experiments/{eid}/promote": {"status": "covered", "cli": "experiment promote <eid> <decision-id>"},
-  "POST /experiments/{eid}/outcomes": {"status": "covered", "cli": "experiment outcomes <eid> (record mode)"},
-  "GET /experiments/{eid}/outcomes": {"status": "covered", "cli": "experiment outcomes <eid> (list mode)"},
-  "GET /experiments/{eid}/report": {"status": "covered", "cli": "experiment report <eid>"},
-
-  "GET /graph": {"status": "covered", "cli": "graph show"},
-  "POST /graph/regenerate": {"status": "covered", "cli": "graph regenerate"},
-  "GET /graph/orphans": {"status": "covered", "cli": "graph orphans"},
-  "GET /graph/skillless": {"status": "covered", "cli": "graph skillless"},
-  "GET /graph/empty-teams": {"status": "covered", "cli": "graph empty-teams"},
-  "GET /graph/unaffiliated": {"status": "covered", "cli": "graph unaffiliated"},
-  "GET /graph/popular": {"status": "covered", "cli": "graph popular"},
-  "GET /graph/cycles": {"status": "covered", "cli": "graph cycles"},
-  "GET /graph/health": {"status": "covered", "cli": "graph health"},
-  "GET /graph/health-config": {"status": "audit-pending", "reason": "No dedicated health-config get subcommand visible in graph dispatch"},
-  "PUT /graph/health-config": {"status": "audit-pending", "reason": "No dedicated health-config put subcommand visible in graph dispatch"},
-  "GET /graph/nodes/{id}": {"status": "covered", "cli": "graph node <id>"},
-  "GET /graph/nodes/{id}/edges": {"status": "covered", "cli": "graph node <id> --edges"},
-  "GET /topics/graph": {"status": "covered", "cli": "graph topics"},
-  "GET /topics/drain-status": {"status": "covered", "cli": "graph drain-status"},
-  "GET /operating-models": {"status": "covered", "cli": "graph operating-model list"},
-  "GET /operating-models/validate": {"status": "covered", "cli": "graph operating-model validate"},
-  "GET /operating-models/diff": {"status": "covered", "cli": "graph operating-model diff"},
-  "GET /operating-models/coverage": {"status": "covered", "cli": "graph operating-model coverage"},
-
-  "GET /search/skills": {"status": "covered", "cli": "search (text mode)"},
-  "GET /search/skills/content": {"status": "audit-pending", "reason": "Content-search may be exposed via a flag on `search`; verify"},
-  "GET /search/agents": {"status": "covered", "cli": "agent search"},
-  "GET /search/agents/content": {"status": "audit-pending", "reason": "Content-search likely behind --content flag; verify"},
-  "GET /search/teams": {"status": "audit-pending", "reason": "No team-search top-level subcommand visible in teams dispatch"},
-  "GET /search/teams/content": {"status": "audit-pending", "reason": "See above"},
-  "POST /search/ai": {"status": "covered", "cli": "search (AI mode)"},
-  "POST /search/agents/ai": {"status": "covered", "cli": "agent search (AI mode default)"},
-  "POST /search/actions/ai": {"status": "audit-pending", "reason": "No action AI-search subcommand visible; add one if operators need direct action discovery"},
-  "POST /search/teams/ai": {"status": "audit-pending", "reason": "No team-search subcommand visible"},
-  "GET /search/ai/status": {"status": "covered", "cli": "search-status"},
-  "POST /search/ai/reconcile": {"status": "covered", "cli": "search-reconcile"},
-  "GET /search/ai/reconcile/status": {"status": "covered", "cli": "search-reconcile-status"},
-  "POST /search/ai/reconcile/cancel": {"status": "covered", "cli": "search-reconcile-cancel"},
-
-  "POST /discover": {"status": "covered", "cli": "discover"},
-  "GET /discovery-gaps": {"status": "covered", "cli": "discovery-gaps"},
-  "GET /discovery-metrics": {"status": "covered", "cli": "discovery-metrics"},
-
-  "GET /config/budgets": {"status": "audit-pending", "reason": "No dedicated budgets get/put subcommand visible — likely surfaced via discover or admin tooling"},
-  "PUT /config/budgets": {"status": "audit-pending", "reason": "See above"},
-  "GET /config/discover-filters": {"status": "audit-pending", "reason": "discover dispatch has 'under'/'over' budget cases; verify whether these wrap config endpoints"},
-  "PUT /config/discover-filters": {"status": "audit-pending", "reason": "See above"},
-
-  "GET /tags": {"status": "covered", "cli": "tag list"},
-  "POST /tags": {"status": "covered", "cli": "tag create"},
-
-  "POST /skills/{id}/test": {"status": "covered", "cli": "test run <id>"},
-  "GET /skills/{id}/test-history": {"status": "covered", "cli": "test history <id>"},
-
-  "GET /agents": {"status": "covered", "cli": "agent list"},
-  "POST /agents": {"status": "covered", "cli": "agent create"},
-  "GET /agents/{id}": {"status": "covered", "cli": "agent show <id>"},
-  "PUT /agents/{id}": {"status": "covered", "cli": "agent update <id>"},
-  "DELETE /agents/{id}": {"status": "covered", "cli": "agent delete <id>"},
-  "GET /agents/{id}/soul": {"status": "covered", "cli": "agent soul <id> (get mode)"},
-  "PUT /agents/{id}/soul": {"status": "covered", "cli": "agent soul <id> --set ..."},
-  "GET /agents/{id}/files": {"status": "audit-pending", "reason": "No agent-files subcommand in agents dispatch — file management may be a gap"},
-  "POST /agents/{id}/files": {"status": "audit-pending", "reason": "See above"},
-  "DELETE /agents/{id}/files": {"status": "audit-pending", "reason": "See above"},
-  "GET /agents/{id}/files/content": {"status": "audit-pending", "reason": "See above"},
-  "PUT /agents/{id}/files/content": {"status": "audit-pending", "reason": "See above"},
-  "POST /agents/{id}/files/rename": {"status": "audit-pending", "reason": "See above"},
-  "GET /agents/{id}/teams": {"status": "audit-pending", "reason": "No agent-teams subcommand visible"},
-
-  "GET /agent-file-templates": {"status": "audit-pending", "reason": "No template subcommand visible in cli — may be UI-only"},
-
-  "GET /teams/import/claude-code/available": {"status": "audit-pending", "reason": "No list-available subcommand visible — import-cc may bundle this"},
-  "POST /teams/import/claude-code": {"status": "covered", "cli": "team import-cc"},
-
-  "GET /teams": {"status": "covered", "cli": "team list"},
-  "POST /teams": {"status": "covered", "cli": "team create"},
-  "GET /teams/{id}": {"status": "covered", "cli": "team show <id>"},
-  "PUT /teams/{id}": {"status": "covered", "cli": "team update <id>"},
-  "DELETE /teams/{id}": {"status": "covered", "cli": "team delete <id>"},
-  "GET /teams/{id}/exclusive-members": {"status": "audit-pending", "reason": "No exclusive-members subcommand visible — may be UI-only"},
-  "POST /teams/{id}/members": {"status": "covered", "cli": "team add-member"},
-  "PUT /teams/{id}/members/{agentId}": {"status": "covered", "cli": "team update-member"},
-  "DELETE /teams/{id}/members/{agentId}": {"status": "covered", "cli": "team remove-member"},
-  "GET /teams/{id}/roles": {"status": "covered", "cli": "team roles <id>"},
-  "PUT /teams/{id}/roles": {"status": "audit-pending", "reason": "team roles only lists; SetRoles likely needs a subcommand or flag"},
-  "GET /teams/{id}/shared/files": {"status": "audit-pending", "reason": "No shared-files subcommand visible in teams dispatch"},
-  "POST /teams/{id}/shared/files": {"status": "audit-pending", "reason": "See above"},
-  "DELETE /teams/{id}/shared/files": {"status": "audit-pending", "reason": "See above"},
-  "GET /teams/{id}/shared/files/content": {"status": "audit-pending", "reason": "See above"},
-  "PUT /teams/{id}/shared/files/content": {"status": "audit-pending", "reason": "See above"},
-  "POST /teams/{id}/shared/files/rename": {"status": "audit-pending", "reason": "See above"},
-  "GET /teams/{id}/org": {"status": "covered", "cli": "team org-list"},
-  "PUT /teams/{id}/org": {"status": "audit-pending", "reason": "team org-set sets a single edge; full SetOrgChart (PUT) may be missing"},
-  "PUT /teams/{id}/org/edges/{reportId}": {"status": "covered", "cli": "team org-set"},
-  "DELETE /teams/{id}/org/edges/{reportId}": {"status": "covered", "cli": "team org-remove"},
-  "GET /teams/{id}/members/{agentId}/messages": {"status": "covered", "cli": "team message-list"},
-  "POST /teams/{id}/members/{agentId}/messages": {"status": "covered", "cli": "team message-send"},
-  "DELETE /teams/{id}/members/{agentId}/messages": {"status": "covered", "cli": "team message-clear"},
-  "DELETE /teams/{id}/members/{agentId}/messages/{messageId}": {"status": "covered", "cli": "team message-delete"},
-  "GET /teams/{id}/export/claude-code": {"status": "covered", "cli": "team export-cc"},
-
-  "POST /topics/match": {"status": "audit-pending", "reason": "topic search subcommand may wrap this; verify"},
-  "GET /topics": {"status": "covered", "cli": "topic list"},
-  "POST /topics": {"status": "covered", "cli": "topic create"},
-  "GET /topics/{id}": {"status": "covered", "cli": "topic show <id>"},
-  "PUT /topics/{id}": {"status": "covered", "cli": "topic update <id>"},
-  "DELETE /topics/{id}": {"status": "covered", "cli": "topic delete <id>"},
-  "GET /topics/{id}/skills": {"status": "covered", "cli": "topic skills <id>"},
-
-  "POST /tasks": {"status": "audit-pending", "reason": "Top-level POST /tasks (heartbeat-managed) — verify whether team task-add covers or a separate run-task command exists"},
-  "POST /runs": {"status": "audit-pending", "reason": "No top-level runs subcommand visible — may be UI/agent-only"},
-  "GET /runs": {"status": "audit-pending", "reason": "See above"},
-  "GET /heartbeat-attempts": {"status": "audit-pending", "reason": "No heartbeat-attempt history CLI surface found; decide whether this remains API/UI diagnostics or gets an operator command"},
-  "POST /runs/investigate": {"status": "audit-pending", "reason": "See above"},
-  "POST /runs/investigation-apply": {"status": "audit-pending", "reason": "See above"},
-  "GET /runs/{runId}": {"status": "audit-pending", "reason": "See above"},
-  "POST /runs/{runId}/retry": {"status": "audit-pending", "reason": "See above"},
-  "GET /runs/{runId}/events": {"status": "audit-pending", "reason": "See above"},
-  "POST /runs/{runId}/continue": {"status": "audit-pending", "reason": "See above"},
-
-  "GET /heartbeats/running": {"status": "audit-pending", "reason": "No global running-heartbeats subcommand visible — only per-team list exists"},
-  "POST /heartbeats/running/{teamId}/{agentId}/stop": {"status": "audit-pending", "reason": "No stop-running subcommand visible"},
-
-  "POST /prompt-preview": {"status": "intentionally-absent", "reason": "Internal preview API consumed by UI; operators use member-context for human-facing prompt inspection"},
-  "POST /prompt-preview-structured": {"status": "intentionally-absent", "reason": "Internal structured-preview API consumed by UI"},
-  "GET /teams/{id}/prompt-matrix": {"status": "intentionally-absent", "reason": "Cross-member prompt diff for the UI; not an operator-facing CLI surface"},
-
-  "GET /teams/{id}/heartbeats": {"status": "covered", "cli": "team heartbeat-list <id>"},
-  "GET /teams/{id}/heartbeats/{agentId}": {"status": "covered", "cli": "team heartbeat <id> <agentId>"},
-  "POST /teams/{id}/heartbeats/{agentId}": {"status": "audit-pending", "reason": "team heartbeat-enable wraps PUT-style update; CreateHeartbeat (POST) may be redundant — verify"},
-  "PUT /teams/{id}/heartbeats/{agentId}": {"status": "covered", "cli": "team heartbeat-enable / heartbeat-disable"},
-  "DELETE /teams/{id}/heartbeats/{agentId}": {"status": "audit-pending", "reason": "No heartbeat-delete subcommand visible (heartbeat-disable is not the same as delete)"},
-  "POST /teams/{id}/heartbeats/{agentId}/trigger": {"status": "covered", "cli": "team heartbeat-trigger"},
-  "POST /teams/{id}/trigger": {"status": "covered", "cli": "team trigger <id>"},
-  "GET /teams/{id}/execution-status": {"status": "audit-pending", "reason": "No execution-status subcommand visible"},
-  "DELETE /teams/{id}/queue/running/{agentId}": {"status": "covered", "cli": "team queue-clear"},
-  "GET /teams/{id}/heartbeats/logs": {"status": "audit-pending", "reason": "Team-wide log list — heartbeat-logs is per-agent"},
-  "GET /teams/{id}/heartbeats/{agentId}/logs": {"status": "covered", "cli": "team heartbeat-logs"},
-  "GET /teams/{id}/heartbeats/{agentId}/logs/{logId}": {"status": "audit-pending", "reason": "No single-log show subcommand visible"},
-
-  "GET /teams/{id}/members/{agentId}/responsibilities": {"status": "covered", "cli": "team responsibilities (get mode)"},
-  "PUT /teams/{id}/members/{agentId}/responsibilities": {"status": "covered", "cli": "team responsibilities --set"},
-  "GET /teams/{id}/members/{agentId}/heartbeat-instructions": {"status": "covered", "cli": "team heartbeat-instructions (get mode)"},
-  "PUT /teams/{id}/members/{agentId}/heartbeat-instructions": {"status": "covered", "cli": "team heartbeat-instructions --set"},
-  "GET /teams/{id}/members/{agentId}/context": {"status": "covered", "cli": "team member-context"},
-  "GET /teams/{id}/members/{agentId}/topics": {"status": "covered", "cli": "graph topics --team <id>"},
-  "PUT /teams/{id}/members/{agentId}/topics": {"status": "audit-pending", "reason": "No member-level topics write CLI; current operator path edits topics.json and validates with graph topics"},
-  "GET /teams/{id}/topics": {"status": "covered", "cli": "graph topics --team <id>"},
-
-  "GET /teams/{id}/members/{agentId}/handoff": {"status": "covered", "cli": "team handoff-latest"},
-  "DELETE /teams/{id}/members/{agentId}/handoff": {"status": "audit-pending", "reason": "No handoff-clear subcommand visible"},
-  "GET /teams/{id}/handoff-history": {"status": "covered", "cli": "team handoff-history"},
-  "DELETE /teams/{id}/handoff-history": {"status": "audit-pending", "reason": "No handoff-history-clear subcommand visible"},
-
-  "GET /teams/{id}/tasks": {"status": "covered", "cli": "team task-list <id>"},
-  "POST /teams/{id}/tasks": {"status": "covered", "cli": "team task-add <id>"},
-  "PATCH,PUT /teams/{id}/tasks/{taskId}": {"status": "covered", "cli": "team task-update <id> <taskId>"},
-  "DELETE /teams/{id}/tasks/{taskId}": {"status": "covered", "cli": "team task-delete <id> <taskId>"},
-
-  "GET /decisions/pending": {"status": "covered", "cli": "decisions-pending"},
-  "POST /teams/{id}/decisions": {"status": "covered", "cli": "team decision-add <id>"},
-  "GET /teams/{id}/decisions": {"status": "covered", "cli": "team decision-list <id>"},
-  "PATCH,PUT /teams/{id}/decisions/{decisionId}": {"status": "covered", "cli": "team decision-update / decision-accept / decision-reject"},
-  "DELETE /teams/{id}/decisions/{decisionId}": {"status": "covered", "cli": "team decision-delete <id> <decisionId>"},
-
-  "GET /teams/{id}/retention": {"status": "covered", "cli": "team retention <id>"},
-  "POST /teams/{id}/prune": {"status": "covered", "cli": "team prune <id>"},
-
-  "POST /teams/{id}/knowledge": {"status": "covered", "cli": "team knowledge-add <id>"},
-  "GET /teams/{id}/knowledge": {"status": "covered", "cli": "team knowledge-list <id>"},
-  "PATCH,PUT /teams/{id}/knowledge/{knowledgeId}": {"status": "covered", "cli": "team knowledge-update"},
-  "DELETE /teams/{id}/knowledge/{knowledgeId}": {"status": "covered", "cli": "team knowledge-delete"},
-  "POST /teams/{id}/bugs/capture": {"status": "covered", "cli": "team bug-capture <team-id>"},
-  "PATCH,PUT /teams/{id}/bugs/{draftId}/capture": {"status": "covered", "cli": "team bug-repair <team-id> <draft-id>"}
+  "GET /health": {
+    "status": "intentionally-absent",
+    "reason": "Liveness probe — never invoked from a CLI"
+  },
+  "GET /og-metadata": {
+    "status": "intentionally-absent",
+    "reason": "Server-side metadata fetch for landing pages — operator does not call directly"
+  },
+  "GET /skills": {
+    "status": "covered",
+    "cli": "skill list"
+  },
+  "GET /skills/sync": {
+    "status": "covered",
+    "cli": "skill sync"
+  },
+  "POST /skills": {
+    "status": "covered",
+    "cli": "skill add"
+  },
+  "POST /skills/read": {
+    "status": "covered",
+    "cli": "skill read"
+  },
+  "GET /skills/{id}": {
+    "status": "covered",
+    "cli": "skill show <id>"
+  },
+  "PUT /skills/{id}": {
+    "status": "covered",
+    "cli": "skill update <id>"
+  },
+  "DELETE /skills/{id}": {
+    "status": "covered",
+    "cli": "skill delete <id>"
+  },
+  "GET /skills/{id}/versions": {
+    "status": "covered",
+    "cli": "skill versions <id>"
+  },
+  "POST /skills/{id}/revert/{version}": {
+    "status": "covered",
+    "cli": "skill revert <id> <version>"
+  },
+  "GET /skills/{id}/variants": {
+    "status": "covered",
+    "cli": "skill variants <id>"
+  },
+  "GET /skills/{id}/variants/{vid}": {
+    "status": "covered",
+    "cli": "skill variants <id> <vid>"
+  },
+  "POST /skills/{id}/variants": {
+    "status": "covered",
+    "cli": "skill add-variant <id>"
+  },
+  "PUT /skills/{id}/variants/{vid}": {
+    "status": "audit-pending",
+    "reason": "No explicit update-variant subcommand visible; verify whether add-variant overwrites or a separate update is needed"
+  },
+  "DELETE /skills/{id}/variants/{vid}": {
+    "status": "covered",
+    "cli": "skill rm-variant <id> <vid>"
+  },
+  "POST /skills/{id}/use": {
+    "status": "covered",
+    "cli": "skill use <id>"
+  },
+  "PUT /skills/{id}/rating": {
+    "status": "covered",
+    "cli": "skill rate <id>"
+  },
+  "GET /skills/{id}/experiments": {
+    "status": "covered",
+    "cli": "experiment list --skill=<id>"
+  },
+  "GET /actions": {
+    "status": "covered",
+    "cli": "action list"
+  },
+  "POST /actions/preview": {
+    "status": "covered",
+    "cli": "action create (preview by default)"
+  },
+  "POST /actions": {
+    "status": "covered",
+    "cli": "action create --apply (or --file=action.json)"
+  },
+  "GET /actions/{id}": {
+    "status": "covered",
+    "cli": "action show <id>"
+  },
+  "PUT /actions/{id}": {
+    "status": "covered",
+    "cli": "action update <id> --file=action.json"
+  },
+  "DELETE /actions/{id}": {
+    "status": "covered",
+    "cli": "action delete <id>"
+  },
+  "POST /actions/{id}/validate": {
+    "status": "covered",
+    "cli": "action validate <id>"
+  },
+  "POST /actions/{id}/run": {
+    "status": "covered",
+    "cli": "action run <id>"
+  },
+  "GET /experiments": {
+    "status": "covered",
+    "cli": "experiment list"
+  },
+  "POST /experiments": {
+    "status": "covered",
+    "cli": "experiment create"
+  },
+  "GET /experiments/{eid}": {
+    "status": "covered",
+    "cli": "experiment show <eid>"
+  },
+  "PUT /experiments/{eid}": {
+    "status": "audit-pending",
+    "reason": "No explicit update case in experiments dispatch — verify whether create overwrites or update is missing"
+  },
+  "DELETE /experiments/{eid}": {
+    "status": "covered",
+    "cli": "experiment delete <eid>"
+  },
+  "POST /experiments/{eid}/start": {
+    "status": "covered",
+    "cli": "experiment start <eid>"
+  },
+  "POST /experiments/{eid}/conclude": {
+    "status": "covered",
+    "cli": "experiment conclude <eid>"
+  },
+  "POST /experiments/{eid}/assignments": {
+    "status": "intentionally-absent",
+    "reason": "Agent-manager dispatch-only assignment boundary; exposing it to operators would bypass workflow provenance"
+  },
+  "POST /experiments/{eid}/audit-receipt": {
+    "status": "audit-pending",
+    "reason": "Audit workflow producer is not yet exposed as a standalone operator CLI command"
+  },
+  "POST /experiments/{eid}/holdout-receipt": {
+    "status": "covered",
+    "cli": "experiment holdout <eid> --findings-hash HASH --idempotency-key KEY"
+  },
+  "POST /experiments/{eid}/promote": {
+    "status": "covered",
+    "cli": "experiment promote <eid> <decision-id>"
+  },
+  "POST /experiments/{eid}/outcomes": {
+    "status": "covered",
+    "cli": "experiment outcomes <eid> (record mode)"
+  },
+  "GET /experiments/{eid}/outcomes": {
+    "status": "covered",
+    "cli": "experiment outcomes <eid> (list mode)"
+  },
+  "GET /experiments/{eid}/report": {
+    "status": "covered",
+    "cli": "experiment report <eid>"
+  },
+  "GET /graph": {
+    "status": "covered",
+    "cli": "graph show"
+  },
+  "POST /graph/regenerate": {
+    "status": "covered",
+    "cli": "graph regenerate"
+  },
+  "GET /graph/orphans": {
+    "status": "covered",
+    "cli": "graph orphans"
+  },
+  "GET /graph/skillless": {
+    "status": "covered",
+    "cli": "graph skillless"
+  },
+  "GET /graph/empty-teams": {
+    "status": "covered",
+    "cli": "graph empty-teams"
+  },
+  "GET /graph/unaffiliated": {
+    "status": "covered",
+    "cli": "graph unaffiliated"
+  },
+  "GET /graph/popular": {
+    "status": "covered",
+    "cli": "graph popular"
+  },
+  "GET /graph/cycles": {
+    "status": "covered",
+    "cli": "graph cycles"
+  },
+  "GET /graph/health": {
+    "status": "covered",
+    "cli": "graph health"
+  },
+  "GET /graph/health-config": {
+    "status": "audit-pending",
+    "reason": "No dedicated health-config get subcommand visible in graph dispatch"
+  },
+  "PUT /graph/health-config": {
+    "status": "audit-pending",
+    "reason": "No dedicated health-config put subcommand visible in graph dispatch"
+  },
+  "GET /graph/nodes/{id}": {
+    "status": "covered",
+    "cli": "graph node <id>"
+  },
+  "GET /graph/nodes/{id}/edges": {
+    "status": "covered",
+    "cli": "graph node <id> --edges"
+  },
+  "GET /topics/graph": {
+    "status": "covered",
+    "cli": "graph topics"
+  },
+  "GET /topics/drain-status": {
+    "status": "covered",
+    "cli": "graph drain-status"
+  },
+  "GET /operating-models": {
+    "status": "covered",
+    "cli": "graph operating-model list"
+  },
+  "GET /operating-models/validate": {
+    "status": "covered",
+    "cli": "graph operating-model validate"
+  },
+  "GET /operating-models/diff": {
+    "status": "covered",
+    "cli": "graph operating-model diff"
+  },
+  "GET /operating-models/coverage": {
+    "status": "covered",
+    "cli": "graph operating-model coverage"
+  },
+  "GET /operating-models/map": {
+    "status": "covered",
+    "cli": "graph map"
+  },
+  "GET /search/skills": {
+    "status": "covered",
+    "cli": "search (text mode)"
+  },
+  "GET /search/skills/content": {
+    "status": "audit-pending",
+    "reason": "Content-search may be exposed via a flag on `search`; verify"
+  },
+  "GET /search/agents": {
+    "status": "covered",
+    "cli": "agent search"
+  },
+  "GET /search/agents/content": {
+    "status": "audit-pending",
+    "reason": "Content-search likely behind --content flag; verify"
+  },
+  "GET /search/teams": {
+    "status": "audit-pending",
+    "reason": "No team-search top-level subcommand visible in teams dispatch"
+  },
+  "GET /search/teams/content": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "POST /search/ai": {
+    "status": "covered",
+    "cli": "search (AI mode)"
+  },
+  "POST /search/agents/ai": {
+    "status": "covered",
+    "cli": "agent search (AI mode default)"
+  },
+  "POST /search/actions/ai": {
+    "status": "audit-pending",
+    "reason": "No action AI-search subcommand visible; add one if operators need direct action discovery"
+  },
+  "POST /search/teams/ai": {
+    "status": "audit-pending",
+    "reason": "No team-search subcommand visible"
+  },
+  "GET /search/ai/status": {
+    "status": "covered",
+    "cli": "search-status"
+  },
+  "POST /search/ai/reconcile": {
+    "status": "covered",
+    "cli": "search-reconcile"
+  },
+  "GET /search/ai/reconcile/status": {
+    "status": "covered",
+    "cli": "search-reconcile-status"
+  },
+  "POST /search/ai/reconcile/cancel": {
+    "status": "covered",
+    "cli": "search-reconcile-cancel"
+  },
+  "POST /discover": {
+    "status": "covered",
+    "cli": "discover"
+  },
+  "GET /discovery-gaps": {
+    "status": "covered",
+    "cli": "discovery-gaps"
+  },
+  "GET /discovery-metrics": {
+    "status": "covered",
+    "cli": "discovery-metrics"
+  },
+  "GET /config/budgets": {
+    "status": "audit-pending",
+    "reason": "No dedicated budgets get/put subcommand visible — likely surfaced via discover or admin tooling"
+  },
+  "PUT /config/budgets": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /config/discover-filters": {
+    "status": "audit-pending",
+    "reason": "discover dispatch has 'under'/'over' budget cases; verify whether these wrap config endpoints"
+  },
+  "PUT /config/discover-filters": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /tags": {
+    "status": "covered",
+    "cli": "tag list"
+  },
+  "POST /tags": {
+    "status": "covered",
+    "cli": "tag create"
+  },
+  "POST /skills/{id}/test": {
+    "status": "covered",
+    "cli": "test run <id>"
+  },
+  "GET /skills/{id}/test-history": {
+    "status": "covered",
+    "cli": "test history <id>"
+  },
+  "GET /agents": {
+    "status": "covered",
+    "cli": "agent list"
+  },
+  "POST /agents": {
+    "status": "covered",
+    "cli": "agent create"
+  },
+  "GET /agents/{id}": {
+    "status": "covered",
+    "cli": "agent show <id>"
+  },
+  "PUT /agents/{id}": {
+    "status": "covered",
+    "cli": "agent update <id>"
+  },
+  "DELETE /agents/{id}": {
+    "status": "covered",
+    "cli": "agent delete <id>"
+  },
+  "GET /agents/{id}/soul": {
+    "status": "covered",
+    "cli": "agent soul <id> (get mode)"
+  },
+  "PUT /agents/{id}/soul": {
+    "status": "covered",
+    "cli": "agent soul <id> --set ..."
+  },
+  "GET /agents/{id}/files": {
+    "status": "audit-pending",
+    "reason": "No agent-files subcommand in agents dispatch — file management may be a gap"
+  },
+  "POST /agents/{id}/files": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "DELETE /agents/{id}/files": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /agents/{id}/files/content": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "PUT /agents/{id}/files/content": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "POST /agents/{id}/files/rename": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /agents/{id}/teams": {
+    "status": "audit-pending",
+    "reason": "No agent-teams subcommand visible"
+  },
+  "GET /agent-file-templates": {
+    "status": "audit-pending",
+    "reason": "No template subcommand visible in cli — may be UI-only"
+  },
+  "GET /teams/import/claude-code/available": {
+    "status": "audit-pending",
+    "reason": "No list-available subcommand visible — import-cc may bundle this"
+  },
+  "POST /teams/import/claude-code": {
+    "status": "covered",
+    "cli": "team import-cc"
+  },
+  "GET /teams": {
+    "status": "covered",
+    "cli": "team list"
+  },
+  "POST /teams": {
+    "status": "covered",
+    "cli": "team create"
+  },
+  "GET /teams/{id}": {
+    "status": "covered",
+    "cli": "team show <id>"
+  },
+  "PUT /teams/{id}": {
+    "status": "covered",
+    "cli": "team update <id>"
+  },
+  "DELETE /teams/{id}": {
+    "status": "covered",
+    "cli": "team delete <id>"
+  },
+  "GET /teams/{id}/exclusive-members": {
+    "status": "audit-pending",
+    "reason": "No exclusive-members subcommand visible — may be UI-only"
+  },
+  "POST /teams/{id}/members": {
+    "status": "covered",
+    "cli": "team add-member"
+  },
+  "PUT /teams/{id}/members/{agentId}": {
+    "status": "covered",
+    "cli": "team update-member"
+  },
+  "DELETE /teams/{id}/members/{agentId}": {
+    "status": "covered",
+    "cli": "team remove-member"
+  },
+  "GET /teams/{id}/roles": {
+    "status": "covered",
+    "cli": "team roles <id>"
+  },
+  "PUT /teams/{id}/roles": {
+    "status": "audit-pending",
+    "reason": "team roles only lists; SetRoles likely needs a subcommand or flag"
+  },
+  "GET /teams/{id}/shared/files": {
+    "status": "audit-pending",
+    "reason": "No shared-files subcommand visible in teams dispatch"
+  },
+  "POST /teams/{id}/shared/files": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "DELETE /teams/{id}/shared/files": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /teams/{id}/shared/files/content": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "PUT /teams/{id}/shared/files/content": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "POST /teams/{id}/shared/files/rename": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /teams/{id}/org": {
+    "status": "covered",
+    "cli": "team org-list"
+  },
+  "PUT /teams/{id}/org": {
+    "status": "audit-pending",
+    "reason": "team org-set sets a single edge; full SetOrgChart (PUT) may be missing"
+  },
+  "PUT /teams/{id}/org/edges/{reportId}": {
+    "status": "covered",
+    "cli": "team org-set"
+  },
+  "DELETE /teams/{id}/org/edges/{reportId}": {
+    "status": "covered",
+    "cli": "team org-remove"
+  },
+  "GET /teams/{id}/members/{agentId}/messages": {
+    "status": "covered",
+    "cli": "team message-list"
+  },
+  "POST /teams/{id}/members/{agentId}/messages": {
+    "status": "covered",
+    "cli": "team message-send"
+  },
+  "DELETE /teams/{id}/members/{agentId}/messages": {
+    "status": "covered",
+    "cli": "team message-clear"
+  },
+  "DELETE /teams/{id}/members/{agentId}/messages/{messageId}": {
+    "status": "covered",
+    "cli": "team message-delete"
+  },
+  "GET /teams/{id}/export/claude-code": {
+    "status": "covered",
+    "cli": "team export-cc"
+  },
+  "POST /topics/match": {
+    "status": "audit-pending",
+    "reason": "topic search subcommand may wrap this; verify"
+  },
+  "GET /topics": {
+    "status": "covered",
+    "cli": "topic list"
+  },
+  "POST /topics": {
+    "status": "covered",
+    "cli": "topic create"
+  },
+  "GET /topics/{id}": {
+    "status": "covered",
+    "cli": "topic show <id>"
+  },
+  "PUT /topics/{id}": {
+    "status": "covered",
+    "cli": "topic update <id>"
+  },
+  "DELETE /topics/{id}": {
+    "status": "covered",
+    "cli": "topic delete <id>"
+  },
+  "GET /topics/{id}/skills": {
+    "status": "covered",
+    "cli": "topic skills <id>"
+  },
+  "POST /tasks": {
+    "status": "audit-pending",
+    "reason": "Top-level POST /tasks (heartbeat-managed) — verify whether team task-add covers or a separate run-task command exists"
+  },
+  "POST /runs": {
+    "status": "audit-pending",
+    "reason": "No top-level runs subcommand visible — may be UI/agent-only"
+  },
+  "GET /runs": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /heartbeat-attempts": {
+    "status": "audit-pending",
+    "reason": "No heartbeat-attempt history CLI surface found; decide whether this remains API/UI diagnostics or gets an operator command"
+  },
+  "POST /runs/investigate": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "POST /runs/investigation-apply": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /runs/{runId}": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "POST /runs/{runId}/retry": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /runs/{runId}/events": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "POST /runs/{runId}/continue": {
+    "status": "audit-pending",
+    "reason": "See above"
+  },
+  "GET /heartbeats/running": {
+    "status": "audit-pending",
+    "reason": "No global running-heartbeats subcommand visible — only per-team list exists"
+  },
+  "POST /heartbeats/running/{teamId}/{agentId}/stop": {
+    "status": "audit-pending",
+    "reason": "No stop-running subcommand visible"
+  },
+  "POST /prompt-preview": {
+    "status": "intentionally-absent",
+    "reason": "Internal preview API consumed by UI; operators use member-context for human-facing prompt inspection"
+  },
+  "POST /prompt-preview-structured": {
+    "status": "intentionally-absent",
+    "reason": "Internal structured-preview API consumed by UI"
+  },
+  "GET /teams/{id}/prompt-matrix": {
+    "status": "intentionally-absent",
+    "reason": "Cross-member prompt diff for the UI; not an operator-facing CLI surface"
+  },
+  "GET /teams/{id}/heartbeats": {
+    "status": "covered",
+    "cli": "team heartbeat-list <id>"
+  },
+  "GET /teams/{id}/heartbeats/{agentId}": {
+    "status": "covered",
+    "cli": "team heartbeat <id> <agentId>"
+  },
+  "POST /teams/{id}/heartbeats/{agentId}": {
+    "status": "audit-pending",
+    "reason": "team heartbeat-enable wraps PUT-style update; CreateHeartbeat (POST) may be redundant — verify"
+  },
+  "PUT /teams/{id}/heartbeats/{agentId}": {
+    "status": "covered",
+    "cli": "team heartbeat-enable / heartbeat-disable"
+  },
+  "DELETE /teams/{id}/heartbeats/{agentId}": {
+    "status": "audit-pending",
+    "reason": "No heartbeat-delete subcommand visible (heartbeat-disable is not the same as delete)"
+  },
+  "POST /teams/{id}/heartbeats/{agentId}/trigger": {
+    "status": "covered",
+    "cli": "team heartbeat-trigger"
+  },
+  "POST /teams/{id}/trigger": {
+    "status": "covered",
+    "cli": "team trigger <id>"
+  },
+  "GET /teams/{id}/execution-status": {
+    "status": "audit-pending",
+    "reason": "No execution-status subcommand visible"
+  },
+  "DELETE /teams/{id}/queue/running/{agentId}": {
+    "status": "covered",
+    "cli": "team queue-clear"
+  },
+  "GET /teams/{id}/heartbeats/logs": {
+    "status": "audit-pending",
+    "reason": "Team-wide log list — heartbeat-logs is per-agent"
+  },
+  "GET /teams/{id}/heartbeats/{agentId}/logs": {
+    "status": "covered",
+    "cli": "team heartbeat-logs"
+  },
+  "GET /teams/{id}/heartbeats/{agentId}/logs/{logId}": {
+    "status": "audit-pending",
+    "reason": "No single-log show subcommand visible"
+  },
+  "GET /teams/{id}/members/{agentId}/responsibilities": {
+    "status": "covered",
+    "cli": "team responsibilities (get mode)"
+  },
+  "PUT /teams/{id}/members/{agentId}/responsibilities": {
+    "status": "covered",
+    "cli": "team responsibilities --set"
+  },
+  "GET /teams/{id}/members/{agentId}/heartbeat-instructions": {
+    "status": "covered",
+    "cli": "team heartbeat-instructions (get mode)"
+  },
+  "PUT /teams/{id}/members/{agentId}/heartbeat-instructions": {
+    "status": "covered",
+    "cli": "team heartbeat-instructions --set"
+  },
+  "GET /teams/{id}/members/{agentId}/context": {
+    "status": "covered",
+    "cli": "team member-context"
+  },
+  "GET /teams/{id}/members/{agentId}/topics": {
+    "status": "covered",
+    "cli": "graph topics --team <id>"
+  },
+  "PUT /teams/{id}/members/{agentId}/topics": {
+    "status": "audit-pending",
+    "reason": "No member-level topics write CLI; current operator path edits topics.json and validates with graph topics"
+  },
+  "GET /teams/{id}/topics": {
+    "status": "covered",
+    "cli": "graph topics --team <id>"
+  },
+  "GET /teams/{id}/members/{agentId}/handoff": {
+    "status": "covered",
+    "cli": "team handoff-latest"
+  },
+  "DELETE /teams/{id}/members/{agentId}/handoff": {
+    "status": "audit-pending",
+    "reason": "No handoff-clear subcommand visible"
+  },
+  "GET /teams/{id}/handoff-history": {
+    "status": "covered",
+    "cli": "team handoff-history"
+  },
+  "DELETE /teams/{id}/handoff-history": {
+    "status": "audit-pending",
+    "reason": "No handoff-history-clear subcommand visible"
+  },
+  "GET /teams/{id}/tasks": {
+    "status": "covered",
+    "cli": "team task-list <id>"
+  },
+  "POST /teams/{id}/tasks": {
+    "status": "covered",
+    "cli": "team task-add <id>"
+  },
+  "PATCH,PUT /teams/{id}/tasks/{taskId}": {
+    "status": "covered",
+    "cli": "team task-update <id> <taskId>"
+  },
+  "DELETE /teams/{id}/tasks/{taskId}": {
+    "status": "covered",
+    "cli": "team task-delete <id> <taskId>"
+  },
+  "GET /decisions/pending": {
+    "status": "covered",
+    "cli": "decisions-pending"
+  },
+  "POST /teams/{id}/decisions": {
+    "status": "covered",
+    "cli": "team decision-add <id>"
+  },
+  "GET /teams/{id}/decisions": {
+    "status": "covered",
+    "cli": "team decision-list <id>"
+  },
+  "PATCH,PUT /teams/{id}/decisions/{decisionId}": {
+    "status": "covered",
+    "cli": "team decision-update / decision-accept / decision-reject"
+  },
+  "DELETE /teams/{id}/decisions/{decisionId}": {
+    "status": "covered",
+    "cli": "team decision-delete <id> <decisionId>"
+  },
+  "GET /teams/{id}/retention": {
+    "status": "covered",
+    "cli": "team retention <id>"
+  },
+  "POST /teams/{id}/prune": {
+    "status": "covered",
+    "cli": "team prune <id>"
+  },
+  "POST /teams/{id}/knowledge": {
+    "status": "covered",
+    "cli": "team knowledge-add <id>"
+  },
+  "GET /teams/{id}/knowledge": {
+    "status": "covered",
+    "cli": "team knowledge-list <id>"
+  },
+  "PATCH,PUT /teams/{id}/knowledge/{knowledgeId}": {
+    "status": "covered",
+    "cli": "team knowledge-update"
+  },
+  "DELETE /teams/{id}/knowledge/{knowledgeId}": {
+    "status": "covered",
+    "cli": "team knowledge-delete"
+  },
+  "POST /teams/{id}/bugs/capture": {
+    "status": "covered",
+    "cli": "team bug-capture <team-id>"
+  },
+  "PATCH,PUT /teams/{id}/bugs/{draftId}/capture": {
+    "status": "covered",
+    "cli": "team bug-repair <team-id> <draft-id>"
+  }
 }

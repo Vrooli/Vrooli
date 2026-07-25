@@ -16,8 +16,8 @@ holds the placement map only; each owning skill carries the applied detail.
 | Requirement `title`/`description` | EARS templates + RFC 2119 keywords | `requirements-traceability-steer` §5; `scenarios/test-genie/docs/reference/requirement-schema.md` |
 | PRD operational-target one-liners | EARS shape; tier ↔ RFC 2119 (P0=MUST, P1=SHOULD, P2=MAY) | `prd-authoring` "Writing Standard" |
 | Acceptance criteria, BAS/e2e case descriptions | Gherkin (Given/When/Then) | `e2e-testing` §4 |
-| Backlog item `title`/`description` | Outcome statement + Gherkin done-condition | `swarm-manager-backlog-tools` §"Writing Standard" |
-| Goal / milestone `title` + intent statement | Outcome statement + Gherkin acceptance | `swarm-manager-backlog-tools` §"Writing Standard: goals and milestones" |
+| Backlog item `title`/`description` | Outcome statement + Gherkin done-condition | `swarm-manager-work-authoring` §"Writing Standard" |
+| Goal / milestone `title` + intent statement | Outcome statement + Gherkin acceptance | `swarm-manager-work-authoring` §"Writing Standard: goals and milestones" |
 | Test suites after feature removal | Positive validation of replacement; no tombstone/absence tests | `test` §6; `e2e-testing` §4 |
 | Bug/friction reports (repro, expected/actual) | STE-100 steps; Given/When/Then shape | `report-bug` §2; `report-friction` §2 |
 | Research evidence and implementation-plan Findings/Actions | STE-100 | `swarm-manager-initialize-research` |

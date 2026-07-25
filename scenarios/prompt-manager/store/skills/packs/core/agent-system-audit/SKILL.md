@@ -3,8 +3,9 @@
 Audit the whole agent system — all six teams, their members, their plans of record, and the framework canon they run on — as one composed system. Answer two questions the operator cannot otherwise ask cheaply: *is each team internally coherent*, and *do the teams compose toward stated outcomes*.
 
 Required reading:
-- `docs/agent-system/FRAMEWORK_HEALTH.md` — the targets this audit scores against, each with its sensor, deadband, and actuator
+- `docs/agent-system/FRAMEWORK_HEALTH.md` — the targets this audit scores against, each with its sensor, deadband, and actuator, plus the audit-record rule
 - `docs/agent-system/OPERATING_GRAPHS.md` — the operating-model contract, relationship families, and validation-rule vocabulary
+- `docs/director-swarm/strategy/OBJECTIVES.md` — what the system is for; the objective ids, the two coverage directions, and evidence routing by objective class
 - `docs/director-swarm/evidence/OUTCOMES_CHARTER.md` §"Team contribution map" — which team is meant to move which outcome
 
 Optional reading, when a finding narrows to one target:
@@ -41,23 +42,23 @@ Run the horizontal axis first. The vertical axis is well tooled and usually clea
 
 ### 3. Audit process
 
-#### Phase 1 — Inventory
+#### Phase 1 — Sweep
 
-1. Run `prompt-manager graph operating-model list`.
-2. Record each team's id, mode, and node/edge counts.
-3. Flag any team whose mode is not `contract`. A non-`contract` team is exempt from every check below and must carry a dated rationale in its `## Current Implementation Gaps`.
+1. Run `prompt-manager graph regenerate`. The graph index is cached; an un-regenerated index reports deleted nodes that no longer exist.
+2. Run `prompt-manager graph audit`. One call reads every sensor in `FRAMEWORK_HEALTH.md` and reports each target as `in-band`, `out-of-band`, `external`, or `no-sensor`.
+3. Run the two `external` sensors the sweep names: `bash scenarios/prompt-manager/test/agent_system_canon_test.sh` and `prompt-manager experiment list`.
+4. Treat every `out-of-band` target as a finding. Treat every `no-sensor` target as an open-loop gap, not as a pass.
 
 #### Phase 2 — Vertical conformance
 
-1. Run `prompt-manager graph operating-model validate`.
-2. Run `prompt-manager graph operating-model diff`.
-3. Record error and warning counts against the `FRAMEWORK_HEALTH.md` deadbands.
-4. Attribute each finding to the owning team.
+1. For each out-of-band contract target, run `prompt-manager graph operating-model diff` to get the per-team detail the sweep summarises.
+2. Attribute each finding to the owning team.
+3. Flag any team whose mode is not `contract`. A non-`contract` team is exempt from every check below and must carry a dated rationale in its `## Current Implementation Gaps`.
 
 #### Phase 3 — Horizontal composition
 
-1. Run `prompt-manager graph map --json`.
-2. Use its composed team, topic, and cross-team edge set.
+1. Run `prompt-manager graph map --depth member`.
+2. Use its composed team, member, topic, and cross-team edge set.
 3. Compare that edge set against the prose claims in each team's `## Outputs / Downstream Consumers` table.
 
 Report these four structural defects:
@@ -69,25 +70,39 @@ Report these four structural defects:
 | Unowned flow | A topic that a team drains has no declared producer |
 | Peer-as-external | A flow between two teams inside the swarm is modeled as an `external:` producer, hiding real intra-swarm coupling |
 
-#### Phase 4 — Goal alignment
+#### Phase 4 — Objective alignment
 
-1. Read `OUTCOMES_CHARTER.md` §"Team contribution map".
-2. Read each team's `## Mission` §"Outcome contribution" paragraph.
-3. Report an **unowned category** when an outcome category has no primary contributor.
-4. Report an **unattached team** when a team claims no outcome category.
-5. Report a **drifted claim** when a team's own contribution paragraph disagrees with the aggregate map.
+Run this phase in the direction of derivation: objectives first, then categories, then teams. Auditing upward from the team roster hides whole missing programs, because a roster is always fully self-consistent with itself.
+
+1. Read `OBJECTIVES.md` — the objective table and §"The coverage rule".
+2. Read `OUTCOMES_CHARTER.md` §"Team contribution map".
+3. Read each team's `## Mission` §"Objective served" and §"Outcome contribution" paragraphs.
+
+Report these five structural defects:
+
+| Defect | Detection | Direction |
+|---|---|---|
+| Unserved objective | An objective that no team and no outcome category serves, and that carries no dated gap marker | downward |
+| Unmeasurable objective | An objective whose evidence source does not exist; route it to the capability ladder | downward |
+| Unattached team | A team whose declared objective appears in no objective row | upward |
+| Unattached category | An outcome category that traces to no objective | upward |
+| Drifted claim | A team's own `## Mission` paragraphs disagree with the aggregate map or with the objective table | either |
+
+4. Treat a **declared** gap as reported, not as clean. An objective marked unserved with a dated marker is an open finding whose disposition is known; it stays in the findings list every cycle until it closes.
+5. Do not propose objectives. An unserved objective routes to the owning team's decision context; the objective set is operator-authored.
 
 #### Phase 5 — Entropy and consolidation
 
-1. Run `prompt-manager graph topics` and group findings by rule, not by entry.
-2. Run `prompt-manager graph health --json`.
-3. Run `bash scenarios/prompt-manager/test/agent_system_canon_test.sh`.
-4. Look for skill families whose members differ only in a few lines — a consolidation candidate.
-5. Classify each conditioning defect using the C1–C5 table in `docs/agent-system/SKILL_AUTHORING.md` §"Conditioning defect patterns". Cite the row id; do not restate the row.
+1. Group the sweep's topic findings by rule, not by entry.
+2. Run `prompt-manager graph health --type skill,agent,team --worst 20`. Omitting `--type` is still valid but ranks synthetic `cli:` nodes, which score 0 by construction and carry no finding.
+3. Look for skill families whose members differ only in a few lines — a consolidation candidate.
+4. Classify each conditioning defect using the C1–C5 table in `docs/agent-system/SKILL_AUTHORING.md` §"Conditioning defect patterns". Cite the row id; do not restate the row.
 
-#### Phase 6 — Report
+#### Phase 6 — Report and record
 
-Produce one findings list. Each finding names: the defect, the evidence command that produced it, the owning team, and the actuator from `FRAMEWORK_HEALTH.md`. Rank by whether the defect blocks a stated outcome, not by count.
+1. Produce one findings list. Each finding names: the defect, the evidence command that produced it, the owning team, and the actuator from `FRAMEWORK_HEALTH.md`. Rank by whether the defect blocks a stated outcome, not by count.
+2. Write the readings and the findings list to the audit-record topic named in `docs/agent-system/FRAMEWORK_HEALTH.md` §"Audit record". Without the record the audit has no trend, and the next cycle restarts from zero.
+3. Name the delta against the previous record: which targets moved, in which direction. A cycle that reports only current values has not answered whether the framework is improving.
 
 ---
 

@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
 	"sort"
 	"strings"
+
+	"prompt-manager/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -72,7 +73,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "graph",
 				Aliases:     []string{"g"},
 				NeedsAPI:    true,
-				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|operating-model|drain-status)",
+				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|operating-model|map|audit|drain-status)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -120,6 +121,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdOperatingModel(ctx, subArgs)
 	case "map":
 		return cmdMap(ctx, subArgs)
+	case "audit":
+		return cmdAudit(ctx, subArgs)
 	case "drain-status":
 		return cmdDrainStatus(ctx, subArgs)
 	default:
@@ -147,15 +150,19 @@ Subcommands:
   cliless-skills [--limit N]          Skills not referencing CLIs
   popular [--limit 10] [--type X]     Most referenced nodes
   circular-refs                       Circular reference detection
-	  health [--type X] [--team X] [--worst N] [--json] | <id>
-                                      Health scores, sorted lowest first
+  health [--type a,b] [--team X] [--worst N] [--json] | <id>
+                                      Health scores, sorted lowest first.
+                                      Synthetic cli nodes are excluded unless
+                                      --type names cli explicitly.
   topics [--team X] [--json] [--findings-out PATH]
                                       Member topic-flow graph + validation
                                       (--findings-out writes a stable JSON
                                       artifact for CI diff telemetry)
   operating-model <list|validate|diff|coverage> [--team X] [--id ID] [--json]
                                       Plan-of-record Mermaid contract checks
-  drain-status [--team X] [--json]    Per-prefix queue depth (Phase 5)`
+  drain-status [--team X] [--json]    Per-prefix queue depth (Phase 5)
+  audit [--json] [--out PATH]         Framework-health sweep: every sensor in
+                                      FRAMEWORK_HEALTH.md read in one call`
 }
 
 // cmdShow prints a summary of graph counts by type.
@@ -588,7 +595,7 @@ func cmdCircularRefs(ctx appctx.Context, args []string) error {
 // cmdHealth shows health scores.
 func cmdHealth(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("health", flag.ContinueOnError)
-	nodeType := fs.String("type", "", "Filter by node type (team|agent|skill|cli)")
+	nodeType := fs.String("type", "", "Filter by node type, comma-separated (team|agent|skill|action|cli). Default excludes cli.")
 	teamID := fs.String("team", "", "Filter to a team and its members")
 	worst := fs.Int("worst", 0, "Show the N lowest-scoring nodes")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
@@ -621,9 +628,10 @@ func cmdHealth(ctx appctx.Context, args []string) error {
 		nodeTypes[n.ID] = n.Type
 	}
 	allowedByTeam := healthTeamNodeIDs(idx.Graph, *teamID)
+	wantType := healthTypeFilter(*nodeType)
 	filtered := make([]healthScore, 0, len(scores))
 	for _, hs := range scores {
-		if *nodeType != "" && nodeTypes[hs.NodeID] != *nodeType {
+		if !wantType[nodeTypes[hs.NodeID]] {
 			continue
 		}
 		if *teamID != "" && !allowedByTeam[hs.NodeID] {
@@ -638,19 +646,17 @@ func cmdHealth(ctx appctx.Context, args []string) error {
 		}
 		return scores[i].NodeID < scores[j].NodeID
 	})
-	if *worst > 0 && len(scores) > *worst {
-		scores = scores[:*worst]
-	}
-
-	if *jsonOut {
-		return encodeJSON(scores)
-	}
-
 	if len(scores) == 0 {
+		if *jsonOut {
+			return encodeJSON([]healthScore{})
+		}
 		fmt.Println("No health scores available")
 		return nil
 	}
 
+	// Summarise the whole filtered corpus before --worst truncates the rows.
+	// Summarising after truncation would report the mean of the worst N, which
+	// reads as a corpus-wide score and understates system health.
 	var sum float64
 	belowThreshold := 0
 	for _, hs := range scores {
@@ -659,7 +665,18 @@ func cmdHealth(ctx appctx.Context, args []string) error {
 			belowThreshold++
 		}
 	}
-	fmt.Printf("Health summary: %d scored nodes | mean %.2f | below 0.30: %d\n", len(scores), sum/float64(len(scores)), belowThreshold)
+	scored := len(scores)
+	mean := sum / float64(scored)
+
+	if *worst > 0 && len(scores) > *worst {
+		scores = scores[:*worst]
+	}
+
+	if *jsonOut {
+		return encodeJSON(scores)
+	}
+
+	fmt.Printf("Health summary: %d scored nodes | mean %.2f | below 0.30: %d\n", scored, mean, belowThreshold)
 	if *worst > 0 {
 		fmt.Printf("\nLowest %d scores:\n", len(scores))
 		for _, hs := range scores {
@@ -712,6 +729,31 @@ func healthTeamNodeIDs(g graph, teamID string) map[string]bool {
 }
 
 // cmdHealthNode shows health details for a single node.
+// healthTypeFilter resolves the --type flag into the set of node types to
+// score. CLI nodes are synthetic — they are created from edges rather than
+// authored — and score 0 by construction, so an unfiltered ranking returns
+// `cli:cat` and `cli:awk` ahead of every real finding. They are therefore
+// excluded unless the caller names `cli` explicitly.
+func healthTypeFilter(nodeType string) map[string]bool {
+	authored := []string{"team", "agent", "skill", "action"}
+	trimmed := strings.TrimSpace(nodeType)
+	if trimmed == "" {
+		allowed := make(map[string]bool, len(authored))
+		for _, kind := range authored {
+			allowed[kind] = true
+		}
+		return allowed
+	}
+
+	allowed := make(map[string]bool)
+	for _, part := range strings.Split(trimmed, ",") {
+		if kind := strings.TrimSpace(part); kind != "" {
+			allowed[kind] = true
+		}
+	}
+	return allowed
+}
+
 func cmdHealthNode(ctx appctx.Context, id string, jsonOut bool) error {
 	var scores []healthScore
 	if err := ctx.Get("/graph/health", &scores); err != nil {
