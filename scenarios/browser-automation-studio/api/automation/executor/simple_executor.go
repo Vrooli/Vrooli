@@ -46,21 +46,6 @@ type executionContext struct {
 	navigation *navigationState
 }
 
-type navigationState struct {
-	hasNavigated bool
-	// lastAttempt records the most recent navigate step that ran in this
-	// execution but did not mark hasNavigated (i.e. failed). It exists so
-	// ensureNavigation can report *why* a guard tripped instead of the
-	// misleading "no prior navigate step" message when one actually ran.
-	lastAttempt *failedNavigateAttempt
-}
-
-type failedNavigateAttempt struct {
-	nodeID  string
-	url     string
-	summary string
-}
-
 // NewSimpleExecutor constructs a SimpleExecutor. If no sequencer is supplied,
 // a per-execution sequencer is used.
 func NewSimpleExecutor(seq events.Sequencer) *SimpleExecutor {
@@ -310,6 +295,9 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		}(),
 		navigation: &navigationState{},
 	}
+	if decideLifecycle(reuseMode, executionStart, session != nil).ResetNavigation {
+		resetNavigation(execCtx.navigation)
+	}
 
 	session, err = e.runPlan(ctx, req, execCtx, eng, spec, session, execState, reuseMode)
 	return err
@@ -486,14 +474,9 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			}
 		}
 
-		newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
-		if resetErr != nil {
-			return session, fmt.Errorf("reset session: %w", resetErr)
-		}
-		if shouldResetNavigation(reuseMode, newSession) {
+		if decideLifecycle(reuseMode, betweenSteps, session != nil).ResetNavigation {
 			resetNavigation(execCtx.navigation)
 		}
-		session = newSession
 
 		// Check if we should continue despite errors/failures
 		if runErr != nil || !normalized.Success {
@@ -1134,46 +1117,6 @@ func intOrDefault(value, fallback int) int {
 }
 
 // resolveReuseMode selects the session reuse policy from the request, plan metadata, or environment.
-func resolveReuseMode(req Request) engine.SessionReuseMode {
-	if req.ReuseMode != "" {
-		return req.ReuseMode
-	}
-	if v, ok := req.Plan.Metadata["sessionReuseMode"].(string); ok && strings.TrimSpace(v) != "" {
-		return normalizeReuseMode(v)
-	}
-	if env := strings.TrimSpace(os.Getenv("BAS_SESSION_STRATEGY")); env != "" {
-		return normalizeReuseMode(env)
-	}
-	return engine.ReuseModeReuse
-}
-
-func normalizeReuseMode(raw string) engine.SessionReuseMode {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "fresh":
-		return engine.ReuseModeFresh
-	case "clean":
-		return engine.ReuseModeClean
-	default:
-		return engine.ReuseModeReuse
-	}
-}
-
-// maybeResetSession clears or recreates browser state based on reuse policy.
-func (e *SimpleExecutor) maybeResetSession(ctx context.Context, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
-	if session == nil {
-		return session, nil
-	}
-
-	switch reuseMode {
-	case engine.ReuseModeClean:
-		return session, session.Reset(ctx)
-	case engine.ReuseModeFresh:
-		_ = session.Close(ctx)
-		return nil, nil
-	default:
-		return session, nil
-	}
-}
 
 func (e *SimpleExecutor) ensureNavigation(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, nodeID string, stepType string) (engine.EngineSession, error) {
 	if !requiresNavigationStepType(stepType) {
@@ -1248,53 +1191,6 @@ func requiresNavigationStepType(stepType string) bool {
 
 func isNavigateInstruction(instruction contracts.CompiledInstruction) bool {
 	return IsActionType(instruction, basactions.ActionType_ACTION_TYPE_NAVIGATE)
-}
-
-func markNavigation(state *navigationState) {
-	if state == nil {
-		return
-	}
-	state.hasNavigated = true
-	state.lastAttempt = nil
-}
-
-func resetNavigation(state *navigationState) {
-	if state == nil {
-		return
-	}
-	state.hasNavigated = false
-	state.lastAttempt = nil
-}
-
-func recordFailedNavigate(state *navigationState, instruction contracts.CompiledInstruction, summary string) {
-	if state == nil {
-		return
-	}
-	url := ""
-	if action := instruction.Action; action != nil {
-		if nav := action.GetNavigate(); nav != nil {
-			url = nav.GetUrl()
-		}
-	}
-	state.lastAttempt = &failedNavigateAttempt{
-		nodeID:  instruction.NodeID,
-		url:     url,
-		summary: summary,
-	}
-}
-
-func lastFailedNavigate(state *navigationState) *failedNavigateAttempt {
-	if state == nil {
-		return nil
-	}
-	return state.lastAttempt
-}
-
-func shouldResetNavigation(reuseMode engine.SessionReuseMode, session engine.EngineSession) bool {
-	if reuseMode == engine.ReuseModeClean || reuseMode == engine.ReuseModeFresh {
-		return true
-	}
-	return session == nil
 }
 
 type sessionArtifactCloser interface {

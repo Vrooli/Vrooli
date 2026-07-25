@@ -1,0 +1,8 @@
+{
+  "metadata": {"name": "session-reuse-default-probe"},
+  "nodes": [
+    {"id": "navigate", "action": {"type": "ACTION_TYPE_NAVIGATE", "navigate": {"url": "about:blank"}}},
+    {"id": "evaluate", "action": {"type": "ACTION_TYPE_EVALUATE", "evaluate": {"expression": "document.title = 'BAS_SESSION_REUSE_OK'; document.title"}}}
+  ],
+  "edges": [{"id": "navigate-to-evaluate", "source": "navigate", "target": "evaluate", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}]
+}

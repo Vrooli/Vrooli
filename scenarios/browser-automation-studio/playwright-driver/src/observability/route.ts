@@ -41,6 +41,7 @@ import {
   type DiagnosticIssue,
   runRecordingPipelineTest,
 } from '../recording';
+import { measureRealtimeAudio } from '../session';
 
 /**
  * Extract category from diagnostic code.
@@ -96,7 +97,7 @@ const isDiagnosticLevel = (level: unknown): level is DiagnosticLevel =>
 const parseDiagnosticRunRequest = (value: Record<string, unknown>): DiagnosticRunRequest => {
 
   const rawType = value.type;
-  const type = rawType === 'recording' || rawType === 'browser' || rawType === 'all'
+  const type = rawType === 'recording' || rawType === 'browser' || rawType === 'audio' || rawType === 'all'
     ? rawType
     : 'recording';
   const session_id = isString(value.session_id) ? value.session_id : undefined;
@@ -435,7 +436,7 @@ export function handleObservabilityRefresh(
  * Run specific diagnostics manually.
  *
  * Request body:
- * - type: 'recording' | 'browser' | 'all'
+ * - type: 'recording' | 'audio' | 'browser' | 'all'
  * - session_id?: string (for session-specific diagnostics)
  * - options?: { level?: 'quick' | 'standard' | 'full', timeout_ms?: number }
  */
@@ -560,6 +561,66 @@ export function handleDiagnosticsRun(
             checks: [],
             provider: { name: 'unknown', evaluateIsolated: false, exposeBindingIsolated: false },
           };
+        }
+      }
+
+      if (type === 'audio' || type === 'all') {
+        let tempSessionId: string | undefined;
+        let createdTempSession = false;
+        try {
+          const existingSessionId = session_id ?? deps.sessionManager.getAllSessionIds()[0];
+          let session;
+          if (existingSessionId) {
+            session = deps.sessionManager.getSession(existingSessionId);
+          } else {
+            const started = await deps.sessionManager.startSession({
+              execution_id: `audio-capability-${Date.now()}`,
+              workflow_id: 'audio-capability',
+              viewport: { width: 1280, height: 720 },
+              reuse_mode: 'fresh',
+            });
+            tempSessionId = started.sessionId;
+            createdTempSession = true;
+            session = deps.sessionManager.getSession(tempSessionId);
+          }
+          const audio = await measureRealtimeAudio(session.page, options?.timeout_ms ?? 2000);
+          const bare = await deps.sessionManager.measureBareRealtimeAudio(options?.timeout_ms ?? 2000);
+          results.audio = {
+            available: audio.available,
+            current_time_delta: audio.currentTimeDelta,
+            callback_count: audio.callbackCount,
+            output_latency: audio.outputLatency,
+            state: audio.state,
+            duration_ms: audio.durationMs,
+            finding: audio.finding,
+            bare_context: {
+              available: bare.available,
+              current_time_delta: bare.currentTimeDelta,
+              callback_count: bare.callbackCount,
+              output_latency: bare.outputLatency,
+              state: bare.state,
+              duration_ms: bare.durationMs,
+              finding: bare.finding,
+            },
+          };
+        } catch (error) {
+          results.audio = {
+            available: false,
+            current_time_delta: 0,
+            callback_count: 0,
+            output_latency: null,
+            state: 'error',
+            duration_ms: 0,
+            finding: `realtime_audio_unavailable: ${error instanceof Error ? error.message : String(error)}`,
+          };
+        } finally {
+          if (createdTempSession && tempSessionId) {
+            await deps.sessionManager.closeSession(tempSessionId).catch((error) => {
+              logger.warn(scopedLog(LogContext.HEALTH, 'audio capability session cleanup failed'), {
+                error: error instanceof Error ? error.message : String(error),
+              });
+            });
+          }
         }
       }
 

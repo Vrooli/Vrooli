@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	apiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
 // hydrateFromContext is the protodispatch entry point that turns CLI
@@ -64,6 +65,33 @@ func TestBind_JSONFile_PopulatesFlowDefinition(t *testing.T) {
 	}
 	if !strings.Contains(got, `"flowDefinition"`) || !strings.Contains(got, `"metadata":{"name":"Demo"}`) {
 		t.Errorf("bound flow_definition not populated from file: %s", got)
+	}
+}
+
+func TestBind_JSONFile_PreservesAdhocWorkflowLabels(t *testing.T) {
+	flowJSON := []byte(`{"metadata":{"name":"labelled","labels":{"session_reuse_mode":"fresh"}},"settings":{"viewportWidth":390,"viewportHeight":844,"fakeMedia":{"microphoneWav":"/tmp/fake.wav"}},"nodes":[],"edges":[]}`)
+	path := filepath.Join(t.TempDir(), "flow.json")
+	if err := os.WriteFile(path, flowJSON, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "flow-file", Bind: cliapp.FlagBind{Field: "flow_definition", Kind: "json_file"}}}}
+	rc := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: schema, Flags: map[string]string{"flow-file": path}})
+	req := &executionv1.ExecuteAdhocRequest{}
+	dyn := dynamicpb.NewMessage(req.ProtoReflect().Descriptor())
+	if err := hydrateFromContext(rc, req.ProtoReflect().Descriptor(), dyn); err != nil {
+		t.Fatalf("hydrate: %v", err)
+	}
+	out, err := protojson.Marshal(dyn)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(out), `"sessionReuseMode":"fresh"`) && !strings.Contains(string(out), `"session_reuse_mode":"fresh"`) {
+		t.Fatalf("flow labels were dropped from CLI request: %s", out)
+	}
+	for _, field := range []string{`"viewportWidth":390`, `"viewportHeight":844`, `"microphoneWav":"/tmp/fake.wav"`} {
+		if !strings.Contains(string(out), field) {
+			t.Fatalf("flow setting %s was dropped from CLI request: %s", field, out)
+		}
 	}
 }
 

@@ -215,14 +215,9 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 		markNavigation(execCtx.navigation)
 	}
 
-	newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
-	if resetErr != nil {
-		return normalized, session, fmt.Errorf("reset session: %w", resetErr)
-	}
-	if shouldResetNavigation(reuseMode, newSession) {
+	if decideLifecycle(reuseMode, betweenSteps, session != nil).ResetNavigation {
 		resetNavigation(execCtx.navigation)
 	}
-	session = newSession
 
 	// Check if we should continue despite the error
 	if runErr != nil {

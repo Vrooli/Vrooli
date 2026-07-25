@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { removeRecordingBuffer, RecordingPipelineManager } from '../recording';
 import { cleanupSession, createInFlightGuard, type InFlightGuard } from '../infra';
 import { BrowserManager, type BrowserStatus } from './browser-manager';
+import { measureRealtimeAudio, type AudioCapabilityResult } from './audio-capability';
 import { transition, canTransition, canAcceptInstructions } from './state-machine';
 import {
   findByExecutionId,
@@ -124,6 +125,24 @@ export class SessionManager {
    */
   getBrowserStatus(): BrowserStatus {
     return this.browserManager.getBrowserStatus();
+  }
+
+  /**
+   * Runs the Web Audio probe in a bare context from the same managed browser.
+   * Comparing it with a normal session isolates context initialization from
+   * browser-process delivery without launching an out-of-band browser.
+   */
+  async measureBareRealtimeAudio(durationMs = 2000): Promise<AudioCapabilityResult> {
+    const browser = await this.browserManager.getBrowser();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+      await page.goto('about:blank');
+      return await measureRealtimeAudio(page, durationMs);
+    } finally {
+      await page.close().catch(() => undefined);
+      await context.close();
+    }
   }
 
   /**

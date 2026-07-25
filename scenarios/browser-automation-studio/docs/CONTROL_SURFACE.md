@@ -31,6 +31,26 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 - Storage/telemetry caps: keep screenshot/DOM/network caps below driver `MAX_REQUEST_SIZE` and API `BAS_HTTP_MAX_BODY_BYTES` to avoid rejection.
 - Ensure archive caps and replay frame counts stay within storage quotas when running parallel executions.
 
+## Session-reuse contract
+
+`metadata.labels.session_reuse_mode` controls isolation between workflow **executions**, never between steps of one execution. `fresh` creates an isolated execution session and `clean` resets execution state; both preserve navigation, cookies, and page state required by later steps in that same workflow. A session that disappears during execution invalidates navigation state and the next navigation-dependent step must re-establish it.
+
+## Real-time audio capability
+
+The driver exposes `POST /observability/diagnostics/run` with
+`{"type":"audio"}`. It creates (or uses) a managed session and reports the
+real-time `AudioContext` clock delta, render callback count, output latency,
+and state. It also includes `bare_context`, the same probe in an uninitialized
+context from the managed browser process, so operators can distinguish context
+initialization faults from browser-process delivery faults.
+`realtime_audio_unavailable` is an explicit capability finding: callers must
+not interpret zero samples as successful audio capture.
+
+The equivalent workflow probe is
+`bas/flows/realtime-audio-capability-probe.json`; execute it with
+`browser-automation-studio workflows execute-adhoc --flow-file ... --wait --json`
+and read the evaluate artifact from the execution timeline.
+
 ## Recently wired levers (now active)
 
 - Execution timeout envs honored via `config.Execution` (base/per-step/subflow/min/max) with safe defaults (`BAS_EXECUTION_*`).
