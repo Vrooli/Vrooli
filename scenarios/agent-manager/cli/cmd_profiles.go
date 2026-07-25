@@ -174,6 +174,9 @@ func (a *App) profileGet(args []string) error {
 	if timeout := formatDuration(profile.Timeout); timeout != "" {
 		fmt.Printf("Timeout:        %s\n", timeout)
 	}
+	if profile.Effort != "" {
+		fmt.Printf("Effort:         %s\n", profile.Effort)
+	}
 	fmt.Printf("Sandbox Mode:      %s\n", profileSandboxMode(profile))
 	if profile.SandboxConfig != nil && profile.SandboxConfig.ManualReview {
 		fmt.Printf("Manual Review:     yes (apply gated by operator approval)\n")
@@ -210,6 +213,7 @@ func (a *App) profileCreate(args []string) error {
 	roleRef := fs.String("role-ref", "", "Portable role from the active role-policy catalog (required)")
 	maxTurns := fs.Int("max-turns", 0, "Maximum turns")
 	timeout := fs.String("timeout", "", "Execution timeout (e.g., 30m)")
+	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
 	sandboxMode := fs.String("sandbox-mode", "", "Sandbox mode (off/tracking/protected); empty preserves the SandboxConfig default")
 	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
@@ -249,6 +253,9 @@ func (a *App) profileCreate(args []string) error {
 			return fmt.Errorf("invalid timeout: %w", err)
 		}
 		req.Timeout = durationpb.New(parsed)
+	}
+	if *effort != "" {
+		req.Effort = *effort
 	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err
@@ -300,6 +307,7 @@ func (a *App) profileUpdate(args []string) error {
 	roleRef := fs.String("role-ref", "", "Portable role from the active role-policy catalog")
 	maxTurns := fs.Int("max-turns", 0, "Maximum turns")
 	timeout := fs.String("timeout", "", "Execution timeout")
+	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
 	sandboxMode := fs.String("sandbox-mode", "", "Sandbox mode (off/tracking/protected); empty preserves the existing SandboxConfig")
 	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
@@ -355,6 +363,9 @@ func (a *App) profileUpdate(args []string) error {
 			return fmt.Errorf("invalid timeout: %w", err)
 		}
 		req.Timeout = durationpb.New(parsed)
+	}
+	if *effort != "" {
+		req.Effort = *effort
 	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err
@@ -448,6 +459,7 @@ func (a *App) profileEnsure(args []string) error {
 	roleRef := fs.String("role-ref", "", "Default portable role from the active role-policy catalog (required)")
 	maxTurns := fs.Int("max-turns", 0, "Default maximum turns")
 	timeout := fs.String("timeout", "", "Default execution timeout (e.g., 30m)")
+	effort := fs.String("effort", "", "Default reasoning effort (low, medium, high, xhigh, max)")
 	sandboxMode := fs.String("sandbox-mode", "", "Default sandbox mode (off/tracking/protected); empty preserves the SandboxConfig default")
 	sandboxConfig := fs.String("sandbox-config", "", "Default sandbox config JSON (proto JSON)")
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to default sandbox config JSON")
@@ -481,6 +493,9 @@ func (a *App) profileEnsure(args []string) error {
 			return fmt.Errorf("invalid timeout: %w", err)
 		}
 		defaults.Timeout = durationpb.New(parsed)
+	}
+	if *effort != "" {
+		defaults.Effort = *effort
 	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err

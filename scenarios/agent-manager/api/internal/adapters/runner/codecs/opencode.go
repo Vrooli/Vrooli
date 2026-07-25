@@ -119,6 +119,8 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 		SupportsImageAttachments: true,  // `opencode run -f/--file <FILE>`
 		SupportsToolRestriction:  false, // OpenCode has no per-launch allowlist for its native tools.
 		ToolRestrictionMappings:  canonicalToolMappings(openCodeToolTranslations),
+		SupportsEffort:           false,
+		EffortMappings:           map[string]string{},
 		MaxTurns:                 0,
 		SupportedModels:          c.ollama.list(),
 		SupportsRunnerDefault:    true,

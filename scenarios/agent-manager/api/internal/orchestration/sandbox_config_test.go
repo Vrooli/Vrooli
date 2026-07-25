@@ -13,7 +13,7 @@ import (
 // TestNormalizeSandboxConfig_AutoApplyDefaultsCheckpointOn pins the
 // resumable-turn behavior: AutoApply=true (the contract default) without an
 // explicit lifecycle config checkpoints each turn and reserves deletion for
-// explicit run finalization.
+// terminal lifecycle handling.
 func TestNormalizeSandboxConfig_AutoApplyDefaultsCheckpointOn(t *testing.T) {
 	cfg := domain.DefaultSandboxConfig() // AutoApply=true, ManualReview=false
 
@@ -28,8 +28,8 @@ func TestNormalizeSandboxConfig_AutoApplyDefaultsCheckpointOn(t *testing.T) {
 	if len(result.Lifecycle.DeleteOn) != 1 {
 		t.Fatalf("expected 1 deleteOn event, got %d", len(result.Lifecycle.DeleteOn))
 	}
-	if result.Lifecycle.DeleteOn[0] != domain.SandboxLifecycleRunFinalized {
-		t.Errorf("expected deleteOn[0]=%q, got %q", domain.SandboxLifecycleRunFinalized, result.Lifecycle.DeleteOn[0])
+	if result.Lifecycle.DeleteOn[0] != domain.SandboxLifecycleTerminal {
+		t.Errorf("expected deleteOn[0]=%q, got %q", domain.SandboxLifecycleTerminal, result.Lifecycle.DeleteOn[0])
 	}
 }
 
@@ -158,5 +158,27 @@ func TestResolveSandboxConfig_RequestOverridesProfile(t *testing.T) {
 	}
 	if cfg.ManualReview {
 		t.Error("request config should have overridden profile's ManualReview=true")
+	}
+}
+
+func TestResolveSandboxConfig_PartialInlineOverridePreservesProfileContract(t *testing.T) {
+	o := &Orchestrator{}
+	profileCfg := domain.DefaultSandboxConfig()
+	profileCfg.Lifecycle.DeleteOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}
+	profileCfg.Acceptance.Allow.PathGlobs = []string{"scenarios/agent-manager/**"}
+	profile := &domain.AgentProfile{SandboxConfig: profileCfg, RoleRef: "code.default"}
+
+	cfg, err := o.resolveSandboxConfig(CreateRunRequest{SandboxConfig: &domain.SandboxConfig{ManualReview: true}}, profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.ManualReview {
+		t.Fatal("manual review override was not applied")
+	}
+	if got := cfg.Lifecycle.DeleteOn; len(got) != 1 || got[0] != domain.SandboxLifecycleTerminal {
+		t.Fatalf("profile lifecycle was lost: %v", got)
+	}
+	if got := cfg.Acceptance.Allow.PathGlobs; len(got) != 1 || got[0] != "scenarios/agent-manager/**" {
+		t.Fatalf("profile acceptance was lost: %v", got)
 	}
 }

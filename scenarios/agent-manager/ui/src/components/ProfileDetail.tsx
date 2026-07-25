@@ -85,6 +85,12 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
             <span className="text-muted-foreground">Timeout</span>
             <p className="font-medium">{durationToMinutes(profile.timeout)} minutes</p>
           </div>
+          {profile.effort && (
+            <div>
+              <span className="text-muted-foreground">Reasoning Effort</span>
+              <p className="font-medium">{profile.effort}</p>
+            </div>
+          )}
         </div>
 
         {profile.profileKey && (

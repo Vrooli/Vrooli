@@ -123,13 +123,13 @@ func TestSubstrateLaunch_Codex_HappyPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
 	}
-	// The initial prompt is typed into the session before discovery, and the
-	// session is created first.
-	if fs.sendPrompts != 1 {
-		t.Errorf("expected exactly one prompt delivery, got %d", fs.sendPrompts)
+	// The initial prompt is part of the launch command, not a second pasted
+	// message after session startup.
+	if fs.sendPrompts != 0 {
+		t.Errorf("expected no duplicate prompt delivery, got %d", fs.sendPrompts)
 	}
-	if len(fs.calls) < 2 || fs.calls[0] != "create" || fs.calls[1] != "sendprompt" {
-		t.Errorf("expected create then sendprompt, got %v", fs.calls)
+	if len(fs.calls) != 1 || fs.calls[0] != "create" {
+		t.Errorf("expected only session creation, got %v", fs.calls)
 	}
 	if res.SessionID != "sess-1" {
 		t.Errorf("session id: got %q", res.SessionID)
@@ -186,12 +186,8 @@ func TestSubstrateLaunch_ResendRecoversDroppedPrompt(t *testing.T) {
 	rollout := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13", "rollout-resend.jsonl")
 
 	fs := newFakeSessions("sess-resend")
-	// Only the SECOND send (the resend) "starts a turn" that writes the rollout.
-	fs.onSendPrompt = func(n int) {
-		if n == 2 {
-			writeFile(t, rollout)
-		}
-	}
+	// The positional prompt starts the turn before transcript discovery.
+	writeFile(t, rollout)
 	sub := NewSubstrate(fs, fakeResolver(fakeLaunchInfo{
 		rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex",
 	}),
@@ -215,8 +211,8 @@ func TestSubstrateLaunch_ResendRecoversDroppedPrompt(t *testing.T) {
 	if res.TranscriptPath != rollout {
 		t.Errorf("transcript path: got %q, want %q", res.TranscriptPath, rollout)
 	}
-	if fs.sendPrompts != 2 {
-		t.Errorf("expected prompt to be sent twice (initial + one resend), got %d", fs.sendPrompts)
+	if fs.sendPrompts != 0 {
+		t.Errorf("expected no pasted prompt, got %d", fs.sendPrompts)
 	}
 }
 
@@ -254,7 +250,10 @@ func TestSubstrateLaunch_NoPromptSkipsDelivery(t *testing.T) {
 // TestSubstrateLaunch_PromptDeliveryErrorReturnsSessionID verifies a hard
 // SendPrompt failure is surfaced immediately (not swallowed by the resend path)
 // while still returning the session id so the caller can tear the session down.
-func TestSubstrateLaunch_PromptDeliveryErrorReturnsSessionID(t *testing.T) {
+func TestSubstrateLaunch_PositionalPromptDoesNotPaste(t *testing.T) {
+	runDir := t.TempDir()
+	rollout := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13", "rollout-command.jsonl")
+	writeFile(t, rollout)
 	fs := newFakeSessions("sess-senderr")
 	fs.sendPromptErr = errors.New("paste boom")
 	sub := NewSubstrate(fs, fakeResolver(fakeLaunchInfo{
@@ -265,17 +264,17 @@ func TestSubstrateLaunch_PromptDeliveryErrorReturnsSessionID(t *testing.T) {
 		RunnerType: domain.RunnerTypeCodex,
 		Tag:        "run-senderr",
 		WorkingDir: "/work/dir",
-		RunDir:     t.TempDir(),
+		RunDir:     runDir,
 		Prompt:     "do the task",
 	})
-	if err == nil {
-		t.Fatal("expected prompt-delivery error")
-	}
-	if !strings.Contains(err.Error(), "initial prompt") {
-		t.Errorf("error should identify prompt delivery, got: %v", err)
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
 	}
 	if res.SessionID != "sess-senderr" {
-		t.Errorf("expected session id on delivery failure, got %q", res.SessionID)
+		t.Errorf("expected session id, got %q", res.SessionID)
+	}
+	if fs.sendPrompts != 0 {
+		t.Errorf("launch pasted the positional prompt: %d sends", fs.sendPrompts)
 	}
 }
 

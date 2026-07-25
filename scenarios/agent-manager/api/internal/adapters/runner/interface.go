@@ -117,6 +117,14 @@ type Capabilities struct {
 	// names. An empty map is the explicit unsupported stance.
 	ToolRestrictionMappings map[string]string
 
+	// SupportsEffort reports whether this runner applies the canonical effort
+	// control to each launch and continuation.
+	SupportsEffort bool
+
+	// EffortMappings documents canonical-to-native effort translation. An empty
+	// map is the explicit unsupported stance.
+	EffortMappings map[string]string
+
 	// MaxTurns is the maximum number of turns this runner supports (0 = unlimited).
 	MaxTurns int
 

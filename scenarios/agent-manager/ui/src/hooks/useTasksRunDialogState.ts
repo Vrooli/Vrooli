@@ -9,6 +9,7 @@ export interface InlineRunConfig {
   roleRef: string;
   maxTurns: number;
   timeoutMinutes: number;
+	 effort: "" | "low" | "medium" | "high" | "xhigh" | "max";
   runMode: RunMode;
   skipPermissionPrompt: boolean;
 }
@@ -20,6 +21,7 @@ function createInitialInlineConfig(): InlineRunConfig {
     roleRef: "code.default",
     maxTurns: 100,
     timeoutMinutes: 30,
+	 effort: "",
     runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
   };
@@ -35,6 +37,7 @@ function createInitialProfileFormData(): ProfileFormState {
     sandboxMode: "protected" as const,
     networkAccess: "localhost" as const,
     timeoutMinutes: 30,
+	 effort: "",
   };
 }
 

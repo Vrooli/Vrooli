@@ -25,8 +25,15 @@
         {
           "notes": "Test capability querying",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/runner/codecs/capabilities_conformance_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Verify canonical effort values are translated to native runner arguments or declared unsupported",
+          "phase": "unit",
+          "ref": "api/internal/contracts/run_control_test.go",
+          "status": "implemented",
           "type": "test"
         },
         {

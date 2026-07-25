@@ -226,7 +226,7 @@ func TestSandboxConfigRoundTripPreservesLifecycleAcceptanceAndNilCriteria(t *tes
 		Lifecycle: domain.SandboxLifecycleConfig{
 			CheckpointOn: []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTurnCompleted, domain.SandboxLifecycleTurnFailed},
 			StopOn:       []domain.SandboxLifecycleEvent{domain.SandboxLifecycleRejected},
-			DeleteOn:     []domain.SandboxLifecycleEvent{domain.SandboxLifecycleRunFinalized},
+			DeleteOn:     []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal},
 			TTL:          30 * time.Minute,
 			IdleTimeout:  5 * time.Minute,
 		},
@@ -246,7 +246,7 @@ func TestSandboxConfigRoundTripPreservesLifecycleAcceptanceAndNilCriteria(t *tes
 func TestSandboxLifecycleEventsModesAndAcceptanceConvertersFailClosed(t *testing.T) {
 	events := []domain.SandboxLifecycleEvent{
 		domain.SandboxLifecycleTurnCompleted, domain.SandboxLifecycleTurnFailed, domain.SandboxLifecycleTurnCancelled,
-		domain.SandboxLifecycleRunFinalized, domain.SandboxLifecycleRunCompleted, domain.SandboxLifecycleRunFailed,
+		domain.SandboxLifecycleTerminal, domain.SandboxLifecycleRunCompleted, domain.SandboxLifecycleRunFailed,
 		domain.SandboxLifecycleRunCancelled, domain.SandboxLifecycleApproved, domain.SandboxLifecycleRejected, domain.SandboxLifecycleTerminal,
 	}
 	for _, event := range events {

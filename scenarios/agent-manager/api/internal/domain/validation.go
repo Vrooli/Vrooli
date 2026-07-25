@@ -202,6 +202,9 @@ func (p *AgentProfile) Validate() error {
 	if p.Timeout < 0 {
 		return NewValidationError("timeout", "cannot be negative")
 	}
+	if !p.Effort.IsValid() {
+		return NewValidationErrorWithHint("effort", "invalid effort", "valid values: low, medium, high, xhigh, max")
+	}
 
 	if err := validateCanonicalTools("allowedTools", p.AllowedTools); err != nil {
 		return err

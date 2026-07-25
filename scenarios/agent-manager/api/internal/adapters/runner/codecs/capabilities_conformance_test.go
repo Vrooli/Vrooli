@@ -18,6 +18,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 		maxTurns                                                           int
 		supportsRunnerDefault                                              bool
 		supportsToolRestriction                                            bool
+		supportsEffort                                                     bool
 		mappingCount                                                       int
 		dynamicModelPrefixes                                               []string
 	}
@@ -41,6 +42,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				w.supportsRunnerDefault = true
 				w.supportsToolRestriction = true
 				w.mappingCount = len(CanonicalToolNamesForTest())
+				w.supportsEffort = true
 				return w
 			}(),
 		},
@@ -51,6 +53,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				w := uniform
 				w.supportsRunnerDefault = true
 				w.dynamicModelPrefixes = []string{ollamaModelPrefix}
+				w.supportsEffort = true
 				return w
 			}(),
 		},
@@ -76,6 +79,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				streaming: true, cancel: true, continuation: true, image: false,
 				maxTurns:              0,
 				supportsRunnerDefault: true,
+				supportsEffort:        true,
 			},
 		},
 	}
@@ -98,6 +102,12 @@ func TestCapabilitiesConformance(t *testing.T) {
 			}
 			if caps.SupportsToolRestriction != tc.want.supportsToolRestriction {
 				t.Errorf("SupportsToolRestriction = %v, want %v", caps.SupportsToolRestriction, tc.want.supportsToolRestriction)
+			}
+			if caps.SupportsEffort != tc.want.supportsEffort {
+				t.Errorf("SupportsEffort = %v, want %v", caps.SupportsEffort, tc.want.supportsEffort)
+			}
+			if tc.want.supportsEffort && len(caps.EffortMappings) != 5 {
+				t.Errorf("EffortMappings = %v, want five canonical mappings", caps.EffortMappings)
 			}
 			if len(caps.ToolRestrictionMappings) != tc.want.mappingCount {
 				t.Errorf("ToolRestrictionMappings = %v, want %d entries", caps.ToolRestrictionMappings, tc.want.mappingCount)

@@ -186,6 +186,8 @@ type LaunchParams struct {
 	// delivered (the launch just creates the session and discovers the transcript
 	// — used by the fake-CLI integration harnesses that self-start a turn).
 	Prompt string
+	Model  string
+	Effort domain.Effort
 }
 
 // LaunchResult is the durable outcome of a launch.
@@ -240,12 +242,15 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	}
 
 	launchCmd, err := BuildLaunchCommand(LaunchCommandParams{
-		RunnerType: p.RunnerType,
-		BinaryPath: info.BinaryPath(),
-		TagEnvKey:  info.TagEnvKey(),
-		Tag:        p.Tag,
-		WorkingDir: p.WorkingDir,
-		RunDir:     p.RunDir,
+		RunnerType:    p.RunnerType,
+		BinaryPath:    info.BinaryPath(),
+		TagEnvKey:     info.TagEnvKey(),
+		Tag:           p.Tag,
+		WorkingDir:    p.WorkingDir,
+		RunDir:        p.RunDir,
+		Model:         p.Model,
+		Effort:        p.Effort,
+		InitialPrompt: p.Prompt,
 	})
 	if err != nil {
 		return LaunchResult{}, err
@@ -272,21 +277,20 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 		LaunchCommand: launchCmd,
 		ExecutionMode: domain.ExecutionModeInteractive,
 	}
-
-	// Deliver the run's initial prompt (after a boot beat), then build the resend
-	// hook discovery uses if the transcript never shows. An empty prompt skips
-	// delivery entirely (the integration harnesses' fake CLIs self-start a turn).
-	var resend func() error
+	// Give the just-created interactive process its normal boot window before
+	// transcript discovery. The initial prompt is already on its command line;
+	// this is not a second prompt delivery.
 	if p.Prompt != "" {
-		source := sessionSource(p.RunID)
 		if err := s.awaitBoot(ctx); err != nil {
 			return result, err
 		}
-		if err := s.sessions.SendPrompt(ctx, sessionID, p.Prompt, source); err != nil {
-			return result, fmt.Errorf("deliver initial prompt for %s (session %s): %w", p.RunnerType, sessionID, err)
-		}
-		resend = func() error { return s.sessions.SendPrompt(ctx, sessionID, p.Prompt, source) }
 	}
+
+	// BuildLaunchCommand passes the initial prompt as a safely quoted trailing
+	// argument. Do not paste it into the session as well: duplicating the first
+	// turn can produce two independent agent actions with the same run identity.
+	// Interactive follow-up messages still use SendPrompt through the coordinator.
+	var resend func() error
 
 	transcriptPath, err := s.discoverTranscript(ctx, DiscoverParams{
 		RunnerType: p.RunnerType,

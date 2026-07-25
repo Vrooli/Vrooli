@@ -110,10 +110,12 @@ func (c *Grok) Capabilities() runner.Capabilities {
 		SupportsImageAttachments: false, // no headless image-attachment flag
 		SupportsToolRestriction:  false, // Per-run allowlists conflict with Grok's global approve configuration.
 		ToolRestrictionMappings:  canonicalToolMappings(grokToolTranslations),
+		SupportsEffort:           true,
+		EffortMappings:           map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
 		MaxTurns:                 0, // unlimited (configurable via --max-turns)
 		SupportsRunnerDefault:    true,
 		SupportedFeatures:        []string{},
-		AllowedExtraFlags:        []string{"--effort", "--reasoning-effort"},
+		AllowedExtraFlags:        nil,
 	}
 }
 
@@ -144,14 +146,17 @@ func (c *Grok) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 		"-p", req.EffectivePrompt(),
 		"--output-format", "streaming-json",
 	}
-
 	if cfg.MaxTurns > 0 {
 		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
 	} else {
 		args = append(args, "--max-turns", "30")
 	}
+
 	if model := strings.TrimSpace(cfg.Model); model != "" {
 		args = append(args, "-m", model)
+	}
+	if cfg.Effort != "" {
+		args = append(args, "--effort", string(cfg.Effort))
 	}
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--always-approve")
@@ -180,14 +185,25 @@ func (c *Grok) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
 		"--resume", req.SessionID,
 		"--output-format", "streaming-json",
 	}
+	if cfg.MaxTurns > 0 {
+		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
+	} else {
+		args = append(args, "--max-turns", "30")
+	}
 	if model := strings.TrimSpace(cfg.Model); model != "" {
 		args = append(args, "-m", model)
+	}
+	if cfg.Effort != "" {
+		args = append(args, "--effort", string(cfg.Effort))
 	}
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--always-approve")
 	}
 	if dir := strings.TrimSpace(req.WorkingDir); dir != "" {
 		args = append(args, "--cwd", dir)
+	}
+	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeGrok]; ok {
+		args = append(args, extras...)
 	}
 	return args
 }

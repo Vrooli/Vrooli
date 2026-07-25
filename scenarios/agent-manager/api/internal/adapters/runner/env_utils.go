@@ -6,30 +6,14 @@ import (
 	"strings"
 )
 
-var inheritedEnvDenylist = map[string]struct{}{
-	"API_PORT":          {},
-	"VROOLI_SCENARIO":   {},
-	"VROOLI_PROCESS_ID": {},
-	"VROOLI_STEP":       {},
-	// Prevent nested Claude CLI sessions when agent-manager itself runs inside Claude Code.
-	"CLAUDECODE": {},
-	// Prevent parent agent tag from leaking into child agent processes.
-	// BuildEnv sets this explicitly per-request.
-	"CLAUDE_CODE_AGENT_TAG": {},
-	// Same for the grok per-run tag.
-	"GROK_AGENT_TAG": {},
-	// Prevent a parent web-console/codex session's CODEX_HOME from leaking
-	// into nested sandboxed agent runs. When agent-manager runs inside a
-	// web-console session, CODEX_HOME points at ~/.vrooli/state/.../codex,
-	// which the vrooli-aware sandbox profile mounts READ-ONLY — so codex
-	// dies at startup with "Read-only file system (os error 30)" trying to
-	// write its session/logs there. Stripping it lets codex fall back to
-	// its default $HOME/.codex, which carries auth and is writable via the
-	// home overlay.
-	"CODEX_HOME": {},
+var inheritedEnvAllowlist = map[string]struct{}{
+	"PATH": {}, "HOME": {}, "USER": {}, "LOGNAME": {}, "SHELL": {},
+	"LANG": {}, "LC_ALL": {}, "LC_CTYPE": {}, "TERM": {}, "TMPDIR": {},
+	"HTTP_PROXY": {}, "HTTPS_PROXY": {}, "NO_PROXY": {}, "http_proxy": {}, "https_proxy": {}, "no_proxy": {},
+	"ANTHROPIC_API_KEY": {}, "OPENAI_API_KEY": {}, "XAI_API_KEY": {},
 }
 
-// SanitizedBaseEnv returns os.Environ() filtered through inheritedEnvDenylist.
+// SanitizedBaseEnv returns only explicitly allowlisted inherited variables.
 // Used by every codec's BuildEnv implementation as the base for the agent
 // process's environment so parent-process tags and per-scenario state never
 // leak into nested agent runs.
@@ -44,7 +28,7 @@ func SanitizedBaseEnv() []string {
 		if !found || key == "" {
 			continue
 		}
-		if _, blocked := inheritedEnvDenylist[key]; blocked {
+		if _, allowed := inheritedEnvAllowlist[key]; !allowed {
 			continue
 		}
 		out = append(out, entry)

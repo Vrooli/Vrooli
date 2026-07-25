@@ -76,7 +76,7 @@
           "framework": "go test",
           "package_manager": "go",
           "coverage": {
-            "minimum_percent": 75,
+            "minimum_percent": 80,
             "mode": "total"
           },
           "test_utils": {
@@ -96,7 +96,7 @@
           "framework": "go test",
           "package_manager": "go",
           "coverage": {
-            "minimum_percent": 75,
+            "minimum_percent": 80,
             "mode": "total"
           },
           "test_utils": {

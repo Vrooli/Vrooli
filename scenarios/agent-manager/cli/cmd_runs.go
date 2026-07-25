@@ -332,6 +332,7 @@ func (a *App) runCreate(args []string) error {
 	resultSchemaFile := fs.String("result-schema-file", "", "Path to a JSON Schema for the canonical structured result")
 	classify := fs.String("classify", "", "Comma-separated classification values (convenience ResultSpec)")
 	structuredExtraction := fs.Bool("structured-extraction", false, "Allow portable extract.structured fallback after deterministic parsing")
+	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -382,6 +383,12 @@ func (a *App) runCreate(args []string) error {
 	}
 	if spec != nil {
 		req.InlineConfig = &domainpb.RunConfigOverrides{ResultSpec: spec}
+	}
+	if *effort != "" {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.Effort = protoString(*effort)
 	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err

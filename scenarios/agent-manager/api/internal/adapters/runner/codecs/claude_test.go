@@ -102,6 +102,20 @@ func TestClaudeBuildArgsTranslatesCanonicalAllowedTools(t *testing.T) {
 	t.Fatalf("--allowedTools absent from %v", args)
 }
 
+func TestClaudeBuildArgsTranslatesCanonicalDeniedTools(t *testing.T) {
+	c := NewClaudeForTest()
+	args := c.BuildArgs(c.NewState(), runner.ExecuteRequest{RunID: uuid.New(), ResolvedConfig: &domain.RunConfig{
+		RunnerType:  domain.RunnerTypeClaudeCode,
+		DeniedTools: []string{"shell", "web_fetch"},
+	}})
+	for index, arg := range args {
+		if arg == "--disallowedTools" && index+1 < len(args) && args[index+1] == "Bash,WebFetch" {
+			return
+		}
+	}
+	t.Fatalf("--disallowedTools absent or untranslated: %v", args)
+}
+
 func TestClaude_BuildArgs_ExtraFlags(t *testing.T) {
 	c := NewClaudeForTest()
 	tests := []struct {
@@ -232,6 +246,17 @@ func TestClaudeBuildContinueArgsKeepsCanonicalToolRestriction(t *testing.T) {
 	t.Fatalf("continuation omitted translated restriction: %v", args)
 }
 
+func TestClaudeBuildContinueArgsKeepsCanonicalDeniedTools(t *testing.T) {
+	c := NewClaudeForTest()
+	args := c.BuildContinueArgs(c.NewState(), runner.ContinueRequest{RunID: uuid.New(), SessionID: "sess-xyz", ResolvedConfig: &domain.RunConfig{DeniedTools: []string{"shell"}}})
+	for index, arg := range args {
+		if arg == "--disallowedTools" && index+1 < len(args) && args[index+1] == "Bash" {
+			return
+		}
+	}
+	t.Fatalf("continuation omitted translated denied restriction: %v", args)
+}
+
 func TestClaude_BuildEnv_AgentTag(t *testing.T) {
 	c := NewClaudeForTest()
 	t.Run("tag present", func(t *testing.T) {
@@ -265,7 +290,7 @@ func TestClaude_Capabilities_SupportedFeatures(t *testing.T) {
 	}
 }
 
-func TestClaude_Capabilities_AllowedExtraFlags(t *testing.T) {
+func TestClaude_Capabilities_DeniedToolsIsFirstClass(t *testing.T) {
 	c := NewClaudeForTest()
 	caps := c.Capabilities()
 	found := false
@@ -274,8 +299,8 @@ func TestClaude_Capabilities_AllowedExtraFlags(t *testing.T) {
 			found = true
 		}
 	}
-	if !found {
-		t.Errorf("expected --disallowedTools in %v", caps.AllowedExtraFlags)
+	if found {
+		t.Errorf("--disallowedTools must not be an extra flag: %v", caps.AllowedExtraFlags)
 	}
 }
 

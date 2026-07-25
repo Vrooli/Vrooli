@@ -2,12 +2,39 @@
 
 ## Tool restriction enforcement
 
-`allowedTools` is a canonical profile capability allowlist, not a runner CLI
-passthrough. Claude Code enforces it per launch and maps the canonical names to
-its native tool vocabulary. Codex, OpenCode, and Grok currently report no
-per-launch allowlist enforcement; a restricted profile therefore fails closed
-unless its declaration explicitly selects advisory policy. The live codec
-registry is authoritative: inspect it with `agent-manager runner tools`.
+`allowedTools` and `deniedTools` are canonical profile controls, not runner CLI
+passthrough. Claude Code enforces both per launch and maps canonical names to
+its native vocabulary (`--allowedTools` and `--disallowedTools`) on execute
+and continuation. Codex, OpenCode, and Grok currently report no per-launch
+tool enforcement; a restricted profile therefore fails closed unless its
+declaration explicitly selects advisory policy. Policy fallback rechecks this
+capability after every runner switch and skips an unsupported candidate under
+enforced policy. The live codec registry is authoritative: inspect it with
+`agent-manager runner tools`.
+
+## Run-control fidelity and isolation
+
+`effort` is a canonical run control with the values `low`, `medium`, `high`,
+`xhigh`, and `max`. Claude Code and Grok receive `--effort`; Codex receives
+`-c model_reasoning_effort=<level>`; OpenCode declares the control unsupported
+instead of silently pretending to apply it. Execute, continuation, and
+interactive launch paths preserve the resolved model, effort, prompt, and
+applicable tool controls.
+
+Codec-pipe children receive a minimal environment allowlist rather than the
+web-console process environment. In particular, inherited runner-state
+variables are excluded. Codex and Grok receive an explicit, run-scoped session
+home outside the sandbox overlay; it persists across turns so a continuation
+can read the first turn's rollout without exposing the parent home.
+
+Default sandbox lifecycle configuration checkpoints between turns and deletes
+at terminal status. Manual-review and explicitly preserving configurations are
+the only deliberate preservation paths. These claims are executable contracts:
+`internal/contracts/run_control_test.go`,
+`internal/adapters/runner/env_utils_test.go`, and
+`internal/orchestration/session_home_test.go` run without a runner binary or
+network access; the sanitized codec corpus adds representative recorded
+transcripts under `internal/adapters/runner/codecs/testdata/corpus/`.
 
 > **Status (2026-04-27, Slices 1 + 4 complete):** every coding-agent
 > runner — `claude_code`, `codex`, and `opencode` — routes **every

@@ -7,6 +7,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func TestHTTPToWSURLAndWebSocketMessageHandling(t *testing.T) {
@@ -90,6 +91,101 @@ func TestPermissionPolicyFormattingAndInputValidation(t *testing.T) {
 		if err := app.cmdPermissionPolicy(args); err == nil {
 			t.Fatalf("permission policy %v accepted", args)
 		}
+	}
+}
+
+func TestPermissionPolicyCommandsRenderHealthyOperationalResponses(t *testing.T) {
+	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
+		switch request.Path {
+		case "/api/v1/permission-policy/catalog":
+			return `{"status":{"ready":true,"path":"policy.json","activeDigest":"active"},"catalog":{"metadata":{"catalogId":"permissions"},"schemaVersion":1}}`
+		case "/api/v1/permission-policy/validate":
+			return `{"valid":true,"candidateDigest":"candidate","activeDigest":"active"}`
+		case "/api/v1/permission-policy/reload":
+			return `{"activated":true,"status":{"ready":true,"path":"policy.json","activeDigest":"active"}}`
+		case "/api/v1/permission-policy/reconcile":
+			return `{"result":{"success":true}}`
+		case "/api/v1/permission-policy/doctor":
+			return `{"healthy":true,"summary":"all enforced","status":{"ready":true,"path":"policy.json","activeDigest":"active"},"plan":{"catalogDigest":"active","hardEnforcementSatisfied":true}}`
+		default:
+			return `{}`
+		}
+	})
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	app := &App{services: NewServices(api)}
+	for _, args := range [][]string{{"catalog"}, {"validate"}, {"reload"}, {"reconcile", "--i-was-explicitly-authorized"}, {"doctor"}} {
+		if err := app.cmdPermissionPolicy(args); err != nil {
+			t.Fatalf("permission-policy %v: %v", args, err)
+		}
+	}
+}
+
+func TestRolePolicyCommandsRenderHealthyOperationalResponses(t *testing.T) {
+	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
+		switch request.Path {
+		case "/api/v1/role-policy/validate":
+			return `{"valid":true,"candidateDigest":"candidate","activeDigest":"active"}`
+		case "/api/v1/role-policy/reload":
+			return `{"activated":true,"status":{"ready":true,"path":"roles.json","activeDigest":"active"}}`
+		case "/api/v1/role-policy/explain":
+			return `{"targetType":"profile","targetId":"profile-1","summary":"resolved","snapshot":{"catalogDigest":"active","roleRef":"code.default","selectedIndex":0,"candidates":[{"runnerType":"RUNNER_TYPE_CODEX","selectionType":"MODEL_SELECTION_TYPE_EXPLICIT","model":"gpt-test"}]}}`
+		case "/api/v1/role-policy/catalog":
+			return `{"status":{"ready":true,"path":"roles.json","activeDigest":"active"},"catalog":{"metadata":{"catalogId":"roles"},"schemaVersion":1,"defaultRole":"code.default","roles":[{"roleRef":"code.default","intent":"implement","description":"make safe code changes","candidates":[{"runnerType":"RUNNER_TYPE_CODEX","resourceRole":"coding"}]}]}}`
+		default:
+			return `{}`
+		}
+	})
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	app := &App{services: NewServices(api)}
+	for _, args := range [][]string{{"validate"}, {"reload"}, {"catalog"}, {"explain", "profile", "profile-1"}} {
+		if err := app.cmdPolicy(args); err != nil {
+			t.Fatalf("role-policy %v: %v", args, err)
+		}
+	}
+}
+
+func TestPermissionPolicyPlanReportsDriftAndHardEnforcementGaps(t *testing.T) {
+	printPermissionPolicyPlan(&apipb.PermissionPolicyPlan{
+		CatalogDigest: "digest", HardEnforcementSatisfied: false,
+		MissingHardEnforcementRuleIds: []string{"rule-1"},
+		Resources: []*apipb.PermissionPolicyResourceResult{{
+			RunnerType: domainpb.RunnerType_RUNNER_TYPE_CODEX, Scope: "workspace", Status: "drifted", Drift: true, Error: "mapping missing",
+		}},
+	})
+}
+
+func TestPermissionPolicyStatusReportsOptionalCatalogAndReloadDiagnostic(t *testing.T) {
+	printPermissionPolicyStatus(&apipb.PermissionPolicyStatus{
+		Ready: false, Path: "policy.json", ActiveDigest: "",
+		LastReloadAttempt: &apipb.PermissionPolicyReloadAttempt{Diagnostic: &apipb.PermissionPolicyDiagnostic{Code: "INVALID", Message: "missing rule"}},
+	})
+}
+
+func TestRolePolicyDiagnosticReportsDistinctCause(t *testing.T) {
+	printPolicyDiagnostic(&apipb.RolePolicyDiagnostic{Code: "INVALID", Message: "validation failed", Cause: "missing resource role"})
+}
+
+func TestRunnerProbeRendersFailureEvidence(t *testing.T) {
+	server := clitest.NewRecordingServer(t, `{"result":{"success":false,"latencyMs":42,"error":"authentication expired","details":{"binary":"codex"}}}`)
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	if err := (&App{services: NewServices(api)}).cmdRunner([]string{"probe", "codex"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunnerListRendersUnavailableLongDiagnostic(t *testing.T) {
+	server := clitest.NewRecordingServer(t, `{"runners":[{"runnerType":"RUNNER_TYPE_OPENCODE","available":false,"message":"this deliberately long diagnostic demonstrates that unavailable runner output remains bounded"}]}`)
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	if err := (&App{services: NewServices(api)}).cmdRunner([]string{"list"}); err != nil {
+		t.Fatal(err)
 	}
 }
 

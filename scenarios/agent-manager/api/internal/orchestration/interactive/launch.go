@@ -23,6 +23,13 @@ type LaunchCommandParams struct {
 	// RunDir is the agent-manager-owned per-run directory under which the
 	// relocated CODEX_HOME/GROK_HOME lives (ignored for claude).
 	RunDir string
+	// Model and Effort are resolved run controls forwarded to the interactive
+	// CLI. Empty values preserve the CLI default.
+	Model  string
+	Effort domain.Effort
+	// InitialPrompt is supplied as one trailing positional argument so the
+	// interactive process receives the same initial task as codec-pipe runs.
+	InitialPrompt string
 }
 
 // BuildLaunchCommand builds the shell command web-console pastes+executes to
@@ -62,10 +69,26 @@ func BuildLaunchCommand(p LaunchCommandParams) (string, error) {
 		envPrefix = append(envPrefix, fmt.Sprintf("%s=%s", spec.homeEnvVar, shellQuote(home)))
 	}
 
+	args := []string{shellQuote(p.BinaryPath)}
+	if model := strings.TrimSpace(p.Model); model != "" {
+		args = append(args, "--model", shellQuote(model))
+	}
+	if p.Effort != "" {
+		switch p.RunnerType {
+		case domain.RunnerTypeCodex:
+			args = append(args, "-c", shellQuote("model_reasoning_effort="+string(p.Effort)))
+		case domain.RunnerTypeClaudeCode, domain.RunnerTypeGrok:
+			args = append(args, "--effort", shellQuote(string(p.Effort)))
+		}
+	}
+	if p.InitialPrompt != "" {
+		args = append(args, shellQuote(p.InitialPrompt))
+	}
+
 	cmd := fmt.Sprintf("cd %s && %s %s",
 		shellQuote(p.WorkingDir),
 		strings.Join(envPrefix, " "),
-		shellQuote(p.BinaryPath),
+		strings.Join(args, " "),
 	)
 	return cmd, nil
 }

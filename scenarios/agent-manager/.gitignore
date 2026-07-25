@@ -1,2 +1,4 @@
 cli/agent-manager
 cli/cli
+coverage.out
+cov.out

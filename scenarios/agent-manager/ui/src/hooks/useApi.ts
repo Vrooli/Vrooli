@@ -409,6 +409,7 @@ function buildProfile(profile: ProfileFormData): AgentProfile {
     roleRef: profile.roleRef.trim(),
     maxTurns: profile.maxTurns ?? 0,
     timeout: durationFromMinutes(profile.timeoutMinutes),
+    effort: profile.effort ?? "",
     allowedTools: profile.allowedTools ?? [],
     deniedTools: profile.deniedTools ?? [],
     skipPermissionPrompt: profile.skipPermissionPrompt ?? false,
@@ -456,6 +457,9 @@ function buildRunConfigOverrides(run: RunFormData) {
   }
   if (run.timeoutMinutes !== undefined) {
     payload.timeout = durationFromMinutes(run.timeoutMinutes);
+  }
+  if (run.effort !== undefined) {
+    payload.effort = run.effort;
   }
   if (run.allowedTools !== undefined) {
     payload.allowedTools = run.allowedTools;
@@ -521,6 +525,7 @@ function hasInlineConfig(run: RunFormData): boolean {
     run.roleRef !== undefined ||
       run.maxTurns !== undefined ||
       run.timeoutMinutes !== undefined ||
+      run.effort !== undefined ||
       run.allowedTools !== undefined ||
       run.deniedTools !== undefined ||
       typeof run.skipPermissionPrompt === "boolean" ||

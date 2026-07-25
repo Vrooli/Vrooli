@@ -215,7 +215,7 @@
     }
   },
   "environment": {
-    "AM_SQLITE_PATH": "${SCENARIO_DATA_DIR}/agent-manager.db"
+    "AM_SQLITE_PATH": "/home/matthalloran8/.vrooli/data/vrooli/agent-manager/agent-manager.db"
   },
   "cli": {
     "enabled": true,

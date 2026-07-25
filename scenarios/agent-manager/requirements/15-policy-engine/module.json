@@ -48,6 +48,13 @@
           "type": "test"
         },
         {
+          "notes": "Verify an enforced tool restriction skips fallback candidates that cannot enforce it",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestToolRestrictionCandidateReason",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
           "notes": "Verify catalog reload failures retain the active role revision",
           "phase": "integration",
           "ref": "api/internal/rolepolicy/state_test.go::TestStateRetainsActiveRevisionAfterInvalidReload",

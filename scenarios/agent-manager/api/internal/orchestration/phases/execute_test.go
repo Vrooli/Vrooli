@@ -42,6 +42,21 @@ func modelUnavailableResult(runnerType domain.RunnerType) *runner.ExecuteResult 
 	}
 }
 
+func TestToolRestrictionCandidateReasonRejectsUnsupportedEnforcedFallback(t *testing.T) {
+	cfg := &domain.RunConfig{
+		AllowedTools:          []string{"read"},
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicyEnforced,
+	}
+	unsupported := runner.NewMockRunner(domain.RunnerTypeCodex)
+	if got := toolRestrictionCandidateReason(cfg, unsupported); !strings.Contains(got, "cannot enforce allowedTools") {
+		t.Fatalf("unsupported enforced fallback reason = %q", got)
+	}
+	cfg.ToolRestrictionPolicy = domain.ToolRestrictionPolicyAdvisory
+	if got := toolRestrictionCandidateReason(cfg, unsupported); got != "" {
+		t.Fatalf("advisory fallback must proceed, got %q", got)
+	}
+}
+
 // [REQ:REQ-P1-004] Runtime fallback follows the immutable persisted sequence,
 // including explicit runner-default and cross-runner candidates.
 func TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners(t *testing.T) {

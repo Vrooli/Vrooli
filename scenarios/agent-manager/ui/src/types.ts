@@ -75,6 +75,7 @@ export interface ProfileFormData {
   roleRef: string;
   maxTurns?: number;
   timeoutMinutes?: number;
+  effort?: "" | "low" | "medium" | "high" | "xhigh" | "max";
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;
@@ -106,6 +107,7 @@ export interface RunFormData {
   roleRef?: string;
   maxTurns?: number;
   timeoutMinutes?: number;
+  effort?: "" | "low" | "medium" | "high" | "xhigh" | "max";
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;

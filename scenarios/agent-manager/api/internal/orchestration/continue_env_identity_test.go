@@ -2,9 +2,12 @@ package orchestration_test
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
@@ -130,5 +133,76 @@ func TestContinueRun_PreservesCustomEnvAndIdentity(t *testing.T) {
 	}
 	if res.Claims == nil || res.Claims.RunID != runID {
 		t.Errorf("identity claims do not bind to the run: %+v", res.Claims)
+	}
+}
+
+func TestContinueRun_FailurePreservesPreviousStructuredResult(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	mockRunner, _, _, done := newContinuationRunner(t)
+	mockRunner.ContinueFunc = func(_ context.Context, _ runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		close(done)
+		return nil, errors.New("no rollout found for thread id test-thread")
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mockRunner); err != nil {
+		t.Fatal(err)
+	}
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1, RequireSandboxByDefault: false}),
+		orchestration.WithEvents(eventStore), orchestration.WithRunners(registry))
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{Name: "preserve-result", ProfileKey: "preserve-result-" + uuid.NewString()[:8], RoleRef: "code.default", SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{Title: "preserve-result", ScopePath: "src/"})
+	now := time.Now()
+	raw := []byte(`{"outcome":"complete"}`)
+	run := &domain.Run{
+		ID: uuid.New(), TaskID: task.ID, AgentProfileID: &profile.ID, Tag: "preserve-result", RunMode: domain.RunModeInPlace,
+		Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, SessionID: "test-thread", StartedAt: &now, EndedAt: &now,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode}, ApprovalState: domain.ApprovalStateNone,
+		Result:  &domain.RunResult{Success: true, Structured: &domain.StructuredResult{Status: domain.StructuredResultSuccess, Value: raw}},
+		Summary: &domain.RunSummary{TurnsUsed: 1}, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{RunID: run.ID, Message: "continue"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("continuation did not run")
+	}
+	var got *domain.Run
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		var err error
+		got, err = repos.Runs.Get(ctx, run.ID)
+		if err == nil && got.Status == domain.RunStatusFailed {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got == nil || got.Status != domain.RunStatusFailed {
+		t.Fatalf("run status = %#v, want failed", got)
+	}
+	if got.Result == nil || got.Result.Structured == nil || string(got.Result.Structured.Value) != string(raw) {
+		t.Fatalf("previous structured result was lost: %#v", got.Result)
+	}
+	events, err := eventStore.Get(ctx, run.ID, event.GetOptions{})
+	if err != nil {
+		t.Fatalf("get events: %v", err)
+	}
+	found := false
+	for _, evt := range events {
+		data, ok := evt.Data.(*domain.LogEventData)
+		if ok && strings.Contains(data.Message, "failed on turn 2; preserved structured result from successful turn 1") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing numbered partial-result preservation event: %#v", events)
 	}
 }

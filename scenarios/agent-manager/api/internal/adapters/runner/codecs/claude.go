@@ -107,10 +107,12 @@ func (c *Claude) Capabilities() runner.Capabilities {
 		SupportsImageAttachments: true,
 		SupportsToolRestriction:  true,
 		ToolRestrictionMappings:  canonicalToolMappings(claudeToolTranslations),
+		SupportsEffort:           true,
+		EffortMappings:           map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
 		MaxTurns:                 0, // unlimited
 		SupportsRunnerDefault:    true,
 		SupportedFeatures:        []string{"EnableBrowser"},
-		AllowedExtraFlags:        []string{"--disallowedTools"},
+		AllowedExtraFlags:        nil,
 	}
 }
 
@@ -148,15 +150,16 @@ func (c *Claude) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 	}
 
 	cfg := req.GetConfig()
-
 	if cfg.MaxTurns > 0 {
 		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
 	} else {
 		args = append(args, "--max-turns", "30")
 	}
-
 	if cfg.Model != "" {
 		args = append(args, "--model", cfg.Model)
+	}
+	if cfg.Effort != "" {
+		args = append(args, "--effort", string(cfg.Effort))
 	}
 
 	if cfg.SkipPermissionPrompt {
@@ -166,11 +169,17 @@ func (c *Claude) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 	if len(cfg.AllowedTools) > 0 {
 		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.AllowedTools)
 		if err != nil {
-			panic(err)
+			return args
 		}
 		args = append(args, "--allowedTools", strings.Join(tools, ","))
 	}
-
+	if len(cfg.DeniedTools) > 0 {
+		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.DeniedTools)
+		if err != nil {
+			return args
+		}
+		args = append(args, "--disallowedTools", strings.Join(tools, ","))
+	}
 	if req.SystemPrompt != "" {
 		args = append(args, "--append-system-prompt", req.SystemPrompt)
 	}
@@ -197,15 +206,39 @@ func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string
 		"--resume", req.SessionID,
 	}
 	cfg := req.GetConfig()
+	if cfg.MaxTurns > 0 {
+		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
+	} else {
+		args = append(args, "--max-turns", "30")
+	}
+	if cfg.Model != "" {
+		args = append(args, "--model", cfg.Model)
+	}
+	if cfg.Effort != "" {
+		args = append(args, "--effort", string(cfg.Effort))
+	}
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--dangerously-skip-permissions")
 	}
 	if len(cfg.AllowedTools) > 0 {
 		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.AllowedTools)
 		if err != nil {
-			panic(err)
+			return args
 		}
 		args = append(args, "--allowedTools", strings.Join(tools, ","))
+	}
+	if len(cfg.DeniedTools) > 0 {
+		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.DeniedTools)
+		if err != nil {
+			return args
+		}
+		args = append(args, "--disallowedTools", strings.Join(tools, ","))
+	}
+	if cfg.Features.EnableBrowser {
+		args = append(args, "--chrome")
+	}
+	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeClaudeCode]; ok {
+		args = append(args, extras...)
 	}
 	return append(args, "-")
 }

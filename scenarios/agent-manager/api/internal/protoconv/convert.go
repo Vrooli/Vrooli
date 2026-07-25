@@ -149,8 +149,6 @@ func SandboxLifecycleEventToProto(event domain.SandboxLifecycleEvent) pb.Sandbox
 		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_FAILED
 	case domain.SandboxLifecycleTurnCancelled:
 		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED
-	case domain.SandboxLifecycleRunFinalized:
-		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED
 	case domain.SandboxLifecycleRunCompleted:
 		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED
 	case domain.SandboxLifecycleRunFailed:
@@ -177,8 +175,6 @@ func SandboxLifecycleEventFromProto(event pb.SandboxLifecycleEvent) domain.Sandb
 		return domain.SandboxLifecycleTurnFailed
 	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED:
 		return domain.SandboxLifecycleTurnCancelled
-	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED:
-		return domain.SandboxLifecycleRunFinalized
 	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED:
 		return domain.SandboxLifecycleRunCompleted
 	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FAILED:

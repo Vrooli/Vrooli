@@ -38,6 +38,20 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Test orchestrator run operations end-to-end"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/session_home_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify Codex and Grok session homes survive turns while copied credentials are cleaned at terminal teardown"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/continue_env_identity_test.go::TestContinueRun_FailurePreservesPreviousStructuredResult",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify a failed continuation retains the earlier structured result and records its turn provenance"
         }
       ]
     }

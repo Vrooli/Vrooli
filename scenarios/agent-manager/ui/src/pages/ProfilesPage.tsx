@@ -117,6 +117,7 @@ export function ProfilesPage({
     sandboxMode: "protected" as const,
     networkAccess: "localhost" as const,
     timeoutMinutes: 30,
+    effort: "",
     features: { enableBrowser: false },
     extraFlags: {},
   });
@@ -156,6 +157,7 @@ export function ProfilesPage({
       sandboxMode: "protected",
       networkAccess: "localhost" as const,
       timeoutMinutes: 30,
+      effort: "",
       features: { enableBrowser: false },
       extraFlags: {},
     });
@@ -179,6 +181,7 @@ export function ProfilesPage({
       allowedTools: profile.allowedTools,
       deniedTools: profile.deniedTools,
       timeoutMinutes: durationToMinutes(profile.timeout),
+      effort: profile.effort as ProfileFormData["effort"],
       features: {
         enableBrowser: profile.features?.enableBrowser ?? false,
       },
@@ -493,6 +496,25 @@ export function ProfilesPage({
                     max={1440}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="effort">Reasoning Effort</Label>
+                <select
+                  id="effort"
+                  value={formData.effort ?? ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, effort: e.target.value as ProfileFormData["effort"] })
+                  }
+                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">Runner default</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="xhigh">Extra high</option>
+                  <option value="max">Max</option>
+                </select>
               </div>
 
               <div className="flex gap-6">

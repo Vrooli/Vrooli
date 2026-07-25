@@ -479,3 +479,158 @@ func TestRunCommandsValidateAndUseServiceContracts(t *testing.T) {
 		}
 	}
 }
+
+func TestRunCommandsRenderEmptySuccessfulOperationResponses(t *testing.T) {
+	services, _ := newContractServices(t)
+	app := &App{services: services}
+	for _, args := range [][]string{
+		{"stop-all", "--force"},
+		{"quiesce", "--scenario=agent-manager"},
+		{"get-by-tag", "drill"},
+		{"await-result", "run-1"},
+	} {
+		if err := app.cmdRun(args); err != nil {
+			t.Fatalf("run %v: %v", args, err)
+		}
+	}
+}
+
+func TestRunEventsRendersTypedEventRows(t *testing.T) {
+	server := clitest.NewRecordingServer(t, richResponse(t, &apipb.GetRunEventsResponse{Events: []*domainpb.RunEvent{{
+		Sequence: 7, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE,
+		Timestamp: timestamppb.New(time.Date(2026, time.July, 23, 12, 0, 0, 0, time.UTC)),
+		Data:      &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "completed the requested work"}},
+	}}}))
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	if err := (&App{services: NewServices(api)}).cmdRun([]string{"events", "run-1", "--limit=10"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunStopAllRendersFailuresAndFailedIDs(t *testing.T) {
+	server := clitest.NewRecordingServer(t, richResponse(t, &apipb.StopAllRunsResponse{Result: &domainpb.StopAllResult{
+		StoppedCount: 2,
+		Failures:     []*domainpb.StopFailure{{RunId: "failed-run", Error: "process did not stop"}},
+	}}))
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	if err := (&App{services: NewServices(api)}).cmdRun([]string{"stop-all", "--tag-prefix=swarm"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunGetByTagRendersResolvedRun(t *testing.T) {
+	server := clitest.NewRecordingServer(t, richResponse(t, &apipb.GetRunResponse{Run: &domainpb.Run{
+		Id: "run-1", Tag: "swarm-42", Status: domainpb.RunStatus_RUN_STATUS_RUNNING,
+		Phase: domainpb.RunPhase_RUN_PHASE_EXECUTING, ProgressPercent: 42,
+	}}))
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	if err := (&App{services: NewServices(api)}).cmdRun([]string{"get-by-tag", "swarm-42"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunQuiesceRendersAbortAndInFlightGuidance(t *testing.T) {
+	server := clitest.NewRecordingServer(t, richResponse(t, &apipb.QuiesceScenarioResponse{Result: &apipb.QuiesceResult{
+		Scenario: "agent-manager", Aborted: true, Reason: "wait for the active run",
+		InFlight:  []*apipb.QuiesceRunRef{{Id: "run-1", Status: "running", Tag: "swarm"}},
+		Cancelled: []*apipb.QuiesceRunRef{{Id: "run-2", Status: "cancelled", Tag: "old"}},
+	}}))
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	if err := (&App{services: NewServices(api)}).cmdRun([]string{"quiesce", "--scenario=agent-manager", "--force"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunApproveRendersAppliedFilesAndCommit(t *testing.T) {
+	server := clitest.NewRecordingServer(t, richResponse(t, &apipb.ApproveRunResponse{Result: &domainpb.ApproveResult{
+		Success: true, FilesApplied: 3, CommitHash: "abc123",
+	}}))
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	if err := (&App{services: NewServices(api)}).cmdRun([]string{"approve", "run-1", "--actor=operator", "--commit-msg=apply"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunDiffRendersUnifiedDiffContent(t *testing.T) {
+	server := clitest.NewRecordingServer(t, richResponse(t, &apipb.GetRunDiffResponse{Diff: &domainpb.RunDiff{
+		RunId: "run-1", Content: "diff --git a/file b/file\n+reliable change\n",
+	}}))
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	if err := (&App{services: NewServices(api)}).cmdRun([]string{"diff", "run-1"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunReliabilityOperationsRenderSuccessfulStateTransitions(t *testing.T) {
+	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
+		switch request.Path {
+		case "/api/v1/runs/run-1/continue":
+			return `{"success":true,"run":{"id":"run-1","status":"RUN_STATUS_RUNNING"}}`
+		case "/api/v1/runs/run-1/park":
+			return `{"success":true,"message":"waiting for test-genie","result":"accepted","run":{"id":"run-1","status":"RUN_STATUS_PARKED"}}`
+		case "/api/v1/runs/run-1/wake":
+			return `{"success":true,"run":{"id":"run-1","status":"RUN_STATUS_RUNNING"}}`
+		case "/api/v1/runs/run-1/await-result":
+			return `{"found":true,"key":"test-genie/run","result":"completed","resolvedAt":"2026-07-23T12:00:00Z"}`
+		case "/api/v1/runs/run-1/recover":
+			return `{"recovered":true,"idempotent":false,"message":"transcript reconciled","run":{"id":"run-1","status":"RUN_STATUS_COMPLETE"}}`
+		case "/api/v1/runs/investigate":
+			return `{"run":{"id":"investigation-1","status":"RUN_STATUS_PENDING"}}`
+		case "/api/v1/runs/investigation-apply":
+			return `{"run":{"id":"apply-1","status":"RUN_STATUS_PENDING"}}`
+		default:
+			return `{}`
+		}
+	})
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	app := &App{services: NewServices(api)}
+	for _, args := range [][]string{
+		{"continue", "run-1", "--message=continue"},
+		{"park", "run-1", "--producer=test-genie", "--key=run", "--identity-token=identity"},
+		{"wake", "run-1", "--result=completed"},
+		{"await-result", "run-1"},
+		{"recover", "run-1"},
+		{"investigate", "--run-ids=run-1,run-2", "--depth=quick", "--scope-paths=api,ui"},
+		{"apply-investigation", "run-1", "--context=apply the evidence"},
+	} {
+		if err := app.cmdRun(args); err != nil {
+			t.Fatalf("run %v: %v", args, err)
+		}
+	}
+}
+
+func TestProfileCreateAndEnsureRenderResolvedProfiles(t *testing.T) {
+	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
+		switch request.Path {
+		case "/api/v1/profiles":
+			return `{"profile":{"id":"profile-1","name":"reliable","profileKey":"reliable","roleRef":"code.default"}}`
+		case "/api/v1/profiles/ensure":
+			return `{"profile":{"id":"profile-1","name":"reliable","profileKey":"reliable","roleRef":"code.default"},"created":true}`
+		default:
+			return `{}`
+		}
+	})
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	app := &App{services: NewServices(api)}
+	for _, args := range [][]string{{"create", "--name=reliable", "--role-ref=code.default", "--effort=high"}, {"ensure", "--key=reliable", "--role-ref=code.default", "--update"}} {
+		if err := app.cmdProfile(args); err != nil {
+			t.Fatalf("profile %v: %v", args, err)
+		}
+	}
+}

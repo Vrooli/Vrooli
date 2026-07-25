@@ -118,7 +118,8 @@ type RunExecutor struct {
 	parked bool
 
 	// Caller-provided env vars
-	customEnv map[string]string
+	customEnv  map[string]string
+	sessionEnv map[string]string
 
 	// Identity token state
 	identitySecret []byte
@@ -326,6 +327,14 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 			Deps: e.deps(), Checkpoint: e.checkpoint, Mu: &e.mu, RunID: e.run.ID,
 		})
 	}
+	if e.run.ResolvedConfig != nil {
+		sessionEnv, err := PrepareCodecSessionHome(e.run.ID, e.run.ResolvedConfig.RunnerType)
+		if err != nil {
+			e.failWithError(execCtx, err)
+			return
+		}
+		e.sessionEnv = sessionEnv
+	}
 	if err := execCtx.Err(); err != nil {
 		e.handleContextError(ctx, err)
 		return
@@ -452,7 +461,7 @@ func (e *RunExecutor) MergedEnvVars() map[string]string {
 	if e.task != nil {
 		scope = e.task.ScopePath
 	}
-	return phases.AssembleRunEnv(phases.AssembleRunEnvInput{
+	env := phases.AssembleRunEnv(phases.AssembleRunEnvInput{
 		Custom:        e.customEnv,
 		RunMode:       e.run.RunMode,
 		SandboxID:     e.sandboxID,
@@ -460,6 +469,13 @@ func (e *RunExecutor) MergedEnvVars() map[string]string {
 		ScopePath:     scope,
 		IdentityToken: e.identityToken,
 	})
+	for key, value := range e.sessionEnv {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		env[key] = value
+	}
+	return env
 }
 
 // shouldSkipPhase returns true if we're resuming and have already completed this phase.
@@ -608,6 +624,12 @@ func (e *RunExecutor) finalize() {
 		return
 	}
 	e.finalized = true
+	EmitCodexGoalUsage(context.Background(), e.deps(), e.run)
+	if e.run != nil && e.run.ResolvedConfig != nil {
+		if err := CleanupCodecSessionHomeCredentials(e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
+			e.emitSystem(context.Background(), "warn", "failed to clean run-scoped session credentials: "+err.Error())
+		}
+	}
 	phases.Finalize(phases.FinalizeInput{
 		Deps:      e.deps(),
 		Run:       e.run,

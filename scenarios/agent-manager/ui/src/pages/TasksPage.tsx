@@ -288,6 +288,7 @@ export function TasksPage({
         request.roleRef = inlineConfig.roleRef;
         request.maxTurns = inlineConfig.maxTurns;
         request.timeoutMinutes = inlineConfig.timeoutMinutes;
+		request.effort = inlineConfig.effort;
         request.runMode = inlineConfig.runMode;
         request.skipPermissionPrompt = inlineConfig.skipPermissionPrompt;
       }
@@ -576,6 +577,23 @@ export function TasksPage({
                     The directory scope where the agent can operate
                   </p>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="inlineEffort">Reasoning Effort</Label>
+                  <select
+                    id="inlineEffort"
+                    value={inlineConfig.effort}
+                    onChange={(e) => setInlineConfig({ ...inlineConfig, effort: e.target.value as typeof inlineConfig.effort })}
+                    className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="">Runner default</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="xhigh">Extra high</option>
+                    <option value="max">Max</option>
+                  </select>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="projectRoot">Project Root</Label>
                   <Input
@@ -587,6 +605,23 @@ export function TasksPage({
                     placeholder="Optional: /path/to/project"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profileEffort">Reasoning Effort</Label>
+                <select
+                  id="profileEffort"
+                  value={profileFormData.effort ?? ""}
+                  onChange={(e) => setProfileFormData({ ...profileFormData, effort: e.target.value as ProfileFormData["effort"] })}
+                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">Runner default</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="xhigh">Extra high</option>
+                  <option value="max">Max</option>
+                </select>
               </div>
               <ContextAttachmentEditor
                 attachments={formData.contextAttachments || []}

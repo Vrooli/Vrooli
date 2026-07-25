@@ -1,10 +1,13 @@
 package codecs
 
 import (
+	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -40,6 +43,127 @@ func opencodeDecode(t *testing.T, c *OpenCode, line string) ([]*domain.RunEvent,
 		t.Fatalf("DecodeStreamLine err: %v", err)
 	}
 	return events, state
+}
+
+func TestOpenCode_DecodeStreamLineAcceptsProviderEventAliasesAndFallbackPartTypes(t *testing.T) {
+	cases := []struct {
+		name      string
+		line      string
+		wantTypes []domain.RunEventType
+	}{
+		{"tool-call alias", `{"type":"tool-call","part":{"tool":"read","callID":"c"}}`, []domain.RunEventType{domain.EventTypeToolCall}},
+		{"tool-result alias", `{"type":"tool-result","part":{"tool":"read","callID":"c","output":"ok"}}`, []domain.RunEventType{domain.EventTypeToolResult}},
+		{"assistant output", `{"type":"assistant","sessionID":"s","part":{"output":"answer"}}`, []domain.RunEventType{domain.EventTypeMessage}},
+		{"content user", `{"type":"content","part":{"type":"user","text":"question"}}`, []domain.RunEventType{domain.EventTypeMessage}},
+		{"fallback text part", `{"type":"notice","part":{"type":"text","text":"answer"}}`, []domain.RunEventType{domain.EventTypeMessage}},
+		{"fallback tool part", `{"type":"notice","part":{"type":"tool","tool":"edit","callID":"c"}}`, []domain.RunEventType{domain.EventTypeToolCall}},
+		{"unknown event", `{"type":"notice"}`, []domain.RunEventType{domain.EventTypeLog}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			events, _ := opencodeDecode(t, NewOpenCodeForTest(), tc.line)
+			if len(events) != len(tc.wantTypes) {
+				t.Fatalf("events=%#v, want %d", events, len(tc.wantTypes))
+			}
+			for i, want := range tc.wantTypes {
+				if events[i].EventType != want {
+					t.Fatalf("event[%d] = %s, want %s", i, events[i].EventType, want)
+				}
+			}
+		})
+	}
+}
+
+func TestOpenCodeToolResultPreservesProviderFailureAndScopeProtection(t *testing.T) {
+	runID := uuid.New()
+	cases := []struct {
+		name       string
+		part       *OpenCodePart
+		workingDir string
+		wantEvents int
+		wantOK     bool
+	}{
+		{"provider error", &OpenCodePart{Tool: "read", CallID: "call", IsError: true, Output: "permission denied"}, "/work", 1, false},
+		{"successful state result", &OpenCodePart{Tool: "read", CallID: "call", State: &OpenCodeState{Input: map[string]interface{}{"path": "file"}, Output: "contents"}}, "/work", 2, true},
+		{"out of scope write", &OpenCodePart{Tool: "write", CallID: "call", State: &OpenCodeState{Input: map[string]interface{}{"path": "/outside/file"}, Output: "written"}}, "/work", 2, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			events := parseOpenCodeToolResult(runID, tc.part, tc.workingDir)
+			if len(events) != tc.wantEvents {
+				t.Fatalf("events=%#v", events)
+			}
+			result := events[len(events)-1].Data.(*domain.ToolResultEventData)
+			if result.Success != tc.wantOK {
+				t.Fatalf("result=%#v", result)
+			}
+		})
+	}
+}
+
+func TestOpenCodeLogErrorResolutionUsesNewestCompleteJSONMessage(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dir)
+	logDir := filepath.Join(dir, "opencode", "log")
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldLog := filepath.Join(logDir, "old.log")
+	newLog := filepath.Join(logDir, "new.log")
+	if err := os.WriteFile(oldLog, []byte(`{"message":"older failure"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(newLog, []byte("noise\n{\"message\":\"first failure\"}\n{\"message\":\"latest \\\"failure\\\"\"}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(newLog, time.Now(), time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveOpenCodeLogError(); got != `latest "failure"` {
+		t.Fatalf("resolveOpenCodeLogError() = %q", got)
+	}
+	if got, err := tailFile(newLog, 8); err != nil || got == "" {
+		t.Fatalf("tailFile = %q, %v", got, err)
+	}
+	if got := extractErrorMessage("not json"); got != "" {
+		t.Fatalf("extractErrorMessage = %q", got)
+	}
+}
+
+func TestOpenCodeStateAndSnapshotHelpersPreserveProviderSemantics(t *testing.T) {
+	state := NewOpenCodeForTest().NewState()
+	if state.SessionID() != "" {
+		t.Fatalf("empty state session = %q", state.SessionID())
+	}
+	parsed := NewOpenCodeForTest().NewTranscriptParser().ParseTranscriptLine(uuid.New(), `{"type":"text","sessionID":"session-1","part":{"text":"hello"}}`)
+	if parsed.Err != nil || parsed.SessionID != "session-1" {
+		t.Fatalf("parsed = %#v", parsed)
+	}
+	for value, want := range map[string]bool{
+		"": false, strings.Repeat("a", 40): true, strings.Repeat("b", 64): true,
+		strings.Repeat("g", 40): false, "useful completion text": false,
+	} {
+		if got := isLikelyHash(value); got != want {
+			t.Errorf("isLikelyHash(%q) = %t, want %t", value, got, want)
+		}
+	}
+}
+
+func TestNewOpenCodeUnavailableBinaryFailsClosedWithoutProbeSideEffects(t *testing.T) {
+	t.Setenv("PATH", "")
+	codec, err := NewOpenCode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if available, _ := codec.Available(context.Background()); available {
+		t.Fatal("OpenCode reported available with an empty PATH")
+	}
+	if err := codec.ProbeModel(context.Background(), "provider/model"); err == nil {
+		t.Fatal("ProbeModel accepted unavailable OpenCode")
+	}
+	if path := opencodeCatalogPath(); path == "" || !strings.HasSuffix(path, filepath.Join("opencode", "models.json")) {
+		t.Fatalf("catalog path = %q", path)
+	}
 }
 
 // =============================================================================

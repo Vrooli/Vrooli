@@ -39,6 +39,21 @@ The dispatcher caps the *startup* window's concurrency (default `MaxStartingConc
 - `internal/orchestration/spawn/dispatcher_test.go` — unit: capacity, panic safety, idempotent `Started()`, `MinSpacing`.
 - `internal/orchestration/integration/spawn_serialization_test.go` — concurrent-burst gate.
 
+## I24. Codec-pipe continuation homes are explicit and durable
+
+**Statement.** Codex and Grok codec-pipe execution never inherit `CODEX_HOME`
+or `GROK_HOME`. Each run receives an Agent-Manager-owned home below its durable
+run directory, and every execute/continue turn for that run uses the same home.
+Credential seed files are removed only after terminal execution; rollout files
+remain available for replay and diagnosis.
+
+**Why.** The sandbox overlay is ephemeral across turns. Inheriting a
+web-console home can be read-only, while relying on sandbox `$HOME` loses the
+Codex rollout required by `exec resume`.
+
+**Tests:** `internal/orchestration/session_home_test.go` and
+`internal/orchestration/continue_env_identity_test.go`.
+
 ## I3. `Codec.ClassifyTerminalError` is the only codec-side error classifier
 
 **Statement.** When a run exits non-zero, `core.Runner` calls `Codec.ClassifyTerminalError(stderr, exitCode)` and stores the typed `*domain.RunnerError` (if any) on `ExecuteResult.TerminalError`. `phases.ExecuteAgent` lifts that into `EmitFailureEvent`'s typed-error branch, where it lands on the run timeline as the typed `ErrorCode` rather than `INTERNAL`.
@@ -322,6 +337,35 @@ scenario could not.
 
 **Tests:**
 - `internal/orchestration/declaration_reconcile_test.go::TestReconcileSelfDeclarationsBypassesDependencyGate`, `TestReconcileSelfDeclarationsEnforcesValidators`, `TestReconcileSelfDeclarationsIsolatesPerSourceFailure`.
+
+## I23. Tool restrictions survive policy fallback
+
+**Statement.** Before each policy candidate launches, Agent Manager checks that
+the selected runner enforces a declared `allowedTools` list. Under enforced
+policy an unsupported candidate is skipped and recorded; advisory policy is
+the only path that may continue without native enforcement. Claude Code also
+passes canonical `deniedTools` through `--disallowedTools` on execute and
+continuation.
+
+**Why.** Validating only the initially selected runner lets cross-runner
+fallback silently remove an operator-visible safety control.
+
+**Tests:**
+- `internal/orchestration/phases/execute_test.go::TestToolRestrictionCandidateReasonRejectsUnsupportedEnforcedFallback`.
+- `internal/adapters/runner/codecs/claude_test.go::TestClaudeBuildArgsTranslatesCanonicalDeniedTools` and `TestClaudeBuildContinueArgsKeepsCanonicalDeniedTools`.
+
+## I25. Default terminal sandbox disposal is reachable
+
+**Statement.** A default sandbox lifecycle deletes on the closed `terminal`
+event vocabulary. Every configured default lifecycle event is emitted by
+`LifecycleEventForStatus`; manual review and explicit lifecycle configuration
+remain the only ways to preserve a sandbox.
+
+**Why.** A configuration value that no terminal transition can emit silently
+accumulates overlays, state rows, and repository-local database growth.
+
+**Tests:** `internal/contracts/run_control_test.go::TestDefaultLifecycleVocabularyIsEmittable`
+and `internal/orchestration/sandbox_config_test.go::TestNormalizeSandboxConfig_ManualReviewSkipsDefaultLifecycle`.
 
 ## How to add an invariant here
 

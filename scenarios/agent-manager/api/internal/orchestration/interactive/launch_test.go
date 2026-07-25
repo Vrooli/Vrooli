@@ -203,6 +203,32 @@ func TestBuildLaunchCommand_Grok_RelocatesHome(t *testing.T) {
 	}
 }
 
+func TestBuildLaunchCommand_ForwardsModelEffortAndQuotedPrompt(t *testing.T) {
+	cases := []struct {
+		runner domain.RunnerType
+		effort string
+		want   string
+	}{
+		{domain.RunnerTypeClaudeCode, "--effort 'high'", "--model 'claude-sonnet' --effort 'high' 'fix spaces; do not run $(bad)'"},
+		{domain.RunnerTypeCodex, "-c 'model_reasoning_effort=high'", "--model 'claude-sonnet' -c 'model_reasoning_effort=high' 'fix spaces; do not run $(bad)'"},
+		{domain.RunnerTypeGrok, "--effort 'high'", "--model 'claude-sonnet' --effort 'high' 'fix spaces; do not run $(bad)'"},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.runner), func(t *testing.T) {
+			cmd, err := BuildLaunchCommand(LaunchCommandParams{
+				RunnerType: tc.runner, BinaryPath: "/usr/bin/agent", TagEnvKey: "AGENT_TAG", Tag: "run", WorkingDir: "/work", RunDir: "/runs/run",
+				Model: "claude-sonnet", Effort: domain.EffortHigh, InitialPrompt: "fix spaces; do not run $(bad)",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(cmd, tc.want) || !strings.Contains(cmd, tc.effort) {
+				t.Fatalf("command missing resolved controls: %s", cmd)
+			}
+		})
+	}
+}
+
 func TestBuildLaunchCommand_OpenCodeDescoped(t *testing.T) {
 	_, err := BuildLaunchCommand(LaunchCommandParams{
 		RunnerType: domain.RunnerTypeOpenCode,

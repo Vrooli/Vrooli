@@ -45,6 +45,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Verify runner status API endpoint"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/adapters/runner/codecs/capabilities_conformance_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verify declared codec capabilities match enforceable tool and effort controls"
         }
       ]
     }

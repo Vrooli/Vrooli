@@ -3,6 +3,7 @@
 package archtest
 
 import (
+	"bufio"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -13,6 +14,59 @@ import (
 	"strings"
 	"testing"
 )
+
+const maxScenarioSourceLines = 1500
+
+func TestScenarioSourceFilesStayBelowSizeLimit(t *testing.T) {
+	var oversized []string
+	err := filepath.WalkDir(scenarioRoot(t), func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			switch entry.Name() {
+			case "node_modules", ".git", "coverage", "dist":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		switch filepath.Ext(path) {
+		case ".go", ".ts", ".tsx":
+		default:
+			return nil
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		lines := 0
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			lines++
+		}
+		closeErr := file.Close()
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		if lines > maxScenarioSourceLines {
+			rel, err := filepath.Rel(scenarioRoot(t), path)
+			if err != nil {
+				return err
+			}
+			oversized = append(oversized, fmt.Sprintf("%s (%d lines)", filepath.ToSlash(rel), lines))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(oversized) > 0 {
+		t.Fatalf("scenario source files must stay at or below %d lines: %s", maxScenarioSourceLines, strings.Join(oversized, ", "))
+	}
+}
 
 func TestWorkflowRuntimeDoesNotImportOrchestration(t *testing.T) {
 	violations := importsUnder(t, "api/internal/workflowruntime", "agent-manager/internal/orchestration")

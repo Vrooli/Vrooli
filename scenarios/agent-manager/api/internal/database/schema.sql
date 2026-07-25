@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     role_ref TEXT NOT NULL,
     max_turns INTEGER,
     timeout_ms INTEGER,
+    effort TEXT NOT NULL DEFAULT '',
     allowed_tools TEXT DEFAULT '[]',
     denied_tools TEXT DEFAULT '[]',
     tool_restriction_policy TEXT NOT NULL DEFAULT 'enforced',

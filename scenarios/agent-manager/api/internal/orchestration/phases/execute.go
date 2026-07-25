@@ -79,6 +79,13 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 	if in.OnRunning != nil {
 		in.OnRunning()
 	}
+	if in.Run.ResolvedConfig != nil && in.Run.ResolvedConfig.Effort != "" && !in.Runner.Capabilities().SupportsEffort {
+		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", fmt.Sprintf(
+			"reasoning effort %q ignored: runner %q does not support effort",
+			in.Run.ResolvedConfig.Effort,
+			in.Runner.Type(),
+		))
+	}
 
 	transcriptCfg, runState, err := PrepareTranscriptConfig(ctx, PrepareTranscriptInput{
 		Deps:       in.Deps,
@@ -217,6 +224,11 @@ func executePolicySnapshot(ctx context.Context, in ExecuteWithModelFallbackInput
 			emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeSkipped, reason, "runner_unavailable")
 			continue
 		}
+		if reason := toolRestrictionCandidateReason(in.Run.ResolvedConfig, candidateRunner); reason != "" {
+			lastReason = reason
+			emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeSkipped, reason, "tool_restriction_unsupported")
+			continue
+		}
 
 		applyPolicyCandidate(ctx, in.Deps, in.Run, candidate)
 		emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeAttempted, "", "")
@@ -259,6 +271,19 @@ func executePolicySnapshot(ctx context.Context, in ExecuteWithModelFallbackInput
 		IsTransient: false,
 	}
 	return out
+}
+
+// toolRestrictionCandidateReason re-checks the selected runner after policy
+// fallback. A run may have been valid for its initial runner but become unsafe
+// after a cross-runner candidate switch.
+func toolRestrictionCandidateReason(cfg *domain.RunConfig, candidate runner.Runner) string {
+	if cfg == nil || len(cfg.AllowedTools) == 0 || candidate == nil {
+		return ""
+	}
+	if cfg.ToolRestrictionPolicy.Effective() == domain.ToolRestrictionPolicyAdvisory || candidate.Capabilities().SupportsToolRestriction {
+		return ""
+	}
+	return fmt.Sprintf("runner %q cannot enforce allowedTools", candidate.Type())
 }
 
 // persistedPolicyCandidateIndex resumes at the candidate already copied into

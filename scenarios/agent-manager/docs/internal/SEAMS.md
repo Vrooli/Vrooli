@@ -1728,6 +1728,24 @@ signals or logs.
 - The handshake is idempotent command in, typed result out; neither side
   mirrors the other's lifecycle.
 
+## Codec-pipe session-home and Codex-goal seams
+
+`orchestration.PrepareCodecSessionHome` gives codec-pipe Codex and Grok runs a
+durable per-run home under `runstate.RunDir`. The runtime directory is beneath
+the host home mounted by the protected sandbox, so the runner receives an
+explicit `CODEX_HOME` or `GROK_HOME` that survives continuation without
+restoring inherited web-console session variables. Codex credential/config seed
+files are copied into that home and removed at terminal cleanup; rollout and
+transcript data remain for recovery and replay.
+
+`codexgoals.Read` is a separate, read-only observability seam. At terminal
+status, Agent Manager looks for the run's Codex `goals_1.sqlite` and emits the
+matching thread's budget and usage only when it exists. It never writes Codex's
+private store, and missing stores or thread rows are normal no-op outcomes.
+
+The session-home regression proves turn two reads the rollout turn one wrote.
+The goal reader is independently tested against a temporary SQLite store.
+
 ## Related Documentation
 
 - [PRD.md](../../PRD.md) - Product requirements and operational targets

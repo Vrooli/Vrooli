@@ -14,7 +14,7 @@ func TestSanitizedBaseEnv_RemovesCrossScenarioVars(t *testing.T) {
 	t.Setenv("VROOLI_STEP", "start-api")
 	t.Setenv("CLAUDECODE", "1")
 	t.Setenv("CODEX_HOME", "/home/u/.vrooli/state/vrooli/web-console/sessions/codex/abc")
-	t.Setenv("SAFE_ENV_KEY", "keep-me")
+	t.Setenv("PATH", "/usr/bin")
 
 	env := SanitizedBaseEnv()
 	keys := make([]string, 0, len(env))
@@ -43,8 +43,8 @@ func TestSanitizedBaseEnv_RemovesCrossScenarioVars(t *testing.T) {
 	if slices.Contains(keys, "CODEX_HOME") {
 		t.Fatal("expected CODEX_HOME to be removed so codex defaults to writable $HOME/.codex inside the sandbox")
 	}
-	if !slices.Contains(env, fmt.Sprintf("%s=%s", "SAFE_ENV_KEY", "keep-me")) {
-		t.Fatal("expected safe env var to remain available")
+	if !slices.Contains(env, fmt.Sprintf("%s=%s", "PATH", "/usr/bin")) {
+		t.Fatal("expected allowlisted PATH to remain available")
 	}
 }
 

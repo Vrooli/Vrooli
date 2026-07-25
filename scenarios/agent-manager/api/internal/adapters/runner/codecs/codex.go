@@ -125,12 +125,14 @@ func (c *Codex) Capabilities() runner.Capabilities {
 		SupportsImageAttachments: true,  // `codex exec -i/--image <FILE>`
 		SupportsToolRestriction:  false, // Codex has no per-launch allowlist for its native tools.
 		ToolRestrictionMappings:  canonicalToolMappings(codexToolTranslations),
+		SupportsEffort:           true,
+		EffortMappings:           map[string]string{"low": "model_reasoning_effort=low", "medium": "model_reasoning_effort=medium", "high": "model_reasoning_effort=high", "xhigh": "model_reasoning_effort=xhigh", "max": "model_reasoning_effort=max"},
 		MaxTurns:                 0,
 		SupportedModels:          c.ollama.list(),
 		SupportsRunnerDefault:    true,
 		DynamicModelPrefixes:     []string{ollamaModelPrefix},
 		SupportedFeatures:        []string{},
-		AllowedExtraFlags:        []string{"--verbose"},
+		AllowedExtraFlags:        []string{"--verbose", "-c"},
 	}
 }
 
@@ -186,6 +188,9 @@ func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	if model != "" {
 		args = append(args, "-m", bareModel)
 	}
+	if cfg.Effort != "" {
+		args = append(args, "-c", "model_reasoning_effort="+string(cfg.Effort))
+	}
 	if req.WorkingDir != "" {
 		args = append(args, "-C", req.WorkingDir)
 	}
@@ -213,6 +218,16 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 	}
 	if _, isOllama := splitOllamaModel(model); isOllama {
 		args = append(args, "--oss", "--local-provider", "ollama")
+	}
+	if model != "" {
+		bareModel, _ := splitOllamaModel(model)
+		args = append(args, "-m", bareModel)
+	}
+	if req.GetConfig().Effort != "" {
+		args = append(args, "-c", "model_reasoning_effort="+string(req.GetConfig().Effort))
+	}
+	if req.WorkingDir != "" {
+		args = append(args, "-C", req.WorkingDir)
 	}
 	args = appendAttachmentFlags(args, "-i", req.Attachments)
 	args = append(args, req.SessionID)

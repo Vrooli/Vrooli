@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/testutil"
 
@@ -295,5 +296,40 @@ func TestTerminatorRejectsMissingAndNonStoppableRuns(t *testing.T) {
 	}
 	if _, err := terminator.Terminate(ctx, completed.ID); err == nil {
 		t.Fatal("terminal run accepted for stop")
+	}
+}
+
+func TestTerminatorUsesRunnerStopBeforeProcessEscalation(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	task := &domain.Task{ID: uuid.New(), Title: "runner stop", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{
+		ID: uuid.New(), TaskID: task.ID, Tag: "agent-manager-runner-stop-" + uuid.NewString(),
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	stopped := false
+	mock.StopFunc = func(_ context.Context, got uuid.UUID) error {
+		if got != run.ID {
+			t.Fatalf("runner Stop run ID = %s, want %s", got, run.ID)
+		}
+		stopped = true
+		return nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mock); err != nil {
+		t.Fatal(err)
+	}
+	result, err := NewTerminator(repos.Runs, registry, TerminatorConfig{MaxRetries: 1}).Terminate(ctx, run.ID)
+	if err != nil || !stopped || !result.Success || result.FinalMethod != "runner" || result.ProcessWasGone {
+		t.Fatalf("Terminate = %#v, err=%v, stopped=%t", result, err, stopped)
 	}
 }
