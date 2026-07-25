@@ -163,6 +163,21 @@ export type CircularRef = z.infer<typeof CircularRefSchema>
 export const GraphResponseSchema = GraphIndexSchema
 export type GraphResponse = z.infer<typeof GraphResponseSchema>
 
+export const OperatingMapTeamSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  goal_linkage: z.string(),
+  valid: z.boolean(),
+})
+export const OperatingMapTopicSchema = z.object({ id: z.string(), label: z.string() })
+export const OperatingMapEdgeSchema = z.object({ from: z.string(), to: z.string() })
+export const OperatingMapSchema = z.object({
+  teams: nullableArray(OperatingMapTeamSchema),
+  topics: nullableArray(OperatingMapTopicSchema),
+  edges: nullableArray(OperatingMapEdgeSchema),
+})
+export type OperatingMap = z.infer<typeof OperatingMapSchema>
+
 export const NodeDetailResponseSchema = NodeDetailSchema
 export type NodeDetailResponse = z.infer<typeof NodeDetailResponseSchema>
 

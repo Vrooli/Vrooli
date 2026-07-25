@@ -3,6 +3,8 @@ package graph
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -28,6 +30,11 @@ var (
 
 	// Validates a kebab-case skill ID.
 	validIDRE = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
+
+	// Matches the prompt reference owned by an Agent Manager workflow
+	// definition. The skill is delivered to the run even though no shell
+	// command appears in the JSON declaration.
+	workflowPromptRefRE = regexp.MustCompile(`"skillId"\s*:\s*"([a-z][a-z0-9]*(?:-[a-z0-9]+)*)"`)
 )
 
 // extractedRef is an intermediate result from scanning content.
@@ -68,14 +75,34 @@ type codeDetector interface {
 	Detect(content string) []CodeReference
 }
 
+// generatedPromptProvider supplies the assembled, runtime prompt for a team
+// member. Generated prompt sections are a real skill-reference surface even
+// when no source markdown file contains the reference directly.
+type generatedPromptProvider func(ctx context.Context, teamID, agentID string) (string, error)
+
 // Scanner extracts graph edges from agents, teams, and skills.
 type Scanner struct {
-	agentStore    agentLister
-	teamStore     teamLister
-	skillStore    skillLister
-	actionStore   actionLister
-	relationStore store.RelationStore
-	cliDetector   codeDetector
+	agentStore     agentLister
+	teamStore      teamLister
+	skillStore     skillLister
+	actionStore    actionLister
+	relationStore  store.RelationStore
+	cliDetector    codeDetector
+	repositoryRoot string
+	promptProvider generatedPromptProvider
+}
+
+// SetRepositoryRoot enables scanning repository-level instruction and workflow
+// sources. It is deliberately explicit so unit tests and embedded callers do
+// not accidentally read the process working directory.
+func (s *Scanner) SetRepositoryRoot(root string) {
+	s.repositoryRoot = root
+}
+
+// SetGeneratedPromptProvider registers the composition boundary used to scan
+// generated member prompt sections.
+func (s *Scanner) SetGeneratedPromptProvider(provider generatedPromptProvider) {
+	s.promptProvider = provider
 }
 
 // NewScanner creates a new graph scanner.
@@ -143,6 +170,18 @@ func (s *Scanner) ScanAll(ctx context.Context) ([]Edge, error) {
 	skillEdges := s.scanSkills(skills, validIDs, validActionIDs)
 	edges = append(edges, skillEdges...)
 
+	// Scan repository-level instruction and workflow definitions. These are
+	// genuine references but are not owned by an individual store entity.
+	edges = append(edges, s.scanRepositoryReferences(validIDs)...)
+
+	// Generated prompt sections are the effective instructions received by
+	// members, so they must participate in reachability queries.
+	promptEdges, err := s.scanGeneratedPrompts(ctx, validIDs)
+	if err != nil {
+		return nil, err
+	}
+	edges = append(edges, promptEdges...)
+
 	// Scan team-agent membership from relations
 	memberEdges, err := s.scanMemberships(ctx)
 	if err != nil {
@@ -151,6 +190,111 @@ func (s *Scanner) ScanAll(ctx context.Context) ([]Edge, error) {
 	edges = append(edges, memberEdges...)
 
 	return edges, nil
+}
+
+func (s *Scanner) scanRepositoryReferences(validIDs map[string]bool) []Edge {
+	if s.repositoryRoot == "" {
+		return nil
+	}
+
+	var edges []Edge
+	if content, err := os.ReadFile(filepath.Join(s.repositoryRoot, "AGENTS.md")); err == nil {
+		edges = append(edges, skillReferenceEdges("system:agents", "AGENTS.md", string(content), validIDs)...)
+	}
+
+	for _, workflowRoot := range []string{
+		filepath.Join(s.repositoryRoot, "scenarios", "swarm-manager", ".vrooli", "agent-manager"),
+		filepath.Join(s.repositoryRoot, "scenarios", "swarm-manager", "api"),
+	} {
+		_ = filepath.WalkDir(workflowRoot, func(path string, entry os.DirEntry, err error) error {
+			if err != nil || entry.IsDir() {
+				return nil
+			}
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			rel, err := filepath.Rel(s.repositoryRoot, path)
+			if err != nil {
+				return nil
+			}
+			sourceFile := filepath.ToSlash(rel)
+			source := "workflow:" + sourceFile
+			switch filepath.Ext(path) {
+			case ".json":
+				edges = append(edges, workflowPromptReferenceEdges(source, sourceFile, string(content), validIDs)...)
+			case ".go":
+				if cliReadRE.Match(content) {
+					edges = append(edges, skillReferenceEdges(source, sourceFile, string(content), validIDs)...)
+				}
+			}
+			return nil
+		})
+	}
+	return edges
+}
+
+func workflowPromptReferenceEdges(sourceID, sourceFile, content string, validIDs map[string]bool) []Edge {
+	seen := map[string]bool{}
+	var edges []Edge
+	for _, match := range workflowPromptRefRE.FindAllStringSubmatchIndex(content, -1) {
+		if len(match) < 4 {
+			continue
+		}
+		id := content[match[2]:match[3]]
+		if !validIDs[id] || seen[id] {
+			continue
+		}
+		seen[id] = true
+		edges = append(edges, Edge{
+			From:       sourceID,
+			To:         id,
+			Kind:       EdgeCLIRead,
+			SourceFile: sourceFile,
+			LineNumber: strings.Count(content[:match[0]], "\n") + 1,
+		})
+	}
+	return edges
+}
+
+func (s *Scanner) scanGeneratedPrompts(ctx context.Context, validIDs map[string]bool) ([]Edge, error) {
+	if s.promptProvider == nil || s.relationStore == nil {
+		return nil, nil
+	}
+	teams, err := s.teamStore.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var edges []Edge
+	for _, team := range teams {
+		members, err := s.relationStore.ListTeamMembers(ctx, team.ID)
+		if err != nil {
+			continue
+		}
+		for _, member := range members {
+			content, err := s.promptProvider(ctx, team.ID, member.AgentID)
+			if err != nil {
+				continue
+			}
+			edges = append(edges, skillReferenceEdges(member.AgentID, "generated-prompt", content, validIDs)...)
+		}
+	}
+	return edges, nil
+}
+
+func skillReferenceEdges(sourceID, sourceFile, content string, validIDs map[string]bool) []Edge {
+	extracted := extractRefsFromContent(content, validIDs)
+	edges := make([]Edge, 0, len(extracted))
+	for _, ext := range extracted {
+		edges = append(edges, Edge{
+			From:       sourceID,
+			To:         ext.skillID,
+			Kind:       ext.edgeKind,
+			SourceFile: sourceFile,
+			LineNumber: ext.lineNumber,
+		})
+	}
+	return edges
 }
 
 // scanAgents scans all agent files for skill references and code usage.
@@ -175,17 +319,7 @@ func (s *Scanner) scanAgents(ctx context.Context, validIDs map[string]bool, vali
 				continue
 			}
 
-			// Skill reference edges
-			extracted := extractRefsFromContent(content, validIDs)
-			for _, ext := range extracted {
-				edges = append(edges, Edge{
-					From:       agent.ID,
-					To:         ext.skillID,
-					Kind:       ext.edgeKind,
-					SourceFile: f.Path,
-					LineNumber: ext.lineNumber,
-				})
-			}
+			edges = append(edges, skillReferenceEdges(agent.ID, f.Path, content, validIDs)...)
 			edges = append(edges, extractActionUseEdges(agent.ID, f.Path, content, validActionIDs)...)
 
 			// Code usage edges
@@ -217,17 +351,7 @@ func (s *Scanner) scanTeams(ctx context.Context, validIDs map[string]bool, valid
 				continue
 			}
 
-			// Skill reference edges
-			extracted := extractRefsFromContent(content, validIDs)
-			for _, ext := range extracted {
-				edges = append(edges, Edge{
-					From:       team.ID,
-					To:         ext.skillID,
-					Kind:       ext.edgeKind,
-					SourceFile: f.Path,
-					LineNumber: ext.lineNumber,
-				})
-			}
+			edges = append(edges, skillReferenceEdges(team.ID, f.Path, content, validIDs)...)
 			edges = append(edges, extractActionUseEdges(team.ID, f.Path, content, validActionIDs)...)
 
 			// Code usage edges

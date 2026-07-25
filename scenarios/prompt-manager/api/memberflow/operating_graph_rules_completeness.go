@@ -103,12 +103,17 @@ func declaredRuntimeRelationshipMissingFindings(ctx OperatingGraphRuleContext, r
 				continue
 			}
 		}
-		if rel.External != "" && rel.Member == "" {
+		if rel.ProducerTeam != "" {
+			if _, ok := ctx.Index.Node("team", rel.ProducerTeam); !ok {
+				continue
+			}
+		}
+		if rel.External != "" && rel.Member == "" && rel.Kind != operatingRelUniversalSourceWrite {
 			if _, ok := ctx.Index.Node("external", rel.External); !ok {
 				continue
 			}
 		}
-		if rel.Member == "" && rel.TargetTeam == "" && rel.External == "" {
+		if rel.Member == "" && rel.ProducerTeam == "" && rel.TargetTeam == "" && rel.External == "" {
 			continue
 		}
 		if ctx.Matcher.RuntimeShownInGraph(rel, ctx.Index.GraphRelationships) {
@@ -132,6 +137,8 @@ func declaredRuntimeRelationshipMissingDetail(label string, rel OperatingRelatio
 		return fmt.Sprintf("%s %s/%s external %q is missing from the contract graph", label, rel.Team, rel.Member, rel.External)
 	case operatingRelCrossTeamOutput:
 		return fmt.Sprintf("%s %s/%s topic %q to team %q is missing from the contract graph", label, rel.Team, rel.Member, rel.Topic, rel.TargetTeam)
+	case operatingRelUniversalSourceWrite:
+		return fmt.Sprintf("%s peer team %q topic %q is missing from the contract graph", label, rel.ProducerTeam, rel.Topic)
 	default:
 		return fmt.Sprintf("%s %s/%s topic %q is missing from the contract graph", label, rel.Team, rel.Member, rel.Topic)
 	}

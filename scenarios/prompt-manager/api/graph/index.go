@@ -23,10 +23,19 @@ type graphBuilder interface {
 //   - Invalidate() clears the in-memory cache and deletes the disk file.
 //   - Regenerate() forces a synchronous rebuild and updates the cache.
 type GraphIndexStore struct {
-	cacheRoot string
-	builder   graphBuilder
-	mu        sync.RWMutex
-	cached    *GraphIndex // in-memory cache; nil means cold
+	cacheRoot  string
+	builder    graphBuilder
+	mu         sync.RWMutex
+	cached     *GraphIndex // in-memory cache; nil means cold
+	dependents []GraphInvalidator
+}
+
+// SetDependentInvalidators registers caches derived from the graph's authored
+// inputs. They are invalidated atomically with this index.
+func (s *GraphIndexStore) SetDependentInvalidators(dependents ...GraphInvalidator) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dependents = append([]GraphInvalidator(nil), dependents...)
 }
 
 // NewIndexStore creates a new graph index store. cacheRoot is the scenario's
@@ -88,6 +97,9 @@ func (s *GraphIndexStore) Invalidate() {
 	defer s.mu.Unlock()
 	s.cached = nil
 	_ = os.Remove(s.indexPath())
+	for _, dependent := range s.dependents {
+		dependent.Invalidate()
+	}
 }
 
 // Regenerate rebuilds the index from scratch (synchronous).

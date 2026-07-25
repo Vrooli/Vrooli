@@ -61,6 +61,7 @@ func operatingGraphDiffFromGraphRel(rel OperatingRelationship, runtime Operating
 		Decision:         rel.Decision,
 		Path:             rel.Path,
 		External:         rel.External,
+		ProducerTeam:     rel.ProducerTeam,
 		TargetTeam:       rel.TargetTeam,
 		SourcePath:       rel.Source.Path,
 		Line:             rel.Source.Line,
@@ -85,6 +86,7 @@ func operatingGraphDiffFromRuntimeRel(rel OperatingRelationship, block Operating
 		Decision:     rel.Decision,
 		Path:         rel.Path,
 		External:     rel.External,
+		ProducerTeam: rel.ProducerTeam,
 		TargetTeam:   rel.TargetTeam,
 		SourcePath:   block.Source.Path,
 		Line:         block.Source.FenceLine,
@@ -105,7 +107,7 @@ func runtimePathForGraphRelationship(rel OperatingRelationship, runtime Operatin
 	if rel.Member != "" {
 		return runtimeMemberTopicsPath(runtime, rel.Team, rel.Member)
 	}
-	if rel.Kind == operatingRelCrossTeamOutput || rel.Kind == operatingRelExternalProducerIntake {
+	if rel.Kind == operatingRelCrossTeamOutput || rel.Kind == operatingRelExternalProducerIntake || rel.Kind == operatingRelUniversalSourceWrite {
 		if match := matchingRuntimeRelationshipPath(rel, runtime); match != "" {
 			return match
 		}
@@ -131,6 +133,7 @@ func relationshipSharesGraphlessAnchor(graphRel, runtimeRel OperatingRelationshi
 	switch graphRel.Kind {
 	case operatingRelCrossTeamOutput:
 		return runtimeRel.Kind == operatingRelCrossTeamOutput &&
+			graphRel.ProducerTeam == runtimeRel.ProducerTeam &&
 			graphRel.TargetTeam == runtimeRel.TargetTeam &&
 			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
 	case operatingRelExternalProducerIntake:

@@ -62,6 +62,14 @@ func TestLoadWriterSkillProducers_UnionsTaggedWritesTo(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("LoadWriterSkillProducers returned wrong set:\n  got:  %v\n  want: %v", got, want)
 	}
+
+	declarations, err := LoadWriterSkillProducerDeclarations(root)
+	if err != nil {
+		t.Fatalf("LoadWriterSkillProducerDeclarations: %v", err)
+	}
+	if len(declarations) != len(want) || declarations[0] != (WriterSkillProducerDeclaration{SkillID: "edge-cases", Prefix: "valid/*"}) {
+		t.Errorf("unexpected declarations: %#v", declarations)
+	}
 }
 
 // TestLoadWriterSkillProducers_MissingTreeIsSilentNoOp confirms the loader

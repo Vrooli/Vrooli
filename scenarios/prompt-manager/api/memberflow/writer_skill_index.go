@@ -8,6 +8,14 @@ import (
 	"sort"
 )
 
+// WriterSkillProducerDeclaration retains the writer identity alongside the
+// prefix. Cross-team contract assembly needs both: the prefix establishes the
+// topic flow and the skill identity must match a member's declared producer.
+type WriterSkillProducerDeclaration struct {
+	SkillID string
+	Prefix  string
+}
+
 // LoadWriterSkillProducers walks the prompt-manager skill registry under
 // <repoRoot>/scenarios/prompt-manager/store/skills/packs/<pack>/<id>/skill.json
 // and returns the union of `writes_to[]` declarations across every skill
@@ -26,6 +34,28 @@ import (
 // scenarios/, docs/, etc.). When repoRoot is empty, returns (nil, nil) so
 // the lazy-load in Validate stays a silent no-op for tests.
 func LoadWriterSkillProducers(repoRoot string) ([]string, error) {
+	declarations, err := LoadWriterSkillProducerDeclarations(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	for _, declaration := range declarations {
+		seen[declaration.Prefix] = true
+	}
+	if len(seen) == 0 {
+		return nil, nil
+	}
+	out := make([]string, 0, len(seen))
+	for prefix := range seen {
+		out = append(out, prefix)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// LoadWriterSkillProducerDeclarations returns each writer skill's declared
+// prefix, in deterministic skill/prefix order.
+func LoadWriterSkillProducerDeclarations(repoRoot string) ([]WriterSkillProducerDeclaration, error) {
 	if repoRoot == "" {
 		return nil, nil
 	}
@@ -39,6 +69,7 @@ func LoadWriterSkillProducers(repoRoot string) ([]string, error) {
 	}
 
 	seen := map[string]bool{}
+	var out []WriterSkillProducerDeclaration
 	for _, p := range packs {
 		if !p.IsDir() {
 			continue
@@ -57,6 +88,7 @@ func LoadWriterSkillProducers(repoRoot string) ([]string, error) {
 				continue
 			}
 			var raw struct {
+				ID       string   `json:"id"`
 				Tags     []string `json:"tags"`
 				WritesTo []string `json:"writes_to"`
 			}
@@ -81,15 +113,21 @@ func LoadWriterSkillProducers(repoRoot string) ([]string, error) {
 				if prefix == "" {
 					continue
 				}
-				seen[prefix] = true
+				key := raw.ID + "\x00" + prefix
+				if raw.ID == "" || seen[key] {
+					continue
+				}
+				seen[key] = true
+				out = append(out, WriterSkillProducerDeclaration{SkillID: raw.ID, Prefix: prefix})
 			}
 		}
 	}
 
-	out := make([]string, 0, len(seen))
-	for prefix := range seen {
-		out = append(out, prefix)
-	}
-	sort.Strings(out)
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].SkillID != out[j].SkillID {
+			return out[i].SkillID < out[j].SkillID
+		}
+		return out[i].Prefix < out[j].Prefix
+	})
 	return out, nil
 }

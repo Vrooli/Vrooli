@@ -21,6 +21,7 @@ const (
 	operatingRelExternalProducer       OperatingRelationshipKind = "external_producer"
 	operatingRelExternalProducerIntake OperatingRelationshipKind = "external_producer_intake"
 	operatingRelCrossTeamOutput        OperatingRelationshipKind = "cross_team_output"
+	operatingRelUniversalSourceWrite   OperatingRelationshipKind = "universal_source_write"
 )
 
 type OperatingSourceRef struct {
@@ -29,15 +30,16 @@ type OperatingSourceRef struct {
 }
 
 type OperatingRelationship struct {
-	Kind       OperatingRelationshipKind
-	Team       string
-	Member     string
-	Topic      string
-	Decision   string
-	Path       string
-	External   string
-	TargetTeam string
-	Source     OperatingSourceRef
+	Kind         OperatingRelationshipKind
+	Team         string
+	Member       string
+	Topic        string
+	Decision     string
+	Path         string
+	External     string
+	ProducerTeam string
+	TargetTeam   string
+	Source       OperatingSourceRef
 }
 
 type OperatingRelationshipSet struct {
@@ -170,7 +172,61 @@ func BuildRuntimeOperatingRelationships(runtime OperatingGraphRuntime, team stri
 			rels = append(rels, OperatingRelationship{Kind: operatingRelExternalProducer, Team: m.Ref.Team, Member: m.Ref.Member, External: external, Source: source})
 		}
 	}
+	// A writer-skill is portable by design, so its writes_to[] declaration is
+	// not owned by one member. For a universal-source intake, materialize the
+	// declared peer-team producers explicitly. This lets the contract graph
+	// distinguish real intra-swarm flow from an outside-system producer.
+	writerDeclarations, err := LoadWriterSkillProducerDeclarations(runtime.RepoRoot)
+	if err == nil {
+		allTeams := runtimeTeamIDs(runtime)
+		for _, member := range runtime.Members {
+			if member.Ref.Team != team {
+				continue
+			}
+			source := OperatingSourceRef{Path: runtimeMemberTopicsPath(runtime, member.Ref.Team, member.Ref.Member)}
+			for _, intake := range member.Topics.Intake {
+				if intake.SourceTeam == nil || *intake.SourceTeam != SourceTeamWildcard {
+					continue
+				}
+				for _, declaration := range writerDeclarations {
+					if !topicsOverlap(declaration.Prefix, intake.Prefix) || !containsString(member.Topics.ExternalProducers, declaration.SkillID) {
+						continue
+					}
+					for _, producerTeam := range allTeams {
+						if producerTeam == team {
+							continue
+						}
+						rels = append(rels, OperatingRelationship{Kind: operatingRelUniversalSourceWrite, Team: team, ProducerTeam: producerTeam, Topic: intake.Prefix, External: declaration.SkillID, Source: source})
+					}
+				}
+			}
+		}
+	}
 	return NewOperatingRelationshipSet(rels).All()
+}
+
+func runtimeTeamIDs(runtime OperatingGraphRuntime) []string {
+	seen := map[string]bool{}
+	for _, member := range runtime.Members {
+		if member.Ref.Team != "" {
+			seen[member.Ref.Team] = true
+		}
+	}
+	teams := make([]string, 0, len(seen))
+	for team := range seen {
+		teams = append(teams, team)
+	}
+	sort.Strings(teams)
+	return teams
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func BuildGraphOperatingRelationships(block OperatingGraphBlock) []OperatingRelationship {
@@ -195,6 +251,7 @@ func operatingRelationshipKey(rel OperatingRelationship) string {
 		rel.Decision,
 		filepath.ToSlash(filepath.Clean(rel.Path)),
 		rel.External,
+		rel.ProducerTeam,
 		rel.TargetTeam,
 	}, "\x00")
 }

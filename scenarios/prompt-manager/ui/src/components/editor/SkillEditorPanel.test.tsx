@@ -60,6 +60,9 @@ vi.mock('@/components/world/WorldHelpContent', () => ({
 vi.mock('@/components/graph/GraphView', () => ({
   GraphView: () => <div data-testid="graph-view" />,
 }))
+vi.mock('@/components/graph/OperatingMapFlow', () => ({
+  OperatingMapFlow: () => <div data-testid="operating-map-flow" />,
+}))
 vi.mock('@/components/graph/GraphSettingsContent', () => ({
   GraphSettingsContent: () => <div />,
 }))
@@ -147,6 +150,18 @@ const defaultProps = {
 }
 
 describe('SkillEditorPanel', () => {
+  describe('graph projection selector', () => {
+    it('keeps Relationships as the default and persists a Flow selection', () => {
+      localStorage.removeItem('pm.graphProjection')
+      render(<SkillEditorPanel {...defaultProps} currentSkill={null} homeView="graph" />)
+      expect(screen.getByTestId('graph-view')).toBeInTheDocument()
+      expect(screen.getByTestId('graph-projection-toggle')).toHaveClass('bottom-32', 'sm:top-3')
+      fireEvent.click(screen.getByRole('button', { name: 'Flow' }))
+      expect(screen.getByTestId('operating-map-flow')).toBeInTheDocument()
+      expect(localStorage.getItem('pm.graphProjection')).toBe('flow')
+    })
+  })
+
   describe('empty state (world)', () => {
     it('should show world canvas when no skill is selected', () => {
       render(<SkillEditorPanel {...defaultProps} currentSkill={null} />)

@@ -147,65 +147,6 @@ func printTopicsHuman(resp topicsGraphResponse, team string) {
 	fmt.Printf("Edges:    %d\n", len(resp.Edges))
 	fmt.Println()
 
-	// Group edges by source member for readability.
-	byFrom := make(map[string][]topicEdge)
-	for _, e := range resp.Edges {
-		byFrom[e.From] = append(byFrom[e.From], e)
-	}
-
-	// Build node lookup
-	nodeByID := make(map[string]topicNode)
-	for _, n := range resp.Nodes {
-		nodeByID[n.ID] = n
-	}
-
-	// Print member nodes with their edges
-	memberIDs := make([]string, 0, len(resp.Nodes))
-	for _, n := range resp.Nodes {
-		if n.Kind == "member" {
-			memberIDs = append(memberIDs, n.ID)
-		}
-	}
-	sort.Strings(memberIDs)
-
-	for _, id := range memberIDs {
-		n := nodeByID[id]
-		fmt.Printf("  %s/%s\n", n.Ref.Team, n.Ref.Member)
-		// Outgoing edges
-		edges := byFrom[id]
-		sort.Slice(edges, func(i, j int) bool { return edges[i].Prefix < edges[j].Prefix })
-		for _, e := range edges {
-			dest := nodeByID[e.To]
-			label := dest.Label
-			if label == "" {
-				label = dest.ID
-			}
-			fmt.Printf("    %s -> %s (%s)\n", e.Prefix, label, e.Kind)
-		}
-		// Incoming intake edges (group separately)
-		var incoming []topicEdge
-		for _, e := range resp.Edges {
-			if e.To == id && (e.Kind == "intake" || e.Kind == "external_producer" || e.Kind == "decision_consumed") {
-				incoming = append(incoming, e)
-			}
-		}
-		sort.Slice(incoming, func(i, j int) bool {
-			if incoming[i].Kind != incoming[j].Kind {
-				return incoming[i].Kind < incoming[j].Kind
-			}
-			return incoming[i].Prefix < incoming[j].Prefix
-		})
-		for _, e := range incoming {
-			src := nodeByID[e.From]
-			label := src.Label
-			if label == "" {
-				label = src.ID
-			}
-			fmt.Printf("    <- %s (%s) from %s\n", e.Prefix, e.Kind, label)
-		}
-	}
-
-	// Validation
 	v := resp.Validation
 	fmt.Println()
 	if v.Errors == 0 && v.Warnings == 0 {
@@ -213,9 +154,79 @@ func printTopicsHuman(resp topicsGraphResponse, team string) {
 		return
 	}
 	fmt.Printf("Validation: %d error(s), %d warning(s)\n", v.Errors, v.Warnings)
-	for _, f := range v.Findings {
-		fmt.Printf("  [%s] %s  %s/%s  %s\n", strings.ToUpper(string(f.Severity[0])), f.Rule, f.Member.Team, f.Member.Member, f.Detail)
+	printTopicFindings(v.Findings)
+}
+
+const topicFindingExampleLimit = 3
+
+// printTopicFindings presents validation findings by remediation cause rather
+// than one unbounded line per finding. JSON output stays lossless; this is the
+// concise operator-facing view.
+func printTopicFindings(findings []topicFinding) {
+	byRule := make(map[string][]topicFinding)
+	for _, finding := range findings {
+		byRule[finding.Rule] = append(byRule[finding.Rule], finding)
 	}
+
+	rules := make([]string, 0, len(byRule))
+	for rule := range byRule {
+		rules = append(rules, rule)
+	}
+	sort.Slice(rules, func(i, j int) bool {
+		left, right := byRule[rules[i]], byRule[rules[j]]
+		if topicSeverityRank(left[0].Severity) != topicSeverityRank(right[0].Severity) {
+			return topicSeverityRank(left[0].Severity) < topicSeverityRank(right[0].Severity)
+		}
+		return rules[i] < rules[j]
+	})
+
+	fmt.Println("Finding summary:")
+	for _, rule := range rules {
+		group := byRule[rule]
+		fmt.Printf("  %s [%s]: %d\n", rule, strings.ToUpper(group[0].Severity), len(group))
+	}
+
+	fmt.Println("Findings:")
+	for _, rule := range rules {
+		group := byRule[rule]
+		sort.Slice(group, func(i, j int) bool { return topicFindingSortKey(group[i]) < topicFindingSortKey(group[j]) })
+		fmt.Printf("  %s [%s] (%d):\n", rule, strings.ToUpper(group[0].Severity), len(group))
+		for _, finding := range group[:min(topicFindingExampleLimit, len(group))] {
+			fmt.Printf("    %s\n", formatTopicFinding(finding))
+		}
+		if suppressed := len(group) - topicFindingExampleLimit; suppressed > 0 {
+			fmt.Printf("    ... %d more suppressed\n", suppressed)
+		}
+	}
+}
+
+func topicSeverityRank(severity string) int {
+	if severity == "error" {
+		return 0
+	}
+	return 1
+}
+
+func topicFindingSortKey(finding topicFinding) string {
+	return strings.Join([]string{finding.Member.Team, finding.Member.Member, finding.OwnerKey, finding.Prefix, finding.Detail}, "\x00")
+}
+
+func formatTopicFinding(finding topicFinding) string {
+	location := finding.OwnerKey
+	if location == "" && (finding.Member.Team != "" || finding.Member.Member != "") {
+		location = finding.Member.Team + "/" + finding.Member.Member
+	}
+	parts := make([]string, 0, 3)
+	if location != "" {
+		parts = append(parts, location)
+	}
+	if finding.Prefix != "" {
+		parts = append(parts, finding.Prefix)
+	}
+	if finding.Detail != "" {
+		parts = append(parts, finding.Detail)
+	}
+	return strings.Join(parts, "  ")
 }
 
 type drainStatusEntry struct {

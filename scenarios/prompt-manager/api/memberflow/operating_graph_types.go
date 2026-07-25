@@ -208,6 +208,7 @@ type OperatingGraphContractDiff struct {
 	Decision         string   `json:"decision,omitempty"`
 	Path             string   `json:"path,omitempty"`
 	External         string   `json:"external,omitempty"`
+	ProducerTeam     string   `json:"producer_team,omitempty"`
 	TargetTeam       string   `json:"target_team,omitempty"`
 	SourcePath       string   `json:"source_path,omitempty"`
 	Line             int      `json:"line,omitempty"`

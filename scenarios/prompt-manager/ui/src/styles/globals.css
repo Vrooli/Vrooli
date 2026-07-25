@@ -58,6 +58,14 @@ body {
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
+/* Installed iOS apps with a translucent status bar render below the system
+ * chrome. Keep every route inside the safe area, not only the home canvas. */
+#root {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
 code, pre {
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, 'Monaco', monospace;
 }

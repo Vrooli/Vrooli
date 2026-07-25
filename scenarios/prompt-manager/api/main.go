@@ -449,6 +449,14 @@ func main() {
 		cliDetector,
 		fileStore.Actions(),
 	)
+	graphScanner.SetRepositoryRoot(roots.RepoRoot)
+	generatedPromptBuilder := heartbeat.NewPromptBuilder(
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.Agents().(*store.FileAgentStore),
+	)
+	graphScanner.SetGeneratedPromptProvider(func(ctx context.Context, teamID, agentID string) (string, error) {
+		return generatedPromptBuilder.BuildContext(ctx, heartbeat.PromptBuildRequest{TeamID: teamID, AgentID: agentID})
+	})
 	graphBuilder := graph.NewBuilder(
 		fileStore.Agents().(*store.FileAgentStore),
 		fileStore.Teams().(*store.FileTeamStore),
@@ -727,6 +735,7 @@ func main() {
 	v1.HandleFunc("/topics/graph", memberFlowHandlers.GetGraph).Methods("GET")
 	v1.HandleFunc("/topics/drain-status", memberFlowHandlers.GetDrainStatus).Methods("GET")
 	v1.HandleFunc("/operating-models", memberFlowHandlers.GetOperatingModels).Methods("GET")
+	v1.HandleFunc("/operating-models/map", graphHandlers.GetOperatingMap).Methods("GET")
 	v1.HandleFunc("/operating-models/validate", memberFlowHandlers.ValidateOperatingModelsHandler).Methods("GET")
 	v1.HandleFunc("/operating-models/diff", memberFlowHandlers.DiffOperatingModelsHandler).Methods("GET")
 	v1.HandleFunc("/operating-models/coverage", memberFlowHandlers.CoverageOperatingModelsHandler).Methods("GET")
@@ -762,6 +771,16 @@ func main() {
 		nil, // uses default SentinelExtractor
 	)
 	memberFlowHandlers.SetPromptSectionProvider(heartbeatPromptSectionProvider{executor: heartbeatExecutor})
+	operatingMapStore, err := graph.NewOperatingMapStore(memberflow.OperatingModelService{
+		RepoRoot:       roots.RepoRoot,
+		StoreDir:       roots.Config,
+		PromptSections: heartbeatPromptSectionProvider{executor: heartbeatExecutor},
+	}, roots.RepoRoot)
+	if err != nil {
+		log.Fatalf("operating map: %v", err)
+	}
+	graphIndex.SetDependentInvalidators(operatingMapStore)
+	graphHandlers.SetOperatingMapStore(operatingMapStore)
 	teamExecStore := heartbeat.NewTeamExecutionStore(
 		fileStore.Teams().(*store.FileTeamStore),
 		heartbeatExecutor,

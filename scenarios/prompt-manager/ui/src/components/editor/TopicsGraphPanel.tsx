@@ -13,18 +13,14 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
   Panel,
   MarkerType,
   type EdgeMouseHandler,
 } from '@xyflow/react'
-import dagre from '@dagrejs/dagre'
 import { Loader2, RefreshCw, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TopicsGraphNode } from './TopicsGraphNode'
+import { FlowShell, layoutFlowDagre } from '@/components/graph/FlowShell'
 import { TopicsValidationPanel } from './TopicsValidationPanel'
 import { useTopicsGraph } from '@/hooks/useTopicsGraph'
 import type {
@@ -80,31 +76,7 @@ function getLayouted(
   nodes: TopicsFlowNode[],
   edges: TopicsFlowEdge[],
 ): { nodes: TopicsFlowNode[]; edges: TopicsFlowEdge[] } {
-  const dagreGraph = new dagre.graphlib.Graph()
-  dagreGraph.setDefaultEdgeLabel(() => ({}))
-  dagreGraph.setGraph({ rankdir: 'LR', nodesep: 30, ranksep: 110 })
-
-  nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
-  })
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target)
-  })
-
-  dagre.layout(dagreGraph)
-
-  const laidOut = nodes.map((node) => {
-    const pos = dagreGraph.node(node.id)
-    return {
-      ...node,
-      position: {
-        x: pos.x - NODE_WIDTH / 2,
-        y: pos.y - NODE_HEIGHT / 2,
-      },
-    }
-  })
-
-  return { nodes: laidOut, edges }
+  return layoutFlowDagre(nodes, edges, { direction: 'LR', nodeWidth: NODE_WIDTH, nodeHeight: NODE_HEIGHT, nodeSep: 30, rankSep: 110 })
 }
 
 function shortenPrefix(prefix: string): string {
@@ -285,7 +257,7 @@ export function TopicsGraphPanel({
   return (
     <div className={cn('h-full flex', className)}>
       <div className="flex-1 min-w-0 h-full relative">
-        <ReactFlow
+        <FlowShell
           nodes={nodes}
           edges={edges}
           onEdgeClick={handleEdgeClick}
@@ -295,31 +267,24 @@ export function TopicsGraphPanel({
           fitViewOptions={{ padding: 0.18 }}
           minZoom={0.3}
           maxZoom={1.5}
-          proOptions={{ hideAttribution: true }}
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable
-          className="bg-background"
+          miniMapNodeColor={(n) => {
+            const kind = (n.data as { graphNode?: { kind?: TopicNodeKind } } | undefined)?.graphNode?.kind
+            switch (kind) {
+              case 'member': return '#6366f1'
+              case 'external': return '#f59e0b'
+              case 'decision': return '#a855f7'
+              case 'por_file': return '#3b82f6'
+              case 'capability_gap': return '#f43f5e'
+              case 'skill_proposal': return '#10b981'
+              case 'backlog': return '#64748b'
+              case 'knowledge_sink': return '#06b6d4'
+              default: return '#94a3b8'
+            }
+          }}
         >
-          <Background color="hsl(var(--border))" gap={20} />
-          <Controls showInteractive={false} />
-          <MiniMap
-            nodeColor={(n) => {
-              const kind = (n.data as { graphNode?: { kind?: TopicNodeKind } } | undefined)?.graphNode?.kind
-              switch (kind) {
-                case 'member': return '#6366f1'
-                case 'external': return '#f59e0b'
-                case 'decision': return '#a855f7'
-                case 'por_file': return '#3b82f6'
-                case 'capability_gap': return '#f43f5e'
-                case 'skill_proposal': return '#10b981'
-                case 'backlog': return '#64748b'
-                case 'knowledge_sink': return '#06b6d4'
-                default: return '#94a3b8'
-              }
-            }}
-            maskColor="rgba(0, 0, 0, 0.5)"
-          />
 
           <Panel position="top-left" className="flex flex-col gap-2 max-w-xs">
             <div className="flex items-start gap-2 p-2 rounded-lg bg-card border border-border">
@@ -395,7 +360,7 @@ export function TopicsGraphPanel({
               <span>{validation.errors + validation.warnings}</span>
             </button>
           </Panel>
-        </ReactFlow>
+        </FlowShell>
       </div>
 
       {showValidation && (

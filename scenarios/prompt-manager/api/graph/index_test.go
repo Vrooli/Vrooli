@@ -105,6 +105,20 @@ func TestIndexStore_Invalidate(t *testing.T) {
 	}
 }
 
+func TestIndexStore_InvalidateInvalidatesDerivedCaches(t *testing.T) {
+	s := NewIndexStore(t.TempDir(), &mockGraphBuilder{})
+	dependent := &countingInvalidator{}
+	s.SetDependentInvalidators(dependent)
+	s.Invalidate()
+	if dependent.calls != 1 {
+		t.Fatalf("expected dependent cache invalidated once, got %d", dependent.calls)
+	}
+}
+
+type countingInvalidator struct{ calls int }
+
+func (i *countingInvalidator) Invalidate() { i.calls++ }
+
 func TestIndexStore_Regenerate(t *testing.T) {
 	dir := t.TempDir()
 	mb := &mockGraphBuilder{

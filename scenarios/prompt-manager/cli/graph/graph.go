@@ -118,6 +118,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdTopics(ctx, subArgs)
 	case "operating-model":
 		return cmdOperatingModel(ctx, subArgs)
+	case "map":
+		return cmdMap(ctx, subArgs)
 	case "drain-status":
 		return cmdDrainStatus(ctx, subArgs)
 	default:
@@ -145,7 +147,8 @@ Subcommands:
   cliless-skills [--limit N]          Skills not referencing CLIs
   popular [--limit 10] [--type X]     Most referenced nodes
   circular-refs                       Circular reference detection
-  health [--type X | <id>]            Health scores
+	  health [--type X] [--team X] [--worst N] [--json] | <id>
+                                      Health scores, sorted lowest first
   topics [--team X] [--json] [--findings-out PATH]
                                       Member topic-flow graph + validation
                                       (--findings-out writes a stable JSON
@@ -586,13 +589,21 @@ func cmdCircularRefs(ctx appctx.Context, args []string) error {
 func cmdHealth(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("health", flag.ContinueOnError)
 	nodeType := fs.String("type", "", "Filter by node type (team|agent|skill|cli)")
+	teamID := fs.String("team", "", "Filter to a team and its members")
+	worst := fs.Int("worst", 0, "Show the N lowest-scoring nodes")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	if *worst < 0 {
+		return fmt.Errorf("--worst must be non-negative")
+	}
 
 	// If a positional argument is provided, treat it as a node ID
 	if fs.NArg() > 0 {
+		if *nodeType != "" || *teamID != "" || *worst != 0 {
+			return fmt.Errorf("a node ID cannot be combined with --type, --team, or --worst")
+		}
 		return cmdHealthNode(ctx, fs.Arg(0), *jsonOut)
 	}
 
@@ -601,23 +612,34 @@ func cmdHealth(ctx appctx.Context, args []string) error {
 		return fmt.Errorf("failed to fetch health scores: %w", err)
 	}
 
-	// For type filtering we need the graph to know node types
-	if *nodeType != "" {
-		var idx graphIndex
-		if err := ctx.Get("/graph", &idx); err != nil {
-			return fmt.Errorf("failed to fetch graph: %w", err)
+	var idx graphIndex
+	if err := ctx.Get("/graph", &idx); err != nil {
+		return fmt.Errorf("failed to fetch graph: %w", err)
+	}
+	nodeTypes := make(map[string]string, len(idx.Graph.Nodes))
+	for _, n := range idx.Graph.Nodes {
+		nodeTypes[n.ID] = n.Type
+	}
+	allowedByTeam := healthTeamNodeIDs(idx.Graph, *teamID)
+	filtered := make([]healthScore, 0, len(scores))
+	for _, hs := range scores {
+		if *nodeType != "" && nodeTypes[hs.NodeID] != *nodeType {
+			continue
 		}
-		nodeTypes := make(map[string]string)
-		for _, n := range idx.Graph.Nodes {
-			nodeTypes[n.ID] = n.Type
+		if *teamID != "" && !allowedByTeam[hs.NodeID] {
+			continue
 		}
-		var filtered []healthScore
-		for _, hs := range scores {
-			if nodeTypes[hs.NodeID] == *nodeType {
-				filtered = append(filtered, hs)
-			}
+		filtered = append(filtered, hs)
+	}
+	scores = filtered
+	sort.Slice(scores, func(i, j int) bool {
+		if scores[i].Score != scores[j].Score {
+			return scores[i].Score < scores[j].Score
 		}
-		scores = filtered
+		return scores[i].NodeID < scores[j].NodeID
+	})
+	if *worst > 0 && len(scores) > *worst {
+		scores = scores[:*worst]
 	}
 
 	if *jsonOut {
@@ -629,15 +651,64 @@ func cmdHealth(ctx appctx.Context, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Health Scores (%d nodes):\n", len(scores))
+	var sum float64
+	belowThreshold := 0
 	for _, hs := range scores {
-		topReason := ""
-		if len(hs.Messages) > 0 {
-			topReason = " - " + hs.Messages[0].Summary
+		sum += hs.Score
+		if hs.Score < 0.3 {
+			belowThreshold++
 		}
-		fmt.Printf("  %-30s %.2f%s\n", hs.NodeID, hs.Score, topReason)
+	}
+	fmt.Printf("Health summary: %d scored nodes | mean %.2f | below 0.30: %d\n", len(scores), sum/float64(len(scores)), belowThreshold)
+	if *worst > 0 {
+		fmt.Printf("\nLowest %d scores:\n", len(scores))
+		for _, hs := range scores {
+			printHealthScoreRow(hs)
+		}
+		return nil
+	}
+
+	byType := make(map[string][]healthScore)
+	for _, hs := range scores {
+		byType[nodeTypes[hs.NodeID]] = append(byType[nodeTypes[hs.NodeID]], hs)
+	}
+	for _, kind := range []string{"team", "agent", "skill", "action", "cli", ""} {
+		group := byType[kind]
+		if len(group) == 0 {
+			continue
+		}
+		label := kind
+		if label == "" {
+			label = "unknown"
+		}
+		fmt.Printf("\n%s (%d):\n", strings.ToUpper(label[:1])+label[1:], len(group))
+		for _, hs := range group {
+			printHealthScoreRow(hs)
+		}
 	}
 	return nil
+}
+
+func printHealthScoreRow(hs healthScore) {
+	topReason := ""
+	if len(hs.Messages) > 0 {
+		topReason = " - " + hs.Messages[0].Summary
+	}
+	fmt.Printf("  %-30s %.2f%s\n", hs.NodeID, hs.Score, topReason)
+}
+
+func healthTeamNodeIDs(g graph, teamID string) map[string]bool {
+	allowed := make(map[string]bool)
+	if teamID == "" {
+		return allowed
+	}
+	allowed[teamID] = true
+	for _, edge := range g.Edges {
+		if edge.Kind == "membership" && edge.From == teamID {
+			allowed[edge.To] = true
+		}
+	}
+	return allowed
 }
 
 // cmdHealthNode shows health details for a single node.

@@ -1095,6 +1095,7 @@ func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) 
 		"graph_declared_capability_gap_missing",
 		"graph_declared_external_producer_missing",
 		"graph_declared_cross_team_output_missing",
+		"graph_declared_universal_source_write_missing",
 		"graph_topic_catalog_missing",
 		"graph_topic_catalog_invalid_topic",
 		"graph_topic_catalog_drift",
@@ -1615,6 +1616,36 @@ func TestBuildRuntimeOperatingRelationshipsExtractsTopicsContractFields(t *testi
 		if got := len(set.ByKind(kind)); got == 0 {
 			t.Fatalf("runtime relationship kind %q missing from %+v", kind, rels)
 		}
+	}
+}
+
+func TestBuildRuntimeOperatingRelationshipsDerivesUniversalPeerTeamWrites(t *testing.T) {
+	repoRoot := t.TempDir()
+	skillDir := filepath.Join(repoRoot, "scenarios", "prompt-manager", "store", "skills", "packs", "core", "report-bug")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "skill.json"), []byte(`{"id":"report-bug","tags":["writer-skill"],"writes_to":["bug-inbox/*"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wildcard := SourceTeamWildcard
+	runtime := OperatingGraphRuntime{
+		RepoRoot: repoRoot,
+		StoreDir: filepath.Join(repoRoot, "scenarios", "prompt-manager", "store"),
+		Members: []MemberTopics{
+			{Ref: MemberRef{Team: "scenario-qa", Member: "bug-investigator"}, Topics: Topics{Intake: []IntakeEntry{{Prefix: "bug-inbox/*", SourceTeam: &wildcard}}, ExternalProducers: []string{"report-bug"}}},
+			{Ref: MemberRef{Team: "marketing-crew", Member: "researcher"}},
+			{Ref: MemberRef{Team: "meta-optimization", Member: "friction-curator"}},
+		},
+	}
+	set := NewOperatingRelationshipSet(BuildRuntimeOperatingRelationships(runtime, "scenario-qa"))
+	for _, peer := range []string{"marketing-crew", "meta-optimization"} {
+		if !operatingRelationshipSetContains(set, OperatingRelationship{Kind: operatingRelUniversalSourceWrite, Team: "scenario-qa", ProducerTeam: peer, Topic: "bug-inbox/*", External: "report-bug"}) {
+			t.Fatalf("missing universal peer write from %q: %+v", peer, set.All())
+		}
+	}
+	if got := len(set.ByKind(operatingRelUniversalSourceWrite)); got != 2 {
+		t.Fatalf("universal source write count = %d, want 2", got)
 	}
 }
 

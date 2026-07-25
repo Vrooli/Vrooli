@@ -3,10 +3,63 @@ package graph
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"prompt-manager/store"
 )
+
+func TestScanAll_RepositoryAndGeneratedPromptReferenceSources(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("prompt-manager skill read agent-system-audit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	workflowPath := filepath.Join(root, "scenarios", "swarm-manager", ".vrooli", "agent-manager", "plan-author.json")
+	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(workflowPath, []byte(`{"nodes":[{"run":{"promptRef":{"skillId":"swarm-manager-workflow-plan-author"}}}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := NewScanner(
+		&mockAgentLister{agents: []store.Agent{{ID: "member-1"}}},
+		&mockTeamLister{teams: []store.Team{{ID: "team-1"}}},
+		&mockSkillLister{skills: []store.Skill{{ID: "agent-system-audit"}, {ID: "swarm-manager-workflow-plan-author"}, {ID: "writing-standards"}}},
+		&mockRelationStore{members: map[string][]store.TeamMemberRelation{"team-1": {{AgentID: "member-1"}}}},
+		nil,
+	)
+	s.SetRepositoryRoot(root)
+	s.SetGeneratedPromptProvider(func(_ context.Context, teamID, agentID string) (string, error) {
+		if teamID != "team-1" || agentID != "member-1" {
+			t.Fatalf("unexpected prompt request %s/%s", teamID, agentID)
+		}
+		return "prompt-manager skill read writing-standards", nil
+	})
+
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("ScanAll: %v", err)
+	}
+	want := map[string]string{
+		"system:agents": "agent-system-audit",
+		"workflow:scenarios/swarm-manager/.vrooli/agent-manager/plan-author.json": "swarm-manager-workflow-plan-author",
+		"member-1": "writing-standards",
+	}
+	for from, to := range want {
+		found := false
+		for _, edge := range edges {
+			if edge.From == from && edge.To == to && edge.Kind == EdgeCLIRead {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing %s -> %s CLI-read edge: %+v", from, to, edges)
+		}
+	}
+}
 
 // ---------------------------------------------------------------------------
 // ScanAll tests

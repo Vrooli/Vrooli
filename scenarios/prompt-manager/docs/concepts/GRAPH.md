@@ -75,6 +75,9 @@ The scanner uses structured stores plus focused regex patterns to extract edges:
 4. **Default scope** — `DefaultScope` field in `skill.json` produces `default-scope` edges
 5. **Action references** — `action:<id>` or `prompt-manager action run <id>` produces `action-use` edges when the Action exists
 6. **Action command contracts** — `action.json` command argv produces `action-command` edges from Action nodes to CLI nodes
+7. **Repository instructions** — root `AGENTS.md` contributes `cli-read` edges from `system:agents`; a `CLAUDE.md` symlink is intentionally not scanned separately.
+8. **Workflow definitions** — Swarm Manager's `.vrooli/agent-manager/*.json` definitions contribute `cli-read` edges from `run.promptRef.skillId`; API workflow prompt sources are scanned too. Both use a stable `workflow:<repository-relative-path>` source.
+9. **Generated member prompts** — the effective prompt assembled for every team member contributes `cli-read` edges from that member, so reachability reflects instructions delivered at runtime.
 
 Edges are deduplicated per `(skillID, edgeKind)` pair to prevent duplicates within the same file.
 
@@ -153,6 +156,12 @@ CLI policy levers are also stored in `store/config/graph-health.json`:
 - `externalToolScore`
 - `scenarioFallbackScore`
 
+`prompt-manager graph health` sorts scores from lowest to highest and begins
+with a summary (scored-node count, mean, and count below `0.30`). Use `--team`
+to limit the result to a team and its member nodes, `--worst N` for the N
+lowest rows in strict ascending order, and `--json` for score, factor, and
+message data suitable for automation.
+
 ## Analytical Queries
 
 [CODE: api/graph/queries.go]
@@ -167,6 +176,16 @@ CLI policy levers are also stored in `store/config/graph-health.json`:
 | `ExternalToolSkills` | `[]Node` | Skills with external tool or script `code-usage` edges (need wrapping in Vrooli CLIs) |
 | `Popular(limit)` | `[]Node` | Top N nodes by incoming edge count |
 | `DetectCircularRefs` | `[][]string` | DFS-based cycle detection across skill-to-skill edges |
+
+## Topic-Flow Findings
+
+`prompt-manager graph topics` reports the member topic-flow graph and its
+contract findings. Human output is intentionally grouped by rule (the shared
+remediation cause): each rule header includes its severity and total count,
+then shows at most three deterministic examples followed by the suppressed
+count. This keeps high-volume findings actionable instead of flooding the
+terminal. `--json` remains lossless and includes every finding for automation
+and deeper triage.
 
 ## Operating-Model Contracts
 

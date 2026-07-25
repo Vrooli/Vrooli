@@ -51,10 +51,9 @@ func TestCmdTopicsRendersHumanOutput(t *testing.T) {
 
 	for _, want := range []string{
 		"Topic Flow Graph (all teams)",
-		"marketing-crew/researcher",
-		"audience-scan/* (output)",
-		"audience-update (decision_owned)",
-		"<- research-inbox/* (intake)",
+		"Members:  1",
+		"Nodes:    5",
+		"Edges:    4",
 		"Validation: clean",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -95,6 +94,52 @@ func TestCmdTopicsShowsValidationErrors(t *testing.T) {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout missing %q\n--- output ---\n%s", want, stdout)
 		}
+	}
+}
+
+func TestCmdTopicsGroupsAndCapsHumanFindingsWhileJSONStaysComplete(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	findings := []topicFinding{
+		{Rule: "prose_topic_leak", Severity: "warning", OwnerKey: "docs:z", Detail: "fourth"},
+		{Rule: "prose_topic_leak", Severity: "warning", OwnerKey: "docs:a", Detail: "first"},
+		{Rule: "prose_topic_leak", Severity: "warning", OwnerKey: "docs:c", Detail: "third"},
+		{Rule: "prose_topic_leak", Severity: "warning", OwnerKey: "docs:b", Detail: "second"},
+		{Rule: "actual_writer_undeclared", Severity: "error", Member: topicMemberRef{Team: "t", Member: "m"}, Prefix: "x/*", Detail: "missing declaration"},
+	}
+	resp := topicsGraphResponse{Validation: topicValidation{Findings: findings, Errors: 1, Warnings: 4}}
+	ctx.Respond("GET", "/topics/graph", resp)
+
+	stdout, _, err := clitest.Output(t, func() error { return cmdTopics(ctx, nil) })
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	for _, want := range []string{
+		"Finding summary:",
+		"actual_writer_undeclared [ERROR]: 1",
+		"prose_topic_leak [WARNING]: 4",
+		"... 1 more suppressed",
+		"docs:a  first",
+		"docs:b  second",
+		"docs:c  third",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout missing %q\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "docs:z  fourth") {
+		t.Errorf("human output included uncapped finding\n%s", stdout)
+	}
+
+	jsonOut, _, err := clitest.Output(t, func() error { return cmdTopics(ctx, []string{"--json"}) })
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	var got topicsGraphResponse
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("unmarshal JSON: %v\n%s", err, jsonOut)
+	}
+	if len(got.Validation.Findings) != len(findings) {
+		t.Fatalf("JSON findings = %d, want %d", len(got.Validation.Findings), len(findings))
 	}
 }
 

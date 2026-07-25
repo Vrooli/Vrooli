@@ -16,7 +16,7 @@ import (
 
 // Handlers provides HTTP handlers for member-flow operations.
 type Handlers struct {
-	configDir              string
+	configDir             string
 	runtimeDataDir        string
 	knowledgeQuery        KnowledgeQuery
 	agingOpts             InboxAgingOptions

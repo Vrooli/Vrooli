@@ -74,7 +74,7 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeSuggestions:   runtimeTopicOutputSuggestions,
 			Statement:            topicOutputStatement,
 			ValidationRules:      []string{"graph_declared_output_missing"},
-			ValidationSeverity:   SeverityWarning,
+			ValidationSeverity:   SeverityError,
 			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
@@ -185,7 +185,23 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeSuggestions:   runtimeCrossTeamOutputSuggestions,
 			Statement:            crossTeamOutputStatement,
 			ValidationRules:      []string{"graph_declared_cross_team_output_missing"},
-			ValidationSeverity:   SeverityWarning,
+			ValidationSeverity:   SeverityError,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
+			CoverageIncluded:     true,
+			DiffIncluded:         true,
+			RuntimeOnlyCompletes: true,
+		},
+		{
+			Kind:                 operatingRelUniversalSourceWrite,
+			RuntimeKinds:         []OperatingRelationshipKind{operatingRelUniversalSourceWrite},
+			GraphShape:           OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindTeam, ToKind: OperatingGraphNodeKindTopic},
+			RuntimeFields:        []string{"intake.source_team=*", "external_producers", "skill.json.writes_to"},
+			CompletenessTargets:  relationshipCompletenessTargets([]relationshipCompletenessTargetSpec{{operatingRelUniversalSourceWrite, "graph_declared_universal_source_write_missing"}}),
+			GraphSuggestions:     graphUniversalSourceWriteSuggestions,
+			RuntimeSuggestions:   runtimeUniversalSourceWriteSuggestions,
+			Statement:            universalSourceWriteStatement,
+			ValidationRules:      []string{"graph_declared_universal_source_write_missing"},
+			ValidationSeverity:   SeverityError,
 			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
@@ -279,6 +295,9 @@ func (r OperatingRelationshipRegistry) RelationshipFromEdge(team string, source 
 	case operatingRelCrossTeamOutput:
 		rel.Topic = from.Value
 		rel.TargetTeam = to.Value
+	case operatingRelUniversalSourceWrite:
+		rel.ProducerTeam = from.Value
+		rel.Topic = to.Value
 	default:
 		return OperatingRelationship{}, false
 	}
@@ -320,6 +339,9 @@ func (r OperatingRelationshipRegistry) Match(graphRel, runtimeRel OperatingRelat
 			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
 	case operatingRelCrossTeamOutput:
 		return graphRel.TargetTeam == runtimeRel.TargetTeam &&
+			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
+	case operatingRelUniversalSourceWrite:
+		return graphRel.ProducerTeam == runtimeRel.ProducerTeam &&
 			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
 	default:
 		return false
@@ -560,4 +582,16 @@ func runtimeCrossTeamOutputSuggestions(diff OperatingGraphContractDiff) []string
 
 func crossTeamOutputStatement(diff OperatingGraphContractDiff) string {
 	return fmt.Sprintf("topic:%s -> team:%s", diff.Topic, diff.TargetTeam)
+}
+
+func graphUniversalSourceWriteSuggestions(diff OperatingGraphContractDiff) []string {
+	return []string{fmt.Sprintf("declare source_team=\"*\", external_producers %q, and writer-skill writes_to for %q", diff.External, diff.Topic), "or remove the peer-team -> topic edge from the operating graph"}
+}
+
+func runtimeUniversalSourceWriteSuggestions(diff OperatingGraphContractDiff) []string {
+	return []string{fmt.Sprintf("add team:%s -> topic:%s to the operating graph", diff.ProducerTeam, diff.Topic), "or remove the universal writer declaration if this is not a peer-team flow"}
+}
+
+func universalSourceWriteStatement(diff OperatingGraphContractDiff) string {
+	return fmt.Sprintf("team:%s -> topic:%s", diff.ProducerTeam, diff.Topic)
 }

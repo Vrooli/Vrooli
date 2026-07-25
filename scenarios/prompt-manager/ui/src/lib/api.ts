@@ -49,6 +49,7 @@ import {
   CircularRefResponseSchema,
   GraphHealthResponseSchema,
   GraphHealthConfigResponseSchema,
+  OperatingMapSchema,
   AgentSchema,
   AgentArraySchema,
   SoulResponseSchema,
@@ -1117,6 +1118,10 @@ class ApiClient {
   // Graph methods - aligned with api/graph/handlers.go
   async getGraph(): Promise<GraphResponse> {
     return this.request<GraphResponse>('/graph', undefined, GraphResponseSchema)
+  }
+
+  async getOperatingMap(): Promise<import('@/lib/schemas').OperatingMap> {
+    return this.request('/operating-models/map', undefined, OperatingMapSchema)
   }
 
   async getGraphNode(id: string): Promise<NodeDetailResponse> {

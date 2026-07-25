@@ -10,10 +10,6 @@
 
 import { memo, useCallback, useMemo, useEffect, useRef, useState } from 'react'
 import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   type Connection,
@@ -25,11 +21,11 @@ import {
   Panel,
   MarkerType,
 } from '@xyflow/react'
-import dagre from '@dagrejs/dagre'
 import { UserPlus, Users, Info, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { OrgChartNode } from './OrgChartNode'
+import { FlowShell, layoutFlowDagre } from '@/components/graph/FlowShell'
 import type { TeamDetails } from '@/types/team'
 import type { Agent, AgentAppearance } from '@/types/agent'
 import type { OrgEdge, OrgChartNode as OrgChartNodeType, OrgChartFlowEdge, OrgChartNodeData } from '@/types/orgChart'
@@ -178,36 +174,7 @@ function getLayoutedElements(
   edges: OrgChartFlowEdge[],
   direction: LayoutDirection,
 ): { nodes: OrgChartNodeType[]; edges: OrgChartFlowEdge[] } {
-  const dagreGraph = new dagre.graphlib.Graph()
-  dagreGraph.setDefaultEdgeLabel(() => ({}))
-  dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 80 })
-
-  // Add nodes to dagre
-  nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
-  })
-
-  // Add edges to dagre
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target)
-  })
-
-  // Run layout
-  dagre.layout(dagreGraph)
-
-  // Apply positions to nodes
-  const layoutedNodes = nodes.map((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id)
-    return {
-      ...node,
-      position: {
-        x: nodeWithPosition.x - NODE_WIDTH / 2,
-        y: nodeWithPosition.y - NODE_HEIGHT / 2,
-      },
-    }
-  })
-
-  return { nodes: layoutedNodes, edges }
+  return layoutFlowDagre(nodes, edges, { direction, nodeWidth: NODE_WIDTH, nodeHeight: NODE_HEIGHT, nodeSep: 50, rankSep: 80 })
 }
 
 // ============================================================================
@@ -551,7 +518,7 @@ export function OrgChartPanel({
         </div>
       )}
       <div className="flex-1 min-h-0 relative">
-        <ReactFlow
+        <FlowShell
           nodes={nodes}
           edges={flowEdges}
           onNodesChange={onNodesChange}
@@ -566,18 +533,11 @@ export function OrgChartPanel({
           fitViewOptions={{ padding: 0.2 }}
           minZoom={0.5}
           maxZoom={1.5}
-          proOptions={{ hideAttribution: true }}
-          className="bg-background"
+          miniMapNodeColor={(node) => {
+            const data = node.data as OrgChartNodeData
+            return data.appearance?.body ?? '#6366f1'
+          }}
         >
-          <Background color="hsl(var(--border))" gap={20} />
-          <Controls showInteractive={false} />
-          <MiniMap
-            nodeColor={(node) => {
-              const data = node.data as OrgChartNodeData
-              return data.appearance?.body ?? '#6366f1'
-            }}
-            maskColor="rgba(0, 0, 0, 0.5)"
-          />
 
           {/* Reporting-lines help (only shown when dagre layout is active — drag-drop is disabled in grid mode) */}
           {!usingGridLayout && (
@@ -642,7 +602,7 @@ export function OrgChartPanel({
             </Panel>
           )}
 
-        </ReactFlow>
+        </FlowShell>
       </div>
     </div>
   )

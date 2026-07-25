@@ -33,6 +33,7 @@ import { WorldCanvas } from '@/components/world'
 import { WorldSettingsContent } from '@/components/world/WorldSettingsContent'
 import { WorldHelpContent } from '@/components/world/WorldHelpContent'
 import { GraphView } from '@/components/graph/GraphView'
+import { OperatingMapFlow } from '@/components/graph/OperatingMapFlow'
 import { GraphSettingsContent } from '@/components/graph/GraphSettingsContent'
 import { GraphHelpContent } from '@/components/graph/GraphHelpContent'
 import { GraphQueryPanel } from '@/components/graph/GraphQueryPanel'
@@ -153,6 +154,13 @@ export function SkillEditorPanel({
   const [showChatDialog, setShowChatDialog] = useState(false)
   const [lineageOpen, setLineageOpen] = useState(false)
   const [lineageTab, setLineageTab] = useState<LineageTab>('history')
+  const [graphProjection, setGraphProjection] = useState<'relationships' | 'flow'>(() =>
+    typeof window !== 'undefined' && localStorage.getItem('pm.graphProjection') === 'flow' ? 'flow' : 'relationships',
+  )
+  const selectGraphProjection = (projection: 'relationships' | 'flow') => {
+    setGraphProjection(projection)
+    localStorage.setItem('pm.graphProjection', projection)
+  }
   const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
   const handleClose = () => {
@@ -171,7 +179,30 @@ export function SkillEditorPanel({
       <div className={cn('relative h-full', className)}>
         {graphViewActive ? (
           <PanelErrorBoundary panelName="Graph View" className="h-full">
-            <GraphView className="h-full" />
+            <div className="h-full">
+              <div
+                data-testid="graph-projection-toggle"
+                className="absolute bottom-32 left-4 z-40 flex gap-1 rounded-lg border bg-background/95 p-1 shadow-sm sm:bottom-auto sm:left-3 sm:top-3"
+              >
+                {(['relationships', 'flow'] as const).map((projection) => (
+                  <button
+                    key={projection}
+                    type="button"
+                    className={cn(
+                      'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                      graphProjection === projection
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                    aria-pressed={graphProjection === projection}
+                    onClick={() => selectGraphProjection(projection)}
+                  >
+                    {projection === 'relationships' ? 'Relationships' : 'Flow'}
+                  </button>
+                ))}
+              </div>
+              {graphProjection === 'flow' ? <OperatingMapFlow /> : <GraphView className="h-full" />}
+            </div>
           </PanelErrorBoundary>
         ) : (
           <PanelErrorBoundary panelName="3D World" className="h-full">

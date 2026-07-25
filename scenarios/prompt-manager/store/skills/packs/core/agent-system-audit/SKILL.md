@@ -56,10 +56,9 @@ Run the horizontal axis first. The vertical axis is well tooled and usually clea
 
 #### Phase 3 — Horizontal composition
 
-1. Run `prompt-manager graph operating-model coverage --team <team>` for each team.
-2. Extract the `cross_team_output` row for each team.
-3. Build the team-to-team edge set from those rows.
-4. Compare that edge set against the prose claims in each team's `## Outputs / Downstream Consumers` table.
+1. Run `prompt-manager graph map --json`.
+2. Use its composed team, topic, and cross-team edge set.
+3. Compare that edge set against the prose claims in each team's `## Outputs / Downstream Consumers` table.
 
 Report these four structural defects:
 
@@ -92,24 +91,7 @@ Produce one findings list. Each finding names: the defect, the evidence command 
 
 ---
 
-### 4. Known-unreliable sensors
-
-Report these as raw observations, never as pass/fail verdicts. `FRAMEWORK_HEALTH.md` §"Known-unreliable sensors" holds the current list and the reason each is untrustworthy. Two rules follow from it:
-
-- Do not recommend deprecating a skill on `orphaned-skills` alone while the scanner misses `CLAUDE.md`, workflow definitions, and generated prompt sections.
-- Treat `cross_team_output` counts as a floor, not a total, while `skill.json::writes_to[]` remains unjoined to the relationship registry.
-
-A sensor that is known-broken and reported as precise is worse than a sensor left empty.
-
----
-
-### 5. Pending capability
-
-The swarm-wide composed map — all six teams, their members, topic flows, cross-team edges, and goal linkage in one rendered view — does not exist yet. Until it ships, Phase 3 assembles the edge set by hand from per-team `coverage` output. Track the gap as a `capability-gap` decision on `meta-optimization` rather than re-deriving the assembly method each audit.
-
----
-
-### 6. Boundaries
+### 4. Boundaries
 
 - Do not edit team canon. Findings route to the owning team's decision context.
 - Do not audit a single member or a single skill here; route to the narrower skill.

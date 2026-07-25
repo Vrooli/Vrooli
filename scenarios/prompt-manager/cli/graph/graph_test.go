@@ -144,7 +144,7 @@ func TestCmdHealthTypeFilterFetchesGraphAndFiltersScores(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("unexpected stderr: %s", stderr)
 	}
-	if !strings.Contains(stdout, "Health Scores (1 nodes):") || !strings.Contains(stdout, "skill-1") || !strings.Contains(stdout, "well connected") {
+	if !strings.Contains(stdout, "Health summary: 1 scored nodes") || !strings.Contains(stdout, "skill-1") || !strings.Contains(stdout, "well connected") {
 		t.Fatalf("stdout missing filtered health result: %s", stdout)
 	}
 	if strings.Contains(stdout, "agent-1") || strings.Contains(stdout, "missing linked skills") {
@@ -160,5 +160,48 @@ func TestCmdHealthTypeFilterFetchesGraphAndFiltersScores(t *testing.T) {
 	}
 	if requests[1].Method != "GET" || requests[1].Path != "/graph" {
 		t.Fatalf("unexpected graph request: %+v", requests[1])
+	}
+}
+
+func TestCmdHealthFiltersTeamSortsWorstAndEmitsJSON(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("GET", "/graph/health", []healthScore{
+		{NodeID: "member-a", Score: 0.4},
+		{NodeID: "team-a", Score: 0.2},
+		{NodeID: "member-b", Score: 0.1},
+		{NodeID: "skill-1", Score: 0.0},
+	})
+	ctx.Respond("GET", "/graph", graphIndex{Graph: graph{
+		Nodes: []node{
+			{ID: "team-a", Type: "team"}, {ID: "member-a", Type: "agent"},
+			{ID: "member-b", Type: "agent"}, {ID: "skill-1", Type: "skill"},
+		},
+		Edges: []edge{{From: "team-a", To: "member-a", Kind: "membership"}, {From: "team-a", To: "member-b", Kind: "membership"}},
+	}})
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdHealth(ctx, []string{"--team", "team-a", "--worst", "2"})
+	})
+	if err != nil {
+		t.Fatalf("cmdHealth: %v", err)
+	}
+	if !strings.Contains(stdout, "Health summary: 2 scored nodes | mean 0.15 | below 0.30: 2") {
+		t.Fatalf("missing summary: %s", stdout)
+	}
+	if strings.Index(stdout, "member-b") > strings.Index(stdout, "team-a") {
+		t.Fatalf("worst rows not ascending: %s", stdout)
+	}
+	if strings.Contains(stdout, "member-a") || strings.Contains(stdout, "skill-1") {
+		t.Fatalf("team/worst filter leaked rows: %s", stdout)
+	}
+
+	jsonOut, _, err := clitest.Output(t, func() error {
+		return cmdHealth(ctx, []string{"--team", "team-a", "--json"})
+	})
+	if err != nil {
+		t.Fatalf("cmdHealth json: %v", err)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(jsonOut), "[") || !strings.Contains(jsonOut, `"score": 0.1`) {
+		t.Fatalf("expected parseable score JSON: %s", jsonOut)
 	}
 }

@@ -34,6 +34,21 @@
   "revision": 2,
   "createdAt": "2026-04-20T00:00:00Z",
   "updatedAt": "2026-04-22T11:17:33Z",
+  "topicCatalog": [
+    {"prefix":"opportunity-inbox/*","status":"live","purpose":"Intake for monetization opportunity signals classified by `monetization-opportunity`."},
+    {"prefix":"candidate-sku-record/*","status":"live","purpose":"Candidate SKU, add-on, services-line, or channel records."},
+    {"prefix":"scout-scan/*","status":"live","purpose":"Scout heartbeat summaries and pool snapshots."},
+    {"prefix":"monetization/opportunity/*","status":"live","purpose":"Additional opportunity observations that are not yet promoted."},
+    {"prefix":"catalog-snapshot/*","status":"live","purpose":"Snapshot of SKU, tier, channel, and services-line trigger state."},
+    {"prefix":"ledger-snapshot/*","status":"live","purpose":"Financial posture snapshot."},
+    {"prefix":"monetization-ledger-log/*","status":"live","purpose":"Append-only monetization ledger events used to produce current financial posture snapshots."},
+    {"prefix":"validation-inbox/*","status":"live","purpose":"Validation requests classified by `monetization-validation`."},
+    {"prefix":"monetization-benchmark-adjacent-record/*","status":"live","purpose":"Cross-team benchmark-adjacent evidence from marketing."},
+    {"prefix":"monetization-benchmark-record/*","status":"live","purpose":"Validated benchmark records."},
+    {"prefix":"monetization/market-scan/*","status":"live","purpose":"Market-scan evidence."},
+    {"prefix":"challenge-report/*","status":"live","purpose":"Append-only challenge evidence."},
+    {"prefix":"challenge-resolution-record/*","status":"live","purpose":"Latest-state challenge resolution records."}
+  ],
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {
@@ -273,6 +288,13 @@
       ]
     },
     "decisionContexts": {
+      "capability-gap": {
+        "ownerMemberIds": [
+          "opportunity-scout",
+          "market-validator"
+        ],
+        "description": "A missing tool, data source, prompt surface, validation rule, or owner blocks monetization work."
+      },
       "catalog-promotion": {
         "ownerMemberIds": [
           "catalog-strategist",
