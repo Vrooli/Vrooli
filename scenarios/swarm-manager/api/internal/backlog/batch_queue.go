@@ -150,7 +150,7 @@ func (h *Handler) resolveMilestonePlans(
 
 		if !hasProvided {
 			if existing == nil {
-				return nil, nil, fmt.Errorf("milestone %q does not exist; include it in the milestones list with metadata", name)
+				return nil, nil, fmt.Errorf("milestone %q does not exist; create it with acceptance criteria through the goal API (swarm-manager goals milestone-create), then re-run this import", name)
 			}
 			deps := append([]string(nil), existing.DependsOn...)
 			plans[name] = resolvedMilestonePlan{

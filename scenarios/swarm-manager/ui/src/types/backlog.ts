@@ -14,24 +14,17 @@ import type { AgentSessionAttribution } from "./agent-session";
  * Valid lifecycle states for a backlog item.
  *
  * Lifecycle:
- *   backlog/researching/ready → queued → in_progress → in_review → review_pending → completed | failed | needs_followup
+ *   backlog/researching/ready → queued → in_progress → in_review → review_pending
+ *     → completed | failed | needs_followup | dropped
  *
- * - `in_review`: execution completed; review agent is gathering evidence.
- * - `review_pending`: review complete; awaiting user decision via review-decide.
- * - Terminal transitions (`completed`, `failed`, `needs_followup`) are user-only.
+ * The union and the lifecycle-ordered status lists are generated from the
+ * server's SSOT table (api/internal/backlogstatus/statuses.go) — re-exported
+ * here so existing imports of `BacklogStatus` from this module keep working.
+ * Add a status there, not here.
  */
-export type BacklogStatus =
-  | "suggested"
-  | "backlog"
-  | "researching"
-  | "ready"
-  | "queued"
-  | "in_progress"
-  | "in_review"
-  | "review_pending"
-  | "completed"
-  | "failed"
-  | "needs_followup";
+import type { BacklogStatus } from "./backlog-status.generated";
+
+export type { BacklogStatus };
 
 
 /**

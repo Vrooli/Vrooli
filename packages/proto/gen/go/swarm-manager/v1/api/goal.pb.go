@@ -647,6 +647,379 @@ func (x *UpdateMilestoneItemsRequest) GetItems() []string {
 	return nil
 }
 
+type CloseOutGoalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseOutGoalRequest) Reset() {
+	*x = CloseOutGoalRequest{}
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseOutGoalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseOutGoalRequest) ProtoMessage() {}
+
+func (x *CloseOutGoalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseOutGoalRequest.ProtoReflect.Descriptor instead.
+func (*CloseOutGoalRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CloseOutGoalRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type ListPendingGoalWorkflowsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Restrict the listing to one goal. Empty lists every goal.
+	GoalName      string `protobuf:"bytes,1,opt,name=goal_name,json=goalName,proto3" json:"goal_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPendingGoalWorkflowsRequest) Reset() {
+	*x = ListPendingGoalWorkflowsRequest{}
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPendingGoalWorkflowsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPendingGoalWorkflowsRequest) ProtoMessage() {}
+
+func (x *ListPendingGoalWorkflowsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPendingGoalWorkflowsRequest.ProtoReflect.Descriptor instead.
+func (*ListPendingGoalWorkflowsRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListPendingGoalWorkflowsRequest) GetGoalName() string {
+	if x != nil {
+		return x.GoalName
+	}
+	return ""
+}
+
+type ApplyGoalWorkflowRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GoalName      string                 `protobuf:"bytes,1,opt,name=goal_name,json=goalName,proto3" json:"goal_name,omitempty"`
+	ExecutionId   string                 `protobuf:"bytes,2,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyGoalWorkflowRequest) Reset() {
+	*x = ApplyGoalWorkflowRequest{}
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyGoalWorkflowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyGoalWorkflowRequest) ProtoMessage() {}
+
+func (x *ApplyGoalWorkflowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyGoalWorkflowRequest.ProtoReflect.Descriptor instead.
+func (*ApplyGoalWorkflowRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ApplyGoalWorkflowRequest) GetGoalName() string {
+	if x != nil {
+		return x.GoalName
+	}
+	return ""
+}
+
+func (x *ApplyGoalWorkflowRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+// PendingGoalWorkflow is one workflow result awaiting application.
+type PendingGoalWorkflow struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	GoalName    string                 `protobuf:"bytes,1,opt,name=goal_name,json=goalName,proto3" json:"goal_name,omitempty"`
+	ExecutionId string                 `protobuf:"bytes,2,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	Transition  string                 `protobuf:"bytes,3,opt,name=transition,proto3" json:"transition,omitempty"`
+	Milestone   string                 `protobuf:"bytes,4,opt,name=milestone,proto3" json:"milestone,omitempty"`
+	GoalVersion string                 `protobuf:"bytes,5,opt,name=goal_version,json=goalVersion,proto3" json:"goal_version,omitempty"`
+	// The goal changed after the workflow started, so this result can never be
+	// applied and the run has to be repeated against the current snapshot.
+	Stale         bool   `protobuf:"varint,6,opt,name=stale,proto3" json:"stale,omitempty"`
+	Attempts      int32  `protobuf:"varint,7,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	LastAttemptAt string `protobuf:"bytes,8,opt,name=last_attempt_at,json=lastAttemptAt,proto3" json:"last_attempt_at,omitempty"`
+	LastError     string `protobuf:"bytes,9,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PendingGoalWorkflow) Reset() {
+	*x = PendingGoalWorkflow{}
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PendingGoalWorkflow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PendingGoalWorkflow) ProtoMessage() {}
+
+func (x *PendingGoalWorkflow) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PendingGoalWorkflow.ProtoReflect.Descriptor instead.
+func (*PendingGoalWorkflow) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PendingGoalWorkflow) GetGoalName() string {
+	if x != nil {
+		return x.GoalName
+	}
+	return ""
+}
+
+func (x *PendingGoalWorkflow) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *PendingGoalWorkflow) GetTransition() string {
+	if x != nil {
+		return x.Transition
+	}
+	return ""
+}
+
+func (x *PendingGoalWorkflow) GetMilestone() string {
+	if x != nil {
+		return x.Milestone
+	}
+	return ""
+}
+
+func (x *PendingGoalWorkflow) GetGoalVersion() string {
+	if x != nil {
+		return x.GoalVersion
+	}
+	return ""
+}
+
+func (x *PendingGoalWorkflow) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
+}
+
+func (x *PendingGoalWorkflow) GetAttempts() int32 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+func (x *PendingGoalWorkflow) GetLastAttemptAt() string {
+	if x != nil {
+		return x.LastAttemptAt
+	}
+	return ""
+}
+
+func (x *PendingGoalWorkflow) GetLastError() string {
+	if x != nil {
+		return x.LastError
+	}
+	return ""
+}
+
+type ListPendingGoalWorkflowsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pending       []*PendingGoalWorkflow `protobuf:"bytes,1,rep,name=pending,proto3" json:"pending,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPendingGoalWorkflowsResponse) Reset() {
+	*x = ListPendingGoalWorkflowsResponse{}
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPendingGoalWorkflowsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPendingGoalWorkflowsResponse) ProtoMessage() {}
+
+func (x *ListPendingGoalWorkflowsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPendingGoalWorkflowsResponse.ProtoReflect.Descriptor instead.
+func (*ListPendingGoalWorkflowsResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ListPendingGoalWorkflowsResponse) GetPending() []*PendingGoalWorkflow {
+	if x != nil {
+		return x.Pending
+	}
+	return nil
+}
+
+type ApplyGoalWorkflowResponse struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	SessionId   string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	ProposalIds []string               `protobuf:"bytes,3,rep,name=proposal_ids,json=proposalIds,proto3" json:"proposal_ids,omitempty"`
+	Outcome     string                 `protobuf:"bytes,4,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	// The result had already been applied; this call changed nothing.
+	AlreadyApplied bool `protobuf:"varint,5,opt,name=already_applied,json=alreadyApplied,proto3" json:"already_applied,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ApplyGoalWorkflowResponse) Reset() {
+	*x = ApplyGoalWorkflowResponse{}
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyGoalWorkflowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyGoalWorkflowResponse) ProtoMessage() {}
+
+func (x *ApplyGoalWorkflowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyGoalWorkflowResponse.ProtoReflect.Descriptor instead.
+func (*ApplyGoalWorkflowResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ApplyGoalWorkflowResponse) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *ApplyGoalWorkflowResponse) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ApplyGoalWorkflowResponse) GetProposalIds() []string {
+	if x != nil {
+		return x.ProposalIds
+	}
+	return nil
+}
+
+func (x *ApplyGoalWorkflowResponse) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *ApplyGoalWorkflowResponse) GetAlreadyApplied() bool {
+	if x != nil {
+		return x.AlreadyApplied
+	}
+	return false
+}
+
 type GoalResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Goal          *domain.Goal           `protobuf:"bytes,1,opt,name=goal,proto3" json:"goal,omitempty"`
@@ -657,7 +1030,7 @@ type GoalResponse struct {
 
 func (x *GoalResponse) Reset() {
 	*x = GoalResponse{}
-	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[12]
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -669,7 +1042,7 @@ func (x *GoalResponse) String() string {
 func (*GoalResponse) ProtoMessage() {}
 
 func (x *GoalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[12]
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -682,7 +1055,7 @@ func (x *GoalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GoalResponse.ProtoReflect.Descriptor instead.
 func (*GoalResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{12}
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GoalResponse) GetGoal() *domain.Goal {
@@ -708,7 +1081,7 @@ type ListGoalsResponse struct {
 
 func (x *ListGoalsResponse) Reset() {
 	*x = ListGoalsResponse{}
-	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[13]
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -720,7 +1093,7 @@ func (x *ListGoalsResponse) String() string {
 func (*ListGoalsResponse) ProtoMessage() {}
 
 func (x *ListGoalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[13]
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -733,7 +1106,7 @@ func (x *ListGoalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGoalsResponse.ProtoReflect.Descriptor instead.
 func (*ListGoalsResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{13}
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListGoalsResponse) GetGoals() []*GoalResponse {
@@ -752,7 +1125,7 @@ type GoalScopeResponse struct {
 
 func (x *GoalScopeResponse) Reset() {
 	*x = GoalScopeResponse{}
-	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[14]
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -764,7 +1137,7 @@ func (x *GoalScopeResponse) String() string {
 func (*GoalScopeResponse) ProtoMessage() {}
 
 func (x *GoalScopeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[14]
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -777,7 +1150,7 @@ func (x *GoalScopeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GoalScopeResponse.ProtoReflect.Descriptor instead.
 func (*GoalScopeResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{14}
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GoalScopeResponse) GetScope() *domain.GoalScope {
@@ -795,7 +1168,7 @@ type EmptyGoalResponse struct {
 
 func (x *EmptyGoalResponse) Reset() {
 	*x = EmptyGoalResponse{}
-	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[15]
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -807,7 +1180,7 @@ func (x *EmptyGoalResponse) String() string {
 func (*EmptyGoalResponse) ProtoMessage() {}
 
 func (x *EmptyGoalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[15]
+	mi := &file_swarm_manager_v1_api_goal_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -820,7 +1193,7 @@ func (x *EmptyGoalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmptyGoalResponse.ProtoReflect.Descriptor instead.
 func (*EmptyGoalResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{15}
+	return file_swarm_manager_v1_api_goal_proto_rawDescGZIP(), []int{21}
 }
 
 var File_swarm_manager_v1_api_goal_proto protoreflect.FileDescriptor
@@ -866,7 +1239,36 @@ const file_swarm_manager_v1_api_goal_proto_rawDesc = "" +
 	"\x1bUpdateMilestoneItemsRequest\x12\x1b\n" +
 	"\tgoal_name\x18\x01 \x01(\tR\bgoalName\x12%\n" +
 	"\x0emilestone_name\x18\x02 \x01(\tR\rmilestoneName\x12\x14\n" +
-	"\x05items\x18\x03 \x03(\tR\x05items\"m\n" +
+	"\x05items\x18\x03 \x03(\tR\x05items\"2\n" +
+	"\x13CloseOutGoalRequest\x12\x1b\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\">\n" +
+	"\x1fListPendingGoalWorkflowsRequest\x12\x1b\n" +
+	"\tgoal_name\x18\x01 \x01(\tR\bgoalName\"l\n" +
+	"\x18ApplyGoalWorkflowRequest\x12$\n" +
+	"\tgoal_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bgoalName\x12*\n" +
+	"\fexecution_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\"\xaf\x02\n" +
+	"\x13PendingGoalWorkflow\x12\x1b\n" +
+	"\tgoal_name\x18\x01 \x01(\tR\bgoalName\x12!\n" +
+	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12\x1e\n" +
+	"\n" +
+	"transition\x18\x03 \x01(\tR\n" +
+	"transition\x12\x1c\n" +
+	"\tmilestone\x18\x04 \x01(\tR\tmilestone\x12!\n" +
+	"\fgoal_version\x18\x05 \x01(\tR\vgoalVersion\x12\x14\n" +
+	"\x05stale\x18\x06 \x01(\bR\x05stale\x12\x1a\n" +
+	"\battempts\x18\a \x01(\x05R\battempts\x12&\n" +
+	"\x0flast_attempt_at\x18\b \x01(\tR\rlastAttemptAt\x12\x1d\n" +
+	"\n" +
+	"last_error\x18\t \x01(\tR\tlastError\"c\n" +
+	" ListPendingGoalWorkflowsResponse\x12?\n" +
+	"\apending\x18\x01 \x03(\v2%.swarm_manager.v1.PendingGoalWorkflowR\apending\"\xc3\x01\n" +
+	"\x19ApplyGoalWorkflowResponse\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12!\n" +
+	"\fproposal_ids\x18\x03 \x03(\tR\vproposalIds\x12\x18\n" +
+	"\aoutcome\x18\x04 \x01(\tR\aoutcome\x12'\n" +
+	"\x0falready_applied\x18\x05 \x01(\bR\x0ealreadyApplied\"m\n" +
 	"\fGoalResponse\x12*\n" +
 	"\x04goal\x18\x01 \x01(\v2\x16.swarm_manager.v1.GoalR\x04goal\x121\n" +
 	"\x05scope\x18\x02 \x01(\v2\x1b.swarm_manager.v1.GoalScopeR\x05scope\"I\n" +
@@ -874,8 +1276,7 @@ const file_swarm_manager_v1_api_goal_proto_rawDesc = "" +
 	"\x05goals\x18\x01 \x03(\v2\x1e.swarm_manager.v1.GoalResponseR\x05goals\"F\n" +
 	"\x11GoalScopeResponse\x121\n" +
 	"\x05scope\x18\x01 \x01(\v2\x1b.swarm_manager.v1.GoalScopeR\x05scope\"\x13\n" +
-	"\x11EmptyGoalResponse2\xcf\n" +
-	"\n" +
+	"\x11EmptyGoalResponse2\x98\r\n" +
 	"\vGoalService\x12T\n" +
 	"\tListGoals\x12\".swarm_manager.v1.ListGoalsRequest\x1a#.swarm_manager.v1.ListGoalsResponse\x12K\n" +
 	"\aGetGoal\x12 .swarm_manager.v1.GetGoalRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12Q\n" +
@@ -895,7 +1296,10 @@ const file_swarm_manager_v1_api_goal_proto_rawDesc = "" +
 	"\x10ArchiveMilestone\x12).swarm_manager.v1.ArchiveMilestoneRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12e\n" +
 	"\x14AssignMilestoneItems\x12-.swarm_manager.v1.UpdateMilestoneItemsRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12g\n" +
 	"\x16UnassignMilestoneItems\x12-.swarm_manager.v1.UpdateMilestoneItemsRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12Q\n" +
-	"\bGetScope\x12 .swarm_manager.v1.GetGoalRequest\x1a#.swarm_manager.v1.GoalScopeResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\bGetScope\x12 .swarm_manager.v1.GetGoalRequest\x1a#.swarm_manager.v1.GoalScopeResponse\x12U\n" +
+	"\fCloseOutGoal\x12%.swarm_manager.v1.CloseOutGoalRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12\x81\x01\n" +
+	"\x18ListPendingGoalWorkflows\x121.swarm_manager.v1.ListPendingGoalWorkflowsRequest\x1a2.swarm_manager.v1.ListPendingGoalWorkflowsResponse\x12l\n" +
+	"\x11ApplyGoalWorkflow\x12*.swarm_manager.v1.ApplyGoalWorkflowRequest\x1a+.swarm_manager.v1.ApplyGoalWorkflowResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_goal_proto_rawDescOnce sync.Once
@@ -909,70 +1313,83 @@ func file_swarm_manager_v1_api_goal_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_goal_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_goal_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_swarm_manager_v1_api_goal_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_swarm_manager_v1_api_goal_proto_goTypes = []any{
-	(*ListGoalsRequest)(nil),            // 0: swarm_manager.v1.ListGoalsRequest
-	(*GetGoalRequest)(nil),              // 1: swarm_manager.v1.GetGoalRequest
-	(*DeleteGoalRequest)(nil),           // 2: swarm_manager.v1.DeleteGoalRequest
-	(*ArchiveGoalRequest)(nil),          // 3: swarm_manager.v1.ArchiveGoalRequest
-	(*UnarchiveGoalRequest)(nil),        // 4: swarm_manager.v1.UnarchiveGoalRequest
-	(*CreateGoalRequest)(nil),           // 5: swarm_manager.v1.CreateGoalRequest
-	(*UpdateGoalRequest)(nil),           // 6: swarm_manager.v1.UpdateGoalRequest
-	(*UpdateGoalTargetsRequest)(nil),    // 7: swarm_manager.v1.UpdateGoalTargetsRequest
-	(*CreateMilestoneRequest)(nil),      // 8: swarm_manager.v1.CreateMilestoneRequest
-	(*UpdateMilestoneRequest)(nil),      // 9: swarm_manager.v1.UpdateMilestoneRequest
-	(*ArchiveMilestoneRequest)(nil),     // 10: swarm_manager.v1.ArchiveMilestoneRequest
-	(*UpdateMilestoneItemsRequest)(nil), // 11: swarm_manager.v1.UpdateMilestoneItemsRequest
-	(*GoalResponse)(nil),                // 12: swarm_manager.v1.GoalResponse
-	(*ListGoalsResponse)(nil),           // 13: swarm_manager.v1.ListGoalsResponse
-	(*GoalScopeResponse)(nil),           // 14: swarm_manager.v1.GoalScopeResponse
-	(*EmptyGoalResponse)(nil),           // 15: swarm_manager.v1.EmptyGoalResponse
-	(*domain.Milestone)(nil),            // 16: swarm_manager.v1.Milestone
-	(*domain.Goal)(nil),                 // 17: swarm_manager.v1.Goal
-	(*domain.GoalScope)(nil),            // 18: swarm_manager.v1.GoalScope
+	(*ListGoalsRequest)(nil),                 // 0: swarm_manager.v1.ListGoalsRequest
+	(*GetGoalRequest)(nil),                   // 1: swarm_manager.v1.GetGoalRequest
+	(*DeleteGoalRequest)(nil),                // 2: swarm_manager.v1.DeleteGoalRequest
+	(*ArchiveGoalRequest)(nil),               // 3: swarm_manager.v1.ArchiveGoalRequest
+	(*UnarchiveGoalRequest)(nil),             // 4: swarm_manager.v1.UnarchiveGoalRequest
+	(*CreateGoalRequest)(nil),                // 5: swarm_manager.v1.CreateGoalRequest
+	(*UpdateGoalRequest)(nil),                // 6: swarm_manager.v1.UpdateGoalRequest
+	(*UpdateGoalTargetsRequest)(nil),         // 7: swarm_manager.v1.UpdateGoalTargetsRequest
+	(*CreateMilestoneRequest)(nil),           // 8: swarm_manager.v1.CreateMilestoneRequest
+	(*UpdateMilestoneRequest)(nil),           // 9: swarm_manager.v1.UpdateMilestoneRequest
+	(*ArchiveMilestoneRequest)(nil),          // 10: swarm_manager.v1.ArchiveMilestoneRequest
+	(*UpdateMilestoneItemsRequest)(nil),      // 11: swarm_manager.v1.UpdateMilestoneItemsRequest
+	(*CloseOutGoalRequest)(nil),              // 12: swarm_manager.v1.CloseOutGoalRequest
+	(*ListPendingGoalWorkflowsRequest)(nil),  // 13: swarm_manager.v1.ListPendingGoalWorkflowsRequest
+	(*ApplyGoalWorkflowRequest)(nil),         // 14: swarm_manager.v1.ApplyGoalWorkflowRequest
+	(*PendingGoalWorkflow)(nil),              // 15: swarm_manager.v1.PendingGoalWorkflow
+	(*ListPendingGoalWorkflowsResponse)(nil), // 16: swarm_manager.v1.ListPendingGoalWorkflowsResponse
+	(*ApplyGoalWorkflowResponse)(nil),        // 17: swarm_manager.v1.ApplyGoalWorkflowResponse
+	(*GoalResponse)(nil),                     // 18: swarm_manager.v1.GoalResponse
+	(*ListGoalsResponse)(nil),                // 19: swarm_manager.v1.ListGoalsResponse
+	(*GoalScopeResponse)(nil),                // 20: swarm_manager.v1.GoalScopeResponse
+	(*EmptyGoalResponse)(nil),                // 21: swarm_manager.v1.EmptyGoalResponse
+	(*domain.Milestone)(nil),                 // 22: swarm_manager.v1.Milestone
+	(*domain.Goal)(nil),                      // 23: swarm_manager.v1.Goal
+	(*domain.GoalScope)(nil),                 // 24: swarm_manager.v1.GoalScope
 }
 var file_swarm_manager_v1_api_goal_proto_depIdxs = []int32{
-	16, // 0: swarm_manager.v1.CreateMilestoneRequest.milestone:type_name -> swarm_manager.v1.Milestone
-	16, // 1: swarm_manager.v1.UpdateMilestoneRequest.milestone:type_name -> swarm_manager.v1.Milestone
-	17, // 2: swarm_manager.v1.GoalResponse.goal:type_name -> swarm_manager.v1.Goal
-	18, // 3: swarm_manager.v1.GoalResponse.scope:type_name -> swarm_manager.v1.GoalScope
-	12, // 4: swarm_manager.v1.ListGoalsResponse.goals:type_name -> swarm_manager.v1.GoalResponse
-	18, // 5: swarm_manager.v1.GoalScopeResponse.scope:type_name -> swarm_manager.v1.GoalScope
-	0,  // 6: swarm_manager.v1.GoalService.ListGoals:input_type -> swarm_manager.v1.ListGoalsRequest
-	1,  // 7: swarm_manager.v1.GoalService.GetGoal:input_type -> swarm_manager.v1.GetGoalRequest
-	5,  // 8: swarm_manager.v1.GoalService.CreateGoal:input_type -> swarm_manager.v1.CreateGoalRequest
-	6,  // 9: swarm_manager.v1.GoalService.UpdateGoal:input_type -> swarm_manager.v1.UpdateGoalRequest
-	2,  // 10: swarm_manager.v1.GoalService.DeleteGoal:input_type -> swarm_manager.v1.DeleteGoalRequest
-	3,  // 11: swarm_manager.v1.GoalService.ArchiveGoal:input_type -> swarm_manager.v1.ArchiveGoalRequest
-	4,  // 12: swarm_manager.v1.GoalService.UnarchiveGoal:input_type -> swarm_manager.v1.UnarchiveGoalRequest
-	7,  // 13: swarm_manager.v1.GoalService.AddTargets:input_type -> swarm_manager.v1.UpdateGoalTargetsRequest
-	7,  // 14: swarm_manager.v1.GoalService.RemoveTargets:input_type -> swarm_manager.v1.UpdateGoalTargetsRequest
-	8,  // 15: swarm_manager.v1.GoalService.CreateMilestone:input_type -> swarm_manager.v1.CreateMilestoneRequest
-	9,  // 16: swarm_manager.v1.GoalService.UpdateMilestone:input_type -> swarm_manager.v1.UpdateMilestoneRequest
-	10, // 17: swarm_manager.v1.GoalService.ArchiveMilestone:input_type -> swarm_manager.v1.ArchiveMilestoneRequest
-	11, // 18: swarm_manager.v1.GoalService.AssignMilestoneItems:input_type -> swarm_manager.v1.UpdateMilestoneItemsRequest
-	11, // 19: swarm_manager.v1.GoalService.UnassignMilestoneItems:input_type -> swarm_manager.v1.UpdateMilestoneItemsRequest
-	1,  // 20: swarm_manager.v1.GoalService.GetScope:input_type -> swarm_manager.v1.GetGoalRequest
-	13, // 21: swarm_manager.v1.GoalService.ListGoals:output_type -> swarm_manager.v1.ListGoalsResponse
-	12, // 22: swarm_manager.v1.GoalService.GetGoal:output_type -> swarm_manager.v1.GoalResponse
-	12, // 23: swarm_manager.v1.GoalService.CreateGoal:output_type -> swarm_manager.v1.GoalResponse
-	12, // 24: swarm_manager.v1.GoalService.UpdateGoal:output_type -> swarm_manager.v1.GoalResponse
-	15, // 25: swarm_manager.v1.GoalService.DeleteGoal:output_type -> swarm_manager.v1.EmptyGoalResponse
-	12, // 26: swarm_manager.v1.GoalService.ArchiveGoal:output_type -> swarm_manager.v1.GoalResponse
-	12, // 27: swarm_manager.v1.GoalService.UnarchiveGoal:output_type -> swarm_manager.v1.GoalResponse
-	12, // 28: swarm_manager.v1.GoalService.AddTargets:output_type -> swarm_manager.v1.GoalResponse
-	12, // 29: swarm_manager.v1.GoalService.RemoveTargets:output_type -> swarm_manager.v1.GoalResponse
-	12, // 30: swarm_manager.v1.GoalService.CreateMilestone:output_type -> swarm_manager.v1.GoalResponse
-	12, // 31: swarm_manager.v1.GoalService.UpdateMilestone:output_type -> swarm_manager.v1.GoalResponse
-	12, // 32: swarm_manager.v1.GoalService.ArchiveMilestone:output_type -> swarm_manager.v1.GoalResponse
-	12, // 33: swarm_manager.v1.GoalService.AssignMilestoneItems:output_type -> swarm_manager.v1.GoalResponse
-	12, // 34: swarm_manager.v1.GoalService.UnassignMilestoneItems:output_type -> swarm_manager.v1.GoalResponse
-	14, // 35: swarm_manager.v1.GoalService.GetScope:output_type -> swarm_manager.v1.GoalScopeResponse
-	21, // [21:36] is the sub-list for method output_type
-	6,  // [6:21] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	22, // 0: swarm_manager.v1.CreateMilestoneRequest.milestone:type_name -> swarm_manager.v1.Milestone
+	22, // 1: swarm_manager.v1.UpdateMilestoneRequest.milestone:type_name -> swarm_manager.v1.Milestone
+	15, // 2: swarm_manager.v1.ListPendingGoalWorkflowsResponse.pending:type_name -> swarm_manager.v1.PendingGoalWorkflow
+	23, // 3: swarm_manager.v1.GoalResponse.goal:type_name -> swarm_manager.v1.Goal
+	24, // 4: swarm_manager.v1.GoalResponse.scope:type_name -> swarm_manager.v1.GoalScope
+	18, // 5: swarm_manager.v1.ListGoalsResponse.goals:type_name -> swarm_manager.v1.GoalResponse
+	24, // 6: swarm_manager.v1.GoalScopeResponse.scope:type_name -> swarm_manager.v1.GoalScope
+	0,  // 7: swarm_manager.v1.GoalService.ListGoals:input_type -> swarm_manager.v1.ListGoalsRequest
+	1,  // 8: swarm_manager.v1.GoalService.GetGoal:input_type -> swarm_manager.v1.GetGoalRequest
+	5,  // 9: swarm_manager.v1.GoalService.CreateGoal:input_type -> swarm_manager.v1.CreateGoalRequest
+	6,  // 10: swarm_manager.v1.GoalService.UpdateGoal:input_type -> swarm_manager.v1.UpdateGoalRequest
+	2,  // 11: swarm_manager.v1.GoalService.DeleteGoal:input_type -> swarm_manager.v1.DeleteGoalRequest
+	3,  // 12: swarm_manager.v1.GoalService.ArchiveGoal:input_type -> swarm_manager.v1.ArchiveGoalRequest
+	4,  // 13: swarm_manager.v1.GoalService.UnarchiveGoal:input_type -> swarm_manager.v1.UnarchiveGoalRequest
+	7,  // 14: swarm_manager.v1.GoalService.AddTargets:input_type -> swarm_manager.v1.UpdateGoalTargetsRequest
+	7,  // 15: swarm_manager.v1.GoalService.RemoveTargets:input_type -> swarm_manager.v1.UpdateGoalTargetsRequest
+	8,  // 16: swarm_manager.v1.GoalService.CreateMilestone:input_type -> swarm_manager.v1.CreateMilestoneRequest
+	9,  // 17: swarm_manager.v1.GoalService.UpdateMilestone:input_type -> swarm_manager.v1.UpdateMilestoneRequest
+	10, // 18: swarm_manager.v1.GoalService.ArchiveMilestone:input_type -> swarm_manager.v1.ArchiveMilestoneRequest
+	11, // 19: swarm_manager.v1.GoalService.AssignMilestoneItems:input_type -> swarm_manager.v1.UpdateMilestoneItemsRequest
+	11, // 20: swarm_manager.v1.GoalService.UnassignMilestoneItems:input_type -> swarm_manager.v1.UpdateMilestoneItemsRequest
+	1,  // 21: swarm_manager.v1.GoalService.GetScope:input_type -> swarm_manager.v1.GetGoalRequest
+	12, // 22: swarm_manager.v1.GoalService.CloseOutGoal:input_type -> swarm_manager.v1.CloseOutGoalRequest
+	13, // 23: swarm_manager.v1.GoalService.ListPendingGoalWorkflows:input_type -> swarm_manager.v1.ListPendingGoalWorkflowsRequest
+	14, // 24: swarm_manager.v1.GoalService.ApplyGoalWorkflow:input_type -> swarm_manager.v1.ApplyGoalWorkflowRequest
+	19, // 25: swarm_manager.v1.GoalService.ListGoals:output_type -> swarm_manager.v1.ListGoalsResponse
+	18, // 26: swarm_manager.v1.GoalService.GetGoal:output_type -> swarm_manager.v1.GoalResponse
+	18, // 27: swarm_manager.v1.GoalService.CreateGoal:output_type -> swarm_manager.v1.GoalResponse
+	18, // 28: swarm_manager.v1.GoalService.UpdateGoal:output_type -> swarm_manager.v1.GoalResponse
+	21, // 29: swarm_manager.v1.GoalService.DeleteGoal:output_type -> swarm_manager.v1.EmptyGoalResponse
+	18, // 30: swarm_manager.v1.GoalService.ArchiveGoal:output_type -> swarm_manager.v1.GoalResponse
+	18, // 31: swarm_manager.v1.GoalService.UnarchiveGoal:output_type -> swarm_manager.v1.GoalResponse
+	18, // 32: swarm_manager.v1.GoalService.AddTargets:output_type -> swarm_manager.v1.GoalResponse
+	18, // 33: swarm_manager.v1.GoalService.RemoveTargets:output_type -> swarm_manager.v1.GoalResponse
+	18, // 34: swarm_manager.v1.GoalService.CreateMilestone:output_type -> swarm_manager.v1.GoalResponse
+	18, // 35: swarm_manager.v1.GoalService.UpdateMilestone:output_type -> swarm_manager.v1.GoalResponse
+	18, // 36: swarm_manager.v1.GoalService.ArchiveMilestone:output_type -> swarm_manager.v1.GoalResponse
+	18, // 37: swarm_manager.v1.GoalService.AssignMilestoneItems:output_type -> swarm_manager.v1.GoalResponse
+	18, // 38: swarm_manager.v1.GoalService.UnassignMilestoneItems:output_type -> swarm_manager.v1.GoalResponse
+	20, // 39: swarm_manager.v1.GoalService.GetScope:output_type -> swarm_manager.v1.GoalScopeResponse
+	18, // 40: swarm_manager.v1.GoalService.CloseOutGoal:output_type -> swarm_manager.v1.GoalResponse
+	16, // 41: swarm_manager.v1.GoalService.ListPendingGoalWorkflows:output_type -> swarm_manager.v1.ListPendingGoalWorkflowsResponse
+	17, // 42: swarm_manager.v1.GoalService.ApplyGoalWorkflow:output_type -> swarm_manager.v1.ApplyGoalWorkflowResponse
+	25, // [25:43] is the sub-list for method output_type
+	7,  // [7:25] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_goal_proto_init() }
@@ -987,7 +1404,7 @@ func file_swarm_manager_v1_api_goal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_goal_proto_rawDesc), len(file_swarm_manager_v1_api_goal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

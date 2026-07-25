@@ -14,6 +14,7 @@ import (
 	"swarm-manager/cli/domains/operations"
 	"swarm-manager/cli/domains/portfolio"
 	"swarm-manager/cli/domains/prompts"
+	"swarm-manager/cli/domains/proposals"
 	"swarm-manager/cli/domains/queue"
 	"swarm-manager/cli/domains/records"
 	"swarm-manager/cli/domains/related"
@@ -43,6 +44,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		evidence.Register(deps),
 		prompts.Register(deps),
 		goals.Register(deps),
+		proposals.Register(deps),
 		captures.Register(deps),
 		records.Register(deps),
 		related.Register(deps),

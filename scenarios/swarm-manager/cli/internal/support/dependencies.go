@@ -80,12 +80,21 @@ type Dependencies struct {
 	GoalsTargetsAdd         CommandFunc
 	GoalsTargetsRemove      CommandFunc
 	GoalsMilestoneCreate    CommandFunc
+	GoalsMilestoneUpdate    CommandFunc
 	GoalsMilestoneAssign    CommandFunc
 	GoalsMilestoneUnassign  CommandFunc
 	GoalsMilestoneArchive   CommandFunc
 	GoalsPlanRun            CommandFunc
 	GoalsDiscoverRun        CommandFunc
 	GoalsMilestoneReviewRun CommandFunc
+	GoalsCloseOut           CommandFunc
+	GoalsWorkflowPending    CommandFunc
+	GoalsWorkflowApply      CommandFunc
+	ProposalsList           CommandFunc
+	ProposalsGet            CommandFunc
+	ProposalsDecide         CommandFunc
+	ProposalsAcceptKeep     CommandFunc
+	ProposalsRevise         CommandFunc
 	CapturesList            CommandFunc
 	CapturesCreate          CommandFunc
 	CapturesGet             CommandFunc

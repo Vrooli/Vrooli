@@ -136,6 +136,7 @@ func encodeGoalNodeData(value *GraphGoalNodeData) (*domainpb.GraphNodeData, erro
 			InProgress: value.Rollup.InProgress,
 			Failed:     value.Rollup.Failed,
 			Pending:    value.Rollup.Pending,
+			Dropped:    value.Rollup.Dropped,
 		},
 	}
 	return &domainpb.GraphNodeData{

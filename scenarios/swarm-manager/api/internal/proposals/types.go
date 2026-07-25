@@ -7,8 +7,10 @@ import (
 	"swarm-manager/internal/followup"
 )
 
-type FollowUp = followup.Contract
-type FollowUpDisposition = followup.Disposition
+type (
+	FollowUp            = followup.Contract
+	FollowUpDisposition = followup.Disposition
+)
 
 const (
 	FollowUpRun      = followup.DispositionRun
@@ -116,6 +118,27 @@ const (
 	OpAddGoalTarget          Op = "add_goal_target"
 	OpRemoveGoalTarget       Op = "remove_goal_target"
 )
+
+// GoalOps returns the ops a goal-targeted proposal may use. It is the single
+// source for both ValidateGoal and the "supported ops" rendered into the goal
+// workflow prompts, so the vocabulary an agent is told about cannot drift from
+// the one the server accepts.
+//
+// add_item is included because goal planning, discovery, and milestone review
+// exist to find work that has no covering item yet. Every other item op stays
+// with the item path, where that item's own context is hydrated.
+func GoalOps() []Op {
+	return []Op{
+		OpCreateMilestone,
+		OpUpdateMilestone,
+		OpArchiveMilestone,
+		OpAssignMilestoneItems,
+		OpUnassignMilestoneItems,
+		OpAddGoalTarget,
+		OpRemoveGoalTarget,
+		OpAddItem,
+	}
+}
 
 // AllOps returns the canonical list of supported ops. Used for validation
 // and for rendering "supported ops" to the agent prompt.

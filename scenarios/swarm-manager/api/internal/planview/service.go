@@ -287,7 +287,7 @@ func newProjection(items []backlog.BacklogItem, gateList []Gate, nextActions map
 		key := itemKey(item)
 		p.itemsByKey[key] = item
 		graphMap[key] = item.DependsOn
-		if backlog.IsArchived(item) || item.Status == backlog.StatusCompleted {
+		if backlog.IsArchived(item) || backlog.IsResolvedStatus(item.Status) {
 			p.satisfied[key] = true
 		}
 		rankItems = append(rankItems, backlogrank.Item{
@@ -370,19 +370,15 @@ func parseTime(raw string) time.Time {
 	return t
 }
 
-// lockedStatuses are in-flight backlog statuses: those items belong to the
-// Now column (via the operations endpoint), not Next/Later.
-var lockedStatuses = map[backlog.BacklogStatus]bool{
-	backlog.StatusQueued:     true,
-	backlog.StatusInProgress: true,
-	backlog.StatusInReview:   true,
-}
-
-// terminalStatuses are Done-column outcome statuses.
-var terminalStatuses = map[backlog.BacklogStatus]bool{
-	backlog.StatusCompleted:     true,
-	backlog.StatusFailed:        true,
-	backlog.StatusNeedsFollowup: true,
+// isLockedStatus reports the in-flight backlog statuses: those items belong to
+// the Now column (via the operations endpoint), not Next/Later.
+//
+// This is the execution-owned phase plus `in_review`, because an item whose
+// review round is still gathering evidence is equally not a Next/Later card.
+// Note the attention source uses a narrower rule (execution-owned only) — see
+// attentionLockedStatuses.
+func isLockedStatus(s backlog.BacklogStatus) bool {
+	return backlog.IsInFlightStatus(s) || s == backlog.StatusInReview
 }
 
 // planEligible reports whether the item can appear as a Next/Later card.
@@ -390,7 +386,7 @@ func (p *projection) planEligible(item backlog.BacklogItem) bool {
 	if backlog.IsArchived(item) {
 		return false
 	}
-	if lockedStatuses[item.Status] || terminalStatuses[item.Status] {
+	if isLockedStatus(item.Status) || backlog.IsTerminalStatus(item.Status) {
 		return false
 	}
 	if item.Status == backlog.StatusReviewPending {
@@ -586,7 +582,7 @@ func (p *projection) planEligibleForGate(item backlog.BacklogItem) bool {
 	if item.Status == backlog.StatusQueued || item.Status == backlog.StatusInProgress {
 		return false
 	}
-	return !terminalStatuses[item.Status]
+	return !backlog.IsTerminalStatus(item.Status)
 }
 
 func (p *projection) itemCards(items []backlog.BacklogItem) []Card {
@@ -833,7 +829,7 @@ func (p *projection) buildDone(execs []execution.Record, now time.Time, windowSe
 	}
 
 	for _, item := range p.items {
-		if !terminalStatuses[item.Status] {
+		if !backlog.IsTerminalStatus(item.Status) {
 			continue
 		}
 		ts := parseTime(item.Updated)
@@ -846,6 +842,8 @@ func (p *projection) buildDone(execs []execution.Record, now time.Time, windowSe
 			outcome = OutcomeOK
 		case backlog.StatusFailed:
 			outcome = OutcomeFailed
+		case backlog.StatusDropped:
+			outcome = OutcomeDropped
 		default:
 			outcome = OutcomeNeedsFollowup
 		}

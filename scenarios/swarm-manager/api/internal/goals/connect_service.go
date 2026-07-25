@@ -15,13 +15,23 @@ import (
 )
 
 // ConnectService exposes the canonical goal/milestone contract over Connect.
-type ConnectService struct{ service *Service }
+//
+// It holds the Handler as well as the Service because the workflow apply hop
+// lives on the Handler (it needs the workflow invoker and the proposal
+// recorder). Keeping both here is what lets close-out and workflow application
+// reach the CLI, which previously could only be driven from the UI.
+type ConnectService struct {
+	service *Service
+	handler *Handler
+}
 
-func NewConnectService(service *Service) *ConnectService { return &ConnectService{service: service} }
+func NewConnectService(service *Service, handler *Handler) *ConnectService {
+	return &ConnectService{service: service, handler: handler}
+}
 
-func RegisterConnectRoutes(router *mux.Router, service *Service) {
-	path, handler := apiconnect.NewGoalServiceHandler(NewConnectService(service))
-	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
+func RegisterConnectRoutes(router *mux.Router, service *Service, handler *Handler) {
+	path, connectHandler := apiconnect.NewGoalServiceHandler(NewConnectService(service, handler))
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: connectHandler})
 }
 
 func (s *ConnectService) ListGoals(context.Context, *connect.Request[apipb.ListGoalsRequest]) (*connect.Response[apipb.ListGoalsResponse], error) {
@@ -147,6 +157,56 @@ func (s *ConnectService) GetScope(_ context.Context, req *connect.Request[apipb.
 	return connect.NewResponse(&apipb.GoalScopeResponse{Scope: scopeToProto(goal.Scope)}), nil
 }
 
+// CloseOutGoal asserts the delivered goal outcome. Service validation rejects
+// incomplete or unverified milestones, so the gate is identical on every
+// surface that reaches it.
+func (s *ConnectService) CloseOutGoal(_ context.Context, req *connect.Request[apipb.CloseOutGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if _, err := s.service.CloseOut(req.Msg.GetName()); err != nil {
+		return nil, goalError(err)
+	}
+	return s.GetGoal(context.Background(), connect.NewRequest(&apipb.GetGoalRequest{Name: req.Msg.GetName()}))
+}
+
+func (s *ConnectService) ListPendingGoalWorkflows(_ context.Context, req *connect.Request[apipb.ListPendingGoalWorkflowsRequest]) (*connect.Response[apipb.ListPendingGoalWorkflowsResponse], error) {
+	if s.handler == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("goal workflow surface is not configured"))
+	}
+	pending, err := s.handler.ListPendingWorkflows()
+	if err != nil {
+		return nil, internal(err)
+	}
+	wanted := strings.TrimSpace(req.Msg.GetGoalName())
+	out := &apipb.ListPendingGoalWorkflowsResponse{Pending: make([]*apipb.PendingGoalWorkflow, 0, len(pending))}
+	for _, record := range pending {
+		if wanted != "" && record.GoalName != wanted {
+			continue
+		}
+		out.Pending = append(out.Pending, &apipb.PendingGoalWorkflow{
+			GoalName: record.GoalName, ExecutionId: record.ExecutionID, Transition: record.Transition,
+			Milestone: record.Milestone, GoalVersion: record.GoalVersion, Stale: record.Stale,
+			Attempts: int32(record.Attempts), LastAttemptAt: record.LastAttemptAt, LastError: record.LastError,
+		})
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (s *ConnectService) ApplyGoalWorkflow(ctx context.Context, req *connect.Request[apipb.ApplyGoalWorkflowRequest]) (*connect.Response[apipb.ApplyGoalWorkflowResponse], error) {
+	if s.handler == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("goal workflow surface is not configured"))
+	}
+	applied, err := s.handler.ApplyWorkflowResult(ctx, req.Msg.GetGoalName(), req.Msg.GetExecutionId())
+	if err != nil {
+		if errors.Is(err, ErrWorkflowNotReady) {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&apipb.ApplyGoalWorkflowResponse{
+		ExecutionId: applied.ExecutionID, SessionId: applied.SessionID, ProposalIds: applied.ProposalIDs,
+		Outcome: applied.Outcome, AlreadyApplied: applied.AlreadyApplied,
+	}), nil
+}
+
 func int32Ptr(value *int32) *int {
 	if value == nil {
 		return nil
@@ -183,7 +243,7 @@ func goalToProto(in Goal) *domainpb.Goal {
 func scopeToProto(in Scope) *domainpb.GoalScope {
 	out := &domainpb.GoalScope{Targets: in.Targets, Closure: in.Closure, Completed: in.Completed, Ready: in.Ready, Blocked: in.Blocked, Unassigned: in.Unassigned}
 	for _, milestone := range in.Milestones {
-		out.Milestones = append(out.Milestones, &domainpb.MilestoneRollup{MilestoneName: milestone.Milestone.Name, Total: int32(len(milestone.Items)), Completed: int32(milestone.CompletedCount), Ready: int32(milestone.ReadyCount), Blocked: int32(milestone.BlockedCount)})
+		out.Milestones = append(out.Milestones, &domainpb.MilestoneRollup{MilestoneName: milestone.Milestone.Name, Total: int32(len(milestone.Items)), Completed: int32(milestone.CompletedCount), Ready: int32(milestone.ReadyCount), Blocked: int32(milestone.BlockedCount), Orphaned: milestone.Orphaned})
 	}
 	return out
 }

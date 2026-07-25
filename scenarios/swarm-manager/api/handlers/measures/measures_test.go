@@ -105,7 +105,7 @@ func TestConnectHandler_SharesComputePath(t *testing.T) {
 		events: map[eventlog.EventType]int{
 			eventlog.EventBacklogCreated:      4,
 			eventlog.EventExecutionCompleted:  5,
-			eventlog.EventGoalCreated:   2,
+			eventlog.EventGoalCreated:         2,
 			eventlog.EventAgentSessionCreated: 9,
 		},
 	}

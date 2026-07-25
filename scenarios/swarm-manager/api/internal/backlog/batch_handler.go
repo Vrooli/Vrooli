@@ -85,9 +85,9 @@ func (h *Handler) SetMilestoneAssigner(ia MilestoneAssigner) {
 
 // batchCreateRequest is the JSON request body for batch-creating backlog items.
 type batchCreateRequest struct {
-	Items       []batchCreateItem       `json:"items"`
+	Items      []batchCreateItem      `json:"items"`
 	Milestones []batchCreateMilestone `json:"milestones,omitempty"`
-	Preview     bool                    `json:"preview,omitempty"`
+	Preview    bool                   `json:"preview,omitempty"`
 }
 
 // batchCreateItem mirrors the fields of a single backlog item creation request.
@@ -99,7 +99,7 @@ type batchCreateItem struct {
 	Priority        *int32   `json:"priority,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Milestone      string   `json:"milestone,omitempty"`
+	Milestone       string   `json:"milestone,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
@@ -141,17 +141,17 @@ type resolvedMilestonePlan struct {
 
 // batchCreateResponse is the JSON response for a successful batch create.
 type batchCreateResponse struct {
-	Items       []BacklogItem                 `json:"items"`
+	Items      []BacklogItem                `json:"items"`
 	Milestones []batchCreateMilestoneResult `json:"milestones,omitempty"`
-	Count       int                           `json:"count"`
-	Preview     bool                          `json:"preview,omitempty"`
-	Warnings    []string                      `json:"warnings,omitempty"`
+	Count      int                          `json:"count"`
+	Preview    bool                         `json:"preview,omitempty"`
+	Warnings   []string                     `json:"warnings,omitempty"`
 }
 
 type batchApplyResult struct {
-	items       []BacklogItem
+	items      []BacklogItem
 	milestones []batchCreateMilestoneResult
-	artifacts   []agentsessions.Artifact
+	artifacts  []agentsessions.Artifact
 }
 
 // validatedItem pairs a validated BacklogItem with its parsed kind.
@@ -189,10 +189,10 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := batchCreateResponse{
-		Items:       result.items,
+		Items:      result.items,
 		Milestones: result.milestones,
-		Count:       len(result.items),
-		Preview:     req.Preview,
+		Count:      len(result.items),
+		Preview:    req.Preview,
 	}
 	status := http.StatusCreated
 	if req.Preview {
@@ -485,7 +485,7 @@ func (h *Handler) validateSingleBatchItem(
 		Updated:         now,
 		Kind:            kind,
 		DependsOn:       dependsOn,
-		Milestone:      strings.TrimSpace(raw.Milestone),
+		Milestone:       strings.TrimSpace(raw.Milestone),
 		Effort:          effort,
 		AcceptanceAllow: raw.AcceptanceAllow,
 		AcceptanceDeny:  raw.AcceptanceDeny,
@@ -624,7 +624,7 @@ func (h *Handler) createBatchItems(ctx context.Context, validated []validatedIte
 			Entrypoint:            "http.batch_create",
 			SkipDuplicateCheck:    true,
 			SkipCycleCheck:        true,
-			SkipMilestoneAttach:  true,
+			SkipMilestoneAttach:   true,
 			SkipGraphInvalidation: true,
 			SkipSessionArtifact:   true,
 		})

@@ -22,6 +22,24 @@ type Handler struct {
 	workflow         WorkflowInvoker
 	registry         transitions.Registry
 	proposalRecorder WorkflowProposalRecorder
+	// goalProposalOps is the proposal vocabulary rendered into goal workflow
+	// prompts. It is injected (rather than read from the proposals package,
+	// which depends on this one) so the ops an agent is told about stay the
+	// ops the server accepts, with no second list to drift.
+	goalProposalOps []string
+}
+
+// SetGoalProposalOps declares the proposal vocabulary shown to goal workflows.
+func (h *Handler) SetGoalProposalOps(ops []string) {
+	h.goalProposalOps = append([]string(nil), ops...)
+}
+
+func (h *Handler) supportedOps() []any {
+	out := make([]any, 0, len(h.goalProposalOps))
+	for _, op := range h.goalProposalOps {
+		out = append(out, op)
+	}
+	return out
 }
 
 type (
@@ -63,6 +81,8 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/goals", h.List).Methods("GET")
 	r.HandleFunc("/api/v1/goals", h.Create).Methods("POST")
+	// Precedes the {name} routes so "workflow-pending" is not read as a goal name.
+	r.HandleFunc("/api/v1/goals/workflow-pending", h.ListPendingWorkflowRuns).Methods("GET")
 	r.HandleFunc("/api/v1/goals/{name}/targets", h.AddTargets).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/targets", h.RemoveTargets).Methods("DELETE")
 	r.HandleFunc("/api/v1/goals/{name}/archive-item", h.Archive).Methods("PATCH")
@@ -133,7 +153,7 @@ func (h *Handler) startWorkflow(w http.ResponseWriter, r *http.Request, transiti
 		apierr.MapError(w, "[goals] workflow", apierr.Internal("encode goal snapshot"))
 		return
 	}
-	input, err := structpb.NewValue(map[string]any{"entity": entity, "snapshot": snapshot})
+	input, err := structpb.NewValue(map[string]any{"entity": entity, "snapshot": snapshot, "supported_ops": h.supportedOps()})
 	if err != nil {
 		apierr.MapError(w, "[goals] workflow", apierr.BadRequest("build workflow input"))
 		return
@@ -156,6 +176,18 @@ func (h *Handler) startWorkflow(w http.ResponseWriter, r *http.Request, transiti
 		return
 	}
 	writeJSON(w, "[goals] workflow", map[string]any{"execution_id": start.ExecutionID, "run_id": start.RunID, "definition_digest": start.DefinitionDigest})
+}
+
+// ListPendingWorkflowRuns reports terminal goal workflow results that have not
+// been applied. Without it a stalled apply hop is invisible: results accumulate
+// on disk and every surface still reads as if the workflow never ran.
+func (h *Handler) ListPendingWorkflowRuns(w http.ResponseWriter, _ *http.Request) {
+	pending, err := h.ListPendingWorkflows()
+	if err != nil {
+		apierr.MapError(w, "[goals] workflow-pending", apierr.Internal("failed to list pending goal workflows"))
+		return
+	}
+	writeJSON(w, "[goals] workflow-pending", map[string]any{"pending": pending})
 }
 
 // ApplyWorkflow validates and projects a terminal workflow result into the
@@ -328,6 +360,7 @@ func (h *Handler) ArchiveMilestone(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AssignMilestoneItems(w http.ResponseWriter, r *http.Request) {
 	h.updateMilestoneItems(w, r, true)
 }
+
 func (h *Handler) UnassignMilestoneItems(w http.ResponseWriter, r *http.Request) {
 	h.updateMilestoneItems(w, r, false)
 }

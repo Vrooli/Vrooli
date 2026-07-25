@@ -132,7 +132,9 @@ asking the operator anything:
 The item lands in `review_pending`, and the operator makes the only decision
 that reaches a terminal status:
 
-- **Accept** → `completed`. **Fail** → `failed`. **Needs follow-up** →
+- **Accept** → `completed`. **Fail** → `failed`. **Drop** → `dropped`, for work
+  that should not be pursued at all — neither a success nor a failure, just a
+  decision to stop. **Needs follow-up** →
   `needs_followup` with one required, typed dispatch instruction. That
   instruction is `{steering, disposition}` where disposition is
   `follow_up_run`, `replan`, or `new_items`; `new_items` additionally carries
@@ -142,6 +144,10 @@ that reaches a terminal status:
   `author_followup` only when legacy or incomplete state must be repaired.
   Dispatch either starts the steered follow-up run, clears plan acceptance and
   writes the steering into workshop input, or applies the proposed items.
+- `dropped` releases the item's dependents. An abandoned prerequisite that
+  merely sat at `backlog` used to hold everything behind it in `blocked`
+  indefinitely, invisible to the goal-priority drain, which only picks up ready
+  items. Dropping it is what unblocks that downstream work.
 - Review findings arrive as **typed proposals** in one inbox. Each proposal
   states its policy (operator-required vs. automation-allowed) and is applied
   exactly once on acceptance.
@@ -288,6 +294,32 @@ These hold everywhere and are enforced in code, not convention:
   schema, applied exactly once, with provenance.
 - Evidence comes from evidence authorities (Test Genie, Git Control Tower) —
   agent narrative is never proof.
+
+### What a goal proposal may write
+
+A goal proposal shapes the goal graph and creates the work that graph needs:
+milestones, their acceptance criteria, targets, item assignment, and new
+backlog items (`add_item`). Goal planning, discovery, and milestone review all
+exist to find work that has no covering item yet, so refusing them item
+creation would leave them able to reference only work someone else had already
+written down.
+
+Every other item operation stays with the item journey, where that item's own
+context is hydrated. A goal proposal must not retarget, archive, or re-status
+work it is not showing the operator.
+
+Two rules make one envelope safe to decide as a unit:
+
+- **Validation reads the list's own effects.** A milestone created by an
+  earlier mutation can be populated by a later one, so structure and membership
+  are decided together instead of leaving an approved milestone with no
+  members.
+- **An accepted subset is revalidated as its own proposal.** Accepting a
+  mutation whose premise was rejected fails before anything is written.
+
+A milestone cannot be created or replaced without acceptance criteria. The
+criteria are the only definition of done a goal has: milestone review reads
+them, and close-out is gated on that review's verdict.
 
 ## Where to go deeper
 

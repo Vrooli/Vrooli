@@ -70,6 +70,15 @@ const (
 	GoalServiceUnassignMilestoneItemsProcedure = "/swarm_manager.v1.GoalService/UnassignMilestoneItems"
 	// GoalServiceGetScopeProcedure is the fully-qualified name of the GoalService's GetScope RPC.
 	GoalServiceGetScopeProcedure = "/swarm_manager.v1.GoalService/GetScope"
+	// GoalServiceCloseOutGoalProcedure is the fully-qualified name of the GoalService's CloseOutGoal
+	// RPC.
+	GoalServiceCloseOutGoalProcedure = "/swarm_manager.v1.GoalService/CloseOutGoal"
+	// GoalServiceListPendingGoalWorkflowsProcedure is the fully-qualified name of the GoalService's
+	// ListPendingGoalWorkflows RPC.
+	GoalServiceListPendingGoalWorkflowsProcedure = "/swarm_manager.v1.GoalService/ListPendingGoalWorkflows"
+	// GoalServiceApplyGoalWorkflowProcedure is the fully-qualified name of the GoalService's
+	// ApplyGoalWorkflow RPC.
+	GoalServiceApplyGoalWorkflowProcedure = "/swarm_manager.v1.GoalService/ApplyGoalWorkflow"
 )
 
 // GoalServiceClient is a client for the swarm_manager.v1.GoalService service.
@@ -89,6 +98,16 @@ type GoalServiceClient interface {
 	AssignMilestoneItems(context.Context, *connect.Request[api.UpdateMilestoneItemsRequest]) (*connect.Response[api.GoalResponse], error)
 	UnassignMilestoneItems(context.Context, *connect.Request[api.UpdateMilestoneItemsRequest]) (*connect.Response[api.GoalResponse], error)
 	GetScope(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalScopeResponse], error)
+	// CloseOutGoal is the operator-only assertion that a goal's outcome is
+	// delivered. It is evidence-gated: every non-archived milestone must carry an
+	// independent-review verdict first.
+	CloseOutGoal(context.Context, *connect.Request[api.CloseOutGoalRequest]) (*connect.Response[api.GoalResponse], error)
+	// ListPendingGoalWorkflows reports terminal goal workflow results that have
+	// not been applied yet, with the reason any of them is stuck.
+	ListPendingGoalWorkflows(context.Context, *connect.Request[api.ListPendingGoalWorkflowsRequest]) (*connect.Response[api.ListPendingGoalWorkflowsResponse], error)
+	// ApplyGoalWorkflow projects one terminal workflow result into the operator
+	// proposal inbox. Idempotent: re-applying a landed result is a no-op.
+	ApplyGoalWorkflow(context.Context, *connect.Request[api.ApplyGoalWorkflowRequest]) (*connect.Response[api.ApplyGoalWorkflowResponse], error)
 }
 
 // NewGoalServiceClient constructs a client for the swarm_manager.v1.GoalService service. By
@@ -192,26 +211,47 @@ func NewGoalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(goalServiceMethods.ByName("GetScope")),
 			connect.WithClientOptions(opts...),
 		),
+		closeOutGoal: connect.NewClient[api.CloseOutGoalRequest, api.GoalResponse](
+			httpClient,
+			baseURL+GoalServiceCloseOutGoalProcedure,
+			connect.WithSchema(goalServiceMethods.ByName("CloseOutGoal")),
+			connect.WithClientOptions(opts...),
+		),
+		listPendingGoalWorkflows: connect.NewClient[api.ListPendingGoalWorkflowsRequest, api.ListPendingGoalWorkflowsResponse](
+			httpClient,
+			baseURL+GoalServiceListPendingGoalWorkflowsProcedure,
+			connect.WithSchema(goalServiceMethods.ByName("ListPendingGoalWorkflows")),
+			connect.WithClientOptions(opts...),
+		),
+		applyGoalWorkflow: connect.NewClient[api.ApplyGoalWorkflowRequest, api.ApplyGoalWorkflowResponse](
+			httpClient,
+			baseURL+GoalServiceApplyGoalWorkflowProcedure,
+			connect.WithSchema(goalServiceMethods.ByName("ApplyGoalWorkflow")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // goalServiceClient implements GoalServiceClient.
 type goalServiceClient struct {
-	listGoals              *connect.Client[api.ListGoalsRequest, api.ListGoalsResponse]
-	getGoal                *connect.Client[api.GetGoalRequest, api.GoalResponse]
-	createGoal             *connect.Client[api.CreateGoalRequest, api.GoalResponse]
-	updateGoal             *connect.Client[api.UpdateGoalRequest, api.GoalResponse]
-	deleteGoal             *connect.Client[api.DeleteGoalRequest, api.EmptyGoalResponse]
-	archiveGoal            *connect.Client[api.ArchiveGoalRequest, api.GoalResponse]
-	unarchiveGoal          *connect.Client[api.UnarchiveGoalRequest, api.GoalResponse]
-	addTargets             *connect.Client[api.UpdateGoalTargetsRequest, api.GoalResponse]
-	removeTargets          *connect.Client[api.UpdateGoalTargetsRequest, api.GoalResponse]
-	createMilestone        *connect.Client[api.CreateMilestoneRequest, api.GoalResponse]
-	updateMilestone        *connect.Client[api.UpdateMilestoneRequest, api.GoalResponse]
-	archiveMilestone       *connect.Client[api.ArchiveMilestoneRequest, api.GoalResponse]
-	assignMilestoneItems   *connect.Client[api.UpdateMilestoneItemsRequest, api.GoalResponse]
-	unassignMilestoneItems *connect.Client[api.UpdateMilestoneItemsRequest, api.GoalResponse]
-	getScope               *connect.Client[api.GetGoalRequest, api.GoalScopeResponse]
+	listGoals                *connect.Client[api.ListGoalsRequest, api.ListGoalsResponse]
+	getGoal                  *connect.Client[api.GetGoalRequest, api.GoalResponse]
+	createGoal               *connect.Client[api.CreateGoalRequest, api.GoalResponse]
+	updateGoal               *connect.Client[api.UpdateGoalRequest, api.GoalResponse]
+	deleteGoal               *connect.Client[api.DeleteGoalRequest, api.EmptyGoalResponse]
+	archiveGoal              *connect.Client[api.ArchiveGoalRequest, api.GoalResponse]
+	unarchiveGoal            *connect.Client[api.UnarchiveGoalRequest, api.GoalResponse]
+	addTargets               *connect.Client[api.UpdateGoalTargetsRequest, api.GoalResponse]
+	removeTargets            *connect.Client[api.UpdateGoalTargetsRequest, api.GoalResponse]
+	createMilestone          *connect.Client[api.CreateMilestoneRequest, api.GoalResponse]
+	updateMilestone          *connect.Client[api.UpdateMilestoneRequest, api.GoalResponse]
+	archiveMilestone         *connect.Client[api.ArchiveMilestoneRequest, api.GoalResponse]
+	assignMilestoneItems     *connect.Client[api.UpdateMilestoneItemsRequest, api.GoalResponse]
+	unassignMilestoneItems   *connect.Client[api.UpdateMilestoneItemsRequest, api.GoalResponse]
+	getScope                 *connect.Client[api.GetGoalRequest, api.GoalScopeResponse]
+	closeOutGoal             *connect.Client[api.CloseOutGoalRequest, api.GoalResponse]
+	listPendingGoalWorkflows *connect.Client[api.ListPendingGoalWorkflowsRequest, api.ListPendingGoalWorkflowsResponse]
+	applyGoalWorkflow        *connect.Client[api.ApplyGoalWorkflowRequest, api.ApplyGoalWorkflowResponse]
 }
 
 // ListGoals calls swarm_manager.v1.GoalService.ListGoals.
@@ -289,6 +329,21 @@ func (c *goalServiceClient) GetScope(ctx context.Context, req *connect.Request[a
 	return c.getScope.CallUnary(ctx, req)
 }
 
+// CloseOutGoal calls swarm_manager.v1.GoalService.CloseOutGoal.
+func (c *goalServiceClient) CloseOutGoal(ctx context.Context, req *connect.Request[api.CloseOutGoalRequest]) (*connect.Response[api.GoalResponse], error) {
+	return c.closeOutGoal.CallUnary(ctx, req)
+}
+
+// ListPendingGoalWorkflows calls swarm_manager.v1.GoalService.ListPendingGoalWorkflows.
+func (c *goalServiceClient) ListPendingGoalWorkflows(ctx context.Context, req *connect.Request[api.ListPendingGoalWorkflowsRequest]) (*connect.Response[api.ListPendingGoalWorkflowsResponse], error) {
+	return c.listPendingGoalWorkflows.CallUnary(ctx, req)
+}
+
+// ApplyGoalWorkflow calls swarm_manager.v1.GoalService.ApplyGoalWorkflow.
+func (c *goalServiceClient) ApplyGoalWorkflow(ctx context.Context, req *connect.Request[api.ApplyGoalWorkflowRequest]) (*connect.Response[api.ApplyGoalWorkflowResponse], error) {
+	return c.applyGoalWorkflow.CallUnary(ctx, req)
+}
+
 // GoalServiceHandler is an implementation of the swarm_manager.v1.GoalService service.
 type GoalServiceHandler interface {
 	ListGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error)
@@ -306,6 +361,16 @@ type GoalServiceHandler interface {
 	AssignMilestoneItems(context.Context, *connect.Request[api.UpdateMilestoneItemsRequest]) (*connect.Response[api.GoalResponse], error)
 	UnassignMilestoneItems(context.Context, *connect.Request[api.UpdateMilestoneItemsRequest]) (*connect.Response[api.GoalResponse], error)
 	GetScope(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalScopeResponse], error)
+	// CloseOutGoal is the operator-only assertion that a goal's outcome is
+	// delivered. It is evidence-gated: every non-archived milestone must carry an
+	// independent-review verdict first.
+	CloseOutGoal(context.Context, *connect.Request[api.CloseOutGoalRequest]) (*connect.Response[api.GoalResponse], error)
+	// ListPendingGoalWorkflows reports terminal goal workflow results that have
+	// not been applied yet, with the reason any of them is stuck.
+	ListPendingGoalWorkflows(context.Context, *connect.Request[api.ListPendingGoalWorkflowsRequest]) (*connect.Response[api.ListPendingGoalWorkflowsResponse], error)
+	// ApplyGoalWorkflow projects one terminal workflow result into the operator
+	// proposal inbox. Idempotent: re-applying a landed result is a no-op.
+	ApplyGoalWorkflow(context.Context, *connect.Request[api.ApplyGoalWorkflowRequest]) (*connect.Response[api.ApplyGoalWorkflowResponse], error)
 }
 
 // NewGoalServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -405,6 +470,24 @@ func NewGoalServiceHandler(svc GoalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(goalServiceMethods.ByName("GetScope")),
 		connect.WithHandlerOptions(opts...),
 	)
+	goalServiceCloseOutGoalHandler := connect.NewUnaryHandler(
+		GoalServiceCloseOutGoalProcedure,
+		svc.CloseOutGoal,
+		connect.WithSchema(goalServiceMethods.ByName("CloseOutGoal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	goalServiceListPendingGoalWorkflowsHandler := connect.NewUnaryHandler(
+		GoalServiceListPendingGoalWorkflowsProcedure,
+		svc.ListPendingGoalWorkflows,
+		connect.WithSchema(goalServiceMethods.ByName("ListPendingGoalWorkflows")),
+		connect.WithHandlerOptions(opts...),
+	)
+	goalServiceApplyGoalWorkflowHandler := connect.NewUnaryHandler(
+		GoalServiceApplyGoalWorkflowProcedure,
+		svc.ApplyGoalWorkflow,
+		connect.WithSchema(goalServiceMethods.ByName("ApplyGoalWorkflow")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/swarm_manager.v1.GoalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case GoalServiceListGoalsProcedure:
@@ -437,6 +520,12 @@ func NewGoalServiceHandler(svc GoalServiceHandler, opts ...connect.HandlerOption
 			goalServiceUnassignMilestoneItemsHandler.ServeHTTP(w, r)
 		case GoalServiceGetScopeProcedure:
 			goalServiceGetScopeHandler.ServeHTTP(w, r)
+		case GoalServiceCloseOutGoalProcedure:
+			goalServiceCloseOutGoalHandler.ServeHTTP(w, r)
+		case GoalServiceListPendingGoalWorkflowsProcedure:
+			goalServiceListPendingGoalWorkflowsHandler.ServeHTTP(w, r)
+		case GoalServiceApplyGoalWorkflowProcedure:
+			goalServiceApplyGoalWorkflowHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -504,4 +593,16 @@ func (UnimplementedGoalServiceHandler) UnassignMilestoneItems(context.Context, *
 
 func (UnimplementedGoalServiceHandler) GetScope(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalScopeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.GetScope is not implemented"))
+}
+
+func (UnimplementedGoalServiceHandler) CloseOutGoal(context.Context, *connect.Request[api.CloseOutGoalRequest]) (*connect.Response[api.GoalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.CloseOutGoal is not implemented"))
+}
+
+func (UnimplementedGoalServiceHandler) ListPendingGoalWorkflows(context.Context, *connect.Request[api.ListPendingGoalWorkflowsRequest]) (*connect.Response[api.ListPendingGoalWorkflowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.ListPendingGoalWorkflows is not implemented"))
+}
+
+func (UnimplementedGoalServiceHandler) ApplyGoalWorkflow(context.Context, *connect.Request[api.ApplyGoalWorkflowRequest]) (*connect.Response[api.ApplyGoalWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.ApplyGoalWorkflow is not implemented"))
 }

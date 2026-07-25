@@ -17,18 +17,17 @@ type ItemStore interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
-// attentionLockedStatuses are mid-execution statuses: the item is in flight, so its
-// gates are not presented (mirrors the Command Post's locked skip).
-var attentionLockedStatuses = map[backlog.BacklogStatus]bool{
-	backlog.StatusQueued:     true,
-	backlog.StatusInProgress: true,
-}
-
-// attentionTerminalStatuses are finished-execution statuses. Terminal items surface
-// as Done outcomes, not gates.
+// attentionTerminalStatuses are the finished-execution statuses whose items
+// surface as Done outcomes rather than gates.
+//
+// Deliberately NARROWER than backlog.IsTerminalStatus: `needs_followup` is
+// terminal in the lifecycle sense but is a live attention state, so its gates
+// must still be presented. Kept as an explicit set for that reason — do not
+// "simplify" it to the shared predicate.
 var attentionTerminalStatuses = map[backlog.BacklogStatus]bool{
 	backlog.StatusCompleted: true,
 	backlog.StatusFailed:    true,
+	backlog.StatusDropped:   true,
 }
 
 func attentionItemKey(item backlog.BacklogItem) string {
@@ -60,7 +59,7 @@ func gateEligible(item backlog.BacklogItem) bool {
 	if backlog.IsArchived(item) {
 		return false
 	}
-	if attentionLockedStatuses[item.Status] || attentionTerminalStatuses[item.Status] {
+	if backlog.IsInFlightStatus(item.Status) || attentionTerminalStatuses[item.Status] {
 		return false
 	}
 	return true
@@ -78,13 +77,6 @@ type WorkshopSource struct {
 // Name identifies the source in degradation logs.
 func (s WorkshopSource) Name() string { return "workshop" }
 
-// queueableStatuses mirror the UI's QUEUEABLE_BACKLOG_STATUSES.
-var queueableStatuses = map[backlog.BacklogStatus]bool{
-	backlog.StatusBacklog:     true,
-	backlog.StatusResearching: true,
-	backlog.StatusReady:       true,
-}
-
 // Enumerate implements Source.
 func (s WorkshopSource) Enumerate(ctx context.Context) ([]Gate, error) {
 	items, err := s.Store.LoadAll(nil)
@@ -95,7 +87,7 @@ func (s WorkshopSource) Enumerate(ctx context.Context) ([]Gate, error) {
 
 	var out []Gate
 	for _, item := range items {
-		if !gateEligible(item) || !queueableStatuses[item.Status] {
+		if !gateEligible(item) || !backlog.IsPlanningStatus(item.Status) {
 			continue
 		}
 		suggested := "accept-plan"

@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.coverage;
+
+import "data-backup-manager/v1/sources/sources.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/coverage;coverage_v1";
+
+// =============================================================================
+// COVERAGE DOMAIN — first-real-backup readiness model
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain coverage
+// @imports sources
+// @stability stable
+//
+// Wire contract for CoverageService. The five-noun product (Target ×
+// Destination × Plan → Run → Restore) plus Discovery leaves a gap: discovery
+// SUGGESTS durable state worth protecting, but only REGISTERED targets are
+// eligible for plans and runs. A fresh install therefore lets an operator build
+// a plan that looks protective while it backs up only one self-registered
+// target.
+//
+// Coverage closes that gap. It composes the existing discovery, targets, plans,
+// runs and restores seams (it owns no scanner logic of its own) into one
+// decision-oriented report and one bulk action:
+//
+//   - GetCoverageReport: what is registered, recommended-but-unregistered,
+//     sensitive, planned, backed-up and verified — derived live, never stored.
+//   - AcceptDefaultTargets: bulk-register every non-sensitive discovered
+//     durable target. Sensitive credential/token suggestions are skipped unless
+//     include_sensitive is set explicitly. dry_run reports the plan without
+//     mutating anything.
+//
+// Coverage never reads file contents and never auto-registers on startup —
+// every registration is a deliberate operator action.
+//
+// Consumed by:
+//   - API: handlers/coverage/connect_handler.go implements CoverageServiceHandler.
+//   - CLI: cli (data-backup-manager coverage report|accept-defaults).
+//   - UI:  ui/src/features/coverage/ (Overview banner, Targets bulk register).
+// =============================================================================
+
+service CoverageService {
+  rpc GetCoverageReport(GetCoverageReportRequest) returns (GetCoverageReportResponse);
+  rpc AcceptDefaultTargets(AcceptDefaultTargetsRequest) returns (AcceptDefaultTargetsResponse);
+}
+
+// RegisteredTarget is a target already in the catalog, annotated with the
+// coverage states an operator needs to judge whether it is actually protected.
+message RegisteredTarget {
+  string id = 1;
+  string owner = 2;
+  string name = 3;
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 4;
+  string locator = 5;
+  // True when this target is bound to at least one plan (so a run can cover it).
+  bool planned = 6;
+  // Last successful backup of this target, if any (zero/absent = never).
+  google.protobuf.Timestamp last_success_at = 7;
+  // Last verified restore of this target, if any (zero/absent = never verified).
+  google.protobuf.Timestamp last_verified_at = 8;
+}
+
+// SuggestedTarget is a discovered durable source not yet registered. Mirrors a
+// discovery TargetSuggestion: non-sensitive ones are default recommendations;
+// sensitive ones (credentials/tokens) are review-only and never auto-accepted.
+message SuggestedTarget {
+  // Stable discovery suggestion id (also the dismissal key).
+  string id = 1;
+  string owner = 2;
+  string name = 3;
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 4;
+  string locator = 5;
+  // Human-facing reason this is worth protecting.
+  string rationale = 6;
+  // Best-effort size estimate in bytes; 0 = unknown.
+  int64 approx_bytes = 7;
+  // True for credential/token suggestions surfaced for review only.
+  bool sensitive = 8;
+  // Operator-facing warning for sensitive suggestions; empty otherwise.
+  string warning = 9;
+}
+
+// CoverageSummary is the at-a-glance scorecard the report leads with.
+message CoverageSummary {
+  int32 registered_count = 1;
+  // Non-sensitive discovered targets not yet registered.
+  int32 recommended_count = 2;
+  // Sensitive discovered targets awaiting deliberate review.
+  int32 sensitive_count = 3;
+  // Registered targets bound to at least one plan.
+  int32 planned_count = 4;
+  // Registered targets with at least one successful backup.
+  int32 backed_up_count = 5;
+  // Registered targets with at least one verified restore.
+  int32 verified_count = 6;
+  // True when no non-sensitive recommendation remains unregistered.
+  bool default_coverage_complete = 7;
+  // True when sensitive suggestions remain unreviewed.
+  bool has_sensitive_unreviewed = 8;
+  // True when a registered target is bound to no plan.
+  bool has_unplanned_registered_targets = 9;
+  // True when a registered target has never been verified.
+  bool has_unverified_targets = 10;
+}
+
+// CoverageReport is the full first-backup-readiness picture, derived live.
+message CoverageReport {
+  CoverageSummary summary = 1;
+  repeated RegisteredTarget registered_targets = 2;
+  // Non-sensitive suggestions — the default coverage set AcceptDefaultTargets
+  // registers.
+  repeated SuggestedTarget recommended_targets = 3;
+  // Sensitive suggestions — review-only; require include_sensitive to accept.
+  repeated SuggestedTarget sensitive_targets = 4;
+}
+
+message GetCoverageReportRequest {}
+
+message GetCoverageReportResponse {
+  CoverageReport report = 1;
+}
+
+// AcceptedTarget is one suggestion the bulk accept registered (or, under
+// dry_run, would register). target_id is empty for dry_run.
+message AcceptedTarget {
+  string target_id = 1;
+  string suggestion_id = 2;
+  string owner = 3;
+  string name = 4;
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 5;
+  string locator = 6;
+  bool sensitive = 7;
+}
+
+// AcceptError reports a per-item registration failure so partial failures are
+// never swallowed.
+message AcceptError {
+  string suggestion_id = 1;
+  string owner = 2;
+  string name = 3;
+  string message = 4;
+}
+
+message AcceptDefaultTargetsRequest {
+  // When true, sensitive credential/token suggestions are also registered.
+  // Default false: sensitive suggestions are skipped and reported.
+  bool include_sensitive = 1;
+  // When true, register nothing — only report what would be registered.
+  bool dry_run = 2;
+}
+
+message AcceptDefaultTargetsResponse {
+  // Targets registered (or, under dry_run, that would be registered).
+  repeated AcceptedTarget accepted = 1;
+  // Sensitive suggestions skipped because include_sensitive was false.
+  repeated SuggestedTarget skipped_sensitive = 2;
+  // Per-item failures (never swallowed).
+  repeated AcceptError failed = 3;
+  // Echoes the request so callers can confirm nothing was mutated.
+  bool dry_run = 4;
+}

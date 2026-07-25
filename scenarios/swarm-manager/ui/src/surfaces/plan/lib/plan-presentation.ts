@@ -90,6 +90,8 @@ export function outcomeGlyph(outcome: PlanCardData["outcome"]): string {
       return "◆";
     case "needs_followup":
       return "⚠";
+    case "dropped":
+      return "⊘";
     default:
       return "•";
   }

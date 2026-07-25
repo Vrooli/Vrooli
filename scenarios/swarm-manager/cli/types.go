@@ -26,7 +26,7 @@ type BacklogItem struct {
 	Updated         string   `json:"updated"`
 	Kind            string   `json:"kind"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Milestone      string   `json:"milestone,omitempty"`
+	Milestone       string   `json:"milestone,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
@@ -74,7 +74,7 @@ type CreateBacklogRequest struct {
 	Tags            []string `json:"tags,omitempty"`
 	Kind            string   `json:"kind"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Milestone      string   `json:"milestone,omitempty"`
+	Milestone       string   `json:"milestone,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
@@ -89,7 +89,7 @@ type UpdateBacklogRequest struct {
 	Priority        *int      `json:"priority,omitempty"`
 	Tags            *[]string `json:"tags,omitempty"`
 	DependsOn       *[]string `json:"depends_on,omitempty"`
-	Milestone      *string   `json:"milestone,omitempty"`
+	Milestone       *string   `json:"milestone,omitempty"`
 	Effort          *string   `json:"effort,omitempty"`
 	AcceptanceAllow *[]string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  *[]string `json:"acceptance_deny,omitempty"`
@@ -222,7 +222,7 @@ type ScenarioFix struct {
 	Title      string  `json:"title"`
 	Status     string  `json:"status"`
 	Priority   int     `json:"priority"`
-	Milestone string  `json:"milestone,omitempty"`
+	Milestone  string  `json:"milestone,omitempty"`
 	Updated    string  `json:"updated,omitempty"`
 	ArchivedAt *string `json:"archived_at,omitempty"`
 	Path       string  `json:"path"`
@@ -473,9 +473,9 @@ type MilestoneRollup struct {
 // MilestoneResponse wraps a single milestone with rollup status and the
 // deduped scenarios its member items target.
 type MilestoneResponse struct {
-	Milestone      Milestone       `json:"milestone"`
+	Milestone       Milestone       `json:"milestone"`
 	Rollup          MilestoneRollup `json:"rollup"`
-	TargetScenarios []string         `json:"target_scenarios,omitempty"`
+	TargetScenarios []string        `json:"target_scenarios,omitempty"`
 }
 
 // ListMilestonesResponse wraps the milestone list endpoint response.
@@ -516,7 +516,7 @@ type MilestoneContextItem struct {
 	Status     string   `json:"status"`
 	Priority   int      `json:"priority"`
 	DependsOn  []string `json:"depends_on,omitempty"`
-	Milestone string   `json:"milestone,omitempty"`
+	Milestone  string   `json:"milestone,omitempty"`
 	ArchivedAt *string  `json:"archived_at,omitempty"`
 }
 
@@ -548,7 +548,7 @@ type ScenarioContextOrphanItem struct {
 // the scenario, and a combined completion rollup.
 type ScenarioContextResponse struct {
 	ScenarioName string                      `json:"scenario_name"`
-	Milestones  []MilestoneResponse        `json:"milestones"`
+	Milestones   []MilestoneResponse         `json:"milestones"`
 	OrphanItems  []ScenarioContextOrphanItem `json:"orphan_items"`
 	Rollup       ScenarioContextRollup       `json:"rollup"`
 	Fixes        ScenarioFixHistory          `json:"fixes"`
@@ -558,11 +558,11 @@ type ScenarioContextResponse struct {
 // neighborhood for single-call loading by agents and the CLI.
 type MilestoneContextResponse struct {
 	Milestone            Milestone              `json:"milestone"`
-	Rollup                MilestoneRollup        `json:"rollup"`
-	Items                 []MilestoneContextItem `json:"items"`
+	Rollup               MilestoneRollup        `json:"rollup"`
+	Items                []MilestoneContextItem `json:"items"`
 	UpstreamMilestones   []Milestone            `json:"upstream_milestones"`
 	DownstreamMilestones []Milestone            `json:"downstream_milestones"`
-	TargetScenarios       []string                `json:"target_scenarios,omitempty"`
+	TargetScenarios      []string               `json:"target_scenarios,omitempty"`
 }
 
 // Capture represents a quick-capture entry.

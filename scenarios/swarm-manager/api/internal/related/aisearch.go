@@ -14,6 +14,7 @@ type AISearchSimilarity struct{ service *aisearch.Service }
 func NewAISearchSimilarity(service *aisearch.Service) *AISearchSimilarity {
 	return &AISearchSimilarity{service}
 }
+
 func (a *AISearchSimilarity) Similar(ctx context.Context, target TargetRef, limit int) ([]Entity, bool, error) {
 	entity := aisearch.EntityBacklog
 	if target.Kind == TargetGoal {

@@ -52,7 +52,20 @@ const (
 	// which is a run-level state the execution system sets to drive
 	// auto-fixup; the two exist on different enums for different reasons.
 	StatusNeedsFollowup BacklogStatus = backlogstatus.NeedsFollowup
+	// StatusDropped is the no-verdict terminal: the operator decided not to do
+	// the work, or it stopped being relevant. Unlike the other terminals it is
+	// settable directly by PATCH without a run, because it records a decision
+	// about the item rather than an outcome of executing it.
+	StatusDropped BacklogStatus = backlogstatus.Dropped
 )
+
+// IsResolvedStatus reports whether the status means "nothing depending on this
+// is still waiting". Dependency gates and readiness math must use this rather
+// than comparing against StatusCompleted, so dependents of a dropped item are
+// not stranded in blocked forever.
+func IsResolvedStatus(s BacklogStatus) bool {
+	return backlogstatus.IsResolved(string(s))
+}
 
 // IsTerminalStatus reports whether the given status is a user-decided terminal
 // state. Only review-decide transitions should land in these.
@@ -64,6 +77,18 @@ func IsTerminalStatus(s BacklogStatus) bool {
 // (agent gathering evidence or waiting for user decision).
 func IsReviewStatus(s BacklogStatus) bool {
 	return backlogstatus.IsReview(string(s))
+}
+
+// IsInFlightStatus reports whether the execution system owns the item's status
+// because a run is live. Operators cannot write these directly.
+func IsInFlightStatus(s BacklogStatus) bool {
+	return backlogstatus.IsInFlight(string(s))
+}
+
+// IsPlanningStatus reports whether the item is still being shaped, and is
+// therefore queueable.
+func IsPlanningStatus(s BacklogStatus) bool {
+	return backlogstatus.IsPlanning(string(s))
 }
 
 // IsArchived reports whether the backlog item has a non-empty archived_at
@@ -143,8 +168,10 @@ type BacklogItem struct {
 	PendingFollowUp *FollowUp `json:"pending_follow_up,omitempty"`
 }
 
-type FollowUp = followup.Contract
-type FollowUpDisposition = followup.Disposition
+type (
+	FollowUp            = followup.Contract
+	FollowUpDisposition = followup.Disposition
+)
 
 const (
 	FollowUpRun      = followup.DispositionRun

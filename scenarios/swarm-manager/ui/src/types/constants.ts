@@ -36,37 +36,21 @@ export const BACKLOG_KIND_ICONS: Record<BacklogKind, LucideIcon> = {
   chore: Wrench,
 };
 
-export const BACKLOG_STATUSES: BacklogStatus[] = [
-  "suggested",
-  "backlog",
-  "researching",
-  "ready",
-  "queued",
-  "in_progress",
-  "in_review",
-  "review_pending",
-  "completed",
-  "failed",
-  "needs_followup",
-];
-
-/**
- * Statuses a user can manually set via the generic status patch.
- * Planning states (backlog/researching/ready) plus terminal states
- * (completed/failed/needs_followup) as manual-override escape hatches.
- * Excludes:
- *   - queued/in_progress (managed by execution system)
- *   - in_review/review_pending (must exit via review-decide for audit trail;
- *     server-side PATCH is rejected while in these statuses)
- */
-export const USER_SETTABLE_STATUSES: BacklogStatus[] = [
-  "backlog",
-  "researching",
-  "ready",
-  "completed",
-  "failed",
-  "needs_followup",
-];
+// The status vocabulary and its classification (which statuses are terminal,
+// user-settable, queueable, …) are generated from the server's SSOT table.
+// Re-exported here so the many existing importers of these names from
+// types/constants keep working. To add a status, edit
+// api/internal/backlogstatus/statuses.go and run `make gen-status`.
+export {
+  BACKLOG_STATUSES,
+  BACKLOG_STATUS_LABELS,
+  USER_SETTABLE_STATUSES,
+  TERMINAL_STATUSES,
+  RESOLVED_STATUSES,
+  QUEUEABLE_BACKLOG_STATUSES,
+  IN_FLIGHT_STATUSES,
+  REVIEW_STATUSES,
+} from "./backlog-status.generated";
 
 /**
  * Maps backlog status to tailwind background color classes
@@ -83,6 +67,8 @@ export const BACKLOG_STATUS_COLORS: Record<BacklogStatus, string> = {
   completed: "bg-emerald-600",
   failed: "bg-red-600",
   needs_followup: "bg-orange-600",
+  // Muted grey: dropped work is settled, not an outcome to draw the eye.
+  dropped: "bg-zinc-600",
 };
 
 /**
@@ -101,6 +87,7 @@ export const BACKLOG_STATUS_CHIP_COLORS: Record<BacklogStatus, string> = {
   completed: "bg-emerald-600/20 text-emerald-400",
   failed: "bg-red-600/20 text-red-400",
   needs_followup: "bg-orange-500/20 text-orange-400",
+  dropped: "bg-zinc-600/20 text-zinc-400",
 };
 
 /**

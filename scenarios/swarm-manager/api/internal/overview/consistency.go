@@ -2,6 +2,7 @@ package overview
 
 import (
 	"fmt"
+
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/goals"
 )

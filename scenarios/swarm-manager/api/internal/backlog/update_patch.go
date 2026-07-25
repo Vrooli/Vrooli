@@ -23,7 +23,7 @@ const (
 	updateFieldPriority        = "priority"
 	updateFieldTags            = "tags"
 	updateFieldDependsOn       = "depends_on"
-	updateFieldMilestone      = "milestone"
+	updateFieldMilestone       = "milestone"
 	updateFieldEffort          = "effort"
 	updateFieldAcceptanceAllow = "acceptance_allow"
 	updateFieldAcceptanceDeny  = "acceptance_deny"

@@ -62,6 +62,7 @@ type ScenarioContextRollup struct {
 	InProgress int `json:"in_progress"`
 	Failed     int `json:"failed"`
 	Pending    int `json:"pending"`
+	Dropped    int `json:"dropped"`
 	Archived   int `json:"archived"`
 }
 
@@ -199,6 +200,8 @@ func addItemRollup(rollup *ScenarioContextRollup, item backlog.BacklogItem) {
 	switch item.Status {
 	case backlog.StatusCompleted:
 		rollup.Completed++
+	case backlog.StatusDropped:
+		rollup.Dropped++
 	case backlog.StatusFailed:
 		rollup.Failed++
 	case backlog.StatusInProgress, backlog.StatusQueued, backlog.StatusResearching:
@@ -210,6 +213,7 @@ func addItemRollup(rollup *ScenarioContextRollup, item backlog.BacklogItem) {
 		rollup.Archived++
 	}
 }
+
 func addRollup(dst *ScenarioContextRollup, src ScenarioContextRollup) {
 	dst.Total += src.Total
 	dst.Completed += src.Completed

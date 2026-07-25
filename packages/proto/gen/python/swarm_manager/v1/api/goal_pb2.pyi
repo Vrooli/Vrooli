@@ -104,6 +104,68 @@ class UpdateMilestoneItemsRequest(_message.Message):
     items: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, goal_name: _Optional[str] = ..., milestone_name: _Optional[str] = ..., items: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class CloseOutGoalRequest(_message.Message):
+    __slots__ = ("name",)
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    def __init__(self, name: _Optional[str] = ...) -> None: ...
+
+class ListPendingGoalWorkflowsRequest(_message.Message):
+    __slots__ = ("goal_name",)
+    GOAL_NAME_FIELD_NUMBER: _ClassVar[int]
+    goal_name: str
+    def __init__(self, goal_name: _Optional[str] = ...) -> None: ...
+
+class ApplyGoalWorkflowRequest(_message.Message):
+    __slots__ = ("goal_name", "execution_id")
+    GOAL_NAME_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    goal_name: str
+    execution_id: str
+    def __init__(self, goal_name: _Optional[str] = ..., execution_id: _Optional[str] = ...) -> None: ...
+
+class PendingGoalWorkflow(_message.Message):
+    __slots__ = ("goal_name", "execution_id", "transition", "milestone", "goal_version", "stale", "attempts", "last_attempt_at", "last_error")
+    GOAL_NAME_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSITION_FIELD_NUMBER: _ClassVar[int]
+    MILESTONE_FIELD_NUMBER: _ClassVar[int]
+    GOAL_VERSION_FIELD_NUMBER: _ClassVar[int]
+    STALE_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    LAST_ATTEMPT_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_ERROR_FIELD_NUMBER: _ClassVar[int]
+    goal_name: str
+    execution_id: str
+    transition: str
+    milestone: str
+    goal_version: str
+    stale: bool
+    attempts: int
+    last_attempt_at: str
+    last_error: str
+    def __init__(self, goal_name: _Optional[str] = ..., execution_id: _Optional[str] = ..., transition: _Optional[str] = ..., milestone: _Optional[str] = ..., goal_version: _Optional[str] = ..., stale: _Optional[bool] = ..., attempts: _Optional[int] = ..., last_attempt_at: _Optional[str] = ..., last_error: _Optional[str] = ...) -> None: ...
+
+class ListPendingGoalWorkflowsResponse(_message.Message):
+    __slots__ = ("pending",)
+    PENDING_FIELD_NUMBER: _ClassVar[int]
+    pending: _containers.RepeatedCompositeFieldContainer[PendingGoalWorkflow]
+    def __init__(self, pending: _Optional[_Iterable[_Union[PendingGoalWorkflow, _Mapping]]] = ...) -> None: ...
+
+class ApplyGoalWorkflowResponse(_message.Message):
+    __slots__ = ("execution_id", "session_id", "proposal_ids", "outcome", "already_applied")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PROPOSAL_IDS_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    ALREADY_APPLIED_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    session_id: str
+    proposal_ids: _containers.RepeatedScalarFieldContainer[str]
+    outcome: str
+    already_applied: bool
+    def __init__(self, execution_id: _Optional[str] = ..., session_id: _Optional[str] = ..., proposal_ids: _Optional[_Iterable[str]] = ..., outcome: _Optional[str] = ..., already_applied: _Optional[bool] = ...) -> None: ...
+
 class GoalResponse(_message.Message):
     __slots__ = ("goal", "scope")
     GOAL_FIELD_NUMBER: _ClassVar[int]

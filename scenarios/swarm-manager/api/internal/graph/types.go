@@ -47,6 +47,9 @@ type GraphGoalRollup struct {
 	InProgress int32 `json:"in_progress"`
 	Failed     int32 `json:"failed"`
 	Pending    int32 `json:"pending"`
+	// Dropped counts items the operator decided not to do. Kept out of
+	// Completed (not an achievement) and out of Pending (not awaiting work).
+	Dropped int32 `json:"dropped"`
 }
 
 // GraphGoalNodeData describes a goal node payload.

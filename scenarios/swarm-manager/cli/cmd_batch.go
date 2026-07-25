@@ -12,9 +12,9 @@ import (
 
 // BatchCreateRequest is the request body for the batch create endpoint.
 type BatchCreateRequest struct {
-	Items       []BatchCreateItem       `json:"items"`
+	Items      []BatchCreateItem      `json:"items"`
 	Milestones []BatchCreateMilestone `json:"milestones,omitempty"`
-	Preview     bool                    `json:"preview,omitempty"`
+	Preview    bool                   `json:"preview,omitempty"`
 }
 
 // BatchCreateItem represents a single item in a batch create request.
@@ -26,7 +26,7 @@ type BatchCreateItem struct {
 	Priority        *int32   `json:"priority,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Milestone      string   `json:"milestone,omitempty"`
+	Milestone       string   `json:"milestone,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
@@ -54,11 +54,11 @@ type BatchCreateMilestoneResult struct {
 
 // BatchCreateResponse is the response from the batch create endpoint.
 type BatchCreateResponse struct {
-	Items       []BacklogItem                 `json:"items"`
+	Items      []BacklogItem                `json:"items"`
 	Milestones []BatchCreateMilestoneResult `json:"milestones,omitempty"`
-	Count       int                           `json:"count"`
-	Preview     bool                          `json:"preview,omitempty"`
-	Warnings    []string                      `json:"warnings,omitempty"`
+	Count      int                          `json:"count"`
+	Preview    bool                         `json:"preview,omitempty"`
+	Warnings   []string                     `json:"warnings,omitempty"`
 }
 
 // BatchQueueRequest is the request body for the batch queue endpoint.

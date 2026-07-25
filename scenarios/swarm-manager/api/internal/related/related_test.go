@@ -17,6 +17,7 @@ type testBacklog struct{ items []backlog.BacklogItem }
 func (s testBacklog) LoadAll([]backlog.BacklogKind) ([]backlog.BacklogItem, error) {
 	return s.items, nil
 }
+
 func (s testBacklog) LoadItem(k backlog.BacklogKind, n string) (backlog.BacklogItem, error) {
 	for _, i := range s.items {
 		if i.Kind == k && i.Name == n {
@@ -47,6 +48,7 @@ type testSimilarity struct{ entities []Entity }
 func (s testSimilarity) Similar(context.Context, TargetRef, int) ([]Entity, bool, error) {
 	return s.entities, false, nil
 }
+
 func (s testRecords) List(f records.ListFilter) ([]records.Record, error) {
 	var out []records.Record
 	for _, r := range s.items {
@@ -60,15 +62,19 @@ func (s testRecords) List(f records.ListFilter) ([]records.Record, error) {
 	}
 	return out, nil
 }
+
 func (s testRecords) FindByCaptureKey(string) (records.Record, bool, error) {
 	return records.Record{}, false, nil
 }
+
 func (s testRecords) UpdateNarrative(string, records.Narrative, time.Time) (records.Record, error) {
 	return records.Record{}, nil
 }
+
 func (s testRecords) UpdateDraft(string, records.Record) (records.Record, error) {
 	return records.Record{}, nil
 }
+
 func (s testRecords) SetSupersededBy(string, string) (records.Record, error) {
 	return records.Record{}, nil
 }

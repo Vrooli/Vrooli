@@ -15,8 +15,54 @@ review lifecycle.
 Lifecycle state for a backlog item. Non-terminal states cover intake,
 refinement, queueing, execution, and review (`in_review`, `review_pending`);
 the terminal states `completed`, `failed`, and `needs_followup` are reachable
-only through an explicit operator review decision. The status vocabulary and
-its writer policy live in `api/internal/backlogstatus/statuses.go`.
+only through an explicit operator review decision.
+
+**Adding a status is one row.** The vocabulary, each status's classification,
+and its writer policy live in a single table in
+`api/internal/backlogstatus/statuses.go`. Add a row and run `make gen-status` to
+regenerate the UI's mirror (`ui/src/types/backlog-status.generated.ts`); every
+predicate, the valid-value set, and the TypeScript union derive from that table.
+`make check` fails if the mirror is stale, and a guard test fails if a row is
+incomplete, so a new status cannot land unclassified in some consumer's
+`default` branch. The only deliberate manual step is choosing display colors in
+`ui/src/types/constants.ts`, where TypeScript's exhaustiveness check demands one.
+
+Each status belongs to exactly one lifecycle **phase** — intake, planning,
+in_flight, review, terminal — and the phases cover the whole vocabulary, so code
+that switches on phase cannot silently miss a newly added status. Prefer the
+shared predicates (`IsResolved`, `IsTerminal`, `IsInFlight`, `IsPlanning`,
+`IsReview`) over comparing against individual status constants. Where a call
+site genuinely needs a narrower set than a predicate provides, it keeps an
+explicit local set with a comment saying why — see `attentionTerminalStatuses`,
+which excludes `needs_followup` because that is a live attention state.
+
+The proto files deliberately do **not** carry inline status allowlists. Three of
+them used to, they drifted apart, and the server's table validates every write
+anyway.
+
+`dropped` is the fourth terminal and the one exception to the review-decision
+rule: it records that the operator decided not to do the work, or that the work
+stopped being relevant. It carries no verdict about quality, so it needs no run
+and no review round behind it — a PATCH may set it directly from any
+non-review-gated status (items already in `in_review` / `review_pending` still
+route through `review-decide --drop`, which preserves the audit trail).
+
+## Resolved vs Completed
+Two different questions about a finished item, and the distinction the
+dependency graph turns on. *Completed* means the work was achieved. *Resolved*
+(`backlogstatus.IsResolved`) means nothing waiting on the item is still
+waiting — true for both `completed` and `dropped`.
+
+Dependency gates and readiness math must key on **resolved**. Keying them on
+completion alone strands every dependent of an abandoned item in `blocked`
+forever, because an item nobody will ever finish never satisfies its
+dependents. Goal progress reporting keeps the two apart: only `completed`
+counts toward progress, and `dropped` items leave the denominator entirely, so
+a goal can reach 100% without abandoned work being claimed as an achievement.
+
+Failure states are deliberately *not* resolved — a `failed` or
+`needs_followup` item is still live work whose dependents genuinely are
+blocked.
 
 ## Next Action
 The server-owned, read-only projection of the single enabled primary operator

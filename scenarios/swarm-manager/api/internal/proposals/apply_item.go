@@ -10,16 +10,15 @@ import (
 	"swarm-manager/internal/backlog"
 )
 
-func (a *Applier) applyAddItem(ctx context.Context, spec ItemSpec, source Source) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
+// ItemFromSpec builds the backlog item an add_item mutation describes. It is
+// exported so the goal proposal path creates items identically to the item
+// path: one shape, one set of defaults, no second definition to drift.
+// `milestone` may be empty for an item that a later mutation attaches.
+func ItemFromSpec(spec ItemSpec, milestone, nowRFC3339 string) (backlog.BacklogItem, error) {
 	kind, err := backlog.ParseBacklogKind(spec.Kind)
 	if err != nil {
-		return err
+		return backlog.BacklogItem{}, err
 	}
-
-	now := a.clock().UTC().Format(time.RFC3339)
 	item := backlog.BacklogItem{
 		Name:            spec.Name,
 		Title:           strings.TrimSpace(spec.Title),
@@ -30,15 +29,26 @@ func (a *Applier) applyAddItem(ctx context.Context, spec ItemSpec, source Source
 		Tags:            append([]string(nil), spec.Tags...),
 		DependsOn:       append([]string(nil), spec.DependsOn...),
 		Effort:          strings.ToUpper(strings.TrimSpace(spec.Effort)),
-		Milestone:      source.MilestoneName,
+		Milestone:       milestone,
 		AcceptanceAllow: append([]string(nil), spec.AcceptanceAllow...),
 		AcceptanceDeny:  append([]string(nil), spec.AcceptanceDeny...),
 		Note:            spec.Note,
-		Created:         now,
-		Updated:         now,
+		Created:         nowRFC3339,
+		Updated:         nowRFC3339,
 	}
 	if item.Priority == 0 {
 		item.Priority = DefaultItemPriority
+	}
+	return item, nil
+}
+
+func (a *Applier) applyAddItem(ctx context.Context, spec ItemSpec, source Source) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	item, err := ItemFromSpec(spec, source.MilestoneName, a.clock().UTC().Format(time.RFC3339))
+	if err != nil {
+		return err
 	}
 
 	cc := backlog.CreationContext{

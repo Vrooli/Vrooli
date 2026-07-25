@@ -132,11 +132,11 @@ func TestGoalWorkflowApplyFilesTypedProposalExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result["session_id"] != "sess-workflow" || len(recorder.proposals) != 1 || len(recorder.proposals[0].Payloads) != 1 {
+	if result.SessionID != "sess-workflow" || len(recorder.proposals) != 1 || len(recorder.proposals[0].Payloads) != 1 {
 		t.Fatalf("apply result = %#v, proposals = %#v", result, recorder.proposals)
 	}
 	result, err = handler.applyWorkflow(context.Background(), "delivery", "wf-1")
-	if err != nil || result["already_applied"] != true || len(recorder.proposals) != 1 {
+	if err != nil || !result.AlreadyApplied || len(recorder.proposals) != 1 {
 		t.Fatalf("idempotent result = %#v, err = %v, proposals = %#v", result, err, recorder.proposals)
 	}
 }

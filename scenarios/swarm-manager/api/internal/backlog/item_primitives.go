@@ -25,7 +25,7 @@ type ItemPatch struct {
 	Priority        *int
 	Tags            *[]string
 	DependsOn       *[]string
-	Milestone      *string
+	Milestone       *string
 	Effort          *string
 	AcceptanceAllow *[]string
 	AcceptanceDeny  *[]string

@@ -17,7 +17,7 @@ func BuildClosureInput(items []backlog.BacklogItem) GoalClosureInput {
 		key := itemKey(item)
 		itemsByKey[key] = item
 		graphMap[key] = item.DependsOn
-		if backlog.IsArchived(item) || item.Status == backlog.StatusCompleted {
+		if backlog.IsArchived(item) || backlog.IsResolvedStatus(item.Status) {
 			satisfied[key] = true
 		}
 	}

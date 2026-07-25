@@ -38,6 +38,91 @@ func TestComputeScope_ClosureAndProgress(t *testing.T) {
 	}
 }
 
+// A dropped prerequisite must release its dependents. Before `dropped` existed,
+// abandoned work sat at `backlog` forever and every item behind it stayed in
+// `blocked` permanently — invisible to the goal-priority drain, which only ever
+// picks up ready items.
+func TestComputeScope_DroppedPrerequisiteUnblocksDependents(t *testing.T) {
+	in := ScopeInput{
+		Targets: []string{"execute/a"},
+		ItemDeps: map[string][]string{
+			"execute/a": {"execute/b"},
+			"execute/b": nil,
+		},
+		ItemStatus: map[string]string{
+			"execute/a": "backlog",
+			"execute/b": "dropped",
+		},
+	}
+	got := ComputeScope(in)
+	if !reflect.DeepEqual(got.Ready, []string{"execute/a"}) {
+		t.Fatalf("Ready = %v, want [execute/a] — a dropped prerequisite must not block", got.Ready)
+	}
+	if len(got.Blocked) != 0 {
+		t.Fatalf("Blocked = %v, want none", got.Blocked)
+	}
+	if !reflect.DeepEqual(got.Dropped, []string{"execute/b"}) {
+		t.Fatalf("Dropped = %v, want [execute/b]", got.Dropped)
+	}
+	// b is out of scope entirely: 0 of the 1 remaining item is done.
+	if got.CompletedCount != 0 || got.DroppedCount != 1 || got.ProgressPct != 0 {
+		t.Fatalf("completed/dropped/pct = %d/%d/%v, want 0/1/0",
+			got.CompletedCount, got.DroppedCount, got.ProgressPct)
+	}
+}
+
+// Dropping the remainder of a goal must let it reach 100%, without counting the
+// abandoned work as an achievement.
+func TestComputeScope_DroppedLeavesProgressDenominator(t *testing.T) {
+	in := ScopeInput{
+		Targets: []string{"execute/a", "execute/b", "execute/c"},
+		ItemDeps: map[string][]string{
+			"execute/a": nil,
+			"execute/b": nil,
+			"execute/c": nil,
+		},
+		ItemStatus: map[string]string{
+			"execute/a": "completed",
+			"execute/b": "completed",
+			"execute/c": "dropped",
+		},
+	}
+	got := ComputeScope(in)
+	if got.Total != 3 {
+		t.Fatalf("Total = %d, want 3 — the closure still describes 3 items", got.Total)
+	}
+	if got.ProgressPct != 100 {
+		t.Fatalf("ProgressPct = %v, want 100 — 2 of the 2 items still in scope are done", got.ProgressPct)
+	}
+	if got.CompletedCount != 2 {
+		t.Fatalf("CompletedCount = %d, want 2 — dropped work is not an achievement", got.CompletedCount)
+	}
+}
+
+// A milestone whose remaining items were all dropped is settled, and must stop
+// gating the milestones sequenced behind it.
+func TestComputeScope_AllDroppedMilestoneStopsGatingSuccessors(t *testing.T) {
+	in := ScopeInput{
+		Targets: []string{"execute/a", "execute/b"},
+		ItemDeps: map[string][]string{
+			"execute/a": nil,
+			"execute/b": nil,
+		},
+		ItemStatus: map[string]string{
+			"execute/a": "dropped",
+			"execute/b": "backlog",
+		},
+		Milestones: []Milestone{
+			{Name: "m1", Items: []string{"execute/a"}},
+			{Name: "m2", Items: []string{"execute/b"}, DependsOn: []string{"m1"}},
+		},
+	}
+	got := ComputeScope(in)
+	if !reflect.DeepEqual(got.Ready, []string{"execute/b"}) {
+		t.Fatalf("Ready = %v, want [execute/b] — m1 is settled, so m2 is open", got.Ready)
+	}
+}
+
 func TestComputeScope_MilestonePartitionLeavesClosureItemsUnassigned(t *testing.T) {
 	in := ScopeInput{
 		Targets: []string{"execute/a", "execute/d"},

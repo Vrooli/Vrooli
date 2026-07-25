@@ -302,6 +302,11 @@ func (s *Service) ReadyGoalItems() ([]ReadyGoalItem, error) {
 	return out, nil
 }
 
+// LoadAllRaw returns every goal record without computing scope. Scope is a
+// transitive closure over the whole backlog, so callers that only need names
+// and versions — the workflow sweeper does — must not pay for it.
+func (s *Service) LoadAllRaw() ([]Goal, error) { return s.store.LoadAll() }
+
 // List returns all goals with computed scope and ETA bands. The scope input and
 // estimator are built once and reused across goals.
 func (s *Service) List() ([]GoalWithScope, error) {
@@ -668,6 +673,7 @@ func (s *Service) UpdateMilestone(goalName string, milestone Milestone) (*GoalWi
 		return nil, err
 	}
 	milestone = normalizeMilestone(milestone)
+	milestone = carryServerOwnedMilestoneFields(g.Milestones[index], milestone)
 	g.Milestones[index] = milestone
 	g.Updated = nowRFC3339()
 	if err := s.store.Save(g); err != nil {
@@ -781,6 +787,45 @@ func milestoneIndex(milestones []Milestone, name string) int {
 	return -1
 }
 
+// carryServerOwnedMilestoneFields merges the fields a milestone update may not
+// set into the incoming definition. UpdateMilestone replaces the milestone
+// wholesale, so any field the caller cannot express is otherwise erased:
+// membership vanishes, an archived milestone reappears, and a verified-delivered
+// stamp is lost — silently, because the payload looked complete.
+//
+// Membership and lifecycle are server-owned. Membership changes only through
+// AssignMilestoneItems, which validates goal closure; archival only through
+// ArchiveMilestone; delivery only through MarkMilestoneDelivered, whose stamp is
+// the sole evidence CloseOut accepts.
+//
+// The one field deliberately NOT carried forward unconditionally is the
+// verified-delivered stamp: a verdict is a judgement about a specific definition
+// of done. When the acceptance criteria change, the old verdict no longer
+// describes what the milestone now claims, so the stamp is cleared and the
+// milestone must be reviewed again.
+func carryServerOwnedMilestoneFields(previous, next Milestone) Milestone {
+	next.Items = append([]string(nil), previous.Items...)
+	next.ArchivedAt = previous.ArchivedAt
+	if sameCriteria(previous.AcceptanceCriteria, next.AcceptanceCriteria) {
+		next.VerifiedDeliveredAt = previous.VerifiedDeliveredAt
+	} else {
+		next.VerifiedDeliveredAt = nil
+	}
+	return next
+}
+
+func sameCriteria(previous, next []string) bool {
+	if len(previous) != len(next) {
+		return false
+	}
+	for i := range previous {
+		if strings.TrimSpace(previous[i]) != strings.TrimSpace(next[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 func normalizeMilestone(m Milestone) Milestone {
 	m.Name = sanitizeName(m.Name)
 	m.Title = strings.TrimSpace(m.Title)
@@ -821,6 +866,17 @@ func milestonePayload(goal string, m Milestone) eventlog.MilestonePayload {
 	return eventlog.MilestonePayload{GoalName: goal, MilestoneName: m.Name, Items: m.Items}
 }
 
+// hasAcceptanceCriteria reports whether the milestone carries at least one
+// non-blank criterion.
+func hasAcceptanceCriteria(m Milestone) bool {
+	for _, criterion := range m.AcceptanceCriteria {
+		if strings.TrimSpace(criterion) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func validateMilestone(m Milestone, existing []Milestone, replacing string) error {
 	name := sanitizeName(m.Name)
 	if name == "" {
@@ -828,6 +884,14 @@ func validateMilestone(m Milestone, existing []Milestone, replacing string) erro
 	}
 	if strings.TrimSpace(m.Title) == "" {
 		return validationErr("milestone title is required")
+	}
+	// A milestone is the only carrier of a goal's definition of done:
+	// milestone review reads the criteria, and CloseOut is gated on that
+	// review's verdict. Creating or replacing one without criteria produces a
+	// milestone that can never be reviewed, so the goal can never be achieved.
+	// Both write paths replace the definition wholesale, so both must state it.
+	if !hasAcceptanceCriteria(m) {
+		return validationErr("milestone acceptance criteria are required: without them the milestone can never be reviewed and its goal can never be closed out")
 	}
 	names := make(map[string]bool, len(existing)+1)
 	for _, candidate := range existing {

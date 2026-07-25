@@ -55,9 +55,9 @@ type GoalScoper interface {
 // Config wires optional read models used for ETA. Metrics still degrade to the
 // event-log aggregate when these are absent.
 type Config struct {
-	Backlog     BacklogLister
-	Goals       GoalScoper
-	ETA         ETAEstimatorFactory
+	Backlog BacklogLister
+	Goals   GoalScoper
+	ETA     ETAEstimatorFactory
 }
 
 // Params controls optional stats scoping.

@@ -43,7 +43,6 @@ class SandboxLifecycleEvent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED: _ClassVar[SandboxLifecycleEvent]
     SANDBOX_LIFECYCLE_EVENT_TURN_FAILED: _ClassVar[SandboxLifecycleEvent]
     SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED: _ClassVar[SandboxLifecycleEvent]
-    SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED: _ClassVar[SandboxLifecycleEvent]
 
 class SandboxAcceptanceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -197,7 +196,6 @@ SANDBOX_LIFECYCLE_EVENT_TERMINAL: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_TURN_FAILED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED: SandboxLifecycleEvent
-SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED: SandboxLifecycleEvent
 SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED: SandboxAcceptanceMode
 SANDBOX_ACCEPTANCE_MODE_ALLOWLIST: SandboxAcceptanceMode
 SANDBOX_MODE_UNSPECIFIED: SandboxMode

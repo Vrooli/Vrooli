@@ -211,7 +211,9 @@ type AgentProfile struct {
 	// When the profile was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the profile was last updated.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Canonical reasoning effort: low, medium, high, xhigh, or max.
+	Effort        string `protobuf:"bytes,35,opt,name=effort,proto3" json:"effort,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -428,6 +430,13 @@ func (x *AgentProfile) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AgentProfile) GetEffort() string {
+	if x != nil {
+		return x.Effort
+	}
+	return ""
+}
+
 // ResultSpec is normalized before persistence. schema contains canonical JSON
 // bytes and schema_digest identifies those exact bytes. classification_values
 // is a create convenience compiled into schema and omitted after resolution.
@@ -552,6 +561,8 @@ type RunConfig struct {
 	// Tools explicitly denied.
 	DeniedTools           []string `protobuf:"bytes,6,rep,name=denied_tools,json=deniedTools,proto3" json:"denied_tools,omitempty"`
 	ToolRestrictionPolicy string   `protobuf:"bytes,23,opt,name=tool_restriction_policy,json=toolRestrictionPolicy,proto3" json:"tool_restriction_policy,omitempty"`
+	// Canonical reasoning effort: low, medium, high, xhigh, or max.
+	Effort string `protobuf:"bytes,24,opt,name=effort,proto3" json:"effort,omitempty"`
 	// Skip permission prompts.
 	SkipPermissionPrompt bool `protobuf:"varint,7,opt,name=skip_permission_prompt,json=skipPermissionPrompt,proto3" json:"skip_permission_prompt,omitempty"`
 	// Feature flags (typed, discoverable capabilities).
@@ -663,6 +674,13 @@ func (x *RunConfig) GetDeniedTools() []string {
 func (x *RunConfig) GetToolRestrictionPolicy() string {
 	if x != nil {
 		return x.ToolRestrictionPolicy
+	}
+	return ""
+}
+
+func (x *RunConfig) GetEffort() string {
+	if x != nil {
+		return x.Effort
 	}
 	return ""
 }
@@ -1237,6 +1255,8 @@ type RunConfigOverrides struct {
 	ClearExtraFlags bool `protobuf:"varint,23,opt,name=clear_extra_flags,json=clearExtraFlags,proto3" json:"clear_extra_flags,omitempty"`
 	// Network access level override.
 	NetworkAccess *NetworkAccess `protobuf:"varint,24,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess,oneof" json:"network_access,omitempty"`
+	// Canonical reasoning effort override.
+	Effort *string `protobuf:"bytes,28,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
 	// Sandbox lifecycle + acceptance configuration.
 	SandboxConfig *SandboxConfig `protobuf:"bytes,17,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
@@ -1360,6 +1380,13 @@ func (x *RunConfigOverrides) GetNetworkAccess() NetworkAccess {
 		return *x.NetworkAccess
 	}
 	return NetworkAccess_NETWORK_ACCESS_UNSPECIFIED
+}
+
+func (x *RunConfigOverrides) GetEffort() string {
+	if x != nil && x.Effort != nil {
+		return *x.Effort
+	}
+	return ""
 }
 
 func (x *RunConfigOverrides) GetSandboxConfig() *SandboxConfig {
@@ -1486,7 +1513,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\v\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd2\v\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -1525,7 +1552,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x1a^\n" +
+	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x16\n" +
+	"\x06effort\x18# \x01(\tR\x06effort\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14J\x04\b\x16\x10\x17J\x04\b \x10!R\vrunner_typeR\x05modelR\n" +
@@ -1540,7 +1568,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0fextraction_mode\x18\x06 \x01(\x0e2*.agent_manager.v1.StructuredExtractionModeR\x0eextractionMode\x12'\n" +
 	"\x0fextraction_role\x18\a \x01(\tR\x0eextractionRole\x129\n" +
 	"\x16schema_repair_attempts\x18\b \x01(\x05H\x00R\x14schemaRepairAttempts\x88\x01\x01B\x19\n" +
-	"\x17_schema_repair_attempts\"\xcc\b\n" +
+	"\x17_schema_repair_attempts\"\xe4\b\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
@@ -1552,7 +1580,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x126\n" +
-	"\x17tool_restriction_policy\x18\x17 \x01(\tR\x15toolRestrictionPolicy\x124\n" +
+	"\x17tool_restriction_policy\x18\x17 \x01(\tR\x15toolRestrictionPolicy\x12\x16\n" +
+	"\x06effort\x18\x18 \x01(\tR\x06effort\x124\n" +
 	"\x16skip_permission_prompt\x18\a \x01(\bR\x14skipPermissionPrompt\x12:\n" +
 	"\bfeatures\x18\x10 \x01(\v2\x1e.agent_manager.v1.FeatureFlagsR\bfeatures\x12L\n" +
 	"\vextra_flags\x18\x11 \x03(\v2+.agent_manager.v1.RunConfig.ExtraFlagsEntryR\n" +
@@ -1614,7 +1643,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x12selected_candidate\x18\x05 \x01(\v2$.agent_manager.v1.ExecutionCandidateR\x11selectedCandidate\x12O\n" +
 	"\vexplanation\x18\x06 \x01(\v2-.agent_manager.v1.PolicyResolutionExplanationR\vexplanation\x12\x19\n" +
 	"\brole_ref\x18\a \x01(\tR\aroleRefJ\x04\b\x02\x10\x03R\n" +
-	"policy_ref\"\xa8\n" +
+	"policy_ref\"\xd0\n" +
 	"\n" +
 	"\x12RunConfigOverrides\x12\x1e\n" +
 	"\brole_ref\x18\x1a \x01(\tH\x00R\aroleRef\x88\x01\x01\x12=\n" +
@@ -1629,7 +1658,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\vextra_flags\x18\x16 \x03(\v24.agent_manager.v1.RunConfigOverrides.ExtraFlagsEntryR\n" +
 	"extraFlags\x12*\n" +
 	"\x11clear_extra_flags\x18\x17 \x01(\bR\x0fclearExtraFlags\x12K\n" +
-	"\x0enetwork_access\x18\x18 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessH\x05R\rnetworkAccess\x88\x01\x01\x12F\n" +
+	"\x0enetwork_access\x18\x18 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessH\x05R\rnetworkAccess\x88\x01\x01\x12\x1b\n" +
+	"\x06effort\x18\x1c \x01(\tH\x06R\x06effort\x88\x01\x01\x12F\n" +
 	"\x0esandbox_config\x18\x11 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
@@ -1648,7 +1678,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\b_timeoutB\x19\n" +
 	"\x17_skip_permission_promptB\v\n" +
 	"\t_featuresB\x11\n" +
-	"\x0f_network_accessJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"\x0f_network_accessB\t\n" +
+	"\a_effortJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"J\x04\b\x10\x10\x11J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x19\x10\x1aR\vrunner_typeR\x05modelR\n" +
 	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_typesR\x1bclear_fallback_runner_types\"\xa7\x01\n" +
 	"\x0fHeartbeatConfig\x125\n" +

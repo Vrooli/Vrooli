@@ -30,7 +30,7 @@ func newCompositeMutationProcessor(goalService *goals.Service, store backlog.Sto
 		return nil, err
 	}
 	return &compositeMutationProcessor{
-		goal:    newGoalMutationProcessor(goalService),
+		goal:    newGoalMutationProcessor(goalService, lifecycle),
 		backlog: &backlogMutationProcessor{store: store, goals: goalService, applier: applier},
 	}, nil
 }

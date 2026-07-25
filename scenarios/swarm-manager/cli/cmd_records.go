@@ -17,7 +17,7 @@ type Record struct {
 	Kind         string   `json:"kind"`
 	Scenario     string   `json:"scenario"`
 	BacklogRef   string   `json:"backlog_ref,omitempty"`
-	MilestoneID string   `json:"milestone_id,omitempty"`
+	MilestoneID  string   `json:"milestone_id,omitempty"`
 	Supersedes   string   `json:"supersedes,omitempty"`
 	SupersededBy string   `json:"superseded_by,omitempty"`
 	Trigger      string   `json:"trigger"`
@@ -342,7 +342,7 @@ func (a *App) cmdRecordsCreate(args []string) error {
 		"kind":          in.kind,
 		"scenario":      in.scenario,
 		"backlog_ref":   in.backlogRef,
-		"milestone_id": in.milestoneID,
+		"milestone_id":  in.milestoneID,
 		"supersedes":    in.supersedes,
 		"trigger":       in.trigger,
 		"approach":      in.approach,
@@ -581,7 +581,7 @@ const recordsOutcomes = "shipped|partial|abandoned|duplicate"
 type recordsCreateInput struct {
 	kind, scenario, trigger, approach, evidence string
 	ruledOut, files                             stringSlice
-	commit, backlogRef, milestoneID            string
+	commit, backlogRef, milestoneID             string
 	supersedes, outcome, createdBy              string
 }
 

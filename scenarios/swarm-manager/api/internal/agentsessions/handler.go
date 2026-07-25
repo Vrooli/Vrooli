@@ -73,7 +73,9 @@ func (h *Handler) CreateProposalSession(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) ListProposalSessions(w http.ResponseWriter, r *http.Request) {
 	targetType, targetRef := ContextType(strings.TrimSpace(r.URL.Query().Get("target_type"))), strings.TrimSpace(r.URL.Query().Get("target_ref"))
-	sessions, err := h.service.List(r.Context(), ListFilters{})
+	// Proposals are session-level state, so the per-session artifact hydration
+	// List performs is pure cost here — and it dominates a whole-store scan.
+	sessions, err := h.service.ListWithoutArtifacts(ListFilters{})
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] list proposal sessions", err)
 		return

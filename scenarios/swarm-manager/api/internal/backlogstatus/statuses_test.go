@@ -14,6 +14,52 @@ func TestSuggestedStatusPolicy(t *testing.T) {
 	}
 }
 
+func TestDroppedStatusPolicy(t *testing.T) {
+	if !IsValid(Dropped) {
+		t.Fatal("dropped should be a valid backlog status")
+	}
+	if !IsTerminal(Dropped) {
+		t.Fatal("dropped should be terminal — the item will not be worked again")
+	}
+	// Unlike the other terminals, dropped records an operator decision rather
+	// than a run outcome, so it must be reachable without a review round.
+	if !IsUserSettable(Dropped) {
+		t.Fatal("dropped should be settable directly via PATCH, with no run required")
+	}
+	if !IsValidTransition(Backlog, Dropped) {
+		t.Fatal("an untouched backlog item should be droppable")
+	}
+}
+
+func TestIsResolved(t *testing.T) {
+	cases := []struct {
+		status string
+		want   bool
+		reason string
+	}{
+		{Completed, true, "work was done — dependents may proceed"},
+		{Dropped, true, "work will never be done — dependents must not wait forever"},
+
+		// Failure states are still live work. Their dependents are genuinely
+		// blocked, so resolving them here would let downstream items start on
+		// top of a prerequisite that never landed.
+		{Failed, false, "failed work may still be retried"},
+		{NeedsFollowup, false, "delivered but incomplete — dependents still wait"},
+
+		{Backlog, false, "not started"},
+		{Ready, false, "not started"},
+		{InProgress, false, "in flight"},
+		{InReview, false, "in flight"},
+		{ReviewPending, false, "awaiting operator verdict"},
+		{Suggested, false, "not yet accepted"},
+	}
+	for _, c := range cases {
+		if got := IsResolved(c.status); got != c.want {
+			t.Errorf("IsResolved(%s) = %v, want %v (%s)", c.status, got, c.want, c.reason)
+		}
+	}
+}
+
 func TestIsValidTransition(t *testing.T) {
 	cases := []struct {
 		from, to string

@@ -148,6 +148,9 @@ message AgentProfile {
 
   // When the profile was last updated.
   google.protobuf.Timestamp updated_at = 17;
+
+  // Canonical reasoning effort: low, medium, high, xhigh, or max.
+  string effort = 35;
 }
 
 // =============================================================================
@@ -222,6 +225,9 @@ message RunConfig {
   repeated string denied_tools = 6;
 
   string tool_restriction_policy = 23;
+
+  // Canonical reasoning effort: low, medium, high, xhigh, or max.
+  string effort = 24;
 
   // Skip permission prompts.
   bool skip_permission_prompt = 7;
@@ -363,6 +369,9 @@ message RunConfigOverrides {
 
   // Network access level override.
   optional NetworkAccess network_access = 24;
+
+  // Canonical reasoning effort override.
+  optional string effort = 28;
 
   // Reserved to prevent accidental reuse of wire IDs/names from earlier
   // schema iterations. SandboxConfig.mode is the single source of truth

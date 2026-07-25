@@ -47,7 +47,7 @@ func TestConvergence_AllSourcesAgreeOnDiskState(t *testing.T) {
 		Priority:    4,
 		Effort:      "M",
 		Description: "created via proposal",
-		Milestone:  "shared-init",
+		Milestone:   "shared-init",
 		Created:     now,
 		Updated:     now,
 	}

@@ -63,7 +63,7 @@ const (
 	MeasureBacklogCompleted    = "backlog.completed"
 	MeasureBacklogCreated      = "backlog.created"
 	MeasureExecutionCompleted  = "execution.completed"
-	MeasureGoalCreated   = "goal.created"
+	MeasureGoalCreated         = "goal.created"
 	MeasureAgentSessionCreated = "agent_session.created"
 )
 

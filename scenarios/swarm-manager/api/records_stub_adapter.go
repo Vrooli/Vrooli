@@ -43,6 +43,11 @@ func (a *recordCaptureAdapter) CreateBacklogRecord(ctx context.Context, req back
 	switch req.Status {
 	case backlog.StatusFailed:
 		outcome = records.OutcomeAbandoned
+	case backlog.StatusDropped:
+		// Dropped work was never attempted, so there is no narrative of what
+		// was tried to capture — a record here would be an empty shell that
+		// pollutes semantic search over real work.
+		return "", nil
 	case backlog.StatusNeedsFollowup:
 		// Followup items aren't done yet — nothing to capture.
 		return "", nil
@@ -68,14 +73,14 @@ func (a *recordCaptureAdapter) CreateBacklogRecord(ctx context.Context, req back
 	}
 
 	r, err := a.svc.Create(ctx, records.CreateInput{
-		Kind:         records.RecordKind(req.Kind),
-		Scenario:     scenario,
-		BacklogRef:   fmt.Sprintf("%s/%s", req.Kind, req.Name),
+		Kind:        records.RecordKind(req.Kind),
+		Scenario:    scenario,
+		BacklogRef:  fmt.Sprintf("%s/%s", req.Kind, req.Name),
 		MilestoneID: strings.TrimSpace(req.Milestone),
-		Trigger:      trigger,
-		Approach:     approach,
-		Outcome:      outcome,
-		CreatedBy:    req.DecidedBy,
+		Trigger:     trigger,
+		Approach:    approach,
+		Outcome:     outcome,
+		CreatedBy:   req.DecidedBy,
 	})
 	if err != nil {
 		return "", err

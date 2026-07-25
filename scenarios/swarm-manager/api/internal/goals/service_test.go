@@ -53,13 +53,36 @@ func TestService_CreateComputesScopeAndBaseline(t *testing.T) {
 	}
 }
 
+// A milestone is the only carrier of a goal's definition of done, so the
+// domain refuses to persist one without acceptance criteria on either write
+// path. This is the rule that also covers the CLI and the legacy batch seam,
+// not just typed proposals.
+func TestService_MilestoneRequiresAcceptanceCriteria(t *testing.T) {
+	svc := newTestService(t, []backlog.BacklogItem{item("execute", "a", "backlog", nil)})
+	if _, err := svc.Create(CreateRequest{Name: "release", Targets: []string{"execute/a"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreateMilestone("release", Milestone{Name: "ship", Title: "Ship"}); err == nil {
+		t.Fatal("CreateMilestone accepted a milestone with no acceptance criteria")
+	}
+	criteria := []string{"Given the release work, when it lands, then the artifact ships."}
+	if _, err := svc.CreateMilestone("release", Milestone{Name: "ship", Title: "Ship", AcceptanceCriteria: criteria}); err != nil {
+		t.Fatalf("CreateMilestone with criteria: %v", err)
+	}
+	// UpdateMilestone replaces the definition wholesale, so an update that
+	// omits criteria would erase the definition of done.
+	if _, err := svc.UpdateMilestone("release", Milestone{Name: "ship", Title: "Ship it"}); err == nil {
+		t.Fatal("UpdateMilestone erased the definition of done")
+	}
+}
+
 // [REQ:SWM-P0-011] Only evidence-verified milestone delivery can close out a goal.
 func TestService_CloseOutRequiresVerifiedMilestones(t *testing.T) {
 	svc := newTestService(t, []backlog.BacklogItem{item("execute", "a", "completed", nil)})
 	if _, err := svc.Create(CreateRequest{Name: "release", Targets: []string{"execute/a"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.CreateMilestone("release", Milestone{Name: "ship", Title: "Ship", Items: []string{"execute/a"}}); err != nil {
+	if _, err := svc.CreateMilestone("release", Milestone{Name: "ship", Title: "Ship", Items: []string{"execute/a"}, AcceptanceCriteria: []string{"Given the release work, when it lands, then the artifact ships."}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.CloseOut("release"); err == nil {
@@ -84,7 +107,7 @@ func TestBacklogMilestoneAssignerAddsScopeBeforeMembership(t *testing.T) {
 	if _, err := svc.Create(CreateRequest{Name: "release", Title: "Release"}); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if _, err := svc.CreateMilestone("release", Milestone{Name: "build", Title: "Build"}); err != nil {
+	if _, err := svc.CreateMilestone("release", Milestone{Name: "build", Title: "Build", AcceptanceCriteria: []string{"Given the sources, when the build runs, then it produces an artifact."}}); err != nil {
 		t.Fatalf("CreateMilestone: %v", err)
 	}
 	assigner := NewBacklogMilestoneAssigner(svc)
@@ -278,10 +301,10 @@ func TestService_MilestonesAreOwnedScopedAndRoundTrip(t *testing.T) {
 	if _, err := svc.Create(CreateRequest{Name: "g", Targets: []string{"execute/a"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.CreateMilestone("g", Milestone{Name: "build", Title: "Build"}); err != nil {
+	if _, err := svc.CreateMilestone("g", Milestone{Name: "build", Title: "Build", AcceptanceCriteria: []string{"Given the sources, when the build runs, then it produces an artifact."}}); err != nil {
 		t.Fatalf("CreateMilestone: %v", err)
 	}
-	if _, err := svc.CreateMilestone("g", Milestone{Name: "verify", Title: "Verify", DependsOn: []string{"build"}}); err != nil {
+	if _, err := svc.CreateMilestone("g", Milestone{Name: "verify", Title: "Verify", DependsOn: []string{"build"}, AcceptanceCriteria: []string{"Given a built artifact, when it is verified, then the checks pass."}}); err != nil {
 		t.Fatalf("CreateMilestone dependent: %v", err)
 	}
 	if _, err := svc.AssignMilestoneItems("g", "build", []string{"execute/a"}); err != nil {

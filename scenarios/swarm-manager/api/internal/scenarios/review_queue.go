@@ -73,8 +73,11 @@ type reviewQueueResult struct {
 }
 
 // terminalBacklogStatus returns true for statuses that should not count as pending.
+//
+// Deliberately NARROWER than backlog.IsTerminalStatus: `needs_followup` means
+// delivered-but-incomplete, which is still pending work for this queue.
 func terminalBacklogStatus(s backlog.BacklogStatus) bool {
-	return s == backlog.StatusCompleted || s == backlog.StatusFailed
+	return s == backlog.StatusCompleted || s == backlog.StatusFailed || s == backlog.StatusDropped
 }
 
 // isCreationKind returns true for backlog kinds that represent planned work

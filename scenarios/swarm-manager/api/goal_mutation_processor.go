@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/backlog"
@@ -15,10 +16,14 @@ import (
 // GoalMutationProcessor adapts goal-scoped session mutation proposals to the
 // existing goals.Service mutation methods. It keeps the session proposal store
 // as the single operator decision inbox.
-type goalMutationProcessor struct{ service *goals.Service }
+type goalMutationProcessor struct {
+	service *goals.Service
+	creator proposals.ItemCreator
+	clock   func() time.Time
+}
 
-func newGoalMutationProcessor(service *goals.Service) *goalMutationProcessor {
-	return &goalMutationProcessor{service: service}
+func newGoalMutationProcessor(service *goals.Service, creator proposals.ItemCreator) *goalMutationProcessor {
+	return &goalMutationProcessor{service: service, creator: creator, clock: time.Now}
 }
 
 func (p *goalMutationProcessor) Ingest(ctx context.Context, target agentsessions.ProposalTarget, assistantReply string) (agentsessions.MutationProposalIngestion, error) {
@@ -50,11 +55,18 @@ func (p *goalMutationProcessor) Apply(ctx context.Context, target agentsessions.
 	if err := proposals.ValidateGoal(proposal, state); err != nil {
 		return agentsessions.MutationProposalApplication{}, err
 	}
-	acceptedSet := map[string]struct{}{}
+	// A subset is its own proposal. Accepting an assignment while rejecting the
+	// create_milestone that supplied its target would otherwise pass the
+	// full-list check and fail only at apply time, leaving the goal
+	// half-changed.
 	if accepted != nil {
-		for _, id := range accepted {
-			acceptedSet[strings.TrimSpace(id)] = struct{}{}
+		if err := proposals.ValidateGoal(proposals.Subset(proposal, accepted), state); err != nil {
+			return agentsessions.MutationProposalApplication{}, fmt.Errorf("accepted subset is not applicable on its own: %w", err)
 		}
+	}
+	acceptedSet := map[string]struct{}{}
+	for _, id := range accepted {
+		acceptedSet[strings.TrimSpace(id)] = struct{}{}
 	}
 	out := make([]agentsessions.MutationOutcome, 0, len(proposal.Mutations))
 	for _, mutation := range proposal.Mutations {
@@ -121,8 +133,21 @@ func (p *goalMutationProcessor) state(_ context.Context, goalName string) (propo
 	return state, nil
 }
 
-func (p *goalMutationProcessor) applyOne(_ context.Context, goalName string, m proposals.Mutation) error {
+func (p *goalMutationProcessor) applyOne(ctx context.Context, goalName string, m proposals.Mutation) error {
 	switch m.Op {
+	case proposals.OpAddItem:
+		if p.creator == nil {
+			return fmt.Errorf("goal proposals cannot create items: no item creator is configured")
+		}
+		// The item is created unattached. A goal proposal that wants it in
+		// scope pairs this with add_goal_target, and one that wants it owned
+		// by a milestone pairs it with assign_milestone_items — both of which
+		// the operator sees and decides in the same envelope.
+		item, err := proposals.ItemFromSpec(*m.Item, "", p.clock().UTC().Format(time.RFC3339))
+		if err != nil {
+			return err
+		}
+		return p.creator.Create(item, backlog.CreationContext{Source: backlog.SourceProposal, Entrypoint: "goal.proposal"})
 	case proposals.OpCreateMilestone:
 		_, err := p.service.CreateMilestone(goalName, milestoneFromGoalProposal(*m.GoalMilestone))
 		return err
@@ -131,13 +156,15 @@ func (p *goalMutationProcessor) applyOne(_ context.Context, goalName string, m p
 		if err != nil {
 			return err
 		}
-		previous, found := findGoalMilestone(current.Goal.Milestones, m.GoalMilestone.Name)
-		if !found {
+		if _, found := findGoalMilestone(current.Goal.Milestones, m.GoalMilestone.Name); !found {
 			return fmt.Errorf("milestone %q not found", m.GoalMilestone.Name)
 		}
-		updated := milestoneFromGoalProposal(*m.GoalMilestone)
-		updated.Items, updated.ArchivedAt = previous.Items, previous.ArchivedAt
-		_, err = p.service.UpdateMilestone(goalName, updated)
+		// Membership, archival, and the verified-delivered stamp are carried
+		// forward by goals.UpdateMilestone itself. Compensating here as well
+		// would put the rule in two places, and the CLI path — which has no
+		// compensation of its own — proved that the caller-side copy is the one
+		// that gets forgotten.
+		_, err = p.service.UpdateMilestone(goalName, milestoneFromGoalProposal(*m.GoalMilestone))
 		return err
 	case proposals.OpArchiveMilestone:
 		if m.DetachOpen {

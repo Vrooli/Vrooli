@@ -22,6 +22,7 @@ func (a *App) cmdBacklogReviewDecide(args []string) error {
 	acceptFlag := fs.Bool("accept", false, "Accept review → status = completed")
 	failFlag := fs.Bool("fail", false, "Reject review → status = failed")
 	followupFlag := fs.Bool("followup", false, "Needs follow-up → status = needs_followup")
+	dropFlag := fs.Bool("drop", false, "Decided not to pursue → status = dropped (no verdict on the work)")
 	rationaleFlag := fs.String("rationale", "", "Short explanation of the decision (logged alongside the review rounds)")
 	decidedByFlag := fs.String("decided-by", "", "Identifier for who made the decision (defaults to 'user')")
 	jsonOut := cliutil.JSONFlag(fs)
@@ -29,19 +30,32 @@ func (a *App) cmdBacklogReviewDecide(args []string) error {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog review-decide --kind KIND --name NAME (--accept|--fail|--followup) [--rationale MSG] [--decided-by NAME] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: backlog review-decide --kind KIND --name NAME (--accept|--fail|--followup|--drop) [--rationale MSG] [--decided-by NAME] [--json]\n\n%s", err)
 	}
 
+	// Counted rather than compared pairwise: the exclusivity check stays O(n)
+	// as verdicts are added.
+	verdicts := []struct {
+		set  bool
+		name string
+	}{
+		{*acceptFlag, "accept"},
+		{*failFlag, "fail"},
+		{*followupFlag, "followup"},
+		{*dropFlag, "drop"},
+	}
 	var decision string
-	switch {
-	case *acceptFlag && !*failFlag && !*followupFlag:
-		decision = "accept"
-	case *failFlag && !*acceptFlag && !*followupFlag:
-		decision = "fail"
-	case *followupFlag && !*acceptFlag && !*failFlag:
-		decision = "followup"
-	default:
-		return fmt.Errorf("exactly one of --accept, --fail, --followup must be provided")
+	for _, v := range verdicts {
+		if !v.set {
+			continue
+		}
+		if decision != "" {
+			return fmt.Errorf("exactly one of --accept, --fail, --followup, --drop must be provided")
+		}
+		decision = v.name
+	}
+	if decision == "" {
+		return fmt.Errorf("exactly one of --accept, --fail, --followup, --drop must be provided")
 	}
 
 	kind := strings.TrimSpace(*kindFlag)

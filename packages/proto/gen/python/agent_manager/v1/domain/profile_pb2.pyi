@@ -34,7 +34,7 @@ STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY: StructuredExtractionMode
 STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK: StructuredExtractionMode
 
 class AgentProfile(_message.Message):
-    __slots__ = ("id", "name", "profile_key", "description", "role_ref", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "skip_permission_prompt", "features", "extra_flags", "network_access", "owner_scenario", "source_path", "source_hash", "last_applied_hash", "source_updated_at", "local_override", "sandbox_config", "allowed_paths", "denied_paths", "created_by", "created_at", "updated_at")
+    __slots__ = ("id", "name", "profile_key", "description", "role_ref", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "skip_permission_prompt", "features", "extra_flags", "network_access", "owner_scenario", "source_path", "source_hash", "last_applied_hash", "source_updated_at", "local_override", "sandbox_config", "allowed_paths", "denied_paths", "created_by", "created_at", "updated_at", "effort")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -68,6 +68,7 @@ class AgentProfile(_message.Message):
     CREATED_BY_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     profile_key: str
@@ -94,7 +95,8 @@ class AgentProfile(_message.Message):
     created_by: str
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., role_ref: _Optional[str] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., owner_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., last_applied_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., local_override: _Optional[bool] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    effort: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., role_ref: _Optional[str] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., owner_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., last_applied_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., local_override: _Optional[bool] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., effort: _Optional[str] = ...) -> None: ...
 
 class ResultSpec(_message.Message):
     __slots__ = ("version", "kind", "schema", "schema_digest", "classification_values", "extraction_mode", "extraction_role", "schema_repair_attempts")
@@ -117,7 +119,7 @@ class ResultSpec(_message.Message):
     def __init__(self, version: _Optional[str] = ..., kind: _Optional[_Union[ResultSpecKind, str]] = ..., schema: _Optional[bytes] = ..., schema_digest: _Optional[str] = ..., classification_values: _Optional[_Iterable[str]] = ..., extraction_mode: _Optional[_Union[StructuredExtractionMode, str]] = ..., extraction_role: _Optional[str] = ..., schema_repair_attempts: _Optional[int] = ...) -> None: ...
 
 class RunConfig(_message.Message):
-    __slots__ = ("runner_type", "model", "role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths")
+    __slots__ = ("runner_type", "model", "role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "effort", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -134,6 +136,7 @@ class RunConfig(_message.Message):
     ALLOWED_TOOLS_FIELD_NUMBER: _ClassVar[int]
     DENIED_TOOLS_FIELD_NUMBER: _ClassVar[int]
     TOOL_RESTRICTION_POLICY_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_FIELD_NUMBER: _ClassVar[int]
     SKIP_PERMISSION_PROMPT_FIELD_NUMBER: _ClassVar[int]
     FEATURES_FIELD_NUMBER: _ClassVar[int]
     EXTRA_FLAGS_FIELD_NUMBER: _ClassVar[int]
@@ -151,6 +154,7 @@ class RunConfig(_message.Message):
     allowed_tools: _containers.RepeatedScalarFieldContainer[str]
     denied_tools: _containers.RepeatedScalarFieldContainer[str]
     tool_restriction_policy: str
+    effort: str
     skip_permission_prompt: bool
     features: _types_pb2.FeatureFlags
     extra_flags: _containers.MessageMap[str, _types_pb2.ExtraFlagList]
@@ -159,7 +163,7 @@ class RunConfig(_message.Message):
     sandbox_config: _types_pb2.SandboxConfig
     allowed_paths: _containers.RepeatedScalarFieldContainer[str]
     denied_paths: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., policy_snapshot: _Optional[_Union[ExecutionPolicySnapshot, _Mapping]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., effort: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., policy_snapshot: _Optional[_Union[ExecutionPolicySnapshot, _Mapping]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ExecutionCandidate(_message.Message):
     __slots__ = ("runner_type", "selection_type", "model", "resource_role", "fallbacks", "available", "failure_code", "failure", "provenance", "enforcement", "policy_path", "policy_digest")
@@ -250,7 +254,7 @@ class ExecutionPolicySnapshot(_message.Message):
     def __init__(self, catalog_digest: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[ExecutionCandidate, _Mapping]]] = ..., selected_index: _Optional[int] = ..., selected_candidate: _Optional[_Union[ExecutionCandidate, _Mapping]] = ..., explanation: _Optional[_Union[PolicyResolutionExplanation, _Mapping]] = ..., role_ref: _Optional[str] = ...) -> None: ...
 
 class RunConfigOverrides(_message.Message):
-    __slots__ = ("role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "clear_extra_flags", "network_access", "sandbox_config", "allowed_paths", "denied_paths", "clear_allowed_tools", "clear_denied_tools", "clear_allowed_paths", "clear_denied_paths")
+    __slots__ = ("role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "clear_extra_flags", "network_access", "effort", "sandbox_config", "allowed_paths", "denied_paths", "clear_allowed_tools", "clear_denied_tools", "clear_allowed_paths", "clear_denied_paths")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -269,6 +273,7 @@ class RunConfigOverrides(_message.Message):
     EXTRA_FLAGS_FIELD_NUMBER: _ClassVar[int]
     CLEAR_EXTRA_FLAGS_FIELD_NUMBER: _ClassVar[int]
     NETWORK_ACCESS_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_FIELD_NUMBER: _ClassVar[int]
     SANDBOX_CONFIG_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_PATHS_FIELD_NUMBER: _ClassVar[int]
     DENIED_PATHS_FIELD_NUMBER: _ClassVar[int]
@@ -287,6 +292,7 @@ class RunConfigOverrides(_message.Message):
     extra_flags: _containers.MessageMap[str, _types_pb2.ExtraFlagList]
     clear_extra_flags: bool
     network_access: _types_pb2.NetworkAccess
+    effort: str
     sandbox_config: _types_pb2.SandboxConfig
     allowed_paths: _containers.RepeatedScalarFieldContainer[str]
     denied_paths: _containers.RepeatedScalarFieldContainer[str]
@@ -294,7 +300,7 @@ class RunConfigOverrides(_message.Message):
     clear_denied_tools: bool
     clear_allowed_paths: bool
     clear_denied_paths: bool
-    def __init__(self, role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., clear_extra_flags: _Optional[bool] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., clear_allowed_tools: _Optional[bool] = ..., clear_denied_tools: _Optional[bool] = ..., clear_allowed_paths: _Optional[bool] = ..., clear_denied_paths: _Optional[bool] = ...) -> None: ...
+    def __init__(self, role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., clear_extra_flags: _Optional[bool] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., effort: _Optional[str] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., clear_allowed_tools: _Optional[bool] = ..., clear_denied_tools: _Optional[bool] = ..., clear_allowed_paths: _Optional[bool] = ..., clear_denied_paths: _Optional[bool] = ...) -> None: ...
 
 class HeartbeatConfig(_message.Message):
     __slots__ = ("interval", "timeout", "max_missed_beats")

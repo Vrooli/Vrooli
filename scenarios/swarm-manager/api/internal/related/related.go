@@ -96,6 +96,7 @@ type Engine struct {
 func NewEngine(b BacklogReader, g GoalReader, r records.Store, s Similarity) *Engine {
 	return &Engine{b, g, r, s}
 }
+
 func (e *Engine) Compute(ctx context.Context, target TargetRef, limit int) (Report, error) {
 	linked, err := e.linked(ctx, target)
 	if err != nil {
@@ -138,6 +139,7 @@ func (e *Engine) hydrateRecordTitles(entities []Entity) {
 		}
 	}
 }
+
 func limitEntities(in []Entity, limit int) []Entity {
 	if limit > 0 && len(in) > limit {
 		return in[:limit]
@@ -153,12 +155,15 @@ func itemMap(items []backlog.BacklogItem) map[string]backlog.BacklogItem {
 	}
 	return out
 }
+
 func backlogEntity(i backlog.BacklogItem, reasons ...string) Entity {
 	return Entity{EntityBacklog, string(i.Kind) + "/" + i.Name, i.Title, string(i.Status), backlog.IsArchived(i), reasons, 0}
 }
+
 func goalEntity(g goals.GoalWithScope, reasons ...string) Entity {
 	return Entity{EntityGoal, g.Goal.Name, g.Goal.Title, g.Goal.Status, g.Goal.ArchivedAt != nil && strings.TrimSpace(*g.Goal.ArchivedAt) != "", reasons, 0}
 }
+
 func recordEntity(r records.Record, reasons ...string) Entity {
 	return Entity{EntityRecord, r.ID, r.Trigger, string(r.Outcome), true, reasons, 0}
 }
@@ -232,6 +237,7 @@ func (e *Engine) linked(_ context.Context, target TargetRef) ([]Entity, error) {
 	}
 	return merge(out), nil
 }
+
 func findGoal(in []goals.GoalWithScope, name string) (goals.GoalWithScope, bool) {
 	for _, g := range in {
 		if g.Goal.Name == name {
@@ -292,6 +298,7 @@ func scopesForItem(i backlog.BacklogItem) scopeSet {
 	g := append(append([]string{}, i.AcceptanceAllow...), i.Creates...)
 	return scopeSet{set(pathutil.ScenariosFromGlobs(g)), g}
 }
+
 func scopesForGoal(goal goals.GoalWithScope, items []backlog.BacklogItem) scopeSet {
 	o := scopeSet{set(mapKeys(nil)), nil}
 	for _, key := range goal.Scope.Closure {
@@ -307,6 +314,7 @@ func scopesForGoal(goal goals.GoalWithScope, items []backlog.BacklogItem) scopeS
 	}
 	return o
 }
+
 func scopesForTarget(t TargetRef, items []backlog.BacklogItem, goalList []goals.GoalWithScope) scopeSet {
 	if t.Kind == TargetGoal {
 		if goal, ok := findGoal(goalList, t.Name); ok {
@@ -320,6 +328,7 @@ func scopesForTarget(t TargetRef, items []backlog.BacklogItem, goalList []goals.
 	}
 	return scopeSet{map[string]bool{}, nil}
 }
+
 func set(in []string) map[string]bool {
 	o := map[string]bool{}
 	for _, x := range in {
@@ -338,6 +347,7 @@ func intersection(a, b scopeSet) []string {
 	sort.Strings(out)
 	return out
 }
+
 func scopeReasons(common, left, right []string) []string {
 	out := []string{}
 	for _, s := range common {
@@ -349,6 +359,7 @@ func scopeReasons(common, left, right []string) []string {
 	}
 	return unique(out)
 }
+
 func commonPrefix(a, b []string, scenario string) string {
 	best := ""
 	for _, x := range a {
@@ -368,6 +379,7 @@ func commonPrefix(a, b []string, scenario string) string {
 	}
 	return best
 }
+
 func merge(in []Entity) []Entity {
 	m := map[string]Entity{}
 	for _, x := range in {
@@ -386,6 +398,7 @@ func merge(in []Entity) []Entity {
 	sort.Slice(out, func(i, j int) bool { return out[i].Title < out[j].Title })
 	return out
 }
+
 func unique(in []string) []string {
 	m := map[string]bool{}
 	var o []string
@@ -397,6 +410,7 @@ func unique(in []string) []string {
 	}
 	return o
 }
+
 func dedupe(groups ...[]Entity) ([]Entity, []Entity, []Entity) {
 	type position struct{ group, index int }
 	seen := map[string]position{}

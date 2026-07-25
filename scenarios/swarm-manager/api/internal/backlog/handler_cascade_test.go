@@ -27,24 +27,24 @@ func TestDelete_CascadesMilestoneMembership(t *testing.T) {
 	h.SetMilestoneAssigner(ia)
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
-		Name:       "to-delete",
-		Title:      "To Delete",
-		Status:     StatusBacklog,
-		Priority:   3,
-		Tags:       []string{},
+		Name:      "to-delete",
+		Title:     "To Delete",
+		Status:    StatusBacklog,
+		Priority:  3,
+		Tags:      []string{},
 		Milestone: "my-init",
-		Created:    "2026-04-21T00:00:00Z",
-		Updated:    "2026-04-21T00:00:00Z",
+		Created:   "2026-04-21T00:00:00Z",
+		Updated:   "2026-04-21T00:00:00Z",
 	})
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
-		Name:       "to-keep",
-		Title:      "To Keep",
-		Status:     StatusBacklog,
-		Priority:   3,
-		Tags:       []string{},
+		Name:      "to-keep",
+		Title:     "To Keep",
+		Status:    StatusBacklog,
+		Priority:  3,
+		Tags:      []string{},
 		Milestone: "my-init",
-		Created:    "2026-04-21T00:00:00Z",
-		Updated:    "2026-04-21T00:00:00Z",
+		Created:   "2026-04-21T00:00:00Z",
+		Updated:   "2026-04-21T00:00:00Z",
 	})
 
 	req := httptest.NewRequest("DELETE", "/api/v1/backlog/idea/to-delete", nil)
@@ -99,7 +99,7 @@ func TestPatch_MoveMilestone_SyncsBothSides(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "the-item", Title: "The Item", Status: StatusBacklog, Priority: 3, Tags: []string{},
 		Milestone: "old-init",
-		Created:    "2026-04-21T00:00:00Z", Updated: "2026-04-21T00:00:00Z",
+		Created:   "2026-04-21T00:00:00Z", Updated: "2026-04-21T00:00:00Z",
 	})
 
 	body := bytes.NewBufferString(`{"milestone":"new-init"}`)
@@ -131,7 +131,7 @@ func TestPatch_MoveMilestone_UnknownTarget_Rejected(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "the-item", Title: "The Item", Status: StatusBacklog, Priority: 3, Tags: []string{},
 		Milestone: "old-init",
-		Created:    "2026-04-21T00:00:00Z", Updated: "2026-04-21T00:00:00Z",
+		Created:   "2026-04-21T00:00:00Z", Updated: "2026-04-21T00:00:00Z",
 	})
 
 	body := bytes.NewBufferString(`{"milestone":"does-not-exist"}`)
@@ -160,7 +160,7 @@ func TestPatch_ClearMilestone_RemovesFromOldItems(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "the-item", Title: "The Item", Status: StatusBacklog, Priority: 3, Tags: []string{},
 		Milestone: "old-init",
-		Created:    "2026-04-21T00:00:00Z", Updated: "2026-04-21T00:00:00Z",
+		Created:   "2026-04-21T00:00:00Z", Updated: "2026-04-21T00:00:00Z",
 	})
 
 	body := bytes.NewBufferString(`{"milestone":""}`)

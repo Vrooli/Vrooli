@@ -1,6 +1,7 @@
 package goals
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -45,36 +46,30 @@ func (a *BacklogMilestoneAssigner) Get(ref string) (*backlog.MilestoneSnapshot, 
 	return nil, fmt.Errorf("milestone %q not found", ref)
 }
 
-// Create and Update retain compatibility with the batch seam only for an
-// already explicit goal/milestone reference. Goal-only metadata such as
-// milestone dependencies and plan refs has no goal/milestone equivalent.
+// errStructureIsGoalOwned explains why the batch seam cannot define goal
+// structure. The seam carries no acceptance criteria, so every milestone it
+// could write would be permanently unverifiable, and its goal permanently
+// un-closeable. Batch item creation attaches work to structure the operator
+// already approved; it does not invent that structure.
+const errStructureIsGoalOwned = "goal structure is not writable through backlog grouping: create the goal and its milestone (with acceptance criteria) through the goal API, then attach items to it"
+
+// Create previously auto-created a goal named after the milestone whenever the
+// referenced goal was absent, producing a goal titled with its own slug that
+// wrapped a single identically-named, criteria-less milestone. That is the
+// mechanism behind the mirrored goal/milestone pairs in the store, so the seam
+// no longer writes structure at all.
 func (a *BacklogMilestoneAssigner) Create(spec backlog.MilestoneSpec) error {
-	goalName, milestoneName, err := parseMilestoneRef(spec.Name)
-	if err != nil {
+	if _, _, err := parseMilestoneRef(spec.Name); err != nil {
 		return err
 	}
-	if len(spec.DependsOn) != 0 || spec.PlanRef != nil {
-		return fmt.Errorf("legacy grouping metadata is not supported for milestones")
-	}
-	if _, err := a.goals.Get(goalName); err != nil {
-		if _, createErr := a.goals.Create(CreateRequest{Name: goalName, Title: goalName, Priority: spec.Priority}); createErr != nil {
-			return createErr
-		}
-	}
-	_, err = a.goals.CreateMilestone(goalName, Milestone{Name: milestoneName, Title: spec.Title, Description: spec.Description})
-	return err
+	return errors.New(errStructureIsGoalOwned)
 }
 
 func (a *BacklogMilestoneAssigner) Update(spec backlog.MilestoneSpec) error {
-	goalName, milestoneName, err := parseMilestoneRef(spec.Name)
-	if err != nil {
+	if _, _, err := parseMilestoneRef(spec.Name); err != nil {
 		return err
 	}
-	if len(spec.DependsOn) != 0 || spec.PlanRef != nil {
-		return fmt.Errorf("legacy grouping metadata is not supported for milestones")
-	}
-	_, err = a.goals.UpdateMilestone(goalName, Milestone{Name: milestoneName, Title: spec.Title, Description: spec.Description})
-	return err
+	return errors.New(errStructureIsGoalOwned)
 }
 
 func (a *BacklogMilestoneAssigner) Replace(snapshot backlog.MilestoneSnapshot) error {

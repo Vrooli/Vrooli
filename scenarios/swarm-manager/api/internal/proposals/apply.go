@@ -94,30 +94,30 @@ type MilestoneLifecycle interface {
 // Applier re-validates defensively, so a malformed mutation surfaces as an
 // Outcome error rather than a partial mutation.
 type Applier struct {
-	store               BacklogStore
-	assigner            MilestoneAssigner
-	creator             ItemCreator
-	itemLifecycle       ItemLifecycle
+	store              BacklogStore
+	assigner           MilestoneAssigner
+	creator            ItemCreator
+	itemLifecycle      ItemLifecycle
 	milestoneLifecycle MilestoneLifecycle
-	cancel              ExecutionCanceller
-	invalidator         GraphInvalidator
-	events              EventEmitter
-	clock               func() time.Time
-	defaultOwner        string
+	cancel             ExecutionCanceller
+	invalidator        GraphInvalidator
+	events             EventEmitter
+	clock              func() time.Time
+	defaultOwner       string
 }
 
 // Config bundles Applier dependencies.
 type Config struct {
-	Store               BacklogStore
-	Assigner            MilestoneAssigner
-	Creator             ItemCreator
-	ItemLifecycle       ItemLifecycle
+	Store              BacklogStore
+	Assigner           MilestoneAssigner
+	Creator            ItemCreator
+	ItemLifecycle      ItemLifecycle
 	MilestoneLifecycle MilestoneLifecycle
-	Canceller           ExecutionCanceller
-	Invalidator         GraphInvalidator
-	Events              EventEmitter
-	Clock               func() time.Time // optional; defaults to time.Now
-	DefaultOwner        string           // falls back to "proposal" if empty
+	Canceller          ExecutionCanceller
+	Invalidator        GraphInvalidator
+	Events             EventEmitter
+	Clock              func() time.Time // optional; defaults to time.Now
+	DefaultOwner       string           // falls back to "proposal" if empty
 }
 
 // NewApplier constructs an Applier. Store, Assigner, and Creator are
@@ -141,16 +141,16 @@ func NewApplier(cfg Config) (*Applier, error) {
 		owner = DefaultApplierOwner
 	}
 	return &Applier{
-		store:               cfg.Store,
-		assigner:            cfg.Assigner,
-		creator:             cfg.Creator,
-		itemLifecycle:       cfg.ItemLifecycle,
+		store:              cfg.Store,
+		assigner:           cfg.Assigner,
+		creator:            cfg.Creator,
+		itemLifecycle:      cfg.ItemLifecycle,
 		milestoneLifecycle: cfg.MilestoneLifecycle,
-		cancel:              cfg.Canceller,
-		invalidator:         cfg.Invalidator,
-		events:              cfg.Events,
-		clock:               clk,
-		defaultOwner:        owner,
+		cancel:             cfg.Canceller,
+		invalidator:        cfg.Invalidator,
+		events:             cfg.Events,
+		clock:              clk,
+		defaultOwner:       owner,
 	}, nil
 }
 
@@ -193,6 +193,15 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 	}
 	if err := Validate(proposal, current); err != nil {
 		return nil, err
+	}
+	// A subset is its own proposal. Validating only the full list would let an
+	// operator accept a mutation whose premise they rejected — an edge whose
+	// endpoint was never created, a patch to a split's output. Those survive
+	// the full-list check because the rejected mutation supplied the premise.
+	if acceptedIDs != nil {
+		if err := Validate(Subset(proposal, acceptedIDs), current); err != nil {
+			return nil, fmt.Errorf("accepted subset is not applicable on its own: %w", err)
+		}
 	}
 	if strings.TrimSpace(source.MilestoneName) == "" {
 		return nil, errors.New("apply requires source.MilestoneName")
@@ -317,6 +326,24 @@ func applyTarget(m Mutation) string {
 		return m.Target
 	}
 	return m.Target
+}
+
+// Subset returns the proposal restricted to the accepted mutation IDs,
+// preserving order and envelope metadata. A nil id list returns the proposal
+// unchanged, matching Apply's "nil accepts everything" contract.
+func Subset(p Proposal, acceptedIDs []string) Proposal {
+	if acceptedIDs == nil {
+		return p
+	}
+	accepted := acceptSet(acceptedIDs)
+	out := p
+	out.Mutations = make([]Mutation, 0, len(p.Mutations))
+	for _, m := range p.Mutations {
+		if _, ok := accepted[m.ID]; ok {
+			out.Mutations = append(out.Mutations, m)
+		}
+	}
+	return out
 }
 
 func acceptSet(ids []string) map[string]struct{} {

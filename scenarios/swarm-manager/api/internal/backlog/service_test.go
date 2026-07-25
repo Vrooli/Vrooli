@@ -38,8 +38,8 @@ type fakeEvents struct {
 
 type emittedCreate struct {
 	entityID, kind, status, milestone, effort string
-	priority                                   int
-	actorType, actorID                         string
+	priority                                  int
+	actorType, actorID                        string
 }
 
 type emittedArchive struct {
@@ -50,14 +50,14 @@ func (e *fakeEvents) EmitBacklogCreatedFromSource(entityID, kind, status string,
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.calls = append(e.calls, emittedCreate{
-		entityID:   entityID,
-		kind:       kind,
-		status:     status,
-		priority:   priority,
+		entityID:  entityID,
+		kind:      kind,
+		status:    status,
+		priority:  priority,
 		milestone: milestone,
-		effort:     effort,
-		actorType:  actorType,
-		actorID:    actorID,
+		effort:    effort,
+		actorType: actorType,
+		actorID:   actorID,
 	})
 }
 
@@ -209,15 +209,15 @@ func TestService_Create_ArtifactFailureRollsBackItem(t *testing.T) {
 
 func sampleItem(name string) BacklogItem {
 	return BacklogItem{
-		Name:       name,
-		Title:      "Title for " + name,
-		Kind:       KindExecute,
-		Status:     StatusBacklog,
-		Priority:   4,
-		Effort:     "M",
+		Name:      name,
+		Title:     "Title for " + name,
+		Kind:      KindExecute,
+		Status:    StatusBacklog,
+		Priority:  4,
+		Effort:    "M",
 		Milestone: "demo",
-		Created:    "2026-04-23T00:00:00Z",
-		Updated:    "2026-04-23T00:00:00Z",
+		Created:   "2026-04-23T00:00:00Z",
+		Updated:   "2026-04-23T00:00:00Z",
 	}
 }
 
@@ -258,7 +258,7 @@ func TestService_Create_Batch_DefersOnlyGraphInvalidation(t *testing.T) {
 		Source:                SourceBatch,
 		SkipDuplicateCheck:    true,
 		SkipCycleCheck:        true,
-		SkipMilestoneAttach:  true,
+		SkipMilestoneAttach:   true,
 		SkipGraphInvalidation: true,
 	}
 	if err := env.svc.Create(sampleItem("beta"), cc); err != nil {

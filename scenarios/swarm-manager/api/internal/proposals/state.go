@@ -21,8 +21,8 @@ func FromMaterializedGraph(mg *graph.MaterializedGraph, knownMilestones, inProgr
 	}
 	state := CurrentState{
 		MilestoneName: mg.Goal,
-		Nodes:          make(map[string]GraphNode, len(mg.Nodes)),
-		Edges:          make([]GraphEdge, 0, len(mg.Edges)),
+		Nodes:         make(map[string]GraphNode, len(mg.Nodes)),
+		Edges:         make([]GraphEdge, 0, len(mg.Edges)),
 	}
 	for _, n := range mg.Nodes {
 		state.Nodes[n.ID] = GraphNode{

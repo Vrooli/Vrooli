@@ -67,7 +67,7 @@ func appendTopologyBacklogNodes(
 	for _, item := range items {
 		key := backlogItemKey(string(item.Kind), item.Name)
 		itemByKey[key] = item
-		if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
+		if backlog.IsResolvedStatus(item.Status) || item.ArchivedAt != nil {
 			continue
 		}
 		itemIndex[key] = true
@@ -123,6 +123,7 @@ func appendTopologyGoalNodes(
 				InProgress: int32(rollup.InProgress),
 				Failed:     int32(rollup.Failed),
 				Pending:    int32(rollup.Pending),
+				Dropped:    int32(rollup.Dropped),
 			},
 		}
 		nodes = append(nodes, Node{
@@ -141,7 +142,7 @@ func appendTopologyGoalNodes(
 func appendTopologyMemberOfEdges(edges []Edge, items []backlog.BacklogItem, goals []GoalEntry) []Edge {
 	activeItems := make(map[string]struct{}, len(items))
 	for _, item := range items {
-		if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
+		if backlog.IsResolvedStatus(item.Status) || item.ArchivedAt != nil {
 			continue
 		}
 		activeItems[backlogItemKey(string(item.Kind), item.Name)] = struct{}{}
@@ -236,7 +237,7 @@ func (p *ProjectionService) appendTopologyScenarioNodes(
 	// Build targets edges first to discover which scenarios are referenced.
 	referencedScenarios := make(map[string]struct{})
 	for _, item := range items {
-		if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
+		if backlog.IsResolvedStatus(item.Status) || item.ArchivedAt != nil {
 			continue
 		}
 		for _, pattern := range item.AcceptanceAllow {

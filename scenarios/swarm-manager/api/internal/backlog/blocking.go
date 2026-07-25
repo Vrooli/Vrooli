@@ -28,6 +28,10 @@ type BlockingReason struct {
 // planned/started — meaning the downstream item should not proceed yet.
 // Once a dependency has progressed past the planning phase (ready, queued,
 // in_progress, completed, failed, archived) it no longer blocks.
+//
+// Deliberately NARROWER than the planning phase: `ready` is planning too, but
+// a ready dependency has been shaped and committed to, so it no longer holds
+// its dependents back. Kept explicit for that reason.
 var blockingDepStatuses = map[BacklogStatus]bool{
 	StatusBacklog:     true,
 	StatusResearching: true,

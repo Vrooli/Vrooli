@@ -496,6 +496,101 @@
       "service": "EvidenceService",
       "method": "RecordOperatorVerification",
       "reason": "Hand-registered as 'evidence verify' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "AddTargets",
+      "reason": "Hand-registered as 'goals targets-add' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "ApplyGoalWorkflow",
+      "reason": "Hand-registered as 'goals workflow-apply' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "ArchiveGoal",
+      "reason": "Hand-registered as 'goals archive' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "ArchiveMilestone",
+      "reason": "Hand-registered as 'goals milestone-archive' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "AssignMilestoneItems",
+      "reason": "Hand-registered as 'goals milestone-assign' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "CloseOutGoal",
+      "reason": "Hand-registered as 'goals close-out' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "CreateGoal",
+      "reason": "Hand-registered as 'goals create' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "CreateMilestone",
+      "reason": "Hand-registered as 'goals milestone-create' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "DeleteGoal",
+      "reason": "Hand-registered as 'goals delete' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "GetGoal",
+      "reason": "Hand-registered as 'goals get' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "GetScope",
+      "reason": "Hand-registered as 'goals context' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "ListGoals",
+      "reason": "Hand-registered as 'goals list' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "ListPendingGoalWorkflows",
+      "reason": "Hand-registered as 'goals workflow-pending' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "RemoveTargets",
+      "reason": "Hand-registered as 'goals targets-remove' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "UnarchiveGoal",
+      "reason": "Hand-registered as 'goals unarchive' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "UnassignMilestoneItems",
+      "reason": "Hand-registered as 'goals milestone-unassign' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "UpdateGoal",
+      "reason": "Hand-registered as 'goals update' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "GoalService",
+      "method": "UpdateMilestone",
+      "reason": "Hand-registered as 'goals milestone-update' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "RelatedService",
+      "method": "GetRelated",
+      "reason": "Hand-registered as 'related backlog' and 'related goal' through the generated RelatedService Connect client (cli/domains/related/register.go); one RPC serves both target shapes, so it maps to two commands rather than one."
     }
   ],
   "measures": {

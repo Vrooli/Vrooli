@@ -21,9 +21,9 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) *graph.Materializer {
 	}
 
 	projCfg := graph.ProjectionConfig{
-		Backlog:    s.backlogHandler.Store(),
-		Goal:       graph.NewGoalAdapter(s.goalService),
-		Capture:    graph.NewCaptureAdapter(scenarioRoot),
+		Backlog: s.backlogHandler.Store(),
+		Goal:    graph.NewGoalAdapter(s.goalService),
+		Capture: graph.NewCaptureAdapter(scenarioRoot),
 		Scenario: graph.NewScenarioSourceAdapter(
 			scenarios.NewDirectoryProvider(filepath.Dir(scenarioRoot)),
 		),

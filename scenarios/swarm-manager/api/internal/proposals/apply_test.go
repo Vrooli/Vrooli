@@ -113,13 +113,11 @@ func newApplyEnv(t *testing.T) *applyEnv {
 		t.Fatalf("NewApplier: %v", err)
 	}
 
-	// Seed a working milestone + two items so most ops have a target.
-	if err := initSvc.Create(backlog.MilestoneSpec{Name: "work/ui-rewrite", Title: "UI Rewrite"}); err != nil {
-		t.Fatalf("seed milestone: %v", err)
-	}
-	if err := initSvc.Create(backlog.MilestoneSpec{Name: "work/other-project", Title: "Other"}); err != nil {
-		t.Fatalf("seed other milestone: %v", err)
-	}
+	// Seed a working milestone + two items so most ops have a target. Goal
+	// structure is written through the goal service: the backlog batch seam
+	// deliberately cannot create a goal or a milestone.
+	seedMilestone(t, goalSvc, "work", "ui-rewrite", "UI Rewrite")
+	seedMilestone(t, goalSvc, "work", "other-project", "Other")
 	seedItem(t, store, "execute", "foo", "Foo")
 	seedItem(t, store, "execute", "bar", "Bar")
 	if err := assignItems(t, store, initSvc, "work/ui-rewrite", []string{"execute/foo", "execute/bar"}); err != nil {
@@ -177,6 +175,24 @@ func TestApply_DeniedMutationLeavesItemDirectoryByteIdentical(t *testing.T) {
 	}
 	if string(before) != string(after) {
 		t.Fatal("denied proposal changed the canonical item spec")
+	}
+}
+
+// seedMilestone creates the goal (if absent) and one milestone through the
+// goal service, which is the only path that can write goal structure.
+func seedMilestone(t *testing.T, svc *goals.Service, goalName, milestoneName, title string) {
+	t.Helper()
+	if _, err := svc.Get(goalName); err != nil {
+		if _, err := svc.Create(goals.CreateRequest{Name: goalName, Title: goalName}); err != nil {
+			t.Fatalf("seed goal %s: %v", goalName, err)
+		}
+	}
+	if _, err := svc.CreateMilestone(goalName, goals.Milestone{
+		Name:               milestoneName,
+		Title:              title,
+		AcceptanceCriteria: []string{"Given the member items, when they complete, then the milestone is delivered."},
+	}); err != nil {
+		t.Fatalf("seed milestone %s/%s: %v", goalName, milestoneName, err)
 	}
 }
 

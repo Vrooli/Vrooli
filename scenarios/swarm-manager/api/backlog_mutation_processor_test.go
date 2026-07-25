@@ -21,7 +21,7 @@ func TestCompositeMutationProcessorAppliesBacklogProposal(t *testing.T) {
 	if _, err := goalService.Create(goals.CreateRequest{Name: "release", Title: "Release", Priority: 5}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := goalService.CreateMilestone("release", goals.Milestone{Name: "build", Title: "Build"}); err != nil {
+	if _, err := goalService.CreateMilestone("release", goals.Milestone{Name: "build", Title: "Build", AcceptanceCriteria: []string{"Given the sources, when the build runs, then it produces an artifact."}}); err != nil {
 		t.Fatal(err)
 	}
 	item := backlog.BacklogItem{Name: "compile", Title: "Compile", Kind: backlog.KindExecute, Status: backlog.StatusBacklog, Priority: 3, Milestone: "release/build", Created: "2026-07-24T00:00:00Z", Updated: "2026-07-24T00:00:00Z"}

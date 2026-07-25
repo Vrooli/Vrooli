@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/goal.proto.
  */
 export const file_swarm_manager_v1_api_goal: GenFile = /*@__PURE__*/
-  fileDesc("Ch9zd2FybS1tYW5hZ2VyL3YxL2FwaS9nb2FsLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIhIKEExpc3RHb2Fsc1JlcXVlc3QiJwoOR2V0R29hbFJlcXVlc3QSFQoEbmFtZRgBIAEoCUIHukgEcgIQASIqChFEZWxldGVHb2FsUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABIisKEkFyY2hpdmVHb2FsUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABIi0KFFVuYXJjaGl2ZUdvYWxSZXF1ZXN0EhUKBG5hbWUYASABKAlCB7pIBHICEAEiaAoRQ3JlYXRlR29hbFJlcXVlc3QSDAoEbmFtZRgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIQCghwcmlvcml0eRgEIAEoBRIPCgd0YXJnZXRzGAUgAygJIo0BChFVcGRhdGVHb2FsUmVxdWVzdBIMCgRuYW1lGAEgASgJEhIKBXRpdGxlGAIgASgJSACIAQESGAoLZGVzY3JpcHRpb24YAyABKAlIAYgBARIVCghwcmlvcml0eRgEIAEoBUgCiAEBQggKBl90aXRsZUIOCgxfZGVzY3JpcHRpb25CCwoJX3ByaW9yaXR5IjkKGFVwZGF0ZUdvYWxUYXJnZXRzUmVxdWVzdBIMCgRuYW1lGAEgASgJEg8KB3RhcmdldHMYAiADKAkiWwoWQ3JlYXRlTWlsZXN0b25lUmVxdWVzdBIRCglnb2FsX25hbWUYASABKAkSLgoJbWlsZXN0b25lGAIgASgLMhsuc3dhcm1fbWFuYWdlci52MS5NaWxlc3RvbmUiWwoWVXBkYXRlTWlsZXN0b25lUmVxdWVzdBIRCglnb2FsX25hbWUYASABKAkSLgoJbWlsZXN0b25lGAIgASgLMhsuc3dhcm1fbWFuYWdlci52MS5NaWxlc3RvbmUiRAoXQXJjaGl2ZU1pbGVzdG9uZVJlcXVlc3QSEQoJZ29hbF9uYW1lGAEgASgJEhYKDm1pbGVzdG9uZV9uYW1lGAIgASgJIlcKG1VwZGF0ZU1pbGVzdG9uZUl0ZW1zUmVxdWVzdBIRCglnb2FsX25hbWUYASABKAkSFgoObWlsZXN0b25lX25hbWUYAiABKAkSDQoFaXRlbXMYAyADKAkiYAoMR29hbFJlc3BvbnNlEiQKBGdvYWwYASABKAsyFi5zd2FybV9tYW5hZ2VyLnYxLkdvYWwSKgoFc2NvcGUYAiABKAsyGy5zd2FybV9tYW5hZ2VyLnYxLkdvYWxTY29wZSJCChFMaXN0R29hbHNSZXNwb25zZRItCgVnb2FscxgBIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlIj8KEUdvYWxTY29wZVJlc3BvbnNlEioKBXNjb3BlGAEgASgLMhsuc3dhcm1fbWFuYWdlci52MS5Hb2FsU2NvcGUiEwoRRW1wdHlHb2FsUmVzcG9uc2UyzwoKC0dvYWxTZXJ2aWNlElQKCUxpc3RHb2FscxIiLnN3YXJtX21hbmFnZXIudjEuTGlzdEdvYWxzUmVxdWVzdBojLnN3YXJtX21hbmFnZXIudjEuTGlzdEdvYWxzUmVzcG9uc2USSwoHR2V0R29hbBIgLnN3YXJtX21hbmFnZXIudjEuR2V0R29hbFJlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJRCgpDcmVhdGVHb2FsEiMuc3dhcm1fbWFuYWdlci52MS5DcmVhdGVHb2FsUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlElEKClVwZGF0ZUdvYWwSIy5zd2FybV9tYW5hZ2VyLnYxLlVwZGF0ZUdvYWxSZXF1ZXN0Gh4uc3dhcm1fbWFuYWdlci52MS5Hb2FsUmVzcG9uc2USVgoKRGVsZXRlR29hbBIjLnN3YXJtX21hbmFnZXIudjEuRGVsZXRlR29hbFJlcXVlc3QaIy5zd2FybV9tYW5hZ2VyLnYxLkVtcHR5R29hbFJlc3BvbnNlElMKC0FyY2hpdmVHb2FsEiQuc3dhcm1fbWFuYWdlci52MS5BcmNoaXZlR29hbFJlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJXCg1VbmFyY2hpdmVHb2FsEiYuc3dhcm1fbWFuYWdlci52MS5VbmFyY2hpdmVHb2FsUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlElgKCkFkZFRhcmdldHMSKi5zd2FybV9tYW5hZ2VyLnYxLlVwZGF0ZUdvYWxUYXJnZXRzUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlElsKDVJlbW92ZVRhcmdldHMSKi5zd2FybV9tYW5hZ2VyLnYxLlVwZGF0ZUdvYWxUYXJnZXRzUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlElsKD0NyZWF0ZU1pbGVzdG9uZRIoLnN3YXJtX21hbmFnZXIudjEuQ3JlYXRlTWlsZXN0b25lUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlElsKD1VwZGF0ZU1pbGVzdG9uZRIoLnN3YXJtX21hbmFnZXIudjEuVXBkYXRlTWlsZXN0b25lUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlEl0KEEFyY2hpdmVNaWxlc3RvbmUSKS5zd2FybV9tYW5hZ2VyLnYxLkFyY2hpdmVNaWxlc3RvbmVSZXF1ZXN0Gh4uc3dhcm1fbWFuYWdlci52MS5Hb2FsUmVzcG9uc2USZQoUQXNzaWduTWlsZXN0b25lSXRlbXMSLS5zd2FybV9tYW5hZ2VyLnYxLlVwZGF0ZU1pbGVzdG9uZUl0ZW1zUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlEmcKFlVuYXNzaWduTWlsZXN0b25lSXRlbXMSLS5zd2FybV9tYW5hZ2VyLnYxLlVwZGF0ZU1pbGVzdG9uZUl0ZW1zUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlElEKCEdldFNjb3BlEiAuc3dhcm1fbWFuYWdlci52MS5HZXRHb2FsUmVxdWVzdBojLnN3YXJtX21hbmFnZXIudjEuR29hbFNjb3BlUmVzcG9uc2VCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_goal]);
+  fileDesc("Ch9zd2FybS1tYW5hZ2VyL3YxL2FwaS9nb2FsLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIhIKEExpc3RHb2Fsc1JlcXVlc3QiJwoOR2V0R29hbFJlcXVlc3QSFQoEbmFtZRgBIAEoCUIHukgEcgIQASIqChFEZWxldGVHb2FsUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABIisKEkFyY2hpdmVHb2FsUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABIi0KFFVuYXJjaGl2ZUdvYWxSZXF1ZXN0EhUKBG5hbWUYASABKAlCB7pIBHICEAEiaAoRQ3JlYXRlR29hbFJlcXVlc3QSDAoEbmFtZRgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIQCghwcmlvcml0eRgEIAEoBRIPCgd0YXJnZXRzGAUgAygJIo0BChFVcGRhdGVHb2FsUmVxdWVzdBIMCgRuYW1lGAEgASgJEhIKBXRpdGxlGAIgASgJSACIAQESGAoLZGVzY3JpcHRpb24YAyABKAlIAYgBARIVCghwcmlvcml0eRgEIAEoBUgCiAEBQggKBl90aXRsZUIOCgxfZGVzY3JpcHRpb25CCwoJX3ByaW9yaXR5IjkKGFVwZGF0ZUdvYWxUYXJnZXRzUmVxdWVzdBIMCgRuYW1lGAEgASgJEg8KB3RhcmdldHMYAiADKAkiWwoWQ3JlYXRlTWlsZXN0b25lUmVxdWVzdBIRCglnb2FsX25hbWUYASABKAkSLgoJbWlsZXN0b25lGAIgASgLMhsuc3dhcm1fbWFuYWdlci52MS5NaWxlc3RvbmUiWwoWVXBkYXRlTWlsZXN0b25lUmVxdWVzdBIRCglnb2FsX25hbWUYASABKAkSLgoJbWlsZXN0b25lGAIgASgLMhsuc3dhcm1fbWFuYWdlci52MS5NaWxlc3RvbmUiRAoXQXJjaGl2ZU1pbGVzdG9uZVJlcXVlc3QSEQoJZ29hbF9uYW1lGAEgASgJEhYKDm1pbGVzdG9uZV9uYW1lGAIgASgJIlcKG1VwZGF0ZU1pbGVzdG9uZUl0ZW1zUmVxdWVzdBIRCglnb2FsX25hbWUYASABKAkSFgoObWlsZXN0b25lX25hbWUYAiABKAkSDQoFaXRlbXMYAyADKAkiLAoTQ2xvc2VPdXRHb2FsUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABIjQKH0xpc3RQZW5kaW5nR29hbFdvcmtmbG93c1JlcXVlc3QSEQoJZ29hbF9uYW1lGAEgASgJIlUKGEFwcGx5R29hbFdvcmtmbG93UmVxdWVzdBIaCglnb2FsX25hbWUYASABKAlCB7pIBHICEAESHQoMZXhlY3V0aW9uX2lkGAIgASgJQge6SARyAhABIskBChNQZW5kaW5nR29hbFdvcmtmbG93EhEKCWdvYWxfbmFtZRgBIAEoCRIUCgxleGVjdXRpb25faWQYAiABKAkSEgoKdHJhbnNpdGlvbhgDIAEoCRIRCgltaWxlc3RvbmUYBCABKAkSFAoMZ29hbF92ZXJzaW9uGAUgASgJEg0KBXN0YWxlGAYgASgIEhAKCGF0dGVtcHRzGAcgASgFEhcKD2xhc3RfYXR0ZW1wdF9hdBgIIAEoCRISCgpsYXN0X2Vycm9yGAkgASgJIloKIExpc3RQZW5kaW5nR29hbFdvcmtmbG93c1Jlc3BvbnNlEjYKB3BlbmRpbmcYASADKAsyJS5zd2FybV9tYW5hZ2VyLnYxLlBlbmRpbmdHb2FsV29ya2Zsb3cihQEKGUFwcGx5R29hbFdvcmtmbG93UmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSFAoMcHJvcG9zYWxfaWRzGAMgAygJEg8KB291dGNvbWUYBCABKAkSFwoPYWxyZWFkeV9hcHBsaWVkGAUgASgIImAKDEdvYWxSZXNwb25zZRIkCgRnb2FsGAEgASgLMhYuc3dhcm1fbWFuYWdlci52MS5Hb2FsEioKBXNjb3BlGAIgASgLMhsuc3dhcm1fbWFuYWdlci52MS5Hb2FsU2NvcGUiQgoRTGlzdEdvYWxzUmVzcG9uc2USLQoFZ29hbHMYASADKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZSI/ChFHb2FsU2NvcGVSZXNwb25zZRIqCgVzY29wZRgBIAEoCzIbLnN3YXJtX21hbmFnZXIudjEuR29hbFNjb3BlIhMKEUVtcHR5R29hbFJlc3BvbnNlMpgNCgtHb2FsU2VydmljZRJUCglMaXN0R29hbHMSIi5zd2FybV9tYW5hZ2VyLnYxLkxpc3RHb2Fsc1JlcXVlc3QaIy5zd2FybV9tYW5hZ2VyLnYxLkxpc3RHb2Fsc1Jlc3BvbnNlEksKB0dldEdvYWwSIC5zd2FybV9tYW5hZ2VyLnYxLkdldEdvYWxSZXF1ZXN0Gh4uc3dhcm1fbWFuYWdlci52MS5Hb2FsUmVzcG9uc2USUQoKQ3JlYXRlR29hbBIjLnN3YXJtX21hbmFnZXIudjEuQ3JlYXRlR29hbFJlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJRCgpVcGRhdGVHb2FsEiMuc3dhcm1fbWFuYWdlci52MS5VcGRhdGVHb2FsUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlElYKCkRlbGV0ZUdvYWwSIy5zd2FybV9tYW5hZ2VyLnYxLkRlbGV0ZUdvYWxSZXF1ZXN0GiMuc3dhcm1fbWFuYWdlci52MS5FbXB0eUdvYWxSZXNwb25zZRJTCgtBcmNoaXZlR29hbBIkLnN3YXJtX21hbmFnZXIudjEuQXJjaGl2ZUdvYWxSZXF1ZXN0Gh4uc3dhcm1fbWFuYWdlci52MS5Hb2FsUmVzcG9uc2USVwoNVW5hcmNoaXZlR29hbBImLnN3YXJtX21hbmFnZXIudjEuVW5hcmNoaXZlR29hbFJlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJYCgpBZGRUYXJnZXRzEiouc3dhcm1fbWFuYWdlci52MS5VcGRhdGVHb2FsVGFyZ2V0c1JlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJbCg1SZW1vdmVUYXJnZXRzEiouc3dhcm1fbWFuYWdlci52MS5VcGRhdGVHb2FsVGFyZ2V0c1JlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJbCg9DcmVhdGVNaWxlc3RvbmUSKC5zd2FybV9tYW5hZ2VyLnYxLkNyZWF0ZU1pbGVzdG9uZVJlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJbCg9VcGRhdGVNaWxlc3RvbmUSKC5zd2FybV9tYW5hZ2VyLnYxLlVwZGF0ZU1pbGVzdG9uZVJlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJdChBBcmNoaXZlTWlsZXN0b25lEikuc3dhcm1fbWFuYWdlci52MS5BcmNoaXZlTWlsZXN0b25lUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlEmUKFEFzc2lnbk1pbGVzdG9uZUl0ZW1zEi0uc3dhcm1fbWFuYWdlci52MS5VcGRhdGVNaWxlc3RvbmVJdGVtc1JlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJnChZVbmFzc2lnbk1pbGVzdG9uZUl0ZW1zEi0uc3dhcm1fbWFuYWdlci52MS5VcGRhdGVNaWxlc3RvbmVJdGVtc1JlcXVlc3QaHi5zd2FybV9tYW5hZ2VyLnYxLkdvYWxSZXNwb25zZRJRCghHZXRTY29wZRIgLnN3YXJtX21hbmFnZXIudjEuR2V0R29hbFJlcXVlc3QaIy5zd2FybV9tYW5hZ2VyLnYxLkdvYWxTY29wZVJlc3BvbnNlElUKDENsb3NlT3V0R29hbBIlLnN3YXJtX21hbmFnZXIudjEuQ2xvc2VPdXRHb2FsUmVxdWVzdBoeLnN3YXJtX21hbmFnZXIudjEuR29hbFJlc3BvbnNlEoEBChhMaXN0UGVuZGluZ0dvYWxXb3JrZmxvd3MSMS5zd2FybV9tYW5hZ2VyLnYxLkxpc3RQZW5kaW5nR29hbFdvcmtmbG93c1JlcXVlc3QaMi5zd2FybV9tYW5hZ2VyLnYxLkxpc3RQZW5kaW5nR29hbFdvcmtmbG93c1Jlc3BvbnNlEmwKEUFwcGx5R29hbFdvcmtmbG93Eiouc3dhcm1fbWFuYWdlci52MS5BcHBseUdvYWxXb3JrZmxvd1JlcXVlc3QaKy5zd2FybV9tYW5hZ2VyLnYxLkFwcGx5R29hbFdvcmtmbG93UmVzcG9uc2VCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_goal]);
 
 /**
  * @generated from message swarm_manager.v1.ListGoalsRequest
@@ -281,6 +281,182 @@ export const UpdateMilestoneItemsRequestSchema: GenMessage<UpdateMilestoneItemsR
   messageDesc(file_swarm_manager_v1_api_goal, 11);
 
 /**
+ * @generated from message swarm_manager.v1.CloseOutGoalRequest
+ */
+export type CloseOutGoalRequest = Message<"swarm_manager.v1.CloseOutGoalRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.CloseOutGoalRequest.
+ * Use `create(CloseOutGoalRequestSchema)` to create a new message.
+ */
+export const CloseOutGoalRequestSchema: GenMessage<CloseOutGoalRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_goal, 12);
+
+/**
+ * @generated from message swarm_manager.v1.ListPendingGoalWorkflowsRequest
+ */
+export type ListPendingGoalWorkflowsRequest = Message<"swarm_manager.v1.ListPendingGoalWorkflowsRequest"> & {
+  /**
+   * Restrict the listing to one goal. Empty lists every goal.
+   *
+   * @generated from field: string goal_name = 1;
+   */
+  goalName: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ListPendingGoalWorkflowsRequest.
+ * Use `create(ListPendingGoalWorkflowsRequestSchema)` to create a new message.
+ */
+export const ListPendingGoalWorkflowsRequestSchema: GenMessage<ListPendingGoalWorkflowsRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_goal, 13);
+
+/**
+ * @generated from message swarm_manager.v1.ApplyGoalWorkflowRequest
+ */
+export type ApplyGoalWorkflowRequest = Message<"swarm_manager.v1.ApplyGoalWorkflowRequest"> & {
+  /**
+   * @generated from field: string goal_name = 1;
+   */
+  goalName: string;
+
+  /**
+   * @generated from field: string execution_id = 2;
+   */
+  executionId: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ApplyGoalWorkflowRequest.
+ * Use `create(ApplyGoalWorkflowRequestSchema)` to create a new message.
+ */
+export const ApplyGoalWorkflowRequestSchema: GenMessage<ApplyGoalWorkflowRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_goal, 14);
+
+/**
+ * PendingGoalWorkflow is one workflow result awaiting application.
+ *
+ * @generated from message swarm_manager.v1.PendingGoalWorkflow
+ */
+export type PendingGoalWorkflow = Message<"swarm_manager.v1.PendingGoalWorkflow"> & {
+  /**
+   * @generated from field: string goal_name = 1;
+   */
+  goalName: string;
+
+  /**
+   * @generated from field: string execution_id = 2;
+   */
+  executionId: string;
+
+  /**
+   * @generated from field: string transition = 3;
+   */
+  transition: string;
+
+  /**
+   * @generated from field: string milestone = 4;
+   */
+  milestone: string;
+
+  /**
+   * @generated from field: string goal_version = 5;
+   */
+  goalVersion: string;
+
+  /**
+   * The goal changed after the workflow started, so this result can never be
+   * applied and the run has to be repeated against the current snapshot.
+   *
+   * @generated from field: bool stale = 6;
+   */
+  stale: boolean;
+
+  /**
+   * @generated from field: int32 attempts = 7;
+   */
+  attempts: number;
+
+  /**
+   * @generated from field: string last_attempt_at = 8;
+   */
+  lastAttemptAt: string;
+
+  /**
+   * @generated from field: string last_error = 9;
+   */
+  lastError: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.PendingGoalWorkflow.
+ * Use `create(PendingGoalWorkflowSchema)` to create a new message.
+ */
+export const PendingGoalWorkflowSchema: GenMessage<PendingGoalWorkflow> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_goal, 15);
+
+/**
+ * @generated from message swarm_manager.v1.ListPendingGoalWorkflowsResponse
+ */
+export type ListPendingGoalWorkflowsResponse = Message<"swarm_manager.v1.ListPendingGoalWorkflowsResponse"> & {
+  /**
+   * @generated from field: repeated swarm_manager.v1.PendingGoalWorkflow pending = 1;
+   */
+  pending: PendingGoalWorkflow[];
+};
+
+/**
+ * Describes the message swarm_manager.v1.ListPendingGoalWorkflowsResponse.
+ * Use `create(ListPendingGoalWorkflowsResponseSchema)` to create a new message.
+ */
+export const ListPendingGoalWorkflowsResponseSchema: GenMessage<ListPendingGoalWorkflowsResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_goal, 16);
+
+/**
+ * @generated from message swarm_manager.v1.ApplyGoalWorkflowResponse
+ */
+export type ApplyGoalWorkflowResponse = Message<"swarm_manager.v1.ApplyGoalWorkflowResponse"> & {
+  /**
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * @generated from field: string session_id = 2;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: repeated string proposal_ids = 3;
+   */
+  proposalIds: string[];
+
+  /**
+   * @generated from field: string outcome = 4;
+   */
+  outcome: string;
+
+  /**
+   * The result had already been applied; this call changed nothing.
+   *
+   * @generated from field: bool already_applied = 5;
+   */
+  alreadyApplied: boolean;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ApplyGoalWorkflowResponse.
+ * Use `create(ApplyGoalWorkflowResponseSchema)` to create a new message.
+ */
+export const ApplyGoalWorkflowResponseSchema: GenMessage<ApplyGoalWorkflowResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_goal, 17);
+
+/**
  * @generated from message swarm_manager.v1.GoalResponse
  */
 export type GoalResponse = Message<"swarm_manager.v1.GoalResponse"> & {
@@ -300,7 +476,7 @@ export type GoalResponse = Message<"swarm_manager.v1.GoalResponse"> & {
  * Use `create(GoalResponseSchema)` to create a new message.
  */
 export const GoalResponseSchema: GenMessage<GoalResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_goal, 12);
+  messageDesc(file_swarm_manager_v1_api_goal, 18);
 
 /**
  * @generated from message swarm_manager.v1.ListGoalsResponse
@@ -317,7 +493,7 @@ export type ListGoalsResponse = Message<"swarm_manager.v1.ListGoalsResponse"> & 
  * Use `create(ListGoalsResponseSchema)` to create a new message.
  */
 export const ListGoalsResponseSchema: GenMessage<ListGoalsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_goal, 13);
+  messageDesc(file_swarm_manager_v1_api_goal, 19);
 
 /**
  * @generated from message swarm_manager.v1.GoalScopeResponse
@@ -334,7 +510,7 @@ export type GoalScopeResponse = Message<"swarm_manager.v1.GoalScopeResponse"> & 
  * Use `create(GoalScopeResponseSchema)` to create a new message.
  */
 export const GoalScopeResponseSchema: GenMessage<GoalScopeResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_goal, 14);
+  messageDesc(file_swarm_manager_v1_api_goal, 20);
 
 /**
  * @generated from message swarm_manager.v1.EmptyGoalResponse
@@ -347,7 +523,7 @@ export type EmptyGoalResponse = Message<"swarm_manager.v1.EmptyGoalResponse"> & 
  * Use `create(EmptyGoalResponseSchema)` to create a new message.
  */
 export const EmptyGoalResponseSchema: GenMessage<EmptyGoalResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_goal, 15);
+  messageDesc(file_swarm_manager_v1_api_goal, 21);
 
 /**
  * @generated from service swarm_manager.v1.GoalService
@@ -472,6 +648,40 @@ export const GoalService: GenService<{
     methodKind: "unary";
     input: typeof GetGoalRequestSchema;
     output: typeof GoalScopeResponseSchema;
+  },
+  /**
+   * CloseOutGoal is the operator-only assertion that a goal's outcome is
+   * delivered. It is evidence-gated: every non-archived milestone must carry an
+   * independent-review verdict first.
+   *
+   * @generated from rpc swarm_manager.v1.GoalService.CloseOutGoal
+   */
+  closeOutGoal: {
+    methodKind: "unary";
+    input: typeof CloseOutGoalRequestSchema;
+    output: typeof GoalResponseSchema;
+  },
+  /**
+   * ListPendingGoalWorkflows reports terminal goal workflow results that have
+   * not been applied yet, with the reason any of them is stuck.
+   *
+   * @generated from rpc swarm_manager.v1.GoalService.ListPendingGoalWorkflows
+   */
+  listPendingGoalWorkflows: {
+    methodKind: "unary";
+    input: typeof ListPendingGoalWorkflowsRequestSchema;
+    output: typeof ListPendingGoalWorkflowsResponseSchema;
+  },
+  /**
+   * ApplyGoalWorkflow projects one terminal workflow result into the operator
+   * proposal inbox. Idempotent: re-applying a landed result is a no-op.
+   *
+   * @generated from rpc swarm_manager.v1.GoalService.ApplyGoalWorkflow
+   */
+  applyGoalWorkflow: {
+    methodKind: "unary";
+    input: typeof ApplyGoalWorkflowRequestSchema;
+    output: typeof ApplyGoalWorkflowResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_swarm_manager_v1_api_goal, 0);

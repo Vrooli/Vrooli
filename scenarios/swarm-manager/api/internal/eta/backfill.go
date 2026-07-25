@@ -3,12 +3,12 @@ package eta
 // CompletedItem is the minimal shape the backfill needs from a completed
 // backlog item to derive a coarse calibration sample.
 type CompletedItem struct {
-	Ref        string // "<kind>/<name>"
-	Kind       string
-	Effort     string
+	Ref       string // "<kind>/<name>"
+	Kind      string
+	Effort    string
 	Milestone string
-	Created    string // RFC3339
-	Completed  string // RFC3339 (the item's Updated timestamp is the completion proxy)
+	Created   string // RFC3339
+	Completed string // RFC3339 (the item's Updated timestamp is the completion proxy)
 }
 
 // BackfillSample is one derived calibration sample ready to be emitted as a
@@ -18,7 +18,7 @@ type BackfillSample struct {
 	EffortClass   string
 	DurationHours float64
 	Kind          string
-	Milestone    string
+	Milestone     string
 }
 
 // BackfillReport summarizes a backfill pass.
@@ -51,7 +51,7 @@ func BuildBackfillSamples(items []CompletedItem, alreadySampled map[string]struc
 			EffortClass:   NormalizeEffort(it.Effort),
 			DurationHours: hours,
 			Kind:          it.Kind,
-			Milestone:    it.Milestone,
+			Milestone:     it.Milestone,
 		})
 		rep.Produced++
 	}

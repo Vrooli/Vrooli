@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.drills;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/drills;drills";
+
+// FailureDrillService runs the supported, development-only driver recovery
+// drills. It deliberately has no general process or configuration controls.
+service FailureDrillService {
+  rpc ListDrills(ListDrillsRequest) returns (ListDrillsResponse);
+  rpc RunDrill(RunDrillRequest) returns (RunDrillResponse);
+}
+
+enum DrillName {
+  DRILL_NAME_UNSPECIFIED = 0;
+  DRILL_NAME_DRIVER_UNAVAILABLE = 1;
+  DRILL_NAME_PARTIAL_INITIALIZATION = 2;
+  DRILL_NAME_CAPACITY = 3;
+  DRILL_NAME_EXPIRY = 4;
+}
+
+message ListDrillsRequest {}
+message DrillDefinition { DrillName name = 1; string description = 2; }
+message ListDrillsResponse { repeated DrillDefinition drills = 1; }
+message RunDrillRequest { DrillName name = 1; }
+message DrillAssertion { string name = 1; bool passed = 2; string detail = 3; }
+message DrillVerdict {
+  DrillName name = 1;
+  bool passed = 2;
+  bool expected_failure_observed = 3;
+  bool cleanup_completed = 4;
+  string primary_outcome = 5;
+  string cleanup_outcome = 6;
+  repeated DrillAssertion assertions = 7;
+  string evidence_json = 8;
+}
+message RunDrillResponse { DrillVerdict verdict = 1; }

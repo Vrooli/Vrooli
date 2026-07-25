@@ -68,6 +68,12 @@ build: ## Build the scenario
 		cd ui && pnpm run build; \
 	fi
 
+gen-status: ## Regenerate the UI's backlog-status mirror from the Go SSOT table
+	@cd api && go run ./cmd/gen-backlog-status -out ../ui/src/types/backlog-status.generated.ts
+
+gen-status-check: ## Fail if the generated backlog-status mirror is stale
+	@cd api && go run ./cmd/gen-backlog-status -check ../ui/src/types/backlog-status.generated.ts
+
 fmt: fmt-go fmt-ui ## Format all code
 
 fmt-go: ## Format Go code
@@ -100,7 +106,7 @@ lint-ui: ## Lint UI code
 		cd ui && pnpm run lint; \
 	fi
 
-check: fmt lint test ## Run full quality gates
+check: fmt lint gen-status-check test ## Run full quality gates
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"

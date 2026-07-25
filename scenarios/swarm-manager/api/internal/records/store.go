@@ -31,7 +31,7 @@ type ListFilter struct {
 	Scenario     string
 	Kind         RecordKind
 	BacklogRef   string
-	MilestoneID string
+	MilestoneID  string
 	IncludeStubs bool
 	Limit        int
 	Offset       int

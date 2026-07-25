@@ -90,7 +90,7 @@ type CreateInput struct {
 	Kind         RecordKind
 	Scenario     string
 	BacklogRef   string
-	MilestoneID string
+	MilestoneID  string
 	Supersedes   string
 	Trigger      string
 	Approach     string
@@ -244,6 +244,7 @@ func captureResultFor(r Record) CaptureResult {
 func repairCommand(id string) []string {
 	return []string{"swarm-manager", "records", "edit", "--repair", "--id", id, "--trigger", "<trigger>", "--approach", "<approach>", "--outcome", "<outcome>"}
 }
+
 func firstNonBlank(a, b string) string {
 	if strings.TrimSpace(a) != "" {
 		return strings.TrimSpace(a)
@@ -268,7 +269,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Record, error) {
 		Kind:         in.Kind,
 		Scenario:     in.Scenario,
 		BacklogRef:   strings.TrimSpace(in.BacklogRef),
-		MilestoneID: strings.TrimSpace(in.MilestoneID),
+		MilestoneID:  strings.TrimSpace(in.MilestoneID),
 		Supersedes:   strings.TrimSpace(in.Supersedes),
 		Trigger:      strings.TrimSpace(in.Trigger),
 		Approach:     strings.TrimSpace(in.Approach),

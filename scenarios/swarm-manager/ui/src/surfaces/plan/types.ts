@@ -22,7 +22,7 @@ export type PlanGateKind = "decide" | "proposal" | "review" | "classify" | "work
 
 export type PlanBlockerKind = "none" | "gate" | "items" | "cycle";
 
-export type PlanOutcome = "ok" | "failed" | "needs_review" | "needs_followup";
+export type PlanOutcome = "ok" | "failed" | "needs_review" | "needs_followup" | "dropped";
 
 /** Wave index marking a dependency-cycle-trapped card. */
 export const CYCLE_WAVE = -1;

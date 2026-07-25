@@ -58,13 +58,20 @@ func TestAuthoritativeDocsDescribeCanonicalBacklogImport(t *testing.T) {
 	for _, required := range []string{
 		"acceptance_allow",
 		"acceptance_deny",
-		`"milestones": [`,
 		"--preview",
 		"orchestration-summary.md",
+		"acceptance criteria",
 	} {
 		if !strings.Contains(metaSkill, required) {
 			t.Fatalf("meta-orchestrator skill missing %q", required)
 		}
+	}
+	// Batch import attaches items to existing goal-owned milestones. A
+	// top-level "milestones" block is the retired flat-grouping shape: it
+	// carries no acceptance criteria, so every milestone it defined would be
+	// permanently unverifiable, and the seam used to invent a goal to hold it.
+	if strings.Contains(metaSkill, `"milestones": [`) {
+		t.Fatal("meta-orchestrator skill teaches the retired top-level milestones import block; milestones are created through the goal API with acceptance criteria")
 	}
 
 	backlogTools := readRepoFile(t, root, "scenarios/prompt-manager/store/skills/packs/core/swarm-manager-backlog-tools/SKILL.md")

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/agentsessions"
@@ -23,6 +25,18 @@ func (a goalWorkflowAdapter) StartWorkflow(ctx context.Context, in goals.Workflo
 
 func (a goalWorkflowAdapter) CollectWorkflow(ctx context.Context, executionID string) (goals.WorkflowCompletion, error) {
 	completion, err := a.invoker.CollectWorkflow(ctx, executionID)
+	// Translate the transport sentinels into the goal domain's own so goals
+	// does not have to depend on the agent-manager client package. Both mean
+	// "ask again later": the run has not finished, or agent-manager could not
+	// be reached at all. Neither is a defect in the correlation record, so
+	// neither may be recorded as an apply failure against it.
+	switch {
+	case err == nil:
+	case errors.Is(err, agentmanager.ErrWorkflowNotReady):
+		err = fmt.Errorf("%w: %v", goals.ErrWorkflowNotReady, err)
+	case errors.Is(err, agentmanager.ErrNotAvailable):
+		err = fmt.Errorf("%w: %v", goals.ErrWorkflowUnavailable, err)
+	}
 	return goals.WorkflowCompletion{ExecutionID: completion.ExecutionID, DefinitionDigest: completion.DefinitionDigest, Succeeded: completion.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: completion.Input, Output: completion.Output}, err
 }
 

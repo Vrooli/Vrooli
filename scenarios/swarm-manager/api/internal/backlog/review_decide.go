@@ -33,6 +33,10 @@ const (
 	ReviewDecisionAccept   ReviewDecision = "accept"
 	ReviewDecisionFail     ReviewDecision = "fail"
 	ReviewDecisionFollowup ReviewDecision = "followup"
+	// ReviewDecisionDrop closes the item without a verdict on the work: the
+	// operator decided it should not be pursued. Review-gated items reject a
+	// direct PATCH, so this is the only route from review_pending to dropped.
+	ReviewDecisionDrop ReviewDecision = "drop"
 )
 
 // ReviewDecideRequest is the JSON body for the review-decide endpoint.
@@ -84,8 +88,10 @@ func decisionToStatus(d ReviewDecision) (BacklogStatus, error) {
 		return StatusFailed, nil
 	case ReviewDecisionFollowup:
 		return StatusNeedsFollowup, nil
+	case ReviewDecisionDrop:
+		return StatusDropped, nil
 	}
-	return "", fmt.Errorf("invalid decision %q: must be accept, fail, or followup", string(d))
+	return "", fmt.Errorf("invalid decision %q: must be accept, fail, followup, or drop", string(d))
 }
 
 // ReviewDecide is the HTTP handler for POST /api/v1/backlog/{kind}/{name}/review-decide.

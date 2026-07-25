@@ -47,8 +47,8 @@ type TimingStats struct {
 }
 
 type ScopeStats struct {
-	Milestones        []MilestoneHealth `json:"milestones"`
-	MaxDependencyDepth int                `json:"max_dependency_depth"`
+	Milestones         []MilestoneHealth `json:"milestones"`
+	MaxDependencyDepth int               `json:"max_dependency_depth"`
 }
 
 type MilestoneHealth struct {
@@ -125,7 +125,7 @@ type SessionStats struct {
 	FailedSessionRate                 float64             `json:"failed_session_rate"`
 	FailedSessionSampleSize           int                 `json:"failed_session_sample_size"`
 	SessionCreatedBacklogItems        int                 `json:"session_created_backlog_items"`
-	SessionCreatedMilestones         int                 `json:"session_created_milestones"`
+	SessionCreatedMilestones          int                 `json:"session_created_milestones"`
 }
 
 type VelocityPoint struct {

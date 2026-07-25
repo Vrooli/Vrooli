@@ -123,7 +123,7 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 		Updated:         now,
 		Kind:            kind,
 		DependsOn:       dependsOn,
-		Milestone:      milestone,
+		Milestone:       milestone,
 		Effort:          effort,
 		AcceptanceAllow: req.AcceptanceAllow,
 		AcceptanceDeny:  req.AcceptanceDeny,

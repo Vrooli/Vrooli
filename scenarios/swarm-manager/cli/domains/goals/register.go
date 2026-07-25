@@ -18,12 +18,16 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		support.APICommand("context", "Get a goal graph snapshot (--name NAME) [--json]", deps.GoalsContext),
 		support.APICommand("targets-add", "Add goal targets (--name NAME --targets kind/name,...) [--json]", deps.GoalsTargetsAdd),
 		support.APICommand("targets-remove", "Remove goal targets (--name NAME --targets kind/name,...) [--json]", deps.GoalsTargetsRemove),
-		support.APICommand("milestone-create", "Create milestone (--goal NAME --name NAME --title TITLE) [--json]", deps.GoalsMilestoneCreate),
+		support.APICommand("milestone-create", "Create milestone (--goal NAME --name NAME --title TITLE --acceptance CRITERION ...) [--json]", deps.GoalsMilestoneCreate),
+		support.APICommand("milestone-update", "Replace a milestone definition (--goal NAME --name NAME --title TITLE --acceptance CRITERION ...) [--json]", deps.GoalsMilestoneUpdate),
 		support.APICommand("milestone-assign", "Assign scoped items (--goal NAME --milestone NAME --items kind/name,...) [--json]", deps.GoalsMilestoneAssign),
 		support.APICommand("milestone-unassign", "Unassign scoped items (--goal NAME --milestone NAME --items kind/name,...) [--json]", deps.GoalsMilestoneUnassign),
 		support.APICommand("milestone-archive", "Archive milestone (--goal NAME --milestone NAME) [--json]", deps.GoalsMilestoneArchive),
 		support.APICommand("plan-run", "Start goal planning (--name NAME) [--json]", deps.GoalsPlanRun),
 		support.APICommand("discover-run", "Start goal discovery (--name NAME) [--json]", deps.GoalsDiscoverRun),
 		support.APICommand("milestone-review-run", "Start milestone review (--goal NAME --milestone NAME) [--json]", deps.GoalsMilestoneReviewRun),
+		support.APICommand("workflow-pending", "List goal workflow results awaiting application [--goal NAME] [--json]", deps.GoalsWorkflowPending),
+		support.APICommand("workflow-apply", "Apply a terminal goal workflow result (--goal NAME --execution-id ID) [--json]", deps.GoalsWorkflowApply),
+		support.APICommand("close-out", "Mark a goal achieved after every milestone is verified delivered (--name NAME) [--json]", deps.GoalsCloseOut),
 	}}
 }

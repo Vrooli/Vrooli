@@ -13,14 +13,14 @@ type integrationStatusResponse struct {
 }
 
 type integrationStatus struct {
-	ID               string `json:"id"`
-	Required         bool   `json:"required"`
-	Configured       bool   `json:"configured"`
-	Availability     string `json:"availability"`
-	CheckedAt        string `json:"checkedAt"`
-	FreshUntil       string `json:"freshUntil"`
-	DegradedBehavior string `json:"degradedBehavior"`
-	Diagnostic       string `json:"diagnostic"`
+	ID                  string   `json:"id"`
+	Required            bool     `json:"required"`
+	Configured          bool     `json:"configured"`
+	Availability        string   `json:"availability"`
+	CheckedAt           string   `json:"checkedAt"`
+	FreshUntil          string   `json:"freshUntil"`
+	DegradedBehavior    string   `json:"degradedBehavior"`
+	Diagnostic          string   `json:"diagnostic"`
 	AffectedTransitions []string `json:"affectedTransitions"`
 }
 

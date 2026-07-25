@@ -40,8 +40,8 @@ func TestCaptureAdapter_AcceptCreatesFilledIndexedRecord(t *testing.T) {
 			"scenarios/web-console/api/**",
 		},
 		Milestone: "voice-reliability",
-		Status:     backlog.StatusCompleted,
-		DecidedBy:  "agent-x",
+		Status:    backlog.StatusCompleted,
+		DecidedBy: "agent-x",
 	})
 	if err != nil {
 		t.Fatalf("CreateBacklogRecord: %v", err)

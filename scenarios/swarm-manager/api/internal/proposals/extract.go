@@ -7,9 +7,11 @@ import (
 	"strings"
 )
 
-var fencedProposalBlockRE = regexp.MustCompile("(?si)```\\s*json\\b[^\\n]*\\n(.*?)```")
-var genericFencedBlockRE = regexp.MustCompile("(?s)```[^\\n]*\\n(.*?)```")
-var proposalSentinelRE = regexp.MustCompile(`(?si)PROPOSAL\s*:[^\{]*?(\{.*\})`)
+var (
+	fencedProposalBlockRE = regexp.MustCompile("(?si)```\\s*json\\b[^\\n]*\\n(.*?)```")
+	genericFencedBlockRE  = regexp.MustCompile("(?s)```[^\\n]*\\n(.*?)```")
+	proposalSentinelRE    = regexp.MustCompile(`(?si)PROPOSAL\s*:[^\{]*?(\{.*\})`)
+)
 
 // Extract finds a mutation proposal envelope in an agent response. It is
 // deliberately tolerant of surrounding prose, but never invents a proposal:

@@ -72,11 +72,16 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Archive sets archived_at on a backlog item. When the item is still in an
-// active review status (in_review / review_pending), the archive button
-// doubles as a review-acceptance: we transition to completed and fire the
-// normal terminal-handler path before stamping archived_at. The status change
-// is emitted so listeners see the transition.
+// Archive sets archived_at on a backlog item, and settles its status first:
+// archiving unfinished work means the operator is not going to do it, so the
+// item transitions to `dropped` before archived_at is stamped. The status
+// change is emitted so listeners see the transition.
+//
+// Archiving used to leave a non-review item's status untouched, which is how
+// items ended up archived while still reading `backlog` — permanently blocking
+// their dependents, since only a resolved status satisfies a dependency gate.
+// Items already in a terminal status keep it: archiving completed work does
+// not retroactively turn it into abandoned work.
 func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "archive")
 	if !ok {
@@ -104,8 +109,8 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	priorStatus := item.Status
 	statusChanged := false
-	if IsReviewStatus(priorStatus) {
-		item.Status = StatusCompleted
+	if !IsTerminalStatus(priorStatus) {
+		item.Status = StatusDropped
 		statusChanged = true
 	}
 	item.ArchivedAt = &now

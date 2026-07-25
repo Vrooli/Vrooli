@@ -131,10 +131,12 @@ func buildDependencyGraph(items []backlog.BacklogItem) DependencyGraph {
 		g.AddNode(itemKey(item), item.DependsOn)
 	}
 
-	// Build completed set for unblocked/blocked computation.
+	// Build the resolved set for unblocked/blocked computation. Dropped items
+	// satisfy their dependents just as completed ones do — nothing is waiting
+	// on work that will never be done.
 	completed := make(map[string]bool, len(items))
 	for _, item := range items {
-		if item.Status == backlog.StatusCompleted {
+		if backlog.IsResolvedStatus(item.Status) {
 			completed[itemKey(item)] = true
 		}
 	}

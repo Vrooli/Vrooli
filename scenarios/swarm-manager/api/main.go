@@ -52,6 +52,7 @@ import (
 	"swarm-manager/internal/planrepair"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/prompts"
+	"swarm-manager/internal/proposals"
 	"swarm-manager/internal/queue"
 	"swarm-manager/internal/records"
 	"swarm-manager/internal/related"
@@ -122,6 +123,8 @@ type Server struct {
 	reviewSweeperStop    chan struct{}
 	autoFilerSweeper     *autofiler.Sweeper
 	autoFilerStopChan    chan struct{}
+	goalWorkflowSweeper  *goals.WorkflowSweeper
+	goalWorkflowStop     chan struct{}
 	audioToolsResolver   audiotools.URLResolver
 	opsAggregator        *operations.Aggregator
 
@@ -196,6 +199,7 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		aiSearchStopChan:   make(chan struct{}),
 		reviewSweeperStop:  make(chan struct{}),
 		autoFilerStopChan:  make(chan struct{}),
+		goalWorkflowStop:   make(chan struct{}),
 		scenarioRoot:       scenarioRoot,
 		dataRoot:           dataRoot,
 		cacheRoot:          cacheRoot,
@@ -460,9 +464,14 @@ func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Ha
 	goalService := goals.NewService(goalStore, backlogHandler.Store())
 	goalService.SetEstimatorFactory(s.newETAEstimator)
 	goalHandler := goals.NewHandler(goalService)
+	goalProposalOps := make([]string, 0, len(proposals.GoalOps()))
+	for _, op := range proposals.GoalOps() {
+		goalProposalOps = append(goalProposalOps, string(op))
+	}
+	goalHandler.SetGoalProposalOps(goalProposalOps)
 	s.goalsHandler = goalHandler
 	goalHandler.RegisterRoutes(s.router)
-	goals.RegisterConnectRoutes(s.router, goalService)
+	goals.RegisterConnectRoutes(s.router, goalService, goalHandler)
 	assigner := goals.NewBacklogMilestoneAssigner(goalService)
 	backlogHandler.SetMilestoneAssigner(assigner)
 	s.milestoneAssigner = assigner
@@ -791,6 +800,11 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 		workflow.SetWorkflowActivityRecorder(s.agentActivitySvc)
 		s.goalsHandler.SetWorkflow(goalWorkflowAdapter{invoker: workflow}, registry)
 		s.goalsHandler.SetWorkflowProposalRecorder(goalWorkflowProposalRecorder{sessions: s.agentSessionSvc})
+		// The apply hop needs an owner. Without one, every terminal goal
+		// workflow result stays on disk unapplied — which is exactly what had
+		// been happening. Constructed here, after both dependencies are set,
+		// because a sweeper missing either would be a silent no-op.
+		s.goalWorkflowSweeper = goals.NewWorkflowSweeper(s.goalsHandler)
 	}
 	if executionService != nil {
 		executionService.SetTransitionRegistry(registry)
@@ -948,6 +962,21 @@ func main() {
 		}()
 	}
 
+	if srv.goalWorkflowSweeper != nil {
+		go func() {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go func() {
+				<-srv.goalWorkflowStop
+				cancel()
+			}()
+			// Sweep once at boot so results that completed while the process
+			// was down land immediately instead of waiting a full interval.
+			srv.goalWorkflowSweeper.RunOnceLogged(ctx)
+			srv.goalWorkflowSweeper.Start(ctx)
+		}()
+	}
+
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := srv.agentSvc.Initialize(initCtx); err != nil {
@@ -986,6 +1015,7 @@ func main() {
 	close(srv.aiSearchStopChan)
 	close(srv.reviewSweeperStop)
 	close(srv.autoFilerStopChan)
+	close(srv.goalWorkflowStop)
 }
 
 // startAISearchBackground kicks off two background tasks for aisearch:

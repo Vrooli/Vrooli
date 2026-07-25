@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/settings"
 )
@@ -72,15 +73,16 @@ func VelocityBrake(ctx context.Context, counter TransitionCounter, cfg settings.
 	if counter == nil {
 		return state, fmt.Errorf("transition counter is required")
 	}
-	forwardStatuses := []backlog.BacklogStatus{
-		backlog.StatusReady,
-		backlog.StatusQueued,
-		backlog.StatusInProgress,
-		backlog.StatusInReview,
-		backlog.StatusReviewPending,
-		backlog.StatusCompleted,
-		backlog.StatusFailed,
-		backlog.StatusNeedsFollowup,
+	// Every status a suggestion can advance into. Derived from the SSOT so a
+	// newly added status is counted rather than silently missing from the
+	// adoption metrics; `suggested` and `backlog` are excluded because they are
+	// the origin states, not forward motion.
+	var forwardStatuses []backlog.BacklogStatus
+	for _, s := range backlogstatus.All() {
+		if s == backlogstatus.Suggested || s == backlogstatus.Backlog {
+			continue
+		}
+		forwardStatuses = append(forwardStatuses, backlog.BacklogStatus(s))
 	}
 	for _, status := range forwardStatuses {
 		count, err := counter.CountStatusTransitionsInRange(ctx, eventlog.EventBacklogStatusChanged, string(status), start, end)

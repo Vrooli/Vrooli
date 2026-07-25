@@ -65,6 +65,7 @@ type goalRollup struct {
 	InProgress int
 	Failed     int
 	Pending    int
+	Dropped    int
 }
 
 func computeGoalRollup(items []string, itemByKey map[string]backlog.BacklogItem) goalRollup {
@@ -82,6 +83,8 @@ func computeGoalRollup(items []string, itemByKey map[string]backlog.BacklogItem)
 		switch item.Status {
 		case backlog.StatusCompleted:
 			rollup.Completed++
+		case backlog.StatusDropped:
+			rollup.Dropped++
 		case backlog.StatusFailed, backlog.StatusNeedsFollowup:
 			rollup.Failed++
 		case backlog.StatusInProgress, backlog.StatusQueued, backlog.StatusResearching,

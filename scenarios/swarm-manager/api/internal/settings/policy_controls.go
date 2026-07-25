@@ -6,11 +6,13 @@ type PolicyControls struct {
 	Review    ReviewControls
 	Budgets   AgentBudgetControls
 }
-type ExecutionControls struct{ DefaultMode string }
-type RetryControls struct {
-	AutoFixup        bool
-	MaxFixupAttempts int
-}
+type (
+	ExecutionControls struct{ DefaultMode string }
+	RetryControls     struct {
+		AutoFixup        bool
+		MaxFixupAttempts int
+	}
+)
 type ReviewControls struct {
 	AgentEnabled          bool
 	CodeQualityMinScore   float64

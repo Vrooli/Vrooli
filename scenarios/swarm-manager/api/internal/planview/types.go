@@ -52,6 +52,10 @@ const (
 	OutcomeFailed        = "failed"
 	OutcomeNeedsReview   = "needs_review"
 	OutcomeNeedsFollowup = "needs_followup"
+	// OutcomeDropped marks work closed by operator decision rather than by a
+	// run. It is distinct from OutcomeOK so the Done column does not read a
+	// dropped item as something that shipped.
+	OutcomeDropped = "dropped"
 )
 
 // Window bounds for the Done column (seconds).
