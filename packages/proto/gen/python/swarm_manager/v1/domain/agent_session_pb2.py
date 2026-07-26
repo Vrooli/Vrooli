@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
+from swarm_manager.v1.shared import agent_session_pb2 as swarm__manager_dot_v1_dot_shared_dot_agent__session__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n+swarm-manager/v1/domain/agent_session.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\xbe\x03\n\x17\x41gentSessionAttribution\x12*\n\x04type\x18\x01 \x01(\tB\x16\xbaH\x13r\x11R\x08operatorR\x05\x61gentR\x04type\x12\x1a\n\x06run_id\x18\x02 \x01(\tH\x00R\x05runId\x88\x01\x01\x12\x1c\n\x07task_id\x18\x03 \x01(\tH\x01R\x06taskId\x88\x01\x01\x12$\n\x0bprofile_key\x18\x04 \x01(\tH\x02R\nprofileKey\x88\x01\x01\x12\"\n\nsession_id\x18\x05 \x01(\tH\x03R\tsessionId\x88\x01\x01\x12\x83\x01\n\x0csession_kind\x18\x06 \x01(\tB[\xbaHXrVR\x00R\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsR\x12workflow_authoringH\x04R\x0bsessionKind\x88\x01\x01\x12\x1b\n\x06source\x18\x07 \x01(\tH\x05R\x06source\x88\x01\x01\x42\t\n\x07_run_idB\n\n\x08_task_idB\x0e\n\x0c_profile_keyB\r\n\x0b_session_idB\x0f\n\r_session_kindB\t\n\x07_source\"\x90\x02\n\x13\x41gentSessionMessage\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x32\n\x04role\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19R\x04userR\tassistantR\x06systemR\x04role\x12\x18\n\x07\x63ontent\x18\x03 \x01(\tR\x07\x63ontent\x12&\n\ncreated_at\x18\x04 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12%\n\x0e\x61ttachment_ids\x18\x05 \x03(\tR\rattachmentIds\x12\x43\n\x07\x63ontext\x18\x06 \x03(\x0b\x32).swarm_manager.v1.AgentSessionContextItemR\x07\x63ontext\"\x9a\x03\n\x17\x41gentSessionContextItem\x12\x9a\x01\n\x04type\x18\x01 \x01(\tB\x85\x01\xbaH\x81\x01r\x7fR\x0c\x62\x61\x63klog_itemR\x04goalR\x07\x63\x61ptureR\texecutionR\x0e\x61gent_activityR\x08scenarioR\x0eoperating_modeR\x07sessionR\x13operations_briefingR\rstartup_briefR\x04type\x12\x19\n\x03ref\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x03ref\x12\x1d\n\x05title\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05title\x12\x18\n\x07summary\x18\x04 \x01(\tR\x07summary\x12\x1c\n\x07node_id\x18\x05 \x01(\tH\x00R\x06nodeId\x88\x01\x01\x12(\n\rmetadata_json\x18\x06 \x01(\tH\x01R\x0cmetadataJson\x88\x01\x01\x12(\n\x0bselected_at\x18\x07 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\nselectedAtB\n\n\x08_node_idB\x10\n\x0e_metadata_json\"\xf3\x01\n\x16\x41gentSessionAttachment\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12#\n\x08\x66ilename\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x08\x66ilename\x12&\n\x0c\x63ontent_type\x18\x03 \x01(\tH\x00R\x0b\x63ontentType\x88\x01\x01\x12+\n\nsize_bytes\x18\x04 \x01(\x03\x42\x07\xbaH\x04\"\x02(\x00H\x01R\tsizeBytes\x88\x01\x01\x12&\n\ncreated_at\x18\x05 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tcreatedAtB\x0f\n\r_content_typeB\r\n\x0b_size_bytes\"\xee\x02\n\x14\x41gentSessionProposal\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x1b\n\x04kind\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04kind\x12\x1f\n\x06status\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06status\x12!\n\x07summary\x18\x04 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07summary\x12*\n\x0cpayload_json\x18\x05 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0bpayloadJson\x12&\n\ncreated_at\x18\x06 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n\nupdated_at\x18\x07 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12P\n\x0b\x61ttribution\x18\x08 \x01(\x0b\x32).swarm_manager.v1.AgentSessionAttributionH\x00R\x0b\x61ttribution\x88\x01\x01\x42\x0e\n\x0c_attribution\"\x83\x01\n\x1a\x41gentSessionProposalTarget\x12-\n\x04type\x18\x01 \x01(\tB\x19\xbaH\x16r\x14R\x0c\x62\x61\x63klog_itemR\x04goalR\x04type\x12\x19\n\x03ref\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x03ref\x12\x1b\n\x04name\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"\xe8\x05\n\x14\x41gentSessionArtifact\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12&\n\nsession_id\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x96\x01\n\rartifact_type\x18\x03 \x01(\tBq\xbaHnrlR\x0c\x62\x61\x63klog_itemR\tmilestoneR\x17operating_mode_proposalR\x19operating_mode_definitionR\x07\x63\x61ptureR\x04\x66ileR\x0e\x61gent_activityR\x0c\x61rtifactType\x12J\n\x06\x61\x63tion\x18\x04 \x01(\tB2\xbaH/r-R\x08proposedR\x07\x63reatedR\x07updatedR\x07\x64\x65letedR\x06linkedR\x06\x61\x63tion\x12&\n\nentity_ref\x18\x05 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tentityRef\x12\x19\n\x05title\x18\x06 \x01(\tH\x00R\x05title\x88\x01\x01\x12$\n\x0bproposal_id\x18\x07 \x01(\tH\x01R\nproposalId\x88\x01\x01\x12$\n\x0b\x61\x63tivity_id\x18\x08 \x01(\tH\x02R\nactivityId\x88\x01\x01\x12\x1a\n\x06run_id\x18\t \x01(\tH\x03R\x05runId\x88\x01\x01\x12,\n\x0fmutation_source\x18\n \x01(\tH\x04R\x0emutationSource\x88\x01\x01\x12P\n\x0b\x61ttribution\x18\x0b \x01(\x0b\x32).swarm_manager.v1.AgentSessionAttributionH\x05R\x0b\x61ttribution\x88\x01\x01\x12&\n\ncreated_at\x18\x0c \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tcreatedAtB\x08\n\x06_titleB\x0e\n\x0c_proposal_idB\x0e\n\x0c_activity_idB\t\n\x07_run_idB\x12\n\x10_mutation_sourceB\x0e\n\x0c_attribution\"\xd9\x08\n\x0c\x41gentSession\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n\x05title\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05title\x12m\n\x04kind\x18\x03 \x01(\tBY\xbaHVrTR\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsR\x12workflow_authoringR\x04kind\x12\x7f\n\x06status\x18\x04 \x01(\tBg\xbaHdrbR\x05\x64raftR\x08startingR\x07runningR\x10waiting_for_userR\x0eproposal_readyR\x08\x61pplyingR\x08\x63ompleteR\x06\x66\x61iledR\x08\x63\x61nceledR\x06status\x12\"\n\x08skill_id\x18\x05 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07skillId\x12\x1c\n\x07task_id\x18\x06 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n\x06run_id\x18\x07 \x01(\tH\x01R\x05runId\x88\x01\x01\x12$\n\x0bprofile_key\x18\x08 \x01(\tH\x02R\nprofileKey\x88\x01\x01\x12*\n\x0e\x66\x61ilure_reason\x18\t \x01(\tH\x03R\rfailureReason\x88\x01\x01\x12&\n\ncreated_at\x18\n \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n\nupdated_at\x18\x0b \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12\x41\n\x08messages\x18\x0c \x03(\x0b\x32%.swarm_manager.v1.AgentSessionMessageR\x08messages\x12\x44\n\tproposals\x18\r \x03(\x0b\x32&.swarm_manager.v1.AgentSessionProposalR\tproposals\x12\x44\n\tartifacts\x18\x0e \x03(\x0b\x32&.swarm_manager.v1.AgentSessionArtifactR\tartifacts\x12M\n\ncreated_by\x18\x0f \x01(\x0b\x32).swarm_manager.v1.AgentSessionAttributionH\x04R\tcreatedBy\x88\x01\x01\x12J\n\x0b\x61ttachments\x18\x10 \x03(\x0b\x32(.swarm_manager.v1.AgentSessionAttachmentR\x0b\x61ttachments\x12Z\n\x0fproposal_target\x18\x11 \x01(\x0b\x32,.swarm_manager.v1.AgentSessionProposalTargetH\x05R\x0eproposalTarget\x88\x01\x01\x42\n\n\x08_task_idB\t\n\x07_run_idB\x0e\n\x0c_profile_keyB\x11\n\x0f_failure_reasonB\r\n\x0b_created_byB\x12\n\x10_proposal_targetBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n+swarm-manager/v1/domain/agent_session.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1b\x62uf/validate/validate.proto\x1a+swarm-manager/v1/shared/agent_session.proto\"\x9e\x02\n\x13\x41gentSessionMessage\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x32\n\x04role\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19R\x04userR\tassistantR\x06systemR\x04role\x12\x18\n\x07\x63ontent\x18\x03 \x01(\tR\x07\x63ontent\x12&\n\ncreated_at\x18\x04 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12%\n\x0e\x61ttachment_ids\x18\x05 \x03(\tR\rattachmentIds\x12Q\n\x07\x63ontext\x18\x06 \x03(\x0b\x32\x37.vrooli.swarm_manager.v1.shared.AgentSessionContextItemR\x07\x63ontext\"\xfc\x02\n\x14\x41gentSessionProposal\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x1b\n\x04kind\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04kind\x12\x1f\n\x06status\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06status\x12!\n\x07summary\x18\x04 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07summary\x12*\n\x0cpayload_json\x18\x05 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0bpayloadJson\x12&\n\ncreated_at\x18\x06 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n\nupdated_at\x18\x07 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12^\n\x0b\x61ttribution\x18\x08 \x01(\x0b\x32\x37.vrooli.swarm_manager.v1.shared.AgentSessionAttributionH\x00R\x0b\x61ttribution\x88\x01\x01\x42\x0e\n\x0c_attribution\"\x83\x01\n\x1a\x41gentSessionProposalTarget\x12-\n\x04type\x18\x01 \x01(\tB\x19\xbaH\x16r\x14R\x0c\x62\x61\x63klog_itemR\x04goalR\x04type\x12\x19\n\x03ref\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x03ref\x12\x1b\n\x04name\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"\xad\t\n\x0c\x41gentSession\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n\x05title\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05title\x12m\n\x04kind\x18\x03 \x01(\tBY\xbaHVrTR\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsR\x12workflow_authoringR\x04kind\x12\x7f\n\x06status\x18\x04 \x01(\tBg\xbaHdrbR\x05\x64raftR\x08startingR\x07runningR\x10waiting_for_userR\x0eproposal_readyR\x08\x61pplyingR\x08\x63ompleteR\x06\x66\x61iledR\x08\x63\x61nceledR\x06status\x12\"\n\x08skill_id\x18\x05 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07skillId\x12\x1c\n\x07task_id\x18\x06 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n\x06run_id\x18\x07 \x01(\tH\x01R\x05runId\x88\x01\x01\x12$\n\x0bprofile_key\x18\x08 \x01(\tH\x02R\nprofileKey\x88\x01\x01\x12*\n\x0e\x66\x61ilure_reason\x18\t \x01(\tH\x03R\rfailureReason\x88\x01\x01\x12&\n\ncreated_at\x18\n \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n\nupdated_at\x18\x0b \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12O\n\x08messages\x18\x0c \x03(\x0b\x32\x33.vrooli.swarm_manager.v1.domain.AgentSessionMessageR\x08messages\x12R\n\tproposals\x18\r \x03(\x0b\x32\x34.vrooli.swarm_manager.v1.domain.AgentSessionProposalR\tproposals\x12R\n\tartifacts\x18\x0e \x03(\x0b\x32\x34.vrooli.swarm_manager.v1.shared.AgentSessionArtifactR\tartifacts\x12[\n\ncreated_by\x18\x0f \x01(\x0b\x32\x37.vrooli.swarm_manager.v1.shared.AgentSessionAttributionH\x04R\tcreatedBy\x88\x01\x01\x12X\n\x0b\x61ttachments\x18\x10 \x03(\x0b\x32\x36.vrooli.swarm_manager.v1.shared.AgentSessionAttachmentR\x0b\x61ttachments\x12h\n\x0fproposal_target\x18\x11 \x01(\x0b\x32:.vrooli.swarm_manager.v1.domain.AgentSessionProposalTargetH\x05R\x0eproposalTarget\x88\x01\x01\x42\n\n\x08_task_idB\t\n\x07_run_idB\x0e\n\x0c_profile_keyB\x11\n\x0f_failure_reasonB\r\n\x0b_created_byB\x12\n\x10_proposal_targetBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,32 +34,12 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'swarm_manager.v1.domain.age
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain'
-  _globals['_AGENTSESSIONATTRIBUTION'].fields_by_name['type']._loaded_options = None
-  _globals['_AGENTSESSIONATTRIBUTION'].fields_by_name['type']._serialized_options = b'\272H\023r\021R\010operatorR\005agent'
-  _globals['_AGENTSESSIONATTRIBUTION'].fields_by_name['session_kind']._loaded_options = None
-  _globals['_AGENTSESSIONATTRIBUTION'].fields_by_name['session_kind']._serialized_options = b'\272HXrVR\000R\022meta_orchestrationR\030operating_mode_authoringR\020swarm_operationsR\022workflow_authoring'
   _globals['_AGENTSESSIONMESSAGE'].fields_by_name['id']._loaded_options = None
   _globals['_AGENTSESSIONMESSAGE'].fields_by_name['id']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_AGENTSESSIONMESSAGE'].fields_by_name['role']._loaded_options = None
   _globals['_AGENTSESSIONMESSAGE'].fields_by_name['role']._serialized_options = b'\272H\033r\031R\004userR\tassistantR\006system'
   _globals['_AGENTSESSIONMESSAGE'].fields_by_name['created_at']._loaded_options = None
   _globals['_AGENTSESSIONMESSAGE'].fields_by_name['created_at']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONCONTEXTITEM'].fields_by_name['type']._loaded_options = None
-  _globals['_AGENTSESSIONCONTEXTITEM'].fields_by_name['type']._serialized_options = b'\272H\201\001r\177R\014backlog_itemR\004goalR\007captureR\texecutionR\016agent_activityR\010scenarioR\016operating_modeR\007sessionR\023operations_briefingR\rstartup_brief'
-  _globals['_AGENTSESSIONCONTEXTITEM'].fields_by_name['ref']._loaded_options = None
-  _globals['_AGENTSESSIONCONTEXTITEM'].fields_by_name['ref']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONCONTEXTITEM'].fields_by_name['title']._loaded_options = None
-  _globals['_AGENTSESSIONCONTEXTITEM'].fields_by_name['title']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONCONTEXTITEM'].fields_by_name['selected_at']._loaded_options = None
-  _globals['_AGENTSESSIONCONTEXTITEM'].fields_by_name['selected_at']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONATTACHMENT'].fields_by_name['id']._loaded_options = None
-  _globals['_AGENTSESSIONATTACHMENT'].fields_by_name['id']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONATTACHMENT'].fields_by_name['filename']._loaded_options = None
-  _globals['_AGENTSESSIONATTACHMENT'].fields_by_name['filename']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONATTACHMENT'].fields_by_name['size_bytes']._loaded_options = None
-  _globals['_AGENTSESSIONATTACHMENT'].fields_by_name['size_bytes']._serialized_options = b'\272H\004\"\002(\000'
-  _globals['_AGENTSESSIONATTACHMENT'].fields_by_name['created_at']._loaded_options = None
-  _globals['_AGENTSESSIONATTACHMENT'].fields_by_name['created_at']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_AGENTSESSIONPROPOSAL'].fields_by_name['id']._loaded_options = None
   _globals['_AGENTSESSIONPROPOSAL'].fields_by_name['id']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_AGENTSESSIONPROPOSAL'].fields_by_name['kind']._loaded_options = None
@@ -79,18 +60,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_AGENTSESSIONPROPOSALTARGET'].fields_by_name['ref']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_AGENTSESSIONPROPOSALTARGET'].fields_by_name['name']._loaded_options = None
   _globals['_AGENTSESSIONPROPOSALTARGET'].fields_by_name['name']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['id']._loaded_options = None
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['id']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['session_id']._loaded_options = None
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['session_id']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['artifact_type']._loaded_options = None
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['artifact_type']._serialized_options = b'\272HnrlR\014backlog_itemR\tmilestoneR\027operating_mode_proposalR\031operating_mode_definitionR\007captureR\004fileR\016agent_activity'
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['action']._loaded_options = None
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['action']._serialized_options = b'\272H/r-R\010proposedR\007createdR\007updatedR\007deletedR\006linked'
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['entity_ref']._loaded_options = None
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['entity_ref']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['created_at']._loaded_options = None
-  _globals['_AGENTSESSIONARTIFACT'].fields_by_name['created_at']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_AGENTSESSION'].fields_by_name['id']._loaded_options = None
   _globals['_AGENTSESSION'].fields_by_name['id']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_AGENTSESSION'].fields_by_name['title']._loaded_options = None
@@ -105,20 +74,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_AGENTSESSION'].fields_by_name['created_at']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_AGENTSESSION'].fields_by_name['updated_at']._loaded_options = None
   _globals['_AGENTSESSION'].fields_by_name['updated_at']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_AGENTSESSIONATTRIBUTION']._serialized_start=95
-  _globals['_AGENTSESSIONATTRIBUTION']._serialized_end=541
-  _globals['_AGENTSESSIONMESSAGE']._serialized_start=544
-  _globals['_AGENTSESSIONMESSAGE']._serialized_end=816
-  _globals['_AGENTSESSIONCONTEXTITEM']._serialized_start=819
-  _globals['_AGENTSESSIONCONTEXTITEM']._serialized_end=1229
-  _globals['_AGENTSESSIONATTACHMENT']._serialized_start=1232
-  _globals['_AGENTSESSIONATTACHMENT']._serialized_end=1475
-  _globals['_AGENTSESSIONPROPOSAL']._serialized_start=1478
-  _globals['_AGENTSESSIONPROPOSAL']._serialized_end=1844
-  _globals['_AGENTSESSIONPROPOSALTARGET']._serialized_start=1847
-  _globals['_AGENTSESSIONPROPOSALTARGET']._serialized_end=1978
-  _globals['_AGENTSESSIONARTIFACT']._serialized_start=1981
-  _globals['_AGENTSESSIONARTIFACT']._serialized_end=2725
-  _globals['_AGENTSESSION']._serialized_start=2728
-  _globals['_AGENTSESSION']._serialized_end=3841
+  _globals['_AGENTSESSIONMESSAGE']._serialized_start=154
+  _globals['_AGENTSESSIONMESSAGE']._serialized_end=440
+  _globals['_AGENTSESSIONPROPOSAL']._serialized_start=443
+  _globals['_AGENTSESSIONPROPOSAL']._serialized_end=823
+  _globals['_AGENTSESSIONPROPOSALTARGET']._serialized_start=826
+  _globals['_AGENTSESSIONPROPOSALTARGET']._serialized_end=957
+  _globals['_AGENTSESSION']._serialized_start=960
+  _globals['_AGENTSESSION']._serialized_end=2157
 # @@protoc_insertion_point(module_scope)

@@ -8,9 +8,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // DISCOVERY DOMAIN
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain discovery
-// @stability stable
+// @stability beta
 //
 // Server-side resolution of audio-tools' base URL so the browser never
 // composes scenario URLs. The swarm-manager UI calls

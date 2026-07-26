@@ -21,10 +21,6 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("cancel", "Cancel an execution (--id ID)", deps.ExecutionCancel),
 			support.APICommand("retry", "Retry a failed execution (--id ID)", deps.ExecutionRetry),
 			support.APICommand("circuit-breaker-reset", "Reset circuit breaker for an item (--item KIND/NAME)", deps.CircuitBreakerReset),
-			support.APICommand("review-list", "List review evidence rounds (--kind KIND --name NAME)", deps.ReviewList),
-			support.APICommand("review-verify", "Mark evidence item as verified (--kind KIND --name NAME --round N --evidence-id ID)", deps.ReviewVerify),
-			support.APICommand("review-request", "Request additional evidence (--kind KIND --name NAME --round N --message MSG)", deps.ReviewRequest),
-			support.APICommand("review-trigger", "Manually trigger review agent (--id EXECUTION_ID --kind KIND --name NAME)", deps.ReviewTrigger),
 		},
 	}
 }

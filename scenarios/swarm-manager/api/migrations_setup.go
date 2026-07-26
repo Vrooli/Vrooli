@@ -75,13 +75,6 @@ func (s *Server) runMigrationsOnce() {
 			"stuck_validating", report.StuckValidating,
 			"missing_terminal", report.MissingTerminal)
 
-		// Rebuild stats so the freshly-emitted events are reflected without
-		// waiting for the first GET /stats call.
-		if s.statsEngine != nil {
-			if err := s.statsEngine.Rebuild(ctx); err != nil {
-				slog.Error("migrations: stats rebuild after backfill failed", "err", err)
-			}
-		}
 	}
 
 	if !migrationApplied(events, migrationNameBackfillETADurationSamplesV1) {
@@ -94,11 +87,6 @@ func (s *Server) runMigrationsOnce() {
 		)
 		slog.Info("migrations: backfill_eta_duration_samples_v1 applied", "produced", produced)
 
-		if s.statsEngine != nil {
-			if err := s.statsEngine.Rebuild(ctx); err != nil {
-				slog.Error("migrations: stats rebuild after eta-duration-samples backfill failed", "err", err)
-			}
-		}
 	}
 
 	if s.goalService != nil && !migrationApplied(events, migrationNameSeedGoalsFromTagsV1) {

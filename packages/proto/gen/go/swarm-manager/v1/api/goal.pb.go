@@ -9,6 +9,7 @@ package api
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -434,7 +435,7 @@ func (x *UpdateGoalTargetsRequest) GetTargets() []string {
 type CreateMilestoneRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	GoalName      string                 `protobuf:"bytes,1,opt,name=goal_name,json=goalName,proto3" json:"goal_name,omitempty"`
-	Milestone     *domain.Milestone      `protobuf:"bytes,2,opt,name=milestone,proto3" json:"milestone,omitempty"`
+	Milestone     *shared.Milestone      `protobuf:"bytes,2,opt,name=milestone,proto3" json:"milestone,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -476,7 +477,7 @@ func (x *CreateMilestoneRequest) GetGoalName() string {
 	return ""
 }
 
-func (x *CreateMilestoneRequest) GetMilestone() *domain.Milestone {
+func (x *CreateMilestoneRequest) GetMilestone() *shared.Milestone {
 	if x != nil {
 		return x.Milestone
 	}
@@ -486,7 +487,7 @@ func (x *CreateMilestoneRequest) GetMilestone() *domain.Milestone {
 type UpdateMilestoneRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	GoalName      string                 `protobuf:"bytes,1,opt,name=goal_name,json=goalName,proto3" json:"goal_name,omitempty"`
-	Milestone     *domain.Milestone      `protobuf:"bytes,2,opt,name=milestone,proto3" json:"milestone,omitempty"`
+	Milestone     *shared.Milestone      `protobuf:"bytes,2,opt,name=milestone,proto3" json:"milestone,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -528,7 +529,7 @@ func (x *UpdateMilestoneRequest) GetGoalName() string {
 	return ""
 }
 
-func (x *UpdateMilestoneRequest) GetMilestone() *domain.Milestone {
+func (x *UpdateMilestoneRequest) GetMilestone() *shared.Milestone {
 	if x != nil {
 		return x.Milestone
 	}
@@ -1200,7 +1201,7 @@ var File_swarm_manager_v1_api_goal_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_goal_proto_rawDesc = "" +
 	"\n" +
-	"\x1fswarm-manager/v1/api/goal.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a\"swarm-manager/v1/domain/goal.proto\"\x12\n" +
+	"\x1fswarm-manager/v1/api/goal.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a\"swarm-manager/v1/domain/goal.proto\x1a\"swarm-manager/v1/shared/goal.proto\"\x12\n" +
 	"\x10ListGoalsRequest\"-\n" +
 	"\x0eGetGoalRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"0\n" +
@@ -1226,13 +1227,13 @@ const file_swarm_manager_v1_api_goal_proto_rawDesc = "" +
 	"\t_priority\"H\n" +
 	"\x18UpdateGoalTargetsRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
-	"\atargets\x18\x02 \x03(\tR\atargets\"p\n" +
+	"\atargets\x18\x02 \x03(\tR\atargets\"~\n" +
 	"\x16CreateMilestoneRequest\x12\x1b\n" +
-	"\tgoal_name\x18\x01 \x01(\tR\bgoalName\x129\n" +
-	"\tmilestone\x18\x02 \x01(\v2\x1b.swarm_manager.v1.MilestoneR\tmilestone\"p\n" +
+	"\tgoal_name\x18\x01 \x01(\tR\bgoalName\x12G\n" +
+	"\tmilestone\x18\x02 \x01(\v2).vrooli.swarm_manager.v1.shared.MilestoneR\tmilestone\"~\n" +
 	"\x16UpdateMilestoneRequest\x12\x1b\n" +
-	"\tgoal_name\x18\x01 \x01(\tR\bgoalName\x129\n" +
-	"\tmilestone\x18\x02 \x01(\v2\x1b.swarm_manager.v1.MilestoneR\tmilestone\"]\n" +
+	"\tgoal_name\x18\x01 \x01(\tR\bgoalName\x12G\n" +
+	"\tmilestone\x18\x02 \x01(\v2).vrooli.swarm_manager.v1.shared.MilestoneR\tmilestone\"]\n" +
 	"\x17ArchiveMilestoneRequest\x12\x1b\n" +
 	"\tgoal_name\x18\x01 \x01(\tR\bgoalName\x12%\n" +
 	"\x0emilestone_name\x18\x02 \x01(\tR\rmilestoneName\"w\n" +
@@ -1259,47 +1260,47 @@ const file_swarm_manager_v1_api_goal_proto_rawDesc = "" +
 	"\battempts\x18\a \x01(\x05R\battempts\x12&\n" +
 	"\x0flast_attempt_at\x18\b \x01(\tR\rlastAttemptAt\x12\x1d\n" +
 	"\n" +
-	"last_error\x18\t \x01(\tR\tlastError\"c\n" +
-	" ListPendingGoalWorkflowsResponse\x12?\n" +
-	"\apending\x18\x01 \x03(\v2%.swarm_manager.v1.PendingGoalWorkflowR\apending\"\xc3\x01\n" +
+	"last_error\x18\t \x01(\tR\tlastError\"n\n" +
+	" ListPendingGoalWorkflowsResponse\x12J\n" +
+	"\apending\x18\x01 \x03(\v20.vrooli.swarm_manager.v1.api.PendingGoalWorkflowR\apending\"\xc3\x01\n" +
 	"\x19ApplyGoalWorkflowResponse\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x02 \x01(\tR\tsessionId\x12!\n" +
 	"\fproposal_ids\x18\x03 \x03(\tR\vproposalIds\x12\x18\n" +
 	"\aoutcome\x18\x04 \x01(\tR\aoutcome\x12'\n" +
-	"\x0falready_applied\x18\x05 \x01(\bR\x0ealreadyApplied\"m\n" +
-	"\fGoalResponse\x12*\n" +
-	"\x04goal\x18\x01 \x01(\v2\x16.swarm_manager.v1.GoalR\x04goal\x121\n" +
-	"\x05scope\x18\x02 \x01(\v2\x1b.swarm_manager.v1.GoalScopeR\x05scope\"I\n" +
-	"\x11ListGoalsResponse\x124\n" +
-	"\x05goals\x18\x01 \x03(\v2\x1e.swarm_manager.v1.GoalResponseR\x05goals\"F\n" +
-	"\x11GoalScopeResponse\x121\n" +
-	"\x05scope\x18\x01 \x01(\v2\x1b.swarm_manager.v1.GoalScopeR\x05scope\"\x13\n" +
-	"\x11EmptyGoalResponse2\x98\r\n" +
-	"\vGoalService\x12T\n" +
-	"\tListGoals\x12\".swarm_manager.v1.ListGoalsRequest\x1a#.swarm_manager.v1.ListGoalsResponse\x12K\n" +
-	"\aGetGoal\x12 .swarm_manager.v1.GetGoalRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12Q\n" +
+	"\x0falready_applied\x18\x05 \x01(\bR\x0ealreadyApplied\"\x89\x01\n" +
+	"\fGoalResponse\x128\n" +
+	"\x04goal\x18\x01 \x01(\v2$.vrooli.swarm_manager.v1.domain.GoalR\x04goal\x12?\n" +
+	"\x05scope\x18\x02 \x01(\v2).vrooli.swarm_manager.v1.domain.GoalScopeR\x05scope\"T\n" +
+	"\x11ListGoalsResponse\x12?\n" +
+	"\x05goals\x18\x01 \x03(\v2).vrooli.swarm_manager.v1.api.GoalResponseR\x05goals\"T\n" +
+	"\x11GoalScopeResponse\x12?\n" +
+	"\x05scope\x18\x01 \x01(\v2).vrooli.swarm_manager.v1.domain.GoalScopeR\x05scope\"\x13\n" +
+	"\x11EmptyGoalResponse2\xa5\x10\n" +
+	"\vGoalService\x12j\n" +
+	"\tListGoals\x12-.vrooli.swarm_manager.v1.api.ListGoalsRequest\x1a..vrooli.swarm_manager.v1.api.ListGoalsResponse\x12a\n" +
+	"\aGetGoal\x12+.vrooli.swarm_manager.v1.api.GetGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12g\n" +
 	"\n" +
-	"CreateGoal\x12#.swarm_manager.v1.CreateGoalRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12Q\n" +
+	"CreateGoal\x12..vrooli.swarm_manager.v1.api.CreateGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12g\n" +
 	"\n" +
-	"UpdateGoal\x12#.swarm_manager.v1.UpdateGoalRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12V\n" +
+	"UpdateGoal\x12..vrooli.swarm_manager.v1.api.UpdateGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12l\n" +
 	"\n" +
-	"DeleteGoal\x12#.swarm_manager.v1.DeleteGoalRequest\x1a#.swarm_manager.v1.EmptyGoalResponse\x12S\n" +
-	"\vArchiveGoal\x12$.swarm_manager.v1.ArchiveGoalRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12W\n" +
-	"\rUnarchiveGoal\x12&.swarm_manager.v1.UnarchiveGoalRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12X\n" +
+	"DeleteGoal\x12..vrooli.swarm_manager.v1.api.DeleteGoalRequest\x1a..vrooli.swarm_manager.v1.api.EmptyGoalResponse\x12i\n" +
+	"\vArchiveGoal\x12/.vrooli.swarm_manager.v1.api.ArchiveGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12m\n" +
+	"\rUnarchiveGoal\x121.vrooli.swarm_manager.v1.api.UnarchiveGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12n\n" +
 	"\n" +
-	"AddTargets\x12*.swarm_manager.v1.UpdateGoalTargetsRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12[\n" +
-	"\rRemoveTargets\x12*.swarm_manager.v1.UpdateGoalTargetsRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12[\n" +
-	"\x0fCreateMilestone\x12(.swarm_manager.v1.CreateMilestoneRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12[\n" +
-	"\x0fUpdateMilestone\x12(.swarm_manager.v1.UpdateMilestoneRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12]\n" +
-	"\x10ArchiveMilestone\x12).swarm_manager.v1.ArchiveMilestoneRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12e\n" +
-	"\x14AssignMilestoneItems\x12-.swarm_manager.v1.UpdateMilestoneItemsRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12g\n" +
-	"\x16UnassignMilestoneItems\x12-.swarm_manager.v1.UpdateMilestoneItemsRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12Q\n" +
-	"\bGetScope\x12 .swarm_manager.v1.GetGoalRequest\x1a#.swarm_manager.v1.GoalScopeResponse\x12U\n" +
-	"\fCloseOutGoal\x12%.swarm_manager.v1.CloseOutGoalRequest\x1a\x1e.swarm_manager.v1.GoalResponse\x12\x81\x01\n" +
-	"\x18ListPendingGoalWorkflows\x121.swarm_manager.v1.ListPendingGoalWorkflowsRequest\x1a2.swarm_manager.v1.ListPendingGoalWorkflowsResponse\x12l\n" +
-	"\x11ApplyGoalWorkflow\x12*.swarm_manager.v1.ApplyGoalWorkflowRequest\x1a+.swarm_manager.v1.ApplyGoalWorkflowResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"AddTargets\x125.vrooli.swarm_manager.v1.api.UpdateGoalTargetsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12q\n" +
+	"\rRemoveTargets\x125.vrooli.swarm_manager.v1.api.UpdateGoalTargetsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12q\n" +
+	"\x0fCreateMilestone\x123.vrooli.swarm_manager.v1.api.CreateMilestoneRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12q\n" +
+	"\x0fUpdateMilestone\x123.vrooli.swarm_manager.v1.api.UpdateMilestoneRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12s\n" +
+	"\x10ArchiveMilestone\x124.vrooli.swarm_manager.v1.api.ArchiveMilestoneRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12{\n" +
+	"\x14AssignMilestoneItems\x128.vrooli.swarm_manager.v1.api.UpdateMilestoneItemsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12}\n" +
+	"\x16UnassignMilestoneItems\x128.vrooli.swarm_manager.v1.api.UpdateMilestoneItemsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12g\n" +
+	"\bGetScope\x12+.vrooli.swarm_manager.v1.api.GetGoalRequest\x1a..vrooli.swarm_manager.v1.api.GoalScopeResponse\x12k\n" +
+	"\fCloseOutGoal\x120.vrooli.swarm_manager.v1.api.CloseOutGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12\x97\x01\n" +
+	"\x18ListPendingGoalWorkflows\x12<.vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsRequest\x1a=.vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsResponse\x12\x82\x01\n" +
+	"\x11ApplyGoalWorkflow\x125.vrooli.swarm_manager.v1.api.ApplyGoalWorkflowRequest\x1a6.vrooli.swarm_manager.v1.api.ApplyGoalWorkflowResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_goal_proto_rawDescOnce sync.Once
@@ -1315,76 +1316,76 @@ func file_swarm_manager_v1_api_goal_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_goal_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_swarm_manager_v1_api_goal_proto_goTypes = []any{
-	(*ListGoalsRequest)(nil),                 // 0: swarm_manager.v1.ListGoalsRequest
-	(*GetGoalRequest)(nil),                   // 1: swarm_manager.v1.GetGoalRequest
-	(*DeleteGoalRequest)(nil),                // 2: swarm_manager.v1.DeleteGoalRequest
-	(*ArchiveGoalRequest)(nil),               // 3: swarm_manager.v1.ArchiveGoalRequest
-	(*UnarchiveGoalRequest)(nil),             // 4: swarm_manager.v1.UnarchiveGoalRequest
-	(*CreateGoalRequest)(nil),                // 5: swarm_manager.v1.CreateGoalRequest
-	(*UpdateGoalRequest)(nil),                // 6: swarm_manager.v1.UpdateGoalRequest
-	(*UpdateGoalTargetsRequest)(nil),         // 7: swarm_manager.v1.UpdateGoalTargetsRequest
-	(*CreateMilestoneRequest)(nil),           // 8: swarm_manager.v1.CreateMilestoneRequest
-	(*UpdateMilestoneRequest)(nil),           // 9: swarm_manager.v1.UpdateMilestoneRequest
-	(*ArchiveMilestoneRequest)(nil),          // 10: swarm_manager.v1.ArchiveMilestoneRequest
-	(*UpdateMilestoneItemsRequest)(nil),      // 11: swarm_manager.v1.UpdateMilestoneItemsRequest
-	(*CloseOutGoalRequest)(nil),              // 12: swarm_manager.v1.CloseOutGoalRequest
-	(*ListPendingGoalWorkflowsRequest)(nil),  // 13: swarm_manager.v1.ListPendingGoalWorkflowsRequest
-	(*ApplyGoalWorkflowRequest)(nil),         // 14: swarm_manager.v1.ApplyGoalWorkflowRequest
-	(*PendingGoalWorkflow)(nil),              // 15: swarm_manager.v1.PendingGoalWorkflow
-	(*ListPendingGoalWorkflowsResponse)(nil), // 16: swarm_manager.v1.ListPendingGoalWorkflowsResponse
-	(*ApplyGoalWorkflowResponse)(nil),        // 17: swarm_manager.v1.ApplyGoalWorkflowResponse
-	(*GoalResponse)(nil),                     // 18: swarm_manager.v1.GoalResponse
-	(*ListGoalsResponse)(nil),                // 19: swarm_manager.v1.ListGoalsResponse
-	(*GoalScopeResponse)(nil),                // 20: swarm_manager.v1.GoalScopeResponse
-	(*EmptyGoalResponse)(nil),                // 21: swarm_manager.v1.EmptyGoalResponse
-	(*domain.Milestone)(nil),                 // 22: swarm_manager.v1.Milestone
-	(*domain.Goal)(nil),                      // 23: swarm_manager.v1.Goal
-	(*domain.GoalScope)(nil),                 // 24: swarm_manager.v1.GoalScope
+	(*ListGoalsRequest)(nil),                 // 0: vrooli.swarm_manager.v1.api.ListGoalsRequest
+	(*GetGoalRequest)(nil),                   // 1: vrooli.swarm_manager.v1.api.GetGoalRequest
+	(*DeleteGoalRequest)(nil),                // 2: vrooli.swarm_manager.v1.api.DeleteGoalRequest
+	(*ArchiveGoalRequest)(nil),               // 3: vrooli.swarm_manager.v1.api.ArchiveGoalRequest
+	(*UnarchiveGoalRequest)(nil),             // 4: vrooli.swarm_manager.v1.api.UnarchiveGoalRequest
+	(*CreateGoalRequest)(nil),                // 5: vrooli.swarm_manager.v1.api.CreateGoalRequest
+	(*UpdateGoalRequest)(nil),                // 6: vrooli.swarm_manager.v1.api.UpdateGoalRequest
+	(*UpdateGoalTargetsRequest)(nil),         // 7: vrooli.swarm_manager.v1.api.UpdateGoalTargetsRequest
+	(*CreateMilestoneRequest)(nil),           // 8: vrooli.swarm_manager.v1.api.CreateMilestoneRequest
+	(*UpdateMilestoneRequest)(nil),           // 9: vrooli.swarm_manager.v1.api.UpdateMilestoneRequest
+	(*ArchiveMilestoneRequest)(nil),          // 10: vrooli.swarm_manager.v1.api.ArchiveMilestoneRequest
+	(*UpdateMilestoneItemsRequest)(nil),      // 11: vrooli.swarm_manager.v1.api.UpdateMilestoneItemsRequest
+	(*CloseOutGoalRequest)(nil),              // 12: vrooli.swarm_manager.v1.api.CloseOutGoalRequest
+	(*ListPendingGoalWorkflowsRequest)(nil),  // 13: vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsRequest
+	(*ApplyGoalWorkflowRequest)(nil),         // 14: vrooli.swarm_manager.v1.api.ApplyGoalWorkflowRequest
+	(*PendingGoalWorkflow)(nil),              // 15: vrooli.swarm_manager.v1.api.PendingGoalWorkflow
+	(*ListPendingGoalWorkflowsResponse)(nil), // 16: vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsResponse
+	(*ApplyGoalWorkflowResponse)(nil),        // 17: vrooli.swarm_manager.v1.api.ApplyGoalWorkflowResponse
+	(*GoalResponse)(nil),                     // 18: vrooli.swarm_manager.v1.api.GoalResponse
+	(*ListGoalsResponse)(nil),                // 19: vrooli.swarm_manager.v1.api.ListGoalsResponse
+	(*GoalScopeResponse)(nil),                // 20: vrooli.swarm_manager.v1.api.GoalScopeResponse
+	(*EmptyGoalResponse)(nil),                // 21: vrooli.swarm_manager.v1.api.EmptyGoalResponse
+	(*shared.Milestone)(nil),                 // 22: vrooli.swarm_manager.v1.shared.Milestone
+	(*domain.Goal)(nil),                      // 23: vrooli.swarm_manager.v1.domain.Goal
+	(*domain.GoalScope)(nil),                 // 24: vrooli.swarm_manager.v1.domain.GoalScope
 }
 var file_swarm_manager_v1_api_goal_proto_depIdxs = []int32{
-	22, // 0: swarm_manager.v1.CreateMilestoneRequest.milestone:type_name -> swarm_manager.v1.Milestone
-	22, // 1: swarm_manager.v1.UpdateMilestoneRequest.milestone:type_name -> swarm_manager.v1.Milestone
-	15, // 2: swarm_manager.v1.ListPendingGoalWorkflowsResponse.pending:type_name -> swarm_manager.v1.PendingGoalWorkflow
-	23, // 3: swarm_manager.v1.GoalResponse.goal:type_name -> swarm_manager.v1.Goal
-	24, // 4: swarm_manager.v1.GoalResponse.scope:type_name -> swarm_manager.v1.GoalScope
-	18, // 5: swarm_manager.v1.ListGoalsResponse.goals:type_name -> swarm_manager.v1.GoalResponse
-	24, // 6: swarm_manager.v1.GoalScopeResponse.scope:type_name -> swarm_manager.v1.GoalScope
-	0,  // 7: swarm_manager.v1.GoalService.ListGoals:input_type -> swarm_manager.v1.ListGoalsRequest
-	1,  // 8: swarm_manager.v1.GoalService.GetGoal:input_type -> swarm_manager.v1.GetGoalRequest
-	5,  // 9: swarm_manager.v1.GoalService.CreateGoal:input_type -> swarm_manager.v1.CreateGoalRequest
-	6,  // 10: swarm_manager.v1.GoalService.UpdateGoal:input_type -> swarm_manager.v1.UpdateGoalRequest
-	2,  // 11: swarm_manager.v1.GoalService.DeleteGoal:input_type -> swarm_manager.v1.DeleteGoalRequest
-	3,  // 12: swarm_manager.v1.GoalService.ArchiveGoal:input_type -> swarm_manager.v1.ArchiveGoalRequest
-	4,  // 13: swarm_manager.v1.GoalService.UnarchiveGoal:input_type -> swarm_manager.v1.UnarchiveGoalRequest
-	7,  // 14: swarm_manager.v1.GoalService.AddTargets:input_type -> swarm_manager.v1.UpdateGoalTargetsRequest
-	7,  // 15: swarm_manager.v1.GoalService.RemoveTargets:input_type -> swarm_manager.v1.UpdateGoalTargetsRequest
-	8,  // 16: swarm_manager.v1.GoalService.CreateMilestone:input_type -> swarm_manager.v1.CreateMilestoneRequest
-	9,  // 17: swarm_manager.v1.GoalService.UpdateMilestone:input_type -> swarm_manager.v1.UpdateMilestoneRequest
-	10, // 18: swarm_manager.v1.GoalService.ArchiveMilestone:input_type -> swarm_manager.v1.ArchiveMilestoneRequest
-	11, // 19: swarm_manager.v1.GoalService.AssignMilestoneItems:input_type -> swarm_manager.v1.UpdateMilestoneItemsRequest
-	11, // 20: swarm_manager.v1.GoalService.UnassignMilestoneItems:input_type -> swarm_manager.v1.UpdateMilestoneItemsRequest
-	1,  // 21: swarm_manager.v1.GoalService.GetScope:input_type -> swarm_manager.v1.GetGoalRequest
-	12, // 22: swarm_manager.v1.GoalService.CloseOutGoal:input_type -> swarm_manager.v1.CloseOutGoalRequest
-	13, // 23: swarm_manager.v1.GoalService.ListPendingGoalWorkflows:input_type -> swarm_manager.v1.ListPendingGoalWorkflowsRequest
-	14, // 24: swarm_manager.v1.GoalService.ApplyGoalWorkflow:input_type -> swarm_manager.v1.ApplyGoalWorkflowRequest
-	19, // 25: swarm_manager.v1.GoalService.ListGoals:output_type -> swarm_manager.v1.ListGoalsResponse
-	18, // 26: swarm_manager.v1.GoalService.GetGoal:output_type -> swarm_manager.v1.GoalResponse
-	18, // 27: swarm_manager.v1.GoalService.CreateGoal:output_type -> swarm_manager.v1.GoalResponse
-	18, // 28: swarm_manager.v1.GoalService.UpdateGoal:output_type -> swarm_manager.v1.GoalResponse
-	21, // 29: swarm_manager.v1.GoalService.DeleteGoal:output_type -> swarm_manager.v1.EmptyGoalResponse
-	18, // 30: swarm_manager.v1.GoalService.ArchiveGoal:output_type -> swarm_manager.v1.GoalResponse
-	18, // 31: swarm_manager.v1.GoalService.UnarchiveGoal:output_type -> swarm_manager.v1.GoalResponse
-	18, // 32: swarm_manager.v1.GoalService.AddTargets:output_type -> swarm_manager.v1.GoalResponse
-	18, // 33: swarm_manager.v1.GoalService.RemoveTargets:output_type -> swarm_manager.v1.GoalResponse
-	18, // 34: swarm_manager.v1.GoalService.CreateMilestone:output_type -> swarm_manager.v1.GoalResponse
-	18, // 35: swarm_manager.v1.GoalService.UpdateMilestone:output_type -> swarm_manager.v1.GoalResponse
-	18, // 36: swarm_manager.v1.GoalService.ArchiveMilestone:output_type -> swarm_manager.v1.GoalResponse
-	18, // 37: swarm_manager.v1.GoalService.AssignMilestoneItems:output_type -> swarm_manager.v1.GoalResponse
-	18, // 38: swarm_manager.v1.GoalService.UnassignMilestoneItems:output_type -> swarm_manager.v1.GoalResponse
-	20, // 39: swarm_manager.v1.GoalService.GetScope:output_type -> swarm_manager.v1.GoalScopeResponse
-	18, // 40: swarm_manager.v1.GoalService.CloseOutGoal:output_type -> swarm_manager.v1.GoalResponse
-	16, // 41: swarm_manager.v1.GoalService.ListPendingGoalWorkflows:output_type -> swarm_manager.v1.ListPendingGoalWorkflowsResponse
-	17, // 42: swarm_manager.v1.GoalService.ApplyGoalWorkflow:output_type -> swarm_manager.v1.ApplyGoalWorkflowResponse
+	22, // 0: vrooli.swarm_manager.v1.api.CreateMilestoneRequest.milestone:type_name -> vrooli.swarm_manager.v1.shared.Milestone
+	22, // 1: vrooli.swarm_manager.v1.api.UpdateMilestoneRequest.milestone:type_name -> vrooli.swarm_manager.v1.shared.Milestone
+	15, // 2: vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsResponse.pending:type_name -> vrooli.swarm_manager.v1.api.PendingGoalWorkflow
+	23, // 3: vrooli.swarm_manager.v1.api.GoalResponse.goal:type_name -> vrooli.swarm_manager.v1.domain.Goal
+	24, // 4: vrooli.swarm_manager.v1.api.GoalResponse.scope:type_name -> vrooli.swarm_manager.v1.domain.GoalScope
+	18, // 5: vrooli.swarm_manager.v1.api.ListGoalsResponse.goals:type_name -> vrooli.swarm_manager.v1.api.GoalResponse
+	24, // 6: vrooli.swarm_manager.v1.api.GoalScopeResponse.scope:type_name -> vrooli.swarm_manager.v1.domain.GoalScope
+	0,  // 7: vrooli.swarm_manager.v1.api.GoalService.ListGoals:input_type -> vrooli.swarm_manager.v1.api.ListGoalsRequest
+	1,  // 8: vrooli.swarm_manager.v1.api.GoalService.GetGoal:input_type -> vrooli.swarm_manager.v1.api.GetGoalRequest
+	5,  // 9: vrooli.swarm_manager.v1.api.GoalService.CreateGoal:input_type -> vrooli.swarm_manager.v1.api.CreateGoalRequest
+	6,  // 10: vrooli.swarm_manager.v1.api.GoalService.UpdateGoal:input_type -> vrooli.swarm_manager.v1.api.UpdateGoalRequest
+	2,  // 11: vrooli.swarm_manager.v1.api.GoalService.DeleteGoal:input_type -> vrooli.swarm_manager.v1.api.DeleteGoalRequest
+	3,  // 12: vrooli.swarm_manager.v1.api.GoalService.ArchiveGoal:input_type -> vrooli.swarm_manager.v1.api.ArchiveGoalRequest
+	4,  // 13: vrooli.swarm_manager.v1.api.GoalService.UnarchiveGoal:input_type -> vrooli.swarm_manager.v1.api.UnarchiveGoalRequest
+	7,  // 14: vrooli.swarm_manager.v1.api.GoalService.AddTargets:input_type -> vrooli.swarm_manager.v1.api.UpdateGoalTargetsRequest
+	7,  // 15: vrooli.swarm_manager.v1.api.GoalService.RemoveTargets:input_type -> vrooli.swarm_manager.v1.api.UpdateGoalTargetsRequest
+	8,  // 16: vrooli.swarm_manager.v1.api.GoalService.CreateMilestone:input_type -> vrooli.swarm_manager.v1.api.CreateMilestoneRequest
+	9,  // 17: vrooli.swarm_manager.v1.api.GoalService.UpdateMilestone:input_type -> vrooli.swarm_manager.v1.api.UpdateMilestoneRequest
+	10, // 18: vrooli.swarm_manager.v1.api.GoalService.ArchiveMilestone:input_type -> vrooli.swarm_manager.v1.api.ArchiveMilestoneRequest
+	11, // 19: vrooli.swarm_manager.v1.api.GoalService.AssignMilestoneItems:input_type -> vrooli.swarm_manager.v1.api.UpdateMilestoneItemsRequest
+	11, // 20: vrooli.swarm_manager.v1.api.GoalService.UnassignMilestoneItems:input_type -> vrooli.swarm_manager.v1.api.UpdateMilestoneItemsRequest
+	1,  // 21: vrooli.swarm_manager.v1.api.GoalService.GetScope:input_type -> vrooli.swarm_manager.v1.api.GetGoalRequest
+	12, // 22: vrooli.swarm_manager.v1.api.GoalService.CloseOutGoal:input_type -> vrooli.swarm_manager.v1.api.CloseOutGoalRequest
+	13, // 23: vrooli.swarm_manager.v1.api.GoalService.ListPendingGoalWorkflows:input_type -> vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsRequest
+	14, // 24: vrooli.swarm_manager.v1.api.GoalService.ApplyGoalWorkflow:input_type -> vrooli.swarm_manager.v1.api.ApplyGoalWorkflowRequest
+	19, // 25: vrooli.swarm_manager.v1.api.GoalService.ListGoals:output_type -> vrooli.swarm_manager.v1.api.ListGoalsResponse
+	18, // 26: vrooli.swarm_manager.v1.api.GoalService.GetGoal:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 27: vrooli.swarm_manager.v1.api.GoalService.CreateGoal:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 28: vrooli.swarm_manager.v1.api.GoalService.UpdateGoal:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	21, // 29: vrooli.swarm_manager.v1.api.GoalService.DeleteGoal:output_type -> vrooli.swarm_manager.v1.api.EmptyGoalResponse
+	18, // 30: vrooli.swarm_manager.v1.api.GoalService.ArchiveGoal:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 31: vrooli.swarm_manager.v1.api.GoalService.UnarchiveGoal:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 32: vrooli.swarm_manager.v1.api.GoalService.AddTargets:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 33: vrooli.swarm_manager.v1.api.GoalService.RemoveTargets:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 34: vrooli.swarm_manager.v1.api.GoalService.CreateMilestone:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 35: vrooli.swarm_manager.v1.api.GoalService.UpdateMilestone:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 36: vrooli.swarm_manager.v1.api.GoalService.ArchiveMilestone:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 37: vrooli.swarm_manager.v1.api.GoalService.AssignMilestoneItems:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	18, // 38: vrooli.swarm_manager.v1.api.GoalService.UnassignMilestoneItems:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	20, // 39: vrooli.swarm_manager.v1.api.GoalService.GetScope:output_type -> vrooli.swarm_manager.v1.api.GoalScopeResponse
+	18, // 40: vrooli.swarm_manager.v1.api.GoalService.CloseOutGoal:output_type -> vrooli.swarm_manager.v1.api.GoalResponse
+	16, // 41: vrooli.swarm_manager.v1.api.GoalService.ListPendingGoalWorkflows:output_type -> vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsResponse
+	17, // 42: vrooli.swarm_manager.v1.api.GoalService.ApplyGoalWorkflow:output_type -> vrooli.swarm_manager.v1.api.ApplyGoalWorkflowResponse
 	25, // [25:43] is the sub-list for method output_type
 	7,  // [7:25] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name

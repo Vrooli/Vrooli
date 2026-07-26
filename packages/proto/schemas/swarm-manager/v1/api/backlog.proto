@@ -1,11 +1,10 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/backlog.proto";
 import "swarm-manager/v1/domain/execution.proto";
-import "swarm-manager/v1/domain/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
@@ -13,9 +12,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // BACKLOG API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports backlog
 // @stability beta
 //
 // HTTP API contracts for Swarm Manager backlog operations.
@@ -99,7 +95,7 @@ message CreateBacklogItemRequest {
   repeated string creates = 17;
 
   // Canonical plan-manager plan backing this work item.
-  optional PlanRef plan_ref = 18;
+  optional shared.PlanRef plan_ref = 18;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -119,7 +115,7 @@ message UpdateBacklogItemRequest {
   // Lifecycle status.
   //
   // Not constrained to an inline allowlist — see the note on
-  // BacklogItem.status in domain/backlog.proto. The server's status table is
+  // domain.BacklogItem.status in domain/backlog.proto. The server's status table is
   // the single source of truth and rejects unknown values, including the
   // narrower rule that most statuses are not settable by a client at all.
   optional string status = 3 [(buf.validate.field).string.min_len = 1];
@@ -172,7 +168,7 @@ message UpdateBacklogItemRequest {
   repeated string creates = 15;
 
   // Canonical plan-manager plan backing this work item. Set empty strings to clear.
-  optional PlanRef plan_ref = 16;
+  optional shared.PlanRef plan_ref = 16;
 }
 
 // A single blocking reason with forceability metadata.
@@ -195,15 +191,49 @@ message ItemBlockingInfo {
 
 // ListBacklogItemsResponse returns all backlog items.
 message ListBacklogItemsResponse {
-  repeated BacklogItem items = 1;
+  repeated domain.BacklogItem items = 1;
   // Per-item blocking state keyed by "kind/name". Only includes items that
   // have dependencies; items without deps are omitted (not blocked).
   map<string, ItemBlockingInfo> blocking = 2;
 }
 
+// ArchivedFilter controls whether archived backlog items are excluded, shown
+// exclusively, or included with active items.
+enum ArchivedFilter {
+  ARCHIVED_FILTER_UNSPECIFIED = 0;
+  ARCHIVED_FILTER_EXCLUDE = 1;
+  ARCHIVED_FILTER_ONLY = 2;
+  ARCHIVED_FILTER_ALL = 3;
+}
+
+// ListBacklogItemsRequest carries every filter supported by the operator list
+// surface. Optional booleans distinguish an omitted filter from false.
+message ListBacklogItemsRequest {
+  repeated string kinds = 1;
+  repeated string statuses = 2;
+  ArchivedFilter archived = 3;
+  repeated string scenarios = 4;
+  optional string spawned_from = 5;
+  optional bool has_plan_ref = 6;
+  optional string plan_ref = 7;
+  optional bool stale = 8;
+}
+
+// DeleteBacklogItemRequest identifies one backlog item to delete. Deletion is
+// idempotent: deleting an item that no longer exists succeeds with deleted=false.
+message DeleteBacklogItemRequest {
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// DeleteBacklogItemResponse reports whether an item was removed.
+message DeleteBacklogItemResponse {
+  bool deleted = 1;
+}
+
 // BacklogItemResponse returns a single backlog item.
 message BacklogItemResponse {
-  BacklogItem item = 1;
+  domain.BacklogItem item = 1;
 
   // True when CreateItem returned a pre-existing open item for the same
   // target + signature instead of creating a duplicate (creation-time dedup).
@@ -230,11 +260,14 @@ message GetBacklogItemRequest {
 // problem (triage-class) file a backlog item via CreateItem and poll its status
 // + queue_position via GetItem. The shared generated client is what prevents the
 // per-consumer wire drift that plagued the old hand-rolled issue-tracker
-// clients. Other backlog operations stay on the existing REST surface (consumed
-// by swarm-manager's own UI); only create/get are migrated to Connect here.
+// clients. Operations migrate only when the typed contract preserves the full
+// operator behavior; the UI may continue to consume the REST surface.
 //
 // @stability beta
 service BacklogService {
+  // ListItems returns the filtered operator backlog projection.
+  rpc ListItems(ListBacklogItemsRequest) returns (ListBacklogItemsResponse);
+
   // CreateItem files a backlog item, applying creation-time dedup: if an open
   // item already exists for the same target + signature, the existing item is
   // returned with deduped=true instead of creating a duplicate.
@@ -243,6 +276,9 @@ service BacklogService {
   // GetItem returns a single backlog item with its current status and computed
   // queue_position (items-ahead in the ranked pending set).
   rpc GetItem(GetBacklogItemRequest) returns (BacklogItemResponse);
+
+  // DeleteItem removes an item and cleans dependent references. It is idempotent.
+  rpc DeleteItem(DeleteBacklogItemRequest) returns (DeleteBacklogItemResponse);
 }
 
 // AutoFilerService exposes the governed backlog auto-filer operator surface.
@@ -309,18 +345,18 @@ message DismissAutoFilerSuggestionRequest {
 }
 
 message DismissAutoFilerSuggestionResponse {
-  swarm_manager.v1.BacklogItem item = 1;
+  domain.BacklogItem item = 1;
   bool dismissed = 2;
 }
 
 // BacklogFilesResponse returns the file tree for a backlog item.
 message BacklogFilesResponse {
-  repeated BacklogFile files = 1;
+  repeated shared.BacklogFile files = 1;
 }
 
 // BacklogFileResponse returns a single file node.
 message BacklogFileResponse {
-  BacklogFile file = 1;
+  shared.BacklogFile file = 1;
 }
 
 // BacklogFileOperationRequest applies a filesystem operation within a backlog item.
@@ -347,7 +383,7 @@ message BacklogFileOperationRequest {
 // BacklogFileOperationResponse reports the result of a file operation.
 message BacklogFileOperationResponse {
   // Result file node for rename/move/copy operations.
-  optional BacklogFile file = 1;
+  optional shared.BacklogFile file = 1;
 
   // Deleted path for delete operations.
   optional string deleted_path = 2;
@@ -386,7 +422,7 @@ message QueueBacklogItemRequest {
 
 // QueueBacklogItemResponse returns queue results.
 message QueueBacklogItemResponse {
-  BacklogItem item = 1;
+  domain.BacklogItem item = 1;
   string task_id = 2;
   string run_id = 3;
   string base_url = 4;
@@ -519,6 +555,8 @@ message ImportBacklogResponse {
 }
 
 // ImportChange describes a single change from an import operation.
+import "swarm-manager/v1/shared/backlog.proto";
+import "swarm-manager/v1/shared/plan_ref.proto";
 message ImportChange {
   // Item key (kind/name).
   string item = 1;
@@ -549,7 +587,7 @@ message WorkshopSaveRequest {
 // WorkshopSaveResponse returns the result of saving a workshop round.
 message WorkshopSaveResponse {
   // The saved file node.
-  BacklogFile file = 1;
+  shared.BacklogFile file = 1;
 
   // Auto-advance decision metadata.
   WorkshopAutoAdvance auto_advance = 2;
@@ -639,7 +677,7 @@ message CreateClarificationRequest {
 
 // CreateClarificationResponse returns the newly created thread.
 message CreateClarificationResponse {
-  ClarificationThread thread = 1;
+  domain.ClarificationThread thread = 1;
 }
 
 // ContinueClarificationRequest sends a follow-up message in an existing thread.
@@ -653,12 +691,12 @@ message ContinueClarificationRequest {
 
 // ContinueClarificationResponse returns the updated thread.
 message ContinueClarificationResponse {
-  ClarificationThread thread = 1;
+  domain.ClarificationThread thread = 1;
 }
 
 // GetClarificationResponse returns an existing clarification thread.
 message GetClarificationResponse {
-  ClarificationThread thread = 1;
+  domain.ClarificationThread thread = 1;
 }
 
 // ClarificationActionRequest applies a post-clarification action.
@@ -702,7 +740,7 @@ message ClarificationActionResponse {
 
 // ListReviewRoundsResponse returns all review evidence rounds for a backlog item.
 message ListReviewRoundsResponse {
-  repeated swarm_manager.v1.ReviewEvidenceRound rounds = 1;
+  repeated domain.ReviewEvidenceRound rounds = 1;
 }
 
 // VerifyEvidenceRequest marks an evidence item as verified or unverified.

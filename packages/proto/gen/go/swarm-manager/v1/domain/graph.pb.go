@@ -1130,7 +1130,7 @@ var File_swarm_manager_v1_domain_graph_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"\n" +
-	"#swarm-manager/v1/domain/graph.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"+\n" +
+	"#swarm-manager/v1/domain/graph.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"+\n" +
 	"\rGraphPosition\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
 	"\x01y\x18\x02 \x01(\x01R\x01y\"\xe8\x01\n" +
@@ -1151,12 +1151,12 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"(\x01R\bpriority\x12;\n" +
 	"\x17active_execution_status\x18\x06 \x01(\tH\x00R\x15activeExecutionStatus\x88\x01\x01\x124\n" +
 	"\x16active_execution_count\x18\a \x01(\x05R\x14activeExecutionCountB\x1a\n" +
-	"\x18_active_execution_status\"\xb7\x01\n" +
+	"\x18_active_execution_status\"\xc5\x01\n" +
 	"\x11GraphGoalNodeData\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12\x1f\n" +
-	"\x06status\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06status\x129\n" +
-	"\x06rollup\x18\x04 \x01(\v2!.swarm_manager.v1.GraphGoalRollupR\x06rollupJ\x04\b\x05\x10\x06J\x04\b\x06\x10\a\"\x8c\x01\n" +
+	"\x06status\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06status\x12G\n" +
+	"\x06rollup\x18\x04 \x01(\v2/.vrooli.swarm_manager.v1.domain.GraphGoalRollupR\x06rollupJ\x04\b\x05\x10\x06J\x04\b\x06\x10\a\"\x8c\x01\n" +
 	"\x14GraphCaptureNodeData\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1b\n" +
 	"\x04text\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04text\x12>\n" +
@@ -1206,21 +1206,21 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1f\n" +
 	"\x06status\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06statusB\n" +
 	"\n" +
-	"\b_task_id\"\xf0\x03\n" +
-	"\rGraphNodeData\x12B\n" +
-	"\abacklog\x18\x01 \x01(\v2&.swarm_manager.v1.GraphBacklogNodeDataH\x00R\abacklog\x129\n" +
-	"\x04goal\x18\x02 \x01(\v2#.swarm_manager.v1.GraphGoalNodeDataH\x00R\x04goal\x12B\n" +
-	"\acapture\x18\x03 \x01(\v2&.swarm_manager.v1.GraphCaptureNodeDataH\x00R\acapture\x12E\n" +
-	"\bscenario\x18\x04 \x01(\v2'.swarm_manager.v1.GraphScenarioNodeDataH\x00R\bscenario\x12H\n" +
-	"\texecution\x18\x05 \x01(\v2(.swarm_manager.v1.GraphExecutionNodeDataH\x00R\texecution\x12J\n" +
-	"\bactivity\x18\x06 \x01(\v2,.swarm_manager.v1.GraphAgentActivityNodeDataH\x00R\bactivity\x126\n" +
-	"\x03run\x18\a \x01(\v2\".swarm_manager.v1.GraphRunNodeDataH\x00R\x03runB\a\n" +
-	"\x05value\"\xfc\x01\n" +
+	"\b_task_id\"\xd2\x04\n" +
+	"\rGraphNodeData\x12P\n" +
+	"\abacklog\x18\x01 \x01(\v24.vrooli.swarm_manager.v1.domain.GraphBacklogNodeDataH\x00R\abacklog\x12G\n" +
+	"\x04goal\x18\x02 \x01(\v21.vrooli.swarm_manager.v1.domain.GraphGoalNodeDataH\x00R\x04goal\x12P\n" +
+	"\acapture\x18\x03 \x01(\v24.vrooli.swarm_manager.v1.domain.GraphCaptureNodeDataH\x00R\acapture\x12S\n" +
+	"\bscenario\x18\x04 \x01(\v25.vrooli.swarm_manager.v1.domain.GraphScenarioNodeDataH\x00R\bscenario\x12V\n" +
+	"\texecution\x18\x05 \x01(\v26.vrooli.swarm_manager.v1.domain.GraphExecutionNodeDataH\x00R\texecution\x12X\n" +
+	"\bactivity\x18\x06 \x01(\v2:.vrooli.swarm_manager.v1.domain.GraphAgentActivityNodeDataH\x00R\bactivity\x12D\n" +
+	"\x03run\x18\a \x01(\v20.vrooli.swarm_manager.v1.domain.GraphRunNodeDataH\x00R\x03runB\a\n" +
+	"\x05value\"\x98\x02\n" +
 	"\tGraphNode\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12d\n" +
-	"\x04type\x18\x02 \x01(\tBP\xbaHMrKR\vBacklogItemR\x04GoalR\aCaptureR\bScenarioR\x0fExecutionRecordR\rAgentActivityR\x03RunR\x04type\x123\n" +
-	"\x04data\x18\x03 \x01(\v2\x1f.swarm_manager.v1.GraphNodeDataR\x04data\x12;\n" +
-	"\bposition\x18\x04 \x01(\v2\x1f.swarm_manager.v1.GraphPositionR\bposition\"\x85\x02\n" +
+	"\x04type\x18\x02 \x01(\tBP\xbaHMrKR\vBacklogItemR\x04GoalR\aCaptureR\bScenarioR\x0fExecutionRecordR\rAgentActivityR\x03RunR\x04type\x12A\n" +
+	"\x04data\x18\x03 \x01(\v2-.vrooli.swarm_manager.v1.domain.GraphNodeDataR\x04data\x12I\n" +
+	"\bposition\x18\x04 \x01(\v2-.vrooli.swarm_manager.v1.domain.GraphPositionR\bposition\"\x85\x02\n" +
 	"\tGraphEdge\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1f\n" +
 	"\x06source\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06source\x12\x1f\n" +
@@ -1258,31 +1258,31 @@ func file_swarm_manager_v1_domain_graph_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_domain_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_swarm_manager_v1_domain_graph_proto_goTypes = []any{
-	(*GraphPosition)(nil),              // 0: swarm_manager.v1.GraphPosition
-	(*GraphGoalRollup)(nil),            // 1: swarm_manager.v1.GraphGoalRollup
-	(*GraphBacklogNodeData)(nil),       // 2: swarm_manager.v1.GraphBacklogNodeData
-	(*GraphGoalNodeData)(nil),          // 3: swarm_manager.v1.GraphGoalNodeData
-	(*GraphCaptureNodeData)(nil),       // 4: swarm_manager.v1.GraphCaptureNodeData
-	(*GraphScenarioNodeData)(nil),      // 5: swarm_manager.v1.GraphScenarioNodeData
-	(*GraphExecutionNodeData)(nil),     // 6: swarm_manager.v1.GraphExecutionNodeData
-	(*GraphAgentActivityNodeData)(nil), // 7: swarm_manager.v1.GraphAgentActivityNodeData
-	(*GraphRunNodeData)(nil),           // 8: swarm_manager.v1.GraphRunNodeData
-	(*GraphNodeData)(nil),              // 9: swarm_manager.v1.GraphNodeData
-	(*GraphNode)(nil),                  // 10: swarm_manager.v1.GraphNode
-	(*GraphEdge)(nil),                  // 11: swarm_manager.v1.GraphEdge
-	(*GraphMeta)(nil),                  // 12: swarm_manager.v1.GraphMeta
+	(*GraphPosition)(nil),              // 0: vrooli.swarm_manager.v1.domain.GraphPosition
+	(*GraphGoalRollup)(nil),            // 1: vrooli.swarm_manager.v1.domain.GraphGoalRollup
+	(*GraphBacklogNodeData)(nil),       // 2: vrooli.swarm_manager.v1.domain.GraphBacklogNodeData
+	(*GraphGoalNodeData)(nil),          // 3: vrooli.swarm_manager.v1.domain.GraphGoalNodeData
+	(*GraphCaptureNodeData)(nil),       // 4: vrooli.swarm_manager.v1.domain.GraphCaptureNodeData
+	(*GraphScenarioNodeData)(nil),      // 5: vrooli.swarm_manager.v1.domain.GraphScenarioNodeData
+	(*GraphExecutionNodeData)(nil),     // 6: vrooli.swarm_manager.v1.domain.GraphExecutionNodeData
+	(*GraphAgentActivityNodeData)(nil), // 7: vrooli.swarm_manager.v1.domain.GraphAgentActivityNodeData
+	(*GraphRunNodeData)(nil),           // 8: vrooli.swarm_manager.v1.domain.GraphRunNodeData
+	(*GraphNodeData)(nil),              // 9: vrooli.swarm_manager.v1.domain.GraphNodeData
+	(*GraphNode)(nil),                  // 10: vrooli.swarm_manager.v1.domain.GraphNode
+	(*GraphEdge)(nil),                  // 11: vrooli.swarm_manager.v1.domain.GraphEdge
+	(*GraphMeta)(nil),                  // 12: vrooli.swarm_manager.v1.domain.GraphMeta
 }
 var file_swarm_manager_v1_domain_graph_proto_depIdxs = []int32{
-	1,  // 0: swarm_manager.v1.GraphGoalNodeData.rollup:type_name -> swarm_manager.v1.GraphGoalRollup
-	2,  // 1: swarm_manager.v1.GraphNodeData.backlog:type_name -> swarm_manager.v1.GraphBacklogNodeData
-	3,  // 2: swarm_manager.v1.GraphNodeData.goal:type_name -> swarm_manager.v1.GraphGoalNodeData
-	4,  // 3: swarm_manager.v1.GraphNodeData.capture:type_name -> swarm_manager.v1.GraphCaptureNodeData
-	5,  // 4: swarm_manager.v1.GraphNodeData.scenario:type_name -> swarm_manager.v1.GraphScenarioNodeData
-	6,  // 5: swarm_manager.v1.GraphNodeData.execution:type_name -> swarm_manager.v1.GraphExecutionNodeData
-	7,  // 6: swarm_manager.v1.GraphNodeData.activity:type_name -> swarm_manager.v1.GraphAgentActivityNodeData
-	8,  // 7: swarm_manager.v1.GraphNodeData.run:type_name -> swarm_manager.v1.GraphRunNodeData
-	9,  // 8: swarm_manager.v1.GraphNode.data:type_name -> swarm_manager.v1.GraphNodeData
-	0,  // 9: swarm_manager.v1.GraphNode.position:type_name -> swarm_manager.v1.GraphPosition
+	1,  // 0: vrooli.swarm_manager.v1.domain.GraphGoalNodeData.rollup:type_name -> vrooli.swarm_manager.v1.domain.GraphGoalRollup
+	2,  // 1: vrooli.swarm_manager.v1.domain.GraphNodeData.backlog:type_name -> vrooli.swarm_manager.v1.domain.GraphBacklogNodeData
+	3,  // 2: vrooli.swarm_manager.v1.domain.GraphNodeData.goal:type_name -> vrooli.swarm_manager.v1.domain.GraphGoalNodeData
+	4,  // 3: vrooli.swarm_manager.v1.domain.GraphNodeData.capture:type_name -> vrooli.swarm_manager.v1.domain.GraphCaptureNodeData
+	5,  // 4: vrooli.swarm_manager.v1.domain.GraphNodeData.scenario:type_name -> vrooli.swarm_manager.v1.domain.GraphScenarioNodeData
+	6,  // 5: vrooli.swarm_manager.v1.domain.GraphNodeData.execution:type_name -> vrooli.swarm_manager.v1.domain.GraphExecutionNodeData
+	7,  // 6: vrooli.swarm_manager.v1.domain.GraphNodeData.activity:type_name -> vrooli.swarm_manager.v1.domain.GraphAgentActivityNodeData
+	8,  // 7: vrooli.swarm_manager.v1.domain.GraphNodeData.run:type_name -> vrooli.swarm_manager.v1.domain.GraphRunNodeData
+	9,  // 8: vrooli.swarm_manager.v1.domain.GraphNode.data:type_name -> vrooli.swarm_manager.v1.domain.GraphNodeData
+	0,  // 9: vrooli.swarm_manager.v1.domain.GraphNode.position:type_name -> vrooli.swarm_manager.v1.domain.GraphPosition
 	10, // [10:10] is the sub-list for method output_type
 	10, // [10:10] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name

@@ -4,6 +4,32 @@
 
 No cutover-specific open issue is known.
 
+## Measures projection convergence
+
+The operator-facing Stats projection is canonical: it retains the incremental
+event-log replay, goal-scoped snapshot, trends, ETA, review, operating-mode,
+record, and session analysis. The `measures` API/CLI remains a programmatic
+contract, but its individual computations have not yet all been refactored to
+delegate to that projection. Do not retire a Stats field or its UI until the
+measure contract has a behaviorally equivalent, projection-backed adapter and
+parity tests. Sandbox adoption remains correctly owned by
+`agent-manager metrics-sandbox-adoption`.
+
+## Remaining Connect migration
+
+The 15-command `measures` group is fully Connect-backed and is the completed
+rank-3 migration slice. The typed services that already preserve a command's
+full behavior are likewise Connect-backed. The remaining local bindings are
+intentional until their contracts cover the complete existing operation:
+backlog (rank 1), execution and review (rank 2), sessions and captures (rank
+4), scenarios and settings (rank 5), operations/agent-manager/portfolio (rank
+6), and the greenfield records, proposals, search, prompts, and queue surfaces
+(ranks 7–10). In particular, `backlog list`, `backlog get`, and
+`backlog delete` are now typed, while current
+`BacklogService.CreateItem` remains a cross-scenario triage contract rather
+than a replacement for attachment-aware operator creation; the seam is
+documented in `SEAMS.md`.
+
 ## UX issues
 
 - **Resolved 2026-07-22 — detail-view consistency:** Goal and backlog detail tabs now share `CompactTabBar`; cross-lens actions render after the tabs and only from Overview/Info. Goal files use the same full-width editable workspace as backlog files.

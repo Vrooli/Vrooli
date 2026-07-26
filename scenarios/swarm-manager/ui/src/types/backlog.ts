@@ -4,8 +4,8 @@
 
 import type {
   BacklogItem as ProtoBacklogItem,
-  BacklogFile as ProtoBacklogFile,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
+import type { BacklogFile as ProtoBacklogFile } from "@vrooli/proto-types/swarm-manager/v1/shared/backlog_pb";
 import type { ProtoMessage } from "./shared";
 import type { PlanRef } from "./shared";
 import type { AgentSessionAttribution } from "./agent-session";

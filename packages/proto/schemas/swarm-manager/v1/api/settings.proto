@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/settings.proto";
@@ -11,9 +11,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // SETTINGS API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports settings
 // @stability beta
 //
 // HTTP API contracts for Swarm Manager settings.
@@ -28,7 +25,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // projection (which controls are policy-level vs pure user preference, and
 // their effective values for the operation runner's transition policies).
 message SettingsResponse {
-  Settings settings = 1;
+  domain.Settings settings = 1;
   SettingsPolicyProjection policy_projection = 2;
 }
 
@@ -52,7 +49,7 @@ enum SettingsFieldRole {
 // SettingsFieldClassification maps one persisted settings field to its role
 // and (for policy controls) its destination path inside PolicyControlsView.
 message SettingsFieldClassification {
-  // Persisted JSON field name in Settings (e.g. "auto_advance_workshop").
+  // Persisted JSON field name in domain.Settings (e.g. "auto_advance_workshop").
   string field = 1;
   SettingsFieldRole role = 2;
   // Destination control path (e.g. "auto_advance.delay_seconds"); empty for
@@ -94,7 +91,7 @@ message SettingsPolicyProjection {
   repeated SettingsFieldClassification classifications = 2;
 }
 
-// AutoFilerSettingsPatch applies partial updates to Settings.auto_filer.
+// AutoFilerSettingsPatch applies partial updates to domain.Settings.auto_filer.
 message AutoFilerSettingsPatch {
   optional bool enabled = 1;
   optional string mode = 2 [(buf.validate.field).string = {
@@ -161,7 +158,7 @@ message UpdateSettingsRequest {
   optional int32 toast_duration_ms = 14;
   reserved 15;
   reserved "confirm_destructive_actions";
-  // Field 33 held the fixed-shape DeleteConfirmationSettings message.
+  // Field 33 held the fixed-shape domain.DeleteConfirmationSettings message.
   // Replaced by the open-ended map below. Reserved to prevent reuse.
   reserved 33;
   reserved "delete_confirmation";
@@ -169,7 +166,7 @@ message UpdateSettingsRequest {
   // Absent map = leave delete confirmation untouched; a present map fully
   // replaces the known-entity level set (unknown keys are preserved by the
   // API for forward-compat).
-  map<string, DeleteConfirmLevel> delete_confirmation_levels = 37;
+  map<string, domain.DeleteConfirmLevel> delete_confirmation_levels = 37;
 
   // Review thresholds.
   optional double review_code_quality_min_score = 19;
@@ -192,7 +189,7 @@ message UpdateSettingsRequest {
   optional double execution_cost_cap_per_run = 29;
   optional double cost_per_turn_estimate = 30;
 
-  // Fix-before-feature gate controls (see domain Settings).
+  // Fix-before-feature gate controls (see domain domain.Settings).
   optional string fix_before_feature = 35 [(buf.validate.field).string = {
     in: [
       "",

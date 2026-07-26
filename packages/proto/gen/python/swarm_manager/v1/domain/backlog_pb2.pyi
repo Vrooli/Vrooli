@@ -1,6 +1,6 @@
 from buf.validate import validate_pb2 as _validate_pb2
-from swarm_manager.v1.domain import agent_session_pb2 as _agent_session_pb2
-from swarm_manager.v1.domain import plan_ref_pb2 as _plan_ref_pb2
+from swarm_manager.v1.shared import agent_session_pb2 as _agent_session_pb2
+from swarm_manager.v1.shared import plan_ref_pb2 as _plan_ref_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -88,20 +88,6 @@ class BacklogReviewRecord(_message.Message):
     proposal_id: str
     rationale: str
     def __init__(self, reviewed_at: _Optional[str] = ..., session_id: _Optional[str] = ..., proposal_id: _Optional[str] = ..., rationale: _Optional[str] = ...) -> None: ...
-
-class BacklogFile(_message.Message):
-    __slots__ = ("name", "path", "type", "size", "children")
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    PATH_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    SIZE_FIELD_NUMBER: _ClassVar[int]
-    CHILDREN_FIELD_NUMBER: _ClassVar[int]
-    name: str
-    path: str
-    type: str
-    size: int
-    children: _containers.RepeatedCompositeFieldContainer[BacklogFile]
-    def __init__(self, name: _Optional[str] = ..., path: _Optional[str] = ..., type: _Optional[str] = ..., size: _Optional[int] = ..., children: _Optional[_Iterable[_Union[BacklogFile, _Mapping]]] = ...) -> None: ...
 
 class ClarificationMessage(_message.Message):
     __slots__ = ("role", "content", "created_at", "attachment_ids")

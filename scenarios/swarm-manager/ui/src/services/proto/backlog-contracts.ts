@@ -1,7 +1,7 @@
 import type {
   BacklogItem,
-  BacklogFile,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
+import type { BacklogFile } from "@vrooli/proto-types/swarm-manager/v1/shared/backlog_pb";
 import {
   BacklogItemResponseSchema,
   BacklogFilesResponseSchema,

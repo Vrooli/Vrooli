@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from measures.v1 import measures_pb2 as measures_dot_v1_dot_measures__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(swarm-manager/v1/measures/measures.proto\x12 vrooli.swarm_manager.v1.measures\x1a\x1ameasures/v1/measures.proto\"V\n\x1c\x43ountBacklogCompletedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"5\n\x1d\x43ountBacklogCompletedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"T\n\x1a\x43ountBacklogCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"3\n\x1b\x43ountBacklogCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"Y\n\x1f\x43ountExecutionsCompletedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"8\n CountExecutionsCompletedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"R\n\x18\x43ountGoalsCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"1\n\x19\x43ountGoalsCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"Z\n CountAgentSessionsCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"9\n!CountAgentSessionsCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount2\x9b\x06\n\x0fMeasuresService\x12\x98\x01\n\x15\x43ountBacklogCompleted\x12>.vrooli.swarm_manager.v1.measures.CountBacklogCompletedRequest\x1a?.vrooli.swarm_manager.v1.measures.CountBacklogCompletedResponse\x12\x92\x01\n\x13\x43ountBacklogCreated\x12<.vrooli.swarm_manager.v1.measures.CountBacklogCreatedRequest\x1a=.vrooli.swarm_manager.v1.measures.CountBacklogCreatedResponse\x12\xa1\x01\n\x18\x43ountExecutionsCompleted\x12\x41.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest\x1a\x42.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedResponse\x12\x8c\x01\n\x11\x43ountGoalsCreated\x12:.vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest\x1a;.vrooli.swarm_manager.v1.measures.CountGoalsCreatedResponse\x12\xa4\x01\n\x19\x43ountAgentSessionsCreated\x12\x42.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedRequest\x1a\x43.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/measures;measures_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(swarm-manager/v1/measures/measures.proto\x12 vrooli.swarm_manager.v1.measures\x1a\x1ameasures/v1/measures.proto\"V\n\x1c\x43ountBacklogCompletedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"5\n\x1d\x43ountBacklogCompletedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"T\n\x1a\x43ountBacklogCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"3\n\x1b\x43ountBacklogCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"U\n\x1b\x43ountBacklogNetDeltaRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"4\n\x1c\x43ountBacklogNetDeltaResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x12R\x05\x63ount\"\x19\n\x17\x43ountBacklogOpenRequest\"0\n\x18\x43ountBacklogOpenResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"\x1c\n\x1a\x43ountBacklogBlockedRequest\"3\n\x1b\x43ountBacklogBlockedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"P\n\x16\x42\x61\x63klogLeadTimeRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"\x82\x01\n\x17\x42\x61\x63klogLeadTimeResponse\x12#\n\raverage_hours\x18\x01 \x01(\x01R\x0c\x61verageHours\x12!\n\x0cmedian_hours\x18\x02 \x01(\x01R\x0bmedianHours\x12\x1f\n\x0bsample_size\x18\x03 \x01(\x03R\nsampleSize\"Y\n\x1f\x43ountExecutionsCompletedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"8\n CountExecutionsCompletedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"R\n\x18\x43ountGoalsCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"1\n\x19\x43ountGoalsCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"Z\n CountAgentSessionsCreatedRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"9\n!CountAgentSessionsCreatedResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"\x16\n\x14\x43ountPlanRefsRequest\"-\n\x15\x43ountPlanRefsResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"\x1c\n\x1aGoalMilestoneHealthRequest\"\x9e\x01\n\x0fMilestoneHealth\x12\x1c\n\tmilestone\x18\x01 \x01(\tR\tmilestone\x12\x14\n\x05total\x18\x02 \x01(\x03R\x05total\x12\x1c\n\tcompleted\x18\x03 \x01(\x03R\tcompleted\x12\x1f\n\x0bin_progress\x18\x04 \x01(\x03R\ninProgress\x12\x18\n\x07\x62locked\x18\x05 \x01(\x03R\x07\x62locked\"p\n\x1bGoalMilestoneHealthResponse\x12Q\n\nmilestones\x18\x01 \x03(\x0b\x32\x31.vrooli.swarm_manager.v1.measures.MilestoneHealthR\nmilestones\"Y\n\x1f\x41gentSessionProposalRateRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"W\n AgentSessionProposalRateResponse\x12\x12\n\x04rate\x18\x01 \x01(\x01R\x04rate\x12\x1f\n\x0bsample_size\x18\x02 \x01(\x03R\nsampleSize\"U\n\x1b\x45xecutionSuccessRateRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"S\n\x1c\x45xecutionSuccessRateResponse\x12\x12\n\x04rate\x18\x01 \x01(\x01R\x04rate\x12\x1f\n\x0bsample_size\x18\x02 \x01(\x03R\nsampleSize\"R\n\x18\x45xecutionDurationRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"\x8c\x01\n\x19\x45xecutionDurationResponse\x12\'\n\x0f\x61verage_minutes\x18\x01 \x01(\x01R\x0e\x61verageMinutes\x12%\n\x0emedian_minutes\x18\x02 \x01(\x01R\rmedianMinutes\x12\x1f\n\x0bsample_size\x18\x03 \x01(\x03R\nsampleSize\"T\n\x1a\x45xecutionReviewRateRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\"R\n\x1b\x45xecutionReviewRateResponse\x12\x12\n\x04rate\x18\x01 \x01(\x01R\x04rate\x12\x1f\n\x0bsample_size\x18\x02 \x01(\x03R\nsampleSize2\xd5\x11\n\x0fMeasuresService\x12\x98\x01\n\x15\x43ountBacklogCompleted\x12>.vrooli.swarm_manager.v1.measures.CountBacklogCompletedRequest\x1a?.vrooli.swarm_manager.v1.measures.CountBacklogCompletedResponse\x12\x92\x01\n\x13\x43ountBacklogCreated\x12<.vrooli.swarm_manager.v1.measures.CountBacklogCreatedRequest\x1a=.vrooli.swarm_manager.v1.measures.CountBacklogCreatedResponse\x12\x95\x01\n\x14\x43ountBacklogNetDelta\x12=.vrooli.swarm_manager.v1.measures.CountBacklogNetDeltaRequest\x1a>.vrooli.swarm_manager.v1.measures.CountBacklogNetDeltaResponse\x12\x89\x01\n\x10\x43ountBacklogOpen\x12\x39.vrooli.swarm_manager.v1.measures.CountBacklogOpenRequest\x1a:.vrooli.swarm_manager.v1.measures.CountBacklogOpenResponse\x12\x92\x01\n\x13\x43ountBacklogBlocked\x12<.vrooli.swarm_manager.v1.measures.CountBacklogBlockedRequest\x1a=.vrooli.swarm_manager.v1.measures.CountBacklogBlockedResponse\x12\x86\x01\n\x0f\x42\x61\x63klogLeadTime\x12\x38.vrooli.swarm_manager.v1.measures.BacklogLeadTimeRequest\x1a\x39.vrooli.swarm_manager.v1.measures.BacklogLeadTimeResponse\x12\xa1\x01\n\x18\x43ountExecutionsCompleted\x12\x41.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest\x1a\x42.vrooli.swarm_manager.v1.measures.CountExecutionsCompletedResponse\x12\x8c\x01\n\x11\x43ountGoalsCreated\x12:.vrooli.swarm_manager.v1.measures.CountGoalsCreatedRequest\x1a;.vrooli.swarm_manager.v1.measures.CountGoalsCreatedResponse\x12\xa4\x01\n\x19\x43ountAgentSessionsCreated\x12\x42.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedRequest\x1a\x43.vrooli.swarm_manager.v1.measures.CountAgentSessionsCreatedResponse\x12\x80\x01\n\rCountPlanRefs\x12\x36.vrooli.swarm_manager.v1.measures.CountPlanRefsRequest\x1a\x37.vrooli.swarm_manager.v1.measures.CountPlanRefsResponse\x12\x92\x01\n\x13GoalMilestoneHealth\x12<.vrooli.swarm_manager.v1.measures.GoalMilestoneHealthRequest\x1a=.vrooli.swarm_manager.v1.measures.GoalMilestoneHealthResponse\x12\xa1\x01\n\x18\x41gentSessionProposalRate\x12\x41.vrooli.swarm_manager.v1.measures.AgentSessionProposalRateRequest\x1a\x42.vrooli.swarm_manager.v1.measures.AgentSessionProposalRateResponse\x12\x95\x01\n\x14\x45xecutionSuccessRate\x12=.vrooli.swarm_manager.v1.measures.ExecutionSuccessRateRequest\x1a>.vrooli.swarm_manager.v1.measures.ExecutionSuccessRateResponse\x12\x8c\x01\n\x11\x45xecutionDuration\x12:.vrooli.swarm_manager.v1.measures.ExecutionDurationRequest\x1a;.vrooli.swarm_manager.v1.measures.ExecutionDurationResponse\x12\x92\x01\n\x13\x45xecutionReviewRate\x12<.vrooli.swarm_manager.v1.measures.ExecutionReviewRateRequest\x1a=.vrooli.swarm_manager.v1.measures.ExecutionReviewRateResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/measures;measures_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -41,18 +41,60 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_COUNTBACKLOGCREATEDREQUEST']._serialized_end=333
   _globals['_COUNTBACKLOGCREATEDRESPONSE']._serialized_start=335
   _globals['_COUNTBACKLOGCREATEDRESPONSE']._serialized_end=386
-  _globals['_COUNTEXECUTIONSCOMPLETEDREQUEST']._serialized_start=388
-  _globals['_COUNTEXECUTIONSCOMPLETEDREQUEST']._serialized_end=477
-  _globals['_COUNTEXECUTIONSCOMPLETEDRESPONSE']._serialized_start=479
-  _globals['_COUNTEXECUTIONSCOMPLETEDRESPONSE']._serialized_end=535
-  _globals['_COUNTGOALSCREATEDREQUEST']._serialized_start=537
-  _globals['_COUNTGOALSCREATEDREQUEST']._serialized_end=619
-  _globals['_COUNTGOALSCREATEDRESPONSE']._serialized_start=621
-  _globals['_COUNTGOALSCREATEDRESPONSE']._serialized_end=670
-  _globals['_COUNTAGENTSESSIONSCREATEDREQUEST']._serialized_start=672
-  _globals['_COUNTAGENTSESSIONSCREATEDREQUEST']._serialized_end=762
-  _globals['_COUNTAGENTSESSIONSCREATEDRESPONSE']._serialized_start=764
-  _globals['_COUNTAGENTSESSIONSCREATEDRESPONSE']._serialized_end=821
-  _globals['_MEASURESSERVICE']._serialized_start=824
-  _globals['_MEASURESSERVICE']._serialized_end=1619
+  _globals['_COUNTBACKLOGNETDELTAREQUEST']._serialized_start=388
+  _globals['_COUNTBACKLOGNETDELTAREQUEST']._serialized_end=473
+  _globals['_COUNTBACKLOGNETDELTARESPONSE']._serialized_start=475
+  _globals['_COUNTBACKLOGNETDELTARESPONSE']._serialized_end=527
+  _globals['_COUNTBACKLOGOPENREQUEST']._serialized_start=529
+  _globals['_COUNTBACKLOGOPENREQUEST']._serialized_end=554
+  _globals['_COUNTBACKLOGOPENRESPONSE']._serialized_start=556
+  _globals['_COUNTBACKLOGOPENRESPONSE']._serialized_end=604
+  _globals['_COUNTBACKLOGBLOCKEDREQUEST']._serialized_start=606
+  _globals['_COUNTBACKLOGBLOCKEDREQUEST']._serialized_end=634
+  _globals['_COUNTBACKLOGBLOCKEDRESPONSE']._serialized_start=636
+  _globals['_COUNTBACKLOGBLOCKEDRESPONSE']._serialized_end=687
+  _globals['_BACKLOGLEADTIMEREQUEST']._serialized_start=689
+  _globals['_BACKLOGLEADTIMEREQUEST']._serialized_end=769
+  _globals['_BACKLOGLEADTIMERESPONSE']._serialized_start=772
+  _globals['_BACKLOGLEADTIMERESPONSE']._serialized_end=902
+  _globals['_COUNTEXECUTIONSCOMPLETEDREQUEST']._serialized_start=904
+  _globals['_COUNTEXECUTIONSCOMPLETEDREQUEST']._serialized_end=993
+  _globals['_COUNTEXECUTIONSCOMPLETEDRESPONSE']._serialized_start=995
+  _globals['_COUNTEXECUTIONSCOMPLETEDRESPONSE']._serialized_end=1051
+  _globals['_COUNTGOALSCREATEDREQUEST']._serialized_start=1053
+  _globals['_COUNTGOALSCREATEDREQUEST']._serialized_end=1135
+  _globals['_COUNTGOALSCREATEDRESPONSE']._serialized_start=1137
+  _globals['_COUNTGOALSCREATEDRESPONSE']._serialized_end=1186
+  _globals['_COUNTAGENTSESSIONSCREATEDREQUEST']._serialized_start=1188
+  _globals['_COUNTAGENTSESSIONSCREATEDREQUEST']._serialized_end=1278
+  _globals['_COUNTAGENTSESSIONSCREATEDRESPONSE']._serialized_start=1280
+  _globals['_COUNTAGENTSESSIONSCREATEDRESPONSE']._serialized_end=1337
+  _globals['_COUNTPLANREFSREQUEST']._serialized_start=1339
+  _globals['_COUNTPLANREFSREQUEST']._serialized_end=1361
+  _globals['_COUNTPLANREFSRESPONSE']._serialized_start=1363
+  _globals['_COUNTPLANREFSRESPONSE']._serialized_end=1408
+  _globals['_GOALMILESTONEHEALTHREQUEST']._serialized_start=1410
+  _globals['_GOALMILESTONEHEALTHREQUEST']._serialized_end=1438
+  _globals['_MILESTONEHEALTH']._serialized_start=1441
+  _globals['_MILESTONEHEALTH']._serialized_end=1599
+  _globals['_GOALMILESTONEHEALTHRESPONSE']._serialized_start=1601
+  _globals['_GOALMILESTONEHEALTHRESPONSE']._serialized_end=1713
+  _globals['_AGENTSESSIONPROPOSALRATEREQUEST']._serialized_start=1715
+  _globals['_AGENTSESSIONPROPOSALRATEREQUEST']._serialized_end=1804
+  _globals['_AGENTSESSIONPROPOSALRATERESPONSE']._serialized_start=1806
+  _globals['_AGENTSESSIONPROPOSALRATERESPONSE']._serialized_end=1893
+  _globals['_EXECUTIONSUCCESSRATEREQUEST']._serialized_start=1895
+  _globals['_EXECUTIONSUCCESSRATEREQUEST']._serialized_end=1980
+  _globals['_EXECUTIONSUCCESSRATERESPONSE']._serialized_start=1982
+  _globals['_EXECUTIONSUCCESSRATERESPONSE']._serialized_end=2065
+  _globals['_EXECUTIONDURATIONREQUEST']._serialized_start=2067
+  _globals['_EXECUTIONDURATIONREQUEST']._serialized_end=2149
+  _globals['_EXECUTIONDURATIONRESPONSE']._serialized_start=2152
+  _globals['_EXECUTIONDURATIONRESPONSE']._serialized_end=2292
+  _globals['_EXECUTIONREVIEWRATEREQUEST']._serialized_start=2294
+  _globals['_EXECUTIONREVIEWRATEREQUEST']._serialized_end=2378
+  _globals['_EXECUTIONREVIEWRATERESPONSE']._serialized_start=2380
+  _globals['_EXECUTIONREVIEWRATERESPONSE']._serialized_end=2462
+  _globals['_MEASURESSERVICE']._serialized_start=2465
+  _globals['_MEASURESSERVICE']._serialized_end=4726
 # @@protoc_insertion_point(module_scope)

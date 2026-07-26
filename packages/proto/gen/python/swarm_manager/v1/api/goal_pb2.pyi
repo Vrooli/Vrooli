@@ -1,5 +1,6 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.domain import goal_pb2 as _goal_pb2
+from swarm_manager.v1.shared import goal_pb2 as _goal_pb2_1
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -75,16 +76,16 @@ class CreateMilestoneRequest(_message.Message):
     GOAL_NAME_FIELD_NUMBER: _ClassVar[int]
     MILESTONE_FIELD_NUMBER: _ClassVar[int]
     goal_name: str
-    milestone: _goal_pb2.Milestone
-    def __init__(self, goal_name: _Optional[str] = ..., milestone: _Optional[_Union[_goal_pb2.Milestone, _Mapping]] = ...) -> None: ...
+    milestone: _goal_pb2_1.Milestone
+    def __init__(self, goal_name: _Optional[str] = ..., milestone: _Optional[_Union[_goal_pb2_1.Milestone, _Mapping]] = ...) -> None: ...
 
 class UpdateMilestoneRequest(_message.Message):
     __slots__ = ("goal_name", "milestone")
     GOAL_NAME_FIELD_NUMBER: _ClassVar[int]
     MILESTONE_FIELD_NUMBER: _ClassVar[int]
     goal_name: str
-    milestone: _goal_pb2.Milestone
-    def __init__(self, goal_name: _Optional[str] = ..., milestone: _Optional[_Union[_goal_pb2.Milestone, _Mapping]] = ...) -> None: ...
+    milestone: _goal_pb2_1.Milestone
+    def __init__(self, goal_name: _Optional[str] = ..., milestone: _Optional[_Union[_goal_pb2_1.Milestone, _Mapping]] = ...) -> None: ...
 
 class ArchiveMilestoneRequest(_message.Message):
     __slots__ = ("goal_name", "milestone_name")

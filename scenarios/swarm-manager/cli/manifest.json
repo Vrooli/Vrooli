@@ -1,26 +1,1807 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "swarm-manager",
-  "description": "Swarm Manager declared measures surface. This manifest is the SSOT for the scenario's analytical measures, consumed by measures-health and search-hub; the broader CLI remains hand-registered.",
+  "description": "Single source of truth for the complete Swarm Manager CLI surface. Commands remain local until their typed Connect-RPC migration is complete.",
   "groups": [
     {
       "name": "backlog",
-      "description": "Backlog work-item measures.",
+      "description": "Backlog item management",
       "commands": [
         {
-          "name": "completed",
-          "description": "Count backlog items completed in a time window.",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
-            }
-          ],
+          "name": "list",
+          "description": "List backlog items [--kind KIND]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BacklogService",
+            "method": "ListItems"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "pending-questions",
+          "description": "List pending independent-review questions [--source review] [--limit N] [--milestone NAME] [--brief]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get full backlog item details (--kind KIND --name NAME)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BacklogService",
+            "method": "GetItem"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a backlog item (--data JSON)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a backlog item (--kind KIND --name NAME --data JSON)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a backlog item (--kind KIND --name NAME)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BacklogService",
+            "method": "DeleteItem"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "dismiss",
+          "description": "Dismiss a suggested auto-filer item (--kind KIND --name NAME [--reason MSG])",
+      "binding": {
+        "kind": "connect-rpc",
+        "service": "AutoFilerService",
+        "method": "DismissSuggestion"
+      },
+      "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "plan-workshop",
+          "description": "Open the Plan Workshop for a backlog item (--kind KIND --name NAME [--start-review])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recreate",
+          "description": "Archive and clone a backlog item with lineage (--kind KIND --name NAME) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reset-artifacts",
+          "description": "Remove selected derived item artifacts (--kind KIND --name NAME --scope SCOPE,... ) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "files",
+          "description": "List backlog item files (--kind KIND --name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "file-get",
+          "description": "Get a file from a backlog item (--kind KIND --name NAME --path PATH)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "file-upload",
+          "description": "Upload a file to a backlog item (--kind KIND --name NAME --path PATH --file FILE|--content CONTENT)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "process-preflight",
+          "description": "Check processing readiness (--kind KIND --name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "queue",
+          "description": "Preview/queue a backlog item (--kind KIND --name NAME [--execute] [--force])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "batch-create",
+          "description": "Batch create backlog items from a plan file (--file items.json [--preview])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "batch-queue",
+          "description": "Batch queue backlog items (--items kind/name,kind/name [--execute] [--force] [--mode MODE])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "export",
+          "description": "Export backlog items to markdown for offline editing",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Import edited markdown back into the backlog (--file FILE)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "review-decide",
+          "description": "Decide the terminal status of a review_pending item (--kind KIND --name NAME --accept|--fail|--followup [--rationale MSG])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recover-review",
+          "description": "Recover an item stranded in_review with no live review round → review_pending (default) or backlog (--kind KIND --name NAME [--to review_pending|backlog] [--rationale MSG])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retry",
+          "description": "Re-dispatch the latest terminal execution as a NEW attempt (--kind KIND --name NAME [--note MSG])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "search-ai",
+          "description": "Semantic search over backlog items (<query> [--limit N] [--kind K,...] [--status S,...] [--milestone N] [--include-archived] [--json])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "scenarios",
+      "description": "Scenario catalog and lifecycle",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List scenarios [--search, --status, --tags, --sort, --order]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get scenario details (--name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "fixes",
+          "description": "List fix history for a scenario (--name NAME [--active|--archived|--all] [--search Q] [--limit N])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update scenario metadata (--name NAME --data JSON)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a scenario (--name NAME [--archive])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "files",
+          "description": "List scenario files (--name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "spec-sync-archive",
+          "description": "Queue spec-sync-archive execution (--name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start a scenario (--name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Stop a scenario (--name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "restart",
+          "description": "Restart a scenario (--name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "review-queue",
+          "description": "Get prioritized scenario review queue [--limit N]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "description": "Scenario settings",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Get current settings",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update settings (--data JSON)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "queue",
+      "description": "Execution queue operations",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List queue items",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a queue item (--kind KIND [--data JSON])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a queue item (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "execution",
+      "description": "Execution run controls",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List execution runs",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get execution details (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create execution from backlog item (--kind KIND --name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "policy-get",
+          "description": "Get execution policy defaults (via settings)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "policy-update",
+          "description": "Update execution policy defaults (--mode MODE --delay-seconds N [--auto-fixup] [--max-fixup-attempts N])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "prompt-trace",
+          "description": "Get execution prompt trace (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start an execution (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel an execution (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retry",
+          "description": "Retry a failed execution (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "circuit-breaker-reset",
+          "description": "Reset circuit breaker for an item (--item KIND/NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "review",
+      "description": "Independent review evidence",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List review evidence rounds (--kind KIND --name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "verify",
+          "description": "Mark evidence item as verified (--kind KIND --name NAME --round N --evidence-id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "request",
+          "description": "Request additional evidence (--kind KIND --name NAME --round N --message MSG)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "trigger",
+          "description": "Manually trigger review agent (--id EXECUTION_ID --kind KIND --name NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "evidence",
+      "description": "Query and reconcile canonical run evidence",
+      "commands": [
+        {
+          "name": "run",
+          "description": "List evidence for a verified run (--run-id ID) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "ListRun"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "entity",
+          "description": "List evidence for an entity (--kind KIND --id ID) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "ListEntity"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Retry evidence producers for a run (--run-id ID) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "Reconcile"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "verify",
+          "description": "Append an operator-verified observation (--owner-kind K --owner-id ID --event-id ID --run-id ID --subject-kind K --subject-id ID --action A --actor ID --reason TEXT) [--metadata JSON] [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "RecordOperatorVerification"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "prompts",
+      "description": "Prompt catalog and skill operations",
+      "commands": [
+        {
+          "name": "catalog",
+          "description": "List the swarm-manager prompt catalog",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "skills",
+          "description": "List prompt skills used by swarm-manager",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "skill-get",
+          "description": "Get prompt skill details (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "skill-update",
+          "description": "Update prompt skill fields (--id ID --data JSON)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "skill-versions",
+          "description": "Get prompt skill version history (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "skill-revert",
+          "description": "Revert prompt skill to version (--id ID --version VERSION)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "preview",
+          "description": "Render a skill prompt with variables (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "experiment-results",
+          "description": "Show experiment results (--id EID or positional) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "goals",
+      "description": "Goal and milestone management",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List goals [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "ListGoals"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a goal with scope (--name NAME) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "GetGoal"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create goal (--name NAME --title TITLE [--targets kind/name,...]) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "CreateGoal"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update goal (--name NAME [--title TITLE] [--description TEXT] [--priority N]) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "UpdateGoal"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete goal (--name NAME) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "DeleteGoal"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "archive",
+          "description": "Archive goal (--name NAME) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "ArchiveGoal"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "unarchive",
+          "description": "Unarchive goal (--name NAME) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "UnarchiveGoal"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context",
+          "description": "Get a goal graph snapshot (--name NAME) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "GetScope"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "targets-add",
+          "description": "Add goal targets (--name NAME --targets kind/name,...) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "AddTargets"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "targets-remove",
+          "description": "Remove goal targets (--name NAME --targets kind/name,...) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "RemoveTargets"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "plan-run",
+          "description": "Start goal planning (--name NAME) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "discover-run",
+          "description": "Start goal discovery (--name NAME) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "workflow-pending",
+          "description": "List goal workflow results awaiting application [--goal NAME] [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "ListPendingGoalWorkflows"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "workflow-apply",
+          "description": "Apply a terminal goal workflow result (--goal NAME --execution-id ID) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "ApplyGoalWorkflow"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "close-out",
+          "description": "Mark a goal achieved after every milestone is verified delivered (--name NAME) [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "CloseOutGoal"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "milestones",
+      "description": "Goal milestone management",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create milestone (--goal NAME --name NAME --title TITLE --acceptance CRITERION ...)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "CreateMilestone"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Replace milestone definition (--goal NAME --name NAME --title TITLE --acceptance CRITERION ...)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "UpdateMilestone"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "assign",
+          "description": "Assign scoped items (--goal NAME --milestone NAME --items kind/name,...)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "AssignMilestoneItems"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "unassign",
+          "description": "Unassign scoped items (--goal NAME --milestone NAME --items kind/name,...)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "UnassignMilestoneItems"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "archive",
+          "description": "Archive milestone (--goal NAME --milestone NAME)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "ArchiveMilestone"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "review-run",
+          "description": "Start milestone review (--goal NAME --milestone NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "proposals",
+      "description": "Decide agent-authored mutation proposals",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List proposals [--target-type TYPE] [--target-ref REF] [--status S] [--pending] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show a proposal and its mutations (--id ID) [--session ID] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "decide",
+          "description": "Apply a proposal (--id ID) [--accept m1,m2] [--note TEXT] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "accept-keep",
+          "description": "Accept a keep-as-is recommendation (--id ID) [--note TEXT] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "revise",
+          "description": "Send a proposal back for revision (--id ID) [--note TEXT] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "captures",
+      "description": "Quick-capture management",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List captures [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a capture (--text TEXT [--file FILE]...) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get capture details (--id ID) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a capture (--id ID)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "classify",
+          "description": "Trigger classification for a capture (--id ID) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "records",
+      "description": "Narrative artifacts of completed work (recursive-learning write side)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List records [--scenario X] [--kind K] [--backlog-ref kind/name] [--include-stubs] [--limit N] [--offset N] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a record (--id ID) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a record (--kind K --scenario X --trigger '...' [--approach '...'] [--evidence '...'] [--ruled-out '...']... [--commit SHA] [--files PATH]... [--backlog-ref kind/name] [--supersedes ID] [--outcome shipped|partial|abandoned|duplicate]) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "capture",
+          "description": "Capture a record; complete input publishes, incomplete input saves a private repairable draft [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "edit",
+          "description": "Fill a stub record's narrative (--id ID --trigger '...' --approach '...' [--evidence '...'] [--ruled-out '...']... [--commit SHA] [--files PATH]... [--outcome shipped|partial|abandoned|duplicate]) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "search",
+          "description": "Semantic search over records ('<query>' [--kind K] [--scenario X] [--limit N]) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "supersede",
+          "description": "Mark a record superseded by a successor (--id ID --by SUCCESSOR-ID [--reason '...']) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "agent-manager",
+      "description": "Agent-manager integration",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Get agent-manager availability and profile status",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run-get",
+          "description": "Get run status (--id ID) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run-stop",
+          "description": "Stop a run (--id ID) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "metrics-sandbox-adoption",
+          "description": "Show sandbox-default rollout adoption from agent-manager metrics",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "operations",
+      "description": "Operations center status and briefings",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List active operations [--window PT3H] [--status S] [--lane L] [--mode M] [--owner-type T] [--q TEXT] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "brief",
+          "description": "Get the bounded current operations briefing [--window PT3H] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "portfolio",
+      "description": "Portfolio planning briefs",
+      "commands": [
+        {
+          "name": "brief",
+          "description": "Get the bounded portfolio startup brief [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sessions",
+      "description": "Agent session management",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List agent sessions [--kind KIND] [--status STATUS] [--active-only] [--limit N] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get agent session details (--id ID) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "startup-brief",
+          "description": "Get draft startup brief (--id ID) [--refresh] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete an agent session (--id ID --yes) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "stats",
+      "description": "Event-driven operational analytics backed by the incremental Stats projection",
+      "commands": [
+        {"name": "summary", "description": "Full Stats dashboard", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "throughput", "description": "Stats throughput analysis", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "blocking", "description": "Stats blocking analysis", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "milestones", "description": "Stats milestone health", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "agent", "description": "Stats agent efficiency analysis", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "sessions", "description": "Stats native agent-session analysis", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}}
+      ]
+    },
+    {
+      "name": "measures",
+      "description": "Typed analytical measures over Swarm Manager history",
+      "commands": [
+        {
+          "name": "backlog-completed",
+          "description": "How many backlog items were completed in a time window.",
           "binding": {
             "kind": "connect-rpc",
             "service": "MeasuresService",
             "method": "CountBacklogCompleted"
           },
+          "architecture": {"primitive": "proto_list"},
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -51,19 +1832,14 @@
           }
         },
         {
-          "name": "created",
-          "description": "Count backlog items created in a time window.",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
-            }
-          ],
+          "name": "backlog-created",
+          "description": "How many backlog items were created in a time window.",
           "binding": {
             "kind": "connect-rpc",
             "service": "MeasuresService",
             "method": "CountBacklogCreated"
           },
+          "architecture": {"primitive": "proto_list"},
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -94,123 +1870,237 @@
           }
         },
         {
-          "name": "dismiss",
-          "description": "Dismiss a suggested auto-filer item and remember its finding.",
-          "flags": [
-            {
-              "name": "kind",
-              "description": "Backlog item kind.",
-              "required": true
-            },
-            {
-              "name": "name",
-              "description": "Backlog item name.",
-              "required": true
-            },
-            {
-              "name": "reason",
-              "description": "Optional dismissal reason."
-            },
-            {
-              "name": "json",
-              "bool": true,
-              "description": "Emit JSON output."
-            }
-          ],
+          "name": "backlog-net-delta",
+          "description": "By how many items did the backlog grow or shrink in a time window.",
           "binding": {
             "kind": "connect-rpc",
-            "service": "AutoFilerService",
-            "method": "DismissSuggestion"
+            "service": "MeasuresService",
+            "method": "CountBacklogNetDelta"
           },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        }
-      ]
-    },
-    {
-      "name": "autofiler",
-      "description": "Backlog auto-filer operations.",
-      "commands": [
-        {
-          "name": "status",
-          "description": "Show backlog auto-filer policy and latest cycle status.",
-          "flags": [
-            {
-              "name": "json",
-              "bool": true,
-              "description": "Emit JSON output."
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AutoFilerService",
-            "method": "GetStatus"
-          },
+          "architecture": {"primitive": "proto_list"},
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
+            "permissions": ["network:internal"]
           },
-          "architecture": {
-            "primitive": "operational"
+          "measure": {
+            "domain": "backlog",
+            "intent": "By how many items did the backlog grow or shrink in a time window.",
+            "questions": [
+              "did the backlog grow or shrink this week",
+              "what is the net change in backlog items last month",
+              "how much work was added minus completed in the last 30 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "items",
+              "summary_template": "{count} net backlog item change ({window})"
+            }
           }
         },
         {
-          "name": "run-now",
-          "description": "Run one governed auto-filer cycle immediately.",
-          "flags": [
-            {
-              "name": "json",
-              "bool": true,
-              "description": "Emit JSON output."
-            }
-          ],
+	      "name": "goal-milestone-health",
+	      "description": "What is the current delivery health of each milestone.",
+	      "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "GoalMilestoneHealth"},
+	      "architecture": {"primitive": "proto_list"},
+	      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+	      "measure": {
+	        "domain": "goal",
+	        "intent": "What is the current delivery health of each milestone.",
+	        "questions": ["which milestones have blocked work", "current milestone completion health", "how much work remains in each milestone"],
+	        "result": {"kind": "table", "value_field": "milestone", "unit": "milestones", "summary_template": "current health for {count} milestones"}
+	      }
+	    },
+	    {
+          "name": "backlog-open",
+          "description": "How many actionable backlog items are currently open.",
           "binding": {
             "kind": "connect-rpc",
-            "service": "AutoFilerService",
-            "method": "RunNow"
+            "service": "MeasuresService",
+            "method": "CountBacklogOpen"
           },
+          "architecture": {"primitive": "proto_list"},
           "governance": {
-            "effect": "write",
+            "effect": "read",
             "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
+            "permissions": ["network:internal"]
           },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        }
-      ]
-    },
-    {
-      "name": "execution",
-      "description": "Execution lifecycle measures.",
-      "commands": [
-        {
-          "name": "completed",
-          "description": "Count executions completed in a time window.",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+          "measure": {
+            "domain": "backlog",
+            "intent": "How many actionable backlog items are currently open.",
+            "questions": [
+              "how many backlog items are open",
+              "what work remains actionable in the backlog",
+              "current open work item count"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "items",
+              "summary_template": "{count} actionable backlog items are open"
             }
-          ],
+          }
+        },
+        {
+          "name": "backlog-blocked",
+          "description": "How many backlog items are currently blocked by unresolved dependencies.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountBacklogBlocked"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "backlog",
+            "intent": "How many backlog items are currently blocked by unresolved dependencies.",
+            "questions": [
+              "how many backlog items are blocked",
+              "what work is blocked by dependencies",
+              "current blocked backlog item count"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "items",
+              "summary_template": "{count} backlog items are blocked"
+            }
+          }
+        },
+        {
+	      "name": "backlog-lead-time",
+	      "description": "How long completed backlog items took from creation to completion.",
+	      "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "BacklogLeadTime"},
+	      "architecture": {"primitive": "proto_list"},
+	      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+	      "measure": {
+	        "domain": "backlog",
+	        "intent": "How long completed backlog items took from creation to completion.",
+	        "questions": ["what is the average backlog lead time this week", "how long did completed work items take last month", "median time from backlog creation to completion"],
+	        "params": {"window": {"type": "time_window", "default": "this_week"}},
+	        "result": {"kind": "scalar", "value_field": "average", "unit": "hours", "summary_template": "{average} average backlog lead-time hours ({window})"}
+	      }
+	    },
+	    {
+          "name": "agent-session-proposal-rate",
+          "description": "What proportion of agent-session proposals were applied in a time window.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "AgentSessionProposalRate"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "agent_session",
+            "intent": "What proportion of agent-session proposals were applied in a time window.",
+            "questions": [
+              "what percentage of agent session proposals were applied",
+              "agent session proposal conversion rate this week",
+              "how often did session proposals get applied last month"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} proposal apply rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "execution-success-rate",
+          "description": "What proportion of terminal executions completed successfully in a time window.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ExecutionSuccessRate"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "execution",
+            "intent": "What proportion of terminal executions completed successfully in a time window.",
+            "questions": [
+              "what is the execution success rate this week",
+              "how often did agent executions succeed last month",
+              "percentage of successful runs in the last 30 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} execution success rate ({window})"
+            }
+          }
+        },
+        {
+	      "name": "execution-duration",
+	      "description": "How long completed executions ran.",
+	      "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "ExecutionDuration"},
+	      "architecture": {"primitive": "proto_list"},
+	      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+	      "measure": {
+	        "domain": "execution",
+	        "intent": "How long completed executions ran.",
+	        "questions": ["what is the average execution duration this week", "how long did agent executions run last month", "median execution duration in the last 30 days"],
+	        "params": {"window": {"type": "time_window", "default": "this_week"}},
+	        "result": {"kind": "scalar", "value_field": "average", "unit": "minutes", "summary_template": "{average} average execution minutes ({window})"}
+	      }
+	    },
+	    {
+	      "name": "execution-review-rate",
+	      "description": "What proportion of terminal executions completed at least one review round.",
+	      "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "ExecutionReviewRate"},
+	      "architecture": {"primitive": "proto_list"},
+	      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+	      "measure": {
+	        "domain": "execution",
+	        "intent": "What proportion of terminal executions completed at least one review round.",
+	        "questions": ["what percentage of executions received a completed review this week", "execution review rate last month", "how often do terminal runs reach a review round"],
+	        "params": {"window": {"type": "time_window", "default": "this_week"}},
+	        "result": {"kind": "scalar", "value_field": "rate", "unit": "ratio", "summary_template": "{rate} execution review rate ({window})"}
+	      }
+	    },
+	    {
+          "name": "execution-completed",
+          "description": "How many executions completed in a time window.",
           "binding": {
             "kind": "connect-rpc",
             "service": "MeasuresService",
             "method": "CountExecutionsCompleted"
           },
+          "architecture": {"primitive": "proto_list"},
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -239,27 +2129,16 @@
               "summary_template": "{count} executions completed ({window})"
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "goal",
-      "description": "Goal measures.",
-      "commands": [
+        },
         {
-          "name": "created",
-          "description": "Count goals created in a time window.",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
-            }
-          ],
+          "name": "goal-created",
+          "description": "How many goals were created in a time window.",
           "binding": {
             "kind": "connect-rpc",
             "service": "MeasuresService",
             "method": "CountGoalsCreated"
           },
+          "architecture": {"primitive": "proto_list"},
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -288,27 +2167,16 @@
               "summary_template": "{count} goals created ({window})"
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "agent-session",
-      "description": "Native agent-session measures.",
-      "commands": [
+        },
         {
-          "name": "created",
-          "description": "Count agent sessions created in a time window.",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
-            }
-          ],
+          "name": "agent-session-created",
+          "description": "How many agent sessions were created in a time window.",
           "binding": {
             "kind": "connect-rpc",
             "service": "MeasuresService",
             "method": "CountAgentSessionsCreated"
           },
+          "architecture": {"primitive": "proto_list"},
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -336,6 +2204,204 @@
               "unit": "sessions",
               "summary_template": "{count} agent sessions created ({window})"
             }
+          }
+        },
+        {
+          "name": "plan-ref-count",
+          "description": "How many backlog items currently reference a canonical plan.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountPlanRefs"
+          },
+          "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "plan_ref",
+            "intent": "How many backlog items currently reference a canonical plan.",
+            "questions": [
+              "how many backlog items have a plan reference",
+              "count work items linked to plan-manager plans",
+              "how many canonical plans are attached to backlog work"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "items",
+              "summary_template": "{count} backlog items have a plan reference"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Semantic search and related work",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Search backlog, goals, and records (<query> [--type backlog|goal|record])",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "related",
+          "description": "Find related work (<backlog|goal> <name> or backlog <kind> <name>)",
+      "binding": {
+        "kind": "connect-rpc",
+        "service": "RelatedService",
+        "method": "GetRelated"
+      },
+      "architecture": {"primitive": "proto_list"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Show search index availability and coverage",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reindex",
+          "description": "Reconcile search index [--wait]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reindex-status",
+          "description": "Show the current reindex job status",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reindex-cancel",
+          "description": "Cancel the running reindex job",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "autofiler",
+      "description": "Backlog auto-filer operations",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show backlog auto-filer policy and latest cycle status [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AutoFilerService",
+            "method": "GetStatus"
+          },
+          "architecture": {"primitive": "operational"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run-now",
+          "description": "Run one governed auto-filer cycle immediately [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AutoFilerService",
+            "method": "RunNow"
+          },
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "root",
+      "description": "Scenario-owned top-level commands",
+      "flat": true,
+      "commands": [
+        {
+          "name": "overview",
+          "description": "Full backlog situational awareness [--format json|markdown]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "integrations",
+          "description": "Show shared integration availability, freshness, and degradation [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -476,121 +2542,6 @@
       "service": "DiscoveryService",
       "method": "GetAudioToolsEndpoint",
       "reason": "Service-discovery RPC the web-console UI and integrations use to locate the audio-tools scenario (api/handlers/discovery); not an operator CLI command."
-    },
-    {
-      "service": "EvidenceService",
-      "method": "ListEntity",
-      "reason": "Hand-registered as 'evidence entity' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "EvidenceService",
-      "method": "ListRun",
-      "reason": "Hand-registered as 'evidence run' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "EvidenceService",
-      "method": "Reconcile",
-      "reason": "Hand-registered as 'evidence reconcile' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "EvidenceService",
-      "method": "RecordOperatorVerification",
-      "reason": "Hand-registered as 'evidence verify' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "AddTargets",
-      "reason": "Hand-registered as 'goals targets-add' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "ApplyGoalWorkflow",
-      "reason": "Hand-registered as 'goals workflow-apply' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "ArchiveGoal",
-      "reason": "Hand-registered as 'goals archive' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "ArchiveMilestone",
-      "reason": "Hand-registered as 'goals milestone-archive' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "AssignMilestoneItems",
-      "reason": "Hand-registered as 'goals milestone-assign' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "CloseOutGoal",
-      "reason": "Hand-registered as 'goals close-out' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "CreateGoal",
-      "reason": "Hand-registered as 'goals create' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "CreateMilestone",
-      "reason": "Hand-registered as 'goals milestone-create' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "DeleteGoal",
-      "reason": "Hand-registered as 'goals delete' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "GetGoal",
-      "reason": "Hand-registered as 'goals get' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "GetScope",
-      "reason": "Hand-registered as 'goals context' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "ListGoals",
-      "reason": "Hand-registered as 'goals list' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "ListPendingGoalWorkflows",
-      "reason": "Hand-registered as 'goals workflow-pending' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "RemoveTargets",
-      "reason": "Hand-registered as 'goals targets-remove' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "UnarchiveGoal",
-      "reason": "Hand-registered as 'goals unarchive' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "UnassignMilestoneItems",
-      "reason": "Hand-registered as 'goals milestone-unassign' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "UpdateGoal",
-      "reason": "Hand-registered as 'goals update' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "GoalService",
-      "method": "UpdateMilestone",
-      "reason": "Hand-registered as 'goals milestone-update' through the generated GoalService Connect client (cli/domains/goals/register.go); the broader Swarm Manager CLI is not yet manifest-driven."
-    },
-    {
-      "service": "RelatedService",
-      "method": "GetRelated",
-      "reason": "Hand-registered as 'related backlog' and 'related goal' through the generated RelatedService Connect client (cli/domains/related/register.go); one RPC serves both target shapes, so it maps to two commands rather than one."
     }
   ],
   "measures": {

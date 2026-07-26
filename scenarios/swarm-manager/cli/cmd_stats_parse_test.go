@@ -1,28 +1,37 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
-func TestFormatDurationSeconds(t *testing.T) {
-	cases := []struct {
-		in   float64
-		want string
-	}{
-		{0, "0m"},
-		{-5, "0m"},
-		{30, "30s"},
-		{59, "59s"},
-		{90, "2m"},
-		{3599, "60m"},
-		{7200, "2.0h"},
+func TestStatsResponseMatchesCurrentStatsContract(t *testing.T) {
+	body := []byte(`{
+		"generated_at":"2026-07-26T00:00:00Z",
+		"event_count":12,
+		"history":{"history_days":30,"has_history":true,"min_sample_meaningful":7},
+		"timing":{"avg_lead_time_hours":4.5,"median_lead_time_hours":3.5,"avg_execution_minutes":12,"median_execution_minutes":10,"execution_duration_samples":2},
+		"scope":{"goals":[{"name":"reliability","total":3,"completed":1}]},
+		"dashboard":{"velocity_trend":[{"week_start":"2026-07-20","completed":1,"completed_items":[{"kind":"feature","name":"restore-stats"}]}],"velocity_weeks_covered":1},
+		"session":{"session_created_backlog_items":2,"session_created_goals":1}
+	}`)
+
+	var stats StatsResponse
+	if err := json.Unmarshal(body, &stats); err != nil {
+		t.Fatalf("unmarshal stats response: %v", err)
 	}
-	for _, c := range cases {
-		if got := formatDurationSeconds(c.in); got != c.want {
-			t.Errorf("formatDurationSeconds(%v) = %q, want %q", c.in, got, c.want)
-		}
+	if got := stats.Scope.Goals[0].Name; got != "reliability" {
+		t.Fatalf("goal name = %q, want reliability", got)
+	}
+	if got := stats.Session.SessionCreatedGoals; got != 1 {
+		t.Fatalf("session-created goals = %d, want 1", got)
+	}
+	if got := stats.Dashboard.VelocityTrend[0].CompletedItems[0].Name; got != "restore-stats" {
+		t.Fatalf("completed item = %q, want restore-stats", got)
 	}
 }
 
-func TestParseScalarValue(t *testing.T) {
+func TestPrometheusValue(t *testing.T) {
 	cases := []struct {
 		in   string
 		want float64
@@ -34,15 +43,15 @@ func TestParseScalarValue(t *testing.T) {
 		{"notanumber", 0},
 	}
 	for _, c := range cases {
-		if got := parseScalarValue(c.in); got != c.want {
-			t.Errorf("parseScalarValue(%q) = %v, want %v", c.in, got, c.want)
+		if got := prometheusValue(c.in); got != c.want {
+			t.Errorf("prometheusValue(%q) = %v, want %v", c.in, got, c.want)
 		}
 	}
 }
 
 func TestParseAdoptionRow(t *testing.T) {
 	line := `agent_manager_sandbox_adoption_total{run_mode="auto",sandbox_mode="on",manual_review="false"} 7`
-	row := parseAdoptionRow(line)
+	row := parseSandboxAdoptionRow(line)
 	if row == nil {
 		t.Fatal("expected non-nil row")
 	}
@@ -51,7 +60,7 @@ func TestParseAdoptionRow(t *testing.T) {
 	}
 
 	// Malformed (no braces) returns nil.
-	if got := parseAdoptionRow("agent_manager_sandbox_adoption_total 1"); got != nil {
+	if got := parseSandboxAdoptionRow("agent_manager_sandbox_adoption_total 1"); got != nil {
 		t.Errorf("malformed line should return nil, got %+v", got)
 	}
 }

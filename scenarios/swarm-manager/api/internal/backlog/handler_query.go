@@ -31,32 +31,70 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	archivedFilter := parseArchivedQuery(r)
-
-	items, err := h.store.LoadAll(kinds)
+	filters := ListFilters{
+		Kinds:       kinds,
+		Statuses:    statusFilter,
+		Archived:    parseArchivedQuery(r),
+		Scenarios:   parseScenariosQuery(r),
+		SpawnedFrom: strings.TrimSpace(r.URL.Query().Get("spawned_from")),
+		PlanRef:     strings.TrimSpace(r.URL.Query().Get("plan_ref")),
+	}
+	if filters.PlanRef == "" {
+		filters.PlanRef = strings.TrimSpace(r.URL.Query().Get("plan_ref_slug"))
+	}
+	if raw := strings.TrimSpace(r.URL.Query().Get("has_plan_ref")); raw != "" {
+		value := raw == "1" || strings.EqualFold(raw, "true") || strings.EqualFold(raw, "yes")
+		filters.HasPlanRef = &value
+	}
+	if raw := strings.TrimSpace(r.URL.Query().Get("stale")); raw != "" {
+		value := raw == "1" || strings.EqualFold(raw, "true") || strings.EqualFold(raw, "yes")
+		filters.Stale = &value
+	}
+	resp, err := h.listItems(filters)
 	if err != nil {
 		apierr.MapError(w, "[backlog] list", apierr.Internal("%s", err.Error()))
 		return
 	}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[backlog] list", apierr.Internal("failed to encode response"))
+	}
+}
 
-	items = filterByStatus(items, statusFilter)
-	items = filterByArchived(items, archivedFilter)
-	items = filterByScenario(items, parseScenariosQuery(r))
-	if sf := r.URL.Query().Get("spawned_from"); sf != "" {
+// ListFilters is the transport-neutral filter set for the backlog projection.
+// Both REST and Connect delegate here so their result semantics cannot drift.
+type ListFilters struct {
+	Kinds       []BacklogKind
+	Statuses    []BacklogStatus
+	Archived    archivedFilter
+	Scenarios   []string
+	SpawnedFrom string
+	HasPlanRef  *bool
+	PlanRef     string
+	Stale       *bool
+}
+
+func (h *Handler) listItems(filters ListFilters) (*apipb.ListBacklogItemsResponse, error) {
+	items, err := h.store.LoadAll(filters.Kinds)
+	if err != nil {
+		return nil, err
+	}
+	items = filterByStatus(items, filters.Statuses)
+	items = filterByArchived(items, filters.Archived)
+	items = filterByScenario(items, filters.Scenarios)
+	if filters.SpawnedFrom != "" {
 		filtered := items[:0]
 		for _, item := range items {
-			if item.SpawnedFrom == sf {
+			if item.SpawnedFrom == filters.SpawnedFrom {
 				filtered = append(filtered, item)
 			}
 		}
 		items = filtered
 	}
-	items = filterByPlanRef(items, r)
-	if raw := strings.TrimSpace(r.URL.Query().Get("stale")); raw != "" {
-		want := raw == "1" || strings.EqualFold(raw, "true") || strings.EqualFold(raw, "yes")
+	items = filterByPlanRefValues(items, filters.HasPlanRef, filters.PlanRef)
+	if filters.Stale != nil {
 		filtered := items[:0]
 		for _, item := range items {
-			if IsStale(item, h.repoRoot, time.Now().UTC()) == want {
+			if IsStale(item, h.repoRoot, time.Now().UTC()) == *filters.Stale {
 				filtered = append(filtered, item)
 			}
 		}
@@ -89,37 +127,23 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp := &apipb.ListBacklogItemsResponse{Items: protoItems, Blocking: protoBlocking}
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		apierr.MapError(w, "[backlog] list", apierr.Internal("failed to encode response"))
-	}
+	return &apipb.ListBacklogItemsResponse{Items: protoItems, Blocking: protoBlocking}, nil
 }
 
-func filterByPlanRef(items []BacklogItem, r *http.Request) []BacklogItem {
-	query := r.URL.Query()
-	if raw := strings.TrimSpace(query.Get("has_plan_ref")); raw != "" {
-		want := raw == "1" || strings.EqualFold(raw, "true") || strings.EqualFold(raw, "yes")
+func filterByPlanRefValues(items []BacklogItem, hasPlanRef *bool, planRef string) []BacklogItem {
+	if hasPlanRef != nil {
 		filtered := items[:0]
 		for _, item := range items {
-			if (item.PlanRef != nil) == want {
+			if (item.PlanRef != nil) == *hasPlanRef {
 				filtered = append(filtered, item)
 			}
 		}
 		items = filtered
 	}
-	if slug := strings.TrimSpace(query.Get("plan_ref")); slug != "" {
+	if planRef != "" {
 		filtered := items[:0]
 		for _, item := range items {
-			if item.PlanRef != nil && item.PlanRef.Slug == slug {
-				filtered = append(filtered, item)
-			}
-		}
-		items = filtered
-	}
-	if slug := strings.TrimSpace(query.Get("plan_ref_slug")); slug != "" {
-		filtered := items[:0]
-		for _, item := range items {
-			if item.PlanRef != nil && item.PlanRef.Slug == slug {
+			if item.PlanRef != nil && item.PlanRef.Slug == planRef {
 				filtered = append(filtered, item)
 			}
 		}

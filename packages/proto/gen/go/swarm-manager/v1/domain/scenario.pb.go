@@ -201,7 +201,7 @@ var File_swarm_manager_v1_domain_scenario_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/scenario.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x96\x04\n" +
+	"&swarm-manager/v1/domain/scenario.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\x96\x04\n" +
 	"\bScenario\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdisplayName\x12 \n" +
@@ -235,8 +235,8 @@ func file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_domain_scenario_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_swarm_manager_v1_domain_scenario_proto_goTypes = []any{
-	(*Scenario)(nil),         // 0: swarm_manager.v1.Scenario
-	(*ScenarioMetadata)(nil), // 1: swarm_manager.v1.ScenarioMetadata
+	(*Scenario)(nil),         // 0: vrooli.swarm_manager.v1.domain.Scenario
+	(*ScenarioMetadata)(nil), // 1: vrooli.swarm_manager.v1.domain.ScenarioMetadata
 }
 var file_swarm_manager_v1_domain_scenario_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

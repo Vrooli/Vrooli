@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from swarm_manager.v1.domain import operations_pb2 as swarm__manager_dot_v1_dot_domain_dot_operations__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%swarm-manager/v1/api/operations.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a(swarm-manager/v1/domain/operations.proto\"O\n\x1cGetOperationsBriefingRequest\x12$\n\x06window\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x18 H\x00R\x06window\x88\x01\x01\x42\t\n\x07_window\"a\n\x1dGetOperationsBriefingResponse\x12@\n\x08\x62riefing\x18\x01 \x01(\x0b\x32$.swarm_manager.v1.OperationsBriefingR\x08\x62riefingBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%swarm-manager/v1/api/operations.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1b\x62uf/validate/validate.proto\x1a(swarm-manager/v1/domain/operations.proto\"O\n\x1cGetOperationsBriefingRequest\x12$\n\x06window\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x18 H\x00R\x06window\x88\x01\x01\x42\t\n\x07_window\"o\n\x1dGetOperationsBriefingResponse\x12N\n\x08\x62riefing\x18\x01 \x01(\x0b\x32\x32.vrooli.swarm_manager.v1.domain.OperationsBriefingR\x08\x62riefingBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,8 +36,8 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api'
   _globals['_GETOPERATIONSBRIEFINGREQUEST'].fields_by_name['window']._loaded_options = None
   _globals['_GETOPERATIONSBRIEFINGREQUEST'].fields_by_name['window']._serialized_options = b'\272H\004r\002\030 '
-  _globals['_GETOPERATIONSBRIEFINGREQUEST']._serialized_start=130
-  _globals['_GETOPERATIONSBRIEFINGREQUEST']._serialized_end=209
-  _globals['_GETOPERATIONSBRIEFINGRESPONSE']._serialized_start=211
-  _globals['_GETOPERATIONSBRIEFINGRESPONSE']._serialized_end=308
+  _globals['_GETOPERATIONSBRIEFINGREQUEST']._serialized_start=141
+  _globals['_GETOPERATIONSBRIEFINGREQUEST']._serialized_end=220
+  _globals['_GETOPERATIONSBRIEFINGRESPONSE']._serialized_start=222
+  _globals['_GETOPERATIONSBRIEFINGRESPONSE']._serialized_end=333
 # @@protoc_insertion_point(module_scope)

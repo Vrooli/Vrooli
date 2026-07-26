@@ -543,7 +543,7 @@ var File_swarm_manager_v1_api_evidence_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_evidence_proto_rawDesc = "" +
 	"\n" +
-	"#swarm-manager/v1/api/evidence.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x87\x04\n" +
+	"#swarm-manager/v1/api/evidence.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x87\x04\n" +
 	"\x0eEvidenceRecord\x12\x1d\n" +
 	"\n" +
 	"owner_kind\x18\x01 \x01(\tR\townerKind\x12\x19\n" +
@@ -572,9 +572,9 @@ const file_swarm_manager_v1_api_evidence_proto_rawDesc = "" +
 	"\x19EvidenceListEntityRequest\x12*\n" +
 	"\fsubject_kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectKind\x12&\n" +
 	"\n" +
-	"subject_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsubjectId\"R\n" +
-	"\x14EvidenceListResponse\x12:\n" +
-	"\arecords\x18\x01 \x03(\v2 .swarm_manager.v1.EvidenceRecordR\arecords\":\n" +
+	"subject_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsubjectId\"]\n" +
+	"\x14EvidenceListResponse\x12E\n" +
+	"\arecords\x18\x01 \x03(\v2+.vrooli.swarm_manager.v1.api.EvidenceRecordR\arecords\":\n" +
 	"\x18EvidenceReconcileRequest\x12\x1e\n" +
 	"\x06run_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05runId\"J\n" +
 	"\x19EvidenceReconcileResponse\x12\x15\n" +
@@ -595,13 +595,13 @@ const file_swarm_manager_v1_api_evidence_proto_rawDesc = "" +
 	"\x05actor\x18\t \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05actor\x12\x1f\n" +
 	"\x06reason\x18\n" +
 	" \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06reason\x123\n" +
-	"\bmetadata\x18\v \x01(\v2\x17.google.protobuf.StructR\bmetadata2\xae\x03\n" +
-	"\x0fEvidenceService\x12[\n" +
-	"\aListRun\x12(.swarm_manager.v1.EvidenceListRunRequest\x1a&.swarm_manager.v1.EvidenceListResponse\x12a\n" +
+	"\bmetadata\x18\v \x01(\v2\x17.google.protobuf.StructR\bmetadata2\x87\x04\n" +
+	"\x0fEvidenceService\x12q\n" +
+	"\aListRun\x123.vrooli.swarm_manager.v1.api.EvidenceListRunRequest\x1a1.vrooli.swarm_manager.v1.api.EvidenceListResponse\x12w\n" +
 	"\n" +
-	"ListEntity\x12+.swarm_manager.v1.EvidenceListEntityRequest\x1a&.swarm_manager.v1.EvidenceListResponse\x12d\n" +
-	"\tReconcile\x12*.swarm_manager.v1.EvidenceReconcileRequest\x1a+.swarm_manager.v1.EvidenceReconcileResponse\x12u\n" +
-	"\x1aRecordOperatorVerification\x125.swarm_manager.v1.EvidenceOperatorVerificationRequest\x1a .swarm_manager.v1.EvidenceRecordBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"ListEntity\x126.vrooli.swarm_manager.v1.api.EvidenceListEntityRequest\x1a1.vrooli.swarm_manager.v1.api.EvidenceListResponse\x12z\n" +
+	"\tReconcile\x125.vrooli.swarm_manager.v1.api.EvidenceReconcileRequest\x1a6.vrooli.swarm_manager.v1.api.EvidenceReconcileResponse\x12\x8b\x01\n" +
+	"\x1aRecordOperatorVerification\x12@.vrooli.swarm_manager.v1.api.EvidenceOperatorVerificationRequest\x1a+.vrooli.swarm_manager.v1.api.EvidenceRecordBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_evidence_proto_rawDescOnce sync.Once
@@ -617,27 +617,27 @@ func file_swarm_manager_v1_api_evidence_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_evidence_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_swarm_manager_v1_api_evidence_proto_goTypes = []any{
-	(*EvidenceRecord)(nil),                      // 0: swarm_manager.v1.EvidenceRecord
-	(*EvidenceListRunRequest)(nil),              // 1: swarm_manager.v1.EvidenceListRunRequest
-	(*EvidenceListEntityRequest)(nil),           // 2: swarm_manager.v1.EvidenceListEntityRequest
-	(*EvidenceListResponse)(nil),                // 3: swarm_manager.v1.EvidenceListResponse
-	(*EvidenceReconcileRequest)(nil),            // 4: swarm_manager.v1.EvidenceReconcileRequest
-	(*EvidenceReconcileResponse)(nil),           // 5: swarm_manager.v1.EvidenceReconcileResponse
-	(*EvidenceOperatorVerificationRequest)(nil), // 6: swarm_manager.v1.EvidenceOperatorVerificationRequest
+	(*EvidenceRecord)(nil),                      // 0: vrooli.swarm_manager.v1.api.EvidenceRecord
+	(*EvidenceListRunRequest)(nil),              // 1: vrooli.swarm_manager.v1.api.EvidenceListRunRequest
+	(*EvidenceListEntityRequest)(nil),           // 2: vrooli.swarm_manager.v1.api.EvidenceListEntityRequest
+	(*EvidenceListResponse)(nil),                // 3: vrooli.swarm_manager.v1.api.EvidenceListResponse
+	(*EvidenceReconcileRequest)(nil),            // 4: vrooli.swarm_manager.v1.api.EvidenceReconcileRequest
+	(*EvidenceReconcileResponse)(nil),           // 5: vrooli.swarm_manager.v1.api.EvidenceReconcileResponse
+	(*EvidenceOperatorVerificationRequest)(nil), // 6: vrooli.swarm_manager.v1.api.EvidenceOperatorVerificationRequest
 	(*structpb.Struct)(nil),                     // 7: google.protobuf.Struct
 }
 var file_swarm_manager_v1_api_evidence_proto_depIdxs = []int32{
-	7, // 0: swarm_manager.v1.EvidenceRecord.metadata:type_name -> google.protobuf.Struct
-	0, // 1: swarm_manager.v1.EvidenceListResponse.records:type_name -> swarm_manager.v1.EvidenceRecord
-	7, // 2: swarm_manager.v1.EvidenceOperatorVerificationRequest.metadata:type_name -> google.protobuf.Struct
-	1, // 3: swarm_manager.v1.EvidenceService.ListRun:input_type -> swarm_manager.v1.EvidenceListRunRequest
-	2, // 4: swarm_manager.v1.EvidenceService.ListEntity:input_type -> swarm_manager.v1.EvidenceListEntityRequest
-	4, // 5: swarm_manager.v1.EvidenceService.Reconcile:input_type -> swarm_manager.v1.EvidenceReconcileRequest
-	6, // 6: swarm_manager.v1.EvidenceService.RecordOperatorVerification:input_type -> swarm_manager.v1.EvidenceOperatorVerificationRequest
-	3, // 7: swarm_manager.v1.EvidenceService.ListRun:output_type -> swarm_manager.v1.EvidenceListResponse
-	3, // 8: swarm_manager.v1.EvidenceService.ListEntity:output_type -> swarm_manager.v1.EvidenceListResponse
-	5, // 9: swarm_manager.v1.EvidenceService.Reconcile:output_type -> swarm_manager.v1.EvidenceReconcileResponse
-	0, // 10: swarm_manager.v1.EvidenceService.RecordOperatorVerification:output_type -> swarm_manager.v1.EvidenceRecord
+	7, // 0: vrooli.swarm_manager.v1.api.EvidenceRecord.metadata:type_name -> google.protobuf.Struct
+	0, // 1: vrooli.swarm_manager.v1.api.EvidenceListResponse.records:type_name -> vrooli.swarm_manager.v1.api.EvidenceRecord
+	7, // 2: vrooli.swarm_manager.v1.api.EvidenceOperatorVerificationRequest.metadata:type_name -> google.protobuf.Struct
+	1, // 3: vrooli.swarm_manager.v1.api.EvidenceService.ListRun:input_type -> vrooli.swarm_manager.v1.api.EvidenceListRunRequest
+	2, // 4: vrooli.swarm_manager.v1.api.EvidenceService.ListEntity:input_type -> vrooli.swarm_manager.v1.api.EvidenceListEntityRequest
+	4, // 5: vrooli.swarm_manager.v1.api.EvidenceService.Reconcile:input_type -> vrooli.swarm_manager.v1.api.EvidenceReconcileRequest
+	6, // 6: vrooli.swarm_manager.v1.api.EvidenceService.RecordOperatorVerification:input_type -> vrooli.swarm_manager.v1.api.EvidenceOperatorVerificationRequest
+	3, // 7: vrooli.swarm_manager.v1.api.EvidenceService.ListRun:output_type -> vrooli.swarm_manager.v1.api.EvidenceListResponse
+	3, // 8: vrooli.swarm_manager.v1.api.EvidenceService.ListEntity:output_type -> vrooli.swarm_manager.v1.api.EvidenceListResponse
+	5, // 9: vrooli.swarm_manager.v1.api.EvidenceService.Reconcile:output_type -> vrooli.swarm_manager.v1.api.EvidenceReconcileResponse
+	0, // 10: vrooli.swarm_manager.v1.api.EvidenceService.RecordOperatorVerification:output_type -> vrooli.swarm_manager.v1.api.EvidenceRecord
 	7, // [7:11] is the sub-list for method output_type
 	3, // [3:7] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

@@ -9,9 +9,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 //                AudioAdminService and AudioRuntimeService.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain audio_common
-// @imports none
 // @stability stable
 //
 // Web-console owns this surface. It mirrors the semantic shape of

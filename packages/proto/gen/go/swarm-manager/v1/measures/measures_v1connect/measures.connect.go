@@ -39,6 +39,18 @@ const (
 	// MeasuresServiceCountBacklogCreatedProcedure is the fully-qualified name of the MeasuresService's
 	// CountBacklogCreated RPC.
 	MeasuresServiceCountBacklogCreatedProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountBacklogCreated"
+	// MeasuresServiceCountBacklogNetDeltaProcedure is the fully-qualified name of the MeasuresService's
+	// CountBacklogNetDelta RPC.
+	MeasuresServiceCountBacklogNetDeltaProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountBacklogNetDelta"
+	// MeasuresServiceCountBacklogOpenProcedure is the fully-qualified name of the MeasuresService's
+	// CountBacklogOpen RPC.
+	MeasuresServiceCountBacklogOpenProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountBacklogOpen"
+	// MeasuresServiceCountBacklogBlockedProcedure is the fully-qualified name of the MeasuresService's
+	// CountBacklogBlocked RPC.
+	MeasuresServiceCountBacklogBlockedProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountBacklogBlocked"
+	// MeasuresServiceBacklogLeadTimeProcedure is the fully-qualified name of the MeasuresService's
+	// BacklogLeadTime RPC.
+	MeasuresServiceBacklogLeadTimeProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/BacklogLeadTime"
 	// MeasuresServiceCountExecutionsCompletedProcedure is the fully-qualified name of the
 	// MeasuresService's CountExecutionsCompleted RPC.
 	MeasuresServiceCountExecutionsCompletedProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountExecutionsCompleted"
@@ -48,6 +60,24 @@ const (
 	// MeasuresServiceCountAgentSessionsCreatedProcedure is the fully-qualified name of the
 	// MeasuresService's CountAgentSessionsCreated RPC.
 	MeasuresServiceCountAgentSessionsCreatedProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountAgentSessionsCreated"
+	// MeasuresServiceCountPlanRefsProcedure is the fully-qualified name of the MeasuresService's
+	// CountPlanRefs RPC.
+	MeasuresServiceCountPlanRefsProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/CountPlanRefs"
+	// MeasuresServiceGoalMilestoneHealthProcedure is the fully-qualified name of the MeasuresService's
+	// GoalMilestoneHealth RPC.
+	MeasuresServiceGoalMilestoneHealthProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/GoalMilestoneHealth"
+	// MeasuresServiceAgentSessionProposalRateProcedure is the fully-qualified name of the
+	// MeasuresService's AgentSessionProposalRate RPC.
+	MeasuresServiceAgentSessionProposalRateProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/AgentSessionProposalRate"
+	// MeasuresServiceExecutionSuccessRateProcedure is the fully-qualified name of the MeasuresService's
+	// ExecutionSuccessRate RPC.
+	MeasuresServiceExecutionSuccessRateProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/ExecutionSuccessRate"
+	// MeasuresServiceExecutionDurationProcedure is the fully-qualified name of the MeasuresService's
+	// ExecutionDuration RPC.
+	MeasuresServiceExecutionDurationProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/ExecutionDuration"
+	// MeasuresServiceExecutionReviewRateProcedure is the fully-qualified name of the MeasuresService's
+	// ExecutionReviewRate RPC.
+	MeasuresServiceExecutionReviewRateProcedure = "/vrooli.swarm_manager.v1.measures.MeasuresService/ExecutionReviewRate"
 )
 
 // MeasuresServiceClient is a client for the vrooli.swarm_manager.v1.measures.MeasuresService
@@ -59,6 +89,16 @@ type MeasuresServiceClient interface {
 	// CountBacklogCreated answers "how many backlog items were created in
 	// <window>". Bound to the `backlog created` measure.
 	CountBacklogCreated(context.Context, *connect.Request[measures.CountBacklogCreatedRequest]) (*connect.Response[measures.CountBacklogCreatedResponse], error)
+	// CountBacklogNetDelta answers whether backlog volume grew or shrank within
+	// the requested window. It shares the created/completed event computations.
+	CountBacklogNetDelta(context.Context, *connect.Request[measures.CountBacklogNetDeltaRequest]) (*connect.Response[measures.CountBacklogNetDeltaResponse], error)
+	// CountBacklogOpen answers how many actionable backlog items currently remain.
+	CountBacklogOpen(context.Context, *connect.Request[measures.CountBacklogOpenRequest]) (*connect.Response[measures.CountBacklogOpenResponse], error)
+	// CountBacklogBlocked answers how many backlog items are currently blocked.
+	CountBacklogBlocked(context.Context, *connect.Request[measures.CountBacklogBlockedRequest]) (*connect.Response[measures.CountBacklogBlockedResponse], error)
+	// BacklogLeadTime answers how long completed backlog items took from
+	// creation to completion.
+	BacklogLeadTime(context.Context, *connect.Request[measures.BacklogLeadTimeRequest]) (*connect.Response[measures.BacklogLeadTimeResponse], error)
 	// CountExecutionsCompleted answers "how many executions completed in
 	// <window>". Bound to the `execution completed` measure.
 	CountExecutionsCompleted(context.Context, *connect.Request[measures.CountExecutionsCompletedRequest]) (*connect.Response[measures.CountExecutionsCompletedResponse], error)
@@ -68,6 +108,22 @@ type MeasuresServiceClient interface {
 	// CountAgentSessionsCreated answers "how many agent sessions were created in
 	// <window>". Bound to the `agent_session created` measure.
 	CountAgentSessionsCreated(context.Context, *connect.Request[measures.CountAgentSessionsCreatedRequest]) (*connect.Response[measures.CountAgentSessionsCreatedResponse], error)
+	// CountPlanRefs answers how many backlog items currently carry a canonical
+	// plan reference. It is backed by the durable backlog projection.
+	CountPlanRefs(context.Context, *connect.Request[measures.CountPlanRefsRequest]) (*connect.Response[measures.CountPlanRefsResponse], error)
+	// GoalMilestoneHealth answers the current completion and blocking state for
+	// each durable milestone.
+	GoalMilestoneHealth(context.Context, *connect.Request[measures.GoalMilestoneHealthRequest]) (*connect.Response[measures.GoalMilestoneHealthResponse], error)
+	// AgentSessionProposalRate answers how often agent-session proposals were
+	// applied within a window.
+	AgentSessionProposalRate(context.Context, *connect.Request[measures.AgentSessionProposalRateRequest]) (*connect.Response[measures.AgentSessionProposalRateResponse], error)
+	// ExecutionSuccessRate answers the completion success rate for terminal runs.
+	ExecutionSuccessRate(context.Context, *connect.Request[measures.ExecutionSuccessRateRequest]) (*connect.Response[measures.ExecutionSuccessRateResponse], error)
+	// ExecutionDuration answers how long completed executions ran.
+	ExecutionDuration(context.Context, *connect.Request[measures.ExecutionDurationRequest]) (*connect.Response[measures.ExecutionDurationResponse], error)
+	// ExecutionReviewRate answers how often terminal executions reached a
+	// completed review round.
+	ExecutionReviewRate(context.Context, *connect.Request[measures.ExecutionReviewRateRequest]) (*connect.Response[measures.ExecutionReviewRateResponse], error)
 }
 
 // NewMeasuresServiceClient constructs a client for the
@@ -94,6 +150,30 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("CountBacklogCreated")),
 			connect.WithClientOptions(opts...),
 		),
+		countBacklogNetDelta: connect.NewClient[measures.CountBacklogNetDeltaRequest, measures.CountBacklogNetDeltaResponse](
+			httpClient,
+			baseURL+MeasuresServiceCountBacklogNetDeltaProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("CountBacklogNetDelta")),
+			connect.WithClientOptions(opts...),
+		),
+		countBacklogOpen: connect.NewClient[measures.CountBacklogOpenRequest, measures.CountBacklogOpenResponse](
+			httpClient,
+			baseURL+MeasuresServiceCountBacklogOpenProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("CountBacklogOpen")),
+			connect.WithClientOptions(opts...),
+		),
+		countBacklogBlocked: connect.NewClient[measures.CountBacklogBlockedRequest, measures.CountBacklogBlockedResponse](
+			httpClient,
+			baseURL+MeasuresServiceCountBacklogBlockedProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("CountBacklogBlocked")),
+			connect.WithClientOptions(opts...),
+		),
+		backlogLeadTime: connect.NewClient[measures.BacklogLeadTimeRequest, measures.BacklogLeadTimeResponse](
+			httpClient,
+			baseURL+MeasuresServiceBacklogLeadTimeProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("BacklogLeadTime")),
+			connect.WithClientOptions(opts...),
+		),
 		countExecutionsCompleted: connect.NewClient[measures.CountExecutionsCompletedRequest, measures.CountExecutionsCompletedResponse](
 			httpClient,
 			baseURL+MeasuresServiceCountExecutionsCompletedProcedure,
@@ -112,6 +192,42 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("CountAgentSessionsCreated")),
 			connect.WithClientOptions(opts...),
 		),
+		countPlanRefs: connect.NewClient[measures.CountPlanRefsRequest, measures.CountPlanRefsResponse](
+			httpClient,
+			baseURL+MeasuresServiceCountPlanRefsProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("CountPlanRefs")),
+			connect.WithClientOptions(opts...),
+		),
+		goalMilestoneHealth: connect.NewClient[measures.GoalMilestoneHealthRequest, measures.GoalMilestoneHealthResponse](
+			httpClient,
+			baseURL+MeasuresServiceGoalMilestoneHealthProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("GoalMilestoneHealth")),
+			connect.WithClientOptions(opts...),
+		),
+		agentSessionProposalRate: connect.NewClient[measures.AgentSessionProposalRateRequest, measures.AgentSessionProposalRateResponse](
+			httpClient,
+			baseURL+MeasuresServiceAgentSessionProposalRateProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("AgentSessionProposalRate")),
+			connect.WithClientOptions(opts...),
+		),
+		executionSuccessRate: connect.NewClient[measures.ExecutionSuccessRateRequest, measures.ExecutionSuccessRateResponse](
+			httpClient,
+			baseURL+MeasuresServiceExecutionSuccessRateProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("ExecutionSuccessRate")),
+			connect.WithClientOptions(opts...),
+		),
+		executionDuration: connect.NewClient[measures.ExecutionDurationRequest, measures.ExecutionDurationResponse](
+			httpClient,
+			baseURL+MeasuresServiceExecutionDurationProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("ExecutionDuration")),
+			connect.WithClientOptions(opts...),
+		),
+		executionReviewRate: connect.NewClient[measures.ExecutionReviewRateRequest, measures.ExecutionReviewRateResponse](
+			httpClient,
+			baseURL+MeasuresServiceExecutionReviewRateProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("ExecutionReviewRate")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -119,9 +235,19 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type measuresServiceClient struct {
 	countBacklogCompleted     *connect.Client[measures.CountBacklogCompletedRequest, measures.CountBacklogCompletedResponse]
 	countBacklogCreated       *connect.Client[measures.CountBacklogCreatedRequest, measures.CountBacklogCreatedResponse]
+	countBacklogNetDelta      *connect.Client[measures.CountBacklogNetDeltaRequest, measures.CountBacklogNetDeltaResponse]
+	countBacklogOpen          *connect.Client[measures.CountBacklogOpenRequest, measures.CountBacklogOpenResponse]
+	countBacklogBlocked       *connect.Client[measures.CountBacklogBlockedRequest, measures.CountBacklogBlockedResponse]
+	backlogLeadTime           *connect.Client[measures.BacklogLeadTimeRequest, measures.BacklogLeadTimeResponse]
 	countExecutionsCompleted  *connect.Client[measures.CountExecutionsCompletedRequest, measures.CountExecutionsCompletedResponse]
 	countGoalsCreated         *connect.Client[measures.CountGoalsCreatedRequest, measures.CountGoalsCreatedResponse]
 	countAgentSessionsCreated *connect.Client[measures.CountAgentSessionsCreatedRequest, measures.CountAgentSessionsCreatedResponse]
+	countPlanRefs             *connect.Client[measures.CountPlanRefsRequest, measures.CountPlanRefsResponse]
+	goalMilestoneHealth       *connect.Client[measures.GoalMilestoneHealthRequest, measures.GoalMilestoneHealthResponse]
+	agentSessionProposalRate  *connect.Client[measures.AgentSessionProposalRateRequest, measures.AgentSessionProposalRateResponse]
+	executionSuccessRate      *connect.Client[measures.ExecutionSuccessRateRequest, measures.ExecutionSuccessRateResponse]
+	executionDuration         *connect.Client[measures.ExecutionDurationRequest, measures.ExecutionDurationResponse]
+	executionReviewRate       *connect.Client[measures.ExecutionReviewRateRequest, measures.ExecutionReviewRateResponse]
 }
 
 // CountBacklogCompleted calls
@@ -133,6 +259,26 @@ func (c *measuresServiceClient) CountBacklogCompleted(ctx context.Context, req *
 // CountBacklogCreated calls vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogCreated.
 func (c *measuresServiceClient) CountBacklogCreated(ctx context.Context, req *connect.Request[measures.CountBacklogCreatedRequest]) (*connect.Response[measures.CountBacklogCreatedResponse], error) {
 	return c.countBacklogCreated.CallUnary(ctx, req)
+}
+
+// CountBacklogNetDelta calls vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogNetDelta.
+func (c *measuresServiceClient) CountBacklogNetDelta(ctx context.Context, req *connect.Request[measures.CountBacklogNetDeltaRequest]) (*connect.Response[measures.CountBacklogNetDeltaResponse], error) {
+	return c.countBacklogNetDelta.CallUnary(ctx, req)
+}
+
+// CountBacklogOpen calls vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogOpen.
+func (c *measuresServiceClient) CountBacklogOpen(ctx context.Context, req *connect.Request[measures.CountBacklogOpenRequest]) (*connect.Response[measures.CountBacklogOpenResponse], error) {
+	return c.countBacklogOpen.CallUnary(ctx, req)
+}
+
+// CountBacklogBlocked calls vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogBlocked.
+func (c *measuresServiceClient) CountBacklogBlocked(ctx context.Context, req *connect.Request[measures.CountBacklogBlockedRequest]) (*connect.Response[measures.CountBacklogBlockedResponse], error) {
+	return c.countBacklogBlocked.CallUnary(ctx, req)
+}
+
+// BacklogLeadTime calls vrooli.swarm_manager.v1.measures.MeasuresService.BacklogLeadTime.
+func (c *measuresServiceClient) BacklogLeadTime(ctx context.Context, req *connect.Request[measures.BacklogLeadTimeRequest]) (*connect.Response[measures.BacklogLeadTimeResponse], error) {
+	return c.backlogLeadTime.CallUnary(ctx, req)
 }
 
 // CountExecutionsCompleted calls
@@ -152,6 +298,37 @@ func (c *measuresServiceClient) CountAgentSessionsCreated(ctx context.Context, r
 	return c.countAgentSessionsCreated.CallUnary(ctx, req)
 }
 
+// CountPlanRefs calls vrooli.swarm_manager.v1.measures.MeasuresService.CountPlanRefs.
+func (c *measuresServiceClient) CountPlanRefs(ctx context.Context, req *connect.Request[measures.CountPlanRefsRequest]) (*connect.Response[measures.CountPlanRefsResponse], error) {
+	return c.countPlanRefs.CallUnary(ctx, req)
+}
+
+// GoalMilestoneHealth calls vrooli.swarm_manager.v1.measures.MeasuresService.GoalMilestoneHealth.
+func (c *measuresServiceClient) GoalMilestoneHealth(ctx context.Context, req *connect.Request[measures.GoalMilestoneHealthRequest]) (*connect.Response[measures.GoalMilestoneHealthResponse], error) {
+	return c.goalMilestoneHealth.CallUnary(ctx, req)
+}
+
+// AgentSessionProposalRate calls
+// vrooli.swarm_manager.v1.measures.MeasuresService.AgentSessionProposalRate.
+func (c *measuresServiceClient) AgentSessionProposalRate(ctx context.Context, req *connect.Request[measures.AgentSessionProposalRateRequest]) (*connect.Response[measures.AgentSessionProposalRateResponse], error) {
+	return c.agentSessionProposalRate.CallUnary(ctx, req)
+}
+
+// ExecutionSuccessRate calls vrooli.swarm_manager.v1.measures.MeasuresService.ExecutionSuccessRate.
+func (c *measuresServiceClient) ExecutionSuccessRate(ctx context.Context, req *connect.Request[measures.ExecutionSuccessRateRequest]) (*connect.Response[measures.ExecutionSuccessRateResponse], error) {
+	return c.executionSuccessRate.CallUnary(ctx, req)
+}
+
+// ExecutionDuration calls vrooli.swarm_manager.v1.measures.MeasuresService.ExecutionDuration.
+func (c *measuresServiceClient) ExecutionDuration(ctx context.Context, req *connect.Request[measures.ExecutionDurationRequest]) (*connect.Response[measures.ExecutionDurationResponse], error) {
+	return c.executionDuration.CallUnary(ctx, req)
+}
+
+// ExecutionReviewRate calls vrooli.swarm_manager.v1.measures.MeasuresService.ExecutionReviewRate.
+func (c *measuresServiceClient) ExecutionReviewRate(ctx context.Context, req *connect.Request[measures.ExecutionReviewRateRequest]) (*connect.Response[measures.ExecutionReviewRateResponse], error) {
+	return c.executionReviewRate.CallUnary(ctx, req)
+}
+
 // MeasuresServiceHandler is an implementation of the
 // vrooli.swarm_manager.v1.measures.MeasuresService service.
 type MeasuresServiceHandler interface {
@@ -161,6 +338,16 @@ type MeasuresServiceHandler interface {
 	// CountBacklogCreated answers "how many backlog items were created in
 	// <window>". Bound to the `backlog created` measure.
 	CountBacklogCreated(context.Context, *connect.Request[measures.CountBacklogCreatedRequest]) (*connect.Response[measures.CountBacklogCreatedResponse], error)
+	// CountBacklogNetDelta answers whether backlog volume grew or shrank within
+	// the requested window. It shares the created/completed event computations.
+	CountBacklogNetDelta(context.Context, *connect.Request[measures.CountBacklogNetDeltaRequest]) (*connect.Response[measures.CountBacklogNetDeltaResponse], error)
+	// CountBacklogOpen answers how many actionable backlog items currently remain.
+	CountBacklogOpen(context.Context, *connect.Request[measures.CountBacklogOpenRequest]) (*connect.Response[measures.CountBacklogOpenResponse], error)
+	// CountBacklogBlocked answers how many backlog items are currently blocked.
+	CountBacklogBlocked(context.Context, *connect.Request[measures.CountBacklogBlockedRequest]) (*connect.Response[measures.CountBacklogBlockedResponse], error)
+	// BacklogLeadTime answers how long completed backlog items took from
+	// creation to completion.
+	BacklogLeadTime(context.Context, *connect.Request[measures.BacklogLeadTimeRequest]) (*connect.Response[measures.BacklogLeadTimeResponse], error)
 	// CountExecutionsCompleted answers "how many executions completed in
 	// <window>". Bound to the `execution completed` measure.
 	CountExecutionsCompleted(context.Context, *connect.Request[measures.CountExecutionsCompletedRequest]) (*connect.Response[measures.CountExecutionsCompletedResponse], error)
@@ -170,6 +357,22 @@ type MeasuresServiceHandler interface {
 	// CountAgentSessionsCreated answers "how many agent sessions were created in
 	// <window>". Bound to the `agent_session created` measure.
 	CountAgentSessionsCreated(context.Context, *connect.Request[measures.CountAgentSessionsCreatedRequest]) (*connect.Response[measures.CountAgentSessionsCreatedResponse], error)
+	// CountPlanRefs answers how many backlog items currently carry a canonical
+	// plan reference. It is backed by the durable backlog projection.
+	CountPlanRefs(context.Context, *connect.Request[measures.CountPlanRefsRequest]) (*connect.Response[measures.CountPlanRefsResponse], error)
+	// GoalMilestoneHealth answers the current completion and blocking state for
+	// each durable milestone.
+	GoalMilestoneHealth(context.Context, *connect.Request[measures.GoalMilestoneHealthRequest]) (*connect.Response[measures.GoalMilestoneHealthResponse], error)
+	// AgentSessionProposalRate answers how often agent-session proposals were
+	// applied within a window.
+	AgentSessionProposalRate(context.Context, *connect.Request[measures.AgentSessionProposalRateRequest]) (*connect.Response[measures.AgentSessionProposalRateResponse], error)
+	// ExecutionSuccessRate answers the completion success rate for terminal runs.
+	ExecutionSuccessRate(context.Context, *connect.Request[measures.ExecutionSuccessRateRequest]) (*connect.Response[measures.ExecutionSuccessRateResponse], error)
+	// ExecutionDuration answers how long completed executions ran.
+	ExecutionDuration(context.Context, *connect.Request[measures.ExecutionDurationRequest]) (*connect.Response[measures.ExecutionDurationResponse], error)
+	// ExecutionReviewRate answers how often terminal executions reached a
+	// completed review round.
+	ExecutionReviewRate(context.Context, *connect.Request[measures.ExecutionReviewRateRequest]) (*connect.Response[measures.ExecutionReviewRateResponse], error)
 }
 
 // NewMeasuresServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -191,6 +394,30 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("CountBacklogCreated")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceCountBacklogNetDeltaHandler := connect.NewUnaryHandler(
+		MeasuresServiceCountBacklogNetDeltaProcedure,
+		svc.CountBacklogNetDelta,
+		connect.WithSchema(measuresServiceMethods.ByName("CountBacklogNetDelta")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceCountBacklogOpenHandler := connect.NewUnaryHandler(
+		MeasuresServiceCountBacklogOpenProcedure,
+		svc.CountBacklogOpen,
+		connect.WithSchema(measuresServiceMethods.ByName("CountBacklogOpen")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceCountBacklogBlockedHandler := connect.NewUnaryHandler(
+		MeasuresServiceCountBacklogBlockedProcedure,
+		svc.CountBacklogBlocked,
+		connect.WithSchema(measuresServiceMethods.ByName("CountBacklogBlocked")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceBacklogLeadTimeHandler := connect.NewUnaryHandler(
+		MeasuresServiceBacklogLeadTimeProcedure,
+		svc.BacklogLeadTime,
+		connect.WithSchema(measuresServiceMethods.ByName("BacklogLeadTime")),
+		connect.WithHandlerOptions(opts...),
+	)
 	measuresServiceCountExecutionsCompletedHandler := connect.NewUnaryHandler(
 		MeasuresServiceCountExecutionsCompletedProcedure,
 		svc.CountExecutionsCompleted,
@@ -209,18 +436,74 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("CountAgentSessionsCreated")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceCountPlanRefsHandler := connect.NewUnaryHandler(
+		MeasuresServiceCountPlanRefsProcedure,
+		svc.CountPlanRefs,
+		connect.WithSchema(measuresServiceMethods.ByName("CountPlanRefs")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceGoalMilestoneHealthHandler := connect.NewUnaryHandler(
+		MeasuresServiceGoalMilestoneHealthProcedure,
+		svc.GoalMilestoneHealth,
+		connect.WithSchema(measuresServiceMethods.ByName("GoalMilestoneHealth")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceAgentSessionProposalRateHandler := connect.NewUnaryHandler(
+		MeasuresServiceAgentSessionProposalRateProcedure,
+		svc.AgentSessionProposalRate,
+		connect.WithSchema(measuresServiceMethods.ByName("AgentSessionProposalRate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceExecutionSuccessRateHandler := connect.NewUnaryHandler(
+		MeasuresServiceExecutionSuccessRateProcedure,
+		svc.ExecutionSuccessRate,
+		connect.WithSchema(measuresServiceMethods.ByName("ExecutionSuccessRate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceExecutionDurationHandler := connect.NewUnaryHandler(
+		MeasuresServiceExecutionDurationProcedure,
+		svc.ExecutionDuration,
+		connect.WithSchema(measuresServiceMethods.ByName("ExecutionDuration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceExecutionReviewRateHandler := connect.NewUnaryHandler(
+		MeasuresServiceExecutionReviewRateProcedure,
+		svc.ExecutionReviewRate,
+		connect.WithSchema(measuresServiceMethods.ByName("ExecutionReviewRate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.swarm_manager.v1.measures.MeasuresService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MeasuresServiceCountBacklogCompletedProcedure:
 			measuresServiceCountBacklogCompletedHandler.ServeHTTP(w, r)
 		case MeasuresServiceCountBacklogCreatedProcedure:
 			measuresServiceCountBacklogCreatedHandler.ServeHTTP(w, r)
+		case MeasuresServiceCountBacklogNetDeltaProcedure:
+			measuresServiceCountBacklogNetDeltaHandler.ServeHTTP(w, r)
+		case MeasuresServiceCountBacklogOpenProcedure:
+			measuresServiceCountBacklogOpenHandler.ServeHTTP(w, r)
+		case MeasuresServiceCountBacklogBlockedProcedure:
+			measuresServiceCountBacklogBlockedHandler.ServeHTTP(w, r)
+		case MeasuresServiceBacklogLeadTimeProcedure:
+			measuresServiceBacklogLeadTimeHandler.ServeHTTP(w, r)
 		case MeasuresServiceCountExecutionsCompletedProcedure:
 			measuresServiceCountExecutionsCompletedHandler.ServeHTTP(w, r)
 		case MeasuresServiceCountGoalsCreatedProcedure:
 			measuresServiceCountGoalsCreatedHandler.ServeHTTP(w, r)
 		case MeasuresServiceCountAgentSessionsCreatedProcedure:
 			measuresServiceCountAgentSessionsCreatedHandler.ServeHTTP(w, r)
+		case MeasuresServiceCountPlanRefsProcedure:
+			measuresServiceCountPlanRefsHandler.ServeHTTP(w, r)
+		case MeasuresServiceGoalMilestoneHealthProcedure:
+			measuresServiceGoalMilestoneHealthHandler.ServeHTTP(w, r)
+		case MeasuresServiceAgentSessionProposalRateProcedure:
+			measuresServiceAgentSessionProposalRateHandler.ServeHTTP(w, r)
+		case MeasuresServiceExecutionSuccessRateProcedure:
+			measuresServiceExecutionSuccessRateHandler.ServeHTTP(w, r)
+		case MeasuresServiceExecutionDurationProcedure:
+			measuresServiceExecutionDurationHandler.ServeHTTP(w, r)
+		case MeasuresServiceExecutionReviewRateProcedure:
+			measuresServiceExecutionReviewRateHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -238,6 +521,22 @@ func (UnimplementedMeasuresServiceHandler) CountBacklogCreated(context.Context, 
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogCreated is not implemented"))
 }
 
+func (UnimplementedMeasuresServiceHandler) CountBacklogNetDelta(context.Context, *connect.Request[measures.CountBacklogNetDeltaRequest]) (*connect.Response[measures.CountBacklogNetDeltaResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogNetDelta is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) CountBacklogOpen(context.Context, *connect.Request[measures.CountBacklogOpenRequest]) (*connect.Response[measures.CountBacklogOpenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogOpen is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) CountBacklogBlocked(context.Context, *connect.Request[measures.CountBacklogBlockedRequest]) (*connect.Response[measures.CountBacklogBlockedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogBlocked is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) BacklogLeadTime(context.Context, *connect.Request[measures.BacklogLeadTimeRequest]) (*connect.Response[measures.BacklogLeadTimeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.BacklogLeadTime is not implemented"))
+}
+
 func (UnimplementedMeasuresServiceHandler) CountExecutionsCompleted(context.Context, *connect.Request[measures.CountExecutionsCompletedRequest]) (*connect.Response[measures.CountExecutionsCompletedResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountExecutionsCompleted is not implemented"))
 }
@@ -248,4 +547,28 @@ func (UnimplementedMeasuresServiceHandler) CountGoalsCreated(context.Context, *c
 
 func (UnimplementedMeasuresServiceHandler) CountAgentSessionsCreated(context.Context, *connect.Request[measures.CountAgentSessionsCreatedRequest]) (*connect.Response[measures.CountAgentSessionsCreatedResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountAgentSessionsCreated is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) CountPlanRefs(context.Context, *connect.Request[measures.CountPlanRefsRequest]) (*connect.Response[measures.CountPlanRefsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.CountPlanRefs is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) GoalMilestoneHealth(context.Context, *connect.Request[measures.GoalMilestoneHealthRequest]) (*connect.Response[measures.GoalMilestoneHealthResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.GoalMilestoneHealth is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) AgentSessionProposalRate(context.Context, *connect.Request[measures.AgentSessionProposalRateRequest]) (*connect.Response[measures.AgentSessionProposalRateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.AgentSessionProposalRate is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) ExecutionSuccessRate(context.Context, *connect.Request[measures.ExecutionSuccessRateRequest]) (*connect.Response[measures.ExecutionSuccessRateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.ExecutionSuccessRate is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) ExecutionDuration(context.Context, *connect.Request[measures.ExecutionDurationRequest]) (*connect.Response[measures.ExecutionDurationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.ExecutionDuration is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) ExecutionReviewRate(context.Context, *connect.Request[measures.ExecutionReviewRateRequest]) (*connect.Response[measures.ExecutionReviewRateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.measures.MeasuresService.ExecutionReviewRate is not implemented"))
 }

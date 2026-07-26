@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"swarm-manager/internal/overview"
-	"swarm-manager/internal/stats"
 )
 
 const (
@@ -25,21 +24,16 @@ type OverviewReader interface {
 	GetOverview() (*overview.OverviewResponse, error)
 }
 
-type StatsReader interface {
-	Refresh(context.Context) error
-	GetStats() stats.StatsResponse
-}
-
 type DirectorHandoffReader interface {
 	ReadDirectorHandoffs(ctx context.Context) ([]DirectorHandoff, []string)
 }
 
 type BriefingBuilderConfig struct {
-	Aggregator *Aggregator
-	Overview   OverviewReader
-	Stats      StatsReader
-	Handoffs   DirectorHandoffReader
-	Now        func() time.Time
+	Aggregator     *Aggregator
+	Overview       OverviewReader
+	ActiveSessions func(context.Context) (int, error)
+	Handoffs       DirectorHandoffReader
+	Now            func() time.Time
 }
 
 type BriefingBuilder struct {
@@ -85,15 +79,15 @@ func (b *BriefingBuilder) Build(ctx context.Context, filters Filters) (*Operatio
 		warnings = append(warnings, "overview source unavailable")
 	}
 
-	if b.cfg.Stats != nil {
-		if err := b.cfg.Stats.Refresh(ctx); err != nil {
-			warnings = append(warnings, "stats refresh unavailable: "+err.Error())
+	if b.cfg.ActiveSessions != nil {
+		active, err := b.cfg.ActiveSessions(ctx)
+		if err != nil {
+			warnings = append(warnings, "active sessions unavailable: "+err.Error())
 		} else {
-			st := b.cfg.Stats.GetStats()
-			summary.ActiveSessions = st.Session.ActiveSessions
+			summary.ActiveSessions = active
 		}
 	} else {
-		warnings = append(warnings, "stats source unavailable")
+		warnings = append(warnings, "active sessions source unavailable")
 	}
 
 	handoffs := []DirectorHandoff{}

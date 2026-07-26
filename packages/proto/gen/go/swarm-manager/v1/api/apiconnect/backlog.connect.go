@@ -22,9 +22,9 @@ const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// BacklogServiceName is the fully-qualified name of the BacklogService service.
-	BacklogServiceName = "swarm_manager.v1.BacklogService"
+	BacklogServiceName = "vrooli.swarm_manager.v1.api.BacklogService"
 	// AutoFilerServiceName is the fully-qualified name of the AutoFilerService service.
-	AutoFilerServiceName = "swarm_manager.v1.AutoFilerService"
+	AutoFilerServiceName = "vrooli.swarm_manager.v1.api.AutoFilerService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -35,23 +35,31 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// BacklogServiceListItemsProcedure is the fully-qualified name of the BacklogService's ListItems
+	// RPC.
+	BacklogServiceListItemsProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/ListItems"
 	// BacklogServiceCreateItemProcedure is the fully-qualified name of the BacklogService's CreateItem
 	// RPC.
-	BacklogServiceCreateItemProcedure = "/swarm_manager.v1.BacklogService/CreateItem"
+	BacklogServiceCreateItemProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/CreateItem"
 	// BacklogServiceGetItemProcedure is the fully-qualified name of the BacklogService's GetItem RPC.
-	BacklogServiceGetItemProcedure = "/swarm_manager.v1.BacklogService/GetItem"
+	BacklogServiceGetItemProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/GetItem"
+	// BacklogServiceDeleteItemProcedure is the fully-qualified name of the BacklogService's DeleteItem
+	// RPC.
+	BacklogServiceDeleteItemProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/DeleteItem"
 	// AutoFilerServiceGetStatusProcedure is the fully-qualified name of the AutoFilerService's
 	// GetStatus RPC.
-	AutoFilerServiceGetStatusProcedure = "/swarm_manager.v1.AutoFilerService/GetStatus"
+	AutoFilerServiceGetStatusProcedure = "/vrooli.swarm_manager.v1.api.AutoFilerService/GetStatus"
 	// AutoFilerServiceDismissSuggestionProcedure is the fully-qualified name of the AutoFilerService's
 	// DismissSuggestion RPC.
-	AutoFilerServiceDismissSuggestionProcedure = "/swarm_manager.v1.AutoFilerService/DismissSuggestion"
+	AutoFilerServiceDismissSuggestionProcedure = "/vrooli.swarm_manager.v1.api.AutoFilerService/DismissSuggestion"
 	// AutoFilerServiceRunNowProcedure is the fully-qualified name of the AutoFilerService's RunNow RPC.
-	AutoFilerServiceRunNowProcedure = "/swarm_manager.v1.AutoFilerService/RunNow"
+	AutoFilerServiceRunNowProcedure = "/vrooli.swarm_manager.v1.api.AutoFilerService/RunNow"
 )
 
-// BacklogServiceClient is a client for the swarm_manager.v1.BacklogService service.
+// BacklogServiceClient is a client for the vrooli.swarm_manager.v1.api.BacklogService service.
 type BacklogServiceClient interface {
+	// ListItems returns the filtered operator backlog projection.
+	ListItems(context.Context, *connect.Request[api.ListBacklogItemsRequest]) (*connect.Response[api.ListBacklogItemsResponse], error)
 	// CreateItem files a backlog item, applying creation-time dedup: if an open
 	// item already exists for the same target + signature, the existing item is
 	// returned with deduped=true instead of creating a duplicate.
@@ -59,12 +67,14 @@ type BacklogServiceClient interface {
 	// GetItem returns a single backlog item with its current status and computed
 	// queue_position (items-ahead in the ranked pending set).
 	GetItem(context.Context, *connect.Request[api.GetBacklogItemRequest]) (*connect.Response[api.BacklogItemResponse], error)
+	// DeleteItem removes an item and cleans dependent references. It is idempotent.
+	DeleteItem(context.Context, *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error)
 }
 
-// NewBacklogServiceClient constructs a client for the swarm_manager.v1.BacklogService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewBacklogServiceClient constructs a client for the vrooli.swarm_manager.v1.api.BacklogService
+// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
+// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
+// the connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
@@ -72,6 +82,12 @@ func NewBacklogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	backlogServiceMethods := api.File_swarm_manager_v1_api_backlog_proto.Services().ByName("BacklogService").Methods()
 	return &backlogServiceClient{
+		listItems: connect.NewClient[api.ListBacklogItemsRequest, api.ListBacklogItemsResponse](
+			httpClient,
+			baseURL+BacklogServiceListItemsProcedure,
+			connect.WithSchema(backlogServiceMethods.ByName("ListItems")),
+			connect.WithClientOptions(opts...),
+		),
 		createItem: connect.NewClient[api.CreateBacklogItemRequest, api.BacklogItemResponse](
 			httpClient,
 			baseURL+BacklogServiceCreateItemProcedure,
@@ -84,27 +100,48 @@ func NewBacklogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(backlogServiceMethods.ByName("GetItem")),
 			connect.WithClientOptions(opts...),
 		),
+		deleteItem: connect.NewClient[api.DeleteBacklogItemRequest, api.DeleteBacklogItemResponse](
+			httpClient,
+			baseURL+BacklogServiceDeleteItemProcedure,
+			connect.WithSchema(backlogServiceMethods.ByName("DeleteItem")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // backlogServiceClient implements BacklogServiceClient.
 type backlogServiceClient struct {
+	listItems  *connect.Client[api.ListBacklogItemsRequest, api.ListBacklogItemsResponse]
 	createItem *connect.Client[api.CreateBacklogItemRequest, api.BacklogItemResponse]
 	getItem    *connect.Client[api.GetBacklogItemRequest, api.BacklogItemResponse]
+	deleteItem *connect.Client[api.DeleteBacklogItemRequest, api.DeleteBacklogItemResponse]
 }
 
-// CreateItem calls swarm_manager.v1.BacklogService.CreateItem.
+// ListItems calls vrooli.swarm_manager.v1.api.BacklogService.ListItems.
+func (c *backlogServiceClient) ListItems(ctx context.Context, req *connect.Request[api.ListBacklogItemsRequest]) (*connect.Response[api.ListBacklogItemsResponse], error) {
+	return c.listItems.CallUnary(ctx, req)
+}
+
+// CreateItem calls vrooli.swarm_manager.v1.api.BacklogService.CreateItem.
 func (c *backlogServiceClient) CreateItem(ctx context.Context, req *connect.Request[api.CreateBacklogItemRequest]) (*connect.Response[api.BacklogItemResponse], error) {
 	return c.createItem.CallUnary(ctx, req)
 }
 
-// GetItem calls swarm_manager.v1.BacklogService.GetItem.
+// GetItem calls vrooli.swarm_manager.v1.api.BacklogService.GetItem.
 func (c *backlogServiceClient) GetItem(ctx context.Context, req *connect.Request[api.GetBacklogItemRequest]) (*connect.Response[api.BacklogItemResponse], error) {
 	return c.getItem.CallUnary(ctx, req)
 }
 
-// BacklogServiceHandler is an implementation of the swarm_manager.v1.BacklogService service.
+// DeleteItem calls vrooli.swarm_manager.v1.api.BacklogService.DeleteItem.
+func (c *backlogServiceClient) DeleteItem(ctx context.Context, req *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error) {
+	return c.deleteItem.CallUnary(ctx, req)
+}
+
+// BacklogServiceHandler is an implementation of the vrooli.swarm_manager.v1.api.BacklogService
+// service.
 type BacklogServiceHandler interface {
+	// ListItems returns the filtered operator backlog projection.
+	ListItems(context.Context, *connect.Request[api.ListBacklogItemsRequest]) (*connect.Response[api.ListBacklogItemsResponse], error)
 	// CreateItem files a backlog item, applying creation-time dedup: if an open
 	// item already exists for the same target + signature, the existing item is
 	// returned with deduped=true instead of creating a duplicate.
@@ -112,6 +149,8 @@ type BacklogServiceHandler interface {
 	// GetItem returns a single backlog item with its current status and computed
 	// queue_position (items-ahead in the ranked pending set).
 	GetItem(context.Context, *connect.Request[api.GetBacklogItemRequest]) (*connect.Response[api.BacklogItemResponse], error)
+	// DeleteItem removes an item and cleans dependent references. It is idempotent.
+	DeleteItem(context.Context, *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error)
 }
 
 // NewBacklogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -121,6 +160,12 @@ type BacklogServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewBacklogServiceHandler(svc BacklogServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	backlogServiceMethods := api.File_swarm_manager_v1_api_backlog_proto.Services().ByName("BacklogService").Methods()
+	backlogServiceListItemsHandler := connect.NewUnaryHandler(
+		BacklogServiceListItemsProcedure,
+		svc.ListItems,
+		connect.WithSchema(backlogServiceMethods.ByName("ListItems")),
+		connect.WithHandlerOptions(opts...),
+	)
 	backlogServiceCreateItemHandler := connect.NewUnaryHandler(
 		BacklogServiceCreateItemProcedure,
 		svc.CreateItem,
@@ -133,12 +178,22 @@ func NewBacklogServiceHandler(svc BacklogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(backlogServiceMethods.ByName("GetItem")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/swarm_manager.v1.BacklogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backlogServiceDeleteItemHandler := connect.NewUnaryHandler(
+		BacklogServiceDeleteItemProcedure,
+		svc.DeleteItem,
+		connect.WithSchema(backlogServiceMethods.ByName("DeleteItem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/vrooli.swarm_manager.v1.api.BacklogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case BacklogServiceListItemsProcedure:
+			backlogServiceListItemsHandler.ServeHTTP(w, r)
 		case BacklogServiceCreateItemProcedure:
 			backlogServiceCreateItemHandler.ServeHTTP(w, r)
 		case BacklogServiceGetItemProcedure:
 			backlogServiceGetItemHandler.ServeHTTP(w, r)
+		case BacklogServiceDeleteItemProcedure:
+			backlogServiceDeleteItemHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -148,15 +203,23 @@ func NewBacklogServiceHandler(svc BacklogServiceHandler, opts ...connect.Handler
 // UnimplementedBacklogServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedBacklogServiceHandler struct{}
 
+func (UnimplementedBacklogServiceHandler) ListItems(context.Context, *connect.Request[api.ListBacklogItemsRequest]) (*connect.Response[api.ListBacklogItemsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.ListItems is not implemented"))
+}
+
 func (UnimplementedBacklogServiceHandler) CreateItem(context.Context, *connect.Request[api.CreateBacklogItemRequest]) (*connect.Response[api.BacklogItemResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.BacklogService.CreateItem is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.CreateItem is not implemented"))
 }
 
 func (UnimplementedBacklogServiceHandler) GetItem(context.Context, *connect.Request[api.GetBacklogItemRequest]) (*connect.Response[api.BacklogItemResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.BacklogService.GetItem is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.GetItem is not implemented"))
 }
 
-// AutoFilerServiceClient is a client for the swarm_manager.v1.AutoFilerService service.
+func (UnimplementedBacklogServiceHandler) DeleteItem(context.Context, *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.DeleteItem is not implemented"))
+}
+
+// AutoFilerServiceClient is a client for the vrooli.swarm_manager.v1.api.AutoFilerService service.
 type AutoFilerServiceClient interface {
 	// GetStatus returns the current policy settings plus the latest cycle
 	// outcome and brake/cap accounting.
@@ -169,10 +232,11 @@ type AutoFilerServiceClient interface {
 	RunNow(context.Context, *connect.Request[api.AutoFilerRunNowRequest]) (*connect.Response[api.AutoFilerStatusResponse], error)
 }
 
-// NewAutoFilerServiceClient constructs a client for the swarm_manager.v1.AutoFilerService service.
-// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
-// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewAutoFilerServiceClient constructs a client for the
+// vrooli.swarm_manager.v1.api.AutoFilerService service. By default, it uses the Connect protocol
+// with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed requests. To
+// use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or connect.WithGRPCWeb()
+// options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
@@ -208,22 +272,23 @@ type autoFilerServiceClient struct {
 	runNow            *connect.Client[api.AutoFilerRunNowRequest, api.AutoFilerStatusResponse]
 }
 
-// GetStatus calls swarm_manager.v1.AutoFilerService.GetStatus.
+// GetStatus calls vrooli.swarm_manager.v1.api.AutoFilerService.GetStatus.
 func (c *autoFilerServiceClient) GetStatus(ctx context.Context, req *connect.Request[api.AutoFilerStatusRequest]) (*connect.Response[api.AutoFilerStatusResponse], error) {
 	return c.getStatus.CallUnary(ctx, req)
 }
 
-// DismissSuggestion calls swarm_manager.v1.AutoFilerService.DismissSuggestion.
+// DismissSuggestion calls vrooli.swarm_manager.v1.api.AutoFilerService.DismissSuggestion.
 func (c *autoFilerServiceClient) DismissSuggestion(ctx context.Context, req *connect.Request[api.DismissAutoFilerSuggestionRequest]) (*connect.Response[api.DismissAutoFilerSuggestionResponse], error) {
 	return c.dismissSuggestion.CallUnary(ctx, req)
 }
 
-// RunNow calls swarm_manager.v1.AutoFilerService.RunNow.
+// RunNow calls vrooli.swarm_manager.v1.api.AutoFilerService.RunNow.
 func (c *autoFilerServiceClient) RunNow(ctx context.Context, req *connect.Request[api.AutoFilerRunNowRequest]) (*connect.Response[api.AutoFilerStatusResponse], error) {
 	return c.runNow.CallUnary(ctx, req)
 }
 
-// AutoFilerServiceHandler is an implementation of the swarm_manager.v1.AutoFilerService service.
+// AutoFilerServiceHandler is an implementation of the vrooli.swarm_manager.v1.api.AutoFilerService
+// service.
 type AutoFilerServiceHandler interface {
 	// GetStatus returns the current policy settings plus the latest cycle
 	// outcome and brake/cap accounting.
@@ -261,7 +326,7 @@ func NewAutoFilerServiceHandler(svc AutoFilerServiceHandler, opts ...connect.Han
 		connect.WithSchema(autoFilerServiceMethods.ByName("RunNow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/swarm_manager.v1.AutoFilerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/vrooli.swarm_manager.v1.api.AutoFilerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AutoFilerServiceGetStatusProcedure:
 			autoFilerServiceGetStatusHandler.ServeHTTP(w, r)
@@ -279,13 +344,13 @@ func NewAutoFilerServiceHandler(svc AutoFilerServiceHandler, opts ...connect.Han
 type UnimplementedAutoFilerServiceHandler struct{}
 
 func (UnimplementedAutoFilerServiceHandler) GetStatus(context.Context, *connect.Request[api.AutoFilerStatusRequest]) (*connect.Response[api.AutoFilerStatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.AutoFilerService.GetStatus is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.AutoFilerService.GetStatus is not implemented"))
 }
 
 func (UnimplementedAutoFilerServiceHandler) DismissSuggestion(context.Context, *connect.Request[api.DismissAutoFilerSuggestionRequest]) (*connect.Response[api.DismissAutoFilerSuggestionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.AutoFilerService.DismissSuggestion is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.AutoFilerService.DismissSuggestion is not implemented"))
 }
 
 func (UnimplementedAutoFilerServiceHandler) RunNow(context.Context, *connect.Request[api.AutoFilerRunNowRequest]) (*connect.Response[api.AutoFilerStatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.AutoFilerService.RunNow is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.AutoFilerService.RunNow is not implemented"))
 }

@@ -9,6 +9,7 @@ package api
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -689,7 +690,7 @@ func (x *GetAgentSessionStartupBriefRequest) GetRefresh() bool {
 // carries kind, freshness, source counts, and drill-down commands.
 type GetAgentSessionStartupBriefResponse struct {
 	state         protoimpl.MessageState          `protogen:"open.v1"`
-	Brief         *domain.AgentSessionContextItem `protobuf:"bytes,1,opt,name=brief,proto3" json:"brief,omitempty"`
+	Brief         *shared.AgentSessionContextItem `protobuf:"bytes,1,opt,name=brief,proto3" json:"brief,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -724,7 +725,7 @@ func (*GetAgentSessionStartupBriefResponse) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *GetAgentSessionStartupBriefResponse) GetBrief() *domain.AgentSessionContextItem {
+func (x *GetAgentSessionStartupBriefResponse) GetBrief() *shared.AgentSessionContextItem {
 	if x != nil {
 		return x.Brief
 	}
@@ -734,7 +735,7 @@ func (x *GetAgentSessionStartupBriefResponse) GetBrief() *domain.AgentSessionCon
 // UploadAgentSessionAttachmentsResponse returns uploaded session attachments.
 type UploadAgentSessionAttachmentsResponse struct {
 	state         protoimpl.MessageState           `protogen:"open.v1"`
-	Attachments   []*domain.AgentSessionAttachment `protobuf:"bytes,1,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	Attachments   []*shared.AgentSessionAttachment `protobuf:"bytes,1,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -769,7 +770,7 @@ func (*UploadAgentSessionAttachmentsResponse) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *UploadAgentSessionAttachmentsResponse) GetAttachments() []*domain.AgentSessionAttachment {
+func (x *UploadAgentSessionAttachmentsResponse) GetAttachments() []*shared.AgentSessionAttachment {
 	if x != nil {
 		return x.Attachments
 	}
@@ -1415,7 +1416,7 @@ func (x *ApplyAgentSessionProposalRequest) GetProposalId() string {
 type ApplyAgentSessionProposalResponse struct {
 	state         protoimpl.MessageState         `protogen:"open.v1"`
 	Session       *domain.AgentSession           `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
-	Artifacts     []*domain.AgentSessionArtifact `protobuf:"bytes,2,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	Artifacts     []*shared.AgentSessionArtifact `protobuf:"bytes,2,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1457,7 +1458,7 @@ func (x *ApplyAgentSessionProposalResponse) GetSession() *domain.AgentSession {
 	return nil
 }
 
-func (x *ApplyAgentSessionProposalResponse) GetArtifacts() []*domain.AgentSessionArtifact {
+func (x *ApplyAgentSessionProposalResponse) GetArtifacts() []*shared.AgentSessionArtifact {
 	if x != nil {
 		return x.Artifacts
 	}
@@ -1512,7 +1513,7 @@ func (x *ListAgentSessionArtifactsRequest) GetSessionId() string {
 // ListAgentSessionArtifactsResponse returns artifact links for one session.
 type ListAgentSessionArtifactsResponse struct {
 	state         protoimpl.MessageState         `protogen:"open.v1"`
-	Artifacts     []*domain.AgentSessionArtifact `protobuf:"bytes,1,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	Artifacts     []*shared.AgentSessionArtifact `protobuf:"bytes,1,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1547,7 +1548,7 @@ func (*ListAgentSessionArtifactsResponse) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *ListAgentSessionArtifactsResponse) GetArtifacts() []*domain.AgentSessionArtifact {
+func (x *ListAgentSessionArtifactsResponse) GetArtifacts() []*shared.AgentSessionArtifact {
 	if x != nil {
 		return x.Artifacts
 	}
@@ -1613,7 +1614,7 @@ func (x *GetArtifactsByEntityRequest) GetEntityRef() string {
 // GetArtifactsByEntityResponse returns artifact links for one entity.
 type GetArtifactsByEntityResponse struct {
 	state         protoimpl.MessageState         `protogen:"open.v1"`
-	Artifacts     []*domain.AgentSessionArtifact `protobuf:"bytes,1,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	Artifacts     []*shared.AgentSessionArtifact `protobuf:"bytes,1,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1648,7 +1649,7 @@ func (*GetArtifactsByEntityResponse) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{28}
 }
 
-func (x *GetArtifactsByEntityResponse) GetArtifacts() []*domain.AgentSessionArtifact {
+func (x *GetArtifactsByEntityResponse) GetArtifacts() []*shared.AgentSessionArtifact {
 	if x != nil {
 		return x.Artifacts
 	}
@@ -1659,7 +1660,7 @@ var File_swarm_manager_v1_api_agent_session_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/api/agent_session.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\xe5\x02\n" +
+	"(swarm-manager/v1/api/agent_session.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a+swarm-manager/v1/shared/agent_session.proto\"\xe5\x02\n" +
 	"\x18ListAgentSessionsRequest\x12Z\n" +
 	"\x04kind\x18\x01 \x01(\tBA\xbaH>r<R\x00R\x12meta_orchestrationR\x10swarm_operationsR\x12workflow_authoringH\x00R\x04kind\x88\x01\x01\x12\x86\x01\n" +
 	"\x06status\x18\x02 \x01(\tBi\xbaHfrdR\x00R\x05draftR\bstartingR\arunningR\x10waiting_for_userR\x0eproposal_readyR\bapplyingR\bcompleteR\x06failedR\bcanceledH\x01R\x06status\x88\x01\x01\x12\x1f\n" +
@@ -1669,48 +1670,48 @@ const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00H\x02R\x05limit\x88\x01\x01B\a\n" +
 	"\x05_kindB\t\n" +
 	"\a_statusB\b\n" +
-	"\x06_limit\"W\n" +
-	"\x19ListAgentSessionsResponse\x12:\n" +
-	"\bsessions\x18\x01 \x03(\v2\x1e.swarm_manager.v1.AgentSessionR\bsessions\"@\n" +
+	"\x06_limit\"e\n" +
+	"\x19ListAgentSessionsResponse\x12H\n" +
+	"\bsessions\x18\x01 \x03(\v2,.vrooli.swarm_manager.v1.domain.AgentSessionR\bsessions\"@\n" +
 	"\x16GetAgentSessionRequest\x12&\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"S\n" +
-	"\x17GetAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\x9b\x01\n" +
+	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"a\n" +
+	"\x17GetAgentSessionResponse\x12F\n" +
+	"\asession\x18\x01 \x01(\v2,.vrooli.swarm_manager.v1.domain.AgentSessionR\asession\"\x9b\x01\n" +
 	"\x19CreateAgentSessionRequest\x12S\n" +
 	"\x04kind\x18\x01 \x01(\tB?\xbaH<r:R\x12meta_orchestrationR\x10swarm_operationsR\x12workflow_authoringR\x04kind\x12\x1d\n" +
-	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05titleJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"V\n" +
-	"\x1aCreateAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xb5\x02\n" +
+	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05titleJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"d\n" +
+	"\x1aCreateAgentSessionResponse\x12F\n" +
+	"\asession\x18\x01 \x01(\v2,.vrooli.swarm_manager.v1.domain.AgentSessionR\asession\"\xc0\x02\n" +
 	"\x18StartAgentSessionRequest\x12&\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12%\n" +
-	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12K\n" +
-	"\fcontext_refs\x18\x04 \x03(\v2(.swarm_manager.v1.AgentSessionContextRefR\vcontextRefs\x12K\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12V\n" +
+	"\fcontext_refs\x18\x04 \x03(\v23.vrooli.swarm_manager.v1.api.AgentSessionContextRefR\vcontextRefs\x12K\n" +
 	"\x13auto_context_policy\x18\x05 \x01(\tB\x16\xbaH\x13r\x11R\x00R\adefaultR\x04noneH\x00R\x11autoContextPolicy\x88\x01\x01B\x16\n" +
-	"\x14_auto_context_policy\"U\n" +
-	"\x19StartAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xd3\x01\n" +
+	"\x14_auto_context_policy\"c\n" +
+	"\x19StartAgentSessionResponse\x12F\n" +
+	"\asession\x18\x01 \x01(\v2,.vrooli.swarm_manager.v1.domain.AgentSessionR\asession\"\xde\x01\n" +
 	"\x1bContinueAgentSessionRequest\x12&\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12%\n" +
-	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12K\n" +
-	"\fcontext_refs\x18\x04 \x03(\v2(.swarm_manager.v1.AgentSessionContextRefR\vcontextRefs\"X\n" +
-	"\x1cContinueAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xd0\x01\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12V\n" +
+	"\fcontext_refs\x18\x04 \x03(\v23.vrooli.swarm_manager.v1.api.AgentSessionContextRefR\vcontextRefs\"f\n" +
+	"\x1cContinueAgentSessionResponse\x12F\n" +
+	"\asession\x18\x01 \x01(\v2,.vrooli.swarm_manager.v1.domain.AgentSessionR\asession\"\xd0\x01\n" +
 	"\x16AgentSessionContextRef\x12\x9a\x01\n" +
 	"\x04type\x18\x01 \x01(\tB\x85\x01\xbaH\x81\x01r\x7fR\fbacklog_itemR\x04goalR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x13operations_briefingR\rstartup_briefR\x04type\x12\x19\n" +
 	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\"f\n" +
 	"\"GetAgentSessionStartupBriefRequest\x12&\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x18\n" +
-	"\arefresh\x18\x02 \x01(\bR\arefresh\"f\n" +
-	"#GetAgentSessionStartupBriefResponse\x12?\n" +
-	"\x05brief\x18\x01 \x01(\v2).swarm_manager.v1.AgentSessionContextItemR\x05brief\"s\n" +
-	"%UploadAgentSessionAttachmentsResponse\x12J\n" +
-	"\vattachments\x18\x01 \x03(\v2(.swarm_manager.v1.AgentSessionAttachmentR\vattachments\"\xb7\x01\n" +
+	"\arefresh\x18\x02 \x01(\bR\arefresh\"t\n" +
+	"#GetAgentSessionStartupBriefResponse\x12M\n" +
+	"\x05brief\x18\x01 \x01(\v27.vrooli.swarm_manager.v1.shared.AgentSessionContextItemR\x05brief\"\x81\x01\n" +
+	"%UploadAgentSessionAttachmentsResponse\x12X\n" +
+	"\vattachments\x18\x01 \x03(\v26.vrooli.swarm_manager.v1.shared.AgentSessionAttachmentR\vattachments\"\xb7\x01\n" +
 	"\x1dListAgentSessionEventsRequest\x12&\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12*\n" +
@@ -1742,21 +1743,21 @@ const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\x10progress_percent\x18\x10 \x01(\x05R\x0fprogressPercent\x12)\n" +
 	"\x10progress_message\x18\x11 \x01(\tR\x0fprogressMessage\x12\x18\n" +
 	"\asummary\x18\x12 \x01(\tR\asummary\x12\x19\n" +
-	"\braw_json\x18\x13 \x01(\tR\arawJson\"\xab\x01\n" +
-	"\x1eListAgentSessionEventsResponse\x12>\n" +
-	"\x06events\x18\x01 \x03(\v2&.swarm_manager.v1.AgentSessionRunEventR\x06events\x12\x19\n" +
+	"\braw_json\x18\x13 \x01(\tR\arawJson\"\xb6\x01\n" +
+	"\x1eListAgentSessionEventsResponse\x12I\n" +
+	"\x06events\x18\x01 \x03(\v21.vrooli.swarm_manager.v1.api.AgentSessionRunEventR\x06events\x12\x19\n" +
 	"\bhas_more\x18\x02 \x01(\bR\ahasMore\x12.\n" +
 	"\x13next_after_sequence\x18\x03 \x01(\x03R\x11nextAfterSequence\"D\n" +
 	"\x1aRefreshAgentSessionRequest\x12&\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"W\n" +
-	"\x1bRefreshAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"C\n" +
+	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"e\n" +
+	"\x1bRefreshAgentSessionResponse\x12F\n" +
+	"\asession\x18\x01 \x01(\v2,.vrooli.swarm_manager.v1.domain.AgentSessionR\asession\"C\n" +
 	"\x19CancelAgentSessionRequest\x12&\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"V\n" +
-	"\x1aCancelAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"C\n" +
+	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"d\n" +
+	"\x1aCancelAgentSessionResponse\x12F\n" +
+	"\asession\x18\x01 \x01(\v2,.vrooli.swarm_manager.v1.domain.AgentSessionR\asession\"C\n" +
 	"\x19DeleteAgentSessionRequest\x12&\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\";\n" +
@@ -1767,21 +1768,21 @@ const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12(\n" +
 	"\vproposal_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"proposalId\"\xa3\x01\n" +
-	"!ApplyAgentSessionProposalResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\x12D\n" +
-	"\tartifacts\x18\x02 \x03(\v2&.swarm_manager.v1.AgentSessionArtifactR\tartifacts\"J\n" +
+	"proposalId\"\xbf\x01\n" +
+	"!ApplyAgentSessionProposalResponse\x12F\n" +
+	"\asession\x18\x01 \x01(\v2,.vrooli.swarm_manager.v1.domain.AgentSessionR\asession\x12R\n" +
+	"\tartifacts\x18\x02 \x03(\v24.vrooli.swarm_manager.v1.shared.AgentSessionArtifactR\tartifacts\"J\n" +
 	" ListAgentSessionArtifactsRequest\x12&\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"i\n" +
-	"!ListAgentSessionArtifactsResponse\x12D\n" +
-	"\tartifacts\x18\x01 \x03(\v2&.swarm_manager.v1.AgentSessionArtifactR\tartifacts\"\xde\x01\n" +
+	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"w\n" +
+	"!ListAgentSessionArtifactsResponse\x12R\n" +
+	"\tartifacts\x18\x01 \x03(\v24.vrooli.swarm_manager.v1.shared.AgentSessionArtifactR\tartifacts\"\xde\x01\n" +
 	"\x1bGetArtifactsByEntityRequest\x12\x96\x01\n" +
 	"\rartifact_type\x18\x01 \x01(\tBq\xbaHnrlR\fbacklog_itemR\tmilestoneR\x17operating_mode_proposalR\x19operating_mode_definitionR\acaptureR\x04fileR\x0eagent_activityR\fartifactType\x12&\n" +
 	"\n" +
-	"entity_ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tentityRef\"d\n" +
-	"\x1cGetArtifactsByEntityResponse\x12D\n" +
-	"\tartifacts\x18\x01 \x03(\v2&.swarm_manager.v1.AgentSessionArtifactR\tartifactsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"entity_ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tentityRef\"r\n" +
+	"\x1cGetArtifactsByEntityResponse\x12R\n" +
+	"\tartifacts\x18\x01 \x03(\v24.vrooli.swarm_manager.v1.shared.AgentSessionArtifactR\tartifactsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_agent_session_proto_rawDescOnce sync.Once
@@ -1797,57 +1798,57 @@ func file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_agent_session_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_swarm_manager_v1_api_agent_session_proto_goTypes = []any{
-	(*ListAgentSessionsRequest)(nil),              // 0: swarm_manager.v1.ListAgentSessionsRequest
-	(*ListAgentSessionsResponse)(nil),             // 1: swarm_manager.v1.ListAgentSessionsResponse
-	(*GetAgentSessionRequest)(nil),                // 2: swarm_manager.v1.GetAgentSessionRequest
-	(*GetAgentSessionResponse)(nil),               // 3: swarm_manager.v1.GetAgentSessionResponse
-	(*CreateAgentSessionRequest)(nil),             // 4: swarm_manager.v1.CreateAgentSessionRequest
-	(*CreateAgentSessionResponse)(nil),            // 5: swarm_manager.v1.CreateAgentSessionResponse
-	(*StartAgentSessionRequest)(nil),              // 6: swarm_manager.v1.StartAgentSessionRequest
-	(*StartAgentSessionResponse)(nil),             // 7: swarm_manager.v1.StartAgentSessionResponse
-	(*ContinueAgentSessionRequest)(nil),           // 8: swarm_manager.v1.ContinueAgentSessionRequest
-	(*ContinueAgentSessionResponse)(nil),          // 9: swarm_manager.v1.ContinueAgentSessionResponse
-	(*AgentSessionContextRef)(nil),                // 10: swarm_manager.v1.AgentSessionContextRef
-	(*GetAgentSessionStartupBriefRequest)(nil),    // 11: swarm_manager.v1.GetAgentSessionStartupBriefRequest
-	(*GetAgentSessionStartupBriefResponse)(nil),   // 12: swarm_manager.v1.GetAgentSessionStartupBriefResponse
-	(*UploadAgentSessionAttachmentsResponse)(nil), // 13: swarm_manager.v1.UploadAgentSessionAttachmentsResponse
-	(*ListAgentSessionEventsRequest)(nil),         // 14: swarm_manager.v1.ListAgentSessionEventsRequest
-	(*AgentSessionRunEvent)(nil),                  // 15: swarm_manager.v1.AgentSessionRunEvent
-	(*ListAgentSessionEventsResponse)(nil),        // 16: swarm_manager.v1.ListAgentSessionEventsResponse
-	(*RefreshAgentSessionRequest)(nil),            // 17: swarm_manager.v1.RefreshAgentSessionRequest
-	(*RefreshAgentSessionResponse)(nil),           // 18: swarm_manager.v1.RefreshAgentSessionResponse
-	(*CancelAgentSessionRequest)(nil),             // 19: swarm_manager.v1.CancelAgentSessionRequest
-	(*CancelAgentSessionResponse)(nil),            // 20: swarm_manager.v1.CancelAgentSessionResponse
-	(*DeleteAgentSessionRequest)(nil),             // 21: swarm_manager.v1.DeleteAgentSessionRequest
-	(*DeleteAgentSessionResponse)(nil),            // 22: swarm_manager.v1.DeleteAgentSessionResponse
-	(*ApplyAgentSessionProposalRequest)(nil),      // 23: swarm_manager.v1.ApplyAgentSessionProposalRequest
-	(*ApplyAgentSessionProposalResponse)(nil),     // 24: swarm_manager.v1.ApplyAgentSessionProposalResponse
-	(*ListAgentSessionArtifactsRequest)(nil),      // 25: swarm_manager.v1.ListAgentSessionArtifactsRequest
-	(*ListAgentSessionArtifactsResponse)(nil),     // 26: swarm_manager.v1.ListAgentSessionArtifactsResponse
-	(*GetArtifactsByEntityRequest)(nil),           // 27: swarm_manager.v1.GetArtifactsByEntityRequest
-	(*GetArtifactsByEntityResponse)(nil),          // 28: swarm_manager.v1.GetArtifactsByEntityResponse
-	(*domain.AgentSession)(nil),                   // 29: swarm_manager.v1.AgentSession
-	(*domain.AgentSessionContextItem)(nil),        // 30: swarm_manager.v1.AgentSessionContextItem
-	(*domain.AgentSessionAttachment)(nil),         // 31: swarm_manager.v1.AgentSessionAttachment
-	(*domain.AgentSessionArtifact)(nil),           // 32: swarm_manager.v1.AgentSessionArtifact
+	(*ListAgentSessionsRequest)(nil),              // 0: vrooli.swarm_manager.v1.api.ListAgentSessionsRequest
+	(*ListAgentSessionsResponse)(nil),             // 1: vrooli.swarm_manager.v1.api.ListAgentSessionsResponse
+	(*GetAgentSessionRequest)(nil),                // 2: vrooli.swarm_manager.v1.api.GetAgentSessionRequest
+	(*GetAgentSessionResponse)(nil),               // 3: vrooli.swarm_manager.v1.api.GetAgentSessionResponse
+	(*CreateAgentSessionRequest)(nil),             // 4: vrooli.swarm_manager.v1.api.CreateAgentSessionRequest
+	(*CreateAgentSessionResponse)(nil),            // 5: vrooli.swarm_manager.v1.api.CreateAgentSessionResponse
+	(*StartAgentSessionRequest)(nil),              // 6: vrooli.swarm_manager.v1.api.StartAgentSessionRequest
+	(*StartAgentSessionResponse)(nil),             // 7: vrooli.swarm_manager.v1.api.StartAgentSessionResponse
+	(*ContinueAgentSessionRequest)(nil),           // 8: vrooli.swarm_manager.v1.api.ContinueAgentSessionRequest
+	(*ContinueAgentSessionResponse)(nil),          // 9: vrooli.swarm_manager.v1.api.ContinueAgentSessionResponse
+	(*AgentSessionContextRef)(nil),                // 10: vrooli.swarm_manager.v1.api.AgentSessionContextRef
+	(*GetAgentSessionStartupBriefRequest)(nil),    // 11: vrooli.swarm_manager.v1.api.GetAgentSessionStartupBriefRequest
+	(*GetAgentSessionStartupBriefResponse)(nil),   // 12: vrooli.swarm_manager.v1.api.GetAgentSessionStartupBriefResponse
+	(*UploadAgentSessionAttachmentsResponse)(nil), // 13: vrooli.swarm_manager.v1.api.UploadAgentSessionAttachmentsResponse
+	(*ListAgentSessionEventsRequest)(nil),         // 14: vrooli.swarm_manager.v1.api.ListAgentSessionEventsRequest
+	(*AgentSessionRunEvent)(nil),                  // 15: vrooli.swarm_manager.v1.api.AgentSessionRunEvent
+	(*ListAgentSessionEventsResponse)(nil),        // 16: vrooli.swarm_manager.v1.api.ListAgentSessionEventsResponse
+	(*RefreshAgentSessionRequest)(nil),            // 17: vrooli.swarm_manager.v1.api.RefreshAgentSessionRequest
+	(*RefreshAgentSessionResponse)(nil),           // 18: vrooli.swarm_manager.v1.api.RefreshAgentSessionResponse
+	(*CancelAgentSessionRequest)(nil),             // 19: vrooli.swarm_manager.v1.api.CancelAgentSessionRequest
+	(*CancelAgentSessionResponse)(nil),            // 20: vrooli.swarm_manager.v1.api.CancelAgentSessionResponse
+	(*DeleteAgentSessionRequest)(nil),             // 21: vrooli.swarm_manager.v1.api.DeleteAgentSessionRequest
+	(*DeleteAgentSessionResponse)(nil),            // 22: vrooli.swarm_manager.v1.api.DeleteAgentSessionResponse
+	(*ApplyAgentSessionProposalRequest)(nil),      // 23: vrooli.swarm_manager.v1.api.ApplyAgentSessionProposalRequest
+	(*ApplyAgentSessionProposalResponse)(nil),     // 24: vrooli.swarm_manager.v1.api.ApplyAgentSessionProposalResponse
+	(*ListAgentSessionArtifactsRequest)(nil),      // 25: vrooli.swarm_manager.v1.api.ListAgentSessionArtifactsRequest
+	(*ListAgentSessionArtifactsResponse)(nil),     // 26: vrooli.swarm_manager.v1.api.ListAgentSessionArtifactsResponse
+	(*GetArtifactsByEntityRequest)(nil),           // 27: vrooli.swarm_manager.v1.api.GetArtifactsByEntityRequest
+	(*GetArtifactsByEntityResponse)(nil),          // 28: vrooli.swarm_manager.v1.api.GetArtifactsByEntityResponse
+	(*domain.AgentSession)(nil),                   // 29: vrooli.swarm_manager.v1.domain.AgentSession
+	(*shared.AgentSessionContextItem)(nil),        // 30: vrooli.swarm_manager.v1.shared.AgentSessionContextItem
+	(*shared.AgentSessionAttachment)(nil),         // 31: vrooli.swarm_manager.v1.shared.AgentSessionAttachment
+	(*shared.AgentSessionArtifact)(nil),           // 32: vrooli.swarm_manager.v1.shared.AgentSessionArtifact
 }
 var file_swarm_manager_v1_api_agent_session_proto_depIdxs = []int32{
-	29, // 0: swarm_manager.v1.ListAgentSessionsResponse.sessions:type_name -> swarm_manager.v1.AgentSession
-	29, // 1: swarm_manager.v1.GetAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	29, // 2: swarm_manager.v1.CreateAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	10, // 3: swarm_manager.v1.StartAgentSessionRequest.context_refs:type_name -> swarm_manager.v1.AgentSessionContextRef
-	29, // 4: swarm_manager.v1.StartAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	10, // 5: swarm_manager.v1.ContinueAgentSessionRequest.context_refs:type_name -> swarm_manager.v1.AgentSessionContextRef
-	29, // 6: swarm_manager.v1.ContinueAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	30, // 7: swarm_manager.v1.GetAgentSessionStartupBriefResponse.brief:type_name -> swarm_manager.v1.AgentSessionContextItem
-	31, // 8: swarm_manager.v1.UploadAgentSessionAttachmentsResponse.attachments:type_name -> swarm_manager.v1.AgentSessionAttachment
-	15, // 9: swarm_manager.v1.ListAgentSessionEventsResponse.events:type_name -> swarm_manager.v1.AgentSessionRunEvent
-	29, // 10: swarm_manager.v1.RefreshAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	29, // 11: swarm_manager.v1.CancelAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	29, // 12: swarm_manager.v1.ApplyAgentSessionProposalResponse.session:type_name -> swarm_manager.v1.AgentSession
-	32, // 13: swarm_manager.v1.ApplyAgentSessionProposalResponse.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
-	32, // 14: swarm_manager.v1.ListAgentSessionArtifactsResponse.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
-	32, // 15: swarm_manager.v1.GetArtifactsByEntityResponse.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
+	29, // 0: vrooli.swarm_manager.v1.api.ListAgentSessionsResponse.sessions:type_name -> vrooli.swarm_manager.v1.domain.AgentSession
+	29, // 1: vrooli.swarm_manager.v1.api.GetAgentSessionResponse.session:type_name -> vrooli.swarm_manager.v1.domain.AgentSession
+	29, // 2: vrooli.swarm_manager.v1.api.CreateAgentSessionResponse.session:type_name -> vrooli.swarm_manager.v1.domain.AgentSession
+	10, // 3: vrooli.swarm_manager.v1.api.StartAgentSessionRequest.context_refs:type_name -> vrooli.swarm_manager.v1.api.AgentSessionContextRef
+	29, // 4: vrooli.swarm_manager.v1.api.StartAgentSessionResponse.session:type_name -> vrooli.swarm_manager.v1.domain.AgentSession
+	10, // 5: vrooli.swarm_manager.v1.api.ContinueAgentSessionRequest.context_refs:type_name -> vrooli.swarm_manager.v1.api.AgentSessionContextRef
+	29, // 6: vrooli.swarm_manager.v1.api.ContinueAgentSessionResponse.session:type_name -> vrooli.swarm_manager.v1.domain.AgentSession
+	30, // 7: vrooli.swarm_manager.v1.api.GetAgentSessionStartupBriefResponse.brief:type_name -> vrooli.swarm_manager.v1.shared.AgentSessionContextItem
+	31, // 8: vrooli.swarm_manager.v1.api.UploadAgentSessionAttachmentsResponse.attachments:type_name -> vrooli.swarm_manager.v1.shared.AgentSessionAttachment
+	15, // 9: vrooli.swarm_manager.v1.api.ListAgentSessionEventsResponse.events:type_name -> vrooli.swarm_manager.v1.api.AgentSessionRunEvent
+	29, // 10: vrooli.swarm_manager.v1.api.RefreshAgentSessionResponse.session:type_name -> vrooli.swarm_manager.v1.domain.AgentSession
+	29, // 11: vrooli.swarm_manager.v1.api.CancelAgentSessionResponse.session:type_name -> vrooli.swarm_manager.v1.domain.AgentSession
+	29, // 12: vrooli.swarm_manager.v1.api.ApplyAgentSessionProposalResponse.session:type_name -> vrooli.swarm_manager.v1.domain.AgentSession
+	32, // 13: vrooli.swarm_manager.v1.api.ApplyAgentSessionProposalResponse.artifacts:type_name -> vrooli.swarm_manager.v1.shared.AgentSessionArtifact
+	32, // 14: vrooli.swarm_manager.v1.api.ListAgentSessionArtifactsResponse.artifacts:type_name -> vrooli.swarm_manager.v1.shared.AgentSessionArtifact
+	32, // 15: vrooli.swarm_manager.v1.api.GetArtifactsByEntityResponse.artifacts:type_name -> vrooli.swarm_manager.v1.shared.AgentSessionArtifact
 	16, // [16:16] is the sub-list for method output_type
 	16, // [16:16] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name

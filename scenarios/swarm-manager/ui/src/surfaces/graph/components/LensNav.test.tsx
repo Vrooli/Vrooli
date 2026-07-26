@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { LensNav } from "./LensNav";
 
 describe("LensNav", () => {
-  it("renders Plan, Graph, and Stats as peer surfaces", () => {
+  it("renders Plan, Graph, and Measures as peer surfaces", () => {
     render(<LensNav activeLens="stats" onLensChange={vi.fn()} />);
 
     expect(screen.getByTestId("lens-nav").className).not.toContain("border");

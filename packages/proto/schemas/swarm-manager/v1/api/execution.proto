@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/execution.proto";
@@ -8,15 +8,15 @@ import "swarm-manager/v1/domain/execution.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
 message ListExecutionResponse {
-  repeated ExecutionRecord items = 1;
+  repeated domain.ExecutionRecord items = 1;
 }
 
 message ExecutionResponse {
-  ExecutionRecord execution = 1;
+  domain.ExecutionRecord execution = 1;
 }
 
 message ExecutionPolicyResponse {
-  ExecutionPolicy policy = 1;
+  domain.ExecutionPolicy policy = 1;
 }
 
 message CreateExecutionRequest {

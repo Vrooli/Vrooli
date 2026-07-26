@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/struct.proto";

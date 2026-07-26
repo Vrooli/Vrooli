@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"swarm-manager/v1/domain/plan.proto\x12\x10swarm_manager.v1\"X\n\x0ePlanLaneStatus\x12\x12\n\x04lane\x18\x01 \x01(\tR\x04lane\x12\x16\n\x06\x61\x63tive\x18\x02 \x01(\x05R\x06\x61\x63tive\x12\x1a\n\x08\x63\x61pacity\x18\x03 \x01(\x05R\x08\x63\x61pacity\"\xb4\x01\n\x0ePlanNowSummary\x12!\n\x0c\x61\x63tive_count\x18\x01 \x01(\x05R\x0b\x61\x63tiveCount\x12\x1f\n\x0bqueue_depth\x18\x02 \x01(\x05R\nqueueDepth\x12&\n\x0fmax_queue_depth\x18\x03 \x01(\x05R\rmaxQueueDepth\x12\x36\n\x05lanes\x18\x04 \x03(\x0b\x32 .swarm_manager.v1.PlanLaneStatusR\x05lanes\"\xa1\x02\n\x08PlanGate\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1d\n\nowner_type\x18\x03 \x01(\tR\townerType\x12\x1d\n\nowner_kind\x18\x04 \x01(\tR\townerKind\x12\x1d\n\nowner_name\x18\x05 \x01(\tR\townerName\x12\x1f\n\x0bowner_title\x18\x06 \x01(\tR\nownerTitle\x12\x14\n\x05\x63ount\x18\x07 \x01(\x05R\x05\x63ount\x12\x16\n\x06\x62locks\x18\x08 \x03(\tR\x06\x62locks\x12\'\n\x0f\x64\x65\x63idable_since\x18\t \x01(\tR\x0e\x64\x65\x63idableSince\x12\x1c\n\tsuggested\x18\n \x01(\tR\tsuggested\"\xc7\x03\n\x08PlanCard\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n\tcard_type\x18\x02 \x01(\tR\x08\x63\x61rdType\x12\x16\n\x06\x61\x63tion\x18\x03 \x01(\tR\x06\x61\x63tion\x12\x1b\n\titem_kind\x18\x04 \x01(\tR\x08itemKind\x12\x1b\n\titem_name\x18\x05 \x01(\tR\x08itemName\x12\x14\n\x05title\x18\x06 \x01(\tR\x05title\x12\x16\n\x06status\x18\x07 \x01(\tR\x06status\x12\x1a\n\x08priority\x18\x08 \x01(\x05R\x08priority\x12\x12\n\x04wave\x18\t \x01(\x05R\x04wave\x12\x1c\n\tmilestone\x18\n \x01(\tR\tmilestone\x12\x16\n\x06\x65\x66\x66ort\x18\x0b \x01(\tR\x06\x65\x66\x66ort\x12.\n\x04gate\x18\x0c \x01(\x0b\x32\x1a.swarm_manager.v1.PlanGateR\x04gate\x12\x18\n\x07outcome\x18\r \x01(\tR\x07outcome\x12\x1f\n\x0b\x66inished_at\x18\x0e \x01(\tR\nfinishedAt\x12!\n\x0c\x65xecution_id\x18\x0f \x01(\tR\x0b\x65xecutionId\x12\x1a\n\x08unblocks\x18\x10 \x01(\x05R\x08unblocks\"\xc6\x01\n\rPlanCardGroup\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12!\n\x0c\x62locker_kind\x18\x03 \x01(\tR\x0b\x62lockerKind\x12\x17\n\x07gate_id\x18\x04 \x01(\tR\x06gateId\x12!\n\x0c\x62locker_keys\x18\x05 \x03(\tR\x0b\x62lockerKeys\x12\x30\n\x05\x63\x61rds\x18\x06 \x03(\x0b\x32\x1a.swarm_manager.v1.PlanCardR\x05\x63\x61rds\"d\n\nPlanColumn\x12\x37\n\x06groups\x18\x01 \x03(\x0b\x32\x1f.swarm_manager.v1.PlanCardGroupR\x06groups\x12\x1d\n\ncard_count\x18\x02 \x01(\x05R\tcardCount\"\xa6\x02\n\x0bPlanEtaBand\x12\x1b\n\tp50_hours\x18\x01 \x01(\x01R\x08p50Hours\x12\x1b\n\tp80_hours\x18\x02 \x01(\x01R\x08p80Hours\x12\x1b\n\tp50_label\x18\x03 \x01(\tR\x08p50Label\x12\x1b\n\tp80_label\x18\x04 \x01(\tR\x08p80Label\x12\x14\n\x05\x62\x61sis\x18\x05 \x01(\tR\x05\x62\x61sis\x12\x1f\n\x0b\x62\x61sis_label\x18\x06 \x01(\tR\nbasisLabel\x12\x1e\n\nconfidence\x18\x07 \x01(\tR\nconfidence\x12\'\n\x0fremaining_items\x18\x08 \x01(\x05R\x0eremainingItems\x12#\n\rlane_capacity\x18\t \x01(\x05R\x0claneCapacity\"\xbd\x01\n\rPlanBoardMeta\x12!\n\x0cgenerated_at\x18\x01 \x01(\tR\x0bgeneratedAt\x12%\n\x0ewindow_seconds\x18\x02 \x01(\x05R\rwindowSeconds\x12\x19\n\x08max_wave\x18\x03 \x01(\x05R\x07maxWave\x12\x16\n\x06\x63ycles\x18\x04 \x03(\tR\x06\x63ycles\x12/\n\x03\x65ta\x18\x05 \x01(\x0b\x32\x1d.swarm_manager.v1.PlanEtaBandR\x03\x65taBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"swarm-manager/v1/domain/plan.proto\x12\x1evrooli.swarm_manager.v1.domain\"X\n\x0ePlanLaneStatus\x12\x12\n\x04lane\x18\x01 \x01(\tR\x04lane\x12\x16\n\x06\x61\x63tive\x18\x02 \x01(\x05R\x06\x61\x63tive\x12\x1a\n\x08\x63\x61pacity\x18\x03 \x01(\x05R\x08\x63\x61pacity\"\xc2\x01\n\x0ePlanNowSummary\x12!\n\x0c\x61\x63tive_count\x18\x01 \x01(\x05R\x0b\x61\x63tiveCount\x12\x1f\n\x0bqueue_depth\x18\x02 \x01(\x05R\nqueueDepth\x12&\n\x0fmax_queue_depth\x18\x03 \x01(\x05R\rmaxQueueDepth\x12\x44\n\x05lanes\x18\x04 \x03(\x0b\x32..vrooli.swarm_manager.v1.domain.PlanLaneStatusR\x05lanes\"\xa1\x02\n\x08PlanGate\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1d\n\nowner_type\x18\x03 \x01(\tR\townerType\x12\x1d\n\nowner_kind\x18\x04 \x01(\tR\townerKind\x12\x1d\n\nowner_name\x18\x05 \x01(\tR\townerName\x12\x1f\n\x0bowner_title\x18\x06 \x01(\tR\nownerTitle\x12\x14\n\x05\x63ount\x18\x07 \x01(\x05R\x05\x63ount\x12\x16\n\x06\x62locks\x18\x08 \x03(\tR\x06\x62locks\x12\'\n\x0f\x64\x65\x63idable_since\x18\t \x01(\tR\x0e\x64\x65\x63idableSince\x12\x1c\n\tsuggested\x18\n \x01(\tR\tsuggested\"\xd5\x03\n\x08PlanCard\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n\tcard_type\x18\x02 \x01(\tR\x08\x63\x61rdType\x12\x16\n\x06\x61\x63tion\x18\x03 \x01(\tR\x06\x61\x63tion\x12\x1b\n\titem_kind\x18\x04 \x01(\tR\x08itemKind\x12\x1b\n\titem_name\x18\x05 \x01(\tR\x08itemName\x12\x14\n\x05title\x18\x06 \x01(\tR\x05title\x12\x16\n\x06status\x18\x07 \x01(\tR\x06status\x12\x1a\n\x08priority\x18\x08 \x01(\x05R\x08priority\x12\x12\n\x04wave\x18\t \x01(\x05R\x04wave\x12\x1c\n\tmilestone\x18\n \x01(\tR\tmilestone\x12\x16\n\x06\x65\x66\x66ort\x18\x0b \x01(\tR\x06\x65\x66\x66ort\x12<\n\x04gate\x18\x0c \x01(\x0b\x32(.vrooli.swarm_manager.v1.domain.PlanGateR\x04gate\x12\x18\n\x07outcome\x18\r \x01(\tR\x07outcome\x12\x1f\n\x0b\x66inished_at\x18\x0e \x01(\tR\nfinishedAt\x12!\n\x0c\x65xecution_id\x18\x0f \x01(\tR\x0b\x65xecutionId\x12\x1a\n\x08unblocks\x18\x10 \x01(\x05R\x08unblocks\"\xd4\x01\n\rPlanCardGroup\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12!\n\x0c\x62locker_kind\x18\x03 \x01(\tR\x0b\x62lockerKind\x12\x17\n\x07gate_id\x18\x04 \x01(\tR\x06gateId\x12!\n\x0c\x62locker_keys\x18\x05 \x03(\tR\x0b\x62lockerKeys\x12>\n\x05\x63\x61rds\x18\x06 \x03(\x0b\x32(.vrooli.swarm_manager.v1.domain.PlanCardR\x05\x63\x61rds\"r\n\nPlanColumn\x12\x45\n\x06groups\x18\x01 \x03(\x0b\x32-.vrooli.swarm_manager.v1.domain.PlanCardGroupR\x06groups\x12\x1d\n\ncard_count\x18\x02 \x01(\x05R\tcardCount\"\xa6\x02\n\x0bPlanEtaBand\x12\x1b\n\tp50_hours\x18\x01 \x01(\x01R\x08p50Hours\x12\x1b\n\tp80_hours\x18\x02 \x01(\x01R\x08p80Hours\x12\x1b\n\tp50_label\x18\x03 \x01(\tR\x08p50Label\x12\x1b\n\tp80_label\x18\x04 \x01(\tR\x08p80Label\x12\x14\n\x05\x62\x61sis\x18\x05 \x01(\tR\x05\x62\x61sis\x12\x1f\n\x0b\x62\x61sis_label\x18\x06 \x01(\tR\nbasisLabel\x12\x1e\n\nconfidence\x18\x07 \x01(\tR\nconfidence\x12\'\n\x0fremaining_items\x18\x08 \x01(\x05R\x0eremainingItems\x12#\n\rlane_capacity\x18\t \x01(\x05R\x0claneCapacity\"\xcb\x01\n\rPlanBoardMeta\x12!\n\x0cgenerated_at\x18\x01 \x01(\tR\x0bgeneratedAt\x12%\n\x0ewindow_seconds\x18\x02 \x01(\x05R\rwindowSeconds\x12\x19\n\x08max_wave\x18\x03 \x01(\x05R\x07maxWave\x12\x16\n\x06\x63ycles\x18\x04 \x03(\tR\x06\x63ycles\x12=\n\x03\x65ta\x18\x05 \x01(\x0b\x32+.vrooli.swarm_manager.v1.domain.PlanEtaBandR\x03\x65taBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,20 +32,20 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'swarm_manager.v1.domain.pla
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain'
-  _globals['_PLANLANESTATUS']._serialized_start=56
-  _globals['_PLANLANESTATUS']._serialized_end=144
-  _globals['_PLANNOWSUMMARY']._serialized_start=147
-  _globals['_PLANNOWSUMMARY']._serialized_end=327
-  _globals['_PLANGATE']._serialized_start=330
-  _globals['_PLANGATE']._serialized_end=619
-  _globals['_PLANCARD']._serialized_start=622
-  _globals['_PLANCARD']._serialized_end=1077
-  _globals['_PLANCARDGROUP']._serialized_start=1080
-  _globals['_PLANCARDGROUP']._serialized_end=1278
-  _globals['_PLANCOLUMN']._serialized_start=1280
-  _globals['_PLANCOLUMN']._serialized_end=1380
-  _globals['_PLANETABAND']._serialized_start=1383
-  _globals['_PLANETABAND']._serialized_end=1677
-  _globals['_PLANBOARDMETA']._serialized_start=1680
-  _globals['_PLANBOARDMETA']._serialized_end=1869
+  _globals['_PLANLANESTATUS']._serialized_start=70
+  _globals['_PLANLANESTATUS']._serialized_end=158
+  _globals['_PLANNOWSUMMARY']._serialized_start=161
+  _globals['_PLANNOWSUMMARY']._serialized_end=355
+  _globals['_PLANGATE']._serialized_start=358
+  _globals['_PLANGATE']._serialized_end=647
+  _globals['_PLANCARD']._serialized_start=650
+  _globals['_PLANCARD']._serialized_end=1119
+  _globals['_PLANCARDGROUP']._serialized_start=1122
+  _globals['_PLANCARDGROUP']._serialized_end=1334
+  _globals['_PLANCOLUMN']._serialized_start=1336
+  _globals['_PLANCOLUMN']._serialized_end=1450
+  _globals['_PLANETABAND']._serialized_start=1453
+  _globals['_PLANETABAND']._serialized_end=1747
+  _globals['_PLANBOARDMETA']._serialized_start=1750
+  _globals['_PLANBOARDMETA']._serialized_end=1953
 # @@protoc_insertion_point(module_scope)

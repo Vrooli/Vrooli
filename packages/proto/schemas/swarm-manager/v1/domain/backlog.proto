@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
-import "swarm-manager/v1/domain/agent_session.proto";
-import "swarm-manager/v1/domain/plan_ref.proto";
+import "swarm-manager/v1/shared/agent_session.proto";
+import "swarm-manager/v1/shared/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -12,9 +12,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // BACKLOG DOMAIN
 // =============================================================================
 //
-// @layer 1
-// @domain backlog
-// @imports agent_session
 // @stability beta
 //
 // Backlog items capture all work types for Swarm Manager:
@@ -130,7 +127,7 @@ message BacklogItem {
   repeated string creates = 22;
 
   // Verified provenance for the actor/session that created this item.
-  optional AgentSessionAttribution created_by = 23;
+  optional shared.AgentSessionAttribution created_by = 23;
 
   // Items-ahead in the pending queue: this item's zero-based index within the
   // ranked pending set (backlogrank order). Surfaced on CreateItem/GetItem so
@@ -141,7 +138,7 @@ message BacklogItem {
   optional int32 queue_position = 24 [(buf.validate.field).int32.gte = 0];
 
   // Canonical plan-manager plan backing this work item.
-  optional PlanRef plan_ref = 25;
+  optional shared.PlanRef plan_ref = 25;
 
   // Stable programmatic finding ID that produced this item, when auto-filed.
   optional string finding_ref = 26;
@@ -179,37 +176,11 @@ message BacklogReviewRecord {
   string rationale = 4;
 }
 
-// BacklogFile represents a file or directory within a backlog item folder.
-message BacklogFile {
-  // File or directory name.
-  string name = 1 [(buf.validate.field).string.min_len = 1];
-
-  // Relative path from the backlog item root.
-  string path = 2 [(buf.validate.field).string.min_len = 1];
-
-  // File type: "file" or "directory".
-  // @constraint one of: file, directory
-  string type = 3 [(buf.validate.field).string = {
-    in: [
-      "file",
-      "directory"
-    ]
-  }];
-
-  // File size in bytes (files only).
-  optional int64 size = 4 [(buf.validate.field).int64 = {gte: 0}];
-
-  // Child nodes (directories only).
-  repeated BacklogFile children = 5;
-}
 
 // =============================================================================
 // CLARIFICATION DOMAIN
 // =============================================================================
 //
-// @layer 1
-// @domain backlog.clarification
-// @imports none (external only: buf.validate)
 // @stability beta
 //
 // Clarification threads capture multi-turn conversations between operators and

@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.shared;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;shared";
+
+// @stability beta
+
+// Milestone is an owned, non-nestable goal subdivision.
+message Milestone {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+  string description = 3;
+  repeated string items = 4;
+  repeated string acceptance_criteria = 5;
+  repeated string depends_on = 6;
+  optional string archived_at = 7;
+}

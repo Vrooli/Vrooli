@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"swarm-manager/v1/api/related.proto\x12\x10swarm_manager.v1\">\n\x14RelatedBacklogTarget\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\"\'\n\x11RelatedGoalTarget\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\"\x84\x02\n\x11GetRelatedRequest\x12\x42\n\x07\x62\x61\x63klog\x18\x01 \x01(\x0b\x32&.swarm_manager.v1.RelatedBacklogTargetH\x00R\x07\x62\x61\x63klog\x12\x39\n\x04goal\x18\x02 \x01(\x0b\x32#.swarm_manager.v1.RelatedGoalTargetH\x00R\x04goal\x12-\n\x12\x65xclude_historical\x18\x03 \x01(\x08R\x11\x65xcludeHistorical\x12!\n\x0c\x65ntity_kinds\x18\x04 \x03(\tR\x0b\x65ntityKinds\x12\x14\n\x05limit\x18\x05 \x01(\x05R\x05limitB\x08\n\x06target\"\xe2\x01\n\rRelatedEntity\x12\x1f\n\x0b\x65ntity_kind\x18\x01 \x01(\tR\nentityKind\x12\x10\n\x03key\x18\x02 \x01(\tR\x03key\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x1a\n\x08\x61rchived\x18\x05 \x01(\x08R\x08\x61rchived\x12\x18\n\x07reasons\x18\x06 \x03(\tR\x07reasons\x12(\n\rscore_percent\x18\x07 \x01(\x05H\x00R\x0cscorePercent\x88\x01\x01\x42\x10\n\x0e_score_percent\"{\n\x0cRelatedGroup\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12;\n\x08\x65ntities\x18\x02 \x03(\x0b\x32\x1f.swarm_manager.v1.RelatedEntityR\x08\x65ntities\x12\x1a\n\x08\x64\x65graded\x18\x03 \x01(\x08R\x08\x64\x65graded\"L\n\x12GetRelatedResponse\x12\x36\n\x06groups\x18\x01 \x03(\x0b\x32\x1e.swarm_manager.v1.RelatedGroupR\x06groups2i\n\x0eRelatedService\x12W\n\nGetRelated\x12#.swarm_manager.v1.GetRelatedRequest\x1a$.swarm_manager.v1.GetRelatedResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"swarm-manager/v1/api/related.proto\x12\x1bvrooli.swarm_manager.v1.api\">\n\x14RelatedBacklogTarget\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\"\'\n\x11RelatedGoalTarget\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\"\x9a\x02\n\x11GetRelatedRequest\x12M\n\x07\x62\x61\x63klog\x18\x01 \x01(\x0b\x32\x31.vrooli.swarm_manager.v1.api.RelatedBacklogTargetH\x00R\x07\x62\x61\x63klog\x12\x44\n\x04goal\x18\x02 \x01(\x0b\x32..vrooli.swarm_manager.v1.api.RelatedGoalTargetH\x00R\x04goal\x12-\n\x12\x65xclude_historical\x18\x03 \x01(\x08R\x11\x65xcludeHistorical\x12!\n\x0c\x65ntity_kinds\x18\x04 \x03(\tR\x0b\x65ntityKinds\x12\x14\n\x05limit\x18\x05 \x01(\x05R\x05limitB\x08\n\x06target\"\xe2\x01\n\rRelatedEntity\x12\x1f\n\x0b\x65ntity_kind\x18\x01 \x01(\tR\nentityKind\x12\x10\n\x03key\x18\x02 \x01(\tR\x03key\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x1a\n\x08\x61rchived\x18\x05 \x01(\x08R\x08\x61rchived\x12\x18\n\x07reasons\x18\x06 \x03(\tR\x07reasons\x12(\n\rscore_percent\x18\x07 \x01(\x05H\x00R\x0cscorePercent\x88\x01\x01\x42\x10\n\x0e_score_percent\"\x86\x01\n\x0cRelatedGroup\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x46\n\x08\x65ntities\x18\x02 \x03(\x0b\x32*.vrooli.swarm_manager.v1.api.RelatedEntityR\x08\x65ntities\x12\x1a\n\x08\x64\x65graded\x18\x03 \x01(\x08R\x08\x64\x65graded\"W\n\x12GetRelatedResponse\x12\x41\n\x06groups\x18\x01 \x03(\x0b\x32).vrooli.swarm_manager.v1.api.RelatedGroupR\x06groups2\x7f\n\x0eRelatedService\x12m\n\nGetRelated\x12..vrooli.swarm_manager.v1.api.GetRelatedRequest\x1a/.vrooli.swarm_manager.v1.api.GetRelatedResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,18 +32,18 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'swarm_manager.v1.api.relate
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api'
-  _globals['_RELATEDBACKLOGTARGET']._serialized_start=56
-  _globals['_RELATEDBACKLOGTARGET']._serialized_end=118
-  _globals['_RELATEDGOALTARGET']._serialized_start=120
-  _globals['_RELATEDGOALTARGET']._serialized_end=159
-  _globals['_GETRELATEDREQUEST']._serialized_start=162
-  _globals['_GETRELATEDREQUEST']._serialized_end=422
-  _globals['_RELATEDENTITY']._serialized_start=425
-  _globals['_RELATEDENTITY']._serialized_end=651
-  _globals['_RELATEDGROUP']._serialized_start=653
-  _globals['_RELATEDGROUP']._serialized_end=776
-  _globals['_GETRELATEDRESPONSE']._serialized_start=778
-  _globals['_GETRELATEDRESPONSE']._serialized_end=854
-  _globals['_RELATEDSERVICE']._serialized_start=856
-  _globals['_RELATEDSERVICE']._serialized_end=961
+  _globals['_RELATEDBACKLOGTARGET']._serialized_start=67
+  _globals['_RELATEDBACKLOGTARGET']._serialized_end=129
+  _globals['_RELATEDGOALTARGET']._serialized_start=131
+  _globals['_RELATEDGOALTARGET']._serialized_end=170
+  _globals['_GETRELATEDREQUEST']._serialized_start=173
+  _globals['_GETRELATEDREQUEST']._serialized_end=455
+  _globals['_RELATEDENTITY']._serialized_start=458
+  _globals['_RELATEDENTITY']._serialized_end=684
+  _globals['_RELATEDGROUP']._serialized_start=687
+  _globals['_RELATEDGROUP']._serialized_end=821
+  _globals['_GETRELATEDRESPONSE']._serialized_start=823
+  _globals['_GETRELATEDRESPONSE']._serialized_end=910
+  _globals['_RELATEDSERVICE']._serialized_start=912
+  _globals['_RELATEDSERVICE']._serialized_end=1039
 # @@protoc_insertion_point(module_scope)

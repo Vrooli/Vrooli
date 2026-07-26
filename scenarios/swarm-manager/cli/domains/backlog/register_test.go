@@ -35,8 +35,8 @@ func TestRegister(t *testing.T) {
 		if c.Description == "" {
 			t.Errorf("subcommand %q has empty Description", c.Name)
 		}
-		if c.Run == nil {
-			t.Errorf("subcommand %q has nil Run handler (unwired dependency)", c.Name)
+		if c.Run == nil && c.RunCtx == nil {
+			t.Errorf("subcommand %q has no handler", c.Name)
 		}
 		if !wantSet[c.Name] {
 			t.Errorf("unexpected subcommand %q (not in expected set)", c.Name)

@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from swarm_manager.v1.domain import plan_pb2 as swarm__manager_dot_v1_dot_domain_dot_plan__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fswarm-manager/v1/api/plan.proto\x12\x10swarm_manager.v1\x1a\"swarm-manager/v1/domain/plan.proto\"\x94\x02\n\x11PlanBoardResponse\x12\x32\n\x03now\x18\x01 \x01(\x0b\x32 .swarm_manager.v1.PlanNowSummaryR\x03now\x12\x30\n\x04next\x18\x02 \x01(\x0b\x32\x1c.swarm_manager.v1.PlanColumnR\x04next\x12\x32\n\x05later\x18\x03 \x01(\x0b\x32\x1c.swarm_manager.v1.PlanColumnR\x05later\x12\x30\n\x04\x64one\x18\x04 \x01(\x0b\x32\x1c.swarm_manager.v1.PlanColumnR\x04\x64one\x12\x33\n\x04meta\x18\x05 \x01(\x0b\x32\x1f.swarm_manager.v1.PlanBoardMetaR\x04metaBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fswarm-manager/v1/api/plan.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\"swarm-manager/v1/domain/plan.proto\"\xda\x02\n\x11PlanBoardResponse\x12@\n\x03now\x18\x01 \x01(\x0b\x32..vrooli.swarm_manager.v1.domain.PlanNowSummaryR\x03now\x12>\n\x04next\x18\x02 \x01(\x0b\x32*.vrooli.swarm_manager.v1.domain.PlanColumnR\x04next\x12@\n\x05later\x18\x03 \x01(\x0b\x32*.vrooli.swarm_manager.v1.domain.PlanColumnR\x05later\x12>\n\x04\x64one\x18\x04 \x01(\x0b\x32*.vrooli.swarm_manager.v1.domain.PlanColumnR\x04\x64one\x12\x41\n\x04meta\x18\x05 \x01(\x0b\x32-.vrooli.swarm_manager.v1.domain.PlanBoardMetaR\x04metaBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,6 +33,6 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'swarm_manager.v1.api.plan_p
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api'
-  _globals['_PLANBOARDRESPONSE']._serialized_start=90
-  _globals['_PLANBOARDRESPONSE']._serialized_end=366
+  _globals['_PLANBOARDRESPONSE']._serialized_start=101
+  _globals['_PLANBOARDRESPONSE']._serialized_end=447
 # @@protoc_insertion_point(module_scope)

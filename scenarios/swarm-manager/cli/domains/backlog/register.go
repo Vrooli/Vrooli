@@ -1,9 +1,16 @@
 package backlog
 
 import (
-	"swarm-manager/cli/internal/support"
+	"context"
+	"fmt"
+	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
+	"swarm-manager/cli/internal/support"
 )
 
 func Register(deps support.Dependencies) cliapp.SubcommandGroup {
@@ -11,13 +18,13 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Name:        "backlog",
 		Description: "Backlog item management",
 		Subcommands: []cliapp.Command{
-			support.APICommand("list", "List backlog items [--kind KIND]", deps.BacklogList),
+			listCommand(),
 			support.APICommand("pending-questions", "List pending independent-review questions [--source review] [--limit N] [--milestone NAME] [--brief]", deps.BacklogPendingQuestions),
-			support.APICommand("get", "Get full backlog item details (--kind KIND --name NAME)", deps.BacklogGet),
+			getCommand(),
 			support.APICommand("create", "Create a backlog item (--data JSON)", deps.BacklogCreate),
 			support.APICommand("update", "Update a backlog item (--kind KIND --name NAME --data JSON)", deps.BacklogUpdate),
-			support.APICommand("delete", "Delete a backlog item (--kind KIND --name NAME)", deps.BacklogDelete),
-			support.APICommand("dismiss", "Dismiss a suggested auto-filer item (--kind KIND --name NAME [--reason MSG])", deps.BacklogDismiss),
+			deleteCommand(),
+			dismissCommand(),
 			support.APICommand("plan-workshop", "Open the Plan Workshop for a backlog item (--kind KIND --name NAME [--start-review])", deps.BacklogPlanWorkshop),
 			support.APICommand("recreate", "Archive and clone a backlog item with lineage (--kind KIND --name NAME) [--json]", deps.BacklogRecreate),
 			support.APICommand("reset-artifacts", "Remove selected derived item artifacts (--kind KIND --name NAME --scope SCOPE,... ) [--json]", deps.BacklogResetArtifacts),
@@ -36,4 +43,177 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("search-ai", "Semantic search over backlog items (<query> [--limit N] [--kind K,...] [--status S,...] [--milestone N] [--include-archived] [--json])", deps.BacklogSearchAI),
 		},
 	}
+}
+
+func listCommand() cliapp.Command {
+	cmd := cliapp.Command{
+		Name:        "list",
+		NeedsAPI:    true,
+		Description: "List backlog items [--kind KIND]",
+		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+			{Name: "kind", Description: "Comma-separated backlog kinds"},
+			{Name: "status", Description: "Comma-separated backlog statuses"},
+			{Name: "archived", Description: "Show archived items: true, false, or all", Values: []string{"true", "false", "all"}},
+			{Name: "scenario", Description: "Comma-separated scenario names"},
+		}},
+	}
+	return cmd.WithPrimitive(cliapp.ProtoList(
+		func(op cliapp.OperationContext) (*apipb.ListBacklogItemsResponse, error) {
+			req := &apipb.ListBacklogItemsRequest{
+				Kinds:     splitCSV(op.Flag("kind")),
+				Statuses:  splitCSV(op.Flag("status")),
+				Scenarios: splitCSV(op.Flag("scenario")),
+			}
+			switch strings.TrimSpace(op.Flag("archived")) {
+			case "", "false":
+				req.Archived = apipb.ArchivedFilter_ARCHIVED_FILTER_EXCLUDE
+			case "true":
+				req.Archived = apipb.ArchivedFilter_ARCHIVED_FILTER_ONLY
+			case "all":
+				req.Archived = apipb.ArchivedFilter_ARCHIVED_FILTER_ALL
+			default:
+				return nil, fmt.Errorf("--archived must be true, false, or all")
+			}
+			response, err := backlogClient(op).ListItems(context.Background(), connect.NewRequest(req))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *apipb.ListBacklogItemsResponse) cliapp.ListReport {
+			rows := make([]string, 0, len(response.GetItems()))
+			for _, item := range response.GetItems() {
+				rows = append(rows, fmt.Sprintf("[%s] %s — %s (priority: %d, status: %s)", item.GetKind(), item.GetName(), item.GetTitle(), item.GetPriority(), item.GetStatus()))
+			}
+			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Backlog items: %d", len(rows))}, ResultsHeading: "Results", Results: rows}
+		},
+	))
+}
+
+func splitCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if value := strings.TrimSpace(part); value != "" {
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
+func backlogClient(op cliapp.OperationContext) apiconnect.BacklogServiceClient {
+	h, base := cliapp.NewConnectHTTPClient(op.Core())
+	return apiconnect.NewBacklogServiceClient(h, base)
+}
+
+func getCommand() cliapp.Command {
+	cmd := cliapp.Command{
+		Name:        "get",
+		NeedsAPI:    true,
+		Description: "Get full backlog item details (--kind KIND --name NAME) [--json]",
+		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+			{Name: "kind", Description: "Backlog item kind", Required: true},
+			{Name: "name", Description: "Backlog item name", Required: true},
+		}},
+	}
+	return cmd.WithPrimitive(cliapp.ProtoList(
+		func(op cliapp.OperationContext) (*apipb.BacklogItemResponse, error) {
+			response, err := backlogClient(op).GetItem(context.Background(), connect.NewRequest(&apipb.GetBacklogItemRequest{
+				Kind: strings.TrimSpace(op.Flag("kind")),
+				Name: strings.TrimSpace(op.Flag("name")),
+			}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *apipb.BacklogItemResponse) cliapp.ListReport {
+			item := response.GetItem()
+			if item == nil {
+				return cliapp.ListReport{Summary: []string{"Backlog item not found."}}
+			}
+			rows := []string{
+				"Status: " + item.GetStatus(),
+				fmt.Sprintf("Priority: %d", item.GetPriority()),
+			}
+			if item.GetDescription() != "" {
+				rows = append(rows, "Description: "+item.GetDescription())
+			}
+			if len(item.GetTags()) > 0 {
+				rows = append(rows, "Tags: "+strings.Join(item.GetTags(), ", "))
+			}
+			return cliapp.ListReport{Summary: []string{fmt.Sprintf("%s/%s — %s", item.GetKind(), item.GetName(), item.GetTitle())}, ResultsHeading: "Details", Results: rows}
+		},
+	))
+}
+
+func deleteCommand() cliapp.Command {
+	cmd := cliapp.Command{Name: "delete", NeedsAPI: true, Description: "Delete a backlog item (--kind KIND --name NAME) [--json]", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "kind", Description: "Backlog item kind", Required: true},
+		{Name: "name", Description: "Backlog item name", Required: true},
+	}}}
+	return cmd.WithPrimitive(cliapp.ProtoMutation(
+		func(op cliapp.OperationContext) (*apipb.DeleteBacklogItemResponse, error) {
+			response, err := backlogClient(op).DeleteItem(context.Background(), connect.NewRequest(&apipb.DeleteBacklogItemRequest{
+				Kind: strings.TrimSpace(op.Flag("kind")),
+				Name: strings.TrimSpace(op.Flag("name")),
+			}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *apipb.DeleteBacklogItemResponse) cliapp.MutationReport {
+			if !response.GetDeleted() {
+				return cliapp.MutationReport{Result: []string{"Backlog item was already absent."}}
+			}
+			return cliapp.MutationReport{Result: []string{"Backlog item deleted."}}
+		},
+	))
+}
+
+func dismissCommand() cliapp.Command {
+	cmd := cliapp.Command{
+		Name:        "dismiss",
+		NeedsAPI:    true,
+		Description: "Dismiss a suggested auto-filer item (--kind KIND --name NAME [--reason MSG])",
+		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+			{Name: "kind", Description: "Backlog item kind", Required: true},
+			{Name: "name", Description: "Backlog item name", Required: true},
+			{Name: "reason", Description: "Dismissal reason"},
+		}},
+	}
+	return cmd.WithPrimitive(cliapp.ProtoMutation(
+		func(op cliapp.OperationContext) (*apipb.DismissAutoFilerSuggestionResponse, error) {
+			h, base := cliapp.NewConnectHTTPClient(op.Core())
+			response, err := apiconnect.NewAutoFilerServiceClient(h, base).DismissSuggestion(context.Background(), connect.NewRequest(&apipb.DismissAutoFilerSuggestionRequest{
+				Kind:   strings.TrimSpace(op.Flag("kind")),
+				Name:   strings.TrimSpace(op.Flag("name")),
+				Reason: optionalString(op.Flag("reason")),
+			}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *apipb.DismissAutoFilerSuggestionResponse) cliapp.MutationReport {
+			item := response.GetItem()
+			changes := []string{fmt.Sprintf("Dismissed %s/%s", item.GetKind(), item.GetName())}
+			if item.GetArchivedAt() != "" {
+				changes = append(changes, "Archived at: "+item.GetArchivedAt())
+			}
+			if item.GetFindingRef() != "" {
+				changes = append(changes, "Finding: "+item.GetFindingRef())
+			}
+			return cliapp.MutationReport{Result: []string{"Suggested auto-filer item dismissed."}, Changes: changes, NextCommand: []string{"swarm-manager autofiler status", "swarm-manager backlog list --status suggested"}}
+		},
+	))
+}
+
+func optionalString(value string) *string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	return &value
 }

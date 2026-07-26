@@ -8,7 +8,6 @@ import (
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/overview"
-	"swarm-manager/internal/stats"
 )
 
 type fakeOverviewReader struct {
@@ -22,14 +21,6 @@ func (f fakeOverviewReader) GetOverview() (*overview.OverviewResponse, error) {
 	}
 	return f.resp, nil
 }
-
-type fakeStatsReader struct {
-	resp stats.StatsResponse
-	err  error
-}
-
-func (f fakeStatsReader) Refresh(context.Context) error { return f.err }
-func (f fakeStatsReader) GetStats() stats.StatsResponse { return f.resp }
 
 type fakeHandoffReader struct {
 	items    []DirectorHandoff
@@ -70,7 +61,7 @@ func TestBriefingBuilderBuildsBoundedDeterministicBriefing(t *testing.T) {
 			Summary:         overview.OverviewSummary{TotalItems: 42, ActiveGoals: 7},
 			DependencyGraph: overview.DependencyGraph{Blocked: []string{"feature/blocked"}},
 		}},
-		Stats: fakeStatsReader{resp: stats.StatsResponse{Session: stats.SessionStats{ActiveSessions: 3}}},
+		ActiveSessions: func(context.Context) (int, error) { return 3, nil },
 		Handoffs: fakeHandoffReader{items: []DirectorHandoff{{
 			SourcePath: "scenarios/prompt-manager/store/teams/director-swarm/members/operator/last-handoff.md",
 			Title:      "operator",
@@ -108,11 +99,11 @@ func TestBriefingBuilderKeepsOptionalSourceFailuresAsWarnings(t *testing.T) {
 		Governance: &fakeGovernance{resp: defaultGovernance()},
 	})
 	builder, err := NewBriefingBuilder(BriefingBuilderConfig{
-		Aggregator: agg,
-		Overview:   fakeOverviewReader{err: errors.New("overview down")},
-		Stats:      fakeStatsReader{err: errors.New("stats down")},
-		Handoffs:   fakeHandoffReader{warnings: []string{"handoff down"}},
-		Now:        fixedNow(),
+		Aggregator:     agg,
+		Overview:       fakeOverviewReader{err: errors.New("overview down")},
+		ActiveSessions: func(context.Context) (int, error) { return 0, errors.New("sessions down") },
+		Handoffs:       fakeHandoffReader{warnings: []string{"handoff down"}},
+		Now:            fixedNow(),
 	})
 	if err != nil {
 		t.Fatalf("NewBriefingBuilder: %v", err)

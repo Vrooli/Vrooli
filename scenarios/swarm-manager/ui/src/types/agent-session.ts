@@ -4,13 +4,15 @@
 
 import type {
   AgentSession as ProtoAgentSession,
+  AgentSessionMessage as ProtoAgentSessionMessage,
+  AgentSessionProposal as ProtoAgentSessionProposal,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/agent_session_pb";
+import type {
   AgentSessionArtifact as ProtoAgentSessionArtifact,
   AgentSessionAttribution as ProtoAgentSessionAttribution,
   AgentSessionAttachment as ProtoAgentSessionAttachment,
   AgentSessionContextItem as ProtoAgentSessionContextItem,
-  AgentSessionMessage as ProtoAgentSessionMessage,
-  AgentSessionProposal as ProtoAgentSessionProposal,
-} from "@vrooli/proto-types/swarm-manager/v1/domain/agent_session_pb";
+} from "@vrooli/proto-types/swarm-manager/v1/shared/agent_session_pb";
 import type { AgentSessionRunEvent as ProtoAgentSessionRunEvent } from "@vrooli/proto-types/swarm-manager/v1/api/agent_session_pb";
 import type { ProtoMessage } from "./shared";
 

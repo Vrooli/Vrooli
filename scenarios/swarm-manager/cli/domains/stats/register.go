@@ -17,7 +17,6 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("milestones", "Milestone health", deps.StatsMilestones),
 			support.APICommand("agent", "Agent efficiency metrics", deps.StatsAgent),
 			support.APICommand("sessions", "Native agent session metrics", deps.StatsSessions),
-			support.APICommand("sandbox-adoption", "Sandbox-default rollout adoption breakdown (scrapes agent-manager /metrics)", deps.StatsSandboxAdoption),
 		},
 	}
 }

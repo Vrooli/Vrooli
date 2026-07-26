@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.shared;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;shared";
+
+// @stability beta
+
+// BacklogFile represents a file or directory within a backlog item folder.
+message BacklogFile {
+  // File or directory name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Relative path from the backlog item root.
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+
+  // File type: "file" or "directory".
+  // @constraint one of: file, directory
+  string type = 3 [(buf.validate.field).string = {
+    in: [
+      "file",
+      "directory"
+    ]
+  }];
+
+  // File size in bytes (files only).
+  optional int64 size = 4 [(buf.validate.field).int64 = {gte: 0}];
+
+  // Child nodes (directories only).
+  repeated BacklogFile children = 5;
+}

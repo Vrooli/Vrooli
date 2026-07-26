@@ -9,7 +9,7 @@ import (
 func TestCommandGroups(t *testing.T) {
 	groups := CommandGroups(testutil.StubDeps())
 
-	wantTitles := []string{"Overview", "Migration"}
+	wantTitles := []string{"Overview"}
 	if len(groups) != len(wantTitles) {
 		t.Fatalf("CommandGroups count = %d, want %d", len(groups), len(wantTitles))
 	}
@@ -24,8 +24,8 @@ func TestCommandGroups(t *testing.T) {
 			if c.Name == "" {
 				t.Errorf("group %q has command with empty Name", g.Title)
 			}
-			if c.Run == nil {
-				t.Errorf("group %q command %q has nil Run handler", g.Title, c.Name)
+			if c.Run == nil && c.RunCtx == nil {
+				t.Errorf("group %q command %q has no handler", g.Title, c.Name)
 			}
 		}
 	}
@@ -35,9 +35,9 @@ func TestSubcommandGroups(t *testing.T) {
 	groups := SubcommandGroups(testutil.StubDeps())
 
 	wantNames := []string{
-		"backlog", "scenarios", "settings", "queue", "execution", "evidence", "prompts",
-		"goals", "proposals", "captures", "records", "related", "agent-manager",
-		"operations", "portfolio", "sessions", "stats", "ai-search", "autofiler",
+		"backlog", "scenarios", "settings", "queue", "execution", "review", "evidence", "prompts",
+		"goals", "milestones", "proposals", "captures", "records", "agent-manager",
+		"operations", "portfolio", "sessions", "stats", "measures", "search", "autofiler",
 	}
 	if len(groups) != len(wantNames) {
 		t.Fatalf("SubcommandGroups count = %d, want %d", len(groups), len(wantNames))
@@ -62,8 +62,8 @@ func TestSubcommandGroups(t *testing.T) {
 			if c.Name == "" {
 				t.Errorf("group %q has subcommand with empty Name", g.Name)
 			}
-			if c.Run == nil {
-				t.Errorf("group %q subcommand %q has nil Run handler", g.Name, c.Name)
+			if c.Run == nil && c.RunCtx == nil {
+				t.Errorf("group %q subcommand %q has no handler", g.Name, c.Name)
 			}
 		}
 	}

@@ -8,6 +8,7 @@ package domain
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -31,7 +32,7 @@ type Goal struct {
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	Priority      int32                  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
 	Targets       []string               `protobuf:"bytes,6,rep,name=targets,proto3" json:"targets,omitempty"`
-	Milestones    []*Milestone           `protobuf:"bytes,7,rep,name=milestones,proto3" json:"milestones,omitempty"`
+	Milestones    []*shared.Milestone    `protobuf:"bytes,7,rep,name=milestones,proto3" json:"milestones,omitempty"`
 	Created       string                 `protobuf:"bytes,8,opt,name=created,proto3" json:"created,omitempty"`
 	Updated       string                 `protobuf:"bytes,9,opt,name=updated,proto3" json:"updated,omitempty"`
 	ArchivedAt    *string                `protobuf:"bytes,10,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
@@ -111,7 +112,7 @@ func (x *Goal) GetTargets() []string {
 	return nil
 }
 
-func (x *Goal) GetMilestones() []*Milestone {
+func (x *Goal) GetMilestones() []*shared.Milestone {
 	if x != nil {
 		return x.Milestones
 	}
@@ -139,99 +140,6 @@ func (x *Goal) GetArchivedAt() string {
 	return ""
 }
 
-// Milestone is an owned, non-nestable goal subdivision.
-type Milestone struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Title              string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Description        string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Items              []string               `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
-	AcceptanceCriteria []string               `protobuf:"bytes,5,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
-	DependsOn          []string               `protobuf:"bytes,6,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	ArchivedAt         *string                `protobuf:"bytes,7,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
-}
-
-func (x *Milestone) Reset() {
-	*x = Milestone{}
-	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Milestone) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Milestone) ProtoMessage() {}
-
-func (x *Milestone) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Milestone.ProtoReflect.Descriptor instead.
-func (*Milestone) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_goal_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *Milestone) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *Milestone) GetTitle() string {
-	if x != nil {
-		return x.Title
-	}
-	return ""
-}
-
-func (x *Milestone) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *Milestone) GetItems() []string {
-	if x != nil {
-		return x.Items
-	}
-	return nil
-}
-
-func (x *Milestone) GetAcceptanceCriteria() []string {
-	if x != nil {
-		return x.AcceptanceCriteria
-	}
-	return nil
-}
-
-func (x *Milestone) GetDependsOn() []string {
-	if x != nil {
-		return x.DependsOn
-	}
-	return nil
-}
-
-func (x *Milestone) GetArchivedAt() string {
-	if x != nil && x.ArchivedAt != nil {
-		return *x.ArchivedAt
-	}
-	return ""
-}
-
 type MilestoneRollup struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MilestoneName string                 `protobuf:"bytes,1,opt,name=milestone_name,json=milestoneName,proto3" json:"milestone_name,omitempty"`
@@ -249,7 +157,7 @@ type MilestoneRollup struct {
 
 func (x *MilestoneRollup) Reset() {
 	*x = MilestoneRollup{}
-	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -261,7 +169,7 @@ func (x *MilestoneRollup) String() string {
 func (*MilestoneRollup) ProtoMessage() {}
 
 func (x *MilestoneRollup) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -274,7 +182,7 @@ func (x *MilestoneRollup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MilestoneRollup.ProtoReflect.Descriptor instead.
 func (*MilestoneRollup) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_goal_proto_rawDescGZIP(), []int{2}
+	return file_swarm_manager_v1_domain_goal_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *MilestoneRollup) GetMilestoneName() string {
@@ -334,7 +242,7 @@ type GoalScope struct {
 
 func (x *GoalScope) Reset() {
 	*x = GoalScope{}
-	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +254,7 @@ func (x *GoalScope) String() string {
 func (*GoalScope) ProtoMessage() {}
 
 func (x *GoalScope) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_domain_goal_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +267,7 @@ func (x *GoalScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GoalScope.ProtoReflect.Descriptor instead.
 func (*GoalScope) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_goal_proto_rawDescGZIP(), []int{3}
+	return file_swarm_manager_v1_domain_goal_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GoalScope) GetTargets() []string {
@@ -415,32 +323,21 @@ var File_swarm_manager_v1_domain_goal_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_goal_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/domain/goal.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd9\x02\n" +
+	"\"swarm-manager/v1/domain/goal.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\"swarm-manager/v1/shared/goal.proto\"\xe7\x02\n" +
 	"\x04Goal\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1a\n" +
 	"\bpriority\x18\x05 \x01(\x05R\bpriority\x12\x18\n" +
-	"\atargets\x18\x06 \x03(\tR\atargets\x12;\n" +
+	"\atargets\x18\x06 \x03(\tR\atargets\x12I\n" +
 	"\n" +
-	"milestones\x18\a \x03(\v2\x1b.swarm_manager.v1.MilestoneR\n" +
+	"milestones\x18\a \x03(\v2).vrooli.swarm_manager.v1.shared.MilestoneR\n" +
 	"milestones\x12\x18\n" +
 	"\acreated\x18\b \x01(\tR\acreated\x12\x18\n" +
 	"\aupdated\x18\t \x01(\tR\aupdated\x12$\n" +
 	"\varchived_at\x18\n" +
 	" \x01(\tH\x00R\n" +
-	"archivedAt\x88\x01\x01B\x0e\n" +
-	"\f_archived_at\"\x85\x02\n" +
-	"\tMilestone\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
-	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x14\n" +
-	"\x05items\x18\x04 \x03(\tR\x05items\x12/\n" +
-	"\x13acceptance_criteria\x18\x05 \x03(\tR\x12acceptanceCriteria\x12\x1d\n" +
-	"\n" +
-	"depends_on\x18\x06 \x03(\tR\tdependsOn\x12$\n" +
-	"\varchived_at\x18\a \x01(\tH\x00R\n" +
 	"archivedAt\x88\x01\x01B\x0e\n" +
 	"\f_archived_at\"\xb8\x01\n" +
 	"\x0fMilestoneRollup\x12%\n" +
@@ -449,15 +346,15 @@ const file_swarm_manager_v1_domain_goal_proto_rawDesc = "" +
 	"\tcompleted\x18\x03 \x01(\x05R\tcompleted\x12\x14\n" +
 	"\x05ready\x18\x04 \x01(\x05R\x05ready\x12\x18\n" +
 	"\ablocked\x18\x05 \x01(\x05R\ablocked\x12\x1a\n" +
-	"\borphaned\x18\x06 \x03(\tR\borphaned\"\xf0\x01\n" +
+	"\borphaned\x18\x06 \x03(\tR\borphaned\"\xfe\x01\n" +
 	"\tGoalScope\x12\x18\n" +
 	"\atargets\x18\x01 \x03(\tR\atargets\x12\x18\n" +
 	"\aclosure\x18\x02 \x03(\tR\aclosure\x12\x1c\n" +
 	"\tcompleted\x18\x03 \x03(\tR\tcompleted\x12\x14\n" +
 	"\x05ready\x18\x04 \x03(\tR\x05ready\x12\x18\n" +
-	"\ablocked\x18\x05 \x03(\tR\ablocked\x12A\n" +
+	"\ablocked\x18\x05 \x03(\tR\ablocked\x12O\n" +
 	"\n" +
-	"milestones\x18\x06 \x03(\v2!.swarm_manager.v1.MilestoneRollupR\n" +
+	"milestones\x18\x06 \x03(\v2/.vrooli.swarm_manager.v1.domain.MilestoneRollupR\n" +
 	"milestones\x12\x1e\n" +
 	"\n" +
 	"unassigned\x18\a \x03(\tR\n" +
@@ -475,16 +372,16 @@ func file_swarm_manager_v1_domain_goal_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_goal_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_goal_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_swarm_manager_v1_domain_goal_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_swarm_manager_v1_domain_goal_proto_goTypes = []any{
-	(*Goal)(nil),            // 0: swarm_manager.v1.Goal
-	(*Milestone)(nil),       // 1: swarm_manager.v1.Milestone
-	(*MilestoneRollup)(nil), // 2: swarm_manager.v1.MilestoneRollup
-	(*GoalScope)(nil),       // 3: swarm_manager.v1.GoalScope
+	(*Goal)(nil),             // 0: vrooli.swarm_manager.v1.domain.Goal
+	(*MilestoneRollup)(nil),  // 1: vrooli.swarm_manager.v1.domain.MilestoneRollup
+	(*GoalScope)(nil),        // 2: vrooli.swarm_manager.v1.domain.GoalScope
+	(*shared.Milestone)(nil), // 3: vrooli.swarm_manager.v1.shared.Milestone
 }
 var file_swarm_manager_v1_domain_goal_proto_depIdxs = []int32{
-	1, // 0: swarm_manager.v1.Goal.milestones:type_name -> swarm_manager.v1.Milestone
-	2, // 1: swarm_manager.v1.GoalScope.milestones:type_name -> swarm_manager.v1.MilestoneRollup
+	3, // 0: vrooli.swarm_manager.v1.domain.Goal.milestones:type_name -> vrooli.swarm_manager.v1.shared.Milestone
+	1, // 1: vrooli.swarm_manager.v1.domain.GoalScope.milestones:type_name -> vrooli.swarm_manager.v1.domain.MilestoneRollup
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -498,14 +395,13 @@ func file_swarm_manager_v1_domain_goal_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_domain_goal_proto_msgTypes[0].OneofWrappers = []any{}
-	file_swarm_manager_v1_domain_goal_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_goal_proto_rawDesc), len(file_swarm_manager_v1_domain_goal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

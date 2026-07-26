@@ -88,9 +88,9 @@ func (DeleteConfirmLevel) EnumDescriptor() ([]byte, []int) {
 // this message is read by the current API.
 type DeleteConfirmationSettings struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Backlog       DeleteConfirmLevel     `protobuf:"varint,1,opt,name=backlog,proto3,enum=swarm_manager.v1.DeleteConfirmLevel" json:"backlog,omitempty"`
-	Initiative    DeleteConfirmLevel     `protobuf:"varint,2,opt,name=initiative,proto3,enum=swarm_manager.v1.DeleteConfirmLevel" json:"initiative,omitempty"`
-	Capture       DeleteConfirmLevel     `protobuf:"varint,3,opt,name=capture,proto3,enum=swarm_manager.v1.DeleteConfirmLevel" json:"capture,omitempty"`
+	Backlog       DeleteConfirmLevel     `protobuf:"varint,1,opt,name=backlog,proto3,enum=vrooli.swarm_manager.v1.domain.DeleteConfirmLevel" json:"backlog,omitempty"`
+	Initiative    DeleteConfirmLevel     `protobuf:"varint,2,opt,name=initiative,proto3,enum=vrooli.swarm_manager.v1.domain.DeleteConfirmLevel" json:"initiative,omitempty"`
+	Capture       DeleteConfirmLevel     `protobuf:"varint,3,opt,name=capture,proto3,enum=vrooli.swarm_manager.v1.domain.DeleteConfirmLevel" json:"capture,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -269,7 +269,7 @@ type Settings struct {
 	// "initiative", "capture", "backlogFile", ...). Missing keys default to the
 	// entity's registry default. Unknown keys are preserved on save for
 	// forward-compatibility with newer UIs.
-	DeleteConfirmationLevels map[string]DeleteConfirmLevel `protobuf:"bytes,37,rep,name=delete_confirmation_levels,json=deleteConfirmationLevels,proto3" json:"delete_confirmation_levels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=swarm_manager.v1.DeleteConfirmLevel"`
+	DeleteConfirmationLevels map[string]DeleteConfirmLevel `protobuf:"bytes,37,rep,name=delete_confirmation_levels,json=deleteConfirmationLevels,proto3" json:"delete_confirmation_levels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=vrooli.swarm_manager.v1.domain.DeleteConfirmLevel"`
 	// Review thresholds.
 	ReviewCodeQualityMinScore   float64 `protobuf:"fixed64,19,opt,name=review_code_quality_min_score,json=reviewCodeQualityMinScore,proto3" json:"review_code_quality_min_score,omitempty"`
 	ReviewTestMinPassRate       float64 `protobuf:"fixed64,20,opt,name=review_test_min_pass_rate,json=reviewTestMinPassRate,proto3" json:"review_test_min_pass_rate,omitempty"`
@@ -498,13 +498,13 @@ var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xe2\x01\n" +
-	"\x1aDeleteConfirmationSettings\x12>\n" +
-	"\abacklog\x18\x01 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\abacklog\x12D\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\x8c\x02\n" +
+	"\x1aDeleteConfirmationSettings\x12L\n" +
+	"\abacklog\x18\x01 \x01(\x0e22.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\abacklog\x12R\n" +
 	"\n" +
-	"initiative\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\n" +
-	"initiative\x12>\n" +
-	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\xb5\x03\n" +
+	"initiative\x18\x02 \x01(\x0e22.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\n" +
+	"initiative\x12L\n" +
+	"\acapture\x18\x03 \x01(\x0e22.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\acapture\"\xb5\x03\n" +
 	"\x11AutoFilerSettings\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12,\n" +
 	"\x04mode\x18\x02 \x01(\tB\x18\xbaH\x15r\x13R\asuggestR\bauto_addR\x04mode\x12>\n" +
@@ -516,7 +516,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x01R\x16minVelocityTransitions\x125\n" +
 	"\x10interval_minutes\x18\a \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xa0\v(\x01R\x0fintervalMinutes\x12$\n" +
-	"\tgoal_name\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bgoalName\"\xde\x10\n" +
+	"\tgoal_name\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bgoalName\"\x97\x11\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
@@ -531,15 +531,15 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\x90\x1c(<R\x13agentTimeoutSeconds\x128\n" +
 	"\x12search_debounce_ms\x18\r \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xd0\x0f(dR\x10searchDebounceMs\x128\n" +
-	"\x11toast_duration_ms\x18\x0e \x01(\x05B\f\xbaH\t\x1a\a\x18\xb0\xea\x01(\xe8\aR\x0ftoastDurationMs\x12v\n" +
-	"\x1adelete_confirmation_levels\x18% \x03(\v28.swarm_manager.v1.Settings.DeleteConfirmationLevelsEntryR\x18deleteConfirmationLevels\x12Y\n" +
+	"\x11toast_duration_ms\x18\x0e \x01(\x05B\f\xbaH\t\x1a\a\x18\xb0\xea\x01(\xe8\aR\x0ftoastDurationMs\x12\x84\x01\n" +
+	"\x1adelete_confirmation_levels\x18% \x03(\v2F.vrooli.swarm_manager.v1.domain.Settings.DeleteConfirmationLevelsEntryR\x18deleteConfirmationLevels\x12Y\n" +
 	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00Y@)\x00\x00\x00\x00\x00\x00\x00\x00R\x19reviewCodeQualityMinScore\x12Q\n" +
 	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\x15reviewTestMinPassRate\x12L\n" +
 	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x1breviewMaxBlockingViolations\x12@\n" +
 	"\x13review_max_warnings\x18\x16 \x01(\x05B\x10\xbaH\r\x1a\v(\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01R\x11reviewMaxWarnings\x12<\n" +
 	"\x1areview_require_screenshots\x18\x17 \x01(\bR\x18reviewRequireScreenshots\x120\n" +
-	"\x14review_require_tests\x18\x18 \x01(\bR\x12reviewRequireTests\x12m\n" +
-	"\x17lane_concurrency_limits\x18\" \x03(\v25.swarm_manager.v1.Settings.LaneConcurrencyLimitsEntryR\x15laneConcurrencyLimits\x121\n" +
+	"\x14review_require_tests\x18\x18 \x01(\bR\x12reviewRequireTests\x12{\n" +
+	"\x17lane_concurrency_limits\x18\" \x03(\v2C.vrooli.swarm_manager.v1.domain.Settings.LaneConcurrencyLimitsEntryR\x15laneConcurrencyLimits\x121\n" +
 	"\x0fmax_queue_depth\x18\x1a \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\rmaxQueueDepth\x12E\n" +
 	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01R\x17circuitBreakerThreshold\x12S\n" +
@@ -547,12 +547,12 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xa0\v(\x05R\x1dcircuitBreakerCooldownMinutes\x12J\n" +
 	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16executionCostCapPerRun\x12L\n" +
 	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimate\x12H\n" +
-	"\x12fix_before_feature\x18# \x01(\tB\x1a\xbaH\x17r\x15R\x03offR\asuggestR\x05blockR\x10fixBeforeFeature\x12B\n" +
+	"\x12fix_before_feature\x18# \x01(\tB\x1a\xbaH\x17r\x15R\x03offR\asuggestR\x05blockR\x10fixBeforeFeature\x12P\n" +
 	"\n" +
-	"auto_filer\x18& \x01(\v2#.swarm_manager.v1.AutoFilerSettingsR\tautoFiler\x1aq\n" +
+	"auto_filer\x18& \x01(\v21.vrooli.swarm_manager.v1.domain.AutoFilerSettingsR\tautoFiler\x1a\x7f\n" +
 	"\x1dDeleteConfirmationLevelsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12:\n" +
-	"\x05value\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\x05value:\x028\x01\x1aH\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12H\n" +
+	"\x05value\x18\x02 \x01(\x0e22.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\x05value:\x028\x01\x1aH\n" +
 	"\x1aLaneConcurrencyLimitsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\t\x10\n" +
@@ -578,21 +578,21 @@ func file_swarm_manager_v1_domain_settings_proto_rawDescGZIP() []byte {
 var file_swarm_manager_v1_domain_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_swarm_manager_v1_domain_settings_proto_goTypes = []any{
-	(DeleteConfirmLevel)(0),            // 0: swarm_manager.v1.DeleteConfirmLevel
-	(*DeleteConfirmationSettings)(nil), // 1: swarm_manager.v1.DeleteConfirmationSettings
-	(*AutoFilerSettings)(nil),          // 2: swarm_manager.v1.AutoFilerSettings
-	(*Settings)(nil),                   // 3: swarm_manager.v1.Settings
-	nil,                                // 4: swarm_manager.v1.Settings.DeleteConfirmationLevelsEntry
-	nil,                                // 5: swarm_manager.v1.Settings.LaneConcurrencyLimitsEntry
+	(DeleteConfirmLevel)(0),            // 0: vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
+	(*DeleteConfirmationSettings)(nil), // 1: vrooli.swarm_manager.v1.domain.DeleteConfirmationSettings
+	(*AutoFilerSettings)(nil),          // 2: vrooli.swarm_manager.v1.domain.AutoFilerSettings
+	(*Settings)(nil),                   // 3: vrooli.swarm_manager.v1.domain.Settings
+	nil,                                // 4: vrooli.swarm_manager.v1.domain.Settings.DeleteConfirmationLevelsEntry
+	nil,                                // 5: vrooli.swarm_manager.v1.domain.Settings.LaneConcurrencyLimitsEntry
 }
 var file_swarm_manager_v1_domain_settings_proto_depIdxs = []int32{
-	0, // 0: swarm_manager.v1.DeleteConfirmationSettings.backlog:type_name -> swarm_manager.v1.DeleteConfirmLevel
-	0, // 1: swarm_manager.v1.DeleteConfirmationSettings.initiative:type_name -> swarm_manager.v1.DeleteConfirmLevel
-	0, // 2: swarm_manager.v1.DeleteConfirmationSettings.capture:type_name -> swarm_manager.v1.DeleteConfirmLevel
-	4, // 3: swarm_manager.v1.Settings.delete_confirmation_levels:type_name -> swarm_manager.v1.Settings.DeleteConfirmationLevelsEntry
-	5, // 4: swarm_manager.v1.Settings.lane_concurrency_limits:type_name -> swarm_manager.v1.Settings.LaneConcurrencyLimitsEntry
-	2, // 5: swarm_manager.v1.Settings.auto_filer:type_name -> swarm_manager.v1.AutoFilerSettings
-	0, // 6: swarm_manager.v1.Settings.DeleteConfirmationLevelsEntry.value:type_name -> swarm_manager.v1.DeleteConfirmLevel
+	0, // 0: vrooli.swarm_manager.v1.domain.DeleteConfirmationSettings.backlog:type_name -> vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
+	0, // 1: vrooli.swarm_manager.v1.domain.DeleteConfirmationSettings.initiative:type_name -> vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
+	0, // 2: vrooli.swarm_manager.v1.domain.DeleteConfirmationSettings.capture:type_name -> vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
+	4, // 3: vrooli.swarm_manager.v1.domain.Settings.delete_confirmation_levels:type_name -> vrooli.swarm_manager.v1.domain.Settings.DeleteConfirmationLevelsEntry
+	5, // 4: vrooli.swarm_manager.v1.domain.Settings.lane_concurrency_limits:type_name -> vrooli.swarm_manager.v1.domain.Settings.LaneConcurrencyLimitsEntry
+	2, // 5: vrooli.swarm_manager.v1.domain.Settings.auto_filer:type_name -> vrooli.swarm_manager.v1.domain.AutoFilerSettings
+	0, // 6: vrooli.swarm_manager.v1.domain.Settings.DeleteConfirmationLevelsEntry.value:type_name -> vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
 	7, // [7:7] is the sub-list for method output_type
 	7, // [7:7] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name

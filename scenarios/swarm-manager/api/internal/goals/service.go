@@ -226,7 +226,7 @@ func (s *Service) ClosureRefs(name string) ([]string, error) {
 }
 
 // ItemGoalPriorities maps each item ref in an active goal's closure to the
-// highest priority among the goals containing it. It backs the execution drain
+// lowest numeric priority among the goals containing it. It backs the execution drain
 // comparator (goal-priority-first, FIFO fallback). Side-effect free.
 func (s *Service) ItemGoalPriorities() (map[string]int, error) {
 	goalsList, err := s.store.LoadAll()
@@ -247,7 +247,7 @@ func (s *Service) ItemGoalPriorities() (map[string]int, error) {
 		gin.Targets = g.Targets
 		gin.Milestones = g.Milestones
 		for _, ref := range ComputeScope(gin).Closure {
-			if p, ok := out[ref]; !ok || g.Priority > p {
+			if p, ok := out[ref]; !ok || g.Priority < p {
 				out[ref] = g.Priority
 			}
 		}
@@ -255,8 +255,8 @@ func (s *Service) ItemGoalPriorities() (map[string]int, error) {
 	return out, nil
 }
 
-// ReadyGoalItems returns the ready-to-run items across all active goals, highest
-// goal priority first (then ref, for determinism). It backs the continuous
+// ReadyGoalItems returns the ready-to-run items across all active goals, lowest
+// numeric goal priority first (then ref, for determinism). It backs the continuous
 // auto-enqueue drain. Side-effect free.
 func (s *Service) ReadyGoalItems() ([]ReadyGoalItem, error) {
 	goalsList, err := s.store.LoadAll()
@@ -277,7 +277,7 @@ func (s *Service) ReadyGoalItems() ([]ReadyGoalItem, error) {
 		gin.Targets = g.Targets
 		gin.Milestones = g.Milestones
 		for _, ref := range ComputeScope(gin).Ready {
-			if p, ok := best[ref]; !ok || g.Priority > p {
+			if p, ok := best[ref]; !ok || g.Priority < p {
 				best[ref] = g.Priority
 			}
 		}
@@ -292,7 +292,7 @@ func (s *Service) ReadyGoalItems() ([]ReadyGoalItem, error) {
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].GoalPriority != out[j].GoalPriority {
-			return out[i].GoalPriority > out[j].GoalPriority
+			return out[i].GoalPriority < out[j].GoalPriority
 		}
 		if out[i].Kind != out[j].Kind {
 			return out[i].Kind < out[j].Kind

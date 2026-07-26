@@ -323,13 +323,13 @@ var File_swarm_manager_v1_api_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_execution_proto_rawDesc = "" +
 	"\n" +
-	"$swarm-manager/v1/api/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a'swarm-manager/v1/domain/execution.proto\"P\n" +
-	"\x15ListExecutionResponse\x127\n" +
-	"\x05items\x18\x01 \x03(\v2!.swarm_manager.v1.ExecutionRecordR\x05items\"T\n" +
-	"\x11ExecutionResponse\x12?\n" +
-	"\texecution\x18\x01 \x01(\v2!.swarm_manager.v1.ExecutionRecordR\texecution\"T\n" +
-	"\x17ExecutionPolicyResponse\x129\n" +
-	"\x06policy\x18\x01 \x01(\v2!.swarm_manager.v1.ExecutionPolicyR\x06policy\"\xef\x02\n" +
+	"$swarm-manager/v1/api/execution.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a'swarm-manager/v1/domain/execution.proto\"^\n" +
+	"\x15ListExecutionResponse\x12E\n" +
+	"\x05items\x18\x01 \x03(\v2/.vrooli.swarm_manager.v1.domain.ExecutionRecordR\x05items\"b\n" +
+	"\x11ExecutionResponse\x12M\n" +
+	"\texecution\x18\x01 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionRecordR\texecution\"b\n" +
+	"\x17ExecutionPolicyResponse\x12G\n" +
+	"\x06policy\x18\x01 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionPolicyR\x06policy\"\xef\x02\n" +
 	"\x16CreateExecutionRequest\x12*\n" +
 	"\fbacklog_kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12'\n" +
@@ -367,18 +367,18 @@ func file_swarm_manager_v1_api_execution_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_swarm_manager_v1_api_execution_proto_goTypes = []any{
-	(*ListExecutionResponse)(nil),    // 0: swarm_manager.v1.ListExecutionResponse
-	(*ExecutionResponse)(nil),        // 1: swarm_manager.v1.ExecutionResponse
-	(*ExecutionPolicyResponse)(nil),  // 2: swarm_manager.v1.ExecutionPolicyResponse
-	(*CreateExecutionRequest)(nil),   // 3: swarm_manager.v1.CreateExecutionRequest
-	(*FollowUpExecutionRequest)(nil), // 4: swarm_manager.v1.FollowUpExecutionRequest
-	(*domain.ExecutionRecord)(nil),   // 5: swarm_manager.v1.ExecutionRecord
-	(*domain.ExecutionPolicy)(nil),   // 6: swarm_manager.v1.ExecutionPolicy
+	(*ListExecutionResponse)(nil),    // 0: vrooli.swarm_manager.v1.api.ListExecutionResponse
+	(*ExecutionResponse)(nil),        // 1: vrooli.swarm_manager.v1.api.ExecutionResponse
+	(*ExecutionPolicyResponse)(nil),  // 2: vrooli.swarm_manager.v1.api.ExecutionPolicyResponse
+	(*CreateExecutionRequest)(nil),   // 3: vrooli.swarm_manager.v1.api.CreateExecutionRequest
+	(*FollowUpExecutionRequest)(nil), // 4: vrooli.swarm_manager.v1.api.FollowUpExecutionRequest
+	(*domain.ExecutionRecord)(nil),   // 5: vrooli.swarm_manager.v1.domain.ExecutionRecord
+	(*domain.ExecutionPolicy)(nil),   // 6: vrooli.swarm_manager.v1.domain.ExecutionPolicy
 }
 var file_swarm_manager_v1_api_execution_proto_depIdxs = []int32{
-	5, // 0: swarm_manager.v1.ListExecutionResponse.items:type_name -> swarm_manager.v1.ExecutionRecord
-	5, // 1: swarm_manager.v1.ExecutionResponse.execution:type_name -> swarm_manager.v1.ExecutionRecord
-	6, // 2: swarm_manager.v1.ExecutionPolicyResponse.policy:type_name -> swarm_manager.v1.ExecutionPolicy
+	5, // 0: vrooli.swarm_manager.v1.api.ListExecutionResponse.items:type_name -> vrooli.swarm_manager.v1.domain.ExecutionRecord
+	5, // 1: vrooli.swarm_manager.v1.api.ExecutionResponse.execution:type_name -> vrooli.swarm_manager.v1.domain.ExecutionRecord
+	6, // 2: vrooli.swarm_manager.v1.api.ExecutionPolicyResponse.policy:type_name -> vrooli.swarm_manager.v1.domain.ExecutionPolicy
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

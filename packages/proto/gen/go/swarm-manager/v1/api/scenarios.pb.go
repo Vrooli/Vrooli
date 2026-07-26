@@ -638,7 +638,7 @@ func (x *ScenarioReviewQueueRequest) GetExcludeTag() string {
 // ScenarioReviewQueueItem represents a single scenario's review priority.
 type ScenarioReviewQueueItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Scenario name.
+	// domain.Scenario name.
 	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Number of pending (non-terminal) backlog items targeting this scenario.
 	PendingBacklogCount int32 `protobuf:"varint,2,opt,name=pending_backlog_count,json=pendingBacklogCount,proto3" json:"pending_backlog_count,omitempty"`
@@ -812,20 +812,20 @@ var File_swarm_manager_v1_api_scenarios_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\n" +
-	"$swarm-manager/v1/api/scenarios.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/scenario.proto\"Q\n" +
-	"\x15ListScenariosResponse\x128\n" +
-	"\tscenarios\x18\x01 \x03(\v2\x1a.swarm_manager.v1.ScenarioR\tscenarios\"J\n" +
-	"\x10ScenarioResponse\x126\n" +
-	"\bscenario\x18\x01 \x01(\v2\x1a.swarm_manager.v1.ScenarioR\bscenario\"[\n" +
+	"$swarm-manager/v1/api/scenarios.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/scenario.proto\"_\n" +
+	"\x15ListScenariosResponse\x12F\n" +
+	"\tscenarios\x18\x01 \x03(\v2(.vrooli.swarm_manager.v1.domain.ScenarioR\tscenarios\"X\n" +
+	"\x10ScenarioResponse\x12D\n" +
+	"\bscenario\x18\x01 \x01(\v2(.vrooli.swarm_manager.v1.domain.ScenarioR\bscenario\"[\n" +
 	"\x1dUpdateScenarioMetadataRequest\x12(\n" +
 	"\ris_greenfield\x18\x01 \x01(\bH\x00R\fisGreenfield\x88\x01\x01B\x10\n" +
 	"\x0e_is_greenfield\"\x92\x01\n" +
 	"\x14PreserveFilesRequest\x12\x14\n" +
 	"\x05paths\x18\x01 \x03(\tR\x05paths\x12Y\n" +
 	"\x06preset\x18\x02 \x01(\tB<\xbaH9r7R\x00R\rdocumentationR\frequirementsR\bplanningR\fall-planningH\x00R\x06preset\x88\x01\x01B\t\n" +
-	"\a_preset\"~\n" +
-	"\x15DeleteScenarioRequest\x12R\n" +
-	"\x0epreserve_files\x18\x01 \x01(\v2&.swarm_manager.v1.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
+	"\a_preset\"\x89\x01\n" +
+	"\x15DeleteScenarioRequest\x12]\n" +
+	"\x0epreserve_files\x18\x01 \x01(\v21.vrooli.swarm_manager.v1.api.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
 	"\x0f_preserve_files\"\xe4\x01\n" +
 	"\x16DeleteScenarioResponse\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1a\n" +
@@ -833,18 +833,18 @@ const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\x12/\n" +
 	"\x11backlog_idea_name\x18\x04 \x01(\tH\x00R\x0fbacklogIdeaName\x88\x01\x01\x12'\n" +
 	"\x0fpreserved_files\x18\x05 \x03(\tR\x0epreservedFilesB\x14\n" +
-	"\x12_backlog_idea_name\"\xd2\x01\n" +
+	"\x12_backlog_idea_name\"\xdd\x01\n" +
 	"\fScenarioFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
 	"\x04path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12*\n" +
 	"\x04type\x18\x03 \x01(\tB\x16\xbaH\x13r\x11R\x04fileR\tdirectoryR\x04type\x12\x17\n" +
-	"\x04size\x18\x04 \x01(\x03H\x00R\x04size\x88\x01\x01\x12:\n" +
-	"\bchildren\x18\x05 \x03(\v2\x1e.swarm_manager.v1.ScenarioFileR\bchildrenB\a\n" +
-	"\x05_size\"M\n" +
-	"\x15ScenarioFilesResponse\x124\n" +
-	"\x05files\x18\x01 \x03(\v2\x1e.swarm_manager.v1.ScenarioFileR\x05files\"\x7f\n" +
-	"\x16SpecSyncArchiveRequest\x12R\n" +
-	"\x0epreserve_files\x18\x01 \x01(\v2&.swarm_manager.v1.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
+	"\x04size\x18\x04 \x01(\x03H\x00R\x04size\x88\x01\x01\x12E\n" +
+	"\bchildren\x18\x05 \x03(\v2).vrooli.swarm_manager.v1.api.ScenarioFileR\bchildrenB\a\n" +
+	"\x05_size\"X\n" +
+	"\x15ScenarioFilesResponse\x12?\n" +
+	"\x05files\x18\x01 \x03(\v2).vrooli.swarm_manager.v1.api.ScenarioFileR\x05files\"\x8a\x01\n" +
+	"\x16SpecSyncArchiveRequest\x12]\n" +
+	"\x0epreserve_files\x18\x01 \x01(\v21.vrooli.swarm_manager.v1.api.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
 	"\x0f_preserve_files\"\x89\x01\n" +
 	"\x17SpecSyncArchiveResponse\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12\x1f\n" +
@@ -867,9 +867,9 @@ const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\x0ecooldown_until\x18\b \x01(\tH\x02R\rcooldownUntil\x88\x01\x01B\x1d\n" +
 	"\x1b_last_review_classificationB\x11\n" +
 	"\x0f_last_review_atB\x11\n" +
-	"\x0f_cooldown_until\"\xae\x01\n" +
-	"\x1bScenarioReviewQueueResponse\x12?\n" +
-	"\x05items\x18\x01 \x03(\v2).swarm_manager.v1.ScenarioReviewQueueItemR\x05items\x12'\n" +
+	"\x0f_cooldown_until\"\xb9\x01\n" +
+	"\x1bScenarioReviewQueueResponse\x12J\n" +
+	"\x05items\x18\x01 \x03(\v24.vrooli.swarm_manager.v1.api.ScenarioReviewQueueItemR\x05items\x12'\n" +
 	"\x0ftotal_scenarios\x18\x02 \x01(\x05R\x0etotalScenarios\x12%\n" +
 	"\x0eexcluded_count\x18\x03 \x01(\x05R\rexcludedCountBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
@@ -887,29 +887,29 @@ func file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_scenarios_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_swarm_manager_v1_api_scenarios_proto_goTypes = []any{
-	(*ListScenariosResponse)(nil),         // 0: swarm_manager.v1.ListScenariosResponse
-	(*ScenarioResponse)(nil),              // 1: swarm_manager.v1.ScenarioResponse
-	(*UpdateScenarioMetadataRequest)(nil), // 2: swarm_manager.v1.UpdateScenarioMetadataRequest
-	(*PreserveFilesRequest)(nil),          // 3: swarm_manager.v1.PreserveFilesRequest
-	(*DeleteScenarioRequest)(nil),         // 4: swarm_manager.v1.DeleteScenarioRequest
-	(*DeleteScenarioResponse)(nil),        // 5: swarm_manager.v1.DeleteScenarioResponse
-	(*ScenarioFile)(nil),                  // 6: swarm_manager.v1.ScenarioFile
-	(*ScenarioFilesResponse)(nil),         // 7: swarm_manager.v1.ScenarioFilesResponse
-	(*SpecSyncArchiveRequest)(nil),        // 8: swarm_manager.v1.SpecSyncArchiveRequest
-	(*SpecSyncArchiveResponse)(nil),       // 9: swarm_manager.v1.SpecSyncArchiveResponse
-	(*ScenarioReviewQueueRequest)(nil),    // 10: swarm_manager.v1.ScenarioReviewQueueRequest
-	(*ScenarioReviewQueueItem)(nil),       // 11: swarm_manager.v1.ScenarioReviewQueueItem
-	(*ScenarioReviewQueueResponse)(nil),   // 12: swarm_manager.v1.ScenarioReviewQueueResponse
-	(*domain.Scenario)(nil),               // 13: swarm_manager.v1.Scenario
+	(*ListScenariosResponse)(nil),         // 0: vrooli.swarm_manager.v1.api.ListScenariosResponse
+	(*ScenarioResponse)(nil),              // 1: vrooli.swarm_manager.v1.api.ScenarioResponse
+	(*UpdateScenarioMetadataRequest)(nil), // 2: vrooli.swarm_manager.v1.api.UpdateScenarioMetadataRequest
+	(*PreserveFilesRequest)(nil),          // 3: vrooli.swarm_manager.v1.api.PreserveFilesRequest
+	(*DeleteScenarioRequest)(nil),         // 4: vrooli.swarm_manager.v1.api.DeleteScenarioRequest
+	(*DeleteScenarioResponse)(nil),        // 5: vrooli.swarm_manager.v1.api.DeleteScenarioResponse
+	(*ScenarioFile)(nil),                  // 6: vrooli.swarm_manager.v1.api.ScenarioFile
+	(*ScenarioFilesResponse)(nil),         // 7: vrooli.swarm_manager.v1.api.ScenarioFilesResponse
+	(*SpecSyncArchiveRequest)(nil),        // 8: vrooli.swarm_manager.v1.api.SpecSyncArchiveRequest
+	(*SpecSyncArchiveResponse)(nil),       // 9: vrooli.swarm_manager.v1.api.SpecSyncArchiveResponse
+	(*ScenarioReviewQueueRequest)(nil),    // 10: vrooli.swarm_manager.v1.api.ScenarioReviewQueueRequest
+	(*ScenarioReviewQueueItem)(nil),       // 11: vrooli.swarm_manager.v1.api.ScenarioReviewQueueItem
+	(*ScenarioReviewQueueResponse)(nil),   // 12: vrooli.swarm_manager.v1.api.ScenarioReviewQueueResponse
+	(*domain.Scenario)(nil),               // 13: vrooli.swarm_manager.v1.domain.Scenario
 }
 var file_swarm_manager_v1_api_scenarios_proto_depIdxs = []int32{
-	13, // 0: swarm_manager.v1.ListScenariosResponse.scenarios:type_name -> swarm_manager.v1.Scenario
-	13, // 1: swarm_manager.v1.ScenarioResponse.scenario:type_name -> swarm_manager.v1.Scenario
-	3,  // 2: swarm_manager.v1.DeleteScenarioRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
-	6,  // 3: swarm_manager.v1.ScenarioFile.children:type_name -> swarm_manager.v1.ScenarioFile
-	6,  // 4: swarm_manager.v1.ScenarioFilesResponse.files:type_name -> swarm_manager.v1.ScenarioFile
-	3,  // 5: swarm_manager.v1.SpecSyncArchiveRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
-	11, // 6: swarm_manager.v1.ScenarioReviewQueueResponse.items:type_name -> swarm_manager.v1.ScenarioReviewQueueItem
+	13, // 0: vrooli.swarm_manager.v1.api.ListScenariosResponse.scenarios:type_name -> vrooli.swarm_manager.v1.domain.Scenario
+	13, // 1: vrooli.swarm_manager.v1.api.ScenarioResponse.scenario:type_name -> vrooli.swarm_manager.v1.domain.Scenario
+	3,  // 2: vrooli.swarm_manager.v1.api.DeleteScenarioRequest.preserve_files:type_name -> vrooli.swarm_manager.v1.api.PreserveFilesRequest
+	6,  // 3: vrooli.swarm_manager.v1.api.ScenarioFile.children:type_name -> vrooli.swarm_manager.v1.api.ScenarioFile
+	6,  // 4: vrooli.swarm_manager.v1.api.ScenarioFilesResponse.files:type_name -> vrooli.swarm_manager.v1.api.ScenarioFile
+	3,  // 5: vrooli.swarm_manager.v1.api.SpecSyncArchiveRequest.preserve_files:type_name -> vrooli.swarm_manager.v1.api.PreserveFilesRequest
+	11, // 6: vrooli.swarm_manager.v1.api.ScenarioReviewQueueResponse.items:type_name -> vrooli.swarm_manager.v1.api.ScenarioReviewQueueItem
 	7,  // [7:7] is the sub-list for method output_type
 	7,  // [7:7] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name

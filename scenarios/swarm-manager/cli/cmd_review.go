@@ -10,7 +10,7 @@ import (
 )
 
 func (a *App) cmdReviewList(args []string) error {
-	fs := flag.NewFlagSet("review-list", flag.ContinueOnError)
+	fs := flag.NewFlagSet("review list", flag.ContinueOnError)
 	kind := fs.String("kind", "", "Backlog kind (required)")
 	name := fs.String("name", "", "Backlog name (required)")
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -18,7 +18,7 @@ func (a *App) cmdReviewList(args []string) error {
 		return err
 	}
 	if *kind == "" || *name == "" {
-		return fmt.Errorf("usage: review-list --kind KIND --name NAME [--json]")
+		return fmt.Errorf("usage: review list --kind KIND --name NAME [--json]")
 	}
 
 	body, err := a.core.Get(fmt.Sprintf("/backlog/%s/%s/review", *kind, *name), nil)
@@ -84,7 +84,7 @@ func (a *App) cmdReviewList(args []string) error {
 }
 
 func (a *App) cmdReviewVerify(args []string) error {
-	fs := flag.NewFlagSet("review-verify", flag.ContinueOnError)
+	fs := flag.NewFlagSet("review verify", flag.ContinueOnError)
 	kind := fs.String("kind", "", "Backlog kind (required)")
 	name := fs.String("name", "", "Backlog name (required)")
 	round := fs.Int("round", 0, "Round number (required)")
@@ -94,7 +94,7 @@ func (a *App) cmdReviewVerify(args []string) error {
 		return err
 	}
 	if *kind == "" || *name == "" || *round == 0 || *evidenceID == "" {
-		return fmt.Errorf("usage: review-verify --kind KIND --name NAME --round N --evidence-id ID [--unverify]")
+		return fmt.Errorf("usage: review verify --kind KIND --name NAME --round N --evidence-id ID [--unverify]")
 	}
 
 	verified := !*unverify
@@ -114,7 +114,7 @@ func (a *App) cmdReviewVerify(args []string) error {
 }
 
 func (a *App) cmdReviewRequest(args []string) error {
-	fs := flag.NewFlagSet("review-request", flag.ContinueOnError)
+	fs := flag.NewFlagSet("review request", flag.ContinueOnError)
 	kind := fs.String("kind", "", "Backlog kind (required)")
 	name := fs.String("name", "", "Backlog name (required)")
 	round := fs.Int("round", 0, "Round number (required)")
@@ -125,7 +125,7 @@ func (a *App) cmdReviewRequest(args []string) error {
 		return err
 	}
 	if *kind == "" || *name == "" || *round == 0 || *message == "" {
-		return fmt.Errorf("usage: review-request --kind KIND --name NAME --round N --message MSG [--evidence-id ID] [--json]")
+		return fmt.Errorf("usage: review request --kind KIND --name NAME --round N --message MSG [--evidence-id ID] [--json]")
 	}
 
 	payload := map[string]any{
@@ -156,7 +156,7 @@ func (a *App) cmdReviewRequest(args []string) error {
 }
 
 func (a *App) cmdReviewTrigger(args []string) error {
-	fs := flag.NewFlagSet("review-trigger", flag.ContinueOnError)
+	fs := flag.NewFlagSet("review trigger", flag.ContinueOnError)
 	execID := fs.String("id", "", "Execution ID (required)")
 	kind := fs.String("kind", "", "Backlog kind (required)")
 	name := fs.String("name", "", "Backlog name (required)")
@@ -164,7 +164,7 @@ func (a *App) cmdReviewTrigger(args []string) error {
 		return err
 	}
 	if *execID == "" || *kind == "" || *name == "" {
-		return fmt.Errorf("usage: review-trigger --id EXECUTION_ID --kind KIND --name NAME")
+		return fmt.Errorf("usage: review trigger --id EXECUTION_ID --kind KIND --name NAME")
 	}
 
 	payload := map[string]any{

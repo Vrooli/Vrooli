@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "swarm-manager/v1/domain/plan.proto";
 
@@ -10,9 +10,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // PLAN API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports plan
 // @stability beta
 //
 // HTTP API contract for the Swarm Manager Plan lens board projection
@@ -23,9 +20,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 
 // PlanBoardResponse is the full Plan-lens board projection.
 message PlanBoardResponse {
-  PlanNowSummary now = 1;
-  PlanColumn next = 2;
-  PlanColumn later = 3;
-  PlanColumn done = 4;
-  PlanBoardMeta meta = 5;
+  domain.PlanNowSummary now = 1;
+  domain.PlanColumn next = 2;
+  domain.PlanColumn later = 3;
+  domain.PlanColumn done = 4;
+  domain.PlanBoardMeta meta = 5;
 }

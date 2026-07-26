@@ -1,8 +1,9 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
+import "swarm-manager/v1/shared/goal.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -14,22 +15,12 @@ message Goal {
   string status = 4;
   int32 priority = 5;
   repeated string targets = 6;
-  repeated Milestone milestones = 7;
+  repeated shared.Milestone milestones = 7;
   string created = 8;
   string updated = 9;
   optional string archived_at = 10;
 }
 
-// Milestone is an owned, non-nestable goal subdivision.
-message Milestone {
-  string name = 1 [(buf.validate.field).string.min_len = 1];
-  string title = 2 [(buf.validate.field).string.min_len = 1];
-  string description = 3;
-  repeated string items = 4;
-  repeated string acceptance_criteria = 5;
-  repeated string depends_on = 6;
-  optional string archived_at = 7;
-}
 
 message MilestoneRollup {
   string milestone_name = 1;

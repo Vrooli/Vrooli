@@ -1,12 +1,14 @@
 import type {
   AgentSession,
+  AgentSessionMessage,
+  AgentSessionProposal,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/agent_session_pb";
+import type {
   AgentSessionArtifact,
   AgentSessionAttribution,
   AgentSessionAttachment,
   AgentSessionContextItem,
-  AgentSessionMessage,
-  AgentSessionProposal,
-} from "@vrooli/proto-types/swarm-manager/v1/domain/agent_session_pb";
+} from "@vrooli/proto-types/swarm-manager/v1/shared/agent_session_pb";
 import {
   ApplyAgentSessionProposalResponseSchema,
   CancelAgentSessionResponseSchema,

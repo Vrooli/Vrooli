@@ -22,7 +22,7 @@ const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// GoalServiceName is the fully-qualified name of the GoalService service.
-	GoalServiceName = "swarm_manager.v1.GoalService"
+	GoalServiceName = "vrooli.swarm_manager.v1.api.GoalService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -34,54 +34,54 @@ const (
 // period.
 const (
 	// GoalServiceListGoalsProcedure is the fully-qualified name of the GoalService's ListGoals RPC.
-	GoalServiceListGoalsProcedure = "/swarm_manager.v1.GoalService/ListGoals"
+	GoalServiceListGoalsProcedure = "/vrooli.swarm_manager.v1.api.GoalService/ListGoals"
 	// GoalServiceGetGoalProcedure is the fully-qualified name of the GoalService's GetGoal RPC.
-	GoalServiceGetGoalProcedure = "/swarm_manager.v1.GoalService/GetGoal"
+	GoalServiceGetGoalProcedure = "/vrooli.swarm_manager.v1.api.GoalService/GetGoal"
 	// GoalServiceCreateGoalProcedure is the fully-qualified name of the GoalService's CreateGoal RPC.
-	GoalServiceCreateGoalProcedure = "/swarm_manager.v1.GoalService/CreateGoal"
+	GoalServiceCreateGoalProcedure = "/vrooli.swarm_manager.v1.api.GoalService/CreateGoal"
 	// GoalServiceUpdateGoalProcedure is the fully-qualified name of the GoalService's UpdateGoal RPC.
-	GoalServiceUpdateGoalProcedure = "/swarm_manager.v1.GoalService/UpdateGoal"
+	GoalServiceUpdateGoalProcedure = "/vrooli.swarm_manager.v1.api.GoalService/UpdateGoal"
 	// GoalServiceDeleteGoalProcedure is the fully-qualified name of the GoalService's DeleteGoal RPC.
-	GoalServiceDeleteGoalProcedure = "/swarm_manager.v1.GoalService/DeleteGoal"
+	GoalServiceDeleteGoalProcedure = "/vrooli.swarm_manager.v1.api.GoalService/DeleteGoal"
 	// GoalServiceArchiveGoalProcedure is the fully-qualified name of the GoalService's ArchiveGoal RPC.
-	GoalServiceArchiveGoalProcedure = "/swarm_manager.v1.GoalService/ArchiveGoal"
+	GoalServiceArchiveGoalProcedure = "/vrooli.swarm_manager.v1.api.GoalService/ArchiveGoal"
 	// GoalServiceUnarchiveGoalProcedure is the fully-qualified name of the GoalService's UnarchiveGoal
 	// RPC.
-	GoalServiceUnarchiveGoalProcedure = "/swarm_manager.v1.GoalService/UnarchiveGoal"
+	GoalServiceUnarchiveGoalProcedure = "/vrooli.swarm_manager.v1.api.GoalService/UnarchiveGoal"
 	// GoalServiceAddTargetsProcedure is the fully-qualified name of the GoalService's AddTargets RPC.
-	GoalServiceAddTargetsProcedure = "/swarm_manager.v1.GoalService/AddTargets"
+	GoalServiceAddTargetsProcedure = "/vrooli.swarm_manager.v1.api.GoalService/AddTargets"
 	// GoalServiceRemoveTargetsProcedure is the fully-qualified name of the GoalService's RemoveTargets
 	// RPC.
-	GoalServiceRemoveTargetsProcedure = "/swarm_manager.v1.GoalService/RemoveTargets"
+	GoalServiceRemoveTargetsProcedure = "/vrooli.swarm_manager.v1.api.GoalService/RemoveTargets"
 	// GoalServiceCreateMilestoneProcedure is the fully-qualified name of the GoalService's
 	// CreateMilestone RPC.
-	GoalServiceCreateMilestoneProcedure = "/swarm_manager.v1.GoalService/CreateMilestone"
+	GoalServiceCreateMilestoneProcedure = "/vrooli.swarm_manager.v1.api.GoalService/CreateMilestone"
 	// GoalServiceUpdateMilestoneProcedure is the fully-qualified name of the GoalService's
 	// UpdateMilestone RPC.
-	GoalServiceUpdateMilestoneProcedure = "/swarm_manager.v1.GoalService/UpdateMilestone"
+	GoalServiceUpdateMilestoneProcedure = "/vrooli.swarm_manager.v1.api.GoalService/UpdateMilestone"
 	// GoalServiceArchiveMilestoneProcedure is the fully-qualified name of the GoalService's
 	// ArchiveMilestone RPC.
-	GoalServiceArchiveMilestoneProcedure = "/swarm_manager.v1.GoalService/ArchiveMilestone"
+	GoalServiceArchiveMilestoneProcedure = "/vrooli.swarm_manager.v1.api.GoalService/ArchiveMilestone"
 	// GoalServiceAssignMilestoneItemsProcedure is the fully-qualified name of the GoalService's
 	// AssignMilestoneItems RPC.
-	GoalServiceAssignMilestoneItemsProcedure = "/swarm_manager.v1.GoalService/AssignMilestoneItems"
+	GoalServiceAssignMilestoneItemsProcedure = "/vrooli.swarm_manager.v1.api.GoalService/AssignMilestoneItems"
 	// GoalServiceUnassignMilestoneItemsProcedure is the fully-qualified name of the GoalService's
 	// UnassignMilestoneItems RPC.
-	GoalServiceUnassignMilestoneItemsProcedure = "/swarm_manager.v1.GoalService/UnassignMilestoneItems"
+	GoalServiceUnassignMilestoneItemsProcedure = "/vrooli.swarm_manager.v1.api.GoalService/UnassignMilestoneItems"
 	// GoalServiceGetScopeProcedure is the fully-qualified name of the GoalService's GetScope RPC.
-	GoalServiceGetScopeProcedure = "/swarm_manager.v1.GoalService/GetScope"
+	GoalServiceGetScopeProcedure = "/vrooli.swarm_manager.v1.api.GoalService/GetScope"
 	// GoalServiceCloseOutGoalProcedure is the fully-qualified name of the GoalService's CloseOutGoal
 	// RPC.
-	GoalServiceCloseOutGoalProcedure = "/swarm_manager.v1.GoalService/CloseOutGoal"
+	GoalServiceCloseOutGoalProcedure = "/vrooli.swarm_manager.v1.api.GoalService/CloseOutGoal"
 	// GoalServiceListPendingGoalWorkflowsProcedure is the fully-qualified name of the GoalService's
 	// ListPendingGoalWorkflows RPC.
-	GoalServiceListPendingGoalWorkflowsProcedure = "/swarm_manager.v1.GoalService/ListPendingGoalWorkflows"
+	GoalServiceListPendingGoalWorkflowsProcedure = "/vrooli.swarm_manager.v1.api.GoalService/ListPendingGoalWorkflows"
 	// GoalServiceApplyGoalWorkflowProcedure is the fully-qualified name of the GoalService's
 	// ApplyGoalWorkflow RPC.
-	GoalServiceApplyGoalWorkflowProcedure = "/swarm_manager.v1.GoalService/ApplyGoalWorkflow"
+	GoalServiceApplyGoalWorkflowProcedure = "/vrooli.swarm_manager.v1.api.GoalService/ApplyGoalWorkflow"
 )
 
-// GoalServiceClient is a client for the swarm_manager.v1.GoalService service.
+// GoalServiceClient is a client for the vrooli.swarm_manager.v1.api.GoalService service.
 type GoalServiceClient interface {
 	ListGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error)
 	GetGoal(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalResponse], error)
@@ -110,9 +110,9 @@ type GoalServiceClient interface {
 	ApplyGoalWorkflow(context.Context, *connect.Request[api.ApplyGoalWorkflowRequest]) (*connect.Response[api.ApplyGoalWorkflowResponse], error)
 }
 
-// NewGoalServiceClient constructs a client for the swarm_manager.v1.GoalService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// NewGoalServiceClient constructs a client for the vrooli.swarm_manager.v1.api.GoalService service.
+// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
+// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
 // connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
@@ -254,97 +254,97 @@ type goalServiceClient struct {
 	applyGoalWorkflow        *connect.Client[api.ApplyGoalWorkflowRequest, api.ApplyGoalWorkflowResponse]
 }
 
-// ListGoals calls swarm_manager.v1.GoalService.ListGoals.
+// ListGoals calls vrooli.swarm_manager.v1.api.GoalService.ListGoals.
 func (c *goalServiceClient) ListGoals(ctx context.Context, req *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error) {
 	return c.listGoals.CallUnary(ctx, req)
 }
 
-// GetGoal calls swarm_manager.v1.GoalService.GetGoal.
+// GetGoal calls vrooli.swarm_manager.v1.api.GoalService.GetGoal.
 func (c *goalServiceClient) GetGoal(ctx context.Context, req *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.getGoal.CallUnary(ctx, req)
 }
 
-// CreateGoal calls swarm_manager.v1.GoalService.CreateGoal.
+// CreateGoal calls vrooli.swarm_manager.v1.api.GoalService.CreateGoal.
 func (c *goalServiceClient) CreateGoal(ctx context.Context, req *connect.Request[api.CreateGoalRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.createGoal.CallUnary(ctx, req)
 }
 
-// UpdateGoal calls swarm_manager.v1.GoalService.UpdateGoal.
+// UpdateGoal calls vrooli.swarm_manager.v1.api.GoalService.UpdateGoal.
 func (c *goalServiceClient) UpdateGoal(ctx context.Context, req *connect.Request[api.UpdateGoalRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.updateGoal.CallUnary(ctx, req)
 }
 
-// DeleteGoal calls swarm_manager.v1.GoalService.DeleteGoal.
+// DeleteGoal calls vrooli.swarm_manager.v1.api.GoalService.DeleteGoal.
 func (c *goalServiceClient) DeleteGoal(ctx context.Context, req *connect.Request[api.DeleteGoalRequest]) (*connect.Response[api.EmptyGoalResponse], error) {
 	return c.deleteGoal.CallUnary(ctx, req)
 }
 
-// ArchiveGoal calls swarm_manager.v1.GoalService.ArchiveGoal.
+// ArchiveGoal calls vrooli.swarm_manager.v1.api.GoalService.ArchiveGoal.
 func (c *goalServiceClient) ArchiveGoal(ctx context.Context, req *connect.Request[api.ArchiveGoalRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.archiveGoal.CallUnary(ctx, req)
 }
 
-// UnarchiveGoal calls swarm_manager.v1.GoalService.UnarchiveGoal.
+// UnarchiveGoal calls vrooli.swarm_manager.v1.api.GoalService.UnarchiveGoal.
 func (c *goalServiceClient) UnarchiveGoal(ctx context.Context, req *connect.Request[api.UnarchiveGoalRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.unarchiveGoal.CallUnary(ctx, req)
 }
 
-// AddTargets calls swarm_manager.v1.GoalService.AddTargets.
+// AddTargets calls vrooli.swarm_manager.v1.api.GoalService.AddTargets.
 func (c *goalServiceClient) AddTargets(ctx context.Context, req *connect.Request[api.UpdateGoalTargetsRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.addTargets.CallUnary(ctx, req)
 }
 
-// RemoveTargets calls swarm_manager.v1.GoalService.RemoveTargets.
+// RemoveTargets calls vrooli.swarm_manager.v1.api.GoalService.RemoveTargets.
 func (c *goalServiceClient) RemoveTargets(ctx context.Context, req *connect.Request[api.UpdateGoalTargetsRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.removeTargets.CallUnary(ctx, req)
 }
 
-// CreateMilestone calls swarm_manager.v1.GoalService.CreateMilestone.
+// CreateMilestone calls vrooli.swarm_manager.v1.api.GoalService.CreateMilestone.
 func (c *goalServiceClient) CreateMilestone(ctx context.Context, req *connect.Request[api.CreateMilestoneRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.createMilestone.CallUnary(ctx, req)
 }
 
-// UpdateMilestone calls swarm_manager.v1.GoalService.UpdateMilestone.
+// UpdateMilestone calls vrooli.swarm_manager.v1.api.GoalService.UpdateMilestone.
 func (c *goalServiceClient) UpdateMilestone(ctx context.Context, req *connect.Request[api.UpdateMilestoneRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.updateMilestone.CallUnary(ctx, req)
 }
 
-// ArchiveMilestone calls swarm_manager.v1.GoalService.ArchiveMilestone.
+// ArchiveMilestone calls vrooli.swarm_manager.v1.api.GoalService.ArchiveMilestone.
 func (c *goalServiceClient) ArchiveMilestone(ctx context.Context, req *connect.Request[api.ArchiveMilestoneRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.archiveMilestone.CallUnary(ctx, req)
 }
 
-// AssignMilestoneItems calls swarm_manager.v1.GoalService.AssignMilestoneItems.
+// AssignMilestoneItems calls vrooli.swarm_manager.v1.api.GoalService.AssignMilestoneItems.
 func (c *goalServiceClient) AssignMilestoneItems(ctx context.Context, req *connect.Request[api.UpdateMilestoneItemsRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.assignMilestoneItems.CallUnary(ctx, req)
 }
 
-// UnassignMilestoneItems calls swarm_manager.v1.GoalService.UnassignMilestoneItems.
+// UnassignMilestoneItems calls vrooli.swarm_manager.v1.api.GoalService.UnassignMilestoneItems.
 func (c *goalServiceClient) UnassignMilestoneItems(ctx context.Context, req *connect.Request[api.UpdateMilestoneItemsRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.unassignMilestoneItems.CallUnary(ctx, req)
 }
 
-// GetScope calls swarm_manager.v1.GoalService.GetScope.
+// GetScope calls vrooli.swarm_manager.v1.api.GoalService.GetScope.
 func (c *goalServiceClient) GetScope(ctx context.Context, req *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalScopeResponse], error) {
 	return c.getScope.CallUnary(ctx, req)
 }
 
-// CloseOutGoal calls swarm_manager.v1.GoalService.CloseOutGoal.
+// CloseOutGoal calls vrooli.swarm_manager.v1.api.GoalService.CloseOutGoal.
 func (c *goalServiceClient) CloseOutGoal(ctx context.Context, req *connect.Request[api.CloseOutGoalRequest]) (*connect.Response[api.GoalResponse], error) {
 	return c.closeOutGoal.CallUnary(ctx, req)
 }
 
-// ListPendingGoalWorkflows calls swarm_manager.v1.GoalService.ListPendingGoalWorkflows.
+// ListPendingGoalWorkflows calls vrooli.swarm_manager.v1.api.GoalService.ListPendingGoalWorkflows.
 func (c *goalServiceClient) ListPendingGoalWorkflows(ctx context.Context, req *connect.Request[api.ListPendingGoalWorkflowsRequest]) (*connect.Response[api.ListPendingGoalWorkflowsResponse], error) {
 	return c.listPendingGoalWorkflows.CallUnary(ctx, req)
 }
 
-// ApplyGoalWorkflow calls swarm_manager.v1.GoalService.ApplyGoalWorkflow.
+// ApplyGoalWorkflow calls vrooli.swarm_manager.v1.api.GoalService.ApplyGoalWorkflow.
 func (c *goalServiceClient) ApplyGoalWorkflow(ctx context.Context, req *connect.Request[api.ApplyGoalWorkflowRequest]) (*connect.Response[api.ApplyGoalWorkflowResponse], error) {
 	return c.applyGoalWorkflow.CallUnary(ctx, req)
 }
 
-// GoalServiceHandler is an implementation of the swarm_manager.v1.GoalService service.
+// GoalServiceHandler is an implementation of the vrooli.swarm_manager.v1.api.GoalService service.
 type GoalServiceHandler interface {
 	ListGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error)
 	GetGoal(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalResponse], error)
@@ -488,7 +488,7 @@ func NewGoalServiceHandler(svc GoalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(goalServiceMethods.ByName("ApplyGoalWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/swarm_manager.v1.GoalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/vrooli.swarm_manager.v1.api.GoalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case GoalServiceListGoalsProcedure:
 			goalServiceListGoalsHandler.ServeHTTP(w, r)
@@ -536,73 +536,73 @@ func NewGoalServiceHandler(svc GoalServiceHandler, opts ...connect.HandlerOption
 type UnimplementedGoalServiceHandler struct{}
 
 func (UnimplementedGoalServiceHandler) ListGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.ListGoals is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.ListGoals is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) GetGoal(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.GetGoal is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.GetGoal is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) CreateGoal(context.Context, *connect.Request[api.CreateGoalRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.CreateGoal is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.CreateGoal is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) UpdateGoal(context.Context, *connect.Request[api.UpdateGoalRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.UpdateGoal is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.UpdateGoal is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) DeleteGoal(context.Context, *connect.Request[api.DeleteGoalRequest]) (*connect.Response[api.EmptyGoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.DeleteGoal is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.DeleteGoal is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) ArchiveGoal(context.Context, *connect.Request[api.ArchiveGoalRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.ArchiveGoal is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.ArchiveGoal is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) UnarchiveGoal(context.Context, *connect.Request[api.UnarchiveGoalRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.UnarchiveGoal is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.UnarchiveGoal is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) AddTargets(context.Context, *connect.Request[api.UpdateGoalTargetsRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.AddTargets is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.AddTargets is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) RemoveTargets(context.Context, *connect.Request[api.UpdateGoalTargetsRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.RemoveTargets is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.RemoveTargets is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) CreateMilestone(context.Context, *connect.Request[api.CreateMilestoneRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.CreateMilestone is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.CreateMilestone is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) UpdateMilestone(context.Context, *connect.Request[api.UpdateMilestoneRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.UpdateMilestone is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.UpdateMilestone is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) ArchiveMilestone(context.Context, *connect.Request[api.ArchiveMilestoneRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.ArchiveMilestone is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.ArchiveMilestone is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) AssignMilestoneItems(context.Context, *connect.Request[api.UpdateMilestoneItemsRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.AssignMilestoneItems is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.AssignMilestoneItems is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) UnassignMilestoneItems(context.Context, *connect.Request[api.UpdateMilestoneItemsRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.UnassignMilestoneItems is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.UnassignMilestoneItems is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) GetScope(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalScopeResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.GetScope is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.GetScope is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) CloseOutGoal(context.Context, *connect.Request[api.CloseOutGoalRequest]) (*connect.Response[api.GoalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.CloseOutGoal is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.CloseOutGoal is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) ListPendingGoalWorkflows(context.Context, *connect.Request[api.ListPendingGoalWorkflowsRequest]) (*connect.Response[api.ListPendingGoalWorkflowsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.ListPendingGoalWorkflows is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.ListPendingGoalWorkflows is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) ApplyGoalWorkflow(context.Context, *connect.Request[api.ApplyGoalWorkflowRequest]) (*connect.Response[api.ApplyGoalWorkflowResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.GoalService.ApplyGoalWorkflow is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.ApplyGoalWorkflow is not implemented"))
 }

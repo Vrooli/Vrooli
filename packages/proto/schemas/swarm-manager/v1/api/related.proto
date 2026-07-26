@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 

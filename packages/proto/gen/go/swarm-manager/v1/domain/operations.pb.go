@@ -741,15 +741,15 @@ var File_swarm_manager_v1_domain_operations_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_operations_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/domain/operations.proto\x12\x10swarm_manager.v1\"\xf3\x04\n" +
+	"(swarm-manager/v1/domain/operations.proto\x12\x1evrooli.swarm_manager.v1.domain\"\x81\x05\n" +
 	"\x19OperationsBriefingSummary\x122\n" +
 	"\x15active_activity_count\x18\x01 \x01(\x05R\x13activeActivityCount\x126\n" +
 	"\x17recently_finished_count\x18\x02 \x01(\x05R\x15recentlyFinishedCount\x12\x1f\n" +
 	"\vqueue_depth\x18\x03 \x01(\x05R\n" +
 	"queueDepth\x12&\n" +
 	"\x0fmax_queue_depth\x18\x04 \x01(\x05R\rmaxQueueDepth\x12'\n" +
-	"\x0fsaturated_lanes\x18\x05 \x03(\tR\x0esaturatedLanes\x12\x80\x01\n" +
-	"\x19active_lane_count_by_lane\x18\x06 \x03(\v2F.swarm_manager.v1.OperationsBriefingSummary.ActiveLaneCountByLaneEntryR\x15activeLaneCountByLane\x12.\n" +
+	"\x0fsaturated_lanes\x18\x05 \x03(\tR\x0esaturatedLanes\x12\x8e\x01\n" +
+	"\x19active_lane_count_by_lane\x18\x06 \x03(\v2T.vrooli.swarm_manager.v1.domain.OperationsBriefingSummary.ActiveLaneCountByLaneEntryR\x15activeLaneCountByLane\x12.\n" +
 	"\x13total_backlog_items\x18\a \x01(\x05R\x11totalBacklogItems\x12-\n" +
 	"\x12active_initiatives\x18\b \x01(\x05R\x11activeInitiatives\x12#\n" +
 	"\rblocked_items\x18\t \x01(\x05R\fblockedItems\x12'\n" +
@@ -809,20 +809,20 @@ const file_swarm_manager_v1_domain_operations_proto_rawDesc = "" +
 	"\aui_path\x18\x05 \x01(\tR\x06uiPath\"L\n" +
 	"\x1aOperationsDrillDownCommand\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12\x18\n" +
-	"\acommand\x18\x02 \x01(\tR\acommand\"\x97\x06\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\"\xf9\x06\n" +
 	"\x12OperationsBriefing\x12!\n" +
 	"\fgenerated_at\x18\x01 \x01(\tR\vgeneratedAt\x12+\n" +
 	"\x11freshness_seconds\x18\x02 \x01(\x05R\x10freshnessSeconds\x12%\n" +
-	"\x0ewindow_seconds\x18\x03 \x01(\x05R\rwindowSeconds\x12E\n" +
-	"\asummary\x18\x04 \x01(\v2+.swarm_manager.v1.OperationsBriefingSummaryR\asummary\x12M\n" +
-	"\vactive_work\x18\x05 \x03(\v2,.swarm_manager.v1.OperationsBriefingActivityR\n" +
-	"activeWork\x12Z\n" +
-	"\x0fneeds_attention\x18\x06 \x03(\v21.swarm_manager.v1.OperationsBriefingAttentionItemR\x0eneedsAttention\x12[\n" +
-	"\x12recent_completions\x18\a \x03(\v2,.swarm_manager.v1.OperationsBriefingActivityR\x11recentCompletions\x12X\n" +
-	"\x11director_handoffs\x18\b \x03(\v2+.swarm_manager.v1.OperationsDirectorHandoffR\x10directorHandoffs\x12g\n" +
-	"\x18recommended_next_actions\x18\t \x03(\v2-.swarm_manager.v1.OperationsRecommendedActionR\x16recommendedNextActions\x12\\\n" +
+	"\x0ewindow_seconds\x18\x03 \x01(\x05R\rwindowSeconds\x12S\n" +
+	"\asummary\x18\x04 \x01(\v29.vrooli.swarm_manager.v1.domain.OperationsBriefingSummaryR\asummary\x12[\n" +
+	"\vactive_work\x18\x05 \x03(\v2:.vrooli.swarm_manager.v1.domain.OperationsBriefingActivityR\n" +
+	"activeWork\x12h\n" +
+	"\x0fneeds_attention\x18\x06 \x03(\v2?.vrooli.swarm_manager.v1.domain.OperationsBriefingAttentionItemR\x0eneedsAttention\x12i\n" +
+	"\x12recent_completions\x18\a \x03(\v2:.vrooli.swarm_manager.v1.domain.OperationsBriefingActivityR\x11recentCompletions\x12f\n" +
+	"\x11director_handoffs\x18\b \x03(\v29.vrooli.swarm_manager.v1.domain.OperationsDirectorHandoffR\x10directorHandoffs\x12u\n" +
+	"\x18recommended_next_actions\x18\t \x03(\v2;.vrooli.swarm_manager.v1.domain.OperationsRecommendedActionR\x16recommendedNextActions\x12j\n" +
 	"\x13drill_down_commands\x18\n" +
-	" \x03(\v2,.swarm_manager.v1.OperationsDrillDownCommandR\x11drillDownCommands\x12\x1a\n" +
+	" \x03(\v2:.vrooli.swarm_manager.v1.domain.OperationsDrillDownCommandR\x11drillDownCommands\x12\x1a\n" +
 	"\bwarnings\x18\v \x03(\tR\bwarningsBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
@@ -839,24 +839,24 @@ func file_swarm_manager_v1_domain_operations_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_domain_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_swarm_manager_v1_domain_operations_proto_goTypes = []any{
-	(*OperationsBriefingSummary)(nil),       // 0: swarm_manager.v1.OperationsBriefingSummary
-	(*OperationsBriefingActivity)(nil),      // 1: swarm_manager.v1.OperationsBriefingActivity
-	(*OperationsBriefingAttentionItem)(nil), // 2: swarm_manager.v1.OperationsBriefingAttentionItem
-	(*OperationsDirectorHandoff)(nil),       // 3: swarm_manager.v1.OperationsDirectorHandoff
-	(*OperationsRecommendedAction)(nil),     // 4: swarm_manager.v1.OperationsRecommendedAction
-	(*OperationsDrillDownCommand)(nil),      // 5: swarm_manager.v1.OperationsDrillDownCommand
-	(*OperationsBriefing)(nil),              // 6: swarm_manager.v1.OperationsBriefing
-	nil,                                     // 7: swarm_manager.v1.OperationsBriefingSummary.ActiveLaneCountByLaneEntry
+	(*OperationsBriefingSummary)(nil),       // 0: vrooli.swarm_manager.v1.domain.OperationsBriefingSummary
+	(*OperationsBriefingActivity)(nil),      // 1: vrooli.swarm_manager.v1.domain.OperationsBriefingActivity
+	(*OperationsBriefingAttentionItem)(nil), // 2: vrooli.swarm_manager.v1.domain.OperationsBriefingAttentionItem
+	(*OperationsDirectorHandoff)(nil),       // 3: vrooli.swarm_manager.v1.domain.OperationsDirectorHandoff
+	(*OperationsRecommendedAction)(nil),     // 4: vrooli.swarm_manager.v1.domain.OperationsRecommendedAction
+	(*OperationsDrillDownCommand)(nil),      // 5: vrooli.swarm_manager.v1.domain.OperationsDrillDownCommand
+	(*OperationsBriefing)(nil),              // 6: vrooli.swarm_manager.v1.domain.OperationsBriefing
+	nil,                                     // 7: vrooli.swarm_manager.v1.domain.OperationsBriefingSummary.ActiveLaneCountByLaneEntry
 }
 var file_swarm_manager_v1_domain_operations_proto_depIdxs = []int32{
-	7, // 0: swarm_manager.v1.OperationsBriefingSummary.active_lane_count_by_lane:type_name -> swarm_manager.v1.OperationsBriefingSummary.ActiveLaneCountByLaneEntry
-	0, // 1: swarm_manager.v1.OperationsBriefing.summary:type_name -> swarm_manager.v1.OperationsBriefingSummary
-	1, // 2: swarm_manager.v1.OperationsBriefing.active_work:type_name -> swarm_manager.v1.OperationsBriefingActivity
-	2, // 3: swarm_manager.v1.OperationsBriefing.needs_attention:type_name -> swarm_manager.v1.OperationsBriefingAttentionItem
-	1, // 4: swarm_manager.v1.OperationsBriefing.recent_completions:type_name -> swarm_manager.v1.OperationsBriefingActivity
-	3, // 5: swarm_manager.v1.OperationsBriefing.director_handoffs:type_name -> swarm_manager.v1.OperationsDirectorHandoff
-	4, // 6: swarm_manager.v1.OperationsBriefing.recommended_next_actions:type_name -> swarm_manager.v1.OperationsRecommendedAction
-	5, // 7: swarm_manager.v1.OperationsBriefing.drill_down_commands:type_name -> swarm_manager.v1.OperationsDrillDownCommand
+	7, // 0: vrooli.swarm_manager.v1.domain.OperationsBriefingSummary.active_lane_count_by_lane:type_name -> vrooli.swarm_manager.v1.domain.OperationsBriefingSummary.ActiveLaneCountByLaneEntry
+	0, // 1: vrooli.swarm_manager.v1.domain.OperationsBriefing.summary:type_name -> vrooli.swarm_manager.v1.domain.OperationsBriefingSummary
+	1, // 2: vrooli.swarm_manager.v1.domain.OperationsBriefing.active_work:type_name -> vrooli.swarm_manager.v1.domain.OperationsBriefingActivity
+	2, // 3: vrooli.swarm_manager.v1.domain.OperationsBriefing.needs_attention:type_name -> vrooli.swarm_manager.v1.domain.OperationsBriefingAttentionItem
+	1, // 4: vrooli.swarm_manager.v1.domain.OperationsBriefing.recent_completions:type_name -> vrooli.swarm_manager.v1.domain.OperationsBriefingActivity
+	3, // 5: vrooli.swarm_manager.v1.domain.OperationsBriefing.director_handoffs:type_name -> vrooli.swarm_manager.v1.domain.OperationsDirectorHandoff
+	4, // 6: vrooli.swarm_manager.v1.domain.OperationsBriefing.recommended_next_actions:type_name -> vrooli.swarm_manager.v1.domain.OperationsRecommendedAction
+	5, // 7: vrooli.swarm_manager.v1.domain.OperationsBriefing.drill_down_commands:type_name -> vrooli.swarm_manager.v1.domain.OperationsDrillDownCommand
 	8, // [8:8] is the sub-list for method output_type
 	8, // [8:8] is the sub-list for method input_type
 	8, // [8:8] is the sub-list for extension type_name

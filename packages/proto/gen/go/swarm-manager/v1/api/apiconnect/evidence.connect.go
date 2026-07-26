@@ -22,7 +22,7 @@ const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// EvidenceServiceName is the fully-qualified name of the EvidenceService service.
-	EvidenceServiceName = "swarm_manager.v1.EvidenceService"
+	EvidenceServiceName = "vrooli.swarm_manager.v1.api.EvidenceService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -34,19 +34,19 @@ const (
 // period.
 const (
 	// EvidenceServiceListRunProcedure is the fully-qualified name of the EvidenceService's ListRun RPC.
-	EvidenceServiceListRunProcedure = "/swarm_manager.v1.EvidenceService/ListRun"
+	EvidenceServiceListRunProcedure = "/vrooli.swarm_manager.v1.api.EvidenceService/ListRun"
 	// EvidenceServiceListEntityProcedure is the fully-qualified name of the EvidenceService's
 	// ListEntity RPC.
-	EvidenceServiceListEntityProcedure = "/swarm_manager.v1.EvidenceService/ListEntity"
+	EvidenceServiceListEntityProcedure = "/vrooli.swarm_manager.v1.api.EvidenceService/ListEntity"
 	// EvidenceServiceReconcileProcedure is the fully-qualified name of the EvidenceService's Reconcile
 	// RPC.
-	EvidenceServiceReconcileProcedure = "/swarm_manager.v1.EvidenceService/Reconcile"
+	EvidenceServiceReconcileProcedure = "/vrooli.swarm_manager.v1.api.EvidenceService/Reconcile"
 	// EvidenceServiceRecordOperatorVerificationProcedure is the fully-qualified name of the
 	// EvidenceService's RecordOperatorVerification RPC.
-	EvidenceServiceRecordOperatorVerificationProcedure = "/swarm_manager.v1.EvidenceService/RecordOperatorVerification"
+	EvidenceServiceRecordOperatorVerificationProcedure = "/vrooli.swarm_manager.v1.api.EvidenceService/RecordOperatorVerification"
 )
 
-// EvidenceServiceClient is a client for the swarm_manager.v1.EvidenceService service.
+// EvidenceServiceClient is a client for the vrooli.swarm_manager.v1.api.EvidenceService service.
 type EvidenceServiceClient interface {
 	ListRun(context.Context, *connect.Request[api.EvidenceListRunRequest]) (*connect.Response[api.EvidenceListResponse], error)
 	ListEntity(context.Context, *connect.Request[api.EvidenceListEntityRequest]) (*connect.Response[api.EvidenceListResponse], error)
@@ -54,10 +54,10 @@ type EvidenceServiceClient interface {
 	RecordOperatorVerification(context.Context, *connect.Request[api.EvidenceOperatorVerificationRequest]) (*connect.Response[api.EvidenceRecord], error)
 }
 
-// NewEvidenceServiceClient constructs a client for the swarm_manager.v1.EvidenceService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewEvidenceServiceClient constructs a client for the vrooli.swarm_manager.v1.api.EvidenceService
+// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
+// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
+// the connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
@@ -100,27 +100,29 @@ type evidenceServiceClient struct {
 	recordOperatorVerification *connect.Client[api.EvidenceOperatorVerificationRequest, api.EvidenceRecord]
 }
 
-// ListRun calls swarm_manager.v1.EvidenceService.ListRun.
+// ListRun calls vrooli.swarm_manager.v1.api.EvidenceService.ListRun.
 func (c *evidenceServiceClient) ListRun(ctx context.Context, req *connect.Request[api.EvidenceListRunRequest]) (*connect.Response[api.EvidenceListResponse], error) {
 	return c.listRun.CallUnary(ctx, req)
 }
 
-// ListEntity calls swarm_manager.v1.EvidenceService.ListEntity.
+// ListEntity calls vrooli.swarm_manager.v1.api.EvidenceService.ListEntity.
 func (c *evidenceServiceClient) ListEntity(ctx context.Context, req *connect.Request[api.EvidenceListEntityRequest]) (*connect.Response[api.EvidenceListResponse], error) {
 	return c.listEntity.CallUnary(ctx, req)
 }
 
-// Reconcile calls swarm_manager.v1.EvidenceService.Reconcile.
+// Reconcile calls vrooli.swarm_manager.v1.api.EvidenceService.Reconcile.
 func (c *evidenceServiceClient) Reconcile(ctx context.Context, req *connect.Request[api.EvidenceReconcileRequest]) (*connect.Response[api.EvidenceReconcileResponse], error) {
 	return c.reconcile.CallUnary(ctx, req)
 }
 
-// RecordOperatorVerification calls swarm_manager.v1.EvidenceService.RecordOperatorVerification.
+// RecordOperatorVerification calls
+// vrooli.swarm_manager.v1.api.EvidenceService.RecordOperatorVerification.
 func (c *evidenceServiceClient) RecordOperatorVerification(ctx context.Context, req *connect.Request[api.EvidenceOperatorVerificationRequest]) (*connect.Response[api.EvidenceRecord], error) {
 	return c.recordOperatorVerification.CallUnary(ctx, req)
 }
 
-// EvidenceServiceHandler is an implementation of the swarm_manager.v1.EvidenceService service.
+// EvidenceServiceHandler is an implementation of the vrooli.swarm_manager.v1.api.EvidenceService
+// service.
 type EvidenceServiceHandler interface {
 	ListRun(context.Context, *connect.Request[api.EvidenceListRunRequest]) (*connect.Response[api.EvidenceListResponse], error)
 	ListEntity(context.Context, *connect.Request[api.EvidenceListEntityRequest]) (*connect.Response[api.EvidenceListResponse], error)
@@ -159,7 +161,7 @@ func NewEvidenceServiceHandler(svc EvidenceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(evidenceServiceMethods.ByName("RecordOperatorVerification")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/swarm_manager.v1.EvidenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/vrooli.swarm_manager.v1.api.EvidenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case EvidenceServiceListRunProcedure:
 			evidenceServiceListRunHandler.ServeHTTP(w, r)
@@ -179,17 +181,17 @@ func NewEvidenceServiceHandler(svc EvidenceServiceHandler, opts ...connect.Handl
 type UnimplementedEvidenceServiceHandler struct{}
 
 func (UnimplementedEvidenceServiceHandler) ListRun(context.Context, *connect.Request[api.EvidenceListRunRequest]) (*connect.Response[api.EvidenceListResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.EvidenceService.ListRun is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.EvidenceService.ListRun is not implemented"))
 }
 
 func (UnimplementedEvidenceServiceHandler) ListEntity(context.Context, *connect.Request[api.EvidenceListEntityRequest]) (*connect.Response[api.EvidenceListResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.EvidenceService.ListEntity is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.EvidenceService.ListEntity is not implemented"))
 }
 
 func (UnimplementedEvidenceServiceHandler) Reconcile(context.Context, *connect.Request[api.EvidenceReconcileRequest]) (*connect.Response[api.EvidenceReconcileResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.EvidenceService.Reconcile is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.EvidenceService.Reconcile is not implemented"))
 }
 
 func (UnimplementedEvidenceServiceHandler) RecordOperatorVerification(context.Context, *connect.Request[api.EvidenceOperatorVerificationRequest]) (*connect.Response[api.EvidenceRecord], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.EvidenceService.RecordOperatorVerification is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.EvidenceService.RecordOperatorVerification is not implemented"))
 }

@@ -207,7 +207,7 @@ var File_swarm_manager_v1_domain_agent_activity_proto protoreflect.FileDescripto
 
 const file_swarm_manager_v1_domain_agent_activity_proto_rawDesc = "" +
 	"\n" +
-	",swarm-manager/v1/domain/agent_activity.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xaf\n" +
+	",swarm-manager/v1/domain/agent_activity.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\xbd\n" +
 	"\n" +
 	"\rAgentActivity\x12(\n" +
 	"\vactivity_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
@@ -234,8 +234,8 @@ const file_swarm_manager_v1_domain_agent_activity_proto_rawDesc = "" +
 	"\vfinished_at\x18\x0e \x01(\tH\x06R\n" +
 	"finishedAt\x88\x01\x01\x12*\n" +
 	"\x0efailure_reason\x18\x0f \x01(\tH\aR\rfailureReason\x88\x01\x01\x12&\n" +
-	"\frequested_by\x18\x10 \x01(\tH\bR\vrequestedBy\x88\x01\x01\x12I\n" +
-	"\bmetadata\x18\x11 \x03(\v2-.swarm_manager.v1.AgentActivity.MetadataEntryR\bmetadata\x12&\n" +
+	"\frequested_by\x18\x10 \x01(\tH\bR\vrequestedBy\x88\x01\x01\x12W\n" +
+	"\bmetadata\x18\x11 \x03(\v2;.vrooli.swarm_manager.v1.domain.AgentActivity.MetadataEntryR\bmetadata\x12&\n" +
 	"\n" +
 	"updated_at\x18\x12 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
@@ -266,11 +266,11 @@ func file_swarm_manager_v1_domain_agent_activity_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_domain_agent_activity_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_swarm_manager_v1_domain_agent_activity_proto_goTypes = []any{
-	(*AgentActivity)(nil), // 0: swarm_manager.v1.AgentActivity
-	nil,                   // 1: swarm_manager.v1.AgentActivity.MetadataEntry
+	(*AgentActivity)(nil), // 0: vrooli.swarm_manager.v1.domain.AgentActivity
+	nil,                   // 1: vrooli.swarm_manager.v1.domain.AgentActivity.MetadataEntry
 }
 var file_swarm_manager_v1_domain_agent_activity_proto_depIdxs = []int32{
-	1, // 0: swarm_manager.v1.AgentActivity.metadata:type_name -> swarm_manager.v1.AgentActivity.MetadataEntry
+	1, // 0: vrooli.swarm_manager.v1.domain.AgentActivity.metadata:type_name -> vrooli.swarm_manager.v1.domain.AgentActivity.MetadataEntry
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

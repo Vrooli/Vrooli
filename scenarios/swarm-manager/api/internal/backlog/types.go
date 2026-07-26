@@ -14,6 +14,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 )
 
 // BacklogStatus represents the lifecycle state of a backlog item.
@@ -357,11 +358,11 @@ func ToProto(item BacklogItem) *domainpb.BacklogItem {
 	return backlogToProto(item)
 }
 
-func planRefToProto(ref *PlanRef) *domainpb.PlanRef {
+func planRefToProto(ref *PlanRef) *sharedpb.PlanRef {
 	if ref == nil {
 		return nil
 	}
-	return &domainpb.PlanRef{
+	return &sharedpb.PlanRef{
 		Provider: ref.Provider,
 		PlanId:   ref.PlanID,
 		Slug:     ref.Slug,
@@ -369,7 +370,7 @@ func planRefToProto(ref *PlanRef) *domainpb.PlanRef {
 	}
 }
 
-func planRefFromProto(ref *domainpb.PlanRef) *PlanRef {
+func planRefFromProto(ref *sharedpb.PlanRef) *PlanRef {
 	if ref == nil {
 		return nil
 	}

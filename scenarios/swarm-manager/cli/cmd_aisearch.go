@@ -110,7 +110,7 @@ type AISearchResponse struct {
 // --- Status ---
 
 func (a *App) cmdAISearchStatus(args []string) error {
-	fs := flag.NewFlagSet("ai-search status", flag.ContinueOnError)
+	fs := flag.NewFlagSet("search status", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -155,7 +155,7 @@ func renderAISearchStatus(st AISearchStatus) error {
 	backlogDrift := st.IndexedBacklog != st.OnDiskBacklog
 	goalDrift := st.IndexedGoals != st.OnDiskGoals
 	if backlogDrift || goalDrift {
-		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reconcile")
+		report.NextSteps = append(report.NextSteps, "swarm-manager search reindex")
 	}
 	if !st.Ollama {
 		report.NextSteps = append(report.NextSteps, "resource-ollama ensure --role embedding.default")
@@ -172,7 +172,7 @@ func renderAISearchStatus(st AISearchStatus) error {
 // --- Reconcile ---
 
 func (a *App) cmdAISearchReconcile(args []string) error {
-	fs := flag.NewFlagSet("ai-search reconcile", flag.ContinueOnError)
+	fs := flag.NewFlagSet("search reindex", flag.ContinueOnError)
 	wait := fs.Bool("wait", false, "Poll until reconcile finishes")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -216,7 +216,7 @@ func (a *App) cmdAISearchReconcile(args []string) error {
 }
 
 func (a *App) cmdAISearchReconcileStatus(args []string) error {
-	fs := flag.NewFlagSet("ai-search reconcile-status", flag.ContinueOnError)
+	fs := flag.NewFlagSet("search reindex-status", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -237,7 +237,7 @@ func (a *App) cmdAISearchReconcileStatus(args []string) error {
 }
 
 func (a *App) cmdAISearchReconcileCancel(args []string) error {
-	fs := flag.NewFlagSet("ai-search reconcile-cancel", flag.ContinueOnError)
+	fs := flag.NewFlagSet("search reindex-cancel", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -317,7 +317,7 @@ func renderReconcileDryRun(dry aiSearchDryRunResponse) error {
 		fmt.Sprintf("Legacy hash drain (backlog): %d", plan.LegacyBacklog),
 		fmt.Sprintf("Legacy hash drain (goal): %d", plan.LegacyGoal),
 	}
-	report.NextCommand = []string{"swarm-manager ai-search reconcile"}
+	report.NextCommand = []string{"swarm-manager search reindex"}
 	return cliapp.RenderMutationReport(os.Stdout, report)
 }
 
@@ -351,7 +351,7 @@ func renderReconcileMutation(st AISearchReconcileStatus) error {
 	report := cliapp.MutationReport{
 		Result:      []string{resultLine},
 		Changes:     changes,
-		NextCommand: []string{"swarm-manager ai-search reconcile-status"},
+		NextCommand: []string{"swarm-manager search reindex-status"},
 	}
 	return cliapp.RenderMutationReport(os.Stdout, report)
 }
@@ -394,11 +394,11 @@ func renderReconcileOperational(st AISearchReconcileStatus) error {
 	}
 	switch {
 	case st.Running:
-		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reconcile-cancel")
+		report.NextSteps = append(report.NextSteps, "swarm-manager search reindex-cancel")
 	case st.LastError != "":
-		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reconcile")
+		report.NextSteps = append(report.NextSteps, "swarm-manager search reindex")
 	default:
-		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search status")
+		report.NextSteps = append(report.NextSteps, "swarm-manager search status")
 	}
 	return cliapp.RenderOperationalReport(os.Stdout, report)
 }
@@ -406,13 +406,13 @@ func renderReconcileOperational(st AISearchReconcileStatus) error {
 // --- Search ---
 
 // cmdAISearchSearch is the generic search command used by both the top-level
-// `ai-search query` and the domain-shortcut `backlog search-ai` /
-// `goals search-ai` commands. entityOverride, when non-empty, is applied
+// `search query` command. entityOverride, when non-empty, is applied
 // to every request regardless of the --entity flag.
 func (a *App) cmdAISearchSearch(entityOverride string) support.CommandFunc {
 	return func(args []string) error {
 		fs := flag.NewFlagSet("search-ai", flag.ContinueOnError)
 		entity := fs.String("entity", "", "backlog | goal | record | both (default both)")
+		entityType := fs.String("type", "", "backlog | goal | record | all (default all)")
 		limit := fs.Int("limit", 20, "Max results (1-100)")
 		threshold := fs.Float64("threshold", 0, "Min cosine similarity (0-1); 0 uses server default")
 		kindCSV := fs.String("kind", "", "Comma-separated backlog kinds to include")
@@ -438,6 +438,12 @@ func (a *App) cmdAISearchSearch(entityOverride string) support.CommandFunc {
 		}
 		if entityOverride != "" {
 			payload["entity"] = entityOverride
+		} else if strings.TrimSpace(*entityType) != "" {
+			value := strings.TrimSpace(*entityType)
+			if value == "all" {
+				value = "both"
+			}
+			payload["entity"] = value
 		} else if strings.TrimSpace(*entity) != "" {
 			payload["entity"] = strings.TrimSpace(*entity)
 		}
@@ -518,7 +524,7 @@ func renderAISearchResults(resp AISearchResponse, entityOverride string) error {
 	report.ResultsHeading = "Matches"
 	report.RetrievalHints = []string{"Add --json for raw scored payload"}
 	if resp.Fallback == "unavailable" {
-		report.RetrievalHints = append(report.RetrievalHints, "swarm-manager ai-search status")
+		report.RetrievalHints = append(report.RetrievalHints, "swarm-manager search status")
 	}
 	return cliapp.RenderListReport(os.Stdout, report)
 }

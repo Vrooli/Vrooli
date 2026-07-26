@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	"swarm-manager/internal/backlog"
 )
 
@@ -17,7 +17,7 @@ func TestConnectService_GoalAndMilestoneLifecycle(t *testing.T) {
 	if err != nil || created.Msg.Goal.Name != "g" {
 		t.Fatalf("CreateGoal=%+v err=%v", created, err)
 	}
-	_, err = connectSvc.CreateMilestone(context.Background(), connect.NewRequest(&apipb.CreateMilestoneRequest{GoalName: "g", Milestone: &domainpb.Milestone{Name: "m", Title: "Milestone", AcceptanceCriteria: []string{"Given the milestone, when its items complete, then the behavior works."}}}))
+	_, err = connectSvc.CreateMilestone(context.Background(), connect.NewRequest(&apipb.CreateMilestoneRequest{GoalName: "g", Milestone: &sharedpb.Milestone{Name: "m", Title: "Milestone", AcceptanceCriteria: []string{"Given the milestone, when its items complete, then the behavior works."}}}))
 	if err != nil {
 		t.Fatalf("CreateMilestone: %v", err)
 	}

@@ -107,7 +107,6 @@ enum SandboxLifecycleEvent {
   SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED = 7;
   SANDBOX_LIFECYCLE_EVENT_TURN_FAILED = 8;
   SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED = 9;
-  SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED = 10;
 }
 
 // SandboxAcceptanceMode controls how files are accepted for approval.

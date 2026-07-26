@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"path/filepath"
 
+	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/operations"
 	"swarm-manager/internal/sessioncontext"
 )
@@ -35,8 +37,14 @@ func (s *Server) registerOperationsRoutes() {
 	briefingBuilder, err := operations.NewBriefingBuilder(operations.BriefingBuilderConfig{
 		Aggregator: aggregator,
 		Overview:   s.overviewSvc,
-		Stats:      s.statsEngine,
-		Handoffs:   operations.FileDirectorHandoffReader{ProjectRoot: projectRoot},
+		ActiveSessions: func(ctx context.Context) (int, error) {
+			if s.agentSessionSvc == nil {
+				return 0, nil
+			}
+			sessions, err := s.agentSessionSvc.List(ctx, agentsessions.ListFilters{ActiveOnly: true})
+			return len(sessions), err
+		},
+		Handoffs: operations.FileDirectorHandoffReader{ProjectRoot: projectRoot},
 	})
 	if err != nil {
 		log.Fatalf("operations: failed to build BriefingBuilder: %v", err)

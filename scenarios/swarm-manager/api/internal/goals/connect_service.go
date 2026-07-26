@@ -12,6 +12,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 )
 
 // ConnectService exposes the canonical goal/milestone contract over Connect.
@@ -225,7 +226,7 @@ func goalError(err error) error {
 	return internal(err)
 }
 func internal(err error) error { return connect.NewError(connect.CodeInternal, err) }
-func milestoneFromProto(in *domainpb.Milestone) Milestone {
+func milestoneFromProto(in *sharedpb.Milestone) Milestone {
 	if in == nil {
 		return Milestone{}
 	}
@@ -235,7 +236,7 @@ func milestoneFromProto(in *domainpb.Milestone) Milestone {
 func goalToProto(in Goal) *domainpb.Goal {
 	out := &domainpb.Goal{Name: in.Name, Title: in.Title, Description: in.Description, Status: in.Status, Priority: int32(in.Priority), Targets: in.Targets, Created: in.Created, Updated: in.Updated, ArchivedAt: in.ArchivedAt}
 	for _, milestone := range in.Milestones {
-		out.Milestones = append(out.Milestones, &domainpb.Milestone{Name: milestone.Name, Title: milestone.Title, Description: milestone.Description, Items: milestone.Items, AcceptanceCriteria: milestone.AcceptanceCriteria, DependsOn: milestone.DependsOn, ArchivedAt: milestone.ArchivedAt})
+		out.Milestones = append(out.Milestones, &sharedpb.Milestone{Name: milestone.Name, Title: milestone.Title, Description: milestone.Description, Items: milestone.Items, AcceptanceCriteria: milestone.AcceptanceCriteria, DependsOn: milestone.DependsOn, ArchivedAt: milestone.ArchivedAt})
 	}
 	return out
 }

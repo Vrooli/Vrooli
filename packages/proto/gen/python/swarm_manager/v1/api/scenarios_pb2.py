@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from swarm_manager.v1.domain import scenario_pb2 as swarm__manager_dot_v1_dot_domain_dot_scenario__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$swarm-manager/v1/api/scenarios.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a&swarm-manager/v1/domain/scenario.proto\"Q\n\x15ListScenariosResponse\x12\x38\n\tscenarios\x18\x01 \x03(\x0b\x32\x1a.swarm_manager.v1.ScenarioR\tscenarios\"J\n\x10ScenarioResponse\x12\x36\n\x08scenario\x18\x01 \x01(\x0b\x32\x1a.swarm_manager.v1.ScenarioR\x08scenario\"[\n\x1dUpdateScenarioMetadataRequest\x12(\n\ris_greenfield\x18\x01 \x01(\x08H\x00R\x0cisGreenfield\x88\x01\x01\x42\x10\n\x0e_is_greenfield\"\x92\x01\n\x14PreserveFilesRequest\x12\x14\n\x05paths\x18\x01 \x03(\tR\x05paths\x12Y\n\x06preset\x18\x02 \x01(\tB<\xbaH9r7R\x00R\rdocumentationR\x0crequirementsR\x08planningR\x0c\x61ll-planningH\x00R\x06preset\x88\x01\x01\x42\t\n\x07_preset\"~\n\x15\x44\x65leteScenarioRequest\x12R\n\x0epreserve_files\x18\x01 \x01(\x0b\x32&.swarm_manager.v1.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01\x42\x11\n\x0f_preserve_files\"\xe4\x01\n\x16\x44\x65leteScenarioResponse\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x1a\n\x08\x61rchived\x18\x02 \x01(\x08R\x08\x61rchived\x12!\n\x07message\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07message\x12/\n\x11\x62\x61\x63klog_idea_name\x18\x04 \x01(\tH\x00R\x0f\x62\x61\x63klogIdeaName\x88\x01\x01\x12\'\n\x0fpreserved_files\x18\x05 \x03(\tR\x0epreservedFilesB\x14\n\x12_backlog_idea_name\"\xd2\x01\n\x0cScenarioFile\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n\x04path\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04path\x12*\n\x04type\x18\x03 \x01(\tB\x16\xbaH\x13r\x11R\x04\x66ileR\tdirectoryR\x04type\x12\x17\n\x04size\x18\x04 \x01(\x03H\x00R\x04size\x88\x01\x01\x12:\n\x08\x63hildren\x18\x05 \x03(\x0b\x32\x1e.swarm_manager.v1.ScenarioFileR\x08\x63hildrenB\x07\n\x05_size\"M\n\x15ScenarioFilesResponse\x12\x34\n\x05\x66iles\x18\x01 \x03(\x0b\x32\x1e.swarm_manager.v1.ScenarioFileR\x05\x66iles\"\x7f\n\x16SpecSyncArchiveRequest\x12R\n\x0epreserve_files\x18\x01 \x01(\x0b\x32&.swarm_manager.v1.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01\x42\x11\n\x0f_preserve_files\"\x89\x01\n\x17SpecSyncArchiveResponse\x12*\n\x0c\x65xecution_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x65xecutionId\x12\x1f\n\x06status\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06status\x12!\n\x07message\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07message\"\x82\x01\n\x1aScenarioReviewQueueRequest\x12$\n\x05limit\x18\x01 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x32(\x01H\x00R\x05limit\x88\x01\x01\x12$\n\x0b\x65xclude_tag\x18\x02 \x01(\tH\x01R\nexcludeTag\x88\x01\x01\x42\x08\n\x06_limitB\x0e\n\x0c_exclude_tag\"\xd7\x03\n\x17ScenarioReviewQueueItem\x12#\n\rscenario_name\x18\x01 \x01(\tR\x0cscenarioName\x12\x32\n\x15pending_backlog_count\x18\x02 \x01(\x05R\x13pendingBacklogCount\x12\x41\n\x1alast_review_classification\x18\x03 \x01(\tH\x00R\x18lastReviewClassification\x88\x01\x01\x12)\n\x0elast_review_at\x18\x04 \x01(\tH\x01R\x0clastReviewAt\x88\x01\x01\x12\x34\n\x16recent_execution_count\x18\x05 \x01(\x05R\x14recentExecutionCount\x12\'\n\x0f\x63omposite_score\x18\x06 \x01(\x01R\x0e\x63ompositeScore\x12%\n\x0eprimary_signal\x18\x07 \x01(\tR\rprimarySignal\x12*\n\x0e\x63ooldown_until\x18\x08 \x01(\tH\x02R\rcooldownUntil\x88\x01\x01\x42\x1d\n\x1b_last_review_classificationB\x11\n\x0f_last_review_atB\x11\n\x0f_cooldown_until\"\xae\x01\n\x1bScenarioReviewQueueResponse\x12?\n\x05items\x18\x01 \x03(\x0b\x32).swarm_manager.v1.ScenarioReviewQueueItemR\x05items\x12\'\n\x0ftotal_scenarios\x18\x02 \x01(\x05R\x0etotalScenarios\x12%\n\x0e\x65xcluded_count\x18\x03 \x01(\x05R\rexcludedCountBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$swarm-manager/v1/api/scenarios.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1b\x62uf/validate/validate.proto\x1a&swarm-manager/v1/domain/scenario.proto\"_\n\x15ListScenariosResponse\x12\x46\n\tscenarios\x18\x01 \x03(\x0b\x32(.vrooli.swarm_manager.v1.domain.ScenarioR\tscenarios\"X\n\x10ScenarioResponse\x12\x44\n\x08scenario\x18\x01 \x01(\x0b\x32(.vrooli.swarm_manager.v1.domain.ScenarioR\x08scenario\"[\n\x1dUpdateScenarioMetadataRequest\x12(\n\ris_greenfield\x18\x01 \x01(\x08H\x00R\x0cisGreenfield\x88\x01\x01\x42\x10\n\x0e_is_greenfield\"\x92\x01\n\x14PreserveFilesRequest\x12\x14\n\x05paths\x18\x01 \x03(\tR\x05paths\x12Y\n\x06preset\x18\x02 \x01(\tB<\xbaH9r7R\x00R\rdocumentationR\x0crequirementsR\x08planningR\x0c\x61ll-planningH\x00R\x06preset\x88\x01\x01\x42\t\n\x07_preset\"\x89\x01\n\x15\x44\x65leteScenarioRequest\x12]\n\x0epreserve_files\x18\x01 \x01(\x0b\x32\x31.vrooli.swarm_manager.v1.api.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01\x42\x11\n\x0f_preserve_files\"\xe4\x01\n\x16\x44\x65leteScenarioResponse\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x1a\n\x08\x61rchived\x18\x02 \x01(\x08R\x08\x61rchived\x12!\n\x07message\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07message\x12/\n\x11\x62\x61\x63klog_idea_name\x18\x04 \x01(\tH\x00R\x0f\x62\x61\x63klogIdeaName\x88\x01\x01\x12\'\n\x0fpreserved_files\x18\x05 \x03(\tR\x0epreservedFilesB\x14\n\x12_backlog_idea_name\"\xdd\x01\n\x0cScenarioFile\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n\x04path\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04path\x12*\n\x04type\x18\x03 \x01(\tB\x16\xbaH\x13r\x11R\x04\x66ileR\tdirectoryR\x04type\x12\x17\n\x04size\x18\x04 \x01(\x03H\x00R\x04size\x88\x01\x01\x12\x45\n\x08\x63hildren\x18\x05 \x03(\x0b\x32).vrooli.swarm_manager.v1.api.ScenarioFileR\x08\x63hildrenB\x07\n\x05_size\"X\n\x15ScenarioFilesResponse\x12?\n\x05\x66iles\x18\x01 \x03(\x0b\x32).vrooli.swarm_manager.v1.api.ScenarioFileR\x05\x66iles\"\x8a\x01\n\x16SpecSyncArchiveRequest\x12]\n\x0epreserve_files\x18\x01 \x01(\x0b\x32\x31.vrooli.swarm_manager.v1.api.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01\x42\x11\n\x0f_preserve_files\"\x89\x01\n\x17SpecSyncArchiveResponse\x12*\n\x0c\x65xecution_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x65xecutionId\x12\x1f\n\x06status\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06status\x12!\n\x07message\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07message\"\x82\x01\n\x1aScenarioReviewQueueRequest\x12$\n\x05limit\x18\x01 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x32(\x01H\x00R\x05limit\x88\x01\x01\x12$\n\x0b\x65xclude_tag\x18\x02 \x01(\tH\x01R\nexcludeTag\x88\x01\x01\x42\x08\n\x06_limitB\x0e\n\x0c_exclude_tag\"\xd7\x03\n\x17ScenarioReviewQueueItem\x12#\n\rscenario_name\x18\x01 \x01(\tR\x0cscenarioName\x12\x32\n\x15pending_backlog_count\x18\x02 \x01(\x05R\x13pendingBacklogCount\x12\x41\n\x1alast_review_classification\x18\x03 \x01(\tH\x00R\x18lastReviewClassification\x88\x01\x01\x12)\n\x0elast_review_at\x18\x04 \x01(\tH\x01R\x0clastReviewAt\x88\x01\x01\x12\x34\n\x16recent_execution_count\x18\x05 \x01(\x05R\x14recentExecutionCount\x12\'\n\x0f\x63omposite_score\x18\x06 \x01(\x01R\x0e\x63ompositeScore\x12%\n\x0eprimary_signal\x18\x07 \x01(\tR\rprimarySignal\x12*\n\x0e\x63ooldown_until\x18\x08 \x01(\tH\x02R\rcooldownUntil\x88\x01\x01\x42\x1d\n\x1b_last_review_classificationB\x11\n\x0f_last_review_atB\x11\n\x0f_cooldown_until\"\xb9\x01\n\x1bScenarioReviewQueueResponse\x12J\n\x05items\x18\x01 \x03(\x0b\x32\x34.vrooli.swarm_manager.v1.api.ScenarioReviewQueueItemR\x05items\x12\'\n\x0ftotal_scenarios\x18\x02 \x01(\x05R\x0etotalScenarios\x12%\n\x0e\x65xcluded_count\x18\x03 \x01(\x05R\rexcludedCountBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -54,30 +54,30 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SPECSYNCARCHIVERESPONSE'].fields_by_name['message']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_SCENARIOREVIEWQUEUEREQUEST'].fields_by_name['limit']._loaded_options = None
   _globals['_SCENARIOREVIEWQUEUEREQUEST'].fields_by_name['limit']._serialized_options = b'\272H\006\032\004\0302(\001'
-  _globals['_LISTSCENARIOSRESPONSE']._serialized_start=127
-  _globals['_LISTSCENARIOSRESPONSE']._serialized_end=208
-  _globals['_SCENARIORESPONSE']._serialized_start=210
-  _globals['_SCENARIORESPONSE']._serialized_end=284
-  _globals['_UPDATESCENARIOMETADATAREQUEST']._serialized_start=286
-  _globals['_UPDATESCENARIOMETADATAREQUEST']._serialized_end=377
-  _globals['_PRESERVEFILESREQUEST']._serialized_start=380
-  _globals['_PRESERVEFILESREQUEST']._serialized_end=526
-  _globals['_DELETESCENARIOREQUEST']._serialized_start=528
-  _globals['_DELETESCENARIOREQUEST']._serialized_end=654
-  _globals['_DELETESCENARIORESPONSE']._serialized_start=657
-  _globals['_DELETESCENARIORESPONSE']._serialized_end=885
-  _globals['_SCENARIOFILE']._serialized_start=888
-  _globals['_SCENARIOFILE']._serialized_end=1098
-  _globals['_SCENARIOFILESRESPONSE']._serialized_start=1100
-  _globals['_SCENARIOFILESRESPONSE']._serialized_end=1177
-  _globals['_SPECSYNCARCHIVEREQUEST']._serialized_start=1179
-  _globals['_SPECSYNCARCHIVEREQUEST']._serialized_end=1306
-  _globals['_SPECSYNCARCHIVERESPONSE']._serialized_start=1309
-  _globals['_SPECSYNCARCHIVERESPONSE']._serialized_end=1446
-  _globals['_SCENARIOREVIEWQUEUEREQUEST']._serialized_start=1449
-  _globals['_SCENARIOREVIEWQUEUEREQUEST']._serialized_end=1579
-  _globals['_SCENARIOREVIEWQUEUEITEM']._serialized_start=1582
-  _globals['_SCENARIOREVIEWQUEUEITEM']._serialized_end=2053
-  _globals['_SCENARIOREVIEWQUEUERESPONSE']._serialized_start=2056
-  _globals['_SCENARIOREVIEWQUEUERESPONSE']._serialized_end=2230
+  _globals['_LISTSCENARIOSRESPONSE']._serialized_start=138
+  _globals['_LISTSCENARIOSRESPONSE']._serialized_end=233
+  _globals['_SCENARIORESPONSE']._serialized_start=235
+  _globals['_SCENARIORESPONSE']._serialized_end=323
+  _globals['_UPDATESCENARIOMETADATAREQUEST']._serialized_start=325
+  _globals['_UPDATESCENARIOMETADATAREQUEST']._serialized_end=416
+  _globals['_PRESERVEFILESREQUEST']._serialized_start=419
+  _globals['_PRESERVEFILESREQUEST']._serialized_end=565
+  _globals['_DELETESCENARIOREQUEST']._serialized_start=568
+  _globals['_DELETESCENARIOREQUEST']._serialized_end=705
+  _globals['_DELETESCENARIORESPONSE']._serialized_start=708
+  _globals['_DELETESCENARIORESPONSE']._serialized_end=936
+  _globals['_SCENARIOFILE']._serialized_start=939
+  _globals['_SCENARIOFILE']._serialized_end=1160
+  _globals['_SCENARIOFILESRESPONSE']._serialized_start=1162
+  _globals['_SCENARIOFILESRESPONSE']._serialized_end=1250
+  _globals['_SPECSYNCARCHIVEREQUEST']._serialized_start=1253
+  _globals['_SPECSYNCARCHIVEREQUEST']._serialized_end=1391
+  _globals['_SPECSYNCARCHIVERESPONSE']._serialized_start=1394
+  _globals['_SPECSYNCARCHIVERESPONSE']._serialized_end=1531
+  _globals['_SCENARIOREVIEWQUEUEREQUEST']._serialized_start=1534
+  _globals['_SCENARIOREVIEWQUEUEREQUEST']._serialized_end=1664
+  _globals['_SCENARIOREVIEWQUEUEITEM']._serialized_start=1667
+  _globals['_SCENARIOREVIEWQUEUEITEM']._serialized_end=2138
+  _globals['_SCENARIOREVIEWQUEUERESPONSE']._serialized_start=2141
+  _globals['_SCENARIOREVIEWQUEUERESPONSE']._serialized_end=2326
 # @@protoc_insertion_point(module_scope)

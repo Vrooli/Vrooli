@@ -83,7 +83,8 @@ directly reachable.
 
 - **Plan** (`/plan`) — the primary board; decisions live in its drawer.
 - **Graph** (`/graph`) — the topology surface (focus is query state inside it).
-- **Stats** (`/stats`) — aggregate metrics over the same workspace.
+- **Stats** (`/stats`) — the rich event-log analytics workspace: trends, ETA,
+  goal-scoped analysis, operational modes, review, and session health.
 - **Records** (`/records`) — the learning-loop records browser.
 
 ## Backlog Structure

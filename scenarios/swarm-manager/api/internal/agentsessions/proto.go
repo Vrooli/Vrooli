@@ -5,6 +5,7 @@ import (
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -24,8 +25,8 @@ func AttributionFromProvenance(prov identity.Provenance) Attribution {
 	return attr
 }
 
-func AttributionToProto(attr Attribution) *domainpb.AgentSessionAttribution {
-	msg := &domainpb.AgentSessionAttribution{Type: string(attr.Type)}
+func AttributionToProto(attr Attribution) *sharedpb.AgentSessionAttribution {
+	msg := &sharedpb.AgentSessionAttribution{Type: string(attr.Type)}
 	if attr.RunID != "" {
 		msg.RunId = proto.String(attr.RunID)
 	}
@@ -61,8 +62,8 @@ func messageToProto(message Message) *domainpb.AgentSessionMessage {
 	return msg
 }
 
-func contextItemToProto(item ContextItem) *domainpb.AgentSessionContextItem {
-	msg := &domainpb.AgentSessionContextItem{
+func contextItemToProto(item ContextItem) *sharedpb.AgentSessionContextItem {
+	msg := &sharedpb.AgentSessionContextItem{
 		Type:       string(item.Type),
 		Ref:        item.Ref,
 		Title:      item.Title,
@@ -78,8 +79,8 @@ func contextItemToProto(item ContextItem) *domainpb.AgentSessionContextItem {
 	return msg
 }
 
-func attachmentToProto(attachment Attachment) *domainpb.AgentSessionAttachment {
-	msg := &domainpb.AgentSessionAttachment{
+func attachmentToProto(attachment Attachment) *sharedpb.AgentSessionAttachment {
+	msg := &sharedpb.AgentSessionAttachment{
 		Id:        attachment.ID,
 		Filename:  attachment.Filename,
 		CreatedAt: attachment.CreatedAt,
@@ -120,8 +121,8 @@ func proposalTargetToProto(target *ProposalTarget) *domainpb.AgentSessionProposa
 	}
 }
 
-func artifactToProto(artifact Artifact) *domainpb.AgentSessionArtifact {
-	msg := &domainpb.AgentSessionArtifact{
+func artifactToProto(artifact Artifact) *sharedpb.AgentSessionArtifact {
+	msg := &sharedpb.AgentSessionArtifact{
 		Id:           artifact.ID,
 		SessionId:    artifact.SessionID,
 		ArtifactType: string(artifact.ArtifactType),

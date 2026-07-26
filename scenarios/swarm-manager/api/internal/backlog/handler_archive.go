@@ -26,24 +26,32 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	_, apiErr := h.deleteItem(kind, name)
+	if apiErr != nil {
+		apierr.MapError(w, "[backlog] delete", apiErr)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// deleteItem removes one item and its dependent references. A missing item is
+// intentionally a successful no-op, matching DELETE's idempotent REST contract.
+func (h *Handler) deleteItem(kind BacklogKind, name string) (bool, *apierr.DomainError) {
 
 	existing, err := h.store.LoadItem(kind, name)
 	if errors.Is(err, ErrNotFound) {
-		w.WriteHeader(http.StatusNoContent)
-		return
+		return false, nil
 	}
 	if err != nil {
 		slog.Error("failed to load item for delete", "name", name, "err", err)
-		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to load backlog item"))
-		return
+		return false, apierr.Internal("failed to load backlog item")
 	}
 
 	ref := string(kind) + "/" + name
 	if strings.TrimSpace(existing.Milestone) != "" && h.milestoneAssigner != nil {
 		if err := h.milestoneAssigner.ForgetItem(existing.Milestone, ref); err != nil {
 			slog.Error("failed to forget item from milestone", "ref", ref, "milestone", existing.Milestone, "err", err)
-			apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to update milestone membership"))
-			return
+			return false, apierr.Internal("failed to update milestone membership")
 		}
 	}
 
@@ -54,8 +62,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		slog.Error("failed to delete item", "name", name, "err", err)
-		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to delete backlog item"))
-		return
+		return false, apierr.Internal("failed to delete backlog item")
 	}
 
 	if n, err := h.store.RemoveDependencyRef(ref); err != nil {
@@ -69,7 +76,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		h.eventLogger.EmitBacklogDeleted(ref)
 	}
 	h.invalidateAllGraphLenses()
-	w.WriteHeader(http.StatusNoContent)
+	return true, nil
 }
 
 // Archive sets archived_at on a backlog item, and settles its status first:

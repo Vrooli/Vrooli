@@ -1,9 +1,10 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/goal.proto";
+import "swarm-manager/v1/shared/goal.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
@@ -23,6 +24,16 @@ service GoalService {
   rpc AssignMilestoneItems(UpdateMilestoneItemsRequest) returns (GoalResponse);
   rpc UnassignMilestoneItems(UpdateMilestoneItemsRequest) returns (GoalResponse);
   rpc GetScope(GetGoalRequest) returns (GoalScopeResponse);
+  // CloseOutGoal is the operator-only assertion that a goal's outcome is
+  // delivered. It is evidence-gated: every non-archived milestone must carry an
+  // independent-review verdict first.
+  rpc CloseOutGoal(CloseOutGoalRequest) returns (GoalResponse);
+  // ListPendingGoalWorkflows reports terminal goal workflow results that have
+  // not been applied yet, with the reason any of them is stuck.
+  rpc ListPendingGoalWorkflows(ListPendingGoalWorkflowsRequest) returns (ListPendingGoalWorkflowsResponse);
+  // ApplyGoalWorkflow projects one terminal workflow result into the operator
+  // proposal inbox. Idempotent: re-applying a landed result is a no-op.
+  rpc ApplyGoalWorkflow(ApplyGoalWorkflowRequest) returns (ApplyGoalWorkflowResponse);
 }
 
 message ListGoalsRequest {}
@@ -33,11 +44,46 @@ message UnarchiveGoalRequest { string name = 1 [(buf.validate.field).string.min_
 message CreateGoalRequest { string name = 1; string title = 2; string description = 3; int32 priority = 4; repeated string targets = 5; }
 message UpdateGoalRequest { string name = 1; optional string title = 2; optional string description = 3; optional int32 priority = 4; }
 message UpdateGoalTargetsRequest { string name = 1; repeated string targets = 2; }
-message CreateMilestoneRequest { string goal_name = 1; Milestone milestone = 2; }
-message UpdateMilestoneRequest { string goal_name = 1; Milestone milestone = 2; }
+message CreateMilestoneRequest { string goal_name = 1; shared.Milestone milestone = 2; }
+message UpdateMilestoneRequest { string goal_name = 1; shared.Milestone milestone = 2; }
 message ArchiveMilestoneRequest { string goal_name = 1; string milestone_name = 2; }
 message UpdateMilestoneItemsRequest { string goal_name = 1; string milestone_name = 2; repeated string items = 3; }
-message GoalResponse { Goal goal = 1; GoalScope scope = 2; }
+message CloseOutGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
+message ListPendingGoalWorkflowsRequest {
+  // Restrict the listing to one goal. Empty lists every goal.
+  string goal_name = 1;
+}
+message ApplyGoalWorkflowRequest {
+  string goal_name = 1 [(buf.validate.field).string.min_len = 1];
+  string execution_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// PendingGoalWorkflow is one workflow result awaiting application.
+message PendingGoalWorkflow {
+  string goal_name = 1;
+  string execution_id = 2;
+  string transition = 3;
+  string milestone = 4;
+  string goal_version = 5;
+  // The goal changed after the workflow started, so this result can never be
+  // applied and the run has to be repeated against the current snapshot.
+  bool stale = 6;
+  int32 attempts = 7;
+  string last_attempt_at = 8;
+  string last_error = 9;
+}
+
+message ListPendingGoalWorkflowsResponse { repeated PendingGoalWorkflow pending = 1; }
+message ApplyGoalWorkflowResponse {
+  string execution_id = 1;
+  string session_id = 2;
+  repeated string proposal_ids = 3;
+  string outcome = 4;
+  // The result had already been applied; this call changed nothing.
+  bool already_applied = 5;
+}
+
+message GoalResponse { domain.Goal goal = 1; domain.GoalScope scope = 2; }
 message ListGoalsResponse { repeated GoalResponse goals = 1; }
-message GoalScopeResponse { GoalScope scope = 1; }
+message GoalScopeResponse { domain.GoalScope scope = 1; }
 message EmptyGoalResponse {}

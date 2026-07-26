@@ -116,12 +116,12 @@ var File_swarm_manager_v1_api_operations_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_operations_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/api/operations.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a(swarm-manager/v1/domain/operations.proto\"O\n" +
+	"%swarm-manager/v1/api/operations.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a(swarm-manager/v1/domain/operations.proto\"O\n" +
 	"\x1cGetOperationsBriefingRequest\x12$\n" +
 	"\x06window\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18 H\x00R\x06window\x88\x01\x01B\t\n" +
-	"\a_window\"a\n" +
-	"\x1dGetOperationsBriefingResponse\x12@\n" +
-	"\bbriefing\x18\x01 \x01(\v2$.swarm_manager.v1.OperationsBriefingR\bbriefingBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\a_window\"o\n" +
+	"\x1dGetOperationsBriefingResponse\x12N\n" +
+	"\bbriefing\x18\x01 \x01(\v22.vrooli.swarm_manager.v1.domain.OperationsBriefingR\bbriefingBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_operations_proto_rawDescOnce sync.Once
@@ -137,12 +137,12 @@ func file_swarm_manager_v1_api_operations_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_swarm_manager_v1_api_operations_proto_goTypes = []any{
-	(*GetOperationsBriefingRequest)(nil),  // 0: swarm_manager.v1.GetOperationsBriefingRequest
-	(*GetOperationsBriefingResponse)(nil), // 1: swarm_manager.v1.GetOperationsBriefingResponse
-	(*domain.OperationsBriefing)(nil),     // 2: swarm_manager.v1.OperationsBriefing
+	(*GetOperationsBriefingRequest)(nil),  // 0: vrooli.swarm_manager.v1.api.GetOperationsBriefingRequest
+	(*GetOperationsBriefingResponse)(nil), // 1: vrooli.swarm_manager.v1.api.GetOperationsBriefingResponse
+	(*domain.OperationsBriefing)(nil),     // 2: vrooli.swarm_manager.v1.domain.OperationsBriefing
 }
 var file_swarm_manager_v1_api_operations_proto_depIdxs = []int32{
-	2, // 0: swarm_manager.v1.GetOperationsBriefingResponse.briefing:type_name -> swarm_manager.v1.OperationsBriefing
+	2, // 0: vrooli.swarm_manager.v1.api.GetOperationsBriefingResponse.briefing:type_name -> vrooli.swarm_manager.v1.domain.OperationsBriefing
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

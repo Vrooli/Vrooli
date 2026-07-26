@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/operations.proto";
@@ -11,9 +11,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // OPERATIONS API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports operations
 // @stability beta
 //
 // HTTP API contracts for Swarm Manager operations status and agent-session
@@ -27,5 +24,5 @@ message GetOperationsBriefingRequest {
 }
 
 message GetOperationsBriefingResponse {
-  OperationsBriefing briefing = 1;
+  domain.OperationsBriefing briefing = 1;
 }

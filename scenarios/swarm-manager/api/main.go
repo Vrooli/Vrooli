@@ -921,10 +921,12 @@ func main() {
 	srv := NewServer()
 	srv.runMigrationsOnce()
 
-	// Register stats endpoint (requires event log).
+	// Stats is the operator-facing analytical projection. It is rebuilt from
+	// the append-only event log, then incrementally refreshed by the handler.
+	// Measures remain a programmatic contract over the same durable history;
+	// they do not replace the richer Stats product.
 	if srv.statsEngine != nil {
-		statsHandler := stats.NewHandler(srv.statsEngine)
-		statsHandler.RegisterRoutes(srv.router)
+		stats.NewHandler(srv.statsEngine).RegisterRoutes(srv.router)
 	}
 
 	// Register the granular measures surface (requires the event log): the
@@ -933,12 +935,16 @@ func main() {
 	// central index — plus the typed Connect MeasuresService. Both share one
 	// compute path so a measure and its RPC can never report different numbers.
 	if srv.eventRepo != nil {
-		measuresHandler, err := measureshandler.MeasuresHandler(srv.eventRepo, nil)
+		var planRefStore measureshandler.PlanRefStore
+		if srv.backlogHandler != nil {
+			planRefStore = srv.backlogHandler.Store()
+		}
+		measuresHandler, err := measureshandler.MeasuresHandler(srv.eventRepo, planRefStore, nil)
 		if err != nil {
 			slog.Error("measures registry init error", "error", err)
 		} else {
 			srv.router.PathPrefix("/measures/").Handler(http.StripPrefix("/measures", measuresHandler))
-			measureshandler.RegisterRoutes(srv.router, srv.eventRepo, nil)
+			measureshandler.RegisterRoutes(srv.router, srv.eventRepo, planRefStore, nil)
 		}
 	}
 

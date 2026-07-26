@@ -75,7 +75,7 @@ The primary operator surface is the **Plan board** at `/plan`; the **Graph works
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
 | **Capture** | Raw operator/agent observation (text + optional images) classified into a candidate kind | `pending` -> `classified` -> consumed (converted to backlog or discarded) | [CODE: api/internal/captures/io.go] |
 | **Record** | Immutable narrative artifact of completed work (`trigger`, `approach`, `ruled_out`, `commit`, `files_changed`, `outcome`); mirrors `BacklogKind`; supports `supersedes` chains for amendments | Stub (auto-created on backlog completion) -> filled (one-shot via `records edit`) -> immutable (further changes require supersedes) | [CODE: api/internal/records/types.go] |
-| **Event** | Append-only audit entry for entity state deltas (backlog status, record created/superseded, etc.); folded by stats engine | N/A (immutable) | [CODE: api/internal/eventlog/types.go] |
+| **Event** | Append-only audit entry for entity state deltas (backlog status, record created/superseded, etc.); queried by named measures | N/A (immutable) | [CODE: api/internal/eventlog/types.go] |
 
 ### Four-Entity Model
 
@@ -92,8 +92,8 @@ by queueing and combines its evidence with dependency and lifecycle facts. The
 policy never treats `plan_ref` presence as execution readiness. Detail views use
 the single-item projection; list surfaces use the bounded batch endpoint, so a
 visible card list does not issue one Plan Manager validation request per card.
-3. **Records** — narrative artifacts of completed work; what was learned, including hypotheses ruled out, files touched, commit, and outcome. Records are the **write side of the recursive-learning loop**: future agents query them via `ai-search query --kind fix` and `records search`. Stub records are auto-created on backlog terminal transitions (`review-decide --accept|--fail`) and filled by the executing agent; records can also be created for work that never touched the backlog.
-4. **Events** — audit log of state deltas (backlog status changes, record creations and supersedes, etc.) consumed by the stats engine to surface throughput, regression rate, and visibility split.
+3. **Records** — narrative artifacts of completed work; what was learned, including hypotheses ruled out, files touched, commit, and outcome. Records are the **write side of the recursive-learning loop**: future agents query them through `search query --type record`. Stub records are auto-created on backlog terminal transitions (`review decide --accept|--fail`) and filled by the executing agent; records can also be created for work that never touched the backlog.
+4. **Events** — audit log of state deltas (backlog status changes, record creations and supersedes, etc.) queried by named measures with explicit provenance.
 
 ### Milestones
 
@@ -163,7 +163,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
    ```
    Graph launcher -> draft agent session -> composer message + context/images -> Agent Manager run -> proposal -> API-owned apply -> artifact attribution
    ```
-   Agent Sessions support longer human-led planning and operations conversations inside Swarm Manager. Session details uses the shared composer also used by Quick Capture, with session-only context chips for existing backlog items, milestones, captures, executions, agent activity, scenarios, prior sessions, and the current operations briefing. Message context is resolved by the API before it reaches Agent Manager, and uploaded images are stored as session-owned attachments. Meta-orchestration sessions can create multiple milestones and backlog items through the batch apply seam. Swarm operations sessions receive a bounded `operations_briefing/latest` context by default, answer broad current-status questions from that packet first, then drill down through the operations/overview/stats commands only when needed. See [DOC: docs/internal/AGENT-SESSIONS.md].
+   Agent Sessions support longer human-led planning and operations conversations inside Swarm Manager. Session details uses the shared composer also used by Quick Capture, with session-only context chips for existing backlog items, milestones, captures, executions, agent activity, scenarios, prior sessions, and the current operations briefing. Message context is resolved by the API before it reaches Agent Manager, and uploaded images are stored as session-owned attachments. Meta-orchestration sessions can create multiple milestones and backlog items through the batch apply seam. Swarm operations sessions receive a bounded `operations_briefing/latest` context by default, answer broad current-status questions from that packet first, then drill down through the operations, overview, and named-measures commands only when needed. See [DOC: docs/internal/AGENT-SESSIONS.md].
 
 8. **UI route navigation**
    ```
@@ -310,7 +310,7 @@ api/internal/
 ├── depgraph/          # Dependency graph (pure computation)
 │   └── graph.go       # Cycle detection, topological sort
 ├── milestones/       # Milestone CRUD + rollup status
-├── overview/          # Aggregation endpoint (backlog + milestones + graph + stats)
+├── overview/          # Aggregation endpoint (backlog + milestones + graph)
 ├── captures/          # Capture CRUD and classification
 ├── promptcatalog/     # Canonical runtime prompt inventory and resolvers
 ├── workshop/          # Legacy round I/O helpers (readiness scoring retired; active loop lives in planworkshop/)
@@ -334,7 +334,7 @@ api/internal/
 - `/api/v1/plan-import` - POST an existing `{plan_id}` or adopted `{source_path|markdown}` plan, choose `container: "items"` or `container: "milestone"`, and land idempotent plan-bound work with `plan_ref` populated and created/linked/updated counts
 - `/api/v1/plan-import/plans` - list canonical plan-manager plans for the Create-Work-From-Plan picker
 - `/api/v1/execution/auto-drain` - GET/PUT the continuous goal-directed auto-enqueue toggle (default OFF; a scenario-local flag, not a proto setting)
-- `/api/v1/overview` - aggregated view (backlog, milestones, dependency graph, summary stats)
+- `/api/v1/overview` - aggregated view (backlog, milestones, dependency graph)
 - `/api/v1/operations/brief` - bounded current operations briefing for CLI, UI, and Swarm operations session prompts
 - `/api/v1/graph?lens=topology` - the topology projection (Graph focus mode filters it client-side)
 - `/api/v1/plan?window_seconds=...` - the Plan board projection (waves + next-action markers)

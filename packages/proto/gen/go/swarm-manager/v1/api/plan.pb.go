@@ -103,13 +103,13 @@ var File_swarm_manager_v1_api_plan_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_plan_proto_rawDesc = "" +
 	"\n" +
-	"\x1fswarm-manager/v1/api/plan.proto\x12\x10swarm_manager.v1\x1a\"swarm-manager/v1/domain/plan.proto\"\x94\x02\n" +
-	"\x11PlanBoardResponse\x122\n" +
-	"\x03now\x18\x01 \x01(\v2 .swarm_manager.v1.PlanNowSummaryR\x03now\x120\n" +
-	"\x04next\x18\x02 \x01(\v2\x1c.swarm_manager.v1.PlanColumnR\x04next\x122\n" +
-	"\x05later\x18\x03 \x01(\v2\x1c.swarm_manager.v1.PlanColumnR\x05later\x120\n" +
-	"\x04done\x18\x04 \x01(\v2\x1c.swarm_manager.v1.PlanColumnR\x04done\x123\n" +
-	"\x04meta\x18\x05 \x01(\v2\x1f.swarm_manager.v1.PlanBoardMetaR\x04metaBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x1fswarm-manager/v1/api/plan.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\"swarm-manager/v1/domain/plan.proto\"\xda\x02\n" +
+	"\x11PlanBoardResponse\x12@\n" +
+	"\x03now\x18\x01 \x01(\v2..vrooli.swarm_manager.v1.domain.PlanNowSummaryR\x03now\x12>\n" +
+	"\x04next\x18\x02 \x01(\v2*.vrooli.swarm_manager.v1.domain.PlanColumnR\x04next\x12@\n" +
+	"\x05later\x18\x03 \x01(\v2*.vrooli.swarm_manager.v1.domain.PlanColumnR\x05later\x12>\n" +
+	"\x04done\x18\x04 \x01(\v2*.vrooli.swarm_manager.v1.domain.PlanColumnR\x04done\x12A\n" +
+	"\x04meta\x18\x05 \x01(\v2-.vrooli.swarm_manager.v1.domain.PlanBoardMetaR\x04metaBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_plan_proto_rawDescOnce sync.Once
@@ -125,17 +125,17 @@ func file_swarm_manager_v1_api_plan_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_swarm_manager_v1_api_plan_proto_goTypes = []any{
-	(*PlanBoardResponse)(nil),     // 0: swarm_manager.v1.PlanBoardResponse
-	(*domain.PlanNowSummary)(nil), // 1: swarm_manager.v1.PlanNowSummary
-	(*domain.PlanColumn)(nil),     // 2: swarm_manager.v1.PlanColumn
-	(*domain.PlanBoardMeta)(nil),  // 3: swarm_manager.v1.PlanBoardMeta
+	(*PlanBoardResponse)(nil),     // 0: vrooli.swarm_manager.v1.api.PlanBoardResponse
+	(*domain.PlanNowSummary)(nil), // 1: vrooli.swarm_manager.v1.domain.PlanNowSummary
+	(*domain.PlanColumn)(nil),     // 2: vrooli.swarm_manager.v1.domain.PlanColumn
+	(*domain.PlanBoardMeta)(nil),  // 3: vrooli.swarm_manager.v1.domain.PlanBoardMeta
 }
 var file_swarm_manager_v1_api_plan_proto_depIdxs = []int32{
-	1, // 0: swarm_manager.v1.PlanBoardResponse.now:type_name -> swarm_manager.v1.PlanNowSummary
-	2, // 1: swarm_manager.v1.PlanBoardResponse.next:type_name -> swarm_manager.v1.PlanColumn
-	2, // 2: swarm_manager.v1.PlanBoardResponse.later:type_name -> swarm_manager.v1.PlanColumn
-	2, // 3: swarm_manager.v1.PlanBoardResponse.done:type_name -> swarm_manager.v1.PlanColumn
-	3, // 4: swarm_manager.v1.PlanBoardResponse.meta:type_name -> swarm_manager.v1.PlanBoardMeta
+	1, // 0: vrooli.swarm_manager.v1.api.PlanBoardResponse.now:type_name -> vrooli.swarm_manager.v1.domain.PlanNowSummary
+	2, // 1: vrooli.swarm_manager.v1.api.PlanBoardResponse.next:type_name -> vrooli.swarm_manager.v1.domain.PlanColumn
+	2, // 2: vrooli.swarm_manager.v1.api.PlanBoardResponse.later:type_name -> vrooli.swarm_manager.v1.domain.PlanColumn
+	2, // 3: vrooli.swarm_manager.v1.api.PlanBoardResponse.done:type_name -> vrooli.swarm_manager.v1.domain.PlanColumn
+	3, // 4: vrooli.swarm_manager.v1.api.PlanBoardResponse.meta:type_name -> vrooli.swarm_manager.v1.domain.PlanBoardMeta
 	5, // [5:5] is the sub-list for method output_type
 	5, // [5:5] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name

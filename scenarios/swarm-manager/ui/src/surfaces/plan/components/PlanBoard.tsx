@@ -37,7 +37,7 @@ import {
 } from "../lib/plan-presentation";
 import type { PlanBoardMetaData, PlanCardData } from "../types";
 import { GoalPicker } from "../../../components/goals/GoalPicker";
-import { EtaExplainerContent } from "../../../components/stats/EtaExplainer";
+import { EtaExplainerContent } from "./EtaExplainer";
 import { NowColumn } from "./NowColumn";
 import { PlanBoardActions } from "./PlanBoardActions";
 import { usePlanCardActions } from "./plan-card-actions-context";
@@ -246,7 +246,7 @@ function compactEtaLabel(p50Label: string, p80Label: string): string {
   return `${p50Label} – ${p80Label}`;
 }
 
-function EtaStrip({ eta, goal }: { eta: PlanBoardMetaData["eta"]; goal: string }) {
+function EtaStrip({ eta }: { eta: PlanBoardMetaData["eta"] }) {
   const navigate = useNavigate();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -300,13 +300,13 @@ function EtaStrip({ eta, goal }: { eta: PlanBoardMetaData["eta"]; goal: string }
           <button
             type="button"
             onClick={() => {
-              navigate(graphPath({ lens: "stats", goal }));
+              navigate(graphPath({ lens: "stats" }));
               setOpen(false);
             }}
             className="text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200"
             data-testid="plan-eta-stats-link"
           >
-            Open Stats throughput and timing
+            Open Stats dashboard
           </button>
           <div className="border-t border-slate-800 pt-2">
             {attach.button}
@@ -546,7 +546,7 @@ export function PlanBoard() {
             {hiddenSnoozed} snoozed
           </span>
         )}
-        <EtaStrip eta={board.meta.eta} goal={urlState.goal} />
+        <EtaStrip eta={board.meta.eta} />
         {missedSelect && (
           <SelectMissNotice
             nodeId={missedSelect}

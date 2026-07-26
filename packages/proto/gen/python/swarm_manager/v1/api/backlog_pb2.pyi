@@ -1,14 +1,27 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.domain import backlog_pb2 as _backlog_pb2
 from swarm_manager.v1.domain import execution_pb2 as _execution_pb2
-from swarm_manager.v1.domain import plan_ref_pb2 as _plan_ref_pb2
+from swarm_manager.v1.shared import backlog_pb2 as _backlog_pb2_1
+from swarm_manager.v1.shared import plan_ref_pb2 as _plan_ref_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class ArchivedFilter(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ARCHIVED_FILTER_UNSPECIFIED: _ClassVar[ArchivedFilter]
+    ARCHIVED_FILTER_EXCLUDE: _ClassVar[ArchivedFilter]
+    ARCHIVED_FILTER_ONLY: _ClassVar[ArchivedFilter]
+    ARCHIVED_FILTER_ALL: _ClassVar[ArchivedFilter]
+ARCHIVED_FILTER_UNSPECIFIED: ArchivedFilter
+ARCHIVED_FILTER_EXCLUDE: ArchivedFilter
+ARCHIVED_FILTER_ONLY: ArchivedFilter
+ARCHIVED_FILTER_ALL: ArchivedFilter
 
 class CreateBacklogItemRequest(_message.Message):
     __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref")
@@ -109,6 +122,40 @@ class ListBacklogItemsResponse(_message.Message):
     blocking: _containers.MessageMap[str, ItemBlockingInfo]
     def __init__(self, items: _Optional[_Iterable[_Union[_backlog_pb2.BacklogItem, _Mapping]]] = ..., blocking: _Optional[_Mapping[str, ItemBlockingInfo]] = ...) -> None: ...
 
+class ListBacklogItemsRequest(_message.Message):
+    __slots__ = ("kinds", "statuses", "archived", "scenarios", "spawned_from", "has_plan_ref", "plan_ref", "stale")
+    KINDS_FIELD_NUMBER: _ClassVar[int]
+    STATUSES_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_FIELD_NUMBER: _ClassVar[int]
+    SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    SPAWNED_FROM_FIELD_NUMBER: _ClassVar[int]
+    HAS_PLAN_REF_FIELD_NUMBER: _ClassVar[int]
+    PLAN_REF_FIELD_NUMBER: _ClassVar[int]
+    STALE_FIELD_NUMBER: _ClassVar[int]
+    kinds: _containers.RepeatedScalarFieldContainer[str]
+    statuses: _containers.RepeatedScalarFieldContainer[str]
+    archived: ArchivedFilter
+    scenarios: _containers.RepeatedScalarFieldContainer[str]
+    spawned_from: str
+    has_plan_ref: bool
+    plan_ref: str
+    stale: bool
+    def __init__(self, kinds: _Optional[_Iterable[str]] = ..., statuses: _Optional[_Iterable[str]] = ..., archived: _Optional[_Union[ArchivedFilter, str]] = ..., scenarios: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., has_plan_ref: _Optional[bool] = ..., plan_ref: _Optional[str] = ..., stale: _Optional[bool] = ...) -> None: ...
+
+class DeleteBacklogItemRequest(_message.Message):
+    __slots__ = ("kind", "name")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    name: str
+    def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+
+class DeleteBacklogItemResponse(_message.Message):
+    __slots__ = ("deleted",)
+    DELETED_FIELD_NUMBER: _ClassVar[int]
+    deleted: bool
+    def __init__(self, deleted: _Optional[bool] = ...) -> None: ...
+
 class BacklogItemResponse(_message.Message):
     __slots__ = ("item", "deduped")
     ITEM_FIELD_NUMBER: _ClassVar[int]
@@ -206,14 +253,14 @@ class DismissAutoFilerSuggestionResponse(_message.Message):
 class BacklogFilesResponse(_message.Message):
     __slots__ = ("files",)
     FILES_FIELD_NUMBER: _ClassVar[int]
-    files: _containers.RepeatedCompositeFieldContainer[_backlog_pb2.BacklogFile]
-    def __init__(self, files: _Optional[_Iterable[_Union[_backlog_pb2.BacklogFile, _Mapping]]] = ...) -> None: ...
+    files: _containers.RepeatedCompositeFieldContainer[_backlog_pb2_1.BacklogFile]
+    def __init__(self, files: _Optional[_Iterable[_Union[_backlog_pb2_1.BacklogFile, _Mapping]]] = ...) -> None: ...
 
 class BacklogFileResponse(_message.Message):
     __slots__ = ("file",)
     FILE_FIELD_NUMBER: _ClassVar[int]
-    file: _backlog_pb2.BacklogFile
-    def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ...) -> None: ...
+    file: _backlog_pb2_1.BacklogFile
+    def __init__(self, file: _Optional[_Union[_backlog_pb2_1.BacklogFile, _Mapping]] = ...) -> None: ...
 
 class BacklogFileOperationRequest(_message.Message):
     __slots__ = ("operation", "source_path", "destination_path")
@@ -229,9 +276,9 @@ class BacklogFileOperationResponse(_message.Message):
     __slots__ = ("file", "deleted_path")
     FILE_FIELD_NUMBER: _ClassVar[int]
     DELETED_PATH_FIELD_NUMBER: _ClassVar[int]
-    file: _backlog_pb2.BacklogFile
+    file: _backlog_pb2_1.BacklogFile
     deleted_path: str
-    def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ..., deleted_path: _Optional[str] = ...) -> None: ...
+    def __init__(self, file: _Optional[_Union[_backlog_pb2_1.BacklogFile, _Mapping]] = ..., deleted_path: _Optional[str] = ...) -> None: ...
 
 class QueueBacklogItemRequest(_message.Message):
     __slots__ = ("operation", "mode", "started_by", "confirm", "force", "strategy", "max_slices")
@@ -379,9 +426,9 @@ class WorkshopSaveResponse(_message.Message):
     __slots__ = ("file", "auto_advance")
     FILE_FIELD_NUMBER: _ClassVar[int]
     AUTO_ADVANCE_FIELD_NUMBER: _ClassVar[int]
-    file: _backlog_pb2.BacklogFile
+    file: _backlog_pb2_1.BacklogFile
     auto_advance: WorkshopAutoAdvance
-    def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ..., auto_advance: _Optional[_Union[WorkshopAutoAdvance, _Mapping]] = ...) -> None: ...
+    def __init__(self, file: _Optional[_Union[_backlog_pb2_1.BacklogFile, _Mapping]] = ..., auto_advance: _Optional[_Union[WorkshopAutoAdvance, _Mapping]] = ...) -> None: ...
 
 class WorkshopAutoAdvance(_message.Message):
     __slots__ = ("triggered", "run_id", "task_id", "reason", "next_mode", "pending", "advance_at", "delay_seconds")

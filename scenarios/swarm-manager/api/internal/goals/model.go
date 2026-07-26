@@ -27,7 +27,9 @@ type Goal struct {
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`
 	Status      string `json:"status"`
-	Priority    int    `json:"priority,omitempty"`
+	// Priority uses the same polarity as backlog priority: lower values are
+	// more urgent and sort first (0 highest, 10 lowest).
+	Priority int `json:"priority,omitempty"`
 	// Targets are end-state item refs: "<kind>/<name>".
 	Targets []string `json:"targets"`
 	// Seeded marks goals auto-created from de-facto goal tags so the UI can

@@ -424,15 +424,15 @@ var File_swarm_manager_v1_api_related_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_related_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/related.proto\x12\x10swarm_manager.v1\">\n" +
+	"\"swarm-manager/v1/api/related.proto\x12\x1bvrooli.swarm_manager.v1.api\">\n" +
 	"\x14RelatedBacklogTarget\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"'\n" +
 	"\x11RelatedGoalTarget\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"\x84\x02\n" +
-	"\x11GetRelatedRequest\x12B\n" +
-	"\abacklog\x18\x01 \x01(\v2&.swarm_manager.v1.RelatedBacklogTargetH\x00R\abacklog\x129\n" +
-	"\x04goal\x18\x02 \x01(\v2#.swarm_manager.v1.RelatedGoalTargetH\x00R\x04goal\x12-\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\x9a\x02\n" +
+	"\x11GetRelatedRequest\x12M\n" +
+	"\abacklog\x18\x01 \x01(\v21.vrooli.swarm_manager.v1.api.RelatedBacklogTargetH\x00R\abacklog\x12D\n" +
+	"\x04goal\x18\x02 \x01(\v2..vrooli.swarm_manager.v1.api.RelatedGoalTargetH\x00R\x04goal\x12-\n" +
 	"\x12exclude_historical\x18\x03 \x01(\bR\x11excludeHistorical\x12!\n" +
 	"\fentity_kinds\x18\x04 \x03(\tR\ventityKinds\x12\x14\n" +
 	"\x05limit\x18\x05 \x01(\x05R\x05limitB\b\n" +
@@ -446,16 +446,16 @@ const file_swarm_manager_v1_api_related_proto_rawDesc = "" +
 	"\barchived\x18\x05 \x01(\bR\barchived\x12\x18\n" +
 	"\areasons\x18\x06 \x03(\tR\areasons\x12(\n" +
 	"\rscore_percent\x18\a \x01(\x05H\x00R\fscorePercent\x88\x01\x01B\x10\n" +
-	"\x0e_score_percent\"{\n" +
+	"\x0e_score_percent\"\x86\x01\n" +
 	"\fRelatedGroup\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12;\n" +
-	"\bentities\x18\x02 \x03(\v2\x1f.swarm_manager.v1.RelatedEntityR\bentities\x12\x1a\n" +
-	"\bdegraded\x18\x03 \x01(\bR\bdegraded\"L\n" +
-	"\x12GetRelatedResponse\x126\n" +
-	"\x06groups\x18\x01 \x03(\v2\x1e.swarm_manager.v1.RelatedGroupR\x06groups2i\n" +
-	"\x0eRelatedService\x12W\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12F\n" +
+	"\bentities\x18\x02 \x03(\v2*.vrooli.swarm_manager.v1.api.RelatedEntityR\bentities\x12\x1a\n" +
+	"\bdegraded\x18\x03 \x01(\bR\bdegraded\"W\n" +
+	"\x12GetRelatedResponse\x12A\n" +
+	"\x06groups\x18\x01 \x03(\v2).vrooli.swarm_manager.v1.api.RelatedGroupR\x06groups2\x7f\n" +
+	"\x0eRelatedService\x12m\n" +
 	"\n" +
-	"GetRelated\x12#.swarm_manager.v1.GetRelatedRequest\x1a$.swarm_manager.v1.GetRelatedResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"GetRelated\x12..vrooli.swarm_manager.v1.api.GetRelatedRequest\x1a/.vrooli.swarm_manager.v1.api.GetRelatedResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_related_proto_rawDescOnce sync.Once
@@ -471,20 +471,20 @@ func file_swarm_manager_v1_api_related_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_related_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_swarm_manager_v1_api_related_proto_goTypes = []any{
-	(*RelatedBacklogTarget)(nil), // 0: swarm_manager.v1.RelatedBacklogTarget
-	(*RelatedGoalTarget)(nil),    // 1: swarm_manager.v1.RelatedGoalTarget
-	(*GetRelatedRequest)(nil),    // 2: swarm_manager.v1.GetRelatedRequest
-	(*RelatedEntity)(nil),        // 3: swarm_manager.v1.RelatedEntity
-	(*RelatedGroup)(nil),         // 4: swarm_manager.v1.RelatedGroup
-	(*GetRelatedResponse)(nil),   // 5: swarm_manager.v1.GetRelatedResponse
+	(*RelatedBacklogTarget)(nil), // 0: vrooli.swarm_manager.v1.api.RelatedBacklogTarget
+	(*RelatedGoalTarget)(nil),    // 1: vrooli.swarm_manager.v1.api.RelatedGoalTarget
+	(*GetRelatedRequest)(nil),    // 2: vrooli.swarm_manager.v1.api.GetRelatedRequest
+	(*RelatedEntity)(nil),        // 3: vrooli.swarm_manager.v1.api.RelatedEntity
+	(*RelatedGroup)(nil),         // 4: vrooli.swarm_manager.v1.api.RelatedGroup
+	(*GetRelatedResponse)(nil),   // 5: vrooli.swarm_manager.v1.api.GetRelatedResponse
 }
 var file_swarm_manager_v1_api_related_proto_depIdxs = []int32{
-	0, // 0: swarm_manager.v1.GetRelatedRequest.backlog:type_name -> swarm_manager.v1.RelatedBacklogTarget
-	1, // 1: swarm_manager.v1.GetRelatedRequest.goal:type_name -> swarm_manager.v1.RelatedGoalTarget
-	3, // 2: swarm_manager.v1.RelatedGroup.entities:type_name -> swarm_manager.v1.RelatedEntity
-	4, // 3: swarm_manager.v1.GetRelatedResponse.groups:type_name -> swarm_manager.v1.RelatedGroup
-	2, // 4: swarm_manager.v1.RelatedService.GetRelated:input_type -> swarm_manager.v1.GetRelatedRequest
-	5, // 5: swarm_manager.v1.RelatedService.GetRelated:output_type -> swarm_manager.v1.GetRelatedResponse
+	0, // 0: vrooli.swarm_manager.v1.api.GetRelatedRequest.backlog:type_name -> vrooli.swarm_manager.v1.api.RelatedBacklogTarget
+	1, // 1: vrooli.swarm_manager.v1.api.GetRelatedRequest.goal:type_name -> vrooli.swarm_manager.v1.api.RelatedGoalTarget
+	3, // 2: vrooli.swarm_manager.v1.api.RelatedGroup.entities:type_name -> vrooli.swarm_manager.v1.api.RelatedEntity
+	4, // 3: vrooli.swarm_manager.v1.api.GetRelatedResponse.groups:type_name -> vrooli.swarm_manager.v1.api.RelatedGroup
+	2, // 4: vrooli.swarm_manager.v1.api.RelatedService.GetRelated:input_type -> vrooli.swarm_manager.v1.api.GetRelatedRequest
+	5, // 5: vrooli.swarm_manager.v1.api.RelatedService.GetRelated:output_type -> vrooli.swarm_manager.v1.api.GetRelatedResponse
 	5, // [5:6] is the sub-list for method output_type
 	4, // [4:5] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name

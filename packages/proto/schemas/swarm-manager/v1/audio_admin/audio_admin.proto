@@ -13,10 +13,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // AUDIO ADMIN DOMAIN — web-console's audio-configuration surface.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain audio_admin
-// @imports web-console/v1/audio_common
-// @stability stable
+// @stability beta
 //
 // Web-console owns this surface. The UI talks to its own scenario API
 // only; web-console's API translates these calls into audioports server-

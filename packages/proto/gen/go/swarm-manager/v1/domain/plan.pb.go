@@ -790,17 +790,17 @@ var File_swarm_manager_v1_domain_plan_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_plan_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/domain/plan.proto\x12\x10swarm_manager.v1\"X\n" +
+	"\"swarm-manager/v1/domain/plan.proto\x12\x1evrooli.swarm_manager.v1.domain\"X\n" +
 	"\x0ePlanLaneStatus\x12\x12\n" +
 	"\x04lane\x18\x01 \x01(\tR\x04lane\x12\x16\n" +
 	"\x06active\x18\x02 \x01(\x05R\x06active\x12\x1a\n" +
-	"\bcapacity\x18\x03 \x01(\x05R\bcapacity\"\xb4\x01\n" +
+	"\bcapacity\x18\x03 \x01(\x05R\bcapacity\"\xc2\x01\n" +
 	"\x0ePlanNowSummary\x12!\n" +
 	"\factive_count\x18\x01 \x01(\x05R\vactiveCount\x12\x1f\n" +
 	"\vqueue_depth\x18\x02 \x01(\x05R\n" +
 	"queueDepth\x12&\n" +
-	"\x0fmax_queue_depth\x18\x03 \x01(\x05R\rmaxQueueDepth\x126\n" +
-	"\x05lanes\x18\x04 \x03(\v2 .swarm_manager.v1.PlanLaneStatusR\x05lanes\"\xa1\x02\n" +
+	"\x0fmax_queue_depth\x18\x03 \x01(\x05R\rmaxQueueDepth\x12D\n" +
+	"\x05lanes\x18\x04 \x03(\v2..vrooli.swarm_manager.v1.domain.PlanLaneStatusR\x05lanes\"\xa1\x02\n" +
 	"\bPlanGate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1d\n" +
@@ -816,7 +816,7 @@ const file_swarm_manager_v1_domain_plan_proto_rawDesc = "" +
 	"\x06blocks\x18\b \x03(\tR\x06blocks\x12'\n" +
 	"\x0fdecidable_since\x18\t \x01(\tR\x0edecidableSince\x12\x1c\n" +
 	"\tsuggested\x18\n" +
-	" \x01(\tR\tsuggested\"\xc7\x03\n" +
+	" \x01(\tR\tsuggested\"\xd5\x03\n" +
 	"\bPlanCard\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tcard_type\x18\x02 \x01(\tR\bcardType\x12\x16\n" +
@@ -829,23 +829,23 @@ const file_swarm_manager_v1_domain_plan_proto_rawDesc = "" +
 	"\x04wave\x18\t \x01(\x05R\x04wave\x12\x1c\n" +
 	"\tmilestone\x18\n" +
 	" \x01(\tR\tmilestone\x12\x16\n" +
-	"\x06effort\x18\v \x01(\tR\x06effort\x12.\n" +
-	"\x04gate\x18\f \x01(\v2\x1a.swarm_manager.v1.PlanGateR\x04gate\x12\x18\n" +
+	"\x06effort\x18\v \x01(\tR\x06effort\x12<\n" +
+	"\x04gate\x18\f \x01(\v2(.vrooli.swarm_manager.v1.domain.PlanGateR\x04gate\x12\x18\n" +
 	"\aoutcome\x18\r \x01(\tR\aoutcome\x12\x1f\n" +
 	"\vfinished_at\x18\x0e \x01(\tR\n" +
 	"finishedAt\x12!\n" +
 	"\fexecution_id\x18\x0f \x01(\tR\vexecutionId\x12\x1a\n" +
-	"\bunblocks\x18\x10 \x01(\x05R\bunblocks\"\xc6\x01\n" +
+	"\bunblocks\x18\x10 \x01(\x05R\bunblocks\"\xd4\x01\n" +
 	"\rPlanCardGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12!\n" +
 	"\fblocker_kind\x18\x03 \x01(\tR\vblockerKind\x12\x17\n" +
 	"\agate_id\x18\x04 \x01(\tR\x06gateId\x12!\n" +
-	"\fblocker_keys\x18\x05 \x03(\tR\vblockerKeys\x120\n" +
-	"\x05cards\x18\x06 \x03(\v2\x1a.swarm_manager.v1.PlanCardR\x05cards\"d\n" +
+	"\fblocker_keys\x18\x05 \x03(\tR\vblockerKeys\x12>\n" +
+	"\x05cards\x18\x06 \x03(\v2(.vrooli.swarm_manager.v1.domain.PlanCardR\x05cards\"r\n" +
 	"\n" +
-	"PlanColumn\x127\n" +
-	"\x06groups\x18\x01 \x03(\v2\x1f.swarm_manager.v1.PlanCardGroupR\x06groups\x12\x1d\n" +
+	"PlanColumn\x12E\n" +
+	"\x06groups\x18\x01 \x03(\v2-.vrooli.swarm_manager.v1.domain.PlanCardGroupR\x06groups\x12\x1d\n" +
 	"\n" +
 	"card_count\x18\x02 \x01(\x05R\tcardCount\"\xa6\x02\n" +
 	"\vPlanEtaBand\x12\x1b\n" +
@@ -860,13 +860,13 @@ const file_swarm_manager_v1_domain_plan_proto_rawDesc = "" +
 	"confidence\x18\a \x01(\tR\n" +
 	"confidence\x12'\n" +
 	"\x0fremaining_items\x18\b \x01(\x05R\x0eremainingItems\x12#\n" +
-	"\rlane_capacity\x18\t \x01(\x05R\flaneCapacity\"\xbd\x01\n" +
+	"\rlane_capacity\x18\t \x01(\x05R\flaneCapacity\"\xcb\x01\n" +
 	"\rPlanBoardMeta\x12!\n" +
 	"\fgenerated_at\x18\x01 \x01(\tR\vgeneratedAt\x12%\n" +
 	"\x0ewindow_seconds\x18\x02 \x01(\x05R\rwindowSeconds\x12\x19\n" +
 	"\bmax_wave\x18\x03 \x01(\x05R\amaxWave\x12\x16\n" +
-	"\x06cycles\x18\x04 \x03(\tR\x06cycles\x12/\n" +
-	"\x03eta\x18\x05 \x01(\v2\x1d.swarm_manager.v1.PlanEtaBandR\x03etaBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x06cycles\x18\x04 \x03(\tR\x06cycles\x12=\n" +
+	"\x03eta\x18\x05 \x01(\v2+.vrooli.swarm_manager.v1.domain.PlanEtaBandR\x03etaBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_plan_proto_rawDescOnce sync.Once
@@ -882,21 +882,21 @@ func file_swarm_manager_v1_domain_plan_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_domain_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_swarm_manager_v1_domain_plan_proto_goTypes = []any{
-	(*PlanLaneStatus)(nil), // 0: swarm_manager.v1.PlanLaneStatus
-	(*PlanNowSummary)(nil), // 1: swarm_manager.v1.PlanNowSummary
-	(*PlanGate)(nil),       // 2: swarm_manager.v1.PlanGate
-	(*PlanCard)(nil),       // 3: swarm_manager.v1.PlanCard
-	(*PlanCardGroup)(nil),  // 4: swarm_manager.v1.PlanCardGroup
-	(*PlanColumn)(nil),     // 5: swarm_manager.v1.PlanColumn
-	(*PlanEtaBand)(nil),    // 6: swarm_manager.v1.PlanEtaBand
-	(*PlanBoardMeta)(nil),  // 7: swarm_manager.v1.PlanBoardMeta
+	(*PlanLaneStatus)(nil), // 0: vrooli.swarm_manager.v1.domain.PlanLaneStatus
+	(*PlanNowSummary)(nil), // 1: vrooli.swarm_manager.v1.domain.PlanNowSummary
+	(*PlanGate)(nil),       // 2: vrooli.swarm_manager.v1.domain.PlanGate
+	(*PlanCard)(nil),       // 3: vrooli.swarm_manager.v1.domain.PlanCard
+	(*PlanCardGroup)(nil),  // 4: vrooli.swarm_manager.v1.domain.PlanCardGroup
+	(*PlanColumn)(nil),     // 5: vrooli.swarm_manager.v1.domain.PlanColumn
+	(*PlanEtaBand)(nil),    // 6: vrooli.swarm_manager.v1.domain.PlanEtaBand
+	(*PlanBoardMeta)(nil),  // 7: vrooli.swarm_manager.v1.domain.PlanBoardMeta
 }
 var file_swarm_manager_v1_domain_plan_proto_depIdxs = []int32{
-	0, // 0: swarm_manager.v1.PlanNowSummary.lanes:type_name -> swarm_manager.v1.PlanLaneStatus
-	2, // 1: swarm_manager.v1.PlanCard.gate:type_name -> swarm_manager.v1.PlanGate
-	3, // 2: swarm_manager.v1.PlanCardGroup.cards:type_name -> swarm_manager.v1.PlanCard
-	4, // 3: swarm_manager.v1.PlanColumn.groups:type_name -> swarm_manager.v1.PlanCardGroup
-	6, // 4: swarm_manager.v1.PlanBoardMeta.eta:type_name -> swarm_manager.v1.PlanEtaBand
+	0, // 0: vrooli.swarm_manager.v1.domain.PlanNowSummary.lanes:type_name -> vrooli.swarm_manager.v1.domain.PlanLaneStatus
+	2, // 1: vrooli.swarm_manager.v1.domain.PlanCard.gate:type_name -> vrooli.swarm_manager.v1.domain.PlanGate
+	3, // 2: vrooli.swarm_manager.v1.domain.PlanCardGroup.cards:type_name -> vrooli.swarm_manager.v1.domain.PlanCard
+	4, // 3: vrooli.swarm_manager.v1.domain.PlanColumn.groups:type_name -> vrooli.swarm_manager.v1.domain.PlanCardGroup
+	6, // 4: vrooli.swarm_manager.v1.domain.PlanBoardMeta.eta:type_name -> vrooli.swarm_manager.v1.domain.PlanEtaBand
 	5, // [5:5] is the sub-list for method output_type
 	5, // [5:5] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name

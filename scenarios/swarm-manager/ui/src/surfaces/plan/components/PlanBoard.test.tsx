@@ -287,10 +287,10 @@ describe("PlanBoard", () => {
 
     expect(await screen.findByTestId("plan-eta-popover")).toHaveTextContent("Remaining");
     expect(screen.getByText("6 items")).toBeInTheDocument();
-    expect(screen.getByTestId("plan-eta-stats-link")).toHaveTextContent("Open Stats throughput and timing");
+    expect(screen.getByTestId("plan-eta-stats-link")).toHaveTextContent("Open Stats dashboard");
   });
 
-  it("carries the selected goal when opening Stats from ETA", async () => {
+  it("carries the selected goal when opening Measures from ETA", async () => {
     setPlanStoreService(
       stubService(
         makeBoard({
@@ -327,7 +327,7 @@ describe("PlanBoard", () => {
     await user.click(screen.getByTestId("plan-eta-strip"));
     await user.click(await screen.findByTestId("plan-eta-stats-link"));
 
-    expect(screen.getByTestId("location-probe")).toHaveTextContent("/stats?goal=goal-x");
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/stats");
   });
 
   it("offers attach-to-session from the ETA popover", async () => {

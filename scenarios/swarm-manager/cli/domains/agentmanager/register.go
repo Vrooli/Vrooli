@@ -14,6 +14,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("status", "Get agent-manager availability and profile status", deps.AgentManagerStatus),
 			support.APICommand("run-get", "Get run status (--id ID) [--json]", deps.AgentManagerRunGet),
 			support.APICommand("run-stop", "Stop a run (--id ID) [--json]", deps.AgentManagerRunStop),
+			support.APICommand("metrics-sandbox-adoption", "Show sandbox-default rollout adoption", deps.AgentManagerSandboxAdoption),
 		},
 	}
 }

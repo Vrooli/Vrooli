@@ -153,6 +153,72 @@ func TestConnectGetItem_NotFound(t *testing.T) {
 	}
 }
 
+func TestConnectListItems_AppliesTypedFilters(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	svc := NewConnectService(h)
+
+	createViaConnect(t, svc, &apipb.CreateBacklogItemRequest{
+		Name: "research-item", Title: "Research item", Kind: "research",
+		AcceptanceAllow: []string{"scenarios/research/**"},
+	})
+	createViaConnect(t, svc, &apipb.CreateBacklogItemRequest{
+		Name: "fix-item", Title: "Fix item", Kind: "fix",
+		AcceptanceAllow: []string{"scenarios/fix/**"},
+	})
+
+	response, err := svc.ListItems(context.Background(), connect.NewRequest(&apipb.ListBacklogItemsRequest{
+		Kinds:    []string{"research"},
+		Archived: apipb.ArchivedFilter_ARCHIVED_FILTER_EXCLUDE,
+	}))
+	if err != nil {
+		t.Fatalf("ListItems failed: %v", err)
+	}
+	if len(response.Msg.GetItems()) != 1 {
+		t.Fatalf("expected one filtered item, got %d", len(response.Msg.GetItems()))
+	}
+	item := response.Msg.GetItems()[0]
+	if item.GetKind() != "research" || item.GetName() != "research-item" {
+		t.Errorf("unexpected filtered item: %s/%s", item.GetKind(), item.GetName())
+	}
+}
+
+func TestConnectListItems_InvalidKind(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	svc := NewConnectService(h)
+
+	_, err := svc.ListItems(context.Background(), connect.NewRequest(&apipb.ListBacklogItemsRequest{Kinds: []string{"bogus"}}))
+	if err == nil {
+		t.Fatal("expected invalid kind error")
+	}
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Errorf("expected CodeInvalidArgument, got %v", connect.CodeOf(err))
+	}
+}
+
+func TestConnectDeleteItem_IsIdempotent(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	svc := NewConnectService(h)
+	createViaConnect(t, svc, &apipb.CreateBacklogItemRequest{
+		Name: "delete-me", Title: "Delete me", Kind: "fix",
+		AcceptanceAllow: []string{"scenarios/delete/**"},
+	})
+
+	first, err := svc.DeleteItem(context.Background(), connect.NewRequest(&apipb.DeleteBacklogItemRequest{Kind: "fix", Name: "delete-me"}))
+	if err != nil {
+		t.Fatalf("DeleteItem failed: %v", err)
+	}
+	if !first.Msg.GetDeleted() {
+		t.Fatalf("first delete should report deleted")
+	}
+	second, err := svc.DeleteItem(context.Background(), connect.NewRequest(&apipb.DeleteBacklogItemRequest{Kind: "fix", Name: "delete-me"}))
+	if err != nil {
+		t.Fatalf("idempotent DeleteItem failed: %v", err)
+	}
+	if second.Msg.GetDeleted() {
+		t.Error("second delete should report an already-absent item")
+	}
+}
+
 func TestConnectCreateItem_InvalidKind(t *testing.T) {
 	h, _ := setupTestHandler(t)
 	svc := NewConnectService(h)

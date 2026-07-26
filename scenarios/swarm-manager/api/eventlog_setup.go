@@ -28,7 +28,9 @@ func resolveEventDBPath() (string, error) {
 	return "file:" + dbPath + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)", nil
 }
 
-// initEventLog initializes the event log database, emitter, and stats engine.
+// initEventLog initializes the event log database, emitter, and incremental
+// Stats projection. The projection is a derived read model: event history
+// remains authoritative and can always rebuild it.
 func (s *Server) initEventLog() {
 	dsn, err := resolveEventDBPath()
 	if err != nil {
@@ -46,7 +48,7 @@ func (s *Server) initEventLog() {
 		MaxIdleConns: 1,
 	})
 	if err != nil {
-		slog.Warn("failed to open event database, stats will be unavailable", "error", err)
+		slog.Warn("failed to open event database, event history and stats will be unavailable", "error", err)
 		return
 	}
 	// Apply the per-domain schemas to whichever pool is active (live at boot;
@@ -67,7 +69,7 @@ func (s *Server) initEventLog() {
 	if err := s.statsEngine.Rebuild(context.Background()); err != nil {
 		slog.Error("stats rebuild error", "error", err)
 	} else {
-		slog.Info("stats engine initialized, replayed events")
+		slog.Info("stats projection initialized from event history")
 	}
 }
 

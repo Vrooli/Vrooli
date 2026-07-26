@@ -12,7 +12,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 )
 
 func (a *App) goalClient() apiconnect.GoalServiceClient {
@@ -238,7 +238,7 @@ func (a *App) cmdGoalsTargets(args []string, command string, add bool) error {
 }
 
 func (a *App) cmdGoalsMilestoneCreate(args []string) error {
-	fs := flag.NewFlagSet("goals milestone-create", flag.ContinueOnError)
+	fs := flag.NewFlagSet("milestones create", flag.ContinueOnError)
 	goal := fs.String("goal", "", "Goal name")
 	name := fs.String("name", "", "Milestone name")
 	title := fs.String("title", "", "Milestone title")
@@ -250,9 +250,9 @@ func (a *App) cmdGoalsMilestoneCreate(args []string) error {
 		return err
 	}
 	if *goal == "" || *name == "" || *title == "" || len(acceptance) == 0 {
-		return fmt.Errorf("usage: goals milestone-create --goal NAME --name NAME --title TITLE --acceptance CRITERION [--acceptance CRITERION ...] [--description TEXT]")
+		return fmt.Errorf("usage: milestones create --goal NAME --name NAME --title TITLE --acceptance CRITERION [--acceptance CRITERION ...] [--description TEXT]")
 	}
-	milestone := &domainpb.Milestone{Name: *name, Title: *title, Description: *description, AcceptanceCriteria: acceptance}
+	milestone := &sharedpb.Milestone{Name: *name, Title: *title, Description: *description, AcceptanceCriteria: acceptance}
 	result, err := a.goalClient().CreateMilestone(context.Background(), connect.NewRequest(&apipb.CreateMilestoneRequest{GoalName: *goal, Milestone: milestone}))
 	if err != nil {
 		return err
@@ -269,7 +269,7 @@ func (a *App) cmdGoalsMilestoneCreate(args []string) error {
 // every time rather than patching individual fields. Member items and archive
 // state are owned by assignment and archive operations and are preserved.
 func (a *App) cmdGoalsMilestoneUpdate(args []string) error {
-	fs := flag.NewFlagSet("goals milestone-update", flag.ContinueOnError)
+	fs := flag.NewFlagSet("milestones update", flag.ContinueOnError)
 	goal := fs.String("goal", "", "Goal name")
 	name := fs.String("name", "", "Milestone name")
 	title := fs.String("title", "", "Milestone title")
@@ -281,9 +281,9 @@ func (a *App) cmdGoalsMilestoneUpdate(args []string) error {
 		return err
 	}
 	if *goal == "" || *name == "" || *title == "" || len(acceptance) == 0 {
-		return fmt.Errorf("usage: goals milestone-update --goal NAME --name NAME --title TITLE --acceptance CRITERION [--acceptance CRITERION ...] [--description TEXT]")
+		return fmt.Errorf("usage: milestones update --goal NAME --name NAME --title TITLE --acceptance CRITERION [--acceptance CRITERION ...] [--description TEXT]")
 	}
-	milestone := &domainpb.Milestone{Name: *name, Title: *title, Description: *description, AcceptanceCriteria: acceptance}
+	milestone := &sharedpb.Milestone{Name: *name, Title: *title, Description: *description, AcceptanceCriteria: acceptance}
 	result, err := a.goalClient().UpdateMilestone(context.Background(), connect.NewRequest(&apipb.UpdateMilestoneRequest{GoalName: *goal, Milestone: milestone}))
 	if err != nil {
 		return err
@@ -296,7 +296,7 @@ func (a *App) cmdGoalsMilestoneUpdate(args []string) error {
 }
 
 func (a *App) cmdGoalsMilestoneAssign(args []string) error {
-	fs := flag.NewFlagSet("goals milestone-assign", flag.ContinueOnError)
+	fs := flag.NewFlagSet("milestones assign", flag.ContinueOnError)
 	goal := fs.String("goal", "", "Goal name")
 	milestone := fs.String("milestone", "", "Milestone name")
 	items := fs.String("items", "", "Comma-separated item refs")
@@ -305,7 +305,7 @@ func (a *App) cmdGoalsMilestoneAssign(args []string) error {
 		return err
 	}
 	if *goal == "" || *milestone == "" || *items == "" {
-		return fmt.Errorf("usage: goals milestone-assign --goal NAME --milestone NAME --items kind/name,...")
+		return fmt.Errorf("usage: milestones assign --goal NAME --milestone NAME --items kind/name,...")
 	}
 	result, err := a.goalClient().AssignMilestoneItems(context.Background(), connect.NewRequest(&apipb.UpdateMilestoneItemsRequest{GoalName: *goal, MilestoneName: *milestone, Items: splitCSV(*items)}))
 	if err != nil {
@@ -319,7 +319,7 @@ func (a *App) cmdGoalsMilestoneAssign(args []string) error {
 }
 
 func (a *App) cmdGoalsMilestoneUnassign(args []string) error {
-	return a.cmdGoalsMilestoneItems(args, "goals milestone-unassign", false)
+	return a.cmdGoalsMilestoneItems(args, "milestones unassign", false)
 }
 
 func (a *App) cmdGoalsMilestoneItems(args []string, command string, assign bool) error {
@@ -351,14 +351,14 @@ func (a *App) cmdGoalsMilestoneItems(args []string, command string, assign bool)
 }
 
 func (a *App) cmdGoalsMilestoneArchive(args []string) error {
-	fs := flag.NewFlagSet("goals milestone-archive", flag.ContinueOnError)
+	fs := flag.NewFlagSet("milestones archive", flag.ContinueOnError)
 	goal, milestone := fs.String("goal", "", "Goal name"), fs.String("milestone", "", "Milestone name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if *goal == "" || *milestone == "" {
-		return fmt.Errorf("usage: goals milestone-archive --goal NAME --milestone NAME")
+		return fmt.Errorf("usage: milestones archive --goal NAME --milestone NAME")
 	}
 	result, err := a.goalClient().ArchiveMilestone(context.Background(), connect.NewRequest(&apipb.ArchiveMilestoneRequest{GoalName: *goal, MilestoneName: *milestone}))
 	if err != nil {
@@ -402,7 +402,7 @@ func (a *App) cmdGoalsWorkflowRun(args []string, command, action string) error {
 }
 
 func (a *App) cmdGoalsMilestoneReviewRun(args []string) error {
-	fs := flag.NewFlagSet("goals milestone-review-run", flag.ContinueOnError)
+	fs := flag.NewFlagSet("milestones review-run", flag.ContinueOnError)
 	goal, milestone := fs.String("goal", "", "Goal name"), fs.String("milestone", "", "Milestone name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {

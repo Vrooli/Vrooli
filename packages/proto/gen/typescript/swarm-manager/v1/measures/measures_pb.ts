@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/measures/measures.proto.
  */
 export const file_swarm_manager_v1_measures_measures: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL21lYXN1cmVzL21lYXN1cmVzLnByb3RvEiB2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcyJOChxDb3VudEJhY2tsb2dDb21wbGV0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93Ii4KHUNvdW50QmFja2xvZ0NvbXBsZXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIkwKGkNvdW50QmFja2xvZ0NyZWF0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IiwKG0NvdW50QmFja2xvZ0NyZWF0ZWRSZXNwb25zZRINCgVjb3VudBgBIAEoAyJRCh9Db3VudEV4ZWN1dGlvbnNDb21wbGV0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IjEKIENvdW50RXhlY3V0aW9uc0NvbXBsZXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIkoKGENvdW50R29hbHNDcmVhdGVkUmVxdWVzdBIuCgZ3aW5kb3cYASABKAsyHi52cm9vbGkubWVhc3VyZXMudjEuVGltZVdpbmRvdyIqChlDb3VudEdvYWxzQ3JlYXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIlIKIENvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IjIKIUNvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWRSZXNwb25zZRINCgVjb3VudBgBIAEoAzKbBgoPTWVhc3VyZXNTZXJ2aWNlEpgBChVDb3VudEJhY2tsb2dDb21wbGV0ZWQSPi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEJhY2tsb2dDb21wbGV0ZWRSZXF1ZXN0Gj8udnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQ291bnRCYWNrbG9nQ29tcGxldGVkUmVzcG9uc2USkgEKE0NvdW50QmFja2xvZ0NyZWF0ZWQSPC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEJhY2tsb2dDcmVhdGVkUmVxdWVzdBo9LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QmFja2xvZ0NyZWF0ZWRSZXNwb25zZRKhAQoYQ291bnRFeGVjdXRpb25zQ29tcGxldGVkEkEudnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQ291bnRFeGVjdXRpb25zQ29tcGxldGVkUmVxdWVzdBpCLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50RXhlY3V0aW9uc0NvbXBsZXRlZFJlc3BvbnNlEowBChFDb3VudEdvYWxzQ3JlYXRlZBI6LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50R29hbHNDcmVhdGVkUmVxdWVzdBo7LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50R29hbHNDcmVhdGVkUmVzcG9uc2USpAEKGUNvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWQSQi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEFnZW50U2Vzc2lvbnNDcmVhdGVkUmVxdWVzdBpDLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QWdlbnRTZXNzaW9uc0NyZWF0ZWRSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvbWVhc3VyZXM7bWVhc3VyZXNfdjFiBnByb3RvMw", [file_measures_v1_measures]);
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL21lYXN1cmVzL21lYXN1cmVzLnByb3RvEiB2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcyJOChxDb3VudEJhY2tsb2dDb21wbGV0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93Ii4KHUNvdW50QmFja2xvZ0NvbXBsZXRlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIkwKGkNvdW50QmFja2xvZ0NyZWF0ZWRSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IiwKG0NvdW50QmFja2xvZ0NyZWF0ZWRSZXNwb25zZRINCgVjb3VudBgBIAEoAyJNChtDb3VudEJhY2tsb2dOZXREZWx0YVJlcXVlc3QSLgoGd2luZG93GAEgASgLMh4udnJvb2xpLm1lYXN1cmVzLnYxLlRpbWVXaW5kb3ciLQocQ291bnRCYWNrbG9nTmV0RGVsdGFSZXNwb25zZRINCgVjb3VudBgBIAEoEiIZChdDb3VudEJhY2tsb2dPcGVuUmVxdWVzdCIpChhDb3VudEJhY2tsb2dPcGVuUmVzcG9uc2USDQoFY291bnQYASABKAMiHAoaQ291bnRCYWNrbG9nQmxvY2tlZFJlcXVlc3QiLAobQ291bnRCYWNrbG9nQmxvY2tlZFJlc3BvbnNlEg0KBWNvdW50GAEgASgDIkgKFkJhY2tsb2dMZWFkVGltZVJlcXVlc3QSLgoGd2luZG93GAEgASgLMh4udnJvb2xpLm1lYXN1cmVzLnYxLlRpbWVXaW5kb3ciWwoXQmFja2xvZ0xlYWRUaW1lUmVzcG9uc2USFQoNYXZlcmFnZV9ob3VycxgBIAEoARIUCgxtZWRpYW5faG91cnMYAiABKAESEwoLc2FtcGxlX3NpemUYAyABKAMiUQofQ291bnRFeGVjdXRpb25zQ29tcGxldGVkUmVxdWVzdBIuCgZ3aW5kb3cYASABKAsyHi52cm9vbGkubWVhc3VyZXMudjEuVGltZVdpbmRvdyIxCiBDb3VudEV4ZWN1dGlvbnNDb21wbGV0ZWRSZXNwb25zZRINCgVjb3VudBgBIAEoAyJKChhDb3VudEdvYWxzQ3JlYXRlZFJlcXVlc3QSLgoGd2luZG93GAEgASgLMh4udnJvb2xpLm1lYXN1cmVzLnYxLlRpbWVXaW5kb3ciKgoZQ291bnRHb2Fsc0NyZWF0ZWRSZXNwb25zZRINCgVjb3VudBgBIAEoAyJSCiBDb3VudEFnZW50U2Vzc2lvbnNDcmVhdGVkUmVxdWVzdBIuCgZ3aW5kb3cYASABKAsyHi52cm9vbGkubWVhc3VyZXMudjEuVGltZVdpbmRvdyIyCiFDb3VudEFnZW50U2Vzc2lvbnNDcmVhdGVkUmVzcG9uc2USDQoFY291bnQYASABKAMiFgoUQ291bnRQbGFuUmVmc1JlcXVlc3QiJgoVQ291bnRQbGFuUmVmc1Jlc3BvbnNlEg0KBWNvdW50GAEgASgDIhwKGkdvYWxNaWxlc3RvbmVIZWFsdGhSZXF1ZXN0ImwKD01pbGVzdG9uZUhlYWx0aBIRCgltaWxlc3RvbmUYASABKAkSDQoFdG90YWwYAiABKAMSEQoJY29tcGxldGVkGAMgASgDEhMKC2luX3Byb2dyZXNzGAQgASgDEg8KB2Jsb2NrZWQYBSABKAMiZAobR29hbE1pbGVzdG9uZUhlYWx0aFJlc3BvbnNlEkUKCm1pbGVzdG9uZXMYASADKAsyMS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5NaWxlc3RvbmVIZWFsdGgiUQofQWdlbnRTZXNzaW9uUHJvcG9zYWxSYXRlUmVxdWVzdBIuCgZ3aW5kb3cYASABKAsyHi52cm9vbGkubWVhc3VyZXMudjEuVGltZVdpbmRvdyJFCiBBZ2VudFNlc3Npb25Qcm9wb3NhbFJhdGVSZXNwb25zZRIMCgRyYXRlGAEgASgBEhMKC3NhbXBsZV9zaXplGAIgASgDIk0KG0V4ZWN1dGlvblN1Y2Nlc3NSYXRlUmVxdWVzdBIuCgZ3aW5kb3cYASABKAsyHi52cm9vbGkubWVhc3VyZXMudjEuVGltZVdpbmRvdyJBChxFeGVjdXRpb25TdWNjZXNzUmF0ZVJlc3BvbnNlEgwKBHJhdGUYASABKAESEwoLc2FtcGxlX3NpemUYAiABKAMiSgoYRXhlY3V0aW9uRHVyYXRpb25SZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93ImEKGUV4ZWN1dGlvbkR1cmF0aW9uUmVzcG9uc2USFwoPYXZlcmFnZV9taW51dGVzGAEgASgBEhYKDm1lZGlhbl9taW51dGVzGAIgASgBEhMKC3NhbXBsZV9zaXplGAMgASgDIkwKGkV4ZWN1dGlvblJldmlld1JhdGVSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IkAKG0V4ZWN1dGlvblJldmlld1JhdGVSZXNwb25zZRIMCgRyYXRlGAEgASgBEhMKC3NhbXBsZV9zaXplGAIgASgDMtURCg9NZWFzdXJlc1NlcnZpY2USmAEKFUNvdW50QmFja2xvZ0NvbXBsZXRlZBI+LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QmFja2xvZ0NvbXBsZXRlZFJlcXVlc3QaPy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEJhY2tsb2dDb21wbGV0ZWRSZXNwb25zZRKSAQoTQ291bnRCYWNrbG9nQ3JlYXRlZBI8LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QmFja2xvZ0NyZWF0ZWRSZXF1ZXN0Gj0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQ291bnRCYWNrbG9nQ3JlYXRlZFJlc3BvbnNlEpUBChRDb3VudEJhY2tsb2dOZXREZWx0YRI9LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QmFja2xvZ05ldERlbHRhUmVxdWVzdBo+LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QmFja2xvZ05ldERlbHRhUmVzcG9uc2USiQEKEENvdW50QmFja2xvZ09wZW4SOS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEJhY2tsb2dPcGVuUmVxdWVzdBo6LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QmFja2xvZ09wZW5SZXNwb25zZRKSAQoTQ291bnRCYWNrbG9nQmxvY2tlZBI8LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50QmFja2xvZ0Jsb2NrZWRSZXF1ZXN0Gj0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQ291bnRCYWNrbG9nQmxvY2tlZFJlc3BvbnNlEoYBCg9CYWNrbG9nTGVhZFRpbWUSOC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5CYWNrbG9nTGVhZFRpbWVSZXF1ZXN0GjkudnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQmFja2xvZ0xlYWRUaW1lUmVzcG9uc2USoQEKGENvdW50RXhlY3V0aW9uc0NvbXBsZXRlZBJBLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50RXhlY3V0aW9uc0NvbXBsZXRlZFJlcXVlc3QaQi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEV4ZWN1dGlvbnNDb21wbGV0ZWRSZXNwb25zZRKMAQoRQ291bnRHb2Fsc0NyZWF0ZWQSOi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEdvYWxzQ3JlYXRlZFJlcXVlc3QaOy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEdvYWxzQ3JlYXRlZFJlc3BvbnNlEqQBChlDb3VudEFnZW50U2Vzc2lvbnNDcmVhdGVkEkIudnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQ291bnRBZ2VudFNlc3Npb25zQ3JlYXRlZFJlcXVlc3QaQy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudEFnZW50U2Vzc2lvbnNDcmVhdGVkUmVzcG9uc2USgAEKDUNvdW50UGxhblJlZnMSNi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5Db3VudFBsYW5SZWZzUmVxdWVzdBo3LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkNvdW50UGxhblJlZnNSZXNwb25zZRKSAQoTR29hbE1pbGVzdG9uZUhlYWx0aBI8LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLm1lYXN1cmVzLkdvYWxNaWxlc3RvbmVIZWFsdGhSZXF1ZXN0Gj0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuR29hbE1pbGVzdG9uZUhlYWx0aFJlc3BvbnNlEqEBChhBZ2VudFNlc3Npb25Qcm9wb3NhbFJhdGUSQS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5BZ2VudFNlc3Npb25Qcm9wb3NhbFJhdGVSZXF1ZXN0GkIudnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuQWdlbnRTZXNzaW9uUHJvcG9zYWxSYXRlUmVzcG9uc2USlQEKFEV4ZWN1dGlvblN1Y2Nlc3NSYXRlEj0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuRXhlY3V0aW9uU3VjY2Vzc1JhdGVSZXF1ZXN0Gj4udnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuRXhlY3V0aW9uU3VjY2Vzc1JhdGVSZXNwb25zZRKMAQoRRXhlY3V0aW9uRHVyYXRpb24SOi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5FeGVjdXRpb25EdXJhdGlvblJlcXVlc3QaOy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5FeGVjdXRpb25EdXJhdGlvblJlc3BvbnNlEpIBChNFeGVjdXRpb25SZXZpZXdSYXRlEjwudnJvb2xpLnN3YXJtX21hbmFnZXIudjEubWVhc3VyZXMuRXhlY3V0aW9uUmV2aWV3UmF0ZVJlcXVlc3QaPS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5tZWFzdXJlcy5FeGVjdXRpb25SZXZpZXdSYXRlUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL21lYXN1cmVzO21lYXN1cmVzX3YxYgZwcm90bzM", [file_measures_v1_measures]);
 
 /**
  * CountBacklogCompletedRequest scopes the backlog-completion count to a window.
@@ -105,6 +105,169 @@ export const CountBacklogCreatedResponseSchema: GenMessage<CountBacklogCreatedRe
   messageDesc(file_swarm_manager_v1_measures_measures, 3);
 
 /**
+ * CountBacklogNetDeltaRequest scopes the created-minus-completed backlog flow
+ * to one deterministic time window.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.CountBacklogNetDeltaRequest
+ */
+export type CountBacklogNetDeltaRequest = Message<"vrooli.swarm_manager.v1.measures.CountBacklogNetDeltaRequest"> & {
+  /**
+   * @generated from field: vrooli.measures.v1.TimeWindow window = 1;
+   */
+  window?: TimeWindow | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.CountBacklogNetDeltaRequest.
+ * Use `create(CountBacklogNetDeltaRequestSchema)` to create a new message.
+ */
+export const CountBacklogNetDeltaRequestSchema: GenMessage<CountBacklogNetDeltaRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 4);
+
+/**
+ * CountBacklogNetDeltaResponse carries the net change in backlog volume. A
+ * positive count means work entered faster than it completed; a negative count
+ * means the backlog shrank.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.CountBacklogNetDeltaResponse
+ */
+export type CountBacklogNetDeltaResponse = Message<"vrooli.swarm_manager.v1.measures.CountBacklogNetDeltaResponse"> & {
+  /**
+   * @generated from field: sint64 count = 1;
+   */
+  count: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.CountBacklogNetDeltaResponse.
+ * Use `create(CountBacklogNetDeltaResponseSchema)` to create a new message.
+ */
+export const CountBacklogNetDeltaResponseSchema: GenMessage<CountBacklogNetDeltaResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 5);
+
+/**
+ * CountBacklogOpenRequest is empty because open backlog is a current-state
+ * gauge over the durable projection, not a historical event flow.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.CountBacklogOpenRequest
+ */
+export type CountBacklogOpenRequest = Message<"vrooli.swarm_manager.v1.measures.CountBacklogOpenRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.CountBacklogOpenRequest.
+ * Use `create(CountBacklogOpenRequestSchema)` to create a new message.
+ */
+export const CountBacklogOpenRequestSchema: GenMessage<CountBacklogOpenRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 6);
+
+/**
+ * CountBacklogOpenResponse carries the number of non-archived, non-terminal
+ * backlog items that remain actionable.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.CountBacklogOpenResponse
+ */
+export type CountBacklogOpenResponse = Message<"vrooli.swarm_manager.v1.measures.CountBacklogOpenResponse"> & {
+  /**
+   * @generated from field: int64 count = 1;
+   */
+  count: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.CountBacklogOpenResponse.
+ * Use `create(CountBacklogOpenResponseSchema)` to create a new message.
+ */
+export const CountBacklogOpenResponseSchema: GenMessage<CountBacklogOpenResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 7);
+
+/**
+ * CountBacklogBlockedRequest is empty because blocking is evaluated over the
+ * current durable dependency graph.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.CountBacklogBlockedRequest
+ */
+export type CountBacklogBlockedRequest = Message<"vrooli.swarm_manager.v1.measures.CountBacklogBlockedRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.CountBacklogBlockedRequest.
+ * Use `create(CountBacklogBlockedRequestSchema)` to create a new message.
+ */
+export const CountBacklogBlockedRequestSchema: GenMessage<CountBacklogBlockedRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 8);
+
+/**
+ * CountBacklogBlockedResponse carries the number of non-archived backlog items
+ * with at least one unresolved dependency.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.CountBacklogBlockedResponse
+ */
+export type CountBacklogBlockedResponse = Message<"vrooli.swarm_manager.v1.measures.CountBacklogBlockedResponse"> & {
+  /**
+   * @generated from field: int64 count = 1;
+   */
+  count: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.CountBacklogBlockedResponse.
+ * Use `create(CountBacklogBlockedResponseSchema)` to create a new message.
+ */
+export const CountBacklogBlockedResponseSchema: GenMessage<CountBacklogBlockedResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 9);
+
+/**
+ * BacklogLeadTimeRequest scopes creation-to-completion duration samples to
+ * completions in the requested time window.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.BacklogLeadTimeRequest
+ */
+export type BacklogLeadTimeRequest = Message<"vrooli.swarm_manager.v1.measures.BacklogLeadTimeRequest"> & {
+  /**
+   * @generated from field: vrooli.measures.v1.TimeWindow window = 1;
+   */
+  window?: TimeWindow | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.BacklogLeadTimeRequest.
+ * Use `create(BacklogLeadTimeRequestSchema)` to create a new message.
+ */
+export const BacklogLeadTimeRequestSchema: GenMessage<BacklogLeadTimeRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 10);
+
+/**
+ * BacklogLeadTimeResponse preserves the average, median, and sample size
+ * previously exposed by the stats timing section.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.BacklogLeadTimeResponse
+ */
+export type BacklogLeadTimeResponse = Message<"vrooli.swarm_manager.v1.measures.BacklogLeadTimeResponse"> & {
+  /**
+   * @generated from field: double average_hours = 1;
+   */
+  averageHours: number;
+
+  /**
+   * @generated from field: double median_hours = 2;
+   */
+  medianHours: number;
+
+  /**
+   * @generated from field: int64 sample_size = 3;
+   */
+  sampleSize: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.BacklogLeadTimeResponse.
+ * Use `create(BacklogLeadTimeResponseSchema)` to create a new message.
+ */
+export const BacklogLeadTimeResponseSchema: GenMessage<BacklogLeadTimeResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 11);
+
+/**
  * CountExecutionsCompletedRequest scopes the execution-completion count.
  *
  * @generated from message vrooli.swarm_manager.v1.measures.CountExecutionsCompletedRequest
@@ -123,7 +286,7 @@ export type CountExecutionsCompletedRequest = Message<"vrooli.swarm_manager.v1.m
  * Use `create(CountExecutionsCompletedRequestSchema)` to create a new message.
  */
 export const CountExecutionsCompletedRequestSchema: GenMessage<CountExecutionsCompletedRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_measures_measures, 4);
+  messageDesc(file_swarm_manager_v1_measures_measures, 12);
 
 /**
  * CountExecutionsCompletedResponse carries the scalar value_field `count`.
@@ -145,7 +308,7 @@ export type CountExecutionsCompletedResponse = Message<"vrooli.swarm_manager.v1.
  * Use `create(CountExecutionsCompletedResponseSchema)` to create a new message.
  */
 export const CountExecutionsCompletedResponseSchema: GenMessage<CountExecutionsCompletedResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_measures_measures, 5);
+  messageDesc(file_swarm_manager_v1_measures_measures, 13);
 
 /**
  * CountGoalsCreatedRequest scopes the goal-creation count.
@@ -166,7 +329,7 @@ export type CountGoalsCreatedRequest = Message<"vrooli.swarm_manager.v1.measures
  * Use `create(CountGoalsCreatedRequestSchema)` to create a new message.
  */
 export const CountGoalsCreatedRequestSchema: GenMessage<CountGoalsCreatedRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_measures_measures, 6);
+  messageDesc(file_swarm_manager_v1_measures_measures, 14);
 
 /**
  * CountGoalsCreatedResponse carries the scalar value_field `count`.
@@ -188,7 +351,7 @@ export type CountGoalsCreatedResponse = Message<"vrooli.swarm_manager.v1.measure
  * Use `create(CountGoalsCreatedResponseSchema)` to create a new message.
  */
 export const CountGoalsCreatedResponseSchema: GenMessage<CountGoalsCreatedResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_measures_measures, 7);
+  messageDesc(file_swarm_manager_v1_measures_measures, 15);
 
 /**
  * CountAgentSessionsCreatedRequest scopes the agent-session-creation count.
@@ -209,7 +372,7 @@ export type CountAgentSessionsCreatedRequest = Message<"vrooli.swarm_manager.v1.
  * Use `create(CountAgentSessionsCreatedRequestSchema)` to create a new message.
  */
 export const CountAgentSessionsCreatedRequestSchema: GenMessage<CountAgentSessionsCreatedRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_measures_measures, 8);
+  messageDesc(file_swarm_manager_v1_measures_measures, 16);
 
 /**
  * CountAgentSessionsCreatedResponse carries the scalar value_field `count`.
@@ -231,7 +394,296 @@ export type CountAgentSessionsCreatedResponse = Message<"vrooli.swarm_manager.v1
  * Use `create(CountAgentSessionsCreatedResponseSchema)` to create a new message.
  */
 export const CountAgentSessionsCreatedResponseSchema: GenMessage<CountAgentSessionsCreatedResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_measures_measures, 9);
+  messageDesc(file_swarm_manager_v1_measures_measures, 17);
+
+/**
+ * CountPlanRefsRequest intentionally has no time window: plan references are
+ * a current-state gauge over persisted backlog items, not an event flow.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.CountPlanRefsRequest
+ */
+export type CountPlanRefsRequest = Message<"vrooli.swarm_manager.v1.measures.CountPlanRefsRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.CountPlanRefsRequest.
+ * Use `create(CountPlanRefsRequestSchema)` to create a new message.
+ */
+export const CountPlanRefsRequestSchema: GenMessage<CountPlanRefsRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 18);
+
+/**
+ * CountPlanRefsResponse carries the number of backlog items that currently
+ * reference a canonical plan-manager plan.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.CountPlanRefsResponse
+ */
+export type CountPlanRefsResponse = Message<"vrooli.swarm_manager.v1.measures.CountPlanRefsResponse"> & {
+  /**
+   * @generated from field: int64 count = 1;
+   */
+  count: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.CountPlanRefsResponse.
+ * Use `create(CountPlanRefsResponseSchema)` to create a new message.
+ */
+export const CountPlanRefsResponseSchema: GenMessage<CountPlanRefsResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 19);
+
+/**
+ * GoalMilestoneHealthRequest is empty because milestone health is a current
+ * durable-projection table, not a historical event flow.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.GoalMilestoneHealthRequest
+ */
+export type GoalMilestoneHealthRequest = Message<"vrooli.swarm_manager.v1.measures.GoalMilestoneHealthRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.GoalMilestoneHealthRequest.
+ * Use `create(GoalMilestoneHealthRequestSchema)` to create a new message.
+ */
+export const GoalMilestoneHealthRequestSchema: GenMessage<GoalMilestoneHealthRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 20);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.measures.MilestoneHealth
+ */
+export type MilestoneHealth = Message<"vrooli.swarm_manager.v1.measures.MilestoneHealth"> & {
+  /**
+   * @generated from field: string milestone = 1;
+   */
+  milestone: string;
+
+  /**
+   * @generated from field: int64 total = 2;
+   */
+  total: bigint;
+
+  /**
+   * @generated from field: int64 completed = 3;
+   */
+  completed: bigint;
+
+  /**
+   * @generated from field: int64 in_progress = 4;
+   */
+  inProgress: bigint;
+
+  /**
+   * @generated from field: int64 blocked = 5;
+   */
+  blocked: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.MilestoneHealth.
+ * Use `create(MilestoneHealthSchema)` to create a new message.
+ */
+export const MilestoneHealthSchema: GenMessage<MilestoneHealth> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 21);
+
+/**
+ * GoalMilestoneHealthResponse lists current delivery health per milestone.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.GoalMilestoneHealthResponse
+ */
+export type GoalMilestoneHealthResponse = Message<"vrooli.swarm_manager.v1.measures.GoalMilestoneHealthResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.swarm_manager.v1.measures.MilestoneHealth milestones = 1;
+   */
+  milestones: MilestoneHealth[];
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.GoalMilestoneHealthResponse.
+ * Use `create(GoalMilestoneHealthResponseSchema)` to create a new message.
+ */
+export const GoalMilestoneHealthResponseSchema: GenMessage<GoalMilestoneHealthResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 22);
+
+/**
+ * AgentSessionProposalRateRequest scopes proposal conversion to a time window.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.AgentSessionProposalRateRequest
+ */
+export type AgentSessionProposalRateRequest = Message<"vrooli.swarm_manager.v1.measures.AgentSessionProposalRateRequest"> & {
+  /**
+   * @generated from field: vrooli.measures.v1.TimeWindow window = 1;
+   */
+  window?: TimeWindow | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.AgentSessionProposalRateRequest.
+ * Use `create(AgentSessionProposalRateRequestSchema)` to create a new message.
+ */
+export const AgentSessionProposalRateRequestSchema: GenMessage<AgentSessionProposalRateRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 23);
+
+/**
+ * AgentSessionProposalRateResponse carries the proportion of created proposals
+ * that were applied, plus the created-proposal denominator.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.AgentSessionProposalRateResponse
+ */
+export type AgentSessionProposalRateResponse = Message<"vrooli.swarm_manager.v1.measures.AgentSessionProposalRateResponse"> & {
+  /**
+   * @generated from field: double rate = 1;
+   */
+  rate: number;
+
+  /**
+   * @generated from field: int64 sample_size = 2;
+   */
+  sampleSize: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.AgentSessionProposalRateResponse.
+ * Use `create(AgentSessionProposalRateResponseSchema)` to create a new message.
+ */
+export const AgentSessionProposalRateResponseSchema: GenMessage<AgentSessionProposalRateResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 24);
+
+/**
+ * ExecutionSuccessRateRequest scopes terminal execution outcomes to a window.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.ExecutionSuccessRateRequest
+ */
+export type ExecutionSuccessRateRequest = Message<"vrooli.swarm_manager.v1.measures.ExecutionSuccessRateRequest"> & {
+  /**
+   * @generated from field: vrooli.measures.v1.TimeWindow window = 1;
+   */
+  window?: TimeWindow | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.ExecutionSuccessRateRequest.
+ * Use `create(ExecutionSuccessRateRequestSchema)` to create a new message.
+ */
+export const ExecutionSuccessRateRequestSchema: GenMessage<ExecutionSuccessRateRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 25);
+
+/**
+ * ExecutionSuccessRateResponse carries completed / (completed + failed), with
+ * the terminal-outcome denominator used to calculate the rate.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.ExecutionSuccessRateResponse
+ */
+export type ExecutionSuccessRateResponse = Message<"vrooli.swarm_manager.v1.measures.ExecutionSuccessRateResponse"> & {
+  /**
+   * @generated from field: double rate = 1;
+   */
+  rate: number;
+
+  /**
+   * @generated from field: int64 sample_size = 2;
+   */
+  sampleSize: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.ExecutionSuccessRateResponse.
+ * Use `create(ExecutionSuccessRateResponseSchema)` to create a new message.
+ */
+export const ExecutionSuccessRateResponseSchema: GenMessage<ExecutionSuccessRateResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 26);
+
+/**
+ * ExecutionDurationRequest scopes completed execution duration samples.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.ExecutionDurationRequest
+ */
+export type ExecutionDurationRequest = Message<"vrooli.swarm_manager.v1.measures.ExecutionDurationRequest"> & {
+  /**
+   * @generated from field: vrooli.measures.v1.TimeWindow window = 1;
+   */
+  window?: TimeWindow | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.ExecutionDurationRequest.
+ * Use `create(ExecutionDurationRequestSchema)` to create a new message.
+ */
+export const ExecutionDurationRequestSchema: GenMessage<ExecutionDurationRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 27);
+
+/**
+ * ExecutionDurationResponse exposes the former stats timing aggregate in
+ * minutes for completed execution events in the requested window.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.ExecutionDurationResponse
+ */
+export type ExecutionDurationResponse = Message<"vrooli.swarm_manager.v1.measures.ExecutionDurationResponse"> & {
+  /**
+   * @generated from field: double average_minutes = 1;
+   */
+  averageMinutes: number;
+
+  /**
+   * @generated from field: double median_minutes = 2;
+   */
+  medianMinutes: number;
+
+  /**
+   * @generated from field: int64 sample_size = 3;
+   */
+  sampleSize: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.ExecutionDurationResponse.
+ * Use `create(ExecutionDurationResponseSchema)` to create a new message.
+ */
+export const ExecutionDurationResponseSchema: GenMessage<ExecutionDurationResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 28);
+
+/**
+ * ExecutionReviewRateRequest scopes the terminal execution review-rate.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.ExecutionReviewRateRequest
+ */
+export type ExecutionReviewRateRequest = Message<"vrooli.swarm_manager.v1.measures.ExecutionReviewRateRequest"> & {
+  /**
+   * @generated from field: vrooli.measures.v1.TimeWindow window = 1;
+   */
+  window?: TimeWindow | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.ExecutionReviewRateRequest.
+ * Use `create(ExecutionReviewRateRequestSchema)` to create a new message.
+ */
+export const ExecutionReviewRateRequestSchema: GenMessage<ExecutionReviewRateRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 29);
+
+/**
+ * ExecutionReviewRateResponse carries the share of terminal executions that
+ * completed at least one review round, plus its terminal-run denominator.
+ *
+ * @generated from message vrooli.swarm_manager.v1.measures.ExecutionReviewRateResponse
+ */
+export type ExecutionReviewRateResponse = Message<"vrooli.swarm_manager.v1.measures.ExecutionReviewRateResponse"> & {
+  /**
+   * @generated from field: double rate = 1;
+   */
+  rate: number;
+
+  /**
+   * @generated from field: int64 sample_size = 2;
+   */
+  sampleSize: bigint;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.measures.ExecutionReviewRateResponse.
+ * Use `create(ExecutionReviewRateResponseSchema)` to create a new message.
+ */
+export const ExecutionReviewRateResponseSchema: GenMessage<ExecutionReviewRateResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_measures_measures, 30);
 
 /**
  * MeasuresService exposes swarm-manager's declared analytical measures as
@@ -265,6 +717,48 @@ export const MeasuresService: GenService<{
     output: typeof CountBacklogCreatedResponseSchema;
   },
   /**
+   * CountBacklogNetDelta answers whether backlog volume grew or shrank within
+   * the requested window. It shares the created/completed event computations.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogNetDelta
+   */
+  countBacklogNetDelta: {
+    methodKind: "unary";
+    input: typeof CountBacklogNetDeltaRequestSchema;
+    output: typeof CountBacklogNetDeltaResponseSchema;
+  },
+  /**
+   * CountBacklogOpen answers how many actionable backlog items currently remain.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogOpen
+   */
+  countBacklogOpen: {
+    methodKind: "unary";
+    input: typeof CountBacklogOpenRequestSchema;
+    output: typeof CountBacklogOpenResponseSchema;
+  },
+  /**
+   * CountBacklogBlocked answers how many backlog items are currently blocked.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.CountBacklogBlocked
+   */
+  countBacklogBlocked: {
+    methodKind: "unary";
+    input: typeof CountBacklogBlockedRequestSchema;
+    output: typeof CountBacklogBlockedResponseSchema;
+  },
+  /**
+   * BacklogLeadTime answers how long completed backlog items took from
+   * creation to completion.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.BacklogLeadTime
+   */
+  backlogLeadTime: {
+    methodKind: "unary";
+    input: typeof BacklogLeadTimeRequestSchema;
+    output: typeof BacklogLeadTimeResponseSchema;
+  },
+  /**
    * CountExecutionsCompleted answers "how many executions completed in
    * <window>". Bound to the `execution completed` measure.
    *
@@ -296,6 +790,70 @@ export const MeasuresService: GenService<{
     methodKind: "unary";
     input: typeof CountAgentSessionsCreatedRequestSchema;
     output: typeof CountAgentSessionsCreatedResponseSchema;
+  },
+  /**
+   * CountPlanRefs answers how many backlog items currently carry a canonical
+   * plan reference. It is backed by the durable backlog projection.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.CountPlanRefs
+   */
+  countPlanRefs: {
+    methodKind: "unary";
+    input: typeof CountPlanRefsRequestSchema;
+    output: typeof CountPlanRefsResponseSchema;
+  },
+  /**
+   * GoalMilestoneHealth answers the current completion and blocking state for
+   * each durable milestone.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.GoalMilestoneHealth
+   */
+  goalMilestoneHealth: {
+    methodKind: "unary";
+    input: typeof GoalMilestoneHealthRequestSchema;
+    output: typeof GoalMilestoneHealthResponseSchema;
+  },
+  /**
+   * AgentSessionProposalRate answers how often agent-session proposals were
+   * applied within a window.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.AgentSessionProposalRate
+   */
+  agentSessionProposalRate: {
+    methodKind: "unary";
+    input: typeof AgentSessionProposalRateRequestSchema;
+    output: typeof AgentSessionProposalRateResponseSchema;
+  },
+  /**
+   * ExecutionSuccessRate answers the completion success rate for terminal runs.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.ExecutionSuccessRate
+   */
+  executionSuccessRate: {
+    methodKind: "unary";
+    input: typeof ExecutionSuccessRateRequestSchema;
+    output: typeof ExecutionSuccessRateResponseSchema;
+  },
+  /**
+   * ExecutionDuration answers how long completed executions ran.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.ExecutionDuration
+   */
+  executionDuration: {
+    methodKind: "unary";
+    input: typeof ExecutionDurationRequestSchema;
+    output: typeof ExecutionDurationResponseSchema;
+  },
+  /**
+   * ExecutionReviewRate answers how often terminal executions reached a
+   * completed review round.
+   *
+   * @generated from rpc vrooli.swarm_manager.v1.measures.MeasuresService.ExecutionReviewRate
+   */
+  executionReviewRate: {
+    methodKind: "unary";
+    input: typeof ExecutionReviewRateRequestSchema;
+    output: typeof ExecutionReviewRateResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_swarm_manager_v1_measures_measures, 0);

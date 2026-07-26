@@ -1,9 +1,10 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/agent_session.proto";
+import "swarm-manager/v1/shared/agent_session.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
@@ -11,9 +12,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // AGENT SESSION API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports agent_session
 // @stability beta
 //
 // HTTP API contracts for durable Swarm Manager agent sessions.
@@ -62,7 +60,7 @@ message ListAgentSessionsRequest {
 
 // ListAgentSessionsResponse returns sidebar-ready session snapshots.
 message ListAgentSessionsResponse {
-  repeated AgentSession sessions = 1;
+  repeated domain.AgentSession sessions = 1;
 }
 
 // GetAgentSessionRequest fetches one session by ID.
@@ -72,7 +70,7 @@ message GetAgentSessionRequest {
 
 // GetAgentSessionResponse returns a detailed session.
 message GetAgentSessionResponse {
-  AgentSession session = 1;
+  domain.AgentSession session = 1;
 }
 
 // CreateAgentSessionRequest creates a pre-spawn typed draft session.
@@ -95,7 +93,7 @@ message CreateAgentSessionRequest {
 
 // CreateAgentSessionResponse returns the created session.
 message CreateAgentSessionResponse {
-  AgentSession session = 1;
+  domain.AgentSession session = 1;
 }
 
 // StartAgentSessionRequest sends the first real operator prompt and spawns
@@ -118,7 +116,7 @@ message StartAgentSessionRequest {
 
 // StartAgentSessionResponse returns the spawned session.
 message StartAgentSessionResponse {
-  AgentSession session = 1;
+  domain.AgentSession session = 1;
 }
 
 // ContinueAgentSessionRequest appends a user message and continues the run.
@@ -131,7 +129,7 @@ message ContinueAgentSessionRequest {
 
 // ContinueAgentSessionResponse returns the updated session.
 message ContinueAgentSessionResponse {
-  AgentSession session = 1;
+  domain.AgentSession session = 1;
 }
 
 // AgentSessionContextRef identifies an existing Swarm Manager record selected
@@ -169,12 +167,12 @@ message GetAgentSessionStartupBriefRequest {
 // context item. The item type is startup_brief and the metadata_json field
 // carries kind, freshness, source counts, and drill-down commands.
 message GetAgentSessionStartupBriefResponse {
-  AgentSessionContextItem brief = 1;
+  shared.AgentSessionContextItem brief = 1;
 }
 
 // UploadAgentSessionAttachmentsResponse returns uploaded session attachments.
 message UploadAgentSessionAttachmentsResponse {
-  repeated AgentSessionAttachment attachments = 1;
+  repeated shared.AgentSessionAttachment attachments = 1;
 }
 
 // ListAgentSessionEventsRequest reads Agent Manager run events through Swarm
@@ -225,7 +223,7 @@ message RefreshAgentSessionRequest {
 
 // RefreshAgentSessionResponse returns the refreshed session.
 message RefreshAgentSessionResponse {
-  AgentSession session = 1;
+  domain.AgentSession session = 1;
 }
 
 // CancelAgentSessionRequest cancels a running session.
@@ -235,7 +233,7 @@ message CancelAgentSessionRequest {
 
 // CancelAgentSessionResponse returns the canceled session.
 message CancelAgentSessionResponse {
-  AgentSession session = 1;
+  domain.AgentSession session = 1;
 }
 
 // DeleteAgentSessionRequest permanently removes a session-owned record.
@@ -256,8 +254,8 @@ message ApplyAgentSessionProposalRequest {
 
 // ApplyAgentSessionProposalResponse returns updated session state and artifacts.
 message ApplyAgentSessionProposalResponse {
-  AgentSession session = 1;
-  repeated AgentSessionArtifact artifacts = 2;
+  domain.AgentSession session = 1;
+  repeated shared.AgentSessionArtifact artifacts = 2;
 }
 
 // ListAgentSessionArtifactsRequest filters artifacts for one session.
@@ -267,7 +265,7 @@ message ListAgentSessionArtifactsRequest {
 
 // ListAgentSessionArtifactsResponse returns artifact links for one session.
 message ListAgentSessionArtifactsResponse {
-  repeated AgentSessionArtifact artifacts = 1;
+  repeated shared.AgentSessionArtifact artifacts = 1;
 }
 
 // GetArtifactsByEntityRequest finds session links for an entity.
@@ -292,5 +290,5 @@ message GetArtifactsByEntityRequest {
 
 // GetArtifactsByEntityResponse returns artifact links for one entity.
 message GetArtifactsByEntityResponse {
-  repeated AgentSessionArtifact artifacts = 1;
+  repeated shared.AgentSessionArtifact artifacts = 1;
 }

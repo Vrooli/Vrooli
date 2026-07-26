@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.domain;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -8,9 +8,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // OPERATIONS DOMAIN
 // =============================================================================
 //
-// @layer 1
-// @domain operations
-// @imports none
 // @stability beta
 //
 // Bounded operations briefing records used by the API, CLI, UI, and agent

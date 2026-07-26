@@ -57,6 +57,10 @@ func newEvidenceTestApp(t *testing.T, stub apiconnect.EvidenceServiceHandler) *A
 	path, handler := apiconnect.NewEvidenceServiceHandler(stub)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"healthy"}`))
+	})
 	server := clitest.NewAPIServer(t, mux)
 	app, err := NewApp()
 	if err != nil {
@@ -85,16 +89,16 @@ func TestEvidenceCommandsUseGeneratedContract(t *testing.T) {
 			return &apipb.EvidenceRecord{Confidence: "operator_verified"}, nil
 		},
 	})
-	if err := app.cmdEvidenceRun([]string{"--run-id", "run-1"}); err != nil || runID != "run-1" {
+	if err := app.Run([]string{"evidence", "run", "--run-id", "run-1"}); err != nil || runID != "run-1" {
 		t.Fatalf("run err=%v id=%q", err, runID)
 	}
-	if err := app.cmdEvidenceEntity([]string{"--kind", "plan", "--id", "plan-1"}); err != nil || entityKind != "plan" || entityID != "plan-1" {
+	if err := app.Run([]string{"evidence", "entity", "--kind", "plan", "--id", "plan-1"}); err != nil || entityKind != "plan" || entityID != "plan-1" {
 		t.Fatalf("entity err=%v kind=%q id=%q", err, entityKind, entityID)
 	}
-	if err := app.cmdEvidenceReconcile([]string{"--run-id", "run-1"}); err != nil {
+	if err := app.Run([]string{"evidence", "reconcile", "--run-id", "run-1"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.cmdEvidenceVerify([]string{"--owner-kind", "agent_session", "--owner-id", "session-1", "--event-id", "operator-1", "--run-id", "run-1", "--subject-kind", "plan", "--subject-id", "plan-1", "--action", "approved", "--actor", "matt", "--reason", "checked"}); err != nil || actor != "matt" || reason != "checked" {
+	if err := app.Run([]string{"evidence", "verify", "--owner-kind", "agent_session", "--owner-id", "session-1", "--event-id", "operator-1", "--run-id", "run-1", "--subject-kind", "plan", "--subject-id", "plan-1", "--action", "approved", "--actor", "matt", "--reason", "checked"}); err != nil || actor != "matt" || reason != "checked" {
 		t.Fatalf("verify err=%v actor=%q reason=%q", err, actor, reason)
 	}
 }
@@ -104,8 +108,8 @@ func TestEvidenceCommandsRequireIdentifiers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, run := range []func([]string) error{app.cmdEvidenceRun, app.cmdEvidenceEntity, app.cmdEvidenceReconcile, app.cmdEvidenceVerify} {
-		if err := run(nil); err == nil {
+	for _, args := range [][]string{{"evidence", "run"}, {"evidence", "entity"}, {"evidence", "reconcile"}, {"evidence", "verify"}} {
+		if err := app.Run(args); err == nil {
 			t.Fatal("evidence command accepted missing required identifiers")
 		}
 	}

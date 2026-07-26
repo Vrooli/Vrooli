@@ -1,0 +1,912 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "swarm-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "ed21ef5c49db2a06ddf637895aedde788fa8db1d68c4d096864d10ed27f9beba",
+  "commands": [
+    {
+      "path": "agent-manager metrics-sandbox-adoption",
+      "group": "agent-manager",
+      "command": "metrics-sandbox-adoption",
+      "binding": "."
+    },
+    {
+      "path": "agent-manager run-get",
+      "group": "agent-manager",
+      "command": "run-get",
+      "binding": "."
+    },
+    {
+      "path": "agent-manager run-stop",
+      "group": "agent-manager",
+      "command": "run-stop",
+      "binding": "."
+    },
+    {
+      "path": "agent-manager status",
+      "group": "agent-manager",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "autofiler run-now",
+      "group": "autofiler",
+      "command": "run-now",
+      "binding": "AutoFilerService.RunNow",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "autofiler status",
+      "group": "autofiler",
+      "command": "status",
+      "binding": "AutoFilerService.GetStatus",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "backlog batch-create",
+      "group": "backlog",
+      "command": "batch-create",
+      "binding": "."
+    },
+    {
+      "path": "backlog batch-queue",
+      "group": "backlog",
+      "command": "batch-queue",
+      "binding": "."
+    },
+    {
+      "path": "backlog create",
+      "group": "backlog",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "backlog delete",
+      "group": "backlog",
+      "command": "delete",
+      "binding": "BacklogService.DeleteItem",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "backlog dismiss",
+      "group": "backlog",
+      "command": "dismiss",
+      "binding": "AutoFilerService.DismissSuggestion",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "backlog export",
+      "group": "backlog",
+      "command": "export",
+      "binding": "."
+    },
+    {
+      "path": "backlog file-get",
+      "group": "backlog",
+      "command": "file-get",
+      "binding": "."
+    },
+    {
+      "path": "backlog file-upload",
+      "group": "backlog",
+      "command": "file-upload",
+      "binding": "."
+    },
+    {
+      "path": "backlog files",
+      "group": "backlog",
+      "command": "files",
+      "binding": "."
+    },
+    {
+      "path": "backlog get",
+      "group": "backlog",
+      "command": "get",
+      "binding": "BacklogService.GetItem",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "backlog import",
+      "group": "backlog",
+      "command": "import",
+      "binding": "."
+    },
+    {
+      "path": "backlog list",
+      "group": "backlog",
+      "command": "list",
+      "binding": "BacklogService.ListItems",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "backlog pending-questions",
+      "group": "backlog",
+      "command": "pending-questions",
+      "binding": "."
+    },
+    {
+      "path": "backlog plan-workshop",
+      "group": "backlog",
+      "command": "plan-workshop",
+      "binding": "."
+    },
+    {
+      "path": "backlog process-preflight",
+      "group": "backlog",
+      "command": "process-preflight",
+      "binding": "."
+    },
+    {
+      "path": "backlog queue",
+      "group": "backlog",
+      "command": "queue",
+      "binding": "."
+    },
+    {
+      "path": "backlog recover-review",
+      "group": "backlog",
+      "command": "recover-review",
+      "binding": "."
+    },
+    {
+      "path": "backlog recreate",
+      "group": "backlog",
+      "command": "recreate",
+      "binding": "."
+    },
+    {
+      "path": "backlog reset-artifacts",
+      "group": "backlog",
+      "command": "reset-artifacts",
+      "binding": "."
+    },
+    {
+      "path": "backlog retry",
+      "group": "backlog",
+      "command": "retry",
+      "binding": "."
+    },
+    {
+      "path": "backlog review-decide",
+      "group": "backlog",
+      "command": "review-decide",
+      "binding": "."
+    },
+    {
+      "path": "backlog search-ai",
+      "group": "backlog",
+      "command": "search-ai",
+      "binding": "."
+    },
+    {
+      "path": "backlog update",
+      "group": "backlog",
+      "command": "update",
+      "binding": "."
+    },
+    {
+      "path": "captures classify",
+      "group": "captures",
+      "command": "classify",
+      "binding": "."
+    },
+    {
+      "path": "captures create",
+      "group": "captures",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "captures delete",
+      "group": "captures",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "captures get",
+      "group": "captures",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "captures list",
+      "group": "captures",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "evidence entity",
+      "group": "evidence",
+      "command": "entity",
+      "binding": "EvidenceService.ListEntity",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evidence reconcile",
+      "group": "evidence",
+      "command": "reconcile",
+      "binding": "EvidenceService.Reconcile",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "evidence run",
+      "group": "evidence",
+      "command": "run",
+      "binding": "EvidenceService.ListRun",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evidence verify",
+      "group": "evidence",
+      "command": "verify",
+      "binding": "EvidenceService.RecordOperatorVerification",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "execution cancel",
+      "group": "execution",
+      "command": "cancel",
+      "binding": "."
+    },
+    {
+      "path": "execution circuit-breaker-reset",
+      "group": "execution",
+      "command": "circuit-breaker-reset",
+      "binding": "."
+    },
+    {
+      "path": "execution create",
+      "group": "execution",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "execution get",
+      "group": "execution",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "execution list",
+      "group": "execution",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "execution policy-get",
+      "group": "execution",
+      "command": "policy-get",
+      "binding": "."
+    },
+    {
+      "path": "execution policy-update",
+      "group": "execution",
+      "command": "policy-update",
+      "binding": "."
+    },
+    {
+      "path": "execution prompt-trace",
+      "group": "execution",
+      "command": "prompt-trace",
+      "binding": "."
+    },
+    {
+      "path": "execution retry",
+      "group": "execution",
+      "command": "retry",
+      "binding": "."
+    },
+    {
+      "path": "execution start",
+      "group": "execution",
+      "command": "start",
+      "binding": "."
+    },
+    {
+      "path": "goals archive",
+      "group": "goals",
+      "command": "archive",
+      "binding": "GoalService.ArchiveGoal",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals close-out",
+      "group": "goals",
+      "command": "close-out",
+      "binding": "GoalService.CloseOutGoal",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals context",
+      "group": "goals",
+      "command": "context",
+      "binding": "GoalService.GetScope",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "goals create",
+      "group": "goals",
+      "command": "create",
+      "binding": "GoalService.CreateGoal",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals delete",
+      "group": "goals",
+      "command": "delete",
+      "binding": "GoalService.DeleteGoal",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals discover-run",
+      "group": "goals",
+      "command": "discover-run",
+      "binding": "."
+    },
+    {
+      "path": "goals get",
+      "group": "goals",
+      "command": "get",
+      "binding": "GoalService.GetGoal",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "goals list",
+      "group": "goals",
+      "command": "list",
+      "binding": "GoalService.ListGoals",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "goals plan-run",
+      "group": "goals",
+      "command": "plan-run",
+      "binding": "."
+    },
+    {
+      "path": "goals targets-add",
+      "group": "goals",
+      "command": "targets-add",
+      "binding": "GoalService.AddTargets",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals targets-remove",
+      "group": "goals",
+      "command": "targets-remove",
+      "binding": "GoalService.RemoveTargets",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals unarchive",
+      "group": "goals",
+      "command": "unarchive",
+      "binding": "GoalService.UnarchiveGoal",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals update",
+      "group": "goals",
+      "command": "update",
+      "binding": "GoalService.UpdateGoal",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals workflow-apply",
+      "group": "goals",
+      "command": "workflow-apply",
+      "binding": "GoalService.ApplyGoalWorkflow",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals workflow-pending",
+      "group": "goals",
+      "command": "workflow-pending",
+      "binding": "GoalService.ListPendingGoalWorkflows",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures agent-session-created",
+      "group": "measures",
+      "command": "agent-session-created",
+      "binding": "MeasuresService.CountAgentSessionsCreated",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures agent-session-proposal-rate",
+      "group": "measures",
+      "command": "agent-session-proposal-rate",
+      "binding": "MeasuresService.AgentSessionProposalRate",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures backlog-blocked",
+      "group": "measures",
+      "command": "backlog-blocked",
+      "binding": "MeasuresService.CountBacklogBlocked",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures backlog-completed",
+      "group": "measures",
+      "command": "backlog-completed",
+      "binding": "MeasuresService.CountBacklogCompleted",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures backlog-created",
+      "group": "measures",
+      "command": "backlog-created",
+      "binding": "MeasuresService.CountBacklogCreated",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures backlog-lead-time",
+      "group": "measures",
+      "command": "backlog-lead-time",
+      "binding": "MeasuresService.BacklogLeadTime",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures backlog-net-delta",
+      "group": "measures",
+      "command": "backlog-net-delta",
+      "binding": "MeasuresService.CountBacklogNetDelta",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures backlog-open",
+      "group": "measures",
+      "command": "backlog-open",
+      "binding": "MeasuresService.CountBacklogOpen",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures execution-completed",
+      "group": "measures",
+      "command": "execution-completed",
+      "binding": "MeasuresService.CountExecutionsCompleted",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures execution-duration",
+      "group": "measures",
+      "command": "execution-duration",
+      "binding": "MeasuresService.ExecutionDuration",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures execution-review-rate",
+      "group": "measures",
+      "command": "execution-review-rate",
+      "binding": "MeasuresService.ExecutionReviewRate",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures execution-success-rate",
+      "group": "measures",
+      "command": "execution-success-rate",
+      "binding": "MeasuresService.ExecutionSuccessRate",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures goal-created",
+      "group": "measures",
+      "command": "goal-created",
+      "binding": "MeasuresService.CountGoalsCreated",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures goal-milestone-health",
+      "group": "measures",
+      "command": "goal-milestone-health",
+      "binding": "MeasuresService.GoalMilestoneHealth",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures plan-ref-count",
+      "group": "measures",
+      "command": "plan-ref-count",
+      "binding": "MeasuresService.CountPlanRefs",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "milestones archive",
+      "group": "milestones",
+      "command": "archive",
+      "binding": "GoalService.ArchiveMilestone",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "milestones assign",
+      "group": "milestones",
+      "command": "assign",
+      "binding": "GoalService.AssignMilestoneItems",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "milestones create",
+      "group": "milestones",
+      "command": "create",
+      "binding": "GoalService.CreateMilestone",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "milestones review-run",
+      "group": "milestones",
+      "command": "review-run",
+      "binding": "."
+    },
+    {
+      "path": "milestones unassign",
+      "group": "milestones",
+      "command": "unassign",
+      "binding": "GoalService.UnassignMilestoneItems",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "milestones update",
+      "group": "milestones",
+      "command": "update",
+      "binding": "GoalService.UpdateMilestone",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "operations brief",
+      "group": "operations",
+      "command": "brief",
+      "binding": "."
+    },
+    {
+      "path": "operations list",
+      "group": "operations",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "portfolio brief",
+      "group": "portfolio",
+      "command": "brief",
+      "binding": "."
+    },
+    {
+      "path": "prompts catalog",
+      "group": "prompts",
+      "command": "catalog",
+      "binding": "."
+    },
+    {
+      "path": "prompts experiment-results",
+      "group": "prompts",
+      "command": "experiment-results",
+      "binding": "."
+    },
+    {
+      "path": "prompts preview",
+      "group": "prompts",
+      "command": "preview",
+      "binding": "."
+    },
+    {
+      "path": "prompts skill-get",
+      "group": "prompts",
+      "command": "skill-get",
+      "binding": "."
+    },
+    {
+      "path": "prompts skill-revert",
+      "group": "prompts",
+      "command": "skill-revert",
+      "binding": "."
+    },
+    {
+      "path": "prompts skill-update",
+      "group": "prompts",
+      "command": "skill-update",
+      "binding": "."
+    },
+    {
+      "path": "prompts skill-versions",
+      "group": "prompts",
+      "command": "skill-versions",
+      "binding": "."
+    },
+    {
+      "path": "prompts skills",
+      "group": "prompts",
+      "command": "skills",
+      "binding": "."
+    },
+    {
+      "path": "proposals accept-keep",
+      "group": "proposals",
+      "command": "accept-keep",
+      "binding": "."
+    },
+    {
+      "path": "proposals decide",
+      "group": "proposals",
+      "command": "decide",
+      "binding": "."
+    },
+    {
+      "path": "proposals get",
+      "group": "proposals",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "proposals list",
+      "group": "proposals",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "proposals revise",
+      "group": "proposals",
+      "command": "revise",
+      "binding": "."
+    },
+    {
+      "path": "queue create",
+      "group": "queue",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "queue delete",
+      "group": "queue",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "queue list",
+      "group": "queue",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "records capture",
+      "group": "records",
+      "command": "capture",
+      "binding": "."
+    },
+    {
+      "path": "records create",
+      "group": "records",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "records edit",
+      "group": "records",
+      "command": "edit",
+      "binding": "."
+    },
+    {
+      "path": "records get",
+      "group": "records",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "records list",
+      "group": "records",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "records search",
+      "group": "records",
+      "command": "search",
+      "binding": "."
+    },
+    {
+      "path": "records supersede",
+      "group": "records",
+      "command": "supersede",
+      "binding": "."
+    },
+    {
+      "path": "review list",
+      "group": "review",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "review request",
+      "group": "review",
+      "command": "request",
+      "binding": "."
+    },
+    {
+      "path": "review trigger",
+      "group": "review",
+      "command": "trigger",
+      "binding": "."
+    },
+    {
+      "path": "review verify",
+      "group": "review",
+      "command": "verify",
+      "binding": "."
+    },
+    {
+      "path": "scenarios delete",
+      "group": "scenarios",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "scenarios files",
+      "group": "scenarios",
+      "command": "files",
+      "binding": "."
+    },
+    {
+      "path": "scenarios fixes",
+      "group": "scenarios",
+      "command": "fixes",
+      "binding": "."
+    },
+    {
+      "path": "scenarios get",
+      "group": "scenarios",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "scenarios list",
+      "group": "scenarios",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "scenarios restart",
+      "group": "scenarios",
+      "command": "restart",
+      "binding": "."
+    },
+    {
+      "path": "scenarios review-queue",
+      "group": "scenarios",
+      "command": "review-queue",
+      "binding": "."
+    },
+    {
+      "path": "scenarios spec-sync-archive",
+      "group": "scenarios",
+      "command": "spec-sync-archive",
+      "binding": "."
+    },
+    {
+      "path": "scenarios start",
+      "group": "scenarios",
+      "command": "start",
+      "binding": "."
+    },
+    {
+      "path": "scenarios stop",
+      "group": "scenarios",
+      "command": "stop",
+      "binding": "."
+    },
+    {
+      "path": "scenarios update",
+      "group": "scenarios",
+      "command": "update",
+      "binding": "."
+    },
+    {
+      "path": "search query",
+      "group": "search",
+      "command": "query",
+      "binding": "."
+    },
+    {
+      "path": "search reindex",
+      "group": "search",
+      "command": "reindex",
+      "binding": "."
+    },
+    {
+      "path": "search reindex-cancel",
+      "group": "search",
+      "command": "reindex-cancel",
+      "binding": "."
+    },
+    {
+      "path": "search reindex-status",
+      "group": "search",
+      "command": "reindex-status",
+      "binding": "."
+    },
+    {
+      "path": "search related",
+      "group": "search",
+      "command": "related",
+      "binding": "RelatedService.GetRelated",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "search status",
+      "group": "search",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "sessions delete",
+      "group": "sessions",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "sessions get",
+      "group": "sessions",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "sessions list",
+      "group": "sessions",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "sessions startup-brief",
+      "group": "sessions",
+      "command": "startup-brief",
+      "binding": "."
+    },
+    {
+      "path": "settings get",
+      "group": "settings",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "settings update",
+      "group": "settings",
+      "command": "update",
+      "binding": "."
+    },
+    {
+      "path": "stats agent",
+      "group": "stats",
+      "command": "agent",
+      "binding": "."
+    },
+    {
+      "path": "stats blocking",
+      "group": "stats",
+      "command": "blocking",
+      "binding": "."
+    },
+    {
+      "path": "stats milestones",
+      "group": "stats",
+      "command": "milestones",
+      "binding": "."
+    },
+    {
+      "path": "stats sessions",
+      "group": "stats",
+      "command": "sessions",
+      "binding": "."
+    },
+    {
+      "path": "stats summary",
+      "group": "stats",
+      "command": "summary",
+      "binding": "."
+    },
+    {
+      "path": "stats throughput",
+      "group": "stats",
+      "command": "throughput",
+      "binding": "."
+    }
+  ]
+}

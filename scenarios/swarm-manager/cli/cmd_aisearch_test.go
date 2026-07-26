@@ -202,10 +202,9 @@ func TestAISearchCommandsRegistered(t *testing.T) {
 	// Every run attempt without API config fails; we just assert the commands
 	// are routed without a "command not found" error.
 	cases := [][]string{
-		{"ai-search", "status"},
-		{"ai-search", "reconcile-status"},
-		{"ai-search", "query", "hello"},
-		{"backlog", "search-ai", "retry"},
+		{"search", "status"},
+		{"search", "reindex-status"},
+		{"search", "query", "hello"},
 	}
 	for _, args := range cases {
 		err := app.Run(args)

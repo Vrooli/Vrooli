@@ -257,20 +257,20 @@ var File_swarm_manager_v1_api_capture_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_capture_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/capture.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/capture.proto\"3\n" +
+	"\"swarm-manager/v1/api/capture.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/capture.proto\"3\n" +
 	"\x14CreateCaptureRequest\x12\x1b\n" +
-	"\x04text\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04text\"\xc4\x01\n" +
-	"\x0fCaptureResponse\x123\n" +
-	"\acapture\x18\x01 \x01(\v2\x19.swarm_manager.v1.CaptureR\acapture\x12\x1c\n" +
+	"\x04text\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04text\"\xd2\x01\n" +
+	"\x0fCaptureResponse\x12A\n" +
+	"\acapture\x18\x01 \x01(\v2'.vrooli.swarm_manager.v1.domain.CaptureR\acapture\x12\x1c\n" +
 	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n" +
 	"\x06run_id\x18\x03 \x01(\tH\x01R\x05runId\x88\x01\x01\x12\x1e\n" +
 	"\bbase_url\x18\x04 \x01(\tH\x02R\abaseUrl\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\v\n" +
-	"\t_base_url\"M\n" +
-	"\x14ListCapturesResponse\x125\n" +
-	"\bcaptures\x18\x01 \x03(\v2\x19.swarm_manager.v1.CaptureR\bcaptures\"\xa2\x01\n" +
+	"\t_base_url\"[\n" +
+	"\x14ListCapturesResponse\x12C\n" +
+	"\bcaptures\x18\x01 \x03(\v2'.vrooli.swarm_manager.v1.domain.CaptureR\bcaptures\"\xa2\x01\n" +
 	"\x17ClassifyCaptureResponse\x12 \n" +
 	"\atask_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1e\n" +
 	"\x06run_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05runId\x12\"\n" +
@@ -291,15 +291,15 @@ func file_swarm_manager_v1_api_capture_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_capture_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_swarm_manager_v1_api_capture_proto_goTypes = []any{
-	(*CreateCaptureRequest)(nil),    // 0: swarm_manager.v1.CreateCaptureRequest
-	(*CaptureResponse)(nil),         // 1: swarm_manager.v1.CaptureResponse
-	(*ListCapturesResponse)(nil),    // 2: swarm_manager.v1.ListCapturesResponse
-	(*ClassifyCaptureResponse)(nil), // 3: swarm_manager.v1.ClassifyCaptureResponse
-	(*domain.Capture)(nil),          // 4: swarm_manager.v1.Capture
+	(*CreateCaptureRequest)(nil),    // 0: vrooli.swarm_manager.v1.api.CreateCaptureRequest
+	(*CaptureResponse)(nil),         // 1: vrooli.swarm_manager.v1.api.CaptureResponse
+	(*ListCapturesResponse)(nil),    // 2: vrooli.swarm_manager.v1.api.ListCapturesResponse
+	(*ClassifyCaptureResponse)(nil), // 3: vrooli.swarm_manager.v1.api.ClassifyCaptureResponse
+	(*domain.Capture)(nil),          // 4: vrooli.swarm_manager.v1.domain.Capture
 }
 var file_swarm_manager_v1_api_capture_proto_depIdxs = []int32{
-	4, // 0: swarm_manager.v1.CaptureResponse.capture:type_name -> swarm_manager.v1.Capture
-	4, // 1: swarm_manager.v1.ListCapturesResponse.captures:type_name -> swarm_manager.v1.Capture
+	4, // 0: vrooli.swarm_manager.v1.api.CaptureResponse.capture:type_name -> vrooli.swarm_manager.v1.domain.Capture
+	4, // 1: vrooli.swarm_manager.v1.api.ListCapturesResponse.captures:type_name -> vrooli.swarm_manager.v1.domain.Capture
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

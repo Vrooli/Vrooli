@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.domain;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -8,9 +8,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // PLAN DOMAIN
 // =============================================================================
 //
-// @layer 1
-// @domain plan
-// @imports none
 // @stability beta
 //
 // Plan-board projection records for the swarm-manager Plan lens: a

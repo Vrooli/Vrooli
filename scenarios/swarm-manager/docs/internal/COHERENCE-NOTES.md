@@ -50,7 +50,7 @@ the shared chat seam unless they need genuinely different behavior.
 - `src/test-utils/console.ts`: narrow expected-console helper for tests that intentionally assert thrown errors or warnings.
 
 **Migrated First**:
-- `hooks/useStats.test.ts`
+- `hooks/useMeasures.test.ts`
 - `hooks/useCaptureContent.test.ts`
 - `hooks/use-url-state.test.tsx`
 

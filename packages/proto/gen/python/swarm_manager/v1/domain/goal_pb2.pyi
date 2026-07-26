@@ -1,4 +1,5 @@
 from buf.validate import validate_pb2 as _validate_pb2
+from swarm_manager.v1.shared import goal_pb2 as _goal_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -25,29 +26,11 @@ class Goal(_message.Message):
     status: str
     priority: int
     targets: _containers.RepeatedScalarFieldContainer[str]
-    milestones: _containers.RepeatedCompositeFieldContainer[Milestone]
+    milestones: _containers.RepeatedCompositeFieldContainer[_goal_pb2.Milestone]
     created: str
     updated: str
     archived_at: str
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., targets: _Optional[_Iterable[str]] = ..., milestones: _Optional[_Iterable[_Union[Milestone, _Mapping]]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., archived_at: _Optional[str] = ...) -> None: ...
-
-class Milestone(_message.Message):
-    __slots__ = ("name", "title", "description", "items", "acceptance_criteria", "depends_on", "archived_at")
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    TITLE_FIELD_NUMBER: _ClassVar[int]
-    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
-    ITEMS_FIELD_NUMBER: _ClassVar[int]
-    ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
-    DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
-    ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
-    name: str
-    title: str
-    description: str
-    items: _containers.RepeatedScalarFieldContainer[str]
-    acceptance_criteria: _containers.RepeatedScalarFieldContainer[str]
-    depends_on: _containers.RepeatedScalarFieldContainer[str]
-    archived_at: str
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., items: _Optional[_Iterable[str]] = ..., acceptance_criteria: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., archived_at: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., targets: _Optional[_Iterable[str]] = ..., milestones: _Optional[_Iterable[_Union[_goal_pb2.Milestone, _Mapping]]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., archived_at: _Optional[str] = ...) -> None: ...
 
 class MilestoneRollup(_message.Message):
     __slots__ = ("milestone_name", "total", "completed", "ready", "blocked", "orphaned")

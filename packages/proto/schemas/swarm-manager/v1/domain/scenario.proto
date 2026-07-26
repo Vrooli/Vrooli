@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
 
@@ -10,9 +10,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // SCENARIOS DOMAIN
 // =============================================================================
 //
-// @layer 1
-// @domain scenarios
-// @imports none (external only: buf.validate)
 // @stability beta
 //
 // Core scenario catalog types for Swarm Manager.

@@ -12,10 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 //                        web-console to its own UI/CLI.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain audio_runtime
-// @imports web-console/v1/audio_common
-// @stability stable
+// @stability beta
 //
 // All RPCs are Connect-RPC unary. Per-utterance audio bytes (TTS output,
 // STT input) ride inline as `bytes` fields. If audio payloads ever exceed

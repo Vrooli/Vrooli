@@ -1,5 +1,6 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.domain import agent_session_pb2 as _agent_session_pb2
+from swarm_manager.v1.shared import agent_session_pb2 as _agent_session_pb2_1
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -109,14 +110,14 @@ class GetAgentSessionStartupBriefRequest(_message.Message):
 class GetAgentSessionStartupBriefResponse(_message.Message):
     __slots__ = ("brief",)
     BRIEF_FIELD_NUMBER: _ClassVar[int]
-    brief: _agent_session_pb2.AgentSessionContextItem
-    def __init__(self, brief: _Optional[_Union[_agent_session_pb2.AgentSessionContextItem, _Mapping]] = ...) -> None: ...
+    brief: _agent_session_pb2_1.AgentSessionContextItem
+    def __init__(self, brief: _Optional[_Union[_agent_session_pb2_1.AgentSessionContextItem, _Mapping]] = ...) -> None: ...
 
 class UploadAgentSessionAttachmentsResponse(_message.Message):
     __slots__ = ("attachments",)
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
-    attachments: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2.AgentSessionAttachment]
-    def __init__(self, attachments: _Optional[_Iterable[_Union[_agent_session_pb2.AgentSessionAttachment, _Mapping]]] = ...) -> None: ...
+    attachments: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2_1.AgentSessionAttachment]
+    def __init__(self, attachments: _Optional[_Iterable[_Union[_agent_session_pb2_1.AgentSessionAttachment, _Mapping]]] = ...) -> None: ...
 
 class ListAgentSessionEventsRequest(_message.Message):
     __slots__ = ("session_id", "after_sequence", "limit")
@@ -229,8 +230,8 @@ class ApplyAgentSessionProposalResponse(_message.Message):
     SESSION_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     session: _agent_session_pb2.AgentSession
-    artifacts: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2.AgentSessionArtifact]
-    def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[_agent_session_pb2.AgentSessionArtifact, _Mapping]]] = ...) -> None: ...
+    artifacts: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2_1.AgentSessionArtifact]
+    def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[_agent_session_pb2_1.AgentSessionArtifact, _Mapping]]] = ...) -> None: ...
 
 class ListAgentSessionArtifactsRequest(_message.Message):
     __slots__ = ("session_id",)
@@ -241,8 +242,8 @@ class ListAgentSessionArtifactsRequest(_message.Message):
 class ListAgentSessionArtifactsResponse(_message.Message):
     __slots__ = ("artifacts",)
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
-    artifacts: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2.AgentSessionArtifact]
-    def __init__(self, artifacts: _Optional[_Iterable[_Union[_agent_session_pb2.AgentSessionArtifact, _Mapping]]] = ...) -> None: ...
+    artifacts: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2_1.AgentSessionArtifact]
+    def __init__(self, artifacts: _Optional[_Iterable[_Union[_agent_session_pb2_1.AgentSessionArtifact, _Mapping]]] = ...) -> None: ...
 
 class GetArtifactsByEntityRequest(_message.Message):
     __slots__ = ("artifact_type", "entity_ref")
@@ -255,5 +256,5 @@ class GetArtifactsByEntityRequest(_message.Message):
 class GetArtifactsByEntityResponse(_message.Message):
     __slots__ = ("artifacts",)
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
-    artifacts: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2.AgentSessionArtifact]
-    def __init__(self, artifacts: _Optional[_Iterable[_Union[_agent_session_pb2.AgentSessionArtifact, _Mapping]]] = ...) -> None: ...
+    artifacts: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2_1.AgentSessionArtifact]
+    def __init__(self, artifacts: _Optional[_Iterable[_Union[_agent_session_pb2_1.AgentSessionArtifact, _Mapping]]] = ...) -> None: ...

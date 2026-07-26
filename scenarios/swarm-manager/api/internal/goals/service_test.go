@@ -171,8 +171,8 @@ func TestService_SeedFromTags(t *testing.T) {
 	})
 
 	created, err := svc.SeedFromTags([]SeedSpec{
-		{Tag: "monetization-v1", Name: "monetization-v1", Title: "Monetization v1"},
-		{Tag: "no-such-tag", Name: "no-such-tag", Title: "Nope"},
+		{Tag: "monetization-v1", Name: "monetization-v1", Title: "Monetization v1", Description: "Monetization capability", Priority: seedPriority(5)},
+		{Tag: "no-such-tag", Name: "no-such-tag", Title: "Nope", Description: "No matching tag", Priority: seedPriority(5)},
 	})
 	if err != nil {
 		t.Fatalf("SeedFromTags: %v", err)
@@ -193,9 +193,19 @@ func TestService_SeedFromTags(t *testing.T) {
 	}
 
 	// Idempotent: re-seeding creates nothing.
-	created, err = svc.SeedFromTags([]SeedSpec{{Tag: "monetization-v1", Name: "monetization-v1", Title: "Monetization v1"}})
+	created, err = svc.SeedFromTags([]SeedSpec{{Tag: "monetization-v1", Name: "monetization-v1", Title: "Monetization v1", Description: "Monetization capability", Priority: seedPriority(5)}})
 	if err != nil || created != 0 {
 		t.Fatalf("re-seed created = %d err = %v, want 0/nil", created, err)
+	}
+}
+
+func TestService_SeedFromTags_RequiresDescriptionAndExplicitPriority(t *testing.T) {
+	svc := newTestService(t, []backlog.BacklogItem{item("execute", "x", "backlog", []string{"seed"})})
+	if _, err := svc.SeedFromTags([]SeedSpec{{Tag: "seed", Name: "missing-description", Title: "Missing description", Priority: seedPriority(5)}}); err == nil {
+		t.Fatal("expected missing seed description to be rejected")
+	}
+	if _, err := svc.SeedFromTags([]SeedSpec{{Tag: "seed", Name: "missing-priority", Title: "Missing priority", Description: "Has a description"}}); err == nil {
+		t.Fatal("expected missing seed priority to be rejected")
 	}
 }
 
@@ -370,14 +380,14 @@ func TestService_ClosureRefsReturnsClosureWithoutDrift(t *testing.T) {
 
 func TestService_ItemGoalPrioritiesAndReadyItems(t *testing.T) {
 	svc := newTestService(t, []backlog.BacklogItem{
-		item("execute", "a", "ready", nil),              // ready, in high goal
+		item("execute", "a", "ready", nil),              // ready, in high-priority goal
 		item("execute", "b", "ready", nil, "execute/a"), // blocked by a -> not ready
-		item("execute", "c", "ready", nil),              // ready, in low goal
+		item("execute", "c", "ready", nil),              // ready, in low-priority goal
 	})
-	if _, err := svc.Create(CreateRequest{Name: "high", Priority: 9, Targets: []string{"execute/b"}}); err != nil {
+	if _, err := svc.Create(CreateRequest{Name: "high", Priority: 1, Targets: []string{"execute/b"}}); err != nil {
 		t.Fatalf("create high: %v", err)
 	}
-	if _, err := svc.Create(CreateRequest{Name: "low", Priority: 2, Targets: []string{"execute/c"}}); err != nil {
+	if _, err := svc.Create(CreateRequest{Name: "low", Priority: 8, Targets: []string{"execute/c"}}); err != nil {
 		t.Fatalf("create low: %v", err)
 	}
 
@@ -386,22 +396,22 @@ func TestService_ItemGoalPrioritiesAndReadyItems(t *testing.T) {
 		t.Fatalf("ItemGoalPriorities: %v", err)
 	}
 	// a and b are in the "high" goal's closure (b depends on a); c in "low".
-	if prio["execute/a"] != 9 || prio["execute/b"] != 9 || prio["execute/c"] != 2 {
-		t.Fatalf("priorities = %v, want a=9 b=9 c=2", prio)
+	if prio["execute/a"] != 1 || prio["execute/b"] != 1 || prio["execute/c"] != 8 {
+		t.Fatalf("priorities = %v, want a=1 b=1 c=8", prio)
 	}
 
 	ready, err := svc.ReadyGoalItems()
 	if err != nil {
 		t.Fatalf("ReadyGoalItems: %v", err)
 	}
-	// Only a (high) and c (low) are ready; b is blocked. Highest priority first.
+	// Only a (high) and c (low) are ready; lowest number sorts first.
 	if len(ready) != 2 {
 		t.Fatalf("ready = %v, want 2 items", ready)
 	}
-	if ready[0].Name != "a" || ready[0].GoalPriority != 9 {
-		t.Fatalf("first ready = %+v, want a@9", ready[0])
+	if ready[0].Name != "a" || ready[0].GoalPriority != 1 {
+		t.Fatalf("first ready = %+v, want a@1", ready[0])
 	}
-	if ready[1].Name != "c" || ready[1].GoalPriority != 2 {
-		t.Fatalf("second ready = %+v, want c@2", ready[1])
+	if ready[1].Name != "c" || ready[1].GoalPriority != 8 {
+		t.Fatalf("second ready = %+v, want c@8", ready[1])
 	}
 }

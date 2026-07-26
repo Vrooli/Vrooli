@@ -87,7 +87,7 @@ Every route except finding 1 is at or under 175ms. No route other than
 | `/api/v1/plan` | 76ms | 186KB |
 | `/api/v1/gct/status` | 72ms | 18B |
 | `/api/v1/goals` | 64ms | 366KB |
-| `/api/v1/stats` | 60ms | 8KB |
+| `/api/v1/stats` (retired 2026-07-26) | 60ms | 8KB |
 | `/api/v1/records` | 40ms | 2.8MB |
 | `/api/v1/backlog` | 16ms | 786KB |
 | `/api/v1/backlog/summary` | 16ms | 25KB |

@@ -10,7 +10,7 @@ Use startup briefs as the fastest first-answer packet for agent sessions:
 swarm-manager sessions startup-brief --id sess_123 --json
 swarm-manager sessions startup-brief --id sess_123 --refresh --json
 swarm-manager portfolio brief --json
-swarm-manager milestones candidates --purpose next-action --json
+swarm-manager milestones review-run --goal <goal> --milestone <milestone> --json
 swarm-manager backlog pending-questions --brief --json
 ```
 
@@ -182,35 +182,21 @@ Notes:
 Create:
 
 ```bash
-swarm-manager milestones create --data '{
-  "name":"desktop-release-governance",
-  "title":"Desktop Release Governance",
-  "description":"Shared release-control and desktop delivery work.",
-  "status":"active",
-  "priority": 1,
-  "depends_on": []
-}'
+swarm-manager milestones create --goal desktop-release --name desktop-release-governance --title "Desktop Release Governance" --acceptance "Shared release-control and desktop delivery work."
 ```
 
 Update partially (supply only fields that should change):
 
 ```bash
-swarm-manager milestones update --name desktop-release-governance --data '{
-  "priority": 2,
-  "depends_on": ["desktop-release-telemetry"]
-}'
+swarm-manager milestones update --goal desktop-release --name desktop-release-governance --title "Desktop Release Governance" --acceptance "Shared release-control and desktop delivery work."
 ```
 
-Fields:
-- `priority`: `1-10` (or `0` for unprioritized)
-- `depends_on`: array of bare milestone names; must reference existing milestones; cycles and self-references are rejected
-- `status`: `active` or `completed` (archiving is handled via `milestones delete`)
-
-Load milestone context (milestone + members + upstream + downstream) in one call:
+Milestones belong to a goal and carry explicit acceptance criteria. Use the goal
+graph snapshot to inspect the goal’s milestone scope:
 
 ```bash
-swarm-manager milestones context --name desktop-release-governance
-swarm-manager milestones context --name desktop-release-governance --json
+swarm-manager goals context --name desktop-release
+swarm-manager goals context --name desktop-release --json
 ```
 
 Response shape (`--json`):
@@ -225,23 +211,23 @@ Response shape (`--json`):
 }
 ```
 
-Only direct upstream and downstream are returned — the endpoint is a one-hop neighborhood view, not a transitive traversal. Use it in place of the global `overview` command when the question is scoped to one milestone.
+Use the goal graph snapshot in place of global `overview` when the question is
+scoped to one goal.
 
 ## Lifecycle controls
 
 ```bash
 swarm-manager backlog recreate --kind execute --name stale-plan
 swarm-manager backlog reset-artifacts --kind execute --name stale-plan --scope workshop,plan_unbind
-swarm-manager milestones recreate --name release-governance
+swarm-manager milestones archive --goal desktop-release --milestone release-governance
 ```
 
 `backlog recreate` preserves history by archiving the source and creating a
 fresh backlog clone with `spawned_from` lineage. `reset-artifacts` keeps the
 item specification and removes only the selected derived artifact scopes:
 `workshop`, `clarifications`, `review`, `handoff_executions`, and
-`plan_unbind`. `milestones recreate` creates an active lineage-preserving
-successor and moves its member items. All three actions refuse to run when an
-affected item has an active agent.
+`plan_unbind`. All actions refuse to run when an affected item has an active
+agent.
 
 
 ## Cascade semantics
@@ -253,11 +239,8 @@ The API maintains referential integrity automatically when items or milestones a
 | `backlog delete --kind K --name N` | Removes `"K/N"` from every other item's `depends_on`; removes it from its enclosing milestone's `items[]`. Atomic. |
 | `backlog update --data '{"milestone":"X"}'` | Detaches from the old milestone's `items[]`, attaches to `X.items[]`. Rejects if `X` does not exist. |
 | `backlog create --milestone X` | Validates `X` exists; adds the new ref to `X.items[]`. |
-| `milestones delete --name I` | Orphans every member item (clears their `milestone` field; items persist); scrubs `I` from every other milestone's `depends_on`. Atomic. |
+| `milestones archive --goal G --milestone I` | Archives a milestone without deleting its items. |
 | `backlog recreate --kind K --name N` | Creates a fresh clone, retargets inbound dependencies and milestone membership, then archives `K/N`; clone records `spawned_from`. |
-| `milestones recreate --name I` | Creates an active successor, moves each member item, then archives `I`; successor records `spawned_from`. |
-| `milestones add-items --items kind/name,...` | Rejects items that already belong to a different milestone; attaches orphans. To move an item, use `backlog update` instead. |
-| `milestones remove-items --items kind/name,...` | Removes from `items[]` and clears each item's `milestone` field if it matches. |
 
 ## Receipt observations
 

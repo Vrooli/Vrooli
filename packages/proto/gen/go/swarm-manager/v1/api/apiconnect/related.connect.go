@@ -22,7 +22,7 @@ const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// RelatedServiceName is the fully-qualified name of the RelatedService service.
-	RelatedServiceName = "swarm_manager.v1.RelatedService"
+	RelatedServiceName = "vrooli.swarm_manager.v1.api.RelatedService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -35,18 +35,18 @@ const (
 const (
 	// RelatedServiceGetRelatedProcedure is the fully-qualified name of the RelatedService's GetRelated
 	// RPC.
-	RelatedServiceGetRelatedProcedure = "/swarm_manager.v1.RelatedService/GetRelated"
+	RelatedServiceGetRelatedProcedure = "/vrooli.swarm_manager.v1.api.RelatedService/GetRelated"
 )
 
-// RelatedServiceClient is a client for the swarm_manager.v1.RelatedService service.
+// RelatedServiceClient is a client for the vrooli.swarm_manager.v1.api.RelatedService service.
 type RelatedServiceClient interface {
 	GetRelated(context.Context, *connect.Request[api.GetRelatedRequest]) (*connect.Response[api.GetRelatedResponse], error)
 }
 
-// NewRelatedServiceClient constructs a client for the swarm_manager.v1.RelatedService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewRelatedServiceClient constructs a client for the vrooli.swarm_manager.v1.api.RelatedService
+// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
+// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
+// the connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
@@ -68,12 +68,13 @@ type relatedServiceClient struct {
 	getRelated *connect.Client[api.GetRelatedRequest, api.GetRelatedResponse]
 }
 
-// GetRelated calls swarm_manager.v1.RelatedService.GetRelated.
+// GetRelated calls vrooli.swarm_manager.v1.api.RelatedService.GetRelated.
 func (c *relatedServiceClient) GetRelated(ctx context.Context, req *connect.Request[api.GetRelatedRequest]) (*connect.Response[api.GetRelatedResponse], error) {
 	return c.getRelated.CallUnary(ctx, req)
 }
 
-// RelatedServiceHandler is an implementation of the swarm_manager.v1.RelatedService service.
+// RelatedServiceHandler is an implementation of the vrooli.swarm_manager.v1.api.RelatedService
+// service.
 type RelatedServiceHandler interface {
 	GetRelated(context.Context, *connect.Request[api.GetRelatedRequest]) (*connect.Response[api.GetRelatedResponse], error)
 }
@@ -91,7 +92,7 @@ func NewRelatedServiceHandler(svc RelatedServiceHandler, opts ...connect.Handler
 		connect.WithSchema(relatedServiceMethods.ByName("GetRelated")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/swarm_manager.v1.RelatedService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/vrooli.swarm_manager.v1.api.RelatedService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RelatedServiceGetRelatedProcedure:
 			relatedServiceGetRelatedHandler.ServeHTTP(w, r)
@@ -105,5 +106,5 @@ func NewRelatedServiceHandler(svc RelatedServiceHandler, opts ...connect.Handler
 type UnimplementedRelatedServiceHandler struct{}
 
 func (UnimplementedRelatedServiceHandler) GetRelated(context.Context, *connect.Request[api.GetRelatedRequest]) (*connect.Response[api.GetRelatedResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.RelatedService.GetRelated is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.RelatedService.GetRelated is not implemented"))
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"net/http"
 	"sort"
 	"strings"
 
@@ -47,6 +48,78 @@ var pendingQueueStatuses = map[string]struct{}{
 	backlogstatus.Researching: {},
 	backlogstatus.Ready:       {},
 	backlogstatus.Queued:      {},
+}
+
+// ListItems returns the same filtered projection as REST backlog list.
+func (s *ConnectService) ListItems(_ context.Context, req *connect.Request[apipb.ListBacklogItemsRequest]) (*connect.Response[apipb.ListBacklogItemsResponse], error) {
+	if req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
+	filters, err := listFiltersFromProto(req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	response, err := s.h.listItems(filters)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(response), nil
+}
+
+// DeleteItem removes a backlog item with the same idempotent, referentially
+// safe behavior as REST DELETE.
+func (s *ConnectService) DeleteItem(_ context.Context, req *connect.Request[apipb.DeleteBacklogItemRequest]) (*connect.Response[apipb.DeleteBacklogItemResponse], error) {
+	in := req.Msg
+	if in == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
+	kind, err := ParseBacklogKind(strings.TrimSpace(in.GetKind()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	name := sanitizeName(strings.TrimSpace(in.GetName()))
+	if name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+	}
+	deleted, apiErr := s.h.deleteItem(kind, name)
+	if apiErr != nil {
+		code := connect.CodeInternal
+		if apiErr.Status == http.StatusBadRequest {
+			code = connect.CodeInvalidArgument
+		}
+		return nil, connect.NewError(code, apiErr)
+	}
+	return connect.NewResponse(&apipb.DeleteBacklogItemResponse{Deleted: deleted}), nil
+}
+
+func listFiltersFromProto(in *apipb.ListBacklogItemsRequest) (ListFilters, error) {
+	filters := ListFilters{Scenarios: in.GetScenarios(), SpawnedFrom: strings.TrimSpace(in.GetSpawnedFrom()), PlanRef: strings.TrimSpace(in.GetPlanRef())}
+	for _, raw := range in.GetKinds() {
+		kind, err := ParseBacklogKind(raw)
+		if err != nil {
+			return ListFilters{}, err
+		}
+		filters.Kinds = append(filters.Kinds, kind)
+	}
+	for _, raw := range in.GetStatuses() {
+		status := BacklogStatus(strings.TrimSpace(raw))
+		if status != "" {
+			filters.Statuses = append(filters.Statuses, status)
+		}
+	}
+	switch in.GetArchived() {
+	case apipb.ArchivedFilter_ARCHIVED_FILTER_UNSPECIFIED, apipb.ArchivedFilter_ARCHIVED_FILTER_EXCLUDE:
+		filters.Archived = archivedExclude
+	case apipb.ArchivedFilter_ARCHIVED_FILTER_ONLY:
+		filters.Archived = archivedOnly
+	case apipb.ArchivedFilter_ARCHIVED_FILTER_ALL:
+		filters.Archived = archivedAll
+	default:
+		return ListFilters{}, errors.New("invalid archived filter")
+	}
+	filters.HasPlanRef = in.HasPlanRef
+	filters.Stale = in.Stale
+	return filters, nil
 }
 
 // CreateItem files a backlog item with creation-time dedup. If an open

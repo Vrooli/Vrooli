@@ -20,15 +20,15 @@ import (
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 )
 
 // FileNodesToProto converts a slice of fileops.FileNode to proto BacklogFile.
-func FileNodesToProto(nodes []fileops.FileNode) []*domainpb.BacklogFile {
+func FileNodesToProto(nodes []fileops.FileNode) []*sharedpb.BacklogFile {
 	if len(nodes) == 0 {
 		return nil
 	}
-	result := make([]*domainpb.BacklogFile, 0, len(nodes))
+	result := make([]*sharedpb.BacklogFile, 0, len(nodes))
 	for _, n := range nodes {
 		result = append(result, FileNodeToProto(n))
 	}
@@ -36,13 +36,13 @@ func FileNodesToProto(nodes []fileops.FileNode) []*domainpb.BacklogFile {
 }
 
 // FileNodeToProto converts a single fileops.FileNode to proto BacklogFile.
-func FileNodeToProto(n fileops.FileNode) *domainpb.BacklogFile {
+func FileNodeToProto(n fileops.FileNode) *sharedpb.BacklogFile {
 	children := FileNodesToProto(n.Children)
 	var size *int64
 	if n.Type == "file" {
 		size = &n.Size
 	}
-	return &domainpb.BacklogFile{
+	return &sharedpb.BacklogFile{
 		Name:     n.Name,
 		Path:     n.Path,
 		Type:     n.Type,
