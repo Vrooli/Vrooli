@@ -97,6 +97,7 @@ func TestResumeRunExecutesPendingInPlaceRunThroughDispatcher(t *testing.T) {
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
 		WithEvents(events), WithRunners(registry),
 		WithConfig(OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1}),
+		WithRunStateRoot(t.TempDir()),
 	)
 	accepted, err := svc.ResumeRun(ctx, run.ID)
 	if err != nil {

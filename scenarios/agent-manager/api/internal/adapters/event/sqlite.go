@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/sqlcompat"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
 
@@ -75,14 +75,14 @@ func (t sqliteTime) Time() time.Time {
 // It persists events to the database and maintains in-memory subscribers for
 // real-time streaming.
 type SQLiteStore struct {
-	db          *sqlx.DB
+	db          sqlcompat.DB
 	log         *logrus.Logger
 	mu          sync.RWMutex
 	subscribers map[uuid.UUID][]chan *domain.RunEvent
 }
 
 // NewSQLiteStore creates a new SQLite event store.
-func NewSQLiteStore(db *sqlx.DB, log *logrus.Logger) *SQLiteStore {
+func NewSQLiteStore(db sqlcompat.DB, log *logrus.Logger) *SQLiteStore {
 	return &SQLiteStore{
 		db:          db,
 		log:         log,
@@ -126,7 +126,7 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 		return nil
 	}
 
-	conn, err := s.db.DB.Conn(ctx)
+	conn, err := s.db.Conn(ctx)
 	if err != nil {
 		return dbError("get_connection", err)
 	}
@@ -197,6 +197,25 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 	s.notifySubscribers(runID, storedEvents)
 
 	return nil
+}
+
+// DeleteBefore removes at most limit rows older than cutoff. Selecting rowids
+// inside the DELETE keeps each transaction bounded on large SQLite databases.
+func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit int) (int, error) {
+	if limit <= 0 {
+		return 0, fmt.Errorf("event retention batch limit must be positive")
+	}
+	result, err := s.db.ExecContext(ctx, `DELETE FROM run_events WHERE rowid IN (
+		SELECT rowid FROM run_events WHERE timestamp < ? ORDER BY timestamp ASC LIMIT ?
+	)`, sqliteTime(cutoff), limit)
+	if err != nil {
+		return 0, dbError("delete_expired_events", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, dbError("count_deleted_expired_events", err)
+	}
+	return int(count), nil
 }
 
 // marshalEventData converts event data to JSON for storage.

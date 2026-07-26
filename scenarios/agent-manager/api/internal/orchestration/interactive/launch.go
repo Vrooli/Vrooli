@@ -1,3 +1,4 @@
+// This file launches interactive sessions after validating their execution context.
 package interactive
 
 import (

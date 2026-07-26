@@ -1,3 +1,4 @@
+// This file verifies sandbox availability before a phase begins execution.
 package phases
 
 import (

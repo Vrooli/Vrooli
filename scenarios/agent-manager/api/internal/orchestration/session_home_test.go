@@ -23,7 +23,8 @@ func TestPrepareCodecSessionHome_PersistsCodexRolloutAcrossTurns(t *testing.T) {
 	}
 
 	runID := uuid.New()
-	env, err := PrepareCodecSessionHome(runID, domain.RunnerTypeCodex)
+	runRoot := filepath.Join(temp, "runs")
+	env, err := PrepareCodecSessionHome(runRoot, runID, domain.RunnerTypeCodex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +43,7 @@ func TestPrepareCodecSessionHome_PersistsCodexRolloutAcrossTurns(t *testing.T) {
 	if err := os.WriteFile(rollout, []byte("turn one"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	secondTurnEnv, err := PrepareCodecSessionHome(runID, domain.RunnerTypeCodex)
+	secondTurnEnv, err := PrepareCodecSessionHome(runRoot, runID, domain.RunnerTypeCodex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +54,7 @@ func TestPrepareCodecSessionHome_PersistsCodexRolloutAcrossTurns(t *testing.T) {
 		t.Fatalf("second turn cannot read first rollout: got %q, err=%v", got, err)
 	}
 
-	if err := CleanupCodecSessionHomeCredentials(runID, domain.RunnerTypeCodex); err != nil {
+	if err := CleanupCodecSessionHomeCredentials(runRoot, runID, domain.RunnerTypeCodex); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(home, "auth.json")); !os.IsNotExist(err) {

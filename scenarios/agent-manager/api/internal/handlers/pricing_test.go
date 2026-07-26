@@ -29,6 +29,7 @@ type pricingHandlerFake struct {
 	aliases    []*pricing.ModelAlias
 	cache      *pricing.CacheStatus
 	refreshed  bool
+	deleted    bool
 }
 
 func (f *pricingHandlerFake) ListModelsWithPricing(context.Context) ([]*pricing.ModelPricingListItem, error) {
@@ -64,6 +65,11 @@ func (f *pricingHandlerFake) GetCacheStatus(context.Context) (*pricing.CacheStat
 
 func (f *pricingHandlerFake) RefreshPricing(context.Context) error {
 	f.refreshed = true
+	return nil
+}
+
+func (f *pricingHandlerFake) DeleteAlias(context.Context, string, string) error {
+	f.deleted = true
 	return nil
 }
 
@@ -129,7 +135,7 @@ func TestPricingHandlerWriteValidationBranches(t *testing.T) {
 		{"delete-invalid-component", h.DeleteOverride, "/", ``, map[string]string{"model": "m", "component": "bad"}},
 		{"alias-invalid-json", h.CreateAlias, "/", `{`, nil},
 		{"alias-missing-required", h.CreateAlias, "/", `{}`, nil},
-		{"delete-alias-unimplemented", h.DeleteAlias, "/", ``, map[string]string{"runner_type": "codex", "model": "m"}},
+		{"delete-alias-missing-runner", h.DeleteAlias, "/", ``, map[string]string{"model": "m"}},
 		{"compare-no-tokens", h.CompareModels, "/", `{}`, nil},
 		{"compare-invalid-list", h.CompareModels, "/", `{"inputTokens":1,"modelList":"bad"}`, nil},
 	}
@@ -145,6 +151,17 @@ func TestPricingHandlerWriteValidationBranches(t *testing.T) {
 				t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
 			}
 		})
+	}
+}
+
+func TestPricingHandlerDeleteAliasUsesService(t *testing.T) {
+	fake := &pricingHandlerFake{}
+	h := NewPricingHandler(fake, mocks.NewFakeStatsRepository())
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodDelete, "/", nil), map[string]string{"runner_type": "codex", "model": "m"})
+	rw := httptest.NewRecorder()
+	h.DeleteAlias(rw, req)
+	if rw.Code != http.StatusOK || !fake.deleted {
+		t.Fatalf("status=%d deleted=%v body=%s", rw.Code, fake.deleted, rw.Body.String())
 	}
 }
 

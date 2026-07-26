@@ -119,8 +119,8 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 		SupportsImageAttachments: true,  // `opencode run -f/--file <FILE>`
 		SupportsToolRestriction:  false, // OpenCode has no per-launch allowlist for its native tools.
 		ToolRestrictionMappings:  canonicalToolMappings(openCodeToolTranslations),
-		SupportsEffort:           false,
-		EffortMappings:           map[string]string{},
+		SupportsEffort:           true,
+		EffortMappings:           map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
 		MaxTurns:                 0,
 		SupportedModels:          c.ollama.list(),
 		SupportsRunnerDefault:    true,
@@ -248,6 +248,9 @@ func (c *OpenCode) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	if cfg.Model != "" {
 		args = append(args, "-m", cfg.Model)
 	}
+	if cfg.Effort != "" {
+		args = append(args, "--variant", string(cfg.Effort))
+	}
 	args = appendAttachmentFlags(args, "-f", req.Attachments)
 	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeOpenCode]; ok {
 		args = append(args, extras...)
@@ -272,6 +275,9 @@ func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []
 		if s, ok := state.(*opencodeState); ok {
 			s.workingDir = dir
 		}
+	}
+	if cfg := req.GetConfig(); cfg.Effort != "" {
+		args = append(args, "--variant", string(cfg.Effort))
 	}
 	args = appendAttachmentFlags(args, "-f", req.Attachments)
 	return args

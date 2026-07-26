@@ -1,3 +1,4 @@
+// This file adapts model-health observations to orchestration dependencies.
 package orchestration
 
 import (

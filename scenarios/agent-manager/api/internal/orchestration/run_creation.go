@@ -1,3 +1,4 @@
+// This file creates runs and their initial persisted execution state.
 package orchestration
 
 import (
@@ -404,7 +405,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 			defer obs.RecoverToFailure("run execution dispatch", func(failure obs.PanicFailure) {
 				o.recoverPanickedRun(run, failure)
 			})
-			o.executeRun(context.Background(), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
+			o.executeRun(context.WithoutCancel(ctx), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
 		},
 		OnPanic: func(failure obs.PanicFailure) {
 			o.recoverPanickedRun(run, failure)

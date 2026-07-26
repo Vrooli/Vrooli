@@ -128,7 +128,7 @@ func TestRunExecutor_NoBroadcaster_NoPanic(t *testing.T) {
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithLevers(levers)
+	).WithLevers(levers).WithRunStateRoot(t.TempDir())
 
 	executor.Execute(context.Background())
 	// If we get here without panic, the nil guard works
@@ -166,7 +166,7 @@ func TestRunExecutor_InPlace_SkipsApproval(t *testing.T) {
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithLevers(levers)
+	).WithLevers(levers).WithRunStateRoot(t.TempDir())
 
 	executor.Execute(context.Background())
 
@@ -214,7 +214,7 @@ func TestRunExecutor_Sandboxed_ManualReviewDefersApply(t *testing.T) {
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, sandboxProvider, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithLevers(levers)
+	).WithLevers(levers).WithRunStateRoot(t.TempDir())
 
 	executor.Execute(context.Background())
 
@@ -272,7 +272,7 @@ func TestRunExecutor_Sandboxed_DefaultAutoApplies_Completes(t *testing.T) {
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, sandboxProvider, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithLevers(levers)
+	).WithLevers(levers).WithRunStateRoot(t.TempDir())
 
 	executor.Execute(context.Background())
 

@@ -2,7 +2,7 @@ package wiring
 
 import (
 	"context"
-	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,13 +55,14 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	router.Use(httpmw.Logging)
 	router.Use(httpmw.CORS)
 
-	var rawDB *sql.DB
-	if deps.DB != nil && deps.DB.DB != nil {
-		rawDB = deps.DB.DB.DB
-	}
 	healthHandler := health.New().
 		Version("1.0.0").
-		Check(health.DB(rawDB), health.Critical).
+		Check(health.Func("database", func(ctx context.Context) error {
+			if deps.DB == nil {
+				return fmt.Errorf("database is not configured")
+			}
+			return deps.DB.PingContext(ctx)
+		}), health.Critical).
 		Check(RolePolicyHealthChecker(deps.RolePolicyState), health.Critical).
 		Check(PermissionPolicyHealthChecker(deps.PermissionPolicyState, deps.PermissionPolicy), health.Critical).
 		Handler()

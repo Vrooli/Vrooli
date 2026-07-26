@@ -1,3 +1,4 @@
+// This file implements interactive controls for active agent runs.
 package orchestration
 
 import (
@@ -123,7 +124,15 @@ func (o *Orchestrator) stopInteractiveRun(ctx context.Context, run *domain.Run) 
 		// The session (and its CLI) is now dead, so the run's private copy of the
 		// shared home's credentials can be removed instead of lingering on disk.
 		if run.ResolvedConfig != nil {
-			if err := sub.CleanupCredentials(run.ResolvedConfig.RunnerType, runstate.RunDir("", run.ID)); err != nil {
+			root, rootErr := o.resolveRunStateRoot(ctx)
+			if rootErr != nil {
+				return rootErr
+			}
+			runDir, rootErr := runstate.RunDir(root, run.ID)
+			if rootErr != nil {
+				return rootErr
+			}
+			if err := sub.CleanupCredentials(run.ResolvedConfig.RunnerType, runDir); err != nil {
 				obs.Component("interactive").Warn("interactive stop: seeded credential cleanup failed",
 					obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 			}

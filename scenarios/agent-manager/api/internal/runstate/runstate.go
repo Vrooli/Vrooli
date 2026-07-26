@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -52,28 +51,30 @@ type OpenOptions struct {
 	RunnerType domain.RunnerType
 	WorkingDir string
 	StartedAt  time.Time
+	// OnWrite is called after each successful durable state mutation.
+	OnWrite func()
 }
 
 type State struct {
 	snapshot   Snapshot
 	transcript *os.File
 	stderr     *os.File
+	onWrite    func()
 	mu         sync.Mutex
 }
 
-func DefaultRootDir() string {
-	return filepath.Join(database.DataDir(), "runs")
-}
-
-func RunDir(rootDir string, runID uuid.UUID) string {
+func RunDir(rootDir string, runID uuid.UUID) (string, error) {
 	if rootDir == "" {
-		rootDir = DefaultRootDir()
+		return "", fmt.Errorf("run state root is required")
 	}
-	return filepath.Join(rootDir, runID.String())
+	return filepath.Join(rootDir, runID.String()), nil
 }
 
 func Open(runID uuid.UUID, opts OpenOptions) (*State, error) {
-	dir := RunDir(opts.RootDir, runID)
+	dir, err := RunDir(opts.RootDir, runID)
+	if err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("create run state dir: %w", err)
 	}
@@ -84,6 +85,7 @@ func Open(runID uuid.UUID, opts OpenOptions) (*State, error) {
 	}
 
 	s := &State{
+		onWrite: opts.OnWrite,
 		snapshot: Snapshot{
 			Dir:            dir,
 			MetaPath:       filepath.Join(dir, metaFileName),
@@ -119,11 +121,15 @@ func Open(runID uuid.UUID, opts OpenOptions) (*State, error) {
 
 	s.transcript = transcript
 	s.stderr = stderr
+	s.recordWrite()
 	return s, nil
 }
 
 func Load(runID uuid.UUID, rootDir string) (*Snapshot, error) {
-	dir := RunDir(rootDir, runID)
+	dir, err := RunDir(rootDir, runID)
+	if err != nil {
+		return nil, err
+	}
 	s := &Snapshot{
 		Dir:            dir,
 		MetaPath:       filepath.Join(dir, metaFileName),
@@ -166,7 +172,11 @@ func (s *State) PersistProcess(pid, pgid int) error {
 	defer s.mu.Unlock()
 	s.snapshot.Meta.RunnerPID = pid
 	s.snapshot.Meta.RunnerPGID = pgid
-	return atomicWriteJSON(s.snapshot.MetaPath, s.snapshot.Meta)
+	err := atomicWriteJSON(s.snapshot.MetaPath, s.snapshot.Meta)
+	if err == nil {
+		s.recordWrite()
+	}
+	return err
 }
 
 func (s *State) PersistSessionID(sessionID string) error {
@@ -179,7 +189,11 @@ func (s *State) PersistSessionID(sessionID string) error {
 		return nil
 	}
 	s.snapshot.Meta.SessionID = sessionID
-	return atomicWriteJSON(s.snapshot.MetaPath, s.snapshot.Meta)
+	err := atomicWriteJSON(s.snapshot.MetaPath, s.snapshot.Meta)
+	if err == nil {
+		s.recordWrite()
+	}
+	return err
 }
 
 func (s *State) PersistCursor(cursor, lastSeq int64) error {
@@ -188,7 +202,17 @@ func (s *State) PersistCursor(cursor, lastSeq int64) error {
 	s.snapshot.Cursor.TranscriptCursor = cursor
 	s.snapshot.Cursor.TranscriptLastSeq = lastSeq
 	s.snapshot.Cursor.UpdatedAt = time.Now().UTC()
-	return atomicWriteJSON(s.snapshot.CursorPath, s.snapshot.Cursor)
+	err := atomicWriteJSON(s.snapshot.CursorPath, s.snapshot.Cursor)
+	if err == nil {
+		s.recordWrite()
+	}
+	return err
+}
+
+func (s *State) recordWrite() {
+	if s.onWrite != nil {
+		s.onWrite()
+	}
 }
 
 func (s *State) Close() error {

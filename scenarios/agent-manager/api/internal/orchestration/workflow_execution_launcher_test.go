@@ -44,6 +44,7 @@ func newWorkflowChildOrchestrator(t *testing.T) (*Orchestrator, *database.Reposi
 	return New(repos.Profiles, repos.Tasks, repos.Runs,
 		WithRunners(registry), WithRolePolicyState(state, workflowLauncherRoleResolver{}),
 		WithConfig(OrchestratorConfig{DefaultTimeout: time.Minute, DefaultProjectRoot: t.TempDir(), MaxConcurrentRuns: 4, RequireSandboxByDefault: false}),
+		WithRunStateRoot(t.TempDir()),
 	), repos
 }
 
@@ -126,6 +127,24 @@ func TestWorkflowChildLauncherStartsRoleBasedRunWithWorkflowProvenance(t *testin
 	if run.ResolvedConfig.RoleRef != "code.default" || run.ResolvedConfig.MaxTurns != 7 || run.CustomEnv[workflowExecutionEnv] != req.ExecutionID.String() || run.CustomEnv[workflowNodeEnv] != "implement" || run.CustomEnv[workflowAttemptEnv] != req.AttemptID.String() {
 		t.Fatalf("workflow provenance/config lost: %+v", run)
 	}
+	// StartFresh intentionally returns once durable dispatch succeeds.  Its
+	// executor remains live, so make the test own that lifecycle before the
+	// test repository is torn down.  Otherwise the next test can close the
+	// shared SQLite handle while this child is still finalizing.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		stored, getErr := repos.Runs.Get(ctx, state.RunID)
+		if getErr != nil {
+			t.Fatalf("get stopped workflow child: %v", getErr)
+		}
+		if stored != nil && stored.Status.IsTerminal() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// The transcript runner is finite; a failure here means execution failed to
+	// drain, rather than merely observing a race with repository teardown.
+	t.Fatalf("workflow child %s did not become terminal", state.RunID)
 }
 
 func TestWorkflowChildLauncherInspectsStopsParkedAndRejectsMissingContinuationSource(t *testing.T) {

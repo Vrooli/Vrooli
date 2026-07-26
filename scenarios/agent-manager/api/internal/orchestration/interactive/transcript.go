@@ -1,3 +1,4 @@
+// This file exposes transcript access for interactive sessions.
 package interactive
 
 import (

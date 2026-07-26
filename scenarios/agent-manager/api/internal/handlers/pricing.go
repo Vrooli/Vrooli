@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"agent-manager/internal/domain"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/repository"
 
@@ -382,9 +381,11 @@ func (h *PricingHandler) DeleteAlias(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Note: The service doesn't have a DeleteAlias method, but the repository does.
-	// For now, return not implemented until the service interface is extended.
-	writeError(w, r, domain.NewValidationError("endpoint", "delete alias not yet implemented"))
+	if err := h.svc.DeleteAlias(r.Context(), model, runnerType); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
 // GetSettings handles GET /api/v1/pricing/settings

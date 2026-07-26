@@ -1,6 +1,7 @@
 package runstate
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,6 +10,9 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	coredb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 func TestOpenCreatesStateFilesAndPersistsUpdates(t *testing.T) {
@@ -55,5 +59,47 @@ func TestOpenCreatesStateFilesAndPersistsUpdates(t *testing.T) {
 	}
 	if loaded.Cursor.TranscriptCursor != 99 || loaded.Cursor.TranscriptLastSeq != 7 {
 		t.Fatalf("loaded cursor = %+v", loaded.Cursor)
+	}
+}
+
+func TestRoutedRootResolvesPerTestContextAndAccountsWrites(t *testing.T) {
+	primary := storage.Paths{StateDir: filepath.Join(t.TempDir(), "primary-state")}
+	roots := filerouting.New(primary)
+	testPaths := storage.Paths{StateDir: filepath.Join(t.TempDir(), "test-state")}
+	if err := roots.InstallTestRoots(testPaths, "lease-1", time.Minute); err != nil {
+		t.Fatalf("InstallTestRoots: %v", err)
+	}
+	resolver := RoutedRoot{Roots: roots}
+
+	prod, err := resolver.Resolve(context.Background())
+	if err != nil || prod != filepath.Join(primary.StateDir, "runs") {
+		t.Fatalf("production root = %q, %v", prod, err)
+	}
+	testCtx := coredb.WithTestMode(context.Background())
+	isolated, err := resolver.Resolve(testCtx)
+	if err != nil || isolated != filepath.Join(testPaths.StateDir, "runs") {
+		t.Fatalf("test root = %q, %v", isolated, err)
+	}
+	resolver.RecordWrite(testCtx)
+	if got := roots.LeaseStats(); got.TestRootWrites != 1 || got.PrimaryWritesDuringTestMode != 0 {
+		t.Fatalf("lease write stats = %+v", got)
+	}
+}
+
+func TestOpenNotifiesOnlySuccessfulStateWrites(t *testing.T) {
+	writes := 0
+	state, err := Open(uuid.New(), OpenOptions{RootDir: t.TempDir(), OnWrite: func() { writes++ }})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = state.Close() }()
+	if writes != 1 {
+		t.Fatalf("writes after Open = %d, want 1", writes)
+	}
+	if err := state.PersistSessionID("session"); err != nil {
+		t.Fatalf("PersistSessionID: %v", err)
+	}
+	if writes != 2 {
+		t.Fatalf("writes after PersistSessionID = %d, want 2", writes)
 	}
 }

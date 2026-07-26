@@ -12,18 +12,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
+	"agent-manager/internal/sqlcompat"
 )
 
 // SQLiteCheckpointStore implements CheckpointStore on top of the
 // agent-manager primary SQLite database. Schema lives in
 // database/schema.sql under the "stats_checkpoint" table.
 type SQLiteCheckpointStore struct {
-	db *sqlx.DB
+	db sqlcompat.DB
 }
 
 // NewSQLiteCheckpointStore wraps a sqlx handle.
-func NewSQLiteCheckpointStore(db *sqlx.DB) *SQLiteCheckpointStore {
+func NewSQLiteCheckpointStore(db sqlcompat.DB) *SQLiteCheckpointStore {
 	return &SQLiteCheckpointStore{db: db}
 }
 

@@ -3,17 +3,21 @@ package database
 import (
 	"context"
 	"database/sql"
-	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/modules"
+	"agent-manager/internal/sqlcompat"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/reflectx"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite" // SQLite driver
 )
@@ -24,53 +28,55 @@ const (
 	defaultPingTimeout   = 5 * time.Second
 )
 
-//go:embed schema.sql
-var schema string
-
-// DB wraps sqlx.DB with additional functionality for agent-manager.
+// DB provides Agent Manager's existing sqlx-shaped repository operations over
+// api-core's RoutedDB. Every operation picks its SQLite pool from the request
+// context, so Test Genie traffic cannot reach the production database.
 type DB struct {
-	*sqlx.DB
-	log *logrus.Logger
+	Routed *coredb.RoutedDB
+	// DB exists only for legacy unit tests that construct a local sqlx handle
+	// directly. Production construction leaves it nil; request paths always use
+	// Routed above.
+	DB     *sqlx.DB
+	log    *logrus.Logger
+	mapper *reflectx.Mapper
 }
 
-// NewDB creates a DB wrapper from an existing sqlx.DB and logger.
-// This is primarily intended for test setup where the caller manages
-// the connection lifecycle and schema initialization directly.
+// NewDB wraps an existing sqlx test handle in the same routed seam used by
+// production. It is retained for focused unit tests that own their database.
 func NewDB(db *sqlx.DB, log *logrus.Logger) *DB {
-	return &DB{DB: db, log: log}
+	if db == nil {
+		return &DB{log: log, mapper: reflectx.NewMapper("db")}
+	}
+	return &DB{Routed: coredb.NewFromPrimary(db.DB), DB: db, log: log, mapper: reflectx.NewMapper("db")}
 }
 
-// NewConnection creates a new SQLite database connection.
+// NewConnection is retained for repository tests that exercise the historical
+// standalone constructor. The server composition root uses api-core Open.
 func NewConnection(log *logrus.Logger) (*DB, error) {
-	dsn, err := sqliteDSN(log)
+	dsn, err := SQLiteDSN(log)
 	if err != nil {
 		return nil, err
 	}
-
-	db, err := sqlx.Connect("sqlite", dsn)
+	raw, err := sqlx.Connect("sqlite", dsn)
 	if err != nil {
-		return nil, &domain.DatabaseError{
-			Operation:   "connect",
-			EntityType:  "Database",
-			Cause:       err,
-			IsTransient: true,
-		}
-	}
-	db.SetMaxOpenConns(1)
-
-	dbWrapper := &DB{DB: db, log: log}
-	if err := dbWrapper.initSchema(); err != nil {
-		_ = db.Close()
-		log.WithError(err).Error("Failed to initialize database schema")
 		return nil, err
 	}
+	raw.SetMaxOpenConns(1)
+	db := NewDB(raw, log)
+	if err := db.InitializeSchema(); err != nil {
+		_ = raw.Close()
+		return nil, err
+	}
+	return db, nil
+}
 
-	log.Info("Successfully connected to database")
-	return dbWrapper, nil
+// NewRoutedDB adds Agent Manager's repository helpers to a RoutedDB.
+func NewRoutedDB(routed *coredb.RoutedDB, log *logrus.Logger) *DB {
+	return &DB{Routed: routed, log: log, mapper: reflectx.NewMapper("db")}
 }
 
 // DataDir returns the directory where the SQLite database file is stored.
-// This follows the same resolution priority as sqliteDSN.
+// This follows the same resolution priority as SQLiteDSN.
 func DataDir() string {
 	root := strings.TrimSpace(os.Getenv("AM_SQLITE_PATH"))
 	if root != "" {
@@ -82,7 +88,10 @@ func DataDir() string {
 	return "."
 }
 
-func sqliteDSN(log *logrus.Logger) (string, error) {
+// SQLiteDSN resolves Agent Manager's canonical SQLite DSN for the API-core
+// connection seam. It is intentionally exported to keep main's composition
+// root explicit without exposing path-resolution internals.
+func SQLiteDSN(log *logrus.Logger) (string, error) {
 	root := strings.TrimSpace(os.Getenv("AM_SQLITE_PATH"))
 	if root == "" {
 		if custom := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(custom, "file:") {
@@ -107,6 +116,10 @@ func sqliteDSN(log *logrus.Logger) (string, error) {
 	), nil
 }
 
+// sqliteDSN remains a package-private compatibility alias for tests that
+// verify the canonical path policy directly.
+func sqliteDSN(log *logrus.Logger) (string, error) { return SQLiteDSN(log) }
+
 func scenarioDBPath() (string, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
@@ -120,7 +133,18 @@ func scenarioDBPath() (string, error) {
 }
 
 // Close closes the database connection.
-func (db *DB) Close() error { return db.DB.Close() }
+func (db *DB) Close() error {
+	if db == nil {
+		return nil
+	}
+	if db.Routed == nil && db.DB != nil {
+		return db.DB.Close()
+	}
+	if db.Routed == nil {
+		return nil
+	}
+	return db.Routed.Close()
+}
 
 // HealthCheck performs a health check on the database.
 func (db *DB) HealthCheck() error {
@@ -132,9 +156,46 @@ func (db *DB) HealthCheck() error {
 	return nil
 }
 
+func (db *DB) PingContext(ctx context.Context) error {
+	if db == nil {
+		return fmt.Errorf("database is not configured")
+	}
+	if db.Routed == nil && db.DB != nil {
+		return db.DB.PingContext(ctx)
+	}
+	if db.Routed == nil {
+		return fmt.Errorf("database is not configured")
+	}
+	return db.Routed.PingContext(ctx)
+}
+
+func (db *DB) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database is not configured")
+	}
+	if db.Routed == nil && db.DB != nil {
+		tx, err := db.DB.BeginTxx(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		return &Tx{Tx: tx.Tx}, nil
+	}
+	if db.Routed == nil {
+		return nil, fmt.Errorf("database is not configured")
+	}
+	tx, err := db.Routed.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &Tx{Tx: tx}, nil
+}
+
 // WithTransaction executes a function within a database transaction.
-func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
-	tx, err := db.Beginx()
+func (db *DB) WithTransaction(ctx context.Context, fn func(*Tx) error) error {
+	if db == nil {
+		return &domain.DatabaseError{Operation: "transaction_begin", EntityType: "Database", Cause: fmt.Errorf("database is not configured")}
+	}
+	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		return &domain.DatabaseError{Operation: "transaction_begin", EntityType: "Database", Cause: err}
 	}
@@ -154,6 +215,159 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 	return nil
 }
 
+// Tx is the small transaction surface Agent Manager needs. Keeping it local
+// avoids leaking a raw sqlx transaction that could bypass the routed seam.
+type Tx struct{ *sql.Tx }
+
+func (tx *Tx) NamedExecContext(ctx context.Context, query string, arg any) (sql.Result, error) {
+	bound, args, err := sqlx.Named(query, arg)
+	if err != nil {
+		return nil, err
+	}
+	return tx.ExecContext(ctx, sqlx.Rebind(sqlx.BindType("sqlite"), bound), args...)
+}
+
+// SQLXCompat is the compatibility seam accepted by read-side components. Both
+// *sqlx.DB (unit tests) and *DB (the routed production graph) satisfy it.
+type SQLXCompat = sqlcompat.DB
+
+func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	if db != nil && db.Routed == nil && db.DB != nil {
+		return db.DB.QueryContext(ctx, query, args...)
+	}
+	return db.Routed.QueryContext(ctx, query, args...)
+}
+
+func (db *DB) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	if db != nil && db.Routed == nil && db.DB != nil {
+		return db.DB.QueryRowContext(ctx, query, args...)
+	}
+	return db.Routed.QueryRowContext(ctx, query, args...)
+}
+
+func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if db != nil && db.Routed == nil && db.DB != nil {
+		return db.DB.ExecContext(ctx, query, args...)
+	}
+	return db.Routed.ExecContext(ctx, query, args...)
+}
+
+func (db *DB) Conn(ctx context.Context) (*sql.Conn, error) {
+	if db != nil && db.Routed == nil && db.DB != nil {
+		return db.DB.Conn(ctx)
+	}
+	return db.Routed.Conn(ctx)
+}
+
+func (db *DB) Exec(query string, args ...any) (sql.Result, error) {
+	if db != nil && db.DB != nil {
+		return db.DB.Exec(query, args...)
+	}
+	return nil, fmt.Errorf("non-context database access is unavailable in production")
+}
+
+func (db *DB) Get(dest any, query string, args ...any) error {
+	if db != nil && db.DB != nil {
+		return db.DB.Get(dest, query, args...)
+	}
+	return fmt.Errorf("non-context database access is unavailable in production")
+}
+
+func (db *DB) QueryxContext(ctx context.Context, query string, args ...any) (*sqlx.Rows, error) {
+	rows, err := db.routedRows(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	mapper := db.mapper
+	if mapper == nil {
+		mapper = reflectx.NewMapper("db")
+	}
+	return &sqlx.Rows{Rows: rows, Mapper: mapper}, nil
+}
+
+// routedRows makes ownership explicit for the sqlx compatibility adapter: the
+// caller receives the cursor and is required to close it, exactly as sqlx.DB's
+// QueryxContext contract requires.
+func (db *DB) routedRows(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return db.QueryContext(ctx, query, args...)
+}
+
+func (db *DB) NamedExecContext(ctx context.Context, query string, arg any) (sql.Result, error) {
+	bound, args, err := sqlx.Named(query, arg)
+	if err != nil {
+		return nil, err
+	}
+	return db.ExecContext(ctx, sqlx.Rebind(sqlx.BindType("sqlite"), bound), args...)
+}
+
+func (db *DB) GetContext(ctx context.Context, dest any, query string, args ...any) error {
+	rows, err := db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		return sql.ErrNoRows
+	}
+	if isScannable(dest) {
+		return rows.Scan(dest)
+	}
+	return rows.StructScan(dest)
+}
+
+func (db *DB) SelectContext(ctx context.Context, dest any, query string, args ...any) error {
+	value := reflect.ValueOf(dest)
+	if value.Kind() != reflect.Ptr || value.Elem().Kind() != reflect.Slice {
+		return fmt.Errorf("select destination must be a pointer to a slice, got %T", dest)
+	}
+	rows, err := db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	slice := value.Elem()
+	elementType := slice.Type().Elem()
+	for rows.Next() {
+		isPointer := elementType.Kind() == reflect.Ptr
+		valueType := elementType
+		if isPointer {
+			valueType = valueType.Elem()
+		}
+		element := reflect.New(valueType)
+		if isScannable(element.Interface()) {
+			err = rows.Scan(element.Interface())
+		} else {
+			err = rows.StructScan(element.Interface())
+		}
+		if err != nil {
+			return err
+		}
+		if isPointer {
+			slice = reflect.Append(slice, element)
+		} else {
+			slice = reflect.Append(slice, element.Elem())
+		}
+	}
+	value.Elem().Set(slice)
+	return rows.Err()
+}
+
+var sqlScannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+
+func isScannable(dest any) bool {
+	typeOf := reflect.TypeOf(dest)
+	if typeOf == nil {
+		return true
+	}
+	for typeOf.Kind() == reflect.Ptr {
+		typeOf = typeOf.Elem()
+	}
+	return typeOf.Kind() != reflect.Struct || reflect.PointerTo(typeOf).Implements(sqlScannerType)
+}
+
 // initSchema applies the current declarative schema, then runs the additive
 // column migrations for tables that gained columns after their CREATE TABLE
 // statement was first shipped. The declarative schema uses CREATE TABLE IF NOT
@@ -165,9 +379,9 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 func (db *DB) initSchema() error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultSchemaTimeout)
 	defer cancel()
-	if _, err := db.ExecContext(ctx, schema); err != nil {
+	if err := coredb.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
 		if db.log != nil {
-			db.log.WithError(err).Error("Failed to execute schema initialization")
+			db.log.WithError(err).Error("Failed to apply domain schemas")
 		}
 		return &domain.DatabaseError{Operation: "schema_init", EntityType: "Schema", Cause: err}
 	}
@@ -197,6 +411,11 @@ func (db *DB) initSchema() error {
 	}
 	return nil
 }
+
+// InitializeSchema applies Agent Manager's additive SQLite schema contract to
+// the primary pool. Startup calls it once; devrouting calls the same contract
+// for each newly leased test pool before requests can reach it.
+func (db *DB) InitializeSchema() error { return db.initSchema() }
 
 // columnMigration is one additive column: apply ddl only when column is absent.
 type columnMigration struct {

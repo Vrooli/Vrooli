@@ -572,3 +572,37 @@ func TestSQLiteStore_ConcurrentAppendSequences(t *testing.T) {
 		}
 	}
 }
+
+func TestSQLiteStore_DeleteBeforeIsBounded(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	runID := uuid.New()
+	old := time.Now().Add(-48 * time.Hour)
+	for range 3 {
+		evt := domain.NewLogEvent(runID, "info", "expired")
+		evt.Timestamp = old
+		if err := store.Append(ctx, runID, evt); err != nil {
+			t.Fatalf("append expired: %v", err)
+		}
+	}
+	fresh := domain.NewLogEvent(runID, "info", "fresh")
+	fresh.Timestamp = time.Now()
+	if err := store.Append(ctx, runID, fresh); err != nil {
+		t.Fatalf("append fresh: %v", err)
+	}
+
+	deleted, err := store.DeleteBefore(ctx, time.Now().Add(-24*time.Hour), 2)
+	if err != nil || deleted != 2 {
+		t.Fatalf("first bounded delete = %d, %v", deleted, err)
+	}
+	deleted, err = store.DeleteBefore(ctx, time.Now().Add(-24*time.Hour), 2)
+	if err != nil || deleted != 1 {
+		t.Fatalf("second bounded delete = %d, %v", deleted, err)
+	}
+	count, err := store.Count(ctx, runID)
+	if err != nil || count != 1 {
+		t.Fatalf("retained events = %d, %v", count, err)
+	}
+}

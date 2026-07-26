@@ -1,3 +1,4 @@
+// This file reconciles declared agent state with persisted orchestration state.
 package orchestration
 
 import (

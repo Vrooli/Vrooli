@@ -88,9 +88,11 @@ type RunExecutor struct {
 	attachments  []runner.Attachment
 
 	// Workspace state
-	sandboxID *uuid.UUID
-	workDir   string
-	runState  *runstate.State
+	sandboxID     *uuid.UUID
+	workDir       string
+	runState      *runstate.State
+	runStateRoot  string
+	runStateWrite func()
 
 	// Progress + concurrency
 	checkpoint *domain.RunCheckpoint
@@ -165,6 +167,13 @@ func NewRunExecutor(
 // =============================================================================
 
 func (e *RunExecutor) WithLevers(l config.Levers) *RunExecutor { e.levers = l; return e }
+
+func (e *RunExecutor) WithRunStateRoot(root string) *RunExecutor { e.runStateRoot = root; return e }
+
+func (e *RunExecutor) WithRunStateWriteObserver(observer func()) *RunExecutor {
+	e.runStateWrite = observer
+	return e
+}
 
 // WithClock supplies deterministic timestamps to all execution phases.
 func (e *RunExecutor) WithClock(clock func() time.Time) *RunExecutor { e.clock = clock; return e }
@@ -328,7 +337,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		})
 	}
 	if e.run.ResolvedConfig != nil {
-		sessionEnv, err := PrepareCodecSessionHome(e.run.ID, e.run.ResolvedConfig.RunnerType)
+		sessionEnv, err := PrepareCodecSessionHome(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType)
 		if err != nil {
 			e.failWithError(execCtx, err)
 			return
@@ -378,23 +387,25 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 
 	out := phases.ExecuteWithModelFallback(execCtx, phases.ExecuteWithModelFallbackInput{
 		ExecuteAgentInput: phases.ExecuteAgentInput{
-			Deps:         e.deps(),
-			Run:          e.run,
-			Task:         e.task,
-			Profile:      e.profile,
-			Runner:       agentRunner,
-			WorkingDir:   e.workDir,
-			SandboxID:    e.sandboxID,
-			Prompt:       e.prompt,
-			SystemPrompt: e.systemPrompt,
-			Attachments:  e.attachments,
-			EnvVars:      e.MergedEnvVars(),
-			EventSink:    eventSink,
-			RunState:     e.runState,
-			Mu:           &e.mu,
-			ModelHealth:  e.modelHealth,
-			Runners:      e.runners,
-			OnRunning:    e.onRunning,
+			Deps:          e.deps(),
+			Run:           e.run,
+			Task:          e.task,
+			Profile:       e.profile,
+			Runner:        agentRunner,
+			WorkingDir:    e.workDir,
+			RunStateRoot:  e.runStateRoot,
+			RunStateWrite: e.runStateWrite,
+			SandboxID:     e.sandboxID,
+			Prompt:        e.prompt,
+			SystemPrompt:  e.systemPrompt,
+			Attachments:   e.attachments,
+			EnvVars:       e.MergedEnvVars(),
+			EventSink:     eventSink,
+			RunState:      e.runState,
+			Mu:            &e.mu,
+			ModelHealth:   e.modelHealth,
+			Runners:       e.runners,
+			OnRunning:     e.onRunning,
 		},
 	})
 	e.result = out.Result
@@ -624,9 +635,9 @@ func (e *RunExecutor) finalize() {
 		return
 	}
 	e.finalized = true
-	EmitCodexGoalUsage(context.Background(), e.deps(), e.run)
+	EmitCodexGoalUsage(context.Background(), e.runStateRoot, e.deps(), e.run)
 	if e.run != nil && e.run.ResolvedConfig != nil {
-		if err := CleanupCodecSessionHomeCredentials(e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
+		if err := CleanupCodecSessionHomeCredentials(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
 			e.emitSystem(context.Background(), "warn", "failed to clean run-scoped session credentials: "+err.Error())
 		}
 	}

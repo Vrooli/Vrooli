@@ -1,3 +1,4 @@
+// This file parks eligible runs while preserving their resumable state.
 package orchestration
 
 import (

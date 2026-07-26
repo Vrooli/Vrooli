@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
+	coredb "github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite" // registers the read-only SQLite driver
 )
 
@@ -36,7 +37,12 @@ func Read(ctx context.Context, sessionHome, threadID string) (*Goal, error) {
 	} else if err != nil {
 		return nil, fmt.Errorf("stat codex goals store: %w", err)
 	}
-	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	db, err := coredb.Open(ctx, coredb.Config{
+		Driver:       coredb.DriverSQLite,
+		DSN:          "file:" + path + "?mode=ro",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("open codex goals store read-only: %w", err)
 	}

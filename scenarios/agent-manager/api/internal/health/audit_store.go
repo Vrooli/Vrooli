@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jmoiron/sqlx"
+	"agent-manager/internal/sqlcompat"
 )
 
 // Store persists health observations and serves current-snapshot + audit
@@ -20,7 +20,7 @@ import (
 // return empty). This matches the pre-Phase-2 behaviour for code paths
 // that constructed an Orchestrator without health wiring.
 type Store struct {
-	db *sqlx.DB
+	db sqlcompat.DB
 
 	mu         sync.RWMutex
 	runners    []string // ordered runner registry; seeded via RegisterRunners
@@ -29,7 +29,7 @@ type Store struct {
 
 // NewStore wraps a sqlx.DB. Pass nil for a no-op store (used in test
 // harnesses where health is not under test).
-func NewStore(db *sqlx.DB) *Store {
+func NewStore(db sqlcompat.DB) *Store {
 	return &Store{db: db, seenRunner: make(map[string]struct{})}
 }
 
@@ -114,7 +114,7 @@ func (s *Store) LatestModelStatus(ctx context.Context, runnerType, modelID strin
 	if s == nil || s.db == nil {
 		return ModelEntry{Status: StatusUnknown}, nil
 	}
-	row := s.db.QueryRowxContext(ctx, `
+	row := s.db.QueryRowContext(ctx, `
 		SELECT status, reason, message, timestamp
 		FROM model_health_audit
 		WHERE runner_type = ? AND model_id = ?

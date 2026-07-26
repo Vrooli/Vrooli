@@ -8,6 +8,7 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/testutil"
 	"agent-manager/internal/testutil/mocks"
@@ -25,6 +26,52 @@ type reconcilerWaitingRecoveryStub struct{ err error }
 
 func (s reconcilerWaitingRecoveryStub) ReconcileUnarmedWorkflowWaits(context.Context, time.Duration, time.Duration) error {
 	return s.err
+}
+
+type retentionStoreStub struct {
+	cutoff  time.Time
+	limit   int
+	deleted int
+}
+
+func (s *retentionStoreStub) DeleteBefore(_ context.Context, cutoff time.Time, limit int) (int, error) {
+	s.cutoff, s.limit = cutoff, limit
+	return s.deleted, nil
+}
+
+func TestReconcilerEventRetentionUsesLeverAndBoundedBatch(t *testing.T) {
+	store := &retentionStoreStub{deleted: 7}
+	levers := config.DefaultLevers()
+	levers.Storage.EventRetentionDays = 3
+	now := time.Date(2026, 7, 25, 12, 0, 0, 0, time.UTC)
+	reconciler := NewReconciler(nil, nil, WithReconcilerLevers(levers), WithReconcilerEventRetention(store))
+	reconciler.clock = func() time.Time { return now }
+	deleted, err := reconciler.cleanupExpiredEvents(context.Background())
+	if err != nil || deleted != 7 {
+		t.Fatalf("cleanupExpiredEvents = %d, %v", deleted, err)
+	}
+	if store.limit != eventRetentionBatchSize {
+		t.Fatalf("retention batch = %d, want %d", store.limit, eventRetentionBatchSize)
+	}
+	if want := now.Add(-3 * 24 * time.Hour); !store.cutoff.Equal(want) {
+		t.Fatalf("retention cutoff = %s, want %s", store.cutoff, want)
+	}
+}
+
+func TestReconcilerArtifactRetentionUsesLeverAndBoundedBatch(t *testing.T) {
+	store := &retentionStoreStub{deleted: 4}
+	levers := config.DefaultLevers()
+	levers.Storage.ArtifactRetentionDays = 9
+	now := time.Date(2026, 7, 25, 12, 0, 0, 0, time.UTC)
+	reconciler := NewReconciler(nil, nil, WithReconcilerLevers(levers), WithReconcilerArtifactRetention(store))
+	reconciler.clock = func() time.Time { return now }
+	deleted, err := reconciler.cleanupExpiredArtifacts(context.Background())
+	if err != nil || deleted != 4 {
+		t.Fatalf("cleanupExpiredArtifacts = %d, %v", deleted, err)
+	}
+	if store.limit != eventRetentionBatchSize || !store.cutoff.Equal(now.Add(-9*24*time.Hour)) {
+		t.Fatalf("artifact retention input = cutoff %s limit %d", store.cutoff, store.limit)
+	}
 }
 
 // =============================================================================

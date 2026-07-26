@@ -39,6 +39,7 @@ func setupContinueTest(t *testing.T, opts ...orchestration.Option) (
 		orchestration.WithEvents(eventStore),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	}
 	allOpts := append(baseOpts, opts...)
 

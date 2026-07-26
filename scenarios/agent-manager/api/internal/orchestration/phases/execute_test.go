@@ -106,10 +106,11 @@ func TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners(t *testing.T
 	events := &filterableEventStore{}
 	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
 		ExecuteAgentInput: ExecuteAgentInput{
-			Deps:    Deps{Events: events, Levers: config.DefaultLevers()},
-			Run:     run,
-			Runner:  codex,
-			Runners: registry,
+			Deps:         Deps{Events: events, Levers: config.DefaultLevers()},
+			Run:          run,
+			RunStateRoot: t.TempDir(),
+			Runner:       codex,
+			Runners:      registry,
 		},
 	})
 
@@ -173,10 +174,11 @@ func TestPolicySnapshotFallbackSkipsUnavailablePersistedCandidate(t *testing.T) 
 
 	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
 		ExecuteAgentInput: ExecuteAgentInput{
-			Deps:    Deps{Events: &filterableEventStore{}, Levers: config.DefaultLevers()},
-			Run:     run,
-			Runner:  codex,
-			Runners: registry,
+			Deps:         Deps{Events: &filterableEventStore{}, Levers: config.DefaultLevers()},
+			Run:          run,
+			RunStateRoot: t.TempDir(),
+			Runner:       codex,
+			Runners:      registry,
 		},
 	})
 	if out.Result == nil || !out.Result.Success || attempts != 1 {
@@ -226,10 +228,11 @@ func TestPolicySnapshotFallbackExhaustionIsTerminalAndObservable(t *testing.T) {
 	events := &filterableEventStore{}
 	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
 		ExecuteAgentInput: ExecuteAgentInput{
-			Deps:    Deps{Events: events, Levers: config.DefaultLevers()},
-			Run:     run,
-			Runner:  codex,
-			Runners: registry,
+			Deps:         Deps{Events: events, Levers: config.DefaultLevers()},
+			Run:          run,
+			RunStateRoot: t.TempDir(),
+			Runner:       codex,
+			Runners:      registry,
 		},
 	})
 
@@ -311,10 +314,11 @@ func TestPolicySnapshotResumeStartsAtPersistedCandidate(t *testing.T) {
 
 	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
 		ExecuteAgentInput: ExecuteAgentInput{
-			Deps:    Deps{Events: &filterableEventStore{}, Levers: config.DefaultLevers()},
-			Run:     &reloaded,
-			Runner:  codex,
-			Runners: registry,
+			Deps:         Deps{Events: &filterableEventStore{}, Levers: config.DefaultLevers()},
+			Run:          &reloaded,
+			RunStateRoot: t.TempDir(),
+			Runner:       codex,
+			Runners:      registry,
 		},
 	})
 	if out.Result == nil || !out.Result.Success || attempts != 1 {

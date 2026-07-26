@@ -29,6 +29,7 @@ func TestWakeRun_RecordsAwaitResultForRefetch(t *testing.T) {
 		repos.Profiles, repos.Tasks, repos.Runs,
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	run := newParkableRun(t, ctx, svc, repos)

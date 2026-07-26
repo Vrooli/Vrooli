@@ -1,3 +1,4 @@
+// This file records recovery observations for orchestration diagnostics.
 package obs
 
 import (

@@ -33,6 +33,11 @@ type SetupWorkspaceInput struct {
 	// resolves the existing sandbox's workspace path.
 	ExistingSandboxID *uuid.UUID
 	ExistingWorkDir   string
+
+	// SandboxIdempotencySuffix distinguishes a replacement sandbox from the
+	// original run sandbox. Continuations need this after terminal retention
+	// deletes the prior sandbox while preserving the run-scoped codec state.
+	SandboxIdempotencySuffix string
 }
 
 // SetupWorkspaceOutput carries the workspace state produced by setup.
@@ -87,7 +92,7 @@ func CreateSandboxWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupW
 		return SetupWorkspaceOutput{}, domain.NewConfigMissingError("sandbox", "provider not configured", nil)
 	}
 
-	idempotencyKey := fmt.Sprintf("sandbox:run:%s", in.Run.ID.String())
+	idempotencyKey := fmt.Sprintf("sandbox:run:%s%s", in.Run.ID.String(), in.SandboxIdempotencySuffix)
 
 	projectRoot := in.Task.ProjectRoot
 	if projectRoot != "" && !filepath.IsAbs(projectRoot) {

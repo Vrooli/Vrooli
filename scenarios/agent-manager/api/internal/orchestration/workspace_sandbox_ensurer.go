@@ -1,3 +1,4 @@
+// This file ensures workspaces satisfy sandbox prerequisites before a run starts.
 package orchestration
 
 import (

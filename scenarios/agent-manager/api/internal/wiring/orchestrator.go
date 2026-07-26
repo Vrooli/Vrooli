@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/adapters/artifact"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
@@ -28,6 +29,7 @@ import (
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runstate"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/structuredresult"
@@ -35,6 +37,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/filerouting"
 )
 
 // OrchestratorDependencies is the runtime service graph assembled by the
@@ -59,8 +62,8 @@ type OrchestratorDependencies struct {
 
 // NewOrchestrator builds the production orchestration graph. No background
 // workers start here; Server startup owns lifecycle ordering separately.
-func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus.Logger, uploads storage.Service, levers *agentconfig.Levers) (OrchestratorDependencies, error) {
-	if db == nil || db.DB == nil {
+func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus.Logger, uploads storage.Service, levers *agentconfig.Levers, fileRoots ...*filerouting.RoutedRoots) (OrchestratorDependencies, error) {
+	if db == nil || db.Routed == nil {
 		return OrchestratorDependencies{}, fmt.Errorf("database is required")
 	}
 	if logger == nil {
@@ -71,9 +74,13 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		levers = &defaults
 	}
 	bootLog := obs.Component("bootstrap")
+	var runStateResolver runstate.RootResolver
+	if len(fileRoots) > 0 && fileRoots[0] != nil {
+		runStateResolver = runstate.RoutedRoot{Roots: fileRoots[0]}
+	}
 	bootLog.Info("using SQLite persistence")
 	repos := database.NewRepositories(db, logger)
-	eventStore := event.NewSQLiteStore(db.DB, logger)
+	eventStore := event.NewSQLiteStore(db, logger)
 
 	rolePolicyPath := rolepolicy.ResolvePath()
 	roleState, err := rolepolicy.NewState(rolePolicyPath, rolepolicy.Requirement{Required: true, Reason: "portable role selection must resolve through resource-owned coding-agent policies"})
@@ -89,7 +96,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	} else {
 		bootLog.Info("permission policy catalog activated", "path", permissionPolicyPath, "digest", permissionState.Status().ActiveDigest)
 	}
-	permissionPolicy := permissionpolicy.NewService(permissionState, permissionpolicy.NewResourcePermissionProjector(nil), permissionpolicy.NewSQLiteAuditStore(db.DB))
+	permissionPolicy := permissionpolicy.NewService(permissionState, permissionpolicy.NewResourcePermissionProjector(nil), permissionpolicy.NewSQLiteAuditStore(db))
 
 	runners := NewRunners()
 	registry := runners.Registry
@@ -117,7 +124,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	terminator := orchestration.NewTerminator(repos.Runs, registry, terminatorCfg)
 
-	healthStore := healthstore.NewStore(db.DB)
+	healthStore := healthstore.NewStore(db)
 	runnerNames := make([]string, 0, len(domain.ValidRunnerTypes()))
 	for _, runnerType := range domain.ValidRunnerTypes() {
 		runnerNames = append(runnerNames, string(runnerType))
@@ -165,6 +172,10 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		log.Printf("interactive-runner: web-console API base unresolved; interactive runs disabled")
 	}
 	roleResolver := rolepolicy.NewResourceRoleResolver(nil)
+	var artifactCollector *artifact.SQLiteCollector
+	if len(fileRoots) > 0 && fileRoots[0] != nil {
+		artifactCollector = artifact.NewSQLiteCollector(db, fileRoots[0])
+	}
 	extractor := &structuredresult.RunnerExtractor{Roles: roleState, Resolver: roleResolver, Runners: registry, WorkingDir: database.DataDir(), Timeout: 2 * time.Minute}
 	opts := []orchestration.Option{
 		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),
@@ -174,6 +185,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithStructuredExtractor(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
+		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector),
 	}
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions), orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))
@@ -185,7 +197,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		settings := settingsStore.Get()
 		reconcilerCfg = orchestration.ReconcilerConfig{Interval: time.Duration(settings.HealthDetection.ReconcilerIntervalSeconds) * time.Second, StaleThreshold: time.Duration(settings.HealthDetection.StaleThresholdSeconds) * time.Second, MaxRecoveryAge: time.Duration(settings.HealthDetection.MaxRecoveryAgeSeconds) * time.Second, OrphanGracePeriod: time.Duration(settings.ProcessTermination.OrphanGracePeriodSeconds) * time.Second, MaxStaleRuns: 10, PendingThreshold: 5 * time.Minute, KillOrphans: settings.ProcessTermination.KillOrphans, AutoRecover: true}
 	}
-	reconcilerOpts := []orchestration.ReconcilerOption{orchestration.WithReconcilerConfig(reconcilerCfg), orchestration.WithReconcilerEvents(eventStore), orchestration.WithReconcilerBroadcaster(hub), orchestration.WithReconcilerSandbox(sandboxProvider), orchestration.WithReconcilerWorkflowRecovery(orch), orchestration.WithReconcilerWorkflowWaitingLiveness(orch), orchestration.WithReconcilerPendingRunRecovery(orch)}
+	reconcilerOpts := []orchestration.ReconcilerOption{orchestration.WithReconcilerConfig(reconcilerCfg), orchestration.WithReconcilerEvents(eventStore), orchestration.WithReconcilerEventRetention(eventStore), orchestration.WithReconcilerArtifactRetention(artifactCollector), orchestration.WithReconcilerBroadcaster(hub), orchestration.WithReconcilerSandbox(sandboxProvider), orchestration.WithReconcilerWorkflowRecovery(orch), orchestration.WithReconcilerWorkflowWaitingLiveness(orch), orchestration.WithReconcilerPendingRunRecovery(orch), orchestration.WithReconcilerRunStateRootResolver(runStateResolver)}
 	if interactiveSessions != nil {
 		reconcilerOpts = append(reconcilerOpts, orchestration.WithReconcilerInteractive(interactiveSessions))
 	}
@@ -219,8 +231,8 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 			bootLog.Warn("invalid AGENT_MANAGER_MODEL_HEALTH_INTERVAL", "raw", raw, obs.KeyError, err.Error())
 		}
 	}
-	eventRepo := eventlog.NewSQLiteRepository(db.DB)
-	statsEngine := stats.NewEngine(eventRepo, stats.NewSQLiteCheckpointStore(db.DB), "operational")
+	eventRepo := eventlog.NewSQLiteRepository(db)
+	statsEngine := stats.NewEngine(eventRepo, stats.NewSQLiteCheckpointStore(db), "operational")
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
 	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, ModelHealthProbe: healthstore.NewProbe(healthStore, nil, modelResolver, nil, probeCfg), RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo}, nil
 }

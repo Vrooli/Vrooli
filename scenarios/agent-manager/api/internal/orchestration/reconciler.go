@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"agent-manager/internal/adapters/artifact"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
@@ -35,6 +36,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
 )
@@ -121,7 +123,11 @@ type Reconciler struct {
 	// levers exposes internal threshold knobs (e.g. recovery tail tick).
 	// Defaulted to config.DefaultLevers(); callers can override via
 	// WithReconcilerLevers when wiring the orchestrator.
-	levers cfgpkg.Levers
+	levers            cfgpkg.Levers
+	runStateRoot      string
+	runStateResolver  runstate.RootResolver
+	eventRetention    event.RetentionStore
+	artifactRetention artifact.RetentionCollector
 
 	// State
 	mu           sync.Mutex
@@ -153,6 +159,8 @@ type ReconcileStats struct {
 	ReviewChecked        int
 	ReviewSynced         int
 	WorkflowRecoveryRuns int
+	EventsPruned         int
+	ArtifactsPruned      int
 	Errors               []string
 }
 
@@ -247,6 +255,33 @@ func WithReconcilerLevers(l cfgpkg.Levers) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.levers = l
 	}
+}
+
+func WithReconcilerRunStateRoot(root string) ReconcilerOption {
+	return func(r *Reconciler) { r.runStateRoot = root }
+}
+
+func WithReconcilerRunStateRootResolver(resolver runstate.RootResolver) ReconcilerOption {
+	return func(r *Reconciler) { r.runStateResolver = resolver }
+}
+
+// WithReconcilerEventRetention wires bounded event-history reclamation.
+func WithReconcilerEventRetention(store event.RetentionStore) ReconcilerOption {
+	return func(r *Reconciler) { r.eventRetention = store }
+}
+
+func WithReconcilerArtifactRetention(collector artifact.RetentionCollector) ReconcilerOption {
+	return func(r *Reconciler) { r.artifactRetention = collector }
+}
+
+func (r *Reconciler) resolveRunStateRoot(ctx context.Context) (string, error) {
+	if r.runStateResolver != nil {
+		return r.runStateResolver.Resolve(ctx)
+	}
+	if r.runStateRoot == "" {
+		return "", fmt.Errorf("run state root is required")
+	}
+	return r.runStateRoot, nil
 }
 
 // WithReconcilerInteractive wires the web-console session controller the
@@ -504,8 +539,52 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	// Step 7: Garbage-collect old terminal run state directories.
 	r.cleanupRunStateDirs(ctx)
 
+	// Step 8: Bound event history without holding a long SQLite write lock.
+	if deleted, err := r.cleanupExpiredEvents(ctx); err != nil {
+		stats.Errors = append(stats.Errors, "event retention: "+err.Error())
+	} else {
+		stats.EventsPruned = deleted
+	}
+	if deleted, err := r.cleanupExpiredArtifacts(ctx); err != nil {
+		stats.Errors = append(stats.Errors, "artifact retention: "+err.Error())
+	} else {
+		stats.ArtifactsPruned = deleted
+	}
+
 	stats.Duration = time.Since(start)
 	return stats
+}
+
+const eventRetentionBatchSize = 1_000
+
+func (r *Reconciler) cleanupExpiredEvents(ctx context.Context) (int, error) {
+	if r.eventRetention == nil || r.levers.Storage.EventRetentionDays <= 0 {
+		return 0, nil
+	}
+	cutoff := r.now().Add(-time.Duration(r.levers.Storage.EventRetentionDays) * 24 * time.Hour)
+	deleted, err := r.eventRetention.DeleteBefore(ctx, cutoff, eventRetentionBatchSize)
+	if err != nil {
+		return 0, err
+	}
+	if deleted > 0 {
+		r.log().Info("event retention sweep completed", "deleted", deleted, "cutoff", cutoff.UTC().Format(time.RFC3339))
+	}
+	return deleted, nil
+}
+
+func (r *Reconciler) cleanupExpiredArtifacts(ctx context.Context) (int, error) {
+	if r.artifactRetention == nil || r.levers.Storage.ArtifactRetentionDays <= 0 {
+		return 0, nil
+	}
+	cutoff := r.now().Add(-time.Duration(r.levers.Storage.ArtifactRetentionDays) * 24 * time.Hour)
+	deleted, err := r.artifactRetention.DeleteBefore(ctx, cutoff, eventRetentionBatchSize)
+	if err != nil {
+		return 0, err
+	}
+	if deleted > 0 {
+		r.log().Info("artifact retention sweep completed", "deleted", deleted, "cutoff", cutoff.UTC().Format(time.RFC3339))
+	}
+	return deleted, nil
 }
 
 func (r *Reconciler) reapPendingRun(ctx context.Context, run *domain.Run) {

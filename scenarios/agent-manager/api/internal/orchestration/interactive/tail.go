@@ -1,3 +1,4 @@
+// This file tails interactive run output for connected clients.
 package interactive
 
 import (

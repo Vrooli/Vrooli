@@ -1,3 +1,4 @@
+// This file defines phase dependencies and shared execution contracts.
 package phases
 
 import (

@@ -39,6 +39,13 @@ type Store interface {
 	Delete(ctx context.Context, runID uuid.UUID) error
 }
 
+// RetentionStore removes historical events in bounded batches. It is kept
+// separate from Store because normal execution only appends and reads events;
+// destructive retention is a reconciler capability with its own cadence.
+type RetentionStore interface {
+	DeleteBefore(ctx context.Context, cutoff time.Time, limit int) (int, error)
+}
+
 // GetOptions specifies criteria for retrieving events.
 type GetOptions struct {
 	// AfterSequence returns events with sequence > this value.

@@ -1,3 +1,4 @@
+// This file coordinates interactive sessions and their run-control callbacks.
 package interactive
 
 import (

@@ -87,6 +87,7 @@ func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
 		orchestration.WithIdentitySecret(identitySecret),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	run := newParkableRun(t, ctx, svc, repos)
@@ -192,6 +193,7 @@ func TestWakeRun_Timeout_TypedResult(t *testing.T) {
 		repos.Profiles, repos.Tasks, repos.Runs,
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	run := newParkableRun(t, ctx, svc, repos)

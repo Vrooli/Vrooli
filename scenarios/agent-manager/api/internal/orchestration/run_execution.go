@@ -1,3 +1,4 @@
+// This file coordinates agent execution after a run has been created.
 package orchestration
 
 import (
@@ -262,7 +263,7 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 	}
 
 	// Execute continuation asynchronously
-	go o.executeContinuation(context.Background(), &runForExec, r, eventSink, message, workDir, attachments, continueEnv, transcriptCfg, cleanupTranscript)
+	go o.executeContinuation(context.WithoutCancel(ctx), &runForExec, r, eventSink, message, workDir, attachments, continueEnv, transcriptCfg, cleanupTranscript)
 
 	return o.attachRunActions(ctx, run), nil
 }
@@ -297,7 +298,11 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 	if run.ResolvedConfig == nil {
 		return env, nil
 	}
-	sessionEnv, err := PrepareCodecSessionHome(run.ID, run.ResolvedConfig.RunnerType)
+	runStateRoot, err := o.resolveRunStateRoot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sessionEnv, err := PrepareCodecSessionHome(runStateRoot, run.ID, run.ResolvedConfig.RunnerType)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +348,31 @@ func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *doma
 			return "", err
 		}
 	case sandbox.SandboxStatusActive:
-	case sandbox.SandboxStatusDeleted, sandbox.SandboxStatusRejected, sandbox.SandboxStatusApproved, sandbox.SandboxStatusError:
+	case sandbox.SandboxStatusDeleted:
+		// Terminal retention deliberately deletes successful sandboxes. A codec
+		// session still remains continuable because its home is run-scoped, so
+		// provision a fresh workspace rather than weakening the delete policy.
+		out, createErr := phases.SetupWorkspace(ctx, phases.SetupWorkspaceInput{
+			Deps: phases.Deps{
+				Runs:             o.runs,
+				Events:           o.events,
+				Broadcaster:      o.broadcaster,
+				Levers:           o.runLevers(),
+				WorkspaceSandbox: o.workspaceSandbox,
+			},
+			Run:                      run,
+			Task:                     task,
+			Sandbox:                  o.sandbox,
+			SandboxIdempotencySuffix: ":continuation:" + run.SessionID,
+		})
+		if createErr != nil {
+			return "", createErr
+		}
+		if out.SandboxID == nil || out.WorkDir == "" {
+			return "", domain.NewStateError("Sandbox", string(sb.Status), "continue", "replacement sandbox did not provide a workspace")
+		}
+		return out.WorkDir, nil
+	case sandbox.SandboxStatusRejected, sandbox.SandboxStatusApproved, sandbox.SandboxStatusError:
 		return "", domain.NewStateError("Sandbox", string(sb.Status), "continue", "sandbox is not resumable")
 	default:
 		return "", domain.NewStateError("Sandbox", string(sb.Status), "continue", "sandbox is not active or checkpointed")
@@ -419,10 +448,16 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 	if run.StartedAt != nil {
 		startedAt = run.StartedAt.UTC()
 	}
+	runStateRoot, err := o.resolveRunStateRoot(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 	state, err := runstate.Open(run.ID, runstate.OpenOptions{
+		RootDir:    runStateRoot,
 		RunnerType: run.ResolvedConfig.RunnerType,
 		WorkingDir: workDir,
 		StartedAt:  startedAt,
+		OnWrite:    func() { o.recordRunStateWrite(ctx) },
 	})
 	if err != nil {
 		return nil, nil, err
@@ -662,10 +697,15 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		phases.EmitSystemEvent(ctx, phases.Deps{Events: o.events, Broadcaster: o.broadcaster}, run.ID, "info",
 			fmt.Sprintf("continuation failed on turn %d; preserved structured result from successful turn %d", preservedTurn+1, preservedTurn))
 	}
-	EmitCodexGoalUsage(ctx, phases.Deps{Events: o.events, Broadcaster: o.broadcaster}, run)
+	if runStateRoot, rootErr := o.resolveRunStateRoot(ctx); rootErr == nil {
+		EmitCodexGoalUsage(ctx, runStateRoot, phases.Deps{Events: o.events, Broadcaster: o.broadcaster}, run)
+	}
 	o.checkpointContinuationTurn(ctx, run, result, execCtx.Err() == context.DeadlineExceeded)
 	if run.ResolvedConfig != nil {
-		if cleanupErr := CleanupCodecSessionHomeCredentials(run.ID, run.ResolvedConfig.RunnerType); cleanupErr != nil {
+		runStateRoot, rootErr := o.resolveRunStateRoot(ctx)
+		if rootErr != nil {
+			obs.Component("continuation").Warn("failed to resolve run-scoped session root", obs.KeyRunID, run.ID.String(), obs.KeyError, rootErr.Error())
+		} else if cleanupErr := CleanupCodecSessionHomeCredentials(runStateRoot, run.ID, run.ResolvedConfig.RunnerType); cleanupErr != nil {
 			obs.Component("continuation").Warn("failed to clean run-scoped session credentials",
 				obs.KeyRunID, run.ID.String(),
 				obs.KeyError, cleanupErr.Error(),
@@ -731,6 +771,12 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		return
 	}
 
+	runStateRoot, err := o.resolveRunStateRoot(ctx)
+	if err != nil {
+		started()
+		phases.FailWithError(ctx, phases.FailWithErrorInput{Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster}, Run: run, Err: fmt.Errorf("resolve run state root: %w", err)})
+		return
+	}
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -743,6 +789,8 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		systemPrompt,
 	)
 	executor.WithClock(o.now)
+	executor.WithRunStateRoot(runStateRoot)
+	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)
 	// Apply orchestration-settings overrides to executor levers when a store
 	// is wired. Defaults come from config.DefaultLevers().
@@ -850,6 +898,16 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		o.failInteractiveRun(ctx, run, fmt.Sprintf("resolve interactive working directory: %v", err))
 		return
 	}
+	runStateRoot, err := o.resolveRunStateRoot(ctx)
+	if err != nil {
+		o.failInteractiveRun(ctx, run, "resolve interactive run state: "+err.Error())
+		return
+	}
+	runDir, err := runstate.RunDir(runStateRoot, run.ID)
+	if err != nil {
+		o.failInteractiveRun(ctx, run, "resolve interactive run state: "+err.Error())
+		return
+	}
 
 	coord := interactive.NewCoordinator(interactive.CoordinatorDeps{
 		Substrate:   interactive.NewSubstrate(o.interactiveSessions, interactive.RegistryLaunchInfo(o.runners)),
@@ -873,7 +931,7 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		RunnerType:   run.ResolvedConfig.RunnerType,
 		Tag:          run.GetTag(),
 		WorkingDir:   workDir,
-		RunDir:       runstate.RunDir("", run.ID),
+		RunDir:       runDir,
 		DisplayLabel: run.GetTag(),
 		Prompt:       initialPrompt,
 		Model:        run.ResolvedConfig.Model,
@@ -1018,7 +1076,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 			defer obs.RecoverToFailure("run resumption dispatch", func(failure obs.PanicFailure) {
 				o.recoverPanickedRun(run, failure)
 			})
-			o.resumeRun(context.Background(), run, task, profile, checkpoint, started)
+			o.resumeRun(context.WithoutCancel(ctx), run, task, profile, checkpoint, started)
 		},
 		OnPanic: func(failure obs.PanicFailure) {
 			o.recoverPanickedRun(run, failure)
@@ -1040,6 +1098,12 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 // resumeRun handles the actual agent resumption (runs in background).
 // `started` is the spawn dispatcher's slot-release callback.
 func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, checkpoint *domain.RunCheckpoint, started spawn.StartedFn) {
+	runStateRoot, err := o.resolveRunStateRoot(ctx)
+	if err != nil {
+		started()
+		phases.FailWithError(ctx, phases.FailWithErrorInput{Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster}, Run: run, Err: fmt.Errorf("resolve run state root: %w", err)})
+		return
+	}
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -1052,6 +1116,8 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		"", // No system prompt for resume (session persists instructions)
 	)
 	executor.WithClock(o.now)
+	executor.WithRunStateRoot(runStateRoot)
+	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)
 	// Apply orchestration-settings overrides to executor levers when a store
 	// is wired. Defaults come from config.DefaultLevers().

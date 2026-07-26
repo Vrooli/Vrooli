@@ -182,6 +182,17 @@ func TestCodex_BuildContinueArgs_NoPromptOmitsArg(t *testing.T) {
 	}
 }
 
+func TestCodex_BuildContinueArgs_DoesNotEmitUnsupportedWorkingDirFlag(t *testing.T) {
+	args := NewCodexForTest().BuildContinueArgs(NewCodexForTest().NewState(), runner.ContinueRequest{
+		RunID: uuid.New(), SessionID: "thread-xyz", WorkingDir: "/workspace", Prompt: "continue",
+	})
+	for _, arg := range args {
+		if arg == "-C" || arg == "/workspace" {
+			t.Fatalf("codex exec resume does not accept a working-directory argument: %v", args)
+		}
+	}
+}
+
 func TestCodex_BuildEnv_NonInteractive(t *testing.T) {
 	c := NewCodexForTest()
 	env := c.BuildEnv("codex-tag-1", nil)

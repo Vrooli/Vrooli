@@ -33,7 +33,7 @@ func TestHealthAuditHandlerNilStoreAndInvalidQueries(t *testing.T) {
 func TestHealthAuditHandlerServesPersistedModelAndRunnerRows(t *testing.T) {
 	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
-	store := health.NewStore(db.DB)
+	store := health.NewStore(db)
 	store.RegisterRunners([]string{"codex"})
 	if err := store.RecordModel(t.Context(), "codex", "gpt-test", health.StatusFailed, "rate_limit", "429", "run-1"); err != nil {
 		t.Fatal(err)

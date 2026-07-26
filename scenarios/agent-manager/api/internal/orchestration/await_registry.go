@@ -1,3 +1,4 @@
+// This file manages wait registrations used to notify callers about run completion.
 package orchestration
 
 import (

@@ -1,3 +1,4 @@
+// This file records terminal run outcomes and result metadata.
 package orchestration
 
 import (

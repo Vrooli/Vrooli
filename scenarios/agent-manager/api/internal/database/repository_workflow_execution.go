@@ -12,7 +12,6 @@ import (
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
 
@@ -49,7 +48,7 @@ func (r *workflowExecutionRepository) Create(ctx context.Context, e *domain.Work
 	if e == nil || initial == nil {
 		return errors.New("execution and initial journal entry are required")
 	}
-	return r.db.WithTransaction(func(tx *sqlx.Tx) error {
+	return r.db.WithTransaction(ctx, func(tx *Tx) error {
 		if err := insertWorkflowExecution(ctx, tx, e); err != nil {
 			return err
 		}
@@ -57,7 +56,7 @@ func (r *workflowExecutionRepository) Create(ctx context.Context, e *domain.Work
 	})
 }
 
-func insertWorkflowExecution(ctx context.Context, tx *sqlx.Tx, e *domain.WorkflowExecution) error {
+func insertWorkflowExecution(ctx context.Context, tx *Tx, e *domain.WorkflowExecution) error {
 	budget, _ := json.Marshal(e.BudgetUsage)
 	edges, _ := json.Marshal(e.EdgeTraversals)
 	terminal, _ := json.Marshal(e.TerminalReason)
@@ -196,7 +195,7 @@ func (r *workflowExecutionRepository) Commit(ctx context.Context, c repository.W
 		return false, fmt.Errorf("execution version must advance by one")
 	}
 	committed := false
-	err := r.db.WithTransaction(func(tx *sqlx.Tx) error {
+	err := r.db.WithTransaction(ctx, func(tx *Tx) error {
 		e := c.Execution
 		budget, _ := json.Marshal(e.BudgetUsage)
 		edges, _ := json.Marshal(e.EdgeTraversals)
@@ -242,7 +241,7 @@ func (r *workflowExecutionRepository) Commit(ctx context.Context, c repository.W
 	return committed, err
 }
 
-func upsertAttempt(ctx context.Context, tx *sqlx.Tx, a *domain.WorkflowNodeAttempt) error {
+func upsertAttempt(ctx context.Context, tx *Tx, a *domain.WorkflowNodeAttempt) error {
 	var run, source, child, completed any
 	if a.RunID != nil {
 		run = a.RunID.String()
@@ -260,7 +259,7 @@ func upsertAttempt(ctx context.Context, tx *sqlx.Tx, a *domain.WorkflowNodeAttem
 	return err
 }
 
-func insertJournal(ctx context.Context, tx *sqlx.Tx, e *domain.WorkflowJournalEntry) error {
+func insertJournal(ctx context.Context, tx *Tx, e *domain.WorkflowJournalEntry) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO workflow_journal (id,execution_id,sequence,kind,node_id,attempt_id,payload_json,created_at) VALUES (?,?,?,?,?,?,?,?)`, e.ID, e.ExecutionID, e.Sequence, e.Kind, e.NodeID, e.AttemptID, string(e.Payload), SQLiteTime(e.CreatedAt))
 	return err
 }

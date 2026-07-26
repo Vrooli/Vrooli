@@ -43,6 +43,7 @@ func TestStopRun_WithTerminatorEmitsStatusEventAndBroadcast(t *testing.T) {
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
 		orchestration.WithBroadcaster(broadcaster),
+		orchestration.WithRunStateRoot(t.TempDir()),
 		orchestration.WithTerminator(terminator),
 	)
 
@@ -161,6 +162,7 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
 		orchestration.WithBroadcaster(broadcaster),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
@@ -313,6 +315,7 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 				}, nil
 			},
 		}),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{

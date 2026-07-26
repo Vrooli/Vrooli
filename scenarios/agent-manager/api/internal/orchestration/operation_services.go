@@ -1,3 +1,4 @@
+// This file exposes focused service capabilities for operation handlers.
 package orchestration
 
 import (

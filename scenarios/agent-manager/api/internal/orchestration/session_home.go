@@ -1,3 +1,4 @@
+// This file prepares and cleans isolated runner session-home directories.
 package orchestration
 
 import (
@@ -22,7 +23,7 @@ import (
 // The returned environment intentionally overrides any inherited home setting.
 // Claude keeps its authenticated shared home and OpenCode has no file-backed
 // continuation home.
-func PrepareCodecSessionHome(runID uuid.UUID, runnerType domain.RunnerType) (map[string]string, error) {
+func PrepareCodecSessionHome(root string, runID uuid.UUID, runnerType domain.RunnerType) (map[string]string, error) {
 	var envKey, subdir, sharedHome string
 	switch runnerType {
 	case domain.RunnerTypeCodex:
@@ -33,7 +34,11 @@ func PrepareCodecSessionHome(runID uuid.UUID, runnerType domain.RunnerType) (map
 		return nil, nil
 	}
 
-	home := filepath.Join(runstate.RunDir("", runID), subdir)
+	runDir, err := runstate.RunDir(root, runID)
+	if err != nil {
+		return nil, err
+	}
+	home := filepath.Join(runDir, subdir)
 	if err := os.MkdirAll(home, 0o700); err != nil {
 		return nil, fmt.Errorf("create run-scoped %s: %w", envKey, err)
 	}
@@ -52,11 +57,15 @@ func PrepareCodecSessionHome(runID uuid.UUID, runnerType domain.RunnerType) (map
 // EmitCodexGoalUsage records Codex's independently-maintained goal budget
 // after a terminal run. Missing stores/rows are intentionally silent: goals
 // are authored only inside Codex and may not exist for a thread.
-func EmitCodexGoalUsage(ctx context.Context, deps phases.Deps, run *domain.Run) {
+func EmitCodexGoalUsage(ctx context.Context, root string, deps phases.Deps, run *domain.Run) {
 	if run == nil || run.ResolvedConfig == nil || run.ResolvedConfig.RunnerType != domain.RunnerTypeCodex || run.SessionID == "" {
 		return
 	}
-	home := filepath.Join(runstate.RunDir("", run.ID), "codex")
+	runDir, err := runstate.RunDir(root, run.ID)
+	if err != nil {
+		return
+	}
+	home := filepath.Join(runDir, "codex")
 	goal, err := codexgoals.Read(ctx, home, run.SessionID)
 	if err != nil {
 		phases.EmitSystemEvent(ctx, deps, run.ID, "warn", "failed to read Codex goal accounting: "+err.Error())
@@ -78,7 +87,7 @@ func EmitCodexGoalUsage(ctx context.Context, deps phases.Deps, run *domain.Run) 
 // CleanupCodecSessionHomeCredentials removes only copied credential/config
 // files after a terminal run. Rollouts remain in the run directory for replay
 // and diagnosis; a later continuation can safely reseed credentials.
-func CleanupCodecSessionHomeCredentials(runID uuid.UUID, runnerType domain.RunnerType) error {
+func CleanupCodecSessionHomeCredentials(root string, runID uuid.UUID, runnerType domain.RunnerType) error {
 	var subdir string
 	switch runnerType {
 	case domain.RunnerTypeCodex:
@@ -88,7 +97,11 @@ func CleanupCodecSessionHomeCredentials(runID uuid.UUID, runnerType domain.Runne
 	default:
 		return nil
 	}
-	home := filepath.Join(runstate.RunDir("", runID), subdir)
+	runDir, err := runstate.RunDir(root, runID)
+	if err != nil {
+		return err
+	}
+	home := filepath.Join(runDir, subdir)
 	var firstErr error
 	for _, name := range sessionHomeSeedFiles(runnerType) {
 		if err := os.Remove(filepath.Join(home, name)); err != nil && !os.IsNotExist(err) && firstErr == nil {

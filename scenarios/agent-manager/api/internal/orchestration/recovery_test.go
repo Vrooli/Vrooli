@@ -254,7 +254,11 @@ func TestCleanupRunStateDirs_RemovesOldTerminalRunDirectories(t *testing.T) {
 		t.Fatalf("update run: %v", err)
 	}
 
-	dir := runstate.RunDir("", run.ID)
+	reconciler.runStateRoot = t.TempDir()
+	dir, err := runstate.RunDir(reconciler.runStateRoot, run.ID)
+	if err != nil {
+		t.Fatalf("run state dir: %v", err)
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir state dir: %v", err)
 	}
@@ -264,6 +268,46 @@ func TestCleanupRunStateDirs_RemovesOldTerminalRunDirectories(t *testing.T) {
 
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Fatalf("expected %s to be removed, stat err=%v", dir, err)
+	}
+}
+
+func TestCleanupRunStateDirs_ReclaimsOnlyExpiredOrphans(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeClaudeCode)
+	reconciler.runStateRoot = t.TempDir()
+	oldOrphan := filepath.Join(reconciler.runStateRoot, uuid.NewString())
+	freshOrphan := filepath.Join(reconciler.runStateRoot, uuid.NewString())
+	for _, path := range []string{oldOrphan, freshOrphan} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatalf("create orphan dir: %v", err)
+		}
+	}
+	old := time.Now().Add(-8 * 24 * time.Hour)
+	if err := os.Chtimes(oldOrphan, old, old); err != nil {
+		t.Fatalf("age orphan dir: %v", err)
+	}
+
+	// A matching row remains protected regardless of the directory's age.
+	known := createRecoveryTestRun(t, repos, domain.RunnerTypeClaudeCode)
+	knownDir, err := runstate.RunDir(reconciler.runStateRoot, known.ID)
+	if err != nil {
+		t.Fatalf("known run dir: %v", err)
+	}
+	if err := os.MkdirAll(knownDir, 0o755); err != nil {
+		t.Fatalf("create known dir: %v", err)
+	}
+	if err := os.Chtimes(knownDir, old, old); err != nil {
+		t.Fatalf("age known dir: %v", err)
+	}
+
+	reconciler.cleanupRunStateDirs(context.Background())
+	if _, err := os.Stat(oldOrphan); !os.IsNotExist(err) {
+		t.Fatalf("expired orphan still exists: %v", err)
+	}
+	if _, err := os.Stat(freshOrphan); err != nil {
+		t.Fatalf("fresh orphan was removed: %v", err)
+	}
+	if _, err := os.Stat(knownDir); err != nil {
+		t.Fatalf("directory with matching row was removed: %v", err)
 	}
 }
 
@@ -282,6 +326,7 @@ func newRecoveryTestReconciler(t *testing.T, rt domain.RunnerType) (*Reconciler,
 		repos.Runs,
 		registry,
 		WithReconcilerEvents(eventStore),
+		WithReconcilerRunStateRoot(t.TempDir()),
 		WithReconcilerConfig(ReconcilerConfig{
 			Interval:          time.Hour,
 			StaleThreshold:    time.Minute,

@@ -1,3 +1,4 @@
+// This file coordinates quiescing orchestration before controlled shutdown.
 package orchestration
 
 import (

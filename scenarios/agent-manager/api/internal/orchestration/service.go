@@ -1,8 +1,10 @@
+// This file defines the orchestration service composition and shared dependencies.
 package orchestration
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -20,6 +22,7 @@ import (
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runstate"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/workflowruntime"
@@ -593,6 +596,8 @@ type Orchestrator struct {
 	workspaceSandbox phases.WorkspaceSandboxEnsurer
 	events           event.Store
 	artifacts        artifact.Collector
+	runStateRoot     string
+	runStateResolver runstate.RootResolver
 
 	// Policy evaluation
 	policy policy.Evaluator
@@ -885,6 +890,33 @@ func WithPromptClient(client promptmanager.Client) Option {
 func WithAttachmentStorage(s storage.Service) Option {
 	return func(o *Orchestrator) {
 		o.storage = s
+	}
+}
+
+// WithRunStateRoot supplies the explicit root for durable per-run artifacts.
+func WithRunStateRoot(root string) Option {
+	return func(o *Orchestrator) { o.runStateRoot = root }
+}
+
+// WithRunStateRootResolver selects a state root from the operation context.
+// Production wiring uses this so HTTP test-mode leases survive dispatch.
+func WithRunStateRootResolver(resolver runstate.RootResolver) Option {
+	return func(o *Orchestrator) { o.runStateResolver = resolver }
+}
+
+func (o *Orchestrator) resolveRunStateRoot(ctx context.Context) (string, error) {
+	if o.runStateResolver != nil {
+		return o.runStateResolver.Resolve(ctx)
+	}
+	if o.runStateRoot == "" {
+		return "", fmt.Errorf("run state root is required")
+	}
+	return o.runStateRoot, nil
+}
+
+func (o *Orchestrator) recordRunStateWrite(ctx context.Context) {
+	if o.runStateResolver != nil {
+		o.runStateResolver.RecordWrite(ctx)
 	}
 }
 

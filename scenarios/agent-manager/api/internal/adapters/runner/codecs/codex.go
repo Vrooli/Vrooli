@@ -226,9 +226,8 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 	if req.GetConfig().Effort != "" {
 		args = append(args, "-c", "model_reasoning_effort="+string(req.GetConfig().Effort))
 	}
-	if req.WorkingDir != "" {
-		args = append(args, "-C", req.WorkingDir)
-	}
+	// `codex exec resume` has no working-directory flag. It resumes from the
+	// session recorded in CODEX_HOME; the launcher supplies the working dir.
 	args = appendAttachmentFlags(args, "-i", req.Attachments)
 	args = append(args, req.SessionID)
 	if strings.TrimSpace(req.Prompt) != "" {

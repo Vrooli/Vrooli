@@ -55,6 +55,7 @@ func TestContinuation_RunnerPanicFailsRunWithoutCrash(t *testing.T) {
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{

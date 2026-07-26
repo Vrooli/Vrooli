@@ -1,3 +1,4 @@
+// This file waits for run completion and delivers terminal snapshots.
 package orchestration
 
 import (

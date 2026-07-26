@@ -3,10 +3,10 @@
 ## Tool restriction enforcement
 
 `allowedTools` and `deniedTools` are canonical profile controls, not runner CLI
-passthrough. Claude Code enforces both per launch and maps canonical names to
-its native vocabulary (`--allowedTools` and `--disallowedTools`) on execute
-and continuation. Codex, OpenCode, and Grok currently report no per-launch
-tool enforcement; a restricted profile therefore fails closed unless its
+passthrough. Claude Code and Grok enforce both per launch and map canonical
+names to their native vocabulary (`--allowedTools` / `--disallowedTools` and
+`--allow` / `--deny`) on execute and continuation. Codex and OpenCode report
+no per-launch tool enforcement; a restricted profile therefore fails closed unless its
 declaration explicitly selects advisory policy. Policy fallback rechecks this
 capability after every runner switch and skips an unsupported candidate under
 enforced policy. The live codec registry is authoritative: inspect it with
@@ -16,8 +16,8 @@ enforced policy. The live codec registry is authoritative: inspect it with
 
 `effort` is a canonical run control with the values `low`, `medium`, `high`,
 `xhigh`, and `max`. Claude Code and Grok receive `--effort`; Codex receives
-`-c model_reasoning_effort=<level>`; OpenCode declares the control unsupported
-instead of silently pretending to apply it. Execute, continuation, and
+`-c model_reasoning_effort=<level>`; OpenCode receives its provider-specific
+`--variant` equivalent. Execute, continuation, and
 interactive launch paths preserve the resolved model, effort, prompt, and
 applicable tool controls.
 

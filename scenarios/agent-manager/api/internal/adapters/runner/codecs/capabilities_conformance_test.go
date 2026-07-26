@@ -64,6 +64,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				w := uniform
 				w.supportsRunnerDefault = true
 				w.dynamicModelPrefixes = []string{ollamaModelPrefix}
+				w.supportsEffort = true
 				return w
 			}(),
 		},
@@ -77,9 +78,11 @@ func TestCapabilitiesConformance(t *testing.T) {
 			want: want{
 				messages: true, toolEvents: false, cost: false,
 				streaming: true, cancel: true, continuation: true, image: false,
-				maxTurns:              0,
-				supportsRunnerDefault: true,
-				supportsEffort:        true,
+				maxTurns:                0,
+				supportsRunnerDefault:   true,
+				supportsToolRestriction: true,
+				supportsEffort:          true,
+				mappingCount:            len(CanonicalToolNamesForTest()),
 			},
 		},
 	}

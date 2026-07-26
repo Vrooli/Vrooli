@@ -84,6 +84,7 @@ func newInteractiveRecoveryReconciler(t *testing.T, sessions webconsole.SessionC
 		registry,
 		WithReconcilerEvents(eventStore),
 		WithReconcilerInteractive(sessions),
+		WithReconcilerRunStateRoot(t.TempDir()),
 		WithReconcilerConfig(ReconcilerConfig{
 			Interval:          time.Hour,
 			StaleThreshold:    time.Minute,

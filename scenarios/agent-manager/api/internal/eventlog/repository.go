@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/sqlcompat"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 )
 
 // Record pairs a decoded payload with the row metadata stats and health
@@ -70,12 +70,12 @@ type Repository interface {
 // table. Schema initialization happens in database/connection.go; this
 // repository assumes the table and schema_version column already exist.
 type SQLiteRepository struct {
-	db *sqlx.DB
+	db sqlcompat.DB
 }
 
 // NewSQLiteRepository constructs a typed-event repository over the given
 // SQLite handle.
-func NewSQLiteRepository(db *sqlx.DB) *SQLiteRepository {
+func NewSQLiteRepository(db sqlcompat.DB) *SQLiteRepository {
 	return &SQLiteRepository{db: db}
 }
 

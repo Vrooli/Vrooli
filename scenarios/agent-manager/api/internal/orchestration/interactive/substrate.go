@@ -1,3 +1,4 @@
+// This file defines the substrate dependencies used by interactive sessions.
 package interactive
 
 import (

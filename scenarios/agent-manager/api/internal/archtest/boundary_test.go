@@ -141,6 +141,80 @@ func TestOnlyWiringConstructsProductionOrchestrator(t *testing.T) {
 	}
 }
 
+func TestProductionRunStateCallsNeverUseAnEmptyRootLiteral(t *testing.T) {
+	for _, path := range goFiles(t, filepath.Join(scenarioRoot(t), "api")) {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, forbidden := range []string{"runstate.RunDir(\"\"", "runstate.Load(\"\""} {
+			if strings.Contains(string(source), forbidden) {
+				rel, _ := filepath.Rel(scenarioRoot(t), path)
+				t.Fatalf("%s resolves run state from an empty root: %s", filepath.ToSlash(rel), forbidden)
+			}
+		}
+	}
+}
+
+func TestOnlyWiringMayResolveDatabaseDataDir(t *testing.T) {
+	for _, path := range goFiles(t, filepath.Join(scenarioRoot(t), "api")) {
+		rel, err := filepath.Rel(filepath.Join(scenarioRoot(t), "api"), path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasPrefix(filepath.ToSlash(rel), "internal/wiring/") || filepath.ToSlash(rel) == "internal/database/connection.go" {
+			continue
+		}
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(source), "database.DataDir(") {
+			t.Fatalf("%s resolves database.DataDir outside wiring", filepath.ToSlash(rel))
+		}
+	}
+}
+
+func TestScenarioForbidsPartNumberedSourceFiles(t *testing.T) {
+	var violations []string
+	err := filepath.WalkDir(scenarioRoot(t), func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if matched, _ := filepath.Match("*_part[0-9]*.go", entry.Name()); matched {
+			violations = append(violations, filepath.ToSlash(path))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(violations) != 0 {
+		t.Fatalf("part-numbered source files hide their domain: %v", violations)
+	}
+}
+
+func TestOrchestrationSourceFilesDeclareTheirResponsibility(t *testing.T) {
+	var missing []string
+	for _, path := range goFiles(t, filepath.Join(scenarioRoot(t), "api/internal/orchestration")) {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		firstLine := strings.TrimSpace(strings.SplitN(string(source), "\n", 2)[0])
+		if !strings.HasPrefix(firstLine, "//") {
+			rel, _ := filepath.Rel(scenarioRoot(t), path)
+			missing = append(missing, filepath.ToSlash(rel))
+		}
+	}
+	if len(missing) != 0 {
+		t.Fatalf("orchestration source files need a leading responsibility comment: %v", missing)
+	}
+}
+
 func TestCapabilityBoundaryDetectorRejectsLegacyType(t *testing.T) {
 	fixture := `package handlers; type Handler struct { svc orchestration.Service }`
 	if !strings.Contains(fixture, "orchestration.Service") {

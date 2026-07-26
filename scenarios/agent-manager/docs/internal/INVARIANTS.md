@@ -54,6 +54,31 @@ Codex rollout required by `exec resume`.
 **Tests:** `internal/orchestration/session_home_test.go` and
 `internal/orchestration/continue_env_identity_test.go`.
 
+## I25. Storage roots are explicit or request-routed
+
+No production code resolves Agent Manager run-state storage from ambient
+process state. A root is injected at construction or selected from the request
+context by routed file storage; unit tests use an explicit temporary root.
+
+**Tests:** `internal/runstate/root_test.go` and `internal/archtest/boundary_test.go`.
+
+## I26. Declared controls name a real runtime consumer
+
+Every exported `domain.RunConfig` and grouped `config.Levers` field is
+classified against a named non-test runtime consumer. Retention controls name
+their reconciler sweepers explicitly, so loading and validating a lever alone
+cannot be mistaken for implementing it.
+
+**Tests:** `internal/contracts/run_control_test.go`.
+
+## I27. Codec capabilities agree with installed CLI surfaces
+
+Codec capability declarations and generated argv must agree with the installed
+runner's help output. A missing optional binary is a named skip; an available
+binary that contradicts a declaration fails conformance.
+
+**Tests:** `internal/adapters/runner/codecs/cli_help_conformance_test.go`.
+
 ## I3. `Codec.ClassifyTerminalError` is the only codec-side error classifier
 
 **Statement.** When a run exits non-zero, `core.Runner` calls `Codec.ClassifyTerminalError(stderr, exitCode)` and stores the typed `*domain.RunnerError` (if any) on `ExecuteResult.TerminalError`. `phases.ExecuteAgent` lifts that into `EmitFailureEvent`'s typed-error branch, where it lands on the run timeline as the typed `ErrorCode` rather than `INTERNAL`.

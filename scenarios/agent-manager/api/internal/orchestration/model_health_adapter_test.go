@@ -12,7 +12,7 @@ import (
 func TestHealthMarkerAdapterRecordsHealthyAndUnavailableObservations(t *testing.T) {
 	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
-	store := health.NewStore(db.DB)
+	store := health.NewStore(db)
 	adapter := newHealthMarkerAdapter(store, "run-123")
 	adapter.MarkModelHealthy("codex", "gpt-test")
 	adapter.MarkModelUnavailable("codex", "gpt-test", "capacity exhausted")

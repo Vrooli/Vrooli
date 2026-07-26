@@ -57,8 +57,13 @@ type Grok struct {
 	baseCodec
 }
 
-// Grok's global approve configuration cannot provide a per-launch allowlist.
-var grokToolTranslations = map[domain.CanonicalTool]string{}
+// Grok documents --allow/--deny as the Claude Code allowedTools and
+// disallowedTools equivalents. Keep the shared vocabulary at the codec seam.
+var grokToolTranslations = map[domain.CanonicalTool]string{
+	domain.CanonicalToolRead: "Read", domain.CanonicalToolWrite: "Write", domain.CanonicalToolEdit: "Edit",
+	domain.CanonicalToolGlob: "Glob", domain.CanonicalToolGrep: "Grep", domain.CanonicalToolShell: "Bash",
+	domain.CanonicalToolWebSearch: "WebSearch", domain.CanonicalToolWebFetch: "WebFetch",
+}
 
 // grokBase is the identity shared by NewGrok and NewGrokForTest.
 func grokBase() baseCodec {
@@ -108,7 +113,7 @@ func (c *Grok) Capabilities() runner.Capabilities {
 		SupportsCancellation:     true,  // process-kill cancellation like peers
 		SupportsContinuation:     true,  // `grok --resume <session-id>` (trace-proven)
 		SupportsImageAttachments: false, // no headless image-attachment flag
-		SupportsToolRestriction:  false, // Per-run allowlists conflict with Grok's global approve configuration.
+		SupportsToolRestriction:  true,
 		ToolRestrictionMappings:  canonicalToolMappings(grokToolTranslations),
 		SupportsEffort:           true,
 		EffortMappings:           map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
@@ -133,10 +138,9 @@ func (c *Grok) BuildPrompt(_ string, _ []runner.Attachment) string { return "" }
 // `grok -p <prompt> --output-format streaming-json [-m model] [--max-turns N]
 // [--always-approve] [--cwd dir]`.
 //
-// Permission posture (D4): SkipPermissionPrompt maps to grok's --always-approve
-// approve flag; per-run AllowedTools/DeniedTools are NOT written (they would
-// race on the single global ~/.grok/config.toml and collide with the resource's
-// agentpolicy gate — deferred to a filed follow-up). NetworkAccess is not
+// Permission posture: SkipPermissionPrompt maps to grok's --always-approve
+// flag and the per-invocation --allow/--deny controls carry canonical tool
+// intent without mutating Grok's shared configuration. NetworkAccess is not
 // mapped (D5): grok's only network knob is the operator-defined --sandbox
 // profile, not a per-invocation toggle.
 func (c *Grok) BuildArgs(_ State, req runner.ExecuteRequest) []string {
@@ -160,6 +164,16 @@ func (c *Grok) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 	}
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--always-approve")
+	}
+	if tools, err := translateCanonicalTools(grokToolTranslations, cfg.AllowedTools); err == nil && len(tools) > 0 {
+		for _, tool := range tools {
+			args = append(args, "--allow", tool)
+		}
+	}
+	if tools, err := translateCanonicalTools(grokToolTranslations, cfg.DeniedTools); err == nil && len(tools) > 0 {
+		for _, tool := range tools {
+			args = append(args, "--deny", tool)
+		}
 	}
 	// Pin the session to the run's working directory. grok can attach to a
 	// shared leader process (config use_leader / --leader) whose cwd differs
@@ -198,6 +212,16 @@ func (c *Grok) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
 	}
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--always-approve")
+	}
+	if tools, err := translateCanonicalTools(grokToolTranslations, cfg.AllowedTools); err == nil && len(tools) > 0 {
+		for _, tool := range tools {
+			args = append(args, "--allow", tool)
+		}
+	}
+	if tools, err := translateCanonicalTools(grokToolTranslations, cfg.DeniedTools); err == nil && len(tools) > 0 {
+		for _, tool := range tools {
+			args = append(args, "--deny", tool)
+		}
 	}
 	if dir := strings.TrimSpace(req.WorkingDir); dir != "" {
 		args = append(args, "--cwd", dir)

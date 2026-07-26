@@ -38,6 +38,9 @@ type Service interface {
 	// UpsertAlias creates or updates a model alias.
 	UpsertAlias(ctx context.Context, alias *ModelAlias) error
 
+	// DeleteAlias removes a model alias.
+	DeleteAlias(ctx context.Context, runnerModel string, runnerType string) error
+
 	// ListAliases returns all aliases for a runner type.
 	ListAliases(ctx context.Context, runnerType string) ([]*ModelAlias, error)
 
@@ -471,6 +474,11 @@ func (s *pricingService) ResolveCanonicalModel(ctx context.Context, model string
 // UpsertAlias creates or updates a model alias.
 func (s *pricingService) UpsertAlias(ctx context.Context, alias *ModelAlias) error {
 	return s.repo.UpsertAlias(ctx, alias)
+}
+
+// DeleteAlias removes a runner-model alias through the pricing data seam.
+func (s *pricingService) DeleteAlias(ctx context.Context, runnerModel string, runnerType string) error {
+	return s.repo.DeleteAlias(ctx, runnerModel, runnerType)
 }
 
 // ListAliases returns all aliases for a runner type.

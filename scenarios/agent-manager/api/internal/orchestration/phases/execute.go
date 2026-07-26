@@ -26,22 +26,24 @@ import (
 
 // ExecuteAgentInput is the explicit input to ExecuteAgent.
 type ExecuteAgentInput struct {
-	Deps         Deps
-	Run          *domain.Run
-	Task         *domain.Task
-	Profile      *domain.AgentProfile
-	Runner       runner.Runner
-	WorkingDir   string
-	SandboxID    *uuid.UUID
-	Prompt       string
-	SystemPrompt string
-	Attachments  []runner.Attachment
-	EnvVars      map[string]string
-	EventSink    runner.EventSink
-	RunState     *runstate.State
-	Mu           *sync.Mutex
-	ModelHealth  ModelHealthReporter
-	Runners      runner.Registry
+	Deps          Deps
+	Run           *domain.Run
+	Task          *domain.Task
+	Profile       *domain.AgentProfile
+	Runner        runner.Runner
+	WorkingDir    string
+	RunStateRoot  string
+	RunStateWrite func()
+	SandboxID     *uuid.UUID
+	Prompt        string
+	SystemPrompt  string
+	Attachments   []runner.Attachment
+	EnvVars       map[string]string
+	EventSink     runner.EventSink
+	RunState      *runstate.State
+	Mu            *sync.Mutex
+	ModelHealth   ModelHealthReporter
+	Runners       runner.Registry
 
 	// OnRunning fires when the run flips to RunStatusRunning. Used by
 	// the spawn dispatcher to release the startup slot. Nil is safe.
@@ -88,11 +90,13 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 	}
 
 	transcriptCfg, runState, err := PrepareTranscriptConfig(ctx, PrepareTranscriptInput{
-		Deps:       in.Deps,
-		Run:        in.Run,
-		WorkingDir: in.WorkingDir,
-		Mu:         in.Mu,
-		Existing:   in.RunState,
+		Deps:          in.Deps,
+		Run:           in.Run,
+		RunStateRoot:  in.RunStateRoot,
+		RunStateWrite: in.RunStateWrite,
+		WorkingDir:    in.WorkingDir,
+		Mu:            in.Mu,
+		Existing:      in.RunState,
 	})
 	if err != nil {
 		out.ExecErr = err
@@ -486,11 +490,13 @@ func currentModel(run *domain.Run) string {
 
 // PrepareTranscriptInput is the explicit input to PrepareTranscriptConfig.
 type PrepareTranscriptInput struct {
-	Deps       Deps
-	Run        *domain.Run
-	WorkingDir string
-	Mu         *sync.Mutex
-	Existing   *runstate.State
+	Deps          Deps
+	Run           *domain.Run
+	RunStateRoot  string
+	RunStateWrite func()
+	WorkingDir    string
+	Mu            *sync.Mutex
+	Existing      *runstate.State
 }
 
 // PrepareTranscriptConfig opens (or reuses) the runstate for this run and
@@ -507,9 +513,11 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 			startedAt = in.Run.StartedAt.UTC()
 		}
 		s, err := runstate.Open(in.Run.ID, runstate.OpenOptions{
+			RootDir:    in.RunStateRoot,
 			RunnerType: in.Run.ResolvedConfig.RunnerType,
 			WorkingDir: in.WorkingDir,
 			StartedAt:  startedAt,
+			OnWrite:    in.RunStateWrite,
 		})
 		if err != nil {
 			return nil, nil, err

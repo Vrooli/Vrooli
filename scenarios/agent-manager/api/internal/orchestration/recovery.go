@@ -1,3 +1,4 @@
+// This file reclaims expired persisted state and orphaned run directories.
 package orchestration
 
 import (
@@ -93,7 +94,7 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 		return r.recoverInteractiveRun(ctx, run, allowTail)
 	}
 
-	parser, transcriptPath, state, err := r.recoveryParser(run)
+	parser, transcriptPath, state, err := r.recoveryParser(ctx, run)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +199,14 @@ func (r *Reconciler) failRecoveredRun(ctx context.Context, run *domain.Run, mess
 }
 
 func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) (*runner.TranscriptTerminal, error) {
+	runStateRoot := ""
+	if state != nil {
+		var err error
+		runStateRoot, err = r.resolveRunStateRoot(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
 	sink := r.recoveryEventSink(run.ID)
 	transcriptParser := parser
 	if factory, ok := parser.(runner.TranscriptParserFactory); ok {
@@ -220,29 +229,35 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 			}
 			if state != nil {
 				s, err := runstate.Open(run.ID, runstate.OpenOptions{
+					RootDir:    runStateRoot,
 					RunnerType: run.ResolvedConfig.RunnerType,
 					WorkingDir: state.Meta.WorkingDir,
 					StartedAt:  state.Meta.StartedAt,
+					OnWrite: func() {
+						if r.runStateResolver != nil {
+							r.runStateResolver.RecordWrite(ctx)
+						}
+					},
 				})
 				if err == nil {
 					_ = s.PersistCursor(run.TranscriptCursor, run.TranscriptLastSeq)
 					_ = s.Close()
 				}
 			}
-			return r.runs.Update(context.Background(), run)
+			return r.runs.Update(context.WithoutCancel(ctx), run)
 		},
 		OnSessionID: func(sessionID string) error {
 			if sessionID == "" || run.SessionID == sessionID {
 				return nil
 			}
 			run.SessionID = sessionID
-			return r.runs.Update(context.Background(), run)
+			return r.runs.Update(context.WithoutCancel(ctx), run)
 		},
 	})
 	return terminal, err
 }
 
-func (r *Reconciler) recoveryParser(run *domain.Run) (runner.TranscriptParser, string, *runstate.Snapshot, error) {
+func (r *Reconciler) recoveryParser(ctx context.Context, run *domain.Run) (runner.TranscriptParser, string, *runstate.Snapshot, error) {
 	if run.ResolvedConfig == nil {
 		return nil, "", nil, nil
 	}
@@ -258,7 +273,11 @@ func (r *Reconciler) recoveryParser(run *domain.Run) (runner.TranscriptParser, s
 	transcriptPath := run.TranscriptPath
 	var state *runstate.Snapshot
 	if transcriptPath != "" {
-		if snapshot, err := runstate.Load(run.ID, ""); err == nil {
+		root, rootErr := r.resolveRunStateRoot(ctx)
+		if rootErr != nil {
+			return nil, "", nil, rootErr
+		}
+		if snapshot, err := runstate.Load(run.ID, root); err == nil {
 			state = snapshot
 		}
 		return parser, transcriptPath, state, nil
@@ -356,6 +375,11 @@ func intPtr(v int) *int {
 
 func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
 	cutoff := r.now().Add(-time.Duration(r.levers.Storage.RunStateRetentionDays) * 24 * time.Hour)
+	root, rootErr := r.resolveRunStateRoot(ctx)
+	if rootErr != nil {
+		r.log().Warn("run-state retention skipped: root unavailable", obs.KeyError, rootErr.Error())
+		return
+	}
 	statuses := []domain.RunStatus{
 		domain.RunStatusComplete,
 		domain.RunStatusFailed,
@@ -377,7 +401,50 @@ func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
 			if terminalAt.After(cutoff) {
 				continue
 			}
-			_ = os.RemoveAll(runstate.RunDir("", run.ID))
+			if runDir, err := runstate.RunDir(root, run.ID); err == nil {
+				_ = os.RemoveAll(runDir)
+			}
+		}
+	}
+
+	// Rows can disappear before their private state directory (for example a
+	// failed transaction or a manually deleted run). Sweep those orphaned UUID
+	// directories by age as well; row-driven cleanup alone can never reclaim
+	// them.
+	runs, err := r.runs.List(ctx, repository.RunListFilter{})
+	if err != nil {
+		r.log().Warn("run-state orphan retention skipped: list runs failed", obs.KeyError, err.Error())
+		return
+	}
+	known := make(map[string]struct{}, len(runs))
+	for _, run := range runs {
+		if run != nil {
+			known[run.ID.String()] = struct{}{}
+		}
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			r.log().Warn("run-state orphan retention skipped: list root failed", obs.KeyError, err.Error())
+		}
+		return
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if _, err := uuid.Parse(entry.Name()); err != nil {
+			continue
+		}
+		if _, exists := known[entry.Name()]; exists {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil || info.ModTime().After(cutoff) {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(root, entry.Name())); err != nil {
+			r.log().Warn("remove orphaned run-state directory failed", "runDir", entry.Name(), obs.KeyError, err.Error())
 		}
 	}
 }

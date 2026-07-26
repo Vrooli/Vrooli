@@ -99,6 +99,7 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithRunners(registry),
 		orchestration.WithOrchestrationSettings(settingsStore),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
@@ -212,6 +213,7 @@ func TestContinuation_FailurePreservesSessionID(t *testing.T) {
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	// Create profile and task

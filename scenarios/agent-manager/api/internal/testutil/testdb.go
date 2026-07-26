@@ -1,28 +1,22 @@
 package testutil
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
-	"sync"
 	"sync/atomic"
 	"testing"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/database"
+	"agent-manager/internal/modules"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite" // pure-Go SQLite driver registration for test DB
 )
 
-var (
-	testSchemaOnce sync.Once
-	testSchema     string
-	testSchemaErr  error
-	testDBSequence atomic.Uint64
-)
+var testDBSequence atomic.Uint64
 
 // SetupTestDB creates an isolated shared-cache in-memory SQLite database with
 // the full schema applied. MaxOpenConns(1) keeps SQLite's lock semantics stable
@@ -42,13 +36,9 @@ func SetupTestDB(t *testing.T) (*database.DB, func()) {
 	}
 	db.SetMaxOpenConns(1)
 
-	if err := loadTestSchema(); err != nil {
+	if err := coredb.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
 		db.Close()
-		t.Fatalf("read schema: %v", err)
-	}
-	if _, err := db.Exec(testSchema); err != nil {
-		db.Close()
-		t.Fatalf("exec schema: %v", err)
+		t.Fatalf("apply schema: %v", err)
 	}
 
 	logger := logrus.New()
@@ -62,18 +52,6 @@ func SetupTestDB(t *testing.T) (*database.DB, func()) {
 	return dbWrapper, cleanup
 }
 
-func loadTestSchema() error {
-	testSchemaOnce.Do(func() {
-		schemaPath := filepath.Join(getSchemaDir(), "schema.sql")
-		var schema []byte
-		schema, testSchemaErr = os.ReadFile(schemaPath)
-		if testSchemaErr == nil {
-			testSchema = string(schema)
-		}
-	})
-	return testSchemaErr
-}
-
 // SetupTestRepos creates a temporary SQLite database and returns all repositories
 // plus the event store and a cleanup function.
 func SetupTestRepos(t *testing.T) (*database.Repositories, event.Store, func()) {
@@ -84,7 +62,7 @@ func SetupTestRepos(t *testing.T) (*database.Repositories, event.Store, func()) 
 	logger.SetLevel(logrus.WarnLevel)
 
 	repos := database.NewRepositories(db, logger)
-	eventStore := event.NewSQLiteStore(db.DB, logger)
+	eventStore := event.NewSQLiteStore(db, logger)
 
 	return repos, eventStore, cleanup
 }
@@ -98,15 +76,7 @@ func SetupTestReposWithDB(t *testing.T, db *database.DB) (*database.Repositories
 	logger.SetLevel(logrus.WarnLevel)
 
 	repos := database.NewRepositories(db, logger)
-	eventStore := event.NewSQLiteStore(db.DB, logger)
+	eventStore := event.NewSQLiteStore(db, logger)
 
 	return repos, eventStore, func() {}
-}
-
-// getSchemaDir returns the path to the database package directory containing schema.sql.
-func getSchemaDir() string {
-	_, filename, _, _ := runtime.Caller(0)
-	// testutil is at internal/testutil/testdb.go
-	// schema.sql is at internal/database/schema.sql
-	return filepath.Join(filepath.Dir(filename), "..", "database")
 }

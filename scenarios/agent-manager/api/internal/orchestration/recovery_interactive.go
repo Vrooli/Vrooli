@@ -1,3 +1,4 @@
+// This file restores interactive run state during recovery.
 package orchestration
 
 import (
@@ -87,7 +88,7 @@ func (r *Reconciler) drainInteractiveTranscript(ctx context.Context, run *domain
 	if run.TranscriptPath == "" {
 		return nil
 	}
-	parser, transcriptPath, state, err := r.recoveryParser(run)
+	parser, transcriptPath, state, err := r.recoveryParser(ctx, run)
 	if err != nil || parser == nil {
 		return nil
 	}

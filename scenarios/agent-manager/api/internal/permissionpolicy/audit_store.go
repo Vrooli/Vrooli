@@ -7,16 +7,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
+	"agent-manager/internal/sqlcompat"
 )
 
 // SQLiteAuditStore is the production AuditStore implementation. It retains
 // last-result metadata but deliberately never reads or writes native files.
 type SQLiteAuditStore struct {
-	db *sqlx.DB
+	db sqlcompat.DB
 }
 
-func NewSQLiteAuditStore(db *sqlx.DB) *SQLiteAuditStore {
+func NewSQLiteAuditStore(db sqlcompat.DB) *SQLiteAuditStore {
 	return &SQLiteAuditStore{db: db}
 }
 
@@ -49,7 +49,7 @@ func (s *SQLiteAuditStore) LastReconcile(ctx context.Context) (*ReconcileResult,
 	if s == nil || s.db == nil {
 		return nil, nil
 	}
-	row := s.db.QueryRowxContext(ctx, `
+	row := s.db.QueryRowContext(ctx, `
 		SELECT catalog_digest, started_at, finished_at, explicitly_authorized, success,
 			hard_enforcement_satisfied, missing_hard_enforcement_rule_ids, resource_results
 		FROM permission_policy_reconcile_audit

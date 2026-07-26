@@ -47,6 +47,7 @@ func TestContinueRun_PreservesCustomEnvAndIdentity(t *testing.T) {
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
 		orchestration.WithIdentitySecret(identitySecret),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
@@ -152,7 +153,7 @@ func TestContinueRun_FailurePreservesPreviousStructuredResult(t *testing.T) {
 	}
 	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
 		orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1, RequireSandboxByDefault: false}),
-		orchestration.WithEvents(eventStore), orchestration.WithRunners(registry))
+		orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithRunStateRoot(t.TempDir()))
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{Name: "preserve-result", ProfileKey: "preserve-result-" + uuid.NewString()[:8], RoleRef: "code.default", SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{Title: "preserve-result", ScopePath: "src/"})
 	now := time.Now()

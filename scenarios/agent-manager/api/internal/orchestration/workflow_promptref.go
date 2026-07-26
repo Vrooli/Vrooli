@@ -1,3 +1,4 @@
+// This file resolves workflow prompt references before execution.
 package orchestration
 
 import (

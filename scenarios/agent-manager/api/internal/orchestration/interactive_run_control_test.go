@@ -142,7 +142,7 @@ func TestExecuteInteractiveRun_ProtectedBackstop(t *testing.T) {
 	t.Cleanup(cleanup)
 
 	sessions := newRecordingSessions()
-	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions))
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
 	task := interactiveTestTask(t, svc)
 
 	now := time.Now()
@@ -193,7 +193,7 @@ func TestStopInteractiveRun_EscalationLadderAndSingleFinalize(t *testing.T) {
 
 	sessions := newRecordingSessions()
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
-		WithInteractiveSessions(sessions), WithEvents(eventStore))
+		WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunStateRoot(t.TempDir()))
 	task := interactiveTestTask(t, svc)
 	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-1")
 
@@ -241,7 +241,7 @@ func TestStopInteractiveRun_NaturalCompletionRaceNoDoubleFinalize(t *testing.T) 
 	t.Cleanup(cleanup)
 
 	sessions := newRecordingSessions()
-	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions))
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
 	task := interactiveTestTask(t, svc)
 	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-2")
 
@@ -282,7 +282,7 @@ func TestStopInteractiveRun_NoLiveDriver(t *testing.T) {
 	t.Cleanup(cleanup)
 
 	sessions := newRecordingSessions()
-	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions))
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
 	task := interactiveTestTask(t, svc)
 	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-3")
 

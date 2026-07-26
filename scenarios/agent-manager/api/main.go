@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
+	"agent-manager/internal/modules"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/permissionpolicy"
@@ -26,14 +28,21 @@ import (
 
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/apihttp"
+	coredb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 // Server owns lifecycle sequencing around the wiring-owned service graph.
 type Server struct {
 	db                    *database.DB
+	fileRoots             *filerouting.RoutedRoots
 	router                *mux.Router
 	orchestrator          *orchestration.Orchestrator
 	statsService          orchestration.StatsService
@@ -66,10 +75,50 @@ func NewServer() (*Server, error) {
 	}
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
-	db, err := database.NewConnection(logger)
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return nil, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := corestorage.ScenarioNamespace("agent-manager")
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario storage namespace: %w", err)
+	}
+	storagePaths, err := resolver.Resolve(corestorage.Options{ScenarioID: scenarioID})
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario storage roots: %w", err)
+	}
+	fileRoots := filerouting.New(storagePaths)
+	dsn, err := database.SQLiteDSN(logger)
+	if err != nil {
+		return nil, fmt.Errorf("resolve database configuration: %w", err)
+	}
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer dbCancel()
+	routedDB, err := coredb.Open(dbCtx, coredb.Config{
+		Driver:       coredb.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+		Logger:       logger.Printf,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("connect database: %w", err)
 	}
+	db := database.NewRoutedDB(routedDB, logger)
+	if err := coredb.EnsureSchemas(dbCtx, routedDB.Primary(), modules.AllSchemas()...); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("apply database schema: %w", err)
+	}
+	if err := db.InitializeSchema(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize database schema: %w", err)
+	}
+	routedDB.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		if err := coredb.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
+			return err
+		}
+		return database.NewDB(sqlx.NewDb(pool, "sqlite"), logger).InitializeSchema()
+	})
 	wsHub := handlers.NewWebSocketHub()
 	go wsHub.Run()
 	uploadDir := os.Getenv("UPLOAD_DIR")
@@ -77,13 +126,13 @@ func NewServer() (*Server, error) {
 		uploadDir = "/tmp/agent-manager-uploads"
 	}
 	uploadStorage := storage.NewLocalService(uploadDir)
-	deps, err := wiring.NewOrchestrator(db, wsHub, logger, uploadStorage, levers)
+	deps, err := wiring.NewOrchestrator(db, wsHub, logger, uploadStorage, levers, fileRoots)
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("build orchestrator: %w", err)
 	}
 	srv := &Server{
-		db: db, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
+		db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService,
 		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger,
 		modelHealthProbe: deps.ModelHealthProbe, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
@@ -151,7 +200,12 @@ func (s *Server) setupRoutes() {
 	})
 }
 
-func (s *Server) Router() http.Handler { return gorillaHandlers.RecoveryHandler()(s.router) }
+func (s *Server) Router() http.Handler {
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, s.db.Routed, s.fileRoots)
+	rootMux.Handle("/", gorillaHandlers.RecoveryHandler()(s.router))
+	return apihttp.TestModeMiddleware(rootMux)
+}
 
 func (s *Server) Cleanup() error {
 	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger)

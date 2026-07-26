@@ -3,11 +3,17 @@
 package contracts
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/phases"
 )
@@ -31,6 +37,9 @@ func TestCodecExecuteContinueControlParity(t *testing.T) {
 					t.Fatalf("%s control %q missing from execute=%q continue=%q", codec.Type(), control, execArgs, continueArgs)
 				}
 			}
+			if codec.Type() == domain.RunnerTypeCodex && containsArgs(continueArgs, "-C") {
+				t.Fatalf("codex resume emitted unsupported -C: %q", continueArgs)
+			}
 		})
 	}
 }
@@ -40,7 +49,9 @@ func parityControls(rt domain.RunnerType) []string {
 	case domain.RunnerTypeClaudeCode:
 		return []string{"--model", "--max-turns", "--effort", "--allowedTools", "--disallowedTools", "--chrome"}
 	case domain.RunnerTypeCodex:
-		return []string{"-m", "-c", "-C"}
+		// `codex exec resume` accepts model and config controls but not the
+		// execute-only working-directory flag.
+		return []string{"-m", "-c"}
 	case domain.RunnerTypeGrok:
 		return []string{"-m", "--max-turns", "--effort", "--cwd"}
 	default:
@@ -75,20 +86,95 @@ func TestDefaultLifecycleVocabularyIsEmittable(t *testing.T) {
 }
 
 func TestRunConfigFieldLivenessRegistryIsComplete(t *testing.T) {
-	// Every field in domain.RunConfig is deliberately classified. Update this
-	// registry in the same change as any new field; an unclassified control is
-	// an inert operator promise.
 	registry := map[string]string{
-		"RunnerType": "runner-selection", "Model": "codec-argv", "RoleRef": "policy-selection", "MaxTurns": "codec-argv", "Timeout": "execution-deadline", "Effort": "codec-argv-or-capability-event",
-		"PolicySnapshot": "policy-selection", "ResultSpec": "result-resolution", "AllowedTools": "codec-argv-or-policy", "DeniedTools": "codec-argv-or-advisory-event", "ToolRestrictionPolicy": "policy-selection",
-		"SkipPermissionPrompt": "codec-argv", "Features": "codec-argv", "ExtraFlags": "codec-argv", "NetworkAccess": "codec-argv", "SandboxConfig": "sandbox-acceptance", "AllowedPaths": "sandbox-acceptance", "DeniedPaths": "sandbox-acceptance",
+		"RunnerType": "resolveExecutionPolicy", "Model": "BuildArgs", "RoleRef": "resolveExecutionPolicy", "MaxTurns": "BuildArgs", "Timeout": "WithTimeout", "Effort": "BuildArgs",
+		"PolicySnapshot": "resolveExecutionPolicy", "ResultSpec": "structuredResults.Resolve", "AllowedTools": "BuildArgs", "DeniedTools": "BuildArgs", "ToolRestrictionPolicy": "validateToolRestriction",
+		"SkipPermissionPrompt": "BuildArgs", "Features": "BuildArgs", "ExtraFlags": "BuildArgs", "NetworkAccess": "BuildArgs", "SandboxConfig": "DeriveRunMode", "AllowedPaths": "CreateSandbox", "DeniedPaths": "CreateSandbox",
 	}
-	expected := []string{"RunnerType", "Model", "RoleRef", "MaxTurns", "Timeout", "Effort", "PolicySnapshot", "ResultSpec", "AllowedTools", "DeniedTools", "ToolRestrictionPolicy", "SkipPermissionPrompt", "Features", "ExtraFlags", "NetworkAccess", "SandboxConfig", "AllowedPaths", "DeniedPaths"}
-	for _, field := range expected {
-		if strings.TrimSpace(registry[field]) == "" {
-			t.Errorf("RunConfig.%s has no liveness classification", field)
+	assertFieldRegistry(t, reflect.TypeOf(domain.RunConfig{}), "RunConfig", registry)
+}
+
+func TestLeversFieldLivenessRegistryIsComplete(t *testing.T) {
+	// Levers are grouped controls. Each group is passed to the named runtime
+	// composition consumer; nested storage retention controls are listed
+	// separately below because they drive distinct reconciler operations.
+	registry := map[string]string{
+		"Execution": "NewOrchestrator", "Safety": "NewOrchestrator", "Concurrency": "NewOrchestrator", "Approval": "NewOrchestrator", "Runners": "NewOrchestrator",
+		"Server": "NewServer", "Storage": "NewOrchestrator", "Heartbeat": "NewOrchestrator", "Recovery": "NewOrchestrator", "Scanner": "NewOrchestrator",
+		"Diagnostics": "NewOrchestrator", "Observability": "Init", "Spawn": "NewOrchestrator", "Sandbox": "NewOrchestrator", "Workflow": "NewOrchestrator",
+	}
+	assertFieldRegistry(t, reflect.TypeOf(config.Levers{}), "Levers", registry)
+	for field, consumer := range map[string]string{
+		"Storage.EventRetentionDays":    "cleanupExpiredEvents",
+		"Storage.ArtifactRetentionDays": "cleanupExpiredArtifacts",
+		"Storage.RunStateRetentionDays": "cleanupRunStateDirs",
+	} {
+		if !consumerExists(t, consumer) {
+			t.Errorf("%s names absent consumer %q", field, consumer)
 		}
 	}
+}
+
+func TestFieldRegistryRejectsUnclassifiedField(t *testing.T) {
+	type controlSurface struct{ DeclaredButInert bool }
+	if err := validateFieldRegistry(reflect.TypeOf(controlSurface{}), "ControlSurface", map[string]string{}); err == nil {
+		t.Fatal("unclassified reflected field must fail liveness validation")
+	}
+}
+
+func assertFieldRegistry(t *testing.T, typ reflect.Type, subject string, registry map[string]string) {
+	t.Helper()
+	if err := validateFieldRegistry(typ, subject, registry); err != nil {
+		t.Error(err)
+	}
+	for field, consumer := range registry {
+		if !consumerExists(t, consumer) {
+			t.Errorf("%s.%s names absent consumer %q", subject, field, consumer)
+		}
+	}
+}
+
+func validateFieldRegistry(typ reflect.Type, subject string, registry map[string]string) error {
+	for index := 0; index < typ.NumField(); index++ {
+		field := typ.Field(index)
+		if field.PkgPath != "" { // unexported
+			continue
+		}
+		if strings.TrimSpace(registry[field.Name]) == "" {
+			return fmt.Errorf("%s.%s has no named runtime consumer", subject, field.Name)
+		}
+	}
+	return nil
+}
+
+func consumerExists(t *testing.T, symbol string) bool {
+	t.Helper()
+	apiRoot := apiRoot(t)
+	found := false
+	err := filepath.WalkDir(apiRoot, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || found || entry.IsDir() || strings.HasSuffix(path, "_test.go") || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		found = strings.Contains(string(contents), symbol)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return found
+}
+
+func apiRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve contracts source")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
 }
 
 func TestToolRestrictionFallbackSkipsUnsupportedCandidate(t *testing.T) {

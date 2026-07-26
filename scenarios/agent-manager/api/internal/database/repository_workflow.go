@@ -12,7 +12,6 @@ import (
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,7 +55,7 @@ func (r *workflowRepository) ActivateBatch(ctx context.Context, revisions []*dom
 	if len(revisions) == 0 {
 		return nil
 	}
-	return r.db.WithTransaction(func(tx *sqlx.Tx) error {
+	return r.db.WithTransaction(ctx, func(tx *Tx) error {
 		seen := map[string]bool{}
 		for _, revision := range revisions {
 			if revision == nil {

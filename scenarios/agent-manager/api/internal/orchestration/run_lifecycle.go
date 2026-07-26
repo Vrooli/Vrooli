@@ -1,3 +1,4 @@
+// This file owns run lifecycle transitions shared by orchestration operations.
 package orchestration
 
 import (
