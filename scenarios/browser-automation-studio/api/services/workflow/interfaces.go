@@ -10,6 +10,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -88,6 +89,7 @@ type ExecutionService interface {
 	// Timeline and export
 	GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*ExecutionTimeline, error)
 	GetExecutionTimelineProto(ctx context.Context, executionID uuid.UUID) (*bastimeline.ExecutionTimeline, error)
+	GetExecutionReplayPackage(ctx context.Context, executionID uuid.UUID) (*basevidence.ReplayPackage, error)
 	DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*ExecutionExportPreview, error)
 	ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error
 }

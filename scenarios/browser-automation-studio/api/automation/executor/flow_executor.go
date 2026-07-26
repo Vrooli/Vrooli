@@ -3,7 +3,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
-	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
 // flow_executor.go isolates graph/loop orchestration so complex flow support
@@ -118,8 +116,7 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 
 	// Built-in variable mutation node used to support while/forEach flows without engine involvement.
 	if isSetVariablePlanStep(step) {
-		stepParams := PlanStepParams(step)
-		outcome, err := e.applySetVariable(ctx, req, step.Index, stepType, step.NodeID, stepParams, execState)
+		outcome, err := e.applySetVariable(ctx, req, step.Index, step.NodeID, step.Action.GetSetVariable(), execState)
 		return outcome, session, err
 	}
 
@@ -203,8 +200,7 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 
 	// Store extracted data to execState if storeResult is specified
 	if normalized.Success && normalized.ExtractedData != nil {
-		instrParams := InstructionParams(instruction)
-		if storeKey := state.StringValue(instrParams, "storeResult"); storeKey != "" {
+		if storeKey := actionStoreResult(instruction.Action); storeKey != "" {
 			// Store the raw ExtractedData directly - it's not wrapped at this point
 			// (wrapping only happens when creating database artifacts in db_recorder)
 			execState.Set(storeKey, normalized.ExtractedData)
@@ -244,13 +240,16 @@ type loopExecutionResult struct {
 }
 
 func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
-	stepParams := PlanStepParams(step)
-	loopType := strings.ToLower(strings.TrimSpace(state.StringValue(stepParams, "loopType")))
+	loop := step.Action.GetLoop()
+	if loop == nil {
+		return contracts.StepOutcome{}, session, fmt.Errorf("loop node %s is missing typed loop params", step.NodeID)
+	}
+	loopType := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(loop.GetLoopType().String(), "LOOP_TYPE_")))
 	if loopType == "" {
 		return contracts.StepOutcome{}, session, fmt.Errorf("loop node %s missing loopType", step.NodeID)
 	}
 
-	maxIterations := state.IntValue(stepParams, "loopMaxIterations")
+	maxIterations := int(loop.GetMaxIterations())
 	if maxIterations <= 0 {
 		maxIterations = 100
 	}
@@ -631,22 +630,16 @@ func isSubflowPlanStep(step contracts.PlanStep) bool {
 }
 
 // applySetVariable handles executor-scoped variable mutations without invoking an engine.
-func (e *SimpleExecutor) applySetVariable(ctx context.Context, req Request, stepIndex int, stepType, nodeID string, params map[string]any, execState *state.ExecutionState) (contracts.StepOutcome, error) {
-	name := state.StringValue(params, "name")
-	if name == "" {
-		name = state.StringValue(params, "variable")
+func (e *SimpleExecutor) applySetVariable(ctx context.Context, req Request, stepIndex int, nodeID string, params *basactions.SetVariableParams, execState *state.ExecutionState) (contracts.StepOutcome, error) {
+	if params == nil {
+		return contracts.StepOutcome{}, fmt.Errorf("set_variable node %s missing typed parameters", nodeID)
 	}
-	if name == "" {
-		name = state.StringValue(params, "variableName")
-	}
+	name := strings.TrimSpace(params.GetName())
 	if name == "" {
 		return contracts.StepOutcome{}, fmt.Errorf("set_variable node %s missing name", nodeID)
 	}
-	value := firstPresent(params, "value", "variableValue")
-	valueType := state.StringValue(params, "valueType")
-	if valueType == "" {
-		valueType = state.StringValue(params, "variableType")
-	}
+	value := typeconv.JsonValueToAny(params.GetValue())
+	valueType := strings.TrimPrefix(strings.ToLower(params.GetValueType().String()), "set_variable_value_type_")
 	execState.Set(name, state.NormalizeVariableValue(value, valueType))
 
 	outcome := contracts.StepOutcome{
@@ -656,7 +649,7 @@ func (e *SimpleExecutor) applySetVariable(ctx context.Context, req Request, step
 		StepIndex:      stepIndex,
 		Attempt:        1,
 		NodeID:         nodeID,
-		StepType:       stepType,
+		StepType:       actionTypeToString(basactions.ActionType_ACTION_TYPE_SET_VARIABLE),
 		Success:        true,
 		StartedAt:      time.Now().UTC(),
 	}
@@ -688,112 +681,30 @@ type subflowSpec struct {
 	workflowID      *uuid.UUID
 	workflowVersion *int
 	workflowPath    string
-	inlineDef       map[string]any
 	params          map[string]any
 }
 
 func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 	spec := subflowSpec{}
-	stepParams := PlanStepParams(step)
-	if idStr := state.StringValue(stepParams, "workflowId"); strings.TrimSpace(idStr) != "" {
-		if parsed, err := uuid.Parse(idStr); err == nil {
-			spec.workflowID = &parsed
-		} else {
-			return spec, fmt.Errorf("subflow %s has invalid workflowId: %w", step.NodeID, err)
+	sub := step.Action.GetSubflow()
+	if sub == nil {
+		return spec, fmt.Errorf("subflow %s is missing typed subflow parameters", step.NodeID)
+	}
+	if idStr := strings.TrimSpace(sub.GetWorkflowId()); idStr != "" {
+		parsed, err := uuid.Parse(idStr)
+		if err != nil {
+			return spec, fmt.Errorf("subflow %s has invalid workflow_id: %w", step.NodeID, err)
 		}
+		spec.workflowID = &parsed
 	}
-	if spec.workflowID == nil {
-		if idStr := state.StringValue(stepParams, "workflow_id"); strings.TrimSpace(idStr) != "" {
-			if parsed, err := uuid.Parse(idStr); err == nil {
-				spec.workflowID = &parsed
-			} else {
-				return spec, fmt.Errorf("subflow %s has invalid workflow_id: %w", step.NodeID, err)
-			}
-		}
+	spec.workflowPath = strings.TrimSpace(sub.GetWorkflowPath())
+	if version := sub.GetWorkflowVersion(); version > 0 {
+		converted := int(version)
+		spec.workflowVersion = &converted
 	}
-	if version := state.IntValue(stepParams, "workflowVersion"); version > 0 {
-		spec.workflowVersion = &version
-	}
-	if pathStr := state.StringValue(stepParams, "workflowPath"); strings.TrimSpace(pathStr) != "" {
-		spec.workflowPath = strings.TrimSpace(pathStr)
-	}
-	if spec.workflowPath == "" {
-		if pathStr := state.StringValue(stepParams, "workflow_path"); strings.TrimSpace(pathStr) != "" {
-			spec.workflowPath = strings.TrimSpace(pathStr)
-		}
-	}
-	if rawDef, ok := stepParams["workflowDefinition"]; ok {
-		if def, ok := rawDef.(map[string]any); ok && len(def) > 0 {
-			spec.inlineDef = def
-		}
-	}
-	if spec.inlineDef == nil {
-		if rawDef, ok := stepParams["workflow_definition"]; ok {
-			if def, ok := rawDef.(map[string]any); ok && len(def) > 0 {
-				spec.inlineDef = def
-			}
-		}
-	}
-	if rawParams, ok := stepParams["parameters"]; ok {
-		if params, ok := rawParams.(map[string]any); ok && len(params) > 0 {
-			// Unwrap JsonValue wrapper format from proto serialization
-			spec.params = unwrapJsonValueArgs(params)
-		}
-	}
-	// Also check "args" key - used when workflow is compiled from JSON
-	if spec.params == nil {
-		if rawArgs, ok := stepParams["args"]; ok {
-			if args, ok := rawArgs.(map[string]any); ok && len(args) > 0 {
-				spec.params = unwrapJsonValueArgs(args)
-			}
-		}
-	}
-	if spec.workflowID == nil && spec.workflowPath == "" && spec.inlineDef == nil && step.Action != nil {
-		if sub := step.Action.GetSubflow(); sub != nil {
-			if spec.workflowID == nil {
-				if idStr := strings.TrimSpace(sub.GetWorkflowId()); idStr != "" {
-					if parsed, err := uuid.Parse(idStr); err == nil {
-						spec.workflowID = &parsed
-					} else {
-						return spec, fmt.Errorf("subflow %s has invalid workflowId: %w", step.NodeID, err)
-					}
-				}
-			}
-			if spec.workflowPath == "" {
-				if pathStr := strings.TrimSpace(sub.GetWorkflowPath()); pathStr != "" {
-					spec.workflowPath = pathStr
-				}
-			}
-			if spec.workflowVersion == nil {
-				if version := sub.GetWorkflowVersion(); version > 0 {
-					converted := int(version)
-					spec.workflowVersion = &converted
-				}
-			}
-			if spec.params == nil {
-				spec.params = typeconv.JsonValueMapToAny(sub.GetArgs())
-			}
-		}
-	}
-	if spec.workflowID == nil && spec.workflowPath == "" && spec.inlineDef == nil {
-		paramKeys := make([]string, 0, len(stepParams))
-		for key := range stepParams {
-			paramKeys = append(paramKeys, key)
-		}
-		sort.Strings(paramKeys)
-		stepType := PlanStepType(step)
-		logrus.WithFields(logrus.Fields{
-			"node_id":                  step.NodeID,
-			"step_type":                stepType,
-			"action_present":           step.Action != nil,
-			"subflow_action_present":   step.Action != nil && step.Action.GetSubflow() != nil,
-			"workflow_id_present":      spec.workflowID != nil,
-			"workflow_path_present":    spec.workflowPath != "",
-			"workflow_def_present":     spec.inlineDef != nil,
-			"workflow_version_present": spec.workflowVersion != nil,
-			"param_keys":               paramKeys,
-		}).Warn("subflow missing workflow reference")
-		return spec, fmt.Errorf("subflow %s missing workflowId, workflowPath, or workflowDefinition", step.NodeID)
+	spec.params = typeconv.JsonValueMapToAny(sub.GetArgs())
+	if spec.workflowID == nil && spec.workflowPath == "" {
+		return spec, fmt.Errorf("subflow %s must define workflow_id or workflow_path", step.NodeID)
 	}
 	return spec, nil
 }
@@ -882,20 +793,7 @@ func resolveSubflowWorkflow(ctx context.Context, req Request, spec subflowSpec) 
 		return wf, workflowID, nil
 	}
 
-	// Inline workflow definition - create a WorkflowSummary with the inline definition
-	// NOTE: Inline subflows with workflowDefinition are a complex edge case.
-	// The common path (workflow_id or workflow_path reference) is fully V2-compatible.
-	// Inline definitions would require parsing nested ActionDefinition protos from a map,
-	// which is rarely used. For now, inline subflows return an empty flow.
-	id := uuid.New()
-	flowDef := &basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{},
-		Edges: []*basworkflows.WorkflowEdgeV2{},
-	}
-	return &basapi.WorkflowSummary{
-		Id:             id.String(),
-		FlowDefinition: flowDef,
-	}, id, nil
+	return nil, uuid.Nil, fmt.Errorf("subflow must define workflow_id or workflow_path")
 }
 
 func planStepCount(plan contracts.ExecutionPlan) int {

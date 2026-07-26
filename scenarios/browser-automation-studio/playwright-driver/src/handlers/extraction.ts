@@ -1,6 +1,7 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getExtractParams, getEvaluateParams } from '../types';
+import { getActionType } from '../proto';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 
@@ -21,7 +22,8 @@ export class ExtractionHandler extends BaseHandler {
     const { logger } = context;
 
     try {
-      switch (instruction.type.toLowerCase()) {
+		const actionType = getActionType(instruction);
+		switch (actionType.toLowerCase()) {
         case 'extract':
           return await this.handleExtract(instruction, context);
 
@@ -32,7 +34,7 @@ export class ExtractionHandler extends BaseHandler {
           return {
             success: false,
             error: {
-              message: `Unsupported extraction type: ${instruction.type}`,
+				message: `Unsupported extraction type: ${actionType}`,
               code: 'UNSUPPORTED_TYPE',
               kind: 'orchestration',
               retryable: false,
@@ -41,7 +43,7 @@ export class ExtractionHandler extends BaseHandler {
       }
     } catch (error) {
       logger.error('Extraction failed', {
-        type: instruction.type,
+			type: getActionType(instruction),
         error: error instanceof Error ? error.message : String(error),
       });
 

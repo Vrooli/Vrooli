@@ -151,7 +151,7 @@ Screenshot customization pipeline:
 
 ### 7. CLI & UI Integration Notes
 - **UI:** Replace `socket.io-client` usage with native `WebSocket`, subscribe to new event types, update stores to build filmstrip + log timeline from streamed payloads.
-- **CLI:** `execution watch` listens to the same WebSocket and renders textual logs + heartbeat health, while `execution export` retrieves replay packages (use `--output` to persist the JSON for renderers).
+- **CLI:** `execution watch` listens to the same WebSocket and renders textual logs + heartbeat health. `executions replay-package <execution-id>` retrieves the versioned, storage-independent replay package for renderer consumers.
 - Provide a shared TypeScript schema (`ui/src/types/executionEvents.ts`) generated from Go structs via `quicktype` or manual definitions to keep payloads in sync.
 
 ## Implementation Phases

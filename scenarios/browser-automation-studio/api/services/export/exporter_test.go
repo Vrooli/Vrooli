@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
@@ -166,6 +168,24 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 			t.Errorf("expected decor cursor scale to be positive, got %f", pkg.Decor.CursorScale)
 		}
 	})
+}
+
+func TestTimelineFromReplayPackageUsesTypedTimelineEntries(t *testing.T) {
+	executionID, workflowID := uuid.New(), uuid.New()
+	exec := &database.ExecutionIndex{ID: executionID, WorkflowID: workflowID, Status: database.ExecutionStatusCompleted, StartedAt: time.Now()}
+	step := int32(4)
+	nodeID := "package-node"
+	value, err := structpb.NewStruct(map[string]any{"stepIndex": step, "nodeId": nodeID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	timeline, err := timelineFromReplayPackage(exec, &basevidence.ReplayPackage{Timeline: []*structpb.Struct{value}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(timeline.Frames) != 1 || timeline.Frames[0].StepIndex != 4 || timeline.Frames[0].NodeID != nodeID {
+		t.Fatalf("typed replay timeline was not projected: %#v", timeline.Frames)
+	}
 }
 
 func TestBuildReplayMovieSpecValidatesInput(t *testing.T) {

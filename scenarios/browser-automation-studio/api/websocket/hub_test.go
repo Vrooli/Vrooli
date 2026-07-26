@@ -14,6 +14,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func newTestHubBase(t *testing.T) *Hub {
@@ -562,20 +565,11 @@ func TestHubCleanupOnClientDisconnect(t *testing.T) {
 // Recording Action Streaming Tests
 // =============================================================================
 
-// testEntry creates a test UnifiedTimelineEntry for testing
-func testEntry(id, actionType string) *UnifiedTimelineEntry {
-	return &UnifiedTimelineEntry{
-		ID:        id,
-		Type:      "action",
-		Timestamp: "2024-01-01T00:00:00Z",
-		PageID:    "page-1",
-		Action: &TimelineAction{
-			ID:          id,
-			ActionType:  actionType,
-			SequenceNum: 1,
-			Timestamp:   "2024-01-01T00:00:00Z",
-			Confidence:  1.0,
-		},
+// testEntry creates the canonical stream payload used by recording and execution.
+func testEntry(id string, actionType basactions.ActionType) *bastimeline.TimelineEntry {
+	return &bastimeline.TimelineEntry{
+		Id: id, SequenceNum: 1, Timestamp: timestamppb.New(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Action: &basactions.ActionDefinition{Type: actionType},
 	}
 }
 
@@ -596,7 +590,7 @@ func TestBroadcastRecordingEntryToSubscribedClient(t *testing.T) {
 		hub.register <- client
 		_ = waitForMessage(t, client.Send) // Drain welcome message
 
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-1", "click"))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-1", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		msg := waitForMessage(t, client.Send)
 		recordingMsg, ok := msg.(map[string]any)
@@ -604,17 +598,14 @@ func TestBroadcastRecordingEntryToSubscribedClient(t *testing.T) {
 			t.Fatalf("expected map, got %T", msg)
 		}
 
-		if recordingMsg["type"] != "recording_action" {
-			t.Errorf("expected type 'recording_action', got %v", recordingMsg["type"])
+		if recordingMsg["type"] != "TIMELINE_MESSAGE_TYPE_ENTRY" {
+			t.Errorf("expected typed timeline message, got %v", recordingMsg["type"])
 		}
 		if recordingMsg["session_id"] != sessionID {
 			t.Errorf("expected session_id '%s', got %v", sessionID, recordingMsg["session_id"])
 		}
 		if recordingMsg["entry"] == nil {
 			t.Error("expected entry to be present")
-		}
-		if recordingMsg["timestamp"] == nil {
-			t.Error("expected timestamp to be present")
 		}
 	})
 }
@@ -647,7 +638,7 @@ func TestBroadcastRecordingEntryFiltersNonSubscribed(t *testing.T) {
 		_ = waitForMessage(t, subscribedOther.Send) // Drain welcome
 		_ = waitForMessage(t, unsubscribed.Send)    // Drain welcome
 
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-1", "click"))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-1", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Neither client should receive the entry
 		select {
@@ -704,15 +695,15 @@ func TestRecordingSubscriptionViaWebSocket(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		// Broadcast a recording entry
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-2", "type"))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-2", basactions.ActionType_ACTION_TYPE_INPUT))
 
 		// Should receive the entry
 		var actionMsg map[string]any
 		if err := conn.ReadJSON(&actionMsg); err != nil {
 			t.Fatalf("failed to read recording entry: %v", err)
 		}
-		if actionMsg["type"] != "recording_action" {
-			t.Errorf("expected type 'recording_action', got %v", actionMsg["type"])
+		if actionMsg["type"] != "TIMELINE_MESSAGE_TYPE_ENTRY" {
+			t.Errorf("expected typed timeline message, got %v", actionMsg["type"])
 		}
 		if actionMsg["session_id"] != sessionID {
 			t.Errorf("expected session_id '%s', got %v", sessionID, actionMsg["session_id"])
@@ -758,7 +749,7 @@ func TestRecordingUnsubscriptionViaWebSocket(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		// Broadcast a recording action
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-3", "click"))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-3", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Should NOT receive the action
 		_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
@@ -800,7 +791,7 @@ func TestMultipleRecordingSessionsIsolation(t *testing.T) {
 		_ = waitForMessage(t, clientB.Send) // Drain welcome
 
 		// Broadcast to session A
-		hub.BroadcastRecordingEntry(sessionA, testEntry("action-A", "click"))
+		hub.BroadcastTimelineEntry(sessionA, testEntry("action-A", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Client A should receive
 		msgA := waitForMessage(t, clientA.Send)
@@ -821,7 +812,7 @@ func TestMultipleRecordingSessionsIsolation(t *testing.T) {
 		}
 
 		// Now broadcast to session B
-		hub.BroadcastRecordingEntry(sessionB, testEntry("action-B", "click"))
+		hub.BroadcastTimelineEntry(sessionB, testEntry("action-B", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Client B should receive
 		msgB := waitForMessage(t, clientB.Send)
@@ -862,9 +853,9 @@ func TestBroadcastRecordingEntryWithFullBuffer(t *testing.T) {
 		// Don't drain welcome - let buffer fill
 
 		// Try to broadcast - should not panic or block
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-1", "click"))
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-2", "click"))
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-3", "click"))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-1", basactions.ActionType_ACTION_TYPE_CLICK))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-2", basactions.ActionType_ACTION_TYPE_CLICK))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-3", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Should complete without hanging (test will timeout if it blocks)
 		time.Sleep(50 * time.Millisecond)
@@ -1030,17 +1021,17 @@ func TestRecordingActionStreamingSequence(t *testing.T) {
 
 		// Send sequence of entries
 		for i := 1; i <= 5; i++ {
-			hub.BroadcastRecordingEntry(sessionID, testEntry(fmt.Sprintf("action-%d", i), "click"))
+			hub.BroadcastTimelineEntry(sessionID, testEntry(fmt.Sprintf("action-%d", i), basactions.ActionType_ACTION_TYPE_CLICK))
 		}
 
 		// Verify all received in order
 		for i := 1; i <= 5; i++ {
 			msg := waitForMessage(t, client.Send)
 			if msgMap, ok := msg.(map[string]any); ok {
-				entry := msgMap["entry"].(*UnifiedTimelineEntry)
+				entry := msgMap["entry"].(map[string]any)
 				expectedID := fmt.Sprintf("action-%d", i)
-				if entry.ID != expectedID {
-					t.Errorf("expected entry id '%s', got %v", expectedID, entry.ID)
+				if entry["id"] != expectedID {
+					t.Errorf("expected entry id '%s', got %v", expectedID, entry["id"])
 				}
 			} else {
 				t.Fatalf("expected map, got %T", msg)

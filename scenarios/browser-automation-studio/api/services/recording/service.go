@@ -12,10 +12,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/automation/telemetry"
 	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/internal/clock"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // duplicateNavigateThreshold is the time window for detecting duplicate navigate actions.
@@ -688,8 +691,8 @@ func (s *Service) RecordActionUnified(ctx context.Context, req RecordActionReque
 
 	// Step 3: Broadcast to WebSocket (may fail or have no subscribers)
 	if s.wsHub != nil {
-		wsEntry := s.toWebSocketEntry(&entry)
-		broadcastResult := s.wsHub.BroadcastRecordingEntry(req.SessionID, wsEntry)
+		wsEntry := timelineEntryFromDomainAction(entry.Action)
+		broadcastResult := s.wsHub.BroadcastTimelineEntry(req.SessionID, wsEntry)
 		result.SubscriberCount = broadcastResult.SubscriberCount
 		result.SentCount = broadcastResult.SentCount
 		result.DroppedCount = broadcastResult.DroppedCount
@@ -719,6 +722,25 @@ func (s *Service) RecordActionUnified(ctx context.Context, req RecordActionReque
 	}).Debug("Action recorded (unified)")
 
 	return result, nil
+}
+
+func timelineEntryFromDomainAction(action *domain.RecordingAction) *bastimeline.TimelineEntry {
+	if action == nil {
+		return nil
+	}
+	params := make(map[string]any, len(action.Payload)+1)
+	for key, value := range action.Payload {
+		params[key] = value
+	}
+	if action.Selector != nil && action.Selector.Primary != "" {
+		params["selector"] = action.Selector.Primary
+	}
+	return telemetry.TelemetryToTimelineEntry(&telemetry.ActionTelemetry{
+		ID: action.ID.String(), SequenceNum: action.SequenceNum,
+		ActionType: enums.StringToActionType(action.ActionType), Params: params,
+		URL: action.URL, Timestamp: action.Timestamp, DurationMs: action.DurationMs,
+		Success: true, SelectorConfidence: action.Confidence,
+	})
 }
 
 // RecordPageEventUnified records a page event with unified persistence and broadcast.
@@ -817,39 +839,6 @@ func (s *Service) RecordPageEventUnified(ctx context.Context, req RecordPageEven
 	}).Debug("Page event recorded (unified)")
 
 	return result, nil
-}
-
-// toWebSocketEntry converts a persistence entry to WebSocket format.
-func (s *Service) toWebSocketEntry(entry *persistence.UnifiedTimelineEntry) *wsHub.UnifiedTimelineEntry {
-	if entry == nil || entry.Action == nil {
-		return nil
-	}
-
-	// Build selector if present
-	var selector map[string]any
-	if entry.Action.Selector != nil && entry.Action.Selector.Primary != "" {
-		selector = map[string]any{
-			"primary": entry.Action.Selector.Primary,
-		}
-	}
-
-	return &wsHub.UnifiedTimelineEntry{
-		ID:        entry.ID.String(),
-		Type:      string(entry.Type),
-		Timestamp: entry.Timestamp.Format(time.RFC3339Nano),
-		PageID:    entry.PageID.String(),
-		Action: &wsHub.TimelineAction{
-			ID:          entry.Action.ID.String(),
-			ActionType:  entry.Action.ActionType,
-			SequenceNum: entry.Action.SequenceNum,
-			Timestamp:   entry.Timestamp.Format(time.RFC3339Nano),
-			Confidence:  entry.Action.Confidence,
-			URL:         entry.Action.URL,
-			PageTitle:   entry.Action.PageTitle,
-			Selector:    selector,
-			Payload:     entry.Action.Payload,
-		},
-	}
 }
 
 // filterEntries applies query filters to a slice of entries.

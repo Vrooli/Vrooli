@@ -203,7 +203,9 @@ func lintSubflowNode(node map[string]any, data map[string]any, idx int) ([]Issue
 	return lintSubflowLikeNode(node, data, idx)
 }
 
-// lintSubflowLikeNode validates subflow-like nodes (subflow, call, etc.).
+// lintSubflowLikeNode validates the legacy node projection at the ingress
+// boundary. Inline definitions are intentionally rejected: a subflow must
+// resolve through a durable workflow reference before it reaches the V2 core.
 func lintSubflowLikeNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {
 	var errorsList []Issue
 	var warningsList []Issue
@@ -212,42 +214,16 @@ func lintSubflowLikeNode(node map[string]any, data map[string]any, idx int) ([]I
 	pointer := fmt.Sprintf("/nodes/%d/data", idx)
 
 	workflowID := strings.TrimSpace(getString(data["workflowId"]))
-	inlineDef, hasInline := toMap(data["workflowDefinition"])
-
-	if workflowID == "" && (!hasInline || len(inlineDef) == 0) {
+	if workflowID == "" {
 		errorsList = append(errorsList, Issue{
 			Severity: SeverityError,
 			Code:     "WF_SUBFLOW_TARGET",
-			Message:  "subflow node must define workflowId or workflowDefinition",
+			Message:  "subflow node must define workflowId; inline workflow definitions are not supported",
 			NodeID:   nodeID,
 			NodeType: nodeType,
 			Pointer:  pointer,
 		})
 		return errorsList, warningsList
-	}
-
-	if hasInline && len(inlineDef) > 0 {
-		nodes := toSlice(inlineDef["nodes"])
-		if len(nodes) == 0 {
-			errorsList = append(errorsList, Issue{
-				Severity: SeverityError,
-				Code:     "WF_SUBFLOW_INLINE_NODES",
-				Message:  "subflow workflowDefinition must include at least one node",
-				NodeID:   nodeID,
-				NodeType: nodeType,
-				Pointer:  pointer + "/workflowDefinition/nodes",
-			})
-		}
-		if _, ok := inlineDef["edges"]; !ok {
-			errorsList = append(errorsList, Issue{
-				Severity: SeverityError,
-				Code:     "WF_SUBFLOW_INLINE_EDGES",
-				Message:  "subflow workflowDefinition must include edges even if empty",
-				NodeID:   nodeID,
-				NodeType: nodeType,
-				Pointer:  pointer + "/workflowDefinition/edges",
-			})
-		}
 	}
 
 	return errorsList, warningsList

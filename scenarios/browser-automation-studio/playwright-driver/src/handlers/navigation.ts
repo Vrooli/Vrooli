@@ -225,7 +225,7 @@ export class NavigationHandler extends BaseHandler {
     } catch (error) {
       const driverError = normalizeError(error);
       logger.warn('instruction: navigate failed', {
-        targetUrl: instruction.params.url,
+			targetUrl: getNavigateParams(instruction.action)?.url,
         errorCode: driverError.code,
         errorMessage: driverError.message,
         retryable: driverError.retryable,

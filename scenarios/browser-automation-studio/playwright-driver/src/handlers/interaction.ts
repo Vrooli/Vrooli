@@ -9,6 +9,7 @@ import {
   getBlurParams,
 } from '../types';
 import { normalizeError } from '../utils';
+import { getActionType } from '../proto';
 import { captureElementContext, type ElementContext } from '../telemetry';
 import {
   getBehaviorFromContext,
@@ -70,14 +71,15 @@ export class InteractionHandler extends BaseHandler {
 
   async execute(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     try {
-      switch (instruction.type.toLowerCase()) {
+		const actionType = getActionType(instruction);
+		switch (actionType.toLowerCase()) {
         case 'click': return await this.handleClick(instruction, context);
         case 'hover': return await this.handleHover(instruction, context);
         case 'type': return await this.handleType(instruction, context);
         case 'focus': return await this.handleFocus(instruction, context);
         case 'blur': return await this.handleBlur(instruction, context);
         default:
-          return { success: false, error: { message: `Unsupported interaction type: ${instruction.type}`, code: 'UNSUPPORTED_TYPE', kind: 'orchestration', retryable: false } };
+			return { success: false, error: { message: `Unsupported interaction type: ${actionType}`, code: 'UNSUPPORTED_TYPE', kind: 'orchestration', retryable: false } };
       }
     } catch (error) {
       return this.handleError(error, instruction, context.logger);
@@ -87,8 +89,7 @@ export class InteractionHandler extends BaseHandler {
   private handleError(error: unknown, instruction: HandlerInstruction, logger: winston.Logger): HandlerResult {
     const driverError = normalizeError(error);
     logger.warn('instruction: interaction failed', {
-      type: instruction.type,
-      selector: instruction.params.selector,
+		type: getActionType(instruction),
       errorCode: driverError.code,
       errorMessage: driverError.message,
       retryable: driverError.retryable,

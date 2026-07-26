@@ -68,20 +68,16 @@ function stringToTabSwitchAction(action: string | undefined): TabSwitchAction {
 
 /**
  * Factory for creating test HandlerInstruction objects with proper defaults.
- * HandlerInstruction is the handler-friendly wrapper that uses plain object params.
- *
- * MIGRATION NOTE: Tests should prefer using createTypedInstruction() which sets
- * the typed `action` field. The `params` field is only for backward compatibility.
+ * HandlerInstruction is the handler-friendly wrapper around a typed action.
  */
 export function createTestInstruction(
   overrides: Partial<HandlerInstruction> = {}
 ): HandlerInstruction {
-  return {
-    index: 0,
-    nodeId: 'test-node',
-    type: 'test',
-    params: {},
-    ...overrides,
+	return {
+		index: 0,
+		nodeId: 'test-node',
+		action: buildAction('click', {}),
+		...overrides,
   };
 }
 
@@ -100,15 +96,13 @@ export function createTestInstruction(
 export function createTypedInstruction(
   actionType: string,
   params: Record<string, unknown>,
-  overrides: Partial<Omit<HandlerInstruction, 'action' | 'type'>> = {}
+	overrides: Partial<Omit<HandlerInstruction, 'action'>> = {}
 ): HandlerInstruction {
   const action = buildAction(actionType, params);
   return {
     index: 0,
     nodeId: 'test-node',
-    type: actionType, // Keep for backward compat
-    params: params,   // Keep for backward compat
-    action,
+		action,
     ...overrides,
   };
 }

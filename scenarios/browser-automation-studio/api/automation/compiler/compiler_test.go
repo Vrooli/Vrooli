@@ -1,18 +1,25 @@
 package compiler
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
+
+func assertCompiledStepType(t testing.TB, step ExecutionStep, want StepType) {
+	t.Helper()
+	assert.Equal(t, enums.StringToActionType(string(want)), step.Action.GetType())
+}
 
 // Helper to create a test workflow with proto types
 func makeTestWorkflow(id uuid.UUID, name string, nodes []*basworkflows.WorkflowNodeV2, edges []*basworkflows.WorkflowEdgeV2) *basapi.WorkflowSummary {
@@ -87,9 +94,7 @@ func TestCompileWorkflowSequential(t *testing.T) {
 		t.Fatalf("unexpected step order: %+v", plan.Steps)
 	}
 
-	if plan.Steps[0].Type != StepNavigate {
-		t.Fatalf("expected first step to be navigate, got %s", plan.Steps[0].Type)
-	}
+	assertCompiledStepType(t, plan.Steps[0], StepNavigate)
 
 	if got := plan.Steps[0].OutgoingEdges; len(got) != 1 || got[0].TargetNode != "node-2" {
 		t.Fatalf("unexpected outgoing edges: %+v", got)
@@ -118,7 +123,7 @@ func TestCompileWorkflowWithScenarioRootResolvesGeneratedScenarioPort(t *testing
 	if err != nil {
 		t.Fatalf("CompileWorkflowWithOptions: %v", err)
 	}
-	if got, want := plan.Steps[0].Params["url"], "http://localhost:6123/notes"; got != want {
+	if got, want := plan.Steps[0].Action.GetNavigate().GetUrl(), "http://localhost:6123/notes"; got != want {
 		t.Fatalf("resolved URL = %#v, want %q", got, want)
 	}
 }
@@ -216,17 +221,17 @@ func TestCompileWorkflowLoopExtractsBody(t *testing.T) {
 
 	loopStep := plan.Steps[0]
 	assert.Equal(t, "loop-1", loopStep.NodeID)
-	assert.Equal(t, StepLoop, loopStep.Type)
+	assertCompiledStepType(t, loopStep, StepLoop)
 
 	// Verify loop body was extracted
 	require.NotNil(t, loopStep.LoopPlan, "loop step should have a body plan")
 	require.Len(t, loopStep.LoopPlan.Steps, 1, "loop body should have 1 step")
 	assert.Equal(t, "body-click", loopStep.LoopPlan.Steps[0].NodeID)
-	assert.Equal(t, StepClick, loopStep.LoopPlan.Steps[0].Type)
+	assertCompiledStepType(t, loopStep.LoopPlan.Steps[0], StepClick)
 
 	// Verify loop params were extracted
-	assert.Equal(t, "${items}", loopStep.Params["array_source"])
-	assert.Equal(t, "item", loopStep.Params["item_variable"])
+	assert.Equal(t, "${items}", loopStep.Action.GetLoop().GetArraySource())
+	assert.Equal(t, "item", loopStep.Action.GetLoop().GetItemVariable())
 }
 
 func TestCompileWorkflowEntryMetadata(t *testing.T) {
@@ -465,7 +470,7 @@ func TestCompileWorkflow_AllSupportedActionTypes(t *testing.T) {
 			plan, err := CompileWorkflow(workflow)
 			require.NoError(t, err, "action type %s should be supported", tc.name)
 			require.Len(t, plan.Steps, 1)
-			assert.Equal(t, tc.expected, plan.Steps[0].Type)
+			assertCompiledStepType(t, plan.Steps[0], tc.expected)
 		})
 	}
 }
@@ -510,7 +515,7 @@ func TestCompileWorkflow_EmptyStepTypeError(t *testing.T) {
 
 	_, err := CompileWorkflow(workflow)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "missing action.type")
+	require.Contains(t, err.Error(), "unspecified action type")
 }
 
 func TestCompileWorkflow_MissingActionRejected(t *testing.T) {
@@ -1042,7 +1047,7 @@ func TestCompileWorkflow_LoopWithMultipleBodySteps(t *testing.T) {
 
 	loopStep := plan.Steps[0]
 	assert.Equal(t, "loop-main", loopStep.NodeID)
-	assert.Equal(t, StepLoop, loopStep.Type)
+	assertCompiledStepType(t, loopStep, StepLoop)
 
 	// Loop body should have all 3 steps in correct order
 	require.NotNil(t, loopStep.LoopPlan, "loop step should have a body plan")
@@ -1050,18 +1055,18 @@ func TestCompileWorkflow_LoopWithMultipleBodySteps(t *testing.T) {
 
 	// Verify step order (topological sort should maintain edge order)
 	assert.Equal(t, "body-step-1", loopStep.LoopPlan.Steps[0].NodeID)
-	assert.Equal(t, StepClick, loopStep.LoopPlan.Steps[0].Type)
+	assertCompiledStepType(t, loopStep.LoopPlan.Steps[0], StepClick)
 
 	assert.Equal(t, "body-step-2", loopStep.LoopPlan.Steps[1].NodeID)
-	assert.Equal(t, StepWait, loopStep.LoopPlan.Steps[1].Type)
+	assertCompiledStepType(t, loopStep.LoopPlan.Steps[1], StepWait)
 
 	assert.Equal(t, "body-step-3", loopStep.LoopPlan.Steps[2].NodeID)
-	assert.Equal(t, StepScreenshot, loopStep.LoopPlan.Steps[2].Type)
+	assertCompiledStepType(t, loopStep.LoopPlan.Steps[2], StepScreenshot)
 
 	// Verify loop params
-	assert.Equal(t, "${users}", loopStep.Params["array_source"])
-	assert.Equal(t, "user", loopStep.Params["item_variable"])
-	assert.Equal(t, "idx", loopStep.Params["index_variable"])
+	assert.Equal(t, "${users}", loopStep.Action.GetLoop().GetArraySource())
+	assert.Equal(t, "user", loopStep.Action.GetLoop().GetItemVariable())
+	assert.Equal(t, "idx", loopStep.Action.GetLoop().GetIndexVariable())
 }
 
 // =============================================================================
@@ -1094,10 +1099,10 @@ func TestCompileWorkflow_ParamsPreserved(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, plan.Steps, 1)
 
-	params := plan.Steps[0].Params
-	assert.Equal(t, "#input", params["selector"])
-	assert.Equal(t, "hello world", params["value"])
-	assert.Equal(t, true, params["submit"])
+	input := plan.Steps[0].Action.GetInput()
+	assert.Equal(t, "#input", input.GetSelector())
+	assert.Equal(t, "hello world", input.GetValue())
+	assert.Equal(t, true, input.GetSubmit())
 }
 
 func TestCompileWorkflow_WorkflowIDPreserved(t *testing.T) {
@@ -1119,7 +1124,7 @@ func TestCompileWorkflow_WorkflowIDPreserved(t *testing.T) {
 
 // The compiler marshals flow definitions with UseProtoNames (snake_case) while
 // the param builders consume protojson-default camelCase. These tests pin the
-// full seam: typed proto node → compiled params map → rebuilt ActionDefinition.
+// compilation seam: typed proto node → compiled typed ActionDefinition.
 // Regression: wait durations were silently dropped and the driver fell back to
 // its 1000ms default (scenario-qa knw-1784773788743993536).
 func TestCompileWorkflow_WaitDurationSurvivesProtoNamesMarshal(t *testing.T) {
@@ -1156,13 +1161,11 @@ func TestCompileWorkflow_WaitDurationSurvivesProtoNamesMarshal(t *testing.T) {
 	require.Len(t, plan.Steps, 2)
 
 	waitStep := plan.Steps[1]
-	require.Equal(t, StepWait, waitStep.Type)
+	assertCompiledStepType(t, waitStep, StepWait)
 
-	action, err := BuildActionDefinition(string(waitStep.Type), waitStep.Params)
-	require.NoError(t, err)
-	waitParams := action.GetWait()
+	waitParams := waitStep.Action.GetWait()
 	require.NotNil(t, waitParams)
-	assert.Equal(t, int32(15000), waitParams.GetDurationMs(), "wait duration must survive the snake_case marshal/rebuild roundtrip")
+	assert.Equal(t, int32(15000), waitParams.GetDurationMs(), "wait duration must survive the snake_case marshal/compile roundtrip")
 	assert.Equal(t, int32(20000), waitParams.GetTimeoutMs())
 }
 
@@ -1206,16 +1209,40 @@ func TestCompileWorkflow_MultiWordParamsSurviveProtoNamesMarshal(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, plan.Steps, 2)
 
-	clickAction, err := BuildActionDefinition(string(plan.Steps[0].Type), plan.Steps[0].Params)
-	require.NoError(t, err)
-	clickParams := clickAction.GetClick()
+	clickParams := plan.Steps[0].Action.GetClick()
 	require.NotNil(t, clickParams)
 	assert.Equal(t, int32(2), clickParams.GetClickCount())
 	assert.Equal(t, int32(250), clickParams.GetDelayMs())
 
-	inputAction, err := BuildActionDefinition(string(plan.Steps[1].Type), plan.Steps[1].Params)
-	require.NoError(t, err)
-	inputParams := inputAction.GetInput()
+	inputParams := plan.Steps[1].Action.GetInput()
 	require.NotNil(t, inputParams)
 	assert.True(t, inputParams.GetClearFirst())
+}
+
+func TestCompileWorkflowToContractsUsesCompiledTypedActions(t *testing.T) {
+	executionID := uuid.New()
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"typed-contract-flow",
+		[]*basworkflows.WorkflowNodeV2{{
+			Id: "wait",
+			Action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_WAIT,
+				Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{
+					WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 4321},
+				}},
+			},
+		}},
+		nil,
+	)
+
+	plan, instructions, err := CompileWorkflowToContracts(context.Background(), executionID, workflow)
+	require.NoError(t, err)
+	require.Len(t, instructions, 1)
+	require.NotNil(t, instructions[0].Action)
+	assert.Equal(t, int32(4321), instructions[0].Action.GetWait().GetDurationMs())
+	require.NotNil(t, plan.Graph)
+	require.Len(t, plan.Graph.Steps, 1)
+	require.NotNil(t, plan.Graph.Steps[0].Action)
+	assert.Equal(t, int32(4321), plan.Graph.Steps[0].Action.GetWait().GetDurationMs())
 }

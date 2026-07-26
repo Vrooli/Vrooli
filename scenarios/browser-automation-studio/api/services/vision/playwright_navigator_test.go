@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	ws "github.com/vrooli/browser-automation-studio/websocket"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // mockHTTPDoer implements HTTPDoer for testing.
@@ -78,7 +79,7 @@ type mockWSHub struct {
 }
 
 func (m *mockWSHub) ServeWS(_ *websocket.Conn, _ *uuid.UUID) {}
-func (m *mockWSHub) BroadcastRecordingEntry(_ string, _ *ws.UnifiedTimelineEntry) ws.BroadcastResult {
+func (m *mockWSHub) BroadcastTimelineEntry(_ string, _ *bastimeline.TimelineEntry) ws.BroadcastResult {
 	return ws.BroadcastResult{}
 }
 func (m *mockWSHub) BroadcastRecordingFrame(_ string, _ *ws.RecordingFrame) {}

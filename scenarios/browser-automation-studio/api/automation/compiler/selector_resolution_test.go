@@ -68,7 +68,7 @@ func TestCompileResolvesSelectorReferenceFromManifestRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileWorkflowWithOptions() error = %v", err)
 	}
-	if got, want := plan.Steps[1].Params["selector"], "[data-testid=\"dictation-record-start\"]"; got != want {
+	if got, want := plan.Steps[1].Action.GetClick().GetSelector(), "[data-testid=\"dictation-record-start\"]"; got != want {
 		t.Fatalf("resolved selector = %#v, want %q", got, want)
 	}
 }
@@ -91,7 +91,7 @@ func TestCompileResolvesSelectorReferenceFromBasSubdirRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileWorkflowWithOptions() error = %v", err)
 	}
-	if got, want := plan.Steps[1].Params["selector"], "[data-testid=\"dictation-record-start\"]"; got != want {
+	if got, want := plan.Steps[1].Action.GetClick().GetSelector(), "[data-testid=\"dictation-record-start\"]"; got != want {
 		t.Fatalf("resolved selector = %#v, want %q", got, want)
 	}
 }
@@ -124,7 +124,7 @@ func TestCompileResolvesZeroArgumentDynamicSelectorReference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileWorkflowWithOptions() error = %v", err)
 	}
-	if got, want := plan.Steps[1].Params["selector"], "[role=dialog]"; got != want {
+	if got, want := plan.Steps[1].Action.GetClick().GetSelector(), "[role=dialog]"; got != want {
 		t.Fatalf("resolved selector = %#v, want %q", got, want)
 	}
 }

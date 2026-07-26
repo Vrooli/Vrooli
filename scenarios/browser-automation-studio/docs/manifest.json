@@ -254,6 +254,12 @@
           "internal": true
         },
         {
+          "path": "INVARIANTS.md",
+          "title": "Invariants",
+          "description": "Cross-surface contracts and their enforcement evidence",
+          "internal": true
+        },
+        {
           "path": "PROBLEMS.md",
           "title": "Known Issues",
           "description": "Known issues and technical debt",

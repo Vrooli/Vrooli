@@ -63,6 +63,7 @@ import {
   type ExecutionContext,
 } from '../execution';
 import { logger, scopedLog, LogContext } from '../utils';
+import { getActionType } from '../proto';
 import { MAX_EXECUTED_INSTRUCTIONS_PER_SESSION } from '../constants';
 import winston from 'winston';
 
@@ -236,7 +237,7 @@ export async function handleSessionRun(
     if (previousExecution?.cachedOutcome) {
       logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached replay result'), {
         sessionId,
-        type: instruction.type,
+		type: getActionType(instruction),
         stepIndex: instruction.index,
         nodeId: instruction.nodeId,
       });
@@ -256,7 +257,7 @@ export async function handleSessionRun(
     if (previousExecution) {
       logger.info(scopedLog(LogContext.INSTRUCTION, 'replay detected (no cached outcome)'), {
         sessionId,
-        type: instruction.type,
+		type: getActionType(instruction),
         stepIndex: instruction.index,
       });
     }

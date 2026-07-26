@@ -40,6 +40,7 @@ import type { Metrics } from '../utils/metrics';
 import {
   CompiledInstructionSchema,
   toHandlerInstruction,
+  getActionType,
   parseProtoLenient,
   type HandlerInstruction,
   type StepOutcome,
@@ -130,12 +131,10 @@ function validateInstructionStructure(rawInstruction: unknown): string | null {
   // Accept both node_id (wire format) and nodeId (proto format)
   const nodeId = inst.node_id ?? inst.nodeId;
   if (!nodeId || typeof nodeId !== 'string') return 'Missing or invalid instruction.node_id: must be a non-empty string';
-  const hasLegacyType = typeof inst.type === 'string' && inst.type.length > 0;
   const action = inst.action as Record<string, unknown> | undefined;
   const actionType = action?.type;
   const hasTypedAction = typeof actionType === 'string' || typeof actionType === 'number';
-  if (!hasLegacyType && !hasTypedAction) return 'Missing or invalid instruction.type: must be a non-empty string';
-  if (hasLegacyType && (!inst.params || typeof inst.params !== 'object')) return 'Missing or invalid instruction.params: must be an object';
+  if (!hasTypedAction) return 'Missing or invalid instruction.action.type';
   return null;
 }
 
@@ -199,18 +198,16 @@ export async function executeInstruction(
   const instr = resolveInstrumentation(instrumentation);
   const instrCtx: InstructionInstrumentationContext = {
     sessionId: context.sessionId,
-    type: instruction.type,
+    type: getActionType(instruction),
     index: instruction.index,
     nodeId: instruction.nodeId,
   };
 
   logger.info(scopedLog(LogContext.INSTRUCTION, 'executing'), {
     sessionId: context.sessionId,
-    type: instruction.type,
+    type: getActionType(instruction),
     stepIndex: instruction.index,
     nodeId: instruction.nodeId,
-    selector: instruction.params.selector,
-    url: instruction.params.url,
   });
 
   // Get handler for this instruction type
@@ -249,7 +246,7 @@ export async function executeInstruction(
   });
 
   // Record metrics
-  recordMetrics(context.metrics, instruction.type, handlerResult, instructionDuration);
+  recordMetrics(context.metrics, getActionType(instruction), handlerResult, instructionDuration);
 
   // Collect telemetry
   const telemetry = await telemetryOrchestrator.collectForStep(handlerResult);
@@ -271,7 +268,7 @@ export async function executeInstruction(
 
   logger.info(scopedLog(LogContext.INSTRUCTION, handlerResult.success ? 'completed' : 'failed'), {
     sessionId: context.sessionId,
-    type: instruction.type,
+    type: getActionType(instruction),
     stepIndex: instruction.index,
     success: handlerResult.success,
     durationMs: outcome.durationMs,

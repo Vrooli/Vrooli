@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/storage"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
@@ -31,6 +32,7 @@ type stubExecutor struct {
 	resumeFn        func(ctx context.Context, id uuid.UUID, params map[string]any) (*database.ExecutionIndex, error)
 	timelineFn      func(ctx context.Context, id uuid.UUID) (*workflowservice.ExecutionTimeline, error)
 	timelineProtoFn func(ctx context.Context, id uuid.UUID) (*bastimeline.ExecutionTimeline, error)
+	replayFn        func(ctx context.Context, id uuid.UUID) (*basevidence.ReplayPackage, error)
 	screenshotsFn   func(ctx context.Context, id uuid.UUID) ([]*basexecution.ExecutionScreenshot, error)
 	videosFn        func(ctx context.Context, id uuid.UUID) ([]workflowservice.ExecutionVideoArtifact, error)
 	tracesFn        func(ctx context.Context, id uuid.UUID) ([]workflowservice.ExecutionFileArtifact, error)
@@ -63,6 +65,13 @@ func (s *stubExecutor) GetExecutionTimeline(ctx context.Context, id uuid.UUID) (
 
 func (s *stubExecutor) GetExecutionTimelineProto(ctx context.Context, id uuid.UUID) (*bastimeline.ExecutionTimeline, error) {
 	return s.timelineProtoFn(ctx, id)
+}
+
+func (s *stubExecutor) GetExecutionReplayPackage(ctx context.Context, id uuid.UUID) (*basevidence.ReplayPackage, error) {
+	if s.replayFn == nil {
+		return nil, errors.New("replay package not configured")
+	}
+	return s.replayFn(ctx, id)
 }
 
 func (s *stubExecutor) GetExecutionScreenshots(ctx context.Context, id uuid.UUID) ([]*basexecution.ExecutionScreenshot, error) {
@@ -370,6 +379,25 @@ func TestGetExecutionRecordedVideos_Success(t *testing.T) {
 	}
 	if resp.Msg.GetVideos()[0].GetSizeBytes() != 42 {
 		t.Fatalf("size mismatch")
+	}
+}
+
+func TestGetExecutionReplayPackage_Success(t *testing.T) {
+	id := uuid.New()
+	exec := &stubExecutor{replayFn: func(_ context.Context, got uuid.UUID) (*basevidence.ReplayPackage, error) {
+		if got != id {
+			t.Fatalf("execution ID = %s", got)
+		}
+		return &basevidence.ReplayPackage{Id: uuid.NewString(), SchemaVersion: "bas-replay/v1", ExecutionId: id.String()}, nil
+	}}
+	client, stop := newTestService(t, exec, nil)
+	defer stop()
+	resp, err := client.GetExecutionReplayPackage(context.Background(), connect.NewRequest(&basapi.GetExecutionArtifactsRequest{ExecutionId: id.String()}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Msg.GetExecutionId() != id.String() || resp.Msg.GetSchemaVersion() != "bas-replay/v1" {
+		t.Fatalf("unexpected replay package: %#v", resp.Msg)
 	}
 }
 

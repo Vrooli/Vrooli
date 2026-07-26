@@ -92,9 +92,8 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, capturedInstructions)
 
-		// Verify URL was normalized (use helper to extract from Action or Params)
-		navigateParams := autoexecutor.InstructionParams(capturedInstructions[0])
-		assert.Equal(t, "https://example.com", navigateParams["url"])
+		// Verify URL was normalized through the typed action contract.
+		assert.Equal(t, "https://example.com", capturedInstructions[0].Action.GetNavigate().GetUrl())
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] preserves http:// URLs", func(t *testing.T) {
@@ -119,8 +118,7 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, capturedInstructions)
 
-		navigateParams := autoexecutor.InstructionParams(capturedInstructions[0])
-		assert.Equal(t, "http://example.com", navigateParams["url"])
+		assert.Equal(t, "http://example.com", capturedInstructions[0].Action.GetNavigate().GetUrl())
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] preserves https:// URLs", func(t *testing.T) {
@@ -145,8 +143,7 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, capturedInstructions)
 
-		navigateParams := autoexecutor.InstructionParams(capturedInstructions[0])
-		assert.Equal(t, "https://example.com", navigateParams["url"])
+		assert.Equal(t, "https://example.com", capturedInstructions[0].Action.GetNavigate().GetUrl())
 	})
 }
 

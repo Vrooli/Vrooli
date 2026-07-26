@@ -351,6 +351,67 @@ type WorkflowResolver interface {
 
 ---
 
+### 10.5 Workflow ingress and execution manifest seams (Strong)
+
+**Locations:** `api/services/workflow/v2_flow_builder.go`,
+`api/services/workflow/converter.go`, and
+`api/automation/execution-writer/result_manifest.go`
+
+**Contracts:**
+
+- `BuildFlowDefinitionV2ForWrite` is the only map-to-workflow path for newly
+  authored project, recording, and AI writes. It accepts strict V2 protojson
+  only and validates every node and edge before persistence.
+- `ConvertExternalWorkflow` is the explicitly named migration boundary. It is
+  the only workflow service path that may use the legacy V1-to-V2 adapter when
+  ingesting a supported external workflow.
+- `buildResultManifestPayload` owns the durable `result.json` projection. The
+  `FileWriter` retains synchronization and filesystem placement, while the
+  manifest contract remains a pure, independently tested concern.
+
+### Execution writer ownership modules
+
+`api/automation/execution-writer/` now separates the durable execution record
+without changing its public `ExecutionWriter` interface:
+
+- `artifact_config.go`: writer-wide and per-execution collection profiles.
+- `result_manifest.go`: pure `result.json` projection.
+- `timeline.go`: timeline creation and durable protobuf-JSON projection.
+- `telemetry.go`: optional telemetry collection and timeline-log projection.
+- `external_artifacts.go`: video/trace/HAR/custom file policy and storage.
+
+`FileWriter` remains the composition root for synchronization, step outcomes,
+checkpointing, and storage wiring. Domain modules do not import test helpers.
+
+### Recording handler ownership modules
+
+`api/handlers/record_mode_*.go` separates public routes by recording concern:
+
+- `lifecycle`: live recording start/stop/status;
+- `navigation`: navigation commands and read-side state/history;
+- `frames`: HTTP frames and deterministic driver packet decoding;
+- `actions`: action ingest, page attribution, timeline persistence, and typed
+  WebSocket projection;
+- `persistence`: session-profile resolution and durable browser state;
+- `validation`: selector validation and replay preview.
+
+The remaining `record_mode.go` is the composition surface for browser-session
+creation/closure, debug proxying, generated-workflow ingress, and a small set
+of transport endpoints that have not yet formed an independent domain.
+
+**Enforcement:**
+
+- `v2_flow_builder_test.go` proves a V1 `type`/`data` node is rejected for a
+  normal write and a typed V2 action is accepted.
+- `result_manifest_test.go` protects the stable fallback manifest when a
+  timeline has not yet been produced.
+- `cli/import_boundary_test.go`, `ui/vitest/boundaries/test-utils-imports.test.ts`,
+  `playwright-driver/tests/unit/boundaries/no-prod-testutil-imports.test.ts`,
+  and `api/internal/testutil/no_prod_import_test.go` prevent each delivery
+  surface from depending on server implementation or test-only code.
+
+---
+
 ### 11. HTTP Client Seam in PlaywrightEngine (Good)
 
 **Location:** `api/automation/engine/playwright_engine.go`
@@ -1838,3 +1899,22 @@ Capture is the **first proto-first Connect-RPC handler in BAS**. The rest of the
 **Tests:** Seven cases in `service_test.go` cover happy path, multi-capture, dimensions preset, dimensions explicit override, scenario shorthand resolution, dry-run short-circuit, and validation errors (empty URL, half-set width/height, UNSPECIFIED capture type, malformed shorthand, shorthand without resolver).
 
 **Status:** Strong (proto-first contract, deps interface, mock-friendly).
+
+---
+
+## Evidence and Replay Package Seam
+
+**Location:** `api/services/evidence`
+
+Evidence owns the storage-independent contract for browser-captured material:
+
+- `DefaultPolicy` defines classification, retention, access, size, and redaction defaults.
+- `DescribeFile` computes SHA-256 and portable metadata without serializing a capture path.
+- `SanitizeHAR` removes secret-bearing headers, query parameters, and request/response bodies before a derivative can leave protected storage.
+- `BuildReplayPackage` creates the versioned `bas-evidence/v1` / `bas-replay/v1` renderer handoff from identifiers, manifests, timeline entries, and presentation metadata only.
+
+**Disclosure boundary:** raw HAR remains `PROTECTED_STORAGE_ONLY`; neither execution artifact listings nor `/api/v1/recordings/assets/...` expose a URL or bytes for it. Recorded-HAR API and CLI commands return safe metadata (integrity, classification, retention, and access policy). Video and trace artifacts remain individually authorized through their asset URLs.
+
+**Tests:** `services/evidence/*_test.go`, `automation/execution-writer/external_artifacts_test.go`, `services/workflow/execution_results_test.go`, and `handlers/recordings_test.go` cover policy assignment, secret redaction, path non-disclosure, storage-independent replay construction, and raw-HAR route rejection.
+
+**Status:** Strong.

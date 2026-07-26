@@ -1,7 +1,6 @@
 package executionwriter
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -27,7 +26,6 @@ import (
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -95,16 +93,21 @@ type StepResultData struct {
 
 // ArtifactData captures execution artifacts (screenshots, DOM snapshots, etc).
 type ArtifactData struct {
-	ArtifactID   string         `json:"artifact_id"`
-	StepID       string         `json:"step_id,omitempty"`
-	StepIndex    *int           `json:"step_index,omitempty"`
-	ArtifactType string         `json:"artifact_type"`
-	Label        string         `json:"label,omitempty"`
-	StorageURL   string         `json:"storage_url,omitempty"`
-	ThumbnailURL string         `json:"thumbnail_url,omitempty"`
-	ContentType  string         `json:"content_type,omitempty"`
-	SizeBytes    *int64         `json:"size_bytes,omitempty"`
-	Payload      map[string]any `json:"payload,omitempty"`
+	ArtifactID     string         `json:"artifact_id"`
+	StepID         string         `json:"step_id,omitempty"`
+	StepIndex      *int           `json:"step_index,omitempty"`
+	ArtifactType   string         `json:"artifact_type"`
+	Label          string         `json:"label,omitempty"`
+	StorageURL     string         `json:"storage_url,omitempty"`
+	ThumbnailURL   string         `json:"thumbnail_url,omitempty"`
+	ContentType    string         `json:"content_type,omitempty"`
+	SizeBytes      *int64         `json:"size_bytes,omitempty"`
+	SHA256         string         `json:"sha256,omitempty"`
+	Classification string         `json:"classification,omitempty"`
+	RetentionClass string         `json:"retention_class,omitempty"`
+	AccessPolicy   string         `json:"access_policy,omitempty"`
+	Redacted       bool           `json:"redacted,omitempty"`
+	Payload        map[string]any `json:"payload,omitempty"`
 }
 
 // TelemetryData captures step telemetry for debugging.
@@ -154,72 +157,6 @@ func NewFileWriter(repo ExecutionIndexRepository, storage storage.StorageInterfa
 	}
 }
 
-// SetArtifactConfig updates the artifact collection settings for this writer.
-// Call this before starting execution to configure what artifacts are collected.
-// Pass nil to reset to default "full" profile.
-func (r *FileWriter) SetArtifactConfig(cfg *config.ArtifactCollectionSettings) {
-	if r == nil {
-		return
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if cfg == nil {
-		r.artifactConfig = config.DefaultArtifactSettings()
-	} else {
-		r.artifactConfig = *cfg
-	}
-}
-
-// GetArtifactConfig returns the current artifact collection settings.
-func (r *FileWriter) GetArtifactConfig() config.ArtifactCollectionSettings {
-	if r == nil {
-		return config.DefaultArtifactSettings()
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.artifactConfig
-}
-
-// SetArtifactConfigForExecution scopes artifact collection settings to a single
-// execution. Because the recorder is shared across concurrent executions, this
-// per-execution override is what prevents one execution's profile from leaking
-// into another. Pass nil to clear the override and fall back to the writer-wide
-// config for that execution.
-func (r *FileWriter) SetArtifactConfigForExecution(executionID uuid.UUID, cfg *config.ArtifactCollectionSettings) {
-	if r == nil {
-		return
-	}
-	if cfg == nil {
-		r.perExecConfig.Delete(executionID.String())
-		return
-	}
-	r.perExecConfig.Store(executionID.String(), *cfg)
-}
-
-// ForgetExecution drops per-execution artifact settings once an execution has
-// finished, keeping the per-execution config map from growing unbounded.
-func (r *FileWriter) ForgetExecution(executionID uuid.UUID) {
-	if r == nil {
-		return
-	}
-	r.perExecConfig.Delete(executionID.String())
-}
-
-// artifactConfigForExecution resolves the artifact settings that apply to a
-// specific execution, preferring per-execution settings and falling back to the
-// writer-wide default.
-func (r *FileWriter) artifactConfigForExecution(executionID uuid.UUID) config.ArtifactCollectionSettings {
-	if r == nil {
-		return config.DefaultArtifactSettings()
-	}
-	if v, ok := r.perExecConfig.Load(executionID.String()); ok {
-		if cfg, ok := v.(config.ArtifactCollectionSettings); ok {
-			return cfg
-		}
-	}
-	return r.GetArtifactConfig()
-}
-
 const (
 	resultFileName        = "result.json"
 	protoTimelineFileName = "timeline.proto.json"
@@ -248,30 +185,9 @@ func (r *FileWriter) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionR
 	return result
 }
 
-func (r *FileWriter) getOrCreateTimeline(plan contracts.ExecutionPlan) *executionTimelineData {
-	key := plan.ExecutionID.String()
-	if val, ok := r.timelines.Load(key); ok {
-		return val.(*executionTimelineData)
-	}
-
-	pb := &bastimeline.ExecutionTimeline{
-		ExecutionId: plan.ExecutionID.String(),
-		WorkflowId:  plan.WorkflowID.String(),
-		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_PENDING,
-		Progress:    0,
-	}
-	entry := &executionTimelineData{pb: pb}
-	r.timelines.Store(key, entry)
-	return entry
-}
-
 // resultFilePath returns the path where execution results should be stored.
 func (r *FileWriter) resultFilePath(executionID uuid.UUID) string {
 	return filepath.Join(r.dataDir, executionID.String(), resultFileName)
-}
-
-func (r *FileWriter) protoTimelineFilePath(executionID uuid.UUID) string {
-	return filepath.Join(r.dataDir, executionID.String(), protoTimelineFileName)
 }
 
 func (r *FileWriter) readmeFilePath(executionID uuid.UUID) string {
@@ -310,6 +226,9 @@ func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionRes
 	if err := os.WriteFile(filePath, data, 0o644); err != nil {
 		return fmt.Errorf("write result file: %w", err)
 	}
+	if err := r.writeEvidenceManifest(executionID, result, timeline); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -328,6 +247,7 @@ This folder contains artifacts captured during a single workflow execution.
 - execution.proto.json: execution metadata snapshot (status, timestamps, workflow ID).
 - result.json: normalized execution timeline (proto-aligned JSON).
 - timeline.proto.json: raw timeline protobuf JSON.
+- evidence.proto.json: versioned, storage-independent replay package and evidence manifest.
 
 ## artifacts/
 - artifacts/screenshots: per-step replay screenshots (ordered by step number).
@@ -346,90 +266,7 @@ If an artifact type is missing, it was not requested or the engine failed to pro
 }
 
 func (r *FileWriter) buildResultPayload(executionID uuid.UUID, result *ExecutionResultData, timeline *executionTimelineData) (map[string]any, error) {
-	payload := map[string]any{}
-
-	if timeline != nil && timeline.pb != nil {
-		raw, err := protojson.MarshalOptions{
-			UseProtoNames:   true,
-			EmitUnpopulated: false,
-		}.Marshal(timeline.pb)
-		if err != nil {
-			return nil, fmt.Errorf("marshal timeline payload: %w", err)
-		}
-		if err := json.Unmarshal(raw, &payload); err != nil {
-			return nil, fmt.Errorf("parse timeline payload: %w", err)
-		}
-	}
-
-	if len(payload) == 0 {
-		payload["execution_id"] = executionID.String()
-		if result != nil && strings.TrimSpace(result.WorkflowID) != "" {
-			payload["workflow_id"] = result.WorkflowID
-		}
-		return payload, nil
-	}
-
-	if result != nil && result.Summary.TotalSteps > 0 {
-		status := "EXECUTION_STATUS_RUNNING"
-		if result.Summary.FailedSteps > 0 {
-			status = "EXECUTION_STATUS_FAILED"
-		} else if result.Summary.CompletedSteps >= result.Summary.TotalSteps {
-			status = "EXECUTION_STATUS_COMPLETED"
-		}
-		payload["status"] = status
-	}
-
-	entriesRaw, ok := payload["entries"].([]any)
-	if !ok || len(entriesRaw) == 0 {
-		return payload, nil
-	}
-
-	for _, entryRaw := range entriesRaw {
-		entry, ok := entryRaw.(map[string]any)
-		if !ok {
-			continue
-		}
-		if aggregates, ok := entry["aggregates"].(map[string]any); ok {
-			delete(aggregates, "artifacts")
-		}
-	}
-
-	return payload, nil
-}
-
-func (r *FileWriter) writeProtoTimelineFile(executionID uuid.UUID, timeline *executionTimelineData) error {
-	if timeline == nil || timeline.pb == nil {
-		return nil
-	}
-
-	timeline.mu.Lock()
-	defer timeline.mu.Unlock()
-
-	filePath := r.protoTimelineFilePath(executionID)
-	dir := filepath.Dir(filePath)
-
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("create proto timeline directory: %w", err)
-	}
-
-	raw, err := protojson.MarshalOptions{
-		UseProtoNames:   true,
-		EmitUnpopulated: false,
-	}.Marshal(timeline.pb)
-	if err != nil {
-		return fmt.Errorf("marshal proto timeline: %w", err)
-	}
-
-	indented := raw
-	var buf bytes.Buffer
-	if err := json.Indent(&buf, raw, "", "  "); err == nil {
-		indented = buf.Bytes()
-	}
-
-	if err := os.WriteFile(filePath, indented, 0o644); err != nil {
-		return fmt.Errorf("write proto timeline file: %w", err)
-	}
-	return nil
+	return buildResultManifestPayload(executionID, result, timeline)
 }
 
 // RecordStepOutcome stores the execution step and key artifacts to files.
@@ -683,12 +520,9 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 					"hash":       outcome.Screenshot.Hash,
 				},
 			}
-			if screenshotInfo.Path != "" {
-				artifact.Payload["path"] = screenshotInfo.Path
-			}
-			if screenshotInfo.ObjectName != "" {
-				artifact.Payload["storage_object"] = screenshotInfo.ObjectName
-			}
+			// File and object-store locations are storage implementation details.
+			// Replay consumers resolve the artifact ID through the authorized
+			// storage seam instead of receiving either location in result data.
 			result.mu.Lock()
 			result.Artifacts = append(result.Artifacts, artifact)
 			result.mu.Unlock()
@@ -777,112 +611,6 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		ArtifactIDs:        artifactIDs,
 		TimelineArtifactID: &timelineID,
 	}, nil
-}
-
-// RecordExecutionArtifacts persists execution-level artifacts (video/trace/HAR) into result.json.
-func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contracts.ExecutionPlan, artifacts []ExternalArtifact) error {
-	if r == nil || len(artifacts) == 0 {
-		return nil
-	}
-
-	result := r.getOrCreateResult(plan)
-	timeline := r.getOrCreateTimeline(plan)
-
-	const maxEmbeddedExternalBytes = 5 * 1024 * 1024
-
-	for _, item := range artifacts {
-		path := strings.TrimSpace(item.Path)
-		if path == "" {
-			continue
-		}
-
-		info, err := os.Stat(path)
-		if err != nil {
-			if r.log != nil {
-				r.log.WithError(err).WithField("path", path).Debug("external artifact not readable")
-			}
-			continue
-		}
-
-		artifactType := strings.TrimSpace(item.ArtifactType)
-		if artifactType == "" {
-			artifactType = "custom"
-		}
-		isVideo := isVideoArtifactType(artifactType)
-		allowInline := !isNonInlineArtifactType(artifactType)
-
-		payload := map[string]any{
-			"path":       path,
-			"size_bytes": info.Size(),
-		}
-		for key, value := range item.Payload {
-			payload[key] = value
-		}
-
-		if allowInline && info.Size() > 0 && info.Size() <= maxEmbeddedExternalBytes {
-			if data, readErr := os.ReadFile(path); readErr == nil {
-				payload["base64"] = base64.StdEncoding.EncodeToString(data)
-				payload["inline"] = true
-			}
-		}
-		label := strings.TrimSpace(item.Label)
-		if label == "" {
-			label = artifactType
-		}
-
-		var storageURL string
-		contentType := strings.TrimSpace(item.ContentType)
-		var sizeBytes *int64
-		if r.storage != nil && isVideo {
-			artifactInfo, storeErr := r.storage.StoreArtifactFromFile(ctx, plan.ExecutionID, label, path, item.ContentType)
-			if storeErr != nil {
-				if r.log != nil {
-					r.log.WithError(storeErr).WithField("path", path).Warn("Failed to store video artifact")
-				}
-			} else if artifactInfo != nil {
-				storageURL = artifactInfo.URL
-				if strings.TrimSpace(artifactInfo.ContentType) != "" {
-					contentType = artifactInfo.ContentType
-				}
-				size := artifactInfo.SizeBytes
-				sizeBytes = &size
-				payload["storage_object"] = artifactInfo.ObjectName
-			}
-		}
-
-		artifact := ArtifactData{
-			ArtifactID:   uuid.New().String(),
-			ArtifactType: artifactType,
-			Label:        label,
-			Payload:      payload,
-			StorageURL:   storageURL,
-			ContentType:  contentType,
-			SizeBytes:    sizeBytes,
-		}
-		result.mu.Lock()
-		result.Artifacts = append(result.Artifacts, artifact)
-		result.mu.Unlock()
-	}
-
-	return r.writeResultFile(plan.ExecutionID, result, timeline)
-}
-
-func isVideoArtifactType(kind string) bool {
-	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "video", "video_meta":
-		return true
-	default:
-		return false
-	}
-}
-
-func isNonInlineArtifactType(kind string) bool {
-	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "video", "video_meta", "trace", "trace_meta", "har", "har_meta":
-		return true
-	default:
-		return false
-	}
 }
 
 func (r *FileWriter) appendProtoTimelineEntry(
@@ -1151,83 +879,6 @@ func (r *FileWriter) persistExternalFile(result *ExecutionResultData, stepID str
 	result.mu.Unlock()
 
 	return &id
-}
-
-// RecordTelemetry persists real-time telemetry events (heartbeats, console logs, etc.).
-// Respects CollectTelemetry setting in artifact config.
-func (r *FileWriter) RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
-	if r == nil {
-		return nil
-	}
-
-	// Check if telemetry collection is enabled (scoped to this execution)
-	cfg := r.artifactConfigForExecution(plan.ExecutionID)
-	if !cfg.CollectTelemetry {
-		return nil // Skip telemetry recording when disabled
-	}
-
-	result := r.getOrCreateResult(plan)
-	timeline := r.getOrCreateTimeline(plan)
-	telemetryData := TelemetryData{
-		StepIndex: telemetry.StepIndex,
-		Data:      telemetry,
-		Timestamp: time.Now().UTC(),
-	}
-
-	result.mu.Lock()
-	result.Telemetry = append(result.Telemetry, telemetryData)
-	result.mu.Unlock()
-
-	if timeline != nil {
-		if logEntry := telemetryToTimelineLog(telemetryData); logEntry != nil {
-			timeline.mu.Lock()
-			timeline.pb.Logs = append(timeline.pb.Logs, logEntry)
-			timeline.mu.Unlock()
-			_ = r.writeProtoTimelineFile(plan.ExecutionID, timeline)
-		}
-	}
-
-	return r.writeResultFile(plan.ExecutionID, result, timeline)
-}
-
-func telemetryToTimelineLog(t TelemetryData) *bastimeline.TimelineLog {
-	message := strings.TrimSpace(t.Data.Note)
-	level := basbase.LogLevel_LOG_LEVEL_INFO
-
-	switch strings.ToLower(strings.TrimSpace(string(t.Data.Kind))) {
-	case "console":
-		if len(t.Data.Console) > 0 && message == "" {
-			first := t.Data.Console[0]
-			message = strings.TrimSpace(first.Text)
-			switch strings.ToLower(strings.TrimSpace(first.Type)) {
-			case "warn", "warning":
-				level = basbase.LogLevel_LOG_LEVEL_WARN
-			case "error":
-				level = basbase.LogLevel_LOG_LEVEL_ERROR
-			case "debug":
-				level = basbase.LogLevel_LOG_LEVEL_DEBUG
-			default:
-				level = basbase.LogLevel_LOG_LEVEL_INFO
-			}
-		}
-	case "network":
-		level = basbase.LogLevel_LOG_LEVEL_DEBUG
-	case "retry":
-		level = basbase.LogLevel_LOG_LEVEL_WARN
-	case "heartbeat", "progress":
-		level = basbase.LogLevel_LOG_LEVEL_INFO
-	}
-
-	if message == "" {
-		return nil
-	}
-
-	return &bastimeline.TimelineLog{
-		Id:        fmt.Sprintf("telemetry-%d-%d", t.StepIndex, t.Timestamp.UnixNano()),
-		Level:     level,
-		Message:   message,
-		Timestamp: timestamppb.New(t.Timestamp),
-	}
 }
 
 func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) *bastimeline.TimelineEntry {

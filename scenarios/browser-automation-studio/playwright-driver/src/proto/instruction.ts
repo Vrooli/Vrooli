@@ -21,7 +21,6 @@ import type { ActionDefinition } from '@vrooli/proto-types/browser-automation-st
 import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import { jsonValueMapToPlain } from './utils';
 import { actionTypeToString } from './action-type-utils';
-import { logger, LogContext, scopedLog } from '../utils';
 
 // =============================================================================
 // HandlerInstruction Type
@@ -44,17 +43,6 @@ export interface HandlerInstruction {
   index: number;
   /** Node ID from the workflow definition (UUID) */
   nodeId: string;
-  /**
-   * @deprecated Legacy field - no longer populated by Go API.
-   * Use `getActionType(instruction)` to get the action type string.
-   */
-  type: string;
-  /**
-   * @deprecated Legacy field - no longer populated by Go API.
-   * Use typed param extractors like `getClickParams(instruction.action)` instead.
-   * This field is always an empty object.
-   */
-  params: Record<string, unknown>;
   /** Optional preload HTML */
   preloadHtml?: string;
   /** Optional context data */
@@ -66,7 +54,7 @@ export interface HandlerInstruction {
    * Contains the ActionType enum and strongly-typed params (navigate, click, etc.)
    * Always populated by the Go API - handlers should use requireTypedParams() to extract.
    */
-  action?: ActionDefinition;
+  action: ActionDefinition;
 }
 
 // =============================================================================
@@ -76,21 +64,19 @@ export interface HandlerInstruction {
 /**
  * Convert a proto CompiledInstruction to a HandlerInstruction.
  *
- * Preserves the typed action field which is the canonical representation.
- * Legacy type/params fields are set to empty values - they are no longer
- * populated by the Go API and should not be used.
+ * Preserves the typed action field, the sole execution representation.
  *
  * @param proto - Proto CompiledInstruction from API
  * @returns HandlerInstruction with typed action field
  */
 export function toHandlerInstruction(proto: CompiledInstruction): HandlerInstruction {
-  return {
-    index: proto.index,
-    nodeId: proto.nodeId,
-    // Legacy fields - populated as fallback when typed action is missing
-    type: proto.type ?? '',
-    params: jsonValueMapToPlain(proto.params),
-    preloadHtml: proto.preloadHtml,
+	if (!proto.action || proto.action.type === ActionType.UNSPECIFIED) {
+		throw new Error(`Instruction ${proto.nodeId} is missing a typed action`);
+	}
+	return {
+		index: proto.index,
+		nodeId: proto.nodeId,
+		preloadHtml: proto.preloadHtml,
     context: jsonValueMapToPlain(proto.context),
     metadata: proto.metadata ? { ...proto.metadata } : undefined,
     // Typed action - the canonical representation
@@ -99,23 +85,8 @@ export function toHandlerInstruction(proto: CompiledInstruction): HandlerInstruc
 }
 
 /**
- * Get the action type string from a HandlerInstruction.
- * Prefers the typed action when present, falls back to legacy type string.
+ * Get the handler dispatch key from the typed action.
  */
 export function getActionType(instruction: HandlerInstruction): string {
-  if (instruction.action?.type !== undefined && instruction.action.type !== ActionType.UNSPECIFIED) {
-    return actionTypeToString(instruction.action.type);
-  }
-  // LEGACY TELEMETRY: Track usage of deprecated legacy type field
-  // This helps identify if Go API is sending instructions without typed actions
-  if (instruction.type) {
-    logger.warn(scopedLog(LogContext.INSTRUCTION, 'legacy type field used'), {
-      nodeId: instruction.nodeId,
-      legacyType: instruction.type,
-      hasAction: !!instruction.action,
-      actionType: instruction.action?.type,
-      telemetryReason: 'DEPRECATED_LEGACY_TYPE_FIELD',
-    });
-  }
-  return instruction.type;
+	return actionTypeToString(instruction.action.type);
 }

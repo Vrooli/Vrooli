@@ -16,8 +16,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // ExecutionPlan represents a validated sequence of steps derived from a workflow definition.
@@ -30,14 +34,16 @@ type ExecutionPlan struct {
 
 // ExecutionStep captures the information required to execute one workflow node.
 type ExecutionStep struct {
-	Index          int            `json:"index"`
-	SourceIndex    int            `json:"source_index"`
-	NodeID         string         `json:"node_id"`
-	Type           StepType       `json:"type"`
-	Params         map[string]any `json:"params"`
-	OutgoingEdges  []EdgeRef      `json:"outgoing_edges"`
-	SourcePosition *Position      `json:"source_position,omitempty"`
-	LoopPlan       *ExecutionPlan `json:"loop_plan,omitempty"`
+	Index       int    `json:"index"`
+	SourceIndex int    `json:"source_index"`
+	NodeID      string `json:"node_id"`
+	// Action is the compiled V2 execution contract. It is the sole executable
+	// representation of a node; the compiler never projects it into a generic
+	// type/params map and reconstructs it later.
+	Action         *basactions.ActionDefinition `json:"-"`
+	OutgoingEdges  []EdgeRef                    `json:"outgoing_edges"`
+	SourcePosition *Position                    `json:"source_position,omitempty"`
+	LoopPlan       *ExecutionPlan               `json:"loop_plan,omitempty"`
 }
 
 // CompileOptions configures compilation behavior for a single workflow.
@@ -106,6 +112,7 @@ func CompileWorkflowWithOptions(workflow *basapi.WorkflowSummary, opts *CompileO
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("invalid workflow definition: %w", err)
 	}
+	attachTypedActions(&raw, flowDef)
 	logrus.WithFields(logrus.Fields{
 		"workflow_id": workflow.GetId(),
 		"node_count":  len(raw.Nodes),
@@ -193,7 +200,7 @@ func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName strin
 	}).Debug("compileFlow: steps built")
 
 	for idx := range steps {
-		if steps[idx].Type != StepLoop {
+		if steps[idx].Action.GetType() != basactions.ActionType_ACTION_TYPE_LOOP {
 			continue
 		}
 		logrus.WithFields(logrus.Fields{
@@ -260,160 +267,43 @@ type flowFragment struct {
 
 // rawNode mirrors protojson WorkflowNodeV2.
 type rawNode struct {
-	ID           string         `json:"id"`
-	Type         string         `json:"type,omitempty"`
-	Data         map[string]any `json:"data,omitempty"`
-	Action       map[string]any `json:"action,omitempty"`
-	Position     map[string]any `json:"position,omitempty"`
-	ExecSettings map[string]any `json:"execution_settings,omitempty"`
+	ID           string                       `json:"id"`
+	Position     map[string]any               `json:"position,omitempty"`
+	ExecSettings map[string]any               `json:"execution_settings,omitempty"`
+	TypedAction  *basactions.ActionDefinition `json:"-"`
 }
 
-// hasAction returns true if the node has an action field (required for all nodes).
+// attachTypedActions retains the V2 action that entered the compiler beside
+// the graph-layout projection. Execution always works from this typed action.
+func attachTypedActions(definition *flowDefinition, source *basworkflows.WorkflowDefinitionV2) {
+	if definition == nil || source == nil {
+		return
+	}
+	actionsByID := make(map[string]*basactions.ActionDefinition, len(source.Nodes))
+	for _, node := range source.Nodes {
+		if node != nil && node.Action != nil {
+			actionsByID[node.Id] = node.Action
+		}
+	}
+	for index := range definition.Nodes {
+		definition.Nodes[index].TypedAction = actionsByID[definition.Nodes[index].ID]
+	}
+}
+
+// hasAction returns true if the node has the required V2 action.
 func (n rawNode) hasAction() bool {
-	return n.Action != nil
+	return n.TypedAction != nil
 }
 
-// getStepType extracts the step type from the action field.
-func (n rawNode) getStepType() (string, error) {
+// actionType returns the canonical action enum for graph control-flow checks.
+func (n rawNode) actionType() (basactions.ActionType, error) {
 	if !n.hasAction() {
-		return "", fmt.Errorf("workflow node %s missing required action field", n.ID)
+		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED, fmt.Errorf("workflow node %s missing required action field", n.ID)
 	}
-	actionType, ok := n.Action["type"].(string)
-	if !ok || actionType == "" {
-		return "", fmt.Errorf("node %s missing action.type", n.ID)
+	if n.TypedAction.GetType() == basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
+		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED, fmt.Errorf("node %s has unspecified action type", n.ID)
 	}
-	return v2ActionTypeToStepType(actionType), nil
-}
-
-// getParams extracts params from the action field.
-func (n rawNode) getParams() map[string]any {
-	if !n.hasAction() {
-		return nil
-	}
-	return extractV2Params(n.Action)
-}
-
-// v2ActionTypeToStepType converts proto action type enum to step type string.
-func v2ActionTypeToStepType(actionType string) string {
-	switch actionType {
-	case "ACTION_TYPE_NAVIGATE":
-		return "navigate"
-	case "ACTION_TYPE_CLICK":
-		return "click"
-	case "ACTION_TYPE_INPUT":
-		return "type"
-	case "ACTION_TYPE_WAIT":
-		return "wait"
-	case "ACTION_TYPE_ASSERT":
-		return "assert"
-	case "ACTION_TYPE_SCROLL":
-		return "scroll"
-	case "ACTION_TYPE_SELECT":
-		return "select"
-	case "ACTION_TYPE_EVALUATE":
-		return "evaluate"
-	case "ACTION_TYPE_KEYBOARD":
-		return "keyboard"
-	case "ACTION_TYPE_HOVER":
-		return "hover"
-	case "ACTION_TYPE_SCREENSHOT":
-		return "screenshot"
-	case "ACTION_TYPE_FOCUS":
-		return "focus"
-	case "ACTION_TYPE_BLUR":
-		return "blur"
-	case "ACTION_TYPE_SUBFLOW":
-		return "subflow"
-	case "ACTION_TYPE_EXTRACT":
-		return "extract"
-	case "ACTION_TYPE_UPLOAD_FILE":
-		return "uploadFile"
-	case "ACTION_TYPE_DOWNLOAD":
-		return "download"
-	case "ACTION_TYPE_FRAME_SWITCH":
-		return "frameSwitch"
-	case "ACTION_TYPE_TAB_SWITCH":
-		return "tabSwitch"
-	case "ACTION_TYPE_COOKIE_STORAGE":
-		return "setCookie" // Generic, actual operation determined by params
-	case "ACTION_TYPE_SHORTCUT":
-		return "shortcut"
-	case "ACTION_TYPE_DRAG_DROP":
-		return "dragDrop"
-	case "ACTION_TYPE_GESTURE":
-		return "gesture"
-	case "ACTION_TYPE_NETWORK_MOCK":
-		return "networkMock"
-	case "ACTION_TYPE_ROTATE":
-		return "rotate"
-	case "ACTION_TYPE_SET_VARIABLE":
-		return "setVariable"
-	case "ACTION_TYPE_LOOP":
-		return "loop"
-	case "ACTION_TYPE_CONDITIONAL":
-		return "conditional"
-	default:
-		return "custom"
-	}
-}
-
-// extractV2Params extracts params from an action structure.
-func extractV2Params(action map[string]any) map[string]any {
-	params := make(map[string]any)
-
-	// Extract label from metadata
-	if metadata, ok := action["metadata"].(map[string]any); ok {
-		if label, ok := metadata["label"].(string); ok {
-			params["label"] = label
-		}
-	}
-
-	// Extract action-specific params and convert snake_case to camelCase
-	actionFields := []string{
-		"navigate", "click", "input", "wait", "assert", "scroll",
-		"select_option", "evaluate", "keyboard", "hover", "screenshot",
-		"focus", "blur", "subflow", "extract", "upload_file", "download",
-		"frame_switch", "tab_switch", "cookie_storage", "shortcut",
-		"drag_drop", "gesture", "network_mock", "rotate",
-		"set_variable", "loop", "conditional",
-	}
-
-	for _, field := range actionFields {
-		if actionParams, ok := action[field].(map[string]any); ok {
-			for k, v := range actionParams {
-				params[k] = v
-				// The flow definition is marshaled with UseProtoNames (snake_case)
-				// while the param builders read protojson-default camelCase, so
-				// every snake_case key also gets a camelCase alias. The original
-				// key wins if the source already contained both spellings.
-				if camel := snakeToCamel(k); camel != k {
-					if _, exists := actionParams[camel]; !exists {
-						params[camel] = v
-					}
-				}
-			}
-			break // Only one action field should be populated
-		}
-	}
-
-	return params
-}
-
-// snakeToCamel converts a snake_case key to lowerCamelCase, matching the
-// protojson default naming the param builders consume.
-func snakeToCamel(s string) string {
-	if !strings.Contains(s, "_") {
-		return s
-	}
-	parts := strings.Split(s, "_")
-	out := parts[0]
-	for _, part := range parts[1:] {
-		if part == "" {
-			continue
-		}
-		out += strings.ToUpper(part[:1]) + part[1:]
-	}
-	return out
+	return n.TypedAction.GetType(), nil
 }
 
 type rawEdge struct {
@@ -673,15 +563,11 @@ func (p *planner) extractLoopBodies() (map[string]flowFragment, error) {
 	assigned := make(map[string]string)
 
 	for _, node := range p.definition.Nodes {
-		nodeType, err := node.getStepType()
+		actionType, err := node.actionType()
 		if err != nil {
 			return nil, err
 		}
-		stepType, err := normalizeStepType(nodeType)
-		if err != nil {
-			return nil, err
-		}
-		if stepType != StepLoop {
+		if actionType != basactions.ActionType_ACTION_TYPE_LOOP {
 			continue
 		}
 		entries := p.loopEntryTargets(node.ID)
@@ -873,20 +759,21 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 		}).Debug("buildSteps: processing node")
 
 		node := p.nodesByID[nodeID]
-		nodeType, err := node.getStepType()
-		if err != nil {
+		if _, err := node.actionType(); err != nil {
 			return nil, err
 		}
-		stepType, err := normalizeStepType(nodeType)
-		if err != nil {
-			return nil, err
+		if node.TypedAction == nil {
+			return nil, fmt.Errorf("workflow node %s missing required action field", nodeID)
+		}
+		action, ok := proto.Clone(node.TypedAction).(*basactions.ActionDefinition)
+		if !ok {
+			return nil, fmt.Errorf("clone typed action for node %s", nodeID)
 		}
 		step := ExecutionStep{
 			Index:       idx,
 			SourceIndex: p.order[nodeID],
 			NodeID:      node.ID,
-			Type:        stepType,
-			Params:      copyMap(node.getParams()),
+			Action:      action,
 		}
 
 		if pos := toPosition(node.Position); pos != nil {
@@ -894,7 +781,7 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 		}
 
 		// Resolve navigate node URLs from destinationType: "scenario" format
-		if stepType == StepNavigate {
+		if action.GetType() == basactions.ActionType_ACTION_TYPE_NAVIGATE {
 			logrus.WithField("node_id", nodeID).Debug("buildSteps: resolving navigate URL")
 			if err := resolveNavigateURL(&step, p.scenarioRoot); err != nil {
 				return nil, fmt.Errorf("failed to resolve navigate URL for node %s: %w", nodeID, err)
@@ -964,29 +851,6 @@ func (p *planner) topologicalOrder() []string {
 	}
 
 	return order
-}
-
-func normalizeStepType(raw string) (StepType, error) {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return "", errors.New("step type cannot be empty")
-	}
-	stepType := StepType(trimmed)
-	if _, ok := supportedStepTypes[stepType]; !ok {
-		return "", fmt.Errorf("unsupported step type: %s", stepType)
-	}
-	return stepType, nil
-}
-
-func copyMap(src map[string]any) map[string]any {
-	if src == nil {
-		return map[string]any{}
-	}
-	dst := make(map[string]any, len(src))
-	for k, v := range src {
-		dst[k] = v
-	}
-	return dst
 }
 
 func toPosition(pos map[string]any) *Position {
@@ -1093,37 +957,24 @@ func edgeCondition(edge rawEdge) string {
 	return ""
 }
 
-// resolveNavigateURL resolves destination URLs for navigate nodes with destinationType: "scenario"
-// or when a scenario field is present (for backwards compatibility with legacy workflows).
+// resolveNavigateURL resolves a typed navigate action whose destination is a scenario.
 func resolveNavigateURL(step *ExecutionStep, scenarioRoot string) error {
-	if step == nil || step.Type != StepNavigate || step.Params == nil {
+	if step == nil || step.Action == nil || step.Action.GetType() != basactions.ActionType_ACTION_TYPE_NAVIGATE {
 		return nil
+	}
+	navigate := step.Action.GetNavigate()
+	if navigate == nil {
+		return fmt.Errorf("navigate action missing navigate parameters")
 	}
 
 	// If URL is already set, no resolution needed
-	if url, ok := step.Params["url"].(string); ok && strings.TrimSpace(url) != "" {
+	if strings.TrimSpace(navigate.GetUrl()) != "" {
 		return nil
 	}
 
-	// Extract scenario name and path first (needed for inference check)
-	scenarioName, _ := step.Params["scenario"].(string)
-	scenarioPath, _ := step.Params["scenarioPath"].(string)
-	if strings.TrimSpace(scenarioPath) == "" {
-		scenarioPath, _ = step.Params["scenario_path"].(string)
-	}
-	scenarioName = strings.TrimSpace(scenarioName)
-
-	// Check if this is a scenario destination:
-	// 1. Explicit destinationType of "scenario" or "NAVIGATE_DESTINATION_TYPE_SCENARIO"
-	// 2. Or inferred from presence of scenario field (handles legacy/malformed workflows)
-	destinationType, _ := step.Params["destinationType"].(string)
-	if strings.TrimSpace(destinationType) == "" {
-		destinationType, _ = step.Params["destination_type"].(string)
-	}
-	destinationType = strings.TrimSpace(destinationType)
-	isScenario := destinationType == "scenario" ||
-		destinationType == "NAVIGATE_DESTINATION_TYPE_SCENARIO" ||
-		scenarioName != "" // Infer from scenario field presence
+	scenarioName := strings.TrimSpace(navigate.GetScenario())
+	scenarioPath := strings.TrimSpace(navigate.GetScenarioPath())
+	isScenario := navigate.GetDestinationType() == basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO || scenarioName != ""
 
 	if !isScenario {
 		// Not a scenario destination, no resolution needed
@@ -1150,8 +1001,8 @@ func resolveNavigateURL(step *ExecutionStep, scenarioRoot string) error {
 		return fmt.Errorf("failed to resolve URL for scenario %s: %w", scenarioName, err)
 	}
 
-	// Set the resolved URL in params
-	step.Params["url"] = resolvedURL
+	// The resolved target remains in the canonical typed action.
+	navigate.Url = resolvedURL
 
 	return nil
 }
@@ -1235,42 +1086,16 @@ func readSelectorManifest(manifestRoot string) (map[string]interface{}, string, 
 	return manifest, manifestPath, nil
 }
 
-// resolveSelectors resolves @selector/ references in step parameters to actual CSS selectors
-// using the manifest rooted at manifestRoot.
+// resolveSelectors resolves @selector/ references in all selector-shaped fields of
+// the typed action. Reflection keeps this resilient when a new action message adds
+// a selector without reopening a generic params-map compatibility path.
 func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
-	if step == nil || step.Params == nil {
+	if step == nil || step.Action == nil {
 		return nil
 	}
 	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: start")
 
-	// Check if there are any @selector/ references before loading manifest
-	// This avoids unnecessary file I/O and allows workflows with pre-resolved selectors to work
-	hasSelectorsRefs := false
-	selectorParams := []string{
-		"selector",
-		"successSelector",
-		"failureSelector",
-		"sourceSelector",
-		"targetSelector",
-		"waitForSelector",
-		"success_selector",
-		"failure_selector",
-		"source_selector",
-		"target_selector",
-		"wait_for_selector",
-	}
-
-	for _, paramName := range selectorParams {
-		if selectorRef, ok := step.Params[paramName].(string); ok {
-			if strings.Contains(selectorRef, "@selector/") {
-				hasSelectorsRefs = true
-				break
-			}
-		}
-	}
-
-	// Only load manifest if we found @selector/ references
-	if !hasSelectorsRefs {
+	if !messageHasSelectorReference(step.Action.ProtoReflect()) {
 		logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: no @selector/ refs, returning early")
 		return nil
 	}
@@ -1295,62 +1120,86 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 	}
 	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: manifest loaded")
 
-	// Check for selector-related parameters and resolve @selector/ references
-	for _, paramName := range selectorParams {
-		if selectorRef, ok := step.Params[paramName].(string); ok {
-			// Strip /*dup-N*/ suffix first (used to make selector IDs unique in workflows)
-			cleanedRef := selectorRef
-			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
-				cleanedRef = cleanedRef[:idx]
-			}
+	return resolveMessageSelectors(step.Action.ProtoReflect(), manifest, manifestRoot, manifestPath)
+}
 
-			resolvedRef, err := resolveSelectorTokens(cleanedRef, manifest, manifestRoot, manifestPath)
-			if err != nil {
-				return fmt.Errorf("param %s: %w", paramName, err)
+func messageHasSelectorReference(message protoreflect.Message) bool {
+	found := false
+	message.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		if field.IsList() {
+			list := value.List()
+			for i := 0; i < list.Len(); i++ {
+				if field.Kind() == protoreflect.MessageKind && messageHasSelectorReference(list.Get(i).Message()) {
+					found = true
+					return false
+				}
 			}
-			if resolvedRef != cleanedRef {
-				step.Params[paramName] = resolvedRef
-			} else if cleanedRef != selectorRef {
-				step.Params[paramName] = cleanedRef
-			}
+			return !found
 		}
-	}
+		if field.IsMap() {
+			return true
+		}
+		if field.Kind() == protoreflect.MessageKind {
+			found = messageHasSelectorReference(value.Message())
+			return !found
+		}
+		if isSelectorField(field) && strings.Contains(value.String(), "@selector/") {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
 
-	// Handle resilience.successSelector and resilience.failureSelector
-	if resilience, ok := step.Params["resilience"].(map[string]interface{}); ok {
-		if successSelector, ok := resilience["successSelector"].(string); ok {
-			cleanedRef := successSelector
-			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
-				cleanedRef = cleanedRef[:idx]
+func resolveMessageSelectors(message protoreflect.Message, manifest map[string]interface{}, manifestRoot, manifestPath string) error {
+	var resolveErr error
+	message.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		if field.IsList() {
+			list := value.List()
+			for i := 0; i < list.Len(); i++ {
+				if field.Kind() == protoreflect.MessageKind {
+					if err := resolveMessageSelectors(list.Get(i).Message(), manifest, manifestRoot, manifestPath); err != nil {
+						resolveErr = err
+						return false
+					}
+				}
 			}
-			resolved, err := resolveSelectorTokens(cleanedRef, manifest, manifestRoot, manifestPath)
-			if err != nil {
-				return fmt.Errorf("param resilience.successSelector: %w", err)
-			}
-			if resolved != cleanedRef {
-				resilience["successSelector"] = resolved
-			} else if cleanedRef != successSelector {
-				resilience["successSelector"] = cleanedRef
-			}
+			return true
 		}
-		if failureSelector, ok := resilience["failureSelector"].(string); ok {
-			cleanedRef := failureSelector
-			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
-				cleanedRef = cleanedRef[:idx]
-			}
-			resolved, err := resolveSelectorTokens(cleanedRef, manifest, manifestRoot, manifestPath)
-			if err != nil {
-				return fmt.Errorf("param resilience.failureSelector: %w", err)
-			}
-			if resolved != cleanedRef {
-				resilience["failureSelector"] = resolved
-			} else if cleanedRef != failureSelector {
-				resilience["failureSelector"] = cleanedRef
-			}
+		if field.IsMap() {
+			return true
 		}
-	}
+		if field.Kind() == protoreflect.MessageKind {
+			if err := resolveMessageSelectors(value.Message(), manifest, manifestRoot, manifestPath); err != nil {
+				resolveErr = err
+				return false
+			}
+			return true
+		}
+		if !isSelectorField(field) || field.Kind() != protoreflect.StringKind {
+			return true
+		}
+		original := value.String()
+		cleaned := strings.Split(original, " /*dup-")[0]
+		resolved, err := resolveSelectorTokens(cleaned, manifest, manifestRoot, manifestPath)
+		if err != nil {
+			resolveErr = fmt.Errorf("field %s: %w", field.FullName(), err)
+			return false
+		}
+		if resolved != cleaned {
+			message.Set(field, protoreflect.ValueOfString(resolved))
+		} else if cleaned != original {
+			message.Set(field, protoreflect.ValueOfString(cleaned))
+		}
+		return true
+	})
+	return resolveErr
+}
 
-	return nil
+func isSelectorField(field protoreflect.FieldDescriptor) bool {
+	name := string(field.Name())
+	return name == "selector" || strings.HasSuffix(name, "_selector")
 }
 
 // resolveSelectorReference resolves a single @selector/ reference to an actual CSS selector

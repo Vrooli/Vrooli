@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -203,6 +204,24 @@ func (s *service) GetExecutionTimeline(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(pbTimeline), nil
+}
+
+// GetExecutionReplayPackage returns the renderer-neutral evidence package for
+// API and CLI inspection. Artifact bytes remain behind the storage boundary.
+func (s *service) GetExecutionReplayPackage(ctx context.Context, req *connect.Request[basapi.GetExecutionArtifactsRequest]) (*connect.Response[basevidence.ReplayPackage], error) {
+	id, err := parseExecutionID(req.Msg.GetExecutionId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	pack, err := s.deps.Executor.GetExecutionReplayPackage(ctx, id)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		s.log().WithError(err).WithField("execution_id", id).Error("get execution replay package failed")
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(pack), nil
 }
 
 // ---------------------------------------------------------------------------

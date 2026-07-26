@@ -19,7 +19,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/resilience"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -817,114 +816,8 @@ func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[str
 		wire["action"] = action
 	}
 
-	stepType := actionTypeToString(instruction.Action)
-	if stepType != "" {
-		wire["type"] = stepType
-	}
-
-	params := actionToParams(instruction.Action)
-	if params == nil {
-		params = map[string]any{}
-	}
-	wire["params"] = params
-
 	payload["instruction"] = wire
 	return payload, nil
-}
-
-func actionTypeToString(action *basactions.ActionDefinition) string {
-	if action == nil {
-		return ""
-	}
-	switch action.Type {
-	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
-		return "navigate"
-	case basactions.ActionType_ACTION_TYPE_CLICK:
-		return "click"
-	case basactions.ActionType_ACTION_TYPE_INPUT:
-		return "type"
-	case basactions.ActionType_ACTION_TYPE_WAIT:
-		return "wait"
-	case basactions.ActionType_ACTION_TYPE_ASSERT:
-		return "assert"
-	case basactions.ActionType_ACTION_TYPE_SCROLL:
-		return "scroll"
-	case basactions.ActionType_ACTION_TYPE_SELECT:
-		return "select"
-	case basactions.ActionType_ACTION_TYPE_EVALUATE:
-		return "evaluate"
-	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
-		return "keyboard"
-	case basactions.ActionType_ACTION_TYPE_HOVER:
-		return "hover"
-	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
-		return "screenshot"
-	case basactions.ActionType_ACTION_TYPE_FOCUS:
-		return "focus"
-	case basactions.ActionType_ACTION_TYPE_BLUR:
-		return "blur"
-	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
-		return "subflow"
-	case basactions.ActionType_ACTION_TYPE_EXTRACT:
-		return "extract"
-	case basactions.ActionType_ACTION_TYPE_UPLOAD_FILE:
-		return "uploadFile"
-	case basactions.ActionType_ACTION_TYPE_DOWNLOAD:
-		return "download"
-	case basactions.ActionType_ACTION_TYPE_FRAME_SWITCH:
-		return "frameSwitch"
-	case basactions.ActionType_ACTION_TYPE_TAB_SWITCH:
-		return "tabSwitch"
-	case basactions.ActionType_ACTION_TYPE_COOKIE_STORAGE:
-		return "setCookie"
-	case basactions.ActionType_ACTION_TYPE_SHORTCUT:
-		return "shortcut"
-	case basactions.ActionType_ACTION_TYPE_DRAG_DROP:
-		return "dragDrop"
-	case basactions.ActionType_ACTION_TYPE_GESTURE:
-		return "gesture"
-	case basactions.ActionType_ACTION_TYPE_NETWORK_MOCK:
-		return "networkMock"
-	case basactions.ActionType_ACTION_TYPE_ROTATE:
-		return "rotate"
-	case basactions.ActionType_ACTION_TYPE_SET_VARIABLE:
-		return "setVariable"
-	case basactions.ActionType_ACTION_TYPE_LOOP:
-		return "loop"
-	case basactions.ActionType_ACTION_TYPE_CONDITIONAL:
-		return "conditional"
-	default:
-		return ""
-	}
-}
-
-func actionToParams(action *basactions.ActionDefinition) map[string]any {
-	if action == nil {
-		return nil
-	}
-
-	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(action)
-	if err != nil {
-		return nil
-	}
-	var decoded map[string]any
-	if err := json.Unmarshal(raw, &decoded); err != nil {
-		return nil
-	}
-
-	delete(decoded, "type")
-	delete(decoded, "metadata")
-
-	for _, value := range decoded {
-		if params, ok := value.(map[string]any); ok {
-			wrapped := make(map[string]any, len(params))
-			for key, param := range params {
-				wrapped[key] = typeconv.WrapJsonValue(param)
-			}
-			return wrapped
-		}
-	}
-	return nil
 }
 
 // decodeStepOutcome converts the driver response into a StepOutcome,

@@ -425,3 +425,28 @@ func TestFirstNonEmpty(t *testing.T) {
 		})
 	}
 }
+
+func TestServeRecordingAssetRejectsProtectedHar(t *testing.T) {
+	handler, _ := createTestHandlerWithRecordingService()
+	handler.recordingsRoot = t.TempDir()
+	executionID := uuid.New()
+	harDir := filepath.Join(handler.recordingsRoot, executionID.String(), "artifacts", "har")
+	if err := os.MkdirAll(harDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(harDir, "capture.har"), []byte(`{"log":{}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/assets/"+executionID.String()+"/artifacts/har/capture.har", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("executionID", executionID.String())
+	rctx.URLParams.Add("*", "artifacts/har/capture.har")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	rr := httptest.NewRecorder()
+
+	handler.ServeRecordingAsset(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rr.Code, http.StatusForbidden, rr.Body.String())
+	}
+}

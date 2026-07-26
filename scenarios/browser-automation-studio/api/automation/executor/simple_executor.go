@@ -375,8 +375,7 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 		}
 
 		if isSetVariableInstruction(instruction) {
-			instrParams := InstructionParams(instruction)
-			outcome, setErr := e.applySetVariable(ctx, req, instruction.Index, instrStepType, instruction.NodeID, instrParams, execState)
+			outcome, setErr := e.applySetVariable(ctx, req, instruction.Index, instruction.NodeID, instruction.Action.GetSetVariable(), execState)
 			if setErr != nil {
 				return session, setErr
 			}
@@ -458,8 +457,7 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		// Store extracted data to execState if storeResult is specified
 		if normalized.Success && normalized.ExtractedData != nil {
-			instrParams := InstructionParams(instruction)
-			if storeKey := state.StringValue(instrParams, "storeResult"); storeKey != "" {
+			if storeKey := actionStoreResult(instruction.Action); storeKey != "" {
 				// Store the raw ExtractedData directly - it's not wrapped at this point
 				// (wrapping only happens when creating database artifacts in db_recorder)
 				execState.Set(storeKey, normalized.ExtractedData)
@@ -528,8 +526,8 @@ func (e *SimpleExecutor) validateRequest(req Request) error {
 	return nil
 }
 
-// validateSubflowResolver checks that WorkflowResolver is provided if any subflow
-// instruction references an external workflowId (as opposed to inline workflowDefinition).
+// validateSubflowResolver checks that WorkflowResolver is provided for every
+// subflow. Inline workflow definitions are not an execution contract.
 // This catches configuration errors early with a clear message.
 func (e *SimpleExecutor) validateSubflowResolver(req Request) error {
 	if req.WorkflowResolver != nil {
@@ -542,35 +540,11 @@ func (e *SimpleExecutor) validateSubflowResolver(req Request) error {
 			continue
 		}
 
-		// Check if this subflow references an external workflow (workflowId/workflowPath)
-		// vs inline definition (workflowDefinition).
-		instrParams := InstructionParams(instr)
-		if instrParams == nil {
-			continue
-		}
-
-		hasWorkflowID := false
-		hasWorkflowPath := false
-		hasInlineDefinition := false
-
-		if wfID, ok := instrParams["workflowId"]; ok && wfID != nil && wfID != "" {
-			hasWorkflowID = true
-		}
-		if wfPath, ok := instrParams["workflowPath"]; ok && wfPath != nil && wfPath != "" {
-			hasWorkflowPath = true
-		}
-		if wfDef, ok := instrParams["workflowDefinition"]; ok && wfDef != nil {
-			hasInlineDefinition = true
-		}
-
-		// If workflowId/workflowPath is specified without inline definition, resolver is required.
-		if (hasWorkflowID || hasWorkflowPath) && !hasInlineDefinition {
-			return fmt.Errorf(
-				"WorkflowResolver is required: subflow node %q references an external workflow - "+
-					"provide a WorkflowResolver in the execution request to resolve external workflow references",
-				instr.NodeID,
-			)
-		}
+		return fmt.Errorf(
+			"WorkflowResolver is required: subflow node %q requires a referenced workflow - "+
+				"provide a WorkflowResolver in the execution request",
+			instr.NodeID,
+		)
 	}
 
 	return nil
@@ -873,8 +847,7 @@ func entrySelectorFromPlan(plan contracts.ExecutionPlan) (string, int) {
 				logrus.WithField("execution_id", plan.ExecutionID).Debug("Skipping entry probe - workflow starts with subflow")
 				return "", 0
 			}
-			instrParams := InstructionParams(instr)
-			if selector := firstSelectorFromParams(instrParams); selector != "" {
+			if selector := actionPrimarySelector(instr.Action); selector != "" {
 				timeout := readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
 				logrus.WithFields(logrus.Fields{
 					"execution_id": plan.ExecutionID,
@@ -912,51 +885,9 @@ func firstSelectorFromInstructions(instructions []contracts.CompiledInstruction)
 		if InstructionStepType(instr) == "navigate" {
 			continue
 		}
-		selector := firstSelectorFromParams(InstructionParams(instr))
+		selector := actionPrimarySelector(instr.Action)
 		if selector != "" {
 			return selector
-		}
-	}
-	return ""
-}
-
-var selectorPriority = []string{
-	"selector",
-	"waitForSelector",
-	"preconditionSelector",
-	"successSelector",
-	"targetSelector",
-	"dragTargetSelector",
-	"dragSourceSelector",
-	"sourceSelector",
-	"focusSelector",
-	"gestureSelector",
-	"scrollTargetSelector",
-	"frameSelector",
-	"conditionSelector",
-}
-
-func firstSelectorFromParams(params map[string]any) string {
-	for _, key := range selectorPriority {
-		if val, ok := params[key]; ok {
-			if s, ok := val.(string); ok && strings.TrimSpace(s) != "" {
-				return strings.TrimSpace(s)
-			}
-		}
-	}
-	keys := make([]string, 0, len(params))
-	for k := range params {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		if !strings.Contains(strings.ToLower(k), "selector") {
-			continue
-		}
-		if val, ok := params[k]; ok {
-			if s, ok := val.(string); ok && strings.TrimSpace(s) != "" {
-				return strings.TrimSpace(s)
-			}
 		}
 	}
 	return ""
@@ -1571,19 +1502,6 @@ func retryConfigFromInstruction(instruction contracts.CompiledInstruction) retry
 		Delay:         750 * time.Millisecond,
 		BackoffFactor: 1.5,
 	}
-	instrParams := InstructionParams(instruction)
-	if instrParams == nil {
-		return cfg
-	}
-	if v, ok := instrParams["retryAttempts"].(float64); ok && v > 0 {
-		cfg.MaxAttempts = int(v)
-	}
-	if v, ok := instrParams["retryDelayMs"].(float64); ok && v > 0 {
-		cfg.Delay = time.Duration(v) * time.Millisecond
-	}
-	if v, ok := instrParams["retryBackoffFactor"].(float64); ok && v > 0 {
-		cfg.BackoffFactor = v
-	}
 	if cfg.MaxAttempts < 1 {
 		cfg.MaxAttempts = 1
 	}
@@ -1597,17 +1515,7 @@ func retryConfigFromInstruction(instruction contracts.CompiledInstruction) retry
 // timeoutMs is expected to be milliseconds; zero disables executor-side deadline enforcement.
 func instructionTimeout(plan contracts.ExecutionPlan, instruction contracts.CompiledInstruction) time.Duration {
 	ms := 0
-	instrParams := InstructionParams(instruction)
-	if v, ok := instrParams["timeoutMs"]; ok {
-		switch t := v.(type) {
-		case int:
-			ms = t
-		case int64:
-			ms = int(t)
-		case float64:
-			ms = int(t)
-		}
-	}
+	ms = actionTimeoutMs(instruction.Action)
 	if ms <= 0 {
 		if v, ok := plan.Metadata["defaultTimeoutMs"]; ok {
 			switch t := v.(type) {

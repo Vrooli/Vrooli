@@ -82,17 +82,11 @@ const extractScreenshotFromNode = (node: Node): NodeScreenshot | null => {
 };
 
 /**
- * Checks if a node is a navigate node by examining its action type.
- * Falls back to checking node.type for legacy compatibility.
+ * Checks if a node is a navigate node by examining its canonical action type.
  */
 function isNavigateNode(node: Node): boolean {
-  // Check action.type first (V2 format - canonical source of truth)
   const action = (node as Node & { action?: ActionDefinition }).action;
-  if (action?.type) {
-    return action.type === ACTION_TYPES.NAVIGATE;
-  }
-  // Fallback to node.type for legacy format
-  return node.type?.toLowerCase() === 'navigate';
+  return action?.type === ACTION_TYPES.NAVIGATE;
 }
 
 /**

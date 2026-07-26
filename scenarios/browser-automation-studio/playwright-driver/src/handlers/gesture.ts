@@ -4,6 +4,7 @@ import { BaseHandler, HandlerContext, HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getDragDropParams, getGestureParams } from '../types';
 import { normalizeError } from '../utils/errors';
+import { getActionType } from '../proto';
 import { DEFAULT_DRAG_ANIMATION_STEPS } from '../constants';
 import { captureElementContext } from '../telemetry';
 import {
@@ -70,7 +71,7 @@ export class GestureHandler extends BaseHandler {
    * - Otherwise → 'unknown'
    */
   private resolveGestureType(instruction: HandlerInstruction): GestureType {
-    const type = instruction.type.toLowerCase();
+		const type = getActionType(instruction).toLowerCase();
 
     // Direct drag types
     if (type.includes('drag')) {
@@ -117,7 +118,7 @@ export class GestureHandler extends BaseHandler {
           return {
             success: false,
             error: {
-              message: `Unknown or unsupported gesture type: ${instruction.type}`,
+				message: `Unknown or unsupported gesture type: ${getActionType(instruction)}`,
               code: 'INVALID_GESTURE',
               kind: 'user',
               retryable: false,

@@ -892,6 +892,19 @@
           }
         },
         {
+          "name": "replay-package",
+          "description": "Inspect the versioned, storage-independent replay evidence package for an execution.",
+          "positionals": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionReplayPackage" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
           "name": "stop",
           "description": "Stop a running execution.",
           "positionals": [

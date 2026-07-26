@@ -31,9 +31,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 /** Workflow node shape from API */
 export interface WorkflowNode {
   id: string;
-  type?: string;
-  data?: Record<string, unknown>;
-  action?: {
+  action: {
     type: string;
     metadata?: { label?: string };
     navigate?: { url?: string };
@@ -51,20 +49,15 @@ const parseWorkflowNodes = (value: unknown): WorkflowNode[] => {
   return value
     .map((node) => {
       if (!isRecord(node) || typeof node.id !== 'string') return null;
-      const parsedNode: WorkflowNode = { id: node.id };
-      if (typeof node.type === 'string') parsedNode.type = node.type;
-      if (isRecord(node.data)) parsedNode.data = node.data;
-      if (isRecord(node.action) && typeof node.action.type === 'string') {
-        const action: WorkflowNode['action'] = { type: node.action.type };
-        if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
-          action.metadata = { label: node.action.metadata.label };
-        }
-        if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
-          action.navigate = { url: node.action.navigate.url };
-        }
-        parsedNode.action = action;
+      if (!isRecord(node.action) || typeof node.action.type !== 'string') return null;
+      const action: WorkflowNode['action'] = { type: node.action.type };
+      if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
+        action.metadata = { label: node.action.metadata.label };
       }
-      return parsedNode;
+      if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
+        action.navigate = { url: node.action.navigate.url };
+      }
+      return { id: node.id, action };
     })
     .filter((node): node is WorkflowNode => node !== null);
 };

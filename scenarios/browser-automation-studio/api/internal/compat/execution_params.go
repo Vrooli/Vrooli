@@ -213,6 +213,7 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 		if !ok || action == nil {
 			continue
 		}
+		normalizeActionForProtoJSON(action)
 		subflow, ok := action["subflow"].(map[string]any)
 		if !ok || subflow == nil {
 			continue

@@ -10,6 +10,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/storage"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -264,6 +265,10 @@ func (m *WorkflowExecutionService) GetExecutionTimeline(ctx context.Context, exe
 }
 
 func (m *WorkflowExecutionService) GetExecutionTimelineProto(ctx context.Context, executionID uuid.UUID) (*bastimeline.ExecutionTimeline, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *WorkflowExecutionService) GetExecutionReplayPackage(ctx context.Context, executionID uuid.UUID) (*basevidence.ReplayPackage, error) {
 	return nil, errors.New("not implemented")
 }
 

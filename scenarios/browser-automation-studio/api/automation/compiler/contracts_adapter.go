@@ -5,6 +5,7 @@ package compiler
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -82,20 +83,10 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 			Metadata:    map[string]string{},
 		}
 
-		// Build typed Action field from step type/params
-		action, actionErr := BuildActionDefinition(string(step.Type), step.Params)
-		if actionErr != nil {
-			logrus.WithFields(logrus.Fields{
-				"execution_id": executionID,
-				"workflow_id":  workflow.GetId(),
-				"node_id":      step.NodeID,
-				"step_index":   step.Index,
-				"step_type":    step.Type,
-				"error":        actionErr.Error(),
-			}).Warn("Failed to build ActionDefinition for step")
-		} else {
-			instr.Action = action
+		if step.Action == nil {
+			return contracts.ExecutionPlan{}, nil, fmt.Errorf("compiled step %s has no typed action", step.NodeID)
 		}
+		instr.Action = step.Action
 
 		instructions = append(instructions, instr)
 	}
@@ -168,11 +159,7 @@ func toContractsGraph(plan *ExecutionPlan) *contracts.PlanGraph {
 			converted.Loop = toContractsGraph(step.LoopPlan)
 		}
 
-		// Build typed Action for type safety
-		action, err := BuildActionDefinition(string(step.Type), step.Params)
-		if err == nil {
-			converted.Action = action
-		}
+		converted.Action = step.Action
 
 		steps = append(steps, converted)
 	}

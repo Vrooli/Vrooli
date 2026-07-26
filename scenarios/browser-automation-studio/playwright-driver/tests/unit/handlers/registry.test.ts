@@ -1,4 +1,4 @@
-import { createTestInstruction } from '../../helpers';
+import { createTypedInstruction } from '../../helpers';
 import { handlerRegistry } from '../../../src/handlers/registry';
 import { NavigationHandler, InteractionHandler, WaitHandler } from '../../../src/handlers';
 import { UnsupportedInstructionError } from '../../../src/utils/errors';
@@ -74,11 +74,7 @@ describe('HandlerRegistry', () => {
     });
 
     it('should return handler for navigate instruction', () => {
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: {},
-        nodeId: 'node-1',
-      });
+		const instruction = createTypedInstruction('navigate', {}, { nodeId: 'node-1' });
 
       const handler = handlerRegistry.getHandler(instruction);
 
@@ -86,11 +82,7 @@ describe('HandlerRegistry', () => {
     });
 
     it('should return handler for click instruction', () => {
-      const instruction = createTestInstruction({
-        type: 'click',
-        params: {},
-        nodeId: 'node-1',
-      });
+		const instruction = createTypedInstruction('click', {}, { nodeId: 'node-1' });
 
       const handler = handlerRegistry.getHandler(instruction);
 
@@ -98,11 +90,7 @@ describe('HandlerRegistry', () => {
     });
 
     it('should return handler for wait instruction', () => {
-      const instruction = createTestInstruction({
-        type: 'wait',
-        params: {},
-        nodeId: 'node-1',
-      });
+		const instruction = createTypedInstruction('wait', {}, { nodeId: 'node-1' });
 
       const handler = handlerRegistry.getHandler(instruction);
 
@@ -110,15 +98,11 @@ describe('HandlerRegistry', () => {
     });
 
     it('should throw error for unsupported instruction type', () => {
-      const instruction = createTestInstruction({
-        type: 'unsupported-action',
-        params: {},
-        nodeId: 'node-1',
-      });
+		const instruction = createTypedInstruction('gesture', {}, { nodeId: 'node-1' });
 
       expect(() => handlerRegistry.getHandler(instruction)).toThrow(UnsupportedInstructionError);
       expect(() => handlerRegistry.getHandler(instruction)).toThrow(
-        'Unsupported instruction type: unsupported-action'
+		'Unsupported instruction type: unknown'
       );
     });
   });

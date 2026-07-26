@@ -16,9 +16,10 @@ jest.mock('../../../src/outcome', () => ({
 }));
 
 jest.mock('../../../src/proto', () => ({
-  CompiledInstructionSchema: {},
-  parseProtoLenient: jest.fn(),
-  toHandlerInstruction: jest.fn(),
+	CompiledInstructionSchema: {},
+	parseProtoLenient: jest.fn(),
+	toHandlerInstruction: jest.fn(),
+	getActionType: jest.fn().mockReturnValue('click'),
 }));
 
 import { TelemetryOrchestrator } from '../../../src/telemetry';
@@ -26,6 +27,8 @@ import { buildStepOutcome, toDriverOutcome } from '../../../src/outcome';
 import { parseProtoLenient, toHandlerInstruction } from '../../../src/proto';
 import { executeInstruction, validateInstruction, createInstructionKey } from '../../../src/execution';
 import { createTestConfig } from '../../helpers/test-config';
+
+const typedAction = {} as HandlerInstruction['action'];
 
 describe('Instruction executor', () => {
   const observeInstructionDuration = jest.fn();
@@ -66,16 +69,16 @@ describe('Instruction executor', () => {
 
   describe('validateInstruction', () => {
     it('rejects invalid structures early', () => {
-      const missingIndex = validateInstruction({ node_id: 'node-1', type: 'click', params: {} });
+		const missingIndex = validateInstruction({ node_id: 'node-1', action: { type: 'ACTION_TYPE_CLICK' } });
       expect(missingIndex.valid).toBe(false);
 
-      const missingNode = validateInstruction({ index: 0, type: 'click', params: {} });
+		const missingNode = validateInstruction({ index: 0, action: { type: 'ACTION_TYPE_CLICK' } });
       expect(missingNode.valid).toBe(false);
 
-      const missingType = validateInstruction({ index: 0, node_id: 'node-1', params: {} });
+		const missingType = validateInstruction({ index: 0, node_id: 'node-1' });
       expect(missingType.valid).toBe(false);
 
-      const missingParams = validateInstruction({ index: 0, node_id: 'node-1', type: 'click' });
+		const missingParams = validateInstruction({ index: 0, node_id: 'node-1', action: {} });
       expect(missingParams.valid).toBe(false);
     });
 
@@ -83,23 +86,20 @@ describe('Instruction executor', () => {
       const handlerInstruction: HandlerInstruction = {
         index: 1,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       };
 
       (parseProtoLenient as jest.Mock).mockReturnValue({
         index: 1,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       });
       (toHandlerInstruction as jest.Mock).mockReturnValue(handlerInstruction);
 
       const result = validateInstruction({
         index: 1,
         node_id: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: { type: 'ACTION_TYPE_CLICK' },
       });
 
       expect(result.valid).toBe(true);
@@ -114,8 +114,7 @@ describe('Instruction executor', () => {
       const key = createInstructionKey({
         index: 4,
         nodeId: 'node-xyz',
-        type: 'navigate',
-        params: {},
+			action: typedAction,
       });
 
       expect(key).toBe('node-xyz:4');
@@ -127,8 +126,7 @@ describe('Instruction executor', () => {
       const instruction: HandlerInstruction = {
         index: 0,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       };
 
       const handlerResult: HandlerResult = { success: true };
@@ -168,8 +166,7 @@ describe('Instruction executor', () => {
       const instruction: HandlerInstruction = {
         index: 0,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       };
 
       const handlerResult: HandlerResult = {
@@ -203,8 +200,7 @@ describe('Instruction executor', () => {
       const instruction: HandlerInstruction = {
         index: 0,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       };
 
       const executeHandler = jest.fn().mockRejectedValue(new Error('boom'));

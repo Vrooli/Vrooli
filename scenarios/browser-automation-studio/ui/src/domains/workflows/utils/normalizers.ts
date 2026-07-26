@@ -1,5 +1,5 @@
 import type { Edge, Node } from 'reactflow';
-import { actionTypeToNodeType, buildActionDefinition, type ActionDefinition } from '@utils/actionBuilder';
+import { actionTypeToNodeType, type ActionDefinition } from '@utils/actionBuilder';
 
 /**
  * Extended Node type that includes the V2 action field.
@@ -13,8 +13,8 @@ export type NodeWithAction = Node & { action?: ActionDefinition };
  * V2 Native Format:
  * - If node.action exists, it is the source of truth
  * - node.type is derived from action.type for ReactFlow routing
- * - If node.action is missing (legacy), it's built from node.type + node.data
- * - After normalization, action is always present
+ * - A missing action remains invalid input; workflow compatibility conversion
+ *   belongs at the API ingress boundary, never in the editor.
  */
 export const normalizeNodes = (nodes: unknown[] | undefined | null): NodeWithAction[] => {
   if (!Array.isArray(nodes)) return [];
@@ -33,8 +33,8 @@ export const normalizeNodes = (nodes: unknown[] | undefined | null): NodeWithAct
       ? (nodeData.action as ActionDefinition)
       : undefined;
 
-    // Get type from nodeData (may be overridden if action exists)
-    let type = nodeData?.type ? String(nodeData.type) : 'navigate';
+    // React Flow needs a renderer key, but the action remains authoritative.
+    let type = nodeData?.type ? String(nodeData.type) : 'unknown';
 
     // V2 Native: If action exists, derive type from action.type
     if (action?.type) {
@@ -42,10 +42,6 @@ export const normalizeNodes = (nodes: unknown[] | undefined | null): NodeWithAct
       if (derivedType !== 'unknown') {
         type = derivedType;
       }
-    } else if (type) {
-      // Legacy: Build action from type + data for backward compatibility
-      const dataRecord = data as Record<string, unknown>;
-      action = buildActionDefinition(type, dataRecord);
     }
 
     const result: NodeWithAction = {

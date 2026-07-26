@@ -28,6 +28,21 @@ func TestFlowDefinitionToProto(t *testing.T) {
 	}
 }
 
+func TestFlowDefinitionToProtoRejectsUnknownFields(t *testing.T) {
+	_, err := FlowDefinitionToProto(database.JSONMap{
+		"nodes": []map[string]any{{
+			"id": "n1",
+			"action": map[string]any{
+				"type":     "ACTION_TYPE_NAVIGATE",
+				"navigate": map[string]any{"url": "https://example.com", "unexpected": true},
+			},
+		}},
+	})
+	if err == nil {
+		t.Fatal("expected unknown workflow field to be rejected")
+	}
+}
+
 func TestWorkflowValidationResultToProto(t *testing.T) {
 	now := time.Now()
 	result := &workflowvalidator.Result{

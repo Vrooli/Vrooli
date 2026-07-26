@@ -124,12 +124,12 @@ func TestIntegration_V2LoopWorkflow(t *testing.T) {
 
 		loopStep := plan.Steps[0]
 		assert.Equal(t, "loop-items", loopStep.NodeID)
-		assert.Equal(t, compiler.StepLoop, loopStep.Type)
+		assert.Equal(t, basactions.ActionType_ACTION_TYPE_LOOP, loopStep.Action.GetType())
 
 		// Verify loop params were extracted
-		assert.Equal(t, "${items}", loopStep.Params["array_source"])
-		assert.Equal(t, "item", loopStep.Params["item_variable"])
-		assert.Equal(t, "idx", loopStep.Params["index_variable"])
+		assert.Equal(t, "${items}", loopStep.Action.GetLoop().GetArraySource())
+		assert.Equal(t, "item", loopStep.Action.GetLoop().GetItemVariable())
+		assert.Equal(t, "idx", loopStep.Action.GetLoop().GetIndexVariable())
 
 		// Verify loop body was extracted
 		require.NotNil(t, loopStep.LoopPlan, "Loop should have body plan")
@@ -137,10 +137,10 @@ func TestIntegration_V2LoopWorkflow(t *testing.T) {
 
 		// Verify body step order and types
 		assert.Equal(t, "body-click", loopStep.LoopPlan.Steps[0].NodeID)
-		assert.Equal(t, compiler.StepClick, loopStep.LoopPlan.Steps[0].Type)
+		assert.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, loopStep.LoopPlan.Steps[0].Action.GetType())
 
 		assert.Equal(t, "body-screenshot", loopStep.LoopPlan.Steps[1].NodeID)
-		assert.Equal(t, compiler.StepScreenshot, loopStep.LoopPlan.Steps[1].Type)
+		assert.Equal(t, basactions.ActionType_ACTION_TYPE_SCREENSHOT, loopStep.LoopPlan.Steps[1].Action.GetType())
 	})
 }
 
@@ -225,14 +225,14 @@ func TestIntegration_V2SubflowWorkflow(t *testing.T) {
 		require.Len(t, plan.Steps, 3)
 
 		// Verify step types and order
-		assert.Equal(t, compiler.StepNavigate, plan.Steps[0].Type)
+		assert.Equal(t, basactions.ActionType_ACTION_TYPE_NAVIGATE, plan.Steps[0].Action.GetType())
 		assert.Equal(t, "navigate-home", plan.Steps[0].NodeID)
 
-		assert.Equal(t, compiler.StepSubflow, plan.Steps[1].Type)
+		assert.Equal(t, basactions.ActionType_ACTION_TYPE_SUBFLOW, plan.Steps[1].Action.GetType())
 		assert.Equal(t, "run-login-subflow", plan.Steps[1].NodeID)
-		assert.Equal(t, childWorkflowID, plan.Steps[1].Params["workflow_id"])
+		assert.Equal(t, childWorkflowID, plan.Steps[1].Action.GetSubflow().GetWorkflowId())
 
-		assert.Equal(t, compiler.StepClick, plan.Steps[2].Type)
+		assert.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, plan.Steps[2].Action.GetType())
 		assert.Equal(t, "click-dashboard", plan.Steps[2].NodeID)
 
 		// Verify edges are preserved
@@ -285,8 +285,8 @@ func TestIntegration_V2SubflowByPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, plan.Steps, 1)
 
-	assert.Equal(t, compiler.StepSubflow, plan.Steps[0].Type)
-	assert.Equal(t, "actions/dismiss-tutorial.json", plan.Steps[0].Params["workflow_path"])
+	assert.Equal(t, basactions.ActionType_ACTION_TYPE_SUBFLOW, plan.Steps[0].Action.GetType())
+	assert.Equal(t, "actions/dismiss-tutorial.json", plan.Steps[0].Action.GetSubflow().GetWorkflowPath())
 }
 
 // TestIntegration_V2LoopValidationFailures tests that invalid loops are rejected.
@@ -460,11 +460,11 @@ func TestIntegration_V2LoopWithRepeat(t *testing.T) {
 	require.Len(t, plan.Steps, 1)
 
 	loopStep := plan.Steps[0]
-	assert.Equal(t, compiler.StepLoop, loopStep.Type)
+	assert.Equal(t, basactions.ActionType_ACTION_TYPE_LOOP, loopStep.Action.GetType())
 
 	// Check repeat params
 	// The count param should be extracted as "count" from proto
 	assert.NotNil(t, loopStep.LoopPlan)
 	require.Len(t, loopStep.LoopPlan.Steps, 1)
-	assert.Equal(t, compiler.StepWait, loopStep.LoopPlan.Steps[0].Type)
+	assert.Equal(t, basactions.ActionType_ACTION_TYPE_WAIT, loopStep.LoopPlan.Steps[0].Action.GetType())
 }
