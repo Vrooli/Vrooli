@@ -1,0 +1,53 @@
+{
+  "metadata": {
+    "name": "scenarios-catalog-load",
+    "description": "Load the graph workspace, open the Scenarios catalog, and mark when the catalog is ready for operator scanning.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "interaction": "load-only"
+    },
+    "version": "1",
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": { "viewport_width": 1600, "viewport_height": 900 },
+  "nodes": [
+    {
+      "id": "open-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "swarm-manager", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 },
+        "metadata": { "label": "Open the graph workspace" }
+      }
+    },
+    {
+      "id": "open-scenarios",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid='sidebar-tab-scenarios']", "timeout_ms": 30000 },
+        "metadata": { "label": "Open the Scenarios catalog" }
+      }
+    },
+    {
+      "id": "wait-catalog",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid='scenarios-tab']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 },
+        "metadata": { "label": "Wait for the Scenarios catalog" }
+      }
+    },
+    {
+      "id": "mark-ready",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": { "expression": "(() => { const rows = document.querySelectorAll('[data-testid^=\"scenario-row-\"]').length; performance.mark('bas.scenarios-catalog-load.ready'); return { rows }; })()" },
+        "metadata": { "label": "Mark catalog readiness" }
+      }
+    }
+  ],
+  "edges": [
+    { "source": "open-workspace", "target": "open-scenarios" },
+    { "source": "open-scenarios", "target": "wait-catalog" },
+    { "source": "wait-catalog", "target": "mark-ready" }
+  ]
+}

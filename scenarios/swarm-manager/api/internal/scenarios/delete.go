@@ -148,6 +148,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("scenario deleted", "scenario", name, "archived", archive)
+	h.invalidateCatalog()
 
 	response := &apipb.DeleteScenarioResponse{
 		Name:           name,

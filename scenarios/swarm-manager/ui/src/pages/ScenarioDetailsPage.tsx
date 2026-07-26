@@ -18,7 +18,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
-import { Circle, Play, RefreshCw, Square } from "lucide-react";
+import { Circle, ClipboardList, LayoutDashboard, Play, RefreshCw, Settings2, ShieldCheck, Square } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import type { ActionMenuItem } from "../components/ui/action-menu";
 import { ErrorState } from "../components/ui/error-state";
@@ -32,7 +32,8 @@ import { ScenarioSettingsSection } from "../components/scenarios/ScenarioSetting
 import { ScenarioCliHints } from "../components/scenarios/ScenarioCliHints";
 import { ScenarioDangerZone } from "../components/scenarios/ScenarioDangerZone";
 import { ScenarioLifecycleActions } from "../components/scenarios/ScenarioLifecycleActions";
-import { ScenarioMobileView } from "../components/scenarios/ScenarioMobileView";
+import { ScenarioMobileView, type ScenarioDetailTab } from "../components/scenarios/ScenarioMobileView";
+import { CompactTabBar, type CompactTabItem } from "../components/ui/compact-tab-bar";
 import { selectors } from "../consts/selectors";
 import { SCENARIO_STATUS_ICONS } from "../types";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
@@ -41,6 +42,7 @@ import { SCENARIO_LENSES } from "../components/detail/lens-options";
 import { useScenarioDetailData } from "../hooks/useScenarioDetailData";
 import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
 import { useArchivePreferences } from "../hooks/useArchivePreferences";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAppBack } from "../app/routes/useAppBack";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
@@ -50,6 +52,7 @@ export function ScenarioDetailsPage() {
   const { name } = useParams<{ name: string }>();
   const nodeId = routeTargetToNodeId({ entityType: "scenario", name });
   const closeDetail = useAppBack();
+  const isCompactLayout = useMediaQuery("(max-width: 1023px)");
 
   const {
     scenario,
@@ -80,6 +83,7 @@ export function ScenarioDetailsPage() {
   const [archiveOnDelete, setArchiveOnDelete] = useState(true);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [showFileSelectionDialog, setShowFileSelectionDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState<ScenarioDetailTab>("overview");
 
   const {
     archivePreset,
@@ -99,6 +103,7 @@ export function ScenarioDetailsPage() {
 
   useEffect(() => {
     setShowActionsSheet(false);
+    setActiveTab("overview");
   }, [name]);
 
   // --- Delete handlers ---
@@ -222,21 +227,41 @@ export function ScenarioDetailsPage() {
     },
   ] : [];
 
+  const detailTabs: CompactTabItem<ScenarioDetailTab>[] = [
+    { value: "overview", label: "Overview", icon: LayoutDashboard },
+    { value: "work", label: "Work", icon: ClipboardList },
+    { value: "quality", label: "Quality", icon: ShieldCheck },
+    { value: "manage", label: "Settings", icon: Settings2 },
+  ];
+
   return (
     <DetailPageLayout
       header={
-        <DetailPageHeader
-          entityType="Scenario"
-          title={scenario?.displayName || name || "Unknown"}
-          status={scenario?.status}
-          nodeId={nodeId}
-          lenses={SCENARIO_LENSES}
-          menuActions={menuActions}
-        />
+        <div className="hidden lg:block">
+          <DetailPageHeader
+            entityType="Scenario"
+            title={scenario?.displayName || name || "Unknown"}
+            status={scenario?.status}
+            nodeId={nodeId}
+            lenses={SCENARIO_LENSES}
+            menuActions={menuActions}
+            tabBar={
+              <CompactTabBar
+                items={detailTabs}
+                activeValue={activeTab}
+                onValueChange={setActiveTab}
+                aria-label="Scenario detail sections"
+                className="w-full flex-nowrap justify-start gap-1 overflow-x-auto rounded-none bg-transparent px-3"
+                tabTestIdPrefix="scenario-detail-tab"
+              />
+            }
+          />
+        </div>
       }
+      bodyClassName="px-0 py-0 lg:px-6 lg:py-6"
     >
     {attachToSession.sheet}
-    <div className="space-y-6" data-testid={selectors.scenarioDetails.page}>
+    <div className="space-y-6 lg:mx-auto lg:max-w-4xl" data-testid={selectors.scenarioDetails.page}>
       {isPageLoading && (
         <PageLoadingState
           label="Loading scenario details..."
@@ -269,35 +294,50 @@ export function ScenarioDetailsPage() {
             onDeleteClick={handleDeleteClick}
             deletePending={deleteMutationInternal.isPending}
             deleteError={deleteMutationInternal.isError}
+            workContent={isCompactLayout ? <ScenarioCoverageSection scenarioName={name} /> : undefined}
+            qualityContent={isCompactLayout ? <ScenarioHealthSection scenarioName={scenario.name} health={scenario.health} /> : undefined}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
           />
 
-          <ScenarioCoverageSection scenarioName={name} />
-
-          <ScenarioHealthSection scenarioName={scenario.name} health={scenario.health} />
-
           <div className="hidden space-y-0 lg:block">
-            <ScenarioOverviewSection
-              scenario={scenario}
-              StatusIcon={StatusIcon}
-              localGreenfield={localGreenfield}
-              actionButtons={lifecycleActions}
-              actionError={actionError}
-            />
+            <div className={activeTab === "overview" ? undefined : "hidden"} aria-hidden={activeTab !== "overview"}>
+              <ScenarioOverviewSection
+                scenario={scenario}
+                StatusIcon={StatusIcon}
+                localGreenfield={localGreenfield}
+                actionButtons={lifecycleActions}
+                actionError={actionError}
+                onOpenWork={() => setActiveTab("work")}
+                onOpenQuality={() => setActiveTab("quality")}
+                evidenceState={scenario.health?.evidenceState}
+              />
+            </div>
 
-            <ScenarioSettingsSection
-              localGreenfield={localGreenfield}
-              onGreenfieldToggle={handleGreenfieldToggle}
-              updatePending={updateMutation.isPending}
-              updateError={updateMutation.isError}
-            />
+            <div className={activeTab === "work" ? undefined : "hidden"} aria-hidden={activeTab !== "work"}>
+              <ScenarioCoverageSection scenarioName={name} />
+            </div>
 
-            <ScenarioCliHints name={name} variant="desktop" />
+            <div className={activeTab === "quality" ? undefined : "hidden"} aria-hidden={activeTab !== "quality"}>
+              <ScenarioHealthSection scenarioName={scenario.name} health={scenario.health} />
+            </div>
 
-            <ScenarioDangerZone
-              onDeleteClick={handleDeleteClick}
-              deletePending={deleteMutationInternal.isPending}
-              deleteError={deleteMutationInternal.isError}
-            />
+            <div className={activeTab === "manage" ? undefined : "hidden"} aria-hidden={activeTab !== "manage"}>
+              <ScenarioSettingsSection
+                localGreenfield={localGreenfield}
+                onGreenfieldToggle={handleGreenfieldToggle}
+                updatePending={updateMutation.isPending}
+                updateError={updateMutation.isError}
+              />
+
+              <ScenarioCliHints name={name} variant="desktop" />
+
+              <ScenarioDangerZone
+                onDeleteClick={handleDeleteClick}
+                deletePending={deleteMutationInternal.isPending}
+                deleteError={deleteMutationInternal.isError}
+              />
+            </div>
           </div>
 
           <BottomSheet

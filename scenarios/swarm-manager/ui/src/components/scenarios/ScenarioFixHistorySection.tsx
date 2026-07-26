@@ -49,6 +49,16 @@ export function ScenarioFixHistorySection({ fixes }: ScenarioFixHistorySectionPr
 
   const totals = `${fixes.active.length} active · ${fixes.archived.length} archived`;
 
+  if (fixes.active.length === 0 && fixes.archived.length === 0) {
+    return (
+      <DetailSection title="Fix History" icon={Wrench} data-testid="scenario-fix-history">
+        <p className="text-sm text-slate-400" data-testid="scenario-fix-history-empty">
+          No recorded fixes for this scenario.
+        </p>
+      </DetailSection>
+    );
+  }
+
   return (
     <DetailSection
       title="Fix History"

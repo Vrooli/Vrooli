@@ -9,6 +9,7 @@ import { useGoals, useGoalMutations } from "../../../plan/hooks/useGoals";
 import { matchesSearch } from "./useSidebarSearch";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 import type { SortConfig } from "./types";
+import { GoalProgressCard } from "../../../../components/goals/GoalProgressCard";
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
@@ -52,10 +53,6 @@ function LoadingSkeleton() {
       ))}
     </div>
   );
-}
-
-function progressLabel(goal: GoalWithScope): string {
-  return `${Math.round(goal.scope.progressPct)}% · ${goal.scope.completedCount}/${goal.scope.total}`;
 }
 
 function GoalsTabImpl({
@@ -129,45 +126,21 @@ function GoalsTabImpl({
   return (
     <div className="space-y-1.5" data-testid="goals-tab">
       {sorted.map((goal) => {
-        const pct = Math.max(0, Math.min(100, Math.round(goal.scope.progressPct)));
         return (
-          <div
+          <GoalProgressCard
             key={goal.goal.name}
-            className="rounded-lg border border-slate-800/80 bg-slate-900/60 p-2.5 text-left transition-colors hover:border-slate-700 hover:bg-slate-900"
+            title={goal.goal.title}
+            subtitle={`${Math.round(goal.scope.progressPct)}% · ${goal.scope.completedCount}/${goal.scope.total}${goal.eta ? ` · ETA ${goal.eta.p50Label}-${goal.eta.p80Label}` : ""}`}
+            priority={goal.goal.priority}
+            completed={goal.scope.completedCount}
+            total={goal.scope.total}
+            targets={goal.scope.targets.length}
+            ready={goal.scope.ready.length}
+            blocked={goal.scope.blockedCount}
             data-testid={`goal-row-${goal.goal.name}`}
-            onClick={() => onItemClick(`goal/${goal.goal.name}`)}
-          >
-            <button
-              type="button"
-              className="w-full text-left"
-              aria-label={`Open ${goal.goal.title}`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-slate-100">{goal.goal.title}</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    {progressLabel(goal)}
-                    {goal.eta ? ` · ETA ${goal.eta.p50Label}-${goal.eta.p80Label}` : ""}
-                  </div>
-                </div>
-                <span className="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-slate-400">
-                  P{goal.goal.priority}
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 rounded-full bg-slate-800">
-                <div
-                  className="h-1.5 rounded-full bg-cyan-500"
-                  style={{ width: `${pct}%` }}
-                  aria-hidden
-                />
-              </div>
-              <div className="mt-1.5 flex flex-wrap gap-2 text-[11px] text-slate-500">
-                <span>{goal.scope.targets.length} targets</span>
-                <span>{goal.scope.ready.length} ready</span>
-                {goal.scope.blockedCount > 0 && <span className="text-red-300">{goal.scope.blockedCount} blocked</span>}
-              </div>
-            </button>
-            <div className="mt-2 flex items-center justify-end gap-1">
+            onOpen={() => onItemClick(`goal/${goal.goal.name}`)}
+            controls={(
+              <>
               <button
                 type="button"
                 onClick={(event) => {
@@ -200,8 +173,9 @@ function GoalsTabImpl({
               >
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
-            </div>
-          </div>
+              </>
+            )}
+          />
         );
       })}
     </div>

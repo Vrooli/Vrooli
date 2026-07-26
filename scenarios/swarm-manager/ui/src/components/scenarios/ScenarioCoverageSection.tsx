@@ -12,10 +12,12 @@
  */
 
 import { Target, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { DetailSection } from "../detail/DetailSection";
 import { EntityLink } from "../ui/entity-link";
 import { RollupProgressBar } from "../ui/rollup-progress-bar";
+import { GoalProgressCard } from "../goals/GoalProgressCard";
 import { ScenarioFixHistorySection } from "./ScenarioFixHistorySection";
 import { scenariosService } from "../../services";
 import { defaultQueryOptions } from "../../lib";
@@ -26,6 +28,7 @@ export interface ScenarioCoverageSectionProps {
 
 /** Full coverage view for a scenario: goals + unassigned items + rollup. */
 export function ScenarioCoverageSection({ scenarioName }: ScenarioCoverageSectionProps) {
+  const navigate = useNavigate();
   const { data, error, isLoading } = useQuery({
     queryKey: ["scenario-context", scenarioName],
     queryFn: () => scenariosService.getContext(scenarioName),
@@ -92,40 +95,19 @@ export function ScenarioCoverageSection({ scenarioName }: ScenarioCoverageSectio
             </div>
             <div className="grid min-w-0 gap-2">
               {data.goals.map((goal) => (
-                <div
+                <GoalProgressCard
                   key={goal.name}
-                  className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <EntityLink
-                        entityType="goal"
-                        name={goal.name}
-                        label={goal.title || goal.name}
-                      />
-                      <p className="mt-1 truncate text-[11px] text-slate-500">{goal.name}</p>
-                    </div>
-                    <span className="shrink-0 text-[11px] text-slate-500">
-                      {goal.status}
-                      {goal.priority > 0 ? ` · P${goal.priority}` : ""}
-                    </span>
-                  </div>
-                  {goal.rollup.total > 0 ? (
-                    <>
-                      <RollupProgressBar rollup={goal.rollup} barHeight="h-1.5" className="mt-3" />
-                      <div className="mt-2 flex flex-wrap gap-3 text-[11px]">
-                        <span className="text-emerald-400">{goal.rollup.completed} done</span>
-                        <span className="text-purple-400">{goal.rollup.inProgress} active</span>
-                        {goal.rollup.failed > 0 && (
-                          <span className="text-red-400">{goal.rollup.failed} failed</span>
-                        )}
-                        <span className="text-slate-500">{goal.rollup.pending} pending</span>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="mt-3 text-[11px] text-slate-500">No rollup available yet.</p>
-                  )}
-                </div>
+                  title={goal.title || goal.name}
+                  subtitle={`${goal.status} · ${goal.name}`}
+                  priority={goal.priority}
+                  completed={goal.rollup.completed}
+                  total={goal.rollup.total}
+                  inProgress={goal.rollup.inProgress}
+                  failed={goal.rollup.failed}
+                  pending={goal.rollup.pending}
+                  onOpen={() => navigate(`/goals/${encodeURIComponent(goal.name)}`)}
+                  data-testid={`scenario-coverage-goal-${goal.name}`}
+                />
               ))}
             </div>
           </div>

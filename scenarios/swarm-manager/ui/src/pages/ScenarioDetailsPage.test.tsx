@@ -133,6 +133,8 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.get).mockResolvedValue({ ...mockScenario, health: { evidenceState: "fresh", phases: [{ phase: "unit", priorityCapabilityId: "coverage", priorityCapabilityLabel: "Coverage", blockingCodes: [] }] } as never });
       vi.mocked(scenariosService.previewRemediation).mockResolvedValue({ proposal: { target: { scenarioName: "test-scenario", providerPhase: "unit", capabilityId: "coverage" }, fingerprint: "srh:test", title: "Improve coverage", description: "Preview", acceptanceCriteria: ["Given evidence"], acceptanceAllow: [], recommendedWorkflows: [] } });
       renderPage();
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-quality")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-quality").at(-1)!);
       await waitFor(() => expect(screen.getByRole("button", { name: "Preview remediation" })).toBeInTheDocument());
       fireEvent.click(screen.getByRole("button", { name: "Preview remediation" }));
       await waitFor(() => expect(screen.getByTestId("scenario-remediation-preview")).toBeInTheDocument());
@@ -145,6 +147,8 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.applyMaturityCampaign).mockResolvedValue({ proposal: { target: { scenarioName: "test-scenario", maturityTarget: "operator-selected maturity outcome", providerPhases: ["unit"] }, fingerprint: "smc:test", title: "Raise maturity", description: "Preview", acceptanceCriteria: ["Given evidence"], declaredWorkflow: "scenario-improvement-campaign", trackerAvailability: "unavailable" }, goalRef: "scenario-maturity-test", created: true, trackerAvailability: "unavailable" });
       renderPage();
 
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-quality")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-quality").at(-1)!);
       await waitFor(() => expect(screen.getByTestId("scenario-maturity-campaign-preview-button")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("scenario-maturity-campaign-preview-button"));
       await waitFor(() => expect(screen.getByTestId("scenario-maturity-campaign-preview")).toBeInTheDocument());
@@ -161,6 +165,9 @@ describe("ScenarioDetailsPage", () => {
         health: { evidenceState: "stale", reason: "Evidence is older than the freshness window.", sourceRunId: "run-42", phases: [] } as never,
       });
       renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-quality")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-quality").at(-1)!);
 
       await waitFor(() => {
         expect(screen.getByTestId("scenario-health-section")).toBeInTheDocument();
@@ -227,6 +234,9 @@ describe("ScenarioDetailsPage", () => {
         description: "",
       });
       renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
 
       await waitFor(() => {
         expect(screen.getAllByText("No description provided").length).toBeGreaterThan(0);
@@ -948,6 +958,9 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       renderPage();
 
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-manage")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-manage")[0]!);
+
       await waitFor(() => {
         expect(screen.getByRole("button", { name: /Danger Zone/i })).toBeInTheDocument();
       });
@@ -997,6 +1010,9 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       renderPage();
 
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
+
       await waitFor(() => {
         expect(screen.getByTestId("scenario-coverage-section")).toBeInTheDocument();
       });
@@ -1021,6 +1037,9 @@ describe("ScenarioDetailsPage", () => {
         fixes: { active: [], archived: [] },
       });
       renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
 
       await waitFor(() => {
         expect(screen.getByTestId("scenario-coverage-goals")).toBeInTheDocument();
@@ -1062,6 +1081,9 @@ describe("ScenarioDetailsPage", () => {
       // Default getContext mock in beforeEach returns empty — confirm the empty state renders.
       renderPage();
 
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
+
       await waitFor(() => {
         expect(screen.getByTestId("scenario-coverage-empty")).toBeInTheDocument();
       });
@@ -1084,6 +1106,9 @@ describe("ScenarioDetailsPage", () => {
         },
       });
       renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
 
       await waitFor(() => {
         expect(screen.getByTestId("scenario-fix-history")).toBeInTheDocument();

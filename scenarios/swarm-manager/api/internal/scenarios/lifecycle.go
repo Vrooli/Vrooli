@@ -137,6 +137,7 @@ func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, 
 		apierr.MapError(w, "[scenarios] "+action, apierr.Internal("failed to %s scenario", action))
 		return
 	}
+	h.invalidateCatalog()
 
 	scenario, err := h.loadScenario(r.Context(), name)
 	if err != nil {

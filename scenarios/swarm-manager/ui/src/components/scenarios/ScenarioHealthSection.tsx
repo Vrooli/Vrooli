@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { DetailSection } from "../detail/DetailSection";
 import type { ScenarioHealthSnapshot } from "../../types";
 import { scenariosService, type ScenarioMaturityCampaignPreview, type ScenarioRemediationPreview } from "../../services";
@@ -13,17 +13,36 @@ export function ScenarioHealthSection({ scenarioName, health }: { scenarioName: 
   const actionable = health.evidenceState === "fresh";
   return <DetailSection title="Test Genie health" icon={Activity} data-testid="scenario-health-section">
     <div className="space-y-3 text-sm">
-      <p data-testid="scenario-health-state"><span className="font-medium">Evidence: </span>{health.evidenceState}{health.freshness ? ` (${health.freshness})` : ""}</p>
-      {health.reason && <p className="text-slate-400" data-testid="scenario-health-reason">{health.reason}</p>}
-      {health.sourceRunId && <p className="text-xs text-slate-500">Source run: {health.sourceRunId}</p>}
-      {health.verdict && <p>Provider verdict: {health.verdict}</p>}
-      {!actionable && <p className="text-amber-300">Remediation is unavailable until Test Genie supplies fresh canonical evidence.</p>}
-      {health.phases?.map((phase) => <article key={phase.phase} className="rounded border border-slate-700 p-3">
-        <div className="font-medium">{phase.label || phase.phase}</div>
-        <div className="text-slate-400">{phase.currentRung || "No current rung"}{phase.nextRung ? ` → ${phase.nextRung}` : ""}</div>
-        {phase.priorityCapabilityLabel && <div>Priority: {phase.priorityCapabilityLabel}</div>}
-        {phase.blockingCodes?.length ? <div className="text-amber-300">Blocking: {phase.blockingCodes.join(", ")}</div> : null}
-        {actionable && phase.priorityCapabilityId && <button type="button" data-testid="scenario-remediation-preview-button" className="mt-2 rounded bg-cyan-700 px-3 py-1 text-xs" onClick={() => { setError(null); scenariosService.previewRemediation(scenarioName, { scenarioName, providerPhase: phase.phase, capabilityId: phase.priorityCapabilityId! }).then(setPreview).catch((value: unknown) => setError(value instanceof Error ? value.message : "Could not preview remediation")); }}>Preview remediation</button>}
+      <div className={`rounded-xl border p-3 ${actionable ? "border-emerald-500/25 bg-emerald-500/5" : "border-amber-500/25 bg-amber-500/5"}`}>
+        <div className="flex items-start gap-2">
+          {actionable ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />}
+          <div className="min-w-0">
+            <p className="font-medium text-slate-200" data-testid="scenario-health-state">
+              Evidence is {health.evidenceState}{health.freshness ? ` · ${health.freshness}` : ""}
+            </p>
+            {health.reason && <p className="mt-1 text-xs leading-5 text-slate-400" data-testid="scenario-health-reason">{health.reason}</p>}
+            {!actionable && <p className="mt-2 text-xs text-amber-200">Remediation becomes available when Test Genie has fresh canonical evidence.</p>}
+          </div>
+        </div>
+        {(health.sourceRunId || health.verdict) && <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-800/70 pt-2 text-[11px] text-slate-500">
+          {health.sourceRunId && <span>Run {health.sourceRunId}</span>}
+          {health.verdict && <span>Verdict: {health.verdict}</span>}
+        </div>}
+      </div>
+      {health.phases?.map((phase) => <article key={phase.phase} className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-medium text-slate-100">{phase.label || phase.phase}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+              <span>{phase.currentRung || "No current rung"}</span>
+              {phase.nextRung && <><ArrowRight className="h-3.5 w-3.5 text-slate-600" /><span>{phase.nextRung}</span></>}
+            </div>
+          </div>
+          {phase.blockingCodes?.length ? <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-200">{phase.blockingCodes.length} blocked</span> : <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">Clear</span>}
+        </div>
+        {phase.priorityCapabilityLabel && <p className="mt-3 border-l-2 border-cyan-500/50 pl-2 text-xs text-slate-300">Next capability: {phase.priorityCapabilityLabel}</p>}
+        {phase.blockingCodes?.length ? <p className="mt-2 text-xs text-amber-200">Blocking: {phase.blockingCodes.join(", ")}</p> : null}
+        {actionable && phase.priorityCapabilityId && <button type="button" data-testid="scenario-remediation-preview-button" className="mt-3 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-200 transition-colors hover:bg-cyan-500/20" onClick={() => { setError(null); scenariosService.previewRemediation(scenarioName, { scenarioName, providerPhase: phase.phase, capabilityId: phase.priorityCapabilityId! }).then(setPreview).catch((value: unknown) => setError(value instanceof Error ? value.message : "Could not preview remediation")); }}>Preview remediation</button>}
       </article>)}
       {error && <p role="alert" className="text-red-300">{error}</p>}
       {preview && <div className="rounded border border-cyan-700 bg-slate-950 p-3" data-testid="scenario-remediation-preview">

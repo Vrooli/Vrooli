@@ -20,6 +20,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"swarm-manager/internal/apierr"
@@ -46,6 +47,11 @@ const (
 )
 
 var errScenarioNameRequired = errors.New("scenario name is required")
+
+const (
+	catalogCacheTTL      = 30 * time.Second
+	catalogHealthWorkers = 12
+)
 
 // Scenario represents a deployed application in the Vrooli ecosystem.
 // [REQ:REQ-P0-006] Scenario data structure for catalog listing
@@ -84,6 +90,9 @@ type Handler struct {
 	backlogLister      BacklogLister
 	executionLister    ExecutionLister
 	goalsLister        GoalsLister
+	catalogMu          sync.Mutex
+	catalog            []Scenario
+	catalogCachedAt    time.Time
 }
 
 // NewHandler creates a new scenarios handler.
@@ -155,6 +164,13 @@ func (h *Handler) SetBacklogLister(bl BacklogLister) {
 // SetExecutionLister sets the execution lister for review queue computation.
 func (h *Handler) SetExecutionLister(el ExecutionLister) {
 	h.executionLister = el
+}
+
+func (h *Handler) invalidateCatalog() {
+	h.catalogMu.Lock()
+	defer h.catalogMu.Unlock()
+	h.catalog = nil
+	h.catalogCachedAt = time.Time{}
 }
 
 // LoadAll exposes scenario listing for non-HTTP consumers.
@@ -712,6 +728,7 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[scenarios] update", apierr.Internal("failed to save metadata"))
 		return
 	}
+	h.invalidateCatalog()
 
 	// Return updated scenario
 	scenario, err := h.loadScenarioFromSource(source)

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"swarm-manager/internal/testutil"
@@ -43,6 +44,19 @@ type deleteScenarioResponse struct {
 type stubSource struct {
 	scenarios []ScenarioSource
 	err       error
+}
+
+type countingSource struct {
+	mu        sync.Mutex
+	scenarios []ScenarioSource
+	calls     int
+}
+
+func (s *countingSource) List(_ context.Context) ([]ScenarioSource, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.calls++
+	return append([]ScenarioSource(nil), s.scenarios...), nil
 }
 
 func (s stubSource) List(_ context.Context) ([]ScenarioSource, error) {
@@ -217,6 +231,29 @@ func TestList_Empty(t *testing.T) {
 	resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
 	if len(resp.Scenarios) != 0 {
 		t.Errorf("expected 0 scenarios, got %d", len(resp.Scenarios))
+	}
+}
+
+func TestLoadAllCachesCatalogWithinTTL(t *testing.T) {
+	root, sources := setupTestScenarios(t)
+	source := &countingSource{scenarios: sources}
+	handler := NewHandlerWithDeps(filepath.Join(root, "scenarios"), source, &stubLifecycle{}, stubCompleteness{scores: map[string]int{}})
+
+	if _, err := handler.loadAllScenarios(context.Background()); err != nil {
+		t.Fatalf("first load: %v", err)
+	}
+	if _, err := handler.loadAllScenarios(context.Background()); err != nil {
+		t.Fatalf("cached load: %v", err)
+	}
+	if source.calls != 1 {
+		t.Fatalf("source calls = %d, want 1", source.calls)
+	}
+	handler.invalidateCatalog()
+	if _, err := handler.loadAllScenarios(context.Background()); err != nil {
+		t.Fatalf("load after invalidation: %v", err)
+	}
+	if source.calls != 2 {
+		t.Fatalf("source calls after invalidation = %d, want 2", source.calls)
 	}
 }
 

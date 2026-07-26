@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"swarm-manager/internal/backlog"
 )
@@ -132,6 +134,12 @@ func (h *Handler) loadScenarioByPath(name, scenarioPath string) (Scenario, error
 
 // loadAllScenarios reads all scenarios from the CLI source.
 func (h *Handler) loadAllScenarios(ctx context.Context) ([]Scenario, error) {
+	h.catalogMu.Lock()
+	defer h.catalogMu.Unlock()
+	if len(h.catalog) > 0 && time.Since(h.catalogCachedAt) < catalogCacheTTL {
+		return append([]Scenario(nil), h.catalog...), nil
+	}
+
 	sources, err := h.source.List(ctx)
 	if err != nil {
 		return nil, err
@@ -149,10 +157,12 @@ func (h *Handler) loadAllScenarios(ctx context.Context) ([]Scenario, error) {
 			continue
 		}
 		applyCompletenessScore(&scenario, scores)
-		h.attachHealth(ctx, &scenario)
 		scenarios = append(scenarios, scenario)
 	}
-	return scenarios, nil
+	h.attachCatalogHealth(ctx, scenarios)
+	h.catalog = append([]Scenario(nil), scenarios...)
+	h.catalogCachedAt = time.Now()
+	return append([]Scenario(nil), scenarios...), nil
 }
 
 // loadScenario reads a single scenario by name.
@@ -174,12 +184,61 @@ func (h *Handler) loadScenario(ctx context.Context, name string) (Scenario, erro
 }
 
 func (h *Handler) attachHealth(ctx context.Context, scenario *Scenario) {
+	h.attachHealthWithFixes(ctx, scenario, nil)
+}
+
+func (h *Handler) attachHealthWithFixes(ctx context.Context, scenario *Scenario, fixes []backlog.BacklogItem) {
 	if h.health == nil || scenario == nil {
 		return
 	}
 	snapshot := h.health.Snapshot(ctx, scenario.Name)
-	h.attachRemediationState(&snapshot, scenario.Name)
+	if fixes == nil && h.backlogLister != nil {
+		loaded, err := h.backlogLister.LoadAll([]backlog.BacklogKind{backlog.KindFix})
+		if err != nil {
+			slog.Warn("failed to load remediation reconciliation state", "error", err)
+		} else {
+			fixes = loaded
+		}
+	}
+	h.attachRemediationItems(&snapshot, scenario.Name, fixes)
 	scenario.Health = &snapshot
+}
+
+// attachCatalogHealth keeps the catalog path bounded. Health is independent per
+// scenario, so serial provider calls needlessly made a 113-row catalog take seconds.
+func (h *Handler) attachCatalogHealth(ctx context.Context, scenarios []Scenario) {
+	if h.health == nil || len(scenarios) == 0 {
+		return
+	}
+	workers := catalogHealthWorkers
+	if workers > len(scenarios) {
+		workers = len(scenarios)
+	}
+	var fixes []backlog.BacklogItem
+	if h.backlogLister != nil {
+		loaded, err := h.backlogLister.LoadAll([]backlog.BacklogKind{backlog.KindFix})
+		if err != nil {
+			slog.Warn("failed to load remediation reconciliation state", "error", err)
+		} else {
+			fixes = loaded
+		}
+	}
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				h.attachHealthWithFixes(ctx, &scenarios[index], fixes)
+			}
+		}()
+	}
+	for index := range scenarios {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
 }
 
 // attachRemediationState joins only Swarm-owned work state onto a provider
@@ -191,6 +250,13 @@ func (h *Handler) attachRemediationState(snapshot *ScenarioHealthSnapshot, scena
 	items, err := h.backlogLister.LoadAll([]backlog.BacklogKind{backlog.KindFix})
 	if err != nil {
 		slog.Warn("failed to load remediation reconciliation state", "error", err)
+		return
+	}
+	h.attachRemediationItems(snapshot, scenario, items)
+}
+
+func (h *Handler) attachRemediationItems(snapshot *ScenarioHealthSnapshot, scenario string, items []backlog.BacklogItem) {
+	if snapshot == nil {
 		return
 	}
 	known := map[string]struct{}{}
