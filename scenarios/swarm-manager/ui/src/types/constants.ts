@@ -154,6 +154,7 @@ export type SidebarEntityType =
   | "captures"
   | "goals"
   | "executions"
+  | "scenarios"
   | "sessions";
 
 /**
@@ -166,6 +167,7 @@ export const SIDEBAR_TAB_ICONS: Record<SidebarEntityType, LucideIcon> = {
   captures: ENTITY_TYPE_ICONS.capture,
   goals: ENTITY_TYPE_ICONS.goal,
   executions: ENTITY_TYPE_ICONS.execution,
+  scenarios: ENTITY_TYPE_ICONS.scenario,
   sessions: Bot,
 };
 

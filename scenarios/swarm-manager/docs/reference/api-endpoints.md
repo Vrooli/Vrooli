@@ -28,6 +28,26 @@ created or resumed.
 }
 ```
 
+## Scenario health and remediation
+
+`GET /api/v1/scenarios` and `GET /api/v1/scenarios/{name}` optionally include
+the typed `health` projection. Test Genie remains the evidence authority:
+`evidence_state`, freshness, source-run identity, verdict, and phase
+presentation are read-only provider data. Swarm contributes only the
+`remediation` reconciliation summary for its own governed work.
+
+`POST /api/v1/scenarios/{name}/remediation/preview` accepts a provider phase
+and priority capability target. It has no side effects. The corresponding
+`/apply` endpoint requires the preview fingerprint and creates or reconciles a
+single fix item. Fresh evidence is required for both operations.
+
+`POST /api/v1/scenarios/{name}/maturity-campaign/preview` accepts an explicit
+operator-selected maturity outcome plus the provider phases in scope. The
+corresponding `/apply` endpoint requires that preview fingerprint and creates
+or reconciles one governed goal. It reports the Architecture Cartographer
+tracker as unavailable unless an authoritative tracker integration has supplied
+a reference; it never fabricates one.
+
 `POST /api/v1/agent-sessions/{session_id}/start`
 
 Starts a draft session with the first real operator message. This is the only

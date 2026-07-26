@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"swarm-manager/internal/backlog"
 )
 
 // metadataPath returns the path to the metadata file for a scenario.
@@ -147,6 +149,7 @@ func (h *Handler) loadAllScenarios(ctx context.Context) ([]Scenario, error) {
 			continue
 		}
 		applyCompletenessScore(&scenario, scores)
+		h.attachHealth(ctx, &scenario)
 		scenarios = append(scenarios, scenario)
 	}
 	return scenarios, nil
@@ -166,7 +169,46 @@ func (h *Handler) loadScenario(ctx context.Context, name string) (Scenario, erro
 		return Scenario{}, err
 	}
 	applyCompletenessScore(&scenario, h.getCompletenessScores(ctx))
+	h.attachHealth(ctx, &scenario)
 	return scenario, nil
+}
+
+func (h *Handler) attachHealth(ctx context.Context, scenario *Scenario) {
+	if h.health == nil || scenario == nil {
+		return
+	}
+	snapshot := h.health.Snapshot(ctx, scenario.Name)
+	h.attachRemediationState(&snapshot, scenario.Name)
+	scenario.Health = &snapshot
+}
+
+// attachRemediationState joins only Swarm-owned work state onto a provider
+// snapshot. It never changes provider evidence or infers a health verdict.
+func (h *Handler) attachRemediationState(snapshot *ScenarioHealthSnapshot, scenario string) {
+	if snapshot == nil || h.backlogLister == nil {
+		return
+	}
+	items, err := h.backlogLister.LoadAll([]backlog.BacklogKind{backlog.KindFix})
+	if err != nil {
+		slog.Warn("failed to load remediation reconciliation state", "error", err)
+		return
+	}
+	known := map[string]struct{}{}
+	for _, phase := range snapshot.Phases {
+		if phase.PriorityCapabilityID == "" {
+			continue
+		}
+		fingerprint, fingerprintErr := (RemediationTarget{Scenario: scenario, ProviderPhase: phase.Phase, CapabilityID: phase.PriorityCapabilityID}).Fingerprint()
+		if fingerprintErr == nil {
+			known[fingerprint] = struct{}{}
+		}
+	}
+	for _, item := range items {
+		if _, ok := known[item.FindingRef]; !ok {
+			continue
+		}
+		snapshot.Remediation = append(snapshot.Remediation, ScenarioRemediationState{Fingerprint: item.FindingRef, State: string(item.Status), WorkRef: string(item.Kind) + "/" + item.Name, UpdatedAt: item.Updated})
+	}
 }
 
 func (h *Handler) findScenarioSource(ctx context.Context, name string) (ScenarioSource, bool, error) {

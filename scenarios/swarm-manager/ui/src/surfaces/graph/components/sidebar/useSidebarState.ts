@@ -14,6 +14,7 @@ import {
   type BacklogFilters,
   type CaptureFilters,
   type ExecutionFilters,
+  type ScenarioFilters,
   type SessionFilters,
   type SidebarTab,
   type SortConfig,
@@ -102,6 +103,11 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
           statuses: restoreArray(filters.executions?.statuses),
           modes: restoreArray(filters.executions?.modes),
         },
+        scenarios: {
+          lifecycle: restoreArray(filters.scenarios?.lifecycle),
+          evidenceStates: restoreArray(filters.scenarios?.evidenceStates),
+          remediationStates: restoreArray(filters.scenarios?.remediationStates),
+        },
         sessions: {
           statuses: restoreArray(filters.sessions?.statuses),
           kinds: restoreArray(filters.sessions?.kinds),
@@ -115,6 +121,7 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
         captures: restoreSort(sorts.captures, DEFAULT_SORT.captures),
         goals: restoreSort(sorts.goals, DEFAULT_SORT.goals),
         executions: restoreSort(sorts.executions, DEFAULT_SORT.executions),
+        scenarios: restoreSort(sorts.scenarios, DEFAULT_SORT.scenarios),
         sessions: restoreSort(sorts.sessions, DEFAULT_SORT.sessions),
       },
     };
@@ -143,6 +150,7 @@ type SidebarAction =
   | { type: "SET_BACKLOG_FILTERS"; filters: Partial<BacklogFilters> }
   | { type: "SET_CAPTURE_FILTERS"; filters: Partial<CaptureFilters> }
   | { type: "SET_EXECUTION_FILTERS"; filters: Partial<ExecutionFilters> }
+  | { type: "SET_SCENARIO_FILTERS"; filters: Partial<ScenarioFilters> }
   | { type: "SET_SESSION_FILTERS"; filters: Partial<SessionFilters> }
   | { type: "SET_SORT"; tab: SidebarTab; sort: Partial<SortConfig> }
   | { type: "CLEAR_FILTERS"; tab: SidebarTab }
@@ -189,6 +197,15 @@ export function sidebarReducer(state: SidebarState, action: SidebarAction): Side
         filters: {
           ...state.filters,
           executions: { ...state.filters.executions, ...action.filters },
+        },
+      };
+
+    case "SET_SCENARIO_FILTERS":
+      return {
+        ...state,
+        filters: {
+          ...state.filters,
+          scenarios: { ...state.filters.scenarios, ...action.filters },
         },
       };
 

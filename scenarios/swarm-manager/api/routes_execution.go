@@ -82,11 +82,7 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 			filerCfg.Events = s.emitter
 		}
 		if filerSvc, filerErr := backlog.NewService(filerCfg); filerErr == nil {
-			source := autofiler.GCTFindingSource{
-				Client:        execution.NewHTTPReviewClient(nil),
-				Freshness:     autofiler.NewReviewFreshnessStore(dataRoot),
-				FreshnessTime: autofiler.DefaultReviewFreshness,
-			}
+			source := autofiler.TestGenieFindingSource{Health: scenarios.NewTestGenieHealthSource(3 * time.Second)}
 			sweeper := autofiler.NewSweeper(
 				settings.NewGovernanceAdapter(s.settingsStore),
 				s.backlogHandler.Store(),

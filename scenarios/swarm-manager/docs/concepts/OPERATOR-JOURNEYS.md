@@ -28,6 +28,33 @@ levels:
 At both levels the system keeps one invariant: **the next recommended action
 is always explicit, and it is never something the server would refuse to do.**
 
+## Scenario health and governed remediation
+
+The **Scenarios** catalog is the operator's entry point for service health; it
+does not require finding a graph node. Search, lifecycle, evidence-state, and
+remediation-state filters narrow the catalog, and a selected row opens the
+existing scenario detail view.
+
+The detail view projects canonical Test Genie evidence rather than storing a
+second findings ledger. It always labels the evidence state:
+
+- **Fresh** evidence may offer a bounded, provider-priority phase remediation.
+- **Stale**, **degraded**, **unavailable**, and **no evidence** remain visible
+  with their provider-safe reason, but cannot create work.
+
+For a fresh phase, the operator first previews a typed proposal. Preview has
+no side effects. Accepting the exact preview fingerprint creates at most one
+governed backlog item, with a stable identity based on scenario, provider
+phase, and provider capability—not a transient run ID. The work states the
+outcome and Gherkin acceptance, and references the declared
+`scenario-improvement-campaign` workflow without copying methodology into the
+description. Repeating acceptance reconciles to the same work reference.
+
+Broader maturity work remains intentionally distinct from phase remediation:
+it requires an explicit operator-selected target and confirmation. Architecture
+Cartographer campaign tracking is optional enrichment; when unavailable, the
+operator must see that limitation rather than fabricated campaign state.
+
 ## Journey 1: a backlog item, end to end
 
 ```mermaid

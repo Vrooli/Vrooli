@@ -87,6 +87,16 @@ export const literalSelectors = {
     userAgent: "error-boundary-user-agent",
     errorCategory: "error-boundary-error-category",
   },
+  scenarioHealth: {
+    section: "scenario-health-section",
+    state: "scenario-health-state",
+    remediationPreview: "scenario-remediation-preview",
+    remediationPreviewButton: "scenario-remediation-preview-button",
+    remediationAcceptButton: "scenario-remediation-accept-button",
+    maturityCampaignPreview: "scenario-maturity-campaign-preview",
+    maturityCampaignPreviewButton: "scenario-maturity-campaign-preview-button",
+    maturityCampaignConfirmButton: "scenario-maturity-campaign-confirm-button",
+  },
   // Not Found page selectors
   notFound: {
     page: "not-found-page",

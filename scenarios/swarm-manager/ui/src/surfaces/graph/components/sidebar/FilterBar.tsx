@@ -7,7 +7,7 @@ import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { CollapsibleSection } from "../../../../components/ui/collapsible-section";
 import type { SidebarAction } from "./useSidebarState";
-import type { BacklogFilters, CaptureFilters, ExecutionFilters, SessionFilters, SidebarTab, SortConfig, SortDirection, SortField } from "./types";
+import type { BacklogFilters, CaptureFilters, ExecutionFilters, ScenarioFilters, SessionFilters, SidebarTab, SortConfig, SortDirection, SortField } from "./types";
 import { DEFAULT_SORT } from "./types";
 
 interface FilterBarProps {
@@ -15,6 +15,7 @@ interface FilterBarProps {
   backlogFilters: BacklogFilters;
   captureFilters: CaptureFilters;
   executionFilters: ExecutionFilters;
+  scenarioFilters: ScenarioFilters;
   sessionFilters: SessionFilters;
   sort: SortConfig;
   dispatch: Dispatch<SidebarAction>;
@@ -261,11 +262,20 @@ function SessionFilterChips({ filters, dispatch }: { filters: SessionFilters; di
   );
 }
 
+function ScenarioFilterChips({ filters, dispatch }: { filters: ScenarioFilters; dispatch: Dispatch<SidebarAction> }) {
+  const groups: Array<[string, string[], keyof ScenarioFilters]> = [
+    ["Lifecycle", ["running", "stopped", "error", "unknown"], "lifecycle"],
+    ["Evidence", ["fresh", "stale", "degraded", "unavailable", "no_evidence"], "evidenceStates"],
+    ["Remediation", ["none", "suggested", "backlog", "completed", "dismissed"], "remediationStates"],
+  ];
+  return <>{groups.map(([label, values, key]) => <div key={key}><p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">{label}</p><div className="flex flex-wrap gap-1">{values.map((value) => <Chip key={value} label={value.replace(/_/g, " ")} active={filters[key].includes(value)} onClick={() => dispatch({ type: "SET_SCENARIO_FILTERS", filters: { [key]: toggleInArray(filters[key], value) } })} />)}</div></div>)}</>;
+}
+
 // ============================================================================
 // FilterBar
 // ============================================================================
 
-function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captures: CaptureFilters, executions: ExecutionFilters, sessions: SessionFilters, sort: SortConfig): boolean {
+function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captures: CaptureFilters, executions: ExecutionFilters, scenarios: ScenarioFilters, sessions: SessionFilters, sort: SortConfig): boolean {
   const defaultSort = DEFAULT_SORT[tab];
   const sortChanged = sort.field !== defaultSort.field || sort.direction !== defaultSort.direction;
 
@@ -274,12 +284,13 @@ function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captur
     case "captures": return captures.statuses.length > 0 || sortChanged;
     case "goals": return sortChanged;
     case "executions": return executions.statuses.length > 0 || executions.modes.length > 0 || sortChanged;
+    case "scenarios": return scenarios.lifecycle.length > 0 || scenarios.evidenceStates.length > 0 || scenarios.remediationStates.length > 0 || sortChanged;
     case "sessions": return sessions.statuses.length > 0 || sessions.kinds.length > 0 || sessions.activeOnly || sessions.hasProposals || sessions.hasAppliedArtifacts || sortChanged;
   }
 }
 
-export function FilterBar({ activeTab, backlogFilters, captureFilters, executionFilters, sessionFilters, sort, dispatch }: FilterBarProps) {
-  const hasActive = hasActiveFiltersForTab(activeTab, backlogFilters, captureFilters, executionFilters, sessionFilters, sort);
+export function FilterBar({ activeTab, backlogFilters, captureFilters, executionFilters, scenarioFilters, sessionFilters, sort, dispatch }: FilterBarProps) {
+  const hasActive = hasActiveFiltersForTab(activeTab, backlogFilters, captureFilters, executionFilters, scenarioFilters, sessionFilters, sort);
 
   return (
     <CollapsibleSection
@@ -315,6 +326,7 @@ export function FilterBar({ activeTab, backlogFilters, captureFilters, execution
       {activeTab === "backlog" && <BacklogFilterChips filters={backlogFilters} dispatch={dispatch} />}
       {activeTab === "captures" && <CaptureFilterChips filters={captureFilters} dispatch={dispatch} />}
       {activeTab === "executions" && <ExecutionFilterChips filters={executionFilters} dispatch={dispatch} />}
+      {activeTab === "scenarios" && <ScenarioFilterChips filters={scenarioFilters} dispatch={dispatch} />}
       {activeTab === "sessions" && <SessionFilterChips filters={sessionFilters} dispatch={dispatch} />}
     </CollapsibleSection>
   );

@@ -31,6 +31,7 @@ import { CapturesTab } from "./CapturesTab";
 import { GoalsTab } from "./GoalsTab";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { SessionsTab } from "./SessionsTab";
+import { ScenariosTab } from "./ScenariosTab";
 import { useSidebarSelection } from "./useSidebarSelection";
 
 interface SidebarProps {
@@ -239,6 +240,7 @@ export function Sidebar({
             backlogFilters={state.filters.backlog}
             captureFilters={state.filters.captures}
             executionFilters={state.filters.executions}
+            scenarioFilters={state.filters.scenarios}
             sessionFilters={state.filters.sessions}
             sort={state.sorts[activeTab]}
             dispatch={dispatch}
@@ -313,6 +315,15 @@ export function Sidebar({
                   selectedIds={selection.selectedIds}
                   onToggleSelection={selection.toggleItem}
                   onVisibleIdsChange={selection.pruneToVisible}
+                />
+              )}
+              {activeTab === "scenarios" && (
+                <ScenariosTab
+                  searchQuery={debouncedSearch}
+                  filters={state.filters.scenarios}
+                  sort={state.sorts.scenarios}
+                  onItemClick={onItemClick}
+                  onClearSearch={clearSearch}
                 />
               )}
             </>

@@ -52,6 +52,10 @@ vi.mock("../services", () => ({
     start: vi.fn(),
     stop: vi.fn(),
     restart: vi.fn(),
+    previewRemediation: vi.fn(),
+    applyRemediation: vi.fn(),
+    previewMaturityCampaign: vi.fn(),
+    applyMaturityCampaign: vi.fn(),
   },
 }));
 
@@ -125,6 +129,46 @@ describe("ScenarioDetailsPage", () => {
 
   // [REQ:REQ-P0-007b] Test scenario metadata display
   describe("scenario metadata display", () => {
+    it("previews before it applies a fresh phase remediation", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue({ ...mockScenario, health: { evidenceState: "fresh", phases: [{ phase: "unit", priorityCapabilityId: "coverage", priorityCapabilityLabel: "Coverage", blockingCodes: [] }] } as never });
+      vi.mocked(scenariosService.previewRemediation).mockResolvedValue({ proposal: { target: { scenarioName: "test-scenario", providerPhase: "unit", capabilityId: "coverage" }, fingerprint: "srh:test", title: "Improve coverage", description: "Preview", acceptanceCriteria: ["Given evidence"], acceptanceAllow: [], recommendedWorkflows: [] } });
+      renderPage();
+      await waitFor(() => expect(screen.getByRole("button", { name: "Preview remediation" })).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: "Preview remediation" }));
+      await waitFor(() => expect(screen.getByTestId("scenario-remediation-preview")).toBeInTheDocument());
+      expect(scenariosService.applyRemediation).not.toHaveBeenCalled();
+    });
+
+    it("requires a separate preview and confirmation for a maturity campaign", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue({ ...mockScenario, health: { evidenceState: "fresh", phases: [{ phase: "unit", priorityCapabilityId: "coverage", priorityCapabilityLabel: "Coverage", blockingCodes: [] }] } as never });
+      vi.mocked(scenariosService.previewMaturityCampaign).mockResolvedValue({ proposal: { target: { scenarioName: "test-scenario", maturityTarget: "operator-selected maturity outcome", providerPhases: ["unit"] }, fingerprint: "smc:test", title: "Raise maturity", description: "Preview", acceptanceCriteria: ["Given evidence"], declaredWorkflow: "scenario-improvement-campaign", trackerAvailability: "unavailable" } });
+      vi.mocked(scenariosService.applyMaturityCampaign).mockResolvedValue({ proposal: { target: { scenarioName: "test-scenario", maturityTarget: "operator-selected maturity outcome", providerPhases: ["unit"] }, fingerprint: "smc:test", title: "Raise maturity", description: "Preview", acceptanceCriteria: ["Given evidence"], declaredWorkflow: "scenario-improvement-campaign", trackerAvailability: "unavailable" }, goalRef: "scenario-maturity-test", created: true, trackerAvailability: "unavailable" });
+      renderPage();
+
+      await waitFor(() => expect(screen.getByTestId("scenario-maturity-campaign-preview-button")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("scenario-maturity-campaign-preview-button"));
+      await waitFor(() => expect(screen.getByTestId("scenario-maturity-campaign-preview")).toBeInTheDocument());
+      expect(scenariosService.applyMaturityCampaign).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByTestId("scenario-maturity-campaign-confirm-button"));
+      await waitFor(() => expect(scenariosService.applyMaturityCampaign).toHaveBeenCalledTimes(1));
+      expect(screen.getByText("Governed goal: scenario-maturity-test")).toBeInTheDocument();
+    });
+
+    it("renders provider-owned stale health without claiming a verdict", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue({
+        ...mockScenario,
+        health: { evidenceState: "stale", reason: "Evidence is older than the freshness window.", sourceRunId: "run-42", phases: [] } as never,
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-health-section")).toBeInTheDocument();
+        expect(screen.getByTestId("scenario-health-state")).toHaveTextContent("stale");
+        expect(screen.getByTestId("scenario-health-reason")).toHaveTextContent("older than the freshness window");
+      });
+    });
+
     it("displays scenario title correctly", async () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       renderPage();

@@ -11,6 +11,7 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/goals"
 	"swarm-manager/internal/identity"
+	"swarm-manager/internal/scenarios"
 )
 
 type BacklogCreator interface {
@@ -132,7 +133,7 @@ func itemForFinding(f Finding, opts FileOptions, now time.Time) backlog.BacklogI
 		title = fmt.Sprintf("[%s] maintenance: %s", strings.TrimSpace(f.Scenario), dimension)
 	}
 	timestamp := now.Format(time.RFC3339)
-	return backlog.BacklogItem{
+	item := backlog.BacklogItem{
 		Name:            name,
 		Title:           title,
 		Description:     descriptionForFinding(f, opts),
@@ -152,6 +153,16 @@ func itemForFinding(f Finding, opts FileOptions, now time.Time) backlog.BacklogI
 			Source: Origin(opts.Strategy, f.StableID()),
 		},
 	}
+	// Scenario-health findings already originate from the shared remediation
+	// factory. Keep their outcome and acceptance verbatim so the suggest path
+	// and an operator-applied preview describe the same bounded work.
+	if strings.HasPrefix(f.StableID(), "srh:") {
+		item.Description = strings.TrimSpace(f.Description)
+		if strings.TrimSpace(f.Details) != "" {
+			item.Description += "\n\n" + strings.TrimSpace(f.Details)
+		}
+	}
+	return item
 }
 
 func descriptionForFinding(f Finding, opts FileOptions) string {
@@ -189,6 +200,9 @@ func priorityForSeverity(sev Severity) int {
 }
 
 func stableItemName(f Finding) string {
+	if strings.HasPrefix(f.StableID(), "srh:") {
+		return scenarios.RemediationItemName(f.StableID())
+	}
 	scenario := slugify(f.Scenario)
 	if scenario == "" {
 		scenario = "scenario"

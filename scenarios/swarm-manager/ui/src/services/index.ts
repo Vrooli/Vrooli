@@ -21,7 +21,7 @@ export type { ICaptureService, CreateCaptureResponse, ClassifyResponse } from ".
 
 // Scenarios
 export { scenariosService, createScenariosService } from "./scenarios-service";
-export type { IScenariosService } from "./scenarios-service";
+export type { IScenariosService, ScenarioMaturityCampaignPreview, ScenarioRemediationPreview } from "./scenarios-service";
 
 // Settings
 export { settingsService, createSettingsService } from "./settings-service";

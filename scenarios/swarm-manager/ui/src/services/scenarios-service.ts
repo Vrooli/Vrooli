@@ -22,6 +22,14 @@ import {
   DeleteScenarioRequestSchema,
   PreserveFilesRequestSchema,
   SpecSyncArchiveRequestSchema,
+  PreviewScenarioRemediationRequestSchema,
+  ApplyScenarioRemediationRequestSchema,
+  PreviewScenarioMaturityCampaignRequestSchema,
+  ApplyScenarioMaturityCampaignRequestSchema,
+  previewScenarioRemediationResponseSchema,
+  applyScenarioRemediationResponseSchema,
+  previewScenarioMaturityCampaignResponseSchema,
+  applyScenarioMaturityCampaignResponseSchema,
   specSyncArchiveResponseSchema,
   mapSpecSyncArchiveResponse,
   listScenariosResponseSchema,
@@ -155,7 +163,23 @@ export interface IScenariosService {
   start(name: string): Promise<Scenario>;
   stop(name: string): Promise<Scenario>;
   restart(name: string): Promise<Scenario>;
+  previewRemediation(name: string, target: ScenarioRemediationTarget): Promise<ScenarioRemediationPreview>;
+  applyRemediation(name: string, target: ScenarioRemediationTarget, fingerprint: string): Promise<ScenarioRemediationApplyResult>;
+  previewMaturityCampaign(name: string, target: ScenarioMaturityCampaignTarget): Promise<ScenarioMaturityCampaignPreview>;
+  applyMaturityCampaign(name: string, target: ScenarioMaturityCampaignTarget, fingerprint: string): Promise<ScenarioMaturityCampaignApplyResult>;
 }
+
+export interface ScenarioRemediationTarget { scenarioName: string; providerPhase: string; capabilityId: string; }
+export interface ScenarioRemediationProposal { target: ScenarioRemediationTarget; fingerprint: string; title: string; description: string; acceptanceCriteria: string[]; acceptanceAllow: string[]; recommendedWorkflows: string[]; }
+export interface ScenarioRemediationPreview { proposal: ScenarioRemediationProposal; existing?: { state: string; workRef?: string }; }
+export interface ScenarioRemediationApplyResult { proposal: ScenarioRemediationProposal; workRef: string; created: boolean; }
+export interface ScenarioMaturityCampaignTarget { scenarioName: string; maturityTarget: string; providerPhases: string[]; }
+export interface ScenarioMaturityCampaignProposal { target: ScenarioMaturityCampaignTarget; fingerprint: string; title: string; description: string; acceptanceCriteria: string[]; declaredWorkflow: string; trackerAvailability: string; trackerRef?: string; }
+export interface ScenarioMaturityCampaignPreview { proposal: ScenarioMaturityCampaignProposal; existingGoalRef?: string; }
+export interface ScenarioMaturityCampaignApplyResult { proposal: ScenarioMaturityCampaignProposal; goalRef: string; created: boolean; trackerAvailability: string; trackerRef?: string; }
+
+function mapRemediationProposal(value: { target?: ScenarioRemediationTarget; fingerprint: string; title: string; description: string; acceptanceCriteria: string[]; acceptanceAllow: string[]; recommendedWorkflows: string[] }): ScenarioRemediationProposal { return { ...value, target: requireProtoField(value.target, "scenario remediation target") }; }
+function mapCampaignProposal(value: { target?: ScenarioMaturityCampaignTarget; fingerprint: string; title: string; description: string; acceptanceCriteria: string[]; declaredWorkflow: string; trackerAvailability: string; trackerRef?: string }): ScenarioMaturityCampaignProposal { return { ...value, target: requireProtoField(value.target, "scenario maturity campaign target") }; }
 
 interface RawRollup {
   total?: number;
@@ -385,6 +409,35 @@ export function createScenariosService(
       const data = await apiClient.post<unknown>(API_ENDPOINTS.scenarioRestart(name), {});
       const parsed = parseProtoResponse(scenarioResponseSchema, data, "scenario");
       return mapProtoScenario(requireProtoField(parsed.scenario, "scenario"));
+    },
+
+    async previewRemediation(name, target) {
+      const request = buildMessage(PreviewScenarioRemediationRequestSchema, { target });
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.scenarioRemediationPreview(name), toProtoJson(PreviewScenarioRemediationRequestSchema, request));
+      const parsed = parseProtoResponse(previewScenarioRemediationResponseSchema, data, "scenario remediation preview");
+      const proposal = requireProtoField(parsed.proposal, "scenario remediation proposal");
+      return { proposal: mapRemediationProposal(proposal), existing: parsed.existing ? { state: parsed.existing.state, workRef: parsed.existing.workRef } : undefined };
+    },
+
+    async applyRemediation(name, target, fingerprint) {
+      const request = buildMessage(ApplyScenarioRemediationRequestSchema, { target, fingerprint });
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.scenarioRemediationApply(name), toProtoJson(ApplyScenarioRemediationRequestSchema, request));
+      const parsed = parseProtoResponse(applyScenarioRemediationResponseSchema, data, "scenario remediation apply");
+      return { proposal: mapRemediationProposal(requireProtoField(parsed.proposal, "scenario remediation proposal")), workRef: parsed.workRef, created: parsed.created };
+    },
+
+    async previewMaturityCampaign(name, target) {
+      const request = buildMessage(PreviewScenarioMaturityCampaignRequestSchema, { target });
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.scenarioMaturityCampaignPreview(name), toProtoJson(PreviewScenarioMaturityCampaignRequestSchema, request));
+      const parsed = parseProtoResponse(previewScenarioMaturityCampaignResponseSchema, data, "scenario maturity campaign preview");
+      return { proposal: mapCampaignProposal(requireProtoField(parsed.proposal, "scenario maturity campaign proposal")), existingGoalRef: parsed.existingGoalRef };
+    },
+
+    async applyMaturityCampaign(name, target, fingerprint) {
+      const request = buildMessage(ApplyScenarioMaturityCampaignRequestSchema, { target, fingerprint });
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.scenarioMaturityCampaignApply(name), toProtoJson(ApplyScenarioMaturityCampaignRequestSchema, request));
+      const parsed = parseProtoResponse(applyScenarioMaturityCampaignResponseSchema, data, "scenario maturity campaign apply");
+      return { proposal: mapCampaignProposal(requireProtoField(parsed.proposal, "scenario maturity campaign proposal")), goalRef: parsed.goalRef, created: parsed.created, trackerAvailability: parsed.trackerAvailability, trackerRef: parsed.trackerRef };
     },
   };
 }

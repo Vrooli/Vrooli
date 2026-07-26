@@ -27,6 +27,7 @@ import type { FileSelectionResult } from "../components/scenarios/file-selection
 import { ScenarioDeleteDialog } from "../components/scenarios/ScenarioDeleteDialog";
 import { ScenarioOverviewSection } from "../components/scenarios/ScenarioOverviewSection";
 import { ScenarioCoverageSection } from "../components/scenarios/ScenarioCoverageSection";
+import { ScenarioHealthSection } from "../components/scenarios/ScenarioHealthSection";
 import { ScenarioSettingsSection } from "../components/scenarios/ScenarioSettingsSection";
 import { ScenarioCliHints } from "../components/scenarios/ScenarioCliHints";
 import { ScenarioDangerZone } from "../components/scenarios/ScenarioDangerZone";
@@ -271,6 +272,8 @@ export function ScenarioDetailsPage() {
           />
 
           <ScenarioCoverageSection scenarioName={name} />
+
+          <ScenarioHealthSection scenarioName={scenario.name} health={scenario.health} />
 
           <div className="hidden space-y-0 lg:block">
             <ScenarioOverviewSection

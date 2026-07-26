@@ -480,6 +480,10 @@ func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Ha
 		panic(err)
 	}
 	backlogHandler.SetLifecycleService(lifecycleService)
+	if s.scenariosHandler != nil {
+		s.scenariosHandler.SetRemediationCreator(lifecycleService)
+		s.scenariosHandler.SetCampaignCreator(goalService)
+	}
 	// Session-backed proposals dispatch by target while preserving one decision
 	// endpoint and the canonical proposal apply flow for backlog mutations.
 	processor, err := newCompositeMutationProcessor(goalService, backlogHandler.Store(), assigner, lifecycleService)
@@ -743,6 +747,7 @@ func (s *Server) registerRecordsRoutes(dataRoot, scenariosDir string) {
 
 func (s *Server) registerScenarioRoutes(scenariosDir string) {
 	s.scenariosHandler = scenarios.NewHandler(scenariosDir)
+	s.scenariosHandler.SetHealthSource(scenarios.NewTestGenieHealthSource(3 * time.Second))
 	s.scenariosHandler.RegisterRoutes(s.router)
 }
 
