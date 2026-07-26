@@ -42,9 +42,11 @@ const (
 	// statically. Degrades to a warning when the binary is simply absent in the
 	// run context (see the runtimeprobe seam) — never hard-fails a scenario whose
 	// CLI is not installed here.
-	CodeCLIBinaryUnrunnable  = "cli.binary_unrunnable"  // declared CLI surface but binary cannot be resolved in this run context
-	CodeCLIHelpFailed        = "cli.help_failed"        // binary resolves but `--help` errors / produces nothing
-	CodeCLICommandUndeclared = "cli.command_undeclared" // runtime command surface diverges from the manifest
+	CodeCLIBinaryUnrunnable        = "cli.binary_unrunnable"            // declared CLI surface but binary cannot be resolved in this run context
+	CodeCLIHelpFailed              = "cli.help_failed"                  // binary resolves but `--help` errors / produces nothing
+	CodeCLICommandUndeclared       = "cli.command_undeclared"           // runtime command surface diverges from the manifest
+	CodeCLIDiscoveryCoverage       = "cli.discovery_coverage_low"       // manifest does not cover the observed runtime surface
+	CodeOmissionContradictsCommand = "cli.omission_contradicts_command" // omission says a live command is absent
 
 	// CLI entrypoint-structure codes. These are static Go checks over cli/main.go,
 	// scoped to the process boundary only. They do not replace architecture or

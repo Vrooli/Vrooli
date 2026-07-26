@@ -89,6 +89,17 @@ func TestArchitectureStatic_PrimitiveUndeclared(t *testing.T) {
 	}
 }
 
+func TestArchitectureStatic_LocalCommandDoesNotRequireProtoPrimitive(t *testing.T) {
+	m := manifestWith([]cliapp.ManifestCommand{{
+		Name:       "status",
+		Binding:    cliapp.ManifestBinding{Kind: "local"},
+		Governance: cliapp.ManifestGovernance{Effect: "read", RunEligible: true},
+	}}, nil)
+	if got := architectureStaticFindings(m, ArchitectureEvidence{}, "cli/manifest.json"); len(got) != 0 {
+		t.Fatalf("local command must not create proto architecture debt: %+v", got)
+	}
+}
+
 func TestArchitectureStatic_DeclaredExceptionVerifiedByEvidence(t *testing.T) {
 	// A custom command declared in exceptions[] that is NOT a manifest-bound
 	// command is a legitimate special case only when static cli-core evidence

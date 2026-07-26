@@ -116,6 +116,10 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		h.HandleDomainError(w, err)
 		return
 	}
+	if err := addAgentManagerSessionHomeBinds(&cfg, req.Env); err != nil {
+		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	if req.AllowNetwork {
 		cfg.AllowNetwork = true

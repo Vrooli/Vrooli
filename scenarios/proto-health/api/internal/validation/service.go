@@ -792,7 +792,7 @@ func checkCrossDomainImports(surface protosurface.Surface) []Finding {
 	suppressed := crossDomainImportsCoveredBySharedTypeErrors(surface)
 	var findings []Finding
 	for _, imp := range surface.IntraScenarioImports {
-		if imp.FromDomain == "" || imp.ToDomain == "" || imp.FromDomain == imp.ToDomain || imp.ToDomain == "shared" {
+		if imp.FromDomain == "" || imp.ToDomain == "" || imp.FromDomain == imp.ToDomain || isConventionalDomainImport(imp.FromDomain, imp.ToDomain) {
 			continue
 		}
 		if suppressed[crossDomainImportKey(imp.FromFile, imp.ToFile)] {
@@ -808,6 +808,15 @@ func checkCrossDomainImports(surface protosurface.Surface) []Finding {
 	return findings
 }
 
+// isConventionalDomainImport identifies imports between architectural buckets,
+// not product domains. api owns request/response contracts and intentionally
+// imports durable entity messages from domain; *_common is a bounded shared
+// bucket whose consumers are allowed to import it directly. Neither relation
+// indicates a duplicated cross-domain type.
+func isConventionalDomainImport(from, to string) bool {
+	return to == "shared" || (from == "api" && to == "domain") || strings.HasSuffix(to, "_common")
+}
+
 func crossDomainImportsCoveredBySharedTypeErrors(surface protosurface.Surface) map[string]bool {
 	referenceDomains := sharedTypeReferenceDomains(surface)
 	suppressed := map[string]bool{}
@@ -817,7 +826,7 @@ func crossDomainImportsCoveredBySharedTypeErrors(surface protosurface.Surface) m
 			continue
 		}
 		for _, imp := range surface.IntraScenarioImports {
-			if imp.ToFile != msg.FilePath || imp.FromDomain == "" || imp.FromDomain == imp.ToDomain || imp.ToDomain == "shared" {
+			if imp.ToFile != msg.FilePath || imp.FromDomain == "" || imp.FromDomain == imp.ToDomain || isConventionalDomainImport(imp.FromDomain, imp.ToDomain) {
 				continue
 			}
 			if domains[imp.FromDomain] && domains[msg.Domain] {
@@ -1440,6 +1449,14 @@ func formatUnusedMessageNames(unused []protosurface.Message) []string {
 }
 
 func isConventionalReachabilityRoot(m protosurface.Message) bool {
+	// api and domain are architectural contract/model buckets. Their messages
+	// can legitimately precede a served Connect service while the scenario is
+	// migrating an existing REST surface; treating every such message as dead
+	// makes proto-health confuse staged transport adoption with unused schema.
+	// Product-named domains remain subject to reachability checks.
+	if m.Domain == "api" || m.Domain == "domain" {
+		return true
+	}
 	if !isConventionalHandlerlessDomain(m.Domain) && m.Domain != "shared" {
 		return false
 	}
@@ -1453,10 +1470,15 @@ func isConventionalReachabilityRoot(m protosurface.Message) bool {
 
 func isConventionalHandlerlessDomain(domain string) bool {
 	switch domain {
-	case "errors", "health":
+	// api and domain are intentional contract/model buckets in scenarios that
+	// use screaming proto architecture: services live in product-named handler
+	// packages, while api owns transport messages and domain owns durable models.
+	// *_common is the same shared-type role for a bounded subsystem (for example
+	// audio_common), and has no independent handler by design.
+	case "api", "domain", "errors", "health":
 		return true
 	default:
-		return false
+		return strings.HasSuffix(domain, "_common")
 	}
 }
 

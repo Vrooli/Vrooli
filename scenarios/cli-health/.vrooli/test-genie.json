@@ -481,6 +481,24 @@
           "cli-steer"
         ]
       },
+      "cli.discovery_coverage_low": {
+        "capability_id": "discovery_readiness",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cli-steer"]
+      },
+      "cli.omission_contradicts_command": {
+        "capability_id": "proto_bindings",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cli-steer"]
+      },
       "measure.invalid": {
         "capability_id": "measures_metadata",
         "local_level_impact": "L0",

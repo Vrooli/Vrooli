@@ -552,7 +552,16 @@ func TestMarkChangesCommitted(t *testing.T) {
 		ProjectRoot:  "/project",
 		ChangeType:   "modified",
 	}
-	if err := repo.RecordAppliedChanges(ctx, []*types.AppliedChange{c}); err != nil {
+	otherSandbox := newTestSandbox()
+	if err := repo.Create(ctx, otherSandbox); err != nil {
+		t.Fatalf("Create other sandbox: %v", err)
+	}
+	other := &types.AppliedChange{
+		ID: uuid.New(), SandboxID: otherSandbox.ID, SandboxOwner: "b",
+		FilePath: "/project/src/other.go", ProjectRoot: "/project", ChangeType: "modified",
+		ProvenanceState: string(types.ProvenanceFileStatePendingReview),
+	}
+	if err := repo.RecordAppliedChanges(ctx, []*types.AppliedChange{c, other}); err != nil {
 		t.Fatalf("RecordAppliedChanges: %v", err)
 	}
 
@@ -572,6 +581,27 @@ func TestMarkChangesCommitted(t *testing.T) {
 	}
 	if prov[0].CommitHash != "abc123" {
 		t.Errorf("CommitHash got %q want abc123", prov[0].CommitHash)
+	}
+	if prov[0].ProvenanceState != string(types.ProvenanceFileStateApplied) {
+		t.Errorf("ProvenanceState got %q want %q", prov[0].ProvenanceState, types.ProvenanceFileStateApplied)
+	}
+	committedAt := *prov[0].CommittedAt
+	if err := repo.MarkChangesCommitted(ctx, []uuid.UUID{c.ID}, "abc123", "ship it"); err != nil {
+		t.Fatalf("idempotent MarkChangesCommitted: %v", err)
+	}
+	prov, err = repo.GetFileProvenance(ctx, "/project/src/x.go", "/project", 10)
+	if err != nil {
+		t.Fatalf("GetFileProvenance after repeat: %v", err)
+	}
+	if !prov[0].CommittedAt.Equal(committedAt) {
+		t.Errorf("idempotent call changed committed_at from %v to %v", committedAt, prov[0].CommittedAt)
+	}
+	otherProvenance, err := repo.GetFileProvenance(ctx, other.FilePath, other.ProjectRoot, 10)
+	if err != nil {
+		t.Fatalf("GetFileProvenance other sandbox: %v", err)
+	}
+	if len(otherProvenance) != 1 || otherProvenance[0].CommittedAt != nil {
+		t.Errorf("commit must not affect another sandbox: %+v", otherProvenance)
 	}
 }
 

@@ -268,6 +268,29 @@ func TestParseHelpTree_ParsesCommandRowsWithUsageTail(t *testing.T) {
 	}
 }
 
+func TestParseHelpTree_IgnoresIndentedNotesProse(t *testing.T) {
+	run, _ := staticRunner(t, map[string]string{
+		"demo": `demo
+
+Subcommands:
+  records  Manage narrative records
+`,
+		"demo records": `demo records
+
+Subcommands:
+  create  Create a record
+
+Notes:
+  - A record already exists after a successful review.
+`,
+		"demo records create": `demo records create - Create a record`,
+	})
+	records := ParseHelpTree(context.Background(), run, "demo", HelpTreeOptions{Origin: "demo"})
+	if len(records) != 1 || records[0].Group != "records" || records[0].Name != "create" {
+		t.Fatalf("notes prose must not be parsed as a command: %+v", records)
+	}
+}
+
 // TestParseHelpEntries_HelpPseudoCommandFiltered pins the precise filter: the
 // cli-core `help` entry (description "Show this help message") is dropped, but a
 // command named `help` with a genuinely different, non-help-printing description

@@ -492,6 +492,23 @@ func TestValidateScenarioReportsStableMessageNotLocallyReachable(t *testing.T) {
 	requireFinding(t, report, CodePossiblyUnused, SeverityWarning)
 }
 
+func TestValidateScenarioExemptsArchitecturalAPIAndDomainContractsFromPossiblyUnused(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files,
+		protosurface.File{Path: "demo/v1/api/items.proto", Package: "vrooli.demo.v1.api", Version: "v1", Domain: "api", Stability: "beta"},
+		protosurface.File{Path: "demo/v1/domain/items.proto", Package: "vrooli.demo.v1.domain", Version: "v1", Domain: "domain", Stability: "beta"},
+	)
+	surface.Messages = append(surface.Messages,
+		protosurface.Message{FilePath: "demo/v1/api/items.proto", Package: "vrooli.demo.v1.api", Name: "ListItemsResponse", FullName: "vrooli.demo.v1.api.ListItemsResponse", Domain: "api"},
+		protosurface.Message{FilePath: "demo/v1/domain/items.proto", Package: "vrooli.demo.v1.domain", Name: "Item", FullName: "vrooli.demo.v1.domain.Item", Domain: "domain"},
+	)
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	requireNoFinding(t, report, CodePossiblyUnused)
+}
+
 func TestValidateScenarioExemptsExperimentalUnservedMessageFromPossiblyUnused(t *testing.T) {
 	surface := cleanSurface()
 	surface.Files = append(surface.Files, protosurface.File{
@@ -673,6 +690,23 @@ func TestCheckDomainMismatchExemptsConventionalHealthAndErrorsDomains(t *testing
 		Files: []protosurface.File{
 			{Path: "demo/v1/health/health.proto", Domain: "health"},
 			{Path: "demo/v1/errors/errors.proto", Domain: "errors"},
+		},
+	}
+
+	require.Empty(t, svc.checkDomainMismatch(surface))
+}
+
+func TestCheckDomainMismatchExemptsContractModelAndCommonBuckets(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "demo", "api", "handlers", "notes"), 0o755))
+	svc := &Service{repoRoot: root}
+	surface := protosurface.Surface{
+		Scenario: "demo",
+		Files: []protosurface.File{
+			{Path: "demo/v1/api/notes.proto", Domain: "api"},
+			{Path: "demo/v1/domain/notes.proto", Domain: "domain"},
+			{Path: "demo/v1/audio_common/audio.proto", Domain: "audio_common"},
+			{Path: "demo/v1/notes/notes.proto", Domain: "notes"},
 		},
 	}
 
@@ -972,6 +1006,16 @@ func TestValidateScenarioSuppressesCrossDomainImportCoveredBySharedTypePlacement
 	require.False(t, report.Passed)
 	requireFinding(t, report, CodeSharedTypeMisplaced, SeverityError)
 	requireNoFinding(t, report, CodeCrossDomainImport)
+}
+
+func TestCheckCrossDomainImportsExemptsConventionalContractBuckets(t *testing.T) {
+	surface := protosurface.Surface{IntraScenarioImports: []protosurface.Import{
+		{FromFile: "demo/v1/api/notes.proto", ToFile: "demo/v1/domain/note.proto", FromDomain: "api", ToDomain: "domain"},
+		{FromFile: "demo/v1/audio_runtime/runtime.proto", ToFile: "demo/v1/audio_common/audio.proto", FromDomain: "audio_runtime", ToDomain: "audio_common"},
+		{FromFile: "demo/v1/notes/notes.proto", ToFile: "demo/v1/shared/common.proto", FromDomain: "notes", ToDomain: "shared"},
+	}}
+
+	require.Empty(t, checkCrossDomainImports(surface))
 }
 
 func TestValidateScenarioFindsImportCycle(t *testing.T) {

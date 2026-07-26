@@ -10,14 +10,21 @@
         {
           "name": "scenario",
           "description": "Validate a single scenario by id",
-          "positionals": [
+      "positionals": [
             {
               "name": "name",
               "required": true,
               "description": "Scenario id (directory name under scenarios/)"
-            }
-          ],
-          "binding": {
+        }
+      ],
+      "flags": [
+        {
+          "name": "include-execution",
+          "bool": true,
+          "description": "Probe the installed CLI runtime and reconcile its help surface with the manifest"
+        }
+      ],
+      "binding": {
             "kind": "connect-rpc",
             "service": "ScenarioValidationService",
             "method": "ValidateScenario"

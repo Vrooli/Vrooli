@@ -208,3 +208,15 @@ func TestWaitForServiceHealthHonorsDeclaredHTTPStatus(t *testing.T) {
 		t.Fatalf("expected declared healthy response: %v", err)
 	}
 }
+
+func TestWaitForServiceHealthRejectsInitializationRequiredEvenWhenPlanAllowsIt(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotImplemented)
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	defer cancel()
+	if err := waitForServiceHealth(ctx, []HealthCheck{{Type: "http", Target: server.URL, ExpectedStatus: []int{http.StatusNotImplemented}}}, nil); err == nil {
+		t.Fatal("initialization-required response was accepted as ready")
+	}
+}

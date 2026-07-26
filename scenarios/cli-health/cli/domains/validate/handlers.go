@@ -34,7 +34,8 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 func (h *handlers) scenarioCall(ctx cliapp.OperationContext) (*scenariovalidationv1.ValidateScenarioResponse, error) {
 	name := ctx.Positional("name")
 	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
-		Scenario: name,
+		Scenario:         name,
+		IncludeExecution: ctx.FlagProvided("include-execution"),
 	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", name), err, nil)

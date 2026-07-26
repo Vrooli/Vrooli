@@ -3,6 +3,7 @@ package manifestvalidation
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -60,6 +61,7 @@ var builtinCommands = map[string]bool{
 	"version":    true,
 	"configure":  true,
 	"completion": true,
+	"status":     true,
 }
 
 // cliRuntimeProbe is the production RuntimeProbe: it resolves the scenario's
@@ -144,15 +146,13 @@ func runtimeFindings(obs RuntimeObservation, m *cliapp.Manifest, manifestPath st
 			Suggestion: "run `<cli> --help` manually and fix the error so the CLI is introspectable",
 		}}
 	}
-	return commandSurfaceFindings(obs, m, manifestPath)
+	findings := commandSurfaceFindings(obs, m, manifestPath)
+	return append(findings, omissionContradictionFindings(obs, m, manifestPath)...)
 }
 
 // commandSurfaceFindings reconciles the binary's runtime command surface against
-// the manifest's declared commands, in both directions, scoped to groups the
-// manifest declares AND the binary actually exposes at runtime. Scoping this way
-// keeps the check precise: framework-injected top-level commands (which live
-// outside any manifest group) never trip it, and a help-parse gap that drops a
-// whole group does not falsely report that group's commands as missing.
+// the manifest's declared commands in both directions. Runtime-only groups are
+// contract gaps: ignoring them made a partial manifest look complete.
 func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifestPath string) []Finding {
 	// Commands declared as legitimate special cases in the manifest's top-level
 	// exceptions[] are not "undeclared": they live outside the binding path on
@@ -161,10 +161,14 @@ func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifest
 	declaredExceptions := exceptionCommandPaths(m)
 	manifestByGroup := map[string]map[string]bool{}
 	for _, g := range m.Groups {
-		set := manifestByGroup[g.Name]
+		group := g.Name
+		if g.Flat {
+			group = ""
+		}
+		set := manifestByGroup[group]
 		if set == nil {
 			set = map[string]bool{}
-			manifestByGroup[g.Name] = set
+			manifestByGroup[group] = set
 		}
 		for _, c := range g.Commands {
 			set[c.Name] = true
@@ -181,7 +185,14 @@ func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifest
 	}
 
 	var findings []Finding
-	for _, group := range sortedKeys(manifestByGroup) {
+	groups := map[string]bool{}
+	for group := range manifestByGroup {
+		groups[group] = true
+	}
+	for group := range runtimeByGroup {
+		groups[group] = true
+	}
+	for _, group := range sortedKeys(groups) {
 		runtime, present := runtimeByGroup[group]
 		if !present {
 			// Group not observed at runtime — likely a help-parse gap or a
@@ -218,6 +229,33 @@ func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifest
 				Message:    fmt.Sprintf("binary exposes command %q at runtime but the manifest does not declare it (manifest is the CLI SSOT)", groupCmd(group, name)),
 				Suggestion: "add the command to the manifest under its group/binding, declare it in exceptions[] if it is a legitimate special case (streaming/upload/passthrough/durable run), or remove it from the CLI",
 			})
+		}
+	}
+	if len(runtimeByGroup) > 0 && len(findings) > 0 {
+		findings = append(findings, Finding{Severity: SeverityError, Code: CodeCLIDiscoveryCoverage, Location: manifestPath,
+			Message:    "manifest command coverage is below the observed runtime CLI surface",
+			Suggestion: "declare every runtime leaf command in cli/manifest.json so discovery indexes the executable CLI contract"})
+	}
+	return findings
+}
+
+var handRegisteredCommand = regexp.MustCompile(`(?i)hand-registered (?:as|through) ['\x60]([^'\x60]+)['\x60]`)
+
+func omissionContradictionFindings(obs RuntimeObservation, m *cliapp.Manifest, manifestPath string) []Finding {
+	live := map[string]bool{}
+	for _, command := range obs.Commands {
+		live[normalizeCommandPath(groupCmd(command.Group, command.Name))] = true
+	}
+	var findings []Finding
+	for _, omission := range m.Omitted {
+		for _, match := range handRegisteredCommand.FindAllStringSubmatch(omission.Reason, -1) {
+			path := normalizeCommandPath(match[1])
+			if !live[path] {
+				continue
+			}
+			findings = append(findings, Finding{Severity: SeverityError, Code: CodeOmissionContradictsCommand, Location: manifestPath + "#/omitted",
+				Message:    fmt.Sprintf("omitted RPC %s.%s says live command %q is absent from the CLI surface", omission.Service, omission.Method, path),
+				Suggestion: "replace the omission with the command binding or state a reason that does not contradict the runtime CLI"})
 		}
 	}
 	return findings

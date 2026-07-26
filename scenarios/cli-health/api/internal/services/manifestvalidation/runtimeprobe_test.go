@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // fakeProbe is a programmable RuntimeProbe test double.
@@ -158,6 +160,28 @@ func TestRuntimeProbe_UndeclaredCommandIsError(t *testing.T) {
 	got := findingsWithCode(rep.Findings, CodeCLICommandUndeclared)
 	if len(got) != 1 || got[0].Severity != SeverityError {
 		t.Fatalf("want one command_undeclared error for the undeclared command, got %+v", got)
+	}
+}
+
+func TestRuntimeProbe_RuntimeOnlyGroupIsUndeclaredAndLowersDiscoveryCoverage(t *testing.T) {
+	obs := matchingRuntime()
+	obs.Commands = append(obs.Commands, RuntimeCommand{Group: "g2", Name: "one"}, RuntimeCommand{Group: "g2", Name: "two"})
+	rep, err := newServiceWithProbe(&fakeProbe{obs: obs}).ValidateScenario(WithIncludeExecution(context.Background(), true), "fixture")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := findingsWithCode(rep.Findings, CodeCLICommandUndeclared); len(got) != 2 {
+		t.Fatalf("want two runtime-only group findings, got %+v", got)
+	}
+	if got := findingsWithCode(rep.Findings, CodeCLIDiscoveryCoverage); len(got) != 1 {
+		t.Fatalf("want discovery coverage finding, got %+v", got)
+	}
+}
+
+func TestRuntimeProbe_OmissionNamingLiveCommandIsRejected(t *testing.T) {
+	m := &cliapp.Manifest{Omitted: []cliapp.ManifestOmission{{Service: "Svc", Method: "Do", Reason: "Hand-registered as 'g1 do' through another path."}}}
+	if got := omissionContradictionFindings(matchingRuntime(), m, "cli/manifest.json"); len(got) != 1 {
+		t.Fatalf("want contradiction finding, got %+v", got)
 	}
 }
 

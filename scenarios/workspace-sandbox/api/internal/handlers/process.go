@@ -2,7 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -154,6 +158,10 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		h.HandleDomainError(w, err)
 		return
 	}
+	if err := addAgentManagerSessionHomeBinds(&cfg, req.Env); err != nil {
+		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	if req.AllowNetwork {
 		cfg.AllowNetwork = true
@@ -203,6 +211,62 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		TimedOut:    timedOut,
 		Containment: effective,
 	})
+}
+
+// addAgentManagerSessionHomeBinds makes only a run-scoped codec session home
+// writable through the protected home overlay. The overlay intentionally makes
+// the host home read-only; without this later bind, CODEX_HOME points at a
+// visible but unwritable lower-layer directory and Codex cannot create its
+// app-server state. The accepted shape is deliberately narrow so a launch
+// request cannot turn arbitrary host paths into writable mounts.
+func addAgentManagerSessionHomeBinds(cfg *driverexec.BwrapConfig, env map[string]string) error {
+	if len(env) == 0 {
+		return nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve host home for codec session mount: %w", err)
+	}
+	runsRoot := filepath.Join(home, ".vrooli", "data", "vrooli", "agent-manager", "runs")
+	for envKey, expectedLeaf := range map[string]string{"CODEX_HOME": "codex", "GROK_HOME": "grok"} {
+		sessionHome := env[envKey]
+		if sessionHome == "" {
+			continue
+		}
+		if err := validateAgentManagerSessionHome(runsRoot, sessionHome, expectedLeaf); err != nil {
+			return fmt.Errorf("invalid %s writable mount: %w", envKey, err)
+		}
+		if cfg.ReadWriteBinds == nil {
+			cfg.ReadWriteBinds = make(map[string]string)
+		}
+		cfg.ReadWriteBinds[sessionHome] = sessionHome
+	}
+	return nil
+}
+
+func validateAgentManagerSessionHome(runsRoot, sessionHome, expectedLeaf string) error {
+	if !filepath.IsAbs(sessionHome) {
+		return fmt.Errorf("path must be absolute")
+	}
+	rel, err := filepath.Rel(runsRoot, filepath.Clean(sessionHome))
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+		return fmt.Errorf("path must be below run-state root")
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if len(parts) != 2 || parts[1] != expectedLeaf {
+		return fmt.Errorf("path must name a run-scoped %s home", expectedLeaf)
+	}
+	if _, err := uuid.Parse(parts[0]); err != nil {
+		return fmt.Errorf("run directory is not a UUID: %w", err)
+	}
+	info, err := os.Stat(sessionHome)
+	if err != nil {
+		return fmt.Errorf("session home is unavailable: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("session home is not a directory")
+	}
+	return nil
 }
 
 // firstArg returns args[0] or "" — used by Exec/StartProcess to surface

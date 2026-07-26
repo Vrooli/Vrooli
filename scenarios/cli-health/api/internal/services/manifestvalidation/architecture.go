@@ -109,6 +109,12 @@ func architectureStaticFindings(m *cliapp.Manifest, evidence ArchitectureEvidenc
 
 	for _, g := range m.Groups {
 		for _, c := range g.Commands {
+			// Local commands are deliberately outside the Connect-RPC primitive
+			// contract. Requiring a proto primitive for them turns the honest
+			// migration posture (binding.kind=local) into false architecture debt.
+			if c.Binding.Kind != "connect-rpc" {
+				continue
+			}
 			obs := commandArchObservation{
 				group:    g.Name,
 				command:  c.Name,

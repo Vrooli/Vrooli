@@ -1351,13 +1351,13 @@ func (r *SandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid
 	placeholders := strings.Repeat("?,", len(ids))
 	placeholders = placeholders[:len(placeholders)-1]
 
-	args := make([]any, 0, len(ids)+3)
-	args = append(args, formatTime(r.clock.Now().UTC()), commitHash, commitMessage)
+	args := make([]any, 0, len(ids)+4)
+	args = append(args, formatTime(r.clock.Now().UTC()), commitHash, commitMessage, string(types.ProvenanceFileStateApplied))
 	for _, id := range ids {
 		args = append(args, id.String())
 	}
 
-	query := "UPDATE applied_changes SET committed_at = ?, commit_hash = ?, commit_message = ? WHERE id IN (" + placeholders + ")"
+	query := "UPDATE applied_changes SET committed_at = ?, commit_hash = ?, commit_message = ?, provenance_state = ? WHERE id IN (" + placeholders + ") AND committed_at IS NULL"
 	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return fmt.Errorf("mark changes committed: %w", err)
 	}
@@ -1376,8 +1376,8 @@ func (r *SandboxRepository) MarkChangesCommittedByPath(ctx context.Context, proj
 	placeholders := strings.Repeat("?,", len(filePaths))
 	placeholders = placeholders[:len(placeholders)-1]
 
-	args := make([]any, 0, len(filePaths)+4)
-	args = append(args, formatTime(r.clock.Now().UTC()), commitHash, commitMessage, projectRoot)
+	args := make([]any, 0, len(filePaths)+5)
+	args = append(args, formatTime(r.clock.Now().UTC()), commitHash, commitMessage, string(types.ProvenanceFileStateApplied), projectRoot)
 	for _, fp := range filePaths {
 		if !strings.HasPrefix(fp, "/") {
 			fp = filepath.Join(projectRoot, fp)
@@ -1387,7 +1387,7 @@ func (r *SandboxRepository) MarkChangesCommittedByPath(ctx context.Context, proj
 
 	query := `
 		UPDATE applied_changes
-		SET committed_at = ?, commit_hash = ?, commit_message = ?
+		SET committed_at = ?, commit_hash = ?, commit_message = ?, provenance_state = ?
 		WHERE project_root = ?
 		  AND file_path IN (` + placeholders + `)
 		  AND committed_at IS NULL`

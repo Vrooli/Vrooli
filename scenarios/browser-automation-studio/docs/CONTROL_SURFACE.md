@@ -59,10 +59,43 @@ For deterministic fake-microphone sessions, the anti-detection AnalyserNode
 noise patch is excluded. This avoids randomised level data contaminating audio
 measurements.
 
-The equivalent workflow probe is
-`bas/flows/realtime-audio-capability-probe.json`; execute it with
-`browser-automation-studio workflows execute-adhoc --flow-file ... --wait --json`
-and read the evaluate artifact from the execution timeline.
+### What the synthetic sink does and does not restore
+
+The synthetic sink removes the blocking output device. It does not supply a
+clock. Measured by interleaved A/B over three repetitions on a host with no
+available output profile:
+
+| Graph | Unpatched | With synthetic sink |
+| --- | --- | --- |
+| Capture-driven (`getUserMedia` from a fake-capture WAV) | 32.3 s, clock 0.062x | 2.3 s, clock 0.996x |
+| Output-only (oscillator, no capture stream) | ~30 s stall, then 0.25x | unchanged |
+
+Deterministic audio workflows are capture-driven, so they are fully restored. An
+output-only graph has no clock source other than the output device, so it is not
+restored and is not expected to be.
+
+`bas/flows/realtime-audio-capability-probe.json` is an **output-only** probe. On
+a host without an output device it reports `currentTimeDelta: 0` whether or not
+the synthetic sink is active. That zero is the expected `no_device` signal, not
+a driver failure and not evidence that the sink is inactive. To confirm the sink
+is applied, evaluate `window.AudioContext.name` and expect
+`SilentSinkAudioContext`. To measure the restored path, use a workflow that
+declares `settings.fake_media.microphone_wav`; the driver-level equivalent is
+`tests/integration/synthetic-audio-fidelity.test.ts`.
+
+### Verification status of each strategy
+
+`synthetic_sink` is verified live on a host with no available output profile:
+peak amplitude within 0.01 of the 0.4812 reference-WAV true peak, real-time
+paced, and an identical RMS series across three consecutive captures.
+
+`host_device` is covered by unit tests and by a simulated detection result only.
+It has **not** been exercised live, because the development host has no
+selectable output profile to exercise it with. Verifying it requires a host
+where at least one non-`off` PipeWire profile reports `available=yes` — in
+practice, an attached HDMI display carrying audio or an occupied analog jack —
+on which `detectHostAudioCapability` returns `device_available`. Until that runs,
+treat live `host_device` behaviour as unproven.
 
 ## Recently wired levers (now active)
 

@@ -128,7 +128,7 @@ var (
 	// hold flags/usage text, not subcommands. Skip them.
 	skipSectionSubstrings = []string{
 		"option", "flag", "global option", "example", "usage", "alias",
-		"argument", "environment", "documentation",
+		"argument", "environment", "documentation", "note",
 	}
 )
 

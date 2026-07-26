@@ -44,10 +44,11 @@ type ServiceSupervisor struct {
 	appDataDir     string
 	sharedResolver SharedServiceResolver
 
-	mu       sync.RWMutex
-	running  map[string]*runningService
-	statuses map[string]ServiceStatus
-	bindings map[string]SharedServiceBinding
+	mu                 sync.RWMutex
+	running            map[string]*runningService
+	statuses           map[string]ServiceStatus
+	bindings           map[string]SharedServiceBinding
+	privateEnvironment map[string]map[string]string
 }
 
 func NewServiceSupervisor(bundleRoot, appDataDir string, resolver ...SharedServiceResolver) *ServiceSupervisor {
@@ -56,12 +57,13 @@ func NewServiceSupervisor(bundleRoot, appDataDir string, resolver ...SharedServi
 		sharedResolver = resolver[0]
 	}
 	return &ServiceSupervisor{
-		bundleRoot:     bundleRoot,
-		appDataDir:     appDataDir,
-		sharedResolver: sharedResolver,
-		running:        make(map[string]*runningService),
-		statuses:       make(map[string]ServiceStatus),
-		bindings:       make(map[string]SharedServiceBinding),
+		bundleRoot:         bundleRoot,
+		appDataDir:         appDataDir,
+		sharedResolver:     sharedResolver,
+		running:            make(map[string]*runningService),
+		statuses:           make(map[string]ServiceStatus),
+		bindings:           make(map[string]SharedServiceBinding),
+		privateEnvironment: make(map[string]map[string]string),
 	}
 }
 
@@ -186,11 +188,19 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 	s.statuses[item.Resource] = running.status
 	s.mu.Unlock()
 	go s.wait(item.Resource, running)
+	privateEnvironment, err := bootstrapPrivateService(ctx, item, servicePorts, s.appDataDir)
+	if err != nil {
+		_ = cmd.Process.Kill()
+		return fmt.Errorf("bootstrap bundled service %s: %w", item.Resource, err)
+	}
 	if err := waitForServiceHealth(ctx, service.HealthChecks, environmentMap); err != nil {
 		_ = cmd.Process.Kill()
 		return fmt.Errorf("bundled service %s did not become healthy: %w", item.Resource, err)
 	}
 	s.mu.Lock()
+	if len(privateEnvironment) > 0 {
+		s.privateEnvironment[item.Resource] = cloneEnvironment(privateEnvironment)
+	}
 	if status, ok := s.statuses[item.Resource]; ok && status.Running {
 		status.Message = "healthy"
 		s.statuses[item.Resource] = status
@@ -275,6 +285,11 @@ func (s *ServiceSupervisor) Environment() map[string]string {
 	result := make(map[string]string)
 	for _, binding := range s.bindings {
 		for key, value := range binding.Environment {
+			result[key] = value
+		}
+	}
+	for _, environment := range s.privateEnvironment {
+		for key, value := range environment {
 			result[key] = value
 		}
 	}
@@ -371,6 +386,14 @@ func waitForServiceHealth(parent context.Context, checks []HealthCheck, values m
 				break
 			}
 			_ = response.Body.Close()
+			// Vault (and other APIs with the same convention) uses 501 to mean
+			// "reachable but initialization is required". A transport response
+			// cannot turn that into application readiness, even if a stale plan
+			// happened to list 501 among acceptable probe statuses.
+			if response.StatusCode == http.StatusNotImplemented {
+				ready = false
+				break
+			}
 			if len(check.ExpectedStatus) > 0 && !containsHealthStatus(check.ExpectedStatus, response.StatusCode) {
 				ready = false
 				break
