@@ -1,33 +1,52 @@
 # Known Issues & Deferred Decisions
 
-**Last Updated**: 2025-11-21 (Generator Phase)
+Issues here are open design questions and known gaps. Findings that a command reproduces belong to that command, not to this file — run `vrooli scenario test deployment-manager` and `storage-health validate scenario deployment-manager` for the current state.
 
 ---
 
 ## Open Issues
 
-### 1. scenario-to-* Packager Availability
-**Status**: ⚠️ Blocker for full P0 validation
+### 1. Unimplemented Endpoints Return Success
+
+**Status**: ⚠️ Correctness
 **Priority**: Critical
-**Description**: deployment-manager orchestrates scenario-to-desktop, scenario-to-ios, scenario-to-android, scenario-to-saas, and scenario-to-enterprise packagers. Currently only scenario-to-extension (browser extensions) and scenario-to-android exist in the repo.
 
-**Impact**:
-- Cannot fully validate P0 Module 06 (Deployment Orchestration) until at least scenario-to-desktop is implemented
-- Multi-tier deployment testing (P1 Module 10) blocked for unavailable tiers
+`POST /api/v1/deploy/{profile_id}` returns 202 with a generated deployment ID and persists nothing. `GET /api/v1/deployments/{deployment_id}` returns a synthesized `queued` status for any ID, including IDs that were never issued. A caller cannot distinguish these from a working deployment.
 
-**Workaround**:
-- Start with Tier 2 (desktop) focus using scenario-to-desktop once available
-- Mock scenario-to-* API responses for early testing
-- Document packager interface contract in deployment-manager so packagers can implement it
-
-**Resolution Plan**:
-- Track scenario-to-desktop implementation progress
-- Once scenario-to-desktop exists, use it as reference implementation for other packagers
-- deployment-manager should gracefully handle missing packagers (auto-discovery + clear error messages)
+The target shape is a dispatcher that calls the ramp owning the profile's tier. Until that exists, these endpoints must refuse rather than simulate.
 
 ---
 
-### 2. Fitness Scoring Rules Engine Design
+### 2. Visual Validation Is Wired But Non-Functional
+
+**Status**: ⚠️ Correctness
+**Priority**: High
+
+The `visual_validations` table has no schema provider, so it does not exist at runtime and `GET /api/v1/profiles/{id}/validations` fails. `VideoReviewPanel.tsx` is not imported by any page. No caller anywhere creates a validation record.
+
+This capability is planned to move to `vrooli-emulator`. The part that must stay in deployment-manager is the bridge from a review decision to the approval record.
+
+---
+
+### 3. Three Copies Of The Live-Desktop Capture Stack
+
+**Status**: 🔵 Ownership Decision
+**Priority**: High
+
+`scenario-to-desktop` and `vrooli-emulator` each contain `livedesktop`, `screenrecording`, `captures`, and `procmetrics`. deployment-manager holds a third, partial copy. Extraction into `vrooli-emulator` has added a copy without removing the originals.
+
+---
+
+### 4. Deprecated Signing Endpoints Serve Live Traffic
+
+**Status**: 🔵 Migration
+**Priority**: Medium
+
+`api/codesigning` carries a deprecation notice naming `scenario-to-desktop` as the replacement and `SIGNING_PROXY_ENABLED` as the migration path. That variable is not set anywhere, so the deprecated local implementation is what responds today.
+
+---
+
+### 5. Fitness Scoring Rules Engine Design
 **Status**: 🔵 Architecture Decision Needed
 **Priority**: High (P0 Module 01)
 **Description**: Fitness scoring engine needs pluggable rules that can be customized per scenario, per tier, and potentially per organization (enterprise tier).
@@ -55,7 +74,7 @@
 
 ---
 
-### 3. Swap Database Seeding Strategy
+### 6. Swap Database Seeding Strategy
 **Status**: 🔵 Implementation Detail
 **Priority**: Medium (P0 Module 02)
 **Description**: Dependency swap suggestions require a database of known alternatives with trade-off metadata (postgres → sqlite, ollama → openrouter, etc.).

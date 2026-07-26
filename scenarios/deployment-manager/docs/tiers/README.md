@@ -4,15 +4,23 @@ Vrooli supports 5 deployment tiers, each with different characteristics and requ
 
 > **Ready to deploy?** Start with the [Deployment Guide](../DEPLOYMENT-GUIDE.md) for a complete walkthrough.
 
+## Tiers And Ramps Are Different Axes
+
+A tier describes where a scenario runs. A ramp is the `scenario-to-*` scenario that packages it for that destination. One tier can have several ramps. Tier strings such as `tier-2-desktop` are contract values passed to bundle export, so the mapping below is normative.
+
 ## Tier Overview
 
-| Tier | Name | Description | Status |
-|------|------|-------------|--------|
-| 1 | [Local/Dev Stack](tier-1-local-dev.md) | Full Vrooli + Cloudflare tunnel | Production Ready |
-| 2 | [Desktop](tier-2-desktop.md) | Windows/macOS/Linux apps | Partial |
-| 3 | [Mobile](tier-3-mobile.md) | iOS/Android apps | Not Started |
-| 4 | [SaaS/Cloud](tier-4-saas.md) | DigitalOcean/AWS/bare metal | Not Started |
-| 5 | [Enterprise](tier-5-enterprise.md) | Hardware appliances | Vision |
+| Tier | Name | Description | Ramp | Status |
+|------|------|-------------|------|--------|
+| 1 | [Local/Dev Stack](tier-1-local-dev.md) | Full Vrooli + Cloudflare tunnel | none; the platform runs the scenario directly | Production Ready |
+| 2 | [Desktop](tier-2-desktop.md) | Windows/macOS/Linux apps | `scenario-to-desktop` | Partial |
+| 3 | [Mobile](tier-3-mobile.md) | iOS/Android apps | `scenario-to-ios`, `scenario-to-android` | Not Started |
+| 4 | [SaaS/Cloud](tier-4-saas.md) | DigitalOcean/AWS/bare metal | `scenario-to-cloud` | Not Started |
+| 5 | [Enterprise](tier-5-enterprise.md) | Hardware appliances | none yet | Vision |
+
+## Unassigned Ramps
+
+`scenario-to-extension` and `scenario-to-mcp` package a scenario to run inside a host application rather than on a tier of its own. Their tier assignment is not decided. Do not pass a tier string for them until it is.
 
 ### Status Legend
 

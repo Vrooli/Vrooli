@@ -15,6 +15,8 @@ An Architecture Decision Record (ADR) captures a single architectural decision a
 | [002](002-manifest-driven-bundles.md) | Manifest-Driven Bundle Architecture | Accepted | Dec 2024 |
 | [003](003-runtime-supervisor.md) | Go Runtime Supervisor | Accepted | Dec 2024 |
 | [004](004-secrets-classification.md) | Four-Class Secrets Model | Accepted | Dec 2024 |
+| [005](005-governance-plane-boundary.md) | Deployment Manager Is The Governance Plane | Accepted | Jul 2026 |
+| [006](006-greenfield-storage.md) | Greenfield Per-Domain Storage | Accepted | Jul 2026 |
 
 ## ADR Template
 

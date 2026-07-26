@@ -1,14 +1,29 @@
 # Deployment Manager
 
-**Control tower for scenario deployments across all platform tiers**
+**The governance plane for scenario deployments**
 
-deployment-manager analyzes dependencies, scores platform fitness, guides users through portable deployments, orchestrates platform-specific packagers (scenario-to-desktop, scenario-to-ios, etc.), and monitors deployed scenarios across Tier 1 (local dev) through Tier 5 (enterprise hardware).
+deployment-manager decides whether a build may ship, and records what shipped. It analyzes dependencies, scores platform fitness, holds deployment profiles, gates releases on recorded evidence, and keeps the release history. It is tier-agnostic by design: it never learns what a `.dmg` or an `.ipa` is.
 
 ## Purpose
 
-**Without deployment-manager**: Scenarios are trapped in Tier 1 (local dev stack). Attempts to package scenarios fail because dependencies aren't portable (postgres doesn't run on mobile, ollama is too heavy for desktop bundles, cloud deployments lack secret strategies).
+**Without deployment-manager**: Scenarios are trapped in Tier 1 (local dev stack). Attempts to package scenarios fail because dependencies aren't portable (postgres doesn't run on mobile, ollama is too heavy for desktop bundles, cloud deployments lack secret strategies). Nothing records what was approved, so nothing can prove what shipped.
 
-**With deployment-manager**: Any scenario can target any tier. The system analyzes dependencies, scores fitness for each tier, suggests swaps (postgres → sqlite for mobile), validates configurations, orchestrates packaging via scenario-to-* tools, and monitors health across all deployments — all through an intuitive UI and CLI.
+**With deployment-manager**: Any scenario can target any tier. The system analyzes dependencies, scores fitness for each tier, suggests swaps (postgres → sqlite for mobile), validates configurations, and holds the approval gate that a packaging ramp must pass before it publishes.
+
+## Boundaries
+
+deployment-manager is one of four planes. See [Deployment Hub](../../docs/deployment/README.md) for the full model.
+
+| deployment-manager owns | A `scenario-to-*` ramp owns |
+|---|---|
+| Deployment profiles and versions | Build, package, sign, publish |
+| Fitness scoring and dependency analysis | Target-specific runtime behavior |
+| Approval gates and release records | Running the artifact on its targets |
+| Release channels and promotion | Producing evidence from those runs |
+
+**Direction of control**: a ramp calls deployment-manager. deployment-manager does not drive a ramp's pipeline. `scenario-to-desktop` calls three endpoints — create an approval, read the release gate, and generate a bundle manifest — and publishes only when the gate allows it.
+
+**Not implemented yet**: the generic deploy endpoints (`POST /api/v1/deploy/{profile_id}` and `GET /api/v1/deployments/{deployment_id}`) do not orchestrate or track anything. Use the ramp directly. Cross-tier evidence review is design direction, not a current capability.
 
 ## Key Features (See PRD.md for full operational targets)
 

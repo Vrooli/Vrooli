@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "maturity": "greenfield",
   "service": {
     "parent": "vrooli",
     "name": "deployment-manager",

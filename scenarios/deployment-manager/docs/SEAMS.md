@@ -2,6 +2,39 @@
 
 This document describes the seams (deliberate boundaries where behavior can be substituted) in the deployment-manager scenario. Seams make the code easier to test, safer to change, and more modular.
 
+> **Known drift:** the file and line references in "Active Seams" below predate the reorganization of `api/` into per-domain packages. Treat the seam descriptions as accurate and the path references as stale until they are re-anchored.
+
+## Inter-Scenario Seams
+
+These are the boundaries between deployment-manager and the rest of the deployment stack. They matter more than the internal seams because another team owns the other side.
+
+### Ramp → deployment-manager (inbound)
+
+A packaging ramp calls deployment-manager. deployment-manager never drives a ramp's pipeline.
+
+| Endpoint | Caller | Purpose |
+|---|---|---|
+| `POST /api/v1/profiles/{id}/approvals` | `scenario-to-desktop` | Record an approval decision |
+| `GET /api/v1/profiles/{id}/release-gate?commit=` | `scenario-to-desktop` | Ask whether publishing is allowed |
+| `POST /api/v1/bundles/export` | `scenario-to-desktop` | Generate a bundle manifest for a tier |
+
+Adding a ramp means implementing this caller side. It does not mean adding ramp-specific code to deployment-manager.
+
+### deployment-manager → dependency and secret sources (outbound)
+
+| Dependency | Policy | Behavior when unavailable |
+|---|---|---|
+| `scenario-dependency-analyzer` | Required | Fitness scoring and dependency analysis fail |
+| `secrets-manager` | Required, `try_start` | Non-secret planning continues; bundle assembly needing secret classification returns an explicit unavailable error |
+| `scenario-to-cloud` | Best effort | Orchestrator skips the matching step |
+| LPBS release client | Best effort | Orchestrator skips the matching step |
+
+The `secrets-manager` seam is the reference pattern: an explicit typed error, not an empty result. Copy it when adding a dependency.
+
+### Evidence producers (direction, not current truth)
+
+Evidence for a gate decision is produced outside deployment-manager and referenced by it. deployment-manager stores references and verdicts, never the artifact bytes. The shared evidence contract that makes this uniform across ramps does not exist yet.
+
 ## Active Seams
 
 ### 1. Domain Error Types (`repository.go`)
