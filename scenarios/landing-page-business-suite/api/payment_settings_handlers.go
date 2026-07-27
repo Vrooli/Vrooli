@@ -1,54 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	settingshttp "landing-page-business-suite-api/handlers/settings"
 )
 
 func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeService *StripeService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		record, err := paymentService.GetStripeSettings(r.Context())
-		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Failed to load Stripe settings", ApiErrorTypeServerError)
-			return
-		}
-		hasPublishable := record != nil && strings.TrimSpace(record.PublishableKey) != ""
-		hasSecret := record != nil && strings.TrimSpace(record.SecretKey) != ""
-		hasWebhook := record != nil && strings.TrimSpace(record.WebhookSecret) != ""
-		hasAnomalyURL := record != nil && strings.TrimSpace(record.AnomalyWebhookUrl) != ""
-		// Redact secrets before sending to the client.
-		if record != nil {
-			record.PublishableKey = ""
-			record.SecretKey = ""
-			record.WebhookSecret = ""
-			// Replace the anomaly URL with a set-indicator flag; the unredacted
-			// value is available via handleRevealStripeSecret.
-			record.AnomalyWebhookUrl = ""
-			record.AnomalyWebhookUrlSet = hasAnomalyURL
-		}
-
-		snapshot := stripeService.ConfigSnapshot()
-		// Ensure flags reflect DB state even if runtime config was initialized before admin saves.
-		if hasPublishable {
-			snapshot.PublishableKeySet = true
-		}
-		if hasSecret {
-			snapshot.SecretKeySet = true
-		}
-		if hasWebhook {
-			snapshot.WebhookSecretSet = true
-		}
-
-		resp := &landing_page_business_suite_v1.GetStripeSettingsResponse{
-			Snapshot: snapshot,
-			Settings: record,
-		}
-
-		writeJSON(w, resp)
-	}
+	return settingshttp.Get(stripeSettingsReadDependencies(paymentService, stripeService))
 }
 
 // handleRevealStripeSecret returns the unredacted value of a specific Stripe secret field.
@@ -58,56 +21,16 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 // - publishable_key
 // Returns the value from the merged config (env vars + database).
 func handleRevealStripeSecret(stripeService *StripeService, paymentService *PaymentSettingsService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		field := r.URL.Query().Get("field")
-		if field == "" {
-			writeJSONError(w, http.StatusBadRequest, "Missing 'field' query parameter", ApiErrorTypeValidation)
-			return
-		}
+	return settingshttp.Reveal(stripeSettingsReadDependencies(paymentService, stripeService))
+}
 
-		allowedFields := map[string]bool{
-			"secret_key":          true,
-			"webhook_secret":      true,
-			"publishable_key":     true,
-			"anomaly_webhook_url": true,
+func stripeSettingsReadDependencies(paymentService *PaymentSettingsService, stripeService *StripeService) settingshttp.ReadDependencies {
+	return settingshttp.ReadDependencies{Load: func(ctx context.Context) (*landing_page_business_suite_v1.StripeSettings, error) {
+		if paymentService == nil {
+			return nil, nil
 		}
-		if !allowedFields[field] {
-			writeJSONError(w, http.StatusBadRequest, "Invalid field. Allowed: secret_key, webhook_secret, publishable_key, anomaly_webhook_url", ApiErrorTypeValidation)
-			return
-		}
-
-		// Anomaly webhook URL is stored in payment_settings, not the Stripe runtime
-		// config, so read it directly from the settings record.
-		if field == "anomaly_webhook_url" {
-			if paymentService == nil {
-				writeJSONError(w, http.StatusNotFound, "No value set for this field", ApiErrorTypeNotFound)
-				return
-			}
-			record, err := paymentService.GetStripeSettings(r.Context())
-			if err != nil {
-				writeJSONError(w, http.StatusInternalServerError, "Failed to load Stripe settings", ApiErrorTypeServerError)
-				return
-			}
-			if record == nil || strings.TrimSpace(record.AnomalyWebhookUrl) == "" {
-				writeJSONError(w, http.StatusNotFound, "No value set for this field", ApiErrorTypeNotFound)
-				return
-			}
-			writeJSON(w, map[string]string{"field": field, "value": record.AnomalyWebhookUrl})
-			return
-		}
-
-		value, hasValue := stripeService.GetSecretValue(field)
-		if !hasValue {
-			writeJSONError(w, http.StatusNotFound, "No value set for this field", ApiErrorTypeNotFound)
-			return
-		}
-
-		resp := map[string]string{
-			"field": field,
-			"value": value,
-		}
-		writeJSON(w, resp)
-	}
+		return paymentService.GetStripeSettings(ctx)
+	}, Snapshot: stripeService.ConfigSnapshot, Secret: stripeService.GetSecretValue, WriteJSON: writeJSON, WriteError: writeJSONError}
 }
 
 func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeService *StripeService, anomalyService *PaymentAnomalyService) http.HandlerFunc {

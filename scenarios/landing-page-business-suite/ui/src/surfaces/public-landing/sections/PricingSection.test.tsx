@@ -294,4 +294,34 @@ describe('PricingSection', () => {
     expect(screen.getByTestId('pricing-cta-scale')).toHaveTextContent('Choose plan');
   });
 
+  it('keeps paid checkout controls loading only for the selected price and recovers after a successful session response', async () => {
+    let resolveCheckout: (value: { url: string }) => void = () => undefined;
+    vi.mocked(createCheckoutSession).mockImplementationOnce(() => new Promise((resolve) => { resolveCheckout = resolve as typeof resolveCheckout; }) as never);
+    const pricingOverview: PricingOverview = {
+      bundle,
+      monthly: [
+        { plan_name: 'Basic', plan_tier: 'basic', billing_interval: 'month', amount_cents: 1000, currency: 'usd', intro_enabled: false, stripe_price_id: 'price_basic', monthly_included_credits: 0, one_time_bonus_credits: 0, display_enabled: true, display_weight: 1, metadata: {} },
+        { plan_name: 'Pro', plan_tier: 'pro', billing_interval: 'month', amount_cents: 2000, currency: 'usd', intro_enabled: false, stripe_price_id: 'price_pro', monthly_included_credits: 0, one_time_bonus_credits: 0, display_enabled: true, display_weight: 2, metadata: {} },
+      ],
+      yearly: [], updated_at: '2025-01-01T00:00:00Z',
+    };
+    render(<PricingSection content={{ title: 'Pricing' }} pricingOverview={pricingOverview} />);
+    fireEvent.click(screen.getByTestId('pricing-cta-basic'));
+    expect(screen.getByTestId('pricing-cta-basic')).toHaveTextContent('Redirecting...');
+    expect(screen.getByTestId('pricing-cta-pro')).not.toBeDisabled();
+    resolveCheckout({ url: 'https://checkout.example.test/session' });
+    await waitFor(() => { expect(screen.getByTestId('pricing-cta-basic')).not.toBeDisabled(); });
+  });
+
+  it('includes a canonical free tier when the remote catalog only contains paid plans', () => {
+    const pricingOverview: PricingOverview = {
+      bundle,
+      monthly: [{ plan_name: 'Paid only', plan_tier: 'pro', billing_interval: 'month', amount_cents: 1000, currency: 'usd', intro_enabled: false, stripe_price_id: 'price_paid', monthly_included_credits: 0, one_time_bonus_credits: 0, display_enabled: true, display_weight: 1, metadata: {} }],
+      yearly: [], updated_at: '2025-01-01T00:00:00Z',
+    };
+    render(<PricingSection content={{ title: 'Pricing' }} pricingOverview={pricingOverview} />);
+    expect(screen.getByRole('heading', { name: /Free/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Paid only' })).toBeInTheDocument();
+  });
+
 });

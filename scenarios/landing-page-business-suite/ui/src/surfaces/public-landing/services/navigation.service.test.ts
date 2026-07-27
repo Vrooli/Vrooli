@@ -23,6 +23,13 @@ describe('public landing navigation service', () => {
     expect(hasDownloadTargets(app({ storefronts: [{ store: 'app_store', label: 'App Store', url: 'https://example.test' }] }))).toBe(true);
   });
 
+  it('treats a malformed missing platforms field as having no download target', () => {
+    const malformedApp = { ...app(), platforms: undefined } as unknown as DownloadApp;
+
+    expect(hasDownloadTargets(malformedApp)).toBe(false);
+    expect(getDownloadButtonLabel([malformedApp])).toBe('View Desktop App');
+  });
+
   it('chooses specific labels only when a single download target is available', () => {
     expect(getDownloadButtonLabel([])).toBe('Downloads');
     expect(getDownloadButtonLabel([app({ platforms: [{ platform: 'windows' }] as DownloadApp['platforms'] })])).toBe('Download Windows');

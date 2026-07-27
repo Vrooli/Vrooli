@@ -160,6 +160,7 @@ func insertBundlePrice(
 	}
 
 	// Read current file
+	// #nosec G304 -- test setup creates globalTestPlansPath in t.TempDir.
 	data, err := os.ReadFile(globalTestPlansPath)
 	if err != nil {
 		t.Fatalf("failed to read plans file: %v", err)

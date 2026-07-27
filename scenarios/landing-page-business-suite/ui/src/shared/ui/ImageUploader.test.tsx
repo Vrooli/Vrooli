@@ -36,7 +36,7 @@ describe('ImageUploader', () => {
     const file = new File(['image'], 'logo.png', { type: 'image/png' });
     fireEvent.change(input, { target: { files: [file] } });
 
-    await waitFor(() => expect(uploadAsset).toHaveBeenCalledWith(file, { category: 'logo' }));
+    await waitFor(() => { expect(uploadAsset).toHaveBeenCalledWith(file, { category: 'logo' }); });
     expect(onChange).toHaveBeenCalledWith('/api/assets/logo.png');
     expect(onUploadComplete).toHaveBeenCalledWith(asset);
   });

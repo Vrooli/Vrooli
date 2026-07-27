@@ -104,6 +104,7 @@ func variantSpaceFilePath() string {
 }
 
 func loadVariantSpaceBytes(path string) []byte {
+	// #nosec G304 -- path is a scenario config candidate or deployment-controlled override.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		logx.Printf("failed to read variant space at %s: %v", path, err)

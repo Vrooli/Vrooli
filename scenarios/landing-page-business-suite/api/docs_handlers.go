@@ -4,19 +4,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
+	docshandler "landing-page-business-suite-api/handlers/docs"
 	"landing-page-business-suite-api/internal/envx"
 )
 
 // DocEntry represents a documentation file or directory
-type DocEntry struct {
-	Name     string     `json:"name"`
-	Path     string     `json:"path"`
-	IsDir    bool       `json:"isDir"`
-	Children []DocEntry `json:"children,omitempty"`
-}
+type DocEntry = docshandler.Entry
 
 // DocContent represents the content of a documentation file
 type DocContent struct {
@@ -121,12 +116,14 @@ func handleDocsContent() http.HandlerFunc {
 		}
 		absDocsRoot, _ := filepath.Abs(docsRoot)
 
-		// Verify the file is within docs directory
-		if !strings.HasPrefix(absFullPath, absDocsRoot) {
+		// Verify the file is within docs directory. String-prefix checks are
+		// insufficient because a sibling such as docs-backup shares the prefix.
+		if !isWithinDirectory(absDocsRoot, absFullPath) {
 			writeJSONError(w, http.StatusBadRequest, "Invalid path", ApiErrorTypeValidation)
 			return
 		}
 
+		// #nosec G304 -- isWithinDirectory validates fullPath against docsRoot.
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -150,71 +147,16 @@ func handleDocsContent() http.HandlerFunc {
 	}
 }
 
+func isWithinDirectory(root, path string) bool {
+	return docshandler.IsWithinDirectory(root, path)
+}
+
 // buildDocsTree recursively builds the docs file tree
 func buildDocsTree(root, relativePath string) ([]DocEntry, error) {
-	currentPath := filepath.Join(root, relativePath)
-	entries, err := os.ReadDir(currentPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []DocEntry
-
-	for _, entry := range entries {
-		name := entry.Name()
-
-		// Skip hidden files and non-markdown files (except directories)
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
-
-		entryRelPath := filepath.Join(relativePath, name)
-
-		if entry.IsDir() {
-			children, err := buildDocsTree(root, entryRelPath)
-			if err != nil {
-				continue
-			}
-			// Only include directories that have markdown files
-			if len(children) > 0 {
-				result = append(result, DocEntry{
-					Name:     name,
-					Path:     entryRelPath,
-					IsDir:    true,
-					Children: children,
-				})
-			}
-		} else if strings.HasSuffix(strings.ToLower(name), ".md") {
-			result = append(result, DocEntry{
-				Name:  name,
-				Path:  entryRelPath,
-				IsDir: false,
-			})
-		}
-	}
-
-	// Sort: directories first, then files, alphabetically
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].IsDir != result[j].IsDir {
-			return result[i].IsDir
-		}
-		return strings.ToLower(result[i].Name) < strings.ToLower(result[j].Name)
-	})
-
-	return result, nil
+	return docshandler.BuildTree(root, relativePath)
 }
 
 // extractTitle extracts the title from markdown content or filename
 func extractTitle(content, path string) string {
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "# ") {
-			return strings.TrimPrefix(trimmed, "# ")
-		}
-	}
-
-	// Fallback to filename without extension
-	base := filepath.Base(path)
-	return strings.TrimSuffix(base, filepath.Ext(base))
+	return docshandler.ExtractTitle(content, path)
 }

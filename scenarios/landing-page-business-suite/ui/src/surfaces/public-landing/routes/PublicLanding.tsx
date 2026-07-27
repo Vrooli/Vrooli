@@ -502,7 +502,7 @@ function BrandingBlock({
   const mode = header.branding.mode;
   const label = (header.branding.label ?? branding?.site_name ?? runtime.variantLabel) || 'Landing';
   const subtitle = header.branding.subtitle ?? branding?.tagline ?? null;
-  const defaultLogo = '/logo-mask-512x512.webp';
+  const defaultLogo = '/public/logo-mask-512x512.webp';
   const logoUrl =
     header.branding.logo_icon_url ??
     header.branding.logo_url ??

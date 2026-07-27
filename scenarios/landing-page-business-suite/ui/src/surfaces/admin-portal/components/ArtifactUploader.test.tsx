@@ -81,11 +81,11 @@ describe('ArtifactUploader', () => {
     expect(screen.getByText('Detected: v1.2.3 (changed)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
 
-    await waitFor(() => expect(api.presignDownloadArtifactUploadAdmin).toHaveBeenCalledWith(expect.objectContaining({
+    await waitFor(() => { expect(api.presignDownloadArtifactUploadAdmin).toHaveBeenCalledWith(expect.objectContaining({
       platform: 'linux', release_version: '1.2.4',
-    })));
-    await waitFor(() => expect(api.commitDownloadArtifactAdmin).toHaveBeenCalledWith(expect.objectContaining({
+    })); });
+    await waitFor(() => { expect(api.commitDownloadArtifactAdmin).toHaveBeenCalledWith(expect.objectContaining({
       platform: 'linux', release_version: '1.2.4', set_as_current: false,
-    })));
+    })); });
   });
 });

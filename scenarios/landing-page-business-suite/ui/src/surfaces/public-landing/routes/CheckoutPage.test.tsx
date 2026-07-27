@@ -122,7 +122,7 @@ describe('CheckoutPage', () => {
     expect(await screen.findByText('Checkout Failed')).toBeInTheDocument();
     expect(screen.getByText('Stripe did not return a checkout URL. Try again or contact support.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry Checkout' }));
-    await waitFor(() => expect(createCheckoutSession).toHaveBeenCalledTimes(2));
+    await waitFor(() => { expect(createCheckoutSession).toHaveBeenCalledTimes(2); });
   });
 
   it('renders selected plan features and falls back to the first active plan', async () => {
@@ -152,6 +152,6 @@ describe('CheckoutPage', () => {
     expect(await screen.findByText('Intro $5 for 1 month')).toBeInTheDocument();
     expect(await screen.findByText('Connection Issue')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry Checkout' }));
-    await waitFor(() => expect(createCheckoutSession).toHaveBeenCalledTimes(2));
+    await waitFor(() => { expect(createCheckoutSession).toHaveBeenCalledTimes(2); });
   });
 });

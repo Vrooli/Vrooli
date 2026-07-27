@@ -4,6 +4,7 @@ package mocks
 import (
 	"time"
 
+	feedbackhttp "landing-page-business-suite-api/handlers/feedback"
 	metricshttp "landing-page-business-suite-api/handlers/metrics"
 	metrics "landing-page-business-suite-api/internal/metrics"
 )
@@ -52,4 +53,4 @@ func (f *FakeFeedbackNotifier) Notify(feedback *metrics.FeedbackRequest) {
 	f.Notifications = append(f.Notifications, feedback)
 }
 
-var _ metricshttp.FeedbackNotifier = (*FakeFeedbackNotifier)(nil)
+var _ feedbackhttp.Notifier = (*FakeFeedbackNotifier)(nil)

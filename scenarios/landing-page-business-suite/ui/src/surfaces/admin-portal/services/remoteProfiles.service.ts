@@ -107,7 +107,7 @@ export function validateRemoteProfileLoginForm(form: RemoteProfileLoginFormState
 
 export async function fetchRemoteProfiles(): Promise<RemoteProfile[]> {
   const response = await listRemoteProfilesAdmin();
-  return response.profiles ?? [];
+  return response.profiles;
 }
 
 export async function createRemoteProfile(form: RemoteProfileFormState): Promise<RemoteProfile> {

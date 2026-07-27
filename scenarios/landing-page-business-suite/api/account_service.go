@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	accountdomain "landing-page-business-suite-api/internal/account"
 	"landing-page-business-suite-api/internal/envx"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -36,22 +37,10 @@ type AccountService struct {
 	cache       map[string]subscriptionCacheEntry
 }
 
-// EntitlementPayload is used by bundled apps to unlock features.
-type EntitlementPayload struct {
-	Status            string                     `json:"status"`
-	PlanTier          string                     `json:"plan_tier,omitempty"`
-	PriceID           string                     `json:"price_id,omitempty"`
-	Features          []string                   `json:"features,omitempty"`
-	BillingCycleStart int                        `json:"billing_cycle_start,omitempty"`
-	Credits           *shared.CreditsBalance     `json:"credits,omitempty"`
-	Subscription      *shared.SubscriptionStatus `json:"subscription,omitempty"`
-}
-
-type CreditsEnvelope struct {
-	Balance                  *shared.CreditsBalance `json:"balance"`
-	DisplayCreditsLabel      string                 `json:"display_credits_label"`
-	DisplayCreditsMultiplier float64                `json:"display_credits_multiplier"`
-}
+type (
+	EntitlementPayload = accountdomain.EntitlementPayload
+	CreditsEnvelope    = accountdomain.CreditsEnvelope
+)
 
 type subscriptionCacheEntry struct {
 	status    *shared.SubscriptionStatus

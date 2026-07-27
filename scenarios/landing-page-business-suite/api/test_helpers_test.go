@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"landing-page-business-suite-api/internal/envx"
+
 	_ "github.com/lib/pq"
 	tc "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -42,7 +44,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 }
 
 func configuredTestDatabaseURL() (string, bool) {
-	dbURL := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
+	dbURL := strings.TrimSpace(envx.Get("TEST_DATABASE_URL"))
 	return dbURL, dbURL != ""
 }
 
@@ -86,7 +88,7 @@ func startTestContainerDB(t *testing.T) string {
 	t.Helper()
 
 	testContainerOnce.Do(func() {
-		if strings.EqualFold(os.Getenv("TESTCONTAINERS_DISABLED"), "true") {
+		if strings.EqualFold(envx.Get("TESTCONTAINERS_DISABLED"), "true") {
 			testContainerInitErr = fmt.Errorf("testcontainers explicitly disabled")
 			return
 		}
@@ -197,7 +199,7 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	// Create a test config
 	config := &Config{
 		Port:        "0", // Use random port for testing
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		DatabaseURL: envx.Get("DATABASE_URL"),
 	}
 
 	// Initialize ConfigStore from JSON files
@@ -334,7 +336,7 @@ func setupMinIOContainer(t *testing.T) (endpoint, accessKey, secretKey string) {
 	t.Helper()
 
 	minioOnce.Do(func() {
-		if strings.EqualFold(os.Getenv("TESTCONTAINERS_DISABLED"), "true") {
+		if strings.EqualFold(envx.Get("TESTCONTAINERS_DISABLED"), "true") {
 			minioInitErr = fmt.Errorf("testcontainers explicitly disabled")
 			return
 		}

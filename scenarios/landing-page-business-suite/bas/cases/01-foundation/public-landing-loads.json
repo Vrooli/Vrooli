@@ -34,7 +34,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "[data-testid=\"landing-experience-surface\"]",
+          "selector": "@selector/publicLanding.surface",
           "mode": "ASSERTION_MODE_VISIBLE",
           "timeout_ms": 15000,
           "failure_message": "The public landing experience surface did not render"
@@ -56,22 +56,21 @@
       }
     },
     {
-      "id": "assert-public-ready-state",
+      "id": "wait-public-ready-state",
       "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
           "selector": "[data-testid=\"landing-experience-surface\"][data-experience-state=\"ready\"]",
-          "mode": "ASSERTION_MODE_VISIBLE",
-          "timeout_ms": 15000,
-          "failure_message": "The public landing route did not reach its ready state"
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
         },
-        "metadata": { "label": "Public landing ready state is visible" }
+        "metadata": { "label": "Wait for the public landing experience to become ready" }
       }
     }
   ],
   "edges": [
     { "id": "e1", "source": "navigate-public-landing", "target": "assert-public-surface", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "e2", "source": "assert-public-surface", "target": "assert-public-loading-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "assert-public-loading-state", "target": "assert-public-ready-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    { "id": "e3", "source": "assert-public-loading-state", "target": "wait-public-ready-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

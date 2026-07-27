@@ -2,14 +2,18 @@ module landing-page-business-suite/cli
 
 go 1.25.12
 
-require github.com/vrooli/cli-core v0.0.0
+require (
+	connectrpc.com/connect v1.19.2
+	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/vrooli/packages/proto v0.0.0-20260410201139-7b17b3985faa
+	google.golang.org/protobuf v1.36.11
+)
 
 require (
-	connectrpc.com/connect v1.19.2 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core

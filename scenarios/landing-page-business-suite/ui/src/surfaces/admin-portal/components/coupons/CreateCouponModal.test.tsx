@@ -59,9 +59,9 @@ describe('CreateCouponModal', () => {
     fireEvent.change(expiration, { target: { value: '2030-01-02' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Coupon' }));
 
-    await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({
+    await waitFor(() => { expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({
       amount_off: 1234, currency: 'eur', duration: 'repeating', duration_in_months: 3,
       redeem_by: Math.floor(new Date('2030-01-02').getTime() / 1000),
-    })));
+    })); });
   });
 });

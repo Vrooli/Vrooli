@@ -41,7 +41,7 @@ const DOWNLOAD_PLATFORM_LABELS: Record<string, string> = {
  * Checks if a download app has any download targets (platforms or storefronts)
  */
 export function hasDownloadTargets(app: DownloadApp): boolean {
-  return app.platforms.length > 0 || Boolean(app.storefronts?.length);
+  return (Array.isArray(app.platforms) && app.platforms.length > 0) || Boolean(app.storefronts?.length);
 }
 
 /**
@@ -110,12 +110,13 @@ export function getDownloadButtonLabel(downloadApps: DownloadApp[]): string {
   if (downloadApps.length === 1) {
     const single = downloadApps[0];
     if (!single) return 'View downloads';
-    const singleInstaller = single.platforms[0];
+    const platforms = Array.isArray(single.platforms) ? single.platforms : [];
+    const singleInstaller = platforms[0];
 
-    if (single.platforms.length === 1 && singleInstaller) {
+    if (platforms.length === 1 && singleInstaller) {
       return `Download ${formatDownloadPlatform(singleInstaller.platform)}`;
     }
-    if (single.storefronts?.length === 1 && single.platforms.length === 0) {
+    if (single.storefronts?.length === 1 && platforms.length === 0) {
       return `Open ${single.storefronts[0]?.label ?? 'store'}`;
     }
     return `View ${single.name}`;

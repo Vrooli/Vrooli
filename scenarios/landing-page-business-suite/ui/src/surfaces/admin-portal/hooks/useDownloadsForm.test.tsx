@@ -387,6 +387,13 @@ describe('useDownloadsForm', () => {
   });
 
   describe('handleSave', () => {
+    it('ignores save requests for forms that no longer exist', async () => {
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      await act(async () => { await result.current.handleSave('missing-app'); });
+      expect(saveDownloadAppAdminMock).not.toHaveBeenCalled();
+      expect(createDownloadAppAdminMock).not.toHaveBeenCalled();
+    });
     it('saves existing app', async () => {
       const { result } = renderHook(() => useDownloadsForm());
 
@@ -484,6 +491,14 @@ describe('useDownloadsForm', () => {
       assertDefined(form0, 'forms[0]');
       expect(form0.error).toBe('Save failed');
       expect(form0.saving).toBe(false);
+    });
+
+    it('uses a safe error message when an API rejection is not an Error object', async () => {
+      saveDownloadAppAdminMock.mockRejectedValueOnce('offline');
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      await act(async () => { await result.current.handleSave('test-app'); });
+      expect(result.current.forms[0]?.error).toBe('Failed to save app');
     });
   });
 
@@ -602,6 +617,21 @@ describe('useDownloadsForm', () => {
   });
 
   describe('drag and drop', () => {
+    it('clears drag state without changing order for same or unknown drag sources', async () => {
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      const event = { dataTransfer: { getData: vi.fn(() => 'test-app'), effectAllowed: '', dropEffect: '', setData: vi.fn() }, preventDefault: vi.fn() } as unknown as React.DragEvent;
+      act(() => { result.current.handleDragStart('test-app')(event); });
+      act(() => { result.current.handleDrop('test-app')(event); });
+      expect(result.current.draggingKey).toBeNull();
+      expect(result.current.forms[0]?.values.appKey).toBe('test-app');
+      const unknownEvent = {
+        dataTransfer: { getData: vi.fn(() => 'unknown'), effectAllowed: '', dropEffect: '', setData: vi.fn() },
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent;
+      act(() => { result.current.handleDrop('test-app')(unknownEvent); });
+      expect(result.current.forms).toHaveLength(1);
+    });
     it('reorders forms on drop', async () => {
       listDownloadAppsAdminMock.mockResolvedValue({ apps: [mockApp, mockApp2] });
 

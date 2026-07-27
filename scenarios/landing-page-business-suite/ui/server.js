@@ -15,6 +15,16 @@
 
 import { createScenarioServer, injectBaseTag } from '@vrooli/api-base/server';
 
+const uiPort = process.env.UI_PORT;
+if (!uiPort) {
+  throw new Error('UI_PORT environment variable is required');
+}
+
+const apiPort = process.env.API_PORT;
+if (!apiPort) {
+  throw new Error('API_PORT environment variable is required');
+}
+
 // -----------------------------------------------------------------------------
 // Branding Cache - fetches from API with TTL
 // -----------------------------------------------------------------------------
@@ -31,11 +41,6 @@ const BRANDING_CACHE_TTL_MS = 60000; // 1 minute cache
 function refreshBrandingCache() {
   if (fetchInProgress) return;
 
-  const apiPort = process.env.API_PORT;
-  if (!apiPort) {
-    console.warn('[SSR] Branding fetch skipped: API_PORT is not configured');
-    return;
-  }
   const apiUrl = `http://localhost:${apiPort}/api/v1/branding`;
 
   fetchInProgress = true;
@@ -197,8 +202,8 @@ function injectSeoTags(html, branding) {
 // -----------------------------------------------------------------------------
 
 const app = createScenarioServer({
-  uiPort: process.env.UI_PORT,
-  apiPort: process.env.API_PORT,
+  uiPort,
+  apiPort,
   distDir: './dist',
   serviceName: 'landing-page-business-suite',
   version: '1.0.0',
@@ -230,4 +235,4 @@ const app = createScenarioServer({
   }
 });
 
-app.listen(process.env.UI_PORT);
+app.listen(uiPort);

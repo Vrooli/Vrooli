@@ -81,4 +81,69 @@ describe('useStripeImport', () => {
     expect(result.current.isModalOpen).toBe(false);
     expect(result.current.preview).toBeNull();
   });
+
+  it('reports preview failures while leaving the operator with a closable modal', async () => {
+    getStripeImportPreviewMock.mockRejectedValueOnce(new Error('Stripe unavailable'));
+    const { result } = renderHook(() => useStripeImport());
+    await act(async () => { await result.current.openModal(); });
+    expect(result.current).toMatchObject({ isModalOpen: true, loading: false, error: 'Stripe unavailable', preview: null });
+    act(() => { result.current.closeModal(); });
+    expect(result.current.isModalOpen).toBe(false);
+  });
+
+  it('supports product-specific active, existing, manual, and cleared selections', async () => {
+    const multiProduct = {
+      ...preview,
+      bundle_product_id: '',
+      products: [{
+        ...preview.products[0]!, product_id: 'prod_other', prices: [
+          { ...preview.products[0]!.prices[0]!, price_id: 'active-new', active: true, exists_locally: false },
+          { ...preview.products[0]!.prices[0]!, price_id: 'inactive-existing', active: false, exists_locally: true },
+        ],
+      }, { ...preview.products[0]!, product_id: 'prod_second', prices: [] }],
+    };
+    getStripeImportPreviewMock.mockResolvedValueOnce(multiProduct);
+    const { result } = renderHook(() => useStripeImport());
+    await act(async () => { await result.current.openModal(); });
+    expect(result.current.selectedProductId).toBe('');
+    act(() => { result.current.selectProduct('prod_other'); });
+    expect(result.current.selections).toEqual({ 'active-new': true, 'inactive-existing': false });
+    act(() => { result.current.selectExisting(); });
+    expect(result.current.selections).toEqual({ 'active-new': false, 'inactive-existing': true });
+    act(() => { result.current.setPriceSelected('active-new', true); });
+    act(() => { result.current.clearSelections(); });
+    expect(result.current.selections).toEqual({ 'active-new': false, 'inactive-existing': false });
+    act(() => { result.current.selectActive(); });
+    expect(result.current.selections).toEqual({ 'active-new': true, 'inactive-existing': false });
+  });
+
+  it('rejects imports with no selected product or no selected price before making network requests', async () => {
+    const { result } = renderHook(() => useStripeImport());
+    await act(async () => { await result.current.handleImport(); });
+    expect(result.current.error).toBe('Select a Stripe product to import');
+    await act(async () => { await result.current.openModal(); });
+    act(() => { result.current.clearSelections(); });
+    await act(async () => { await result.current.handleImport(); });
+    expect(result.current.error).toBe('No prices selected for import');
+    expect(importStripePlansMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps partial imports open, refreshes catalog state, and reports import failures', async () => {
+    const refreshed = { ...preview, products: [] };
+    importStripePlansMock.mockResolvedValueOnce({ imported: 0, overwritten: 0, skipped: 0, errors: ['price unavailable'] });
+    getStripeImportPreviewMock.mockResolvedValueOnce(preview).mockResolvedValueOnce(refreshed);
+    const { result } = renderHook(() => useStripeImport());
+    await act(async () => { await result.current.openModal(); });
+    await act(async () => { await result.current.handleImport(); });
+    expect(result.current).toMatchObject({ isModalOpen: true, selectedProductId: '', error: 'Import completed with 1 error(s)' });
+    expect(result.current.importResult?.errors).toEqual(['price unavailable']);
+    act(() => { result.current.resetImportResult(); });
+    expect(result.current.importResult).toBeNull();
+
+    importStripePlansMock.mockRejectedValueOnce(new Error('Import denied'));
+    getStripeImportPreviewMock.mockResolvedValueOnce(preview);
+    await act(async () => { await result.current.openModal(); });
+    await act(async () => { await result.current.handleImport(); });
+    expect(result.current.error).toBe('Import denied');
+  });
 });

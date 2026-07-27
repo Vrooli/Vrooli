@@ -6,7 +6,7 @@ vi.mock('./common', () => ({ apiCall: vi.fn() }));
 const mockApiCall = vi.mocked(apiCall);
 
 describe('download API transport', () => {
-  beforeEach(() => { vi.clearAllMocks(); mockApiCall.mockResolvedValue({} as never); });
+  beforeEach(() => { vi.resetAllMocks(); mockApiCall.mockResolvedValue({} as never); });
 
   it('uses public/app/storage endpoints and rejects malformed required payloads', async () => {
     const app = { name: 'Desktop', platforms: [] };
@@ -72,5 +72,23 @@ describe('download API transport', () => {
     await expect(downloads.presignDownloadArtifactUploadAdmin({ filename: 'app.exe' })).resolves.toMatchObject({ bucket: 'releases' });
     await expect(downloads.commitDownloadArtifactAdmin({ bucket: 'releases', object_key: 'desktop/app.exe' })).resolves.toEqual(artifact);
     await expect(downloads.presignDownloadArtifactGetAdmin(1)).resolves.toEqual({ url: 'https://storage.example.test/get' });
+  });
+
+  it('preserves valid app, storage, and applied-artifact responses for operator workflows', async () => {
+    const asset = { bundle_key: 'bundle', app_key: 'desktop', platform: 'windows', artifact_url: 'https://cdn.example.test/app.exe', release_version: '1.0.0', requires_entitlement: false };
+    const app = { bundle_key: 'bundle', app_key: 'desktop', name: 'Desktop', platforms: [asset] };
+    const settings = { provider: 's3', force_path_style: true, signed_url_ttl_seconds: 600, access_key_id_set: false, secret_access_key_set: false, session_token_set: false, credentials_from_env: false, settings_row_available: true };
+    mockApiCall
+      .mockResolvedValueOnce(app as never)
+      .mockResolvedValueOnce({ settings } as never)
+      .mockResolvedValueOnce({ success: true } as never)
+      .mockResolvedValueOnce(asset as never)
+      .mockResolvedValueOnce(asset as never);
+
+    await expect(downloads.saveDownloadAppAdmin('desktop', { name: 'Desktop', platforms: [] })).resolves.toEqual(app);
+    await expect(downloads.updateDownloadStorageAdmin({ bucket: 'releases', force_path_style: true })).resolves.toEqual({ settings });
+    await expect(downloads.testDownloadStorageAdmin()).resolves.toEqual({ success: true });
+    await expect(downloads.applyDownloadArtifactAdmin({ app_key: 'desktop', platform: 'windows', artifact_id: 1 })).resolves.toEqual(asset);
+    await expect(downloads.setArtifactAsCurrentAdmin({ app_key: 'desktop', platform: 'windows', artifact_id: 1 })).resolves.toEqual(asset);
   });
 });

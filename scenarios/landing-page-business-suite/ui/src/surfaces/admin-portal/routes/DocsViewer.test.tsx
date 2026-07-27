@@ -279,7 +279,7 @@ describe('DocsViewer', () => {
 
     renderWithRouter(<DocsViewer />, '/admin/docs?doc=getting-started/installation.md#repeated');
 
-    await waitFor(() => expect(screen.getByText('Rich guide')).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getByText('Rich guide')).toBeInTheDocument(); });
     expect(screen.getByRole('heading', { name: 'Getting started' })).toHaveAttribute('id', 'getting-started');
     expect(screen.getByRole('heading', { name: 'Details' })).toHaveAttribute('id', 'details');
     expect(screen.getByRole('heading', { name: 'Fine print' })).toBeInTheDocument();
@@ -291,7 +291,7 @@ describe('DocsViewer', () => {
     expect(screen.getByText('inline')).toBeInTheDocument();
     expect(screen.getByText('const safe = true;')).toBeInTheDocument();
     expect(screen.getByRole('table')).toBeInTheDocument();
-    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 56, behavior: 'smooth' }));
+    await waitFor(() => { expect(scrollTo).toHaveBeenCalledWith({ top: 56, behavior: 'smooth' }); });
 
     fireEvent.click(screen.getByTestId('docs-toggle-sidebar'));
     expect(screen.getByTestId('docs-tree').parentElement?.parentElement).toHaveStyle({ width: '0px' });

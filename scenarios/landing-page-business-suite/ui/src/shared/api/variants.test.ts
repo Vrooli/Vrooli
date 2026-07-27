@@ -6,7 +6,7 @@ vi.mock('./common', () => ({ apiCall: vi.fn() }));
 const mockApiCall = vi.mocked(apiCall);
 
 describe('variant API transport', () => {
-  beforeEach(() => { vi.clearAllMocks(); mockApiCall.mockResolvedValue({} as never); });
+  beforeEach(() => { vi.resetAllMocks(); mockApiCall.mockResolvedValue({} as never); });
 
   it('uses the correct public and admin endpoints and fails closed for malformed variant payloads', async () => {
     await expect(variants.getPublicVariant('control')).rejects.toThrow('Invalid variant response');
@@ -43,5 +43,24 @@ describe('variant API transport', () => {
   it('treats an invalid variant-list envelope as an empty list instead of leaking malformed data', async () => {
     await expect(variants.listVariants()).resolves.toEqual({ variants: [] });
     expect(mockApiCall).toHaveBeenCalledWith('/variants');
+  });
+
+  it('returns valid variants and lists without bypassing runtime schema validation', async () => {
+    const variant = {
+      id: 1, slug: 'control', name: 'Control', status: 'active',
+      created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', archived_at: '', axes: {},
+    };
+    mockApiCall
+      .mockResolvedValueOnce(variant as never)
+      .mockResolvedValueOnce(variant as never)
+      .mockResolvedValueOnce(variant as never)
+      .mockResolvedValueOnce(variant as never)
+      .mockResolvedValueOnce({ variants: [variant] } as never);
+
+    await expect(variants.getPublicVariant('control')).resolves.toMatchObject({ slug: 'control' });
+    await expect(variants.getVariant('control')).resolves.toMatchObject({ name: 'Control' });
+    await expect(variants.createVariant({ name: 'Control', slug: 'control', axes: {} })).resolves.toMatchObject({ status: 'active' });
+    await expect(variants.updateVariant('control', { description: 'Updated' })).resolves.toMatchObject({ id: 1 });
+    await expect(variants.listVariants()).resolves.toEqual({ variants: [variant] });
   });
 });

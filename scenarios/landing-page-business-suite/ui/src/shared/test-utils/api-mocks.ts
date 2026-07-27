@@ -266,16 +266,8 @@ export function createObjectURLMock(): {
   return {
     mock,
     restore: () => {
-      if (originalCreateObjectURL) {
-        urlApi.createObjectURL = originalCreateObjectURL;
-      } else {
-        delete (urlApi as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL;
-      }
-      if (originalRevokeObjectURL) {
-        urlApi.revokeObjectURL = originalRevokeObjectURL;
-      } else {
-        delete (urlApi as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL;
-      }
+      urlApi.createObjectURL = originalCreateObjectURL;
+      urlApi.revokeObjectURL = originalRevokeObjectURL;
     },
   };
 }

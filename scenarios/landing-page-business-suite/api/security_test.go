@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync"
 	"testing"
+
+	"landing-page-business-suite-api/internal/envx"
 )
 
 // ============================================================================
@@ -107,8 +109,8 @@ func TestSecurity_XFFSpoofing_InvalidIPInHeader(t *testing.T) {
 // ============================================================================
 
 func TestSecurity_SecureCookies_DefaultsToSecureInProduction(t *testing.T) {
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldCookies := os.Getenv("LPBS_SECURE_COOKIES")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldCookies := envx.Get("LPBS_SECURE_COOKIES")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
@@ -132,7 +134,7 @@ func TestSecurity_SecureCookies_DefaultsToSecureInProduction(t *testing.T) {
 }
 
 func TestSecurity_SecureCookies_CanBeDisabledForDev(t *testing.T) {
-	oldCookies := os.Getenv("LPBS_SECURE_COOKIES")
+	oldCookies := envx.Get("LPBS_SECURE_COOKIES")
 	defer func() {
 		if oldCookies != "" {
 			os.Setenv("LPBS_SECURE_COOKIES", oldCookies)
@@ -149,8 +151,8 @@ func TestSecurity_SecureCookies_CanBeDisabledForDev(t *testing.T) {
 }
 
 func TestSecurity_SecureCookies_DisabledByDefault_InDevelopment(t *testing.T) {
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldCookies := os.Getenv("LPBS_SECURE_COOKIES")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldCookies := envx.Get("LPBS_SECURE_COOKIES")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
@@ -252,8 +254,8 @@ func TestSecurity_URLValidation_AcceptsLegitimateURLs(t *testing.T) {
 // ============================================================================
 
 func TestSecurity_APIKeyEncryption_ProductionRequiresKey(t *testing.T) {
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldKey := envx.Get("LPBS_API_KEY_ENCRYPTION_KEY")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)

@@ -6,9 +6,12 @@ package main
 import (
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net/http"
 	"time"
+
+	varianthttp "landing-page-business-suite-api/handlers/variant"
 )
 
 // VariantResponse is the flat variant format expected by the UI
@@ -97,34 +100,39 @@ func selectWeightedRandomVariant(variants []*VariantSnapshot) *VariantSnapshot {
 // Returns a randomly selected variant based on weights for A/B testing
 // Transforms VariantSnapshot to flat VariantResponse format for UI compatibility
 func handleVariantSelect(cs ConfigStoreReader) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed.", "")
-			return
-		}
+	return varianthttp.Select(variantReadDependencies(cs, "/api/v1/variants/"))
+}
 
-		snapshots := cs.ListVariants()
-		if len(snapshots) == 0 {
-			writeJSONError(w, http.StatusInternalServerError, "No variants available.", ApiErrorTypeServerError)
-			return
-		}
-
-		// Use weighted random selection for A/B testing
-		snapshot := selectWeightedRandomVariant(snapshots)
-
-		logStructured("variant_selected", map[string]interface{}{
-			"slug":   snapshot.Variant.Slug,
-			"name":   snapshot.Variant.Name,
-			"weight": getVariantWeight(snapshot),
-		})
-
-		// Transform to flat format expected by UI
-		variant := snapshotToVariantResponse(snapshot)
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(variant); err != nil {
-			logStructuredError("variant_select_encode_failed", map[string]interface{}{"error": err.Error()})
-		}
+func variantReadDependencies(cs ConfigStoreReader, pathPrefix string) varianthttp.Dependencies {
+	return varianthttp.Dependencies{
+		Select: func() (any, error) {
+			snapshots := cs.ListVariants()
+			if len(snapshots) == 0 {
+				return nil, errors.New("no variants available")
+			}
+			snapshot := selectWeightedRandomVariant(snapshots)
+			logStructured("variant_selected", map[string]interface{}{"slug": snapshot.Variant.Slug, "name": snapshot.Variant.Name, "weight": getVariantWeight(snapshot)})
+			return snapshotToVariantResponse(snapshot), nil
+		},
+		Get: func(slug string) (any, error) {
+			snapshot, err := cs.GetVariant(slug)
+			if err != nil {
+				return nil, err
+			}
+			return snapshotToVariantResponse(snapshot), nil
+		},
+		List: func() any {
+			snapshots := cs.ListVariants()
+			variants := make([]VariantResponse, 0, len(snapshots))
+			for _, snapshot := range snapshots {
+				variants = append(variants, snapshotToVariantResponse(snapshot))
+			}
+			return variants
+		},
+		Slug:       func(r *http.Request) string { return r.URL.Path[len(pathPrefix):] },
+		WriteJSON:  writeJSON,
+		WriteError: writeJSONError,
+		Log:        logStructuredError,
 	}
 }
 

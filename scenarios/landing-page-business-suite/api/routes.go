@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/vrooli/api-core/health"
+	measureshandler "landing-page-business-suite-api/handlers/measures"
 )
 
 func (s *Server) setupRoutes() {
@@ -28,7 +29,14 @@ func (s *Server) setupRoutes() {
 	registerDocsRoutes(s)
 	registerAdminUserRoutes(s)
 	registerUpdateRoutes(s)
+	registerMeasuresRoutes(s)
 	registerDeployReadinessRoute(s)
+}
+
+func registerMeasuresRoutes(s *Server) {
+	if err := measureshandler.RegisterRoutes(s.router, s.primaryDB(), nil, s.requireAdminOrService); err != nil {
+		panic("register measures routes: " + err.Error())
+	}
 }
 
 func securityHeadersMiddleware(next http.Handler) http.Handler {

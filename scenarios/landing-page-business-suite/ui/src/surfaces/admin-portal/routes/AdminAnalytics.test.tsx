@@ -223,7 +223,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     fireEvent.click(screen.getByTestId('analytics-focus-preview'));
     fireEvent.click(screen.getByTestId('analytics-reset-filters'));
 
-    await waitFor(() => expect(screen.queryByTestId('analytics-variant-detail')).not.toBeInTheDocument());
+    await waitFor(() => { expect(screen.queryByTestId('analytics-variant-detail')).not.toBeInTheDocument(); });
     const shortcuts = screen.getByTestId('analytics-shortcuts');
     fireEvent.click(within(shortcuts).getByRole('button', { name: 'Focus analytics' }));
     fireEvent.click(within(shortcuts).getByRole('button', { name: 'View breakdown' }));
@@ -238,6 +238,6 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     expect(screen.getByText('No data yet')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('analytics-time-range'));
     fireEvent.click(await screen.findByRole('option', { name: 'Last 24 hours' }));
-    await waitFor(() => expect(vi.mocked(api.getMetricsSummary).mock.calls.length).toBeGreaterThan(1));
+    await waitFor(() => { expect(vi.mocked(api.getMetricsSummary).mock.calls.length).toBeGreaterThan(1); });
   });
 });

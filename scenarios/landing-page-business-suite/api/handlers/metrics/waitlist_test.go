@@ -10,8 +10,19 @@ import (
 	"testing"
 	"time"
 
+	feedbackhttp "landing-page-business-suite-api/handlers/feedback"
 	metrics "landing-page-business-suite-api/internal/metrics"
 )
+
+func asFeedbackDependencies(dependencies Dependencies) feedbackhttp.Dependencies {
+	return feedbackhttp.Dependencies{
+		DecodeJSON:     dependencies.DecodeJSON,
+		PathInt:        dependencies.PathInt,
+		WriteErrorType: dependencies.WriteErrorType,
+		WriteJSON:      dependencies.WriteJSON,
+		LogError:       dependencies.LogError,
+	}
+}
 
 type waitlistFake struct{ created metrics.WaitlistEmail }
 
@@ -167,7 +178,7 @@ func TestListFeedbackSerializesAnEmptyArrayInsteadOfNull(t *testing.T) {
 	}
 	response := httptest.NewRecorder()
 
-	deps.ListFeedback(&feedbackFake{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/admin/feedback", nil))
+	feedbackhttp.List(asFeedbackDependencies(deps), &feedbackFake{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/admin/feedback", nil))
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
@@ -190,7 +201,7 @@ func TestCreateFeedbackDefaultsTheTypeAndNotifiesAfterPersistence(t *testing.T) 
 	response := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/feedback", strings.NewReader(`{"type":"unexpected","email":"customer@example.com","subject":"Question","message":"Hello"}`))
 
-	deps.CreateFeedback(service, notifier).ServeHTTP(response, req)
+	feedbackhttp.Create(asFeedbackDependencies(deps), service, notifier).ServeHTTP(response, req)
 
 	if response.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusCreated)

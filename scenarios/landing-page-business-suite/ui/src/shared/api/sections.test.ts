@@ -12,7 +12,7 @@ const section = {
 
 describe('sections API', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('loads public and admin sections, falling back safely for malformed lists', async () => {
@@ -37,5 +37,12 @@ describe('sections API', () => {
     await expect(patchSection(3, { enabled: false })).resolves.toEqual({ success: true });
     await expect(deleteSection(3)).resolves.toEqual({ success: true });
     expect(mockApiCall.mock.calls.map(([, options]) => options?.method)).toEqual(['PATCH', 'PATCH', 'DELETE']);
+  });
+
+  it('fails closed when a mutation response does not satisfy its declared contract', async () => {
+    mockApiCall.mockResolvedValueOnce({}).mockResolvedValueOnce({ updated_at: 42 }).mockResolvedValueOnce({ success: 'yes' });
+    await expect(updateSection(3, {})).rejects.toThrow('Invalid update section response');
+    await expect(patchSection(3, { order: 2 })).rejects.toThrow('Invalid patch section response');
+    await expect(deleteSection(3)).rejects.toThrow('Invalid delete section response');
   });
 });

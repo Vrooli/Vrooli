@@ -872,6 +872,7 @@ func ParseKeyValuePairs(values []string) (map[string]string, error) {
 }
 
 func ComputeSHA512(filePath string) (string, error) {
+	// #nosec G304 -- caller supplies an explicit local CLI file path for hashing.
 	f, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("open file for SHA512: %w", err)
@@ -939,6 +940,7 @@ func FindCookie(cookies []*http.Cookie, name string) *http.Cookie {
 }
 
 func BuildMultipartForm(filePath string, fieldName string, extraFields map[string]string) (*bytes.Buffer, string, error) {
+	// #nosec G304 -- caller supplies an explicit local CLI file path for upload.
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, "", fmt.Errorf("open file: %w", err)

@@ -27,9 +27,11 @@ describe('assets API', () => {
 
   it('resolves external, embedded, API-relative, and storage paths safely', () => {
     expect(getAssetUrl('https://cdn.example/logo.png')).toBe('https://cdn.example/logo.png');
+    expect(getAssetUrl('http://cdn.example/logo.png')).toBe('http://cdn.example/logo.png');
     expect(getAssetUrl('data:image/png;base64,abc')).toBe('data:image/png;base64,abc');
     expect(getAssetUrl('')).toBe('');
     expect(getAssetUrl('logos/logo.png')).toMatch(/\/uploads\/logos\/logo\.png$/);
+    expect(getAssetUrl('/logos/logo.png')).toMatch(/\/uploads\/logos\/logo\.png$/);
     expect(getAssetUrl('/api/v1/uploads/logos/logo.png')).toMatch(/\/api\/v1\/uploads\/logos\/logo\.png$/);
   });
 
@@ -50,12 +52,15 @@ describe('assets API', () => {
     fetchMock.mockResolvedValueOnce(new Response('too large', { status: 413 }));
     await expect(uploadAsset(new File(['x'], 'x.png'))).rejects.toThrow('too large');
 
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
+    await expect(uploadAsset(new File(['x'], 'x.png'))).rejects.toThrow('Upload failed with status 500');
+
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
     await expect(listAssets()).resolves.toEqual([]);
 
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ assets: [asset] }), { status: 200 }));
     await expect(listAssets('logo')).resolves.toEqual([asset]);
-    const [filteredListURL] = fetchMock.mock.calls[2] as unknown as [string, RequestInit];
+    const [filteredListURL] = fetchMock.mock.calls[3] as unknown as [string, RequestInit];
     expect(filteredListURL).toContain('category=logo');
   });
 

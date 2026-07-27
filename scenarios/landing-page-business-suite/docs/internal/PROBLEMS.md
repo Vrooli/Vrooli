@@ -6,6 +6,18 @@ This file tracks known issues and technical debt that need attention.
 
 ## Security Issues
 
+### Resolved: persisted-domain measures coverage
+
+**Status:** Resolved  
+**Updated:** 2026-07-27
+
+All 26 persisted entities detected by Measures Health now have a typed,
+time-windowed `MeasuresService` RPC and a shared registry aggregate over
+authoritative Postgres state. The registry and Connect routes remain
+admin-or-service protected. Measures Health's behavioral/indexing assessment
+is clean; its central probe uses no authenticated request yet, so this access
+boundary remains intentionally covered by route and handler tests.
+
 ### Resolved: reachable dependency and Go toolchain vulnerabilities
 
 **Status:** Resolved
@@ -214,4 +226,27 @@ The import modal used per-row action dropdowns (import/overwrite/skip), which ma
 
 ## Last Updated
 
-2026-07-26 by Codex
+2026-07-27 by Codex
+
+---
+
+## Proto Health Evidence Gap
+
+### Measures domain source layout
+
+**Severity:** Advisory  
+**Status:** Documented  
+**Updated:** 2026-07-27
+
+`MeasuresService` now correctly lives at
+`packages/proto/schemas/landing-page-business-suite/v1/measures/measures.proto`,
+matching the canonical domain-folder style and `api/handlers/measures`. The
+generated Go, TypeScript, Python, API, and CLI consumers were regenerated and
+their Go test suites pass.
+
+`proto-health` still reports `handler domain "measures" has no matching proto
+domain` because its scenario matcher recognizes the legacy flat
+`v1/measures.proto` filename but does not yet associate the canonical nested
+path with this scenario. This is validator evidence debt, not an instruction to
+restore a non-canonical flat schema. Revisit after proto-health's domain-path
+matcher supports canonical nested source paths.

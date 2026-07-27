@@ -15,6 +15,7 @@ import (
 	"landing-page-business-suite/cli/domains/feedback"
 	"landing-page-business-suite/cli/domains/health"
 	"landing-page-business-suite/cli/domains/landing"
+	"landing-page-business-suite/cli/domains/measures"
 	"landing-page-business-suite/cli/domains/metrics"
 	"landing-page-business-suite/cli/domains/remoteprofiles"
 	"landing-page-business-suite/cli/domains/stripeimport"
@@ -49,4 +50,12 @@ func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 		users.Register(deps),
 		docs.Register(deps),
 	}
+}
+
+func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
+	group, err := measures.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{group}, nil
 }

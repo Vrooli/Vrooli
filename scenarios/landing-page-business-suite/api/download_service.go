@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	delivery "landing-page-business-suite-api/internal/download"
 )
 
@@ -22,10 +23,48 @@ type DownloadService struct {
 // metadata and entitlement-gated artifact configuration.
 type DownloadStore interface {
 	Query(string, ...any) (*sql.Rows, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRow(string, ...any) *sql.Row
 	Exec(string, ...any) (sql.Result, error)
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+// routedDownloadStore adapts RoutedDB to the established download persistence
+// boundary. Context-free compatibility operations intentionally use primary;
+// request-aware reads and writes retain the test-mode routing marker.
+type routedDownloadStore struct {
+	db *database.RoutedDB
+}
+
+func newRoutedDownloadStore(db *database.RoutedDB) DownloadStore {
+	return routedDownloadStore{db: db}
+}
+
+func (s routedDownloadStore) Query(query string, args ...any) (*sql.Rows, error) {
+	return s.db.Primary().Query(query, args...)
+}
+
+func (s routedDownloadStore) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return s.db.QueryContext(ctx, query, args...)
+}
+
+func (s routedDownloadStore) QueryRow(query string, args ...any) *sql.Row {
+	// #nosec G701 -- DownloadService owns all call sites and supplies package-constant SQL.
+	// Dynamic SQL is not accepted at this persistence boundary.
+	return s.db.Primary().QueryRow(query, args...)
+}
+
+func (s routedDownloadStore) Exec(query string, args ...any) (sql.Result, error) {
+	return s.db.Primary().Exec(query, args...)
+}
+
+func (s routedDownloadStore) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return s.db.ExecContext(ctx, query, args...)
+}
+
+func (s routedDownloadStore) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+	return s.db.BeginTx(ctx, opts)
 }
 
 var (
@@ -139,7 +178,10 @@ type DownloadApp struct {
 	DisplayOrder    int                    `json:"display_order"`
 	UpdateAPIKey    string                 `json:"update_api_key,omitempty"`
 	UpdatePolicy    map[string]interface{} `json:"update_policy,omitempty"`
-	Platforms       []DownloadAsset        `json:"platforms,omitempty"`
+	// Platforms is a required array in the public landing configuration contract.
+	// Keep it non-nil for apps without a published installer so JSON emits []
+	// rather than omitting the field or returning null.
+	Platforms []DownloadAsset `json:"platforms"`
 }
 
 // appScanTargets holds temporary nullable scan variables for a download_apps row.
@@ -237,6 +279,12 @@ func validateDirectArtifactURL(raw string) error {
 
 // ListAssets returns all download assets for a bundle with artifact info.
 func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) {
+	return s.ListAssetsContext(context.Background(), bundleKey)
+}
+
+// ListAssetsContext reads assets from the pool selected for ctx. Requests
+// marked by api-core test mode therefore stay inside their leased database.
+func (s *DownloadService) ListAssetsContext(ctx context.Context, bundleKey string) ([]DownloadAsset, error) {
 	// Query assets with artifact info via LEFT JOIN
 	query := `
 		SELECT da.id, da.bundle_key, da.app_key, da.platform, da.artifact_url, da.artifact_source, da.artifact_id, da.release_version,
@@ -249,7 +297,7 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 		ORDER BY da.app_key, da.platform, COALESCE(da.display_order, 0), da.id
 	`
 
-	rows, err := s.db.Query(query, bundleKey)
+	rows, err := s.db.QueryContext(ctx, query, bundleKey)
 	if err != nil {
 		return nil, err
 	}
@@ -283,6 +331,12 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 
 // ListApps returns download apps with their associated platform assets.
 func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
+	return s.ListAppsContext(context.Background(), bundleKey)
+}
+
+// ListAppsContext reads app metadata and its assets from the pool selected for
+// ctx. It is the request-aware counterpart used by public landing rendering.
+func (s *DownloadService) ListAppsContext(ctx context.Context, bundleKey string) ([]DownloadApp, error) {
 	query := `
 		SELECT id, bundle_key, app_key, name, tagline, description,
 		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order, update_api_key, update_policy
@@ -291,7 +345,7 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 		ORDER BY display_order, name
 	`
 
-	rows, err := s.db.Query(query, bundleKey)
+	rows, err := s.db.QueryContext(ctx, query, bundleKey)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +364,7 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 		return apps, nil
 	}
 
-	assets, err := s.ListAssets(bundleKey)
+	assets, err := s.ListAssetsContext(ctx, bundleKey)
 	if err != nil {
 		return nil, err
 	}
@@ -323,6 +377,9 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 	for i := range apps {
 		app := &apps[i]
 		app.Platforms = grouped[app.AppKey]
+		if app.Platforms == nil {
+			app.Platforms = make([]DownloadAsset, 0)
+		}
 	}
 
 	return apps, nil

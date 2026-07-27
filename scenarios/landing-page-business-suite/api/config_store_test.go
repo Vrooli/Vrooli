@@ -7,6 +7,23 @@ import (
 	"testing"
 )
 
+func TestConfigStoreVariantFilePathRejectsTraversal(t *testing.T) {
+	store := &ConfigStore{variantsDir: t.TempDir()}
+
+	path, err := store.variantFilePath("control")
+	if err != nil {
+		t.Fatalf("valid slug returned error: %v", err)
+	}
+	if got, want := filepath.Base(path), "control.json"; got != want {
+		t.Fatalf("variant filename = %q, want %q", got, want)
+	}
+	for _, slug := range []string{"../outside", "control/other", "control.json", "Control"} {
+		if _, err := store.variantFilePath(slug); err == nil {
+			t.Fatalf("slug %q unexpectedly produced a path", slug)
+		}
+	}
+}
+
 func TestConfigStore_LoadAll(t *testing.T) {
 	cs := setupTestConfigStore(t)
 

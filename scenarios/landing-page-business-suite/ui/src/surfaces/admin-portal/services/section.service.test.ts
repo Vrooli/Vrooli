@@ -29,8 +29,7 @@ describe('section.service', () => {
 
     it('returns null when window is undefined (SSR)', () => {
       const windowBackup = global.window;
-      // @ts-expect-error - simulating SSR
-      delete global.window;
+      Object.defineProperty(global, 'window', { configurable: true, value: undefined });
 
       const result = loadComparePreference('test-variant');
 
@@ -93,8 +92,7 @@ describe('section.service', () => {
 
     it('does nothing when window is undefined (SSR)', () => {
       const windowBackup = global.window;
-      // @ts-expect-error - simulating SSR
-      delete global.window;
+      Object.defineProperty(global, 'window', { configurable: true, value: undefined });
 
       saveComparePreference('test-variant', 'compare-variant');
 

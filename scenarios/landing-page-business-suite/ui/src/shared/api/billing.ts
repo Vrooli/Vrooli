@@ -84,6 +84,7 @@ function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: Strip
       case ConfigSource.DATABASE:
         return 'database';
       case ConfigSource.ENV:
+      case ConfigSource.UNSPECIFIED:
         return 'env';
       default:
         return typeof source === 'string' || typeof source === 'number' ? String(source) : 'env';

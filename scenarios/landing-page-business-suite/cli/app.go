@@ -26,6 +26,13 @@ type App struct {
 
 func NewApp() (*App, error) {
 	app := &App{}
+	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+		groups, err := domains.SubcommandGroups(core, manifestBytes)
+		if err != nil {
+			panic(err)
+		}
+		return groups
+	}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
@@ -40,6 +47,7 @@ func NewApp() (*App, error) {
 			app.core = core
 			return domains.CommandGroups(app.dependencies())
 		},
+		SubcommandGroups: subcommandGroups,
 	})
 	if err != nil {
 		return nil, err

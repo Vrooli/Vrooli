@@ -7,24 +7,23 @@ import { DownloadSection } from './DownloadSection';
 import { getDownloadAssetKey } from '../services/downloads.service';
 
 const requestDownloadMock = vi.hoisted(() => vi.fn());
+const createBillingPortalSessionMock = vi.hoisted(() => vi.fn());
+const entitlementState = vi.hoisted(() => ({
+  email: '', setEmail: vi.fn(), entitlements: null as { status: string } | null,
+  loading: false, error: null as string | null, refresh: vi.fn(),
+}));
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
     requestDownload: requestDownloadMock,
+    createBillingPortalSession: createBillingPortalSessionMock,
   };
 });
 
 vi.mock('../../../shared/hooks/useEntitlements', () => ({
-  useEntitlements: () => ({
-    email: '',
-    setEmail: vi.fn(),
-    entitlements: null,
-    loading: false,
-    error: null,
-    refresh: vi.fn(),
-  }),
+  useEntitlements: () => entitlementState,
 }));
 
 vi.mock('../../../shared/hooks/useMetricsHook', () => ({
@@ -72,6 +71,10 @@ describe('DownloadSection', () => {
 
   afterEach(() => {
     requestDownloadMock.mockReset();
+    createBillingPortalSessionMock.mockReset();
+    Object.assign(entitlementState, { email: '', entitlements: null, loading: false, error: null });
+    entitlementState.setEmail.mockReset();
+    entitlementState.refresh.mockReset();
     window.open = originalWindowOpen;
     Object.defineProperty(window, 'navigator', {
       value: originalNavigator,
@@ -308,5 +311,57 @@ describe('DownloadSection', () => {
   it('does not render when every app lacks an install target', () => {
     render(<DownloadSection downloads={[buildApp(undefined, [])]} />);
     expect(screen.queryByTestId('downloads-section')).not.toBeInTheDocument();
+  });
+
+  it('reports request failures and prevents downloads when app configuration has no application key', async () => {
+    const user = userEvent.setup();
+    const app = buildApp({ app_key: '' }, [{
+      bundle_key: 'bundle', app_key: '', platform: 'windows', artifact_url: 'https://example.com/app.exe',
+      release_version: '1.0.0', requires_entitlement: false,
+    }]);
+    render(<DownloadSection downloads={[app]} />);
+    await user.click(screen.getByTestId('download-btn-primary'));
+    expect(await screen.findByText('App configuration error.')).toBeInTheDocument();
+    expect(requestDownloadMock).not.toHaveBeenCalled();
+
+    requestDownloadMock.mockRejectedValueOnce(new Error('Service unavailable'));
+    render(<DownloadSection downloads={[buildApp()]} />);
+    await user.click(screen.getAllByTestId('download-btn-primary')[1]!);
+    expect(await screen.findByText('Service unavailable')).toBeInTheDocument();
+  });
+
+  it('shows subscription states and validates billing portal requests before opening a window', async () => {
+    Object.assign(entitlementState, { email: 'member@example.com', entitlements: { status: 'trialing' } });
+    const user = userEvent.setup();
+    render(<DownloadSection downloads={[buildApp()]} />);
+    await user.click(screen.getByTestId('toggle-subscription-input'));
+    expect(screen.getByText('Trial active')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(entitlementState.refresh).toHaveBeenCalledOnce();
+    fireEvent.change(screen.getByPlaceholderText('your@email'), { target: { value: 'next@example.com' } });
+    fireEvent.blur(screen.getByPlaceholderText('your@email'));
+    expect(entitlementState.setEmail).toHaveBeenCalledWith('next@example.com');
+    expect(entitlementState.refresh).toHaveBeenCalledTimes(2);
+
+    createBillingPortalSessionMock.mockResolvedValueOnce({ url: 'https://billing.example.test/portal' });
+    window.open = vi.fn(() => null);
+    await user.click(screen.getByRole('button', { name: 'Billing portal' }));
+    expect(createBillingPortalSessionMock).toHaveBeenCalledWith(undefined, 'member@example.com');
+    expect(await screen.findByText('Pop-up blocked. Allow pop-ups to open the billing portal.')).toBeInTheDocument();
+  });
+
+  it('makes unavailable platform groups harmless and renders an unverified subscription state', async () => {
+    const app = buildApp(undefined, [
+      { bundle_key: 'bundle', app_key: 'automation', platform: 'windows', artifact_url: 'https://example.com/app.exe', release_version: '1.0.0', requires_entitlement: false },
+      { bundle_key: 'bundle', app_key: 'automation', platform: 'solaris', artifact_url: 'https://example.com/app.pkg', release_version: '1.0.0', requires_entitlement: false },
+    ]);
+    const user = userEvent.setup();
+    render(<DownloadSection downloads={[app]} />);
+    await user.click(screen.getByTestId('toggle-other-platforms'));
+    expect(screen.queryByTestId('download-card-solaris')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('toggle-subscription-input'));
+    expect(screen.getByText('Enter email to verify')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Billing portal' }));
+    expect(screen.getByText('Enter your subscription email first.')).toBeInTheDocument();
   });
 });

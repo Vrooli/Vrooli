@@ -93,4 +93,60 @@ describe('BundleCard', () => {
     fireEvent.dragEnd(cards[0]!);
     expect(onReorderPlans).toHaveBeenCalledWith('starter', ['price_year', 'price_month']);
   });
+
+  it('keeps missing form state out of the editor and warns when demo tiers are hidden', () => {
+    const demoPrice = {
+      ...entry.prices[0]!,
+      stripe_price_id: 'demo_starter_launch',
+      metadata: { __demo_placeholder: true },
+    };
+    render(<BundleCard {...props({
+      entry: { ...entry, prices: [demoPrice, entry.prices[1]!] },
+      priceForms: {},
+      pricingTab: 'month',
+    })} />);
+
+    expect(screen.getAllByText('Demo placeholders hidden. Turn them back on to see filler tiers until you add real Stripe prices.')).not.toHaveLength(0);
+    expect(screen.getAllByText('No plans found for this interval.')).not.toHaveLength(0);
+    expect(screen.queryByTestId('price-form-demo_starter_launch')).not.toBeInTheDocument();
+  });
+
+  it('orders plans by display weight before plan rank and does not enable reordering without a callback', () => {
+    const onReorderPlans = vi.fn();
+    render(<BundleCard {...props({
+      entry: {
+        ...entry,
+        prices: [
+          { ...entry.prices[0]!, stripe_price_id: 'price_low', billing_interval: 'month', display_weight: 1, plan_rank: 1 },
+          { ...entry.prices[1]!, stripe_price_id: 'price_high', billing_interval: 'month', display_weight: 5, plan_rank: 99 },
+        ],
+      },
+      priceForms: {
+        'starter:price_low': form('price_low'),
+        'starter:price_high': { ...form('price_high'), values: { ...form('price_high').values, displayWeight: 5 } },
+      },
+      onReorderPlans: undefined,
+    })} />);
+
+    expect(screen.getAllByTestId(/^price-form-/).map((node) => node.dataset.testid)).toEqual([
+      'price-form-price_high', 'price-form-price_low',
+      'price-form-price_high', 'price-form-price_low',
+    ]);
+    expect(document.querySelectorAll('[draggable="true"]')).toHaveLength(0);
+    expect(onReorderPlans).not.toHaveBeenCalled();
+  });
+
+  it('ignores invalid drag sources instead of persisting an invalid order', () => {
+    const onReorderPlans = vi.fn();
+    render(<BundleCard {...props({
+      entry: { ...entry, prices: entry.prices.map((price) => ({ ...price, billing_interval: 'month' })) },
+      onReorderPlans,
+    })} />);
+    const cards = Array.from(document.querySelectorAll('[draggable="true"]'));
+    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: vi.fn(), getData: vi.fn(() => 'unknown_price') };
+    fireEvent.dragStart(cards[0]!, { dataTransfer });
+    fireEvent.dragOver(cards[1]!, { dataTransfer });
+    fireEvent.drop(cards[1]!, { dataTransfer });
+    expect(onReorderPlans).not.toHaveBeenCalled();
+  });
 });

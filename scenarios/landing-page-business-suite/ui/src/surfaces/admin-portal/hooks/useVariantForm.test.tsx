@@ -608,14 +608,15 @@ describe('useVariantForm', () => {
     it('copies Monaco marker details and disposes the listener when unmounted', async () => {
       const writeTextMock = vi.fn().mockResolvedValue(undefined);
       const dispose = vi.fn();
-      let onMarkersChanged: ((changed: readonly { toString: () => string }[]) => void) | undefined;
+      type MarkerChangeHandler = (changed: readonly { toString: () => string }[]) => void;
+      let onMarkersChanged: MarkerChangeHandler | undefined;
       const marker = { message: 'Missing title', startLineNumber: 3, startColumn: 7 };
       const monaco = {
         languages: { json: { jsonDefaults: { setDiagnosticsOptions: vi.fn() } } },
         Uri: { parse: vi.fn((value: string) => ({ toString: () => value })) },
         editor: {
           getModelMarkers: vi.fn(() => [marker]),
-          onDidChangeMarkers: vi.fn((handler) => {
+          onDidChangeMarkers: vi.fn((handler: MarkerChangeHandler) => {
             onMarkersChanged = handler;
             return { dispose };
           }),

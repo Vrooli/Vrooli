@@ -22,7 +22,9 @@ describe('HeroSection', () => {
     vi.useFakeTimers();
     render(<HeroSection content={{}} />);
     expect(screen.getByText('record-session')).toBeInTheDocument();
-    const showcase = screen.getByLabelText('Go to preview 1').parentElement?.parentElement!;
+    const showcase = screen.getByLabelText('Go to preview 1').parentElement?.parentElement;
+    expect(showcase).not.toBeNull();
+    if (!showcase) throw new Error('preview showcase is missing');
     fireEvent.mouseEnter(showcase);
     expect(screen.getByText('Paused')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Go to preview 2'));
@@ -46,7 +48,9 @@ describe('HeroSection', () => {
     fireEvent.click(screen.getByTestId('hero-cta'));
     expect(trackCTAClick).toHaveBeenCalledWith('hero-cta', { cta_text: 'Start free', cta_url: '#pricing' });
 
-    const showcase = screen.getByLabelText('Go to preview 1').parentElement?.parentElement!;
+    const showcase = screen.getByLabelText('Go to preview 1').parentElement?.parentElement;
+    expect(showcase).not.toBeNull();
+    if (!showcase) throw new Error('preview showcase is missing');
     act(() => { vi.advanceTimersByTime(600 + 800); });
     expect(screen.getByText('amazon.com')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Go to preview 2'));

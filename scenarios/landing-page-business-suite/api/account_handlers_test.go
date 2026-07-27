@@ -19,11 +19,18 @@ func TestHandleLandingConfig_Success(t *testing.T) {
 	configStore := setupTestConfigStore(t)
 	planService := NewPlanService(db)
 	downloadService := NewDownloadService(db)
+	if _, err := downloadService.UpsertDownloadApp(DownloadApp{
+		BundleKey: planService.BundleKey(),
+		AppKey:    "unreleased-desktop",
+		Name:      "Unreleased Desktop",
+	}); err != nil {
+		t.Fatalf("seed unreleased download app: %v", err)
+	}
 	service := NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, nil)
 
 	handler := handleLandingConfig(service)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/landing-config?variant=default", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/landing-config?variant=control", nil)
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -36,6 +43,28 @@ func TestHandleLandingConfig_Success(t *testing.T) {
 	var resp map[string]interface{}
 	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+	downloads, ok := resp["downloads"].([]interface{})
+	if !ok {
+		t.Fatalf("expected download app array in landing response, got %#v", resp["downloads"])
+	}
+	var download map[string]interface{}
+	for _, candidate := range downloads {
+		app, ok := candidate.(map[string]interface{})
+		if ok && app["app_key"] == "unreleased-desktop" {
+			download = app
+			break
+		}
+	}
+	if download == nil {
+		t.Fatalf("expected seeded unreleased app in landing response, got %#v", downloads)
+	}
+	platforms, exists := download["platforms"]
+	if !exists {
+		t.Fatal("landing-config download app omitted required platforms array")
+	}
+	if platformSlice, ok := platforms.([]interface{}); !ok || len(platformSlice) != 0 {
+		t.Fatalf("expected an empty platforms array, got %#v", platforms)
 	}
 }
 

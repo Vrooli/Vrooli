@@ -3,6 +3,7 @@ module landing-page-business-suite-api
 go 1.25.12
 
 require (
+	connectrpc.com/connect v1.19.2
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.5
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.5
@@ -17,6 +18,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/measures-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/crypto v0.51.0
 	google.golang.org/protobuf v1.36.11
@@ -26,10 +28,14 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
+
+replace github.com/vrooli/measures-go => ../../../packages/measures-go
+
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 require (
-	connectrpc.com/connect v1.19.2 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -62,6 +68,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/go-chi/chi/v5 v5.0.11 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -88,6 +95,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/vrooli/ai-go v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
@@ -96,7 +104,7 @@ require (
 	go.opentelemetry.io/otel v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
-	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

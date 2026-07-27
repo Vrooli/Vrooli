@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"landing-page-business-suite-api/internal/envx"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -656,8 +658,8 @@ func TestAPIKeyService_NoEncryptionKey_StoresPlaintext(t *testing.T) {
 
 func TestAPIKeyService_ProductionMode_RequiresEncryptionKey(t *testing.T) {
 	// Save current environment
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldKey := envx.Get("LPBS_API_KEY_ENCRYPTION_KEY")
 	defer func() {
 		os.Setenv("LPBS_ENVIRONMENT", oldEnv)
 		if oldKey != "" {
@@ -691,8 +693,8 @@ func TestAPIKeyService_ProductionMode_RequiresEncryptionKey(t *testing.T) {
 
 func TestAPIKeyService_ProductionMode_WithEncryptionKey_Succeeds(t *testing.T) {
 	// Save current environment
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldKey := envx.Get("LPBS_API_KEY_ENCRYPTION_KEY")
 	defer func() {
 		os.Setenv("LPBS_ENVIRONMENT", oldEnv)
 		if oldKey != "" {
@@ -723,8 +725,8 @@ func TestAPIKeyService_ProductionMode_WithEncryptionKey_Succeeds(t *testing.T) {
 
 func TestAPIKeyService_DevelopmentMode_WithoutEncryptionKey_Succeeds(t *testing.T) {
 	// Save current environment
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldKey := envx.Get("LPBS_API_KEY_ENCRYPTION_KEY")
 	defer func() {
 		if oldEnv != "" {
 			os.Setenv("LPBS_ENVIRONMENT", oldEnv)

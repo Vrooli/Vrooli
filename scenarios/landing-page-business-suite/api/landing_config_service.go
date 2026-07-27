@@ -660,7 +660,7 @@ func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Conte
 		return s.fallbackWithReason("pricing_fetch_failed", err, nil)
 	}
 
-	downloads, err := s.downloadService.ListApps(s.planService.BundleKey())
+	downloads, err := s.downloadService.ListAppsContext(ctx, s.planService.BundleKey())
 	if err != nil {
 		return s.fallbackWithReason("download_list_failed", err, nil)
 	}
@@ -848,6 +848,7 @@ func defaultFallbackProvider() LandingConfigPayload {
 }
 
 func loadFallbackLandingFromFile(path string) (LandingConfigPayload, error) {
+	// #nosec G304 -- init supplies only scenario-owned fallback paths.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return LandingConfigPayload{}, err

@@ -146,7 +146,9 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
     useLandingVariantMock.mockReturnValue({
       variant: null, config: null, loading: false, error: null, resolution: 'unknown', statusNote: null, lastUpdated: null, refresh: vi.fn(),
     });
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+      return undefined;
+    });
     const { result } = renderHook(() => useMetrics());
     result.current.trackConversion({ source: 'test' });
     await Promise.resolve();
@@ -157,12 +159,14 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
 
   it('contains tracking transport failures and continues to expose interaction helpers', async () => {
     trackMetricMock.mockRejectedValue(new Error('metrics unavailable'));
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+      return undefined;
+    });
     const { result } = renderHook(() => useMetrics());
-    await waitFor(() => expect(trackMetricMock).toHaveBeenCalled());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalled(); });
     result.current.trackFormSubmit('waitlist', { email: 'customer@example.com' });
     result.current.trackDownload({ platform: 'linux' });
-    await waitFor(() => expect(trackMetricMock).toHaveBeenCalledTimes(3));
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(3); });
     expect(errorSpy).toHaveBeenCalledWith('[useMetrics] Error tracking event:', expect.any(Error));
     errorSpy.mockRestore();
   });

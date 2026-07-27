@@ -6,6 +6,37 @@ import (
 	"testing"
 )
 
+// [REQ:LANDING-CONFIG] Download apps are rendered by the public landing page,
+// which requires an array even when an app has no released installers yet.
+func TestDownloadServiceListAppsInitializesEmptyPlatformSlices(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewDownloadService(db)
+	const bundleKey = "bundle_empty_platforms"
+	if _, err := service.UpsertDownloadApp(DownloadApp{
+		BundleKey: bundleKey,
+		AppKey:    "desktop",
+		Name:      "Desktop",
+	}); err != nil {
+		t.Fatalf("seed download app: %v", err)
+	}
+
+	apps, err := service.ListApps(bundleKey)
+	if err != nil {
+		t.Fatalf("ListApps returned error: %v", err)
+	}
+	if len(apps) != 1 {
+		t.Fatalf("expected one app, got %d", len(apps))
+	}
+	if apps[0].Platforms == nil {
+		t.Fatal("expected an empty, non-nil platforms slice")
+	}
+	if len(apps[0].Platforms) != 0 {
+		t.Fatalf("expected no platform assets, got %d", len(apps[0].Platforms))
+	}
+}
+
 func TestDownloadServiceDeleteAppRemovesAssets(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

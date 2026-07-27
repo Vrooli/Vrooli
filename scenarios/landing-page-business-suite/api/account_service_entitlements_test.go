@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/envx"
 )
 
 func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *AccountService {
@@ -259,8 +261,8 @@ func configureAccountBundleEnv(t *testing.T, env string) string {
 
 	replacer := strings.NewReplacer("/", "_", ".", "_")
 	bundleKey := fmt.Sprintf("bundle_%s", replacer.Replace(strings.ToLower(t.Name())))
-	prevKey := os.Getenv("BUNDLE_KEY")
-	prevEnv := os.Getenv("BUNDLE_ENVIRONMENT")
+	prevKey := envx.Get("BUNDLE_KEY")
+	prevEnv := envx.Get("BUNDLE_ENVIRONMENT")
 
 	if err := os.Setenv("BUNDLE_KEY", bundleKey); err != nil {
 		t.Fatalf("failed to set BUNDLE_KEY: %v", err)

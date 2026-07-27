@@ -76,7 +76,7 @@ describe('APIKeysSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Enable' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    await waitFor(() => expect(state.handleAddKey).toHaveBeenCalledOnce());
+    await waitFor(() => { expect(state.handleAddKey).toHaveBeenCalledOnce(); });
 
     expect(state.handleTestKey).toHaveBeenCalledWith('openai');
     expect(state.handleToggleKey).toHaveBeenCalledWith('openai', false);

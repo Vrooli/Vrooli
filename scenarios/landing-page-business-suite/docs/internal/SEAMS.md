@@ -111,6 +111,27 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 
 ## Other Seams
 
+### Commercial Measures seam (2026-07-27)
+
+- **Authoritative substrate:** `handlers/measures` executes fixed, parameterized
+  `COUNT(*)` aggregates over Postgres `created_at` data. Callers never choose a
+  table or provide SQL. Coverage now includes monetization, customer/session,
+  authentication/key, credit/usage, administration, content/download,
+  analytics, remote-profile, feedback, and waitlist substrates. Each of the
+  26 persisted entities detected by Measures Health has a dedicated aggregate.
+- **Typed and registry consumers:** each measure is available through the
+  generated `MeasuresService` Connect RPC and the `packages/measures-go`
+  registry (`/measures/declarations` and `/measures/execute`). Both paths share
+  the same aggregate function and deterministic UTC `TimeWindow` resolution;
+  registry results include the resolved SQL/window provenance.
+- **Access policy:** commercial aggregates are wrapped with
+  `requireAdminOrService`; unauthenticated callers receive 401. This prevents
+  public traffic from inferring subscription or checkout volume while allowing
+  authenticated operators and service clients to consume the measure surface.
+- **Test seam:** `Counter` is a narrow `QueryRowContext` dependency. Handler
+  tests use an in-memory SQL database and assert Connect/registry semantic
+  parity from the same source snapshot.
+
 - **Plan/pricing lookup + integrity** (`plan_service.go`, `plan_store.go`)  
   Centralizes bundle/price metadata and enforces plan integrity rules (valid tiers, kind↔tier alignment, currency, billing interval, unique Stripe price IDs, bundle↔Stripe product matching).  
   - Additional tier invariants: **free** plans require `amount_cents = 0`; **credits/donation** tiers must use `one_time` billing intervals.  

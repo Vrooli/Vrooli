@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-25T22:27:02-04:00"
+    "last_validated_at": "2026-07-27T14:19:55-04:00"
   },
   "requirements": [
     {
       "id": "STRIPE-CONFIG",
       "title": "Stripe environment config",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-025",
       "description": "Each landing page includes Stripe keys from environment variables",
       "validation": [
@@ -14,20 +14,20 @@
           "type": "test",
           "ref": "api/stripe_service_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "api/stripe_service.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "STRIPE-ROUTES",
       "title": "Stripe routes",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-026",
       "description": "Each landing page includes routes for creating checkout sessions and handling webhook events",
       "validation": [
@@ -35,20 +35,20 @@
           "type": "test",
           "ref": "api/stripe_service_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "api/stripe_handlers.go",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "STRIPE-SIG",
       "title": "Webhook signature verification",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-027",
       "description": "All webhook endpoints verify Stripe signature before processing",
       "validation": [
@@ -56,20 +56,20 @@
           "type": "test",
           "ref": "api/stripe_service_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "api/stripe_service.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "SUB-VERIFY",
       "title": "Subscription verification endpoint",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-028",
       "description": "Each landing page exposes GET /api/subscription/verify accepting user identity, returning active/inactive/trial/canceled",
       "validation": [
@@ -77,20 +77,20 @@
           "type": "test",
           "ref": "api/stripe_service_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "api/stripe_handlers.go",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "SUB-CACHE",
       "title": "Verification caching",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-029",
       "description": "Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes",
       "validation": [
@@ -98,20 +98,20 @@
           "type": "test",
           "ref": "api/stripe_service_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "api/stripe_service.go",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "SUB-CANCEL",
       "title": "Subscription cancellation endpoint",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-030",
       "description": "API exposes POST /api/subscription/cancel validating user and returning status",
       "validation": [
@@ -119,20 +119,20 @@
           "type": "test",
           "ref": "api/stripe_service_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "api/stripe_handlers.go",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "SUB-PLANS",
       "title": "Plan listing \u0026 checkout orchestration",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-032",
       "description": "Parse Stripe product/price metadata (tiers, intro pricing, billing_interval, plan_rank, bundle_key) and expose GET /api/v1/plans plus POST /api/v1/billing/create-checkout-session|create-credits-checkout-session and GET /api/v1/billing/portal-url that respect $1 intro month rules, weights, and deterministic slugs.",
       "validation": [
@@ -140,14 +140,14 @@
           "type": "test",
           "ref": "api/plan_service_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "PlanService tests validate monthly/yearly tier ordering and lookup by Stripe price."
         },
         {
           "type": "test",
           "ref": "api/plan_service.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "PlanService loads bundle metadata, sorts tiers, and exposes lookups used by /plans."
         }
       ]
@@ -155,7 +155,7 @@
     {
       "id": "SUB-CREDITS",
       "title": "Credits + pricing display",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-033",
       "description": "Expose GET /api/v1/me/subscription and GET /api/v1/me/credits that convert internal credits_per_usd to display_credits_multiplier/label, include included credits + bonuses per plan, and surface upgrade CTAs for logged-in visitors.",
       "validation": [
@@ -163,14 +163,14 @@
           "type": "test",
           "ref": "api/account_service_entitlements_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "AccountService credits test confirms bundle multipliers and labels are surfaced."
         },
         {
           "type": "test",
           "ref": "api/account_service.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "AccountService reads bundle metadata and exposes credits via /me/credits."
         }
       ]
@@ -178,7 +178,7 @@
     {
       "id": "SUB-ENTITLEMENTS",
       "title": "Bundled app entitlement API",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-033",
       "description": "Provide GET /api/v1/entitlements returning plan tier, feature flags, and credit metrics for bundled apps. Responses must cache briefly (≤60s) and support offline degradation with short-lived storage for the bundled clients.",
       "validation": [
@@ -186,14 +186,14 @@
           "type": "test",
           "ref": "api/account_service_entitlements_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Entitlements test ensures features/credits/subscription status reflect bundle metadata."
         },
         {
           "type": "test",
           "ref": "api/account_service.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "AccountService exposes entitlements with cached subscription lookups and metadata."
         }
       ]
@@ -201,7 +201,7 @@
     {
       "id": "DOWNLOAD-GATE",
       "title": "Download gating + analytics",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-034",
       "description": "Landing config includes download sections that expose platform installers + release notes sourced from S3 (or equivalent) but keep buttons disabled until the entitlement API confirms an active subscription; download attempts emit variant_id + plan metadata for analytics.",
       "validation": [
@@ -209,14 +209,14 @@
           "type": "test",
           "ref": "api/download_authorizer_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "DownloadAuthorizer tests ensure entitlement-gated assets require an active subscription."
         },
         {
           "type": "test",
           "ref": "api/download_service.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Download service exposes metadata + gating helpers consumed by the UI download section."
         }
       ]

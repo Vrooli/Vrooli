@@ -123,6 +123,7 @@ func runUploadManaged(deps support.Dependencies, args []string) error {
 		return fmt.Errorf("presign response missing required fields")
 	}
 
+	// #nosec G304 -- --path is an explicit local CLI argument; this command never serves files remotely.
 	artifactFile, err := os.Open(pathValue)
 	if err != nil {
 		return fmt.Errorf("open artifact file: %w", err)

@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
-	metricshttp "landing-page-business-suite-api/handlers/metrics"
+	feedbackhttp "landing-page-business-suite-api/handlers/feedback"
 )
 
-var feedbackHandlerDependencies = metricshttp.Dependencies{
+var feedbackHandlerDependencies = feedbackhttp.Dependencies{
 	DecodeJSON: func(w http.ResponseWriter, r *http.Request, target interface{}) bool {
 		if err := json.NewDecoder(r.Body).Decode(target); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid request format.", ApiErrorTypeValidation)
@@ -38,30 +38,28 @@ func (n feedbackEmailNotifier) Notify(feedback *FeedbackRequest) {
 	}()
 }
 
-var _ metricshttp.FeedbackNotifier = feedbackEmailNotifier{}
-
 // handleFeedbackCreateWithConfigStore composes feedback creation with the
 // branding/email notification integration.
 func handleFeedbackCreateWithConfigStore(svc *FeedbackService, cs *ConfigStore, emailSvc *EmailService) http.HandlerFunc {
-	return feedbackHandlerDependencies.CreateFeedback(svc, feedbackEmailNotifier{configStore: cs, emailService: emailSvc})
+	return feedbackhttp.Create(feedbackHandlerDependencies, svc, feedbackEmailNotifier{configStore: cs, emailService: emailSvc})
 }
 
 func handleFeedbackList(svc FeedbackServicer) http.HandlerFunc {
-	return feedbackHandlerDependencies.ListFeedback(svc)
+	return feedbackhttp.List(feedbackHandlerDependencies, svc)
 }
 
 func handleFeedbackGet(svc FeedbackServicer) http.HandlerFunc {
-	return feedbackHandlerDependencies.GetFeedback(svc)
+	return feedbackhttp.Get(feedbackHandlerDependencies, svc)
 }
 
 func handleFeedbackUpdateStatus(svc FeedbackServicer) http.HandlerFunc {
-	return feedbackHandlerDependencies.UpdateFeedbackStatus(svc)
+	return feedbackhttp.UpdateStatus(feedbackHandlerDependencies, svc)
 }
 
 func handleFeedbackDelete(svc FeedbackServicer) http.HandlerFunc {
-	return feedbackHandlerDependencies.DeleteFeedback(svc)
+	return feedbackhttp.Delete(feedbackHandlerDependencies, svc)
 }
 
 func handleFeedbackDeleteBulk(svc FeedbackServicer) http.HandlerFunc {
-	return feedbackHandlerDependencies.DeleteFeedbackBulk(svc)
+	return feedbackhttp.DeleteBulk(feedbackHandlerDependencies, svc)
 }

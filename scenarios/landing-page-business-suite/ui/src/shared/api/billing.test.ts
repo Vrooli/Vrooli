@@ -7,7 +7,7 @@ const mockApiCall = vi.mocked(apiCall);
 
 describe('billing API transport', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     mockApiCall.mockResolvedValue({} as never);
   });
 
@@ -91,6 +91,21 @@ describe('billing API transport', () => {
     });
     expect(mockApiCall).toHaveBeenCalledWith('/billing/portal-url');
     expect(mockApiCall).toHaveBeenCalledWith('/billing/portal-url?return_url=https%3A%2F%2Fapp.example%2Freturn');
+  });
+
+  it('normalizes Stripe setting snapshots from every supported config source', async () => {
+    mockApiCall
+      .mockResolvedValueOnce({
+        snapshot: { publishableKeyPreview: 'pk_live_…', publishableKeySet: true, secretKeySet: true, webhookSecretSet: false, source: 2 },
+        settings: { dashboardUrl: 'https://dashboard.stripe.com', updatedAt: '2026-01-01T00:00:00Z' },
+      } as never)
+      .mockResolvedValueOnce({ snapshot: { source: 0 }, settings: {} } as never);
+
+    await expect(billing.getStripeSettings()).resolves.toMatchObject({
+      publishable_key_preview: 'pk_live_…', publishable_key_set: true, secret_key_set: true,
+      webhook_secret_set: false, source: 'database', dashboard_url: 'https://dashboard.stripe.com',
+    });
+    await expect(billing.getStripeSettings()).resolves.toMatchObject({ source: 'env', publishable_key_set: false });
   });
 
   it('returns validated Stripe import, verification, and coupon read models', async () => {

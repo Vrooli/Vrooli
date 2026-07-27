@@ -328,5 +328,33 @@ describe('landing API', () => {
       })]);
       expect(result.bundle.metadata).toEqual({ source: 'seeded' });
     });
+
+    it('filters malformed numeric plans instead of exposing invalid prices to checkout', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      fetchMock.mockResolvedValue(mockResponses.success({
+        pricing: {
+          bundle: { bundleKey: 'main', name: 'Main', stripeProductId: 'prod_123' },
+          monthly: [{ planName: 'Broken', planTier: 'pro', amountCents: 'not-a-number', currency: 'usd' }],
+          yearly: [],
+        },
+      }));
+
+      const result = await getPlans();
+      expect(result.monthly).toEqual([]);
+      warn.mockRestore();
+      error.mockRestore();
+    });
+
+    it('returns a safe empty overview when pricing is absent from an otherwise successful response', async () => {
+      fetchMock.mockResolvedValue(mockResponses.success({}));
+
+      const result = await getPlans();
+      expect(result).toMatchObject({
+        bundle: { bundle_key: '', name: '', display_credits_label: 'credits', environment: 'production' },
+        monthly: [], yearly: [],
+      });
+      expect(result.updated_at).toBeTruthy();
+    });
   });
 });

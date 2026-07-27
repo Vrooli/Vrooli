@@ -22,6 +22,13 @@ describe('account API', () => {
   });
 
   describe('getSubscriptionInfo', () => {
+    it.each([
+      [1, 'active'], [2, 'trialing'], [3, 'past_due'], [4, 'canceled'], [0, 'inactive'], [99, 'inactive'],
+    ])('maps generated subscription state %s to the public %s status', async (state, expectedStatus) => {
+      fetchMock.mockResolvedValue(mockResponses.success({ status: { state } }));
+      await expect(getSubscriptionInfo()).resolves.toMatchObject({ status: expectedStatus });
+    });
+
     it('returns subscription info fields', async () => {
       const protoResponse = {
         status: {

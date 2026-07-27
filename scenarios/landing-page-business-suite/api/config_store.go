@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 )
+
+var variantSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 // ConfigStoreReader provides read-only access to configuration.
 // Use this interface for handlers that only need to read variants/branding.
@@ -31,6 +34,15 @@ type ConfigStoreWriter interface {
 	UpdateBranding(req *BrandingUpdateRequest) (*SiteBranding, error)
 	ClearBrandingField(field string) error
 	LoadAll() error
+}
+
+// variantFilePath produces the only filesystem path used for persisted
+// variants. Slugs are public identifiers, never path fragments.
+func (cs *ConfigStore) variantFilePath(slug string) (string, error) {
+	if !variantSlugPattern.MatchString(slug) {
+		return "", fmt.Errorf("invalid variant slug %q", slug)
+	}
+	return filepath.Join(cs.variantsDir, slug+".json"), nil
 }
 
 // ConfigStorer combines read and write access to configuration.
@@ -172,6 +184,7 @@ func (cs *ConfigStore) loadVariantsLocked() error {
 }
 
 func (cs *ConfigStore) loadVariantFileLocked(path string) error {
+	// #nosec G304 -- callers enumerate .json entries from cs.variantsDir only.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -317,8 +330,12 @@ func (cs *ConfigStore) SaveVariant(slug string, snapshot *VariantSnapshot) error
 	}
 
 	// Write to file
-	path := filepath.Join(cs.variantsDir, slug+".json")
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	path, err := cs.variantFilePath(slug)
+	if err != nil {
+		return err
+	}
+	// #nosec G703 -- variantFilePath rejects every non-canonical slug before joining.
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("write variant file: %w", err)
 	}
 
@@ -341,7 +358,11 @@ func (cs *ConfigStore) DeleteVariant(slug string) error {
 		return fmt.Errorf("variant %q not found", slug)
 	}
 
-	path := filepath.Join(cs.variantsDir, slug+".json")
+	path, err := cs.variantFilePath(slug)
+	if err != nil {
+		return err
+	}
+	// #nosec G703 -- variantFilePath rejects every non-canonical slug before joining.
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("delete variant file: %w", err)
 	}

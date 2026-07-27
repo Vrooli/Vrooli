@@ -1,11 +1,11 @@
 import { screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { renderWithProviders as render } from '../../test-utils/renderWithProviders';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ErrorBoundary } from './ErrorBoundary';
 
-function Broken({ message = 'Network Error' }: { message?: string }) {
-  throw new Error(message);
-  return null;
+function Broken({ message = 'Network Error' }: { message?: string }): ReactElement {
+	throw new Error(message);
 }
 
 describe('ErrorBoundary', () => {

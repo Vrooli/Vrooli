@@ -20,7 +20,6 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -124,6 +123,14 @@ func (m devRoutingMux) Handle(pattern string, handler http.Handler) {
 	m.router.Handle(pattern, handler)
 }
 
+// Mount satisfies devrouting's optional subtree-mount contract. Connect
+// services expose several RPC paths below one service prefix; registering that
+// prefix as a Gorilla path prefix ensures every generated procedure reaches
+// the handler rather than falling through to the application router as a 404.
+func (m devRoutingMux) Mount(pattern string, handler http.Handler) {
+	m.router.PathPrefix(pattern).Handler(handler)
+}
+
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
 	if err := validateProductionCredentials(); err != nil {
@@ -140,7 +147,10 @@ func NewServer() (*Server, error) {
 	}
 	db := routedDB.Primary()
 	routedDB.SetTestPoolInitializer(func(ctx context.Context, testDB *sql.DB) error {
-		return database.EnsureSchemas(ctx, testDB, database.SchemaProviderFunc(runtimeSchema))
+		if err := database.EnsureSchemas(ctx, testDB, database.SchemaProviderFunc(runtimeSchema)); err != nil {
+			return err
+		}
+		return seedDefaultData(testDB)
 	})
 
 	if err := seedDefaultData(db); err != nil {
@@ -157,7 +167,7 @@ func NewServer() (*Server, error) {
 
 	variantSpace := defaultVariantSpace
 	planService := NewPlanService(db)
-	downloadService := NewDownloadService(db)
+	downloadService := NewDownloadService(newRoutedDownloadStore(routedDB))
 	downloadHosting := NewDownloadHostingService(db, S3DownloadStorageProvider{})
 	accountService := NewAccountService(routedDB, planService)
 	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
@@ -248,7 +258,10 @@ func NewServer() (*Server, error) {
 	}
 
 	srv.setupRoutes()
-	devrouting.RegisterWithFileRoots(devRoutingMux{router: srv.router}, routedDB, fileRoots)
+	if err := registerScenarioDevRouting(srv.router, routedDB, fileRoots); err != nil {
+		_ = routedDB.Close()
+		return nil, fmt.Errorf("register development routing: %w", err)
+	}
 	return srv, nil
 }
 
@@ -735,7 +748,7 @@ func main() {
 	}
 
 	if err := server.Run(server.Config{
-		Handler: srv.Router(),
+		Handler: apihttp.TestModeMiddleware(srv.Router()),
 		Cleanup: func(ctx context.Context) error {
 			return srv.Cleanup()
 		},

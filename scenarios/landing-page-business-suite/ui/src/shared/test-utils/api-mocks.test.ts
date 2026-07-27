@@ -48,9 +48,9 @@ describe('API test mocks', () => {
   it('installs fetch mocks and exposes typed request calls', () => {
     const fetchMock = createFetchMock();
     installFetchMock(fetchMock);
-    fetchMock('https://example.test/plans', { method: 'POST' });
-    fetchMock(new URL('https://example.test/credits'));
-    fetchMock(new Request('https://example.test/account'));
+    void fetchMock('https://example.test/plans', { method: 'POST' });
+    void fetchMock(new URL('https://example.test/credits'));
+    void fetchMock(new Request('https://example.test/account'));
 
     expect(getFetchCall(fetchMock)).toEqual(['https://example.test/plans', { method: 'POST' }]);
     expect(getFetchCall(fetchMock, 1)).toEqual(['https://example.test/credits', {}]);
@@ -65,12 +65,12 @@ describe('API test mocks', () => {
     expect(getFirstCall(callback)).toEqual(['first']);
     expect(getCall(callback, 1)).toEqual(['second']);
     expect(() => getCall(callback, 2)).toThrow(/call at index 2/);
-    expect(() => getFirstCall(vi.fn())).toThrow(/at least once/);
+    expect(() => getFirstCall(vi.fn<[], undefined>())).toThrow(/at least once/);
 
     expect(parseJsonBody('{"name":"Suite"}')).toEqual({ name: 'Suite' });
     expect(() => parseJsonBody(null)).toThrow(/JSON string/);
     expect(() => parseJsonBody('"not an object"')).toThrow(/JSON body to be an object/);
-    expect(() => assertDefined(undefined, 'plan')).toThrow(/Expected plan/);
+    expect(() => { assertDefined(undefined, 'plan'); }).toThrow(/Expected plan/);
     const value: string | undefined = 'defined';
     assertDefined(value, 'value');
     expect(value).toBe('defined');
@@ -83,9 +83,9 @@ describe('API test mocks', () => {
     expect(createApiErrorMock('network', 'Offline', undefined, 'Try again')).toMatchObject({
       type: 'network', message: 'Offline', userMessage: 'Try again',
     });
-    expect(() => expectApiError(new Error('wrong'), 'network')).toThrow(/Expected ApiError/);
-    expect(() => expectApiError(error, 'server_error')).toThrow(/type "server_error"/);
-    expect(() => expectApiError(error, 'rate_limited', 500)).toThrow(/status 500/);
+    expect(() => { expectApiError(new Error('wrong'), 'network'); }).toThrow(/Expected ApiError/);
+    expect(() => { expectApiError(error, 'server_error'); }).toThrow(/type "server_error"/);
+    expect(() => { expectApiError(error, 'rate_limited', 500); }).toThrow(/status 500/);
   });
 
   it('restores browser download and URL mocks after use', () => {

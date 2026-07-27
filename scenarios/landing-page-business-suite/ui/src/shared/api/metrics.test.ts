@@ -20,6 +20,11 @@ describe('metrics API', () => {
     await expect(trackMetric({ event_type: 'click', variant_slug: 'control', session_id: 'session-1' })).resolves.toEqual({});
   });
 
+  it('rejects malformed metric acknowledgements rather than claiming a tracked conversion', async () => {
+    mockApiCall.mockResolvedValueOnce({ success: 'yes' });
+    await expect(trackMetric({ event_type: 'conversion', variant_slug: 'control', session_id: 'session-1' })).rejects.toThrow('Invalid track metric response');
+  });
+
   it('serializes summary date filters and preserves a valid analytics response', async () => {
     const response = { total_visitors: 12, variant_stats: [] };
     mockApiCall.mockResolvedValueOnce(response);
