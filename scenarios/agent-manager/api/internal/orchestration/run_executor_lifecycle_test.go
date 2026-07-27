@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -11,11 +12,16 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
+	runnercore "agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/adapters/sandbox"
 	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/testutil"
 	"agent-manager/internal/testutil/mocks"
+
+	"github.com/google/uuid"
 )
 
 func TestRunExecutor_BroadcastsStatusOnFailure(t *testing.T) {
@@ -427,5 +433,48 @@ func TestRunExecutor_BroadcastsErrorEventsOnFailure(t *testing.T) {
 	}
 	if !foundErrorBroadcast {
 		t.Error("expected error event to be broadcast on runner failure, but none found")
+	}
+}
+
+// TestRunExecutor_ProcessReplayTrackingAppliesAttribution proves the complete
+// sandboxed persistence path using the fake corpus process, not a mock runner.
+func TestRunExecutor_ProcessReplayTrackingAppliesAttribution(t *testing.T) {
+	f := newTestFixtures(t)
+	autoApply := true
+	f.run.SandboxConfig = &domain.SandboxConfig{Mode: domain.SandboxModeTracking, AutoApply: &autoApply}
+	f.run.ResolvedConfig = &domain.RunConfig{RunnerType: domain.RunnerTypeCodex, SandboxConfig: f.run.SandboxConfig}
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	fakeAgent := testutil.BuildFakeAgent(t)
+	if err := registry.Register(runnercore.NewRunner(codecs.NewCodexForTestWithBinary(fakeAgent), runner.NewHostLauncher(), nil)); err != nil {
+		t.Fatal(err)
+	}
+	sandboxProvider := newMockSandboxProvider()
+	workDir := t.TempDir()
+	sandboxProvider.GetWorkspacePathFn = func(context.Context, uuid.UUID) (string, error) { return workDir, nil }
+	sandboxProvider.ApplyAtRunEndFunc = func(context.Context, sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error) {
+		return &sandbox.ApplyAtRunEndResult{Success: true, Applied: 2, TotalSizeBytes: 4096, DiffPath: "/api/v1/sandboxes/replay/diff", CommitHash: "replay-commit", AppliedAt: time.Now()}, nil
+	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 10 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
+	corpus, err := filepath.Abs(filepath.Join("..", "adapters", "runner", "codecs", "testdata", "corpus", "codex-stdout.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	executor := orchestration.NewRunExecutor(repos.Runs, registry, sandboxProvider, eventStore, f.run, f.task, f.profile, "replay", "").
+		WithLevers(levers).WithRunStateRoot(t.TempDir()).WithCustomEnvironment(map[string]string{"FAKE_AGENT_CORPUS": corpus})
+	executor.Execute(context.Background())
+	got, err := repos.Runs.Get(context.Background(), f.run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusComplete {
+		t.Fatalf("status = %s, error=%q", got.Status, got.ErrorMsg)
+	}
+	if got.ChangedFiles != 2 || got.TotalSizeBytes != 4096 || got.DiffPath != "/api/v1/sandboxes/replay/diff" || got.CommitHash != "replay-commit" {
+		t.Fatalf("attribution = files=%d bytes=%d diff=%q commit=%q", got.ChangedFiles, got.TotalSizeBytes, got.DiffPath, got.CommitHash)
 	}
 }

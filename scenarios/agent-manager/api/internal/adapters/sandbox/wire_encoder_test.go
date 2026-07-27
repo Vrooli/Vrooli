@@ -50,11 +50,15 @@ func TestEncodeBehaviorForWire_ProtectedModeEmitsDefaultGitAllowlist(t *testing.
 	}
 }
 
-func TestEncodeBehaviorForWire_UnspecifiedModeTreatedAsTracking(t *testing.T) {
+func TestEncodeBehaviorForWire_UnspecifiedModeTreatedAsProtected(t *testing.T) {
 	cfg := domain.DefaultSandboxConfig()
 	cfg.Mode = ""
 	wire := encodeBehaviorForWire(cfg)
-	if _, ok := wire["protected"]; ok {
-		t.Fatalf("unspecified mode should not emit protected block")
+	protected, ok := wire["protected"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("unspecified mode should emit the protected block; got %T", wire["protected"])
+	}
+	if got, ok := protected["gitAllowlist"].([]string); !ok || len(got) == 0 {
+		t.Fatalf("unspecified mode protected.gitAllowlist = %v, want non-empty []string", protected["gitAllowlist"])
 	}
 }

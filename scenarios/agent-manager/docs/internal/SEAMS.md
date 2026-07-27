@@ -208,6 +208,17 @@ implements `Codec`; `core.Runner` owns launch/scan/transcript/events.
   registry plumbing), not a copy of the availability/probe/labels/transcript
   boilerplate. Adding Grok was the forcing function that extracted it.
 
+**Control-flag seam:** `Codec.ControlArgs` owns the runner-native argv for
+model, effort, allowed tools, and denied tools. Both `BuildArgs` and the
+interactive substrate consume it, so a new runner adds its translation in its
+codec rather than adding a runner-type branch to orchestration.
+
+**Replay seam:** `cmd/fake-agent` is a test-only executable built once by
+`internal/testutil.BuildFakeAgent`. Process replay uses it with recorded codec
+corpora to exercise the real launcher, tag environment, transcript writer,
+terminal persistence, and sandbox attribution without invoking a real runner
+or opening a network connection.
+
 **Role-policy resolution and capability gates:**
 - `config/role-policy-catalog.json` declares portable roles and ordered
   `(runner, resourceRole)` candidates only. `internal/rolepolicy` strictly
@@ -1094,7 +1105,7 @@ runMode := domain.DeriveRunMode(sandboxCfg)
 // Off            → RunModeInPlace  (explicit no-sandbox)
 // Tracking       → RunModeSandboxed
 // Protected      → RunModeSandboxed
-// Unspecified    → RunModeSandboxed (Effective() resolves to Tracking)
+// Unspecified    → RunModeSandboxed (Effective() resolves to Protected)
 // nil cfg        → RunModeInPlace (treated as Off; in practice the
 //                                  orchestrator always populates a
 //                                  non-nil SandboxConfig before calling)

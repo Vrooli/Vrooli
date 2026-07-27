@@ -29,37 +29,41 @@ var _ repository.RunRepository = (*runRepository)(nil)
 
 // runRow is the database row representation for runs.
 type runRow struct {
-	ID                       uuid.UUID             `db:"id"`
-	TaskID                   uuid.UUID             `db:"task_id"`
-	AgentProfileID           NullableUUID          `db:"agent_profile_id"`
-	Tag                      string                `db:"tag"`
-	SandboxID                NullableUUID          `db:"sandbox_id"`
-	RunMode                  string                `db:"run_mode"`
-	ExecutionMode            sql.NullString        `db:"execution_mode"`
-	WebConsoleSessionID      sql.NullString        `db:"web_console_session_id"`
-	Status                   string                `db:"status"`
-	StartedAt                NullableTime          `db:"started_at"`
-	EndedAt                  NullableTime          `db:"ended_at"`
-	Phase                    string                `db:"phase"`
-	LastCheckpointID         NullableUUID          `db:"last_checkpoint_id"`
-	LastHeartbeat            NullableTime          `db:"last_heartbeat"`
-	ProgressPercent          int                   `db:"progress_percent"`
-	IdempotencyKey           sql.NullString        `db:"idempotency_key"`
-	Summary                  NullableRunSummary    `db:"summary"`
-	RunResult                NullableRunResult     `db:"run_result"`
-	ErrorMsg                 string                `db:"error_msg"`
-	ExitCode                 sql.NullInt32         `db:"exit_code"`
-	ApprovalState            string                `db:"approval_state"`
-	ApprovedBy               string                `db:"approved_by"`
-	ApprovedAt               NullableTime          `db:"approved_at"`
-	FinalizationStatus       string                `db:"finalization_status"`
-	FinalizationError        string                `db:"finalization_error"`
-	FinalizedAt              NullableTime          `db:"finalized_at"`
-	ResolvedConfig           NullableRunConfig     `db:"resolved_config"`
-	DiffPath                 string                `db:"diff_path"`
-	LogPath                  string                `db:"log_path"`
-	ChangedFiles             int                   `db:"changed_files"`
-	TotalSizeBytes           int64                 `db:"total_size_bytes"`
+	ID                  uuid.UUID          `db:"id"`
+	TaskID              uuid.UUID          `db:"task_id"`
+	AgentProfileID      NullableUUID       `db:"agent_profile_id"`
+	Tag                 string             `db:"tag"`
+	SandboxID           NullableUUID       `db:"sandbox_id"`
+	RunMode             string             `db:"run_mode"`
+	ExecutionMode       sql.NullString     `db:"execution_mode"`
+	WebConsoleSessionID sql.NullString     `db:"web_console_session_id"`
+	Status              string             `db:"status"`
+	StartedAt           NullableTime       `db:"started_at"`
+	EndedAt             NullableTime       `db:"ended_at"`
+	Phase               string             `db:"phase"`
+	LastCheckpointID    NullableUUID       `db:"last_checkpoint_id"`
+	LastHeartbeat       NullableTime       `db:"last_heartbeat"`
+	ProgressPercent     int                `db:"progress_percent"`
+	IdempotencyKey      sql.NullString     `db:"idempotency_key"`
+	Summary             NullableRunSummary `db:"summary"`
+	RunResult           NullableRunResult  `db:"run_result"`
+	ErrorMsg            string             `db:"error_msg"`
+	ExitCode            sql.NullInt32      `db:"exit_code"`
+	ApprovalState       string             `db:"approval_state"`
+	ApprovedBy          string             `db:"approved_by"`
+	ApprovedAt          NullableTime       `db:"approved_at"`
+	FinalizationStatus  string             `db:"finalization_status"`
+	FinalizationError   string             `db:"finalization_error"`
+	FinalizedAt         NullableTime       `db:"finalized_at"`
+	ResolvedConfig      NullableRunConfig  `db:"resolved_config"`
+	DiffPath            string             `db:"diff_path"`
+	LogPath             string             `db:"log_path"`
+	ChangedFiles        int                `db:"changed_files"`
+	TotalSizeBytes      int64              `db:"total_size_bytes"`
+	// CommitHash became additive after the original runs table shipped. SQLite
+	// leaves pre-migration rows NULL even though the migration declares a
+	// default, so it must remain nullable at the repository boundary.
+	CommitHash               sql.NullString        `db:"commit_hash"`
 	SandboxConfig            NullableSandboxConfig `db:"sandbox_config"`
 	SessionID                sql.NullString        `db:"session_id"`
 	RunnerPID                int                   `db:"runner_pid"`
@@ -124,6 +128,7 @@ func (row *runRow) toDomain() *domain.Run {
 		LogPath:                  row.LogPath,
 		ChangedFiles:             row.ChangedFiles,
 		TotalSizeBytes:           row.TotalSizeBytes,
+		CommitHash:               row.CommitHash.String,
 		SandboxConfig:            row.SandboxConfig.V,
 		SessionID:                row.SessionID.String,
 		RunnerPID:                row.RunnerPID,
@@ -195,6 +200,7 @@ func runFromDomain(r *domain.Run) *runRow {
 		LogPath:                  r.LogPath,
 		ChangedFiles:             r.ChangedFiles,
 		TotalSizeBytes:           r.TotalSizeBytes,
+		CommitHash:               sql.NullString{String: r.CommitHash, Valid: r.CommitHash != ""},
 		SandboxConfig:            NullableSandboxConfig{V: r.SandboxConfig},
 		SessionID:                sql.NullString{String: r.SessionID, Valid: r.SessionID != ""},
 		RunnerPID:                r.RunnerPID,
@@ -324,7 +330,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
 	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 	finalization_status, finalization_error, finalized_at,
-	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
+	resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
@@ -342,7 +348,7 @@ const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode,
 	execution_mode, web_console_session_id, status,
 	started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
-	changed_files, total_size_bytes, session_id,
+	changed_files, total_size_bytes, commit_hash, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	requested_model, actual_model,
@@ -350,27 +356,31 @@ const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode,
 
 // listRunLiteRow is the database row representation for the pruned list query.
 type listRunLiteRow struct {
-	ID                       uuid.UUID      `db:"id"`
-	TaskID                   uuid.UUID      `db:"task_id"`
-	AgentProfileID           NullableUUID   `db:"agent_profile_id"`
-	Tag                      string         `db:"tag"`
-	RunMode                  string         `db:"run_mode"`
-	ExecutionMode            sql.NullString `db:"execution_mode"`
-	WebConsoleSessionID      sql.NullString `db:"web_console_session_id"`
-	Status                   string         `db:"status"`
-	StartedAt                NullableTime   `db:"started_at"`
-	EndedAt                  NullableTime   `db:"ended_at"`
-	Phase                    string         `db:"phase"`
-	LastHeartbeat            NullableTime   `db:"last_heartbeat"`
-	ProgressPercent          int            `db:"progress_percent"`
-	ErrorMsg                 string         `db:"error_msg"`
-	ExitCode                 sql.NullInt32  `db:"exit_code"`
-	ApprovalState            string         `db:"approval_state"`
-	FinalizationStatus       string         `db:"finalization_status"`
-	FinalizationError        string         `db:"finalization_error"`
-	FinalizedAt              NullableTime   `db:"finalized_at"`
-	ChangedFiles             int            `db:"changed_files"`
-	TotalSizeBytes           int64          `db:"total_size_bytes"`
+	ID                  uuid.UUID      `db:"id"`
+	TaskID              uuid.UUID      `db:"task_id"`
+	AgentProfileID      NullableUUID   `db:"agent_profile_id"`
+	Tag                 string         `db:"tag"`
+	RunMode             string         `db:"run_mode"`
+	ExecutionMode       sql.NullString `db:"execution_mode"`
+	WebConsoleSessionID sql.NullString `db:"web_console_session_id"`
+	Status              string         `db:"status"`
+	StartedAt           NullableTime   `db:"started_at"`
+	EndedAt             NullableTime   `db:"ended_at"`
+	Phase               string         `db:"phase"`
+	LastHeartbeat       NullableTime   `db:"last_heartbeat"`
+	ProgressPercent     int            `db:"progress_percent"`
+	ErrorMsg            string         `db:"error_msg"`
+	ExitCode            sql.NullInt32  `db:"exit_code"`
+	ApprovalState       string         `db:"approval_state"`
+	FinalizationStatus  string         `db:"finalization_status"`
+	FinalizationError   string         `db:"finalization_error"`
+	FinalizedAt         NullableTime   `db:"finalized_at"`
+	ChangedFiles        int            `db:"changed_files"`
+	TotalSizeBytes      int64          `db:"total_size_bytes"`
+	// See runRow.CommitHash: legacy rows can contain NULL after the additive
+	// migration, while the domain contract represents no commit as an empty
+	// string.
+	CommitHash               sql.NullString `db:"commit_hash"`
 	SessionID                sql.NullString `db:"session_id"`
 	RunnerPID                int            `db:"runner_pid"`
 	RunnerPGID               int            `db:"runner_pgid"`
@@ -412,6 +422,7 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		FinalizedAt:              row.FinalizedAt.ToPtr(),
 		ChangedFiles:             row.ChangedFiles,
 		TotalSizeBytes:           row.TotalSizeBytes,
+		CommitHash:               row.CommitHash.String,
 		SessionID:                row.SessionID.String,
 		RunnerPID:                row.RunnerPID,
 		RunnerPGID:               row.RunnerPGID,
@@ -449,7 +460,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 			finalization_status, finalization_error, finalized_at,
-			resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
+			resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
 			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 			identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
@@ -461,7 +472,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
 			:finalization_status, :finalization_error, :finalized_at,
-			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
+			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :commit_hash, :sandbox_config, :session_id,
 			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq,
 			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
 			:identity_token_hash, :identity_token_revoked_at, :custom_env, :await_handle,
@@ -586,7 +597,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		approval_state = :approval_state, approved_by = :approved_by, approved_at = :approved_at,
 		finalization_status = :finalization_status, finalization_error = :finalization_error, finalized_at = :finalized_at,
 		resolved_config = :resolved_config, diff_path = :diff_path, log_path = :log_path,
-			changed_files = :changed_files, total_size_bytes = :total_size_bytes, sandbox_config = :sandbox_config,
+			changed_files = :changed_files, total_size_bytes = :total_size_bytes, commit_hash = :commit_hash, sandbox_config = :sandbox_config,
 			session_id = :session_id, runner_pid = :runner_pid, runner_pgid = :runner_pgid,
 			transcript_path = :transcript_path, transcript_cursor = :transcript_cursor, transcript_last_seq = :transcript_last_seq,
 			source_run_ids = :source_run_ids,

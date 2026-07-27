@@ -99,6 +99,7 @@ func newTestReconciler(t *testing.T, repos *database.Repositories, store event.S
 			KillOrphans:       true,
 			AutoRecover:       true,
 		}),
+		orchestration.WithReconcilerRunStateRoot(t.TempDir()),
 	)
 }
 

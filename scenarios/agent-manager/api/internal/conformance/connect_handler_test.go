@@ -35,6 +35,12 @@ func TestBuildAssessmentRepresentsFullLadderAndBlockingFindings(t *testing.T) {
 	if got := globalImpactFor(Finding{Code: CodePermissionPosture}); got != commonv1.GlobalImpact_GLOBAL_IMPACT_SAFETY_BLOCKER {
 		t.Fatalf("permission posture global impact = %s, want safety blocker", got)
 	}
+	if got := assessment.GetPresentation(); got == nil || got.GetContractVersion() != "v1" || got.GetProvider() != "agent-manager" || got.GetPhase() != "agent-conformance" {
+		t.Fatalf("presentation = %#v, want contract-valid agent-conformance presentation", got)
+	}
+	if got := assessment.GetPresentation().GetBlockingFindingCodes(); len(got) != 2 || got[0] != CodeDirectSpawnBypass || got[1] != CodeRoleUnresolved {
+		t.Fatalf("presentation blocking findings = %#v", got)
+	}
 }
 
 func TestValidateScenarioIncludesExecutionMetrics(t *testing.T) {

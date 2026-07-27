@@ -12,6 +12,13 @@ provider-native failure terminal shape for every supported runner. Those tests
 are deliberately parser-only: they neither launch a CLI nor open a network
 connection.
 
+`cmd/fake-agent` is the next testing-ladder rung. Process replay tests build it
+once per Go test binary, pass one of these corpus paths in `FAKE_AGENT_CORPUS`,
+and run it through the real host launcher. The executable writes each corpus
+line to stdout in order, derives a non-zero exit code from a recorded failure
+terminal, and never contacts a network service. Tests may set
+`FAKE_AGENT_TAG_MARKER` to prove the runner tag reached the child process.
+
 The refresh command is:
 
 ```sh

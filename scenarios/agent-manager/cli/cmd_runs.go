@@ -320,7 +320,7 @@ func (a *App) runCreate(args []string) error {
 	profileID := fs.String("profile-id", "", "Agent profile ID (required)")
 	prompt := fs.String("prompt", "", "Optional override prompt")
 	runMode := fs.String("run-mode", "", "Run mode (sandboxed or in_place)")
-	executionMode := fs.String("execution-mode", "", "Execution mode (codec_pipe or interactive); interactive launches the real CLI in a live web-console session and is rejected for protected/sandboxed runs")
+	executionMode := fs.String("execution-mode", "", "Execution mode (codec_pipe or interactive); interactive launches the real CLI in a live web-console session, supports sandbox tracking, and rejects protected sandbox mode")
 	forceInPlace := fs.Bool("force-in-place", false, "Force in-place execution")
 	idempotencyKey := fs.String("idempotency-key", "", "Idempotency key for safe retries")
 	existingSandboxID := fs.String("existing-sandbox-id", "", "Reuse an existing sandbox ID (sandboxed runs only)")
@@ -333,6 +333,7 @@ func (a *App) runCreate(args []string) error {
 	classify := fs.String("classify", "", "Comma-separated classification values (convenience ResultSpec)")
 	structuredExtraction := fs.Bool("structured-extraction", false, "Allow portable extract.structured fallback after deterministic parsing")
 	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
+	model := fs.String("model", "", "Per-run model override")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -389,6 +390,12 @@ func (a *App) runCreate(args []string) error {
 			req.InlineConfig = &domainpb.RunConfigOverrides{}
 		}
 		req.InlineConfig.Effort = protoString(*effort)
+	}
+	if *model != "" {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.Model = protoString(*model)
 	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err

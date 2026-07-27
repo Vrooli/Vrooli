@@ -309,7 +309,7 @@ func TestApplyAtRunEnd_NilConfigEmitsWarning(t *testing.T) {
 // (1) Success → apply.
 func TestApplyAtRunEnd_SuccessApplies(t *testing.T) {
 	stub := mocks.NewFakeSandboxProvider()
-	stub.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{Success: true, Applied: 2}
+	stub.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{Success: true, Applied: 2, TotalSizeBytes: 3072, DiffPath: "/api/v1/sandboxes/diff", CommitHash: "full-commit"}
 	cfg := domain.DefaultSandboxConfig()
 	fx := newFinalizeFixture(t, cfg, stub)
 
@@ -330,6 +330,9 @@ func TestApplyAtRunEnd_SuccessApplies(t *testing.T) {
 	}
 	if fx.run.ApprovalState != domain.ApprovalStateApproved {
 		t.Errorf("expected ApprovalState=Approved, got %q", fx.run.ApprovalState)
+	}
+	if fx.run.ChangedFiles != 2 || fx.run.TotalSizeBytes != 3072 || fx.run.DiffPath != "/api/v1/sandboxes/diff" || fx.run.CommitHash != "full-commit" {
+		t.Fatalf("persisted attribution = files:%d bytes:%d diff:%q commit:%q", fx.run.ChangedFiles, fx.run.TotalSizeBytes, fx.run.DiffPath, fx.run.CommitHash)
 	}
 	applyReqs := stub.ApplyAtRunEndRequests()
 	if len(applyReqs) != 1 {
@@ -396,10 +399,13 @@ func TestApplyAtRunEnd_FailureSkipsWhenApplyOnFailureFalse(t *testing.T) {
 func TestApplyAtRunEnd_PartialAcceptanceSplit(t *testing.T) {
 	stub := mocks.NewFakeSandboxProvider()
 	stub.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{
-		Success:   true,
-		Applied:   2,
-		Remaining: 1,
-		IsPartial: true,
+		Success:        true,
+		Applied:        2,
+		Remaining:      1,
+		IsPartial:      true,
+		TotalSizeBytes: 512,
+		DiffPath:       "/api/v1/sandboxes/partial/diff",
+		CommitHash:     "partial-commit",
 	}
 	cfg := domain.DefaultSandboxConfig()
 	fx := newFinalizeFixture(t, cfg, stub)
@@ -421,6 +427,9 @@ func TestApplyAtRunEnd_PartialAcceptanceSplit(t *testing.T) {
 	}
 	if _, ok := fx.events.FindLogMessage("partial apply"); !ok {
 		t.Error("expected info event explaining partial apply / pending-review")
+	}
+	if fx.run.ChangedFiles != 2 || fx.run.TotalSizeBytes != 512 || fx.run.CommitHash != "partial-commit" {
+		t.Fatalf("partial attribution = files:%d bytes:%d commit:%q", fx.run.ChangedFiles, fx.run.TotalSizeBytes, fx.run.CommitHash)
 	}
 }
 
@@ -478,6 +487,9 @@ func TestApplyAtRunEnd_NoOpEmptyProvenance(t *testing.T) {
 	}
 	if _, ok := fx.events.FindLogMessage("empty provenance"); !ok {
 		t.Error("expected info event acknowledging no-changes apply")
+	}
+	if fx.run.ChangedFiles != 0 || fx.run.TotalSizeBytes != 0 || fx.run.CommitHash != "" {
+		t.Fatalf("empty apply must not invent attribution, got files:%d bytes:%d commit:%q", fx.run.ChangedFiles, fx.run.TotalSizeBytes, fx.run.CommitHash)
 	}
 }
 

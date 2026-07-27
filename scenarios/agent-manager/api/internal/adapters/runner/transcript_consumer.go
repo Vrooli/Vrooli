@@ -34,6 +34,16 @@ type ConsumeArgs struct {
 	PollInterval time.Duration
 }
 
+// TranscriptCursorAdvanceError identifies a failure to persist replay
+// progress after evidence was already consumed. The caller must report it so
+// recovery remains observable, but a successfully exited agent process does
+// not become a failed run solely because its resumability cursor could not be
+// saved.
+type TranscriptCursorAdvanceError struct{ Err error }
+
+func (e *TranscriptCursorAdvanceError) Error() string { return e.Err.Error() }
+func (e *TranscriptCursorAdvanceError) Unwrap() error { return e.Err }
+
 func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal, error) {
 	if args.ParseFn == nil {
 		return args.StartAt, nil, fmt.Errorf("parse function is required")
@@ -128,7 +138,7 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 
 		if args.OnAdvance != nil {
 			if err := args.OnAdvance(cursor, lastSeq); err != nil {
-				return cursor, terminal, err
+				return cursor, terminal, &TranscriptCursorAdvanceError{Err: err}
 			}
 		}
 	}

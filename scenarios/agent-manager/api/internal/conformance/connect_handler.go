@@ -2,6 +2,8 @@ package conformance
 
 import (
 	"context"
+	"sort"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/metrics"
@@ -94,7 +96,73 @@ func buildAssessment(report Report) *commonv1.MaturityAssessment {
 	if level < "L4" {
 		next = "L" + string(level[1]+1)
 	}
-	return &commonv1.MaturityAssessment{Scenario: report.Scenario, Provider: "agent-manager", Phase: "agent-conformance", Version: "2.0.0", Local: &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: next, Clean: clean, BlockingFindingCodes: blocking}, Findings: findings, FindingsBySeverity: bySeverity}
+	local := &commonv1.LocalMaturityAssessment{
+		CurrentLevel:         level,
+		NextLevel:            next,
+		Clean:                clean,
+		BlockingFindingCodes: blocking,
+	}
+	assessment := &commonv1.MaturityAssessment{Scenario: report.Scenario, Provider: "agent-manager", Phase: "agent-conformance", Version: "2.0.0", Local: local, Findings: findings, FindingsBySeverity: bySeverity}
+	assessment.Presentation = buildCanonicalPresentation(assessment)
+	return assessment
+}
+
+// buildCanonicalPresentation is the local, dependency-free projection of this
+// provider's deliberately local maturity assessment. It mirrors
+// maturity-go/assessment.BuildPhasePresentation for an assessment without
+// provider capability levels: the one synthetic "local" capability is part of
+// that canonical fallback contract.
+func buildCanonicalPresentation(a *commonv1.MaturityAssessment) *commonv1.PhasePresentation {
+	if a == nil || a.GetLocal() == nil {
+		return nil
+	}
+	local := a.GetLocal()
+	p := &commonv1.PhasePresentation{
+		ContractVersion:      "v1",
+		Provider:             a.GetProvider(),
+		Phase:                a.GetPhase(),
+		CurrentLevel:         local.GetCurrentLevel(),
+		NextLevel:            local.GetNextLevel(),
+		Clean:                local.GetClean(),
+		UnknownCount:         local.GetUnknownCount(),
+		BlockingFindingCodes: sortedNonBlank(local.GetBlockingFindingCodes()),
+		AtMaximum:            local.GetClean() && strings.TrimSpace(local.GetNextLevel()) == "",
+	}
+	p.Capabilities = []*commonv1.PhaseCapabilityPresentation{{
+		Id:                   "local",
+		Label:                "Local Maturity",
+		CurrentLevel:         local.GetCurrentLevel(),
+		NextLevel:            local.GetNextLevel(),
+		Clean:                local.GetClean(),
+		UnknownCount:         local.GetUnknownCount(),
+		BlockingFindingCodes: sortedNonBlank(local.GetBlockingFindingCodes()),
+		PriorityRank:         1,
+	}}
+	if !p.GetAtMaximum() && strings.TrimSpace(p.GetPhase()) != "" {
+		p.DocumentationTopics = []string{p.GetPhase() + " maturity next move"}
+		for _, code := range p.GetBlockingFindingCodes() {
+			p.DocumentationTopics = append(p.DocumentationTopics, p.GetPhase()+" "+code+" canonical fix")
+			if len(p.DocumentationTopics) == 3 {
+				break
+			}
+		}
+	}
+	return p
+}
+
+func sortedNonBlank(in []string) []string {
+	seen := make(map[string]struct{}, len(in))
+	for _, value := range in {
+		if value = strings.TrimSpace(value); value != "" {
+			seen[value] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for value := range seen {
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func maturityFor(finding Finding) (string, commonv1.CleanRequirement) {

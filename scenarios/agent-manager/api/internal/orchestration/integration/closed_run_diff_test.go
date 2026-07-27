@@ -188,6 +188,7 @@ func runClosedDiffScenario(t *testing.T, archive *sandbox.DiffResult) (*orchestr
 		orchestration.WithIdempotency(repos.Idempotency),
 		newTestRolePolicyOption(t),
 		orchestration.WithSandbox(provider),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{

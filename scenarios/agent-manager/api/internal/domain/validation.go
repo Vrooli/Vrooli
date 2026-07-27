@@ -458,7 +458,7 @@ func (r *Run) Validate() error {
 
 	// Interactive execution mode is only available for non-protected (in-place)
 	// runs. See ValidateInteractiveRunMode.
-	if err := ValidateInteractiveRunMode(r.ExecutionMode, r.RunMode); err != nil {
+	if err := ValidateInteractiveRunMode(r.ExecutionMode, r.InteractiveSandboxMode()); err != nil {
 		return err
 	}
 
@@ -493,20 +493,33 @@ func (r *Run) Validate() error {
 // requires an in-place run (RunModeInPlace, i.e. sandbox mode off).
 //
 // codec-pipe runs (the default) are unaffected regardless of run mode.
-func ValidateInteractiveRunMode(execMode ExecutionMode, runMode RunMode) error {
+func ValidateInteractiveRunMode(execMode ExecutionMode, sandboxMode SandboxMode) error {
 	if execMode.Normalized() != ExecutionModeInteractive {
 		return nil
 	}
-	if runMode == RunModeSandboxed {
+	if sandboxMode.Effective() == SandboxModeProtected {
 		return NewValidationErrorWithHint(
 			"executionMode",
 			"interactive execution mode is not available for protected (sandboxed) runs",
-			"interactive mode launches the real CLI in a live web-console session and "+
-				"requires an in-place run — set sandbox mode to off (or run in_place). "+
-				"Protected runs use the sandboxed codec-pipe launcher instead.",
+			"interactive mode launches the real CLI in a live web-console session. Set sandbox mode to tracking for attributed host execution, or off for no provenance. Protected runs use codec-pipe execution.",
 		)
 	}
 	return nil
+}
+
+// InteractiveSandboxMode returns the resolved sandbox policy that governs an
+// interactive launch. Legacy sandboxed rows are conservatively Protected.
+func (r *Run) InteractiveSandboxMode() SandboxMode {
+	if r.SandboxConfig != nil {
+		return r.SandboxConfig.Mode
+	}
+	if r.ResolvedConfig != nil && r.ResolvedConfig.SandboxConfig != nil {
+		return r.ResolvedConfig.SandboxConfig.Mode
+	}
+	if r.RunMode == RunModeSandboxed {
+		return SandboxModeProtected
+	}
+	return SandboxModeOff
 }
 
 // ValidateForCreation checks if a Run has valid initial state.

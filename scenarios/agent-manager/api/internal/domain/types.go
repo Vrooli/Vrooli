@@ -358,11 +358,11 @@ type SandboxMode string
 
 const (
 	// SandboxModeUnspecified means the SandboxConfig did not pick a mode
-	// explicitly. Treated as SandboxModeTracking by [SandboxMode.Effective]
-	// — the conservative routing target for code paths that construct a
+	// explicitly. Treated as SandboxModeProtected by [SandboxMode.Effective]
+	// — the safe routing target for code paths that construct a
 	// zero-valued SandboxConfig directly. Spawn surfaces should clone
 	// [DefaultSandboxConfig] (which sets Mode=Protected) instead of
-	// zero-initialising, so the unspecified→tracking fallback only fires
+	// zero-initialising, so the unspecified→protected fallback only fires
 	// for legacy or test code paths.
 	SandboxModeUnspecified SandboxMode = ""
 
@@ -409,18 +409,18 @@ func (m SandboxMode) IsValid() bool {
 	}
 }
 
-// Effective returns the mode value, defaulting empty to SandboxModeTracking.
+// Effective returns the mode value, defaulting empty to SandboxModeProtected.
 // SandboxModeOff is preserved as-is (it is an explicit, intentional choice).
 func (m SandboxMode) Effective() SandboxMode {
 	if m == SandboxModeUnspecified {
-		return SandboxModeTracking
+		return SandboxModeProtected
 	}
 	return m
 }
 
 // strictnessRank orders sandbox modes from least to most strict, so a
 // "minimum-mode" policy can be expressed as a numeric ≥ comparison.
-// SandboxModeUnspecified is treated as Tracking (matches Effective).
+// SandboxModeUnspecified is treated as Protected (matches Effective).
 //
 //	Off (0) < Tracking (1) < Protected (2)
 //
@@ -717,6 +717,7 @@ type Run struct {
 	LogPath        string `json:"logPath,omitempty" db:"log_path"`
 	ChangedFiles   int    `json:"changedFiles" db:"changed_files"`
 	TotalSizeBytes int64  `json:"totalSizeBytes" db:"total_size_bytes"`
+	CommitHash     string `json:"commitHash,omitempty" db:"commit_hash"`
 
 	// Session continuation support
 	// Stores the runner-specific session identifier for conversation resumption.

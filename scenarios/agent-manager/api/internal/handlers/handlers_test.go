@@ -102,6 +102,7 @@ func setupTestHandlerWithRunnerAndRepos(t *testing.T, mock *runner.MockRunner) (
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
 		orchestration.WithRolePolicyState(roleState, handlerRoleResolver{}),
 		orchestration.WithWorkflowRepository(repos.Workflows),
 		orchestration.WithWorkflowExecutionRepository(repos.WorkflowExecutions),

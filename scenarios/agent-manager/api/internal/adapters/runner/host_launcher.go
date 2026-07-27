@@ -41,19 +41,13 @@ func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedP
 	cmd.Env = req.Env
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		_ = stderr.Close()
 		return nil, err
 	}
 
 	mp, err := startManagedProcess(cmd, req.IdleTimeout)
 	if err != nil {
-		_ = stderr.Close()
 		_ = stdin.Close()
 		return nil, err
 	}
@@ -67,7 +61,7 @@ func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedP
 		_ = stdin.Close()
 	}
 
-	return &hostLaunchedProcess{cmd: cmd, mp: mp, stderr: stderr}, nil
+	return &hostLaunchedProcess{cmd: cmd, mp: mp, stderr: mp.Stderr()}, nil
 }
 
 // hostLaunchedProcess implements LaunchedProcess for HostLauncher.

@@ -6,8 +6,25 @@ import (
 	"strings"
 	"testing"
 
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/domain"
 )
+
+func testControlArgs(rt domain.RunnerType) func(*domain.RunConfig) ([]string, error) {
+	switch rt {
+	case domain.RunnerTypeClaudeCode:
+		return codecs.NewClaudeForTest().ControlArgs
+	case domain.RunnerTypeCodex:
+		return codecs.NewCodexForTest().ControlArgs
+	case domain.RunnerTypeGrok:
+		return codecs.NewGrokForTest().ControlArgs
+	case domain.RunnerTypeOpenCode:
+		return codecs.NewOpenCodeForTest().ControlArgs
+	default:
+		return nil
+	}
+}
 
 func TestSeedRelocatedHome_CopiesSeedsAndPreTrustsWorkingDir(t *testing.T) {
 	userHome := t.TempDir()
@@ -203,21 +220,21 @@ func TestBuildLaunchCommand_Grok_RelocatesHome(t *testing.T) {
 	}
 }
 
-func TestBuildLaunchCommand_ForwardsModelEffortAndQuotedPrompt(t *testing.T) {
+func TestBuildLaunchCommand_ForwardsModelAndEffort(t *testing.T) {
 	cases := []struct {
 		runner domain.RunnerType
 		effort string
 		want   string
 	}{
-		{domain.RunnerTypeClaudeCode, "--effort 'high'", "--model 'claude-sonnet' --effort 'high' 'fix spaces; do not run $(bad)'"},
-		{domain.RunnerTypeCodex, "-c 'model_reasoning_effort=high'", "--model 'claude-sonnet' -c 'model_reasoning_effort=high' 'fix spaces; do not run $(bad)'"},
-		{domain.RunnerTypeGrok, "--effort 'high'", "--model 'claude-sonnet' --effort 'high' 'fix spaces; do not run $(bad)'"},
+		{domain.RunnerTypeClaudeCode, "--effort 'high'", "--model 'claude-sonnet' --effort 'high'"},
+		{domain.RunnerTypeCodex, "-c 'model_reasoning_effort=high'", "-m 'claude-sonnet' -c 'model_reasoning_effort=high'"},
+		{domain.RunnerTypeGrok, "--effort 'high'", "-m 'claude-sonnet' --effort 'high'"},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.runner), func(t *testing.T) {
 			cmd, err := BuildLaunchCommand(LaunchCommandParams{
 				RunnerType: tc.runner, BinaryPath: "/usr/bin/agent", TagEnvKey: "AGENT_TAG", Tag: "run", WorkingDir: "/work", RunDir: "/runs/run",
-				Model: "claude-sonnet", Effort: domain.EffortHigh, InitialPrompt: "fix spaces; do not run $(bad)",
+				Model: "claude-sonnet", Effort: domain.EffortHigh, ControlArgs: testControlArgs(tc.runner),
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -229,17 +246,94 @@ func TestBuildLaunchCommand_ForwardsModelEffortAndQuotedPrompt(t *testing.T) {
 	}
 }
 
-func TestBuildLaunchCommand_OpenCodeDescoped(t *testing.T) {
-	_, err := BuildLaunchCommand(LaunchCommandParams{
-		RunnerType: domain.RunnerTypeOpenCode,
-		BinaryPath: "/x/opencode",
-		TagEnvKey:  "OPENCODE_AGENT_TAG",
-		Tag:        "run-1",
-		WorkingDir: "/w",
+func TestBuildLaunchCommand_OpenCodeCarriesCodecControls(t *testing.T) {
+	cmd, err := BuildLaunchCommand(LaunchCommandParams{
+		RunnerType:  domain.RunnerTypeOpenCode,
+		BinaryPath:  "/x/opencode",
+		TagEnvKey:   "OPENCODE_AGENT_TAG",
+		Tag:         "run-1",
+		WorkingDir:  "/w",
+		Model:       "openai/gpt-5",
+		Effort:      domain.EffortHigh,
+		ControlArgs: testControlArgs(domain.RunnerTypeOpenCode),
 	})
-	if err == nil {
-		t.Fatal("expected error for opencode (descoped from interactive v1)")
+	if err != nil {
+		t.Fatal(err)
 	}
+	if !strings.Contains(cmd, "-m 'openai/gpt-5' --variant 'high'") {
+		t.Fatalf("opencode command missing codec controls: %s", cmd)
+	}
+}
+
+func TestCodecPipeAndInteractiveCommandCarryIdenticalControls(t *testing.T) {
+	cfg := &domain.RunConfig{
+		Model:        "chosen-model",
+		Effort:       domain.EffortHigh,
+		AllowedTools: []string{"read", "shell"},
+		DeniedTools:  []string{"write"},
+	}
+	cases := []struct {
+		name  string
+		rt    domain.RunnerType
+		codec interface {
+			BuildArgs(codecs.State, runner.ExecuteRequest) []string
+			ControlArgs(*domain.RunConfig) ([]string, error)
+			NewState() codecs.State
+		}
+	}{
+		{name: "claude", rt: domain.RunnerTypeClaudeCode, codec: codecs.NewClaudeForTest()},
+		{name: "codex", rt: domain.RunnerTypeCodex, codec: codecs.NewCodexForTest()},
+		{name: "grok", rt: domain.RunnerTypeGrok, codec: codecs.NewGrokForTest()},
+		{name: "opencode", rt: domain.RunnerTypeOpenCode, codec: codecs.NewOpenCodeForTest()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resolved := *cfg
+			if tc.rt == domain.RunnerTypeOpenCode {
+				resolved.Model = "openai/gpt-5"
+			}
+			controls, err := tc.codec.ControlArgs(&resolved)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pipeArgs := tc.codec.BuildArgs(tc.codec.NewState(), runner.ExecuteRequest{ResolvedConfig: &resolved, Prompt: "work"})
+			if !containsArgSequence(pipeArgs, controls) {
+				t.Fatalf("codec-pipe args do not carry controls %q: %q", controls, pipeArgs)
+			}
+			cmd, err := BuildLaunchCommand(LaunchCommandParams{RunnerType: tc.rt, BinaryPath: "/bin/agent", TagEnvKey: "TAG", Tag: "run", WorkingDir: "/work", RunDir: "/runs/run", Config: &resolved, ControlArgs: tc.codec.ControlArgs})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, arg := range controls {
+				serialized := arg
+				if !strings.HasPrefix(arg, "-") {
+					serialized = shellQuote(arg)
+				}
+				if !strings.Contains(cmd, serialized) {
+					t.Fatalf("interactive command missing control %q: %s", arg, cmd)
+				}
+			}
+		})
+	}
+}
+
+func containsArgSequence(args, want []string) bool {
+	if len(want) == 0 {
+		return true
+	}
+	for i := 0; i+len(want) <= len(args); i++ {
+		matched := true
+		for j := range want {
+			if args[i+j] != want[j] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 func TestBuildLaunchCommand_QuotesInjectionAttempts(t *testing.T) {

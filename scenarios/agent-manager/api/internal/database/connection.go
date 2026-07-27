@@ -430,6 +430,7 @@ var runColumnMigrations = []columnMigration{
 	{column: "execution_mode", ddl: "ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe'"},
 	{column: "web_console_session_id", ddl: "ALTER TABLE runs ADD COLUMN web_console_session_id TEXT DEFAULT ''"},
 	{column: "run_result", ddl: "ALTER TABLE runs ADD COLUMN run_result TEXT"},
+	{column: "commit_hash", ddl: "ALTER TABLE runs ADD COLUMN commit_hash TEXT DEFAULT ''"},
 }
 
 // migrateRunColumns adds any missing additive columns to the runs table.

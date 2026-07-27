@@ -395,13 +395,15 @@ func (p *WorkspaceSandboxProvider) ApplyAtRunEnd(ctx context.Context, req ApplyA
 	}
 
 	return &ApplyAtRunEndResult{
-		Success:    result.Success,
-		Applied:    result.Applied,
-		Remaining:  result.Remaining,
-		IsPartial:  result.IsPartial,
-		CommitHash: result.CommitHash,
-		AppliedAt:  result.AppliedAt,
-		ErrorMsg:   result.ErrorMsg,
+		Success:        result.Success,
+		Applied:        result.Applied,
+		Remaining:      result.Remaining,
+		IsPartial:      result.IsPartial,
+		CommitHash:     result.CommitHash,
+		AppliedAt:      result.AppliedAt,
+		ErrorMsg:       result.ErrorMsg,
+		TotalSizeBytes: result.TotalSizeBytes,
+		DiffPath:       result.DiffPath,
 	}, nil
 }
 
@@ -913,13 +915,15 @@ func isDirectoryDiff(lines []string) bool {
 }
 
 type wsApproveResponse struct {
-	Success    bool      `json:"success"`
-	Applied    int       `json:"applied"`
-	Remaining  int       `json:"remaining"`
-	IsPartial  bool      `json:"isPartial"`
-	CommitHash string    `json:"commitHash"`
-	AppliedAt  time.Time `json:"appliedAt"`
-	ErrorMsg   string    `json:"errorMsg"`
+	Success        bool      `json:"success"`
+	Applied        int       `json:"applied"`
+	Remaining      int       `json:"remaining"`
+	IsPartial      bool      `json:"isPartial"`
+	CommitHash     string    `json:"commitHash"`
+	AppliedAt      time.Time `json:"appliedAt"`
+	ErrorMsg       string    `json:"errorMsg"`
+	TotalSizeBytes int64     `json:"appliedSizeBytes"`
+	DiffPath       string    `json:"diffPath"`
 }
 
 type wsTurnCheckpointResponse struct {
@@ -935,6 +939,8 @@ type wsTurnCheckpointResponse struct {
 	CheckpointID   string    `json:"checkpointId"`
 	AppliedAt      time.Time `json:"appliedAt"`
 	ErrorMsg       string    `json:"error"`
+	TotalSizeBytes int64     `json:"appliedSizeBytes"`
+	DiffPath       string    `json:"diffPath"`
 }
 
 func (r *wsTurnCheckpointResponse) toTurnCheckpointResult() *TurnCheckpointResult {
@@ -952,18 +958,22 @@ func (r *wsTurnCheckpointResponse) toTurnCheckpointResult() *TurnCheckpointResul
 		CheckpointID:   r.CheckpointID,
 		AppliedAt:      r.AppliedAt,
 		ErrorMsg:       r.ErrorMsg,
+		TotalSizeBytes: r.TotalSizeBytes,
+		DiffPath:       r.DiffPath,
 	}
 }
 
 func (r *wsApproveResponse) toApproveResult() *ApproveResult {
 	return &ApproveResult{
-		Success:    r.Success,
-		Applied:    r.Applied,
-		Remaining:  r.Remaining,
-		IsPartial:  r.IsPartial,
-		CommitHash: r.CommitHash,
-		AppliedAt:  r.AppliedAt,
-		ErrorMsg:   r.ErrorMsg,
+		Success:        r.Success,
+		Applied:        r.Applied,
+		Remaining:      r.Remaining,
+		IsPartial:      r.IsPartial,
+		CommitHash:     r.CommitHash,
+		AppliedAt:      r.AppliedAt,
+		ErrorMsg:       r.ErrorMsg,
+		TotalSizeBytes: r.TotalSizeBytes,
+		DiffPath:       r.DiffPath,
 	}
 }
 

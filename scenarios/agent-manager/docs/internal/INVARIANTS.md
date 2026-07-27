@@ -11,14 +11,14 @@ Invariants are paired with the test that pins them — a regression that violate
 **Mapping (the entire decision):**
 
 - `SandboxModeOff` → `RunModeInPlace` (explicit no-sandbox)
-- `SandboxModeUnspecified` → effective `Tracking` → `RunModeSandboxed`
+- `SandboxModeUnspecified` → effective `Protected` → `RunModeSandboxed`
 - `SandboxModeTracking` → `RunModeSandboxed`
 - `SandboxModeProtected` → `RunModeSandboxed`
 - nil `SandboxConfig` → `RunModeInPlace` (treated as Off; in practice the orchestrator always populates a non-nil cfg)
 
 **Why a `SandboxMode` enum and not a parallel `bool`.** Earlier iterations of this code carried a separate boolean field on the run config and on the agent profile that nominally answered the same question ("is this run sandboxed?"). The consequence of having two answers to one question was that the bool's Go zero-value (`false`) silently overrode the safe default whenever a caller forgot to set it — turning the "sandbox by default" invariant into a silent in-place fallback. The visible failure mode was sandboxed runs whose `cwd` recorded as the canonical repo, agent edits hitting the canonical repo directly, and an audit trail (the workspace-sandbox merged dir) that stayed empty.
 
-A `SandboxMode` enum has no such pit. `Effective()` resolves an unspecified value to `Tracking` — which `DeriveRunMode` treats as sandboxed — so a default-constructed config still gets the safe answer. There is no second field that can disagree.
+A `SandboxMode` enum has no such pit. `Effective()` resolves an unspecified value to `Protected` — which `DeriveRunMode` treats as sandboxed — so a default-constructed config still gets the safe answer. There is no second field that can disagree.
 
 **The lesson, as a rule for new fields:** when a Go bool's zero value would silently invert a safety-relevant decision, the bool is the wrong shape. Use an enum where the zero value is either explicitly invalid (caller must choose) or maps to the safe default.
 
@@ -78,6 +78,38 @@ runner's help output. A missing optional binary is a named skip; an available
 binary that contradicts a declaration fails conformance.
 
 **Tests:** `internal/adapters/runner/codecs/cli_help_conformance_test.go`.
+
+## I28. Terminal runs persist sandbox-reported attribution
+
+When a sandbox apply or checkpoint completes, the terminal run persists the
+sandbox's applied-file count, applied byte total, diff artifact path, and
+non-empty commit hash. Agent Manager does not recount the workspace; the
+sandbox result is authoritative. Tracking-mode interactive runs use the same
+finalization path, while Protected interactive runs remain rejected.
+
+**Tests:** `internal/orchestration/phases/finalize_test.go` and
+`internal/orchestration/run_executor_lifecycle_test.go`.
+
+## I29. Codec controls have one translation seam
+
+`Codec.ControlArgs` is the only runner-specific translation of model, effort,
+allowed tools, and denied tools. Codec-pipe execution and interactive launch
+both consume its output. The interactive package must not switch on
+`domain.RunnerType` to recreate a translation.
+
+**Tests:** `internal/orchestration/interactive/launch_test.go` and
+`internal/archtest/boundary_test.go`.
+
+## I30. Declared effort values are evidence-backed
+
+A codec advertises only effort levels with a declared native mapping. Where a
+CLI publishes an accepted value domain, conformance parses it and rejects
+extra declarations; where it does not, the declaration is deliberately narrow
+and documented. Resolving an unmapped effort emits the existing
+unsupported-effort warning instead of silently dropping the control.
+
+**Tests:** `internal/adapters/runner/codecs/cli_help_conformance_test.go` and
+`internal/adapters/runner/codecs/capabilities_conformance_test.go`.
 
 ## I3. `Codec.ClassifyTerminalError` is the only codec-side error classifier
 

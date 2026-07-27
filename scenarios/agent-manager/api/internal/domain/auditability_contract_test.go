@@ -69,8 +69,8 @@ func TestSandboxConfig_GetAutoApply_ExplicitFalse(t *testing.T) {
 }
 
 func TestSandboxMode_Effective(t *testing.T) {
-	if got := SandboxModeUnspecified.Effective(); got != SandboxModeTracking {
-		t.Errorf("unspecified.Effective() = %q, want tracking", got)
+	if got := SandboxModeUnspecified.Effective(); got != SandboxModeProtected {
+		t.Errorf("unspecified.Effective() = %q, want protected", got)
 	}
 	if got := SandboxModeTracking.Effective(); got != SandboxModeTracking {
 		t.Errorf("tracking.Effective() = %q, want tracking", got)

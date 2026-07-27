@@ -9,22 +9,22 @@ import (
 
 func TestValidateInteractiveRunMode(t *testing.T) {
 	cases := []struct {
-		name    string
-		exec    ExecutionMode
-		runMode RunMode
-		wantErr bool
+		name        string
+		exec        ExecutionMode
+		sandboxMode SandboxMode
+		wantErr     bool
 	}{
-		{"interactive+sandboxed rejected", ExecutionModeInteractive, RunModeSandboxed, true},
-		{"interactive+in_place allowed", ExecutionModeInteractive, RunModeInPlace, false},
-		{"codec_pipe+sandboxed allowed", ExecutionModeCodecPipe, RunModeSandboxed, false},
-		{"codec_pipe+in_place allowed", ExecutionModeCodecPipe, RunModeInPlace, false},
-		{"empty(default codec)+sandboxed allowed", "", RunModeSandboxed, false},
+		{"interactive+protected rejected", ExecutionModeInteractive, SandboxModeProtected, true},
+		{"interactive+tracking allowed", ExecutionModeInteractive, SandboxModeTracking, false},
+		{"interactive+off allowed", ExecutionModeInteractive, SandboxModeOff, false},
+		{"codec_pipe+protected allowed", ExecutionModeCodecPipe, SandboxModeProtected, false},
+		{"empty(default codec)+protected allowed", "", SandboxModeProtected, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ValidateInteractiveRunMode(tc.exec, tc.runMode)
+			err := ValidateInteractiveRunMode(tc.exec, tc.sandboxMode)
 			if tc.wantErr != (err != nil) {
-				t.Fatalf("ValidateInteractiveRunMode(%q,%q): wantErr=%v got %v", tc.exec, tc.runMode, tc.wantErr, err)
+				t.Fatalf("ValidateInteractiveRunMode(%q,%q): wantErr=%v got %v", tc.exec, tc.sandboxMode, tc.wantErr, err)
 			}
 			if err != nil {
 				ve, ok := err.(*ValidationError)
@@ -37,8 +37,8 @@ func TestValidateInteractiveRunMode(t *testing.T) {
 				// The error must be actionable: say WHY (protected/sandboxed) and
 				// WHAT to do (in-place / sandbox off).
 				hint := strings.ToLower(ve.Hint)
-				if !strings.Contains(hint, "in-place") && !strings.Contains(hint, "in_place") {
-					t.Errorf("hint should point to in-place mode, got %q", ve.Hint)
+				if !strings.Contains(hint, "tracking") {
+					t.Errorf("hint should point to tracking mode, got %q", ve.Hint)
 				}
 			}
 		})
@@ -59,15 +59,16 @@ func TestRunValidate_InteractiveGate(t *testing.T) {
 
 	protected := base()
 	protected.ExecutionMode = ExecutionModeInteractive
+	protected.SandboxConfig = &SandboxConfig{Mode: SandboxModeProtected}
 	if err := protected.Validate(); err == nil {
 		t.Fatal("expected Run.Validate to reject interactive + sandboxed")
 	}
 
-	inPlace := base()
-	inPlace.RunMode = RunModeInPlace
-	inPlace.ExecutionMode = ExecutionModeInteractive
-	if err := inPlace.Validate(); err != nil {
-		t.Fatalf("interactive + in_place should validate: %v", err)
+	tracking := base()
+	tracking.ExecutionMode = ExecutionModeInteractive
+	tracking.SandboxConfig = &SandboxConfig{Mode: SandboxModeTracking}
+	if err := tracking.Validate(); err != nil {
+		t.Fatalf("interactive + tracking should validate: %v", err)
 	}
 
 	codec := base() // codec_pipe + sandboxed

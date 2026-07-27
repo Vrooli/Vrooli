@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bufio"
+	"io"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -36,6 +37,33 @@ func TestManagedProcess_NormalEOF(t *testing.T) {
 	}
 	if err := mp.Wait(); err != nil {
 		t.Fatalf("unexpected wait error: %v", err)
+	}
+}
+
+// TestManagedProcess_StderrRemainsReadableAfterChildExit pins the ownership
+// boundary needed by the durable transcript drainer: the background cmd.Wait
+// may finish before a consumer reads stderr, but it must not close the
+// consumer's pipe first.
+func TestManagedProcess_StderrRemainsReadableAfterChildExit(t *testing.T) {
+	cmd := exec.Command("sh", "-c", "printf retained >&2")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	mp, err := startManagedProcess(cmd, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mp.Wait()
+
+	// Give the short-lived child enough time to exit and the background
+	// cmd.Wait to run. With exec.Cmd.StderrPipe this read would fail because
+	// cmd.Wait closes the pipe before the transcript drainer can consume it.
+	time.Sleep(20 * time.Millisecond)
+	got, err := io.ReadAll(mp.Stderr())
+	if err != nil {
+		t.Fatalf("read stderr after child exit: %v", err)
+	}
+	if string(got) != "retained" {
+		t.Fatalf("stderr = %q, want retained", got)
 	}
 }
 

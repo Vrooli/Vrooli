@@ -286,13 +286,15 @@ type PartialApproveRequest struct {
 
 // ApproveResult contains the outcome of an approval.
 type ApproveResult struct {
-	Success    bool      `json:"success"`
-	Applied    int       `json:"applied"`
-	Remaining  int       `json:"remaining"`
-	IsPartial  bool      `json:"isPartial"`
-	CommitHash string    `json:"commitHash,omitempty"`
-	AppliedAt  time.Time `json:"appliedAt"`
-	ErrorMsg   string    `json:"errorMsg,omitempty"`
+	Success        bool      `json:"success"`
+	Applied        int       `json:"applied"`
+	Remaining      int       `json:"remaining"`
+	IsPartial      bool      `json:"isPartial"`
+	CommitHash     string    `json:"commitHash,omitempty"`
+	AppliedAt      time.Time `json:"appliedAt"`
+	ErrorMsg       string    `json:"errorMsg,omitempty"`
+	TotalSizeBytes int64     `json:"appliedSizeBytes,omitempty"`
+	DiffPath       string    `json:"diffPath,omitempty"`
 }
 
 // ApplyAtRunEndRequest carries run-context metadata onto the workspace-sandbox
@@ -332,14 +334,16 @@ type ApplyAtRunEndRequest struct {
 // remain as state=pending-review on the provenance record; the sandbox
 // persists for operator review.
 type ApplyAtRunEndResult struct {
-	Success    bool
-	Applied    int
-	Failed     int
-	Remaining  int
-	IsPartial  bool
-	CommitHash string
-	AppliedAt  time.Time
-	ErrorMsg   string
+	Success        bool
+	Applied        int
+	Failed         int
+	Remaining      int
+	IsPartial      bool
+	CommitHash     string
+	AppliedAt      time.Time
+	ErrorMsg       string
+	TotalSizeBytes int64
+	DiffPath       string
 }
 
 type TurnCheckpointRequest struct {
@@ -369,6 +373,8 @@ type TurnCheckpointResult struct {
 	CheckpointID   string
 	AppliedAt      time.Time
 	ErrorMsg       string
+	TotalSizeBytes int64
+	DiffPath       string
 }
 
 // PathValidationResult contains the result of a path validation check.

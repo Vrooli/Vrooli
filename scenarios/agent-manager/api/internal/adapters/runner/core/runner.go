@@ -165,6 +165,12 @@ func (r *Runner) TagEnvKey() string { return r.codec.TagEnvKey() }
 // CLI binary path for the interactive launch command.
 func (r *Runner) BinaryPath() string { return r.codec.BinaryPath() }
 
+// ControlArgs exposes the codec-owned control translation to interactive
+// launchers without teaching orchestration about runner-specific flags.
+func (r *Runner) ControlArgs(cfg *domain.RunConfig) ([]string, error) {
+	return r.codec.ControlArgs(cfg)
+}
+
 // Stop attempts a graceful shutdown of a running agent. SIGTERM is sent
 // to the process group with a bounded grace period before SIGKILL
 // escalation; ctx cancellation is honoured as immediate kill.
@@ -197,6 +203,12 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 			Cause:       errors.New(msg),
 			IsTransient: false,
 		}
+	}
+	if err := r.validateToolMappings(req.GetConfig()); err != nil {
+		return nil, err
+	}
+	if _, err := r.codec.ControlArgs(req.GetConfig()); err != nil {
+		return nil, fmt.Errorf("translate runner controls: %w", err)
 	}
 
 	startTime := time.Now()
@@ -277,8 +289,8 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 		observedEvents: &observedEvents,
 	})
 
-	waitErr := proc.Wait()
 	errorOutput.wait()
+	waitErr := proc.Wait()
 	stderr := errorOutput.String()
 
 	duration := time.Since(startTime)
@@ -373,6 +385,9 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		return nil, domain.NewRunnerSessionExpiredError(r.codec.Type(),
 			errors.New("continue called with empty session id"))
 	}
+	if _, err := r.codec.ControlArgs(req.GetConfig()); err != nil {
+		return nil, fmt.Errorf("translate runner controls: %w", err)
+	}
 
 	startTime := time.Now()
 	state := r.codec.NewState()
@@ -420,8 +435,8 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		observedEvents: &observedEvents,
 	})
 
-	waitErr := proc.Wait()
 	errorOutput.wait()
+	waitErr := proc.Wait()
 	stderr := errorOutput.String()
 
 	duration := time.Since(startTime)
@@ -727,6 +742,9 @@ func (r *Runner) executeWithDurableTranscript(
 	state codecs.State,
 	startTime time.Time,
 ) (*runner.ExecuteResult, error) {
+	if err := r.validateToolMappings(req.GetConfig()); err != nil {
+		return nil, err
+	}
 	args := r.codec.BuildArgs(state, req)
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(req.GetTag(), req.Environment)
@@ -749,6 +767,28 @@ func (r *Runner) executeWithDurableTranscript(
 		endMessage:   r.codec.Labels().EndMessage,
 		isContinue:   false,
 	})
+}
+
+// validateToolMappings rejects a declared restriction before launch when the
+// selected codec cannot translate it. This prevents a codec from silently
+// dropping a restriction while constructing native arguments.
+func (r *Runner) validateToolMappings(cfg *domain.RunConfig) error {
+	if cfg == nil || (len(cfg.AllowedTools) == 0 && len(cfg.DeniedTools) == 0) {
+		return nil
+	}
+	caps := r.codec.Capabilities()
+	// Advisory policy intentionally records that an unsupported runner cannot
+	// enforce the declaration and still launches. Do not turn that explicit
+	// orchestration decision into a second, contradictory runner-side reject.
+	if !caps.SupportsToolRestriction && cfg.ToolRestrictionPolicy.Effective() == domain.ToolRestrictionPolicyAdvisory {
+		return nil
+	}
+	for _, tool := range append(append([]string{}, cfg.AllowedTools...), cfg.DeniedTools...) {
+		if caps.ToolRestrictionMappings[tool] == "" {
+			return &domain.RunnerError{RunnerType: r.codec.Type(), Operation: "tool_restriction", Cause: fmt.Errorf("no native mapping for canonical tool %q", tool), IsTransient: false}
+		}
+	}
+	return nil
 }
 
 // continueWithDurableTranscript is the Continue() variant that writes
@@ -902,6 +942,23 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	var observedEvents []*domain.RunEvent
 	var errorOutput strings.Builder
 	var terminal *runner.TranscriptTerminal
+	// Durable replay parses with a fresh transcript parser rather than the
+	// live stdout state. Preserve its discovered session id explicitly so a
+	// recovered/persisted transcript has the same continuation identity as the
+	// non-durable path.
+	var sessionMu sync.Mutex
+	var transcriptSessionID string
+	onSessionID := func(sessionID string) error {
+		if sessionID != "" {
+			sessionMu.Lock()
+			transcriptSessionID = sessionID
+			sessionMu.Unlock()
+		}
+		if in.transcript.OnSessionID != nil {
+			return in.transcript.OnSessionID(sessionID)
+		}
+		return nil
+	}
 
 	// Tee stdout to the transcript file. The launcher's stdout reader
 	// closes on process exit, so this goroutine drains and returns.
@@ -915,7 +972,9 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	}()
 
 	// Stderr drainer mirrors into transcript.StderrFile when present.
+	stderrDone := make(chan struct{})
 	go func() {
+		defer close(stderrDone)
 		defer obs.RecoverToFailure("stderr transcript drainer", nil)
 		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
@@ -950,7 +1009,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 			ParseFn:     transcriptParser.ParseTranscriptLine,
 			EventSink:   in.sink,
 			OnAdvance:   in.transcript.OnAdvance,
-			OnSessionID: in.transcript.OnSessionID,
+			OnSessionID: onSessionID,
 			OnEvents: func(events []*domain.RunEvent) {
 				for _, evt := range events {
 					r.codec.UpdateMetrics(evt, &metrics, &lastAssistantMessage)
@@ -967,10 +1026,13 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		}
 	}()
 
+	<-stdoutDone
+	<-stderrDone
+	// Both stream drainers must finish before Wait. HostLauncher deliberately
+	// owns these pipes so cmd.Wait cannot truncate a concurrent transcript tee.
 	waitErr := proc.Wait()
 	cancelConsume()
 	<-liveDone
-	<-stdoutDone
 
 	// Final drain: catch up on any trailing bytes the live tail raced past.
 	finalCursor, finalTerminal, drainErr := runner.Consume(context.Background(), runner.ConsumeArgs{
@@ -980,7 +1042,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		ParseFn:     transcriptParser.ParseTranscriptLine,
 		EventSink:   in.sink,
 		OnAdvance:   in.transcript.OnAdvance,
-		OnSessionID: in.transcript.OnSessionID,
+		OnSessionID: onSessionID,
 		OnEvents: func(events []*domain.RunEvent) {
 			for _, evt := range events {
 				r.codec.UpdateMetrics(evt, &metrics, &lastAssistantMessage)
@@ -1038,7 +1100,8 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		result.Success = true
 		result.ExitCode = 0
 	}
-	if drainErr != nil && result.Success {
+	var cursorAdvanceErr *runner.TranscriptCursorAdvanceError
+	if drainErr != nil && result.Success && !errors.As(drainErr, &cursorAdvanceErr) {
 		result.Success = false
 		result.ExitCode = -1
 		result.ErrorMessage = drainErr.Error()
@@ -1069,6 +1132,10 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 
 	if sid := in.state.SessionID(); sid != "" {
 		result.SessionID = sid
+	} else {
+		sessionMu.Lock()
+		result.SessionID = transcriptSessionID
+		sessionMu.Unlock()
 	}
 
 	r.logRunnerExited(in.runID, in.sink, result, time.Since(in.startTime))

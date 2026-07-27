@@ -227,6 +227,7 @@ func RunToProto(r *domain.Run) *pb.Run {
 		LogPath:              r.LogPath,
 		ChangedFiles:         int32(r.ChangedFiles),
 		TotalSizeBytes:       r.TotalSizeBytes,
+		CommitHash:           r.CommitHash,
 		PromptPreview:        r.PromptPreview,
 		RequestedModel:       r.RequestedModel,
 		ActualModel:          r.ActualModel,
@@ -377,6 +378,7 @@ func RunFromProto(r *pb.Run) *domain.Run {
 		LogPath:              r.LogPath,
 		ChangedFiles:         int(r.ChangedFiles),
 		TotalSizeBytes:       r.TotalSizeBytes,
+		CommitHash:           r.CommitHash,
 		CreatedAt:            TimestampFromProto(r.CreatedAt),
 		UpdatedAt:            TimestampFromProto(r.UpdatedAt),
 	}

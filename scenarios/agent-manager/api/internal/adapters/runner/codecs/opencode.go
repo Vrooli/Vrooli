@@ -105,6 +105,13 @@ func NewOpenCodeForTest() *OpenCode {
 	return c
 }
 
+// NewOpenCodeForTestWithBinary is a test-only constructor for process replay.
+func NewOpenCodeForTestWithBinary(path string) *OpenCode {
+	c := NewOpenCodeForTest()
+	c.binaryPath, c.available = path, true
+	return c
+}
+
 // Capabilities satisfies [Codec]. It reports only locally-pulled Ollama models
 // discovered through OpenCode's first-class provider block; resource role
 // resolution owns concrete coding-agent model selection.
@@ -120,7 +127,8 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 		SupportsToolRestriction:  false, // OpenCode has no per-launch allowlist for its native tools.
 		ToolRestrictionMappings:  canonicalToolMappings(openCodeToolTranslations),
 		SupportsEffort:           true,
-		EffortMappings:           map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+		EffortMappings:           map[string]string{}, // --variant is provider/model-specific; see ControlArgs.
+		EffortModelSpecific:      true,
 		MaxTurns:                 0,
 		SupportedModels:          c.ollama.list(),
 		SupportsRunnerDefault:    true,
@@ -222,6 +230,10 @@ func (c *OpenCode) BuildEnv(tag string, extras map[string]string) []string {
 // unused.
 func (c *OpenCode) BuildPrompt(_ string, _ []runner.Attachment) string { return "" }
 
+func (c *OpenCode) ControlArgs(cfg *domain.RunConfig) ([]string, error) {
+	return opencodeControlArgs(cfg)
+}
+
 // BuildArgs satisfies [Codec]. The prompt is on the command line so the
 // caller MUST close stdin — core.Runner does that automatically when the
 // codec returns "" from BuildPrompt. Image attachments are passed via
@@ -245,12 +257,9 @@ func (c *OpenCode) BuildArgs(state State, req runner.ExecuteRequest) []string {
 		}
 	}
 	cfg := req.GetConfig()
-	if cfg.Model != "" {
-		args = append(args, "-m", cfg.Model)
-	}
-	if cfg.Effort != "" {
-		args = append(args, "--variant", string(cfg.Effort))
-	}
+	// Centralize portable control translation with interactive launches.
+	controlArgs, _ := c.ControlArgs(cfg)
+	args = append(args, controlArgs...)
 	args = appendAttachmentFlags(args, "-f", req.Attachments)
 	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeOpenCode]; ok {
 		args = append(args, extras...)
@@ -276,9 +285,8 @@ func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []
 			s.workingDir = dir
 		}
 	}
-	if cfg := req.GetConfig(); cfg.Effort != "" {
-		args = append(args, "--variant", string(cfg.Effort))
-	}
+	controlArgs, _ := c.ControlArgs(req.GetConfig())
+	args = append(args, controlArgs...)
 	args = appendAttachmentFlags(args, "-f", req.Attachments)
 	return args
 }

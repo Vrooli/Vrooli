@@ -64,7 +64,7 @@ func TestCreateRun_Success(t *testing.T) {
 		InlineConfig: &pb.RunConfigOverrides{ResultSpec: &pb.ResultSpec{
 			Version: "result-spec/v1", Kind: pb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION,
 			ClassificationValues: []string{"complete", "blocked"},
-		}},
+		}, Model: func() *string { model := "model-override"; return &model }()},
 	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -90,6 +90,9 @@ func TestCreateRun_Success(t *testing.T) {
 	}
 	if len(createdRun.ResolvedConfig.ResultSpec.ClassificationValues) != 0 || len(createdRun.ResolvedConfig.ResultSpec.Schema) == 0 {
 		t.Fatalf("result spec was not canonicalized: %+v", createdRun.ResolvedConfig.ResultSpec)
+	}
+	if got := createdRun.GetResolvedConfig().GetModel(); got != "model-override" {
+		t.Fatalf("expected inline model override to be resolved, got %q", got)
 	}
 }
 
@@ -336,7 +339,10 @@ func TestDeletePendingRunIsRejectedWithLifecycleGuidance(t *testing.T) {
 	}
 	t.Cleanup(func() { close(release) })
 	_, router := setupTestHandlerWithRunner(t, mock)
-	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{Name: "delete-run", ProfileKey: "delete-run", RoleRef: "code.default"}})
+	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{
+		Name: "delete-run", ProfileKey: "delete-run", RoleRef: "code.default",
+		SandboxConfig: &pb.SandboxConfig{Mode: pb.SandboxMode_SANDBOX_MODE_OFF},
+	}})
 	profileRR := httptest.NewRecorder()
 	router.ServeHTTP(profileRR, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
 	var profile apipb.CreateProfileResponse

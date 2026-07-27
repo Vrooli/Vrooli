@@ -86,6 +86,11 @@ type Codec interface {
 
 	// Per-call wiring -------------------------------------------------
 
+	// ControlArgs translates portable model, effort, and tool restriction
+	// controls into this runner's native argv. Every execution surface uses
+	// this method so interactive launches cannot drift from codec-pipe runs.
+	ControlArgs(cfg *domain.RunConfig) ([]string, error)
+
 	// BuildArgs constructs CLI arguments for an Execute call (excluding
 	// the binary path itself; the launcher prepends that). Codecs MAY
 	// stash request-derived per-run data on state here (e.g. Codex

@@ -115,6 +115,7 @@ type CreateRunRequest struct {
 	RoleRef              *string                 `json:"roleRef,omitempty"`
 	MaxTurns             *int                    `json:"maxTurns,omitempty"`
 	Timeout              *time.Duration          `json:"timeout,omitempty"`
+	Model                *string                 `json:"model,omitempty"`
 	Effort               *domain.Effort          `json:"effort,omitempty"`
 	AllowedTools         []string                `json:"allowedTools,omitempty"`
 	DeniedTools          []string                `json:"deniedTools,omitempty"`

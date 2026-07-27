@@ -101,6 +101,13 @@ func NewGrokForTest() *Grok {
 	return c
 }
 
+// NewGrokForTestWithBinary is a test-only constructor for process replay.
+func NewGrokForTestWithBinary(path string) *Grok {
+	c := NewGrokForTest()
+	c.binaryPath, c.available = path, true
+	return c
+}
+
 // Capabilities satisfies [Codec]. Every bool is gated on the captured trace
 // (R3 — no vaporware): grok headless surfaces assistant text and a session id
 // but no tool events and no token/cost data.
@@ -134,6 +141,8 @@ func (c *Grok) BuildEnv(tag string, extras map[string]string) []string {
 // (added in BuildArgs), not via stdin, so the launcher closes stdin.
 func (c *Grok) BuildPrompt(_ string, _ []runner.Attachment) string { return "" }
 
+func (c *Grok) ControlArgs(cfg *domain.RunConfig) ([]string, error) { return grokControlArgs(cfg) }
+
 // BuildArgs satisfies [Codec]. Headless single-turn invocation:
 // `grok -p <prompt> --output-format streaming-json [-m model] [--max-turns N]
 // [--always-approve] [--cwd dir]`.
@@ -156,24 +165,11 @@ func (c *Grok) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 		args = append(args, "--max-turns", "30")
 	}
 
-	if model := strings.TrimSpace(cfg.Model); model != "" {
-		args = append(args, "-m", model)
-	}
-	if cfg.Effort != "" {
-		args = append(args, "--effort", string(cfg.Effort))
-	}
+	// Centralize portable control translation with interactive launches.
+	controlArgs, _ := c.ControlArgs(cfg)
+	args = append(args, controlArgs...)
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--always-approve")
-	}
-	if tools, err := translateCanonicalTools(grokToolTranslations, cfg.AllowedTools); err == nil && len(tools) > 0 {
-		for _, tool := range tools {
-			args = append(args, "--allow", tool)
-		}
-	}
-	if tools, err := translateCanonicalTools(grokToolTranslations, cfg.DeniedTools); err == nil && len(tools) > 0 {
-		for _, tool := range tools {
-			args = append(args, "--deny", tool)
-		}
 	}
 	// Pin the session to the run's working directory. grok can attach to a
 	// shared leader process (config use_leader / --leader) whose cwd differs
@@ -204,24 +200,10 @@ func (c *Grok) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
 	} else {
 		args = append(args, "--max-turns", "30")
 	}
-	if model := strings.TrimSpace(cfg.Model); model != "" {
-		args = append(args, "-m", model)
-	}
-	if cfg.Effort != "" {
-		args = append(args, "--effort", string(cfg.Effort))
-	}
+	controlArgs, _ := c.ControlArgs(cfg)
+	args = append(args, controlArgs...)
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--always-approve")
-	}
-	if tools, err := translateCanonicalTools(grokToolTranslations, cfg.AllowedTools); err == nil && len(tools) > 0 {
-		for _, tool := range tools {
-			args = append(args, "--allow", tool)
-		}
-	}
-	if tools, err := translateCanonicalTools(grokToolTranslations, cfg.DeniedTools); err == nil && len(tools) > 0 {
-		for _, tool := range tools {
-			args = append(args, "--deny", tool)
-		}
 	}
 	if dir := strings.TrimSpace(req.WorkingDir); dir != "" {
 		args = append(args, "--cwd", dir)

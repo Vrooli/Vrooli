@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
@@ -19,10 +20,12 @@ const (
 	// defaultDiscoveryTimeout bounds how long Launch waits for the agent's first
 	// transcript to appear after the session is created. It must cover a real
 	// interactive CLI's cold boot (node startup, sandbox/bubblewrap init, TUI
-	// render) plus the first prompt landing and starting a turn — measured at up
-	// to ~30s on a busy host, so 60s leaves margin (and, with the re-delivery
-	// interval below, more attempts for a paste to land on the ready input).
-	defaultDiscoveryTimeout = 60 * time.Second
+	// render) plus the first prompt landing and starting a turn. A cold,
+	// run-scoped Codex home was observed to still be initializing its TUI, model
+	// cache, and plugin cache after 55 seconds; keep a three-minute budget so a
+	// valid first launch is not classified as a failed run before it can create
+	// its first transcript. This is a launch budget, not a polling cadence.
+	defaultDiscoveryTimeout = 3 * time.Minute
 	defaultPollInterval     = 250 * time.Millisecond
 	defaultStopGrace        = 750 * time.Millisecond
 	// defaultPromptBootDelay is the beat we wait after the session is created
@@ -189,6 +192,7 @@ type LaunchParams struct {
 	Prompt string
 	Model  string
 	Effort domain.Effort
+	Config *domain.RunConfig
 }
 
 // LaunchResult is the durable outcome of a launch.
@@ -243,15 +247,16 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	}
 
 	launchCmd, err := BuildLaunchCommand(LaunchCommandParams{
-		RunnerType:    p.RunnerType,
-		BinaryPath:    info.BinaryPath(),
-		TagEnvKey:     info.TagEnvKey(),
-		Tag:           p.Tag,
-		WorkingDir:    p.WorkingDir,
-		RunDir:        p.RunDir,
-		Model:         p.Model,
-		Effort:        p.Effort,
-		InitialPrompt: p.Prompt,
+		RunnerType:  p.RunnerType,
+		BinaryPath:  info.BinaryPath(),
+		TagEnvKey:   info.TagEnvKey(),
+		Tag:         p.Tag,
+		WorkingDir:  p.WorkingDir,
+		RunDir:      p.RunDir,
+		Model:       p.Model,
+		Effort:      p.Effort,
+		Config:      p.Config,
+		ControlArgs: info.ControlArgs,
 	})
 	if err != nil {
 		return LaunchResult{}, err
@@ -279,19 +284,26 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 		ExecutionMode: domain.ExecutionModeInteractive,
 	}
 	// Give the just-created interactive process its normal boot window before
-	// transcript discovery. The initial prompt is already on its command line;
-	// this is not a second prompt delivery.
+	// typing the first task into its TUI. Interactive agents must receive the
+	// task through Web Console's paste-plus-Enter path: a positional CLI prompt
+	// can leave current Codex releases idle without creating a thread or
+	// transcript (observed with codex-cli 0.144.6).
+	var resend func() error
 	if p.Prompt != "" {
 		if err := s.awaitBoot(ctx); err != nil {
 			return result, err
 		}
+		deliver := func() error {
+			return s.sessions.SendPrompt(ctx, sessionID, p.Prompt, interactivePromptSource(p.RunID))
+		}
+		if err := deliver(); err != nil {
+			return result, fmt.Errorf("deliver initial prompt to %s: %w", p.RunnerType, err)
+		}
+		// Transcript appearance acknowledges that the prompt reached a turn. If
+		// a cold TUI consumed an early paste during startup, retry on the bounded
+		// discovery cadence so the task eventually lands on its input surface.
+		resend = deliver
 	}
-
-	// BuildLaunchCommand passes the initial prompt as a safely quoted trailing
-	// argument. Do not paste it into the session as well: duplicating the first
-	// turn can produce two independent agent actions with the same run identity.
-	// Interactive follow-up messages still use SendPrompt through the coordinator.
-	var resend func() error
 
 	transcriptPath, err := s.discoverTranscript(ctx, DiscoverParams{
 		RunnerType: p.RunnerType,
@@ -306,6 +318,10 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	}
 	result.TranscriptPath = transcriptPath
 	return result, nil
+}
+
+func interactivePromptSource(runID uuid.UUID) string {
+	return "agent-manager:run-" + runID.String()
 }
 
 // awaitBoot waits promptBootDelay (or returns immediately when disabled),
@@ -343,7 +359,7 @@ func (s *Substrate) discoverTranscript(ctx context.Context, p DiscoverParams, re
 		}
 		now := s.now()
 		if now.After(deadline) {
-			return "", fmt.Errorf("transcript did not appear within %s", s.discoveryTimeout)
+			return "", fmt.Errorf("transcript did not appear within %s (%s)", s.discoveryTimeout, transcriptDiscoveryLocation(p))
 		}
 		if resend != nil && !now.Before(nextResend) {
 			_ = resend()
@@ -354,6 +370,31 @@ func (s *Substrate) discoverTranscript(ctx context.Context, p DiscoverParams, re
 			return "", ctx.Err()
 		case <-time.After(s.pollInterval):
 		}
+	}
+}
+
+// transcriptDiscoveryLocation identifies the exact durable location being
+// watched. Include it in timeouts so an operator can distinguish a slow agent
+// boot from an incompatible CLI storage layout without reconstructing the
+// run-scoped home by hand.
+func transcriptDiscoveryLocation(p DiscoverParams) string {
+	spec, ok := specFor(p.RunnerType)
+	if !ok {
+		return "unsupported runner"
+	}
+	switch p.RunnerType {
+	case domain.RunnerTypeCodex:
+		return filepath.Join(homeDirFor(spec, p.RunDir), "sessions", "YYYY", "MM", "DD", "rollout-*.jsonl")
+	case domain.RunnerTypeGrok:
+		return filepath.Join(homeDirFor(spec, p.RunDir), "sessions", "<cwd>", "<session>", "updates.jsonl")
+	case domain.RunnerTypeClaudeCode:
+		home := p.HomeDir
+		if home == "" {
+			home, _ = os.UserHomeDir()
+		}
+		return filepath.Join(home, ".claude", "projects", SlugifyCwd(p.WorkingDir), "*.jsonl")
+	default:
+		return "unsupported runner"
 	}
 }
 

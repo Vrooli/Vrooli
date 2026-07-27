@@ -72,6 +72,7 @@ func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 		orchestration.WithIdempotency(repos.Idempotency),
 		newTestRolePolicyOption(t),
 		orchestration.WithSpawnDispatcher(dispatcher),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{

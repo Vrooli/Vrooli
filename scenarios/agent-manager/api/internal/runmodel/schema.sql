@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS runs (
     log_path TEXT,
     changed_files INTEGER DEFAULT 0,
     total_size_bytes INTEGER DEFAULT 0,
+	commit_hash TEXT DEFAULT '',
     sandbox_config TEXT DEFAULT '{}',
     session_id TEXT,
     runner_pid INTEGER DEFAULT 0,

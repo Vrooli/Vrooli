@@ -44,8 +44,10 @@ func (f *fakeLauncher) Launch(ctx context.Context, req runner.LaunchRequest) (ru
 
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
+	stdoutClosed := make(chan struct{})
 
 	go func() {
+		defer close(stdoutClosed)
 		_, _ = io.WriteString(stdoutW, f.stdout)
 		if f.earlyExit != nil {
 			<-f.earlyExit
@@ -60,11 +62,12 @@ func (f *fakeLauncher) Launch(ctx context.Context, req runner.LaunchRequest) (ru
 	}()
 
 	return &fakeProcess{
-		stdout:  stdoutR,
-		stderr:  stderrR,
-		exitErr: f.exitErr,
-		pid:     f.pid,
-		done:    make(chan struct{}),
+		stdout:       stdoutR,
+		stderr:       stderrR,
+		exitErr:      f.exitErr,
+		pid:          f.pid,
+		done:         make(chan struct{}),
+		stdoutClosed: stdoutClosed,
 	}, nil
 }
 
@@ -80,12 +83,13 @@ type fakeProcess struct {
 	exitErr error
 	pid     int
 
-	mu       sync.Mutex
-	signaled bool
-	killed   bool
-	timedOut bool
-	done     chan struct{}
-	once     sync.Once
+	mu           sync.Mutex
+	signaled     bool
+	killed       bool
+	timedOut     bool
+	done         chan struct{}
+	stdoutClosed <-chan struct{}
+	once         sync.Once
 }
 
 func (p *fakeProcess) Stdout() io.Reader { return p.stdout }
@@ -110,13 +114,12 @@ func (p *fakeProcess) Signal(grace time.Duration) {
 }
 func (p *fakeProcess) PID() int { return p.pid }
 func (p *fakeProcess) Wait() error {
-	// Drain stdout so the writer goroutine in Launch can finish; stderr is
-	// owned by the runner's stderr accumulator, so don't touch it here.
-	// (Mirrors a real LaunchedProcess: Wait blocks until the child exits,
-	// at which point the OS closes the stderr pipe and the accumulator
-	// drains it.)
-	_, _ = io.Copy(io.Discard, p.stdout)
-	_ = p.stdout.Close()
+	// Wait for the fake child to close its producer side, but never consume or
+	// close the runner-owned stream. Real launchers leave stream draining to
+	// the runner; consuming it here races durable transcript capture.
+	if p.stdoutClosed != nil {
+		<-p.stdoutClosed
+	}
 	p.once.Do(func() { close(p.done) })
 	return p.exitErr
 }
@@ -139,6 +142,7 @@ type fakeCodec struct {
 	available       bool
 	availableMsg    string
 	probeErr        error
+	controlErr      error
 	expirePhrase    string
 	earlyTermPrefix string
 
@@ -174,6 +178,7 @@ func (c *fakeCodec) BinaryDescription() string                            { retu
 func (c *fakeCodec) TagEnvKey() string                                    { return "FAKE_AGENT_TAG" }
 func (c *fakeCodec) Available(ctx context.Context) (bool, string)         { return c.available, c.availableMsg }
 func (c *fakeCodec) ProbeModel(ctx context.Context, modelID string) error { return c.probeErr }
+func (c *fakeCodec) ControlArgs(*domain.RunConfig) ([]string, error)      { return nil, c.controlErr }
 
 func (c *fakeCodec) BuildArgs(_ codecs.State, req runner.ExecuteRequest) []string {
 	c.mu.Lock()
@@ -364,6 +369,21 @@ func newRunnerForTest(t *testing.T, codec codecs.Codec, launcher runner.Launcher
 	// per-codec wiring path runs end-to-end.
 	r.selector = &fixedSelector{launcher: launcher}
 	return r
+}
+
+func TestExecuteRejectsControlTranslationFailureBeforeLaunch(t *testing.T) {
+	codec := newFakeCodec()
+	codec.controlErr = errors.New("unknown canonical tool")
+	launcher := &fakeLauncher{}
+	r := newRunnerForTest(t, codec, launcher)
+
+	_, err := r.Execute(context.Background(), newExecuteRequest(uuid.New(), "test", &recordingSink{}))
+	if err == nil || !strings.Contains(err.Error(), "translate runner controls") {
+		t.Fatalf("Execute() error = %v, want control translation failure", err)
+	}
+	if launcher.lastRequest.Command != "" {
+		t.Fatalf("launcher invoked with command %q after control translation failure", launcher.lastRequest.Command)
+	}
 }
 
 // fixedSelector always returns the same launcher; isolates tests from the

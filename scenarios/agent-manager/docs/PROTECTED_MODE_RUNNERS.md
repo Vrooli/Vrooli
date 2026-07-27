@@ -15,9 +15,16 @@ enforced policy. The live codec registry is authoritative: inspect it with
 ## Run-control fidelity and isolation
 
 `effort` is a canonical run control with the values `low`, `medium`, `high`,
-`xhigh`, and `max`. Claude Code and Grok receive `--effort`; Codex receives
-`-c model_reasoning_effort=<level>`; OpenCode receives its provider-specific
-`--variant` equivalent. Execute, continuation, and
+`xhigh`, and `max`. Claude Code and Grok publish all five through `--effort`.
+Codex publishes `low` through `xhigh` through `-c model_reasoning_effort=<level>`;
+`max` is intentionally not declared because the current Codex configuration
+reference does not list it as a valid config value. OpenCode receives its
+provider-specific `--variant` equivalent: Anthropic accepts `high`/`max`,
+OpenAI accepts `low`/`medium`/`high`/`xhigh` (model-dependent), and Google
+accepts `low`/`high`. Unknown, local, and custom providers have no declared
+Agent Manager variant domain and are rejected before launch rather than being
+given a speculative flag. A resolved effort with no declared native mapping is
+warned and not presented as enforced. Execute, continuation, and
 interactive launch paths preserve the resolved model, effort, prompt, and
 applicable tool controls.
 

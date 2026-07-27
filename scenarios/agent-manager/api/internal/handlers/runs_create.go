@@ -116,6 +116,10 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			effort := domain.Effort(inline.GetEffort())
 			req.Effort = &effort
 		}
+		if inline.Model != nil {
+			model := inline.GetModel()
+			req.Model = &model
+		}
 		if len(inline.AllowedTools) > 0 || inline.ClearAllowedTools {
 			req.AllowedTools = inline.AllowedTools
 		}

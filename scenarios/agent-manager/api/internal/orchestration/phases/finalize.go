@@ -331,6 +331,14 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 	}
 
 	metrics.Get().RecordProvenanceWrite()
+	if result != nil {
+		in.Run.ChangedFiles = result.Applied
+		in.Run.TotalSizeBytes = result.TotalSizeBytes
+		in.Run.DiffPath = result.DiffPath
+		if result.CommitHash != "" {
+			in.Run.CommitHash = result.CommitHash
+		}
+	}
 
 	now := in.Deps.Now()
 	in.Run.ApprovedBy = "applyAtRunEnd"
@@ -369,11 +377,13 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 }
 
 type postTurnApplyResult struct {
-	Applied    int
-	Remaining  int
-	IsPartial  bool
-	CommitHash string
-	AppliedAt  time.Time
+	Applied        int
+	Remaining      int
+	IsPartial      bool
+	CommitHash     string
+	AppliedAt      time.Time
+	TotalSizeBytes int64
+	DiffPath       string
 }
 
 func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in ApplyAtRunEndInput) (*postTurnApplyResult, error) {
@@ -397,11 +407,13 @@ func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in Ap
 			return nil, nil
 		}
 		return &postTurnApplyResult{
-			Applied:    result.Applied,
-			Remaining:  result.Remaining,
-			IsPartial:  result.IsPartial,
-			CommitHash: result.CommitHash,
-			AppliedAt:  result.AppliedAt,
+			Applied:        result.Applied,
+			Remaining:      result.Remaining,
+			IsPartial:      result.IsPartial,
+			CommitHash:     result.CommitHash,
+			AppliedAt:      result.AppliedAt,
+			TotalSizeBytes: result.TotalSizeBytes,
+			DiffPath:       result.DiffPath,
 		}, nil
 	}
 
@@ -423,11 +435,13 @@ func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in Ap
 		return nil, nil
 	}
 	return &postTurnApplyResult{
-		Applied:    result.Applied,
-		Remaining:  result.Remaining,
-		IsPartial:  result.IsPartial,
-		CommitHash: result.CommitHash,
-		AppliedAt:  result.AppliedAt,
+		Applied:        result.Applied,
+		Remaining:      result.Remaining,
+		IsPartial:      result.IsPartial,
+		CommitHash:     result.CommitHash,
+		AppliedAt:      result.AppliedAt,
+		TotalSizeBytes: result.TotalSizeBytes,
+		DiffPath:       result.DiffPath,
 	}, nil
 }
 

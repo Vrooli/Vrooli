@@ -55,6 +55,12 @@ func TestToolRestrictionCandidateReasonRejectsUnsupportedEnforcedFallback(t *tes
 	if got := toolRestrictionCandidateReason(cfg, unsupported); got != "" {
 		t.Fatalf("advisory fallback must proceed, got %q", got)
 	}
+	cfg.ToolRestrictionPolicy = domain.ToolRestrictionPolicyEnforced
+	cfg.AllowedTools = nil
+	cfg.DeniedTools = []string{"shell"}
+	if got := toolRestrictionCandidateReason(cfg, unsupported); !strings.Contains(got, "cannot enforce deniedTools") {
+		t.Fatalf("unsupported deny-only fallback reason = %q", got)
+	}
 }
 
 // [REQ:REQ-P1-004] Runtime fallback follows the immutable persisted sequence,

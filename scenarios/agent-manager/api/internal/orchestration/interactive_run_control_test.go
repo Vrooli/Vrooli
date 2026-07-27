@@ -9,9 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/runner/codecs"
+	"agent-manager/internal/adapters/runner/core"
+	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runstate"
 	"agent-manager/internal/testutil"
 	"agent-manager/internal/testutil/mocks"
 
@@ -30,6 +34,7 @@ type recordingSessions struct {
 	promptText  []string
 	gone        map[string]bool
 	getNotFound bool
+	onCreate    func()
 }
 
 func newRecordingSessions() *recordingSessions {
@@ -52,6 +57,9 @@ func (r *recordingSessions) callLog() []string {
 
 func (r *recordingSessions) CreateSession(context.Context, webconsole.CreateSessionParams) (string, error) {
 	r.record("create")
+	if r.onCreate != nil {
+		r.onCreate()
+	}
 	return "created", nil
 }
 
@@ -180,6 +188,83 @@ func TestExecuteInteractiveRun_ProtectedBackstop(t *testing.T) {
 		if c == "create" {
 			t.Fatal("a protected run must never create a web-console session")
 		}
+	}
+}
+
+// TestExecuteInteractiveRun_TrackingPersistsSandboxAttribution drives the
+// actual interactive coordinator through a recorded Codex terminal. It proves
+// Tracking uses the sandbox workdir, then applies the sandbox-owned attribution
+// facts to the same persisted run as codec-pipe finalization.
+func TestExecuteInteractiveRun_TrackingPersistsSandboxAttribution(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	root := t.TempDir()
+	sessions := newRecordingSessions()
+	provider := mocks.NewFakeSandboxProvider()
+	provider.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{
+		Success: true, Applied: 2, TotalSizeBytes: 3072,
+		DiffPath: "/api/v1/sandboxes/tracking/diff", CommitHash: "tracking-commit", AppliedAt: time.Now(),
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(core.NewRunner(codecs.NewCodexForTest(), nil, nil)); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithSandbox(provider), WithRunners(registry), WithRunStateRoot(root))
+	task := interactiveTestTask(t, svc)
+
+	now := time.Now()
+	run := &domain.Run{
+		ID: uuid.New(), TaskID: task.ID, Tag: "interactive-tracking", RunMode: domain.RunModeSandboxed,
+		ExecutionMode: domain.ExecutionModeInteractive, Status: domain.RunStatusStarting, Phase: domain.RunPhaseExecuting,
+		ApprovalState:  domain.ApprovalStateNone,
+		SandboxConfig:  &domain.SandboxConfig{Mode: domain.SandboxModeTracking, AutoApply: func() *bool { value := true; return &value }()},
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex}, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	runDir, err := runstate.RunDir(root, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace, err := os.ReadFile(filepath.Join("..", "adapters", "runner", "codecs", "testdata", "codex_rollout_trace.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions.onCreate = func() {
+		rollout := filepath.Join(runDir, "codex", "sessions", "2026", "07", "26", "rollout-tracking.jsonl")
+		if err := os.MkdirAll(filepath.Dir(rollout), 0o755); err != nil {
+			t.Errorf("mkdir rollout: %v", err)
+			return
+		}
+		if err := os.WriteFile(rollout, trace, 0o600); err != nil {
+			t.Errorf("write rollout: %v", err)
+		}
+	}
+
+	svc.executeInteractiveRun(ctx, run, task, "perform tracked work", nil)
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusComplete {
+		t.Fatalf("status = %s, want complete (%s)", got.Status, got.ErrorMsg)
+	}
+	if got.SandboxID == nil {
+		t.Fatal("tracking interactive run did not persist sandbox id")
+	}
+	if got.ChangedFiles != 2 || got.TotalSizeBytes != 3072 || got.DiffPath != "/api/v1/sandboxes/tracking/diff" || got.CommitHash != "tracking-commit" {
+		t.Fatalf("tracking attribution = files=%d bytes=%d diff=%q commit=%q", got.ChangedFiles, got.TotalSizeBytes, got.DiffPath, got.CommitHash)
+	}
+	if provider.ApplyAtRunEndCallCount() != 1 {
+		t.Fatalf("apply calls = %d, want 1", provider.ApplyAtRunEndCallCount())
+	}
+	created := provider.CreateRequests()
+	if len(created) != 1 || created[0].Behavior == nil || created[0].Behavior.Mode != domain.SandboxModeTracking {
+		t.Fatalf("sandbox create did not use tracking mode: %+v", created)
 	}
 }
 

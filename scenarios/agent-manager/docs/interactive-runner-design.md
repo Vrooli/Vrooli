@@ -126,6 +126,20 @@ foundation plan (shipped 07-13) provides everything needed:
 The run-detail UI deep-links to the live session (locked decision 7) using the
 stored `WebConsoleSessionID` and the web-console UI base.
 
+### Post-launch compatibility invariant (validated 2026-07-26)
+
+The initial task must be delivered with Web Console's `SendPrompt` operation:
+bracketed paste followed by the named Enter key. Do not append the task as a
+positional argument to the interactive CLI launch command. With `codex-cli
+0.144.6`, a positional prompt successfully starts the TUI but can leave it with
+zero threads and no transcript; the explicit paste-plus-Enter path created the
+thread, transcript, terminal marker, and final output in a live Tracking run.
+
+The launch command contains only the executable and resolved controls. This
+also prevents task content from appearing in the process argument list. While
+discovery has no transcript, Agent Manager retries the typed delivery on its
+bounded cadence to recover a prompt lost during cold TUI initialization.
+
 ---
 
 ## 3. Per-agent transcript-locating contract (empirically verified)
@@ -242,9 +256,10 @@ Migration: additive columns only (`execution_mode` with default, and
 enum default keeps every existing run `codec_pipe`, so behavior is unchanged for
 non-interactive runs.
 
-Policy gate (locked decision 5): interactive mode is rejected at run-validation
-time for protected runs (`RunMode == sandboxed`), with a clear error; protected
-runs keep the sandbox launcher / codec-pipe path.
+Policy gate: interactive mode is rejected at run-validation time only for
+`SandboxModeProtected`, with a clear error. `SandboxModeTracking` remains host
+execution with provenance capture, so it is supported and uses the sandbox
+working directory; Protected runs keep the sandbox launcher / codec-pipe path.
 
 ---
 

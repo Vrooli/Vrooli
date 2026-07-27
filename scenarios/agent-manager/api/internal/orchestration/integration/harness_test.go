@@ -63,6 +63,7 @@ func newOrchestratorHarness(t *testing.T) *orchestratorHarness {
 		orchestration.WithCheckpoints(repos.Checkpoints), orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithEvents(events), orchestration.WithRunners(registry), orchestration.WithSandbox(sandbox),
 		orchestration.WithBroadcaster(broadcaster), orchestration.WithClock(clock.Now),
+		orchestration.WithRunStateRoot(t.TempDir()),
 		orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 4, RequireSandboxByDefault: false}),
 	)
 	return &orchestratorHarness{Orchestrator: orch, Repos: repos, Events: events, Runner: fakeRunner, Sandbox: sandbox, Broadcaster: broadcaster, Clock: clock, Cleanup: cleanup}

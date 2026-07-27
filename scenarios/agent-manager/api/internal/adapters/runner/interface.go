@@ -122,8 +122,13 @@ type Capabilities struct {
 	SupportsEffort bool
 
 	// EffortMappings documents canonical-to-native effort translation. An empty
-	// map is the explicit unsupported stance.
+	// map is the explicit unsupported stance unless EffortModelSpecific is true.
 	EffortMappings map[string]string
+
+	// EffortModelSpecific means the runner accepts effort only for a declared
+	// provider/model domain. Such runners intentionally publish no universal
+	// mapping; their codec validates the selected model before launch.
+	EffortModelSpecific bool
 
 	// MaxTurns is the maximum number of turns this runner supports (0 = unlimited).
 	MaxTurns int
@@ -436,6 +441,7 @@ type AgentLaunchInfo interface {
 	Type() domain.RunnerType
 	TagEnvKey() string
 	BinaryPath() string
+	ControlArgs(cfg *domain.RunConfig) ([]string, error)
 }
 
 // -----------------------------------------------------------------------------

@@ -1,13 +1,74 @@
 package main
 
 import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 
+	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/encoding/protojson"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestRunCreateModelOverrideIsOptional(t *testing.T) {
+	for _, tc := range []struct {
+		name, model string
+		wantSet     bool
+	}{
+		{"present", "chosen-model", true},
+		{"absent", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var received apipb.CreateRunRequest
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost || r.URL.Path != "/api/v1/runs" {
+					t.Errorf("request = %s %s", r.Method, r.URL.Path)
+				}
+				if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(readAll(t, r), &received); err != nil {
+					t.Error(err)
+				}
+				body, err := protojson.Marshal(&apipb.CreateRunResponse{Run: &domainpb.Run{Id: "run-1"}})
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(body)
+			}))
+			defer server.Close()
+			api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
+			args := []string{"create", "--task-id=task-1", "--profile-id=profile-1", "--json"}
+			if tc.model != "" {
+				args = append(args, "--model="+tc.model)
+			}
+			if err := (&App{services: NewServices(api)}).cmdRun(args); err != nil {
+				t.Fatal(err)
+			}
+			if tc.wantSet {
+				if received.InlineConfig == nil || received.InlineConfig.Model == nil || received.InlineConfig.GetModel() != tc.model {
+					t.Fatalf("model override = %+v", received.InlineConfig)
+				}
+			} else if received.InlineConfig != nil && received.InlineConfig.Model != nil {
+				t.Fatalf("unexpected model override = %q", received.InlineConfig.GetModel())
+			}
+		})
+	}
+}
+
+func readAll(t *testing.T, r *http.Request) []byte {
+	t.Helper()
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(r.Body); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
 
 func TestParseResultSpecJSONInputsAndFailures(t *testing.T) {
 	t.Run("no configuration", func(t *testing.T) {

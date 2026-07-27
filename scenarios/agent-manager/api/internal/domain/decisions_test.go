@@ -253,7 +253,7 @@ func TestDeriveRunMode(t *testing.T) {
 			want: RunModeSandboxed,
 		},
 		{
-			name: "Mode=Unspecified (zero-value) → sandboxed via Effective→Tracking",
+			name: "Mode=Unspecified (zero-value) → sandboxed via Effective→Protected",
 			cfg:  &SandboxConfig{},
 			want: RunModeSandboxed,
 		},
@@ -292,7 +292,7 @@ func TestSandboxModeAtLeast(t *testing.T) {
 		{"tracking satisfies off", SandboxModeTracking, SandboxModeOff, true},
 		{"off does not satisfy tracking", SandboxModeOff, SandboxModeTracking, false},
 		{"off does not satisfy protected", SandboxModeOff, SandboxModeProtected, false},
-		{"unspecified equals tracking", SandboxModeUnspecified, SandboxModeTracking, true},
+		{"unspecified equals protected", SandboxModeUnspecified, SandboxModeProtected, true},
 	}
 
 	for _, tt := range tests {

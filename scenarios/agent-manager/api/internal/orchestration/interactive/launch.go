@@ -26,11 +26,10 @@ type LaunchCommandParams struct {
 	RunDir string
 	// Model and Effort are resolved run controls forwarded to the interactive
 	// CLI. Empty values preserve the CLI default.
-	Model  string
-	Effort domain.Effort
-	// InitialPrompt is supplied as one trailing positional argument so the
-	// interactive process receives the same initial task as codec-pipe runs.
-	InitialPrompt string
+	Model       string
+	Effort      domain.Effort
+	Config      *domain.RunConfig
+	ControlArgs func(*domain.RunConfig) ([]string, error)
 }
 
 // BuildLaunchCommand builds the shell command web-console pastes+executes to
@@ -46,10 +45,10 @@ type LaunchCommandParams struct {
 // All interpolated values are single-quote shell-escaped so paths or tags with
 // spaces/metacharacters cannot break or inject into the command.
 func BuildLaunchCommand(p LaunchCommandParams) (string, error) {
-	spec, ok := specFor(p.RunnerType)
-	if !ok {
-		return "", fmt.Errorf("interactive mode is not supported for runner %q", p.RunnerType)
-	}
+	// Command construction is codec-driven and deliberately works for every
+	// registered runner. The Substrate separately decides whether it can own a
+	// runner's full interactive lifecycle (notably transcript discovery).
+	spec, _ := specFor(p.RunnerType)
 	if strings.TrimSpace(p.BinaryPath) == "" {
 		return "", fmt.Errorf("interactive launch for %s: binary path is empty (runner unavailable?)", p.RunnerType)
 	}
@@ -71,21 +70,27 @@ func BuildLaunchCommand(p LaunchCommandParams) (string, error) {
 	}
 
 	args := []string{shellQuote(p.BinaryPath)}
-	if model := strings.TrimSpace(p.Model); model != "" {
-		args = append(args, "--model", shellQuote(model))
+	cfg := p.Config
+	if cfg == nil {
+		cfg = &domain.RunConfig{Model: p.Model, Effort: p.Effort}
 	}
-	if p.Effort != "" {
-		switch p.RunnerType {
-		case domain.RunnerTypeCodex:
-			args = append(args, "-c", shellQuote("model_reasoning_effort="+string(p.Effort)))
-		case domain.RunnerTypeClaudeCode, domain.RunnerTypeGrok:
-			args = append(args, "--effort", shellQuote(string(p.Effort)))
+	var controlArgs []string
+	if p.ControlArgs != nil {
+		var err error
+		controlArgs, err = p.ControlArgs(cfg)
+		if err != nil {
+			return "", fmt.Errorf("translate interactive controls: %w", err)
+		}
+	} else if strings.TrimSpace(cfg.Model) != "" || cfg.Effort != "" || len(cfg.AllowedTools) > 0 || len(cfg.DeniedTools) > 0 {
+		return "", fmt.Errorf("interactive launch for %s: control argument provider is required", p.RunnerType)
+	}
+	for _, arg := range controlArgs {
+		if strings.HasPrefix(arg, "-") {
+			args = append(args, arg)
+		} else {
+			args = append(args, shellQuote(arg))
 		}
 	}
-	if p.InitialPrompt != "" {
-		args = append(args, shellQuote(p.InitialPrompt))
-	}
-
 	cmd := fmt.Sprintf("cd %s && %s %s",
 		shellQuote(p.WorkingDir),
 		strings.Join(envPrefix, " "),

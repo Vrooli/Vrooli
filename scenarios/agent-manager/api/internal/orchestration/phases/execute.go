@@ -81,12 +81,15 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 	if in.OnRunning != nil {
 		in.OnRunning()
 	}
-	if in.Run.ResolvedConfig != nil && in.Run.ResolvedConfig.Effort != "" && !in.Runner.Capabilities().SupportsEffort {
-		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", fmt.Sprintf(
-			"reasoning effort %q ignored: runner %q does not support effort",
-			in.Run.ResolvedConfig.Effort,
-			in.Runner.Type(),
-		))
+	if in.Run.ResolvedConfig != nil && in.Run.ResolvedConfig.Effort != "" {
+		caps := in.Runner.Capabilities()
+		if !caps.SupportsEffort || (!caps.EffortModelSpecific && caps.EffortMappings[string(in.Run.ResolvedConfig.Effort)] == "") {
+			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", fmt.Sprintf(
+				"reasoning effort %q ignored: runner %q has no declared native mapping",
+				in.Run.ResolvedConfig.Effort,
+				in.Runner.Type(),
+			))
+		}
 	}
 
 	transcriptCfg, runState, err := PrepareTranscriptConfig(ctx, PrepareTranscriptInput{
@@ -281,13 +284,17 @@ func executePolicySnapshot(ctx context.Context, in ExecuteWithModelFallbackInput
 // fallback. A run may have been valid for its initial runner but become unsafe
 // after a cross-runner candidate switch.
 func toolRestrictionCandidateReason(cfg *domain.RunConfig, candidate runner.Runner) string {
-	if cfg == nil || len(cfg.AllowedTools) == 0 || candidate == nil {
+	if cfg == nil || (len(cfg.AllowedTools) == 0 && len(cfg.DeniedTools) == 0) || candidate == nil {
 		return ""
 	}
 	if cfg.ToolRestrictionPolicy.Effective() == domain.ToolRestrictionPolicyAdvisory || candidate.Capabilities().SupportsToolRestriction {
 		return ""
 	}
-	return fmt.Sprintf("runner %q cannot enforce allowedTools", candidate.Type())
+	declared := "allowedTools"
+	if len(cfg.AllowedTools) == 0 {
+		declared = "deniedTools"
+	}
+	return fmt.Sprintf("runner %q cannot enforce %s", candidate.Type(), declared)
 }
 
 // persistedPolicyCandidateIndex resumes at the candidate already copied into

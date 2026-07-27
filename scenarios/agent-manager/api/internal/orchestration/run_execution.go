@@ -888,15 +888,30 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 	// Policy-gate backstop (locked decision 5): interactive mode is never allowed
 	// for protected (sandboxed) runs. CreateRun rejects this at validation time;
 	// this defends the execution path against any run that reached here mislabeled.
-	if err := domain.ValidateInteractiveRunMode(run.ExecutionMode, run.RunMode); err != nil {
+	if err := domain.ValidateInteractiveRunMode(run.ExecutionMode, run.InteractiveSandboxMode()); err != nil {
 		o.failInteractiveRun(ctx, run, err.Error())
 		return
 	}
 
-	workDir, err := phases.UseInPlaceWorkspace(task)
-	if err != nil {
-		o.failInteractiveRun(ctx, run, fmt.Sprintf("resolve interactive working directory: %v", err))
-		return
+	var workDir string
+	if run.RunMode == domain.RunModeSandboxed {
+		setup, err := phases.SetupWorkspace(ctx, phases.SetupWorkspaceInput{
+			Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
+			Run:  run, Task: task, Sandbox: o.sandbox,
+		})
+		if err != nil {
+			o.failInteractiveRun(ctx, run, fmt.Sprintf("prepare interactive tracking workspace: %v", err))
+			return
+		}
+		run.SandboxID = setup.SandboxID
+		workDir = setup.WorkDir
+	} else {
+		var err error
+		workDir, err = phases.UseInPlaceWorkspace(task)
+		if err != nil {
+			o.failInteractiveRun(ctx, run, fmt.Sprintf("resolve interactive working directory: %v", err))
+			return
+		}
 	}
 	runStateRoot, err := o.resolveRunStateRoot(ctx)
 	if err != nil {
@@ -936,9 +951,31 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		Prompt:       initialPrompt,
 		Model:        run.ResolvedConfig.Model,
 		Effort:       run.ResolvedConfig.Effort,
+		Config:       run.ResolvedConfig,
 	}, release); err != nil {
 		obs.Component("interactive").Warn("interactive run finalize failed",
 			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
+	// Tracking mode uses the same sandbox provenance contract as codec-pipe
+	// execution. The interactive coordinator owns terminal detection; once it
+	// returns, finalize the attributed sandbox before exposing the terminal run.
+	if run.RunMode == domain.RunModeSandboxed && run.SandboxID != nil && o.sandbox != nil && run.Status.IsTerminal() {
+		outcome := domain.ContractRunOutcomeSuccess
+		switch run.Status {
+		case domain.RunStatusFailed:
+			outcome = domain.ContractRunOutcomeFailure
+		case domain.RunStatusCancelled:
+			outcome = domain.ContractRunOutcomeCancelled
+		}
+		phases.ApplyAtRunEnd(ctx, phases.ApplyAtRunEndInput{
+			Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
+			Run:  run, SandboxID: run.SandboxID, Sandbox: o.sandbox, Outcome: outcome,
+		})
+		if o.runs != nil {
+			if err := o.runs.Update(ctx, run); err != nil {
+				obs.Component("interactive").Warn("interactive attribution persistence failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+			}
+		}
 	}
 }
 

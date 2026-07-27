@@ -171,7 +171,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	// available for non-protected (in-place) runs. Reject at creation time with
 	// an actionable error before the run is persisted or dispatched. The
 	// executeInteractiveRun path re-checks this as a backstop.
-	if err := domain.ValidateInteractiveRunMode(req.ExecutionMode, runMode); err != nil {
+	if err := domain.ValidateInteractiveRunMode(req.ExecutionMode, sandboxConfig.Mode); err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
 	}
@@ -316,8 +316,12 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		return nil, err
 	}
 	if o.toolRestrictionIsAdvisory(resolvedConfig) && o.events != nil {
+		declared := "allowedTools"
+		if len(resolvedConfig.AllowedTools) == 0 {
+			declared = "deniedTools"
+		}
 		if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "warn",
-			fmt.Sprintf("runner %q cannot enforce allowedTools; advisory policy accepted the launch", resolvedConfig.RunnerType))); err != nil {
+			fmt.Sprintf("runner %q cannot enforce %s; advisory policy accepted the launch", resolvedConfig.RunnerType, declared))); err != nil {
 			obs.Component("orchestrator").Warn("failed to append advisory tool-restriction event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
 		}
 	}
@@ -628,6 +632,9 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if err := o.resolveExecutionPolicy(ctx, cfg); err != nil {
 		return nil, nil, err
 	}
+	if err := o.applyModelOverride(ctx, cfg, req.Model); err != nil {
+		return nil, nil, err
+	}
 	if err := o.validateToolRestriction(cfg); err != nil {
 		return nil, nil, err
 	}
@@ -644,11 +651,49 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	return cfg, profile, nil
 }
 
+// applyModelOverride applies an explicit per-run model only after role policy
+// resolution. The immutable snapshot remains the execution authority, so its
+// selected candidate must be updated alongside the resolved config; otherwise
+// a later execution attempt could silently revert the caller's override.
+func (o *Orchestrator) applyModelOverride(ctx context.Context, cfg *domain.RunConfig, requested *string) error {
+	if requested == nil {
+		return nil
+	}
+	model := strings.TrimSpace(*requested)
+	if model == "" {
+		return domain.NewValidationError("model", "must not be empty when supplied")
+	}
+	if cfg == nil || cfg.PolicySnapshot == nil {
+		return domain.NewValidationError("model", "cannot override model without a resolved execution policy")
+	}
+	if o.runners != nil {
+		runner, err := o.runners.Get(cfg.RunnerType)
+		if err != nil {
+			return err
+		}
+		if runner == nil {
+			return domain.NewValidationError("model", "selected runner is not registered")
+		}
+		if err := runner.ProbeModel(ctx, model); err != nil {
+			return domain.NewValidationErrorWithHint("model", "model is not available for the selected runner", err.Error())
+		}
+	}
+	cfg.Model = model
+	snapshot := cfg.PolicySnapshot
+	if snapshot.SelectedIndex < 0 || snapshot.SelectedIndex >= len(snapshot.Candidates) {
+		return domain.NewValidationError("model", "resolved execution policy has an invalid selected candidate")
+	}
+	snapshot.Candidates[snapshot.SelectedIndex].SelectionType = domain.ModelSelectionTypeModel
+	snapshot.Candidates[snapshot.SelectedIndex].Model = model
+	snapshot.SelectedCandidate = snapshot.Candidates[snapshot.SelectedIndex]
+	return nil
+}
+
 // validateToolRestriction makes an allowlist fail closed once policy routing
 // has selected the actual runner. Advisory is explicit and intentionally does
 // not pretend that an unsupported runner enforces the declaration.
 func (o *Orchestrator) validateToolRestriction(cfg *domain.RunConfig) error {
-	if len(cfg.AllowedTools) == 0 || o.runners == nil {
+	if cfg == nil || (len(cfg.AllowedTools) == 0 && len(cfg.DeniedTools) == 0) || o.runners == nil {
 		return nil
 	}
 	selected, err := o.runners.Get(cfg.RunnerType)
@@ -659,11 +704,11 @@ func (o *Orchestrator) validateToolRestriction(cfg *domain.RunConfig) error {
 		return nil
 	}
 	return domain.NewValidationErrorWithCode("toolRestrictionPolicy",
-		fmt.Sprintf("runner %q cannot enforce allowedTools", cfg.RunnerType), domain.ErrCodePolicyRunner)
+		fmt.Sprintf("runner %q cannot enforce allowedTools or deniedTools", cfg.RunnerType), domain.ErrCodePolicyRunner)
 }
 
 func (o *Orchestrator) toolRestrictionIsAdvisory(cfg *domain.RunConfig) bool {
-	if cfg == nil || len(cfg.AllowedTools) == 0 || cfg.ToolRestrictionPolicy.Effective() != domain.ToolRestrictionPolicyAdvisory || o.runners == nil {
+	if cfg == nil || (len(cfg.AllowedTools) == 0 && len(cfg.DeniedTools) == 0) || cfg.ToolRestrictionPolicy.Effective() != domain.ToolRestrictionPolicyAdvisory || o.runners == nil {
 		return false
 	}
 	selected, err := o.runners.Get(cfg.RunnerType)

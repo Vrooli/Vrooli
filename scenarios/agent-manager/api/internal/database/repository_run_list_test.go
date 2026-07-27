@@ -53,6 +53,7 @@ func makeFullRun(taskID uuid.UUID, profileID *uuid.UUID) *domain.Run {
 		LogPath:        "/logs/test.log",
 		ChangedFiles:   2,
 		TotalSizeBytes: 1024,
+		CommitHash:     "abc123",
 		SandboxConfig: &domain.SandboxConfig{
 			NoLock: true,
 		},
@@ -202,11 +203,59 @@ func TestList_PopulatesLightFields(t *testing.T) {
 	if got.TotalSizeBytes != run.TotalSizeBytes {
 		t.Errorf("TotalSizeBytes: want %d, got %d", run.TotalSizeBytes, got.TotalSizeBytes)
 	}
+	if got.CommitHash != run.CommitHash {
+		t.Errorf("CommitHash: want %q, got %q", run.CommitHash, got.CommitHash)
+	}
 	if got.SessionID != run.SessionID {
 		t.Errorf("SessionID: want %q, got %q", run.SessionID, got.SessionID)
 	}
 	if got.ExitCode == nil || *got.ExitCode != *run.ExitCode {
 		t.Errorf("ExitCode mismatch: want %v, got %v", run.ExitCode, got.ExitCode)
+	}
+}
+
+// TestRunRepository_LegacyNullCommitHash verifies backward compatibility with
+// databases that received the additive commit_hash column after runs already
+// existed. SQLite does not backfill a DEFAULT into those rows, so both list and
+// get must normalize NULL to the domain's empty-string representation.
+func TestRunRepository_LegacyNullCommitHash(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, db.log)
+	ctx := context.Background()
+	task := &domain.Task{
+		ID:          uuid.New(),
+		Title:       "legacy-null-commit-hash",
+		Description: "A task for additive migration compatibility",
+		ScopePath:   "src/",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	run := makeFullRun(task.ID, nil)
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, "UPDATE runs SET commit_hash = NULL WHERE id = ?", run.ID); err != nil {
+		t.Fatalf("set legacy NULL commit_hash: %v", err)
+	}
+
+	runs, err := repos.Runs.List(ctx, repository.RunListFilter{})
+	if err != nil {
+		t.Fatalf("List legacy row: %v", err)
+	}
+	if len(runs) != 1 || runs[0].CommitHash != "" {
+		t.Fatalf("List legacy commit hash = %#v, want one empty value", runs)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get legacy row: %v", err)
+	}
+	if got == nil || got.CommitHash != "" {
+		t.Fatalf("Get legacy commit hash = %#v, want empty value", got)
 	}
 }
 
@@ -309,6 +358,9 @@ func TestGet_StillReturnsFullFields(t *testing.T) {
 	}
 	if got.LogPath != run.LogPath {
 		t.Errorf("Get() LogPath: want %q, got %q", run.LogPath, got.LogPath)
+	}
+	if got.CommitHash != run.CommitHash {
+		t.Errorf("Get() CommitHash: want %q, got %q", run.CommitHash, got.CommitHash)
 	}
 	if got.IdempotencyKey != run.IdempotencyKey {
 		t.Errorf("Get() IdempotencyKey: want %q, got %q", run.IdempotencyKey, got.IdempotencyKey)

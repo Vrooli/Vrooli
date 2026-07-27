@@ -95,6 +95,13 @@ func NewClaudeForTest() *Claude {
 	return c
 }
 
+// NewClaudeForTestWithBinary is a test-only constructor for process replay.
+func NewClaudeForTestWithBinary(path string) *Claude {
+	c := NewClaudeForTest()
+	c.binaryPath, c.available = path, true
+	return c
+}
+
 // Capabilities satisfies [Codec].
 func (c *Claude) Capabilities() runner.Capabilities {
 	return runner.Capabilities{
@@ -140,6 +147,8 @@ func (c *Claude) BuildPrompt(prompt string, attachments []runner.Attachment) str
 	return sb.String()
 }
 
+func (c *Claude) ControlArgs(cfg *domain.RunConfig) ([]string, error) { return claudeControlArgs(cfg) }
+
 // BuildArgs satisfies [Codec]. Claude has no per-run state to stash
 // from the request; the state argument is unused.
 func (c *Claude) BuildArgs(_ State, req runner.ExecuteRequest) []string {
@@ -155,31 +164,14 @@ func (c *Claude) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 	} else {
 		args = append(args, "--max-turns", "30")
 	}
-	if cfg.Model != "" {
-		args = append(args, "--model", cfg.Model)
-	}
-	if cfg.Effort != "" {
-		args = append(args, "--effort", string(cfg.Effort))
-	}
+	// Centralize portable control translation with interactive launches.
+	controlArgs, _ := c.ControlArgs(cfg)
+	args = append(args, controlArgs...)
 
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--dangerously-skip-permissions")
 	}
 
-	if len(cfg.AllowedTools) > 0 {
-		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.AllowedTools)
-		if err != nil {
-			return args
-		}
-		args = append(args, "--allowedTools", strings.Join(tools, ","))
-	}
-	if len(cfg.DeniedTools) > 0 {
-		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.DeniedTools)
-		if err != nil {
-			return args
-		}
-		args = append(args, "--disallowedTools", strings.Join(tools, ","))
-	}
 	if req.SystemPrompt != "" {
 		args = append(args, "--append-system-prompt", req.SystemPrompt)
 	}
@@ -211,28 +203,10 @@ func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string
 	} else {
 		args = append(args, "--max-turns", "30")
 	}
-	if cfg.Model != "" {
-		args = append(args, "--model", cfg.Model)
-	}
-	if cfg.Effort != "" {
-		args = append(args, "--effort", string(cfg.Effort))
-	}
+	controlArgs, _ := c.ControlArgs(cfg)
+	args = append(args, controlArgs...)
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--dangerously-skip-permissions")
-	}
-	if len(cfg.AllowedTools) > 0 {
-		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.AllowedTools)
-		if err != nil {
-			return args
-		}
-		args = append(args, "--allowedTools", strings.Join(tools, ","))
-	}
-	if len(cfg.DeniedTools) > 0 {
-		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.DeniedTools)
-		if err != nil {
-			return args
-		}
-		args = append(args, "--disallowedTools", strings.Join(tools, ","))
 	}
 	if cfg.Features.EnableBrowser {
 		args = append(args, "--chrome")

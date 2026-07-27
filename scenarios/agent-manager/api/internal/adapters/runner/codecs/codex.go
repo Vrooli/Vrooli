@@ -111,6 +111,13 @@ func NewCodexForTest() *Codex {
 	return c
 }
 
+// NewCodexForTestWithBinary is a test-only constructor for process replay.
+func NewCodexForTestWithBinary(path string) *Codex {
+	c := NewCodexForTest()
+	c.binaryPath, c.available = path, true
+	return c
+}
+
 // Capabilities satisfies [Codec]. It reports only locally-pulled Ollama models
 // discovered via the cached lister; resource role resolution owns concrete
 // coding-agent model selection.
@@ -126,13 +133,15 @@ func (c *Codex) Capabilities() runner.Capabilities {
 		SupportsToolRestriction:  false, // Codex has no per-launch allowlist for its native tools.
 		ToolRestrictionMappings:  canonicalToolMappings(codexToolTranslations),
 		SupportsEffort:           true,
-		EffortMappings:           map[string]string{"low": "model_reasoning_effort=low", "medium": "model_reasoning_effort=medium", "high": "model_reasoning_effort=high", "xhigh": "model_reasoning_effort=xhigh", "max": "model_reasoning_effort=max"},
-		MaxTurns:                 0,
-		SupportedModels:          c.ollama.list(),
-		SupportsRunnerDefault:    true,
-		DynamicModelPrefixes:     []string{ollamaModelPrefix},
-		SupportedFeatures:        []string{},
-		AllowedExtraFlags:        []string{"--verbose", "-c"},
+		// Codex config documents minimal, low, medium, high, and xhigh. The
+		// portable scale has no minimal level, so max must not be claimed here.
+		EffortMappings:        map[string]string{"low": "model_reasoning_effort=low", "medium": "model_reasoning_effort=medium", "high": "model_reasoning_effort=high", "xhigh": "model_reasoning_effort=xhigh"},
+		MaxTurns:              0,
+		SupportedModels:       c.ollama.list(),
+		SupportsRunnerDefault: true,
+		DynamicModelPrefixes:  []string{ollamaModelPrefix},
+		SupportedFeatures:     []string{},
+		AllowedExtraFlags:     []string{"--verbose", "-c"},
 	}
 }
 
@@ -150,6 +159,8 @@ func (c *Codex) BuildEnv(tag string, extras map[string]string) []string {
 func (c *Codex) BuildPrompt(prompt string, _ []runner.Attachment) string {
 	return prompt
 }
+
+func (c *Codex) ControlArgs(cfg *domain.RunConfig) ([]string, error) { return codexControlArgs(cfg) }
 
 // BuildArgs satisfies [Codec]. Captures req.GetConfig().Model on state so
 // cost events emitted from DecodeStreamLine can label themselves. An
@@ -181,16 +192,10 @@ func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
 	}
 
-	bareModel, isOllama := splitOllamaModel(model)
-	if isOllama {
-		args = append(args, "--oss", "--local-provider", "ollama")
-	}
-	if model != "" {
-		args = append(args, "-m", bareModel)
-	}
-	if cfg.Effort != "" {
-		args = append(args, "-c", "model_reasoning_effort="+string(cfg.Effort))
-	}
+	// Runner-native model, effort, and tool controls are centralized so the
+	// interactive path cannot drift from codec-pipe execution.
+	controlArgs, _ := c.ControlArgs(cfg)
+	args = append(args, controlArgs...)
 	if req.WorkingDir != "" {
 		args = append(args, "-C", req.WorkingDir)
 	}
@@ -216,16 +221,8 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 		"--json",
 		"--skip-git-repo-check",
 	}
-	if _, isOllama := splitOllamaModel(model); isOllama {
-		args = append(args, "--oss", "--local-provider", "ollama")
-	}
-	if model != "" {
-		bareModel, _ := splitOllamaModel(model)
-		args = append(args, "-m", bareModel)
-	}
-	if req.GetConfig().Effort != "" {
-		args = append(args, "-c", "model_reasoning_effort="+string(req.GetConfig().Effort))
-	}
+	controlArgs, _ := c.ControlArgs(req.GetConfig())
+	args = append(args, controlArgs...)
 	// `codex exec resume` has no working-directory flag. It resumes from the
 	// session recorded in CODEX_HOME; the launcher supplies the working dir.
 	args = appendAttachmentFlags(args, "-i", req.Attachments)

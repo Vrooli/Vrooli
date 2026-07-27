@@ -165,6 +165,7 @@ func TestSandboxCwdContract_ProtectedRoutesThroughSandbox(t *testing.T) {
 		orchestration.WithIdempotency(repos.Idempotency),
 		newTestRolePolicyOption(t),
 		orchestration.WithSandbox(provider),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{
@@ -302,6 +303,7 @@ func TestSandboxCwdContract_OffRunsInPlace(t *testing.T) {
 		orchestration.WithIdempotency(repos.Idempotency),
 		newTestRolePolicyOption(t),
 		orchestration.WithSandbox(provider),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{

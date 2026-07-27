@@ -15,6 +15,20 @@ overwrite the ordering and timing facts needed to identify the original cause.
 4. Correlate by run id, workflow execution id, attempt id, event sequence, and
    timestamps. Prefer typed event payloads over process logs.
 
+## Testing ladder
+
+Diagnose a defect with the cheapest evidence that can answer it, in this order:
+
+1. Contract and conformance tests (no process launch).
+2. Codec replay against recorded transcripts.
+3. Fake-agent process replay through the real launcher and persistence path.
+4. Local-model smoke using the configured local provider.
+5. A real agent run.
+
+Do not spend agent tokens to diagnose behavior that a query, recorded replay,
+or fake-agent process test can prove. Escalate to a real run only after the
+lower rung cannot reproduce or distinguish the issue.
+
 ## Run diagnosis
 
 | Evidence | Meaning | Next action |

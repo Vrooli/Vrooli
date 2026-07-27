@@ -215,6 +215,22 @@ func TestOrchestrationSourceFilesDeclareTheirResponsibility(t *testing.T) {
 	}
 }
 
+func TestInteractiveProductionCodeDoesNotTranslateByRunnerType(t *testing.T) {
+	// Runner-native control flags belong to codecs. A runner-type switch in the
+	// launch command builder is a structural drift signal: it recreates a
+	// second control translation instead of asking the resolved runner for
+	// ControlArgs. Transcript discovery legitimately branches by runner.
+	path := filepath.Join(scenarioRoot(t), "api/internal/orchestration/interactive/launch.go")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(source), "case domain.RunnerType") {
+		rel, _ := filepath.Rel(scenarioRoot(t), path)
+		t.Fatalf("%s switches on domain.RunnerType; use the codec control-argument seam", filepath.ToSlash(rel))
+	}
+}
+
 func TestCapabilityBoundaryDetectorRejectsLegacyType(t *testing.T) {
 	fixture := `package handlers; type Handler struct { svc orchestration.Service }`
 	if !strings.Contains(fixture, "orchestration.Service") {
@@ -238,6 +254,13 @@ func TestBoundaryDetectorRejectsViolatingFixtures(t *testing.T) {
 				t.Fatalf("fixture did not trigger %q: %v", tc.forbidden, imports)
 			}
 		})
+	}
+}
+
+func TestInteractiveRunnerTypeSwitchDetectorRejectsFixture(t *testing.T) {
+	fixture := `switch p.RunnerType { case domain.RunnerTypeCodex: }`
+	if !strings.Contains(fixture, "case domain.RunnerType") {
+		t.Fatal("runner-type switch fixture did not trigger detector")
 	}
 }
 

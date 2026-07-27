@@ -517,12 +517,14 @@ func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 		}
 
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":    true,
-			"applied":    3,
-			"remaining":  0,
-			"isPartial":  false,
-			"commitHash": "abc123",
-			"appliedAt":  time.Now().Format(time.RFC3339),
+			"success":          true,
+			"applied":          3,
+			"remaining":        0,
+			"isPartial":        false,
+			"commitHash":       "abc123",
+			"appliedSizeBytes": 1536,
+			"diffPath":         "/api/v1/sandboxes/diff",
+			"appliedAt":        time.Now().Format(time.RFC3339),
 		})
 	}))
 	defer server.Close()
@@ -546,6 +548,9 @@ func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 	}
 	if result.CommitHash != "abc123" {
 		t.Errorf("expected commit hash 'abc123', got '%s'", result.CommitHash)
+	}
+	if result.TotalSizeBytes != 1536 || result.DiffPath != "/api/v1/sandboxes/diff" {
+		t.Errorf("attribution response bytes=%d diff=%q", result.TotalSizeBytes, result.DiffPath)
 	}
 }
 

@@ -19,6 +19,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 		supportsRunnerDefault                                              bool
 		supportsToolRestriction                                            bool
 		supportsEffort                                                     bool
+		effortModelSpecific                                                bool
+		effortMappingCount                                                 int
 		mappingCount                                                       int
 		dynamicModelPrefixes                                               []string
 	}
@@ -43,6 +45,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				w.supportsToolRestriction = true
 				w.mappingCount = len(CanonicalToolNamesForTest())
 				w.supportsEffort = true
+				w.effortMappingCount = 5
 				return w
 			}(),
 		},
@@ -54,6 +57,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				w.supportsRunnerDefault = true
 				w.dynamicModelPrefixes = []string{ollamaModelPrefix}
 				w.supportsEffort = true
+				w.effortMappingCount = 4
 				return w
 			}(),
 		},
@@ -65,6 +69,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 				w.supportsRunnerDefault = true
 				w.dynamicModelPrefixes = []string{ollamaModelPrefix}
 				w.supportsEffort = true
+				w.effortModelSpecific = true
+				w.effortMappingCount = 0
 				return w
 			}(),
 		},
@@ -82,6 +88,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				supportsRunnerDefault:   true,
 				supportsToolRestriction: true,
 				supportsEffort:          true,
+				effortMappingCount:      5,
 				mappingCount:            len(CanonicalToolNamesForTest()),
 			},
 		},
@@ -109,8 +116,11 @@ func TestCapabilitiesConformance(t *testing.T) {
 			if caps.SupportsEffort != tc.want.supportsEffort {
 				t.Errorf("SupportsEffort = %v, want %v", caps.SupportsEffort, tc.want.supportsEffort)
 			}
-			if tc.want.supportsEffort && len(caps.EffortMappings) != 5 {
-				t.Errorf("EffortMappings = %v, want five canonical mappings", caps.EffortMappings)
+			if caps.EffortModelSpecific != tc.want.effortModelSpecific {
+				t.Errorf("EffortModelSpecific = %v, want %v", caps.EffortModelSpecific, tc.want.effortModelSpecific)
+			}
+			if len(caps.EffortMappings) != tc.want.effortMappingCount {
+				t.Errorf("EffortMappings = %v, want %d mappings", caps.EffortMappings, tc.want.effortMappingCount)
 			}
 			if len(caps.ToolRestrictionMappings) != tc.want.mappingCount {
 				t.Errorf("ToolRestrictionMappings = %v, want %d entries", caps.ToolRestrictionMappings, tc.want.mappingCount)

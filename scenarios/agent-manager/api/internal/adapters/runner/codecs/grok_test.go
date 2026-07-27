@@ -143,6 +143,13 @@ func TestGrok_BuildArgs(t *testing.T) {
 	}
 }
 
+func TestGrokControlArgsRejectsUnmappedCanonicalTool(t *testing.T) {
+	_, err := NewGrokForTest().ControlArgs(&domain.RunConfig{AllowedTools: []string{"not-a-canonical-tool"}})
+	if err == nil || !strings.Contains(err.Error(), "no native mapping") {
+		t.Fatalf("expected unmapped tool error, got %v", err)
+	}
+}
+
 func TestGrok_BuildArgs_DefaultMaxTurns_NoApproveWhenNotSkipped(t *testing.T) {
 	c := NewGrokForTest()
 	req := runner.ExecuteRequest{

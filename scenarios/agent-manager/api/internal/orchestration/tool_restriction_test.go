@@ -25,6 +25,12 @@ func TestValidateToolRestriction(t *testing.T) {
 	if err := o.validateToolRestriction(&domain.RunConfig{RunnerType: domain.RunnerTypeCodex, AllowedTools: []string{"read"}}); err == nil {
 		t.Fatal("unsupported enforced restriction was accepted")
 	}
+	if err := o.validateToolRestriction(&domain.RunConfig{RunnerType: domain.RunnerTypeCodex, DeniedTools: []string{"shell"}}); err == nil {
+		t.Fatal("unsupported denied-only restriction was accepted")
+	}
+	if err := o.validateToolRestriction(&domain.RunConfig{RunnerType: domain.RunnerTypeCodex, DeniedTools: []string{"shell"}, ToolRestrictionPolicy: domain.ToolRestrictionPolicyAdvisory}); err != nil {
+		t.Fatalf("advisory denied-only restriction rejected: %v", err)
+	}
 	if err := o.validateToolRestriction(&domain.RunConfig{RunnerType: domain.RunnerTypeCodex, AllowedTools: []string{"read"}, ToolRestrictionPolicy: domain.ToolRestrictionPolicyAdvisory}); err != nil {
 		t.Fatalf("advisory restriction rejected: %v", err)
 	}
