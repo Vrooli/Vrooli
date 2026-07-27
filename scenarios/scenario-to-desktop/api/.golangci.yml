@@ -14,6 +14,19 @@ linters:
     - typecheck
     - unused
 
+linters-settings:
+  revive:
+    rules:
+      # These naming rules produce false positives for established public API
+      # types and interface implementations. Correctness-focused linters remain
+      # enabled; naming migrations are handled as deliberate API changes.
+      - name: exported
+        disabled: true
+      - name: redefines-builtin-id
+        disabled: true
+      - name: unused-parameter
+        disabled: true
+
 issues:
   exclude-dirs:
     - mocks

@@ -7,7 +7,9 @@ import { useSidebarStore } from "../../store";
 const isMobile = vi.hoisted(() => vi.fn(() => false));
 
 vi.mock("../../hooks/useMediaQuery", () => ({ useIsMobile: isMobile }));
-vi.mock("./SidebarHeader", () => ({ SidebarHeader: () => <div>pipeline header</div> }));
+vi.mock("./SidebarHeader", () => ({
+  SidebarHeader: () => <div>pipeline header</div>,
+}));
 vi.mock("./SidebarNavigation", () => ({
   SidebarNavigation: ({ collapsed }: { collapsed?: boolean }) => (
     <div>{collapsed ? "collapsed navigation" : "expanded navigation"}</div>
@@ -27,9 +29,13 @@ describe("PipelineSidebar", () => {
 
     expect(screen.getByText("pipeline header")).toBeInTheDocument();
     expect(screen.getByText("expanded navigation")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Collapse pipeline sidebar" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse pipeline sidebar" }),
+    );
     expect(screen.getByText("collapsed navigation")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Expand pipeline sidebar" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Expand pipeline sidebar" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps the sidebar expanded and removes the desktop collapse control on mobile", () => {
@@ -40,6 +46,8 @@ describe("PipelineSidebar", () => {
     renderWithProviders(<PipelineSidebar onSectionClick={vi.fn()} />);
 
     expect(screen.getByText("expanded navigation")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /pipeline sidebar/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /pipeline sidebar/ }),
+    ).not.toBeInTheDocument();
   });
 });

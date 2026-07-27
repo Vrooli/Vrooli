@@ -3,13 +3,16 @@ package deploy
 import (
 	"context"
 	"fmt"
+	"scenario-to-desktop-api/shared/connecterrors"
 	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
+
 	sharedenv "scenario-to-desktop-api/shared/env"
+	domainerrors "scenario-to-desktop-api/shared/errors"
 )
 
 // ConnectService exposes the durable deploy-target lifecycle through the
@@ -27,7 +30,7 @@ func NewConnectService(handler *Handler) *ConnectService { return &ConnectServic
 func (s *ConnectService) ListDeployTargets(_ context.Context, _ *connect.Request[domainv1.ListDeployTargetsRequest]) (*connect.Response[domainv1.ListDeployTargetsResponse], error) {
 	targets, err := s.handler.repo.List()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list deploy targets: %w", err))
+		return nil, deployError(connect.CodeInternal, domainerrors.CodeInternal, "list deploy targets", err, domainerrors.RecoveryRetry)
 	}
 	names := make([]string, 0, len(targets))
 	for name := range targets {
@@ -52,14 +55,14 @@ func (s *ConnectService) GetDeployTarget(_ context.Context, req *connect.Request
 func (s *ConnectService) SaveDeployTarget(_ context.Context, req *connect.Request[domainv1.SaveDeployTargetRequest]) (*connect.Response[domainv1.SaveDeployTargetResponse], error) {
 	target := req.Msg.GetTarget()
 	if target == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("deploy target is required"))
+		return nil, deployError(connect.CodeInvalidArgument, domainerrors.CodeValidation, "deploy target is required", nil, domainerrors.RecoveryFixInput)
 	}
 	value, err := deployTargetFromProto(target)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, deployError(connect.CodeInvalidArgument, domainerrors.CodeValidation, "deploy target is invalid", err, domainerrors.RecoveryFixInput)
 	}
 	if err := s.handler.repo.Save(target.GetName(), value); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save deploy target: %w", err))
+		return nil, deployError(connect.CodeInternal, domainerrors.CodeInternal, "save deploy target", err, domainerrors.RecoveryRetry)
 	}
 	return connect.NewResponse(&domainv1.SaveDeployTargetResponse{Target: deployTargetToProto(target.GetName(), value)}), nil
 }
@@ -77,23 +80,23 @@ func (s *ConnectService) TestDeployTarget(ctx context.Context, req *connect.Requ
 		return nil, deployTargetError("get deploy target", err)
 	}
 	if target.ScenarioName == "" || target.RemoteProfile == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("target missing required fields"))
+		return nil, deployError(connect.CodeInvalidArgument, domainerrors.CodeValidation, "target missing required fields", nil, domainerrors.RecoveryFixInput)
 	}
 	secret := sharedenv.ResolveSecretWithSource("LPBS_SERVICE_SECRET")
 	if strings.TrimSpace(secret.Value) == "" {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("%s", missingScenarioToDesktopSecretMessage()))
+		return nil, deployError(connect.CodeFailedPrecondition, domainerrors.CodeUnauthorized, missingScenarioToDesktopSecretMessage(), nil, domainerrors.RecoveryProvideCredentials)
 	}
 	client := NewLPBSClient(target.ScenarioName, secret.Value)
 	if err := client.TestRemoteProfile(ctx, target.RemoteProfile); err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("remote profile %q session test failed: %w", target.RemoteProfile, err))
+		return nil, deployError(connect.CodeFailedPrecondition, domainerrors.CodeUnavailable, fmt.Sprintf("remote profile %q session test failed", target.RemoteProfile), err, domainerrors.RecoveryRetryWithBackoff)
 	}
 	if req.Msg.GetRequireServiceAuth() {
 		status, err := client.GetServiceAuthStatus(ctx)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeUnavailable, err)
+			return nil, deployError(connect.CodeUnavailable, domainerrors.CodeUnavailable, "check service authentication", err, domainerrors.RecoveryRetryWithBackoff)
 		}
 		if status == nil || !status.ServiceAuthConfigured {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("service auth is not configured in %s runtime", target.ScenarioName))
+			return nil, deployError(connect.CodeFailedPrecondition, domainerrors.CodeUnauthorized, fmt.Sprintf("service auth is not configured in %s runtime", target.ScenarioName), nil, domainerrors.RecoveryProvideCredentials)
 		}
 	}
 	return connect.NewResponse(&domainv1.TestDeployTargetResponse{Target: deployTargetToProto(req.Msg.GetName(), target), ServiceAuthChecked: req.Msg.GetRequireServiceAuth()}), nil
@@ -105,7 +108,7 @@ func (s *ConnectService) DiagnoseDeployTarget(ctx context.Context, req *connect.
 		return nil, deployTargetError("get deploy target", err)
 	}
 	if target.ScenarioName == "" || target.RemoteProfile == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("target missing required fields"))
+		return nil, deployError(connect.CodeInvalidArgument, domainerrors.CodeValidation, "target missing required fields", nil, domainerrors.RecoveryFixInput)
 	}
 	report := runDeployTargetDoctor(ctx, req.Msg.GetName(), target)
 	response := &domainv1.DiagnoseDeployTargetResponse{Target: deployTargetToProto(req.Msg.GetName(), target), Ready: report.Ready, NextSteps: report.NextSteps}
@@ -135,8 +138,15 @@ func deployTargetFromProto(target *domainv1.DeployTarget) (*DeployTarget, error)
 
 func deployTargetError(operation string, err error) error {
 	code := connect.CodeInternal
+	semanticCode := domainerrors.CodeInternal
 	if strings.Contains(err.Error(), "not found") {
 		code = connect.CodeNotFound
+		semanticCode = domainerrors.CodeNotFound
 	}
-	return connect.NewError(code, fmt.Errorf("%s: %w", operation, err))
+	return deployError(code, semanticCode, operation, err, domainerrors.RecoveryFixInput)
+}
+
+func deployError(code connect.Code, semanticCode domainerrors.ErrorCode, message string, cause error, recovery domainerrors.RecoveryAction) error {
+	err := domainerrors.New(semanticCode, message).WithCause(cause).WithRecovery(recovery, "Review the deploy target configuration and retry the operation").InDomain("deploy")
+	return connecterrors.WithEnvelope(connect.NewError(code, err))
 }

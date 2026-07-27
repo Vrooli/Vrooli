@@ -20,8 +20,16 @@ vi.mock("../records/recordPresentation", async (importOriginal) => ({
   presentDesktopRecords: mocks.presentDesktopRecords,
 }));
 vi.mock("../records/AppCard", () => ({
-  AppCard: ({ item, onClick }: { item: DesktopRecordItemView; onClick: () => void }) => (
-    <button type="button" onClick={onClick}>Open {item.record.scenario_name}</button>
+  AppCard: ({
+    item,
+    onClick,
+  }: {
+    item: DesktopRecordItemView;
+    onClick: () => void;
+  }) => (
+    <button type="button" onClick={onClick}>
+      Open {item.record.scenario_name}
+    </button>
   ),
 }));
 vi.mock("../records/AppDetailDrawer", () => ({
@@ -38,7 +46,11 @@ vi.mock("../records/AppDetailDrawer", () => ({
     item: DesktopRecordItemView | null;
     open: boolean;
     onClose: () => void;
-    onMove: (recordId: string, target: "destination" | "custom", path?: string) => void;
+    onMove: (
+      recordId: string,
+      target: "destination" | "custom",
+      path?: string,
+    ) => void;
     onDelete: (scenarioName: string) => void;
     onSwitchTemplate?: (scenarioName: string, templateType?: string) => void;
     onEditSigning?: (scenarioName: string) => void;
@@ -47,15 +59,52 @@ vi.mock("../records/AppDetailDrawer", () => ({
     if (!open || !item) return null;
     const { record } = item;
     return (
-    <section aria-label="Selected desktop app">
-      <p>{record.scenario_name}</p>
-      <button type="button" onClick={() => { onMove(record.id, "destination"); }}>Move selected</button>
-      <button type="button" onClick={() => { onDelete(record.scenario_name); }}>Delete selected</button>
-      <button type="button" onClick={() => { onSwitchTemplate?.(record.scenario_name, "electron"); }}>Switch template</button>
-      <button type="button" onClick={() => { onEditSigning?.(record.scenario_name); }}>Edit signing</button>
-      <button type="button" onClick={() => { onRebuildWithSigning?.(record.scenario_name); }}>Rebuild signing</button>
-      <button type="button" onClick={onClose}>Close drawer</button>
-    </section>
+      <section aria-label="Selected desktop app">
+        <p>{record.scenario_name}</p>
+        <button
+          type="button"
+          onClick={() => {
+            onMove(record.id, "destination");
+          }}
+        >
+          Move selected
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onDelete(record.scenario_name);
+          }}
+        >
+          Delete selected
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onSwitchTemplate?.(record.scenario_name, "electron");
+          }}
+        >
+          Switch template
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onEditSigning?.(record.scenario_name);
+          }}
+        >
+          Edit signing
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onRebuildWithSigning?.(record.scenario_name);
+          }}
+        >
+          Rebuild signing
+        </button>
+        <button type="button" onClick={onClose}>
+          Close drawer
+        </button>
+      </section>
     );
   },
 }));
@@ -82,9 +131,12 @@ describe("RecordsManager", () => {
 
   it("shows loading and empty-record states", async () => {
     let resolveRecords: (value: unknown) => void = () => undefined;
-    mocks.fetchDesktopRecords.mockImplementation(() => new Promise((resolve) => {
-      resolveRecords = resolve;
-    }));
+    mocks.fetchDesktopRecords.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRecords = resolve;
+        }),
+    );
     render(<RecordsManager />);
     expect(screen.getByText("Loading generated apps…")).toBeInTheDocument();
     resolveRecords({});
@@ -92,7 +144,9 @@ describe("RecordsManager", () => {
   });
 
   it("shows a records retrieval failure", async () => {
-    mocks.fetchDesktopRecords.mockRejectedValue(new Error("records unavailable"));
+    mocks.fetchDesktopRecords.mockRejectedValue(
+      new Error("records unavailable"),
+    );
     render(<RecordsManager />);
     expect(await screen.findByText("records unavailable")).toBeInTheDocument();
   });
@@ -112,10 +166,14 @@ describe("RecordsManager", () => {
 
     await screen.findAllByRole("button", { name: "Open canvas-lab" });
     expect(screen.getByText("1")).toBeInTheDocument();
-    const [firstCard] = screen.getAllByRole("button", { name: "Open canvas-lab" });
+    const [firstCard] = screen.getAllByRole("button", {
+      name: "Open canvas-lab",
+    });
     if (!firstCard) throw new Error("Expected a desktop record card");
     fireEvent.click(firstCard);
-    expect(screen.getByRole("region", { name: "Selected desktop app" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Selected desktop app" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Move selected" }));
     await waitFor(() => {
@@ -138,7 +196,9 @@ describe("RecordsManager", () => {
       expect(mocks.deleteDesktopBuild).toHaveBeenCalledWith("canvas-lab");
     });
     await waitFor(() => {
-      expect(screen.queryByRole("region", { name: "Selected desktop app" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("region", { name: "Selected desktop app" }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -152,12 +212,16 @@ describe("RecordsManager", () => {
     await waitFor(() => {
       expect(mocks.fetchDesktopRecords).toHaveBeenCalledTimes(2);
     });
-    const [firstCard] = screen.getAllByRole("button", { name: "Open canvas-lab" });
+    const [firstCard] = screen.getAllByRole("button", {
+      name: "Open canvas-lab",
+    });
     if (!firstCard) throw new Error("Expected a desktop record card");
     fireEvent.click(firstCard);
     fireEvent.click(screen.getByRole("button", { name: "Move selected" }));
     expect(await screen.findByText("move unavailable")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close drawer" }));
-    expect(screen.queryByRole("region", { name: "Selected desktop app" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Selected desktop app" }),
+    ).not.toBeInTheDocument();
   });
 });

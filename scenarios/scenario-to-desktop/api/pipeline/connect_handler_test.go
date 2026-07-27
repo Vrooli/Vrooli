@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/generation"
@@ -213,6 +214,50 @@ func TestConnectServiceGetActiveReturnsExistingPipelineWithoutCreating(t *testin
 	}
 }
 
+func TestConnectServiceGetAndStartActiveCoverManagerLifecycle(t *testing.T) {
+	t.Run("empty active slot", func(t *testing.T) {
+		index, err := NewScenarioIndexStore(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		service := NewConnectService(NewHandler(WithManager(NewManager(
+			WithManagerOrchestrator(&mockOrchestrator{}),
+			WithManagerIndexStore(index),
+		))))
+		response, err := service.GetActive(context.Background(), connect.NewRequest(&pipelinev1.GetActivePipelineRequest{ScenarioName: "demo"}))
+		if err != nil || response.Msg.GetPipeline() != nil || response.Msg.GetCreated() {
+			t.Fatalf("empty GetActive = %#v, %v", response.Msg, err)
+		}
+	})
+
+	t.Run("auto creates and starts idle pipeline", func(t *testing.T) {
+		index, err := NewScenarioIndexStore(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		orchestrator := &mockOrchestrator{
+			createResult: &Status{PipelineID: "idle-1", Status: StatusIdle},
+			startResult:  &Status{PipelineID: "idle-1", ScenarioName: "demo", Status: StatusRunning},
+		}
+		manager := NewManager(WithManagerOrchestrator(orchestrator), WithManagerIndexStore(index))
+		service := NewConnectService(NewHandler(WithManager(manager)))
+		active, err := service.GetActive(context.Background(), connect.NewRequest(&pipelinev1.GetActivePipelineRequest{ScenarioName: "demo", AutoCreate: true}))
+		if err != nil || !active.Msg.GetCreated() || active.Msg.GetPipeline().GetPipelineId() != "idle-1" {
+			t.Fatalf("auto GetActive = %#v, %v", active.Msg, err)
+		}
+		started, err := service.StartActive(context.Background(), connect.NewRequest(&pipelinev1.StartActivePipelineRequest{
+			ScenarioName:    "demo",
+			ConfigOverrides: &pipelinev1.PipelineConfig{Platforms: []sharedv1.Platform{sharedv1.Platform_PLATFORM_LINUX}},
+		}))
+		if err != nil || started.Msg.GetPipeline().GetStatus() != sharedv1.StageStatus_STAGE_STATUS_RUNNING || started.Msg.GetMessage() != "Active pipeline started" {
+			t.Fatalf("StartActive = %#v, %v", started.Msg, err)
+		}
+		if orchestrator.updatedConfig == nil || len(orchestrator.updatedConfig.Platforms) != 1 {
+			t.Fatalf("StartActive did not pass configuration overrides: %#v", orchestrator.updatedConfig)
+		}
+	})
+}
+
 func TestConnectServiceCleanBundleRejectsMissingStagingPipelineID(t *testing.T) {
 	service := NewConnectService(NewHandler())
 	_, err := service.CleanBundle(context.Background(), connect.NewRequest(&pipelinev1.BundleCleanRequest{
@@ -221,5 +266,123 @@ func TestConnectServiceCleanBundleRejectsMissingStagingPipelineID(t *testing.T) 
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("error code = %v, want invalid argument (err=%v)", connect.CodeOf(err), err)
+	}
+}
+
+func TestConnectServiceCancelReportsRequestedCompletedAndUnavailableStates(t *testing.T) {
+	t.Run("requested", func(t *testing.T) {
+		service := NewConnectService(NewHandler(WithOrchestrator(&mockOrchestrator{cancelSuccess: true})))
+		response, err := service.Cancel(context.Background(), connect.NewRequest(&pipelinev1.PipelineCancelRequest{PipelineId: "running"}))
+		if err != nil || response.Msg.GetStatus() != "cancelling" {
+			t.Fatalf("cancel response = %#v, %v", response, err)
+		}
+	})
+	t.Run("already complete", func(t *testing.T) {
+		service := NewConnectService(NewHandler(WithOrchestrator(&mockOrchestrator{
+			getResult: &Status{PipelineID: "done", Status: StatusCompleted}, getFound: true,
+		})))
+		response, err := service.Cancel(context.Background(), connect.NewRequest(&pipelinev1.PipelineCancelRequest{PipelineId: "done"}))
+		if err != nil || response.Msg.GetStatus() != StatusCompleted || response.Msg.GetMessage() != "Pipeline has already completed" {
+			t.Fatalf("completed cancel response = %#v, %v", response, err)
+		}
+	})
+	t.Run("not found and not cancellable", func(t *testing.T) {
+		notFound := NewConnectService(NewHandler(WithOrchestrator(&mockOrchestrator{})))
+		_, err := notFound.Cancel(context.Background(), connect.NewRequest(&pipelinev1.PipelineCancelRequest{PipelineId: "missing"}))
+		if connect.CodeOf(err) != connect.CodeNotFound {
+			t.Fatalf("not found code = %v", connect.CodeOf(err))
+		}
+		active := NewConnectService(NewHandler(WithOrchestrator(&mockOrchestrator{getResult: &Status{Status: StatusRunning}, getFound: true})))
+		_, err = active.Cancel(context.Background(), connect.NewRequest(&pipelinev1.PipelineCancelRequest{PipelineId: "active"}))
+		if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			t.Fatalf("active code = %v", connect.CodeOf(err))
+		}
+	})
+}
+
+func TestConnectServiceRunAndResumeMapDomainErrorsToContractCodes(t *testing.T) {
+	config := &pipelinev1.PipelineConfig{ScenarioName: "example", Platforms: []sharedv1.Platform{sharedv1.Platform_PLATFORM_LINUX}}
+	for _, test := range []struct {
+		name string
+		err  error
+		code connect.Code
+	}{
+		{"invalid", errors.New("invalid configuration"), connect.CodeInvalidArgument},
+		{"missing", errors.New("pipeline not found"), connect.CodeNotFound},
+		{"completed", errors.New("already completed"), connect.CodeFailedPrecondition},
+		{"internal", errors.New("backend unavailable"), connect.CodeInternal},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			service := NewConnectService(NewHandler(WithOrchestrator(&mockOrchestrator{runError: test.err, resumeError: test.err})))
+			_, err := service.Run(context.Background(), connect.NewRequest(&pipelinev1.PipelineRunRequest{Config: config}))
+			if connect.CodeOf(err) != test.code {
+				t.Fatalf("Run code = %v, want %v", connect.CodeOf(err), test.code)
+			}
+			_, err = service.Resume(context.Background(), connect.NewRequest(&pipelinev1.PipelineResumeRequest{PipelineId: "prior", Config: config}))
+			if connect.CodeOf(err) != test.code {
+				t.Fatalf("Resume code = %v, want %v", connect.CodeOf(err), test.code)
+			}
+		})
+	}
+}
+
+func TestPipelineConfigProtoRoundTripPreservesExplicitControls(t *testing.T) {
+	stop := true
+	config := &Config{
+		ScenarioName: "example", Platforms: []string{"linux", "mac"}, Framework: FrameworkElectron,
+		DeploymentMode: DeploymentModeProxy, TemplateType: "advanced", SkipPreflight: true, SkipSmokeTest: true,
+		StopOnFailure: &stop, WebhookURL: "https://hooks.example.test", ProxyURL: "http://proxy.example.test",
+		BundleManifestPath: "bundle.json", ResourceArtifactRoot: "resources", LocationMode: "staging", Clean: true,
+		Sign: true, Publish: true, Version: "1.2.3", PreflightTimeoutSeconds: 45, StopAfterStage: StageBuild,
+		ResumeFromStage: StagePreflight, ParentPipelineID: "parent", IdempotencyKey: "key", Stages: []string{StageBundle, StageBuild},
+	}
+	value, err := configFromProto(configToProto(config))
+	if err != nil {
+		t.Fatalf("config round trip: %v", err)
+	}
+	if value.DeploymentMode != DeploymentModeProxy || !value.SkipPreflight || !value.Clean || value.StopAfterStage != StageBuild || value.IdempotencyKey != "key" || len(value.Platforms) != 2 {
+		t.Fatalf("round-tripped config = %#v", value)
+	}
+}
+
+func TestConnectServiceActivePipelineLifecycleContracts(t *testing.T) {
+	index, err := NewScenarioIndexStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new index: %v", err)
+	}
+	if err := index.SetActivePipeline("example", "old"); err != nil {
+		t.Fatalf("seed active index: %v", err)
+	}
+	orchestrator := &mockOrchestrator{
+		createResult: &Status{PipelineID: "new", ScenarioName: "example", Status: StatusIdle},
+		getResult:    &Status{PipelineID: "old", ScenarioName: "example", Status: StatusCompleted},
+		getFound:     true,
+	}
+	service := NewConnectService(NewHandler(WithManager(NewManager(
+		WithManagerOrchestrator(orchestrator), WithManagerIndexStore(index),
+	))))
+
+	created, err := service.CreateActive(context.Background(), connect.NewRequest(&pipelinev1.CreatePipelineRequest{
+		ScenarioName: "example", Config: &pipelinev1.PipelineConfig{TemplateType: sharedv1.TemplateType_TEMPLATE_TYPE_ADVANCED},
+	}))
+	if err != nil {
+		t.Fatalf("CreateActive: %v", err)
+	}
+	if created.Msg.GetPipeline().GetPipelineId() != "new" || created.Msg.GetArchivedPipelineId() != "old" {
+		t.Fatalf("create response = %#v", created.Msg)
+	}
+
+	limit := int32(10)
+	history, err := service.GetHistory(context.Background(), connect.NewRequest(&pipelinev1.PipelineHistoryRequest{ScenarioName: "example", Limit: &limit}))
+	if err != nil || history.Msg.GetTotal() != 1 || len(history.Msg.GetPipelines()) != 1 {
+		t.Fatalf("history response = %#v, %v", history, err)
+	}
+
+	reset, err := service.ResetActive(context.Background(), connect.NewRequest(&pipelinev1.ScenarioPipelineRequest{ScenarioName: "example"}))
+	if err != nil || !reset.Msg.GetCleared() || reset.Msg.GetArchivedPipelineId() != "new" {
+		t.Fatalf("reset response = %#v, %v", reset, err)
+	}
+	if status, ok := NewManager(WithManagerOrchestrator(orchestrator), WithManagerIndexStore(index)).GetActivePipelineStatus("example"); ok || status != nil {
+		t.Fatalf("active pipeline remains after reset: %#v", status)
 	}
 }

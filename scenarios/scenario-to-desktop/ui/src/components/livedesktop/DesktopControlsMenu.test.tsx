@@ -154,9 +154,12 @@ describe("DesktopControlsMenu", () => {
     fireEvent.click(screen.getByText("Controls"));
 
     fireEvent.click(screen.getByText("Env Variables..."));
-    fireEvent.change(screen.getByRole("textbox", { name: "Environment variables" }), {
-      target: { value: "ONE=1\nINVALID\n TWO = two " },
-    });
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Environment variables" }),
+      {
+        target: { value: "ONE=1\nINVALID\n TWO = two " },
+      },
+    );
     fireEvent.click(screen.getByText("Inject"));
     await waitFor(() => {
       expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
@@ -166,9 +169,12 @@ describe("DesktopControlsMenu", () => {
     });
 
     fireEvent.click(screen.getByText("Write Clipboard..."));
-    fireEvent.change(screen.getByRole("textbox", { name: "Clipboard content" }), {
-      target: { value: "desktop evidence" },
-    });
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Clipboard content" }),
+      {
+        target: { value: "desktop evidence" },
+      },
+    );
     fireEvent.click(screen.getByText("Write"));
     await waitFor(() => {
       expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
@@ -190,7 +196,9 @@ describe("DesktopControlsMenu", () => {
     });
 
     fireEvent.click(screen.getByText("Slow Connection"));
-    fireEvent.change(screen.getByLabelText("Bandwidth limit"), { target: { value: "512" } });
+    fireEvent.change(screen.getByLabelText("Bandwidth limit"), {
+      target: { value: "512" },
+    });
     fireEvent.click(screen.getByText("Apply"));
     await waitFor(() => {
       expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
@@ -214,17 +222,39 @@ describe("DesktopControlsMenu", () => {
     fireEvent.click(screen.getByText("Offline Mode"));
     fireEvent.click(screen.getByText("Slow Connection"));
     fireEvent.click(screen.getByText("Resize Display..."));
-    fireEvent.change(screen.getByLabelText("Desktop width"), { target: { value: "1600" } });
-    fireEvent.change(screen.getByLabelText("Desktop height"), { target: { value: "1000" } });
+    fireEvent.change(screen.getByLabelText("Desktop width"), {
+      target: { value: "1600" },
+    });
+    fireEvent.change(screen.getByLabelText("Desktop height"), {
+      target: { value: "1000" },
+    });
     fireEvent.click(screen.getByText("Apply"));
 
     await waitFor(() => {
-      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", { action: "quit_app", params: undefined });
-      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", { action: "screenshot", params: undefined });
-      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", { action: "stop_recording", params: undefined });
-      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", { action: "offline_mode", params: { enabled: true } });
-      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", { action: "slow_connection", params: { enabled: false } });
-      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", { action: "resize_display", params: { width: 1600, height: 1000 } });
+      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
+        action: "quit_app",
+        params: undefined,
+      });
+      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
+        action: "screenshot",
+        params: undefined,
+      });
+      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
+        action: "stop_recording",
+        params: undefined,
+      });
+      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
+        action: "offline_mode",
+        params: { enabled: true },
+      });
+      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
+        action: "slow_connection",
+        params: { enabled: false },
+      });
+      expect(executeDesktopControl).toHaveBeenCalledWith("test-session", {
+        action: "resize_display",
+        params: { width: 1600, height: 1000 },
+      });
     });
     mockState.activeSession.appRunning = false;
     mockState.activeSession.recording = false;

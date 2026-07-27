@@ -1,6 +1,11 @@
 package generation
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
+	"scenario-to-desktop-api/signing"
+	"strings"
 	"testing"
 	"time"
 )
@@ -366,5 +371,133 @@ func TestScenarioRoot(t *testing.T) {
 
 	if path != expected {
 		t.Errorf("expected %q, got %q", expected, path)
+	}
+}
+
+type recordingIconSyncer struct {
+	err   error
+	calls int
+}
+
+func (s *recordingIconSyncer) SyncIcons(_ string, _ string, _ func(string, map[string]interface{})) error {
+	s.calls++
+	return s.err
+}
+
+type recordingBundlePackager struct {
+	result *BundlePackageResult
+	err    error
+	calls  int
+}
+
+func (p *recordingBundlePackager) Package(_ string, _ string, _ []string) (*BundlePackageResult, error) {
+	p.calls++
+	return p.result, p.err
+}
+
+func TestPostGenerateStepsCapturesIconWarningsAndBundleMetadata(t *testing.T) {
+	iconSyncer := &recordingIconSyncer{err: errors.New("icon unavailable")}
+	packager := &recordingBundlePackager{result: &BundlePackageResult{
+		BundleDir: "bundle", ManifestPath: "bundle.json", RuntimeBinaries: []string{"runtime"}, TotalSizeBytes: 42, TotalSizeHuman: "42 B",
+		SizeWarning: &SizeWarning{Level: "warn", Message: "large bundle"},
+	}}
+	service := NewService(WithIconSyncer(iconSyncer), WithBundlePackager(packager))
+	status := &BuildStatus{Status: "ready", Metadata: map[string]interface{}{}, BuildLog: []string{}}
+	service.postGenerateSteps(&DesktopConfig{ScenarioName: "demo", OutputPath: "out", DeploymentMode: "bundled", BundleManifestPath: "bundle.json", Platforms: []string{"linux"}}, status)
+	if iconSyncer.calls != 1 || packager.calls != 1 || status.Status != "ready" || status.Metadata["bundle_dir"] != "bundle" || !strings.Contains(strings.Join(status.BuildLog, "\n"), "Icon sync warning") {
+		t.Fatalf("post generation status = %#v; icon=%d package=%d", status, iconSyncer.calls, packager.calls)
+	}
+
+	packager.err = errors.New("package failed")
+	failed := &BuildStatus{Status: "ready", Metadata: map[string]interface{}{}}
+	service.postGenerateSteps(&DesktopConfig{DeploymentMode: "bundled", BundleManifestPath: "bundle.json"}, failed)
+	if failed.Status != "failed" || len(failed.ErrorLog) != 1 {
+		t.Fatalf("bundle failure status = %#v", failed)
+	}
+}
+
+func TestWriteConfigFileProducesInspectableJSON(t *testing.T) {
+	builds := newMockBuildStore()
+	builds.Create("build")
+	service := NewService(WithBuildStore(builds))
+	path, err := service.writeConfigFile("build", &DesktopConfig{AppName: "demo", Features: map[string]interface{}{"offline": true}})
+	if err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Remove(path) })
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.Contains(string(data), `"app_name": "demo"`) {
+		t.Fatalf("config content = %s, %v", data, err)
+	}
+	if filepath.Base(path) != "desktop-config-build.json" {
+		t.Fatalf("config path = %q", path)
+	}
+}
+
+func TestGenerateRecordsTemplateGeneratorSuccessAndFailure(t *testing.T) {
+	builds := newMockBuildStore()
+	iconSyncer := &recordingIconSyncer{}
+	templateDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(templateDir, "build-tools", "dist"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "build-tools", "dist", "template-generator.js"), []byte("// fixture"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	binDir := t.TempDir()
+	writeNodeFixture(t, binDir, "printf 'generated %s\\n' \"$1\"")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	service := NewService(WithTemplateDir(templateDir), WithBuildStore(builds), WithIconSyncer(iconSyncer))
+	builds.Create("success")
+	output := t.TempDir()
+	service.Generate("success", &DesktopConfig{ScenarioName: "demo", AppName: "demo", OutputPath: output})
+	status, ok := builds.Get("success")
+	if !ok || status.Status != "ready" || status.Artifacts["output_path"] != output || status.CompletedAt == nil || iconSyncer.calls != 1 {
+		t.Fatalf("successful generation status = %#v; icon calls=%d", status, iconSyncer.calls)
+	}
+	if !strings.Contains(strings.Join(status.BuildLog, "\n"), "generated") {
+		t.Fatalf("generator output was not retained: %#v", status.BuildLog)
+	}
+
+	failureBinDir := t.TempDir()
+	writeNodeFixture(t, failureBinDir, "echo generator-failed >&2; exit 7")
+	t.Setenv("PATH", failureBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	builds.Create("failed")
+	service.Generate("failed", &DesktopConfig{ScenarioName: "demo", AppName: "demo", OutputPath: output})
+	status, ok = builds.Get("failed")
+	if !ok || status.Status != "failed" || status.CompletedAt == nil || len(status.ErrorLog) < 2 || !strings.Contains(strings.Join(status.ErrorLog, "\n"), "generator-failed") {
+		t.Fatalf("failed generation status = %#v", status)
+	}
+}
+
+func TestGenerateSigningArtifactsIsNoOpWhenDisabledAndWritesMacOSFiles(t *testing.T) {
+	service := NewService()
+	if err := service.generateSigningArtifacts(&DesktopConfig{}); err != nil {
+		t.Fatalf("disabled signing generated an error: %v", err)
+	}
+	if err := service.generateSigningArtifacts(&DesktopConfig{CodeSigning: &signing.SigningConfig{Enabled: true}}); err == nil || !strings.Contains(err.Error(), "output path not set") {
+		t.Fatalf("missing output path error = %v", err)
+	}
+	output := t.TempDir()
+	config := &DesktopConfig{OutputPath: output, CodeSigning: &signing.SigningConfig{
+		Enabled: true,
+		MacOS:   &signing.MacOSSigningConfig{},
+	}}
+	if err := service.generateSigningArtifacts(config); err != nil {
+		t.Fatalf("generate macOS signing artifacts: %v", err)
+	}
+	if config.CodeSigning.MacOS.EntitlementsFile != "entitlements.mac.plist" {
+		t.Fatalf("default entitlements path = %q", config.CodeSigning.MacOS.EntitlementsFile)
+	}
+	if _, err := os.Stat(filepath.Join(output, "entitlements.mac.plist")); err != nil {
+		t.Fatalf("entitlements artifact missing: %v", err)
+	}
+}
+
+func writeNodeFixture(t *testing.T, directory, body string) {
+	t.Helper()
+	path := filepath.Join(directory, "node")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+		t.Fatal(err)
 	}
 }

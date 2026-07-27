@@ -1,0 +1,18 @@
+# Scenario-local configuration, automatically loaded when gitleaks runs from
+# this scenario root (including Security Health's scanner invocation).
+#
+# Default detection remains enabled. The allowlist is deliberately path-scoped
+# to generated or test-only material that was independently reviewed and does
+# not contain credentials. See docs/internal/PROBLEMS.md for the full triage.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed generated artifacts and public test fixtures; no credential values"
+paths = [
+  '''^\.build-fingerprint\.json$''',
+  '''^\.vrooli/secrets\.json$''',
+  '''^coverage/logs/''',
+  '''^api/signing/validation/prerequisites_test\.go$''',
+]

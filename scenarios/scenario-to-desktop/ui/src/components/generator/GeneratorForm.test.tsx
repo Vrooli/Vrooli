@@ -23,9 +23,17 @@ vi.mock(".", () => ({
     onLoadSaved?: () => void;
   }) => (
     <>
-      <button type="button" onClick={onUnlock}>Scenario: {scenarioName}</button>
-      <button type="button" onClick={onOpenScenarioModal}>Choose scenario</button>
-      {onLoadSaved && <button type="button" onClick={onLoadSaved}>Load saved connection</button>}
+      <button type="button" onClick={onUnlock}>
+        Scenario: {scenarioName}
+      </button>
+      <button type="button" onClick={onOpenScenarioModal}>
+        Choose scenario
+      </button>
+      {onLoadSaved && (
+        <button type="button" onClick={onLoadSaved}>
+          Load saved connection
+        </button>
+      )}
     </>
   ),
   AppMetadataSection: ({ appDisplayName }: { appDisplayName: string }) => (
@@ -39,9 +47,42 @@ vi.mock(".", () => ({
     selectedTemplate: string;
     onOpenFrameworkModal: () => void;
     onOpenTemplateModal: () => void;
-  }) => <><div>Template: {selectedTemplate}</div><button type="button" onClick={onOpenFrameworkModal}>Choose framework</button><button type="button" onClick={onOpenTemplateModal}>Choose template</button></>,
-  SigningInlineSection: ({ onOpenSigning, onToggleSigning, onRefresh }: { onOpenSigning: () => void; onToggleSigning: (enabled: boolean) => void; onRefresh: () => void }) => (
-    <><button type="button" onClick={onOpenSigning}>Open signing</button><button type="button" onClick={() => { onToggleSigning(true); }}>Enable build signing</button><button type="button" onClick={onRefresh}>Refresh signing</button></>
+  }) => (
+    <>
+      <div>Template: {selectedTemplate}</div>
+      <button type="button" onClick={onOpenFrameworkModal}>
+        Choose framework
+      </button>
+      <button type="button" onClick={onOpenTemplateModal}>
+        Choose template
+      </button>
+    </>
+  ),
+  SigningInlineSection: ({
+    onOpenSigning,
+    onToggleSigning,
+    onRefresh,
+  }: {
+    onOpenSigning: () => void;
+    onToggleSigning: (enabled: boolean) => void;
+    onRefresh: () => void;
+  }) => (
+    <>
+      <button type="button" onClick={onOpenSigning}>
+        Open signing
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onToggleSigning(true);
+        }}
+      >
+        Enable build signing
+      </button>
+      <button type="button" onClick={onRefresh}>
+        Refresh signing
+      </button>
+    </>
   ),
   OutputLocationSelector: ({
     onChange,
@@ -67,15 +108,113 @@ vi.mock(".", () => ({
       </button>
     </>
   ),
-  OutputPathField: ({ outputPath, onOutputPathChange }: { outputPath: string; onOutputPathChange: (value: string) => void }) => (
-    <button type="button" onClick={() => { onOutputPathChange("/custom/output"); }}>Output: {outputPath}</button>
+  OutputPathField: ({
+    outputPath,
+    onOutputPathChange,
+  }: {
+    outputPath: string;
+    onOutputPathChange: (value: string) => void;
+  }) => (
+    <button
+      type="button"
+      onClick={() => {
+        onOutputPathChange("/custom/output");
+      }}
+    >
+      Output: {outputPath}
+    </button>
   ),
-  PlatformSelector: ({ onPlatformChange }: { onPlatformChange: (platform: string) => void }) => <button type="button" onClick={() => { onPlatformChange("win"); }}>Platform selection</button>,
-  DeploymentSummarySection: ({ onOpenDeploymentModal }: { onOpenDeploymentModal: () => void }) => <button type="button" onClick={onOpenDeploymentModal}>Deployment summary</button>,
-  ConnectionSectionRouter: ({ onProxyUrlChange, onAutoManageTier1Change, onVrooliBinaryPathChange, onServerPortChange, onLocalServerPathChange, onLocalApiEndpointChange }: { onProxyUrlChange: (value: string) => void; onAutoManageTier1Change: (value: boolean) => void; onVrooliBinaryPathChange: (value: string) => void; onServerPortChange: (value: number) => void; onLocalServerPathChange: (value: string) => void; onLocalApiEndpointChange: (value: string) => void }) => <><button type="button" onClick={() => { onProxyUrlChange("https://remote.example"); }}>Connection selection</button><button type="button" onClick={() => { onAutoManageTier1Change(false); onVrooliBinaryPathChange("/bin/vrooli"); onServerPortChange(4000); onLocalServerPathChange("api/main.js"); onLocalApiEndpointChange("http://127.0.0.1:4000"); }}>Change runtime</button></>,
+  PlatformSelector: ({
+    onPlatformChange,
+  }: {
+    onPlatformChange: (platform: string) => void;
+  }) => (
+    <button
+      type="button"
+      onClick={() => {
+        onPlatformChange("win");
+      }}
+    >
+      Platform selection
+    </button>
+  ),
+  DeploymentSummarySection: ({
+    onOpenDeploymentModal,
+  }: {
+    onOpenDeploymentModal: () => void;
+  }) => (
+    <button type="button" onClick={onOpenDeploymentModal}>
+      Deployment summary
+    </button>
+  ),
+  ConnectionSectionRouter: ({
+    onProxyUrlChange,
+    onAutoManageTier1Change,
+    onVrooliBinaryPathChange,
+    onServerPortChange,
+    onLocalServerPathChange,
+    onLocalApiEndpointChange,
+  }: {
+    onProxyUrlChange: (value: string) => void;
+    onAutoManageTier1Change: (value: boolean) => void;
+    onVrooliBinaryPathChange: (value: string) => void;
+    onServerPortChange: (value: number) => void;
+    onLocalServerPathChange: (value: string) => void;
+    onLocalApiEndpointChange: (value: string) => void;
+  }) => (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          onProxyUrlChange("https://remote.example");
+        }}
+      >
+        Connection selection
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onAutoManageTier1Change(false);
+          onVrooliBinaryPathChange("/bin/vrooli");
+          onServerPortChange(4000);
+          onLocalServerPathChange("api/main.js");
+          onLocalApiEndpointChange("http://127.0.0.1:4000");
+        }}
+      >
+        Change runtime
+      </button>
+    </>
+  ),
   GeneratorFormHeader: () => <div>Form status</div>,
   GeneratorFormFooter: () => <button type="submit">Generate</button>,
-  GeneratorModalsContainer: ({ onScenarioSelect, onTemplateSelect, onFrameworkSelect, onDeploymentChange, closeModal }: { onScenarioSelect: (name: string) => void; onTemplateSelect: (name: string) => void; onFrameworkSelect: (framework: string) => void; onDeploymentChange: (mode: string, serverType?: string) => void; closeModal: (modal: string) => void }) => <><button type="button" onClick={() => { onScenarioSelect("other"); onTemplateSelect("minimal"); onFrameworkSelect("electron"); onDeploymentChange("bundled", "node"); closeModal("scenario"); }}>Configuration modals</button></>,
+  GeneratorModalsContainer: ({
+    onScenarioSelect,
+    onTemplateSelect,
+    onFrameworkSelect,
+    onDeploymentChange,
+    closeModal,
+  }: {
+    onScenarioSelect: (name: string) => void;
+    onTemplateSelect: (name: string) => void;
+    onFrameworkSelect: (framework: string) => void;
+    onDeploymentChange: (mode: string, serverType?: string) => void;
+    closeModal: (modal: string) => void;
+  }) => (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          onScenarioSelect("other");
+          onTemplateSelect("minimal");
+          onFrameworkSelect("electron");
+          onDeploymentChange("bundled", "node");
+          closeModal("scenario");
+        }}
+      >
+        Configuration modals
+      </button>
+    </>
+  ),
 }));
 
 function state(overrides: Record<string, unknown> = {}) {
@@ -214,30 +353,54 @@ describe("GeneratorForm", () => {
 
   it("wires generator configuration controls to their owning state transitions", () => {
     const current = state({
-      selectedScenario: { connection_config: { proxy_url: "https://saved.example" } },
+      selectedScenario: {
+        connection_config: { proxy_url: "https://saved.example" },
+      },
     });
     useGeneratorFormStateMock.mockReturnValue(current);
     const onTemplateChange = vi.fn();
     const onScenarioNameChange = vi.fn();
-    render(<GeneratorForm selectedTemplate="react-vite" onTemplateChange={onTemplateChange} scenarioName="secrets-manager" onScenarioNameChange={onScenarioNameChange} onOpenSigningTab={vi.fn()} />);
+    render(
+      <GeneratorForm
+        selectedTemplate="react-vite"
+        onTemplateChange={onTemplateChange}
+        scenarioName="secrets-manager"
+        onScenarioNameChange={onScenarioNameChange}
+        onOpenSigningTab={vi.fn()}
+      />,
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "Scenario: secrets-manager" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Scenario: secrets-manager" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Choose scenario" }));
-    fireEvent.click(screen.getByRole("button", { name: "Load saved connection" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load saved connection" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Choose framework" }));
     fireEvent.click(screen.getByRole("button", { name: "Choose template" }));
     fireEvent.click(screen.getByRole("button", { name: "Choose deployment" }));
-    fireEvent.click(screen.getByRole("button", { name: "Connection selection" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Connection selection" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Change runtime" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Windows" }));
-    fireEvent.click(screen.getByRole("button", { name: "Enable build signing" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enable build signing" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Refresh signing" }));
-    fireEvent.click(screen.getByRole("button", { name: "Output: /bundles/secrets-manager" }));
-    fireEvent.click(screen.getByRole("button", { name: "Configuration modals" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Output: /bundles/secrets-manager" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Configuration modals" }),
+    );
 
     expect(current.setScenarioLocked).toHaveBeenCalledWith(false);
     expect(current.openModal).toHaveBeenCalledWith("scenario");
-    expect(current.applySavedConnection).toHaveBeenCalledWith({ proxy_url: "https://saved.example" });
+    expect(current.applySavedConnection).toHaveBeenCalledWith({
+      proxy_url: "https://saved.example",
+    });
     expect(current.openModal).toHaveBeenCalledWith("framework");
     expect(current.openModal).toHaveBeenCalledWith("template");
     expect(current.openModal).toHaveBeenCalledWith("deployment");
@@ -246,7 +409,9 @@ describe("GeneratorForm", () => {
     expect(current.setVrooliBinaryPath).toHaveBeenCalledWith("/bin/vrooli");
     expect(current.setServerPort).toHaveBeenCalledWith(4000);
     expect(current.setLocalServerPath).toHaveBeenCalledWith("api/main.js");
-    expect(current.setLocalApiEndpoint).toHaveBeenCalledWith("http://127.0.0.1:4000");
+    expect(current.setLocalApiEndpoint).toHaveBeenCalledWith(
+      "http://127.0.0.1:4000",
+    );
     expect(current.handlePlatformChange).toHaveBeenCalled();
     expect(current.setSigningEnabledForBuild).toHaveBeenCalledWith(true);
     expect(current.refreshSigning).toHaveBeenCalled();

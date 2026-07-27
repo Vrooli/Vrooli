@@ -1,5 +1,32 @@
 # Known Issues & Problems
 
+## Security scanner triage (2026-07-27)
+
+`gitleaks detect --source . --no-git` is configured through the scenario-local
+`.gitleaks.toml`, which extends (rather than replaces) Gitleaks' default rules.
+The allowlist is deliberately path-scoped and covers only reviewed non-secret
+material:
+
+- `.build-fingerprint.json` is a generated, gitignored map of source hashes.
+- `.vrooli/secrets.json` is a gitignored local-development secret store; it is
+  not tracked and is surfaced by Security Health as an informational observation.
+- `coverage/logs/` contains generated test output, not source or deployable
+  configuration.
+- `api/signing/validation/prerequisites_test.go` uses the public fake GPG key
+  identifier `ABC123DEF456` to exercise missing-key validation; it is not a
+  private key or credential.
+
+Additional reviewed scanner matches remain documented at their source sites:
+the notarization generator references environment-variable names
+`APPLE_API_KEY_ID` and `APPLE_ID_PASSWORD`, lifecycle and stage display-name
+maps contain no values, and test idempotency/validator inputs are synthetic.
+The redaction tests construct an AWS-shaped identifier at runtime so they test
+redaction behavior without embedding a secret-shaped literal in source.
+
+This configuration must not be broadened to whole source trees or rule IDs.
+Any new match requires individual review, a source-level justification where
+appropriate, and an update to this record.
+
 ## Current Issues
 
 ### UI Coverage Floor (OPEN)

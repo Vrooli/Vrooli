@@ -4,7 +4,9 @@ import { SigningBadge } from "./SigningBadge";
 import { renderWithProviders } from "../../test-utils/renderWithProviders";
 
 const mocks = vi.hoisted(() => ({ getSigningReadiness: vi.fn() }));
-vi.mock("../../lib/api/connect", () => ({ signingConnectClient: { getSigningReadiness: mocks.getSigningReadiness } }));
+vi.mock("../../lib/api/connect", () => ({
+  signingConnectClient: { getSigningReadiness: mocks.getSigningReadiness },
+}));
 
 describe("SigningBadge", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -19,11 +21,16 @@ describe("SigningBadge", () => {
     mocks.getSigningReadiness.mockResolvedValue({ ready: true, platforms: [] });
     renderWithProviders(<SigningBadge scenarioName="canvas-lab" />);
     expect(await screen.findByText("Signing ready")).toBeInTheDocument();
-    expect(mocks.getSigningReadiness).toHaveBeenCalledWith({ scenarioName: "canvas-lab" });
+    expect(mocks.getSigningReadiness).toHaveBeenCalledWith({
+      scenarioName: "canvas-lab",
+    });
   });
 
   it("reports a fetched but unavailable signing configuration", async () => {
-    mocks.getSigningReadiness.mockResolvedValue({ ready: false, platforms: [] });
+    mocks.getSigningReadiness.mockResolvedValue({
+      ready: false,
+      platforms: [],
+    });
     renderWithProviders(<SigningBadge scenarioName="canvas-lab" />);
     expect(await screen.findByText("Signing not ready")).toBeInTheDocument();
   });

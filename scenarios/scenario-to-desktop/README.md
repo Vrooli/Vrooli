@@ -19,7 +19,7 @@ Open the generated scenario URL, select a source scenario and Electron template,
 For command discovery, run:
 
 ```bash
-scenario-to-desktop --help
+scenario-to-desktop pipeline active --help
 ```
 
 ## Deployment modes

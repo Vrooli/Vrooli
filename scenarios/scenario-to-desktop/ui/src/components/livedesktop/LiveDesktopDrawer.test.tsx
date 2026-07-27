@@ -9,7 +9,9 @@ vi.mock("./DesktopToolbar", () => ({
   DesktopToolbar: () => <div>Desktop toolbar</div>,
 }));
 vi.mock("./VncCanvas", () => ({
-  VncCanvas: ({ sessionId }: { sessionId: string }) => <div>VNC session {sessionId}</div>,
+  VncCanvas: ({ sessionId }: { sessionId: string }) => (
+    <div>VNC session {sessionId}</div>
+  ),
 }));
 
 describe("LiveDesktopDrawer", () => {
@@ -35,8 +37,12 @@ describe("LiveDesktopDrawer", () => {
   it("starts a Linux session with the chosen dimensions and artifact", async () => {
     render(<LiveDesktopDrawer />);
     expect(screen.getByText("Desktop — canvas-lab")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Width"), { target: { value: "1440" } });
-    fireEvent.change(screen.getByLabelText("Height"), { target: { value: "900" } });
+    fireEvent.change(screen.getByLabelText("Width"), {
+      target: { value: "1440" },
+    });
+    fireEvent.change(screen.getByLabelText("Height"), {
+      target: { value: "900" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Start Session" }));
 
     await waitFor(() => {
@@ -80,11 +86,13 @@ describe("LiveDesktopDrawer", () => {
 
     expect(setError).toHaveBeenCalledWith(null);
     await waitFor(() => {
-      expect(startSession).toHaveBeenCalledWith(expect.objectContaining({
-        scenarioName: "canvas-lab",
-        width: 1280,
-        height: 720,
-      }));
+      expect(startSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scenarioName: "canvas-lab",
+          width: 1280,
+          height: 720,
+        }),
+      );
     });
   });
 

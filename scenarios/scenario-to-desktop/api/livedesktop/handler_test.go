@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"scenario-to-desktop-api/procmetrics"
 	"testing"
 	"time"
@@ -257,4 +259,49 @@ func TestGetSession_IncludesMetricsInView(t *testing.T) {
 	assert.True(t, view.Metrics.ReadyDetected)
 	require.NotNil(t, view.Metrics.ReadyDurationMs)
 	assert.Equal(t, int64(800), *view.Metrics.ReadyDurationMs)
+}
+
+func TestControlActionHTTPValidatesAndExecutesDesktopControls(t *testing.T) {
+	h, svc := newTestHandler()
+	router := newTestRouter(h)
+	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
+	require.NoError(t, err)
+	for _, check := range []struct {
+		body string
+		want int
+	}{
+		{"not json", http.StatusBadRequest},
+		{`{}`, http.StatusBadRequest},
+		{`{"action":"unknown"}`, http.StatusBadRequest},
+		{`{"action":"clipboard_write","params":{"content":"copied"}}`, http.StatusOK},
+		{`{"action":"clipboard_read","params":{}}`, http.StatusOK},
+	} {
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/livedesktop/sessions/%s/control", session.ID), bytes.NewBufferString(check.body))
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		if response.Code != check.want {
+			t.Fatalf("control %s status=%d want=%d body=%s", check.body, response.Code, check.want, response.Body.String())
+		}
+	}
+}
+
+func TestServeFileHTTPRejectsTraversalAndServesSessionFile(t *testing.T) {
+	h, svc := newTestHandler()
+	dataDir := t.TempDir()
+	svc.WithDataDir(dataDir)
+	sessionDir := filepath.Join(dataDir, "sessions", "session-1")
+	require.NoError(t, os.MkdirAll(sessionDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(sessionDir, "capture.png"), []byte("image data"), 0o644))
+	valid := httptest.NewRecorder()
+	h.serveFile(valid, mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/", nil), map[string]string{"id": "session-1", "filename": "capture.png"}))
+	if valid.Code != http.StatusOK || valid.Body.String() != "image data" {
+		t.Fatalf("served file status=%d body=%q", valid.Code, valid.Body.String())
+	}
+	for _, filename := range []string{"../secret", `..\\secret`} {
+		response := httptest.NewRecorder()
+		h.serveFile(response, mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/", nil), map[string]string{"id": "session-1", "filename": filename}))
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("traversal %q status=%d", filename, response.Code)
+		}
+	}
 }

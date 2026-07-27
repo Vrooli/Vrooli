@@ -99,3 +99,42 @@ func TestGenerateKeyPrimitiveUsesEnvironmentReference(t *testing.T) {
 		t.Fatalf("unexpected request %#v", rpc.key)
 	}
 }
+
+func TestSigningLifecyclePrimitivesUseSharedScenarioContract(t *testing.T) {
+	rpc := &fakeSigningRPC{}
+	c := &Commands{rpc: rpc}
+	schema := scenarioSchema("scenario")
+	for name, handler := range map[string]cliapp.PrimitiveHandler{
+		"get":           c.getPrimitive(),
+		"delete":        c.deletePrimitive(),
+		"validate":      c.validatePrimitive(),
+		"ready":         c.readyPrimitive(),
+		"prerequisites": c.prerequisitesPrimitive(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			args := []string{"demo"}
+			primitiveSchema := schema
+			if name == "prerequisites" {
+				args = nil
+				primitiveSchema = cliapp.ArgSchema{}
+			}
+			assertPrimitiveModes(t, handler, primitiveSchema, args)
+		})
+	}
+}
+
+func TestSigningPlatformAcceptsAliasesAndRejectsUnknown(t *testing.T) {
+	for input, want := range map[string]sharedv1.Platform{
+		"win":    sharedv1.Platform_PLATFORM_WIN,
+		"darwin": sharedv1.Platform_PLATFORM_MAC,
+		"linux":  sharedv1.Platform_PLATFORM_LINUX,
+	} {
+		got, err := signingPlatform(input)
+		if err != nil || got != want {
+			t.Fatalf("signingPlatform(%q) = %v, %v; want %v", input, got, err, want)
+		}
+	}
+	if _, err := signingPlatform("ios"); err == nil {
+		t.Fatal("unsupported platform was accepted")
+	}
+}

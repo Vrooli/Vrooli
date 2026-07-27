@@ -41,7 +41,9 @@ describe("PlatformChip", () => {
     const { rerender } = render(
       <PlatformChip platform={Platform.LINUX} scenarioName="demo" />,
     );
-    expect(screen.getByRole("button", { name: "Linux build pending" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Linux build pending" }),
+    ).toBeDisabled();
 
     rerender(
       <PlatformChip
@@ -50,13 +52,17 @@ describe("PlatformChip", () => {
         result={result(PlatformBuildStatus.BUILDING)}
       />,
     );
-    expect(screen.getByRole("button", { name: "Linux build building" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Linux build building" }),
+    ).toBeDisabled();
 
     rerender(
       <PlatformChip
         platform={Platform.LINUX}
         scenarioName="demo"
-        result={result(PlatformBuildStatus.SKIPPED, { skipReason: "Not supported" })}
+        result={result(PlatformBuildStatus.SKIPPED, {
+          skipReason: "Not supported",
+        })}
       />,
     );
     expect(screen.getByText("Not supported")).toBeInTheDocument();
@@ -71,9 +77,13 @@ describe("PlatformChip", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Download Linux build" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Download Linux build" }),
+    );
     expect(mocks.getDownloadUrl).toHaveBeenCalledWith("demo", "linux");
-    expect(mocks.triggerDownload).toHaveBeenCalledWith({ url: "/downloads/demo/linux" });
+    expect(mocks.triggerDownload).toHaveBeenCalledWith({
+      url: "/downloads/demo/linux",
+    });
     expect(screen.getByText("2 KB")).toBeInTheDocument();
   });
 
@@ -82,14 +92,18 @@ describe("PlatformChip", () => {
       <PlatformChip
         platform={Platform.LINUX}
         scenarioName="demo"
-        result={result(PlatformBuildStatus.FAILED, { errorLog: ["first failure", "second failure"] })}
+        result={result(PlatformBuildStatus.FAILED, {
+          errorLog: ["first failure", "second failure"],
+        })}
       />,
     );
 
     expect(screen.getByText("first failure")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     await waitFor(() => {
-      expect(mocks.writeToClipboard).toHaveBeenCalledWith("first failure\n\n---\n\nsecond failure");
+      expect(mocks.writeToClipboard).toHaveBeenCalledWith(
+        "first failure\n\n---\n\nsecond failure",
+      );
     });
     expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
 

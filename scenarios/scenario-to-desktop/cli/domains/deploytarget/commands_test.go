@@ -11,8 +11,12 @@ import (
 )
 
 type fakeRPC struct {
-	saveRequest *domainv1.SaveDeployTargetRequest
-	listCalls   int
+	saveRequest   *domainv1.SaveDeployTargetRequest
+	deleteRequest *domainv1.DeployTargetNameRequest
+	testRequest   *domainv1.TestDeployTargetRequest
+	doctorRequest *domainv1.DeployTargetNameRequest
+	listCalls     int
+	target        *domainv1.DeployTarget
 }
 
 func (f *fakeRPC) ListDeployTargets(context.Context, *connect.Request[domainv1.ListDeployTargetsRequest]) (*connect.Response[domainv1.ListDeployTargetsResponse], error) {
@@ -21,7 +25,7 @@ func (f *fakeRPC) ListDeployTargets(context.Context, *connect.Request[domainv1.L
 }
 
 func (f *fakeRPC) GetDeployTarget(context.Context, *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.GetDeployTargetResponse], error) {
-	return connect.NewResponse(&domainv1.GetDeployTargetResponse{}), nil
+	return connect.NewResponse(&domainv1.GetDeployTargetResponse{Target: f.target}), nil
 }
 
 func (f *fakeRPC) SaveDeployTarget(_ context.Context, request *connect.Request[domainv1.SaveDeployTargetRequest]) (*connect.Response[domainv1.SaveDeployTargetResponse], error) {
@@ -29,16 +33,46 @@ func (f *fakeRPC) SaveDeployTarget(_ context.Context, request *connect.Request[d
 	return connect.NewResponse(&domainv1.SaveDeployTargetResponse{Target: request.Msg.GetTarget()}), nil
 }
 
-func (f *fakeRPC) DeleteDeployTarget(context.Context, *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.DeleteDeployTargetResponse], error) {
-	return connect.NewResponse(&domainv1.DeleteDeployTargetResponse{Deleted: true}), nil
+func (f *fakeRPC) DeleteDeployTarget(_ context.Context, request *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.DeleteDeployTargetResponse], error) {
+	f.deleteRequest = request.Msg
+	return connect.NewResponse(&domainv1.DeleteDeployTargetResponse{Name: request.Msg.GetName(), Deleted: true}), nil
 }
 
-func (f *fakeRPC) TestDeployTarget(context.Context, *connect.Request[domainv1.TestDeployTargetRequest]) (*connect.Response[domainv1.TestDeployTargetResponse], error) {
-	return connect.NewResponse(&domainv1.TestDeployTargetResponse{}), nil
+func (f *fakeRPC) TestDeployTarget(_ context.Context, request *connect.Request[domainv1.TestDeployTargetRequest]) (*connect.Response[domainv1.TestDeployTargetResponse], error) {
+	f.testRequest = request.Msg
+	return connect.NewResponse(&domainv1.TestDeployTargetResponse{Target: f.target, ServiceAuthChecked: request.Msg.GetRequireServiceAuth()}), nil
 }
 
-func (f *fakeRPC) DiagnoseDeployTarget(context.Context, *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.DiagnoseDeployTargetResponse], error) {
-	return connect.NewResponse(&domainv1.DiagnoseDeployTargetResponse{}), nil
+func (f *fakeRPC) DiagnoseDeployTarget(_ context.Context, request *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.DiagnoseDeployTargetResponse], error) {
+	f.doctorRequest = request.Msg
+	return connect.NewResponse(&domainv1.DiagnoseDeployTargetResponse{Target: f.target, Ready: false, Checks: []*domainv1.DeployTargetReadinessCheck{{Name: "profile", Passed: false, Detail: "profile needs login"}}, NextSteps: []string{"log in"}}), nil
+}
+
+func TestTargetPrimitivesSendTypedRequestsAndRenderReadiness(t *testing.T) {
+	target := &domainv1.DeployTarget{Name: "release", Label: "Release", ScenarioName: "calculator", RemoteProfile: "production"}
+	fake := &fakeRPC{target: target}
+	commands := &Commands{rpc: fake}
+	nameSchema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "name", Required: true}}}
+	for name, handler := range map[string]cliapp.PrimitiveHandler{
+		"get":    commands.getPrimitive(),
+		"remove": commands.deletePrimitive(),
+		"doctor": commands.doctorPrimitive(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			modes := cliapptest.RunPrimitiveHandlerModes(t, handler, nameSchema, []string{"release"}, nil)
+			if modes.HumanErr != nil || modes.JSONErr != nil {
+				t.Fatalf("%s errors: human=%v json=%v", name, modes.HumanErr, modes.JSONErr)
+			}
+		})
+	}
+	testSchema := cliapp.ArgSchema{Positionals: nameSchema.Positionals, Flags: []cliapp.Flag{{Name: "require-service-auth", Bool: true}}}
+	modes := cliapptest.RunPrimitiveHandlerModes(t, commands.testPrimitive(), testSchema, []string{"release", "--require-service-auth"}, nil)
+	if modes.HumanErr != nil || modes.JSONErr != nil {
+		t.Fatalf("test errors: human=%v json=%v", modes.HumanErr, modes.JSONErr)
+	}
+	if fake.deleteRequest.GetName() != "release" || fake.testRequest.GetName() != "release" || !fake.testRequest.GetRequireServiceAuth() || fake.doctorRequest.GetName() != "release" {
+		t.Fatalf("typed requests were not preserved: %#v %#v %#v", fake.deleteRequest, fake.testRequest, fake.doctorRequest)
+	}
 }
 
 func TestSavePrimitiveUsesTypedDeployTargetRequest(t *testing.T) {

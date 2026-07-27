@@ -110,6 +110,78 @@ describe("logError", () => {
 // ============================================================================
 
 describe("createErrorInfo", () => {
+  it("decodes the shared Connect remediation envelope", () => {
+    const connectError = new ConnectError("pipeline missing", Code.NotFound);
+    connectError.details.push({
+      type: "vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope",
+      value: new Uint8Array(),
+      debug: {
+        code: "PIPELINE_NOT_FOUND",
+        category: "resource_missing",
+        recovery: "fix_input",
+        recoveryHint: "Start a new pipeline or check the ID",
+        details: { pipeline_id: '"pipe-42"' },
+        manualSteps: ["Run scenario-to-desktop pipeline list"],
+      },
+    });
+
+    expect(createErrorInfo(connectError)).toMatchObject({
+      code: "PIPELINE_NOT_FOUND",
+      requiresInputFix: true,
+      recoveryHint: "Start a new pipeline or check the ID",
+      details: {
+        pipeline_id: "pipe-42",
+        category: "resource_missing",
+      },
+    });
+  });
+
+  it("falls back safely when an envelope has incomplete or malformed fields", () => {
+    const connectError = new ConnectError(
+      "temporary failure",
+      Code.Unavailable,
+    );
+    connectError.details.push(
+      {
+        type: "unrelated.detail",
+        value: new Uint8Array(),
+        debug: { recovery: "retry" },
+      },
+      {
+        type: "vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope",
+        value: new Uint8Array(),
+        debug: {
+          recovery: "not-a-recovery-action",
+          details: { machine_value: "not-json" },
+        },
+      },
+    );
+
+    expect(createErrorInfo(connectError)).toMatchObject({
+      code: "Unavailable",
+      canRetry: true,
+      recoveryHint: undefined,
+      details: {
+        machine_value: "not-json",
+      },
+    });
+  });
+
+  it("ignores malformed envelope debug payloads and retains generic Connect diagnostics", () => {
+    const connectError = new ConnectError("bad input", Code.InvalidArgument);
+    connectError.details.push({
+      type: "vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope",
+      value: new Uint8Array(),
+      debug: [],
+    });
+
+    expect(createErrorInfo(connectError)).toMatchObject({
+      code: "InvalidArgument",
+      requiresInputFix: true,
+      details: { connectCode: Code.InvalidArgument },
+    });
+  });
+
   it("preserves Connect code, metadata, and details for recovery UI", () => {
     const connectError = new ConnectError(
       "pipeline service is temporarily unavailable",

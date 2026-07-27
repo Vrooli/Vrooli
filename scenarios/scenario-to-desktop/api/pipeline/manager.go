@@ -270,7 +270,7 @@ func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, 
 	case StatusIdle:
 		// Pipeline is idle - update config if provided and start it
 		if configOverrides != nil {
-			if err := m.orchestrator.(*DefaultOrchestrator).UpdatePipelineConfig(status.PipelineID, configOverrides); err != nil {
+			if err := m.updateIdlePipelineConfig(status.PipelineID, configOverrides); err != nil {
 				return nil, fmt.Errorf("failed to update pipeline config: %w", err)
 			}
 		}
@@ -358,7 +358,7 @@ func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName 
 	case StatusIdle:
 		// Pipeline is idle - update config if provided and start it
 		if configOverrides != nil {
-			if err := m.orchestrator.(*DefaultOrchestrator).UpdatePipelineConfig(status.PipelineID, configOverrides); err != nil {
+			if err := m.updateIdlePipelineConfig(status.PipelineID, configOverrides); err != nil {
 				return nil, fmt.Errorf("failed to update pipeline config: %w", err)
 			}
 		}
@@ -414,6 +414,17 @@ func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName 
 	default:
 		return nil, fmt.Errorf("unexpected pipeline status: %s", status.Status)
 	}
+}
+
+func (m *Manager) updateIdlePipelineConfig(pipelineID string, config *Config) error {
+	updater, ok := m.orchestrator.(ConfigUpdatingOrchestrator)
+	if !ok {
+		return fmt.Errorf("orchestrator does not support updating idle pipeline configuration")
+	}
+	if err := updater.UpdatePipelineConfig(pipelineID, config); err != nil {
+		return fmt.Errorf("failed to update pipeline config: %w", err)
+	}
+	return nil
 }
 
 // pollForCompletion polls for pipeline completion until it finishes or times out.

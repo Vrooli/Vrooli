@@ -72,9 +72,11 @@ describe("TemplateGrid", () => {
     const trayQuestion = screen.getByText(
       "Do you need a system tray icon or global shortcuts?",
     ).parentElement;
-    if (!trayQuestion) throw new Error("Tray recommendation question is not mounted");
+    if (!trayQuestion)
+      throw new Error("Tray recommendation question is not mounted");
     const trayChoice = trayQuestion.querySelector("button");
-    if (!trayChoice) throw new Error("Tray recommendation choice is not mounted");
+    if (!trayChoice)
+      throw new Error("Tray recommendation choice is not mounted");
     await user.click(trayChoice);
 
     expect(screen.getByText(/Recommended:/)).toHaveTextContent("Advanced");
@@ -97,9 +99,11 @@ describe("TemplateGrid", () => {
     const kioskQuestion = screen.getByText(
       "Is this a locked-down kiosk or unattended terminal?",
     ).parentElement;
-    if (!kioskQuestion) throw new Error("Kiosk recommendation question is not mounted");
+    if (!kioskQuestion)
+      throw new Error("Kiosk recommendation question is not mounted");
     const kioskChoice = kioskQuestion.querySelector("button");
-    if (!kioskChoice) throw new Error("Kiosk recommendation choice is not mounted");
+    if (!kioskChoice)
+      throw new Error("Kiosk recommendation choice is not mounted");
     await user.click(kioskChoice);
     await user.click(
       screen.getByRole("button", { name: "Apply recommendation" }),

@@ -19,7 +19,11 @@ export function Checkbox({ className, label, ...props }: CheckboxProps) {
         id={id}
         {...props}
       />
-      {label && <label htmlFor={id} className="text-sm text-slate-300">{label}</label>}
+      {label && (
+        <label htmlFor={id} className="text-sm text-slate-300">
+          {label}
+        </label>
+      )}
     </div>
   );
 }

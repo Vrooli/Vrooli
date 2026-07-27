@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,11 +10,15 @@ import (
 	"scenario-to-desktop-api/internal/testutil"
 	"slices"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
+	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline/pipelineconnect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 )
 
 // TestHealthHandler tests the health check endpoint comprehensively
@@ -98,6 +103,7 @@ func TestNewServer(t *testing.T) {
 		if server.buildHandler == nil {
 			t.Error("Expected build handler to be initialized")
 		}
+		shutdownServer(t, server)
 	})
 
 	t.Run("ZeroPort", func(t *testing.T) {
@@ -108,7 +114,26 @@ func TestNewServer(t *testing.T) {
 		if server.port != 0 {
 			t.Errorf("Expected port 0, got %d", server.port)
 		}
+		shutdownServer(t, server)
 	})
+}
+
+func TestServerShutdownIsIdempotentAndStopsOwnedServices(t *testing.T) {
+	server := NewServer(0)
+	if server == nil {
+		t.Fatal("NewServer returned nil")
+	}
+	shutdownServer(t, server)
+	shutdownServer(t, server)
+}
+
+func shutdownServer(t *testing.T, server *Server) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
 }
 
 // TestServerRoutes tests that all routes are properly configured
@@ -176,6 +201,31 @@ func TestServerRoutes(t *testing.T) {
 			t.Fatalf("GetProxyHints() = %#v, %v", response.Msg, err)
 		}
 	})
+}
+
+func TestConnectFailuresCarryOneTypedRemediationEnvelope(t *testing.T) {
+	server := NewServer(0)
+	ts := httptest.NewServer(server.Router())
+	defer ts.Close()
+	client := pipelineconnect.NewPipelineServiceClient(ts.Client(), ts.URL)
+	_, err := client.Run(context.Background(), connect.NewRequest(&pipelinev1.PipelineRunRequest{}))
+	connectErr := new(connect.Error)
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeInvalidArgument {
+		t.Fatalf("Run error = %v, want invalid argument Connect error", err)
+	}
+	var envelope *sharedv1.ErrorEnvelope
+	for _, detail := range connectErr.Details() {
+		value, valueErr := detail.Value()
+		if valueErr != nil {
+			t.Fatalf("decode error detail: %v", valueErr)
+		}
+		if typed, ok := value.(*sharedv1.ErrorEnvelope); ok {
+			envelope = typed
+		}
+	}
+	if envelope == nil || envelope.GetCode() == "" || envelope.GetCategory() == "" || envelope.GetRecovery() == "" || envelope.GetRecoveryHint() == "" {
+		t.Fatalf("missing actionable error envelope: %#v", envelope)
+	}
 }
 
 // TestCORSMiddleware tests CORS headers

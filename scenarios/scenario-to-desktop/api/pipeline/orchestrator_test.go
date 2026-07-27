@@ -265,3 +265,45 @@ func TestOrchestratorGetStatusNonexistent(t *testing.T) {
 		t.Errorf("expected GetStatus to return false for nonexistent")
 	}
 }
+
+func TestUpdatePipelineConfigAppliesIdleOverridesAndStageSelection(t *testing.T) {
+	stageOne := &mockStage{name: StageBundle}
+	stageTwo := &mockStage{name: StageBuild}
+	orchestrator := NewOrchestrator(
+		WithStages(stageOne, stageTwo),
+		WithIDGenerator(&fixedIDGenerator{id: "idle-pipeline"}),
+	)
+	status, err := orchestrator.CreateIdlePipeline(&Config{ScenarioName: "demo", Framework: FrameworkElectron})
+	if err != nil {
+		t.Fatalf("CreateIdlePipeline: %v", err)
+	}
+	stop := true
+	updates := &Config{
+		Platforms: []string{"linux-amd64"}, StopAfterStage: StageBuild, ResumeFromStage: StageBundle,
+		BundleManifestPath: "bundle.json", ResourceArtifactRoot: "resources", DeploymentMode: DeploymentModeProxy,
+		TemplateType: "advanced", LocationMode: "staging", ProxyURL: "http://proxy", Version: "1.2.3",
+		SkipPreflight: true, SkipSmokeTest: true, Clean: true, Sign: true, Publish: true, StopOnFailure: &stop,
+		PreflightTimeoutSeconds: 45, PreflightSecrets: map[string]string{"TOKEN": "value"}, Stages: []string{StageBuild},
+	}
+	if err := orchestrator.UpdatePipelineConfig(status.PipelineID, updates); err != nil {
+		t.Fatalf("UpdatePipelineConfig: %v", err)
+	}
+	updated, ok := orchestrator.GetStatus(status.PipelineID)
+	if !ok {
+		t.Fatal("updated pipeline missing")
+	}
+	if updated.Config.DeploymentMode != DeploymentModeProxy || !updated.Config.Clean || updated.Config.PreflightTimeoutSeconds != 45 || len(updated.Config.Platforms) != 1 || len(updated.StageOrder) != 1 || updated.StageOrder[0] != StageBuild {
+		t.Fatalf("updated config/status = %#v / %#v", updated.Config, updated)
+	}
+	if err := orchestrator.UpdatePipelineConfig("missing", updates); err == nil {
+		t.Fatal("expected missing pipeline error")
+	}
+	orchestrator.store.Update(status.PipelineID, func(value *Status) { value.Status = StatusRunning })
+	if err := orchestrator.UpdatePipelineConfig(status.PipelineID, updates); err == nil {
+		t.Fatal("expected non-idle update error")
+	}
+}
+
+type fixedIDGenerator struct{ id string }
+
+func (g *fixedIDGenerator) Generate() string { return g.id }

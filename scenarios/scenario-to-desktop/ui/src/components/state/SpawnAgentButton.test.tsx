@@ -14,7 +14,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../hooks/useInvestigation", () => ({
-  usePipelineInvestigation: () => ({ ...mocks.investigation, refresh: mocks.refresh }),
+  usePipelineInvestigation: () => ({
+    ...mocks.investigation,
+    refresh: mocks.refresh,
+  }),
 }));
 vi.mock("../../lib/api", () => ({ createTask: mocks.createTask }));
 
@@ -37,10 +40,14 @@ describe("SpawnAgentButton", () => {
   it("creates an investigate task with the default logs effort and selected context", async () => {
     mocks.createTask.mockResolvedValue({ id: "task-1" });
     const onTaskStarted = vi.fn();
-    render(<SpawnAgentButton pipelineId="pipe-1" onTaskStarted={onTaskStarted} />);
+    render(
+      <SpawnAgentButton pipelineId="pipe-1" onTaskStarted={onTaskStarted} />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Spawn Agent" }));
-    expect(screen.getByRole("heading", { name: "Spawn Agent" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Spawn Agent" }),
+    ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Additional notes for agent"), {
       target: { value: " investigate the package failure " },
     });
@@ -66,7 +73,9 @@ describe("SpawnAgentButton", () => {
     });
     expect(onTaskStarted).toHaveBeenCalledWith("task-1");
     expect(mocks.refresh).toHaveBeenCalled();
-    expect(screen.queryByRole("heading", { name: "Spawn Agent" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Spawn Agent" }),
+    ).not.toBeInTheDocument();
   });
 
   it("switches to fix and sends selected permissions", async () => {
@@ -88,13 +97,19 @@ describe("SpawnAgentButton", () => {
   });
 
   it("shows a task creation failure without closing the dialog", async () => {
-    mocks.createTask.mockRejectedValue(new Error("Agent service rejected the request"));
+    mocks.createTask.mockRejectedValue(
+      new Error("Agent service rejected the request"),
+    );
     render(<SpawnAgentButton pipelineId="pipe-3" />);
     fireEvent.click(screen.getByRole("button", { name: "Spawn Agent" }));
     triggerButton();
 
-    expect(await screen.findByText("Agent service rejected the request")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Spawn Agent" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("Agent service rejected the request"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Spawn Agent" }),
+    ).toBeInTheDocument();
   });
 
   it("surfaces unavailable agents and opens the already-running task", () => {
@@ -102,10 +117,14 @@ describe("SpawnAgentButton", () => {
     mocks.investigation.isRunning = true;
     mocks.investigation.activeTaskId = "active-task";
     const onTaskStarted = vi.fn();
-    render(<SpawnAgentButton pipelineId="pipe-4" onTaskStarted={onTaskStarted} />);
+    render(
+      <SpawnAgentButton pipelineId="pipe-4" onTaskStarted={onTaskStarted} />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "View Task" }));
     expect(onTaskStarted).toHaveBeenCalledWith("active-task");
-    expect(screen.queryByRole("heading", { name: "Spawn Agent" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Spawn Agent" }),
+    ).not.toBeInTheDocument();
   });
 });

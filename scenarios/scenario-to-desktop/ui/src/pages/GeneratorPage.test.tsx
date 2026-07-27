@@ -32,25 +32,29 @@ vi.mock("../components/generator/GeneratorForm", () => ({
     <div>
       <p>Form for {scenarioName}</p>
       <button
-        onClick={() =>
-          { onFormStateChange({
+        onClick={() => {
+          onFormStateChange({
             isBundled: true,
             bundleManifestPath: "/tmp/bundle.json",
-          }); }
-        }
+          });
+        }}
       >
         Share bundled state
       </button>
-      <button onClick={() => { onSubmitHandlerReady(vi.fn()); }}>
+      <button
+        onClick={() => {
+          onSubmitHandlerReady(vi.fn());
+        }}
+      >
         Share submit handler
       </button>
       <button
-        onClick={() =>
-          { onValidationStateChange({
+        onClick={() => {
+          onValidationStateChange({
             errors: ["Name is required"],
             isPending: true,
-          }); }
-        }
+          });
+        }}
       >
         Share validation
       </button>

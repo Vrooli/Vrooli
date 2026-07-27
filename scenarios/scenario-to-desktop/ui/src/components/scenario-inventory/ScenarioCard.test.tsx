@@ -9,9 +9,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../lib/api", () => ({ getDownloadUrl: mocks.getDownloadUrl }));
-vi.mock("../../lib/browser", () => ({ triggerDownload: mocks.triggerDownload }));
+vi.mock("../../lib/browser", () => ({
+  triggerDownload: mocks.triggerDownload,
+}));
 
-function scenario(overrides: Partial<ScenarioDesktopStatus> = {}): ScenarioDesktopStatus {
+function scenario(
+  overrides: Partial<ScenarioDesktopStatus> = {},
+): ScenarioDesktopStatus {
   return {
     name: "canvas-lab",
     has_desktop: true,
@@ -35,7 +39,9 @@ describe("ScenarioCard", () => {
 
     expect(screen.getByText("Built")).toBeInTheDocument();
     expect(screen.getByText("2 KB")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Open desktop builder" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open desktop builder" }),
+    );
     expect(onSelect).toHaveBeenCalledWith(item);
   });
 
@@ -59,7 +65,9 @@ describe("ScenarioCard", () => {
     fireEvent.click(downloadButton);
 
     expect(mocks.getDownloadUrl).toHaveBeenCalledWith("canvas-lab", "linux");
-    expect(mocks.triggerDownload).toHaveBeenCalledWith({ url: "/downloads/canvas-lab/linux" });
+    expect(mocks.triggerDownload).toHaveBeenCalledWith({
+      url: "/downloads/canvas-lab/linux",
+    });
     expect(onSelect).not.toHaveBeenCalled();
   });
 
@@ -75,6 +83,8 @@ describe("ScenarioCard", () => {
       />,
     );
     expect(screen.getByText("Not Generated")).toBeInTheDocument();
-    expect(screen.getByText("Desktop wrapper not generated yet")).toBeInTheDocument();
+    expect(
+      screen.getByText("Desktop wrapper not generated yet"),
+    ).toBeInTheDocument();
   });
 });

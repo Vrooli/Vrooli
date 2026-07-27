@@ -47,7 +47,9 @@ beforeEach(() => {
 
 describe("capturesStore", () => {
   it("opens a scenario and loads captures plus summary through the typed API", async () => {
-    act(() => { useCapturesStore.getState().open("calculator"); });
+    act(() => {
+      useCapturesStore.getState().open("calculator");
+    });
 
     await vi.waitFor(() => {
       expect(useCapturesStore.getState().loading).toBe(false);
@@ -89,9 +91,15 @@ describe("capturesStore", () => {
       ],
     });
 
-    act(() => { useCapturesStore.getState().selectAll(); });
-    act(() => { useCapturesStore.getState().toggleSelect("cap-2"); });
-    act(() => { useCapturesStore.getState().downloadSelected(); });
+    act(() => {
+      useCapturesStore.getState().selectAll();
+    });
+    act(() => {
+      useCapturesStore.getState().toggleSelect("cap-2");
+    });
+    act(() => {
+      useCapturesStore.getState().downloadSelected();
+    });
 
     expect(capturesApi.buildCapturesDownloadUrl).toHaveBeenCalledWith(
       "calculator",
@@ -99,8 +107,12 @@ describe("capturesStore", () => {
     );
     expect(window.open).toHaveBeenCalledWith("/captures/download", "_blank");
 
-    act(() => { useCapturesStore.getState().deselectAll(); });
-    act(() => { useCapturesStore.getState().downloadSelected(); });
+    act(() => {
+      useCapturesStore.getState().deselectAll();
+    });
+    act(() => {
+      useCapturesStore.getState().downloadSelected();
+    });
     expect(window.open).toHaveBeenCalledTimes(1);
   });
 

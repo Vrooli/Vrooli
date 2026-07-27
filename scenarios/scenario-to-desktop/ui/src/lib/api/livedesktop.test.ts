@@ -95,15 +95,31 @@ describe("live desktop Connect client", () => {
 
   it("keeps session maintenance and result decoding on the generated client", async () => {
     client.heartbeatDesktopSession.mockResolvedValue({});
-    client.listDesktopSessions.mockResolvedValue({ sessions: [{ sessionId: "session-2" }] });
+    client.listDesktopSessions.mockResolvedValue({
+      sessions: [{ sessionId: "session-2" }],
+    });
 
     await heartbeatSession("session-2");
-    await expect(listDesktopSessions()).resolves.toEqual([{ sessionId: "session-2" }]);
-    expect(client.heartbeatDesktopSession).toHaveBeenCalledWith({ sessionId: "session-2" });
+    await expect(listDesktopSessions()).resolves.toEqual([
+      { sessionId: "session-2" },
+    ]);
+    expect(client.heartbeatDesktopSession).toHaveBeenCalledWith({
+      sessionId: "session-2",
+    });
     expect(client.listDesktopSessions).toHaveBeenCalledWith({});
 
-    expect(controlResultString({ result: { fields: { summary: "desktop ready" } } } as never, "summary")).toBe("desktop ready");
-    expect(controlResultString({ result: { fields: { count: 1 } } } as never, "count")).toBeUndefined();
+    expect(
+      controlResultString(
+        { result: { fields: { summary: "desktop ready" } } } as never,
+        "summary",
+      ),
+    ).toBe("desktop ready");
+    expect(
+      controlResultString(
+        { result: { fields: { count: 1 } } } as never,
+        "count",
+      ),
+    ).toBeUndefined();
     expect(controlResultString({} as never, "summary")).toBeUndefined();
   });
 });

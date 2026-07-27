@@ -12,7 +12,10 @@ import {
 function setState() {
   act(() => {
     usePipelineStore.getState().reset();
-    useSidebarStore.setState({ collapsed: false, activeSection: "configuration" });
+    useSidebarStore.setState({
+      collapsed: false,
+      activeSection: "configuration",
+    });
   });
 }
 
@@ -48,7 +51,9 @@ describe("SidebarNavigation", () => {
       <SidebarNavigation onSectionClick={onSectionClick} collapsed />,
     );
 
-    expect(screen.queryByText("Set up your desktop app")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Set up your desktop app"),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Smoke Test" }));
     expect(onSectionClick).toHaveBeenCalledWith("smoketest");
   });

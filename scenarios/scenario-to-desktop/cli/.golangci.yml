@@ -14,6 +14,16 @@ linters:
     - typecheck
     - unused
 
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+      - name: redefines-builtin-id
+        disabled: true
+      - name: unused-parameter
+        disabled: true
+
 issues:
   exclude-dirs:
     - mocks

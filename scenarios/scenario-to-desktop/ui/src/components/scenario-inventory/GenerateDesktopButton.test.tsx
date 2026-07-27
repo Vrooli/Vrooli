@@ -8,11 +8,13 @@ import {
 } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 import type { ScenarioDesktopStatus } from "./types";
 
-const { resetMock, runPipelineWithConfigMock, probeEndpointsMock } = vi.hoisted(() => ({
-  resetMock: vi.fn(),
-  runPipelineWithConfigMock: vi.fn(),
-  probeEndpointsMock: vi.fn(),
-}));
+const { resetMock, runPipelineWithConfigMock, probeEndpointsMock } = vi.hoisted(
+  () => ({
+    resetMock: vi.fn(),
+    runPipelineWithConfigMock: vi.fn(),
+    probeEndpointsMock: vi.fn(),
+  }),
+);
 
 vi.mock("../../lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../lib/api")>()),
@@ -140,9 +142,13 @@ describe("GenerateDesktopButton", () => {
         proxy_url: "https://tier1.example/apps/secrets-manager/proxy/",
       });
     });
-    expect(await screen.findByText("Connectivity snapshot")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Connectivity snapshot"),
+    ).toBeInTheDocument();
     expect(screen.getByText(/API URL: API tunnel denied/)).toBeInTheDocument();
-    const localRuntime = screen.getByLabelText(/Let the desktop build run the scenario locally/);
+    const localRuntime = screen.getByLabelText(
+      /Let the desktop build run the scenario locally/,
+    );
     expect(screen.getByPlaceholderText("vrooli")).toBeDisabled();
     fireEvent.click(localRuntime);
     expect(screen.getByPlaceholderText("vrooli")).not.toBeDisabled();

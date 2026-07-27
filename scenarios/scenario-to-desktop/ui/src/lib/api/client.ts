@@ -95,6 +95,26 @@ export class ApiError extends Error {
  * diagnostics instead of being collapsed to a message string.
  */
 export function apiErrorFromConnect(error: ConnectError): ApiError {
+  const envelope = connectErrorEnvelope(error);
+  if (envelope) {
+    const recovery = envelope.recovery;
+    return new ApiError({
+      error: error.rawMessage,
+      code: envelope.code || Code[error.code],
+      recovery: isRecoveryAction(recovery)
+        ? recovery
+        : connectRecovery(error.code),
+      recovery_hint: envelope.recoveryHint || undefined,
+      details: {
+        ...decodeDetails(envelope.details ?? {}),
+        category: envelope.category,
+        retryStrategy: envelope.retryStrategy,
+        autoFix: envelope.autoFix,
+        manualSteps: envelope.manualSteps,
+        diagnostic: envelope.diagnostic,
+      },
+    });
+  }
   const recovery = connectRecovery(error.code);
   return new ApiError({
     error: error.rawMessage,
@@ -106,6 +126,71 @@ export function apiErrorFromConnect(error: ConnectError): ApiError {
       connectDetails: error.details,
     },
   });
+}
+
+type ConnectEnvelope = {
+  code?: string;
+  category?: string;
+  recovery?: string;
+  recoveryHint?: string;
+  details?: Record<string, string>;
+  retryStrategy?: string;
+  autoFix?: string;
+  manualSteps?: string[];
+  diagnostic?: string;
+};
+
+// Error details are self-describing Any messages. This narrow decoder keeps
+// the client forward-compatible while the generated package is refreshed by
+// the workspace lifecycle: unknown detail types remain in connectDetails.
+function connectErrorEnvelope(
+  error: ConnectError,
+): ConnectEnvelope | undefined {
+  for (const detail of error.details) {
+    const incoming = detail as { type?: unknown; debug?: unknown };
+    if (
+      incoming.type !== "vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope" ||
+      !isRecord(incoming.debug)
+    ) {
+      continue;
+    }
+    return incoming.debug as ConnectEnvelope;
+  }
+  return undefined;
+}
+
+function decodeDetails(
+  details: Record<string, string>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(details).map(([key, value]) => {
+      try {
+        return [key, JSON.parse(value) as unknown];
+      } catch {
+        return [key, value];
+      }
+    }),
+  );
+}
+
+function isRecoveryAction(value: unknown): value is RecoveryAction {
+  return (
+    typeof value === "string" &&
+    [
+      "retry",
+      "retry_with_backoff",
+      "fix_input",
+      "provide_credentials",
+      "wait_for_resource",
+      "install_dependency",
+      "contact_support",
+      "none",
+    ].includes(value)
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function connectRecovery(code: Code): RecoveryAction {

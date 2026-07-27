@@ -35,7 +35,9 @@ describe("DesktopToolbar", () => {
       scenarioName: "canvas-lab",
       activeSession: { width: 1440, height: 900 } as never,
     });
-    render(<DesktopToolbar fullscreenTargetRef={createRef()} onClose={vi.fn()} />);
+    render(
+      <DesktopToolbar fullscreenTargetRef={createRef()} onClose={vi.fn()} />,
+    );
 
     expect(screen.getByText("canvas-lab")).toBeInTheDocument();
     expect(screen.getByText("1440×900")).toBeInTheDocument();
@@ -68,7 +70,9 @@ describe("DesktopToolbar", () => {
 
   it("stops sessions, closes the drawer, and hides connected controls otherwise", () => {
     const onClose = vi.fn();
-    render(<DesktopToolbar fullscreenTargetRef={createRef()} onClose={onClose} />);
+    render(
+      <DesktopToolbar fullscreenTargetRef={createRef()} onClose={onClose} />,
+    );
 
     expect(screen.queryByText("Desktop controls")).not.toBeInTheDocument();
     expect(screen.queryByText("Live metrics")).not.toBeInTheDocument();

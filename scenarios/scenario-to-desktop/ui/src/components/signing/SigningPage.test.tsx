@@ -164,16 +164,22 @@ describe("SigningPage", () => {
     const initialReadinessCalls = checkSigningReadinessMock.mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     await waitFor(() => {
-      expect(fetchSigningConfigMock.mock.calls.length).toBeGreaterThan(initialConfigCalls);
-      expect(checkSigningReadinessMock.mock.calls.length).toBeGreaterThan(initialReadinessCalls);
+      expect(fetchSigningConfigMock.mock.calls.length).toBeGreaterThan(
+        initialConfigCalls,
+      );
+      expect(checkSigningReadinessMock.mock.calls.length).toBeGreaterThan(
+        initialReadinessCalls,
+      );
     });
-    fireEvent.change(screen.getByRole("combobox", { name: "Certificate discovery platform" }), {
-      target: { value: "linux" },
-    });
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Certificate discovery platform" }),
+      {
+        target: { value: "linux" },
+      },
+    );
     fireEvent.click(screen.getByRole("button", { name: "Scan" }));
     await waitFor(() => {
       expect(discoverCertificatesMock).toHaveBeenCalled();
     });
   });
-
 });

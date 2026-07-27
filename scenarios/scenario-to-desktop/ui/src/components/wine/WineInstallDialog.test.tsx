@@ -87,7 +87,9 @@ describe("WineInstallDialog", () => {
     expect(screen.getByText("Recommended")).toBeInTheDocument();
 
     await user.click(screen.getByText("Wine AppImage"));
-    await waitFor(() => { expect(continueButton).toBeEnabled(); });
+    await waitFor(() => {
+      expect(continueButton).toBeEnabled();
+    });
     await user.click(continueButton);
 
     expect(startWineInstallMock).toHaveBeenCalledWith("appimage");

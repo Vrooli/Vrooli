@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"scenario-to-desktop-api/signing/types"
 	"strings"
+	"time"
 )
 
 // LinuxDetector detects Linux GPG signing tools and keys.
@@ -191,17 +192,14 @@ func (d *LinuxDetector) ListKeysForSigning(ctx context.Context, homedir string) 
 
 // calculateDaysToExpiry calculates days until expiration from a date string.
 func calculateDaysToExpiry(dateStr string) int {
-	// Parse date in format "2025-01-01"
-	// We use a simple calculation rather than time.Parse to avoid timezone issues
-	parts := strings.Split(dateStr, "-")
-	if len(parts) != 3 {
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
 		return -1
 	}
 
-	var year, month, day int
-	if _, err := fmt.Sscanf(dateStr, "%d-%d-%d", &year, &month, &day); err != nil {
-		return -1
-	}
-
-	return -1 // Return -1 to indicate we couldn't calculate precisely
+	// Date-only expiry values are evaluated in UTC so the result does not depend
+	// on the host's local timezone. A negative value correctly represents an
+	// already-expired credential.
+	now := time.Now().UTC()
+	return int(date.Sub(now).Hours() / 24)
 }

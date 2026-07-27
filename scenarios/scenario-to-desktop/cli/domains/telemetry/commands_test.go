@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"scenario-to-desktop/cli/internal/support"
 	"strings"
 	"testing"
 
@@ -16,8 +17,6 @@ import (
 	"github.com/vrooli/cli-core/cliapptest"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
-
-	"scenario-to-desktop/cli/internal/support"
 )
 
 type fakeTelemetryRPC struct {

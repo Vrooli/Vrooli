@@ -2,6 +2,10 @@ package infra
 
 import (
 	"context"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -63,5 +67,66 @@ func TestRealClockAndCommandRunnerExecuteBoundedOperations(t *testing.T) {
 	}
 	if output, err := runner.Output(context.Background(), "printf", "%s", "ready"); err != nil || string(output) != "ready" {
 		t.Fatalf("Output() = %q, %v", output, err)
+	}
+}
+
+func TestRealNetworkAdaptersServeLocalOnlyTraffic(t *testing.T) {
+	dialer := RealNetworkDialer{}
+	listener, err := dialer.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen() error = %v", err)
+	}
+	defer listener.Close()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		connection, acceptErr := listener.Accept()
+		if acceptErr == nil {
+			_ = connection.Close()
+		}
+	}()
+	connection, err := dialer.DialTimeout("tcp", listener.Addr().String(), time.Second)
+	if err != nil {
+		t.Fatalf("DialTimeout() error = %v", err)
+	}
+	_ = connection.Close()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("listener did not receive local connection")
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte("runtime-ready"))
+	}))
+	defer server.Close()
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := (&RealHTTPClient{}).Do(request)
+	if err != nil {
+		t.Fatalf("Do() error = %v", err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil || string(body) != "runtime-ready" {
+		t.Fatalf("response = %q, %v", body, err)
+	}
+}
+
+func TestRealProcessRunnerTracksLifecycle(t *testing.T) {
+	process, err := (RealProcessRunner{}).Start(context.Background(), "sh", []string{"-c", "exit 0"}, os.Environ(), "", io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if process.Pid() <= 0 {
+		t.Fatalf("Pid() = %d, want positive", process.Pid())
+	}
+	if err := process.Wait(); err != nil {
+		t.Fatalf("Wait() error = %v", err)
+	}
+	if err := process.Kill(); !errors.Is(err, os.ErrProcessDone) {
+		t.Fatalf("Kill() after wait = %v, want ErrProcessDone", err)
 	}
 }

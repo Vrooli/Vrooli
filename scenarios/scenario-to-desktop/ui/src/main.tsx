@@ -15,6 +15,12 @@ if (window.top !== window.self) {
 
 initSpatialNav();
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("./sw.js", { scope: "./" });
+  });
+}
+
 const rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error(

@@ -1,7 +1,10 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CheckStatus, PreflightCheckStep } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
+import {
+  CheckStatus,
+  PreflightCheckStep,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 import { StageStatus } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 import { renderWithProviders } from "../../../test-utils/renderWithProviders";
 import { usePipelineStore } from "../../../store";
@@ -70,17 +73,24 @@ describe("PreflightSection", () => {
     usePipelineStore.setState({
       runStatus: "running",
       cancelPipeline,
-      pipelineStatus: { stages: { preflight: { status: StageStatus.RUNNING } } } as never,
+      pipelineStatus: {
+        stages: { preflight: { status: StageStatus.RUNNING } },
+      } as never,
     });
 
     renderWithProviders(
-      <PreflightSection scenarioName="desktop-app" bundleManifestPath="/tmp/desktop-app/bundle-manifest.json" />,
+      <PreflightSection
+        scenarioName="desktop-app"
+        bundleManifestPath="/tmp/desktop-app/bundle-manifest.json"
+      />,
     );
 
     expect(screen.getByRole("button", { name: "Running..." })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(cancelPipeline).toHaveBeenCalledOnce();
-    expect(screen.getByText(/Starting the runtime supervisor/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Starting the runtime supervisor/),
+    ).toBeInTheDocument();
   });
 
   it("renders actionable failed-preflight evidence and allows an explicit override", async () => {
@@ -91,15 +101,28 @@ describe("PreflightSection", () => {
       errorInfo: { message: "runtime did not become ready" } as never,
       preflightOverride: false,
       setPreflightOverride,
-      pipelineStatus: { stages: { bundle: { status: StageStatus.FAILED, error: "missing staged asset" } } } as never,
+      pipelineStatus: {
+        stages: {
+          bundle: { status: StageStatus.FAILED, error: "missing staged asset" },
+        },
+      } as never,
     });
 
     renderWithProviders(
-      <PreflightSection scenarioName="desktop-app" bundleManifestPath="/tmp/desktop-app/bundle-manifest.json" />,
+      <PreflightSection
+        scenarioName="desktop-app"
+        bundleManifestPath="/tmp/desktop-app/bundle-manifest.json"
+      />,
     );
 
-    expect(screen.getAllByText("runtime did not become ready").length).toBeGreaterThan(0);
-    expect(screen.getByText("Validation did not complete. Review the error above and re-run preflight.")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("runtime did not become ready").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        "Validation did not complete. Review the error above and re-run preflight.",
+      ),
+    ).toBeInTheDocument();
     await user.click(screen.getByLabelText("Override"));
     expect(setPreflightOverride).toHaveBeenCalledWith(true);
   });
@@ -108,32 +131,95 @@ describe("PreflightSection", () => {
     usePipelineStore.setState({
       runStatus: "completed",
       preflightResult: {
-        validation: { valid: true, errors: [], warnings: [], missingBinaries: [], missingAssets: [], invalidChecksums: [] },
-        ready: { ready: false, details: [{ serviceId: "api", ready: false, message: "waiting", updatedAt: { seconds: 2n, nanos: 0 } }], waitedSeconds: 2, snapshotAt: { seconds: 2n, nanos: 0 } },
+        validation: {
+          valid: true,
+          errors: [],
+          warnings: [],
+          missingBinaries: [],
+          missingAssets: [],
+          invalidChecksums: [],
+        },
+        ready: {
+          ready: false,
+          details: [
+            {
+              serviceId: "api",
+              ready: false,
+              message: "waiting",
+              updatedAt: { seconds: 2n, nanos: 0 },
+            },
+          ],
+          waitedSeconds: 2,
+          snapshotAt: { seconds: 2n, nanos: 0 },
+        },
         ports: [{ serviceId: "api", name: "http", port: 15200 }],
         telemetry: { path: "/tmp/telemetry.json" },
         runtime: { instanceId: "runtime-1", dryRun: false },
-        serviceFingerprints: [{ serviceId: "api", platform: "linux", binaryPath: "/usr/bin/api", binarySizeBytes: 42n }],
+        serviceFingerprints: [
+          {
+            serviceId: "api",
+            platform: "linux",
+            binaryPath: "/usr/bin/api",
+            binarySizeBytes: 42n,
+          },
+        ],
         logTails: [{ serviceId: "api", lines: 1, content: "starting" }],
         checks: [
-          { id: "validation", step: PreflightCheckStep.VALIDATION, name: "Manifest", status: CheckStatus.PASSED },
-          { id: "runtime", step: PreflightCheckStep.RUNTIME, name: "Runtime", status: CheckStatus.PASSED },
-          { id: "services", step: PreflightCheckStep.SERVICES, name: "API", status: CheckStatus.FAILED },
-          { id: "diagnostics", step: PreflightCheckStep.DIAGNOSTICS, name: "Logs", status: CheckStatus.PASSED },
+          {
+            id: "validation",
+            step: PreflightCheckStep.VALIDATION,
+            name: "Manifest",
+            status: CheckStatus.PASSED,
+          },
+          {
+            id: "runtime",
+            step: PreflightCheckStep.RUNTIME,
+            name: "Runtime",
+            status: CheckStatus.PASSED,
+          },
+          {
+            id: "services",
+            step: PreflightCheckStep.SERVICES,
+            name: "API",
+            status: CheckStatus.FAILED,
+          },
+          {
+            id: "diagnostics",
+            step: PreflightCheckStep.DIAGNOSTICS,
+            name: "Logs",
+            status: CheckStatus.PASSED,
+          },
         ],
-        errors: [ { message: "optional service unavailable" } ],
+        errors: [{ message: "optional service unavailable" }],
       } as never,
-      pipelineStatus: { stages: { bundle: { status: StageStatus.COMPLETED }, preflight: { status: StageStatus.COMPLETED } } } as never,
+      pipelineStatus: {
+        stages: {
+          bundle: { status: StageStatus.COMPLETED },
+          preflight: { status: StageStatus.COMPLETED },
+        },
+      } as never,
     });
 
     renderWithProviders(
-      <PreflightSection scenarioName="desktop-app" bundleManifestPath="/tmp/desktop-app/bundle-manifest.json" bundleManifest={{ services: [] }} />,
+      <PreflightSection
+        scenarioName="desktop-app"
+        bundleManifestPath="/tmp/desktop-app/bundle-manifest.json"
+        bundleManifest={{ services: [] }}
+      />,
     );
 
-    expect(screen.getByText("No validation issues detected.")).toBeInTheDocument();
+    expect(
+      screen.getByText("No validation issues detected."),
+    ).toBeInTheDocument();
     expect(screen.getByText("Preflight warnings")).toBeInTheDocument();
     expect(screen.getByText("Readiness details")).toBeInTheDocument();
-    expect(screen.getByText(/Waited 2s before capturing status/)).toBeInTheDocument();
-    expect(screen.getByText("Control API is responding. Runtime supervisor initialized.")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Waited 2s before capturing status/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Control API is responding. Runtime supervisor initialized.",
+      ),
+    ).toBeInTheDocument();
   });
 });

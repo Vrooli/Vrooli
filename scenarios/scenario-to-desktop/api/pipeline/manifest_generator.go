@@ -17,9 +17,15 @@ import (
 // DeploymentManagerGenerator implements ManifestGenerator by calling
 // the deployment-manager scenario to create bundle manifests.
 type DeploymentManagerGenerator struct {
-	client *http.Client
-	logger Logger
+	client     *http.Client
+	logger     Logger
+	resolveURL DeploymentManagerURLResolver
 }
+
+// DeploymentManagerURLResolver resolves the deployment-manager base URL.
+// It is injectable so callers can use an explicit local endpoint in tests
+// while production continues to use service discovery.
+type DeploymentManagerURLResolver func(context.Context) (string, error)
 
 // DeploymentManagerGeneratorOption configures a DeploymentManagerGenerator.
 type DeploymentManagerGeneratorOption func(*DeploymentManagerGenerator)
@@ -38,10 +44,22 @@ func WithGeneratorHTTPClient(c *http.Client) DeploymentManagerGeneratorOption {
 	}
 }
 
+// WithDeploymentManagerURLResolver overrides deployment-manager discovery.
+func WithDeploymentManagerURLResolver(resolver DeploymentManagerURLResolver) DeploymentManagerGeneratorOption {
+	return func(g *DeploymentManagerGenerator) {
+		if resolver != nil {
+			g.resolveURL = resolver
+		}
+	}
+}
+
 // NewDeploymentManagerGenerator creates a new manifest generator.
 func NewDeploymentManagerGenerator(opts ...DeploymentManagerGeneratorOption) *DeploymentManagerGenerator {
 	g := &DeploymentManagerGenerator{
 		client: &http.Client{Timeout: 5 * time.Minute},
+		resolveURL: func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+		},
 	}
 	for _, opt := range opts {
 		opt(g)
@@ -75,7 +93,7 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 	}
 
 	// Resolve deployment-manager URL
-	deploymentManagerURL, err := discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+	deploymentManagerURL, err := g.resolveURL(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve deployment-manager: %w", err)
 	}

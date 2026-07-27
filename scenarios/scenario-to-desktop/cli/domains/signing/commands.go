@@ -2,9 +2,8 @@ package signing
 
 import (
 	"fmt"
-	"strings"
-
 	"scenario-to-desktop/cli/internal/support"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"

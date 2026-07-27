@@ -3,9 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"testing"
-
 	"scenario-to-desktop/cli/domains"
+	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"

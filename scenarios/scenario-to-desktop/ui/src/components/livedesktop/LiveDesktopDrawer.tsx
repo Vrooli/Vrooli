@@ -92,7 +92,12 @@ export function LiveDesktopDrawer() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label htmlFor="desktop-width" className="text-xs text-slate-500">Width</label>
+                <label
+                  htmlFor="desktop-width"
+                  className="text-xs text-slate-500"
+                >
+                  Width
+                </label>
                 <Input
                   id="desktop-width"
                   type="number"
@@ -105,7 +110,12 @@ export function LiveDesktopDrawer() {
                 />
               </div>
               <div className="space-y-1">
-                <label htmlFor="desktop-height" className="text-xs text-slate-500">Height</label>
+                <label
+                  htmlFor="desktop-height"
+                  className="text-xs text-slate-500"
+                >
+                  Height
+                </label>
                 <Input
                   id="desktop-height"
                   type="number"

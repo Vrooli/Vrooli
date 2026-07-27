@@ -8,6 +8,7 @@ import (
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/records"
+	"scenario-to-desktop-api/shared/connecterrors"
 	"scenario-to-desktop-api/signing"
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/state"
@@ -37,63 +38,64 @@ func (healthConnectService) Check(_ context.Context, _ *connect.Request[sharedv1
 }
 
 func (s *Server) registerConnectHandlers() {
-	path, handler := sharedconnect.NewHealthServiceHandler(healthConnectService{})
+	options := []connect.HandlerOption{connect.WithInterceptors(connecterrors.Interceptor())}
+	path, handler := sharedconnect.NewHealthServiceHandler(healthConnectService{}, options...)
 	s.router.PathPrefix(path).Handler(handler)
 
-	path, handler = domainconnect.NewDocumentationServiceHandler(documentationConnectService{server: s})
+	path, handler = domainconnect.NewDocumentationServiceHandler(documentationConnectService{server: s}, options...)
 	s.router.PathPrefix(path).Handler(handler)
 
-	path, handler = domainconnect.NewOperationsServiceHandler(operationsConnectService{server: s, scenarioHandler: s.scenarioHandler})
+	path, handler = domainconnect.NewOperationsServiceHandler(operationsConnectService{server: s, scenarioHandler: s.scenarioHandler}, options...)
 	s.router.PathPrefix(path).Handler(handler)
 
-	path, handler = pipelineconnect.NewPipelineServiceHandler(pipeline.NewConnectService(s.pipelineHandler))
+	path, handler = pipelineconnect.NewPipelineServiceHandler(pipeline.NewConnectService(s.pipelineHandler), options...)
 	s.router.PathPrefix(path).Handler(handler)
 
-	path, handler = domainconnect.NewSystemServiceHandler(system.NewConnectService(s.systemHandler))
+	path, handler = domainconnect.NewSystemServiceHandler(system.NewConnectService(s.systemHandler), options...)
 	s.router.PathPrefix(path).Handler(handler)
 
-	path, handler = domainconnect.NewConfigServiceHandler(generation.NewConnectService(s.configAnalyzer))
+	path, handler = domainconnect.NewConfigServiceHandler(generation.NewConnectService(s.configAnalyzer), options...)
 	s.router.PathPrefix(path).Handler(handler)
 
-	path, handler = domainconnect.NewSigningServiceHandler(signing.NewConnectService(s.signingHandler))
+	path, handler = domainconnect.NewSigningServiceHandler(signing.NewConnectService(s.signingHandler), options...)
 	s.router.PathPrefix(path).Handler(handler)
 
-	path, handler = domainconnect.NewBuildServiceHandler(build.NewConnectService(s.buildHandler))
+	path, handler = domainconnect.NewBuildServiceHandler(build.NewConnectService(s.buildHandler), options...)
 	s.router.PathPrefix(path).Handler(handler)
 
-	path, handler = domainconnect.NewSmokeTestServiceHandler(smoketest.NewConnectService(s.smokeTestService, s.smokeTestStore, s.smokeTestCancels))
+	path, handler = domainconnect.NewSmokeTestServiceHandler(smoketest.NewConnectService(s.smokeTestService, s.smokeTestStore, s.smokeTestCancels), options...)
 	s.router.PathPrefix(path).Handler(handler)
 
-	path, handler = domainconnect.NewPreflightServiceHandler(preflightdomain.NewConnectService(s.preflightService))
+	path, handler = domainconnect.NewPreflightServiceHandler(preflightdomain.NewConnectService(s.preflightService), options...)
 	s.router.PathPrefix(path).Handler(handler)
 
 	if s.taskSvc != nil {
-		path, handler = domainconnect.NewTaskServiceHandler(tasks.NewConnectService(s.taskSvc))
+		path, handler = domainconnect.NewTaskServiceHandler(tasks.NewConnectService(s.taskSvc), options...)
 		s.router.PathPrefix(path).Handler(handler)
 	}
 
 	if s.liveDesktopService != nil && s.capturesService != nil {
-		path, handler = domainconnect.NewEvidenceServiceHandler(evidence.NewConnectService(s.liveDesktopService, s.capturesService))
+		path, handler = domainconnect.NewEvidenceServiceHandler(evidence.NewConnectService(s.liveDesktopService, s.capturesService), options...)
 		s.router.PathPrefix(path).Handler(handler)
 	}
 
 	if s.stateHandler != nil {
-		path, handler = domainconnect.NewStateServiceHandler(state.NewConnectService(s.stateHandler))
+		path, handler = domainconnect.NewStateServiceHandler(state.NewConnectService(s.stateHandler), options...)
 		s.router.PathPrefix(path).Handler(handler)
 	}
 
 	if s.telemetryHandler != nil {
-		path, handler = domainconnect.NewTelemetryServiceHandler(telemetry.NewConnectService(s.telemetryHandler))
+		path, handler = domainconnect.NewTelemetryServiceHandler(telemetry.NewConnectService(s.telemetryHandler), options...)
 		s.router.PathPrefix(path).Handler(handler)
 	}
 
 	if s.recordsHandler != nil {
-		path, handler = domainconnect.NewDesktopRecordsServiceHandler(records.NewConnectService(s.recordsHandler))
+		path, handler = domainconnect.NewDesktopRecordsServiceHandler(records.NewConnectService(s.recordsHandler), options...)
 		s.router.PathPrefix(path).Handler(handler)
 	}
 
 	if s.deployHandler != nil {
-		path, handler = domainconnect.NewDeployTargetServiceHandler(deploy.NewConnectService(s.deployHandler))
+		path, handler = domainconnect.NewDeployTargetServiceHandler(deploy.NewConnectService(s.deployHandler), options...)
 		s.router.PathPrefix(path).Handler(handler)
 	}
 }

@@ -109,7 +109,8 @@ describe("AppDetailDrawer", () => {
     );
     const moveButtons = screen.getAllByRole("button", { name: "Move" });
     const destinationMove = moveButtons[1];
-    if (!destinationMove) throw new Error("Destination move action is not mounted");
+    if (!destinationMove)
+      throw new Error("Destination move action is not mounted");
     await user.click(destinationMove);
     await user.click(screen.getByRole("button", { name: "Configure" }));
     await user.click(screen.getByRole("button", { name: "Rebuild" }));

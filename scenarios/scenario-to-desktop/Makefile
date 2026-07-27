@@ -72,7 +72,9 @@ fmt: fmt-go fmt-ui ## Format all code
 fmt-go: ## Format Go code
 	@for surface in api cli runtime; do \
 		if [ -d "$$surface" ] && find "$$surface" -name "*.go" -print -quit | grep -q .; then \
-			if command -v gofumpt >/dev/null 2>&1; then \
+			if command -v golangci-lint >/dev/null 2>&1; then \
+				cd "$$surface" && golangci-lint run --fix ./... && cd - >/dev/null; \
+			elif command -v gofumpt >/dev/null 2>&1; then \
 				find "$$surface" -name "*.go" -type f -print0 | xargs -0 gofumpt -w; \
 			else \
 				find "$$surface" -name "*.go" -type f -print0 | xargs -0 gofmt -w; \

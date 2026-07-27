@@ -3,8 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { ConnectionSectionRouter } from "./ConnectionSectionRouter";
 
 vi.mock("../runtime", () => ({
-  ExternalServerSection: ({ scenarioName }: { scenarioName: string }) => <div>External for {scenarioName}</div>,
-  EmbeddedServerSection: ({ serverPort }: { serverPort: number }) => <div>Embedded on {serverPort}</div>,
+  ExternalServerSection: ({ scenarioName }: { scenarioName: string }) => (
+    <div>External for {scenarioName}</div>
+  ),
+  EmbeddedServerSection: ({ serverPort }: { serverPort: number }) => (
+    <div>Embedded on {serverPort}</div>
+  ),
 }));
 
 function props(kind: "bundled-runtime" | "remote-server" | "local-embedded") {
@@ -42,7 +46,9 @@ describe("ConnectionSectionRouter", () => {
   });
 
   it("does not render a duplicate connection form for bundled deployments", () => {
-    const { container } = render(<ConnectionSectionRouter {...props("bundled-runtime")} />);
+    const { container } = render(
+      <ConnectionSectionRouter {...props("bundled-runtime")} />,
+    );
     expect(container).toBeEmptyDOMElement();
   });
 });

@@ -2,6 +2,7 @@ package preflight
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -76,5 +77,21 @@ func TestConnectServiceRejectsEmptyManifestInspection(t *testing.T) {
 	_, err := handler.InspectManifest(context.Background(), connect.NewRequest(&domainv1.ManifestRequest{}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("InspectManifest() error code = %v, want invalid_argument (err %v)", connect.CodeOf(err), err)
+	}
+}
+
+func TestConnectServiceInspectsValidatedManifestAndMapsInvalidPath(t *testing.T) {
+	handler := NewConnectService(NewService())
+	fixture, err := filepath.Abs("../../runtime/testdata/fixture-bundle/bundle.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := handler.InspectManifest(context.Background(), connect.NewRequest(&domainv1.ManifestRequest{ManifestPath: fixture}))
+	if err != nil || response.Msg.GetManifest()["schema_version"] == "" || response.Msg.GetManifest()["app"] == "" {
+		t.Fatalf("InspectManifest() = %#v, %v", response.Msg, err)
+	}
+	_, err = handler.InspectManifest(context.Background(), connect.NewRequest(&domainv1.ManifestRequest{ManifestPath: filepath.Join(t.TempDir(), "missing.json")}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing manifest code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 }

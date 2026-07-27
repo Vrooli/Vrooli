@@ -51,7 +51,9 @@ beforeEach(() => {
 
 describe("liveDesktopStore", () => {
   it("opens a local artifact and starts its live desktop session", async () => {
-    act(() => { useLiveDesktopStore.getState().open("calculator", "/tmp/app"); });
+    act(() => {
+      useLiveDesktopStore.getState().open("calculator", "/tmp/app");
+    });
     await act(async () =>
       useLiveDesktopStore.getState().startSession({
         scenarioName: "calculator",
@@ -71,7 +73,9 @@ describe("liveDesktopStore", () => {
       appPath: "/tmp/app",
       connectionStatus: "connecting",
     });
-    expect(useLiveDesktopStore.getState().activeSession?.sessionId).toBe("desktop-1");
+    expect(useLiveDesktopStore.getState().activeSession?.sessionId).toBe(
+      "desktop-1",
+    );
   });
 
   it("surfaces a failed session response without retaining a stale desktop", async () => {
@@ -101,7 +105,9 @@ describe("liveDesktopStore", () => {
       connectionStatus: "connected",
     });
 
-    act(() => { useLiveDesktopStore.getState().close(); });
+    act(() => {
+      useLiveDesktopStore.getState().close();
+    });
     await vi.waitFor(() => {
       expect(desktopApi.stopDesktopSession).toHaveBeenCalledWith("desktop-1");
     });

@@ -40,9 +40,7 @@ function renderCard() {
 }
 
 async function expandCard() {
-  fireEvent.click(
-    screen.getByRole("button", { name: /uploading telemetry/i }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: /uploading telemetry/i }));
   await screen.findByText("Upload telemetry");
 }
 
@@ -84,7 +82,11 @@ describe("TelemetryUploadCard", () => {
       scenario_name: "desktop-demo",
       exists: true,
       last_session: { session_id: "session-1", status: "passed" },
-      last_error: { event: "startup_error", timestamp: "invalid-date", message: "No display" },
+      last_error: {
+        event: "startup_error",
+        timestamp: "invalid-date",
+        message: "No display",
+      },
     });
     mocks.fetchTelemetrySummary.mockResolvedValue({
       scenario_name: "desktop-demo",
@@ -97,13 +99,14 @@ describe("TelemetryUploadCard", () => {
     await expandCard();
 
     expect(await screen.findByText("Session ID:")).toBeInTheDocument();
-    expect(screen.getByText(/Last error: startup_error - No display/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Last error: startup_error - No display/),
+    ).toBeInTheDocument();
     expect(screen.getByText("2 KB")).toBeInTheDocument();
     expect(screen.getByText("/tmp/telemetry.jsonl")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Download JSONL" })).toHaveAttribute(
-      "href",
-      "/api/v1/telemetry/desktop-demo/download",
-    );
+    expect(
+      screen.getByRole("link", { name: "Download JSONL" }),
+    ).toHaveAttribute("href", "/api/v1/telemetry/desktop-demo/download");
   });
 
   it("uploads a valid selected telemetry file and refreshes the summary", async () => {
@@ -111,7 +114,9 @@ describe("TelemetryUploadCard", () => {
       success: true,
       content: '{"event":"startup_complete"}',
     });
-    mocks.uploadTelemetry.mockResolvedValue({ output_path: "/tmp/uploaded.jsonl" });
+    mocks.uploadTelemetry.mockResolvedValue({
+      output_path: "/tmp/uploaded.jsonl",
+    });
     renderCard();
     await expandCard();
 
@@ -129,11 +134,16 @@ describe("TelemetryUploadCard", () => {
         events: [expect.objectContaining({ event: "startup_complete" })],
       });
     });
-    expect(await screen.findByText("Telemetry uploaded successfully")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Telemetry uploaded successfully"),
+    ).toBeInTheDocument();
   });
 
   it("surfaces file read failures without calling the upload endpoint", async () => {
-    mocks.readFileAsText.mockResolvedValue({ success: false, error: "Unreadable file" });
+    mocks.readFileAsText.mockResolvedValue({
+      success: false,
+      error: "Unreadable file",
+    });
     renderCard();
     await expandCard();
 
@@ -158,7 +168,9 @@ describe("TelemetryUploadCard", () => {
     await expandCard();
 
     await screen.findByRole("button", { name: /view last 200 events/i });
-    fireEvent.click(screen.getByRole("button", { name: /view last 200 events/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /view last 200 events/i }),
+    );
     await waitFor(() => {
       expect(mocks.fetchTelemetryTail).toHaveBeenCalled();
     });
@@ -168,7 +180,9 @@ describe("TelemetryUploadCard", () => {
       expect(mocks.deleteTelemetry).toHaveBeenCalledWith("desktop-demo");
     });
     expect(await screen.findByText("Telemetry deleted.")).toBeInTheDocument();
-    expect(screen.queryByText(/showing last 200 events/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/showing last 200 events/i),
+    ).not.toBeInTheDocument();
   });
 
   it("filters the tail to error events and exposes malformed entries", async () => {
@@ -192,12 +206,18 @@ describe("TelemetryUploadCard", () => {
     await expandCard();
 
     await screen.findByRole("button", { name: /view last 200 events/i });
-    fireEvent.click(screen.getByRole("button", { name: /view last 200 events/i }));
-    expect(await screen.findByText("Unparsed telemetry line")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: /view last 200 events/i }),
+    );
+    expect(
+      await screen.findByText("Unparsed telemetry line"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Parse error: invalid JSON")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show errors only" }));
 
-    expect(screen.queryByText("Unparsed telemetry line")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Unparsed telemetry line"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows platform file paths and copies the selected path", async () => {

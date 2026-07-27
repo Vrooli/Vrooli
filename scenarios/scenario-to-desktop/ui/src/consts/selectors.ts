@@ -60,4 +60,6 @@ const flattenSelectors = (
 };
 
 export const selectors = literalSelectors;
-export const selectorsManifest = { selectors: flattenSelectors(literalSelectors) };
+export const selectorsManifest = {
+  selectors: flattenSelectors(literalSelectors),
+};

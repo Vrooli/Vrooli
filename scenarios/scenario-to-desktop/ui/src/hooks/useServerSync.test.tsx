@@ -14,7 +14,8 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("../store", () => ({
-  usePipelineStore: (selector: (value: typeof state) => unknown) => selector(state),
+  usePipelineStore: (selector: (value: typeof state) => unknown) =>
+    selector(state),
 }));
 vi.mock("./useScenarioState", () => ({
   useScenarioState: () => ({
@@ -36,7 +37,9 @@ describe("useServerSync", () => {
   });
 
   it("persists a completed desktop build once the server state is ready", async () => {
-    const { result } = renderHook(() => useServerSync({ scenarioName: "calculator", viewMode: "generator" }));
+    const { result } = renderHook(() =>
+      useServerSync({ scenarioName: "calculator", viewMode: "generator" }),
+    );
 
     expect(result.current.serverStateLoaded).toBe(true);
     await waitFor(() => {
@@ -61,17 +64,21 @@ describe("useServerSync", () => {
       telemetryUploaded: false,
     };
 
-    renderHook(() => useServerSync({ scenarioName: "calculator", viewMode: "inventory" }));
+    renderHook(() =>
+      useServerSync({ scenarioName: "calculator", viewMode: "inventory" }),
+    );
 
     await waitFor(() => {
-      expect(state.updateFormState).toHaveBeenCalledWith(expect.objectContaining({
-        smoke_test_id: "smoke-1",
-        smoke_test_platform: "linux",
-        smoke_test_status: "running",
-        smoke_test_started_at: "1970-01-01T00:00:03.000Z",
-        smoke_test_completed_at: null,
-        smoke_test_logs: "launching",
-      }));
+      expect(state.updateFormState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          smoke_test_id: "smoke-1",
+          smoke_test_platform: "linux",
+          smoke_test_status: "running",
+          smoke_test_started_at: "1970-01-01T00:00:03.000Z",
+          smoke_test_completed_at: null,
+          smoke_test_logs: "launching",
+        }),
+      );
     });
   });
 
@@ -85,13 +92,19 @@ describe("useServerSync", () => {
       telemetryUploaded: true,
     };
 
-    renderHook(() => useServerSync({ scenarioName: "calculator", viewMode: "generator" }));
+    renderHook(() =>
+      useServerSync({ scenarioName: "calculator", viewMode: "generator" }),
+    );
 
     await waitFor(() => {
       expect(state.saveStageResult).toHaveBeenCalledWith(
         "smoke_test",
         state.smokeTestResult,
-        expect.objectContaining({ smoke_test_platform: "win", smoke_test_status: "failed", smoke_test_error: "application exited" }),
+        expect.objectContaining({
+          smoke_test_platform: "win",
+          smoke_test_status: "failed",
+          smoke_test_error: "application exited",
+        }),
       );
     });
   });

@@ -1,9 +1,8 @@
 package domains
 
 import (
-	"testing"
-
 	"scenario-to-desktop/cli/internal/support"
+	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

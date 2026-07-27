@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"scenario-to-desktop-api/signing"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -469,7 +470,15 @@ func (s *DefaultService) generateSigningArtifacts(config *DesktopConfig) error {
 		}
 
 		for relPath, content := range files {
-			fullPath := filepath.Join(outputPath, relPath)
+			fullPath := relPath
+			if !filepath.IsAbs(fullPath) {
+				fullPath = filepath.Join(outputPath, fullPath)
+			}
+			fullPath = filepath.Clean(fullPath)
+			relToOutput, err := filepath.Rel(outputPath, fullPath)
+			if err != nil || relToOutput == ".." || strings.HasPrefix(relToOutput, ".."+string(filepath.Separator)) {
+				return fmt.Errorf("generated signing artifact path escapes output directory: %s", relPath)
+			}
 			dir := filepath.Dir(fullPath)
 			if err := os.MkdirAll(dir, 0o755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", dir, err)

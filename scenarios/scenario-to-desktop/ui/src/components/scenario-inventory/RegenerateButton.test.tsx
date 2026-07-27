@@ -27,32 +27,50 @@ describe("RegenerateButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.mutation.isPending = false;
-    Object.assign(mocks.status, { isBuilding: false, isComplete: false, isFailed: false });
+    Object.assign(mocks.status, {
+      isBuilding: false,
+      isComplete: false,
+      isFailed: false,
+    });
   });
 
   it("requires confirmation and starts a typed generate-only pipeline", () => {
-    renderWithProviders(<RegenerateButton scenarioName="canvas-lab" connectionConfig={{ proxy_url: "http://127.0.0.1:5050", deployment_mode: "bundled" }} />);
+    renderWithProviders(
+      <RegenerateButton
+        scenarioName="canvas-lab"
+        connectionConfig={{
+          proxy_url: "http://127.0.0.1:5050",
+          deployment_mode: "bundled",
+        }}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Regenerate" }));
     expect(screen.getByText("Regenerate desktop app?")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Confirm Regenerate" }));
-    expect(mocks.runPipelineWithConfig).toHaveBeenCalledWith(expect.objectContaining({
-      scenarioName: "canvas-lab",
-      proxyUrl: "http://127.0.0.1:5050",
-      stopAfterStage: StageName.GENERATE,
-    }));
+    expect(mocks.runPipelineWithConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scenarioName: "canvas-lab",
+        proxyUrl: "http://127.0.0.1:5050",
+        stopAfterStage: StageName.GENERATE,
+      }),
+    );
   });
 
   it("allows cancellation before work begins", () => {
     renderWithProviders(<RegenerateButton scenarioName="canvas-lab" />);
     fireEvent.click(screen.getByRole("button", { name: "Regenerate" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByRole("button", { name: "Regenerate" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Regenerate" }),
+    ).toBeInTheDocument();
     expect(mocks.runPipelineWithConfig).not.toHaveBeenCalled();
   });
 
   it("shows running, completion, and recoverable failure states", () => {
     mocks.mutation.isPending = true;
-    const { rerender } = renderWithProviders(<RegenerateButton scenarioName="canvas-lab" />);
+    const { rerender } = renderWithProviders(
+      <RegenerateButton scenarioName="canvas-lab" />,
+    );
     expect(screen.getByText("Regenerating...")).toBeInTheDocument();
 
     mocks.mutation.isPending = false;

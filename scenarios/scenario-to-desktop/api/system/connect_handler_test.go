@@ -11,6 +11,10 @@ import (
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
 
+type systemTestBuildStore map[string]*BuildStatus
+
+func (s systemTestBuildStore) Snapshot() map[string]*BuildStatus { return s }
+
 func TestGetSystemStatusUsesTypedServiceAndBuildStatistics(t *testing.T) {
 	t.Parallel()
 
@@ -74,5 +78,40 @@ func TestSystemConnectServiceTemplateAndWineContracts(t *testing.T) {
 	_, err = service.GetWineInstallStatus(context.Background(), connect.NewRequest(&domainv1.GetWineInstallStatusRequest{InstallId: "missing"}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("missing status code = %s, want not_found", connect.CodeOf(err))
+	}
+}
+
+func TestSystemConnectServiceReportsBuildStatesAndTemplateFailures(t *testing.T) {
+	templateDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(templateDir, "advanced"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	service := NewConnectService(NewHandler(nil, systemTestBuildStore{
+		"building": {Status: "building"}, "ready": {Status: "ready"}, "failed": {Status: "failed"}, "other": {Status: "queued"},
+	}, templateDir))
+	status, err := service.GetSystemStatus(context.Background(), connect.NewRequest(&domainv1.GetSystemStatusRequest{}))
+	if err != nil || status.Msg.GetStatistics().GetTotalBuilds() != 4 || status.Msg.GetStatistics().GetActiveBuilds() != 1 || status.Msg.GetStatistics().GetCompletedBuilds() != 1 || status.Msg.GetStatistics().GetFailedBuilds() != 1 {
+		t.Fatalf("GetSystemStatus() = %#v, %v", status, err)
+	}
+	if _, err := service.GetTemplate(context.Background(), connect.NewRequest(&domainv1.GetTemplateRequest{Type: "advanced"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing template code = %v", connect.CodeOf(err))
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "advanced-app.json"), []byte("invalid"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.GetTemplate(context.Background(), connect.NewRequest(&domainv1.GetTemplateRequest{Type: "advanced"})); connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("invalid template code = %v", connect.CodeOf(err))
+	}
+	if _, err := service.CheckWine(context.Background(), connect.NewRequest(&domainv1.CheckWineRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("unconfigured Wine code = %v", connect.CodeOf(err))
+	}
+	if _, err := service.InstallWine(context.Background(), connect.NewRequest(&domainv1.InstallWineRequest{Method: "invalid"})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("unconfigured Wine takes precedence code = %v", connect.CodeOf(err))
+	}
+	if filename, ok := templateFilename("basic"); !ok || filename != "universal-app.json" {
+		t.Fatalf("basic template alias = %q, %v", filename, ok)
+	}
+	if _, ok := templateInstallMethod("invalid"); ok {
+		t.Fatal("invalid Wine method unexpectedly accepted")
 	}
 }

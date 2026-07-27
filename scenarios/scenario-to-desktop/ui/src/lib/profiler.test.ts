@@ -9,14 +9,7 @@ describe("onProfilerRender", () => {
   it("records a portable browser performance measure for each React commit", () => {
     const measure = vi.spyOn(performance, "measure");
 
-    onProfilerRender(
-      "generator-form",
-      "update",
-      14.5,
-      19.2,
-      100,
-      120,
-    );
+    onProfilerRender("generator-form", "update", 14.5, 19.2, 100, 120);
 
     expect(measure).toHaveBeenCalledWith("⚛ generator-form update", {
       start: 100,
@@ -32,9 +25,9 @@ describe("onProfilerRender", () => {
       value: undefined,
     });
 
-    expect(() =>
-      { onProfilerRender("generator-form", "mount", 1, 1, 0, 1); },
-    ).not.toThrow();
+    expect(() => {
+      onProfilerRender("generator-form", "mount", 1, 1, 0, 1);
+    }).not.toThrow();
 
     Object.defineProperty(performance, "measure", {
       configurable: true,

@@ -7,8 +7,12 @@ describe("logger", () => {
   it("delegates each severity to the matching console method", () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const debug = vi
+      .spyOn(console, "debug")
+      .mockImplementation(() => undefined);
 
     logger.info("generated", { platform: "linux" });
     logger.warn("preflight warning", "runtime missing");

@@ -100,7 +100,9 @@ describe("PipelineHistoryDropdown", () => {
     ).toBeInTheDocument();
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
-    await waitFor(() => { expect(loadPipelineHistory).toHaveBeenCalledTimes(2); });
+    await waitFor(() => {
+      expect(loadPipelineHistory).toHaveBeenCalledTimes(2);
+    });
     expect(
       await screen.findByText("No pipeline history found."),
     ).toBeInTheDocument();

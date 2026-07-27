@@ -3,7 +3,9 @@ import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SigningInlineSection } from "./SigningInlineSection";
 
-function renderSection(overrides: Partial<ComponentProps<typeof SigningInlineSection>> = {}) {
+function renderSection(
+  overrides: Partial<ComponentProps<typeof SigningInlineSection>> = {},
+) {
   const props = {
     scenarioName: "canvas-lab",
     signingEnabled: false,
@@ -26,7 +28,9 @@ afterEach(() => {
 describe("SigningInlineSection", () => {
   it("warns about unsigned builds and exposes intentional signing actions", () => {
     const props = renderSection();
-    expect(screen.getByText(/Unsigned installers may trigger OS warnings/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Unsigned installers may trigger OS warnings/),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Enable signing now" }));
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     fireEvent.click(screen.getByRole("button", { name: /Open Signing tab/ }));
@@ -44,26 +48,38 @@ describe("SigningInlineSection", () => {
     const issue = renderSection({
       signingEnabled: true,
       signingConfig: {} as never,
-      readiness: { ready: false, issues: ["Apple certificate expired"] } as never,
+      readiness: {
+        ready: false,
+        issues: ["Apple certificate expired"],
+      } as never,
     });
     expect(screen.getByText("Apple certificate expired")).toBeInTheDocument();
     expect(issue.onRefresh).not.toHaveBeenCalled();
   });
 
   it("shows a ready state, persisted expiry warning, and a loading status", () => {
-    window.localStorage.setItem("std_signing_expiry_warning", "Certificate expires in 7 days");
-    const { unmount } = render(<SigningInlineSection
-      scenarioName="canvas-lab"
-      signingEnabled={true}
-      signingConfig={{} as never}
-      readiness={{ ready: true, issues: [] } as never}
-      loading={false}
-      onToggleSigning={vi.fn()}
-      onOpenSigning={vi.fn()}
-      onRefresh={vi.fn()}
-    />);
-    expect(screen.getByText(/Signing ready for at least one platform/)).toBeInTheDocument();
-    expect(screen.getByText("Certificate expires in 7 days")).toBeInTheDocument();
+    window.localStorage.setItem(
+      "std_signing_expiry_warning",
+      "Certificate expires in 7 days",
+    );
+    const { unmount } = render(
+      <SigningInlineSection
+        scenarioName="canvas-lab"
+        signingEnabled={true}
+        signingConfig={{} as never}
+        readiness={{ ready: true, issues: [] } as never}
+        loading={false}
+        onToggleSigning={vi.fn()}
+        onOpenSigning={vi.fn()}
+        onRefresh={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText(/Signing ready for at least one platform/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Certificate expires in 7 days"),
+    ).toBeInTheDocument();
 
     unmount();
     renderSection({ signingEnabled: true, loading: true });
@@ -73,9 +89,15 @@ describe("SigningInlineSection", () => {
 
   it("does not allow signing actions without a selected scenario", () => {
     renderSection({ scenarioName: "" });
-    expect(screen.getByRole("checkbox", { name: "Skip signing for this build" })).toBeDisabled();
+    expect(
+      screen.getByRole("checkbox", { name: "Skip signing for this build" }),
+    ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Enable signing now" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Open Signing tab/ })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Enable signing now" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Open Signing tab/ }),
+    ).toBeDisabled();
   });
 });

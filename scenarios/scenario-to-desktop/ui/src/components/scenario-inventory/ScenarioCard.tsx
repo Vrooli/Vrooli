@@ -133,27 +133,27 @@ export function ScenarioCard({
           </Button>
           {uniquePlatforms.length > 0 && (
             <>
-            <span className="text-xs uppercase tracking-wide text-slate-400">
-              Downloads
-            </span>
-            {uniquePlatforms.map((platform) => (
-              <Button
-                key={platform}
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  downloadPlatform(platform);
-                }}
-              >
-                <span>{getPlatformIcon(platform)}</span>
-                <Download className="h-3 w-3" />
-              </Button>
-            ))}
-            <span className="text-[11px] text-slate-500">
-              Click to download instantly or open for guided steps.
-            </span>
+              <span className="text-xs uppercase tracking-wide text-slate-400">
+                Downloads
+              </span>
+              {uniquePlatforms.map((platform) => (
+                <Button
+                  key={platform}
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    downloadPlatform(platform);
+                  }}
+                >
+                  <span>{getPlatformIcon(platform)}</span>
+                  <Download className="h-3 w-3" />
+                </Button>
+              ))}
+              <span className="text-[11px] text-slate-500">
+                Click to download instantly or open for guided steps.
+              </span>
             </>
           )}
         </div>

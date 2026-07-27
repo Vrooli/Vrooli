@@ -12,12 +12,11 @@ export const onProfilerRender: ProfilerOnRenderCallback = (
   startTime,
   commitTime,
 ) => {
-  const measure = Reflect.get(performance, "measure") as unknown;
-  if (typeof measure !== "function") {
+  if (typeof performance.measure !== "function") {
     return;
   }
 
-  measure.call(performance, `⚛ ${id} ${phase}`, {
+  performance.measure(`⚛ ${id} ${phase}`, {
     start: startTime,
     end: commitTime,
     detail: { actualDuration, baseDuration },

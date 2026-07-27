@@ -19,6 +19,8 @@ describe("live desktop PlatformSelector", () => {
 
   it("does not falsely mark Linux as selected for another platform", () => {
     render(<PlatformSelector value={Platform.WIN} onChange={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Linux" }).className).not.toContain("border-blue-500");
+    expect(
+      screen.getByRole("button", { name: "Linux" }).className,
+    ).not.toContain("border-blue-500");
   });
 });

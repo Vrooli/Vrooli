@@ -1,11 +1,11 @@
 package main
 
 import (
+	"scenario-to-desktop/cli/domains"
+	"scenario-to-desktop/cli/internal/support"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"scenario-to-desktop/cli/domains"
-	"scenario-to-desktop/cli/internal/support"
 )
 
 const (

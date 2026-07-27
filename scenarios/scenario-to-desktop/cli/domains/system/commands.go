@@ -4,9 +4,8 @@ package system
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"scenario-to-desktop/cli/internal/support"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"

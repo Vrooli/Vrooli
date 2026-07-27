@@ -165,7 +165,9 @@ describe("getPipelineStatusDisplay", () => {
   it("keeps enum-backed pipeline statuses and an idle pipeline distinct", () => {
     expect(getPipelineStatusDisplay("idle").label).toBe("Ready");
     expect(getPipelineStatusDisplay(StageStatus.RUNNING).label).toBe("Running");
-    expect(getPipelineStatusDisplay(StageStatus.COMPLETED).label).toBe("Completed");
+    expect(getPipelineStatusDisplay(StageStatus.COMPLETED).label).toBe(
+      "Completed",
+    );
     expect(getPipelineStatusDisplay(StageStatus.FAILED).label).toBe("Failed");
   });
 
@@ -245,7 +247,9 @@ describe("formatStageName", () => {
   });
 
   it("formats every remaining pipeline stage name", () => {
-    expect(formatStageName(StageName.RESOLVE_DEPLOYMENT)).toBe("Resolve deployment");
+    expect(formatStageName(StageName.RESOLVE_DEPLOYMENT)).toBe(
+      "Resolve deployment",
+    );
     expect(formatStageName(StageName.PREFLIGHT)).toBe("Preflight");
     expect(formatStageName(StageName.DEPLOY)).toBe("Deploy");
   });

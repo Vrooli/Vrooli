@@ -9,7 +9,9 @@ const scenarios: ScenarioDesktopStatus[] = [
   { name: "bridge", display_name: "Bridge", has_desktop: false },
 ];
 
-function renderModal(overrides: Partial<React.ComponentProps<typeof ScenarioModal>> = {}) {
+function renderModal(
+  overrides: Partial<React.ComponentProps<typeof ScenarioModal>> = {},
+) {
   const props: React.ComponentProps<typeof ScenarioModal> = {
     open: true,
     loading: false,
@@ -36,9 +38,12 @@ describe("ScenarioModal", () => {
   it("filters by display name and selects an available scenario", () => {
     const props = renderModal();
 
-    fireEvent.change(screen.getByRole("textbox", { name: "Search scenarios" }), {
-      target: { value: "canvas" },
-    });
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search scenarios" }),
+      {
+        target: { value: "canvas" },
+      },
+    );
     expect(screen.getByText("Canvas Lab")).toBeInTheDocument();
     expect(screen.queryByText("Bridge")).not.toBeInTheDocument();
 
@@ -52,10 +57,15 @@ describe("ScenarioModal", () => {
   it("allows an exact custom slug and stores it as a recent choice", () => {
     const props = renderModal();
 
-    fireEvent.change(screen.getByRole("textbox", { name: "Search scenarios" }), {
-      target: { value: "new-desktop-scenario" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Use "new-desktop-scenario" slug/ }));
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search scenarios" }),
+      {
+        target: { value: "new-desktop-scenario" },
+      },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Use "new-desktop-scenario" slug/ }),
+    );
 
     expect(props.onSelect).toHaveBeenCalledWith("new-desktop-scenario");
     expect(window.localStorage.getItem("scenario-to-desktop:recents")).toBe(
@@ -78,15 +88,22 @@ describe("ScenarioModal", () => {
   it("shows loading and closes through its named control", () => {
     const loading = renderModal({ loading: true });
     expect(screen.getByText("Loading scenarios...")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close scenario chooser" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Close scenario chooser" }),
+    );
     expect(loading.onClose).toHaveBeenCalledTimes(1);
   });
 
   it("explains when a search has no matching scenario", () => {
     renderModal();
-    fireEvent.change(screen.getByRole("textbox", { name: "Search scenarios" }), {
-      target: { value: "not-found" },
-    });
-    expect(screen.getByText("No scenarios match that search.")).toBeInTheDocument();
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search scenarios" }),
+      {
+        target: { value: "not-found" },
+      },
+    );
+    expect(
+      screen.getByText("No scenarios match that search."),
+    ).toBeInTheDocument();
   });
 });

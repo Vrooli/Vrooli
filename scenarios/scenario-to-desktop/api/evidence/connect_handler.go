@@ -7,15 +7,18 @@ import (
 	"fmt"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/livedesktop"
+	"scenario-to-desktop-api/shared/connecterrors"
 	"strings"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
+
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	domainerrors "scenario-to-desktop-api/shared/errors"
 )
 
 type ConnectService struct {
@@ -52,11 +55,11 @@ func (s *ConnectService) StartDesktopSession(ctx context.Context, req *connect.R
 		return nil, err
 	}
 	if req.Msg.GetScenarioName() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario_name is required"))
+		return nil, evidenceError(connect.CodeInvalidArgument, domainerrors.CodeValidation, "scenario_name is required", nil, domainerrors.RecoveryFixInput)
 	}
 	session, err := s.desktops.StartSession(ctx, livedesktop.SessionConfig{ScenarioName: req.Msg.GetScenarioName(), AppPath: req.Msg.GetArtifactPath(), Platform: platformString(req.Msg.GetPlatform()), Width: int(req.Msg.GetWidth()), Height: int(req.Msg.GetHeight())})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "start desktop session", err, domainerrors.RecoveryRetry)
 	}
 	return connect.NewResponse(sessionToProto(session.View(), req.Msg.GetTarget())), nil
 }
@@ -64,7 +67,7 @@ func (s *ConnectService) StartDesktopSession(ctx context.Context, req *connect.R
 func (s *ConnectService) GetDesktopSession(_ context.Context, req *connect.Request[domainv1.DesktopSessionRef]) (*connect.Response[domainv1.DesktopSession], error) {
 	session, err := s.desktops.GetSession(req.Msg.GetSessionId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "desktop session not found", err, domainerrors.RecoveryFixInput)
 	}
 	return connect.NewResponse(sessionToProto(session.View(), nil)), nil
 }
@@ -82,22 +85,22 @@ func (s *ConnectService) ListDesktopSessions(_ context.Context, req *connect.Req
 
 func (s *ConnectService) LaunchDesktopArtifact(_ context.Context, req *connect.Request[domainv1.LaunchDesktopArtifactRequest]) (*connect.Response[domainv1.DesktopSession], error) {
 	if err := s.desktops.LaunchApp(req.Msg.GetSessionId(), req.Msg.GetArtifactPath()); err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		return nil, evidenceError(connect.CodeFailedPrecondition, domainerrors.CodeBadRequest, "launch desktop artifact", err, domainerrors.RecoveryFixInput)
 	}
 	session, err := s.desktops.GetSession(req.Msg.GetSessionId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "desktop session not found", err, domainerrors.RecoveryFixInput)
 	}
 	return connect.NewResponse(sessionToProto(session.View(), nil)), nil
 }
 
 func (s *ConnectService) HeartbeatDesktopSession(_ context.Context, req *connect.Request[domainv1.DesktopSessionRef]) (*connect.Response[domainv1.DesktopSession], error) {
 	if err := s.desktops.Heartbeat(req.Msg.GetSessionId()); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "desktop session not found", err, domainerrors.RecoveryFixInput)
 	}
 	session, err := s.desktops.GetSession(req.Msg.GetSessionId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "desktop session not found", err, domainerrors.RecoveryFixInput)
 	}
 	return connect.NewResponse(sessionToProto(session.View(), nil)), nil
 }
@@ -105,7 +108,7 @@ func (s *ConnectService) HeartbeatDesktopSession(_ context.Context, req *connect
 func (s *ConnectService) FindDesktopArtifact(_ context.Context, req *connect.Request[domainv1.FindDesktopArtifactRequest]) (*connect.Response[domainv1.FindDesktopArtifactResponse], error) {
 	path, err := s.desktops.FindArtifact(req.Msg.GetScenarioName())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "desktop artifact not found", err, domainerrors.RecoveryFixInput)
 	}
 	return connect.NewResponse(&domainv1.FindDesktopArtifactResponse{ArtifactPath: path}), nil
 }
@@ -113,26 +116,26 @@ func (s *ConnectService) FindDesktopArtifact(_ context.Context, req *connect.Req
 func (s *ConnectService) CaptureScreenshot(ctx context.Context, req *connect.Request[domainv1.CaptureScreenshotRequest]) (*connect.Response[domainv1.CaptureScreenshotResponse], error) {
 	result, err := s.desktops.ExecuteAction(ctx, req.Msg.GetSessionId(), "screenshot", nil)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		return nil, evidenceError(connect.CodeFailedPrecondition, domainerrors.CodeBadRequest, "capture screenshot", err, domainerrors.RecoveryFixInput)
 	}
 	id, _ := result.Data["capture_id"].(string)
 	if id == "" {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("screenshot did not persist a durable capture"))
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "screenshot did not persist a durable capture", nil, domainerrors.RecoveryRetry)
 	}
 	session, err := s.desktops.GetSession(req.Msg.GetSessionId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "desktop session not found", err, domainerrors.RecoveryFixInput)
 	}
 	all, err := s.captures.Store().List(session.View().ScenarioName)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "list evidence captures", err, domainerrors.RecoveryRetry)
 	}
 	for _, capture := range all {
 		if capture.ID == id {
 			return connect.NewResponse(&domainv1.CaptureScreenshotResponse{Capture: captureToProto(capture)}), nil
 		}
 	}
-	return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persisted capture %q not found", id))
+	return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, fmt.Sprintf("persisted capture %q not found", id), nil, domainerrors.RecoveryRetry)
 }
 
 func (s *ConnectService) ControlDesktop(ctx context.Context, req *connect.Request[domainv1.DesktopControlRequest]) (*connect.Response[domainv1.DesktopControlResponse], error) {
@@ -142,16 +145,16 @@ func (s *ConnectService) ControlDesktop(ctx context.Context, req *connect.Reques
 	}
 	params, err := json.Marshal(paramsValue)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, evidenceError(connect.CodeInvalidArgument, domainerrors.CodeValidation, "desktop action parameters are invalid", err, domainerrors.RecoveryFixInput)
 	}
 	result, err := s.desktops.ExecuteAction(ctx, req.Msg.GetSessionId(), req.Msg.GetAction(), params)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		return nil, evidenceError(connect.CodeFailedPrecondition, domainerrors.CodeBadRequest, "control desktop", err, domainerrors.RecoveryFixInput)
 	}
 	data := map[string]any{"status": result.Status, "message": result.Message, "data": result.Data}
 	out, err := structpb.NewStruct(data)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "encode desktop action result", err, domainerrors.RecoveryRetry)
 	}
 	return connect.NewResponse(&domainv1.DesktopControlResponse{Result: out}), nil
 }
@@ -159,10 +162,10 @@ func (s *ConnectService) ControlDesktop(ctx context.Context, req *connect.Reques
 func (s *ConnectService) StopDesktopSession(_ context.Context, req *connect.Request[domainv1.DesktopSessionRef]) (*connect.Response[domainv1.DesktopSession], error) {
 	session, err := s.desktops.GetSession(req.Msg.GetSessionId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "desktop session not found", err, domainerrors.RecoveryFixInput)
 	}
 	if err := s.desktops.StopSession(req.Msg.GetSessionId()); err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		return nil, evidenceError(connect.CodeFailedPrecondition, domainerrors.CodeBadRequest, "stop desktop session", err, domainerrors.RecoveryFixInput)
 	}
 	return connect.NewResponse(sessionToProto(session.View(), nil)), nil
 }
@@ -170,7 +173,7 @@ func (s *ConnectService) StopDesktopSession(_ context.Context, req *connect.Requ
 func (s *ConnectService) ListEvidenceCaptures(_ context.Context, req *connect.Request[domainv1.ListEvidenceCapturesRequest]) (*connect.Response[domainv1.ListEvidenceCapturesResponse], error) {
 	items, err := s.captures.Store().List(req.Msg.GetScenarioName())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "list evidence captures", err, domainerrors.RecoveryRetry)
 	}
 	response := &domainv1.ListEvidenceCapturesResponse{}
 	for _, item := range items {
@@ -182,30 +185,35 @@ func (s *ConnectService) ListEvidenceCaptures(_ context.Context, req *connect.Re
 func (s *ConnectService) GetEvidenceCapturesSummary(_ context.Context, req *connect.Request[domainv1.ListEvidenceCapturesRequest]) (*connect.Response[domainv1.EvidenceCapturesSummary], error) {
 	summary, err := s.captures.Store().Summary(req.Msg.GetScenarioName())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "summarize evidence captures", err, domainerrors.RecoveryRetry)
 	}
 	return connect.NewResponse(&domainv1.EvidenceCapturesSummary{Count: int32(summary.Count), TotalBytes: summary.TotalBytes}), nil
 }
 
 func (s *ConnectService) DeleteEvidenceCapture(_ context.Context, req *connect.Request[domainv1.EvidenceCaptureRef]) (*connect.Response[emptypb.Empty], error) {
 	if err := s.captures.DeleteCapture(req.Msg.GetScenarioName(), req.Msg.GetCaptureId()); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "evidence capture not found", err, domainerrors.RecoveryFixInput)
 	}
 	return connect.NewResponse(&emptypb.Empty{}), nil
 }
 
 func (s *ConnectService) DeleteAllEvidenceCaptures(_ context.Context, req *connect.Request[domainv1.ListEvidenceCapturesRequest]) (*connect.Response[emptypb.Empty], error) {
 	if err := s.captures.CleanAll(req.Msg.GetScenarioName()); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "delete evidence captures", err, domainerrors.RecoveryRetry)
 	}
 	return connect.NewResponse(&emptypb.Empty{}), nil
 }
 
 func requireLocal(target *domainv1.EvidenceTarget) error {
 	if target != nil && target.GetKind() == domainv1.EvidenceTarget_KIND_BRIDGE_NODE {
-		return connect.NewError(connect.CodeUnimplemented, fmt.Errorf("bridge-node desktop execution must be dispatched through Bridge's allowlisted job service"))
+		return evidenceError(connect.CodeUnimplemented, domainerrors.CodeNotImplemented, "bridge-node desktop execution must be dispatched through Bridge's allowlisted job service", nil, domainerrors.RecoveryNone)
 	}
 	return nil
+}
+
+func evidenceError(code connect.Code, semanticCode domainerrors.ErrorCode, message string, cause error, recovery domainerrors.RecoveryAction) error {
+	err := domainerrors.New(semanticCode, message).WithCause(cause).WithRecovery(recovery, "Review the desktop session and request, then retry the operation").InDomain("evidence")
+	return connecterrors.WithEnvelope(connect.NewError(code, err))
 }
 
 func platformString(value sharedv1.Platform) string {

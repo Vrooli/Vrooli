@@ -56,7 +56,11 @@ export function PipelineSidebar({ onSectionClick }: PipelineSidebarProps) {
             variant="ghost"
             size="sm"
             onClick={toggleCollapsed}
-            aria-label={isCollapsed ? "Expand pipeline sidebar" : "Collapse pipeline sidebar"}
+            aria-label={
+              isCollapsed
+                ? "Expand pipeline sidebar"
+                : "Collapse pipeline sidebar"
+            }
             className={cn(
               "w-full justify-center text-slate-400 hover:text-slate-200",
               isCollapsed && "px-0",

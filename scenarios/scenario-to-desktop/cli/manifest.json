@@ -1,7 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "scenario-to-desktop",
-  "description": "Authoritative CLI contract. Pipeline, signing, bundle, and system commands are being migrated to generated Connect clients; every RPC is explicitly accounted for here so transport parity is governed rather than inferred.",
+  "description": "Scenario to Desktop authoritative CLI contract. Pipeline, signing, bundle, and system commands are implemented through generated Connect clients so transport parity is governed rather than inferred.",
   "groups": [
     {
       "name": "build",

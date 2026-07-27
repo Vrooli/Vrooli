@@ -4,14 +4,13 @@ package evidence
 import (
 	"context"
 	"fmt"
+	"scenario-to-desktop/cli/internal/support"
 	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
-
-	"scenario-to-desktop/cli/internal/support"
 )
 
 type evidenceRPC interface {
