@@ -5,6 +5,7 @@ package browser_automation_studio.v1;
 import "browser-automation-studio/v1/actions/action.proto";
 import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/execution/execution.proto";
+import "browser-automation-studio/v1/evidence/evidence.proto";
 import "browser-automation-studio/v1/timeline/container.proto";
 import "browser-automation-studio/v1/workflows/definition.proto";
 import "buf/validate/validate.proto";
@@ -17,10 +18,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // WORKFLOW API SERVICE
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports base, actions, workflows, execution
-// @stability stable
+// @stability beta
 //
 // gRPC service definition for Browser Automation Studio workflow operations.
 // Defines CRUD operations for workflows and execution lifecycle.
@@ -77,6 +75,8 @@ service ExecutionsService {
   rpc GetExecution(GetExecutionRequest) returns (GetExecutionResponse);
   // Gets the proto timeline (preferred) or the legacy timeline of an execution.
   rpc GetExecutionTimeline(GetExecutionTimelineRequest) returns (ExecutionTimeline);
+  // Gets the versioned storage-independent replay package for an execution.
+  rpc GetExecutionReplayPackage(GetExecutionArtifactsRequest) returns (browser_automation_studio.v1.evidence.ReplayPackage);
   // Stops a running execution.
   rpc StopExecution(StopExecutionRequest) returns (StopExecutionResponse);
   // Resumes an interrupted execution from its last checkpoint.

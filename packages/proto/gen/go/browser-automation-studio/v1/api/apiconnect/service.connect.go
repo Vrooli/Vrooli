@@ -9,6 +9,7 @@ import (
 	context "context"
 	errors "errors"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	evidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	execution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	timeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	http "net/http"
@@ -85,6 +86,9 @@ const (
 	// ExecutionsServiceGetExecutionTimelineProcedure is the fully-qualified name of the
 	// ExecutionsService's GetExecutionTimeline RPC.
 	ExecutionsServiceGetExecutionTimelineProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecutionTimeline"
+	// ExecutionsServiceGetExecutionReplayPackageProcedure is the fully-qualified name of the
+	// ExecutionsService's GetExecutionReplayPackage RPC.
+	ExecutionsServiceGetExecutionReplayPackageProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecutionReplayPackage"
 	// ExecutionsServiceStopExecutionProcedure is the fully-qualified name of the ExecutionsService's
 	// StopExecution RPC.
 	ExecutionsServiceStopExecutionProcedure = "/browser_automation_studio.v1.ExecutionsService/StopExecution"
@@ -535,6 +539,8 @@ type ExecutionsServiceClient interface {
 	GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
 	// Gets the proto timeline (preferred) or the legacy timeline of an execution.
 	GetExecutionTimeline(context.Context, *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error)
+	// Gets the versioned storage-independent replay package for an execution.
+	GetExecutionReplayPackage(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[evidence.ReplayPackage], error)
 	// Stops a running execution.
 	StopExecution(context.Context, *connect.Request[api.StopExecutionRequest]) (*connect.Response[api.StopExecutionResponse], error)
 	// Resumes an interrupted execution from its last checkpoint.
@@ -585,6 +591,12 @@ func NewExecutionsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			httpClient,
 			baseURL+ExecutionsServiceGetExecutionTimelineProcedure,
 			connect.WithSchema(executionsServiceMethods.ByName("GetExecutionTimeline")),
+			connect.WithClientOptions(opts...),
+		),
+		getExecutionReplayPackage: connect.NewClient[api.GetExecutionArtifactsRequest, evidence.ReplayPackage](
+			httpClient,
+			baseURL+ExecutionsServiceGetExecutionReplayPackageProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("GetExecutionReplayPackage")),
 			connect.WithClientOptions(opts...),
 		),
 		stopExecution: connect.NewClient[api.StopExecutionRequest, api.StopExecutionResponse](
@@ -649,6 +661,7 @@ type executionsServiceClient struct {
 	listExecutions                    *connect.Client[api.ListExecutionsRequest, api.ListExecutionsResponse]
 	getExecution                      *connect.Client[api.GetExecutionRequest, api.GetExecutionResponse]
 	getExecutionTimeline              *connect.Client[api.GetExecutionTimelineRequest, timeline.ExecutionTimeline]
+	getExecutionReplayPackage         *connect.Client[api.GetExecutionArtifactsRequest, evidence.ReplayPackage]
 	stopExecution                     *connect.Client[api.StopExecutionRequest, api.StopExecutionResponse]
 	resumeExecution                   *connect.Client[api.ResumeExecutionRequest, api.ResumeExecutionResponse]
 	getExecutionScreenshots           *connect.Client[api.GetExecutionScreenshotsRequest, execution.GetScreenshotsResponse]
@@ -673,6 +686,12 @@ func (c *executionsServiceClient) GetExecution(ctx context.Context, req *connect
 // GetExecutionTimeline calls browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline.
 func (c *executionsServiceClient) GetExecutionTimeline(ctx context.Context, req *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error) {
 	return c.getExecutionTimeline.CallUnary(ctx, req)
+}
+
+// GetExecutionReplayPackage calls
+// browser_automation_studio.v1.ExecutionsService.GetExecutionReplayPackage.
+func (c *executionsServiceClient) GetExecutionReplayPackage(ctx context.Context, req *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[evidence.ReplayPackage], error) {
+	return c.getExecutionReplayPackage.CallUnary(ctx, req)
 }
 
 // StopExecution calls browser_automation_studio.v1.ExecutionsService.StopExecution.
@@ -736,6 +755,8 @@ type ExecutionsServiceHandler interface {
 	GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
 	// Gets the proto timeline (preferred) or the legacy timeline of an execution.
 	GetExecutionTimeline(context.Context, *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error)
+	// Gets the versioned storage-independent replay package for an execution.
+	GetExecutionReplayPackage(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[evidence.ReplayPackage], error)
 	// Stops a running execution.
 	StopExecution(context.Context, *connect.Request[api.StopExecutionRequest]) (*connect.Response[api.StopExecutionResponse], error)
 	// Resumes an interrupted execution from its last checkpoint.
@@ -781,6 +802,12 @@ func NewExecutionsServiceHandler(svc ExecutionsServiceHandler, opts ...connect.H
 		ExecutionsServiceGetExecutionTimelineProcedure,
 		svc.GetExecutionTimeline,
 		connect.WithSchema(executionsServiceMethods.ByName("GetExecutionTimeline")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceGetExecutionReplayPackageHandler := connect.NewUnaryHandler(
+		ExecutionsServiceGetExecutionReplayPackageProcedure,
+		svc.GetExecutionReplayPackage,
+		connect.WithSchema(executionsServiceMethods.ByName("GetExecutionReplayPackage")),
 		connect.WithHandlerOptions(opts...),
 	)
 	executionsServiceStopExecutionHandler := connect.NewUnaryHandler(
@@ -845,6 +872,8 @@ func NewExecutionsServiceHandler(svc ExecutionsServiceHandler, opts ...connect.H
 			executionsServiceGetExecutionHandler.ServeHTTP(w, r)
 		case ExecutionsServiceGetExecutionTimelineProcedure:
 			executionsServiceGetExecutionTimelineHandler.ServeHTTP(w, r)
+		case ExecutionsServiceGetExecutionReplayPackageProcedure:
+			executionsServiceGetExecutionReplayPackageHandler.ServeHTTP(w, r)
 		case ExecutionsServiceStopExecutionProcedure:
 			executionsServiceStopExecutionHandler.ServeHTTP(w, r)
 		case ExecutionsServiceResumeExecutionProcedure:
@@ -882,6 +911,10 @@ func (UnimplementedExecutionsServiceHandler) GetExecution(context.Context, *conn
 
 func (UnimplementedExecutionsServiceHandler) GetExecutionTimeline(context.Context, *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) GetExecutionReplayPackage(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[evidence.ReplayPackage], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.GetExecutionReplayPackage is not implemented"))
 }
 
 func (UnimplementedExecutionsServiceHandler) StopExecution(context.Context, *connect.Request[api.StopExecutionRequest]) (*connect.Response[api.StopExecutionResponse], error) {

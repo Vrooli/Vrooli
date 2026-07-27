@@ -29,8 +29,6 @@ const (
 
 // FailureKind enumerates the failure taxonomy for step failures.
 // Used by executors to determine retry vs abort policies.
-//
-// @usage StepFailure.kind
 type FailureKind int32
 
 const (
@@ -106,8 +104,6 @@ func (FailureKind) EnumDescriptor() ([]byte, []int) {
 }
 
 // FailureSource indicates which component surfaced the failure.
-//
-// @usage StepFailure.source
 type FailureSource int32
 
 const (
@@ -166,8 +162,6 @@ func (FailureSource) EnumDescriptor() ([]byte, []int) {
 
 // StepFailure captures structured failure information for a step.
 // Used to determine retry policies and provide debugging context.
-//
-// @usage StepOutcome.failure
 type StepFailure struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Failure category for policy decisions.
@@ -278,8 +272,6 @@ func (x *StepFailure) GetSource() FailureSource {
 
 // DriverScreenshot captures screenshot binary data from the driver.
 // Unlike TimelineScreenshot (which has URLs), this contains the actual bytes.
-//
-// @usage StepOutcome.screenshot
 type DriverScreenshot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Raw PNG/JPEG image bytes.
@@ -398,8 +390,6 @@ func (x *DriverScreenshot) GetSource() string {
 }
 
 // DOMSnapshot captures HTML content and preview from the driver.
-//
-// @usage StepOutcome.dom_snapshot
 type DOMSnapshot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Full HTML content (may be truncated).
@@ -483,8 +473,6 @@ func (x *DOMSnapshot) GetTruncated() bool {
 
 // DriverConsoleLogEntry captures console output from the driver.
 // Uses string type field for backwards compatibility with existing wire format.
-//
-// @usage StepOutcome.console_logs
 type DriverConsoleLogEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Log level as string (log|warn|error|info|debug).
@@ -569,8 +557,6 @@ func (x *DriverConsoleLogEntry) GetLocation() string {
 
 // DriverNetworkEvent captures network activity from the driver.
 // Uses string type field for backwards compatibility with existing wire format.
-//
-// @usage StepOutcome.network_events
 type DriverNetworkEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Event type as string (request|response|failure).
@@ -726,8 +712,6 @@ func (x *DriverNetworkEvent) GetTruncated() bool {
 }
 
 // CursorPosition captures a point in the cursor trail.
-//
-// @usage StepOutcome.cursor_trail
 type CursorPosition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Cursor coordinates.
@@ -792,8 +776,6 @@ func (x *CursorPosition) GetElapsedMs() int64 {
 }
 
 // ConditionOutcome captures the result of evaluating a branch condition.
-//
-// @usage StepOutcome.condition
 type ConditionOutcome struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Condition type (e.g., "element_exists", "variable_equals").
@@ -913,8 +895,6 @@ func (x *ConditionOutcome) GetExpected() *v1.JsonValue {
 
 // AssertionOutcome captures the result of an assertion step.
 // NOTE: This extends the base AssertionResult with driver-specific fields.
-//
-// @usage StepOutcome.assertion
 type AssertionOutcome struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Assertion mode (exists, visible, text_equals, etc.).
@@ -1028,8 +1008,6 @@ func (x *AssertionOutcome) GetMessage() string {
 //
 // IMPORTANT: This is the CANONICAL type for driver→engine communication.
 // Both Go and TypeScript implementations MUST use this exact schema.
-//
-// @usage Engine receives this from driver after each step execution
 type StepOutcome struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// === SCHEMA VERSION ===
@@ -1400,13 +1378,6 @@ func (x *StepOutcome) GetSelectorMatchCount() int32 {
 
 // CompiledInstruction is sent TO the driver to execute a single action.
 // This is the normalized format after workflow compilation.
-//
-// MIGRATION NOTE: This message is transitioning from untyped params to typed ActionDefinition.
-// During migration, both old (type/params) and new (action) fields may be populated.
-// Consumers should prefer the `action` field when present, falling back to type/params.
-// After migration completes, type/params will be reserved and action will be required.
-//
-// @usage Engine sends this to driver for execution
 type CompiledInstruction struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Zero-based index in execution order.
@@ -1414,25 +1385,14 @@ type CompiledInstruction struct {
 	// Node ID from the workflow definition.
 	// @format uuid
 	NodeId string `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	// DEPRECATED: Use action.type instead. Kept for backward compatibility.
-	// Will be removed in a future version.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution/driver.proto.
-	Type string `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	// DEPRECATED: Use action's typed params instead. Kept for backward compatibility.
-	// Will be removed in a future version.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution/driver.proto.
-	Params map[string]*v1.JsonValue `protobuf:"bytes,4,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Pre-loaded HTML for offline/test scenarios.
 	PreloadHtml *string `protobuf:"bytes,5,opt,name=preload_html,json=preloadHtml,proto3,oneof" json:"preload_html,omitempty"`
 	// Execution context (variables, state).
 	Context map[string]*v1.JsonValue `protobuf:"bytes,6,rep,name=context,proto3" json:"context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Engine-agnostic metadata (labels, hints).
 	Metadata map[string]string `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// NEW: Typed action definition with full type safety.
-	// When set, this takes precedence over deprecated type/params fields.
-	// Enables protovalidate validation and eliminates need for runtime Zod schemas.
+	// Typed action definition with full type safety.
+	// Every execution instruction carries this canonical action contract.
 	// @see action.proto for ActionDefinition and all *Params types
 	Action        *actions.ActionDefinition `protobuf:"bytes,10,opt,name=action,proto3,oneof" json:"action,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1483,22 +1443,6 @@ func (x *CompiledInstruction) GetNodeId() string {
 	return ""
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution/driver.proto.
-func (x *CompiledInstruction) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution/driver.proto.
-func (x *CompiledInstruction) GetParams() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.Params
-	}
-	return nil
-}
-
 func (x *CompiledInstruction) GetPreloadHtml() string {
 	if x != nil && x.PreloadHtml != nil {
 		return *x.PreloadHtml
@@ -1528,8 +1472,6 @@ func (x *CompiledInstruction) GetAction() *actions.ActionDefinition {
 }
 
 // PlanEdge represents a connection between steps in the execution graph.
-//
-// @usage PlanStep.outgoing
 type PlanEdge struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Edge identifier.
@@ -1613,10 +1555,6 @@ func (x *PlanEdge) GetTargetPort() string {
 }
 
 // PlanStep represents a node in the execution graph with control flow edges.
-//
-// MIGRATION NOTE: Same transition as CompiledInstruction - prefer `action` over type/params.
-//
-// @usage PlanGraph.steps
 type PlanStep struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Zero-based index in execution order.
@@ -1624,14 +1562,6 @@ type PlanStep struct {
 	// Node ID from the workflow definition.
 	// @format uuid
 	NodeId string `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	// DEPRECATED: Use action.type instead. Kept for backward compatibility.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution/driver.proto.
-	Type string `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	// DEPRECATED: Use action's typed params instead. Kept for backward compatibility.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution/driver.proto.
-	Params map[string]*v1.JsonValue `protobuf:"bytes,4,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Outgoing edges to other steps.
 	Outgoing []*PlanEdge `protobuf:"bytes,5,rep,name=outgoing,proto3" json:"outgoing,omitempty"`
 	// Nested graph for loop nodes.
@@ -1644,8 +1574,7 @@ type PlanStep struct {
 	PreloadHtml *string `protobuf:"bytes,9,opt,name=preload_html,json=preloadHtml,proto3,oneof" json:"preload_html,omitempty"`
 	// Source position in original workflow (for debugging).
 	SourcePosition map[string]*v1.JsonValue `protobuf:"bytes,10,rep,name=source_position,json=sourcePosition,proto3" json:"source_position,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// NEW: Typed action definition with full type safety.
-	// When set, this takes precedence over deprecated type/params fields.
+	// Typed action definition with full type safety.
 	Action        *actions.ActionDefinition `protobuf:"bytes,11,opt,name=action,proto3,oneof" json:"action,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1693,22 +1622,6 @@ func (x *PlanStep) GetNodeId() string {
 		return x.NodeId
 	}
 	return ""
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution/driver.proto.
-func (x *PlanStep) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution/driver.proto.
-func (x *PlanStep) GetParams() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.Params
-	}
-	return nil
 }
 
 func (x *PlanStep) GetOutgoing() []*PlanEdge {
@@ -1762,8 +1675,6 @@ func (x *PlanStep) GetAction() *actions.ActionDefinition {
 
 // PlanGraph captures the execution graph with control flow metadata.
 // Enables the executor to follow branching and looping logic.
-//
-// @usage ExecutionPlan.graph, PlanStep.loop
 type PlanGraph struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Ordered list of steps in the graph.
@@ -1811,8 +1722,6 @@ func (x *PlanGraph) GetSteps() []*PlanStep {
 
 // ExecutionPlan represents a compiled workflow ready for execution.
 // Contains both flat instruction list and optional graph for control flow.
-//
-// @usage Sent to driver at execution start
 type ExecutionPlan struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Schema version for compatibility checking.
@@ -2126,20 +2035,15 @@ const file_browser_automation_studio_v1_execution_driver_proto_rawDesc = "" +
 	"\x11_element_snapshotB\x10\n" +
 	"\x0e_used_selectorB\x16\n" +
 	"\x14_selector_confidenceB\x17\n" +
-	"\x15_selector_match_count\"\xdf\x05\n" +
+	"\x15_selector_match_count\"\xb5\x04\n" +
 	"\x13CompiledInstruction\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x17\n" +
-	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x16\n" +
-	"\x04type\x18\x03 \x01(\tB\x02\x18\x01R\x04type\x12Y\n" +
-	"\x06params\x18\x04 \x03(\v2=.browser_automation_studio.v1.CompiledInstruction.ParamsEntryB\x02\x18\x01R\x06params\x12&\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12&\n" +
 	"\fpreload_html\x18\x05 \x01(\tH\x00R\vpreloadHtml\x88\x01\x01\x12X\n" +
 	"\acontext\x18\x06 \x03(\v2>.browser_automation_studio.v1.CompiledInstruction.ContextEntryR\acontext\x12[\n" +
 	"\bmetadata\x18\a \x03(\v2?.browser_automation_studio.v1.CompiledInstruction.MetadataEntryR\bmetadata\x12K\n" +
 	"\x06action\x18\n" +
-	" \x01(\v2..browser_automation_studio.v1.ActionDefinitionH\x01R\x06action\x88\x01\x01\x1aO\n" +
-	"\vParamsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aP\n" +
+	" \x01(\v2..browser_automation_studio.v1.ActionDefinitionH\x01R\x06action\x88\x01\x01\x1aP\n" +
 	"\fContextEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1a;\n" +
@@ -2147,7 +2051,7 @@ const file_browser_automation_studio_v1_execution_driver_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0f\n" +
 	"\r_preload_htmlB\t\n" +
-	"\a_action\"\xcf\x01\n" +
+	"\a_actionJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x04typeR\x06params\"\xcf\x01\n" +
 	"\bPlanEdge\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06target\x18\x02 \x01(\tR\x06target\x12!\n" +
@@ -2159,12 +2063,10 @@ const file_browser_automation_studio_v1_execution_driver_proto_rawDesc = "" +
 	"\n" +
 	"_conditionB\x0e\n" +
 	"\f_source_portB\x0e\n" +
-	"\f_target_port\"\x80\b\n" +
+	"\f_target_port\"\xe1\x06\n" +
 	"\bPlanStep\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x17\n" +
-	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x16\n" +
-	"\x04type\x18\x03 \x01(\tB\x02\x18\x01R\x04type\x12N\n" +
-	"\x06params\x18\x04 \x03(\v22.browser_automation_studio.v1.PlanStep.ParamsEntryB\x02\x18\x01R\x06params\x12B\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12B\n" +
 	"\boutgoing\x18\x05 \x03(\v2&.browser_automation_studio.v1.PlanEdgeR\boutgoing\x12@\n" +
 	"\x04loop\x18\x06 \x01(\v2'.browser_automation_studio.v1.PlanGraphH\x00R\x04loop\x88\x01\x01\x12P\n" +
 	"\bmetadata\x18\a \x03(\v24.browser_automation_studio.v1.PlanStep.MetadataEntryR\bmetadata\x12M\n" +
@@ -2172,10 +2074,7 @@ const file_browser_automation_studio_v1_execution_driver_proto_rawDesc = "" +
 	"\fpreload_html\x18\t \x01(\tH\x01R\vpreloadHtml\x88\x01\x01\x12c\n" +
 	"\x0fsource_position\x18\n" +
 	" \x03(\v2:.browser_automation_studio.v1.PlanStep.SourcePositionEntryR\x0esourcePosition\x12K\n" +
-	"\x06action\x18\v \x01(\v2..browser_automation_studio.v1.ActionDefinitionH\x02R\x06action\x88\x01\x01\x1aO\n" +
-	"\vParamsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1a;\n" +
+	"\x06action\x18\v \x01(\v2..browser_automation_studio.v1.ActionDefinitionH\x02R\x06action\x88\x01\x01\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aP\n" +
@@ -2187,7 +2086,7 @@ const file_browser_automation_studio_v1_execution_driver_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\a\n" +
 	"\x05_loopB\x0f\n" +
 	"\r_preload_htmlB\t\n" +
-	"\a_action\"I\n" +
+	"\a_actionJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x04typeR\x06params\"I\n" +
 	"\tPlanGraph\x12<\n" +
 	"\x05steps\x18\x01 \x03(\v2&.browser_automation_studio.v1.PlanStepR\x05steps\"\xad\x04\n" +
 	"\rExecutionPlan\x12%\n" +
@@ -2232,7 +2131,7 @@ func file_browser_automation_studio_v1_execution_driver_proto_rawDescGZIP() []by
 }
 
 var file_browser_automation_studio_v1_execution_driver_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_browser_automation_studio_v1_execution_driver_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_browser_automation_studio_v1_execution_driver_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_browser_automation_studio_v1_execution_driver_proto_goTypes = []any{
 	(FailureKind)(0),                 // 0: browser_automation_studio.v1.FailureKind
 	(FailureSource)(0),               // 1: browser_automation_studio.v1.FailureSource
@@ -2256,43 +2155,41 @@ var file_browser_automation_studio_v1_execution_driver_proto_goTypes = []any{
 	nil,                              // 19: browser_automation_studio.v1.StepOutcome.ExtractedDataEntry
 	nil,                              // 20: browser_automation_studio.v1.StepOutcome.ProbeResultEntry
 	nil,                              // 21: browser_automation_studio.v1.StepOutcome.NotesEntry
-	nil,                              // 22: browser_automation_studio.v1.CompiledInstruction.ParamsEntry
-	nil,                              // 23: browser_automation_studio.v1.CompiledInstruction.ContextEntry
-	nil,                              // 24: browser_automation_studio.v1.CompiledInstruction.MetadataEntry
-	nil,                              // 25: browser_automation_studio.v1.PlanStep.ParamsEntry
-	nil,                              // 26: browser_automation_studio.v1.PlanStep.MetadataEntry
-	nil,                              // 27: browser_automation_studio.v1.PlanStep.ContextEntry
-	nil,                              // 28: browser_automation_studio.v1.PlanStep.SourcePositionEntry
-	nil,                              // 29: browser_automation_studio.v1.ExecutionPlan.MetadataEntry
-	(*timestamppb.Timestamp)(nil),    // 30: google.protobuf.Timestamp
-	(*base.Point)(nil),               // 31: browser_automation_studio.v1.Point
-	(*v1.JsonValue)(nil),             // 32: common.v1.JsonValue
-	(*base.BoundingBox)(nil),         // 33: browser_automation_studio.v1.BoundingBox
-	(*timeline.ElementFocus)(nil),    // 34: browser_automation_studio.v1.ElementFocus
-	(*domain.HighlightRegion)(nil),   // 35: browser_automation_studio.v1.HighlightRegion
-	(*domain.MaskRegion)(nil),        // 36: browser_automation_studio.v1.MaskRegion
-	(*domain.ElementMeta)(nil),       // 37: browser_automation_studio.v1.ElementMeta
-	(*actions.ActionDefinition)(nil), // 38: browser_automation_studio.v1.ActionDefinition
+	nil,                              // 22: browser_automation_studio.v1.CompiledInstruction.ContextEntry
+	nil,                              // 23: browser_automation_studio.v1.CompiledInstruction.MetadataEntry
+	nil,                              // 24: browser_automation_studio.v1.PlanStep.MetadataEntry
+	nil,                              // 25: browser_automation_studio.v1.PlanStep.ContextEntry
+	nil,                              // 26: browser_automation_studio.v1.PlanStep.SourcePositionEntry
+	nil,                              // 27: browser_automation_studio.v1.ExecutionPlan.MetadataEntry
+	(*timestamppb.Timestamp)(nil),    // 28: google.protobuf.Timestamp
+	(*base.Point)(nil),               // 29: browser_automation_studio.v1.Point
+	(*v1.JsonValue)(nil),             // 30: common.v1.JsonValue
+	(*base.BoundingBox)(nil),         // 31: browser_automation_studio.v1.BoundingBox
+	(*timeline.ElementFocus)(nil),    // 32: browser_automation_studio.v1.ElementFocus
+	(*domain.HighlightRegion)(nil),   // 33: browser_automation_studio.v1.HighlightRegion
+	(*domain.MaskRegion)(nil),        // 34: browser_automation_studio.v1.MaskRegion
+	(*domain.ElementMeta)(nil),       // 35: browser_automation_studio.v1.ElementMeta
+	(*actions.ActionDefinition)(nil), // 36: browser_automation_studio.v1.ActionDefinition
 }
 var file_browser_automation_studio_v1_execution_driver_proto_depIdxs = []int32{
 	0,  // 0: browser_automation_studio.v1.StepFailure.kind:type_name -> browser_automation_studio.v1.FailureKind
-	30, // 1: browser_automation_studio.v1.StepFailure.occurred_at:type_name -> google.protobuf.Timestamp
+	28, // 1: browser_automation_studio.v1.StepFailure.occurred_at:type_name -> google.protobuf.Timestamp
 	16, // 2: browser_automation_studio.v1.StepFailure.details:type_name -> browser_automation_studio.v1.StepFailure.DetailsEntry
 	1,  // 3: browser_automation_studio.v1.StepFailure.source:type_name -> browser_automation_studio.v1.FailureSource
-	30, // 4: browser_automation_studio.v1.DriverScreenshot.capture_time:type_name -> google.protobuf.Timestamp
-	30, // 5: browser_automation_studio.v1.DOMSnapshot.collected_at:type_name -> google.protobuf.Timestamp
-	30, // 6: browser_automation_studio.v1.DriverConsoleLogEntry.timestamp:type_name -> google.protobuf.Timestamp
-	30, // 7: browser_automation_studio.v1.DriverNetworkEvent.timestamp:type_name -> google.protobuf.Timestamp
+	28, // 4: browser_automation_studio.v1.DriverScreenshot.capture_time:type_name -> google.protobuf.Timestamp
+	28, // 5: browser_automation_studio.v1.DOMSnapshot.collected_at:type_name -> google.protobuf.Timestamp
+	28, // 6: browser_automation_studio.v1.DriverConsoleLogEntry.timestamp:type_name -> google.protobuf.Timestamp
+	28, // 7: browser_automation_studio.v1.DriverNetworkEvent.timestamp:type_name -> google.protobuf.Timestamp
 	17, // 8: browser_automation_studio.v1.DriverNetworkEvent.request_headers:type_name -> browser_automation_studio.v1.DriverNetworkEvent.RequestHeadersEntry
 	18, // 9: browser_automation_studio.v1.DriverNetworkEvent.response_headers:type_name -> browser_automation_studio.v1.DriverNetworkEvent.ResponseHeadersEntry
-	31, // 10: browser_automation_studio.v1.CursorPosition.point:type_name -> browser_automation_studio.v1.Point
-	30, // 11: browser_automation_studio.v1.CursorPosition.recorded_at:type_name -> google.protobuf.Timestamp
-	32, // 12: browser_automation_studio.v1.ConditionOutcome.actual:type_name -> common.v1.JsonValue
-	32, // 13: browser_automation_studio.v1.ConditionOutcome.expected:type_name -> common.v1.JsonValue
-	32, // 14: browser_automation_studio.v1.AssertionOutcome.expected:type_name -> common.v1.JsonValue
-	32, // 15: browser_automation_studio.v1.AssertionOutcome.actual:type_name -> common.v1.JsonValue
-	30, // 16: browser_automation_studio.v1.StepOutcome.started_at:type_name -> google.protobuf.Timestamp
-	30, // 17: browser_automation_studio.v1.StepOutcome.completed_at:type_name -> google.protobuf.Timestamp
+	29, // 10: browser_automation_studio.v1.CursorPosition.point:type_name -> browser_automation_studio.v1.Point
+	28, // 11: browser_automation_studio.v1.CursorPosition.recorded_at:type_name -> google.protobuf.Timestamp
+	30, // 12: browser_automation_studio.v1.ConditionOutcome.actual:type_name -> common.v1.JsonValue
+	30, // 13: browser_automation_studio.v1.ConditionOutcome.expected:type_name -> common.v1.JsonValue
+	30, // 14: browser_automation_studio.v1.AssertionOutcome.expected:type_name -> common.v1.JsonValue
+	30, // 15: browser_automation_studio.v1.AssertionOutcome.actual:type_name -> common.v1.JsonValue
+	28, // 16: browser_automation_studio.v1.StepOutcome.started_at:type_name -> google.protobuf.Timestamp
+	28, // 17: browser_automation_studio.v1.StepOutcome.completed_at:type_name -> google.protobuf.Timestamp
 	3,  // 18: browser_automation_studio.v1.StepOutcome.screenshot:type_name -> browser_automation_studio.v1.DriverScreenshot
 	4,  // 19: browser_automation_studio.v1.StepOutcome.dom_snapshot:type_name -> browser_automation_studio.v1.DOMSnapshot
 	5,  // 20: browser_automation_studio.v1.StepOutcome.console_logs:type_name -> browser_automation_studio.v1.DriverConsoleLogEntry
@@ -2301,45 +2198,41 @@ var file_browser_automation_studio_v1_execution_driver_proto_depIdxs = []int32{
 	9,  // 23: browser_automation_studio.v1.StepOutcome.assertion:type_name -> browser_automation_studio.v1.AssertionOutcome
 	8,  // 24: browser_automation_studio.v1.StepOutcome.condition:type_name -> browser_automation_studio.v1.ConditionOutcome
 	20, // 25: browser_automation_studio.v1.StepOutcome.probe_result:type_name -> browser_automation_studio.v1.StepOutcome.ProbeResultEntry
-	33, // 26: browser_automation_studio.v1.StepOutcome.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	31, // 27: browser_automation_studio.v1.StepOutcome.click_position:type_name -> browser_automation_studio.v1.Point
-	34, // 28: browser_automation_studio.v1.StepOutcome.focused_element:type_name -> browser_automation_studio.v1.ElementFocus
-	35, // 29: browser_automation_studio.v1.StepOutcome.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
-	36, // 30: browser_automation_studio.v1.StepOutcome.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
+	31, // 26: browser_automation_studio.v1.StepOutcome.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	29, // 27: browser_automation_studio.v1.StepOutcome.click_position:type_name -> browser_automation_studio.v1.Point
+	32, // 28: browser_automation_studio.v1.StepOutcome.focused_element:type_name -> browser_automation_studio.v1.ElementFocus
+	33, // 29: browser_automation_studio.v1.StepOutcome.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
+	34, // 30: browser_automation_studio.v1.StepOutcome.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
 	7,  // 31: browser_automation_studio.v1.StepOutcome.cursor_trail:type_name -> browser_automation_studio.v1.CursorPosition
 	21, // 32: browser_automation_studio.v1.StepOutcome.notes:type_name -> browser_automation_studio.v1.StepOutcome.NotesEntry
 	2,  // 33: browser_automation_studio.v1.StepOutcome.failure:type_name -> browser_automation_studio.v1.StepFailure
-	37, // 34: browser_automation_studio.v1.StepOutcome.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
-	22, // 35: browser_automation_studio.v1.CompiledInstruction.params:type_name -> browser_automation_studio.v1.CompiledInstruction.ParamsEntry
-	23, // 36: browser_automation_studio.v1.CompiledInstruction.context:type_name -> browser_automation_studio.v1.CompiledInstruction.ContextEntry
-	24, // 37: browser_automation_studio.v1.CompiledInstruction.metadata:type_name -> browser_automation_studio.v1.CompiledInstruction.MetadataEntry
-	38, // 38: browser_automation_studio.v1.CompiledInstruction.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	25, // 39: browser_automation_studio.v1.PlanStep.params:type_name -> browser_automation_studio.v1.PlanStep.ParamsEntry
-	12, // 40: browser_automation_studio.v1.PlanStep.outgoing:type_name -> browser_automation_studio.v1.PlanEdge
-	14, // 41: browser_automation_studio.v1.PlanStep.loop:type_name -> browser_automation_studio.v1.PlanGraph
-	26, // 42: browser_automation_studio.v1.PlanStep.metadata:type_name -> browser_automation_studio.v1.PlanStep.MetadataEntry
-	27, // 43: browser_automation_studio.v1.PlanStep.context:type_name -> browser_automation_studio.v1.PlanStep.ContextEntry
-	28, // 44: browser_automation_studio.v1.PlanStep.source_position:type_name -> browser_automation_studio.v1.PlanStep.SourcePositionEntry
-	38, // 45: browser_automation_studio.v1.PlanStep.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	13, // 46: browser_automation_studio.v1.PlanGraph.steps:type_name -> browser_automation_studio.v1.PlanStep
-	11, // 47: browser_automation_studio.v1.ExecutionPlan.instructions:type_name -> browser_automation_studio.v1.CompiledInstruction
-	14, // 48: browser_automation_studio.v1.ExecutionPlan.graph:type_name -> browser_automation_studio.v1.PlanGraph
-	29, // 49: browser_automation_studio.v1.ExecutionPlan.metadata:type_name -> browser_automation_studio.v1.ExecutionPlan.MetadataEntry
-	30, // 50: browser_automation_studio.v1.ExecutionPlan.created_at:type_name -> google.protobuf.Timestamp
-	32, // 51: browser_automation_studio.v1.StepFailure.DetailsEntry.value:type_name -> common.v1.JsonValue
-	32, // 52: browser_automation_studio.v1.StepOutcome.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
-	32, // 53: browser_automation_studio.v1.StepOutcome.ProbeResultEntry.value:type_name -> common.v1.JsonValue
-	32, // 54: browser_automation_studio.v1.CompiledInstruction.ParamsEntry.value:type_name -> common.v1.JsonValue
-	32, // 55: browser_automation_studio.v1.CompiledInstruction.ContextEntry.value:type_name -> common.v1.JsonValue
-	32, // 56: browser_automation_studio.v1.PlanStep.ParamsEntry.value:type_name -> common.v1.JsonValue
-	32, // 57: browser_automation_studio.v1.PlanStep.ContextEntry.value:type_name -> common.v1.JsonValue
-	32, // 58: browser_automation_studio.v1.PlanStep.SourcePositionEntry.value:type_name -> common.v1.JsonValue
-	32, // 59: browser_automation_studio.v1.ExecutionPlan.MetadataEntry.value:type_name -> common.v1.JsonValue
-	60, // [60:60] is the sub-list for method output_type
-	60, // [60:60] is the sub-list for method input_type
-	60, // [60:60] is the sub-list for extension type_name
-	60, // [60:60] is the sub-list for extension extendee
-	0,  // [0:60] is the sub-list for field type_name
+	35, // 34: browser_automation_studio.v1.StepOutcome.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
+	22, // 35: browser_automation_studio.v1.CompiledInstruction.context:type_name -> browser_automation_studio.v1.CompiledInstruction.ContextEntry
+	23, // 36: browser_automation_studio.v1.CompiledInstruction.metadata:type_name -> browser_automation_studio.v1.CompiledInstruction.MetadataEntry
+	36, // 37: browser_automation_studio.v1.CompiledInstruction.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	12, // 38: browser_automation_studio.v1.PlanStep.outgoing:type_name -> browser_automation_studio.v1.PlanEdge
+	14, // 39: browser_automation_studio.v1.PlanStep.loop:type_name -> browser_automation_studio.v1.PlanGraph
+	24, // 40: browser_automation_studio.v1.PlanStep.metadata:type_name -> browser_automation_studio.v1.PlanStep.MetadataEntry
+	25, // 41: browser_automation_studio.v1.PlanStep.context:type_name -> browser_automation_studio.v1.PlanStep.ContextEntry
+	26, // 42: browser_automation_studio.v1.PlanStep.source_position:type_name -> browser_automation_studio.v1.PlanStep.SourcePositionEntry
+	36, // 43: browser_automation_studio.v1.PlanStep.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	13, // 44: browser_automation_studio.v1.PlanGraph.steps:type_name -> browser_automation_studio.v1.PlanStep
+	11, // 45: browser_automation_studio.v1.ExecutionPlan.instructions:type_name -> browser_automation_studio.v1.CompiledInstruction
+	14, // 46: browser_automation_studio.v1.ExecutionPlan.graph:type_name -> browser_automation_studio.v1.PlanGraph
+	27, // 47: browser_automation_studio.v1.ExecutionPlan.metadata:type_name -> browser_automation_studio.v1.ExecutionPlan.MetadataEntry
+	28, // 48: browser_automation_studio.v1.ExecutionPlan.created_at:type_name -> google.protobuf.Timestamp
+	30, // 49: browser_automation_studio.v1.StepFailure.DetailsEntry.value:type_name -> common.v1.JsonValue
+	30, // 50: browser_automation_studio.v1.StepOutcome.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
+	30, // 51: browser_automation_studio.v1.StepOutcome.ProbeResultEntry.value:type_name -> common.v1.JsonValue
+	30, // 52: browser_automation_studio.v1.CompiledInstruction.ContextEntry.value:type_name -> common.v1.JsonValue
+	30, // 53: browser_automation_studio.v1.PlanStep.ContextEntry.value:type_name -> common.v1.JsonValue
+	30, // 54: browser_automation_studio.v1.PlanStep.SourcePositionEntry.value:type_name -> common.v1.JsonValue
+	30, // 55: browser_automation_studio.v1.ExecutionPlan.MetadataEntry.value:type_name -> common.v1.JsonValue
+	56, // [56:56] is the sub-list for method output_type
+	56, // [56:56] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_execution_driver_proto_init() }
@@ -2366,7 +2259,7 @@ func file_browser_automation_studio_v1_execution_driver_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_execution_driver_proto_rawDesc), len(file_browser_automation_studio_v1_execution_driver_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   28,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

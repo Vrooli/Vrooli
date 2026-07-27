@@ -24,8 +24,6 @@ const (
 )
 
 // ConsoleLogEntry captures browser console output for telemetry.
-//
-// @usage ActionTelemetry.console_logs
 type ConsoleLogEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Log level (debug, info, warn, error).
@@ -108,8 +106,6 @@ func (x *ConsoleLogEntry) GetLocation() string {
 }
 
 // NetworkEvent captures network activity for telemetry.
-//
-// @usage ActionTelemetry.network_events
 type NetworkEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Event type (request, response, failure).
@@ -219,8 +215,6 @@ func (x *NetworkEvent) GetTimestamp() *timestamppb.Timestamp {
 }
 
 // ActionTelemetry captures observable data during action recording or execution.
-//
-// @usage TimelineEntry.telemetry
 type ActionTelemetry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page URL at capture time.
@@ -369,8 +363,6 @@ func (x *ActionTelemetry) GetNetworkEventArtifact() *TelemetryArtifact {
 }
 
 // TimelineScreenshot describes screenshot metadata.
-//
-// @usage ActionTelemetry.screenshot, ExecutionScreenshot.screenshot
 type TimelineScreenshot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique artifact ID for the screenshot.
@@ -481,8 +473,6 @@ func (x *TimelineScreenshot) GetPath() string {
 }
 
 // TelemetryArtifact references a file-backed artifact captured during execution.
-//
-// @usage ActionTelemetry.dom_snapshot, ActionTelemetry.console_log_artifact, ActionTelemetry.network_event_artifact
 type TelemetryArtifact struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique artifact ID.

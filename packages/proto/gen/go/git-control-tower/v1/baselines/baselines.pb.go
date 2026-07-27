@@ -5027,7 +5027,7 @@ var File_git_control_tower_v1_baselines_baselines_proto protoreflect.FileDescrip
 
 const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\n" +
-	".git-control-tower/v1/baselines/baselines.proto\x12%vrooli.git_control_tower.v1.baselines\x1a\x1dtest-genie/v1/runs/runs.proto\x1a\x1acommon/v1/operations.proto\"\x96\x02\n" +
+	".git-control-tower/v1/baselines/baselines.proto\x12%vrooli.git_control_tower.v1.baselines\x1a\x1acommon/v1/operations.proto\x1a\x1dtest-genie/v1/runs/runs.proto\"\x96\x02\n" +
 	"\bGitState\x12\x10\n" +
 	"\x03sha\x18\x01 \x01(\tR\x03sha\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1a\n" +

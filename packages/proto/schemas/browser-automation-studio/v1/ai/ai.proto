@@ -12,9 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // AI HELPER DOMAIN — page-preview, link metadata, element analysis, DOM tree.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain ai
-// @stability stable
+// @stability beta
 //
 // AIService groups the ephemeral, single-shot AI/automation helpers that the
 // workflow editor and recording UIs call to capture page previews, fetch
@@ -279,9 +277,7 @@ message GetDOMTreeResponse {
 // VISION NAVIGATION DOMAIN — multi-step AI-driven browser navigation.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain ai
-// @stability stable
+// @stability beta
 //
 // VisionNavigationService is the stateful, plan-execute-replan AI navigation
 // surface. It picks a backend navigator (currently `playwright` or

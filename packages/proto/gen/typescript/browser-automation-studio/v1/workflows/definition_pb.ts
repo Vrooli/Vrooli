@@ -23,7 +23,6 @@ export const file_browser_automation_studio_v1_workflows_definition: GenFile = /
 /**
  * WorkflowDefinitionV2 is the canonical workflow storage format.
  *
- * @usage WorkflowSummary.flow_definition, CreateWorkflowRequest.flow_definition
  *
  * @generated from message browser_automation_studio.v1.WorkflowDefinitionV2
  */
@@ -67,7 +66,6 @@ export const WorkflowDefinitionV2Schema: GenMessage<WorkflowDefinitionV2> = /*@_
 /**
  * WorkflowMetadataV2 captures workflow-level descriptors.
  *
- * @usage WorkflowDefinitionV2.metadata
  *
  * @generated from message browser_automation_studio.v1.WorkflowMetadataV2
  */
@@ -132,7 +130,6 @@ export const WorkflowMetadataV2Schema: GenMessage<WorkflowMetadataV2> = /*@__PUR
 /**
  * WorkflowSettingsV2 captures browser/execution configuration.
  *
- * @usage WorkflowDefinitionV2.settings
  *
  * @generated from message browser_automation_studio.v1.WorkflowSettingsV2
  */
@@ -225,7 +222,6 @@ export const WorkflowSettingsV2Schema: GenMessage<WorkflowSettingsV2> = /*@__PUR
  * Chromium serves fake capture devices process-wide, so the driver launches
  * (and pools) a dedicated browser instance per distinct configuration.
  *
- * @usage WorkflowSettingsV2.fake_media
  *
  * @generated from message browser_automation_studio.v1.FakeMediaConfig
  */
@@ -251,7 +247,6 @@ export const FakeMediaConfigSchema: GenMessage<FakeMediaConfig> = /*@__PURE__*/
 /**
  * WorkflowNodeV2 represents a single workflow step.
  *
- * @usage WorkflowDefinitionV2.nodes
  *
  * @generated from message browser_automation_studio.v1.WorkflowNodeV2
  */
@@ -296,7 +291,6 @@ export const WorkflowNodeV2Schema: GenMessage<WorkflowNodeV2> = /*@__PURE__*/
 /**
  * NodeExecutionSettings captures per-step execution configuration.
  *
- * @usage WorkflowNodeV2.execution_settings
  *
  * @generated from message browser_automation_studio.v1.NodeExecutionSettings
  */
@@ -340,7 +334,6 @@ export const NodeExecutionSettingsSchema: GenMessage<NodeExecutionSettings> = /*
 /**
  * ResilienceConfig captures retry and precondition settings.
  *
- * @usage NodeExecutionSettings.resilience
  *
  * @generated from message browser_automation_studio.v1.ResilienceConfig
  */
@@ -419,7 +412,6 @@ export const ResilienceConfigSchema: GenMessage<ResilienceConfig> = /*@__PURE__*
 /**
  * WorkflowEdgeV2 connects nodes in the workflow graph.
  *
- * @usage WorkflowDefinitionV2.edges
  *
  * @generated from message browser_automation_studio.v1.WorkflowEdgeV2
  */

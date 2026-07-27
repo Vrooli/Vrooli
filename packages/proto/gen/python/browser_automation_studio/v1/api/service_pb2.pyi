@@ -3,6 +3,7 @@ import datetime
 from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
 from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.execution import execution_pb2 as _execution_pb2
+from browser_automation_studio.v1.evidence import evidence_pb2 as _evidence_pb2
 from browser_automation_studio.v1.timeline import container_pb2 as _container_pb2
 from browser_automation_studio.v1.workflows import definition_pb2 as _definition_pb2
 from buf.validate import validate_pb2 as _validate_pb2

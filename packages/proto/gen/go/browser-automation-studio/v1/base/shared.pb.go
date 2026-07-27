@@ -27,8 +27,6 @@ const (
 // State machine:
 //
 //	PENDING → RUNNING → COMPLETED|FAILED|CANCELLED
-//
-// @usage Execution.status, TimelineStatusUpdate.status
 type ExecutionStatus int32
 
 const (
@@ -103,8 +101,6 @@ func (ExecutionStatus) EnumDescriptor() ([]byte, []int) {
 //
 // Used for analytics, billing, and audit trails. Each type may have
 // different rate limits or access controls.
-//
-// @usage Execution.trigger_type, TriggerMetadata
 type TriggerType int32
 
 const (
@@ -181,8 +177,6 @@ func (TriggerType) EnumDescriptor() ([]byte, []int) {
 //	PENDING → RUNNING → COMPLETED|FAILED|SKIPPED|CANCELLED
 //	               ↓
 //	           RETRYING → RUNNING (loop until max_attempts or success)
-//
-// @usage TimelineEntryAggregates.status, step-level status tracking
 type StepStatus int32
 
 const (
@@ -262,8 +256,6 @@ func (StepStatus) EnumDescriptor() ([]byte, []int) {
 //
 // Ordered by severity: DEBUG < INFO < WARN < ERROR
 // Filtering typically shows all logs >= configured level.
-//
-// @usage ConsoleLogEntry.level, TimelineLog.level
 type LogLevel int32
 
 const (
@@ -332,8 +324,6 @@ func (LogLevel) EnumDescriptor() ([]byte, []int) {
 //
 // Artifacts are binary or text files captured during execution and stored
 // for later retrieval. Each type has specific content and use cases.
-//
-// @usage TimelineArtifact.type
 type ArtifactType int32
 
 const (
@@ -424,8 +414,6 @@ func (ArtifactType) EnumDescriptor() ([]byte, []int) {
 //
 // Exports package execution artifacts into a downloadable format
 // (replay video, annotated screenshots, step-by-step documentation).
-//
-// @usage ExecutionExportPreview.status
 type ExportStatus int32
 
 const (
@@ -495,8 +483,6 @@ func (ExportStatus) EnumDescriptor() ([]byte, []int) {
 // Ordered roughly by reliability/specificity (higher = more reliable):
 //
 //	DATA_TESTID > ID > ARIA/ROLE > CSS > XPATH > TEXT
-//
-// @usage SelectorCandidate.type, recording selector inference
 type SelectorType int32
 
 const (
@@ -595,8 +581,6 @@ func (SelectorType) EnumDescriptor() ([]byte, []int) {
 //
 // Maps to Playwright network event types. Used for request/response logging
 // and debugging API interactions during workflow execution.
-//
-// @usage NetworkEvent.type
 type NetworkEventType int32
 
 const (
@@ -660,8 +644,6 @@ func (NetworkEventType) EnumDescriptor() ([]byte, []int) {
 //
 // Helps distinguish user-initiated actions from system-inferred ones,
 // which may need different confidence handling.
-//
-// @usage EventContext.source
 type RecordingSource int32
 
 const (
@@ -720,8 +702,6 @@ func (RecordingSource) EnumDescriptor() ([]byte, []int) {
 //
 // These affect only the visual presentation in ReactFlow/workflow editor,
 // not execution behavior.
-//
-// @usage WorkflowEdgeV2.type
 type WorkflowEdgeType int32
 
 const (
@@ -793,8 +773,6 @@ func (WorkflowEdgeType) EnumDescriptor() ([]byte, []int) {
 // ValidationSeverity enumerates issue severity levels for workflow validation.
 //
 // Determines whether issues block execution or are advisory.
-//
-// @usage WorkflowValidationIssue.severity
 type ValidationSeverity int32
 
 const (
@@ -858,8 +836,6 @@ func (ValidationSeverity) EnumDescriptor() ([]byte, []int) {
 //
 // Used for audit trails and to determine whether changes should trigger
 // version increments or autosave behavior.
-//
-// @usage WorkflowSummary.last_change_source, UpdateWorkflowRequest.source
 type ChangeSource int32
 
 const (
@@ -933,8 +909,6 @@ func (ChangeSource) EnumDescriptor() ([]byte, []int) {
 //
 // Assertions verify expected conditions during execution. Failed assertions
 // mark the step as FAILED and can stop execution depending on settings.
-//
-// @usage AssertParams.mode, AssertionResult.mode
 type AssertionMode int32
 
 const (
@@ -1102,8 +1076,6 @@ func (HighlightColor) EnumDescriptor() ([]byte, []int) {
 
 // RetryAttempt captures the outcome of a single retry attempt.
 // Used in both timeline frames (batch API) and timeline events (streaming).
-//
-// @usage RetryStatus.history
 type RetryAttempt struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Retry attempt number (1-based, where 1 is the first retry after initial failure).
@@ -1179,8 +1151,6 @@ func (x *RetryAttempt) GetError() string {
 // RetryStatus captures the current state of retry execution for a step.
 // This is the canonical type for runtime retry state, used in both
 // TimelineEntry (batch) and EventContext (streaming).
-//
-// @usage EventContext.retry_status
 type RetryStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current attempt number (0 for initial attempt, 1+ for retries).
@@ -1273,8 +1243,6 @@ func (x *RetryStatus) GetHistory() []*RetryAttempt {
 
 // AssertionResult captures assertion evaluation outcome.
 // Used in both timeline entries (batch API) and streaming events.
-//
-// @usage EventContext.assertion
 type AssertionResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Assertion mode used.
@@ -1393,8 +1361,6 @@ func (x *AssertionResult) GetMessage() string {
 //
 // The only distinction is the origin (session_id vs execution_id) and whether
 // certain UI workflow flags apply (needs_confirmation).
-//
-// @usage TimelineEntry.context
 type EventContext struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// === ORIGIN ===

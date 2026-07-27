@@ -1,5 +1,5 @@
-from test_genie.v1.runs import runs_pb2 as _runs_pb2
 from common.v1 import operations_pb2 as _operations_pb2
+from test_genie.v1.runs import runs_pb2 as _runs_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message

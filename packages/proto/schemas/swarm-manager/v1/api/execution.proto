@@ -32,7 +32,10 @@ message CreateExecutionRequest {
   optional string started_by = 5;
   optional string operation = 6;
   optional string strategy = 7;
-  optional int32 max_slices = 8 [(buf.validate.field).int32 = {gte: 1, lte: 6}];
+  optional int32 max_slices = 8 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 6
+  }];
 }
 
 // FollowUpExecutionRequest triggers a follow-up from a completed/failed execution.

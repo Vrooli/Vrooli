@@ -46,7 +46,10 @@ type Scenario struct {
 	// One of: ready, ready_with_notes, needs_work, not_assessable.
 	LastReviewClassification *string `protobuf:"bytes,9,opt,name=last_review_classification,json=lastReviewClassification,proto3,oneof" json:"last_review_classification,omitempty"`
 	// RFC3339 timestamp of the most recent GCT review.
-	LastReviewAt  *string `protobuf:"bytes,10,opt,name=last_review_at,json=lastReviewAt,proto3,oneof" json:"last_review_at,omitempty"`
+	LastReviewAt *string `protobuf:"bytes,10,opt,name=last_review_at,json=lastReviewAt,proto3,oneof" json:"last_review_at,omitempty"`
+	// Read-only projection of provider-owned Test Genie health evidence. Swarm
+	// never derives a verdict, phase order, or maturity standing from this data.
+	Health        *ScenarioHealthSnapshot `protobuf:"bytes,11,opt,name=health,proto3,oneof" json:"health,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -151,6 +154,307 @@ func (x *Scenario) GetLastReviewAt() string {
 	return ""
 }
 
+func (x *Scenario) GetHealth() *ScenarioHealthSnapshot {
+	if x != nil {
+		return x.Health
+	}
+	return nil
+}
+
+// ScenarioHealthSnapshot is Swarm's bounded projection of one canonical Test
+// Genie evidence source. It is deliberately evidence-shaped rather than a
+// second findings store.
+type ScenarioHealthSnapshot struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// fresh, stale, degraded, unavailable, or no_evidence.
+	EvidenceState string `protobuf:"bytes,1,opt,name=evidence_state,json=evidenceState,proto3" json:"evidence_state,omitempty"`
+	// A user-safe explanation for missing, stale, or degraded evidence.
+	Reason *string `protobuf:"bytes,2,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	// Provider run identity; omitted when no canonical run exists.
+	SourceRunId *string `protobuf:"bytes,3,opt,name=source_run_id,json=sourceRunId,proto3,oneof" json:"source_run_id,omitempty"`
+	// RFC3339 timestamp at which the provider observed the evidence.
+	ObservedAt *string `protobuf:"bytes,4,opt,name=observed_at,json=observedAt,proto3,oneof" json:"observed_at,omitempty"`
+	// Provider-provided freshness presentation (for example, "fresh").
+	Freshness *string `protobuf:"bytes,5,opt,name=freshness,proto3,oneof" json:"freshness,omitempty"`
+	// Provider verdict, preserved without interpretation.
+	Verdict *string `protobuf:"bytes,6,opt,name=verdict,proto3,oneof" json:"verdict,omitempty"`
+	// Provider-presented phases in provider order.
+	Phases []*ScenarioHealthPhase `protobuf:"bytes,7,rep,name=phases,proto3" json:"phases,omitempty"`
+	// Swarm-owned reconciliation summary for previously proposed work.
+	Remediation   []*ScenarioRemediationSummary `protobuf:"bytes,8,rep,name=remediation,proto3" json:"remediation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioHealthSnapshot) Reset() {
+	*x = ScenarioHealthSnapshot{}
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioHealthSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioHealthSnapshot) ProtoMessage() {}
+
+func (x *ScenarioHealthSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioHealthSnapshot.ProtoReflect.Descriptor instead.
+func (*ScenarioHealthSnapshot) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ScenarioHealthSnapshot) GetEvidenceState() string {
+	if x != nil {
+		return x.EvidenceState
+	}
+	return ""
+}
+
+func (x *ScenarioHealthSnapshot) GetReason() string {
+	if x != nil && x.Reason != nil {
+		return *x.Reason
+	}
+	return ""
+}
+
+func (x *ScenarioHealthSnapshot) GetSourceRunId() string {
+	if x != nil && x.SourceRunId != nil {
+		return *x.SourceRunId
+	}
+	return ""
+}
+
+func (x *ScenarioHealthSnapshot) GetObservedAt() string {
+	if x != nil && x.ObservedAt != nil {
+		return *x.ObservedAt
+	}
+	return ""
+}
+
+func (x *ScenarioHealthSnapshot) GetFreshness() string {
+	if x != nil && x.Freshness != nil {
+		return *x.Freshness
+	}
+	return ""
+}
+
+func (x *ScenarioHealthSnapshot) GetVerdict() string {
+	if x != nil && x.Verdict != nil {
+		return *x.Verdict
+	}
+	return ""
+}
+
+func (x *ScenarioHealthSnapshot) GetPhases() []*ScenarioHealthPhase {
+	if x != nil {
+		return x.Phases
+	}
+	return nil
+}
+
+func (x *ScenarioHealthSnapshot) GetRemediation() []*ScenarioRemediationSummary {
+	if x != nil {
+		return x.Remediation
+	}
+	return nil
+}
+
+// ScenarioHealthPhase carries only the provider's presentation and stable
+// routing fields. Labels, rungs, ordering, blockers, and priority are opaque
+// to Swarm and must not be recomputed by a consumer.
+type ScenarioHealthPhase struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Phase                   string                 `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
+	Label                   *string                `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	Verdict                 *string                `protobuf:"bytes,3,opt,name=verdict,proto3,oneof" json:"verdict,omitempty"`
+	CurrentRung             *string                `protobuf:"bytes,4,opt,name=current_rung,json=currentRung,proto3,oneof" json:"current_rung,omitempty"`
+	NextRung                *string                `protobuf:"bytes,5,opt,name=next_rung,json=nextRung,proto3,oneof" json:"next_rung,omitempty"`
+	PriorityCapabilityId    *string                `protobuf:"bytes,6,opt,name=priority_capability_id,json=priorityCapabilityId,proto3,oneof" json:"priority_capability_id,omitempty"`
+	PriorityCapabilityLabel *string                `protobuf:"bytes,7,opt,name=priority_capability_label,json=priorityCapabilityLabel,proto3,oneof" json:"priority_capability_label,omitempty"`
+	BlockingCodes           []string               `protobuf:"bytes,8,rep,name=blocking_codes,json=blockingCodes,proto3" json:"blocking_codes,omitempty"`
+	RemediationTopics       []string               `protobuf:"bytes,9,rep,name=remediation_topics,json=remediationTopics,proto3" json:"remediation_topics,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *ScenarioHealthPhase) Reset() {
+	*x = ScenarioHealthPhase{}
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioHealthPhase) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioHealthPhase) ProtoMessage() {}
+
+func (x *ScenarioHealthPhase) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioHealthPhase.ProtoReflect.Descriptor instead.
+func (*ScenarioHealthPhase) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ScenarioHealthPhase) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
+}
+
+func (x *ScenarioHealthPhase) GetLabel() string {
+	if x != nil && x.Label != nil {
+		return *x.Label
+	}
+	return ""
+}
+
+func (x *ScenarioHealthPhase) GetVerdict() string {
+	if x != nil && x.Verdict != nil {
+		return *x.Verdict
+	}
+	return ""
+}
+
+func (x *ScenarioHealthPhase) GetCurrentRung() string {
+	if x != nil && x.CurrentRung != nil {
+		return *x.CurrentRung
+	}
+	return ""
+}
+
+func (x *ScenarioHealthPhase) GetNextRung() string {
+	if x != nil && x.NextRung != nil {
+		return *x.NextRung
+	}
+	return ""
+}
+
+func (x *ScenarioHealthPhase) GetPriorityCapabilityId() string {
+	if x != nil && x.PriorityCapabilityId != nil {
+		return *x.PriorityCapabilityId
+	}
+	return ""
+}
+
+func (x *ScenarioHealthPhase) GetPriorityCapabilityLabel() string {
+	if x != nil && x.PriorityCapabilityLabel != nil {
+		return *x.PriorityCapabilityLabel
+	}
+	return ""
+}
+
+func (x *ScenarioHealthPhase) GetBlockingCodes() []string {
+	if x != nil {
+		return x.BlockingCodes
+	}
+	return nil
+}
+
+func (x *ScenarioHealthPhase) GetRemediationTopics() []string {
+	if x != nil {
+		return x.RemediationTopics
+	}
+	return nil
+}
+
+// ScenarioRemediationSummary is Swarm-owned reconciliation state keyed by a
+// canonical remediation fingerprint. It links governed work without copying
+// provider findings into local storage.
+type ScenarioRemediationSummary struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Fingerprint string                 `protobuf:"bytes,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	// suggested, accepted, dismissed, or none.
+	State         string  `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	WorkRef       *string `protobuf:"bytes,3,opt,name=work_ref,json=workRef,proto3,oneof" json:"work_ref,omitempty"`
+	UpdatedAt     *string `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3,oneof" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioRemediationSummary) Reset() {
+	*x = ScenarioRemediationSummary{}
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioRemediationSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioRemediationSummary) ProtoMessage() {}
+
+func (x *ScenarioRemediationSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioRemediationSummary.ProtoReflect.Descriptor instead.
+func (*ScenarioRemediationSummary) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ScenarioRemediationSummary) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationSummary) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationSummary) GetWorkRef() string {
+	if x != nil && x.WorkRef != nil {
+		return *x.WorkRef
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationSummary) GetUpdatedAt() string {
+	if x != nil && x.UpdatedAt != nil {
+		return *x.UpdatedAt
+	}
+	return ""
+}
+
 // ScenarioMetadata stores editable metadata for a scenario.
 type ScenarioMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -162,7 +466,7 @@ type ScenarioMetadata struct {
 
 func (x *ScenarioMetadata) Reset() {
 	*x = ScenarioMetadata{}
-	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -174,7 +478,7 @@ func (x *ScenarioMetadata) String() string {
 func (*ScenarioMetadata) ProtoMessage() {}
 
 func (x *ScenarioMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -187,7 +491,7 @@ func (x *ScenarioMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioMetadata.ProtoReflect.Descriptor instead.
 func (*ScenarioMetadata) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP(), []int{1}
+	return file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ScenarioMetadata) GetIsGreenfield() bool {
@@ -201,7 +505,7 @@ var File_swarm_manager_v1_domain_scenario_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/scenario.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\x96\x04\n" +
+	"&swarm-manager/v1/domain/scenario.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\xf6\x04\n" +
 	"\bScenario\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdisplayName\x12 \n" +
@@ -214,10 +518,55 @@ const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"\x04tags\x18\b \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12A\n" +
 	"\x1alast_review_classification\x18\t \x01(\tH\x01R\x18lastReviewClassification\x88\x01\x01\x12)\n" +
 	"\x0elast_review_at\x18\n" +
-	" \x01(\tH\x02R\flastReviewAt\x88\x01\x01B\x15\n" +
+	" \x01(\tH\x02R\flastReviewAt\x88\x01\x01\x12S\n" +
+	"\x06health\x18\v \x01(\v26.vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshotH\x03R\x06health\x88\x01\x01B\x15\n" +
 	"\x13_completeness_scoreB\x1d\n" +
 	"\x1b_last_review_classificationB\x11\n" +
-	"\x0f_last_review_at\"7\n" +
+	"\x0f_last_review_atB\t\n" +
+	"\a_health\"\x98\x04\n" +
+	"\x16ScenarioHealthSnapshot\x12^\n" +
+	"\x0eevidence_state\x18\x01 \x01(\tB7\xbaH4r2R\x05freshR\x05staleR\bdegradedR\vunavailableR\vno_evidenceR\revidenceState\x12\x1b\n" +
+	"\x06reason\x18\x02 \x01(\tH\x00R\x06reason\x88\x01\x01\x12'\n" +
+	"\rsource_run_id\x18\x03 \x01(\tH\x01R\vsourceRunId\x88\x01\x01\x12$\n" +
+	"\vobserved_at\x18\x04 \x01(\tH\x02R\n" +
+	"observedAt\x88\x01\x01\x12!\n" +
+	"\tfreshness\x18\x05 \x01(\tH\x03R\tfreshness\x88\x01\x01\x12\x1d\n" +
+	"\averdict\x18\x06 \x01(\tH\x04R\averdict\x88\x01\x01\x12K\n" +
+	"\x06phases\x18\a \x03(\v23.vrooli.swarm_manager.v1.domain.ScenarioHealthPhaseR\x06phases\x12\\\n" +
+	"\vremediation\x18\b \x03(\v2:.vrooli.swarm_manager.v1.domain.ScenarioRemediationSummaryR\vremediationB\t\n" +
+	"\a_reasonB\x10\n" +
+	"\x0e_source_run_idB\x0e\n" +
+	"\f_observed_atB\f\n" +
+	"\n" +
+	"_freshnessB\n" +
+	"\n" +
+	"\b_verdict\"\xf8\x03\n" +
+	"\x13ScenarioHealthPhase\x12\x1d\n" +
+	"\x05phase\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05phase\x12\x19\n" +
+	"\x05label\x18\x02 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x1d\n" +
+	"\averdict\x18\x03 \x01(\tH\x01R\averdict\x88\x01\x01\x12&\n" +
+	"\fcurrent_rung\x18\x04 \x01(\tH\x02R\vcurrentRung\x88\x01\x01\x12 \n" +
+	"\tnext_rung\x18\x05 \x01(\tH\x03R\bnextRung\x88\x01\x01\x129\n" +
+	"\x16priority_capability_id\x18\x06 \x01(\tH\x04R\x14priorityCapabilityId\x88\x01\x01\x12?\n" +
+	"\x19priority_capability_label\x18\a \x01(\tH\x05R\x17priorityCapabilityLabel\x88\x01\x01\x12%\n" +
+	"\x0eblocking_codes\x18\b \x03(\tR\rblockingCodes\x12-\n" +
+	"\x12remediation_topics\x18\t \x03(\tR\x11remediationTopicsB\b\n" +
+	"\x06_labelB\n" +
+	"\n" +
+	"\b_verdictB\x0f\n" +
+	"\r_current_rungB\f\n" +
+	"\n" +
+	"_next_rungB\x19\n" +
+	"\x17_priority_capability_idB\x1c\n" +
+	"\x1a_priority_capability_label\"\xea\x01\n" +
+	"\x1aScenarioRemediationSummary\x12)\n" +
+	"\vfingerprint\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vfingerprint\x12A\n" +
+	"\x05state\x18\x02 \x01(\tB+\xbaH(r&R\tsuggestedR\bacceptedR\tdismissedR\x04noneR\x05state\x12\x1e\n" +
+	"\bwork_ref\x18\x03 \x01(\tH\x00R\aworkRef\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"updated_at\x18\x04 \x01(\tH\x01R\tupdatedAt\x88\x01\x01B\v\n" +
+	"\t_work_refB\r\n" +
+	"\v_updated_at\"7\n" +
 	"\x10ScenarioMetadata\x12#\n" +
 	"\ris_greenfield\x18\x01 \x01(\bR\fisGreenfieldBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
@@ -233,17 +582,23 @@ func file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_scenario_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_scenario_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_swarm_manager_v1_domain_scenario_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_swarm_manager_v1_domain_scenario_proto_goTypes = []any{
-	(*Scenario)(nil),         // 0: vrooli.swarm_manager.v1.domain.Scenario
-	(*ScenarioMetadata)(nil), // 1: vrooli.swarm_manager.v1.domain.ScenarioMetadata
+	(*Scenario)(nil),                   // 0: vrooli.swarm_manager.v1.domain.Scenario
+	(*ScenarioHealthSnapshot)(nil),     // 1: vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot
+	(*ScenarioHealthPhase)(nil),        // 2: vrooli.swarm_manager.v1.domain.ScenarioHealthPhase
+	(*ScenarioRemediationSummary)(nil), // 3: vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary
+	(*ScenarioMetadata)(nil),           // 4: vrooli.swarm_manager.v1.domain.ScenarioMetadata
 }
 var file_swarm_manager_v1_domain_scenario_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: vrooli.swarm_manager.v1.domain.Scenario.health:type_name -> vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot
+	2, // 1: vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot.phases:type_name -> vrooli.swarm_manager.v1.domain.ScenarioHealthPhase
+	3, // 2: vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot.remediation:type_name -> vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_scenario_proto_init() }
@@ -252,13 +607,16 @@ func file_swarm_manager_v1_domain_scenario_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_domain_scenario_proto_msgTypes[0].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_scenario_proto_msgTypes[1].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_scenario_proto_msgTypes[2].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_scenario_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_scenario_proto_rawDesc), len(file_swarm_manager_v1_domain_scenario_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

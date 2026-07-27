@@ -373,12 +373,16 @@ message RunConfigOverrides {
   // Canonical reasoning effort override.
   optional string effort = 28;
 
+  // Explicit per-run model override. Role resolution still supplies the
+  // default; this field only overrides the selected model for this run.
+  optional string model = 29;
+
   // Reserved to prevent accidental reuse of wire IDs/names from earlier
   // schema iterations. SandboxConfig.mode is the single source of truth
   // for whether a run is sandboxed; run-end apply behavior is on
   // SandboxConfig levers.
   reserved 1, 2, 8, 9, 16, 19, 20, 25;
-  reserved "runner_type", "model", "policy_ref", "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types", "clear_fallback_runner_types";
+  reserved "runner_type", "policy_ref", "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types", "clear_fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 17;

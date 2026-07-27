@@ -1,0 +1,167 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// SETTINGS DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Defines Stripe credential configuration types for admin management.
+// Settings control which Stripe keys the API uses for payment processing.
+//
+// USAGE CONTEXTS:
+//   - Admin UI: Configure Stripe credentials without server restart
+//   - API: GetStripeSettings/UpdateStripeSettings for credential management
+//   - Runtime: StripeConfigSnapshot shows which credentials are active
+//
+// =============================================================================
+
+// =============================================================================
+// SETTINGS ENUMS
+// =============================================================================
+
+// ConfigSource indicates where active Stripe credentials were loaded from.
+//
+// The API checks both environment variables and database for credentials.
+// Database credentials take precedence over environment variables.
+//
+// Identifies the configuration source.
+enum ConfigSource {
+  // Default/unknown source. Should not appear in valid data.
+  CONFIG_SOURCE_UNSPECIFIED = 0;
+
+  // Credentials loaded from environment variables.
+  // Set via STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET.
+  CONFIG_SOURCE_ENV = 1;
+
+  // Credentials loaded from database (admin-configured).
+  // Takes precedence over environment variables when set.
+  CONFIG_SOURCE_DATABASE = 2;
+}
+
+// =============================================================================
+// SETTINGS TYPES
+// =============================================================================
+
+// StripeConfigSnapshot exposes a redacted view of runtime Stripe credentials.
+//
+// Provides visibility into which credentials are active without exposing
+// sensitive values. Used for admin UI status display.
+//
+// Provides a Stripe configuration snapshot.
+message StripeConfigSnapshot {
+  // Masked preview of the publishable key (e.g., "pk_live_...abc123").
+  // Shows first 7 and last 6 characters for identification.
+  string publishable_key_preview = 1;
+  // True when a publishable key is configured and available.
+  bool publishable_key_set = 2;
+  // True when a secret key is configured and available.
+  bool secret_key_set = 3;
+  // True when a webhook signing secret is configured and available.
+  bool webhook_secret_set = 4;
+  // Source from which active credentials were loaded.
+  ConfigSource source = 5;
+}
+
+// StripeSettings contains persisted admin-provided Stripe credentials.
+//
+// SECURITY: This message contains sensitive credentials. Only return
+// to authenticated admin users. Never log or expose in error messages.
+//
+// Provides Stripe settings to administrators.
+message StripeSettings {
+  // Full Stripe publishable key (pk_live_* or pk_test_*).
+  // Safe to expose to frontend clients.
+  // @format stripe_publishable_key
+  string publishable_key = 1;
+  // Full Stripe secret key (sk_live_* or sk_test_*).
+  // SENSITIVE: Never expose to frontend or log.
+  // @format stripe_secret_key
+  string secret_key = 2;
+  // Webhook signing secret (whsec_*).
+  // Used to verify webhook payloads from Stripe.
+  // @format stripe_webhook_secret
+  string webhook_secret = 3;
+  // Optional Stripe dashboard URL for admin convenience.
+  // @format url
+  optional string dashboard_url = 4;
+  // When settings were last updated.
+  google.protobuf.Timestamp updated_at = 5;
+  // Outbound webhook URL that receives payment anomaly alerts.
+  // SENSITIVE: Never expose to frontend or log; redacted in GET responses.
+  // @format url
+  string anomaly_webhook_url = 6;
+  // True when anomaly webhook dispatch is enabled.
+  bool anomaly_webhook_enabled = 7;
+  // Per-anomaly-type rate limit overrides, encoded as JSON object:
+  //   {"<anomaly_type>": {"burst": N, "refill_seconds": M}}
+  // Empty string falls back to built-in defaults (burst=5, refill=60s).
+  string anomaly_rate_limits = 8;
+  // True when anomaly_webhook_url is configured (redaction indicator).
+  bool anomaly_webhook_url_set = 9;
+}
+
+// =============================================================================
+// SETTINGS API TYPES
+// =============================================================================
+
+// GetStripeSettingsRequest requests current Stripe settings and snapshot.
+//
+// Gets Stripe settings for administrators.
+message GetStripeSettingsRequest {}
+
+// GetStripeSettingsResponse returns persisted settings and runtime snapshot.
+//
+// Response from Stripe settings lookup.
+message GetStripeSettingsResponse {
+  // Persisted admin-configured settings (may be empty if using env vars).
+  StripeSettings settings = 1;
+  // Runtime configuration snapshot showing active credentials source.
+  StripeConfigSnapshot snapshot = 2;
+}
+
+// UpdateStripeSettingsRequest partially updates Stripe credentials.
+//
+// Supports partial updates: only provided fields are updated.
+// Omitted fields retain their current values.
+//
+// Updates Stripe settings for administrators.
+message UpdateStripeSettingsRequest {
+  // Publishable key to set. If unset, current value is retained.
+  // @format stripe_publishable_key
+  optional string publishable_key = 1;
+  // Secret key to set. If unset, current value is retained.
+  // @format stripe_secret_key
+  optional string secret_key = 2;
+  // Webhook signing secret to set. If unset, current value is retained.
+  // @format stripe_webhook_secret
+  optional string webhook_secret = 3;
+  // Dashboard URL to set. If unset, current value is retained.
+  // @format url
+  optional string dashboard_url = 4;
+  // Anomaly webhook URL to set. If unset, current value is retained.
+  // @format url
+  optional string anomaly_webhook_url = 5;
+  // Enable or disable anomaly webhook dispatch. If unset, current value is retained.
+  optional bool anomaly_webhook_enabled = 6;
+  // Per-type rate limit overrides as JSON object:
+  //   {"<anomaly_type>": {"burst": N, "refill_seconds": M}}
+  // If unset, current value is retained.
+  optional string anomaly_rate_limits = 7;
+}
+
+// UpdateStripeSettingsResponse returns the resulting settings and snapshot.
+//
+// Response from Stripe settings update.
+message UpdateStripeSettingsResponse {
+  // Updated persisted admin-configured settings.
+  StripeSettings settings = 1;
+  // Updated runtime configuration snapshot (source will be DATABASE).
+  StripeConfigSnapshot snapshot = 2;
+}

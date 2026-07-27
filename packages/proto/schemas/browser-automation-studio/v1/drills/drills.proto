@@ -20,10 +20,21 @@ enum DrillName {
 }
 
 message ListDrillsRequest {}
-message DrillDefinition { DrillName name = 1; string description = 2; }
-message ListDrillsResponse { repeated DrillDefinition drills = 1; }
-message RunDrillRequest { DrillName name = 1; }
-message DrillAssertion { string name = 1; bool passed = 2; string detail = 3; }
+message DrillDefinition {
+  DrillName name = 1;
+  string description = 2;
+}
+message ListDrillsResponse {
+  repeated DrillDefinition drills = 1;
+}
+message RunDrillRequest {
+  DrillName name = 1;
+}
+message DrillAssertion {
+  string name = 1;
+  bool passed = 2;
+  string detail = 3;
+}
 message DrillVerdict {
   DrillName name = 1;
   bool passed = 2;
@@ -34,4 +45,6 @@ message DrillVerdict {
   repeated DrillAssertion assertions = 7;
   string evidence_json = 8;
 }
-message RunDrillResponse { DrillVerdict verdict = 1; }
+message RunDrillResponse {
+  DrillVerdict verdict = 1;
+}

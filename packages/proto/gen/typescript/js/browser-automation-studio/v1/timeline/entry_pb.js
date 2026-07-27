@@ -82,7 +82,6 @@ export const TimelineMessageTypeSchema = /*@__PURE__*/
 /**
  * TimelineMessageType enumerates WebSocket message types for streaming.
  *
- * @usage TimelineStreamMessage.type
  *
  * @generated from enum browser_automation_studio.v1.TimelineMessageType
  */

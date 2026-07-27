@@ -5,7 +5,7 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { Scenario } from "../domain/scenario_pb";
+import type { Scenario, ScenarioRemediationSummary } from "../domain/scenario_pb";
 import { file_swarm_manager_v1_domain_scenario } from "../domain/scenario_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/scenarios.proto.
  */
 export const file_swarm_manager_v1_api_scenarios: GenFile = /*@__PURE__*/
-  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SG3Zyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaSJUChVMaXN0U2NlbmFyaW9zUmVzcG9uc2USOwoJc2NlbmFyaW9zGAEgAygLMigudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvIk4KEFNjZW5hcmlvUmVzcG9uc2USOgoIc2NlbmFyaW8YASABKAsyKC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uU2NlbmFyaW8iTQodVXBkYXRlU2NlbmFyaW9NZXRhZGF0YVJlcXVlc3QSGgoNaXNfZ3JlZW5maWVsZBgBIAEoCEgAiAEBQhAKDl9pc19ncmVlbmZpZWxkIoMBChRQcmVzZXJ2ZUZpbGVzUmVxdWVzdBINCgVwYXRocxgBIAMoCRJRCgZwcmVzZXQYAiABKAlCPLpIOXI3UgBSDWRvY3VtZW50YXRpb25SDHJlcXVpcmVtZW50c1IIcGxhbm5pbmdSDGFsbC1wbGFubmluZ0gAiAEBQgkKB19wcmVzZXQiegoVRGVsZXRlU2NlbmFyaW9SZXF1ZXN0Ek4KDnByZXNlcnZlX2ZpbGVzGAEgASgLMjEudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlByZXNlcnZlRmlsZXNSZXF1ZXN0SACIAQFCEQoPX3ByZXNlcnZlX2ZpbGVzIqoBChZEZWxldGVTY2VuYXJpb1Jlc3BvbnNlEhUKBG5hbWUYASABKAlCB7pIBHICEAESEAoIYXJjaGl2ZWQYAiABKAgSGAoHbWVzc2FnZRgDIAEoCUIHukgEcgIQARIeChFiYWNrbG9nX2lkZWFfbmFtZRgEIAEoCUgAiAEBEhcKD3ByZXNlcnZlZF9maWxlcxgFIAMoCUIUChJfYmFja2xvZ19pZGVhX25hbWUiuwEKDFNjZW5hcmlvRmlsZRIVCgRuYW1lGAEgASgJQge6SARyAhABEhUKBHBhdGgYAiABKAlCB7pIBHICEAESJAoEdHlwZRgDIAEoCUIWukgTchFSBGZpbGVSCWRpcmVjdG9yeRIRCgRzaXplGAQgASgDSACIAQESOwoIY2hpbGRyZW4YBSADKAsyKS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU2NlbmFyaW9GaWxlQgcKBV9zaXplIlEKFVNjZW5hcmlvRmlsZXNSZXNwb25zZRI4CgVmaWxlcxgBIAMoCzIpLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5TY2VuYXJpb0ZpbGUiewoWU3BlY1N5bmNBcmNoaXZlUmVxdWVzdBJOCg5wcmVzZXJ2ZV9maWxlcxgBIAEoCzIxLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5QcmVzZXJ2ZUZpbGVzUmVxdWVzdEgAiAEBQhEKD19wcmVzZXJ2ZV9maWxlcyJrChdTcGVjU3luY0FyY2hpdmVSZXNwb25zZRIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESFwoGc3RhdHVzGAIgASgJQge6SARyAhABEhgKB21lc3NhZ2UYAyABKAlCB7pIBHICEAEibwoaU2NlbmFyaW9SZXZpZXdRdWV1ZVJlcXVlc3QSHQoFbGltaXQYASABKAVCCbpIBhoEGDIoAUgAiAEBEhgKC2V4Y2x1ZGVfdGFnGAIgASgJSAGIAQFCCAoGX2xpbWl0Qg4KDF9leGNsdWRlX3RhZyLIAgoXU2NlbmFyaW9SZXZpZXdRdWV1ZUl0ZW0SFQoNc2NlbmFyaW9fbmFtZRgBIAEoCRIdChVwZW5kaW5nX2JhY2tsb2dfY291bnQYAiABKAUSJwoabGFzdF9yZXZpZXdfY2xhc3NpZmljYXRpb24YAyABKAlIAIgBARIbCg5sYXN0X3Jldmlld19hdBgEIAEoCUgBiAEBEh4KFnJlY2VudF9leGVjdXRpb25fY291bnQYBSABKAUSFwoPY29tcG9zaXRlX3Njb3JlGAYgASgBEhYKDnByaW1hcnlfc2lnbmFsGAcgASgJEhsKDmNvb2xkb3duX3VudGlsGAggASgJSAKIAQFCHQobX2xhc3RfcmV2aWV3X2NsYXNzaWZpY2F0aW9uQhEKD19sYXN0X3Jldmlld19hdEIRCg9fY29vbGRvd25fdW50aWwikwEKG1NjZW5hcmlvUmV2aWV3UXVldWVSZXNwb25zZRJDCgVpdGVtcxgBIAMoCzI0LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5TY2VuYXJpb1Jldmlld1F1ZXVlSXRlbRIXCg90b3RhbF9zY2VuYXJpb3MYAiABKAUSFgoOZXhjbHVkZWRfY291bnQYAyABKAVCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
+  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SG3Zyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaSJUChVMaXN0U2NlbmFyaW9zUmVzcG9uc2USOwoJc2NlbmFyaW9zGAEgAygLMigudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvIk4KEFNjZW5hcmlvUmVzcG9uc2USOgoIc2NlbmFyaW8YASABKAsyKC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uU2NlbmFyaW8iTQodVXBkYXRlU2NlbmFyaW9NZXRhZGF0YVJlcXVlc3QSGgoNaXNfZ3JlZW5maWVsZBgBIAEoCEgAiAEBQhAKDl9pc19ncmVlbmZpZWxkIoMBChRQcmVzZXJ2ZUZpbGVzUmVxdWVzdBINCgVwYXRocxgBIAMoCRJRCgZwcmVzZXQYAiABKAlCPLpIOXI3UgBSDWRvY3VtZW50YXRpb25SDHJlcXVpcmVtZW50c1IIcGxhbm5pbmdSDGFsbC1wbGFubmluZ0gAiAEBQgkKB19wcmVzZXQiegoVRGVsZXRlU2NlbmFyaW9SZXF1ZXN0Ek4KDnByZXNlcnZlX2ZpbGVzGAEgASgLMjEudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlByZXNlcnZlRmlsZXNSZXF1ZXN0SACIAQFCEQoPX3ByZXNlcnZlX2ZpbGVzIqoBChZEZWxldGVTY2VuYXJpb1Jlc3BvbnNlEhUKBG5hbWUYASABKAlCB7pIBHICEAESEAoIYXJjaGl2ZWQYAiABKAgSGAoHbWVzc2FnZRgDIAEoCUIHukgEcgIQARIeChFiYWNrbG9nX2lkZWFfbmFtZRgEIAEoCUgAiAEBEhcKD3ByZXNlcnZlZF9maWxlcxgFIAMoCUIUChJfYmFja2xvZ19pZGVhX25hbWUiuwEKDFNjZW5hcmlvRmlsZRIVCgRuYW1lGAEgASgJQge6SARyAhABEhUKBHBhdGgYAiABKAlCB7pIBHICEAESJAoEdHlwZRgDIAEoCUIWukgTchFSBGZpbGVSCWRpcmVjdG9yeRIRCgRzaXplGAQgASgDSACIAQESOwoIY2hpbGRyZW4YBSADKAsyKS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU2NlbmFyaW9GaWxlQgcKBV9zaXplIlEKFVNjZW5hcmlvRmlsZXNSZXNwb25zZRI4CgVmaWxlcxgBIAMoCzIpLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5TY2VuYXJpb0ZpbGUiewoWU3BlY1N5bmNBcmNoaXZlUmVxdWVzdBJOCg5wcmVzZXJ2ZV9maWxlcxgBIAEoCzIxLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5QcmVzZXJ2ZUZpbGVzUmVxdWVzdEgAiAEBQhEKD19wcmVzZXJ2ZV9maWxlcyJrChdTcGVjU3luY0FyY2hpdmVSZXNwb25zZRIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESFwoGc3RhdHVzGAIgASgJQge6SARyAhABEhgKB21lc3NhZ2UYAyABKAlCB7pIBHICEAEibwoaU2NlbmFyaW9SZXZpZXdRdWV1ZVJlcXVlc3QSHQoFbGltaXQYASABKAVCCbpIBhoEGDIoAUgAiAEBEhgKC2V4Y2x1ZGVfdGFnGAIgASgJSAGIAQFCCAoGX2xpbWl0Qg4KDF9leGNsdWRlX3RhZyLIAgoXU2NlbmFyaW9SZXZpZXdRdWV1ZUl0ZW0SFQoNc2NlbmFyaW9fbmFtZRgBIAEoCRIdChVwZW5kaW5nX2JhY2tsb2dfY291bnQYAiABKAUSJwoabGFzdF9yZXZpZXdfY2xhc3NpZmljYXRpb24YAyABKAlIAIgBARIbCg5sYXN0X3Jldmlld19hdBgEIAEoCUgBiAEBEh4KFnJlY2VudF9leGVjdXRpb25fY291bnQYBSABKAUSFwoPY29tcG9zaXRlX3Njb3JlGAYgASgBEhYKDnByaW1hcnlfc2lnbmFsGAcgASgJEhsKDmNvb2xkb3duX3VudGlsGAggASgJSAKIAQFCHQobX2xhc3RfcmV2aWV3X2NsYXNzaWZpY2F0aW9uQhEKD19sYXN0X3Jldmlld19hdEIRCg9fY29vbGRvd25fdW50aWwikwEKG1NjZW5hcmlvUmV2aWV3UXVldWVSZXNwb25zZRJDCgVpdGVtcxgBIAMoCzI0LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5TY2VuYXJpb1Jldmlld1F1ZXVlSXRlbRIXCg90b3RhbF9zY2VuYXJpb3MYAiABKAUSFgoOZXhjbHVkZWRfY291bnQYAyABKAUifAoZU2NlbmFyaW9SZW1lZGlhdGlvblRhcmdldBIeCg1zY2VuYXJpb19uYW1lGAEgASgJQge6SARyAhABEh8KDnByb3ZpZGVyX3BoYXNlGAIgASgJQge6SARyAhABEh4KDWNhcGFiaWxpdHlfaWQYAyABKAlCB7pIBHICEAEitAIKG1NjZW5hcmlvUmVtZWRpYXRpb25Qcm9wb3NhbBJOCgZ0YXJnZXQYASABKAsyNi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU2NlbmFyaW9SZW1lZGlhdGlvblRhcmdldEIGukgDyAEBEhwKC2ZpbmdlcnByaW50GAIgASgJQge6SARyAhABEhsKCnByb3ZlbmFuY2UYAyABKAlCB7pIBHICEAESFgoFdGl0bGUYBCABKAlCB7pIBHICEAESHAoLZGVzY3JpcHRpb24YBSABKAlCB7pIBHICEAESGwoTYWNjZXB0YW5jZV9jcml0ZXJpYRgGIAMoCRIYChBhY2NlcHRhbmNlX2FsbG93GAcgAygJEh0KFXJlY29tbWVuZGVkX3dvcmtmbG93cxgIIAMoCSJzCiFQcmV2aWV3U2NlbmFyaW9SZW1lZGlhdGlvblJlcXVlc3QSTgoGdGFyZ2V0GAEgASgLMjYudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlNjZW5hcmlvUmVtZWRpYXRpb25UYXJnZXRCBrpIA8gBASLYAQoiUHJldmlld1NjZW5hcmlvUmVtZWRpYXRpb25SZXNwb25zZRJSCghwcm9wb3NhbBgBIAEoCzI4LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5TY2VuYXJpb1JlbWVkaWF0aW9uUHJvcG9zYWxCBrpIA8gBARJRCghleGlzdGluZxgCIAEoCzI6LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5TY2VuYXJpb1JlbWVkaWF0aW9uU3VtbWFyeUgAiAEBQgsKCV9leGlzdGluZyKPAQofQXBwbHlTY2VuYXJpb1JlbWVkaWF0aW9uUmVxdWVzdBJOCgZ0YXJnZXQYASABKAsyNi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU2NlbmFyaW9SZW1lZGlhdGlvblRhcmdldEIGukgDyAEBEhwKC2ZpbmdlcnByaW50GAIgASgJQge6SARyAhABIqIBCiBBcHBseVNjZW5hcmlvUmVtZWRpYXRpb25SZXNwb25zZRJSCghwcm9wb3NhbBgBIAEoCzI4LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5TY2VuYXJpb1JlbWVkaWF0aW9uUHJvcG9zYWxCBrpIA8gBARIZCgh3b3JrX3JlZhgCIAEoCUIHukgEcgIQARIPCgdjcmVhdGVkGAMgASgIInsKHlNjZW5hcmlvTWF0dXJpdHlDYW1wYWlnblRhcmdldBIeCg1zY2VuYXJpb19uYW1lGAEgASgJQge6SARyAhABEiAKD21hdHVyaXR5X3RhcmdldBgCIAEoCUIHukgEcgIQARIXCg9wcm92aWRlcl9waGFzZXMYAyADKAki3QIKIFNjZW5hcmlvTWF0dXJpdHlDYW1wYWlnblByb3Bvc2FsElMKBnRhcmdldBgBIAEoCzI7LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5TY2VuYXJpb01hdHVyaXR5Q2FtcGFpZ25UYXJnZXRCBrpIA8gBARIcCgtmaW5nZXJwcmludBgCIAEoCUIHukgEcgIQARIWCgV0aXRsZRgDIAEoCUIHukgEcgIQARIcCgtkZXNjcmlwdGlvbhgEIAEoCUIHukgEcgIQARIbChNhY2NlcHRhbmNlX2NyaXRlcmlhGAUgAygJEiIKEWRlY2xhcmVkX3dvcmtmbG93GAYgASgJQge6SARyAhABEiUKFHRyYWNrZXJfYXZhaWxhYmlsaXR5GAcgASgJQge6SARyAhABEhgKC3RyYWNrZXJfcmVmGAggASgJSACIAQFCDgoMX3RyYWNrZXJfcmVmIn0KJlByZXZpZXdTY2VuYXJpb01hdHVyaXR5Q2FtcGFpZ25SZXF1ZXN0ElMKBnRhcmdldBgBIAEoCzI7LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5TY2VuYXJpb01hdHVyaXR5Q2FtcGFpZ25UYXJnZXRCBrpIA8gBASK4AQonUHJldmlld1NjZW5hcmlvTWF0dXJpdHlDYW1wYWlnblJlc3BvbnNlElcKCHByb3Bvc2FsGAEgASgLMj0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlNjZW5hcmlvTWF0dXJpdHlDYW1wYWlnblByb3Bvc2FsQga6SAPIAQESHgoRZXhpc3RpbmdfZ29hbF9yZWYYAiABKAlIAIgBAUIUChJfZXhpc3RpbmdfZ29hbF9yZWYimQEKJEFwcGx5U2NlbmFyaW9NYXR1cml0eUNhbXBhaWduUmVxdWVzdBJTCgZ0YXJnZXQYASABKAsyOy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU2NlbmFyaW9NYXR1cml0eUNhbXBhaWduVGFyZ2V0Qga6SAPIAQESHAoLZmluZ2VycHJpbnQYAiABKAlCB7pIBHICEAEi/QEKJUFwcGx5U2NlbmFyaW9NYXR1cml0eUNhbXBhaWduUmVzcG9uc2USVwoIcHJvcG9zYWwYASABKAsyPS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU2NlbmFyaW9NYXR1cml0eUNhbXBhaWduUHJvcG9zYWxCBrpIA8gBARIZCghnb2FsX3JlZhgCIAEoCUIHukgEcgIQARIPCgdjcmVhdGVkGAMgASgIEiUKFHRyYWNrZXJfYXZhaWxhYmlsaXR5GAQgASgJQge6SARyAhABEhgKC3RyYWNrZXJfcmVmGAUgASgJSACIAQFCDgoMX3RyYWNrZXJfcmVmQklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
 
 /**
  * ListScenariosResponse returns all scenarios.
@@ -430,4 +430,362 @@ export type ScenarioReviewQueueResponse = Message<"vrooli.swarm_manager.v1.api.S
  */
 export const ScenarioReviewQueueResponseSchema: GenMessage<ScenarioReviewQueueResponse> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_api_scenarios, 12);
+
+/**
+ * ScenarioRemediationTarget names one stable provider-owned phase/capability
+ * target. It intentionally cannot carry raw findings or locally computed
+ * scores, which prevents Swarm from becoming a competing evidence authority.
+ *
+ * @generated from message vrooli.swarm_manager.v1.api.ScenarioRemediationTarget
+ */
+export type ScenarioRemediationTarget = Message<"vrooli.swarm_manager.v1.api.ScenarioRemediationTarget"> & {
+  /**
+   * @generated from field: string scenario_name = 1;
+   */
+  scenarioName: string;
+
+  /**
+   * @generated from field: string provider_phase = 2;
+   */
+  providerPhase: string;
+
+  /**
+   * @generated from field: string capability_id = 3;
+   */
+  capabilityId: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.ScenarioRemediationTarget.
+ * Use `create(ScenarioRemediationTargetSchema)` to create a new message.
+ */
+export const ScenarioRemediationTargetSchema: GenMessage<ScenarioRemediationTarget> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 13);
+
+/**
+ * ScenarioRemediationProposal is the source-neutral vocabulary for preview and
+ * later apply flows. The same fingerprint must be emitted for equivalent
+ * manual and automated inputs.
+ *
+ * @generated from message vrooli.swarm_manager.v1.api.ScenarioRemediationProposal
+ */
+export type ScenarioRemediationProposal = Message<"vrooli.swarm_manager.v1.api.ScenarioRemediationProposal"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioRemediationTarget target = 1;
+   */
+  target?: ScenarioRemediationTarget | undefined;
+
+  /**
+   * @generated from field: string fingerprint = 2;
+   */
+  fingerprint: string;
+
+  /**
+   * @generated from field: string provenance = 3;
+   */
+  provenance: string;
+
+  /**
+   * @generated from field: string title = 4;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string description = 5;
+   */
+  description: string;
+
+  /**
+   * @generated from field: repeated string acceptance_criteria = 6;
+   */
+  acceptanceCriteria: string[];
+
+  /**
+   * @generated from field: repeated string acceptance_allow = 7;
+   */
+  acceptanceAllow: string[];
+
+  /**
+   * @generated from field: repeated string recommended_workflows = 8;
+   */
+  recommendedWorkflows: string[];
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.ScenarioRemediationProposal.
+ * Use `create(ScenarioRemediationProposalSchema)` to create a new message.
+ */
+export const ScenarioRemediationProposalSchema: GenMessage<ScenarioRemediationProposal> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 14);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.PreviewScenarioRemediationRequest
+ */
+export type PreviewScenarioRemediationRequest = Message<"vrooli.swarm_manager.v1.api.PreviewScenarioRemediationRequest"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioRemediationTarget target = 1;
+   */
+  target?: ScenarioRemediationTarget | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.PreviewScenarioRemediationRequest.
+ * Use `create(PreviewScenarioRemediationRequestSchema)` to create a new message.
+ */
+export const PreviewScenarioRemediationRequestSchema: GenMessage<PreviewScenarioRemediationRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 15);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.PreviewScenarioRemediationResponse
+ */
+export type PreviewScenarioRemediationResponse = Message<"vrooli.swarm_manager.v1.api.PreviewScenarioRemediationResponse"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioRemediationProposal proposal = 1;
+   */
+  proposal?: ScenarioRemediationProposal | undefined;
+
+  /**
+   * Existing reconciliation state is returned rather than silently creating
+   * a duplicate proposal or work item.
+   *
+   * @generated from field: optional vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary existing = 2;
+   */
+  existing?: ScenarioRemediationSummary | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.PreviewScenarioRemediationResponse.
+ * Use `create(PreviewScenarioRemediationResponseSchema)` to create a new message.
+ */
+export const PreviewScenarioRemediationResponseSchema: GenMessage<PreviewScenarioRemediationResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 16);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.ApplyScenarioRemediationRequest
+ */
+export type ApplyScenarioRemediationRequest = Message<"vrooli.swarm_manager.v1.api.ApplyScenarioRemediationRequest"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioRemediationTarget target = 1;
+   */
+  target?: ScenarioRemediationTarget | undefined;
+
+  /**
+   * @generated from field: string fingerprint = 2;
+   */
+  fingerprint: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.ApplyScenarioRemediationRequest.
+ * Use `create(ApplyScenarioRemediationRequestSchema)` to create a new message.
+ */
+export const ApplyScenarioRemediationRequestSchema: GenMessage<ApplyScenarioRemediationRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 17);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.ApplyScenarioRemediationResponse
+ */
+export type ApplyScenarioRemediationResponse = Message<"vrooli.swarm_manager.v1.api.ApplyScenarioRemediationResponse"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioRemediationProposal proposal = 1;
+   */
+  proposal?: ScenarioRemediationProposal | undefined;
+
+  /**
+   * @generated from field: string work_ref = 2;
+   */
+  workRef: string;
+
+  /**
+   * @generated from field: bool created = 3;
+   */
+  created: boolean;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.ApplyScenarioRemediationResponse.
+ * Use `create(ApplyScenarioRemediationResponseSchema)` to create a new message.
+ */
+export const ApplyScenarioRemediationResponseSchema: GenMessage<ApplyScenarioRemediationResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 18);
+
+/**
+ * ScenarioMaturityCampaignTarget is an operator-selected broad outcome. It is
+ * intentionally separate from a provider phase/capability remediation target.
+ *
+ * @generated from message vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget
+ */
+export type ScenarioMaturityCampaignTarget = Message<"vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget"> & {
+  /**
+   * @generated from field: string scenario_name = 1;
+   */
+  scenarioName: string;
+
+  /**
+   * @generated from field: string maturity_target = 2;
+   */
+  maturityTarget: string;
+
+  /**
+   * @generated from field: repeated string provider_phases = 3;
+   */
+  providerPhases: string[];
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget.
+ * Use `create(ScenarioMaturityCampaignTargetSchema)` to create a new message.
+ */
+export const ScenarioMaturityCampaignTargetSchema: GenMessage<ScenarioMaturityCampaignTarget> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 19);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal
+ */
+export type ScenarioMaturityCampaignProposal = Message<"vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget target = 1;
+   */
+  target?: ScenarioMaturityCampaignTarget | undefined;
+
+  /**
+   * @generated from field: string fingerprint = 2;
+   */
+  fingerprint: string;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string description = 4;
+   */
+  description: string;
+
+  /**
+   * @generated from field: repeated string acceptance_criteria = 5;
+   */
+  acceptanceCriteria: string[];
+
+  /**
+   * @generated from field: string declared_workflow = 6;
+   */
+  declaredWorkflow: string;
+
+  /**
+   * @generated from field: string tracker_availability = 7;
+   */
+  trackerAvailability: string;
+
+  /**
+   * @generated from field: optional string tracker_ref = 8;
+   */
+  trackerRef?: string | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal.
+ * Use `create(ScenarioMaturityCampaignProposalSchema)` to create a new message.
+ */
+export const ScenarioMaturityCampaignProposalSchema: GenMessage<ScenarioMaturityCampaignProposal> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 20);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignRequest
+ */
+export type PreviewScenarioMaturityCampaignRequest = Message<"vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignRequest"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget target = 1;
+   */
+  target?: ScenarioMaturityCampaignTarget | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignRequest.
+ * Use `create(PreviewScenarioMaturityCampaignRequestSchema)` to create a new message.
+ */
+export const PreviewScenarioMaturityCampaignRequestSchema: GenMessage<PreviewScenarioMaturityCampaignRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 21);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignResponse
+ */
+export type PreviewScenarioMaturityCampaignResponse = Message<"vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignResponse"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal proposal = 1;
+   */
+  proposal?: ScenarioMaturityCampaignProposal | undefined;
+
+  /**
+   * @generated from field: optional string existing_goal_ref = 2;
+   */
+  existingGoalRef?: string | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.PreviewScenarioMaturityCampaignResponse.
+ * Use `create(PreviewScenarioMaturityCampaignResponseSchema)` to create a new message.
+ */
+export const PreviewScenarioMaturityCampaignResponseSchema: GenMessage<PreviewScenarioMaturityCampaignResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 22);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignRequest
+ */
+export type ApplyScenarioMaturityCampaignRequest = Message<"vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignRequest"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget target = 1;
+   */
+  target?: ScenarioMaturityCampaignTarget | undefined;
+
+  /**
+   * @generated from field: string fingerprint = 2;
+   */
+  fingerprint: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignRequest.
+ * Use `create(ApplyScenarioMaturityCampaignRequestSchema)` to create a new message.
+ */
+export const ApplyScenarioMaturityCampaignRequestSchema: GenMessage<ApplyScenarioMaturityCampaignRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 23);
+
+/**
+ * @generated from message vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignResponse
+ */
+export type ApplyScenarioMaturityCampaignResponse = Message<"vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignResponse"> & {
+  /**
+   * @generated from field: vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal proposal = 1;
+   */
+  proposal?: ScenarioMaturityCampaignProposal | undefined;
+
+  /**
+   * @generated from field: string goal_ref = 2;
+   */
+  goalRef: string;
+
+  /**
+   * @generated from field: bool created = 3;
+   */
+  created: boolean;
+
+  /**
+   * @generated from field: string tracker_availability = 4;
+   */
+  trackerAvailability: string;
+
+  /**
+   * @generated from field: optional string tracker_ref = 5;
+   */
+  trackerRef?: string | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignResponse.
+ * Use `create(ApplyScenarioMaturityCampaignResponseSchema)` to create a new message.
+ */
+export const ApplyScenarioMaturityCampaignResponseSchema: GenMessage<ApplyScenarioMaturityCampaignResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 24);
 

@@ -181,5 +181,9 @@ message RevokeNodeResponse {
   Node node = 1;
 }
 
-message RemoveNodeRequest { string id = 1; }
-message RemoveNodeResponse { string removed_node_id = 1; }
+message RemoveNodeRequest {
+  string id = 1;
+}
+message RemoveNodeResponse {
+  string removed_node_id = 1;
+}

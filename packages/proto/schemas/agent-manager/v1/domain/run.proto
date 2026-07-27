@@ -127,6 +127,9 @@ message Run {
   // Total size of changes in bytes.
   int64 total_size_bytes = 25;
 
+  // Commit created when the sandbox applied this run's accepted changes.
+  string commit_hash = 47;
+
   // Runner-specific session identifier for conversation resumption.
   // Populated from runner stream events:
   //   - Claude Code: session_id

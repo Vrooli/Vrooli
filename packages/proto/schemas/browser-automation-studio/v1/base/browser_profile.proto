@@ -8,9 +8,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // BROWSER PROFILE CONFIGURATION
 // =============================================================================
 //
-// @layer 1
-// @domain base
-// @imports none
 // @stability stable
 //
 // BrowserProfile controls anti-detection, fingerprinting, and human-like behavior

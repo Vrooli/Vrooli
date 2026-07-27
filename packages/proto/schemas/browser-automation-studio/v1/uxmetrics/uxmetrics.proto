@@ -10,9 +10,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // UX METRICS DOMAIN — friction analysis for completed workflow executions.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain uxmetrics
-// @stability stable
+// @stability beta
 //
 // UXMetricsService exposes computed UX-friction analytics for executions and
 // workflow-level aggregates. Payloads are intentionally free-form

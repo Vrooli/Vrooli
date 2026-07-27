@@ -90,8 +90,6 @@ func (ExecutionMode) EnumDescriptor() ([]byte, []int) {
 }
 
 // WorkflowDefinitionV2 is the canonical workflow storage format.
-//
-// @usage WorkflowSummary.flow_definition, CreateWorkflowRequest.flow_definition
 type WorkflowDefinitionV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Workflow metadata.
@@ -165,8 +163,6 @@ func (x *WorkflowDefinitionV2) GetEdges() []*WorkflowEdgeV2 {
 }
 
 // WorkflowMetadataV2 captures workflow-level descriptors.
-//
-// @usage WorkflowDefinitionV2.metadata
 type WorkflowMetadataV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Workflow name.
@@ -267,8 +263,6 @@ func (x *WorkflowMetadataV2) GetExecutionMode() ExecutionMode {
 }
 
 // WorkflowSettingsV2 captures browser/execution configuration.
-//
-// @usage WorkflowDefinitionV2.settings
 type WorkflowSettingsV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Viewport width in pixels (default: 1280).
@@ -403,8 +397,6 @@ func (x *WorkflowSettingsV2) GetFakeMedia() *FakeMediaConfig {
 // FakeMediaConfig requests deterministic fake media devices for execution.
 // Chromium serves fake capture devices process-wide, so the driver launches
 // (and pools) a dedicated browser instance per distinct configuration.
-//
-// @usage WorkflowSettingsV2.fake_media
 type FakeMediaConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// WAV file served as the fake microphone capture source.
@@ -454,8 +446,6 @@ func (x *FakeMediaConfig) GetMicrophoneWav() string {
 }
 
 // WorkflowNodeV2 represents a single workflow step.
-//
-// @usage WorkflowDefinitionV2.nodes
 type WorkflowNodeV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique node identifier.
@@ -530,8 +520,6 @@ func (x *WorkflowNodeV2) GetExecutionSettings() *NodeExecutionSettings {
 }
 
 // NodeExecutionSettings captures per-step execution configuration.
-//
-// @usage WorkflowNodeV2.execution_settings
 type NodeExecutionSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum time for this step in milliseconds (default: 30000).
@@ -605,8 +593,6 @@ func (x *NodeExecutionSettings) GetResilience() *ResilienceConfig {
 }
 
 // ResilienceConfig captures retry and precondition settings.
-//
-// @usage NodeExecutionSettings.resilience
 type ResilienceConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum retry attempts (default: 1, meaning no retries).
@@ -725,8 +711,6 @@ func (x *ResilienceConfig) GetSuccessWaitMs() int32 {
 }
 
 // WorkflowEdgeV2 connects nodes in the workflow graph.
-//
-// @usage WorkflowDefinitionV2.edges
 type WorkflowEdgeV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique edge identifier.

@@ -2,5 +2,4 @@ syntax = "proto3";
 
 package vrooli.swarm_manager.v1.domain;
 
-
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";

@@ -10,9 +10,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // RECORDINGS DOMAIN — live recording-session sub-resources.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain recordings
-// @stability stable
+// @stability beta
 //
 // RecordingsService owns the 19 sub-resources hanging off
 // /recordings/sessions/{profile_id}/...:

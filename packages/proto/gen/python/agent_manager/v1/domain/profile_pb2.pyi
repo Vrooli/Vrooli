@@ -254,7 +254,7 @@ class ExecutionPolicySnapshot(_message.Message):
     def __init__(self, catalog_digest: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[ExecutionCandidate, _Mapping]]] = ..., selected_index: _Optional[int] = ..., selected_candidate: _Optional[_Union[ExecutionCandidate, _Mapping]] = ..., explanation: _Optional[_Union[PolicyResolutionExplanation, _Mapping]] = ..., role_ref: _Optional[str] = ...) -> None: ...
 
 class RunConfigOverrides(_message.Message):
-    __slots__ = ("role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "clear_extra_flags", "network_access", "effort", "sandbox_config", "allowed_paths", "denied_paths", "clear_allowed_tools", "clear_denied_tools", "clear_allowed_paths", "clear_denied_paths")
+    __slots__ = ("role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "clear_extra_flags", "network_access", "effort", "model", "sandbox_config", "allowed_paths", "denied_paths", "clear_allowed_tools", "clear_denied_tools", "clear_allowed_paths", "clear_denied_paths")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -274,6 +274,7 @@ class RunConfigOverrides(_message.Message):
     CLEAR_EXTRA_FLAGS_FIELD_NUMBER: _ClassVar[int]
     NETWORK_ACCESS_FIELD_NUMBER: _ClassVar[int]
     EFFORT_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
     SANDBOX_CONFIG_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_PATHS_FIELD_NUMBER: _ClassVar[int]
     DENIED_PATHS_FIELD_NUMBER: _ClassVar[int]
@@ -293,6 +294,7 @@ class RunConfigOverrides(_message.Message):
     clear_extra_flags: bool
     network_access: _types_pb2.NetworkAccess
     effort: str
+    model: str
     sandbox_config: _types_pb2.SandboxConfig
     allowed_paths: _containers.RepeatedScalarFieldContainer[str]
     denied_paths: _containers.RepeatedScalarFieldContainer[str]
@@ -300,7 +302,7 @@ class RunConfigOverrides(_message.Message):
     clear_denied_tools: bool
     clear_allowed_paths: bool
     clear_denied_paths: bool
-    def __init__(self, role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., clear_extra_flags: _Optional[bool] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., effort: _Optional[str] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., clear_allowed_tools: _Optional[bool] = ..., clear_denied_tools: _Optional[bool] = ..., clear_allowed_paths: _Optional[bool] = ..., clear_denied_paths: _Optional[bool] = ...) -> None: ...
+    def __init__(self, role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., clear_extra_flags: _Optional[bool] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., effort: _Optional[str] = ..., model: _Optional[str] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., clear_allowed_tools: _Optional[bool] = ..., clear_denied_tools: _Optional[bool] = ..., clear_allowed_paths: _Optional[bool] = ..., clear_denied_paths: _Optional[bool] = ...) -> None: ...
 
 class HeartbeatConfig(_message.Message):
     __slots__ = ("interval", "timeout", "max_missed_beats")

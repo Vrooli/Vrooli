@@ -975,7 +975,7 @@ var File_agent_manager_v1_domain_workflow_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\n" +
-	"&agent-manager/v1/domain/workflow.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!agent-manager/v1/domain/run.proto\"\xc6\x03\n" +
+	"&agent-manager/v1/domain/workflow.proto\x12\x10agent_manager.v1\x1a!agent-manager/v1/domain/run.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc6\x03\n" +
 	"\x10WorkflowRevision\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x10\n" +

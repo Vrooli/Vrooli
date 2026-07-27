@@ -37,18 +37,55 @@ service GoalService {
 }
 
 message ListGoalsRequest {}
-message GetGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
-message DeleteGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
-message ArchiveGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
-message UnarchiveGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
-message CreateGoalRequest { string name = 1; string title = 2; string description = 3; int32 priority = 4; repeated string targets = 5; }
-message UpdateGoalRequest { string name = 1; optional string title = 2; optional string description = 3; optional int32 priority = 4; }
-message UpdateGoalTargetsRequest { string name = 1; repeated string targets = 2; }
-message CreateMilestoneRequest { string goal_name = 1; shared.Milestone milestone = 2; }
-message UpdateMilestoneRequest { string goal_name = 1; shared.Milestone milestone = 2; }
-message ArchiveMilestoneRequest { string goal_name = 1; string milestone_name = 2; }
-message UpdateMilestoneItemsRequest { string goal_name = 1; string milestone_name = 2; repeated string items = 3; }
-message CloseOutGoalRequest { string name = 1 [(buf.validate.field).string.min_len = 1]; }
+message GetGoalRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+message DeleteGoalRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+message ArchiveGoalRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+message UnarchiveGoalRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+message CreateGoalRequest {
+  string name = 1;
+  string title = 2;
+  string description = 3;
+  int32 priority = 4;
+  repeated string targets = 5;
+}
+message UpdateGoalRequest {
+  string name = 1;
+  optional string title = 2;
+  optional string description = 3;
+  optional int32 priority = 4;
+}
+message UpdateGoalTargetsRequest {
+  string name = 1;
+  repeated string targets = 2;
+}
+message CreateMilestoneRequest {
+  string goal_name = 1;
+  shared.Milestone milestone = 2;
+}
+message UpdateMilestoneRequest {
+  string goal_name = 1;
+  shared.Milestone milestone = 2;
+}
+message ArchiveMilestoneRequest {
+  string goal_name = 1;
+  string milestone_name = 2;
+}
+message UpdateMilestoneItemsRequest {
+  string goal_name = 1;
+  string milestone_name = 2;
+  repeated string items = 3;
+}
+message CloseOutGoalRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
 message ListPendingGoalWorkflowsRequest {
   // Restrict the listing to one goal. Empty lists every goal.
   string goal_name = 1;
@@ -73,7 +110,9 @@ message PendingGoalWorkflow {
   string last_error = 9;
 }
 
-message ListPendingGoalWorkflowsResponse { repeated PendingGoalWorkflow pending = 1; }
+message ListPendingGoalWorkflowsResponse {
+  repeated PendingGoalWorkflow pending = 1;
+}
 message ApplyGoalWorkflowResponse {
   string execution_id = 1;
   string session_id = 2;
@@ -83,7 +122,14 @@ message ApplyGoalWorkflowResponse {
   bool already_applied = 5;
 }
 
-message GoalResponse { domain.Goal goal = 1; domain.GoalScope scope = 2; }
-message ListGoalsResponse { repeated GoalResponse goals = 1; }
-message GoalScopeResponse { domain.GoalScope scope = 1; }
+message GoalResponse {
+  domain.Goal goal = 1;
+  domain.GoalScope scope = 2;
+}
+message ListGoalsResponse {
+  repeated GoalResponse goals = 1;
+}
+message GoalScopeResponse {
+  domain.GoalScope scope = 1;
+}
 message EmptyGoalResponse {}

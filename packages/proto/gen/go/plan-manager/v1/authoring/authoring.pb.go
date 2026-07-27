@@ -2499,7 +2499,10 @@ type DiscoverSkillPackRequest struct {
 	Concepts []string `protobuf:"bytes,2,rep,name=concepts,proto3" json:"concepts,omitempty"`
 	// Optional prompt-manager discovery complexity: minor|moderate|major|architectural.
 	// Synonyms low/medium/high are normalized; omit to use prompt-manager's default.
-	Complexity    string `protobuf:"bytes,3,opt,name=complexity,proto3" json:"complexity,omitempty"`
+	Complexity string `protobuf:"bytes,3,opt,name=complexity,proto3" json:"complexity,omitempty"`
+	// Optional phase id or authored order number. When set, the discovered pack
+	// is added as phase-scoped context on that phase instead of global context.
+	PhaseId       string `protobuf:"bytes,4,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2551,6 +2554,13 @@ func (x *DiscoverSkillPackRequest) GetConcepts() []string {
 func (x *DiscoverSkillPackRequest) GetComplexity() string {
 	if x != nil {
 		return x.Complexity
+	}
+	return ""
+}
+
+func (x *DiscoverSkillPackRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
 	}
 	return ""
 }
@@ -3798,14 +3808,15 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"\n" +
 	"violations\x18\x03 \x03(\v24.vrooli.plan_manager.v1.authoring.StructureViolationR\n" +
 	"violations\x12=\n" +
-	"\x04step\x18\x04 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"u\n" +
+	"\x04step\x18\x04 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"\x90\x01\n" +
 	"\x18DiscoverSkillPackRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1a\n" +
 	"\bconcepts\x18\x02 \x03(\tR\bconcepts\x12\x1e\n" +
 	"\n" +
 	"complexity\x18\x03 \x01(\tR\n" +
-	"complexity\"\x99\x05\n" +
+	"complexity\x12\x19\n" +
+	"\bphase_id\x18\x04 \x01(\tR\aphaseId\"\x99\x05\n" +
 	"\x19DiscoverSkillPackResponse\x12S\n" +
 	"\vadded_items\x18\x01 \x03(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\n" +
 	"addedItems\x12Q\n" +

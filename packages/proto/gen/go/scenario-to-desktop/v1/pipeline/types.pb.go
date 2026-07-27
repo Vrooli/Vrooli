@@ -7,10 +7,10 @@
 package pipeline
 
 import (
-	base "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base"
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -28,16 +28,13 @@ const (
 //
 // All settings are optional with sensible defaults. The only required
 // field is scenario_name.
-//
-// @usage POST /api/pipeline request body
 type PipelineConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name of the scenario to deploy (required).
-	// @constraint non-empty
 	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Target platforms to build for.
 	// Empty means current platform only.
-	Platforms []base.Platform `protobuf:"varint,2,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
+	Platforms []shared.Platform `protobuf:"varint,2,rep,packed,name=platforms,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platforms,omitempty"`
 	// Whether to skip preflight validation.
 	// @default false
 	SkipPreflight *bool `protobuf:"varint,3,opt,name=skip_preflight,json=skipPreflight,proto3,oneof" json:"skip_preflight,omitempty"`
@@ -48,11 +45,11 @@ type PipelineConfig struct {
 	// @default true
 	StopOnFailure *bool `protobuf:"varint,5,opt,name=stop_on_failure,json=stopOnFailure,proto3,oneof" json:"stop_on_failure,omitempty"`
 	// Deployment mode for the desktop application.
-	DeploymentMode base.DeploymentMode `protobuf:"varint,6,opt,name=deployment_mode,json=deploymentMode,proto3,enum=scenario_to_desktop.v1.DeploymentMode" json:"deployment_mode,omitempty"`
+	DeploymentMode shared.DeploymentMode `protobuf:"varint,6,opt,name=deployment_mode,json=deploymentMode,proto3,enum=vrooli.scenario_to_desktop.v1.shared.DeploymentMode" json:"deployment_mode,omitempty"`
 	// Target desktop framework.
-	Framework base.Framework `protobuf:"varint,7,opt,name=framework,proto3,enum=scenario_to_desktop.v1.Framework" json:"framework,omitempty"`
+	Framework shared.Framework `protobuf:"varint,7,opt,name=framework,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Framework" json:"framework,omitempty"`
 	// Application template type.
-	TemplateType base.TemplateType `protobuf:"varint,8,opt,name=template_type,json=templateType,proto3,enum=scenario_to_desktop.v1.TemplateType" json:"template_type,omitempty"`
+	TemplateType shared.TemplateType `protobuf:"varint,8,opt,name=template_type,json=templateType,proto3,enum=vrooli.scenario_to_desktop.v1.shared.TemplateType" json:"template_type,omitempty"`
 	// Webhook URL for pipeline notifications.
 	// @format uri
 	WebhookUrl *string `protobuf:"bytes,9,opt,name=webhook_url,json=webhookUrl,proto3,oneof" json:"webhook_url,omitempty"`
@@ -63,6 +60,10 @@ type PipelineConfig struct {
 	// Override path to bundle manifest.
 	// @format path
 	BundleManifestPath *string `protobuf:"bytes,11,opt,name=bundle_manifest_path,json=bundleManifestPath,proto3,oneof" json:"bundle_manifest_path,omitempty"`
+	// Verified Vrooli release directory that contains resource artifacts.
+	ResourceArtifactRoot *string `protobuf:"bytes,24,opt,name=resource_artifact_root,json=resourceArtifactRoot,proto3,oneof" json:"resource_artifact_root,omitempty"`
+	// Output placement mode: proper, staging, or custom.
+	LocationMode *string `protobuf:"bytes,25,opt,name=location_mode,json=locationMode,proto3,oneof" json:"location_mode,omitempty"`
 	// Whether to clean existing output before building.
 	// @default false
 	Clean *bool `protobuf:"varint,12,opt,name=clean,proto3,oneof" json:"clean,omitempty"`
@@ -88,9 +89,9 @@ type PipelineConfig struct {
 	PreflightSecrets map[string]string `protobuf:"bytes,19,rep,name=preflight_secrets,json=preflightSecrets,proto3" json:"preflight_secrets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Stage to stop after (for partial runs).
 	// Empty means run all stages.
-	StopAfterStage *base.StageName `protobuf:"varint,20,opt,name=stop_after_stage,json=stopAfterStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"stop_after_stage,omitempty"`
+	StopAfterStage *shared.StageName `protobuf:"varint,20,opt,name=stop_after_stage,json=stopAfterStage,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageName,oneof" json:"stop_after_stage,omitempty"`
 	// Stage to resume from (requires prior stop_after_stage run).
-	ResumeFromStage *base.StageName `protobuf:"varint,21,opt,name=resume_from_stage,json=resumeFromStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"resume_from_stage,omitempty"`
+	ResumeFromStage *shared.StageName `protobuf:"varint,21,opt,name=resume_from_stage,json=resumeFromStage,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageName,oneof" json:"resume_from_stage,omitempty"`
 	// Parent pipeline ID when resuming.
 	// @format uuid
 	ParentPipelineId *string `protobuf:"bytes,22,opt,name=parent_pipeline_id,json=parentPipelineId,proto3,oneof" json:"parent_pipeline_id,omitempty"`
@@ -98,8 +99,10 @@ type PipelineConfig struct {
 	// If a pipeline with this key already exists and is running/completed,
 	// returns existing pipeline instead of starting new one.
 	IdempotencyKey *string `protobuf:"bytes,23,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Explicit stage selection. Empty means run the complete pipeline.
+	Stages        []shared.StageName `protobuf:"varint,26,rep,packed,name=stages,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageName" json:"stages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PipelineConfig) Reset() {
@@ -139,7 +142,7 @@ func (x *PipelineConfig) GetScenarioName() string {
 	return ""
 }
 
-func (x *PipelineConfig) GetPlatforms() []base.Platform {
+func (x *PipelineConfig) GetPlatforms() []shared.Platform {
 	if x != nil {
 		return x.Platforms
 	}
@@ -167,25 +170,25 @@ func (x *PipelineConfig) GetStopOnFailure() bool {
 	return false
 }
 
-func (x *PipelineConfig) GetDeploymentMode() base.DeploymentMode {
+func (x *PipelineConfig) GetDeploymentMode() shared.DeploymentMode {
 	if x != nil {
 		return x.DeploymentMode
 	}
-	return base.DeploymentMode(0)
+	return shared.DeploymentMode(0)
 }
 
-func (x *PipelineConfig) GetFramework() base.Framework {
+func (x *PipelineConfig) GetFramework() shared.Framework {
 	if x != nil {
 		return x.Framework
 	}
-	return base.Framework(0)
+	return shared.Framework(0)
 }
 
-func (x *PipelineConfig) GetTemplateType() base.TemplateType {
+func (x *PipelineConfig) GetTemplateType() shared.TemplateType {
 	if x != nil {
 		return x.TemplateType
 	}
-	return base.TemplateType(0)
+	return shared.TemplateType(0)
 }
 
 func (x *PipelineConfig) GetWebhookUrl() string {
@@ -205,6 +208,20 @@ func (x *PipelineConfig) GetProxyUrl() string {
 func (x *PipelineConfig) GetBundleManifestPath() string {
 	if x != nil && x.BundleManifestPath != nil {
 		return *x.BundleManifestPath
+	}
+	return ""
+}
+
+func (x *PipelineConfig) GetResourceArtifactRoot() string {
+	if x != nil && x.ResourceArtifactRoot != nil {
+		return *x.ResourceArtifactRoot
+	}
+	return ""
+}
+
+func (x *PipelineConfig) GetLocationMode() string {
+	if x != nil && x.LocationMode != nil {
+		return *x.LocationMode
 	}
 	return ""
 }
@@ -265,18 +282,18 @@ func (x *PipelineConfig) GetPreflightSecrets() map[string]string {
 	return nil
 }
 
-func (x *PipelineConfig) GetStopAfterStage() base.StageName {
+func (x *PipelineConfig) GetStopAfterStage() shared.StageName {
 	if x != nil && x.StopAfterStage != nil {
 		return *x.StopAfterStage
 	}
-	return base.StageName(0)
+	return shared.StageName(0)
 }
 
-func (x *PipelineConfig) GetResumeFromStage() base.StageName {
+func (x *PipelineConfig) GetResumeFromStage() shared.StageName {
 	if x != nil && x.ResumeFromStage != nil {
 		return *x.ResumeFromStage
 	}
-	return base.StageName(0)
+	return shared.StageName(0)
 }
 
 func (x *PipelineConfig) GetParentPipelineId() string {
@@ -293,26 +310,30 @@ func (x *PipelineConfig) GetIdempotencyKey() string {
 	return ""
 }
 
+func (x *PipelineConfig) GetStages() []shared.StageName {
+	if x != nil {
+		return x.Stages
+	}
+	return nil
+}
+
 // StageResult contains the outcome of a single pipeline stage.
-//
-// @usage PipelineStatus.stages
 type StageResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stage name.
-	Stage base.StageName `protobuf:"varint,1,opt,name=stage,proto3,enum=scenario_to_desktop.v1.StageName" json:"stage,omitempty"`
+	Stage shared.StageName `protobuf:"varint,1,opt,name=stage,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageName" json:"stage,omitempty"`
 	// Stage execution status.
-	Status base.StageStatus `protobuf:"varint,2,opt,name=status,proto3,enum=scenario_to_desktop.v1.StageStatus" json:"status,omitempty"`
+	Status shared.StageStatus `protobuf:"varint,2,opt,name=status,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageStatus" json:"status,omitempty"`
 	// When the stage started.
 	StartedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	// When the stage completed (success or failure).
 	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
 	// Error message if stage failed.
 	Error *string `protobuf:"bytes,5,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	// Stage-specific output data.
-	// Structure varies by stage type.
-	Details *structpb.Struct `protobuf:"bytes,6,opt,name=details,proto3,oneof" json:"details,omitempty"`
 	// Log messages from stage execution.
-	Logs          []string `protobuf:"bytes,7,rep,name=logs,proto3" json:"logs,omitempty"`
+	Logs []string `protobuf:"bytes,7,rep,name=logs,proto3" json:"logs,omitempty"`
+	// Typed stage-specific output data.
+	Details       *StageDetails `protobuf:"bytes,8,opt,name=details,proto3,oneof" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -347,18 +368,18 @@ func (*StageResult) Descriptor() ([]byte, []int) {
 	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *StageResult) GetStage() base.StageName {
+func (x *StageResult) GetStage() shared.StageName {
 	if x != nil {
 		return x.Stage
 	}
-	return base.StageName(0)
+	return shared.StageName(0)
 }
 
-func (x *StageResult) GetStatus() base.StageStatus {
+func (x *StageResult) GetStatus() shared.StageStatus {
 	if x != nil {
 		return x.Status
 	}
-	return base.StageStatus(0)
+	return shared.StageStatus(0)
 }
 
 func (x *StageResult) GetStartedAt() *timestamppb.Timestamp {
@@ -382,13 +403,6 @@ func (x *StageResult) GetError() string {
 	return ""
 }
 
-func (x *StageResult) GetDetails() *structpb.Struct {
-	if x != nil {
-		return x.Details
-	}
-	return nil
-}
-
 func (x *StageResult) GetLogs() []string {
 	if x != nil {
 		return x.Logs
@@ -396,9 +410,1179 @@ func (x *StageResult) GetLogs() []string {
 	return nil
 }
 
+func (x *StageResult) GetDetails() *StageDetails {
+	if x != nil {
+		return x.Details
+	}
+	return nil
+}
+
+// StageDetails is the complete set of outputs a pipeline stage may publish.
+// A stage publishes exactly one result kind; consumers must not infer shape
+// from a stage name or decode untyped JSON.
+type StageDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*StageDetails_ResolveDeployment
+	//	*StageDetails_Bundle
+	//	*StageDetails_Preflight
+	//	*StageDetails_Generate
+	//	*StageDetails_Build
+	//	*StageDetails_SmokeTest
+	//	*StageDetails_Deploy
+	Kind          isStageDetails_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StageDetails) Reset() {
+	*x = StageDetails{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StageDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StageDetails) ProtoMessage() {}
+
+func (x *StageDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StageDetails.ProtoReflect.Descriptor instead.
+func (*StageDetails) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *StageDetails) GetKind() isStageDetails_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *StageDetails) GetResolveDeployment() *ResourceDeploymentPlan {
+	if x != nil {
+		if x, ok := x.Kind.(*StageDetails_ResolveDeployment); ok {
+			return x.ResolveDeployment
+		}
+	}
+	return nil
+}
+
+func (x *StageDetails) GetBundle() *BundleStageDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*StageDetails_Bundle); ok {
+			return x.Bundle
+		}
+	}
+	return nil
+}
+
+func (x *StageDetails) GetPreflight() *shared.PreflightResponse {
+	if x != nil {
+		if x, ok := x.Kind.(*StageDetails_Preflight); ok {
+			return x.Preflight
+		}
+	}
+	return nil
+}
+
+func (x *StageDetails) GetGenerate() *GenerateResponse {
+	if x != nil {
+		if x, ok := x.Kind.(*StageDetails_Generate); ok {
+			return x.Generate
+		}
+	}
+	return nil
+}
+
+func (x *StageDetails) GetBuild() *shared.BuildStatusResponse {
+	if x != nil {
+		if x, ok := x.Kind.(*StageDetails_Build); ok {
+			return x.Build
+		}
+	}
+	return nil
+}
+
+func (x *StageDetails) GetSmokeTest() *shared.SmokeTestStatusResponse {
+	if x != nil {
+		if x, ok := x.Kind.(*StageDetails_SmokeTest); ok {
+			return x.SmokeTest
+		}
+	}
+	return nil
+}
+
+func (x *StageDetails) GetDeploy() *DeployStageDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*StageDetails_Deploy); ok {
+			return x.Deploy
+		}
+	}
+	return nil
+}
+
+type isStageDetails_Kind interface {
+	isStageDetails_Kind()
+}
+
+type StageDetails_ResolveDeployment struct {
+	ResolveDeployment *ResourceDeploymentPlan `protobuf:"bytes,1,opt,name=resolve_deployment,json=resolveDeployment,proto3,oneof"`
+}
+
+type StageDetails_Bundle struct {
+	Bundle *BundleStageDetails `protobuf:"bytes,2,opt,name=bundle,proto3,oneof"`
+}
+
+type StageDetails_Preflight struct {
+	Preflight *shared.PreflightResponse `protobuf:"bytes,3,opt,name=preflight,proto3,oneof"`
+}
+
+type StageDetails_Generate struct {
+	Generate *GenerateResponse `protobuf:"bytes,4,opt,name=generate,proto3,oneof"`
+}
+
+type StageDetails_Build struct {
+	Build *shared.BuildStatusResponse `protobuf:"bytes,5,opt,name=build,proto3,oneof"`
+}
+
+type StageDetails_SmokeTest struct {
+	SmokeTest *shared.SmokeTestStatusResponse `protobuf:"bytes,6,opt,name=smoke_test,json=smokeTest,proto3,oneof"`
+}
+
+type StageDetails_Deploy struct {
+	Deploy *DeployStageDetails `protobuf:"bytes,7,opt,name=deploy,proto3,oneof"`
+}
+
+func (*StageDetails_ResolveDeployment) isStageDetails_Kind() {}
+
+func (*StageDetails_Bundle) isStageDetails_Kind() {}
+
+func (*StageDetails_Preflight) isStageDetails_Kind() {}
+
+func (*StageDetails_Generate) isStageDetails_Kind() {}
+
+func (*StageDetails_Build) isStageDetails_Kind() {}
+
+func (*StageDetails_SmokeTest) isStageDetails_Kind() {}
+
+func (*StageDetails_Deploy) isStageDetails_Kind() {}
+
+type ResourceDeploymentPlan struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	SchemaVersion string                        `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Resources     []*ResourceDeploymentPlanItem `protobuf:"bytes,2,rep,name=resources,proto3" json:"resources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceDeploymentPlan) Reset() {
+	*x = ResourceDeploymentPlan{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceDeploymentPlan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceDeploymentPlan) ProtoMessage() {}
+
+func (x *ResourceDeploymentPlan) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceDeploymentPlan.ProtoReflect.Descriptor instead.
+func (*ResourceDeploymentPlan) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ResourceDeploymentPlan) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentPlan) GetResources() []*ResourceDeploymentPlanItem {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
+type ResourceDeploymentPlanItem struct {
+	state             protoimpl.MessageState        `protogen:"open.v1"`
+	RequestedResource string                        `protobuf:"bytes,1,opt,name=requested_resource,json=requestedResource,proto3" json:"requested_resource,omitempty"`
+	Resource          string                        `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
+	Os                string                        `protobuf:"bytes,3,opt,name=os,proto3" json:"os,omitempty"`
+	Architecture      string                        `protobuf:"bytes,4,opt,name=architecture,proto3" json:"architecture,omitempty"`
+	Mode              string                        `protobuf:"bytes,5,opt,name=mode,proto3" json:"mode,omitempty"`
+	Support           string                        `protobuf:"bytes,6,opt,name=support,proto3" json:"support,omitempty"`
+	Requires          []string                      `protobuf:"bytes,7,rep,name=requires,proto3" json:"requires,omitempty"`
+	Limitations       []string                      `protobuf:"bytes,8,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	Evidence          []string                      `protobuf:"bytes,9,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	SelectedFallback  *ResourceDeploymentFallback   `protobuf:"bytes,10,opt,name=selected_fallback,json=selectedFallback,proto3,oneof" json:"selected_fallback,omitempty"`
+	Artifact          *string                       `protobuf:"bytes,11,opt,name=artifact,proto3,oneof" json:"artifact,omitempty"`
+	Files             []*ResourceDeploymentArtifact `protobuf:"bytes,12,rep,name=files,proto3" json:"files,omitempty"`
+	Service           *ResourceDeploymentService    `protobuf:"bytes,13,opt,name=service,proto3,oneof" json:"service,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ResourceDeploymentPlanItem) Reset() {
+	*x = ResourceDeploymentPlanItem{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceDeploymentPlanItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceDeploymentPlanItem) ProtoMessage() {}
+
+func (x *ResourceDeploymentPlanItem) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceDeploymentPlanItem.ProtoReflect.Descriptor instead.
+func (*ResourceDeploymentPlanItem) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ResourceDeploymentPlanItem) GetRequestedResource() string {
+	if x != nil {
+		return x.RequestedResource
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentPlanItem) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentPlanItem) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentPlanItem) GetArchitecture() string {
+	if x != nil {
+		return x.Architecture
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentPlanItem) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentPlanItem) GetSupport() string {
+	if x != nil {
+		return x.Support
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentPlanItem) GetRequires() []string {
+	if x != nil {
+		return x.Requires
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentPlanItem) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentPlanItem) GetEvidence() []string {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentPlanItem) GetSelectedFallback() *ResourceDeploymentFallback {
+	if x != nil {
+		return x.SelectedFallback
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentPlanItem) GetArtifact() string {
+	if x != nil && x.Artifact != nil {
+		return *x.Artifact
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentPlanItem) GetFiles() []*ResourceDeploymentArtifact {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentPlanItem) GetService() *ResourceDeploymentService {
+	if x != nil {
+		return x.Service
+	}
+	return nil
+}
+
+type ResourceDeploymentFallback struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Resource      string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceDeploymentFallback) Reset() {
+	*x = ResourceDeploymentFallback{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceDeploymentFallback) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceDeploymentFallback) ProtoMessage() {}
+
+func (x *ResourceDeploymentFallback) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceDeploymentFallback.ProtoReflect.Descriptor instead.
+func (*ResourceDeploymentFallback) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ResourceDeploymentFallback) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentFallback) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type ResourceDeploymentArtifact struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Sha256        string                 `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceDeploymentArtifact) Reset() {
+	*x = ResourceDeploymentArtifact{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceDeploymentArtifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceDeploymentArtifact) ProtoMessage() {}
+
+func (x *ResourceDeploymentArtifact) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceDeploymentArtifact.ProtoReflect.Descriptor instead.
+func (*ResourceDeploymentArtifact) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ResourceDeploymentArtifact) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentArtifact) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+type ResourceDeploymentService struct {
+	state          protoimpl.MessageState           `protogen:"open.v1"`
+	ProviderPolicy *ResourceProviderPolicy          `protobuf:"bytes,1,opt,name=provider_policy,json=providerPolicy,proto3" json:"provider_policy,omitempty"`
+	Artifact       string                           `protobuf:"bytes,2,opt,name=artifact,proto3" json:"artifact,omitempty"`
+	Version        string                           `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Sha256         string                           `protobuf:"bytes,4,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	Arguments      []string                         `protobuf:"bytes,5,rep,name=arguments,proto3" json:"arguments,omitempty"`
+	Environment    map[string]string                `protobuf:"bytes,6,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Ports          []*ResourceDeploymentServicePort `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
+	HealthChecks   []*ResourceDeploymentHealthCheck `protobuf:"bytes,8,rep,name=health_checks,json=healthChecks,proto3" json:"health_checks,omitempty"`
+	Files          []*ResourceDeploymentArtifact    `protobuf:"bytes,9,rep,name=files,proto3" json:"files,omitempty"`
+	Config         *ResourceDeploymentServiceConfig `protobuf:"bytes,10,opt,name=config,proto3,oneof" json:"config,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ResourceDeploymentService) Reset() {
+	*x = ResourceDeploymentService{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceDeploymentService) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceDeploymentService) ProtoMessage() {}
+
+func (x *ResourceDeploymentService) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceDeploymentService.ProtoReflect.Descriptor instead.
+func (*ResourceDeploymentService) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ResourceDeploymentService) GetProviderPolicy() *ResourceProviderPolicy {
+	if x != nil {
+		return x.ProviderPolicy
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentService) GetArtifact() string {
+	if x != nil {
+		return x.Artifact
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentService) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentService) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentService) GetArguments() []string {
+	if x != nil {
+		return x.Arguments
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentService) GetEnvironment() map[string]string {
+	if x != nil {
+		return x.Environment
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentService) GetPorts() []*ResourceDeploymentServicePort {
+	if x != nil {
+		return x.Ports
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentService) GetHealthChecks() []*ResourceDeploymentHealthCheck {
+	if x != nil {
+		return x.HealthChecks
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentService) GetFiles() []*ResourceDeploymentArtifact {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentService) GetConfig() *ResourceDeploymentServiceConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type ResourceProviderPolicy struct {
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	DefaultMode                string                 `protobuf:"bytes,1,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
+	TargetDefaults             map[string]string      `protobuf:"bytes,2,rep,name=target_defaults,json=targetDefaults,proto3" json:"target_defaults,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	AllowedModes               []string               `protobuf:"bytes,3,rep,name=allowed_modes,json=allowedModes,proto3" json:"allowed_modes,omitempty"`
+	SharedReuseRequiresConsent bool                   `protobuf:"varint,4,opt,name=shared_reuse_requires_consent,json=sharedReuseRequiresConsent,proto3" json:"shared_reuse_requires_consent,omitempty"`
+	ExternalManagement         string                 `protobuf:"bytes,5,opt,name=external_management,json=externalManagement,proto3" json:"external_management,omitempty"`
+	ExternalAccessCapabilities []string               `protobuf:"bytes,6,rep,name=external_access_capabilities,json=externalAccessCapabilities,proto3" json:"external_access_capabilities,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
+}
+
+func (x *ResourceProviderPolicy) Reset() {
+	*x = ResourceProviderPolicy{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceProviderPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceProviderPolicy) ProtoMessage() {}
+
+func (x *ResourceProviderPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceProviderPolicy.ProtoReflect.Descriptor instead.
+func (*ResourceProviderPolicy) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ResourceProviderPolicy) GetDefaultMode() string {
+	if x != nil {
+		return x.DefaultMode
+	}
+	return ""
+}
+
+func (x *ResourceProviderPolicy) GetTargetDefaults() map[string]string {
+	if x != nil {
+		return x.TargetDefaults
+	}
+	return nil
+}
+
+func (x *ResourceProviderPolicy) GetAllowedModes() []string {
+	if x != nil {
+		return x.AllowedModes
+	}
+	return nil
+}
+
+func (x *ResourceProviderPolicy) GetSharedReuseRequiresConsent() bool {
+	if x != nil {
+		return x.SharedReuseRequiresConsent
+	}
+	return false
+}
+
+func (x *ResourceProviderPolicy) GetExternalManagement() string {
+	if x != nil {
+		return x.ExternalManagement
+	}
+	return ""
+}
+
+func (x *ResourceProviderPolicy) GetExternalAccessCapabilities() []string {
+	if x != nil {
+		return x.ExternalAccessCapabilities
+	}
+	return nil
+}
+
+type ResourceDeploymentServiceConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceDeploymentServiceConfig) Reset() {
+	*x = ResourceDeploymentServiceConfig{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceDeploymentServiceConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceDeploymentServiceConfig) ProtoMessage() {}
+
+func (x *ResourceDeploymentServiceConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceDeploymentServiceConfig.ProtoReflect.Descriptor instead.
+func (*ResourceDeploymentServiceConfig) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ResourceDeploymentServiceConfig) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentServiceConfig) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+type ResourceDeploymentServicePort struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Host          int32                  `protobuf:"varint,2,opt,name=host,proto3" json:"host,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceDeploymentServicePort) Reset() {
+	*x = ResourceDeploymentServicePort{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceDeploymentServicePort) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceDeploymentServicePort) ProtoMessage() {}
+
+func (x *ResourceDeploymentServicePort) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceDeploymentServicePort.ProtoReflect.Descriptor instead.
+func (*ResourceDeploymentServicePort) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ResourceDeploymentServicePort) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentServicePort) GetHost() int32 {
+	if x != nil {
+		return x.Host
+	}
+	return 0
+}
+
+type ResourceDeploymentHealthCheck struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Type           string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Target         string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	ExpectedStatus []int32                `protobuf:"varint,3,rep,packed,name=expected_status,json=expectedStatus,proto3" json:"expected_status,omitempty"`
+	TimeoutSeconds int32                  `protobuf:"varint,4,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ResourceDeploymentHealthCheck) Reset() {
+	*x = ResourceDeploymentHealthCheck{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceDeploymentHealthCheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceDeploymentHealthCheck) ProtoMessage() {}
+
+func (x *ResourceDeploymentHealthCheck) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceDeploymentHealthCheck.ProtoReflect.Descriptor instead.
+func (*ResourceDeploymentHealthCheck) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ResourceDeploymentHealthCheck) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentHealthCheck) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentHealthCheck) GetExpectedStatus() []int32 {
+	if x != nil {
+		return x.ExpectedStatus
+	}
+	return nil
+}
+
+func (x *ResourceDeploymentHealthCheck) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+type BundleStageDetails struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	BundleDir       string                 `protobuf:"bytes,1,opt,name=bundle_dir,json=bundleDir,proto3" json:"bundle_dir,omitempty"`
+	ManifestPath    string                 `protobuf:"bytes,2,opt,name=manifest_path,json=manifestPath,proto3" json:"manifest_path,omitempty"`
+	RuntimeBinaries map[string]string      `protobuf:"bytes,3,rep,name=runtime_binaries,json=runtimeBinaries,proto3" json:"runtime_binaries,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	CopiedArtifacts []string               `protobuf:"bytes,4,rep,name=copied_artifacts,json=copiedArtifacts,proto3" json:"copied_artifacts,omitempty"`
+	TotalSizeBytes  int64                  `protobuf:"varint,5,opt,name=total_size_bytes,json=totalSizeBytes,proto3" json:"total_size_bytes,omitempty"`
+	TotalSizeHuman  string                 `protobuf:"bytes,6,opt,name=total_size_human,json=totalSizeHuman,proto3" json:"total_size_human,omitempty"`
+	SizeWarning     *BundleSizeWarning     `protobuf:"bytes,7,opt,name=size_warning,json=sizeWarning,proto3,oneof" json:"size_warning,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BundleStageDetails) Reset() {
+	*x = BundleStageDetails{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BundleStageDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BundleStageDetails) ProtoMessage() {}
+
+func (x *BundleStageDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BundleStageDetails.ProtoReflect.Descriptor instead.
+func (*BundleStageDetails) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *BundleStageDetails) GetBundleDir() string {
+	if x != nil {
+		return x.BundleDir
+	}
+	return ""
+}
+
+func (x *BundleStageDetails) GetManifestPath() string {
+	if x != nil {
+		return x.ManifestPath
+	}
+	return ""
+}
+
+func (x *BundleStageDetails) GetRuntimeBinaries() map[string]string {
+	if x != nil {
+		return x.RuntimeBinaries
+	}
+	return nil
+}
+
+func (x *BundleStageDetails) GetCopiedArtifacts() []string {
+	if x != nil {
+		return x.CopiedArtifacts
+	}
+	return nil
+}
+
+func (x *BundleStageDetails) GetTotalSizeBytes() int64 {
+	if x != nil {
+		return x.TotalSizeBytes
+	}
+	return 0
+}
+
+func (x *BundleStageDetails) GetTotalSizeHuman() string {
+	if x != nil {
+		return x.TotalSizeHuman
+	}
+	return ""
+}
+
+func (x *BundleStageDetails) GetSizeWarning() *BundleSizeWarning {
+	if x != nil {
+		return x.SizeWarning
+	}
+	return nil
+}
+
+type BundleSizeWarning struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Level         string                 `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	TotalBytes    int64                  `protobuf:"varint,3,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	TotalHuman    string                 `protobuf:"bytes,4,opt,name=total_human,json=totalHuman,proto3" json:"total_human,omitempty"`
+	LargeFiles    []*BundleLargeFile     `protobuf:"bytes,5,rep,name=large_files,json=largeFiles,proto3" json:"large_files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BundleSizeWarning) Reset() {
+	*x = BundleSizeWarning{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BundleSizeWarning) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BundleSizeWarning) ProtoMessage() {}
+
+func (x *BundleSizeWarning) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BundleSizeWarning.ProtoReflect.Descriptor instead.
+func (*BundleSizeWarning) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *BundleSizeWarning) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *BundleSizeWarning) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *BundleSizeWarning) GetTotalBytes() int64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
+func (x *BundleSizeWarning) GetTotalHuman() string {
+	if x != nil {
+		return x.TotalHuman
+	}
+	return ""
+}
+
+func (x *BundleSizeWarning) GetLargeFiles() []*BundleLargeFile {
+	if x != nil {
+		return x.LargeFiles
+	}
+	return nil
+}
+
+type BundleLargeFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	SizeBytes     int64                  `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	SizeHuman     string                 `protobuf:"bytes,3,opt,name=size_human,json=sizeHuman,proto3" json:"size_human,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BundleLargeFile) Reset() {
+	*x = BundleLargeFile{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BundleLargeFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BundleLargeFile) ProtoMessage() {}
+
+func (x *BundleLargeFile) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BundleLargeFile.ProtoReflect.Descriptor instead.
+func (*BundleLargeFile) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *BundleLargeFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *BundleLargeFile) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *BundleLargeFile) GetSizeHuman() string {
+	if x != nil {
+		return x.SizeHuman
+	}
+	return ""
+}
+
+type DeployStageDetails struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Artifacts     []*DeployArtifactResult `protobuf:"bytes,1,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	UpdateUrl     *string                 `protobuf:"bytes,2,opt,name=update_url,json=updateUrl,proto3,oneof" json:"update_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeployStageDetails) Reset() {
+	*x = DeployStageDetails{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeployStageDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeployStageDetails) ProtoMessage() {}
+
+func (x *DeployStageDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeployStageDetails.ProtoReflect.Descriptor instead.
+func (*DeployStageDetails) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *DeployStageDetails) GetArtifacts() []*DeployArtifactResult {
+	if x != nil {
+		return x.Artifacts
+	}
+	return nil
+}
+
+func (x *DeployStageDetails) GetUpdateUrl() string {
+	if x != nil && x.UpdateUrl != nil {
+		return *x.UpdateUrl
+	}
+	return ""
+}
+
+type DeployArtifactResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ArtifactId    int64                  `protobuf:"varint,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
+	Platform      shared.Platform        `protobuf:"varint,2,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeployArtifactResult) Reset() {
+	*x = DeployArtifactResult{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeployArtifactResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeployArtifactResult) ProtoMessage() {}
+
+func (x *DeployArtifactResult) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeployArtifactResult.ProtoReflect.Descriptor instead.
+func (*DeployArtifactResult) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DeployArtifactResult) GetArtifactId() int64 {
+	if x != nil {
+		return x.ArtifactId
+	}
+	return 0
+}
+
+func (x *DeployArtifactResult) GetPlatform() shared.Platform {
+	if x != nil {
+		return x.Platform
+	}
+	return shared.Platform(0)
+}
+
 // PipelineStatus contains the complete state of a pipeline run.
-//
-// @usage GET /api/pipeline/{id}/status response
 type PipelineStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique pipeline run identifier.
@@ -407,20 +1591,24 @@ type PipelineStatus struct {
 	// Scenario being deployed.
 	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Overall pipeline status.
-	Status base.StageStatus `protobuf:"varint,3,opt,name=status,proto3,enum=scenario_to_desktop.v1.StageStatus" json:"status,omitempty"`
+	Status shared.StageStatus `protobuf:"varint,3,opt,name=status,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageStatus" json:"status,omitempty"`
 	// Currently executing stage.
-	CurrentStage *base.StageName `protobuf:"varint,4,opt,name=current_stage,json=currentStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"current_stage,omitempty"`
+	CurrentStage *shared.StageName `protobuf:"varint,4,opt,name=current_stage,json=currentStage,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageName,oneof" json:"current_stage,omitempty"`
 	// Progress percentage (0-100).
 	// Calculated from completed stages / total stages.
 	ProgressPercent int32 `protobuf:"varint,5,opt,name=progress_percent,json=progressPercent,proto3" json:"progress_percent,omitempty"`
 	// Human-readable progress message.
 	// @example "Running build stage (3/6)"
 	ProgressMessage *string `protobuf:"bytes,6,opt,name=progress_message,json=progressMessage,proto3,oneof" json:"progress_message,omitempty"`
+	// Fine-grained orchestration state, such as "gate_blocked".
+	// This supplements the overall stage status for clients that render approval
+	// and execution-state guidance.
+	CurrentState *string `protobuf:"bytes,17,opt,name=current_state,json=currentState,proto3,oneof" json:"current_state,omitempty"`
 	// Per-stage results.
 	// Key: Stage name (bundle, preflight, generate, build, smoketest, distribution)
 	Stages map[string]*StageResult `protobuf:"bytes,7,rep,name=stages,proto3" json:"stages,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Ordered list of stages to execute.
-	StageOrder []base.StageName `protobuf:"varint,8,rep,packed,name=stage_order,json=stageOrder,proto3,enum=scenario_to_desktop.v1.StageName" json:"stage_order,omitempty"`
+	StageOrder []shared.StageName `protobuf:"varint,8,rep,packed,name=stage_order,json=stageOrder,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageName" json:"stage_order,omitempty"`
 	// Pipeline configuration used.
 	Config *PipelineConfig `protobuf:"bytes,9,opt,name=config,proto3" json:"config,omitempty"`
 	// When the pipeline started.
@@ -430,10 +1618,10 @@ type PipelineStatus struct {
 	// Error message if pipeline failed.
 	Error *string `protobuf:"bytes,12,opt,name=error,proto3,oneof" json:"error,omitempty"`
 	// Final build artifacts.
-	// Key: Platform or artifact name, Value: File path
+	// Key: vrooli.scenario_to_desktop.v1.shared.Platform or artifact name, Value: File path
 	FinalArtifacts map[string]string `protobuf:"bytes,13,rep,name=final_artifacts,json=finalArtifacts,proto3" json:"final_artifacts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Stage the pipeline was stopped after (if intentionally stopped).
-	StoppedAfterStage *base.StageName `protobuf:"varint,14,opt,name=stopped_after_stage,json=stoppedAfterStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"stopped_after_stage,omitempty"`
+	StoppedAfterStage *shared.StageName `protobuf:"varint,14,opt,name=stopped_after_stage,json=stoppedAfterStage,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageName,oneof" json:"stopped_after_stage,omitempty"`
 	// Parent pipeline ID if this is a resumed run.
 	// @format uuid
 	ParentPipelineId *string `protobuf:"bytes,15,opt,name=parent_pipeline_id,json=parentPipelineId,proto3,oneof" json:"parent_pipeline_id,omitempty"`
@@ -445,7 +1633,7 @@ type PipelineStatus struct {
 
 func (x *PipelineStatus) Reset() {
 	*x = PipelineStatus{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[2]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -457,7 +1645,7 @@ func (x *PipelineStatus) String() string {
 func (*PipelineStatus) ProtoMessage() {}
 
 func (x *PipelineStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[2]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -470,7 +1658,7 @@ func (x *PipelineStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineStatus.ProtoReflect.Descriptor instead.
 func (*PipelineStatus) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{2}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PipelineStatus) GetPipelineId() string {
@@ -487,18 +1675,18 @@ func (x *PipelineStatus) GetScenarioName() string {
 	return ""
 }
 
-func (x *PipelineStatus) GetStatus() base.StageStatus {
+func (x *PipelineStatus) GetStatus() shared.StageStatus {
 	if x != nil {
 		return x.Status
 	}
-	return base.StageStatus(0)
+	return shared.StageStatus(0)
 }
 
-func (x *PipelineStatus) GetCurrentStage() base.StageName {
+func (x *PipelineStatus) GetCurrentStage() shared.StageName {
 	if x != nil && x.CurrentStage != nil {
 		return *x.CurrentStage
 	}
-	return base.StageName(0)
+	return shared.StageName(0)
 }
 
 func (x *PipelineStatus) GetProgressPercent() int32 {
@@ -515,6 +1703,13 @@ func (x *PipelineStatus) GetProgressMessage() string {
 	return ""
 }
 
+func (x *PipelineStatus) GetCurrentState() string {
+	if x != nil && x.CurrentState != nil {
+		return *x.CurrentState
+	}
+	return ""
+}
+
 func (x *PipelineStatus) GetStages() map[string]*StageResult {
 	if x != nil {
 		return x.Stages
@@ -522,7 +1717,7 @@ func (x *PipelineStatus) GetStages() map[string]*StageResult {
 	return nil
 }
 
-func (x *PipelineStatus) GetStageOrder() []base.StageName {
+func (x *PipelineStatus) GetStageOrder() []shared.StageName {
 	if x != nil {
 		return x.StageOrder
 	}
@@ -564,11 +1759,11 @@ func (x *PipelineStatus) GetFinalArtifacts() map[string]string {
 	return nil
 }
 
-func (x *PipelineStatus) GetStoppedAfterStage() base.StageName {
+func (x *PipelineStatus) GetStoppedAfterStage() shared.StageName {
 	if x != nil && x.StoppedAfterStage != nil {
 		return *x.StoppedAfterStage
 	}
-	return base.StageName(0)
+	return shared.StageName(0)
 }
 
 func (x *PipelineStatus) GetParentPipelineId() string {
@@ -587,8 +1782,6 @@ func (x *PipelineStatus) GetIdempotencyKey() string {
 
 // PipelineRunRequest is the request to start a pipeline.
 // Alias for PipelineConfig with identical structure.
-//
-// @usage POST /api/pipeline request body
 type PipelineRunRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Embedded configuration.
@@ -599,7 +1792,7 @@ type PipelineRunRequest struct {
 
 func (x *PipelineRunRequest) Reset() {
 	*x = PipelineRunRequest{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[3]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +1804,7 @@ func (x *PipelineRunRequest) String() string {
 func (*PipelineRunRequest) ProtoMessage() {}
 
 func (x *PipelineRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[3]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +1817,7 @@ func (x *PipelineRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineRunRequest.ProtoReflect.Descriptor instead.
 func (*PipelineRunRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{3}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *PipelineRunRequest) GetConfig() *PipelineConfig {
@@ -635,25 +1828,20 @@ func (x *PipelineRunRequest) GetConfig() *PipelineConfig {
 }
 
 // PipelineRunResponse is returned when a pipeline is started.
-//
-// @usage POST /api/pipeline response
 type PipelineRunResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique pipeline identifier.
 	// @format uuid
 	PipelineId string `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
-	// URL to poll for status updates.
-	// @format uri
-	StatusUrl string `protobuf:"bytes,2,opt,name=status_url,json=statusUrl,proto3" json:"status_url,omitempty"`
-	// Informational message.
-	Message       *string `protobuf:"bytes,3,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	// Informational message. Read the pipeline with PipelineService.Get.
+	Message       *string `protobuf:"bytes,2,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PipelineRunResponse) Reset() {
 	*x = PipelineRunResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[4]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -665,7 +1853,7 @@ func (x *PipelineRunResponse) String() string {
 func (*PipelineRunResponse) ProtoMessage() {}
 
 func (x *PipelineRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[4]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -678,19 +1866,12 @@ func (x *PipelineRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineRunResponse.ProtoReflect.Descriptor instead.
 func (*PipelineRunResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{4}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *PipelineRunResponse) GetPipelineId() string {
 	if x != nil {
 		return x.PipelineId
-	}
-	return ""
-}
-
-func (x *PipelineRunResponse) GetStatusUrl() string {
-	if x != nil {
-		return x.StatusUrl
 	}
 	return ""
 }
@@ -702,9 +1883,191 @@ func (x *PipelineRunResponse) GetMessage() string {
 	return ""
 }
 
+type PipelineGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PipelineGetRequest) Reset() {
+	*x = PipelineGetRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PipelineGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PipelineGetRequest) ProtoMessage() {}
+
+func (x *PipelineGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PipelineGetRequest.ProtoReflect.Descriptor instead.
+func (*PipelineGetRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *PipelineGetRequest) GetPipelineId() string {
+	if x != nil {
+		return x.PipelineId
+	}
+	return ""
+}
+
+type PipelineResumeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Config        *PipelineConfig        `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PipelineResumeRequest) Reset() {
+	*x = PipelineResumeRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PipelineResumeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PipelineResumeRequest) ProtoMessage() {}
+
+func (x *PipelineResumeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PipelineResumeRequest.ProtoReflect.Descriptor instead.
+func (*PipelineResumeRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *PipelineResumeRequest) GetPipelineId() string {
+	if x != nil {
+		return x.PipelineId
+	}
+	return ""
+}
+
+func (x *PipelineResumeRequest) GetConfig() *PipelineConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type PipelineCancelRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PipelineCancelRequest) Reset() {
+	*x = PipelineCancelRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PipelineCancelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PipelineCancelRequest) ProtoMessage() {}
+
+func (x *PipelineCancelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PipelineCancelRequest.ProtoReflect.Descriptor instead.
+func (*PipelineCancelRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *PipelineCancelRequest) GetPipelineId() string {
+	if x != nil {
+		return x.PipelineId
+	}
+	return ""
+}
+
+type PipelineListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  *string                `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3,oneof" json:"scenario_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PipelineListRequest) Reset() {
+	*x = PipelineListRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PipelineListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PipelineListRequest) ProtoMessage() {}
+
+func (x *PipelineListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PipelineListRequest.ProtoReflect.Descriptor instead.
+func (*PipelineListRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *PipelineListRequest) GetScenarioName() string {
+	if x != nil && x.ScenarioName != nil {
+		return *x.ScenarioName
+	}
+	return ""
+}
+
 // PipelineCancelResponse is returned when a pipeline is cancelled.
-//
-// @usage POST /api/pipeline/{id}/cancel response
 type PipelineCancelResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Resulting status after cancellation.
@@ -717,7 +2080,7 @@ type PipelineCancelResponse struct {
 
 func (x *PipelineCancelResponse) Reset() {
 	*x = PipelineCancelResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[5]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -729,7 +2092,7 @@ func (x *PipelineCancelResponse) String() string {
 func (*PipelineCancelResponse) ProtoMessage() {}
 
 func (x *PipelineCancelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[5]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -742,7 +2105,7 @@ func (x *PipelineCancelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineCancelResponse.ProtoReflect.Descriptor instead.
 func (*PipelineCancelResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{5}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *PipelineCancelResponse) GetStatus() string {
@@ -760,8 +2123,6 @@ func (x *PipelineCancelResponse) GetMessage() string {
 }
 
 // PipelineResumeResponse is returned when a pipeline is resumed.
-//
-// @usage POST /api/pipeline/{id}/resume response
 type PipelineResumeResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// New pipeline identifier for the resumed run.
@@ -770,20 +2131,17 @@ type PipelineResumeResponse struct {
 	// Parent pipeline that was resumed from.
 	// @format uuid
 	ParentPipelineId string `protobuf:"bytes,2,opt,name=parent_pipeline_id,json=parentPipelineId,proto3" json:"parent_pipeline_id,omitempty"`
-	// URL to poll for status updates.
-	// @format uri
-	StatusUrl string `protobuf:"bytes,3,opt,name=status_url,json=statusUrl,proto3" json:"status_url,omitempty"`
 	// Stage the resumed pipeline starts from.
-	ResumeFromStage base.StageName `protobuf:"varint,4,opt,name=resume_from_stage,json=resumeFromStage,proto3,enum=scenario_to_desktop.v1.StageName" json:"resume_from_stage,omitempty"`
+	ResumeFromStage shared.StageName `protobuf:"varint,3,opt,name=resume_from_stage,json=resumeFromStage,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageName" json:"resume_from_stage,omitempty"`
 	// Informational message.
-	Message       *string `protobuf:"bytes,5,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	Message       *string `protobuf:"bytes,4,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PipelineResumeResponse) Reset() {
 	*x = PipelineResumeResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[6]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -795,7 +2153,7 @@ func (x *PipelineResumeResponse) String() string {
 func (*PipelineResumeResponse) ProtoMessage() {}
 
 func (x *PipelineResumeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[6]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -808,7 +2166,7 @@ func (x *PipelineResumeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineResumeResponse.ProtoReflect.Descriptor instead.
 func (*PipelineResumeResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{6}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *PipelineResumeResponse) GetPipelineId() string {
@@ -825,18 +2183,11 @@ func (x *PipelineResumeResponse) GetParentPipelineId() string {
 	return ""
 }
 
-func (x *PipelineResumeResponse) GetStatusUrl() string {
-	if x != nil {
-		return x.StatusUrl
-	}
-	return ""
-}
-
-func (x *PipelineResumeResponse) GetResumeFromStage() base.StageName {
+func (x *PipelineResumeResponse) GetResumeFromStage() shared.StageName {
 	if x != nil {
 		return x.ResumeFromStage
 	}
-	return base.StageName(0)
+	return shared.StageName(0)
 }
 
 func (x *PipelineResumeResponse) GetMessage() string {
@@ -847,8 +2198,6 @@ func (x *PipelineResumeResponse) GetMessage() string {
 }
 
 // PipelineListItem is a summary of a pipeline for list views.
-//
-// @usage PipelineListResponse.pipelines
 type PipelineListItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Pipeline identifier.
@@ -857,11 +2206,11 @@ type PipelineListItem struct {
 	// Scenario name.
 	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Pipeline status.
-	Status base.StageStatus `protobuf:"varint,3,opt,name=status,proto3,enum=scenario_to_desktop.v1.StageStatus" json:"status,omitempty"`
+	Status shared.StageStatus `protobuf:"varint,3,opt,name=status,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageStatus" json:"status,omitempty"`
 	// Progress percentage.
 	ProgressPercent int32 `protobuf:"varint,4,opt,name=progress_percent,json=progressPercent,proto3" json:"progress_percent,omitempty"`
 	// Current stage (if running).
-	CurrentStage *base.StageName `protobuf:"varint,5,opt,name=current_stage,json=currentStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"current_stage,omitempty"`
+	CurrentStage *shared.StageName `protobuf:"varint,5,opt,name=current_stage,json=currentStage,proto3,enum=vrooli.scenario_to_desktop.v1.shared.StageName,oneof" json:"current_stage,omitempty"`
 	// When the pipeline was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the pipeline was last updated.
@@ -876,7 +2225,7 @@ type PipelineListItem struct {
 
 func (x *PipelineListItem) Reset() {
 	*x = PipelineListItem{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -888,7 +2237,7 @@ func (x *PipelineListItem) String() string {
 func (*PipelineListItem) ProtoMessage() {}
 
 func (x *PipelineListItem) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -901,7 +2250,7 @@ func (x *PipelineListItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineListItem.ProtoReflect.Descriptor instead.
 func (*PipelineListItem) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{7}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PipelineListItem) GetPipelineId() string {
@@ -918,11 +2267,11 @@ func (x *PipelineListItem) GetScenarioName() string {
 	return ""
 }
 
-func (x *PipelineListItem) GetStatus() base.StageStatus {
+func (x *PipelineListItem) GetStatus() shared.StageStatus {
 	if x != nil {
 		return x.Status
 	}
-	return base.StageStatus(0)
+	return shared.StageStatus(0)
 }
 
 func (x *PipelineListItem) GetProgressPercent() int32 {
@@ -932,11 +2281,11 @@ func (x *PipelineListItem) GetProgressPercent() int32 {
 	return 0
 }
 
-func (x *PipelineListItem) GetCurrentStage() base.StageName {
+func (x *PipelineListItem) GetCurrentStage() shared.StageName {
 	if x != nil && x.CurrentStage != nil {
 		return *x.CurrentStage
 	}
-	return base.StageName(0)
+	return shared.StageName(0)
 }
 
 func (x *PipelineListItem) GetCreatedAt() *timestamppb.Timestamp {
@@ -968,8 +2317,6 @@ func (x *PipelineListItem) GetCanResume() bool {
 }
 
 // PipelineListResponse contains a list of pipelines.
-//
-// @usage GET /api/pipeline response
 type PipelineListResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// List of pipeline summaries.
@@ -982,7 +2329,7 @@ type PipelineListResponse struct {
 
 func (x *PipelineListResponse) Reset() {
 	*x = PipelineListResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -994,7 +2341,7 @@ func (x *PipelineListResponse) String() string {
 func (*PipelineListResponse) ProtoMessage() {}
 
 func (x *PipelineListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1007,7 +2354,7 @@ func (x *PipelineListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineListResponse.ProtoReflect.Descriptor instead.
 func (*PipelineListResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{8}
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *PipelineListResponse) GetPipelines() []*PipelineListItem {
@@ -1024,41 +2371,687 @@ func (x *PipelineListResponse) GetTotal() int32 {
 	return 0
 }
 
+// ScenarioPipelineRequest identifies the scenario whose durable active-pipeline
+// slot is being managed.
+type ScenarioPipelineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioPipelineRequest) Reset() {
+	*x = ScenarioPipelineRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioPipelineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioPipelineRequest) ProtoMessage() {}
+
+func (x *ScenarioPipelineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioPipelineRequest.ProtoReflect.Descriptor instead.
+func (*ScenarioPipelineRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ScenarioPipelineRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+type GetActivePipelineRequest struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	// Creates a new idle pipeline when no active slot exists.
+	AutoCreate    bool `protobuf:"varint,2,opt,name=auto_create,json=autoCreate,proto3" json:"auto_create,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActivePipelineRequest) Reset() {
+	*x = GetActivePipelineRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActivePipelineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActivePipelineRequest) ProtoMessage() {}
+
+func (x *GetActivePipelineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActivePipelineRequest.ProtoReflect.Descriptor instead.
+func (*GetActivePipelineRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *GetActivePipelineRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *GetActivePipelineRequest) GetAutoCreate() bool {
+	if x != nil {
+		return x.AutoCreate
+	}
+	return false
+}
+
+type ActivePipelineResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pipeline      *PipelineStatus        `protobuf:"bytes,1,opt,name=pipeline,proto3,oneof" json:"pipeline,omitempty"`
+	Created       bool                   `protobuf:"varint,2,opt,name=created,proto3" json:"created,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivePipelineResponse) Reset() {
+	*x = ActivePipelineResponse{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivePipelineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivePipelineResponse) ProtoMessage() {}
+
+func (x *ActivePipelineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivePipelineResponse.ProtoReflect.Descriptor instead.
+func (*ActivePipelineResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ActivePipelineResponse) GetPipeline() *PipelineStatus {
+	if x != nil {
+		return x.Pipeline
+	}
+	return nil
+}
+
+func (x *ActivePipelineResponse) GetCreated() bool {
+	if x != nil {
+		return x.Created
+	}
+	return false
+}
+
+type CreatePipelineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Config        *PipelineConfig        `protobuf:"bytes,2,opt,name=config,proto3,oneof" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePipelineRequest) Reset() {
+	*x = CreatePipelineRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePipelineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePipelineRequest) ProtoMessage() {}
+
+func (x *CreatePipelineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePipelineRequest.ProtoReflect.Descriptor instead.
+func (*CreatePipelineRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *CreatePipelineRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *CreatePipelineRequest) GetConfig() *PipelineConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type CreatePipelineResponse struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Pipeline           *PipelineStatus        `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
+	ArchivedPipelineId *string                `protobuf:"bytes,2,opt,name=archived_pipeline_id,json=archivedPipelineId,proto3,oneof" json:"archived_pipeline_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *CreatePipelineResponse) Reset() {
+	*x = CreatePipelineResponse{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePipelineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePipelineResponse) ProtoMessage() {}
+
+func (x *CreatePipelineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePipelineResponse.ProtoReflect.Descriptor instead.
+func (*CreatePipelineResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *CreatePipelineResponse) GetPipeline() *PipelineStatus {
+	if x != nil {
+		return x.Pipeline
+	}
+	return nil
+}
+
+func (x *CreatePipelineResponse) GetArchivedPipelineId() string {
+	if x != nil && x.ArchivedPipelineId != nil {
+		return *x.ArchivedPipelineId
+	}
+	return ""
+}
+
+type ResetPipelineResponse struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	ArchivedPipelineId *string                `protobuf:"bytes,1,opt,name=archived_pipeline_id,json=archivedPipelineId,proto3,oneof" json:"archived_pipeline_id,omitempty"`
+	Cleared            bool                   `protobuf:"varint,2,opt,name=cleared,proto3" json:"cleared,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ResetPipelineResponse) Reset() {
+	*x = ResetPipelineResponse{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResetPipelineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetPipelineResponse) ProtoMessage() {}
+
+func (x *ResetPipelineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetPipelineResponse.ProtoReflect.Descriptor instead.
+func (*ResetPipelineResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *ResetPipelineResponse) GetArchivedPipelineId() string {
+	if x != nil && x.ArchivedPipelineId != nil {
+		return *x.ArchivedPipelineId
+	}
+	return ""
+}
+
+func (x *ResetPipelineResponse) GetCleared() bool {
+	if x != nil {
+		return x.Cleared
+	}
+	return false
+}
+
+type PipelineHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Limit         *int32                 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PipelineHistoryRequest) Reset() {
+	*x = PipelineHistoryRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PipelineHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PipelineHistoryRequest) ProtoMessage() {}
+
+func (x *PipelineHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PipelineHistoryRequest.ProtoReflect.Descriptor instead.
+func (*PipelineHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *PipelineHistoryRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *PipelineHistoryRequest) GetLimit() int32 {
+	if x != nil && x.Limit != nil {
+		return *x.Limit
+	}
+	return 0
+}
+
+type PipelineHistoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pipelines     []*PipelineStatus      `protobuf:"bytes,1,rep,name=pipelines,proto3" json:"pipelines,omitempty"`
+	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PipelineHistoryResponse) Reset() {
+	*x = PipelineHistoryResponse{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PipelineHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PipelineHistoryResponse) ProtoMessage() {}
+
+func (x *PipelineHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PipelineHistoryResponse.ProtoReflect.Descriptor instead.
+func (*PipelineHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *PipelineHistoryResponse) GetPipelines() []*PipelineStatus {
+	if x != nil {
+		return x.Pipelines
+	}
+	return nil
+}
+
+func (x *PipelineHistoryResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type StartActivePipelineRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName    string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	ConfigOverrides *PipelineConfig        `protobuf:"bytes,2,opt,name=config_overrides,json=configOverrides,proto3,oneof" json:"config_overrides,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *StartActivePipelineRequest) Reset() {
+	*x = StartActivePipelineRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartActivePipelineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartActivePipelineRequest) ProtoMessage() {}
+
+func (x *StartActivePipelineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartActivePipelineRequest.ProtoReflect.Descriptor instead.
+func (*StartActivePipelineRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *StartActivePipelineRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *StartActivePipelineRequest) GetConfigOverrides() *PipelineConfig {
+	if x != nil {
+		return x.ConfigOverrides
+	}
+	return nil
+}
+
+type StartActivePipelineResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Pipeline *PipelineStatus        `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
+	// Read the returned pipeline with PipelineService.Get as it progresses.
+	Message       *string `protobuf:"bytes,2,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartActivePipelineResponse) Reset() {
+	*x = StartActivePipelineResponse{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartActivePipelineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartActivePipelineResponse) ProtoMessage() {}
+
+func (x *StartActivePipelineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartActivePipelineResponse.ProtoReflect.Descriptor instead.
+func (*StartActivePipelineResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *StartActivePipelineResponse) GetPipeline() *PipelineStatus {
+	if x != nil {
+		return x.Pipeline
+	}
+	return nil
+}
+
+func (x *StartActivePipelineResponse) GetMessage() string {
+	if x != nil && x.Message != nil {
+		return *x.Message
+	}
+	return ""
+}
+
+// BundleCleanRequest removes the generated bundle payload for one scenario.
+// It is intentionally Electron-only: framework selection is not a client
+// choice in the mature desktop deployment contract.
+type BundleCleanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	LocationMode  *string                `protobuf:"bytes,2,opt,name=location_mode,json=locationMode,proto3,oneof" json:"location_mode,omitempty"`
+	PipelineId    *string                `protobuf:"bytes,3,opt,name=pipeline_id,json=pipelineId,proto3,oneof" json:"pipeline_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BundleCleanRequest) Reset() {
+	*x = BundleCleanRequest{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BundleCleanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BundleCleanRequest) ProtoMessage() {}
+
+func (x *BundleCleanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BundleCleanRequest.ProtoReflect.Descriptor instead.
+func (*BundleCleanRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *BundleCleanRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *BundleCleanRequest) GetLocationMode() string {
+	if x != nil && x.LocationMode != nil {
+		return *x.LocationMode
+	}
+	return ""
+}
+
+func (x *BundleCleanRequest) GetPipelineId() string {
+	if x != nil && x.PipelineId != nil {
+		return *x.PipelineId
+	}
+	return ""
+}
+
+type BundleCleanResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	LocationMode  string                 `protobuf:"bytes,2,opt,name=location_mode,json=locationMode,proto3" json:"location_mode,omitempty"`
+	PipelineId    *string                `protobuf:"bytes,3,opt,name=pipeline_id,json=pipelineId,proto3,oneof" json:"pipeline_id,omitempty"`
+	Path          string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	Removed       bool                   `protobuf:"varint,5,opt,name=removed,proto3" json:"removed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BundleCleanResponse) Reset() {
+	*x = BundleCleanResponse{}
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BundleCleanResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BundleCleanResponse) ProtoMessage() {}
+
+func (x *BundleCleanResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BundleCleanResponse.ProtoReflect.Descriptor instead.
+func (*BundleCleanResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *BundleCleanResponse) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *BundleCleanResponse) GetLocationMode() string {
+	if x != nil {
+		return x.LocationMode
+	}
+	return ""
+}
+
+func (x *BundleCleanResponse) GetPipelineId() string {
+	if x != nil && x.PipelineId != nil {
+		return *x.PipelineId
+	}
+	return ""
+}
+
+func (x *BundleCleanResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *BundleCleanResponse) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
+}
+
 // GenerateResponse is returned after the generate stage completes.
-//
-// @usage POST /api/generate response
 type GenerateResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Pipeline ID for the generation (deprecated, use pipeline_id).
-	// @format uuid
-	// @deprecated Use pipeline_id instead
-	BuildId *string `protobuf:"bytes,1,opt,name=build_id,json=buildId,proto3,oneof" json:"build_id,omitempty"`
 	// Pipeline identifier.
 	// @format uuid
-	PipelineId string `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	PipelineId string `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
 	// Initial status.
-	Status string `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Status string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	// Scenario that was generated.
-	ScenarioName string `protobuf:"bytes,4,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	ScenarioName string `protobuf:"bytes,3,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Path to the generated desktop wrapper.
 	// @format path
-	DesktopPath *string `protobuf:"bytes,5,opt,name=desktop_path,json=desktopPath,proto3,oneof" json:"desktop_path,omitempty"`
+	DesktopPath *string `protobuf:"bytes,4,opt,name=desktop_path,json=desktopPath,proto3,oneof" json:"desktop_path,omitempty"`
 	// Detected scenario metadata.
-	DetectedMetadata *structpb.Struct `protobuf:"bytes,6,opt,name=detected_metadata,json=detectedMetadata,proto3,oneof" json:"detected_metadata,omitempty"`
+	DetectedMetadata *shared.ScenarioMetadata `protobuf:"bytes,5,opt,name=detected_metadata,json=detectedMetadata,proto3,oneof" json:"detected_metadata,omitempty"`
 	// Instructions for installing dependencies.
-	InstallInstructions *string `protobuf:"bytes,7,opt,name=install_instructions,json=installInstructions,proto3,oneof" json:"install_instructions,omitempty"`
+	InstallInstructions *string `protobuf:"bytes,6,opt,name=install_instructions,json=installInstructions,proto3,oneof" json:"install_instructions,omitempty"`
 	// Command to test the generated application.
-	TestCommand *string `protobuf:"bytes,8,opt,name=test_command,json=testCommand,proto3,oneof" json:"test_command,omitempty"`
-	// URL to poll for pipeline status.
-	// @format uri
-	StatusUrl     *string `protobuf:"bytes,9,opt,name=status_url,json=statusUrl,proto3,oneof" json:"status_url,omitempty"`
+	TestCommand   *string `protobuf:"bytes,7,opt,name=test_command,json=testCommand,proto3,oneof" json:"test_command,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GenerateResponse) Reset() {
 	*x = GenerateResponse{}
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[9]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1070,7 +3063,7 @@ func (x *GenerateResponse) String() string {
 func (*GenerateResponse) ProtoMessage() {}
 
 func (x *GenerateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[9]
+	mi := &file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1083,14 +3076,7 @@ func (x *GenerateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateResponse.ProtoReflect.Descriptor instead.
 func (*GenerateResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *GenerateResponse) GetBuildId() string {
-	if x != nil && x.BuildId != nil {
-		return *x.BuildId
-	}
-	return ""
+	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *GenerateResponse) GetPipelineId() string {
@@ -1121,7 +3107,7 @@ func (x *GenerateResponse) GetDesktopPath() string {
 	return ""
 }
 
-func (x *GenerateResponse) GetDetectedMetadata() *structpb.Struct {
+func (x *GenerateResponse) GetDetectedMetadata() *shared.ScenarioMetadata {
 	if x != nil {
 		return x.DetectedMetadata
 	}
@@ -1142,47 +3128,43 @@ func (x *GenerateResponse) GetTestCommand() string {
 	return ""
 }
 
-func (x *GenerateResponse) GetStatusUrl() string {
-	if x != nil && x.StatusUrl != nil {
-		return *x.StatusUrl
-	}
-	return ""
-}
-
 var File_scenario_to_desktop_v1_pipeline_types_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\n" +
-	"+scenario-to-desktop/v1/pipeline/types.proto\x12\x16scenario_to_desktop.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a(scenario-to-desktop/v1/base/shared.proto\"\xb9\f\n" +
-	"\x0ePipelineConfig\x12#\n" +
-	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12>\n" +
-	"\tplatforms\x18\x02 \x03(\x0e2 .scenario_to_desktop.v1.PlatformR\tplatforms\x12*\n" +
+	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\"\x81\x0f\n" +
+	"\x0ePipelineConfig\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12L\n" +
+	"\tplatforms\x18\x02 \x03(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12*\n" +
 	"\x0eskip_preflight\x18\x03 \x01(\bH\x00R\rskipPreflight\x88\x01\x01\x12+\n" +
 	"\x0fskip_smoke_test\x18\x04 \x01(\bH\x01R\rskipSmokeTest\x88\x01\x01\x12+\n" +
-	"\x0fstop_on_failure\x18\x05 \x01(\bH\x02R\rstopOnFailure\x88\x01\x01\x12O\n" +
-	"\x0fdeployment_mode\x18\x06 \x01(\x0e2&.scenario_to_desktop.v1.DeploymentModeR\x0edeploymentMode\x12?\n" +
-	"\tframework\x18\a \x01(\x0e2!.scenario_to_desktop.v1.FrameworkR\tframework\x12I\n" +
-	"\rtemplate_type\x18\b \x01(\x0e2$.scenario_to_desktop.v1.TemplateTypeR\ftemplateType\x12$\n" +
+	"\x0fstop_on_failure\x18\x05 \x01(\bH\x02R\rstopOnFailure\x88\x01\x01\x12]\n" +
+	"\x0fdeployment_mode\x18\x06 \x01(\x0e24.vrooli.scenario_to_desktop.v1.shared.DeploymentModeR\x0edeploymentMode\x12M\n" +
+	"\tframework\x18\a \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.FrameworkR\tframework\x12W\n" +
+	"\rtemplate_type\x18\b \x01(\x0e22.vrooli.scenario_to_desktop.v1.shared.TemplateTypeR\ftemplateType\x12$\n" +
 	"\vwebhook_url\x18\t \x01(\tH\x03R\n" +
 	"webhookUrl\x88\x01\x01\x12 \n" +
 	"\tproxy_url\x18\n" +
 	" \x01(\tH\x04R\bproxyUrl\x88\x01\x01\x125\n" +
-	"\x14bundle_manifest_path\x18\v \x01(\tH\x05R\x12bundleManifestPath\x88\x01\x01\x12\x19\n" +
-	"\x05clean\x18\f \x01(\bH\x06R\x05clean\x88\x01\x01\x12\x17\n" +
-	"\x04sign\x18\r \x01(\bH\aR\x04sign\x88\x01\x01\x12\x1d\n" +
-	"\apublish\x18\x0e \x01(\bH\bR\apublish\x88\x01\x01\x12#\n" +
+	"\x14bundle_manifest_path\x18\v \x01(\tH\x05R\x12bundleManifestPath\x88\x01\x01\x129\n" +
+	"\x16resource_artifact_root\x18\x18 \x01(\tH\x06R\x14resourceArtifactRoot\x88\x01\x01\x12(\n" +
+	"\rlocation_mode\x18\x19 \x01(\tH\aR\flocationMode\x88\x01\x01\x12\x19\n" +
+	"\x05clean\x18\f \x01(\bH\bR\x05clean\x88\x01\x01\x12\x17\n" +
+	"\x04sign\x18\r \x01(\bH\tR\x04sign\x88\x01\x01\x12\x1d\n" +
+	"\apublish\x18\x0e \x01(\bH\n" +
+	"R\apublish\x88\x01\x01\x12#\n" +
 	"\n" +
-	"distribute\x18\x0f \x01(\bH\tR\n" +
+	"distribute\x18\x0f \x01(\bH\vR\n" +
 	"distribute\x88\x01\x01\x121\n" +
 	"\x14distribution_targets\x18\x10 \x03(\tR\x13distributionTargets\x12\x1d\n" +
-	"\aversion\x18\x11 \x01(\tH\n" +
-	"R\aversion\x88\x01\x01\x12?\n" +
-	"\x19preflight_timeout_seconds\x18\x12 \x01(\x05H\vR\x17preflightTimeoutSeconds\x88\x01\x01\x12i\n" +
-	"\x11preflight_secrets\x18\x13 \x03(\v2<.scenario_to_desktop.v1.PipelineConfig.PreflightSecretsEntryR\x10preflightSecrets\x12P\n" +
-	"\x10stop_after_stage\x18\x14 \x01(\x0e2!.scenario_to_desktop.v1.StageNameH\fR\x0estopAfterStage\x88\x01\x01\x12R\n" +
-	"\x11resume_from_stage\x18\x15 \x01(\x0e2!.scenario_to_desktop.v1.StageNameH\rR\x0fresumeFromStage\x88\x01\x01\x121\n" +
-	"\x12parent_pipeline_id\x18\x16 \x01(\tH\x0eR\x10parentPipelineId\x88\x01\x01\x12,\n" +
-	"\x0fidempotency_key\x18\x17 \x01(\tH\x0fR\x0eidempotencyKey\x88\x01\x01\x1aC\n" +
+	"\aversion\x18\x11 \x01(\tH\fR\aversion\x88\x01\x01\x12?\n" +
+	"\x19preflight_timeout_seconds\x18\x12 \x01(\x05H\rR\x17preflightTimeoutSeconds\x88\x01\x01\x12y\n" +
+	"\x11preflight_secrets\x18\x13 \x03(\v2L.vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.PreflightSecretsEntryR\x10preflightSecrets\x12^\n" +
+	"\x10stop_after_stage\x18\x14 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameH\x0eR\x0estopAfterStage\x88\x01\x01\x12`\n" +
+	"\x11resume_from_stage\x18\x15 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameH\x0fR\x0fresumeFromStage\x88\x01\x01\x121\n" +
+	"\x12parent_pipeline_id\x18\x16 \x01(\tH\x10R\x10parentPipelineId\x88\x01\x01\x12,\n" +
+	"\x0fidempotency_key\x18\x17 \x01(\tH\x11R\x0eidempotencyKey\x88\x01\x01\x12G\n" +
+	"\x06stages\x18\x1a \x03(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameR\x06stages\x1aC\n" +
 	"\x15PreflightSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x11\n" +
@@ -1192,7 +3174,9 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\f_webhook_urlB\f\n" +
 	"\n" +
 	"_proxy_urlB\x17\n" +
-	"\x15_bundle_manifest_pathB\b\n" +
+	"\x15_bundle_manifest_pathB\x19\n" +
+	"\x17_resource_artifact_rootB\x10\n" +
+	"\x0e_location_modeB\b\n" +
 	"\x06_cleanB\a\n" +
 	"\x05_signB\n" +
 	"\n" +
@@ -1204,86 +3188,209 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\x11_stop_after_stageB\x14\n" +
 	"\x12_resume_from_stageB\x15\n" +
 	"\x13_parent_pipeline_idB\x12\n" +
-	"\x10_idempotency_key\"\x90\x03\n" +
-	"\vStageResult\x127\n" +
-	"\x05stage\x18\x01 \x01(\x0e2!.scenario_to_desktop.v1.StageNameR\x05stage\x12;\n" +
-	"\x06status\x18\x02 \x01(\x0e2#.scenario_to_desktop.v1.StageStatusR\x06status\x129\n" +
+	"\x10_idempotency_key\"\xcf\x03\n" +
+	"\vStageResult\x12E\n" +
+	"\x05stage\x18\x01 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameR\x05stage\x12I\n" +
+	"\x06status\x18\x02 \x01(\x0e21.vrooli.scenario_to_desktop.v1.shared.StageStatusR\x06status\x129\n" +
 	"\n" +
 	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12B\n" +
 	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vcompletedAt\x88\x01\x01\x12\x19\n" +
-	"\x05error\x18\x05 \x01(\tH\x01R\x05error\x88\x01\x01\x126\n" +
-	"\adetails\x18\x06 \x01(\v2\x17.google.protobuf.StructH\x02R\adetails\x88\x01\x01\x12\x12\n" +
-	"\x04logs\x18\a \x03(\tR\x04logsB\x0f\n" +
+	"\x05error\x18\x05 \x01(\tH\x01R\x05error\x88\x01\x01\x12\x12\n" +
+	"\x04logs\x18\a \x03(\tR\x04logs\x12S\n" +
+	"\adetails\x18\b \x01(\v24.vrooli.scenario_to_desktop.v1.pipeline.StageDetailsH\x02R\adetails\x88\x01\x01B\x0f\n" +
 	"\r_completed_atB\b\n" +
 	"\x06_errorB\n" +
 	"\n" +
-	"\b_details\"\xeb\t\n" +
+	"\b_detailsJ\x04\b\x06\x10\a\"\x97\x05\n" +
+	"\fStageDetails\x12o\n" +
+	"\x12resolve_deployment\x18\x01 \x01(\v2>.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanH\x00R\x11resolveDeployment\x12T\n" +
+	"\x06bundle\x18\x02 \x01(\v2:.vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetailsH\x00R\x06bundle\x12W\n" +
+	"\tpreflight\x18\x03 \x01(\v27.vrooli.scenario_to_desktop.v1.shared.PreflightResponseH\x00R\tpreflight\x12V\n" +
+	"\bgenerate\x18\x04 \x01(\v28.vrooli.scenario_to_desktop.v1.pipeline.GenerateResponseH\x00R\bgenerate\x12Q\n" +
+	"\x05build\x18\x05 \x01(\v29.vrooli.scenario_to_desktop.v1.shared.BuildStatusResponseH\x00R\x05build\x12^\n" +
+	"\n" +
+	"smoke_test\x18\x06 \x01(\v2=.vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponseH\x00R\tsmokeTest\x12T\n" +
+	"\x06deploy\x18\a \x01(\v2:.vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetailsH\x00R\x06deployB\x06\n" +
+	"\x04kind\"\xa1\x01\n" +
+	"\x16ResourceDeploymentPlan\x12%\n" +
+	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12`\n" +
+	"\tresources\x18\x02 \x03(\v2B.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItemR\tresources\"\xa5\x05\n" +
+	"\x1aResourceDeploymentPlanItem\x12-\n" +
+	"\x12requested_resource\x18\x01 \x01(\tR\x11requestedResource\x12\x1a\n" +
+	"\bresource\x18\x02 \x01(\tR\bresource\x12\x0e\n" +
+	"\x02os\x18\x03 \x01(\tR\x02os\x12\"\n" +
+	"\farchitecture\x18\x04 \x01(\tR\farchitecture\x12\x12\n" +
+	"\x04mode\x18\x05 \x01(\tR\x04mode\x12\x18\n" +
+	"\asupport\x18\x06 \x01(\tR\asupport\x12\x1a\n" +
+	"\brequires\x18\a \x03(\tR\brequires\x12 \n" +
+	"\vlimitations\x18\b \x03(\tR\vlimitations\x12\x1a\n" +
+	"\bevidence\x18\t \x03(\tR\bevidence\x12t\n" +
+	"\x11selected_fallback\x18\n" +
+	" \x01(\v2B.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentFallbackH\x00R\x10selectedFallback\x88\x01\x01\x12\x1f\n" +
+	"\bartifact\x18\v \x01(\tH\x01R\bartifact\x88\x01\x01\x12X\n" +
+	"\x05files\x18\f \x03(\v2B.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifactR\x05files\x12`\n" +
+	"\aservice\x18\r \x01(\v2A.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServiceH\x02R\aservice\x88\x01\x01B\x14\n" +
+	"\x12_selected_fallbackB\v\n" +
+	"\t_artifactB\n" +
+	"\n" +
+	"\b_service\"P\n" +
+	"\x1aResourceDeploymentFallback\x12\x1a\n" +
+	"\bresource\x18\x01 \x01(\tR\bresource\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"H\n" +
+	"\x1aResourceDeploymentArtifact\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06sha256\x18\x02 \x01(\tR\x06sha256\"\xba\x06\n" +
+	"\x19ResourceDeploymentService\x12g\n" +
+	"\x0fprovider_policy\x18\x01 \x01(\v2>.vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicyR\x0eproviderPolicy\x12\x1a\n" +
+	"\bartifact\x18\x02 \x01(\tR\bartifact\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12\x16\n" +
+	"\x06sha256\x18\x04 \x01(\tR\x06sha256\x12\x1c\n" +
+	"\targuments\x18\x05 \x03(\tR\targuments\x12t\n" +
+	"\venvironment\x18\x06 \x03(\v2R.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.EnvironmentEntryR\venvironment\x12[\n" +
+	"\x05ports\x18\a \x03(\v2E.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServicePortR\x05ports\x12j\n" +
+	"\rhealth_checks\x18\b \x03(\v2E.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentHealthCheckR\fhealthChecks\x12X\n" +
+	"\x05files\x18\t \x03(\v2B.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifactR\x05files\x12d\n" +
+	"\x06config\x18\n" +
+	" \x01(\v2G.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServiceConfigH\x00R\x06config\x88\x01\x01\x1a>\n" +
+	"\x10EnvironmentEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +
+	"\a_config\"\xd6\x03\n" +
+	"\x16ResourceProviderPolicy\x12!\n" +
+	"\fdefault_mode\x18\x01 \x01(\tR\vdefaultMode\x12{\n" +
+	"\x0ftarget_defaults\x18\x02 \x03(\v2R.vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntryR\x0etargetDefaults\x12#\n" +
+	"\rallowed_modes\x18\x03 \x03(\tR\fallowedModes\x12A\n" +
+	"\x1dshared_reuse_requires_consent\x18\x04 \x01(\bR\x1asharedReuseRequiresConsent\x12/\n" +
+	"\x13external_management\x18\x05 \x01(\tR\x12externalManagement\x12@\n" +
+	"\x1cexternal_access_capabilities\x18\x06 \x03(\tR\x1aexternalAccessCapabilities\x1aA\n" +
+	"\x13TargetDefaultsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"O\n" +
+	"\x1fResourceDeploymentServiceConfig\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"G\n" +
+	"\x1dResourceDeploymentServicePort\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04host\x18\x02 \x01(\x05R\x04host\"\x9d\x01\n" +
+	"\x1dResourceDeploymentHealthCheck\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\x12'\n" +
+	"\x0fexpected_status\x18\x03 \x03(\x05R\x0eexpectedStatus\x12'\n" +
+	"\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\"\x8b\x04\n" +
+	"\x12BundleStageDetails\x12\x1d\n" +
+	"\n" +
+	"bundle_dir\x18\x01 \x01(\tR\tbundleDir\x12#\n" +
+	"\rmanifest_path\x18\x02 \x01(\tR\fmanifestPath\x12z\n" +
+	"\x10runtime_binaries\x18\x03 \x03(\v2O.vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.RuntimeBinariesEntryR\x0fruntimeBinaries\x12)\n" +
+	"\x10copied_artifacts\x18\x04 \x03(\tR\x0fcopiedArtifacts\x12(\n" +
+	"\x10total_size_bytes\x18\x05 \x01(\x03R\x0etotalSizeBytes\x12(\n" +
+	"\x10total_size_human\x18\x06 \x01(\tR\x0etotalSizeHuman\x12a\n" +
+	"\fsize_warning\x18\a \x01(\v29.vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarningH\x00R\vsizeWarning\x88\x01\x01\x1aB\n" +
+	"\x14RuntimeBinariesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0f\n" +
+	"\r_size_warning\"\xdf\x01\n" +
+	"\x11BundleSizeWarning\x12\x14\n" +
+	"\x05level\x18\x01 \x01(\tR\x05level\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1f\n" +
+	"\vtotal_bytes\x18\x03 \x01(\x03R\n" +
+	"totalBytes\x12\x1f\n" +
+	"\vtotal_human\x18\x04 \x01(\tR\n" +
+	"totalHuman\x12X\n" +
+	"\vlarge_files\x18\x05 \x03(\v27.vrooli.scenario_to_desktop.v1.pipeline.BundleLargeFileR\n" +
+	"largeFiles\"c\n" +
+	"\x0fBundleLargeFile\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x02 \x01(\x03R\tsizeBytes\x12\x1d\n" +
+	"\n" +
+	"size_human\x18\x03 \x01(\tR\tsizeHuman\"\xa3\x01\n" +
+	"\x12DeployStageDetails\x12Z\n" +
+	"\tartifacts\x18\x01 \x03(\v2<.vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResultR\tartifacts\x12\"\n" +
+	"\n" +
+	"update_url\x18\x02 \x01(\tH\x00R\tupdateUrl\x88\x01\x01B\r\n" +
+	"\v_update_url\"\x83\x01\n" +
+	"\x14DeployArtifactResult\x12\x1f\n" +
+	"\vartifact_id\x18\x01 \x01(\x03R\n" +
+	"artifactId\x12J\n" +
+	"\bplatform\x18\x02 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\bplatform\"\x9f\v\n" +
 	"\x0ePipelineStatus\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12#\n" +
-	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12;\n" +
-	"\x06status\x18\x03 \x01(\x0e2#.scenario_to_desktop.v1.StageStatusR\x06status\x12K\n" +
-	"\rcurrent_stage\x18\x04 \x01(\x0e2!.scenario_to_desktop.v1.StageNameH\x00R\fcurrentStage\x88\x01\x01\x12)\n" +
+	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12I\n" +
+	"\x06status\x18\x03 \x01(\x0e21.vrooli.scenario_to_desktop.v1.shared.StageStatusR\x06status\x12Y\n" +
+	"\rcurrent_stage\x18\x04 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameH\x00R\fcurrentStage\x88\x01\x01\x12)\n" +
 	"\x10progress_percent\x18\x05 \x01(\x05R\x0fprogressPercent\x12.\n" +
-	"\x10progress_message\x18\x06 \x01(\tH\x01R\x0fprogressMessage\x88\x01\x01\x12J\n" +
-	"\x06stages\x18\a \x03(\v22.scenario_to_desktop.v1.PipelineStatus.StagesEntryR\x06stages\x12B\n" +
-	"\vstage_order\x18\b \x03(\x0e2!.scenario_to_desktop.v1.StageNameR\n" +
-	"stageOrder\x12>\n" +
-	"\x06config\x18\t \x01(\v2&.scenario_to_desktop.v1.PipelineConfigR\x06config\x129\n" +
+	"\x10progress_message\x18\x06 \x01(\tH\x01R\x0fprogressMessage\x88\x01\x01\x12(\n" +
+	"\rcurrent_state\x18\x11 \x01(\tH\x02R\fcurrentState\x88\x01\x01\x12Z\n" +
+	"\x06stages\x18\a \x03(\v2B.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntryR\x06stages\x12P\n" +
+	"\vstage_order\x18\b \x03(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameR\n" +
+	"stageOrder\x12N\n" +
+	"\x06config\x18\t \x01(\v26.vrooli.scenario_to_desktop.v1.pipeline.PipelineConfigR\x06config\x129\n" +
 	"\n" +
 	"started_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12B\n" +
-	"\fcompleted_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x02R\vcompletedAt\x88\x01\x01\x12\x19\n" +
-	"\x05error\x18\f \x01(\tH\x03R\x05error\x88\x01\x01\x12c\n" +
-	"\x0ffinal_artifacts\x18\r \x03(\v2:.scenario_to_desktop.v1.PipelineStatus.FinalArtifactsEntryR\x0efinalArtifacts\x12V\n" +
-	"\x13stopped_after_stage\x18\x0e \x01(\x0e2!.scenario_to_desktop.v1.StageNameH\x04R\x11stoppedAfterStage\x88\x01\x01\x121\n" +
-	"\x12parent_pipeline_id\x18\x0f \x01(\tH\x05R\x10parentPipelineId\x88\x01\x01\x12,\n" +
-	"\x0fidempotency_key\x18\x10 \x01(\tH\x06R\x0eidempotencyKey\x88\x01\x01\x1a^\n" +
+	"\fcompleted_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x03R\vcompletedAt\x88\x01\x01\x12\x19\n" +
+	"\x05error\x18\f \x01(\tH\x04R\x05error\x88\x01\x01\x12s\n" +
+	"\x0ffinal_artifacts\x18\r \x03(\v2J.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.FinalArtifactsEntryR\x0efinalArtifacts\x12d\n" +
+	"\x13stopped_after_stage\x18\x0e \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameH\x05R\x11stoppedAfterStage\x88\x01\x01\x121\n" +
+	"\x12parent_pipeline_id\x18\x0f \x01(\tH\x06R\x10parentPipelineId\x88\x01\x01\x12,\n" +
+	"\x0fidempotency_key\x18\x10 \x01(\tH\aR\x0eidempotencyKey\x88\x01\x01\x1an\n" +
 	"\vStagesEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x129\n" +
-	"\x05value\x18\x02 \x01(\v2#.scenario_to_desktop.v1.StageResultR\x05value:\x028\x01\x1aA\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12I\n" +
+	"\x05value\x18\x02 \x01(\v23.vrooli.scenario_to_desktop.v1.pipeline.StageResultR\x05value:\x028\x01\x1aA\n" +
 	"\x13FinalArtifactsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x10\n" +
 	"\x0e_current_stageB\x13\n" +
-	"\x11_progress_messageB\x0f\n" +
+	"\x11_progress_messageB\x10\n" +
+	"\x0e_current_stateB\x0f\n" +
 	"\r_completed_atB\b\n" +
 	"\x06_errorB\x16\n" +
 	"\x14_stopped_after_stageB\x15\n" +
 	"\x13_parent_pipeline_idB\x12\n" +
-	"\x10_idempotency_key\"T\n" +
-	"\x12PipelineRunRequest\x12>\n" +
-	"\x06config\x18\x01 \x01(\v2&.scenario_to_desktop.v1.PipelineConfigR\x06config\"\x80\x01\n" +
+	"\x10_idempotency_key\"d\n" +
+	"\x12PipelineRunRequest\x12N\n" +
+	"\x06config\x18\x01 \x01(\v26.vrooli.scenario_to_desktop.v1.pipeline.PipelineConfigR\x06config\"a\n" +
 	"\x13PipelineRunResponse\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12\x1d\n" +
+	"\amessage\x18\x02 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
 	"\n" +
-	"status_url\x18\x02 \x01(\tR\tstatusUrl\x12\x1d\n" +
-	"\amessage\x18\x03 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
-	"\n" +
-	"\b_message\"[\n" +
+	"\b_message\">\n" +
+	"\x12PipelineGetRequest\x12(\n" +
+	"\vpipeline_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"pipelineId\"\x91\x01\n" +
+	"\x15PipelineResumeRequest\x12(\n" +
+	"\vpipeline_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"pipelineId\x12N\n" +
+	"\x06config\x18\x02 \x01(\v26.vrooli.scenario_to_desktop.v1.pipeline.PipelineConfigR\x06config\"A\n" +
+	"\x15PipelineCancelRequest\x12(\n" +
+	"\vpipeline_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"pipelineId\"Q\n" +
+	"\x13PipelineListRequest\x12(\n" +
+	"\rscenario_name\x18\x01 \x01(\tH\x00R\fscenarioName\x88\x01\x01B\x10\n" +
+	"\x0e_scenario_name\"[\n" +
 	"\x16PipelineCancelResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1d\n" +
 	"\amessage\x18\x02 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
 	"\n" +
-	"\b_message\"\x80\x02\n" +
+	"\b_message\"\xef\x01\n" +
 	"\x16PipelineResumeResponse\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12,\n" +
-	"\x12parent_pipeline_id\x18\x02 \x01(\tR\x10parentPipelineId\x12\x1d\n" +
+	"\x12parent_pipeline_id\x18\x02 \x01(\tR\x10parentPipelineId\x12[\n" +
+	"\x11resume_from_stage\x18\x03 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameR\x0fresumeFromStage\x12\x1d\n" +
+	"\amessage\x18\x04 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
 	"\n" +
-	"status_url\x18\x03 \x01(\tR\tstatusUrl\x12M\n" +
-	"\x11resume_from_stage\x18\x04 \x01(\x0e2!.scenario_to_desktop.v1.StageNameR\x0fresumeFromStage\x12\x1d\n" +
-	"\amessage\x18\x05 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
-	"\n" +
-	"\b_message\"\x9d\x04\n" +
+	"\b_message\"\xb9\x04\n" +
 	"\x10PipelineListItem\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12#\n" +
-	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12;\n" +
-	"\x06status\x18\x03 \x01(\x0e2#.scenario_to_desktop.v1.StageStatusR\x06status\x12)\n" +
-	"\x10progress_percent\x18\x04 \x01(\x05R\x0fprogressPercent\x12K\n" +
-	"\rcurrent_stage\x18\x05 \x01(\x0e2!.scenario_to_desktop.v1.StageNameH\x00R\fcurrentStage\x88\x01\x01\x129\n" +
+	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12I\n" +
+	"\x06status\x18\x03 \x01(\x0e21.vrooli.scenario_to_desktop.v1.shared.StageStatusR\x06status\x12)\n" +
+	"\x10progress_percent\x18\x04 \x01(\x05R\x0fprogressPercent\x12Y\n" +
+	"\rcurrent_stage\x18\x05 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameH\x00R\fcurrentStage\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +
@@ -1293,29 +3400,91 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"can_resume\x18\t \x01(\bR\tcanResumeB\x10\n" +
 	"\x0e_current_stageB\r\n" +
 	"\v_updated_atB\x0f\n" +
-	"\r_completed_at\"\x83\x01\n" +
-	"\x14PipelineListResponse\x12F\n" +
-	"\tpipelines\x18\x01 \x03(\v2(.scenario_to_desktop.v1.PipelineListItemR\tpipelines\x12\x19\n" +
+	"\r_completed_at\"\x93\x01\n" +
+	"\x14PipelineListResponse\x12V\n" +
+	"\tpipelines\x18\x01 \x03(\v28.vrooli.scenario_to_desktop.v1.pipeline.PipelineListItemR\tpipelines\x12\x19\n" +
 	"\x05total\x18\x02 \x01(\x05H\x00R\x05total\x88\x01\x01B\b\n" +
-	"\x06_total\"\xf4\x03\n" +
-	"\x10GenerateResponse\x12\x1e\n" +
-	"\bbuild_id\x18\x01 \x01(\tH\x00R\abuildId\x88\x01\x01\x12\x1f\n" +
-	"\vpipeline_id\x18\x02 \x01(\tR\n" +
-	"pipelineId\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\x12#\n" +
-	"\rscenario_name\x18\x04 \x01(\tR\fscenarioName\x12&\n" +
-	"\fdesktop_path\x18\x05 \x01(\tH\x01R\vdesktopPath\x88\x01\x01\x12I\n" +
-	"\x11detected_metadata\x18\x06 \x01(\v2\x17.google.protobuf.StructH\x02R\x10detectedMetadata\x88\x01\x01\x126\n" +
-	"\x14install_instructions\x18\a \x01(\tH\x03R\x13installInstructions\x88\x01\x01\x12&\n" +
-	"\ftest_command\x18\b \x01(\tH\x04R\vtestCommand\x88\x01\x01\x12\"\n" +
+	"\x06_total\"G\n" +
+	"\x17ScenarioPipelineRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\"i\n" +
+	"\x18GetActivePipelineRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12\x1f\n" +
+	"\vauto_create\x18\x02 \x01(\bR\n" +
+	"autoCreate\"\x98\x01\n" +
+	"\x16ActivePipelineResponse\x12W\n" +
+	"\bpipeline\x18\x01 \x01(\v26.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatusH\x00R\bpipeline\x88\x01\x01\x12\x18\n" +
+	"\acreated\x18\x02 \x01(\bR\acreatedB\v\n" +
+	"\t_pipeline\"\xa5\x01\n" +
+	"\x15CreatePipelineRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12S\n" +
+	"\x06config\x18\x02 \x01(\v26.vrooli.scenario_to_desktop.v1.pipeline.PipelineConfigH\x00R\x06config\x88\x01\x01B\t\n" +
+	"\a_config\"\xbc\x01\n" +
+	"\x16CreatePipelineResponse\x12R\n" +
+	"\bpipeline\x18\x01 \x01(\v26.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatusR\bpipeline\x125\n" +
+	"\x14archived_pipeline_id\x18\x02 \x01(\tH\x00R\x12archivedPipelineId\x88\x01\x01B\x17\n" +
+	"\x15_archived_pipeline_id\"\x81\x01\n" +
+	"\x15ResetPipelineResponse\x125\n" +
+	"\x14archived_pipeline_id\x18\x01 \x01(\tH\x00R\x12archivedPipelineId\x88\x01\x01\x12\x18\n" +
+	"\acleared\x18\x02 \x01(\bR\aclearedB\x17\n" +
+	"\x15_archived_pipeline_id\"k\n" +
+	"\x16PipelineHistoryRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12\x19\n" +
+	"\x05limit\x18\x02 \x01(\x05H\x00R\x05limit\x88\x01\x01B\b\n" +
+	"\x06_limit\"\x85\x01\n" +
+	"\x17PipelineHistoryResponse\x12T\n" +
+	"\tpipelines\x18\x01 \x03(\v26.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatusR\tpipelines\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"\xc7\x01\n" +
+	"\x1aStartActivePipelineRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12f\n" +
+	"\x10config_overrides\x18\x02 \x01(\v26.vrooli.scenario_to_desktop.v1.pipeline.PipelineConfigH\x00R\x0fconfigOverrides\x88\x01\x01B\x13\n" +
+	"\x11_config_overrides\"\x9c\x01\n" +
+	"\x1bStartActivePipelineResponse\x12R\n" +
+	"\bpipeline\x18\x01 \x01(\v26.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatusR\bpipeline\x12\x1d\n" +
+	"\amessage\x18\x02 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
 	"\n" +
-	"status_url\x18\t \x01(\tH\x05R\tstatusUrl\x88\x01\x01B\v\n" +
-	"\t_build_idB\x0f\n" +
+	"\b_message\"\xb4\x01\n" +
+	"\x12BundleCleanRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12(\n" +
+	"\rlocation_mode\x18\x02 \x01(\tH\x00R\flocationMode\x88\x01\x01\x12$\n" +
+	"\vpipeline_id\x18\x03 \x01(\tH\x01R\n" +
+	"pipelineId\x88\x01\x01B\x10\n" +
+	"\x0e_location_modeB\x0e\n" +
+	"\f_pipeline_id\"\xc3\x01\n" +
+	"\x13BundleCleanResponse\x12#\n" +
+	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12#\n" +
+	"\rlocation_mode\x18\x02 \x01(\tR\flocationMode\x12$\n" +
+	"\vpipeline_id\x18\x03 \x01(\tH\x00R\n" +
+	"pipelineId\x88\x01\x01\x12\x12\n" +
+	"\x04path\x18\x04 \x01(\tR\x04path\x12\x18\n" +
+	"\aremoved\x18\x05 \x01(\bR\aremovedB\x0e\n" +
+	"\f_pipeline_id\"\xb3\x03\n" +
+	"\x10GenerateResponse\x12\x1f\n" +
+	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"pipelineId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12#\n" +
+	"\rscenario_name\x18\x03 \x01(\tR\fscenarioName\x12&\n" +
+	"\fdesktop_path\x18\x04 \x01(\tH\x00R\vdesktopPath\x88\x01\x01\x12h\n" +
+	"\x11detected_metadata\x18\x05 \x01(\v26.vrooli.scenario_to_desktop.v1.shared.ScenarioMetadataH\x01R\x10detectedMetadata\x88\x01\x01\x126\n" +
+	"\x14install_instructions\x18\x06 \x01(\tH\x02R\x13installInstructions\x88\x01\x01\x12&\n" +
+	"\ftest_command\x18\a \x01(\tH\x03R\vtestCommand\x88\x01\x01B\x0f\n" +
 	"\r_desktop_pathB\x14\n" +
 	"\x12_detected_metadataB\x17\n" +
 	"\x15_install_instructionsB\x0f\n" +
-	"\r_test_commandB\r\n" +
-	"\v_status_urlBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline;pipelineb\x06proto3"
+	"\r_test_command2\x8d\r\n" +
+	"\x0fPipelineService\x12~\n" +
+	"\x03Run\x12:.vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest\x1a;.vrooli.scenario_to_desktop.v1.pipeline.PipelineRunResponse\x12y\n" +
+	"\x03Get\x12:.vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest\x1a6.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus\x12\x84\x01\n" +
+	"\x0eGetReleaseGate\x12:.vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest\x1a6.vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus\x12\x87\x01\n" +
+	"\x06Resume\x12=.vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest\x1a>.vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse\x12\x87\x01\n" +
+	"\x06Cancel\x12=.vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest\x1a>.vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse\x12\x81\x01\n" +
+	"\x04List\x12;.vrooli.scenario_to_desktop.v1.pipeline.PipelineListRequest\x1a<.vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse\x12\x8d\x01\n" +
+	"\tGetActive\x12@.vrooli.scenario_to_desktop.v1.pipeline.GetActivePipelineRequest\x1a>.vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse\x12\x8d\x01\n" +
+	"\fCreateActive\x12=.vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest\x1a>.vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse\x12\x8d\x01\n" +
+	"\vResetActive\x12?.vrooli.scenario_to_desktop.v1.pipeline.ScenarioPipelineRequest\x1a=.vrooli.scenario_to_desktop.v1.pipeline.ResetPipelineResponse\x12\x8d\x01\n" +
+	"\n" +
+	"GetHistory\x12>.vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryRequest\x1a?.vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse\x12\x96\x01\n" +
+	"\vStartActive\x12B.vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest\x1aC.vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse\x12\x86\x01\n" +
+	"\vCleanBundle\x12:.vrooli.scenario_to_desktop.v1.pipeline.BundleCleanRequest\x1a;.vrooli.scenario_to_desktop.v1.pipeline.BundleCleanResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline;pipelineb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_pipeline_types_proto_rawDescOnce sync.Once
@@ -1329,67 +3498,159 @@ func file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP() []byte {
 	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescData
 }
 
-var file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_scenario_to_desktop_v1_pipeline_types_proto_goTypes = []any{
-	(*PipelineConfig)(nil),         // 0: scenario_to_desktop.v1.PipelineConfig
-	(*StageResult)(nil),            // 1: scenario_to_desktop.v1.StageResult
-	(*PipelineStatus)(nil),         // 2: scenario_to_desktop.v1.PipelineStatus
-	(*PipelineRunRequest)(nil),     // 3: scenario_to_desktop.v1.PipelineRunRequest
-	(*PipelineRunResponse)(nil),    // 4: scenario_to_desktop.v1.PipelineRunResponse
-	(*PipelineCancelResponse)(nil), // 5: scenario_to_desktop.v1.PipelineCancelResponse
-	(*PipelineResumeResponse)(nil), // 6: scenario_to_desktop.v1.PipelineResumeResponse
-	(*PipelineListItem)(nil),       // 7: scenario_to_desktop.v1.PipelineListItem
-	(*PipelineListResponse)(nil),   // 8: scenario_to_desktop.v1.PipelineListResponse
-	(*GenerateResponse)(nil),       // 9: scenario_to_desktop.v1.GenerateResponse
-	nil,                            // 10: scenario_to_desktop.v1.PipelineConfig.PreflightSecretsEntry
-	nil,                            // 11: scenario_to_desktop.v1.PipelineStatus.StagesEntry
-	nil,                            // 12: scenario_to_desktop.v1.PipelineStatus.FinalArtifactsEntry
-	(base.Platform)(0),             // 13: scenario_to_desktop.v1.Platform
-	(base.DeploymentMode)(0),       // 14: scenario_to_desktop.v1.DeploymentMode
-	(base.Framework)(0),            // 15: scenario_to_desktop.v1.Framework
-	(base.TemplateType)(0),         // 16: scenario_to_desktop.v1.TemplateType
-	(base.StageName)(0),            // 17: scenario_to_desktop.v1.StageName
-	(base.StageStatus)(0),          // 18: scenario_to_desktop.v1.StageStatus
-	(*timestamppb.Timestamp)(nil),  // 19: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),        // 20: google.protobuf.Struct
+	(*PipelineConfig)(nil),                  // 0: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	(*StageResult)(nil),                     // 1: vrooli.scenario_to_desktop.v1.pipeline.StageResult
+	(*StageDetails)(nil),                    // 2: vrooli.scenario_to_desktop.v1.pipeline.StageDetails
+	(*ResourceDeploymentPlan)(nil),          // 3: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan
+	(*ResourceDeploymentPlanItem)(nil),      // 4: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem
+	(*ResourceDeploymentFallback)(nil),      // 5: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentFallback
+	(*ResourceDeploymentArtifact)(nil),      // 6: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifact
+	(*ResourceDeploymentService)(nil),       // 7: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService
+	(*ResourceProviderPolicy)(nil),          // 8: vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy
+	(*ResourceDeploymentServiceConfig)(nil), // 9: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServiceConfig
+	(*ResourceDeploymentServicePort)(nil),   // 10: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServicePort
+	(*ResourceDeploymentHealthCheck)(nil),   // 11: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentHealthCheck
+	(*BundleStageDetails)(nil),              // 12: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails
+	(*BundleSizeWarning)(nil),               // 13: vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarning
+	(*BundleLargeFile)(nil),                 // 14: vrooli.scenario_to_desktop.v1.pipeline.BundleLargeFile
+	(*DeployStageDetails)(nil),              // 15: vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetails
+	(*DeployArtifactResult)(nil),            // 16: vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult
+	(*PipelineStatus)(nil),                  // 17: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	(*PipelineRunRequest)(nil),              // 18: vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest
+	(*PipelineRunResponse)(nil),             // 19: vrooli.scenario_to_desktop.v1.pipeline.PipelineRunResponse
+	(*PipelineGetRequest)(nil),              // 20: vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
+	(*PipelineResumeRequest)(nil),           // 21: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest
+	(*PipelineCancelRequest)(nil),           // 22: vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest
+	(*PipelineListRequest)(nil),             // 23: vrooli.scenario_to_desktop.v1.pipeline.PipelineListRequest
+	(*PipelineCancelResponse)(nil),          // 24: vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse
+	(*PipelineResumeResponse)(nil),          // 25: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse
+	(*PipelineListItem)(nil),                // 26: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem
+	(*PipelineListResponse)(nil),            // 27: vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse
+	(*ScenarioPipelineRequest)(nil),         // 28: vrooli.scenario_to_desktop.v1.pipeline.ScenarioPipelineRequest
+	(*GetActivePipelineRequest)(nil),        // 29: vrooli.scenario_to_desktop.v1.pipeline.GetActivePipelineRequest
+	(*ActivePipelineResponse)(nil),          // 30: vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse
+	(*CreatePipelineRequest)(nil),           // 31: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest
+	(*CreatePipelineResponse)(nil),          // 32: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse
+	(*ResetPipelineResponse)(nil),           // 33: vrooli.scenario_to_desktop.v1.pipeline.ResetPipelineResponse
+	(*PipelineHistoryRequest)(nil),          // 34: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryRequest
+	(*PipelineHistoryResponse)(nil),         // 35: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse
+	(*StartActivePipelineRequest)(nil),      // 36: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest
+	(*StartActivePipelineResponse)(nil),     // 37: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse
+	(*BundleCleanRequest)(nil),              // 38: vrooli.scenario_to_desktop.v1.pipeline.BundleCleanRequest
+	(*BundleCleanResponse)(nil),             // 39: vrooli.scenario_to_desktop.v1.pipeline.BundleCleanResponse
+	(*GenerateResponse)(nil),                // 40: vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse
+	nil,                                     // 41: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.PreflightSecretsEntry
+	nil,                                     // 42: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.EnvironmentEntry
+	nil,                                     // 43: vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntry
+	nil,                                     // 44: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.RuntimeBinariesEntry
+	nil,                                     // 45: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry
+	nil,                                     // 46: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.FinalArtifactsEntry
+	(shared.Platform)(0),                    // 47: vrooli.scenario_to_desktop.v1.shared.Platform
+	(shared.DeploymentMode)(0),              // 48: vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	(shared.Framework)(0),                   // 49: vrooli.scenario_to_desktop.v1.shared.Framework
+	(shared.TemplateType)(0),                // 50: vrooli.scenario_to_desktop.v1.shared.TemplateType
+	(shared.StageName)(0),                   // 51: vrooli.scenario_to_desktop.v1.shared.StageName
+	(shared.StageStatus)(0),                 // 52: vrooli.scenario_to_desktop.v1.shared.StageStatus
+	(*timestamppb.Timestamp)(nil),           // 53: google.protobuf.Timestamp
+	(*shared.PreflightResponse)(nil),        // 54: vrooli.scenario_to_desktop.v1.shared.PreflightResponse
+	(*shared.BuildStatusResponse)(nil),      // 55: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
+	(*shared.SmokeTestStatusResponse)(nil),  // 56: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
+	(*shared.ScenarioMetadata)(nil),         // 57: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
 }
 var file_scenario_to_desktop_v1_pipeline_types_proto_depIdxs = []int32{
-	13, // 0: scenario_to_desktop.v1.PipelineConfig.platforms:type_name -> scenario_to_desktop.v1.Platform
-	14, // 1: scenario_to_desktop.v1.PipelineConfig.deployment_mode:type_name -> scenario_to_desktop.v1.DeploymentMode
-	15, // 2: scenario_to_desktop.v1.PipelineConfig.framework:type_name -> scenario_to_desktop.v1.Framework
-	16, // 3: scenario_to_desktop.v1.PipelineConfig.template_type:type_name -> scenario_to_desktop.v1.TemplateType
-	10, // 4: scenario_to_desktop.v1.PipelineConfig.preflight_secrets:type_name -> scenario_to_desktop.v1.PipelineConfig.PreflightSecretsEntry
-	17, // 5: scenario_to_desktop.v1.PipelineConfig.stop_after_stage:type_name -> scenario_to_desktop.v1.StageName
-	17, // 6: scenario_to_desktop.v1.PipelineConfig.resume_from_stage:type_name -> scenario_to_desktop.v1.StageName
-	17, // 7: scenario_to_desktop.v1.StageResult.stage:type_name -> scenario_to_desktop.v1.StageName
-	18, // 8: scenario_to_desktop.v1.StageResult.status:type_name -> scenario_to_desktop.v1.StageStatus
-	19, // 9: scenario_to_desktop.v1.StageResult.started_at:type_name -> google.protobuf.Timestamp
-	19, // 10: scenario_to_desktop.v1.StageResult.completed_at:type_name -> google.protobuf.Timestamp
-	20, // 11: scenario_to_desktop.v1.StageResult.details:type_name -> google.protobuf.Struct
-	18, // 12: scenario_to_desktop.v1.PipelineStatus.status:type_name -> scenario_to_desktop.v1.StageStatus
-	17, // 13: scenario_to_desktop.v1.PipelineStatus.current_stage:type_name -> scenario_to_desktop.v1.StageName
-	11, // 14: scenario_to_desktop.v1.PipelineStatus.stages:type_name -> scenario_to_desktop.v1.PipelineStatus.StagesEntry
-	17, // 15: scenario_to_desktop.v1.PipelineStatus.stage_order:type_name -> scenario_to_desktop.v1.StageName
-	0,  // 16: scenario_to_desktop.v1.PipelineStatus.config:type_name -> scenario_to_desktop.v1.PipelineConfig
-	19, // 17: scenario_to_desktop.v1.PipelineStatus.started_at:type_name -> google.protobuf.Timestamp
-	19, // 18: scenario_to_desktop.v1.PipelineStatus.completed_at:type_name -> google.protobuf.Timestamp
-	12, // 19: scenario_to_desktop.v1.PipelineStatus.final_artifacts:type_name -> scenario_to_desktop.v1.PipelineStatus.FinalArtifactsEntry
-	17, // 20: scenario_to_desktop.v1.PipelineStatus.stopped_after_stage:type_name -> scenario_to_desktop.v1.StageName
-	0,  // 21: scenario_to_desktop.v1.PipelineRunRequest.config:type_name -> scenario_to_desktop.v1.PipelineConfig
-	17, // 22: scenario_to_desktop.v1.PipelineResumeResponse.resume_from_stage:type_name -> scenario_to_desktop.v1.StageName
-	18, // 23: scenario_to_desktop.v1.PipelineListItem.status:type_name -> scenario_to_desktop.v1.StageStatus
-	17, // 24: scenario_to_desktop.v1.PipelineListItem.current_stage:type_name -> scenario_to_desktop.v1.StageName
-	19, // 25: scenario_to_desktop.v1.PipelineListItem.created_at:type_name -> google.protobuf.Timestamp
-	19, // 26: scenario_to_desktop.v1.PipelineListItem.updated_at:type_name -> google.protobuf.Timestamp
-	19, // 27: scenario_to_desktop.v1.PipelineListItem.completed_at:type_name -> google.protobuf.Timestamp
-	7,  // 28: scenario_to_desktop.v1.PipelineListResponse.pipelines:type_name -> scenario_to_desktop.v1.PipelineListItem
-	20, // 29: scenario_to_desktop.v1.GenerateResponse.detected_metadata:type_name -> google.protobuf.Struct
-	1,  // 30: scenario_to_desktop.v1.PipelineStatus.StagesEntry.value:type_name -> scenario_to_desktop.v1.StageResult
-	31, // [31:31] is the sub-list for method output_type
-	31, // [31:31] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	47, // 0: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	48, // 1: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	49, // 2: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
+	50, // 3: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	41, // 4: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.preflight_secrets:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.PreflightSecretsEntry
+	51, // 5: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.stop_after_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	51, // 6: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	51, // 7: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.stages:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	51, // 8: vrooli.scenario_to_desktop.v1.pipeline.StageResult.stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	52, // 9: vrooli.scenario_to_desktop.v1.pipeline.StageResult.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
+	53, // 10: vrooli.scenario_to_desktop.v1.pipeline.StageResult.started_at:type_name -> google.protobuf.Timestamp
+	53, // 11: vrooli.scenario_to_desktop.v1.pipeline.StageResult.completed_at:type_name -> google.protobuf.Timestamp
+	2,  // 12: vrooli.scenario_to_desktop.v1.pipeline.StageResult.details:type_name -> vrooli.scenario_to_desktop.v1.pipeline.StageDetails
+	3,  // 13: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.resolve_deployment:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan
+	12, // 14: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.bundle:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails
+	54, // 15: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.preflight:type_name -> vrooli.scenario_to_desktop.v1.shared.PreflightResponse
+	40, // 16: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.generate:type_name -> vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse
+	55, // 17: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.build:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
+	56, // 18: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.smoke_test:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
+	15, // 19: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.deploy:type_name -> vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetails
+	4,  // 20: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan.resources:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem
+	5,  // 21: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.selected_fallback:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentFallback
+	6,  // 22: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifact
+	7,  // 23: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.service:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService
+	8,  // 24: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.provider_policy:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy
+	42, // 25: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.environment:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.EnvironmentEntry
+	10, // 26: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.ports:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServicePort
+	11, // 27: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.health_checks:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentHealthCheck
+	6,  // 28: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifact
+	9,  // 29: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServiceConfig
+	43, // 30: vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.target_defaults:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntry
+	44, // 31: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.runtime_binaries:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.RuntimeBinariesEntry
+	13, // 32: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.size_warning:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarning
+	14, // 33: vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarning.large_files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleLargeFile
+	16, // 34: vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetails.artifacts:type_name -> vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult
+	47, // 35: vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	52, // 36: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
+	51, // 37: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	45, // 38: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stages:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry
+	51, // 39: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stage_order:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	0,  // 40: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	53, // 41: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.started_at:type_name -> google.protobuf.Timestamp
+	53, // 42: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.completed_at:type_name -> google.protobuf.Timestamp
+	46, // 43: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.final_artifacts:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.FinalArtifactsEntry
+	51, // 44: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stopped_after_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	0,  // 45: vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	0,  // 46: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	51, // 47: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	52, // 48: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
+	51, // 49: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	53, // 50: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.created_at:type_name -> google.protobuf.Timestamp
+	53, // 51: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.updated_at:type_name -> google.protobuf.Timestamp
+	53, // 52: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.completed_at:type_name -> google.protobuf.Timestamp
+	26, // 53: vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse.pipelines:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem
+	17, // 54: vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	0,  // 55: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	17, // 56: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	17, // 57: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse.pipelines:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	0,  // 58: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest.config_overrides:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	17, // 59: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	57, // 60: vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse.detected_metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	1,  // 61: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry.value:type_name -> vrooli.scenario_to_desktop.v1.pipeline.StageResult
+	18, // 62: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Run:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest
+	20, // 63: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
+	20, // 64: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
+	21, // 65: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest
+	22, // 66: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest
+	23, // 67: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListRequest
+	29, // 68: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.GetActivePipelineRequest
+	31, // 69: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest
+	28, // 70: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.ScenarioPipelineRequest
+	34, // 71: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryRequest
+	36, // 72: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest
+	38, // 73: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:input_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanRequest
+	19, // 74: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Run:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineRunResponse
+	17, // 75: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	17, // 76: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	25, // 77: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse
+	24, // 78: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse
+	27, // 79: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse
+	30, // 80: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse
+	32, // 81: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse
+	33, // 82: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ResetPipelineResponse
+	35, // 83: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse
+	37, // 84: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse
+	39, // 85: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:output_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanResponse
+	74, // [74:86] is the sub-list for method output_type
+	62, // [62:74] is the sub-list for method input_type
+	62, // [62:62] is the sub-list for extension type_name
+	62, // [62:62] is the sub-list for extension extendee
+	0,  // [0:62] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_pipeline_types_proto_init() }
@@ -1399,22 +3660,45 @@ func file_scenario_to_desktop_v1_pipeline_types_proto_init() {
 	}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[1].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[2].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[2].OneofWrappers = []any{
+		(*StageDetails_ResolveDeployment)(nil),
+		(*StageDetails_Bundle)(nil),
+		(*StageDetails_Preflight)(nil),
+		(*StageDetails_Generate)(nil),
+		(*StageDetails_Build)(nil),
+		(*StageDetails_SmokeTest)(nil),
+		(*StageDetails_Deploy)(nil),
+	}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[4].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[5].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[6].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[7].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[8].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[9].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[12].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[15].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[17].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[19].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[23].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[24].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[25].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[26].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[27].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[30].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[31].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[32].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[33].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[34].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[36].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[37].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[38].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[39].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[40].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc), len(file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   47,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_scenario_to_desktop_v1_pipeline_types_proto_goTypes,
 		DependencyIndexes: file_scenario_to_desktop_v1_pipeline_types_proto_depIdxs,

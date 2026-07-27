@@ -25,8 +25,6 @@ const (
 
 // ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
 // Contains all timeline entries from a completed or in-progress execution.
-//
-// @usage GET /api/v1/executions/{id}/timeline response body
 type ExecutionTimeline struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique identifier for this execution.

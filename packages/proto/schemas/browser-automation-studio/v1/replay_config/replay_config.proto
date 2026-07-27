@@ -10,9 +10,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // REPLAY CONFIG DOMAIN — persisted replay/export style preferences.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain replay_config
-// @stability stable
+// @stability beta
 //
 // ReplayConfigService owns the single persisted "replay configuration" blob
 // that drives BAS's export/replay style (chrome theme, cursor, background,

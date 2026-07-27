@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package vrooli.git_control_tower.v1.baselines;
 
-import "test-genie/v1/runs/runs.proto";
 import "common/v1/operations.proto";
+import "test-genie/v1/runs/runs.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines;baselines_v1";
 

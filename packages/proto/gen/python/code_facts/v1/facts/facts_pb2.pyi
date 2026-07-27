@@ -50,6 +50,7 @@ class SurfaceKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SURFACE_KIND_SIDECAR: _ClassVar[SurfaceKind]
     SURFACE_KIND_WORKER: _ClassVar[SurfaceKind]
     SURFACE_KIND_JOB: _ClassVar[SurfaceKind]
+    SURFACE_KIND_RUNTIME: _ClassVar[SurfaceKind]
 
 class SurfaceStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -91,6 +92,7 @@ SURFACE_KIND_UI: SurfaceKind
 SURFACE_KIND_SIDECAR: SurfaceKind
 SURFACE_KIND_WORKER: SurfaceKind
 SURFACE_KIND_JOB: SurfaceKind
+SURFACE_KIND_RUNTIME: SurfaceKind
 SURFACE_STATUS_UNSPECIFIED: SurfaceStatus
 SURFACE_STATUS_KNOWN: SurfaceStatus
 SURFACE_STATUS_MISSING: SurfaceStatus

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// FeedbackCreateRequest is the JSON contract for the public feedback form and
+// its legacy embedded-client alias. The handler owns validation and assigns a
+// pending status; clients cannot set lifecycle fields.
+message FeedbackCreateRequest {
+  string type = 1;
+  string email = 2;
+  string subject = 3;
+  string message = 4;
+  optional string order_id = 5;
+}
+
+// FeedbackCreateResponse acknowledges durable creation of a feedback request.
+message FeedbackCreateResponse {
+  bool success = 1;
+  int64 id = 2;
+}
+
+// FeedbackError is the stable JSON error envelope for the feedback form.
+message FeedbackError {
+  string error = 1;
+  string type = 2;
+}

@@ -175,3 +175,89 @@ message ScenarioReviewQueueResponse {
   // Number of scenarios excluded due to pending QA fix items.
   int32 excluded_count = 3;
 }
+
+// ScenarioRemediationTarget names one stable provider-owned phase/capability
+// target. It intentionally cannot carry raw findings or locally computed
+// scores, which prevents Swarm from becoming a competing evidence authority.
+message ScenarioRemediationTarget {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string provider_phase = 2 [(buf.validate.field).string.min_len = 1];
+  string capability_id = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// ScenarioRemediationProposal is the source-neutral vocabulary for preview and
+// later apply flows. The same fingerprint must be emitted for equivalent
+// manual and automated inputs.
+message ScenarioRemediationProposal {
+  ScenarioRemediationTarget target = 1 [(buf.validate.field).required = true];
+  string fingerprint = 2 [(buf.validate.field).string.min_len = 1];
+  string provenance = 3 [(buf.validate.field).string.min_len = 1];
+  string title = 4 [(buf.validate.field).string.min_len = 1];
+  string description = 5 [(buf.validate.field).string.min_len = 1];
+  repeated string acceptance_criteria = 6;
+  repeated string acceptance_allow = 7;
+  repeated string recommended_workflows = 8;
+}
+
+message PreviewScenarioRemediationRequest {
+  ScenarioRemediationTarget target = 1 [(buf.validate.field).required = true];
+}
+
+message PreviewScenarioRemediationResponse {
+  ScenarioRemediationProposal proposal = 1 [(buf.validate.field).required = true];
+  // Existing reconciliation state is returned rather than silently creating
+  // a duplicate proposal or work item.
+  optional domain.ScenarioRemediationSummary existing = 2;
+}
+
+message ApplyScenarioRemediationRequest {
+  ScenarioRemediationTarget target = 1 [(buf.validate.field).required = true];
+  string fingerprint = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message ApplyScenarioRemediationResponse {
+  ScenarioRemediationProposal proposal = 1 [(buf.validate.field).required = true];
+  string work_ref = 2 [(buf.validate.field).string.min_len = 1];
+  bool created = 3;
+}
+
+// ScenarioMaturityCampaignTarget is an operator-selected broad outcome. It is
+// intentionally separate from a provider phase/capability remediation target.
+message ScenarioMaturityCampaignTarget {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string maturity_target = 2 [(buf.validate.field).string.min_len = 1];
+  repeated string provider_phases = 3;
+}
+
+message ScenarioMaturityCampaignProposal {
+  ScenarioMaturityCampaignTarget target = 1 [(buf.validate.field).required = true];
+  string fingerprint = 2 [(buf.validate.field).string.min_len = 1];
+  string title = 3 [(buf.validate.field).string.min_len = 1];
+  string description = 4 [(buf.validate.field).string.min_len = 1];
+  repeated string acceptance_criteria = 5;
+  string declared_workflow = 6 [(buf.validate.field).string.min_len = 1];
+  string tracker_availability = 7 [(buf.validate.field).string.min_len = 1];
+  optional string tracker_ref = 8;
+}
+
+message PreviewScenarioMaturityCampaignRequest {
+  ScenarioMaturityCampaignTarget target = 1 [(buf.validate.field).required = true];
+}
+
+message PreviewScenarioMaturityCampaignResponse {
+  ScenarioMaturityCampaignProposal proposal = 1 [(buf.validate.field).required = true];
+  optional string existing_goal_ref = 2;
+}
+
+message ApplyScenarioMaturityCampaignRequest {
+  ScenarioMaturityCampaignTarget target = 1 [(buf.validate.field).required = true];
+  string fingerprint = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message ApplyScenarioMaturityCampaignResponse {
+  ScenarioMaturityCampaignProposal proposal = 1 [(buf.validate.field).required = true];
+  string goal_ref = 2 [(buf.validate.field).string.min_len = 1];
+  bool created = 3;
+  string tracker_availability = 4 [(buf.validate.field).string.min_len = 1];
+  optional string tracker_ref = 5;
+}

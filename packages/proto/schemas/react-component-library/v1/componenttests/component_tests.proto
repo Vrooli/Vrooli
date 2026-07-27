@@ -49,10 +49,25 @@ message ComponentTestReport {
   repeated ComponentTestArtifact artifacts = 8;
 }
 
-message RunComponentTestResponse { ComponentTestReport report = 1; }
-message RerunComponentTestRequest { string report_id = 1; }
-message RerunComponentTestResponse { ComponentTestReport report = 1; }
-message GetComponentTestReportRequest { string id = 1; }
-message GetComponentTestReportResponse { ComponentTestReport report = 1; }
-message ListComponentTestReportsRequest { string component_id = 1; int32 limit = 2; }
-message ListComponentTestReportsResponse { repeated ComponentTestReport reports = 1; }
+message RunComponentTestResponse {
+  ComponentTestReport report = 1;
+}
+message RerunComponentTestRequest {
+  string report_id = 1;
+}
+message RerunComponentTestResponse {
+  ComponentTestReport report = 1;
+}
+message GetComponentTestReportRequest {
+  string id = 1;
+}
+message GetComponentTestReportResponse {
+  ComponentTestReport report = 1;
+}
+message ListComponentTestReportsRequest {
+  string component_id = 1;
+  int32 limit = 2;
+}
+message ListComponentTestReportsResponse {
+  repeated ComponentTestReport reports = 1;
+}

@@ -23,7 +23,6 @@ export const file_browser_automation_studio_v1_domain_telemetry: GenFile = /*@__
 /**
  * ConsoleLogEntry captures browser console output for telemetry.
  *
- * @usage ActionTelemetry.console_logs
  *
  * @generated from message browser_automation_studio.v1.ConsoleLogEntry
  */
@@ -74,7 +73,6 @@ export const ConsoleLogEntrySchema: GenMessage<ConsoleLogEntry> = /*@__PURE__*/
 /**
  * NetworkEvent captures network activity for telemetry.
  *
- * @usage ActionTelemetry.network_events
  *
  * @generated from message browser_automation_studio.v1.NetworkEvent
  */
@@ -146,7 +144,6 @@ export const NetworkEventSchema: GenMessage<NetworkEvent> = /*@__PURE__*/
 /**
  * ActionTelemetry captures observable data during action recording or execution.
  *
- * @usage TimelineEntry.telemetry
  *
  * @generated from message browser_automation_studio.v1.ActionTelemetry
  */
@@ -241,7 +238,6 @@ export const ActionTelemetrySchema: GenMessage<ActionTelemetry> = /*@__PURE__*/
 /**
  * TimelineScreenshot describes screenshot metadata.
  *
- * @usage ActionTelemetry.screenshot, ExecutionScreenshot.screenshot
  *
  * @generated from message browser_automation_studio.v1.TimelineScreenshot
  */
@@ -314,7 +310,6 @@ export const TimelineScreenshotSchema: GenMessage<TimelineScreenshot> = /*@__PUR
 /**
  * TelemetryArtifact references a file-backed artifact captured during execution.
  *
- * @usage ActionTelemetry.dom_snapshot, ActionTelemetry.console_log_artifact, ActionTelemetry.network_event_artifact
  *
  * @generated from message browser_automation_studio.v1.TelemetryArtifact
  */

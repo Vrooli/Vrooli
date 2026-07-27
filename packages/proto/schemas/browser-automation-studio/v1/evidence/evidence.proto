@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.evidence;
+
+import "buf/validate/validate.proto";
+import "browser-automation-studio/v1/timeline/entry.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence;evidence";
+
+// Evidence is the storage-independent contract for browser-captured material.
+// It intentionally contains no storage paths: consumers receive manifest IDs,
+// integrity metadata, and policy decisions, while BAS resolves protected bytes.
+//
+// @stability stable
+
+enum ArtifactKind {
+  ARTIFACT_KIND_UNSPECIFIED = 0;
+  ARTIFACT_KIND_SCREENSHOT = 1;
+  ARTIFACT_KIND_VIDEO = 2;
+  ARTIFACT_KIND_TRACE = 3;
+  ARTIFACT_KIND_HAR = 4;
+  ARTIFACT_KIND_DOM = 5;
+  ARTIFACT_KIND_CONSOLE = 6;
+  ARTIFACT_KIND_NETWORK = 7;
+  ARTIFACT_KIND_ACCESSIBILITY = 8;
+  ARTIFACT_KIND_PERFORMANCE = 9;
+}
+
+enum ContentClassification {
+  CONTENT_CLASSIFICATION_UNSPECIFIED = 0;
+  CONTENT_CLASSIFICATION_PUBLIC = 1;
+  CONTENT_CLASSIFICATION_INTERNAL = 2;
+  CONTENT_CLASSIFICATION_SENSITIVE = 3;
+  CONTENT_CLASSIFICATION_RESTRICTED = 4;
+}
+
+enum RetentionClass {
+  RETENTION_CLASS_UNSPECIFIED = 0;
+  RETENTION_CLASS_EPHEMERAL = 1;
+  RETENTION_CLASS_STANDARD = 2;
+  RETENTION_CLASS_AUDIT = 3;
+  RETENTION_CLASS_PROTECTED = 4;
+}
+
+enum AccessPolicy {
+  ACCESS_POLICY_UNSPECIFIED = 0;
+  ACCESS_POLICY_EXECUTION_OWNER = 1;
+  ACCESS_POLICY_PROJECT_MEMBERS = 2;
+  ACCESS_POLICY_EXPLICIT_GRANT = 3;
+  ACCESS_POLICY_PROTECTED_STORAGE_ONLY = 4;
+}
+
+// ArtifactManifest describes exactly one captured artifact without exposing a
+// storage implementation detail. SHA-256 is required for every published item.
+message ArtifactManifest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  ArtifactKind kind = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  string media_type = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  int64 size_bytes = 4 [(buf.validate.field).int64.gte = 0];
+  string sha256 = 5 [(buf.validate.field).string.pattern = "^[A-Fa-f0-9]{64}$"];
+  ContentClassification classification = 6 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  RetentionClass retention_class = 7 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  AccessPolicy access_policy = 8 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  bool redacted = 9;
+  optional string sanitized_derivative_id = 10 [(buf.validate.field).string.uuid = true];
+  google.protobuf.Timestamp captured_at = 11;
+  string execution_id = 12 [(buf.validate.field).string.uuid = true];
+  optional string timeline_entry_id = 13 [(buf.validate.field).string.uuid = true];
+  string producer = 14 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Struct provenance = 15;
+}
+
+// EvidencePolicy is evaluated before an artifact is exposed beyond protected
+// BAS storage. HARs must be protected and redacted by policy before export.
+message EvidencePolicy {
+  int64 max_artifact_size_bytes = 1 [(buf.validate.field).int64.gt = 0];
+  RetentionClass default_retention_class = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  AccessPolicy default_access_policy = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  bool redact_har = 4;
+  bool redact_network = 5;
+  repeated string redacted_header_names = 6;
+  repeated string redacted_query_parameter_names = 7;
+}
+
+// EvidenceManifest is the immutable execution-level inventory of evidence.
+message EvidenceManifest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  string execution_id = 2 [(buf.validate.field).string.uuid = true];
+  string schema_version = 3 [(buf.validate.field).string.min_len = 1];
+  EvidencePolicy policy = 4;
+  repeated ArtifactManifest artifacts = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// ReplayPackage is a versioned, renderer-neutral handoff. Consumers render
+// from timeline + manifest metadata and request artifacts by ID; they never
+// infer BAS filesystem or object-store paths.
+message ReplayPackage {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  string schema_version = 2 [(buf.validate.field).string.min_len = 1];
+  string execution_id = 3 [(buf.validate.field).string.uuid = true];
+  optional string workflow_id = 4 [(buf.validate.field).string.uuid = true];
+  EvidenceManifest evidence = 5;
+  // Timeline entries use BAS's canonical typed timeline contract. This keeps
+  // replay consumers schema-safe and removes dynamic Struct conversion at the
+  // evidence boundary.
+  repeated browser_automation_studio.v1.TimelineEntry timeline = 6;
+  google.protobuf.Struct presentation = 7;
+  google.protobuf.Timestamp created_at = 8;
+}

@@ -12,9 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // SESSION PROFILES DOMAIN — recording session profile CRUD.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain session_profiles
-// @stability stable
+// @stability beta
 //
 // SessionProfilesService owns CRUD on persisted browser session profiles
 // surfaced under Settings → Recording Sessions and the Profile Picker in the

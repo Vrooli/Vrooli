@@ -1,0 +1,175 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.domain;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "scenario-to-desktop/v1/shared/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
+
+// EvidenceTarget identifies where a native desktop validation session runs.
+// LOCAL runs on the scenario-to-desktop host. BRIDGE_NODE delegates native work
+// through a paired Vrooli Bridge node; Bridge supplies reach and job dispatch,
+// while this service owns the desktop and evidence semantics.
+message EvidenceTarget {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_LOCAL = 1;
+    KIND_BRIDGE_NODE = 2;
+  }
+
+  Kind kind = 1;
+  optional string bridge_node_id = 2;
+  optional string bridge_job_id = 3;
+}
+
+message DesktopSessionRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  optional string artifact_path = 2;
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 3;
+  optional int32 width = 4;
+  optional int32 height = 5;
+  optional EvidenceTarget target = 6;
+}
+
+message DesktopSessionRef {
+  string session_id = 1;
+}
+
+enum DesktopSessionState {
+  DESKTOP_SESSION_STATE_UNSPECIFIED = 0;
+  DESKTOP_SESSION_STATE_CREATING = 1;
+  DESKTOP_SESSION_STATE_RUNNING = 2;
+  DESKTOP_SESSION_STATE_STOPPING = 3;
+  DESKTOP_SESSION_STATE_STOPPED = 4;
+  DESKTOP_SESSION_STATE_ERROR = 5;
+}
+
+enum DesktopNetworkMode {
+  DESKTOP_NETWORK_MODE_UNSPECIFIED = 0;
+  DESKTOP_NETWORK_MODE_NORMAL = 1;
+  DESKTOP_NETWORK_MODE_OFFLINE = 2;
+  DESKTOP_NETWORK_MODE_SLOW = 3;
+}
+
+message DesktopSessionMetrics {
+  optional int64 splash_duration_ms = 1;
+  bool splash_detected = 2;
+  optional int64 ready_duration_ms = 3;
+  bool ready_detected = 4;
+  optional double current_cpu_percent = 5;
+  optional double current_rss_mb = 6;
+  optional double peak_rss_mb = 7;
+  int32 sample_count = 8;
+}
+
+message DesktopSession {
+  string session_id = 1;
+  string scenario_name = 2;
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 3;
+  DesktopSessionState state = 4;
+  int32 width = 5;
+  int32 height = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp last_heartbeat_at = 8;
+  optional string error = 9;
+  bool app_running = 10;
+  optional EvidenceTarget target = 11;
+  int32 vnc_port = 12;
+  int32 websocket_port = 13;
+  bool recording = 14;
+  DesktopNetworkMode network_mode = 15;
+  optional int32 bandwidth_kbps = 16;
+  bool dark_mode = 17;
+  optional string locale = 18;
+  optional DesktopSessionMetrics metrics = 19;
+}
+
+message ListDesktopSessionsRequest {
+  optional string scenario_name = 1;
+}
+
+message ListDesktopSessionsResponse {
+  repeated DesktopSession sessions = 1;
+}
+
+message LaunchDesktopArtifactRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional string artifact_path = 2;
+}
+
+message FindDesktopArtifactRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message FindDesktopArtifactResponse {
+  string artifact_path = 1;
+}
+
+message CaptureScreenshotRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message EvidenceCapture {
+  string capture_id = 1;
+  string scenario_name = 2;
+  string kind = 3;
+  string source_session_id = 4;
+  string filename = 5;
+  int64 file_size_bytes = 6;
+  optional int32 width = 7;
+  optional int32 height = 8;
+  optional int64 duration_ms = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message CaptureScreenshotResponse {
+  EvidenceCapture capture = 1;
+}
+
+message ListEvidenceCapturesRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ListEvidenceCapturesResponse {
+  repeated EvidenceCapture captures = 1;
+}
+
+message EvidenceCapturesSummary {
+  int32 count = 1;
+  int64 total_bytes = 2;
+}
+
+message EvidenceCaptureRef {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string capture_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message DesktopControlRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+  string action = 2 [(buf.validate.field).string.min_len = 1];
+  optional google.protobuf.Struct params = 3;
+}
+
+message DesktopControlResponse {
+  google.protobuf.Struct result = 1;
+}
+
+service EvidenceService {
+  rpc StartDesktopSession(DesktopSessionRequest) returns (DesktopSession);
+  rpc GetDesktopSession(DesktopSessionRef) returns (DesktopSession);
+  rpc ListDesktopSessions(ListDesktopSessionsRequest) returns (ListDesktopSessionsResponse);
+  rpc LaunchDesktopArtifact(LaunchDesktopArtifactRequest) returns (DesktopSession);
+  rpc HeartbeatDesktopSession(DesktopSessionRef) returns (DesktopSession);
+  rpc FindDesktopArtifact(FindDesktopArtifactRequest) returns (FindDesktopArtifactResponse);
+  rpc CaptureScreenshot(CaptureScreenshotRequest) returns (CaptureScreenshotResponse);
+  rpc ControlDesktop(DesktopControlRequest) returns (DesktopControlResponse);
+  rpc StopDesktopSession(DesktopSessionRef) returns (DesktopSession);
+  rpc ListEvidenceCaptures(ListEvidenceCapturesRequest) returns (ListEvidenceCapturesResponse);
+  rpc GetEvidenceCapturesSummary(ListEvidenceCapturesRequest) returns (EvidenceCapturesSummary);
+  rpc DeleteEvidenceCapture(EvidenceCaptureRef) returns (google.protobuf.Empty);
+  rpc DeleteAllEvidenceCaptures(ListEvidenceCapturesRequest) returns (google.protobuf.Empty);
+}

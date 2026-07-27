@@ -67,6 +67,73 @@ message Scenario {
 
   // RFC3339 timestamp of the most recent GCT review.
   optional string last_review_at = 10;
+
+  // Read-only projection of provider-owned Test Genie health evidence. Swarm
+  // never derives a verdict, phase order, or maturity standing from this data.
+  optional ScenarioHealthSnapshot health = 11;
+}
+
+// ScenarioHealthSnapshot is Swarm's bounded projection of one canonical Test
+// Genie evidence source. It is deliberately evidence-shaped rather than a
+// second findings store.
+message ScenarioHealthSnapshot {
+  // fresh, stale, degraded, unavailable, or no_evidence.
+  string evidence_state = 1 [(buf.validate.field).string = {
+    in: [
+      "fresh",
+      "stale",
+      "degraded",
+      "unavailable",
+      "no_evidence"
+    ]
+  }];
+  // A user-safe explanation for missing, stale, or degraded evidence.
+  optional string reason = 2;
+  // Provider run identity; omitted when no canonical run exists.
+  optional string source_run_id = 3;
+  // RFC3339 timestamp at which the provider observed the evidence.
+  optional string observed_at = 4;
+  // Provider-provided freshness presentation (for example, "fresh").
+  optional string freshness = 5;
+  // Provider verdict, preserved without interpretation.
+  optional string verdict = 6;
+  // Provider-presented phases in provider order.
+  repeated ScenarioHealthPhase phases = 7;
+  // Swarm-owned reconciliation summary for previously proposed work.
+  repeated ScenarioRemediationSummary remediation = 8;
+}
+
+// ScenarioHealthPhase carries only the provider's presentation and stable
+// routing fields. Labels, rungs, ordering, blockers, and priority are opaque
+// to Swarm and must not be recomputed by a consumer.
+message ScenarioHealthPhase {
+  string phase = 1 [(buf.validate.field).string.min_len = 1];
+  optional string label = 2;
+  optional string verdict = 3;
+  optional string current_rung = 4;
+  optional string next_rung = 5;
+  optional string priority_capability_id = 6;
+  optional string priority_capability_label = 7;
+  repeated string blocking_codes = 8;
+  repeated string remediation_topics = 9;
+}
+
+// ScenarioRemediationSummary is Swarm-owned reconciliation state keyed by a
+// canonical remediation fingerprint. It links governed work without copying
+// provider findings into local storage.
+message ScenarioRemediationSummary {
+  string fingerprint = 1 [(buf.validate.field).string.min_len = 1];
+  // suggested, accepted, dismissed, or none.
+  string state = 2 [(buf.validate.field).string = {
+    in: [
+      "suggested",
+      "accepted",
+      "dismissed",
+      "none"
+    ]
+  }];
+  optional string work_ref = 3;
+  optional string updated_at = 4;
 }
 
 // ScenarioMetadata stores editable metadata for a scenario.

@@ -1,9 +1,11 @@
 syntax = "proto3";
 
-package scenario_to_desktop.v1;
+package vrooli.scenario_to_desktop.v1.domain;
 
+import "buf/validate/validate.proto";
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
-import "scenario-to-desktop/v1/base/shared.proto";
+import "scenario-to-desktop/v1/shared/common.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
 
@@ -11,9 +13,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-
 // CODE SIGNING CONFIGURATION
 // =============================================================================
 //
-// @layer 1
-// @domain signing
-// @imports base
 // @stability beta
 //
 // Configuration types for code signing across Windows, macOS, and Linux.
@@ -32,7 +31,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-
 
 // CertificateSource enumerates where signing certificates are stored.
 //
-// @usage WindowsSigningConfig.certificate_source
 enum CertificateSource {
   // Default/unknown source. Should not be used.
   CERTIFICATE_SOURCE_UNSPECIFIED = 0;
@@ -52,7 +50,6 @@ enum CertificateSource {
 
 // SignAlgorithm enumerates supported signing hash algorithms.
 //
-// @usage WindowsSigningConfig.sign_algorithm
 enum SignAlgorithm {
   // Default/unknown algorithm. Treat as SHA256.
   SIGN_ALGORITHM_UNSPECIFIED = 0;
@@ -76,7 +73,6 @@ enum SignAlgorithm {
 // Supports multiple certificate sources and timestamp servers for
 // long-term validity.
 //
-// @usage SigningConfig.windows
 message WindowsSigningConfig {
   // Whether Windows signing is enabled.
   bool enabled = 1;
@@ -140,7 +136,6 @@ message WindowsSigningConfig {
 // Requires an Apple Developer account and certificates installed in the
 // system keychain.
 //
-// @usage SigningConfig.macos
 message MacOSSigningConfig {
   // Whether macOS signing is enabled.
   bool enabled = 1;
@@ -187,7 +182,6 @@ message MacOSSigningConfig {
 
 // LinuxSigningConfig configures GPG signing for Linux packages.
 //
-// @usage SigningConfig.linux
 message LinuxSigningConfig {
   // Whether Linux signing is enabled.
   bool enabled = 1;
@@ -212,7 +206,6 @@ message LinuxSigningConfig {
 // Contains per-platform signing settings. Only platforms that need
 // signing should have their configuration populated.
 //
-// @usage DesktopConfig.signing, BuildRequest.signing
 message SigningConfig {
   // Whether any code signing is enabled.
   bool enabled = 1;
@@ -236,7 +229,6 @@ message SigningConfig {
 
 // CertificateInfo contains details about a discovered certificate.
 //
-// @usage PlatformValidation.certificate
 message CertificateInfo {
   // Certificate subject name.
   string subject = 1;
@@ -262,10 +254,9 @@ message CertificateInfo {
 
 // PlatformValidation contains validation results for a single platform.
 //
-// @usage SigningValidationResult.platforms
 message PlatformValidation {
   // Target platform.
-  Platform platform = 1;
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 1;
 
   // Whether signing is properly configured for this platform.
   bool valid = 2;
@@ -277,10 +268,10 @@ message PlatformValidation {
   optional CertificateInfo certificate = 4;
 
   // Validation errors that block signing.
-  repeated ValidationError errors = 5;
+  repeated vrooli.scenario_to_desktop.v1.shared.ValidationError errors = 5;
 
   // Validation warnings that don't block signing.
-  repeated ValidationWarning warnings = 6;
+  repeated vrooli.scenario_to_desktop.v1.shared.ValidationWarning warnings = 6;
 
   // Whether required tools are installed.
   bool tools_available = 7;
@@ -293,7 +284,6 @@ message PlatformValidation {
 //
 // Returned by validation endpoints to indicate signing readiness.
 //
-// @usage GET /api/signing/validate response
 message SigningValidationResult {
   // Whether all enabled platforms are ready for signing.
   bool valid = 1;
@@ -302,14 +292,14 @@ message SigningValidationResult {
   bool signing_enabled = 2;
 
   // Per-platform validation results.
-  // Key: Platform name (win, mac, linux)
+  // Key: vrooli.scenario_to_desktop.v1.shared.Platform name (win, mac, linux)
   map<string, PlatformValidation> platforms = 3;
 
   // Global validation errors.
-  repeated ValidationError errors = 4;
+  repeated vrooli.scenario_to_desktop.v1.shared.ValidationError errors = 4;
 
   // Global validation warnings.
-  repeated ValidationWarning warnings = 5;
+  repeated vrooli.scenario_to_desktop.v1.shared.ValidationWarning warnings = 5;
 
   // Timestamp of validation.
   google.protobuf.Timestamp validated_at = 6;
@@ -321,10 +311,9 @@ message SigningValidationResult {
 
 // PlatformStatus indicates signing readiness for a single platform.
 //
-// @usage ReadinessResponse.platforms
 message PlatformStatus {
   // Target platform.
-  Platform platform = 1;
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 1;
 
   // Whether signing is ready.
   bool ready = 2;
@@ -338,7 +327,6 @@ message PlatformStatus {
 
 // ReadinessResponse indicates overall signing readiness.
 //
-// @usage GET /api/signing/ready response
 message ReadinessResponse {
   // Whether signing is ready for all enabled platforms.
   bool ready = 1;
@@ -354,11 +342,121 @@ message ReadinessResponse {
 //
 // Sensitive values (passwords, secrets) are redacted.
 //
-// @usage GET /api/signing/config response
 message SigningConfigResponse {
   // Current signing configuration (with secrets redacted).
   SigningConfig config = 1;
 
   // Validation result for the current config.
   SigningValidationResult validation = 2;
+}
+
+message SigningScenarioRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message UpsertSigningConfigRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  SigningConfig config = 2;
+}
+
+message ValidateSigningRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  SigningConfig config = 2;
+}
+
+// PatchSigningPlatformRequest replaces one platform configuration while
+// preserving the other platforms in the scenario signing configuration.
+message PatchSigningPlatformRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 2;
+  oneof config {
+    WindowsSigningConfig windows = 3;
+    MacOSSigningConfig macos = 4;
+    LinuxSigningConfig linux = 5;
+  }
+}
+
+message DeleteSigningConfigRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteSigningPlatformRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 2;
+}
+
+message DeleteSigningResponse {
+  string scenario_name = 1;
+  optional vrooli.scenario_to_desktop.v1.shared.Platform platform = 2;
+}
+
+// GenerateLinuxSigningKeyRequest creates a signing key and persists only its
+// public identifier plus environment-variable references, never a passphrase.
+message GenerateLinuxSigningKeyRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  string email = 3 [(buf.validate.field).string.email = true];
+  optional string passphrase_env = 4;
+  optional string key_type = 5;
+  optional string expiry = 6;
+  optional string homedir = 7;
+  bool force = 8;
+  bool export_public = 9;
+}
+
+message GenerateLinuxSigningKeyResponse {
+  string key_id = 1;
+  string fingerprint = 2;
+  string homedir = 3;
+  optional string public_key = 4;
+  optional string public_key_path = 5;
+}
+
+message SigningToolStatus {
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 1;
+  string tool = 2;
+  bool installed = 3;
+  optional string path = 4;
+  optional string version = 5;
+  optional string diagnostic = 6;
+  optional string remediation = 7;
+}
+
+message ListSigningPrerequisitesResponse {
+  repeated SigningToolStatus tools = 1;
+}
+
+message DiscoverSigningCertificatesRequest {
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 1;
+}
+
+message DiscoveredSigningCertificate {
+  string id = 1;
+  string name = 2;
+  optional string subject = 3;
+  optional string issuer = 4;
+  optional string expires_at = 5;
+  int32 days_to_expiry = 6;
+  bool expired = 7;
+  bool code_signing = 8;
+  optional string type = 9;
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 10;
+  optional string usage_hint = 11;
+}
+
+message DiscoverSigningCertificatesResponse {
+  repeated DiscoveredSigningCertificate certificates = 1;
+}
+
+service SigningService {
+  rpc GetSigningConfig(SigningScenarioRequest) returns (SigningConfigResponse);
+  rpc PutSigningConfig(UpsertSigningConfigRequest) returns (SigningConfigResponse);
+  rpc ValidateSigningConfig(ValidateSigningRequest) returns (SigningValidationResult);
+  rpc GetSigningReadiness(SigningScenarioRequest) returns (ReadinessResponse);
+  rpc PatchSigningPlatform(PatchSigningPlatformRequest) returns (SigningConfigResponse);
+  rpc DeleteSigningConfig(DeleteSigningConfigRequest) returns (DeleteSigningResponse);
+  rpc DeleteSigningPlatform(DeleteSigningPlatformRequest) returns (DeleteSigningResponse);
+  rpc GenerateLinuxSigningKey(GenerateLinuxSigningKeyRequest) returns (GenerateLinuxSigningKeyResponse);
+  rpc ListSigningPrerequisites(google.protobuf.Empty) returns (ListSigningPrerequisitesResponse);
+  rpc DiscoverSigningCertificates(DiscoverSigningCertificatesRequest) returns (DiscoverSigningCertificatesResponse);
 }

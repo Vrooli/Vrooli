@@ -29,7 +29,6 @@ export const file_browser_automation_studio_v1_timeline_entry: GenFile = /*@__PU
  * TimelineEntry captures a single action in the timeline.
  * This is the unified format for both streaming and batch access.
  *
- * @usage ExecutionTimeline.entries, GetActionsResponse.entries, TimelineStreamMessage.entry
  *
  * @generated from message browser_automation_studio.v1.TimelineEntry
  */
@@ -151,7 +150,6 @@ export const TimelineEntrySchema: GenMessage<TimelineEntry> = /*@__PURE__*/
  * This data is calculated when an execution completes and is NOT populated
  * during real-time streaming.
  *
- * @usage TimelineEntry.aggregates
  *
  * @generated from message browser_automation_studio.v1.TimelineEntryAggregates
  */
@@ -224,7 +222,6 @@ export const TimelineEntryAggregatesSchema: GenMessage<TimelineEntryAggregates> 
  * TimelineArtifact represents a stored artifact from execution.
  * Examples: screenshots, console logs, network traces, DOM snapshots.
  *
- * @usage TimelineEntryAggregates.artifacts, TimelineEntryAggregates.dom_snapshot
  *
  * @generated from message browser_automation_studio.v1.TimelineArtifact
  */
@@ -304,7 +301,6 @@ export const TimelineArtifactSchema: GenMessage<TimelineArtifact> = /*@__PURE__*
 /**
  * ElementFocus captures focus metadata for screenshot framing and highlighting.
  *
- * @usage TimelineEntryAggregates.focused_element
  *
  * @generated from message browser_automation_studio.v1.ElementFocus
  */
@@ -334,7 +330,6 @@ export const ElementFocusSchema: GenMessage<ElementFocus> = /*@__PURE__*/
 /**
  * TimelineLog captures execution log output for the timeline.
  *
- * @usage ExecutionTimeline.logs, TimelineStreamMessage.log
  *
  * @generated from message browser_automation_studio.v1.TimelineLog
  */
@@ -387,7 +382,6 @@ export const TimelineLogSchema: GenMessage<TimelineLog> = /*@__PURE__*/
  * TimelineStreamMessage wraps timeline data for WebSocket transport.
  * This is the envelope format for all streaming timeline messages.
  *
- * @usage WebSocket timeline streaming endpoint
  *
  * @generated from message browser_automation_studio.v1.TimelineStreamMessage
  */
@@ -449,7 +443,6 @@ export const TimelineStreamMessageSchema: GenMessage<TimelineStreamMessage> = /*
 /**
  * TimelineStatusUpdate reports overall session/execution status.
  *
- * @usage TimelineStreamMessage.status
  *
  * @generated from message browser_automation_studio.v1.TimelineStatusUpdate
  */
@@ -501,7 +494,6 @@ export const TimelineStatusUpdateSchema: GenMessage<TimelineStatusUpdate> = /*@_
 /**
  * TimelineHeartbeat keeps WebSocket connection alive.
  *
- * @usage TimelineStreamMessage.heartbeat
  *
  * @generated from message browser_automation_studio.v1.TimelineHeartbeat
  */
@@ -532,7 +524,6 @@ export const TimelineHeartbeatSchema: GenMessage<TimelineHeartbeat> = /*@__PURE_
 /**
  * TimelineMessageType enumerates WebSocket message types for streaming.
  *
- * @usage TimelineStreamMessage.type
  *
  * @generated from enum browser_automation_studio.v1.TimelineMessageType
  */

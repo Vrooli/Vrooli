@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "react-component-library",
-  "input_digest": "sha256:f2403f20ce534cc1c5c49c4590d32c8eba1615ee38bc29cb38d8e5b9ea4aaae4",
+  "input_digest": "sha256:59a2b103715ae15f1cf7c065e1e61d1f1177a1ef0d4d1c3f025e32fa406bfd00",
   "input_files": [
     "schemas/react-component-library/v1/adoptions/adoptions.proto",
     "schemas/react-component-library/v1/components/components.proto",

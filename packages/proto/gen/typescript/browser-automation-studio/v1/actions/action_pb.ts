@@ -1676,7 +1676,6 @@ export const ConditionalParamsSchema: GenMessage<ConditionalParams> = /*@__PURE_
  *
  * See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for the design rationale.
  *
- * @usage ActionDefinition.metadata
  *
  * @generated from message browser_automation_studio.v1.ActionMetadata
  */
@@ -2029,7 +2028,6 @@ export const ActionDefinitionSchema: GenMessage<ActionDefinition> = /*@__PURE__*
  * Each type corresponds to a specific *Params message in ActionDefinition.params.
  * The type field MUST match the populated params oneof case.
  *
- * @usage ActionDefinition.type, workflow editor action palette
  *
  * @generated from enum browser_automation_studio.v1.ActionType
  */
@@ -2301,7 +2299,6 @@ export const ActionTypeSchema: GenEnum<ActionType> = /*@__PURE__*/
 /**
  * MouseButton enumerates supported mouse buttons for click actions.
  *
- * @usage ClickParams.button
  *
  * @generated from enum browser_automation_studio.v1.MouseButton
  */
@@ -2348,7 +2345,6 @@ export const MouseButtonSchema: GenEnum<MouseButton> = /*@__PURE__*/
  * Controls when navigation is considered "complete". Affects reliability
  * vs. speed tradeoff. Maps to Playwright's waitUntil option.
  *
- * @usage NavigateParams.wait_until
  *
  * @generated from enum browser_automation_studio.v1.NavigateWaitEvent
  */
@@ -2397,7 +2393,6 @@ export const NavigateWaitEventSchema: GenEnum<NavigateWaitEvent> = /*@__PURE__*/
  * Allows workflows to navigate to other Vrooli scenarios by name instead
  * of hardcoding URLs, enabling portable workflows across environments.
  *
- * @usage NavigateParams.destination_type
  *
  * @generated from enum browser_automation_studio.v1.NavigateDestinationType
  */
@@ -2439,7 +2434,6 @@ export const NavigateDestinationTypeSchema: GenEnum<NavigateDestinationType> = /
  * Used with WaitParams to wait for specific element lifecycle events.
  * Maps to Playwright's waitForSelector state option.
  *
- * @usage WaitParams.state
  *
  * @generated from enum browser_automation_studio.v1.WaitState
  */
@@ -2496,7 +2490,6 @@ export const WaitStateSchema: GenEnum<WaitState> = /*@__PURE__*/
  * Controls whether scrolling is instant or animated. Smooth scrolling
  * is more realistic but slower.
  *
- * @usage ScrollParams.behavior
  *
  * @generated from enum browser_automation_studio.v1.ScrollBehavior
  */
@@ -2536,7 +2529,6 @@ export const ScrollBehaviorSchema: GenEnum<ScrollBehavior> = /*@__PURE__*/
  * Controls the keyboard event lifecycle. Most actions should use PRESS.
  * DOWN/UP are for advanced scenarios like holding modifier keys.
  *
- * @usage KeyboardParams.action
  *
  * @generated from enum browser_automation_studio.v1.KeyAction
  */
@@ -2585,7 +2577,6 @@ export const KeyActionSchema: GenEnum<KeyAction> = /*@__PURE__*/
  * Modifiers are held during other actions (clicks, key presses).
  * Multiple modifiers can be combined.
  *
- * @usage KeyboardParams.modifiers, ClickParams.modifiers
  *
  * @generated from enum browser_automation_studio.v1.KeyboardModifier
  */
@@ -2639,7 +2630,6 @@ export const KeyboardModifierSchema: GenEnum<KeyboardModifier> = /*@__PURE__*/
 /**
  * ExtractType enumerates what data to extract from an element.
  *
- * @usage ExtractParams.extract_type
  *
  * @generated from enum browser_automation_studio.v1.ExtractType
  */
@@ -2703,7 +2693,6 @@ export const ExtractTypeSchema: GenEnum<ExtractType> = /*@__PURE__*/
 /**
  * FrameSwitchAction enumerates frame navigation actions.
  *
- * @usage FrameSwitchParams.action
  *
  * @generated from enum browser_automation_studio.v1.FrameSwitchAction
  */
@@ -2746,7 +2735,6 @@ export const FrameSwitchActionSchema: GenEnum<FrameSwitchAction> = /*@__PURE__*/
 /**
  * TabSwitchAction enumerates tab/window management actions.
  *
- * @usage TabSwitchParams.action
  *
  * @generated from enum browser_automation_studio.v1.TabSwitchAction
  */
@@ -2796,7 +2784,6 @@ export const TabSwitchActionSchema: GenEnum<TabSwitchAction> = /*@__PURE__*/
 /**
  * CookieOperation enumerates cookie/storage operations.
  *
- * @usage CookieStorageParams.operation
  *
  * @generated from enum browser_automation_studio.v1.CookieOperation
  */
@@ -2846,7 +2833,6 @@ export const CookieOperationSchema: GenEnum<CookieOperation> = /*@__PURE__*/
 /**
  * StorageType enumerates browser storage types.
  *
- * @usage CookieStorageParams.storage_type
  *
  * @generated from enum browser_automation_studio.v1.StorageType
  */
@@ -2889,7 +2875,6 @@ export const StorageTypeSchema: GenEnum<StorageType> = /*@__PURE__*/
 /**
  * GestureType enumerates touch gesture types.
  *
- * @usage GestureParams.gesture_type
  *
  * @generated from enum browser_automation_studio.v1.GestureType
  */
@@ -2946,7 +2931,6 @@ export const GestureTypeSchema: GenEnum<GestureType> = /*@__PURE__*/
 /**
  * SwipeDirection enumerates swipe gesture directions.
  *
- * @usage GestureParams.direction
  *
  * @generated from enum browser_automation_studio.v1.SwipeDirection
  */
@@ -2996,7 +2980,6 @@ export const SwipeDirectionSchema: GenEnum<SwipeDirection> = /*@__PURE__*/
 /**
  * NetworkMockOperation enumerates network interception operations.
  *
- * @usage NetworkMockParams.operation
  *
  * @generated from enum browser_automation_studio.v1.NetworkMockOperation
  */
@@ -3053,7 +3036,6 @@ export const NetworkMockOperationSchema: GenEnum<NetworkMockOperation> = /*@__PU
 /**
  * DeviceOrientation enumerates device orientations.
  *
- * @usage RotateParams.orientation
  *
  * @generated from enum browser_automation_studio.v1.DeviceOrientation
  */
@@ -3089,7 +3071,6 @@ export const DeviceOrientationSchema: GenEnum<DeviceOrientation> = /*@__PURE__*/
 /**
  * CookieSameSite enumerates SameSite cookie attribute values.
  *
- * @usage CookieOptions.same_site
  *
  * @generated from enum browser_automation_studio.v1.CookieSameSite
  */

@@ -13,9 +13,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // WORKFLOW DEFINITION V2
 // =============================================================================
 //
-// @layer 2
-// @domain workflows
-// @imports base, actions
 // @stability stable
 //
 // Defines the canonical workflow storage format (WorkflowDefinitionV2).
@@ -39,7 +36,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 
 // WorkflowDefinitionV2 is the canonical workflow storage format.
 //
-// @usage WorkflowSummary.flow_definition, CreateWorkflowRequest.flow_definition
 message WorkflowDefinitionV2 {
   // Workflow metadata.
   WorkflowMetadataV2 metadata = 1;
@@ -74,7 +70,6 @@ enum ExecutionMode {
 
 // WorkflowMetadataV2 captures workflow-level descriptors.
 //
-// @usage WorkflowDefinitionV2.metadata
 message WorkflowMetadataV2 {
   // Workflow name.
   optional string name = 1;
@@ -94,7 +89,6 @@ message WorkflowMetadataV2 {
 
 // WorkflowSettingsV2 captures browser/execution configuration.
 //
-// @usage WorkflowDefinitionV2.settings
 message WorkflowSettingsV2 {
   // Viewport width in pixels (default: 1280).
   optional int32 viewport_width = 1;
@@ -131,7 +125,6 @@ message WorkflowSettingsV2 {
 // Chromium serves fake capture devices process-wide, so the driver launches
 // (and pools) a dedicated browser instance per distinct configuration.
 //
-// @usage WorkflowSettingsV2.fake_media
 message FakeMediaConfig {
   // WAV file served as the fake microphone capture source.
   // Relative paths are resolved against the execution parameter project_root
@@ -142,7 +135,6 @@ message FakeMediaConfig {
 
 // WorkflowNodeV2 represents a single workflow step.
 //
-// @usage WorkflowDefinitionV2.nodes
 message WorkflowNodeV2 {
   // Unique node identifier.
   // @format uuid
@@ -157,7 +149,6 @@ message WorkflowNodeV2 {
 
 // NodeExecutionSettings captures per-step execution configuration.
 //
-// @usage WorkflowNodeV2.execution_settings
 message NodeExecutionSettings {
   // Maximum time for this step in milliseconds (default: 30000).
   optional int32 timeout_ms = 1;
@@ -171,7 +162,6 @@ message NodeExecutionSettings {
 
 // ResilienceConfig captures retry and precondition settings.
 //
-// @usage NodeExecutionSettings.resilience
 message ResilienceConfig {
   // Maximum retry attempts (default: 1, meaning no retries).
   optional int32 max_attempts = 1;
@@ -195,7 +185,6 @@ message ResilienceConfig {
 
 // WorkflowEdgeV2 connects nodes in the workflow graph.
 //
-// @usage WorkflowDefinitionV2.edges
 message WorkflowEdgeV2 {
   // Unique edge identifier.
   // @format uuid

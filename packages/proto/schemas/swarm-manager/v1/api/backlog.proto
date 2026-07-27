@@ -5,6 +5,9 @@ package vrooli.swarm_manager.v1.api;
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/backlog.proto";
 import "swarm-manager/v1/domain/execution.proto";
+// ImportChange describes a single change from an import operation.
+import "swarm-manager/v1/shared/backlog.proto";
+import "swarm-manager/v1/shared/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
@@ -417,7 +420,10 @@ message QueueBacklogItemRequest {
   // Declared execution strategy. Omitted selects the sole default strategy.
   optional string strategy = 7;
   // Maximum plan slices for this execution, inclusive range 1..6.
-  optional int32 max_slices = 8 [(buf.validate.field).int32 = {gte: 1, lte: 6}];
+  optional int32 max_slices = 8 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 6
+  }];
 }
 
 // QueueBacklogItemResponse returns queue results.
@@ -553,10 +559,6 @@ message ImportBacklogResponse {
   // Human-readable summary of the import.
   string summary = 4;
 }
-
-// ImportChange describes a single change from an import operation.
-import "swarm-manager/v1/shared/backlog.proto";
-import "swarm-manager/v1/shared/plan_ref.proto";
 message ImportChange {
   // Item key (kind/name).
   string item = 1;

@@ -17,9 +17,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // EXECUTION RUNTIME STATE
 // =============================================================================
 //
-// @layer 4
-// @domain execution
-// @imports base, domain (telemetry), workflows
 // @stability stable
 //
 // This file defines the runtime state of workflow executions:

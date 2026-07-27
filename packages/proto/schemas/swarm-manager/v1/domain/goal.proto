@@ -21,7 +21,6 @@ message Goal {
   optional string archived_at = 10;
 }
 
-
 message MilestoneRollup {
   string milestone_name = 1;
   int32 total = 2;

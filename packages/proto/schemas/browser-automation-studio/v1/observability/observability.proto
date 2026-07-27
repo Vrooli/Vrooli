@@ -11,9 +11,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // OBSERVABILITY DOMAIN — health/diagnostics/metrics/config proxy + debug mode.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain observability
-// @stability stable
+// @stability beta
 //
 // ObservabilityService is BAS's facade onto playwright-driver's
 // /observability surface plus the in-process debug-mode toggle. Most of

@@ -10,9 +10,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // SCENARIOS DOMAIN — discovery of sibling scenarios + their HTTP ports.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain scenarios
-// @stability stable
+// @stability beta
 //
 // ScenariosService exposes BAS's runtime view of other Vrooli scenarios on the
 // same host so workflows can resolve cross-scenario URLs without hardcoding

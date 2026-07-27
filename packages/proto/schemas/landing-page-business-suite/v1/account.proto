@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "landing-page-business-suite/v1/shared/commerce.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// ACCOUNT DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Per-user account views: cached subscription status, credit wallet balance,
+// and computed entitlements. Identity is supplied out-of-band via the
+// X-User-Email header (or ?user query) rather than a request body field, so
+// requests carry no identity argument.
+//
+// =============================================================================
+
+// GetMySubscriptionRequest asks for the caller's cached subscription status.
+// Identity is resolved from the request context (header), not the body.
+message GetMySubscriptionRequest {}
+
+// GetMyCreditsRequest asks for the caller's credit wallet balance and the
+// bundle's display labelling. Identity comes from the request context.
+message GetMyCreditsRequest {}
+
+// GetMyCreditsResponse returns the wallet balance plus bundle display hints.
+message GetMyCreditsResponse {
+  // Current wallet balance. Zeroed (not an error) when no wallet exists.
+  vrooli.landing_page_business_suite.v1.shared.CreditsBalance balance = 1;
+  // Human label for credits sourced from the bundle (default "credits").
+  string display_credits_label = 2;
+  // Multiplier applied when rendering credit amounts (default 1.0).
+  double display_credits_multiplier = 3;
+}
+
+// GetEntitlementsRequest asks for the caller's computed entitlements.
+// Identity comes from the request context.
+message GetEntitlementsRequest {}
+
+// GetEntitlementsResponse reports the entitlement bundle derived from the
+// caller's subscription and the plan metadata behind its price.
+message GetEntitlementsResponse {
+  // Subscription lifecycle state as a lower-case string (e.g. "active").
+  string status = 1;
+  // Plan tier key backing the current entitlements (e.g. "studio").
+  string plan_tier = 2;
+  // Stripe price id backing the current subscription, when active.
+  string price_id = 3;
+  // Feature flags/labels pulled from the plan's metadata "features" list.
+  // Populated only when price_id resolves to a known plan.
+  repeated string features = 4;
+  // Current credit balance for the caller.
+  vrooli.landing_page_business_suite.v1.shared.CreditsBalance credits = 5;
+  // Full cached subscription status for richer client rendering.
+  vrooli.landing_page_business_suite.v1.shared.SubscriptionStatus subscription = 6;
+}
+
+// AccountService exposes per-user subscription, credit, and entitlement views.
+service AccountService {
+  // Returns the caller's cached subscription status.
+  rpc GetMySubscription(GetMySubscriptionRequest) returns (vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse);
+  // Returns the caller's credit wallet balance and display labelling.
+  rpc GetMyCredits(GetMyCreditsRequest) returns (GetMyCreditsResponse);
+  // Returns the caller's computed entitlements (status, tier, features, credits).
+  rpc GetEntitlements(GetEntitlementsRequest) returns (GetEntitlementsResponse);
+}

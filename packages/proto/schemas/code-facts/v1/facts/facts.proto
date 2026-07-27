@@ -95,6 +95,9 @@ enum SurfaceKind {
   SURFACE_KIND_SIDECAR = 4;
   SURFACE_KIND_WORKER = 5;
   SURFACE_KIND_JOB = 6;
+  // Runtime modules ship inside generated artifacts and require independent
+  // discovery, test policy, and coverage evidence.
+  SURFACE_KIND_RUNTIME = 7;
 }
 
 enum SurfaceStatus {

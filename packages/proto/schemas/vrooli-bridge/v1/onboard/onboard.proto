@@ -214,7 +214,6 @@ message OnboardingOp {
   // the owner of Machine enrollment history.
   string machine_id = 21;
   string enrollment_attempt_id = 22;
-
 }
 
 // OnboardingStepEvent is one entry in an op's append-only progress history. It

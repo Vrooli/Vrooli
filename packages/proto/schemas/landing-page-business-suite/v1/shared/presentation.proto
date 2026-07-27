@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package vrooli.landing_page_business_suite.v1.shared;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared;shared_v1";
+
+// Presentation objects are authored by variants and consumed by landing-config
+// and SEO. Keeping their nested types together avoids domain-to-domain imports.
+message HeaderBrandingConfig { string mode = 1; string label = 2; string subtitle = 3; string mobile_preference = 4; }
+message HeaderVisibilityConfig { bool desktop = 1; bool mobile = 2; }
+message HeaderNavLink {
+  string id = 1;
+  string type = 2;
+  string label = 3;
+  string section_type = 4;
+  optional int32 section_id = 5;
+  string anchor = 6;
+  string href = 7;
+  HeaderVisibilityConfig visible_on = 8;
+  repeated HeaderNavLink children = 9;
+}
+message HeaderNavConfig { repeated HeaderNavLink links = 1; }
+message HeaderCTAConfig { string mode = 1; string label = 2; string href = 3; string variant = 4; }
+message HeaderCTAGroup { HeaderCTAConfig primary = 1; HeaderCTAConfig secondary = 2; }
+message HeaderBehaviorConfig { bool sticky = 1; bool hide_on_scroll = 2; }
+message LandingHeaderConfig {
+  HeaderBrandingConfig branding = 1;
+  HeaderNavConfig nav = 2;
+  HeaderCTAGroup ctas = 3;
+  HeaderBehaviorConfig behavior = 4;
+}
+message VariantSEOConfig {
+  string title = 1;
+  string description = 2;
+  string og_title = 3;
+  string og_description = 4;
+  string og_image_url = 5;
+  string twitter_card = 6;
+  string canonical_path = 7;
+  bool noindex = 8;
+  google.protobuf.Struct structured_data = 9;
+}

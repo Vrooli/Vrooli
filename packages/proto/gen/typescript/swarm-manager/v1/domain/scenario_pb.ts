@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/scenario.proto.
  */
 export const file_swarm_manager_v1_domain_scenario: GenFile = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zY2VuYXJpby5wcm90bxIednJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluIpUDCghTY2VuYXJpbxIVCgRuYW1lGAEgASgJQge6SARyAhABEh0KDGRpc3BsYXlfbmFtZRgCIAEoCUIHukgEcgIQARITCgtkZXNjcmlwdGlvbhgDIAEoCRI3CgZzdGF0dXMYBCABKAlCJ7pIJHIiUgdydW5uaW5nUgdzdG9wcGVkUgVlcnJvclIHdW5rbm93bhIbCghwcmlvcml0eRgFIAEoBUIJukgGGgQYCigBEioKEmNvbXBsZXRlbmVzc19zY29yZRgGIAEoBUIJukgGGgQYZCgASACIAQESFQoNaXNfZ3JlZW5maWVsZBgHIAEoCBIWCgR0YWdzGAggAygJQgi6SAWSAQIYARInChpsYXN0X3Jldmlld19jbGFzc2lmaWNhdGlvbhgJIAEoCUgBiAEBEhsKDmxhc3RfcmV2aWV3X2F0GAogASgJSAKIAQFCFQoTX2NvbXBsZXRlbmVzc19zY29yZUIdChtfbGFzdF9yZXZpZXdfY2xhc3NpZmljYXRpb25CEQoPX2xhc3RfcmV2aWV3X2F0IikKEFNjZW5hcmlvTWV0YWRhdGESFQoNaXNfZ3JlZW5maWVsZBgBIAEoCEJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zY2VuYXJpby5wcm90bxIednJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluIu0DCghTY2VuYXJpbxIVCgRuYW1lGAEgASgJQge6SARyAhABEh0KDGRpc3BsYXlfbmFtZRgCIAEoCUIHukgEcgIQARITCgtkZXNjcmlwdGlvbhgDIAEoCRI3CgZzdGF0dXMYBCABKAlCJ7pIJHIiUgdydW5uaW5nUgdzdG9wcGVkUgVlcnJvclIHdW5rbm93bhIbCghwcmlvcml0eRgFIAEoBUIJukgGGgQYCigBEioKEmNvbXBsZXRlbmVzc19zY29yZRgGIAEoBUIJukgGGgQYZCgASACIAQESFQoNaXNfZ3JlZW5maWVsZBgHIAEoCBIWCgR0YWdzGAggAygJQgi6SAWSAQIYARInChpsYXN0X3Jldmlld19jbGFzc2lmaWNhdGlvbhgJIAEoCUgBiAEBEhsKDmxhc3RfcmV2aWV3X2F0GAogASgJSAKIAQESSwoGaGVhbHRoGAsgASgLMjYudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvSGVhbHRoU25hcHNob3RIA4gBAUIVChNfY29tcGxldGVuZXNzX3Njb3JlQh0KG19sYXN0X3Jldmlld19jbGFzc2lmaWNhdGlvbkIRCg9fbGFzdF9yZXZpZXdfYXRCCQoHX2hlYWx0aCK/AwoWU2NlbmFyaW9IZWFsdGhTbmFwc2hvdBJPCg5ldmlkZW5jZV9zdGF0ZRgBIAEoCUI3ukg0cjJSBWZyZXNoUgVzdGFsZVIIZGVncmFkZWRSC3VuYXZhaWxhYmxlUgtub19ldmlkZW5jZRITCgZyZWFzb24YAiABKAlIAIgBARIaCg1zb3VyY2VfcnVuX2lkGAMgASgJSAGIAQESGAoLb2JzZXJ2ZWRfYXQYBCABKAlIAogBARIWCglmcmVzaG5lc3MYBSABKAlIA4gBARIUCgd2ZXJkaWN0GAYgASgJSASIAQESQwoGcGhhc2VzGAcgAygLMjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvSGVhbHRoUGhhc2USTwoLcmVtZWRpYXRpb24YCCADKAsyOi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uU2NlbmFyaW9SZW1lZGlhdGlvblN1bW1hcnlCCQoHX3JlYXNvbkIQCg5fc291cmNlX3J1bl9pZEIOCgxfb2JzZXJ2ZWRfYXRCDAoKX2ZyZXNobmVzc0IKCghfdmVyZGljdCL5AgoTU2NlbmFyaW9IZWFsdGhQaGFzZRIWCgVwaGFzZRgBIAEoCUIHukgEcgIQARISCgVsYWJlbBgCIAEoCUgAiAEBEhQKB3ZlcmRpY3QYAyABKAlIAYgBARIZCgxjdXJyZW50X3J1bmcYBCABKAlIAogBARIWCgluZXh0X3J1bmcYBSABKAlIA4gBARIjChZwcmlvcml0eV9jYXBhYmlsaXR5X2lkGAYgASgJSASIAQESJgoZcHJpb3JpdHlfY2FwYWJpbGl0eV9sYWJlbBgHIAEoCUgFiAEBEhYKDmJsb2NraW5nX2NvZGVzGAggAygJEhoKEnJlbWVkaWF0aW9uX3RvcGljcxgJIAMoCUIICgZfbGFiZWxCCgoIX3ZlcmRpY3RCDwoNX2N1cnJlbnRfcnVuZ0IMCgpfbmV4dF9ydW5nQhkKF19wcmlvcml0eV9jYXBhYmlsaXR5X2lkQhwKGl9wcmlvcml0eV9jYXBhYmlsaXR5X2xhYmVsIsIBChpTY2VuYXJpb1JlbWVkaWF0aW9uU3VtbWFyeRIcCgtmaW5nZXJwcmludBgBIAEoCUIHukgEcgIQARI6CgVzdGF0ZRgCIAEoCUIrukgociZSCXN1Z2dlc3RlZFIIYWNjZXB0ZWRSCWRpc21pc3NlZFIEbm9uZRIVCgh3b3JrX3JlZhgDIAEoCUgAiAEBEhcKCnVwZGF0ZWRfYXQYBCABKAlIAYgBAUILCglfd29ya19yZWZCDQoLX3VwZGF0ZWRfYXQiKQoQU2NlbmFyaW9NZXRhZGF0YRIVCg1pc19ncmVlbmZpZWxkGAEgASgIQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * Scenario represents a deployed application in the Vrooli ecosystem.
@@ -90,6 +90,14 @@ export type Scenario = Message<"vrooli.swarm_manager.v1.domain.Scenario"> & {
    * @generated from field: optional string last_review_at = 10;
    */
   lastReviewAt?: string | undefined;
+
+  /**
+   * Read-only projection of provider-owned Test Genie health evidence. Swarm
+   * never derives a verdict, phase order, or maturity standing from this data.
+   *
+   * @generated from field: optional vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot health = 11;
+   */
+  health?: ScenarioHealthSnapshot | undefined;
 };
 
 /**
@@ -98,6 +106,177 @@ export type Scenario = Message<"vrooli.swarm_manager.v1.domain.Scenario"> & {
  */
 export const ScenarioSchema: GenMessage<Scenario> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_scenario, 0);
+
+/**
+ * ScenarioHealthSnapshot is Swarm's bounded projection of one canonical Test
+ * Genie evidence source. It is deliberately evidence-shaped rather than a
+ * second findings store.
+ *
+ * @generated from message vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot
+ */
+export type ScenarioHealthSnapshot = Message<"vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot"> & {
+  /**
+   * fresh, stale, degraded, unavailable, or no_evidence.
+   *
+   * @generated from field: string evidence_state = 1;
+   */
+  evidenceState: string;
+
+  /**
+   * A user-safe explanation for missing, stale, or degraded evidence.
+   *
+   * @generated from field: optional string reason = 2;
+   */
+  reason?: string | undefined;
+
+  /**
+   * Provider run identity; omitted when no canonical run exists.
+   *
+   * @generated from field: optional string source_run_id = 3;
+   */
+  sourceRunId?: string | undefined;
+
+  /**
+   * RFC3339 timestamp at which the provider observed the evidence.
+   *
+   * @generated from field: optional string observed_at = 4;
+   */
+  observedAt?: string | undefined;
+
+  /**
+   * Provider-provided freshness presentation (for example, "fresh").
+   *
+   * @generated from field: optional string freshness = 5;
+   */
+  freshness?: string | undefined;
+
+  /**
+   * Provider verdict, preserved without interpretation.
+   *
+   * @generated from field: optional string verdict = 6;
+   */
+  verdict?: string | undefined;
+
+  /**
+   * Provider-presented phases in provider order.
+   *
+   * @generated from field: repeated vrooli.swarm_manager.v1.domain.ScenarioHealthPhase phases = 7;
+   */
+  phases: ScenarioHealthPhase[];
+
+  /**
+   * Swarm-owned reconciliation summary for previously proposed work.
+   *
+   * @generated from field: repeated vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary remediation = 8;
+   */
+  remediation: ScenarioRemediationSummary[];
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot.
+ * Use `create(ScenarioHealthSnapshotSchema)` to create a new message.
+ */
+export const ScenarioHealthSnapshotSchema: GenMessage<ScenarioHealthSnapshot> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_scenario, 1);
+
+/**
+ * ScenarioHealthPhase carries only the provider's presentation and stable
+ * routing fields. Labels, rungs, ordering, blockers, and priority are opaque
+ * to Swarm and must not be recomputed by a consumer.
+ *
+ * @generated from message vrooli.swarm_manager.v1.domain.ScenarioHealthPhase
+ */
+export type ScenarioHealthPhase = Message<"vrooli.swarm_manager.v1.domain.ScenarioHealthPhase"> & {
+  /**
+   * @generated from field: string phase = 1;
+   */
+  phase: string;
+
+  /**
+   * @generated from field: optional string label = 2;
+   */
+  label?: string | undefined;
+
+  /**
+   * @generated from field: optional string verdict = 3;
+   */
+  verdict?: string | undefined;
+
+  /**
+   * @generated from field: optional string current_rung = 4;
+   */
+  currentRung?: string | undefined;
+
+  /**
+   * @generated from field: optional string next_rung = 5;
+   */
+  nextRung?: string | undefined;
+
+  /**
+   * @generated from field: optional string priority_capability_id = 6;
+   */
+  priorityCapabilityId?: string | undefined;
+
+  /**
+   * @generated from field: optional string priority_capability_label = 7;
+   */
+  priorityCapabilityLabel?: string | undefined;
+
+  /**
+   * @generated from field: repeated string blocking_codes = 8;
+   */
+  blockingCodes: string[];
+
+  /**
+   * @generated from field: repeated string remediation_topics = 9;
+   */
+  remediationTopics: string[];
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.domain.ScenarioHealthPhase.
+ * Use `create(ScenarioHealthPhaseSchema)` to create a new message.
+ */
+export const ScenarioHealthPhaseSchema: GenMessage<ScenarioHealthPhase> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_scenario, 2);
+
+/**
+ * ScenarioRemediationSummary is Swarm-owned reconciliation state keyed by a
+ * canonical remediation fingerprint. It links governed work without copying
+ * provider findings into local storage.
+ *
+ * @generated from message vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary
+ */
+export type ScenarioRemediationSummary = Message<"vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary"> & {
+  /**
+   * @generated from field: string fingerprint = 1;
+   */
+  fingerprint: string;
+
+  /**
+   * suggested, accepted, dismissed, or none.
+   *
+   * @generated from field: string state = 2;
+   */
+  state: string;
+
+  /**
+   * @generated from field: optional string work_ref = 3;
+   */
+  workRef?: string | undefined;
+
+  /**
+   * @generated from field: optional string updated_at = 4;
+   */
+  updatedAt?: string | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary.
+ * Use `create(ScenarioRemediationSummarySchema)` to create a new message.
+ */
+export const ScenarioRemediationSummarySchema: GenMessage<ScenarioRemediationSummary> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_scenario, 3);
 
 /**
  * ScenarioMetadata stores editable metadata for a scenario.
@@ -118,5 +297,5 @@ export type ScenarioMetadata = Message<"vrooli.swarm_manager.v1.domain.ScenarioM
  * Use `create(ScenarioMetadataSchema)` to create a new message.
  */
 export const ScenarioMetadataSchema: GenMessage<ScenarioMetadata> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_scenario, 1);
+  messageDesc(file_swarm_manager_v1_domain_scenario, 4);
 

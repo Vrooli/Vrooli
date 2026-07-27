@@ -262,6 +262,8 @@ type Run struct {
 	ChangedFiles int32 `protobuf:"varint,24,opt,name=changed_files,json=changedFiles,proto3" json:"changed_files,omitempty"`
 	// Total size of changes in bytes.
 	TotalSizeBytes int64 `protobuf:"varint,25,opt,name=total_size_bytes,json=totalSizeBytes,proto3" json:"total_size_bytes,omitempty"`
+	// Commit created when the sandbox applied this run's accepted changes.
+	CommitHash string `protobuf:"bytes,47,opt,name=commit_hash,json=commitHash,proto3" json:"commit_hash,omitempty"`
 	// Runner-specific session identifier for conversation resumption.
 	// Populated from runner stream events:
 	//   - Claude Code: session_id
@@ -519,6 +521,13 @@ func (x *Run) GetTotalSizeBytes() int64 {
 		return x.TotalSizeBytes
 	}
 	return 0
+}
+
+func (x *Run) GetCommitHash() string {
+	if x != nil {
+		return x.CommitHash
+	}
+	return ""
 }
 
 func (x *Run) GetSessionId() string {
@@ -3522,7 +3531,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x11\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc1\x11\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -3553,7 +3562,9 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\tdiff_path\x18\x16 \x01(\tR\bdiffPath\x12\x19\n" +
 	"\blog_path\x18\x17 \x01(\tR\alogPath\x12#\n" +
 	"\rchanged_files\x18\x18 \x01(\x05R\fchangedFiles\x12(\n" +
-	"\x10total_size_bytes\x18\x19 \x01(\x03R\x0etotalSizeBytes\x12\x1d\n" +
+	"\x10total_size_bytes\x18\x19 \x01(\x03R\x0etotalSizeBytes\x12\x1f\n" +
+	"\vcommit_hash\x18/ \x01(\tR\n" +
+	"commitHash\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x1c \x01(\tR\tsessionId\x129\n" +
 	"\n" +

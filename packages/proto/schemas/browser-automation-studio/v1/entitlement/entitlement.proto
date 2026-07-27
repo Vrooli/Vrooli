@@ -12,9 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // ENTITLEMENT DOMAIN — subscription status, identity, usage, overrides.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain entitlement
-// @stability stable
+// @stability beta
 //
 // EntitlementService is BAS's local view of the upstream
 // landing-page-business-suite entitlement service. It owns:

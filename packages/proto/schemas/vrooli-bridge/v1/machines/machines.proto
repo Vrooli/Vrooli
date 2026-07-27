@@ -22,7 +22,11 @@ service MachineService {
   rpc RevokeMachineNode(RevokeMachineNodeRequest) returns (RevokeMachineNodeResponse);
 }
 
-message ConnectionLocator { string kind = 1; string value = 2; int32 ordinal = 3; }
+message ConnectionLocator {
+  string kind = 1;
+  string value = 2;
+  int32 ordinal = 3;
+}
 
 message NodeLineage {
   string node_id = 1;
@@ -51,8 +55,13 @@ message CreateMachineRequest {
   string desired_profile_id = 2;
   string desired_profile_version = 3;
 }
-message CreateMachineResponse { Machine machine = 1; }
-message GetMachineRequest { string id = 1; }
+message CreateMachineResponse {
+  Machine machine = 1;
+}
+message GetMachineRequest {
+  string id = 1;
+}
+
 // EnrollmentAttempt is immutable recovery history. It deliberately carries no
 // passwords, pairing codes, private-key references, or mutable Node facts.
 message EnrollmentAttempt {
@@ -65,6 +74,7 @@ message EnrollmentAttempt {
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp terminal_at = 8;
 }
+
 // CurrentNodeProjection is read-time data owned by Registry and Presence. It
 // is intentionally absent from Machine persistence.
 message CurrentNodeProjection {
@@ -80,6 +90,7 @@ message MachineAuditEvent {
   string detail = 4;
   google.protobuf.Timestamp created_at = 5;
 }
+
 // MachineReadiness is a read-time explanation derived from independently owned
 // intent, trust, Registry, and Presence facts. It is never persisted as a
 // mutable Machine field and it never grants suggested scopes.
@@ -98,11 +109,23 @@ message GetMachineResponse {
   repeated MachineCleanup cleanup_tombstones = 6;
 }
 message ListMachinesRequest {}
-message ListMachinesResponse { repeated Machine machines = 1; }
-message ArchiveMachineRequest { string id = 1; int64 version = 2; }
-message ArchiveMachineResponse { Machine machine = 1; }
-message RemoveMachineRequest { string id = 1; int64 version = 2; }
-message RemoveMachineResponse { Machine machine = 1; }
+message ListMachinesResponse {
+  repeated Machine machines = 1;
+}
+message ArchiveMachineRequest {
+  string id = 1;
+  int64 version = 2;
+}
+message ArchiveMachineResponse {
+  Machine machine = 1;
+}
+message RemoveMachineRequest {
+  string id = 1;
+  int64 version = 2;
+}
+message RemoveMachineResponse {
+  Machine machine = 1;
+}
 
 // Public trust metadata is deliberately fingerprint-only; private key material
 // and filesystem paths never cross this boundary.
@@ -112,13 +135,19 @@ message MachineTrust {
   string host_key_state = 3;
   google.protobuf.Timestamp updated_at = 4;
 }
-message GetMachineTrustRequest { string machine_id = 1; }
-message GetMachineTrustResponse { MachineTrust trust = 1; }
+message GetMachineTrustRequest {
+  string machine_id = 1;
+}
+message GetMachineTrustResponse {
+  MachineTrust trust = 1;
+}
 message ReviewMachineHostKeyRequest {
   string machine_id = 1;
   string replacement_host_key_fingerprint = 2;
 }
-message ReviewMachineHostKeyResponse { MachineTrust trust = 1; }
+message ReviewMachineHostKeyResponse {
+  MachineTrust trust = 1;
+}
 
 // Cleanup is an explicit durable effect, separate from local revocation and
 // Machine removal. A request does not claim an unreachable host was changed.
@@ -132,14 +161,20 @@ message MachineCleanup {
   google.protobuf.Timestamp updated_at = 7;
   google.protobuf.Timestamp acknowledged_at = 8;
 }
-message RequestMachineSSHCleanupRequest { string machine_id = 1; }
-message RequestMachineSSHCleanupResponse { MachineCleanup cleanup = 1; }
+message RequestMachineSSHCleanupRequest {
+  string machine_id = 1;
+}
+message RequestMachineSSHCleanupResponse {
+  MachineCleanup cleanup = 1;
+}
 message UpdateMachineCleanupRequest {
   string id = 1;
   string status = 2;
   string detail = 3;
 }
-message UpdateMachineCleanupResponse { MachineCleanup cleanup = 1; }
+message UpdateMachineCleanupResponse {
+  MachineCleanup cleanup = 1;
+}
 
 message EffectivePolicy {
   string profile_id = 1;
@@ -166,7 +201,9 @@ message ApplyMachinePolicyResponse {
 
 // Revocation is deliberately separate from Machine archive/removal and SSH
 // cleanup. It revokes the current paired Node locally first.
-message RevokeMachineNodeRequest { string machine_id = 1; }
+message RevokeMachineNodeRequest {
+  string machine_id = 1;
+}
 message RevokeMachineNodeResponse {
   Machine machine = 1;
   string revoked_node_id = 2;

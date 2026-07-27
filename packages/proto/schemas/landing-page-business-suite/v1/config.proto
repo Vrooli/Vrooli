@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "google/protobuf/struct.proto";
+import "landing-page-business-suite/v1/shared/commerce.proto";
+import "landing-page-business-suite/v1/shared/downloads.proto";
+import "landing-page-business-suite/v1/shared/presentation.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// LANDING CONFIG DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// The public landing config is the single aggregated payload the frontend
+// fetches to render a page: a selected (or requested) variant summary, its
+// ordered sections, pricing, downloads, header, and branding. When any critical
+// piece is missing or unrenderable (no sections, or no hero section), the
+// service returns a baked fallback with fallback=true.
+//
+// =============================================================================
+
+// LandingVariantSummary is the compact variant identity for the landing payload.
+message LandingVariantSummary {
+  int64 id = 1;
+  string slug = 2;
+  string name = 3;
+  string description = 4;
+  map<string, string> axes = 5;
+}
+
+// LandingSection is a rendered section (flattened content) for the payload.
+message LandingSection {
+  string section_type = 1;
+  google.protobuf.Struct content = 2;
+  int32 order = 3;
+  bool enabled = 4;
+}
+
+// LandingBranding is the branding subset embedded in the landing payload.
+message LandingBranding {
+  string site_name = 1;
+  optional string tagline = 2;
+  optional string logo_url = 3;
+  optional string logo_icon_url = 4;
+  optional string favicon_url = 5;
+  optional string theme_primary_color = 6;
+  optional string theme_background_color = 7;
+}
+
+// GetLandingConfigRequest requests the aggregated landing payload. An empty
+// variant_slug triggers weighted-random selection.
+message GetLandingConfigRequest {
+  string variant_slug = 1;
+}
+
+// LandingConfigResponse is the aggregated public landing payload.
+message LandingConfigResponse {
+  LandingVariantSummary variant = 1;
+  repeated LandingSection sections = 2;
+  vrooli.landing_page_business_suite.v1.shared.PricingOverview pricing = 3;
+  repeated vrooli.landing_page_business_suite.v1.shared.DownloadApp downloads = 4;
+  vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header = 5;
+  optional LandingBranding branding = 6;
+  // True when the baked fallback payload was returned.
+  bool fallback = 7;
+}
+
+// LandingConfigService serves the aggregated public landing payload.
+service LandingConfigService {
+  // Returns the aggregated landing payload for a variant (or a selected one).
+  rpc GetLandingConfig(GetLandingConfigRequest) returns (LandingConfigResponse);
+}

@@ -207,16 +207,30 @@ message CreateCandidateRevisionRequest {
   string expires_at = 6;
 }
 
-message CreateCandidateRevisionResponse { CandidateRevision candidate = 1; }
+message CreateCandidateRevisionResponse {
+  CandidateRevision candidate = 1;
+}
 
-message GetCandidateRevisionRequest { string id = 1; }
-message GetCandidateRevisionResponse { CandidateRevision candidate = 1; }
+message GetCandidateRevisionRequest {
+  string id = 1;
+}
+message GetCandidateRevisionResponse {
+  CandidateRevision candidate = 1;
+}
 
-message PreviewCandidateRevisionRequest { string id = 1; }
-message PreviewCandidateRevisionResponse { CandidateRevisionPreview preview = 1; }
+message PreviewCandidateRevisionRequest {
+  string id = 1;
+}
+message PreviewCandidateRevisionResponse {
+  CandidateRevisionPreview preview = 1;
+}
 
-message ValidateCandidateRevisionRequest { string id = 1; }
-message ValidateCandidateRevisionResponse { CandidateRevisionPreview preview = 1; }
+message ValidateCandidateRevisionRequest {
+  string id = 1;
+}
+message ValidateCandidateRevisionResponse {
+  CandidateRevisionPreview preview = 1;
+}
 
 message ApplyCandidateRevisionRequest {
   string id = 1;
@@ -234,7 +248,9 @@ message DiscardCandidateRevisionRequest {
   string id = 1;
   string reason = 2;
 }
-message DiscardCandidateRevisionResponse { CandidateRevision candidate = 1; }
+message DiscardCandidateRevisionResponse {
+  CandidateRevision candidate = 1;
+}
 
 message ArchivePlanRequest {
   string id = 1;

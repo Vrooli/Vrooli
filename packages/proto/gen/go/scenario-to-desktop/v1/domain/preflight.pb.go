@@ -7,7 +7,8 @@
 package domain
 
 import (
-	base "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base"
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -23,223 +24,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// PreflightStatus enumerates preflight validation states.
-//
-// @usage PreflightResponse.status
-type PreflightStatus int32
-
-const (
-	// Default/unknown status. Should never appear in valid data.
-	PreflightStatus_PREFLIGHT_STATUS_UNSPECIFIED PreflightStatus = 0
-	// Preflight validation is in progress.
-	PreflightStatus_PREFLIGHT_STATUS_RUNNING PreflightStatus = 1
-	// Preflight completed successfully. Bundle is ready.
-	PreflightStatus_PREFLIGHT_STATUS_PASSED PreflightStatus = 2
-	// Preflight failed. Check errors for details.
-	PreflightStatus_PREFLIGHT_STATUS_FAILED PreflightStatus = 3
-	// Preflight partially passed with warnings.
-	PreflightStatus_PREFLIGHT_STATUS_WARNINGS PreflightStatus = 4
-)
-
-// Enum value maps for PreflightStatus.
-var (
-	PreflightStatus_name = map[int32]string{
-		0: "PREFLIGHT_STATUS_UNSPECIFIED",
-		1: "PREFLIGHT_STATUS_RUNNING",
-		2: "PREFLIGHT_STATUS_PASSED",
-		3: "PREFLIGHT_STATUS_FAILED",
-		4: "PREFLIGHT_STATUS_WARNINGS",
-	}
-	PreflightStatus_value = map[string]int32{
-		"PREFLIGHT_STATUS_UNSPECIFIED": 0,
-		"PREFLIGHT_STATUS_RUNNING":     1,
-		"PREFLIGHT_STATUS_PASSED":      2,
-		"PREFLIGHT_STATUS_FAILED":      3,
-		"PREFLIGHT_STATUS_WARNINGS":    4,
-	}
-)
-
-func (x PreflightStatus) Enum() *PreflightStatus {
-	p := new(PreflightStatus)
-	*p = x
-	return p
-}
-
-func (x PreflightStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (PreflightStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[0].Descriptor()
-}
-
-func (PreflightStatus) Type() protoreflect.EnumType {
-	return &file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[0]
-}
-
-func (x PreflightStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use PreflightStatus.Descriptor instead.
-func (PreflightStatus) EnumDescriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{0}
-}
-
-// CheckStatus enumerates individual check states.
-//
-// @usage PreflightCheck.status
-type CheckStatus int32
-
-const (
-	// Default/unknown status.
-	CheckStatus_CHECK_STATUS_UNSPECIFIED CheckStatus = 0
-	// Check is pending execution.
-	CheckStatus_CHECK_STATUS_PENDING CheckStatus = 1
-	// Check is running.
-	CheckStatus_CHECK_STATUS_RUNNING CheckStatus = 2
-	// Check passed.
-	CheckStatus_CHECK_STATUS_PASSED CheckStatus = 3
-	// Check failed.
-	CheckStatus_CHECK_STATUS_FAILED CheckStatus = 4
-	// Check was skipped.
-	CheckStatus_CHECK_STATUS_SKIPPED CheckStatus = 5
-)
-
-// Enum value maps for CheckStatus.
-var (
-	CheckStatus_name = map[int32]string{
-		0: "CHECK_STATUS_UNSPECIFIED",
-		1: "CHECK_STATUS_PENDING",
-		2: "CHECK_STATUS_RUNNING",
-		3: "CHECK_STATUS_PASSED",
-		4: "CHECK_STATUS_FAILED",
-		5: "CHECK_STATUS_SKIPPED",
-	}
-	CheckStatus_value = map[string]int32{
-		"CHECK_STATUS_UNSPECIFIED": 0,
-		"CHECK_STATUS_PENDING":     1,
-		"CHECK_STATUS_RUNNING":     2,
-		"CHECK_STATUS_PASSED":      3,
-		"CHECK_STATUS_FAILED":      4,
-		"CHECK_STATUS_SKIPPED":     5,
-	}
-)
-
-func (x CheckStatus) Enum() *CheckStatus {
-	p := new(CheckStatus)
-	*p = x
-	return p
-}
-
-func (x CheckStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (CheckStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[1].Descriptor()
-}
-
-func (CheckStatus) Type() protoreflect.EnumType {
-	return &file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[1]
-}
-
-func (x CheckStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use CheckStatus.Descriptor instead.
-func (CheckStatus) EnumDescriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{1}
-}
-
-// SecretClass enumerates secret classification types.
-//
-// @usage PreflightSecret.class
-type SecretClass int32
-
-const (
-	// Default/unknown class.
-	SecretClass_SECRET_CLASS_UNSPECIFIED SecretClass = 0
-	// API key or token.
-	SecretClass_SECRET_CLASS_API_KEY SecretClass = 1
-	// Password or passphrase.
-	SecretClass_SECRET_CLASS_PASSWORD SecretClass = 2
-	// OAuth or JWT token.
-	SecretClass_SECRET_CLASS_TOKEN SecretClass = 3
-	// Connection string (database, etc.).
-	SecretClass_SECRET_CLASS_CONNECTION_STRING SecretClass = 4
-	// Certificate or private key.
-	SecretClass_SECRET_CLASS_CERTIFICATE SecretClass = 5
-	// Generic secret.
-	SecretClass_SECRET_CLASS_GENERIC SecretClass = 6
-)
-
-// Enum value maps for SecretClass.
-var (
-	SecretClass_name = map[int32]string{
-		0: "SECRET_CLASS_UNSPECIFIED",
-		1: "SECRET_CLASS_API_KEY",
-		2: "SECRET_CLASS_PASSWORD",
-		3: "SECRET_CLASS_TOKEN",
-		4: "SECRET_CLASS_CONNECTION_STRING",
-		5: "SECRET_CLASS_CERTIFICATE",
-		6: "SECRET_CLASS_GENERIC",
-	}
-	SecretClass_value = map[string]int32{
-		"SECRET_CLASS_UNSPECIFIED":       0,
-		"SECRET_CLASS_API_KEY":           1,
-		"SECRET_CLASS_PASSWORD":          2,
-		"SECRET_CLASS_TOKEN":             3,
-		"SECRET_CLASS_CONNECTION_STRING": 4,
-		"SECRET_CLASS_CERTIFICATE":       5,
-		"SECRET_CLASS_GENERIC":           6,
-	}
-)
-
-func (x SecretClass) Enum() *SecretClass {
-	p := new(SecretClass)
-	*p = x
-	return p
-}
-
-func (x SecretClass) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (SecretClass) Descriptor() protoreflect.EnumDescriptor {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[2].Descriptor()
-}
-
-func (SecretClass) Type() protoreflect.EnumType {
-	return &file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[2]
-}
-
-func (x SecretClass) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use SecretClass.Descriptor instead.
-func (SecretClass) EnumDescriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{2}
-}
-
-// JobStatus enumerates async job states.
-//
-// @usage JobStatusResponse.status
 type JobStatus int32
 
 const (
-	// Default/unknown status.
 	JobStatus_JOB_STATUS_UNSPECIFIED JobStatus = 0
-	// Job is queued.
-	JobStatus_JOB_STATUS_PENDING JobStatus = 1
-	// Job is running.
-	JobStatus_JOB_STATUS_RUNNING JobStatus = 2
-	// Job completed successfully.
-	JobStatus_JOB_STATUS_COMPLETED JobStatus = 3
-	// Job failed.
-	JobStatus_JOB_STATUS_FAILED JobStatus = 4
+	JobStatus_JOB_STATUS_PENDING     JobStatus = 1
+	JobStatus_JOB_STATUS_RUNNING     JobStatus = 2
+	JobStatus_JOB_STATUS_COMPLETED   JobStatus = 3
+	JobStatus_JOB_STATUS_FAILED      JobStatus = 4
 )
 
 // Enum value maps for JobStatus.
@@ -271,11 +63,11 @@ func (x JobStatus) String() string {
 }
 
 func (JobStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[3].Descriptor()
+	return file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[0].Descriptor()
 }
 
 func (JobStatus) Type() protoreflect.EnumType {
-	return &file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[3]
+	return &file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes[0]
 }
 
 func (x JobStatus) Number() protoreflect.EnumNumber {
@@ -284,45 +76,23 @@ func (x JobStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use JobStatus.Descriptor instead.
 func (JobStatus) EnumDescriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{3}
+	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{0}
 }
 
-// PreflightRequest initiates preflight validation.
-//
-// @usage POST /api/preflight request body
 type PreflightRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Path to the bundle manifest file.
-	// @format path
-	BundleManifestPath string `protobuf:"bytes,1,opt,name=bundle_manifest_path,json=bundleManifestPath,proto3" json:"bundle_manifest_path,omitempty"`
-	// Root directory for bundle files.
-	// @format path
-	BundleRoot *string `protobuf:"bytes,2,opt,name=bundle_root,json=bundleRoot,proto3,oneof" json:"bundle_root,omitempty"`
-	// Secrets to inject during validation.
-	// Key: Secret name, Value: Secret value
-	Secrets map[string]string `protobuf:"bytes,3,rep,name=secrets,proto3" json:"secrets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Timeout in seconds for the preflight process.
-	// @default 60
-	// @constraint 10-300
-	TimeoutSeconds *int32 `protobuf:"varint,4,opt,name=timeout_seconds,json=timeoutSeconds,proto3,oneof" json:"timeout_seconds,omitempty"`
-	// Whether to start services during validation.
-	// Enables deeper validation but takes longer.
-	StartServices *bool `protobuf:"varint,5,opt,name=start_services,json=startServices,proto3,oneof" json:"start_services,omitempty"`
-	// Number of log lines to tail from services.
-	// @default 50
-	LogTailLines *int32 `protobuf:"varint,6,opt,name=log_tail_lines,json=logTailLines,proto3,oneof" json:"log_tail_lines,omitempty"`
-	// Only return current status without starting new validation.
-	StatusOnly *bool `protobuf:"varint,7,opt,name=status_only,json=statusOnly,proto3,oneof" json:"status_only,omitempty"`
-	// Existing session ID to reuse.
-	// @format uuid
-	SessionId *string `protobuf:"bytes,8,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
-	// Session time-to-live in seconds.
-	// @default 300
-	SessionTtl *int32 `protobuf:"varint,9,opt,name=session_ttl,json=sessionTtl,proto3,oneof" json:"session_ttl,omitempty"`
-	// Whether to stop the session after validation.
-	SessionStop   *bool `protobuf:"varint,10,opt,name=session_stop,json=sessionStop,proto3,oneof" json:"session_stop,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	BundleManifestPath string                 `protobuf:"bytes,1,opt,name=bundle_manifest_path,json=bundleManifestPath,proto3" json:"bundle_manifest_path,omitempty"`
+	BundleRoot         *string                `protobuf:"bytes,2,opt,name=bundle_root,json=bundleRoot,proto3,oneof" json:"bundle_root,omitempty"`
+	Secrets            map[string]string      `protobuf:"bytes,3,rep,name=secrets,proto3" json:"secrets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	TimeoutSeconds     *int32                 `protobuf:"varint,4,opt,name=timeout_seconds,json=timeoutSeconds,proto3,oneof" json:"timeout_seconds,omitempty"`
+	StartServices      *bool                  `protobuf:"varint,5,opt,name=start_services,json=startServices,proto3,oneof" json:"start_services,omitempty"`
+	LogTailLines       *int32                 `protobuf:"varint,6,opt,name=log_tail_lines,json=logTailLines,proto3,oneof" json:"log_tail_lines,omitempty"`
+	StatusOnly         *bool                  `protobuf:"varint,7,opt,name=status_only,json=statusOnly,proto3,oneof" json:"status_only,omitempty"`
+	SessionId          *string                `protobuf:"bytes,8,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
+	SessionTtl         *int32                 `protobuf:"varint,9,opt,name=session_ttl,json=sessionTtl,proto3,oneof" json:"session_ttl,omitempty"`
+	SessionStop        *bool                  `protobuf:"varint,10,opt,name=session_stop,json=sessionStop,proto3,oneof" json:"session_stop,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PreflightRequest) Reset() {
@@ -425,957 +195,19 @@ func (x *PreflightRequest) GetSessionStop() bool {
 	return false
 }
 
-// PreflightSecret describes a secret requirement.
-//
-// @usage PreflightResponse.secrets
-type PreflightSecret struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique secret identifier.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Secret classification.
-	SecretClass SecretClass `protobuf:"varint,2,opt,name=secret_class,json=secretClass,proto3,enum=scenario_to_desktop.v1.SecretClass" json:"secret_class,omitempty"`
-	// Whether this secret is required.
-	Required bool `protobuf:"varint,3,opt,name=required,proto3" json:"required,omitempty"`
-	// Whether a value was provided.
-	HasValue bool `protobuf:"varint,4,opt,name=has_value,json=hasValue,proto3" json:"has_value,omitempty"`
-	// Human-readable description.
-	Description *string `protobuf:"bytes,5,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	// Expected format or pattern.
-	Format *string `protobuf:"bytes,6,opt,name=format,proto3,oneof" json:"format,omitempty"`
-	// Prompt text for UI collection.
-	// Key: Language code, Value: Prompt text
-	Prompt        map[string]string `protobuf:"bytes,7,rep,name=prompt,proto3" json:"prompt,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PreflightSecret) Reset() {
-	*x = PreflightSecret{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PreflightSecret) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PreflightSecret) ProtoMessage() {}
-
-func (x *PreflightSecret) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PreflightSecret.ProtoReflect.Descriptor instead.
-func (*PreflightSecret) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *PreflightSecret) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *PreflightSecret) GetSecretClass() SecretClass {
-	if x != nil {
-		return x.SecretClass
-	}
-	return SecretClass_SECRET_CLASS_UNSPECIFIED
-}
-
-func (x *PreflightSecret) GetRequired() bool {
-	if x != nil {
-		return x.Required
-	}
-	return false
-}
-
-func (x *PreflightSecret) GetHasValue() bool {
-	if x != nil {
-		return x.HasValue
-	}
-	return false
-}
-
-func (x *PreflightSecret) GetDescription() string {
-	if x != nil && x.Description != nil {
-		return *x.Description
-	}
-	return ""
-}
-
-func (x *PreflightSecret) GetFormat() string {
-	if x != nil && x.Format != nil {
-		return *x.Format
-	}
-	return ""
-}
-
-func (x *PreflightSecret) GetPrompt() map[string]string {
-	if x != nil {
-		return x.Prompt
-	}
-	return nil
-}
-
-// GPUInfo contains GPU detection results.
-//
-// @usage PreflightReady.gpu
-type GPUInfo struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether a compatible GPU is available.
-	Available bool `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
-	// Detection method used.
-	// @example "nvidia-smi", "vulkan", "metal"
-	Method *string `protobuf:"bytes,2,opt,name=method,proto3,oneof" json:"method,omitempty"`
-	// Reason for unavailability (if not available).
-	Reason *string `protobuf:"bytes,3,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
-	// GPU requirements from the manifest.
-	// Key: Requirement name, Value: Required value
-	Requirements  map[string]string `protobuf:"bytes,4,rep,name=requirements,proto3" json:"requirements,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GPUInfo) Reset() {
-	*x = GPUInfo{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GPUInfo) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GPUInfo) ProtoMessage() {}
-
-func (x *GPUInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GPUInfo.ProtoReflect.Descriptor instead.
-func (*GPUInfo) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *GPUInfo) GetAvailable() bool {
-	if x != nil {
-		return x.Available
-	}
-	return false
-}
-
-func (x *GPUInfo) GetMethod() string {
-	if x != nil && x.Method != nil {
-		return *x.Method
-	}
-	return ""
-}
-
-func (x *GPUInfo) GetReason() string {
-	if x != nil && x.Reason != nil {
-		return *x.Reason
-	}
-	return ""
-}
-
-func (x *GPUInfo) GetRequirements() map[string]string {
-	if x != nil {
-		return x.Requirements
-	}
-	return nil
-}
-
-// PreflightReady contains runtime readiness information.
-//
-// @usage PreflightResponse.ready
-type PreflightReady struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether the runtime is ready.
-	Ready bool `protobuf:"varint,1,opt,name=ready,proto3" json:"ready,omitempty"`
-	// Detailed ready state per component.
-	// Key: Component name, Value: Ready status
-	Details map[string]bool `protobuf:"bytes,2,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	// GPU detection information.
-	Gpu *GPUInfo `protobuf:"bytes,3,opt,name=gpu,proto3,oneof" json:"gpu,omitempty"`
-	// Timestamp of the snapshot.
-	SnapshotAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=snapshot_at,json=snapshotAt,proto3" json:"snapshot_at,omitempty"`
-	// Seconds waited for ready state.
-	WaitedSeconds int32 `protobuf:"varint,5,opt,name=waited_seconds,json=waitedSeconds,proto3" json:"waited_seconds,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PreflightReady) Reset() {
-	*x = PreflightReady{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PreflightReady) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PreflightReady) ProtoMessage() {}
-
-func (x *PreflightReady) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PreflightReady.ProtoReflect.Descriptor instead.
-func (*PreflightReady) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *PreflightReady) GetReady() bool {
-	if x != nil {
-		return x.Ready
-	}
-	return false
-}
-
-func (x *PreflightReady) GetDetails() map[string]bool {
-	if x != nil {
-		return x.Details
-	}
-	return nil
-}
-
-func (x *PreflightReady) GetGpu() *GPUInfo {
-	if x != nil {
-		return x.Gpu
-	}
-	return nil
-}
-
-func (x *PreflightReady) GetSnapshotAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.SnapshotAt
-	}
-	return nil
-}
-
-func (x *PreflightReady) GetWaitedSeconds() int32 {
-	if x != nil {
-		return x.WaitedSeconds
-	}
-	return 0
-}
-
-// PreflightRuntime contains runtime instance metadata.
-//
-// @usage PreflightResponse.runtime
-type PreflightRuntime struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique instance identifier.
-	// @format uuid
-	InstanceId string `protobuf:"bytes,1,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
-	// When the instance started.
-	StartedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	// Application data directory.
-	// @format path
-	AppDataDir *string `protobuf:"bytes,3,opt,name=app_data_dir,json=appDataDir,proto3,oneof" json:"app_data_dir,omitempty"`
-	// Bundle root directory.
-	// @format path
-	BundleRoot *string `protobuf:"bytes,4,opt,name=bundle_root,json=bundleRoot,proto3,oneof" json:"bundle_root,omitempty"`
-	// Whether this is a dry-run instance.
-	DryRun bool `protobuf:"varint,5,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	// Hash of the manifest file.
-	ManifestHash *string `protobuf:"bytes,6,opt,name=manifest_hash,json=manifestHash,proto3,oneof" json:"manifest_hash,omitempty"`
-	// Manifest schema version.
-	ManifestSchema *string `protobuf:"bytes,7,opt,name=manifest_schema,json=manifestSchema,proto3,oneof" json:"manifest_schema,omitempty"`
-	// Target platform.
-	Target *string `protobuf:"bytes,8,opt,name=target,proto3,oneof" json:"target,omitempty"`
-	// Application name.
-	AppName *string `protobuf:"bytes,9,opt,name=app_name,json=appName,proto3,oneof" json:"app_name,omitempty"`
-	// Application version.
-	AppVersion *string `protobuf:"bytes,10,opt,name=app_version,json=appVersion,proto3,oneof" json:"app_version,omitempty"`
-	// IPC server host.
-	IpcHost *string `protobuf:"bytes,11,opt,name=ipc_host,json=ipcHost,proto3,oneof" json:"ipc_host,omitempty"`
-	// IPC server port.
-	IpcPort *int32 `protobuf:"varint,12,opt,name=ipc_port,json=ipcPort,proto3,oneof" json:"ipc_port,omitempty"`
-	// Runtime version.
-	RuntimeVersion *string `protobuf:"bytes,13,opt,name=runtime_version,json=runtimeVersion,proto3,oneof" json:"runtime_version,omitempty"`
-	// Build version.
-	BuildVersion  *string `protobuf:"bytes,14,opt,name=build_version,json=buildVersion,proto3,oneof" json:"build_version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PreflightRuntime) Reset() {
-	*x = PreflightRuntime{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PreflightRuntime) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PreflightRuntime) ProtoMessage() {}
-
-func (x *PreflightRuntime) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PreflightRuntime.ProtoReflect.Descriptor instead.
-func (*PreflightRuntime) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *PreflightRuntime) GetInstanceId() string {
-	if x != nil {
-		return x.InstanceId
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetStartedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.StartedAt
-	}
-	return nil
-}
-
-func (x *PreflightRuntime) GetAppDataDir() string {
-	if x != nil && x.AppDataDir != nil {
-		return *x.AppDataDir
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetBundleRoot() string {
-	if x != nil && x.BundleRoot != nil {
-		return *x.BundleRoot
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetDryRun() bool {
-	if x != nil {
-		return x.DryRun
-	}
-	return false
-}
-
-func (x *PreflightRuntime) GetManifestHash() string {
-	if x != nil && x.ManifestHash != nil {
-		return *x.ManifestHash
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetManifestSchema() string {
-	if x != nil && x.ManifestSchema != nil {
-		return *x.ManifestSchema
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetTarget() string {
-	if x != nil && x.Target != nil {
-		return *x.Target
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetAppName() string {
-	if x != nil && x.AppName != nil {
-		return *x.AppName
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetAppVersion() string {
-	if x != nil && x.AppVersion != nil {
-		return *x.AppVersion
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetIpcHost() string {
-	if x != nil && x.IpcHost != nil {
-		return *x.IpcHost
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetIpcPort() int32 {
-	if x != nil && x.IpcPort != nil {
-		return *x.IpcPort
-	}
-	return 0
-}
-
-func (x *PreflightRuntime) GetRuntimeVersion() string {
-	if x != nil && x.RuntimeVersion != nil {
-		return *x.RuntimeVersion
-	}
-	return ""
-}
-
-func (x *PreflightRuntime) GetBuildVersion() string {
-	if x != nil && x.BuildVersion != nil {
-		return *x.BuildVersion
-	}
-	return ""
-}
-
-// PreflightCheck represents a single validation check.
-//
-// @usage PreflightResponse.checks
-type PreflightCheck struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique check identifier.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Step number in the sequence.
-	Step int32 `protobuf:"varint,2,opt,name=step,proto3" json:"step,omitempty"`
-	// Human-readable check name.
-	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	// Check status.
-	Status CheckStatus `protobuf:"varint,4,opt,name=status,proto3,enum=scenario_to_desktop.v1.CheckStatus" json:"status,omitempty"`
-	// Detailed result or error message.
-	Detail        *string `protobuf:"bytes,5,opt,name=detail,proto3,oneof" json:"detail,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PreflightCheck) Reset() {
-	*x = PreflightCheck{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PreflightCheck) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PreflightCheck) ProtoMessage() {}
-
-func (x *PreflightCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PreflightCheck.ProtoReflect.Descriptor instead.
-func (*PreflightCheck) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *PreflightCheck) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *PreflightCheck) GetStep() int32 {
-	if x != nil {
-		return x.Step
-	}
-	return 0
-}
-
-func (x *PreflightCheck) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *PreflightCheck) GetStatus() CheckStatus {
-	if x != nil {
-		return x.Status
-	}
-	return CheckStatus_CHECK_STATUS_UNSPECIFIED
-}
-
-func (x *PreflightCheck) GetDetail() string {
-	if x != nil && x.Detail != nil {
-		return *x.Detail
-	}
-	return ""
-}
-
-// ServiceLogTail contains log output from a service.
-//
-// @usage PreflightResponse.log_tails
-type ServiceLogTail struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Service identifier.
-	ServiceId string `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
-	// Number of lines captured.
-	Lines int32 `protobuf:"varint,2,opt,name=lines,proto3" json:"lines,omitempty"`
-	// Log content.
-	Content string `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
-	// Error if log capture failed.
-	Error         *string `protobuf:"bytes,4,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ServiceLogTail) Reset() {
-	*x = ServiceLogTail{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ServiceLogTail) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ServiceLogTail) ProtoMessage() {}
-
-func (x *ServiceLogTail) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ServiceLogTail.ProtoReflect.Descriptor instead.
-func (*ServiceLogTail) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *ServiceLogTail) GetServiceId() string {
-	if x != nil {
-		return x.ServiceId
-	}
-	return ""
-}
-
-func (x *ServiceLogTail) GetLines() int32 {
-	if x != nil {
-		return x.Lines
-	}
-	return 0
-}
-
-func (x *ServiceLogTail) GetContent() string {
-	if x != nil {
-		return x.Content
-	}
-	return ""
-}
-
-func (x *ServiceLogTail) GetError() string {
-	if x != nil && x.Error != nil {
-		return *x.Error
-	}
-	return ""
-}
-
-// ServiceFingerprint contains binary metadata for debugging.
-//
-// @usage PreflightResponse.service_fingerprints
-type ServiceFingerprint struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Service identifier.
-	ServiceId string `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
-	// Target platform.
-	Platform string `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
-	// Path to binary.
-	// @format path
-	BinaryPath *string `protobuf:"bytes,3,opt,name=binary_path,json=binaryPath,proto3,oneof" json:"binary_path,omitempty"`
-	// Resolved binary path (after symlink resolution).
-	// @format path
-	BinaryResolvedPath *string `protobuf:"bytes,4,opt,name=binary_resolved_path,json=binaryResolvedPath,proto3,oneof" json:"binary_resolved_path,omitempty"`
-	// SHA-256 hash of the binary.
-	BinarySha256 *string `protobuf:"bytes,5,opt,name=binary_sha256,json=binarySha256,proto3,oneof" json:"binary_sha256,omitempty"`
-	// Binary file size in bytes.
-	BinarySizeBytes *int64 `protobuf:"varint,6,opt,name=binary_size_bytes,json=binarySizeBytes,proto3,oneof" json:"binary_size_bytes,omitempty"`
-	// Binary modification time.
-	BinaryMtime *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=binary_mtime,json=binaryMtime,proto3,oneof" json:"binary_mtime,omitempty"`
-	// Error if fingerprinting failed.
-	Error         *string `protobuf:"bytes,8,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ServiceFingerprint) Reset() {
-	*x = ServiceFingerprint{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ServiceFingerprint) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ServiceFingerprint) ProtoMessage() {}
-
-func (x *ServiceFingerprint) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ServiceFingerprint.ProtoReflect.Descriptor instead.
-func (*ServiceFingerprint) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *ServiceFingerprint) GetServiceId() string {
-	if x != nil {
-		return x.ServiceId
-	}
-	return ""
-}
-
-func (x *ServiceFingerprint) GetPlatform() string {
-	if x != nil {
-		return x.Platform
-	}
-	return ""
-}
-
-func (x *ServiceFingerprint) GetBinaryPath() string {
-	if x != nil && x.BinaryPath != nil {
-		return *x.BinaryPath
-	}
-	return ""
-}
-
-func (x *ServiceFingerprint) GetBinaryResolvedPath() string {
-	if x != nil && x.BinaryResolvedPath != nil {
-		return *x.BinaryResolvedPath
-	}
-	return ""
-}
-
-func (x *ServiceFingerprint) GetBinarySha256() string {
-	if x != nil && x.BinarySha256 != nil {
-		return *x.BinarySha256
-	}
-	return ""
-}
-
-func (x *ServiceFingerprint) GetBinarySizeBytes() int64 {
-	if x != nil && x.BinarySizeBytes != nil {
-		return *x.BinarySizeBytes
-	}
-	return 0
-}
-
-func (x *ServiceFingerprint) GetBinaryMtime() *timestamppb.Timestamp {
-	if x != nil {
-		return x.BinaryMtime
-	}
-	return nil
-}
-
-func (x *ServiceFingerprint) GetError() string {
-	if x != nil && x.Error != nil {
-		return *x.Error
-	}
-	return ""
-}
-
-// TelemetryInfo contains telemetry file metadata.
-//
-// @usage PreflightResponse.telemetry
-type TelemetryInfo struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Path to the telemetry file.
-	// @format path
-	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	// URL for uploading telemetry.
-	// @format uri
-	UploadUrl     *string `protobuf:"bytes,2,opt,name=upload_url,json=uploadUrl,proto3,oneof" json:"upload_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TelemetryInfo) Reset() {
-	*x = TelemetryInfo{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TelemetryInfo) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TelemetryInfo) ProtoMessage() {}
-
-func (x *TelemetryInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TelemetryInfo.ProtoReflect.Descriptor instead.
-func (*TelemetryInfo) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *TelemetryInfo) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *TelemetryInfo) GetUploadUrl() string {
-	if x != nil && x.UploadUrl != nil {
-		return *x.UploadUrl
-	}
-	return ""
-}
-
-// PreflightResponse contains the complete preflight validation results.
-//
-// @usage POST /api/preflight response
-type PreflightResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Overall preflight status.
-	Status PreflightStatus `protobuf:"varint,1,opt,name=status,proto3,enum=scenario_to_desktop.v1.PreflightStatus" json:"status,omitempty"`
-	// Validation result summary.
-	Validation *string `protobuf:"bytes,2,opt,name=validation,proto3,oneof" json:"validation,omitempty"`
-	// Runtime readiness state.
-	Ready *PreflightReady `protobuf:"bytes,3,opt,name=ready,proto3,oneof" json:"ready,omitempty"`
-	// Secret requirements.
-	Secrets []*PreflightSecret `protobuf:"bytes,4,rep,name=secrets,proto3" json:"secrets,omitempty"`
-	// Port assignments.
-	// Key: Port name, Value: Assigned port number
-	Ports map[string]int32 `protobuf:"bytes,5,rep,name=ports,proto3" json:"ports,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	// Telemetry information.
-	Telemetry *TelemetryInfo `protobuf:"bytes,6,opt,name=telemetry,proto3,oneof" json:"telemetry,omitempty"`
-	// Service log tails.
-	LogTails []*ServiceLogTail `protobuf:"bytes,7,rep,name=log_tails,json=logTails,proto3" json:"log_tails,omitempty"`
-	// Individual check results.
-	Checks []*PreflightCheck `protobuf:"bytes,8,rep,name=checks,proto3" json:"checks,omitempty"`
-	// Runtime instance information.
-	Runtime *PreflightRuntime `protobuf:"bytes,9,opt,name=runtime,proto3,oneof" json:"runtime,omitempty"`
-	// Service binary fingerprints.
-	ServiceFingerprints []*ServiceFingerprint `protobuf:"bytes,10,rep,name=service_fingerprints,json=serviceFingerprints,proto3" json:"service_fingerprints,omitempty"`
-	// Validation errors.
-	Errors []*base.ValidationError `protobuf:"bytes,11,rep,name=errors,proto3" json:"errors,omitempty"`
-	// Validation warnings.
-	Warnings []*base.ValidationWarning `protobuf:"bytes,12,rep,name=warnings,proto3" json:"warnings,omitempty"`
-	// Session ID for subsequent requests.
-	// @format uuid
-	SessionId *string `protobuf:"bytes,13,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
-	// When the session expires.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PreflightResponse) Reset() {
-	*x = PreflightResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PreflightResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PreflightResponse) ProtoMessage() {}
-
-func (x *PreflightResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PreflightResponse.ProtoReflect.Descriptor instead.
-func (*PreflightResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *PreflightResponse) GetStatus() PreflightStatus {
-	if x != nil {
-		return x.Status
-	}
-	return PreflightStatus_PREFLIGHT_STATUS_UNSPECIFIED
-}
-
-func (x *PreflightResponse) GetValidation() string {
-	if x != nil && x.Validation != nil {
-		return *x.Validation
-	}
-	return ""
-}
-
-func (x *PreflightResponse) GetReady() *PreflightReady {
-	if x != nil {
-		return x.Ready
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetSecrets() []*PreflightSecret {
-	if x != nil {
-		return x.Secrets
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetPorts() map[string]int32 {
-	if x != nil {
-		return x.Ports
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetTelemetry() *TelemetryInfo {
-	if x != nil {
-		return x.Telemetry
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetLogTails() []*ServiceLogTail {
-	if x != nil {
-		return x.LogTails
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetChecks() []*PreflightCheck {
-	if x != nil {
-		return x.Checks
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetRuntime() *PreflightRuntime {
-	if x != nil {
-		return x.Runtime
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetServiceFingerprints() []*ServiceFingerprint {
-	if x != nil {
-		return x.ServiceFingerprints
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetErrors() []*base.ValidationError {
-	if x != nil {
-		return x.Errors
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetWarnings() []*base.ValidationWarning {
-	if x != nil {
-		return x.Warnings
-	}
-	return nil
-}
-
-func (x *PreflightResponse) GetSessionId() string {
-	if x != nil && x.SessionId != nil {
-		return *x.SessionId
-	}
-	return ""
-}
-
-func (x *PreflightResponse) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
-}
-
-// JobStep represents a step in an async job.
-//
-// @usage JobStatusResponse.steps
 type JobStep struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Step identifier.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Human-readable step name.
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Step state.
-	State CheckStatus `protobuf:"varint,3,opt,name=state,proto3,enum=scenario_to_desktop.v1.CheckStatus" json:"state,omitempty"`
-	// Step detail or error message.
-	Detail        *string `protobuf:"bytes,4,opt,name=detail,proto3,oneof" json:"detail,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	State         shared.CheckStatus     `protobuf:"varint,3,opt,name=state,proto3,enum=vrooli.scenario_to_desktop.v1.shared.CheckStatus" json:"state,omitempty"`
+	Detail        *string                `protobuf:"bytes,4,opt,name=detail,proto3,oneof" json:"detail,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *JobStep) Reset() {
 	*x = JobStep{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[10]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1387,7 +219,7 @@ func (x *JobStep) String() string {
 func (*JobStep) ProtoMessage() {}
 
 func (x *JobStep) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[10]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1400,7 +232,7 @@ func (x *JobStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobStep.ProtoReflect.Descriptor instead.
 func (*JobStep) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{10}
+	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *JobStep) GetId() string {
@@ -1417,11 +249,11 @@ func (x *JobStep) GetName() string {
 	return ""
 }
 
-func (x *JobStep) GetState() CheckStatus {
+func (x *JobStep) GetState() shared.CheckStatus {
 	if x != nil {
 		return x.State
 	}
-	return CheckStatus_CHECK_STATUS_UNSPECIFIED
+	return shared.CheckStatus(0)
 }
 
 func (x *JobStep) GetDetail() string {
@@ -1431,21 +263,16 @@ func (x *JobStep) GetDetail() string {
 	return ""
 }
 
-// JobStartResponse is returned when an async job is started.
-//
-// @usage POST /api/preflight/async response
 type JobStartResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique job identifier.
-	// @format uuid
-	JobId         string `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *JobStartResponse) Reset() {
 	*x = JobStartResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[11]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1457,7 +284,7 @@ func (x *JobStartResponse) String() string {
 func (*JobStartResponse) ProtoMessage() {}
 
 func (x *JobStartResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[11]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1470,7 +297,7 @@ func (x *JobStartResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobStartResponse.ProtoReflect.Descriptor instead.
 func (*JobStartResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{11}
+	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *JobStartResponse) GetJobId() string {
@@ -1480,33 +307,22 @@ func (x *JobStartResponse) GetJobId() string {
 	return ""
 }
 
-// JobStatusResponse contains async job progress.
-//
-// @usage GET /api/preflight/job/{id} response
 type JobStatusResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Job identifier.
-	// @format uuid
-	JobId string `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
-	// Current job status.
-	Status JobStatus `protobuf:"varint,2,opt,name=status,proto3,enum=scenario_to_desktop.v1.JobStatus" json:"status,omitempty"`
-	// Job steps and their progress.
-	Steps []*JobStep `protobuf:"bytes,3,rep,name=steps,proto3" json:"steps,omitempty"`
-	// Final result (when completed).
-	Result *PreflightResponse `protobuf:"bytes,4,opt,name=result,proto3,oneof" json:"result,omitempty"`
-	// Error message (if failed).
-	Error *string `protobuf:"bytes,5,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	// When the job started.
-	StartedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	// When the job was last updated.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	JobId         string                    `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	Status        JobStatus                 `protobuf:"varint,2,opt,name=status,proto3,enum=vrooli.scenario_to_desktop.v1.domain.JobStatus" json:"status,omitempty"`
+	Steps         []*JobStep                `protobuf:"bytes,3,rep,name=steps,proto3" json:"steps,omitempty"`
+	Result        *shared.PreflightResponse `protobuf:"bytes,4,opt,name=result,proto3,oneof" json:"result,omitempty"`
+	Error         *string                   `protobuf:"bytes,5,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	StartedAt     *timestamppb.Timestamp    `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp    `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *JobStatusResponse) Reset() {
 	*x = JobStatusResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[12]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1518,7 +334,7 @@ func (x *JobStatusResponse) String() string {
 func (*JobStatusResponse) ProtoMessage() {}
 
 func (x *JobStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[12]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1531,7 +347,7 @@ func (x *JobStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobStatusResponse.ProtoReflect.Descriptor instead.
 func (*JobStatusResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{12}
+	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *JobStatusResponse) GetJobId() string {
@@ -1555,7 +371,7 @@ func (x *JobStatusResponse) GetSteps() []*JobStep {
 	return nil
 }
 
-func (x *JobStatusResponse) GetResult() *PreflightResponse {
+func (x *JobStatusResponse) GetResult() *shared.PreflightResponse {
 	if x != nil {
 		return x.Result
 	}
@@ -1583,21 +399,16 @@ func (x *JobStatusResponse) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// ManifestRequest requests manifest loading.
-//
-// @usage POST /api/preflight/manifest request body
 type ManifestRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Path to the manifest file.
-	// @format path
-	ManifestPath  string `protobuf:"bytes,1,opt,name=manifest_path,json=manifestPath,proto3" json:"manifest_path,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ManifestPath  string                 `protobuf:"bytes,1,opt,name=manifest_path,json=manifestPath,proto3" json:"manifest_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ManifestRequest) Reset() {
 	*x = ManifestRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[13]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1609,7 +420,7 @@ func (x *ManifestRequest) String() string {
 func (*ManifestRequest) ProtoMessage() {}
 
 func (x *ManifestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[13]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1622,7 +433,7 @@ func (x *ManifestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManifestRequest.ProtoReflect.Descriptor instead.
 func (*ManifestRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{13}
+	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ManifestRequest) GetManifestPath() string {
@@ -1632,25 +443,18 @@ func (x *ManifestRequest) GetManifestPath() string {
 	return ""
 }
 
-// ManifestResponse contains the loaded manifest.
-//
-// @usage POST /api/preflight/manifest response
 type ManifestResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Parsed manifest content.
-	// Key: Manifest field, Value: Field value
-	Manifest map[string]string `protobuf:"bytes,1,rep,name=manifest,proto3" json:"manifest,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Manifest schema version.
-	SchemaVersion *string `protobuf:"bytes,2,opt,name=schema_version,json=schemaVersion,proto3,oneof" json:"schema_version,omitempty"`
-	// Validation errors.
-	Errors        []*base.ValidationError `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Manifest      map[string]string         `protobuf:"bytes,1,rep,name=manifest,proto3" json:"manifest,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	SchemaVersion *string                   `protobuf:"bytes,2,opt,name=schema_version,json=schemaVersion,proto3,oneof" json:"schema_version,omitempty"`
+	Errors        []*shared.ValidationError `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ManifestResponse) Reset() {
 	*x = ManifestResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[14]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1662,7 +466,7 @@ func (x *ManifestResponse) String() string {
 func (*ManifestResponse) ProtoMessage() {}
 
 func (x *ManifestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[14]
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1675,7 +479,7 @@ func (x *ManifestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManifestResponse.ProtoReflect.Descriptor instead.
 func (*ManifestResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{14}
+	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ManifestResponse) GetManifest() map[string]string {
@@ -1692,24 +496,70 @@ func (x *ManifestResponse) GetSchemaVersion() string {
 	return ""
 }
 
-func (x *ManifestResponse) GetErrors() []*base.ValidationError {
+func (x *ManifestResponse) GetErrors() []*shared.ValidationError {
 	if x != nil {
 		return x.Errors
 	}
 	return nil
 }
 
+type GetPreflightJobRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPreflightJobRequest) Reset() {
+	*x = GetPreflightJobRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPreflightJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPreflightJobRequest) ProtoMessage() {}
+
+func (x *GetPreflightJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPreflightJobRequest.ProtoReflect.Descriptor instead.
+func (*GetPreflightJobRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetPreflightJobRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
 var File_scenario_to_desktop_v1_domain_preflight_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_domain_preflight_proto_rawDesc = "" +
 	"\n" +
-	"-scenario-to-desktop/v1/domain/preflight.proto\x12\x16scenario_to_desktop.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a(scenario-to-desktop/v1/base/shared.proto\"\x9e\x05\n" +
+	"-scenario-to-desktop/v1/domain/preflight.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\"\xb8\x05\n" +
 	"\x10PreflightRequest\x120\n" +
 	"\x14bundle_manifest_path\x18\x01 \x01(\tR\x12bundleManifestPath\x12$\n" +
 	"\vbundle_root\x18\x02 \x01(\tH\x00R\n" +
-	"bundleRoot\x88\x01\x01\x12O\n" +
-	"\asecrets\x18\x03 \x03(\v25.scenario_to_desktop.v1.PreflightRequest.SecretsEntryR\asecrets\x12,\n" +
-	"\x0ftimeout_seconds\x18\x04 \x01(\x05H\x01R\x0etimeoutSeconds\x88\x01\x01\x12*\n" +
+	"bundleRoot\x88\x01\x01\x12]\n" +
+	"\asecrets\x18\x03 \x03(\v2C.vrooli.scenario_to_desktop.v1.domain.PreflightRequest.SecretsEntryR\asecrets\x128\n" +
+	"\x0ftimeout_seconds\x18\x04 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xac\x02(\n" +
+	"H\x01R\x0etimeoutSeconds\x88\x01\x01\x12*\n" +
 	"\x0estart_services\x18\x05 \x01(\bH\x02R\rstartServices\x88\x01\x01\x12)\n" +
 	"\x0elog_tail_lines\x18\x06 \x01(\x05H\x03R\flogTailLines\x88\x01\x01\x12$\n" +
 	"\vstatus_only\x18\a \x01(\bH\x04R\n" +
@@ -1730,155 +580,20 @@ const file_scenario_to_desktop_v1_domain_preflight_proto_rawDesc = "" +
 	"\f_status_onlyB\r\n" +
 	"\v_session_idB\x0e\n" +
 	"\f_session_ttlB\x0f\n" +
-	"\r_session_stop\"\x89\x03\n" +
-	"\x0fPreflightSecret\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12F\n" +
-	"\fsecret_class\x18\x02 \x01(\x0e2#.scenario_to_desktop.v1.SecretClassR\vsecretClass\x12\x1a\n" +
-	"\brequired\x18\x03 \x01(\bR\brequired\x12\x1b\n" +
-	"\thas_value\x18\x04 \x01(\bR\bhasValue\x12%\n" +
-	"\vdescription\x18\x05 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1b\n" +
-	"\x06format\x18\x06 \x01(\tH\x01R\x06format\x88\x01\x01\x12K\n" +
-	"\x06prompt\x18\a \x03(\v23.scenario_to_desktop.v1.PreflightSecret.PromptEntryR\x06prompt\x1a9\n" +
-	"\vPromptEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0e\n" +
-	"\f_descriptionB\t\n" +
-	"\a_format\"\x8f\x02\n" +
-	"\aGPUInfo\x12\x1c\n" +
-	"\tavailable\x18\x01 \x01(\bR\tavailable\x12\x1b\n" +
-	"\x06method\x18\x02 \x01(\tH\x00R\x06method\x88\x01\x01\x12\x1b\n" +
-	"\x06reason\x18\x03 \x01(\tH\x01R\x06reason\x88\x01\x01\x12U\n" +
-	"\frequirements\x18\x04 \x03(\v21.scenario_to_desktop.v1.GPUInfo.RequirementsEntryR\frequirements\x1a?\n" +
-	"\x11RequirementsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +
-	"\a_methodB\t\n" +
-	"\a_reason\"\xd5\x02\n" +
-	"\x0ePreflightReady\x12\x14\n" +
-	"\x05ready\x18\x01 \x01(\bR\x05ready\x12M\n" +
-	"\adetails\x18\x02 \x03(\v23.scenario_to_desktop.v1.PreflightReady.DetailsEntryR\adetails\x126\n" +
-	"\x03gpu\x18\x03 \x01(\v2\x1f.scenario_to_desktop.v1.GPUInfoH\x00R\x03gpu\x88\x01\x01\x12;\n" +
-	"\vsnapshot_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"snapshotAt\x12%\n" +
-	"\x0ewaited_seconds\x18\x05 \x01(\x05R\rwaitedSeconds\x1a:\n" +
-	"\fDetailsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01B\x06\n" +
-	"\x04_gpu\"\xd6\x05\n" +
-	"\x10PreflightRuntime\x12\x1f\n" +
-	"\vinstance_id\x18\x01 \x01(\tR\n" +
-	"instanceId\x129\n" +
-	"\n" +
-	"started_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12%\n" +
-	"\fapp_data_dir\x18\x03 \x01(\tH\x00R\n" +
-	"appDataDir\x88\x01\x01\x12$\n" +
-	"\vbundle_root\x18\x04 \x01(\tH\x01R\n" +
-	"bundleRoot\x88\x01\x01\x12\x17\n" +
-	"\adry_run\x18\x05 \x01(\bR\x06dryRun\x12(\n" +
-	"\rmanifest_hash\x18\x06 \x01(\tH\x02R\fmanifestHash\x88\x01\x01\x12,\n" +
-	"\x0fmanifest_schema\x18\a \x01(\tH\x03R\x0emanifestSchema\x88\x01\x01\x12\x1b\n" +
-	"\x06target\x18\b \x01(\tH\x04R\x06target\x88\x01\x01\x12\x1e\n" +
-	"\bapp_name\x18\t \x01(\tH\x05R\aappName\x88\x01\x01\x12$\n" +
-	"\vapp_version\x18\n" +
-	" \x01(\tH\x06R\n" +
-	"appVersion\x88\x01\x01\x12\x1e\n" +
-	"\bipc_host\x18\v \x01(\tH\aR\aipcHost\x88\x01\x01\x12\x1e\n" +
-	"\bipc_port\x18\f \x01(\x05H\bR\aipcPort\x88\x01\x01\x12,\n" +
-	"\x0fruntime_version\x18\r \x01(\tH\tR\x0eruntimeVersion\x88\x01\x01\x12(\n" +
-	"\rbuild_version\x18\x0e \x01(\tH\n" +
-	"R\fbuildVersion\x88\x01\x01B\x0f\n" +
-	"\r_app_data_dirB\x0e\n" +
-	"\f_bundle_rootB\x10\n" +
-	"\x0e_manifest_hashB\x12\n" +
-	"\x10_manifest_schemaB\t\n" +
-	"\a_targetB\v\n" +
-	"\t_app_nameB\x0e\n" +
-	"\f_app_versionB\v\n" +
-	"\t_ipc_hostB\v\n" +
-	"\t_ipc_portB\x12\n" +
-	"\x10_runtime_versionB\x10\n" +
-	"\x0e_build_version\"\xad\x01\n" +
-	"\x0ePreflightCheck\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04step\x18\x02 \x01(\x05R\x04step\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x12;\n" +
-	"\x06status\x18\x04 \x01(\x0e2#.scenario_to_desktop.v1.CheckStatusR\x06status\x12\x1b\n" +
-	"\x06detail\x18\x05 \x01(\tH\x00R\x06detail\x88\x01\x01B\t\n" +
-	"\a_detail\"\x84\x01\n" +
-	"\x0eServiceLogTail\x12\x1d\n" +
-	"\n" +
-	"service_id\x18\x01 \x01(\tR\tserviceId\x12\x14\n" +
-	"\x05lines\x18\x02 \x01(\x05R\x05lines\x12\x18\n" +
-	"\acontent\x18\x03 \x01(\tR\acontent\x12\x19\n" +
-	"\x05error\x18\x04 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
-	"\x06_error\"\xd2\x03\n" +
-	"\x12ServiceFingerprint\x12\x1d\n" +
-	"\n" +
-	"service_id\x18\x01 \x01(\tR\tserviceId\x12\x1a\n" +
-	"\bplatform\x18\x02 \x01(\tR\bplatform\x12$\n" +
-	"\vbinary_path\x18\x03 \x01(\tH\x00R\n" +
-	"binaryPath\x88\x01\x01\x125\n" +
-	"\x14binary_resolved_path\x18\x04 \x01(\tH\x01R\x12binaryResolvedPath\x88\x01\x01\x12(\n" +
-	"\rbinary_sha256\x18\x05 \x01(\tH\x02R\fbinarySha256\x88\x01\x01\x12/\n" +
-	"\x11binary_size_bytes\x18\x06 \x01(\x03H\x03R\x0fbinarySizeBytes\x88\x01\x01\x12B\n" +
-	"\fbinary_mtime\x18\a \x01(\v2\x1a.google.protobuf.TimestampH\x04R\vbinaryMtime\x88\x01\x01\x12\x19\n" +
-	"\x05error\x18\b \x01(\tH\x05R\x05error\x88\x01\x01B\x0e\n" +
-	"\f_binary_pathB\x17\n" +
-	"\x15_binary_resolved_pathB\x10\n" +
-	"\x0e_binary_sha256B\x14\n" +
-	"\x12_binary_size_bytesB\x0f\n" +
-	"\r_binary_mtimeB\b\n" +
-	"\x06_error\"V\n" +
-	"\rTelemetryInfo\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\x12\"\n" +
-	"\n" +
-	"upload_url\x18\x02 \x01(\tH\x00R\tuploadUrl\x88\x01\x01B\r\n" +
-	"\v_upload_url\"\xb9\b\n" +
-	"\x11PreflightResponse\x12?\n" +
-	"\x06status\x18\x01 \x01(\x0e2'.scenario_to_desktop.v1.PreflightStatusR\x06status\x12#\n" +
-	"\n" +
-	"validation\x18\x02 \x01(\tH\x00R\n" +
-	"validation\x88\x01\x01\x12A\n" +
-	"\x05ready\x18\x03 \x01(\v2&.scenario_to_desktop.v1.PreflightReadyH\x01R\x05ready\x88\x01\x01\x12A\n" +
-	"\asecrets\x18\x04 \x03(\v2'.scenario_to_desktop.v1.PreflightSecretR\asecrets\x12J\n" +
-	"\x05ports\x18\x05 \x03(\v24.scenario_to_desktop.v1.PreflightResponse.PortsEntryR\x05ports\x12H\n" +
-	"\ttelemetry\x18\x06 \x01(\v2%.scenario_to_desktop.v1.TelemetryInfoH\x02R\ttelemetry\x88\x01\x01\x12C\n" +
-	"\tlog_tails\x18\a \x03(\v2&.scenario_to_desktop.v1.ServiceLogTailR\blogTails\x12>\n" +
-	"\x06checks\x18\b \x03(\v2&.scenario_to_desktop.v1.PreflightCheckR\x06checks\x12G\n" +
-	"\aruntime\x18\t \x01(\v2(.scenario_to_desktop.v1.PreflightRuntimeH\x03R\aruntime\x88\x01\x01\x12]\n" +
-	"\x14service_fingerprints\x18\n" +
-	" \x03(\v2*.scenario_to_desktop.v1.ServiceFingerprintR\x13serviceFingerprints\x12?\n" +
-	"\x06errors\x18\v \x03(\v2'.scenario_to_desktop.v1.ValidationErrorR\x06errors\x12E\n" +
-	"\bwarnings\x18\f \x03(\v2).scenario_to_desktop.v1.ValidationWarningR\bwarnings\x12\"\n" +
-	"\n" +
-	"session_id\x18\r \x01(\tH\x04R\tsessionId\x88\x01\x01\x12>\n" +
-	"\n" +
-	"expires_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampH\x05R\texpiresAt\x88\x01\x01\x1a8\n" +
-	"\n" +
-	"PortsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01B\r\n" +
-	"\v_validationB\b\n" +
-	"\x06_readyB\f\n" +
-	"\n" +
-	"_telemetryB\n" +
-	"\n" +
-	"\b_runtimeB\r\n" +
-	"\v_session_idB\r\n" +
-	"\v_expires_at\"\x90\x01\n" +
+	"\r_session_stop\"\x9e\x01\n" +
 	"\aJobStep\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
-	"\x05state\x18\x03 \x01(\x0e2#.scenario_to_desktop.v1.CheckStatusR\x05state\x12\x1b\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12G\n" +
+	"\x05state\x18\x03 \x01(\x0e21.vrooli.scenario_to_desktop.v1.shared.CheckStatusR\x05state\x12\x1b\n" +
 	"\x06detail\x18\x04 \x01(\tH\x00R\x06detail\x88\x01\x01B\t\n" +
 	"\a_detail\")\n" +
 	"\x10JobStartResponse\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\x8a\x03\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\xb4\x03\n" +
 	"\x11JobStatusResponse\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x129\n" +
-	"\x06status\x18\x02 \x01(\x0e2!.scenario_to_desktop.v1.JobStatusR\x06status\x125\n" +
-	"\x05steps\x18\x03 \x03(\v2\x1f.scenario_to_desktop.v1.JobStepR\x05steps\x12F\n" +
-	"\x06result\x18\x04 \x01(\v2).scenario_to_desktop.v1.PreflightResponseH\x00R\x06result\x88\x01\x01\x12\x19\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12G\n" +
+	"\x06status\x18\x02 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.domain.JobStatusR\x06status\x12C\n" +
+	"\x05steps\x18\x03 \x03(\v2-.vrooli.scenario_to_desktop.v1.domain.JobStepR\x05steps\x12T\n" +
+	"\x06result\x18\x04 \x01(\v27.vrooli.scenario_to_desktop.v1.shared.PreflightResponseH\x00R\x06result\x88\x01\x01\x12\x19\n" +
 	"\x05error\x18\x05 \x01(\tH\x01R\x05error\x88\x01\x01\x129\n" +
 	"\n" +
 	"started_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x129\n" +
@@ -1887,42 +602,27 @@ const file_scenario_to_desktop_v1_domain_preflight_proto_rawDesc = "" +
 	"\a_resultB\b\n" +
 	"\x06_error\"6\n" +
 	"\x0fManifestRequest\x12#\n" +
-	"\rmanifest_path\x18\x01 \x01(\tR\fmanifestPath\"\xa3\x02\n" +
-	"\x10ManifestResponse\x12R\n" +
-	"\bmanifest\x18\x01 \x03(\v26.scenario_to_desktop.v1.ManifestResponse.ManifestEntryR\bmanifest\x12*\n" +
-	"\x0eschema_version\x18\x02 \x01(\tH\x00R\rschemaVersion\x88\x01\x01\x12?\n" +
-	"\x06errors\x18\x03 \x03(\v2'.scenario_to_desktop.v1.ValidationErrorR\x06errors\x1a;\n" +
+	"\rmanifest_path\x18\x01 \x01(\tR\fmanifestPath\"\xbf\x02\n" +
+	"\x10ManifestResponse\x12`\n" +
+	"\bmanifest\x18\x01 \x03(\v2D.vrooli.scenario_to_desktop.v1.domain.ManifestResponse.ManifestEntryR\bmanifest\x12*\n" +
+	"\x0eschema_version\x18\x02 \x01(\tH\x00R\rschemaVersion\x88\x01\x01\x12M\n" +
+	"\x06errors\x18\x03 \x03(\v25.vrooli.scenario_to_desktop.v1.shared.ValidationErrorR\x06errors\x1a;\n" +
 	"\rManifestEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x11\n" +
-	"\x0f_schema_version*\xaa\x01\n" +
-	"\x0fPreflightStatus\x12 \n" +
-	"\x1cPREFLIGHT_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18PREFLIGHT_STATUS_RUNNING\x10\x01\x12\x1b\n" +
-	"\x17PREFLIGHT_STATUS_PASSED\x10\x02\x12\x1b\n" +
-	"\x17PREFLIGHT_STATUS_FAILED\x10\x03\x12\x1d\n" +
-	"\x19PREFLIGHT_STATUS_WARNINGS\x10\x04*\xab\x01\n" +
-	"\vCheckStatus\x12\x1c\n" +
-	"\x18CHECK_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14CHECK_STATUS_PENDING\x10\x01\x12\x18\n" +
-	"\x14CHECK_STATUS_RUNNING\x10\x02\x12\x17\n" +
-	"\x13CHECK_STATUS_PASSED\x10\x03\x12\x17\n" +
-	"\x13CHECK_STATUS_FAILED\x10\x04\x12\x18\n" +
-	"\x14CHECK_STATUS_SKIPPED\x10\x05*\xd4\x01\n" +
-	"\vSecretClass\x12\x1c\n" +
-	"\x18SECRET_CLASS_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14SECRET_CLASS_API_KEY\x10\x01\x12\x19\n" +
-	"\x15SECRET_CLASS_PASSWORD\x10\x02\x12\x16\n" +
-	"\x12SECRET_CLASS_TOKEN\x10\x03\x12\"\n" +
-	"\x1eSECRET_CLASS_CONNECTION_STRING\x10\x04\x12\x1c\n" +
-	"\x18SECRET_CLASS_CERTIFICATE\x10\x05\x12\x18\n" +
-	"\x14SECRET_CLASS_GENERIC\x10\x06*\x88\x01\n" +
+	"\x0f_schema_version\"8\n" +
+	"\x16GetPreflightJobRequest\x12\x1e\n" +
+	"\x06job_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05jobId*\x88\x01\n" +
 	"\tJobStatus\x12\x1a\n" +
 	"\x16JOB_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12JOB_STATUS_PENDING\x10\x01\x12\x16\n" +
 	"\x12JOB_STATUS_RUNNING\x10\x02\x12\x18\n" +
 	"\x14JOB_STATUS_COMPLETED\x10\x03\x12\x15\n" +
-	"\x11JOB_STATUS_FAILED\x10\x04BUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
+	"\x11JOB_STATUS_FAILED\x10\x042\xa1\x03\n" +
+	"\x10PreflightService\x12\x7f\n" +
+	"\fRunPreflight\x126.vrooli.scenario_to_desktop.v1.domain.PreflightRequest\x1a7.vrooli.scenario_to_desktop.v1.shared.PreflightResponse\x12\x88\x01\n" +
+	"\x0fGetPreflightJob\x12<.vrooli.scenario_to_desktop.v1.domain.GetPreflightJobRequest\x1a7.vrooli.scenario_to_desktop.v1.domain.JobStatusResponse\x12\x80\x01\n" +
+	"\x0fInspectManifest\x125.vrooli.scenario_to_desktop.v1.domain.ManifestRequest\x1a6.vrooli.scenario_to_desktop.v1.domain.ManifestResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_domain_preflight_proto_rawDescOnce sync.Once
@@ -1936,74 +636,45 @@ func file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP() []byte {
 	return file_scenario_to_desktop_v1_domain_preflight_proto_rawDescData
 }
 
-var file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_scenario_to_desktop_v1_domain_preflight_proto_goTypes = []any{
-	(PreflightStatus)(0),           // 0: scenario_to_desktop.v1.PreflightStatus
-	(CheckStatus)(0),               // 1: scenario_to_desktop.v1.CheckStatus
-	(SecretClass)(0),               // 2: scenario_to_desktop.v1.SecretClass
-	(JobStatus)(0),                 // 3: scenario_to_desktop.v1.JobStatus
-	(*PreflightRequest)(nil),       // 4: scenario_to_desktop.v1.PreflightRequest
-	(*PreflightSecret)(nil),        // 5: scenario_to_desktop.v1.PreflightSecret
-	(*GPUInfo)(nil),                // 6: scenario_to_desktop.v1.GPUInfo
-	(*PreflightReady)(nil),         // 7: scenario_to_desktop.v1.PreflightReady
-	(*PreflightRuntime)(nil),       // 8: scenario_to_desktop.v1.PreflightRuntime
-	(*PreflightCheck)(nil),         // 9: scenario_to_desktop.v1.PreflightCheck
-	(*ServiceLogTail)(nil),         // 10: scenario_to_desktop.v1.ServiceLogTail
-	(*ServiceFingerprint)(nil),     // 11: scenario_to_desktop.v1.ServiceFingerprint
-	(*TelemetryInfo)(nil),          // 12: scenario_to_desktop.v1.TelemetryInfo
-	(*PreflightResponse)(nil),      // 13: scenario_to_desktop.v1.PreflightResponse
-	(*JobStep)(nil),                // 14: scenario_to_desktop.v1.JobStep
-	(*JobStartResponse)(nil),       // 15: scenario_to_desktop.v1.JobStartResponse
-	(*JobStatusResponse)(nil),      // 16: scenario_to_desktop.v1.JobStatusResponse
-	(*ManifestRequest)(nil),        // 17: scenario_to_desktop.v1.ManifestRequest
-	(*ManifestResponse)(nil),       // 18: scenario_to_desktop.v1.ManifestResponse
-	nil,                            // 19: scenario_to_desktop.v1.PreflightRequest.SecretsEntry
-	nil,                            // 20: scenario_to_desktop.v1.PreflightSecret.PromptEntry
-	nil,                            // 21: scenario_to_desktop.v1.GPUInfo.RequirementsEntry
-	nil,                            // 22: scenario_to_desktop.v1.PreflightReady.DetailsEntry
-	nil,                            // 23: scenario_to_desktop.v1.PreflightResponse.PortsEntry
-	nil,                            // 24: scenario_to_desktop.v1.ManifestResponse.ManifestEntry
-	(*timestamppb.Timestamp)(nil),  // 25: google.protobuf.Timestamp
-	(*base.ValidationError)(nil),   // 26: scenario_to_desktop.v1.ValidationError
-	(*base.ValidationWarning)(nil), // 27: scenario_to_desktop.v1.ValidationWarning
+	(JobStatus)(0),                   // 0: vrooli.scenario_to_desktop.v1.domain.JobStatus
+	(*PreflightRequest)(nil),         // 1: vrooli.scenario_to_desktop.v1.domain.PreflightRequest
+	(*JobStep)(nil),                  // 2: vrooli.scenario_to_desktop.v1.domain.JobStep
+	(*JobStartResponse)(nil),         // 3: vrooli.scenario_to_desktop.v1.domain.JobStartResponse
+	(*JobStatusResponse)(nil),        // 4: vrooli.scenario_to_desktop.v1.domain.JobStatusResponse
+	(*ManifestRequest)(nil),          // 5: vrooli.scenario_to_desktop.v1.domain.ManifestRequest
+	(*ManifestResponse)(nil),         // 6: vrooli.scenario_to_desktop.v1.domain.ManifestResponse
+	(*GetPreflightJobRequest)(nil),   // 7: vrooli.scenario_to_desktop.v1.domain.GetPreflightJobRequest
+	nil,                              // 8: vrooli.scenario_to_desktop.v1.domain.PreflightRequest.SecretsEntry
+	nil,                              // 9: vrooli.scenario_to_desktop.v1.domain.ManifestResponse.ManifestEntry
+	(shared.CheckStatus)(0),          // 10: vrooli.scenario_to_desktop.v1.shared.CheckStatus
+	(*shared.PreflightResponse)(nil), // 11: vrooli.scenario_to_desktop.v1.shared.PreflightResponse
+	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
+	(*shared.ValidationError)(nil),   // 13: vrooli.scenario_to_desktop.v1.shared.ValidationError
 }
 var file_scenario_to_desktop_v1_domain_preflight_proto_depIdxs = []int32{
-	19, // 0: scenario_to_desktop.v1.PreflightRequest.secrets:type_name -> scenario_to_desktop.v1.PreflightRequest.SecretsEntry
-	2,  // 1: scenario_to_desktop.v1.PreflightSecret.secret_class:type_name -> scenario_to_desktop.v1.SecretClass
-	20, // 2: scenario_to_desktop.v1.PreflightSecret.prompt:type_name -> scenario_to_desktop.v1.PreflightSecret.PromptEntry
-	21, // 3: scenario_to_desktop.v1.GPUInfo.requirements:type_name -> scenario_to_desktop.v1.GPUInfo.RequirementsEntry
-	22, // 4: scenario_to_desktop.v1.PreflightReady.details:type_name -> scenario_to_desktop.v1.PreflightReady.DetailsEntry
-	6,  // 5: scenario_to_desktop.v1.PreflightReady.gpu:type_name -> scenario_to_desktop.v1.GPUInfo
-	25, // 6: scenario_to_desktop.v1.PreflightReady.snapshot_at:type_name -> google.protobuf.Timestamp
-	25, // 7: scenario_to_desktop.v1.PreflightRuntime.started_at:type_name -> google.protobuf.Timestamp
-	1,  // 8: scenario_to_desktop.v1.PreflightCheck.status:type_name -> scenario_to_desktop.v1.CheckStatus
-	25, // 9: scenario_to_desktop.v1.ServiceFingerprint.binary_mtime:type_name -> google.protobuf.Timestamp
-	0,  // 10: scenario_to_desktop.v1.PreflightResponse.status:type_name -> scenario_to_desktop.v1.PreflightStatus
-	7,  // 11: scenario_to_desktop.v1.PreflightResponse.ready:type_name -> scenario_to_desktop.v1.PreflightReady
-	5,  // 12: scenario_to_desktop.v1.PreflightResponse.secrets:type_name -> scenario_to_desktop.v1.PreflightSecret
-	23, // 13: scenario_to_desktop.v1.PreflightResponse.ports:type_name -> scenario_to_desktop.v1.PreflightResponse.PortsEntry
-	12, // 14: scenario_to_desktop.v1.PreflightResponse.telemetry:type_name -> scenario_to_desktop.v1.TelemetryInfo
-	10, // 15: scenario_to_desktop.v1.PreflightResponse.log_tails:type_name -> scenario_to_desktop.v1.ServiceLogTail
-	9,  // 16: scenario_to_desktop.v1.PreflightResponse.checks:type_name -> scenario_to_desktop.v1.PreflightCheck
-	8,  // 17: scenario_to_desktop.v1.PreflightResponse.runtime:type_name -> scenario_to_desktop.v1.PreflightRuntime
-	11, // 18: scenario_to_desktop.v1.PreflightResponse.service_fingerprints:type_name -> scenario_to_desktop.v1.ServiceFingerprint
-	26, // 19: scenario_to_desktop.v1.PreflightResponse.errors:type_name -> scenario_to_desktop.v1.ValidationError
-	27, // 20: scenario_to_desktop.v1.PreflightResponse.warnings:type_name -> scenario_to_desktop.v1.ValidationWarning
-	25, // 21: scenario_to_desktop.v1.PreflightResponse.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 22: scenario_to_desktop.v1.JobStep.state:type_name -> scenario_to_desktop.v1.CheckStatus
-	3,  // 23: scenario_to_desktop.v1.JobStatusResponse.status:type_name -> scenario_to_desktop.v1.JobStatus
-	14, // 24: scenario_to_desktop.v1.JobStatusResponse.steps:type_name -> scenario_to_desktop.v1.JobStep
-	13, // 25: scenario_to_desktop.v1.JobStatusResponse.result:type_name -> scenario_to_desktop.v1.PreflightResponse
-	25, // 26: scenario_to_desktop.v1.JobStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	25, // 27: scenario_to_desktop.v1.JobStatusResponse.updated_at:type_name -> google.protobuf.Timestamp
-	24, // 28: scenario_to_desktop.v1.ManifestResponse.manifest:type_name -> scenario_to_desktop.v1.ManifestResponse.ManifestEntry
-	26, // 29: scenario_to_desktop.v1.ManifestResponse.errors:type_name -> scenario_to_desktop.v1.ValidationError
-	30, // [30:30] is the sub-list for method output_type
-	30, // [30:30] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	8,  // 0: vrooli.scenario_to_desktop.v1.domain.PreflightRequest.secrets:type_name -> vrooli.scenario_to_desktop.v1.domain.PreflightRequest.SecretsEntry
+	10, // 1: vrooli.scenario_to_desktop.v1.domain.JobStep.state:type_name -> vrooli.scenario_to_desktop.v1.shared.CheckStatus
+	0,  // 2: vrooli.scenario_to_desktop.v1.domain.JobStatusResponse.status:type_name -> vrooli.scenario_to_desktop.v1.domain.JobStatus
+	2,  // 3: vrooli.scenario_to_desktop.v1.domain.JobStatusResponse.steps:type_name -> vrooli.scenario_to_desktop.v1.domain.JobStep
+	11, // 4: vrooli.scenario_to_desktop.v1.domain.JobStatusResponse.result:type_name -> vrooli.scenario_to_desktop.v1.shared.PreflightResponse
+	12, // 5: vrooli.scenario_to_desktop.v1.domain.JobStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	12, // 6: vrooli.scenario_to_desktop.v1.domain.JobStatusResponse.updated_at:type_name -> google.protobuf.Timestamp
+	9,  // 7: vrooli.scenario_to_desktop.v1.domain.ManifestResponse.manifest:type_name -> vrooli.scenario_to_desktop.v1.domain.ManifestResponse.ManifestEntry
+	13, // 8: vrooli.scenario_to_desktop.v1.domain.ManifestResponse.errors:type_name -> vrooli.scenario_to_desktop.v1.shared.ValidationError
+	1,  // 9: vrooli.scenario_to_desktop.v1.domain.PreflightService.RunPreflight:input_type -> vrooli.scenario_to_desktop.v1.domain.PreflightRequest
+	7,  // 10: vrooli.scenario_to_desktop.v1.domain.PreflightService.GetPreflightJob:input_type -> vrooli.scenario_to_desktop.v1.domain.GetPreflightJobRequest
+	5,  // 11: vrooli.scenario_to_desktop.v1.domain.PreflightService.InspectManifest:input_type -> vrooli.scenario_to_desktop.v1.domain.ManifestRequest
+	11, // 12: vrooli.scenario_to_desktop.v1.domain.PreflightService.RunPreflight:output_type -> vrooli.scenario_to_desktop.v1.shared.PreflightResponse
+	4,  // 13: vrooli.scenario_to_desktop.v1.domain.PreflightService.GetPreflightJob:output_type -> vrooli.scenario_to_desktop.v1.domain.JobStatusResponse
+	6,  // 14: vrooli.scenario_to_desktop.v1.domain.PreflightService.InspectManifest:output_type -> vrooli.scenario_to_desktop.v1.domain.ManifestResponse
+	12, // [12:15] is the sub-list for method output_type
+	9,  // [9:12] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_domain_preflight_proto_init() }
@@ -2013,26 +684,17 @@ func file_scenario_to_desktop_v1_domain_preflight_proto_init() {
 	}
 	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[1].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[2].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[3].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[4].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[5].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[6].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[7].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[8].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[9].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[10].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[12].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_domain_preflight_proto_rawDesc), len(file_scenario_to_desktop_v1_domain_preflight_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   21,
+			NumEnums:      1,
+			NumMessages:   9,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_scenario_to_desktop_v1_domain_preflight_proto_goTypes,
 		DependencyIndexes: file_scenario_to_desktop_v1_domain_preflight_proto_depIdxs,

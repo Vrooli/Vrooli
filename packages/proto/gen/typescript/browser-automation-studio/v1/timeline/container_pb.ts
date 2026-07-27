@@ -22,7 +22,6 @@ export const file_browser_automation_studio_v1_timeline_container: GenFile = /*@
  * ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
  * Contains all timeline entries from a completed or in-progress execution.
  *
- * @usage GET /api/v1/executions/{id}/timeline response body
  *
  * @generated from message browser_automation_studio.v1.ExecutionTimeline
  */

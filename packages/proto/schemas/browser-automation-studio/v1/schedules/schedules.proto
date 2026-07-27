@@ -12,9 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // SCHEDULES DOMAIN — cron-driven workflow runs + calendar projection.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain schedules
-// @stability stable
+// @stability beta
 //
 // SchedulesService owns workflow schedule CRUD, manual trigger, on/off toggle,
 // and the calendar-occurrences projection used by the Settings → Schedules tab

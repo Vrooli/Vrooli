@@ -12,9 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // PROJECTS DOMAIN — project CRUD + project-scoped workflow operations.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain projects
-// @stability stable
+// @stability beta
 //
 // ProjectsService is the canonical transport for project CRUD plus the small
 // set of project-scoped bulk operations on workflows (list/bulk-delete/

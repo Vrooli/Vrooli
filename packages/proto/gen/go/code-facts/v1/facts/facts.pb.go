@@ -229,6 +229,9 @@ const (
 	SurfaceKind_SURFACE_KIND_SIDECAR     SurfaceKind = 4
 	SurfaceKind_SURFACE_KIND_WORKER      SurfaceKind = 5
 	SurfaceKind_SURFACE_KIND_JOB         SurfaceKind = 6
+	// Runtime modules ship inside generated artifacts and require independent
+	// discovery, test policy, and coverage evidence.
+	SurfaceKind_SURFACE_KIND_RUNTIME SurfaceKind = 7
 )
 
 // Enum value maps for SurfaceKind.
@@ -241,6 +244,7 @@ var (
 		4: "SURFACE_KIND_SIDECAR",
 		5: "SURFACE_KIND_WORKER",
 		6: "SURFACE_KIND_JOB",
+		7: "SURFACE_KIND_RUNTIME",
 	}
 	SurfaceKind_value = map[string]int32{
 		"SURFACE_KIND_UNSPECIFIED": 0,
@@ -250,6 +254,7 @@ var (
 		"SURFACE_KIND_SIDECAR":     4,
 		"SURFACE_KIND_WORKER":      5,
 		"SURFACE_KIND_JOB":         6,
+		"SURFACE_KIND_RUNTIME":     7,
 	}
 )
 
@@ -2436,7 +2441,7 @@ const file_code_facts_v1_facts_facts_proto_rawDesc = "" +
 	"\x17EVIDENCE_STATUS_MISSING\x10\x02\x12 \n" +
 	"\x1cEVIDENCE_STATUS_CONTRADICTED\x10\x03\x12\x1f\n" +
 	"\x1bEVIDENCE_STATUS_UNSUPPORTED\x10\x04\x12\x1b\n" +
-	"\x17EVIDENCE_STATUS_UNKNOWN\x10\x05*\xb5\x01\n" +
+	"\x17EVIDENCE_STATUS_UNKNOWN\x10\x05*\xcf\x01\n" +
 	"\vSurfaceKind\x12\x1c\n" +
 	"\x18SURFACE_KIND_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10SURFACE_KIND_API\x10\x01\x12\x14\n" +
@@ -2444,7 +2449,8 @@ const file_code_facts_v1_facts_facts_proto_rawDesc = "" +
 	"\x0fSURFACE_KIND_UI\x10\x03\x12\x18\n" +
 	"\x14SURFACE_KIND_SIDECAR\x10\x04\x12\x17\n" +
 	"\x13SURFACE_KIND_WORKER\x10\x05\x12\x14\n" +
-	"\x10SURFACE_KIND_JOB\x10\x06*\xbf\x01\n" +
+	"\x10SURFACE_KIND_JOB\x10\x06\x12\x18\n" +
+	"\x14SURFACE_KIND_RUNTIME\x10\a*\xbf\x01\n" +
 	"\rSurfaceStatus\x12\x1e\n" +
 	"\x1aSURFACE_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14SURFACE_STATUS_KNOWN\x10\x01\x12\x1a\n" +

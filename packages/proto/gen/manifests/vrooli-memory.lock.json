@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "vrooli-memory",
+  "input_digest": "sha256:952e86ddd28a2e04e3724bd2fa4fa22b2fa9b7128d70c63aa2454304aba82267",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/vrooli-memory/v1/notes/attachments.proto",
+    "schemas/vrooli-memory/v1/notes/notes.proto",
+    "schemas/vrooli-memory/v1/shared/errors.proto",
+    "schemas/vrooli-memory/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/vrooli-memory/v1/notes/attachments.pb.go": "sha256:be18dd06c3522d5ef5b5c29fdf38a674d6686001a7faebefc9554b08e47bb4f8",
+    "gen/go/vrooli-memory/v1/notes/notes.pb.go": "sha256:ad049d4bfeb5d109a8a5d4f54eb6d26344389f3006ace67c1d0078dab93563c2",
+    "gen/go/vrooli-memory/v1/notes/notes_v1connect/notes.connect.go": "sha256:933870fbed83e1fa0c566b4634449d3c0c3f0ef43195a09a9be40a50c7868a96",
+    "gen/go/vrooli-memory/v1/shared/errors.pb.go": "sha256:c43168d1a1beb8622500b250519d7479a73ed0bc2f9e4a8653341224759b2b0a",
+    "gen/go/vrooli-memory/v1/shared/health.pb.go": "sha256:361d2677b3bed5d7425adbb213f19bdcd496b7ad24f36ab736cc9299503d52b8",
+    "gen/python/vrooli_memory/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/vrooli_memory/v1/notes/attachments_pb2.py": "sha256:ebd6f446a9b9ebfe8d1454b54e104db769b7823c8eaae34c8200896f90f5e8c5",
+    "gen/python/vrooli_memory/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/vrooli_memory/v1/notes/notes_pb2.py": "sha256:b6b06e8941326d78786db95f6855a465425fc878559f36e6e03f6f8ebc5347a0",
+    "gen/python/vrooli_memory/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/vrooli_memory/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/vrooli_memory/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/vrooli_memory/v1/shared/errors_pb2.py": "sha256:ad835846859588a2b35e87c8ccdf215378e13534a23dfc7df2eebf436729bc2f",
+    "gen/python/vrooli_memory/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/vrooli_memory/v1/shared/health_pb2.py": "sha256:e5194348673797e19635ea83b0c8a9ded9c30ff9d7a4a4f5c94a376709a5a4a3",
+    "gen/python/vrooli_memory/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/vrooli_memory/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/vrooli-memory/v1/notes/attachments_pb.js": "sha256:3b4a7b335c2f36fd5798602b80ccfcbc7992b855b3a2dccb96b67c8e36d10fef",
+    "gen/typescript/js/vrooli-memory/v1/notes/notes_pb.js": "sha256:499c99ca4921ee720c31a4cc43aa667265675f809b29387d9c6edb3a3714118d",
+    "gen/typescript/js/vrooli-memory/v1/shared/errors_pb.js": "sha256:34ef06eea833ccc4d924ff14fc0cfd83d57a6645af1c3afaa051995f198d212a",
+    "gen/typescript/js/vrooli-memory/v1/shared/health_pb.js": "sha256:95d7ee544830ec1cc7b1fb5267ca81b2a008d4ae88aa40207f08edff78e7864c",
+    "gen/typescript/vrooli-memory/v1/notes/attachments_pb.ts": "sha256:792b34d58f491755b55a2d9fcc196015655f3fe82181de2da3ad2335e35c3149",
+    "gen/typescript/vrooli-memory/v1/notes/notes_pb.ts": "sha256:18dcf5c79ec33000682bec8aa48db9b1863aef8c68e75ea11088689a2de4f057",
+    "gen/typescript/vrooli-memory/v1/shared/errors_pb.ts": "sha256:7a3feb54803b537b6e41c51c77fb864087a57f1e2a4fd81bfe70d725b3f0f881",
+    "gen/typescript/vrooli-memory/v1/shared/health_pb.ts": "sha256:08d80fc4980bd472731e85254251f3b854136b23343a59cfb9b928779412b9f1"
+  }
+}

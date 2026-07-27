@@ -20,7 +20,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 //
 // =============================================================================
 
-
 // AgentSessionMessage is a single conversation turn persisted for a session.
 message AgentSessionMessage {
   // Unique message identifier within the session.
@@ -49,8 +48,6 @@ message AgentSessionMessage {
   // Server-resolved context snapshots attached to this turn.
   repeated shared.AgentSessionContextItem context = 6;
 }
-
-
 
 // AgentSessionProposal is a machine-validated draft produced by a session.
 message AgentSessionProposal {
@@ -93,7 +90,10 @@ message AgentSessionProposal {
 message AgentSessionProposalTarget {
   // Entity kind receiving the proposed changes.
   string type = 1 [(buf.validate.field).string = {
-    in: ["backlog_item", "goal"]
+    in: [
+      "backlog_item",
+      "goal"
+    ]
   }];
 
   // Stable entity reference. Backlog items use "kind/name"; goals use
@@ -103,7 +103,6 @@ message AgentSessionProposalTarget {
   // Human-readable target title.
   string name = 3 [(buf.validate.field).string.min_len = 1];
 }
-
 
 // AgentSession stores the indexable session snapshot. Messages, proposals,
 // and artifacts may also be streamed from append-only logs.

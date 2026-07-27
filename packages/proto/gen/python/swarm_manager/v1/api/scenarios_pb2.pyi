@@ -127,3 +127,131 @@ class ScenarioReviewQueueResponse(_message.Message):
     total_scenarios: int
     excluded_count: int
     def __init__(self, items: _Optional[_Iterable[_Union[ScenarioReviewQueueItem, _Mapping]]] = ..., total_scenarios: _Optional[int] = ..., excluded_count: _Optional[int] = ...) -> None: ...
+
+class ScenarioRemediationTarget(_message.Message):
+    __slots__ = ("scenario_name", "provider_phase", "capability_id")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_PHASE_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    provider_phase: str
+    capability_id: str
+    def __init__(self, scenario_name: _Optional[str] = ..., provider_phase: _Optional[str] = ..., capability_id: _Optional[str] = ...) -> None: ...
+
+class ScenarioRemediationProposal(_message.Message):
+    __slots__ = ("target", "fingerprint", "provenance", "title", "description", "acceptance_criteria", "acceptance_allow", "recommended_workflows")
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTANCE_ALLOW_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDED_WORKFLOWS_FIELD_NUMBER: _ClassVar[int]
+    target: ScenarioRemediationTarget
+    fingerprint: str
+    provenance: str
+    title: str
+    description: str
+    acceptance_criteria: _containers.RepeatedScalarFieldContainer[str]
+    acceptance_allow: _containers.RepeatedScalarFieldContainer[str]
+    recommended_workflows: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, target: _Optional[_Union[ScenarioRemediationTarget, _Mapping]] = ..., fingerprint: _Optional[str] = ..., provenance: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., acceptance_criteria: _Optional[_Iterable[str]] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., recommended_workflows: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PreviewScenarioRemediationRequest(_message.Message):
+    __slots__ = ("target",)
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    target: ScenarioRemediationTarget
+    def __init__(self, target: _Optional[_Union[ScenarioRemediationTarget, _Mapping]] = ...) -> None: ...
+
+class PreviewScenarioRemediationResponse(_message.Message):
+    __slots__ = ("proposal", "existing")
+    PROPOSAL_FIELD_NUMBER: _ClassVar[int]
+    EXISTING_FIELD_NUMBER: _ClassVar[int]
+    proposal: ScenarioRemediationProposal
+    existing: _scenario_pb2.ScenarioRemediationSummary
+    def __init__(self, proposal: _Optional[_Union[ScenarioRemediationProposal, _Mapping]] = ..., existing: _Optional[_Union[_scenario_pb2.ScenarioRemediationSummary, _Mapping]] = ...) -> None: ...
+
+class ApplyScenarioRemediationRequest(_message.Message):
+    __slots__ = ("target", "fingerprint")
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    target: ScenarioRemediationTarget
+    fingerprint: str
+    def __init__(self, target: _Optional[_Union[ScenarioRemediationTarget, _Mapping]] = ..., fingerprint: _Optional[str] = ...) -> None: ...
+
+class ApplyScenarioRemediationResponse(_message.Message):
+    __slots__ = ("proposal", "work_ref", "created")
+    PROPOSAL_FIELD_NUMBER: _ClassVar[int]
+    WORK_REF_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    proposal: ScenarioRemediationProposal
+    work_ref: str
+    created: bool
+    def __init__(self, proposal: _Optional[_Union[ScenarioRemediationProposal, _Mapping]] = ..., work_ref: _Optional[str] = ..., created: _Optional[bool] = ...) -> None: ...
+
+class ScenarioMaturityCampaignTarget(_message.Message):
+    __slots__ = ("scenario_name", "maturity_target", "provider_phases")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    MATURITY_TARGET_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_PHASES_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    maturity_target: str
+    provider_phases: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario_name: _Optional[str] = ..., maturity_target: _Optional[str] = ..., provider_phases: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ScenarioMaturityCampaignProposal(_message.Message):
+    __slots__ = ("target", "fingerprint", "title", "description", "acceptance_criteria", "declared_workflow", "tracker_availability", "tracker_ref")
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_WORKFLOW_FIELD_NUMBER: _ClassVar[int]
+    TRACKER_AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    TRACKER_REF_FIELD_NUMBER: _ClassVar[int]
+    target: ScenarioMaturityCampaignTarget
+    fingerprint: str
+    title: str
+    description: str
+    acceptance_criteria: _containers.RepeatedScalarFieldContainer[str]
+    declared_workflow: str
+    tracker_availability: str
+    tracker_ref: str
+    def __init__(self, target: _Optional[_Union[ScenarioMaturityCampaignTarget, _Mapping]] = ..., fingerprint: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., acceptance_criteria: _Optional[_Iterable[str]] = ..., declared_workflow: _Optional[str] = ..., tracker_availability: _Optional[str] = ..., tracker_ref: _Optional[str] = ...) -> None: ...
+
+class PreviewScenarioMaturityCampaignRequest(_message.Message):
+    __slots__ = ("target",)
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    target: ScenarioMaturityCampaignTarget
+    def __init__(self, target: _Optional[_Union[ScenarioMaturityCampaignTarget, _Mapping]] = ...) -> None: ...
+
+class PreviewScenarioMaturityCampaignResponse(_message.Message):
+    __slots__ = ("proposal", "existing_goal_ref")
+    PROPOSAL_FIELD_NUMBER: _ClassVar[int]
+    EXISTING_GOAL_REF_FIELD_NUMBER: _ClassVar[int]
+    proposal: ScenarioMaturityCampaignProposal
+    existing_goal_ref: str
+    def __init__(self, proposal: _Optional[_Union[ScenarioMaturityCampaignProposal, _Mapping]] = ..., existing_goal_ref: _Optional[str] = ...) -> None: ...
+
+class ApplyScenarioMaturityCampaignRequest(_message.Message):
+    __slots__ = ("target", "fingerprint")
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    target: ScenarioMaturityCampaignTarget
+    fingerprint: str
+    def __init__(self, target: _Optional[_Union[ScenarioMaturityCampaignTarget, _Mapping]] = ..., fingerprint: _Optional[str] = ...) -> None: ...
+
+class ApplyScenarioMaturityCampaignResponse(_message.Message):
+    __slots__ = ("proposal", "goal_ref", "created", "tracker_availability", "tracker_ref")
+    PROPOSAL_FIELD_NUMBER: _ClassVar[int]
+    GOAL_REF_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    TRACKER_AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    TRACKER_REF_FIELD_NUMBER: _ClassVar[int]
+    proposal: ScenarioMaturityCampaignProposal
+    goal_ref: str
+    created: bool
+    tracker_availability: str
+    tracker_ref: str
+    def __init__(self, proposal: _Optional[_Union[ScenarioMaturityCampaignProposal, _Mapping]] = ..., goal_ref: _Optional[str] = ..., created: _Optional[bool] = ..., tracker_availability: _Optional[str] = ..., tracker_ref: _Optional[str] = ...) -> None: ...

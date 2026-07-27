@@ -1257,6 +1257,9 @@ type RunConfigOverrides struct {
 	NetworkAccess *NetworkAccess `protobuf:"varint,24,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess,oneof" json:"network_access,omitempty"`
 	// Canonical reasoning effort override.
 	Effort *string `protobuf:"bytes,28,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
+	// Explicit per-run model override. Role resolution still supplies the
+	// default; this field only overrides the selected model for this run.
+	Model *string `protobuf:"bytes,29,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	// Sandbox lifecycle + acceptance configuration.
 	SandboxConfig *SandboxConfig `protobuf:"bytes,17,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
@@ -1385,6 +1388,13 @@ func (x *RunConfigOverrides) GetNetworkAccess() NetworkAccess {
 func (x *RunConfigOverrides) GetEffort() string {
 	if x != nil && x.Effort != nil {
 		return *x.Effort
+	}
+	return ""
+}
+
+func (x *RunConfigOverrides) GetModel() string {
+	if x != nil && x.Model != nil {
+		return *x.Model
 	}
 	return ""
 }
@@ -1643,7 +1653,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x12selected_candidate\x18\x05 \x01(\v2$.agent_manager.v1.ExecutionCandidateR\x11selectedCandidate\x12O\n" +
 	"\vexplanation\x18\x06 \x01(\v2-.agent_manager.v1.PolicyResolutionExplanationR\vexplanation\x12\x19\n" +
 	"\brole_ref\x18\a \x01(\tR\aroleRefJ\x04\b\x02\x10\x03R\n" +
-	"policy_ref\"\xd0\n" +
+	"policy_ref\"\xee\n" +
 	"\n" +
 	"\x12RunConfigOverrides\x12\x1e\n" +
 	"\brole_ref\x18\x1a \x01(\tH\x00R\aroleRef\x88\x01\x01\x12=\n" +
@@ -1659,7 +1669,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"extraFlags\x12*\n" +
 	"\x11clear_extra_flags\x18\x17 \x01(\bR\x0fclearExtraFlags\x12K\n" +
 	"\x0enetwork_access\x18\x18 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessH\x05R\rnetworkAccess\x88\x01\x01\x12\x1b\n" +
-	"\x06effort\x18\x1c \x01(\tH\x06R\x06effort\x88\x01\x01\x12F\n" +
+	"\x06effort\x18\x1c \x01(\tH\x06R\x06effort\x88\x01\x01\x12\x19\n" +
+	"\x05model\x18\x1d \x01(\tH\aR\x05model\x88\x01\x01\x12F\n" +
 	"\x0esandbox_config\x18\x11 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
@@ -1679,8 +1690,9 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x17_skip_permission_promptB\v\n" +
 	"\t_featuresB\x11\n" +
 	"\x0f_network_accessB\t\n" +
-	"\a_effortJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"J\x04\b\x10\x10\x11J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x19\x10\x1aR\vrunner_typeR\x05modelR\n" +
+	"\a_effortB\b\n" +
+	"\x06_modelJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"J\x04\b\x10\x10\x11J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x19\x10\x1aR\vrunner_typeR\n" +
 	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_typesR\x1bclear_fallback_runner_types\"\xa7\x01\n" +
 	"\x0fHeartbeatConfig\x125\n" +
 	"\binterval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\binterval\x123\n" +

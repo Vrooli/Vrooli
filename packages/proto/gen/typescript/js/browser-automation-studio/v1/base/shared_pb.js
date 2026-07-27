@@ -51,7 +51,6 @@ export const ExecutionStatusSchema = /*@__PURE__*/
  * State machine:
  *   PENDING → RUNNING → COMPLETED|FAILED|CANCELLED
  *
- * @usage Execution.status, TimelineStatusUpdate.status
  *
  * @generated from enum browser_automation_studio.v1.ExecutionStatus
  */
@@ -70,7 +69,6 @@ export const TriggerTypeSchema = /*@__PURE__*/
  * Used for analytics, billing, and audit trails. Each type may have
  * different rate limits or access controls.
  *
- * @usage Execution.trigger_type, TriggerMetadata
  *
  * @generated from enum browser_automation_studio.v1.TriggerType
  */
@@ -91,7 +89,6 @@ export const StepStatusSchema = /*@__PURE__*/
  *                  ↓
  *              RETRYING → RUNNING (loop until max_attempts or success)
  *
- * @usage TimelineEntryAggregates.status, step-level status tracking
  *
  * @generated from enum browser_automation_studio.v1.StepStatus
  */
@@ -110,7 +107,6 @@ export const LogLevelSchema = /*@__PURE__*/
  * Ordered by severity: DEBUG < INFO < WARN < ERROR
  * Filtering typically shows all logs >= configured level.
  *
- * @usage ConsoleLogEntry.level, TimelineLog.level
  *
  * @generated from enum browser_automation_studio.v1.LogLevel
  */
@@ -129,7 +125,6 @@ export const ArtifactTypeSchema = /*@__PURE__*/
  * Artifacts are binary or text files captured during execution and stored
  * for later retrieval. Each type has specific content and use cases.
  *
- * @usage TimelineArtifact.type
  *
  * @generated from enum browser_automation_studio.v1.ArtifactType
  */
@@ -148,7 +143,6 @@ export const ExportStatusSchema = /*@__PURE__*/
  * Exports package execution artifacts into a downloadable format
  * (replay video, annotated screenshots, step-by-step documentation).
  *
- * @usage ExecutionExportPreview.status
  *
  * @generated from enum browser_automation_studio.v1.ExportStatus
  */
@@ -167,7 +161,6 @@ export const SelectorTypeSchema = /*@__PURE__*/
  * Ordered roughly by reliability/specificity (higher = more reliable):
  *   DATA_TESTID > ID > ARIA/ROLE > CSS > XPATH > TEXT
  *
- * @usage SelectorCandidate.type, recording selector inference
  *
  * @generated from enum browser_automation_studio.v1.SelectorType
  */
@@ -186,7 +179,6 @@ export const NetworkEventTypeSchema = /*@__PURE__*/
  * Maps to Playwright network event types. Used for request/response logging
  * and debugging API interactions during workflow execution.
  *
- * @usage NetworkEvent.type
  *
  * @generated from enum browser_automation_studio.v1.NetworkEventType
  */
@@ -205,7 +197,6 @@ export const RecordingSourceSchema = /*@__PURE__*/
  * Helps distinguish user-initiated actions from system-inferred ones,
  * which may need different confidence handling.
  *
- * @usage EventContext.source
  *
  * @generated from enum browser_automation_studio.v1.RecordingSource
  */
@@ -224,7 +215,6 @@ export const WorkflowEdgeTypeSchema = /*@__PURE__*/
  * These affect only the visual presentation in ReactFlow/workflow editor,
  * not execution behavior.
  *
- * @usage WorkflowEdgeV2.type
  *
  * @generated from enum browser_automation_studio.v1.WorkflowEdgeType
  */
@@ -242,7 +232,6 @@ export const ValidationSeveritySchema = /*@__PURE__*/
  *
  * Determines whether issues block execution or are advisory.
  *
- * @usage WorkflowValidationIssue.severity
  *
  * @generated from enum browser_automation_studio.v1.ValidationSeverity
  */
@@ -261,7 +250,6 @@ export const ChangeSourceSchema = /*@__PURE__*/
  * Used for audit trails and to determine whether changes should trigger
  * version increments or autosave behavior.
  *
- * @usage WorkflowSummary.last_change_source, UpdateWorkflowRequest.source
  *
  * @generated from enum browser_automation_studio.v1.ChangeSource
  */
@@ -280,7 +268,6 @@ export const AssertionModeSchema = /*@__PURE__*/
  * Assertions verify expected conditions during execution. Failed assertions
  * mark the step as FAILED and can stop execution depending on settings.
  *
- * @usage AssertParams.mode, AssertionResult.mode
  *
  * @generated from enum browser_automation_studio.v1.AssertionMode
  */

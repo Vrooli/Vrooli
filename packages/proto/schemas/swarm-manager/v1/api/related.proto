@@ -9,8 +9,13 @@ service RelatedService {
   rpc GetRelated(GetRelatedRequest) returns (GetRelatedResponse);
 }
 
-message RelatedBacklogTarget { string kind = 1; string name = 2; }
-message RelatedGoalTarget { string name = 1; }
+message RelatedBacklogTarget {
+  string kind = 1;
+  string name = 2;
+}
+message RelatedGoalTarget {
+  string name = 1;
+}
 
 message GetRelatedRequest {
   oneof target {
@@ -33,5 +38,11 @@ message RelatedEntity {
   optional int32 score_percent = 7;
 }
 
-message RelatedGroup { string name = 1; repeated RelatedEntity entities = 2; bool degraded = 3; }
-message GetRelatedResponse { repeated RelatedGroup groups = 1; }
+message RelatedGroup {
+  string name = 1;
+  repeated RelatedEntity entities = 2;
+  bool degraded = 3;
+}
+message GetRelatedResponse {
+  repeated RelatedGroup groups = 1;
+}

@@ -422,14 +422,16 @@ class RemoveRelevantContextItemResponse(_message.Message):
     def __init__(self, summary: _Optional[_Union[AuthoringMutationSummary, _Mapping]] = ..., progress: _Optional[_Union[AuthoringProgress, _Mapping]] = ..., violations: _Optional[_Iterable[_Union[StructureViolation, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class DiscoverSkillPackRequest(_message.Message):
-    __slots__ = ("session_id", "concepts", "complexity")
+    __slots__ = ("session_id", "concepts", "complexity", "phase_id")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     CONCEPTS_FIELD_NUMBER: _ClassVar[int]
     COMPLEXITY_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     concepts: _containers.RepeatedScalarFieldContainer[str]
     complexity: str
-    def __init__(self, session_id: _Optional[str] = ..., concepts: _Optional[_Iterable[str]] = ..., complexity: _Optional[str] = ...) -> None: ...
+    phase_id: str
+    def __init__(self, session_id: _Optional[str] = ..., concepts: _Optional[_Iterable[str]] = ..., complexity: _Optional[str] = ..., phase_id: _Optional[str] = ...) -> None: ...
 
 class DiscoverSkillPackResponse(_message.Message):
     __slots__ = ("added_items", "kept_items", "read_command", "recommended_read_command", "budget_status", "results_summary", "progress", "step", "violations", "degraded", "degraded_reason")

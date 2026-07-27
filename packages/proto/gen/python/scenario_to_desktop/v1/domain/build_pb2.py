@@ -22,11 +22,13 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
-from scenario_to_desktop.v1.base import shared_pb2 as scenario__to__desktop_dot_v1_dot_base_dot_shared__pb2
+from scenario_to_desktop.v1.shared import common_pb2 as scenario__to__desktop_dot_v1_dot_shared_dot_common__pb2
+from scenario_to_desktop.v1.shared import operation_results_pb2 as scenario__to__desktop_dot_v1_dot_shared_dot_operation__results__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)scenario-to-desktop/v1/domain/build.proto\x12\x16scenario_to_desktop.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a(scenario-to-desktop/v1/base/shared.proto\"\xd9\x03\n\x13PlatformBuildResult\x12<\n\x08platform\x18\x01 \x01(\x0e\x32 .scenario_to_desktop.v1.PlatformR\x08platform\x12\x43\n\x06status\x18\x02 \x01(\x0e\x32+.scenario_to_desktop.v1.PlatformBuildStatusR\x06status\x12\x39\n\nstarted_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12\x42\n\x0c\x63ompleted_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00R\x0b\x63ompletedAt\x88\x01\x01\x12\x1b\n\terror_log\x18\x05 \x03(\tR\x08\x65rrorLog\x12\x1f\n\x08\x61rtifact\x18\x06 \x01(\tH\x01R\x08\x61rtifact\x88\x01\x01\x12 \n\tfile_size\x18\x07 \x01(\x03H\x02R\x08\x66ileSize\x88\x01\x01\x12$\n\x0bskip_reason\x18\x08 \x01(\tH\x03R\nskipReason\x88\x01\x01\x42\x0f\n\r_completed_atB\x0b\n\t_artifactB\x0c\n\n_file_sizeB\x0e\n\x0c_skip_reason\"\xfb\x08\n\x13\x42uildStatusResponse\x12\x19\n\x08\x62uild_id\x18\x01 \x01(\tR\x07\x62uildId\x12#\n\rscenario_name\x18\x02 \x01(\tR\x0cscenarioName\x12;\n\x06status\x18\x03 \x01(\x0e\x32#.scenario_to_desktop.v1.BuildStatusR\x06status\x12?\n\tframework\x18\x04 \x01(\x0e\x32!.scenario_to_desktop.v1.FrameworkR\tframework\x12I\n\rtemplate_type\x18\x05 \x01(\x0e\x32$.scenario_to_desktop.v1.TemplateTypeR\x0ctemplateType\x12Q\n\x13requested_platforms\x18\x06 \x03(\x0e\x32 .scenario_to_desktop.v1.PlatformR\x12requestedPlatforms\x12k\n\x10platform_results\x18\x07 \x03(\x0b\x32@.scenario_to_desktop.v1.BuildStatusResponse.PlatformResultsEntryR\x0fplatformResults\x12$\n\x0boutput_path\x18\x08 \x01(\tH\x00R\noutputPath\x88\x01\x01\x12\x39\n\ncreated_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x42\n\x0c\x63ompleted_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x01R\x0b\x63ompletedAt\x88\x01\x01\x12\x1b\n\terror_log\x18\x0b \x03(\tR\x08\x65rrorLog\x12\x1b\n\tbuild_log\x18\x0c \x03(\tR\x08\x62uildLog\x12X\n\tartifacts\x18\r \x03(\x0b\x32:.scenario_to_desktop.v1.BuildStatusResponse.ArtifactsEntryR\tartifacts\x12U\n\x08metadata\x18\x0e \x03(\x0b\x32\x39.scenario_to_desktop.v1.BuildStatusResponse.MetadataEntryR\x08metadata\x1ao\n\x14PlatformResultsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x41\n\x05value\x18\x02 \x01(\x0b\x32+.scenario_to_desktop.v1.PlatformBuildResultR\x05value:\x02\x38\x01\x1a<\n\x0e\x41rtifactsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x1a;\n\rMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x42\x0e\n\x0c_output_pathB\x0f\n\r_completed_at\"\xbe\x01\n\x0c\x42uildRequest\x12!\n\x0c\x64\x65sktop_path\x18\x01 \x01(\tR\x0b\x64\x65sktopPath\x12>\n\tplatforms\x18\x02 \x03(\x0e\x32 .scenario_to_desktop.v1.PlatformR\tplatforms\x12\x17\n\x04sign\x18\x03 \x01(\x08H\x00R\x04sign\x88\x01\x01\x12\x1d\n\x07publish\x18\x04 \x01(\x08H\x01R\x07publish\x88\x01\x01\x42\x07\n\x05_signB\n\n\x08_publish\"\xc3\x01\n\x14ScenarioBuildRequest\x12#\n\rscenario_name\x18\x01 \x01(\tR\x0cscenarioName\x12!\n\x0c\x64\x65sktop_path\x18\x02 \x01(\tR\x0b\x64\x65sktopPath\x12>\n\tplatforms\x18\x03 \x03(\x0e\x32 .scenario_to_desktop.v1.PlatformR\tplatforms\x12\x19\n\x05\x63lean\x18\x04 \x01(\x08H\x00R\x05\x63lean\x88\x01\x01\x42\x08\n\x06_clean\"a\n\rBuildResponse\x12\x19\n\x08\x62uild_id\x18\x01 \x01(\tR\x07\x62uildId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n\nstatus_url\x18\x03 \x01(\tR\tstatusUrl\"\xeb\x04\n\x17SmokeTestStatusResponse\x12\"\n\rsmoke_test_id\x18\x01 \x01(\tR\x0bsmokeTestId\x12#\n\rscenario_name\x18\x02 \x01(\tR\x0cscenarioName\x12<\n\x08platform\x18\x03 \x01(\x0e\x32 .scenario_to_desktop.v1.PlatformR\x08platform\x12?\n\x06status\x18\x04 \x01(\x0e\x32\'.scenario_to_desktop.v1.SmokeTestStatusR\x06status\x12(\n\rartifact_path\x18\x05 \x01(\tH\x00R\x0c\x61rtifactPath\x88\x01\x01\x12\x39\n\nstarted_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12\x42\n\x0c\x63ompleted_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x01R\x0b\x63ompletedAt\x88\x01\x01\x12\x12\n\x04logs\x18\x08 \x03(\tR\x04logs\x12\x19\n\x05\x65rror\x18\t \x01(\tH\x02R\x05\x65rror\x88\x01\x01\x12-\n\x12telemetry_uploaded\x18\n \x01(\x08R\x11telemetryUploaded\x12\x39\n\x16telemetry_upload_error\x18\x0b \x01(\tH\x03R\x14telemetryUploadError\x88\x01\x01\x42\x10\n\x0e_artifact_pathB\x0f\n\r_completed_atB\x08\n\x06_errorB\x19\n\x17_telemetry_upload_error\"\x8c\x01\n\x15SmokeTestStartRequest\x12#\n\rscenario_name\x18\x01 \x01(\tR\x0cscenarioName\x12\x41\n\x08platform\x18\x02 \x01(\x0e\x32 .scenario_to_desktop.v1.PlatformH\x00R\x08platform\x88\x01\x01\x42\x0b\n\t_platform\"\xeb\x02\n\x16SmokeTestStartResponse\x12\"\n\rsmoke_test_id\x18\x01 \x01(\tR\x0bsmokeTestId\x12#\n\rscenario_name\x18\x02 \x01(\tR\x0cscenarioName\x12<\n\x08platform\x18\x03 \x01(\x0e\x32 .scenario_to_desktop.v1.PlatformR\x08platform\x12?\n\x06status\x18\x04 \x01(\x0e\x32\'.scenario_to_desktop.v1.SmokeTestStatusR\x06status\x12(\n\rartifact_path\x18\x05 \x01(\tH\x00R\x0c\x61rtifactPath\x88\x01\x01\x12\x39\n\nstarted_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12\x12\n\x04logs\x18\x07 \x03(\tR\x04logsB\x10\n\x0e_artifact_path\"1\n\x17SmokeTestCancelResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status*\xc6\x01\n\x13PlatformBuildStatus\x12%\n!PLATFORM_BUILD_STATUS_UNSPECIFIED\x10\x00\x12\"\n\x1ePLATFORM_BUILD_STATUS_BUILDING\x10\x01\x12\x1f\n\x1bPLATFORM_BUILD_STATUS_READY\x10\x02\x12 \n\x1cPLATFORM_BUILD_STATUS_FAILED\x10\x03\x12!\n\x1dPLATFORM_BUILD_STATUS_SKIPPED\x10\x04*\x8f\x01\n\x0fSmokeTestStatus\x12!\n\x1dSMOKE_TEST_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n\x19SMOKE_TEST_STATUS_RUNNING\x10\x01\x12\x1c\n\x18SMOKE_TEST_STATUS_PASSED\x10\x02\x12\x1c\n\x18SMOKE_TEST_STATUS_FAILED\x10\x03\x42UZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)scenario-to-desktop/v1/domain/build.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1b\x62uf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a\x35scenario-to-desktop/v1/shared/operation_results.proto\"\xcc\x01\n\x0c\x42uildRequest\x12!\n\x0c\x64\x65sktop_path\x18\x01 \x01(\tR\x0b\x64\x65sktopPath\x12L\n\tplatforms\x18\x02 \x03(\x0e\x32..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12\x17\n\x04sign\x18\x03 \x01(\x08H\x00R\x04sign\x88\x01\x01\x12\x1d\n\x07publish\x18\x04 \x01(\x08H\x01R\x07publish\x88\x01\x01\x42\x07\n\x05_signB\n\n\x08_publish\"\xd1\x01\n\x14ScenarioBuildRequest\x12#\n\rscenario_name\x18\x01 \x01(\tR\x0cscenarioName\x12!\n\x0c\x64\x65sktop_path\x18\x02 \x01(\tR\x0b\x64\x65sktopPath\x12L\n\tplatforms\x18\x03 \x03(\x0e\x32..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12\x19\n\x05\x63lean\x18\x04 \x01(\x08H\x00R\x05\x63lean\x88\x01\x01\x42\x08\n\x06_clean\"a\n\rBuildResponse\x12\x19\n\x08\x62uild_id\x18\x01 \x01(\tR\x07\x62uildId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n\nstatus_url\x18\x03 \x01(\tR\tstatusUrl\"8\n\x12\x42uildStatusRequest\x12\"\n\x08\x62uild_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07\x62uildId\"\xc8\x01\n\x15SmokeTestStartRequest\x12#\n\rscenario_name\x18\x01 \x01(\tR\x0cscenarioName\x12O\n\x08platform\x18\x02 \x01(\x0e\x32..vrooli.scenario_to_desktop.v1.shared.PlatformH\x00R\x08platform\x88\x01\x01\x12,\n\rartifact_path\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0c\x61rtifactPathB\x0b\n\t_platform\"\x87\x03\n\x16SmokeTestStartResponse\x12\"\n\rsmoke_test_id\x18\x01 \x01(\tR\x0bsmokeTestId\x12#\n\rscenario_name\x18\x02 \x01(\tR\x0cscenarioName\x12J\n\x08platform\x18\x03 \x01(\x0e\x32..vrooli.scenario_to_desktop.v1.shared.PlatformR\x08platform\x12M\n\x06status\x18\x04 \x01(\x0e\x32\x35.vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusR\x06status\x12(\n\rartifact_path\x18\x05 \x01(\tH\x00R\x0c\x61rtifactPath\x88\x01\x01\x12\x39\n\nstarted_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12\x12\n\x04logs\x18\x07 \x03(\tR\x04logsB\x10\n\x0e_artifact_path\"1\n\x17SmokeTestCancelResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\"E\n\x16SmokeTestStatusRequest\x12+\n\rsmoke_test_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0bsmokeTestId\"E\n\x16SmokeTestCancelRequest\x12+\n\rsmoke_test_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0bsmokeTestId2\x8e\x03\n\x0c\x42uildService\x12u\n\nStartBuild\x12\x32.vrooli.scenario_to_desktop.v1.domain.BuildRequest\x1a\x33.vrooli.scenario_to_desktop.v1.domain.BuildResponse\x12\x85\x01\n\x12StartScenarioBuild\x12:.vrooli.scenario_to_desktop.v1.domain.ScenarioBuildRequest\x1a\x33.vrooli.scenario_to_desktop.v1.domain.BuildResponse\x12\x7f\n\x08GetBuild\x12\x38.vrooli.scenario_to_desktop.v1.domain.BuildStatusRequest\x1a\x39.vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse2\xbf\x03\n\x10SmokeTestService\x12\x8b\x01\n\x0eStartSmokeTest\x12;.vrooli.scenario_to_desktop.v1.domain.SmokeTestStartRequest\x1a<.vrooli.scenario_to_desktop.v1.domain.SmokeTestStartResponse\x12\x8b\x01\n\x0cGetSmokeTest\x12<.vrooli.scenario_to_desktop.v1.domain.SmokeTestStatusRequest\x1a=.vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse\x12\x8e\x01\n\x0f\x43\x61ncelSmokeTest\x12<.vrooli.scenario_to_desktop.v1.domain.SmokeTestCancelRequest\x1a=.vrooli.scenario_to_desktop.v1.domain.SmokeTestCancelResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,38 +36,34 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'scenario_to_desktop.v1.doma
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain'
-  _globals['_BUILDSTATUSRESPONSE_PLATFORMRESULTSENTRY']._loaded_options = None
-  _globals['_BUILDSTATUSRESPONSE_PLATFORMRESULTSENTRY']._serialized_options = b'8\001'
-  _globals['_BUILDSTATUSRESPONSE_ARTIFACTSENTRY']._loaded_options = None
-  _globals['_BUILDSTATUSRESPONSE_ARTIFACTSENTRY']._serialized_options = b'8\001'
-  _globals['_BUILDSTATUSRESPONSE_METADATAENTRY']._loaded_options = None
-  _globals['_BUILDSTATUSRESPONSE_METADATAENTRY']._serialized_options = b'8\001'
-  _globals['_PLATFORMBUILDSTATUS']._serialized_start=3443
-  _globals['_PLATFORMBUILDSTATUS']._serialized_end=3641
-  _globals['_SMOKETESTSTATUS']._serialized_start=3644
-  _globals['_SMOKETESTSTATUS']._serialized_end=3787
-  _globals['_PLATFORMBUILDRESULT']._serialized_start=145
-  _globals['_PLATFORMBUILDRESULT']._serialized_end=618
-  _globals['_BUILDSTATUSRESPONSE']._serialized_start=621
-  _globals['_BUILDSTATUSRESPONSE']._serialized_end=1768
-  _globals['_BUILDSTATUSRESPONSE_PLATFORMRESULTSENTRY']._serialized_start=1501
-  _globals['_BUILDSTATUSRESPONSE_PLATFORMRESULTSENTRY']._serialized_end=1612
-  _globals['_BUILDSTATUSRESPONSE_ARTIFACTSENTRY']._serialized_start=1614
-  _globals['_BUILDSTATUSRESPONSE_ARTIFACTSENTRY']._serialized_end=1674
-  _globals['_BUILDSTATUSRESPONSE_METADATAENTRY']._serialized_start=1676
-  _globals['_BUILDSTATUSRESPONSE_METADATAENTRY']._serialized_end=1735
-  _globals['_BUILDREQUEST']._serialized_start=1771
-  _globals['_BUILDREQUEST']._serialized_end=1961
-  _globals['_SCENARIOBUILDREQUEST']._serialized_start=1964
-  _globals['_SCENARIOBUILDREQUEST']._serialized_end=2159
-  _globals['_BUILDRESPONSE']._serialized_start=2161
-  _globals['_BUILDRESPONSE']._serialized_end=2258
-  _globals['_SMOKETESTSTATUSRESPONSE']._serialized_start=2261
-  _globals['_SMOKETESTSTATUSRESPONSE']._serialized_end=2880
-  _globals['_SMOKETESTSTARTREQUEST']._serialized_start=2883
-  _globals['_SMOKETESTSTARTREQUEST']._serialized_end=3023
-  _globals['_SMOKETESTSTARTRESPONSE']._serialized_start=3026
-  _globals['_SMOKETESTSTARTRESPONSE']._serialized_end=3389
-  _globals['_SMOKETESTCANCELRESPONSE']._serialized_start=3391
-  _globals['_SMOKETESTCANCELRESPONSE']._serialized_end=3440
+  _globals['_BUILDSTATUSREQUEST'].fields_by_name['build_id']._loaded_options = None
+  _globals['_BUILDSTATUSREQUEST'].fields_by_name['build_id']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_SMOKETESTSTARTREQUEST'].fields_by_name['artifact_path']._loaded_options = None
+  _globals['_SMOKETESTSTARTREQUEST'].fields_by_name['artifact_path']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_SMOKETESTSTATUSREQUEST'].fields_by_name['smoke_test_id']._loaded_options = None
+  _globals['_SMOKETESTSTATUSREQUEST'].fields_by_name['smoke_test_id']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_SMOKETESTCANCELREQUEST'].fields_by_name['smoke_test_id']._loaded_options = None
+  _globals['_SMOKETESTCANCELREQUEST'].fields_by_name['smoke_test_id']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_BUILDREQUEST']._serialized_start=245
+  _globals['_BUILDREQUEST']._serialized_end=449
+  _globals['_SCENARIOBUILDREQUEST']._serialized_start=452
+  _globals['_SCENARIOBUILDREQUEST']._serialized_end=661
+  _globals['_BUILDRESPONSE']._serialized_start=663
+  _globals['_BUILDRESPONSE']._serialized_end=760
+  _globals['_BUILDSTATUSREQUEST']._serialized_start=762
+  _globals['_BUILDSTATUSREQUEST']._serialized_end=818
+  _globals['_SMOKETESTSTARTREQUEST']._serialized_start=821
+  _globals['_SMOKETESTSTARTREQUEST']._serialized_end=1021
+  _globals['_SMOKETESTSTARTRESPONSE']._serialized_start=1024
+  _globals['_SMOKETESTSTARTRESPONSE']._serialized_end=1415
+  _globals['_SMOKETESTCANCELRESPONSE']._serialized_start=1417
+  _globals['_SMOKETESTCANCELRESPONSE']._serialized_end=1466
+  _globals['_SMOKETESTSTATUSREQUEST']._serialized_start=1468
+  _globals['_SMOKETESTSTATUSREQUEST']._serialized_end=1537
+  _globals['_SMOKETESTCANCELREQUEST']._serialized_start=1539
+  _globals['_SMOKETESTCANCELREQUEST']._serialized_end=1608
+  _globals['_BUILDSERVICE']._serialized_start=1611
+  _globals['_BUILDSERVICE']._serialized_end=2009
+  _globals['_SMOKETESTSERVICE']._serialized_start=2012
+  _globals['_SMOKETESTSERVICE']._serialized_end=2459
 # @@protoc_insertion_point(module_scope)

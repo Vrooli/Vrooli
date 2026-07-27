@@ -15,9 +15,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // EXECUTION ENGINE <-> DRIVER CONTRACTS
 // =============================================================================
 //
-// @layer 4
-// @domain execution
-// @imports base, domain, timeline
 // @stability stable
 //
 // This file defines the wire format between the execution engine (Go) and
@@ -45,7 +42,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // FailureKind enumerates the failure taxonomy for step failures.
 // Used by executors to determine retry vs abort policies.
 //
-// @usage StepFailure.kind
 enum FailureKind {
   // Default/unknown kind. Treat as FAILURE_KIND_ENGINE.
   FAILURE_KIND_UNSPECIFIED = 0;
@@ -77,7 +73,6 @@ enum FailureKind {
 
 // FailureSource indicates which component surfaced the failure.
 //
-// @usage StepFailure.source
 enum FailureSource {
   // Default/unknown source.
   FAILURE_SOURCE_UNSPECIFIED = 0;
@@ -99,7 +94,6 @@ enum FailureSource {
 // StepFailure captures structured failure information for a step.
 // Used to determine retry policies and provide debugging context.
 //
-// @usage StepOutcome.failure
 message StepFailure {
   // Failure category for policy decisions.
   FailureKind kind = 1;
@@ -126,7 +120,6 @@ message StepFailure {
 // DriverScreenshot captures screenshot binary data from the driver.
 // Unlike TimelineScreenshot (which has URLs), this contains the actual bytes.
 //
-// @usage StepOutcome.screenshot
 message DriverScreenshot {
   // Raw PNG/JPEG image bytes.
   // JSON serialization: base64-encoded string.
@@ -150,7 +143,6 @@ message DriverScreenshot {
 
 // DOMSnapshot captures HTML content and preview from the driver.
 //
-// @usage StepOutcome.dom_snapshot
 message DOMSnapshot {
   // Full HTML content (may be truncated).
   optional string html = 1;
@@ -167,7 +159,6 @@ message DOMSnapshot {
 // DriverConsoleLogEntry captures console output from the driver.
 // Uses string type field for backwards compatibility with existing wire format.
 //
-// @usage StepOutcome.console_logs
 message DriverConsoleLogEntry {
   // Log level as string (log|warn|error|info|debug).
   // NOTE: Using string instead of LogLevel enum for wire format compatibility.
@@ -185,7 +176,6 @@ message DriverConsoleLogEntry {
 // DriverNetworkEvent captures network activity from the driver.
 // Uses string type field for backwards compatibility with existing wire format.
 //
-// @usage StepOutcome.network_events
 message DriverNetworkEvent {
   // Event type as string (request|response|failure).
   // NOTE: Using string instead of NetworkEventType enum for wire format compatibility.
@@ -218,7 +208,6 @@ message DriverNetworkEvent {
 
 // CursorPosition captures a point in the cursor trail.
 //
-// @usage StepOutcome.cursor_trail
 message CursorPosition {
   // Cursor coordinates.
   Point point = 1;
@@ -230,7 +219,6 @@ message CursorPosition {
 
 // ConditionOutcome captures the result of evaluating a branch condition.
 //
-// @usage StepOutcome.condition
 message ConditionOutcome {
   // Condition type (e.g., "element_exists", "variable_equals").
   optional string type = 1;
@@ -255,7 +243,6 @@ message ConditionOutcome {
 // AssertionOutcome captures the result of an assertion step.
 // NOTE: This extends the base AssertionResult with driver-specific fields.
 //
-// @usage StepOutcome.assertion
 message AssertionOutcome {
   // Assertion mode (exists, visible, text_equals, etc.).
   optional string mode = 1;
@@ -285,7 +272,6 @@ message AssertionOutcome {
 // IMPORTANT: This is the CANONICAL type for driver→engine communication.
 // Both Go and TypeScript implementations MUST use this exact schema.
 //
-// @usage Engine receives this from driver after each step execution
 message StepOutcome {
   // === SCHEMA VERSION ===
   // Schema version for compatibility checking.
@@ -393,25 +379,15 @@ message StepOutcome {
 // CompiledInstruction is sent TO the driver to execute a single action.
 // This is the normalized format after workflow compilation.
 //
-// MIGRATION NOTE: This message is transitioning from untyped params to typed ActionDefinition.
-// During migration, both old (type/params) and new (action) fields may be populated.
-// Consumers should prefer the `action` field when present, falling back to type/params.
-// After migration completes, type/params will be reserved and action will be required.
-//
-// @usage Engine sends this to driver for execution
 message CompiledInstruction {
+  reserved 3, 4;
+  reserved "type", "params";
+
   // Zero-based index in execution order.
   int32 index = 1;
   // Node ID from the workflow definition.
   // @format uuid
   string node_id = 2;
-
-  // DEPRECATED: Use action.type instead. Kept for backward compatibility.
-  // Will be removed in a future version.
-  string type = 3 [deprecated = true];
-  // DEPRECATED: Use action's typed params instead. Kept for backward compatibility.
-  // Will be removed in a future version.
-  map<string, common.v1.JsonValue> params = 4 [deprecated = true];
 
   // Pre-loaded HTML for offline/test scenarios.
   optional string preload_html = 5;
@@ -420,9 +396,8 @@ message CompiledInstruction {
   // Engine-agnostic metadata (labels, hints).
   map<string, string> metadata = 7;
 
-  // NEW: Typed action definition with full type safety.
-  // When set, this takes precedence over deprecated type/params fields.
-  // Enables protovalidate validation and eliminates need for runtime Zod schemas.
+  // Typed action definition with full type safety.
+  // Every execution instruction carries this canonical action contract.
   // @see action.proto for ActionDefinition and all *Params types
   optional ActionDefinition action = 10;
 }
@@ -433,7 +408,6 @@ message CompiledInstruction {
 
 // PlanEdge represents a connection between steps in the execution graph.
 //
-// @usage PlanStep.outgoing
 message PlanEdge {
   // Edge identifier.
   string id = 1;
@@ -450,20 +424,15 @@ message PlanEdge {
 
 // PlanStep represents a node in the execution graph with control flow edges.
 //
-// MIGRATION NOTE: Same transition as CompiledInstruction - prefer `action` over type/params.
-//
-// @usage PlanGraph.steps
 message PlanStep {
+  reserved 3, 4;
+  reserved "type", "params";
+
   // Zero-based index in execution order.
   int32 index = 1;
   // Node ID from the workflow definition.
   // @format uuid
   string node_id = 2;
-
-  // DEPRECATED: Use action.type instead. Kept for backward compatibility.
-  string type = 3 [deprecated = true];
-  // DEPRECATED: Use action's typed params instead. Kept for backward compatibility.
-  map<string, common.v1.JsonValue> params = 4 [deprecated = true];
 
   // Outgoing edges to other steps.
   repeated PlanEdge outgoing = 5;
@@ -478,15 +447,13 @@ message PlanStep {
   // Source position in original workflow (for debugging).
   map<string, common.v1.JsonValue> source_position = 10;
 
-  // NEW: Typed action definition with full type safety.
-  // When set, this takes precedence over deprecated type/params fields.
+  // Typed action definition with full type safety.
   optional ActionDefinition action = 11;
 }
 
 // PlanGraph captures the execution graph with control flow metadata.
 // Enables the executor to follow branching and looping logic.
 //
-// @usage ExecutionPlan.graph, PlanStep.loop
 message PlanGraph {
   // Ordered list of steps in the graph.
   repeated PlanStep steps = 1;
@@ -495,7 +462,6 @@ message PlanGraph {
 // ExecutionPlan represents a compiled workflow ready for execution.
 // Contains both flat instruction list and optional graph for control flow.
 //
-// @usage Sent to driver at execution start
 message ExecutionPlan {
   // Schema version for compatibility checking.
   string schema_version = 1;

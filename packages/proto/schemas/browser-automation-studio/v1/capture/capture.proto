@@ -10,9 +10,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // CAPTURE DOMAIN — single-location, multi-artifact UI inspection.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain capture
-// @stability stable
+// @stability beta
 //
 // Capture wraps the workflow engine for the single-location case so agents
 // (and humans) get one ergonomic verb instead of hand-authoring a

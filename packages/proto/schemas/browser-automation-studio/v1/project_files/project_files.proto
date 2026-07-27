@@ -12,9 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // PROJECT_FILES DOMAIN — read/write/move/delete + resync + OS reveal/open.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain project_files
-// @stability stable
+// @stability beta
 //
 // ProjectFilesService is BAS's read/write surface for files living inside a
 // project root directory: the on-disk workflow JSON files, the asset files

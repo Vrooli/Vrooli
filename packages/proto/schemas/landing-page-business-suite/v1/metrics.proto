@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// METRICS DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Landing-page analytics: idempotent event ingestion (page views, scroll,
+// clicks, conversions, downloads) and admin rollups (per-variant funnel stats
+// and an aggregate analytics summary).
+//
+// =============================================================================
+
+// TrackEventRequest records a single analytics event. Ingestion is idempotent
+// on event_id: when omitted, the server derives a deterministic id from
+// (session_id, event_type, variant_id, unix-second) so duplicate posts within
+// the same second collapse to one row.
+message TrackEventRequest {
+  // Event type: page_view|scroll_depth|click|form_submit|conversion|download.
+  string event_type = 1;
+  // Variant the event belongs to (must be > 0).
+  int64 variant_id = 2;
+  // Free-form event payload (e.g. element_type, element_id, scroll depth).
+  google.protobuf.Struct event_data = 3;
+  // Visitor session identifier (required).
+  string session_id = 4;
+  // Optional stable visitor identifier spanning sessions.
+  string visitor_id = 5;
+  // Optional client-supplied idempotency id; server derives one when empty.
+  string event_id = 6;
+}
+
+// TrackEventResponse acknowledges ingestion.
+message TrackEventResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// VariantStats is the funnel rollup for one variant over a date window.
+message VariantStats {
+  int64 variant_id = 1;
+  string variant_slug = 2;
+  string variant_name = 3;
+  int64 views = 4;
+  int64 cta_clicks = 5;
+  int64 conversions = 6;
+  int64 downloads = 7;
+  // conversions / views * 100 (0 when views == 0).
+  double conversion_rate = 8;
+  // Reserved for future trend rendering; not currently populated.
+  optional double trend = 9;
+  // Reserved for future scroll-depth rollups; not currently populated.
+  optional double avg_scroll_depth = 10;
+}
+
+// AnalyticsSummary is the aggregate rollup across all variants for a window.
+message AnalyticsSummary {
+  int64 total_visitors = 1;
+  int64 total_downloads = 2;
+  repeated VariantStats variant_stats = 3;
+  // Highest-clicked CTA element id in the window, when any.
+  optional string top_cta = 4;
+  // Click-through rate for top_cta (clicks / views * 100).
+  optional double top_cta_ctr = 5;
+}
+
+// GetAnalyticsSummaryRequest requests the aggregate summary for a date window.
+// Dates are YYYY-MM-DD; default window is the last 7 days.
+message GetAnalyticsSummaryRequest {
+  string start_date = 1;
+  string end_date = 2;
+}
+
+// GetVariantStatsRequest requests per-variant funnel stats for a date window,
+// optionally filtered to a single variant slug.
+message GetVariantStatsRequest {
+  string start_date = 1;
+  string end_date = 2;
+  // Optional variant slug filter; empty returns all active variants.
+  string variant = 3;
+}
+
+// GetVariantStatsResponse returns the resolved window and per-variant stats.
+message GetVariantStatsResponse {
+  string start_date = 1;
+  string end_date = 2;
+  repeated VariantStats stats = 3;
+}
+
+// MetricsService ingests analytics events and serves admin rollups.
+service MetricsService {
+  // Records a single analytics event (public, idempotent).
+  rpc TrackEvent(TrackEventRequest) returns (TrackEventResponse);
+  // Returns the aggregate analytics summary for a window (admin).
+  rpc GetAnalyticsSummary(GetAnalyticsSummaryRequest) returns (AnalyticsSummary);
+  // Returns per-variant funnel stats for a window (admin).
+  rpc GetVariantStats(GetVariantStatsRequest) returns (GetVariantStatsResponse);
+}

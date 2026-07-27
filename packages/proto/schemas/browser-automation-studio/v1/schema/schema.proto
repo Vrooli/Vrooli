@@ -10,9 +10,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // SCHEMA DOMAIN — workflow JSON-Schema + step-definition discovery.
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain schema
-// @stability stable
+// @stability beta
 //
 // SchemaService exposes the canonical workflow JSON-Schema and step-type
 // catalogue that drives both UI authoring (SchemaReference) and CLI

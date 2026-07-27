@@ -30,8 +30,6 @@ const (
 //
 // Each type corresponds to a specific *Params message in ActionDefinition.params.
 // The type field MUST match the populated params oneof case.
-//
-// @usage ActionDefinition.type, workflow editor action palette
 type ActionType int32
 
 const (
@@ -243,8 +241,6 @@ func (ActionType) EnumDescriptor() ([]byte, []int) {
 }
 
 // MouseButton enumerates supported mouse buttons for click actions.
-//
-// @usage ClickParams.button
 type MouseButton int32
 
 const (
@@ -306,8 +302,6 @@ func (MouseButton) EnumDescriptor() ([]byte, []int) {
 //
 // Controls when navigation is considered "complete". Affects reliability
 // vs. speed tradeoff. Maps to Playwright's waitUntil option.
-//
-// @usage NavigateParams.wait_until
 type NavigateWaitEvent int32
 
 const (
@@ -371,8 +365,6 @@ func (NavigateWaitEvent) EnumDescriptor() ([]byte, []int) {
 //
 // Allows workflows to navigate to other Vrooli scenarios by name instead
 // of hardcoding URLs, enabling portable workflows across environments.
-//
-// @usage NavigateParams.destination_type
 type NavigateDestinationType int32
 
 const (
@@ -432,8 +424,6 @@ func (NavigateDestinationType) EnumDescriptor() ([]byte, []int) {
 //
 // Used with WaitParams to wait for specific element lifecycle events.
 // Maps to Playwright's waitForSelector state option.
-//
-// @usage WaitParams.state
 type WaitState int32
 
 const (
@@ -502,8 +492,6 @@ func (WaitState) EnumDescriptor() ([]byte, []int) {
 //
 // Controls whether scrolling is instant or animated. Smooth scrolling
 // is more realistic but slower.
-//
-// @usage ScrollParams.behavior
 type ScrollBehavior int32
 
 const (
@@ -561,8 +549,6 @@ func (ScrollBehavior) EnumDescriptor() ([]byte, []int) {
 //
 // Controls the keyboard event lifecycle. Most actions should use PRESS.
 // DOWN/UP are for advanced scenarios like holding modifier keys.
-//
-// @usage KeyboardParams.action
 type KeyAction int32
 
 const (
@@ -626,8 +612,6 @@ func (KeyAction) EnumDescriptor() ([]byte, []int) {
 //
 // Modifiers are held during other actions (clicks, key presses).
 // Multiple modifiers can be combined.
-//
-// @usage KeyboardParams.modifiers, ClickParams.modifiers
 type KeyboardModifier int32
 
 const (
@@ -693,8 +677,6 @@ func (KeyboardModifier) EnumDescriptor() ([]byte, []int) {
 }
 
 // ExtractType enumerates what data to extract from an element.
-//
-// @usage ExtractParams.extract_type
 type ExtractType int32
 
 const (
@@ -764,8 +746,6 @@ func (ExtractType) EnumDescriptor() ([]byte, []int) {
 }
 
 // FrameSwitchAction enumerates frame navigation actions.
-//
-// @usage FrameSwitchParams.action
 type FrameSwitchAction int32
 
 const (
@@ -823,8 +803,6 @@ func (FrameSwitchAction) EnumDescriptor() ([]byte, []int) {
 }
 
 // TabSwitchAction enumerates tab/window management actions.
-//
-// @usage TabSwitchParams.action
 type TabSwitchAction int32
 
 const (
@@ -886,8 +864,6 @@ func (TabSwitchAction) EnumDescriptor() ([]byte, []int) {
 }
 
 // CookieOperation enumerates cookie/storage operations.
-//
-// @usage CookieStorageParams.operation
 type CookieOperation int32
 
 const (
@@ -949,8 +925,6 @@ func (CookieOperation) EnumDescriptor() ([]byte, []int) {
 }
 
 // StorageType enumerates browser storage types.
-//
-// @usage CookieStorageParams.storage_type
 type StorageType int32
 
 const (
@@ -1008,8 +982,6 @@ func (StorageType) EnumDescriptor() ([]byte, []int) {
 }
 
 // GestureType enumerates touch gesture types.
-//
-// @usage GestureParams.gesture_type
 type GestureType int32
 
 const (
@@ -1075,8 +1047,6 @@ func (GestureType) EnumDescriptor() ([]byte, []int) {
 }
 
 // SwipeDirection enumerates swipe gesture directions.
-//
-// @usage GestureParams.direction
 type SwipeDirection int32
 
 const (
@@ -1138,8 +1108,6 @@ func (SwipeDirection) EnumDescriptor() ([]byte, []int) {
 }
 
 // NetworkMockOperation enumerates network interception operations.
-//
-// @usage NetworkMockParams.operation
 type NetworkMockOperation int32
 
 const (
@@ -1205,8 +1173,6 @@ func (NetworkMockOperation) EnumDescriptor() ([]byte, []int) {
 }
 
 // DeviceOrientation enumerates device orientations.
-//
-// @usage RotateParams.orientation
 type DeviceOrientation int32
 
 const (
@@ -1260,8 +1226,6 @@ func (DeviceOrientation) EnumDescriptor() ([]byte, []int) {
 }
 
 // CookieSameSite enumerates SameSite cookie attribute values.
-//
-// @usage CookieOptions.same_site
 type CookieSameSite int32
 
 const (
@@ -4535,8 +4499,6 @@ func (x *ConditionalParams) GetPollIntervalMs() int32 {
 //   - Editing: Users can adjust selectors on failed steps using captured alternatives
 //
 // See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for the design rationale.
-//
-// @usage ActionDefinition.metadata
 type ActionMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Human-readable label for the action.

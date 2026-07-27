@@ -415,6 +415,9 @@ message DiscoverSkillPackRequest {
   // Optional prompt-manager discovery complexity: minor|moderate|major|architectural.
   // Synonyms low/medium/high are normalized; omit to use prompt-manager's default.
   string complexity = 3;
+  // Optional phase id or authored order number. When set, the discovered pack
+  // is added as phase-scoped context on that phase instead of global context.
+  string phase_id = 4;
 }
 
 message DiscoverSkillPackResponse {

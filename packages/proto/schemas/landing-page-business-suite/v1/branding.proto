@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// BRANDING DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Site-wide branding is a singleton (row id=1): logos, theme colors, SEO
+// defaults, and robots policy. Admin updates are partial (only present fields
+// change; a field can be explicitly cleared). A redacted public subset drives
+// the head/theme of the rendered page.
+//
+// =============================================================================
+
+// SiteBranding is the singleton branding record. All fields except site_name
+// are nullable; unset optional fields mean "not configured".
+message SiteBranding {
+  int64 id = 1;
+  string site_name = 2;
+  optional string tagline = 3;
+  optional string logo_url = 4;
+  optional string logo_icon_url = 5;
+  optional string favicon_url = 6;
+  optional string apple_touch_icon_url = 7;
+  optional string default_title = 8;
+  optional string default_description = 9;
+  optional string default_og_image_url = 10;
+  optional string theme_primary_color = 11;
+  optional string theme_background_color = 12;
+  optional string canonical_base_url = 13;
+  optional string google_site_verification = 14;
+  optional string robots_txt = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+// PublicBranding is the redacted subset safe to expose on the public page.
+message PublicBranding {
+  string site_name = 1;
+  string tagline = 2;
+  string logo_url = 3;
+  string logo_icon_url = 4;
+  string favicon_url = 5;
+  string theme_primary_color = 6;
+  string theme_background_color = 7;
+}
+
+// GetBrandingRequest fetches the full branding singleton (admin).
+message GetBrandingRequest {}
+
+// GetPublicBrandingRequest fetches the redacted public branding subset.
+message GetPublicBrandingRequest {}
+
+// PublicBrandingResponse returns the redacted public branding.
+message PublicBrandingResponse {
+  PublicBranding branding = 1;
+}
+
+// UpdateBrandingRequest partially updates branding. Every field is presence-
+// tracked: unset fields are preserved (COALESCE), set fields overwrite.
+message UpdateBrandingRequest {
+  optional string site_name = 1;
+  optional string tagline = 2;
+  optional string logo_url = 3;
+  optional string logo_icon_url = 4;
+  optional string favicon_url = 5;
+  optional string apple_touch_icon_url = 6;
+  optional string default_title = 7;
+  optional string default_description = 8;
+  optional string default_og_image_url = 9;
+  optional string theme_primary_color = 10;
+  optional string theme_background_color = 11;
+  optional string canonical_base_url = 12;
+  optional string google_site_verification = 13;
+  optional string robots_txt = 14;
+}
+
+// ClearBrandingFieldRequest nulls a single nullable branding field. site_name
+// is not clearable; unknown fields are a silent no-op.
+message ClearBrandingFieldRequest {
+  string field = 1;
+}
+
+// BrandingResponse returns the full branding singleton.
+message BrandingResponse {
+  SiteBranding branding = 1;
+}
+
+// BrandingService manages the singleton site branding record.
+service BrandingService {
+  // Returns the full branding singleton (admin).
+  rpc GetBranding(GetBrandingRequest) returns (BrandingResponse);
+  // Partially updates branding (admin).
+  rpc UpdateBranding(UpdateBrandingRequest) returns (BrandingResponse);
+  // Clears a single nullable branding field (admin).
+  rpc ClearBrandingField(ClearBrandingFieldRequest) returns (BrandingResponse);
+  // Returns the redacted public branding subset.
+  rpc GetPublicBranding(GetPublicBrandingRequest) returns (PublicBrandingResponse);
+}

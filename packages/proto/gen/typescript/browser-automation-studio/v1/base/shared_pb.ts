@@ -18,7 +18,6 @@ export const file_browser_automation_studio_v1_base_shared: GenFile = /*@__PURE_
  * RetryAttempt captures the outcome of a single retry attempt.
  * Used in both timeline frames (batch API) and timeline events (streaming).
  *
- * @usage RetryStatus.history
  *
  * @generated from message browser_automation_studio.v1.RetryAttempt
  */
@@ -64,7 +63,6 @@ export const RetryAttemptSchema: GenMessage<RetryAttempt> = /*@__PURE__*/
  * This is the canonical type for runtime retry state, used in both
  * TimelineEntry (batch) and EventContext (streaming).
  *
- * @usage EventContext.retry_status
  *
  * @generated from message browser_automation_studio.v1.RetryStatus
  */
@@ -123,7 +121,6 @@ export const RetryStatusSchema: GenMessage<RetryStatus> = /*@__PURE__*/
  * AssertionResult captures assertion evaluation outcome.
  * Used in both timeline entries (batch API) and streaming events.
  *
- * @usage EventContext.assertion
  *
  * @generated from message browser_automation_studio.v1.AssertionResult
  */
@@ -204,7 +201,6 @@ export const AssertionResultSchema: GenMessage<AssertionResult> = /*@__PURE__*/
  * The only distinction is the origin (session_id vs execution_id) and whether
  * certain UI workflow flags apply (needs_confirmation).
  *
- * @usage TimelineEntry.context
  *
  * @generated from message browser_automation_studio.v1.EventContext
  */
@@ -313,7 +309,6 @@ export const EventContextSchema: GenMessage<EventContext> = /*@__PURE__*/
  * State machine:
  *   PENDING → RUNNING → COMPLETED|FAILED|CANCELLED
  *
- * @usage Execution.status, TimelineStatusUpdate.status
  *
  * @generated from enum browser_automation_studio.v1.ExecutionStatus
  */
@@ -379,7 +374,6 @@ export const ExecutionStatusSchema: GenEnum<ExecutionStatus> = /*@__PURE__*/
  * Used for analytics, billing, and audit trails. Each type may have
  * different rate limits or access controls.
  *
- * @usage Execution.trigger_type, TriggerMetadata
  *
  * @generated from enum browser_automation_studio.v1.TriggerType
  */
@@ -446,7 +440,6 @@ export const TriggerTypeSchema: GenEnum<TriggerType> = /*@__PURE__*/
  *                  ↓
  *              RETRYING → RUNNING (loop until max_attempts or success)
  *
- * @usage TimelineEntryAggregates.status, step-level status tracking
  *
  * @generated from enum browser_automation_studio.v1.StepStatus
  */
@@ -523,7 +516,6 @@ export const StepStatusSchema: GenEnum<StepStatus> = /*@__PURE__*/
  * Ordered by severity: DEBUG < INFO < WARN < ERROR
  * Filtering typically shows all logs >= configured level.
  *
- * @usage ConsoleLogEntry.level, TimelineLog.level
  *
  * @generated from enum browser_automation_studio.v1.LogLevel
  */
@@ -580,7 +572,6 @@ export const LogLevelSchema: GenEnum<LogLevel> = /*@__PURE__*/
  * Artifacts are binary or text files captured during execution and stored
  * for later retrieval. Each type has specific content and use cases.
  *
- * @usage TimelineArtifact.type
  *
  * @generated from enum browser_automation_studio.v1.ArtifactType
  */
@@ -671,7 +662,6 @@ export const ArtifactTypeSchema: GenEnum<ArtifactType> = /*@__PURE__*/
  * Exports package execution artifacts into a downloadable format
  * (replay video, annotated screenshots, step-by-step documentation).
  *
- * @usage ExecutionExportPreview.status
  *
  * @generated from enum browser_automation_studio.v1.ExportStatus
  */
@@ -728,7 +718,6 @@ export const ExportStatusSchema: GenEnum<ExportStatus> = /*@__PURE__*/
  * Ordered roughly by reliability/specificity (higher = more reliable):
  *   DATA_TESTID > ID > ARIA/ROLE > CSS > XPATH > TEXT
  *
- * @usage SelectorCandidate.type, recording selector inference
  *
  * @generated from enum browser_automation_studio.v1.SelectorType
  */
@@ -833,7 +822,6 @@ export const SelectorTypeSchema: GenEnum<SelectorType> = /*@__PURE__*/
  * Maps to Playwright network event types. Used for request/response logging
  * and debugging API interactions during workflow execution.
  *
- * @usage NetworkEvent.type
  *
  * @generated from enum browser_automation_studio.v1.NetworkEventType
  */
@@ -882,7 +870,6 @@ export const NetworkEventTypeSchema: GenEnum<NetworkEventType> = /*@__PURE__*/
  * Helps distinguish user-initiated actions from system-inferred ones,
  * which may need different confidence handling.
  *
- * @usage EventContext.source
  *
  * @generated from enum browser_automation_studio.v1.RecordingSource
  */
@@ -923,7 +910,6 @@ export const RecordingSourceSchema: GenEnum<RecordingSource> = /*@__PURE__*/
  * These affect only the visual presentation in ReactFlow/workflow editor,
  * not execution behavior.
  *
- * @usage WorkflowEdgeV2.type
  *
  * @generated from enum browser_automation_studio.v1.WorkflowEdgeType
  */
@@ -986,7 +972,6 @@ export const WorkflowEdgeTypeSchema: GenEnum<WorkflowEdgeType> = /*@__PURE__*/
  *
  * Determines whether issues block execution or are advisory.
  *
- * @usage WorkflowValidationIssue.severity
  *
  * @generated from enum browser_automation_studio.v1.ValidationSeverity
  */
@@ -1035,7 +1020,6 @@ export const ValidationSeveritySchema: GenEnum<ValidationSeverity> = /*@__PURE__
  * Used for audit trails and to determine whether changes should trigger
  * version increments or autosave behavior.
  *
- * @usage WorkflowSummary.last_change_source, UpdateWorkflowRequest.source
  *
  * @generated from enum browser_automation_studio.v1.ChangeSource
  */
@@ -1100,7 +1084,6 @@ export const ChangeSourceSchema: GenEnum<ChangeSource> = /*@__PURE__*/
  * Assertions verify expected conditions during execution. Failed assertions
  * mark the step as FAILED and can stop execution depending on settings.
  *
- * @usage AssertParams.mode, AssertionResult.mode
  *
  * @generated from enum browser_automation_studio.v1.AssertionMode
  */

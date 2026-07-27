@@ -12,9 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // EXPORTS DOMAIN — persisted export library (video/gif/JSON/HTML replays).
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain exports
-// @stability stable
+// @stability beta
 //
 // ExportsService owns the persisted export-library record set: rendered
 // replays (mp4/gif), JSON export packages, and HTML interactive replays
