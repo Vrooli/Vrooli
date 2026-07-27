@@ -1,4 +1,5 @@
 import { LayoutGrid, LayoutList, PanelLeft } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useWakeLockStatus } from "../../stores/useWakeLockStatus";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
@@ -6,6 +7,7 @@ import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
 import LocaleSwitcher from "../LocaleSwitcher";
+import { deviceIdentity, setDeviceLabel } from "../../lib/deviceIdentity";
 
 const STATUS_HINT_KEYS = {
   active: strings.settings.workspaceSection.wakeLockActive,
@@ -34,6 +36,7 @@ export default function WorkspaceSection() {
   const adaptiveChrome = useWorkspaceStore((state) => state.adaptiveChrome);
   const setAdaptiveChrome = useWorkspaceStore((state) => state.setAdaptiveChrome);
   const wakeLockStatus = useWakeLockStatus((s) => s.status);
+	const [deviceLabel, setLocalDeviceLabel] = useState(() => deviceIdentity().label);
 
   const defaultHintKey = strings.settings.workspaceSection.wakeLockDefault;
   const wakeLockHint = keepScreenAwake
@@ -143,6 +146,11 @@ export default function WorkspaceSection() {
           )}
         />
         <SettingsRow
+		  label={t(strings.deviceIdentity.label)}
+		  hint={t(strings.deviceIdentity.hint)}
+		  control={<input className="h-8 rounded border border-wc-default bg-wc-surface-input px-2 text-sm" value={deviceLabel} onChange={(event) => { setLocalDeviceLabel(event.target.value); setDeviceLabel(event.target.value); }} />}
+		/>
+		<SettingsRow
           label={t(strings.settings.workspaceSection.localeLabel)}
           hint={t(strings.settings.workspaceSection.localeHint)}
           control={<LocaleSwitcher />}

@@ -1217,9 +1217,16 @@ The API uses a hybrid organization:
 | `error` | Server→Client | Runtime error with known recovery hints for common cases |
 | `pong` | Server→Client | Keepalive response confirming connection liveness |
 | `resize_info` | Server→Client | Informational: reports effective PTY size after resize (may differ from requested if other clients are larger) |
+| `size_info` | Server→Client | Authoritative shared grid plus leader/lease state for all viewers |
+| `take_lease` | Client→Server | Explicit transfer of terminal size authority to this connection |
 | `sync_warning` | Server→Client | Coalescing notification: `coalesced_frames` count indicates output frames merged due to slow consumption (data is preserved, not lost) |
 
 **UI Feedback Surfaces:**
+
+**Size Lease seam:** `api/session/sizelease.go` owns declared sizes and the
+single authoritative PTY resize path; `ui/src/hooks/terminal/useTerminalSession.ts`
+owns application of `size_info` and the Take over command. Device labels are
+recognition-only client assertions and are never authorization inputs.
 | Component | Signal Type | Behavior |
 |-----------|------------|----------|
 | App startup | Loading spinner | "Connecting to API..." with 3 retries, then error page with retry button |

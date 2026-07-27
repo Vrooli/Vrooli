@@ -127,6 +127,20 @@
           "ref": "api/pty_test.go:TestFakePTY_Resize",
           "status": "passing",
           "type": "test"
+        },
+        {
+          "notes": "A non-leader cannot apply a declared grid",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSession_NonLeaderResizeIsRejected",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Every connected viewer receives authoritative size_info",
+          "phase": "unit",
+          "ref": "api/terminal_ws_test.go:TestTerminalWS_SecondClientReceivesSizeInfo",
+          "status": "passing",
+          "type": "test"
         }
       ]
     },
@@ -156,6 +170,30 @@
           "notes": "ErrorBoundary renders fallback on crash, resets on Try Again click",
           "phase": "unit",
           "ref": "ui/src/__tests__/error-boundary.test.tsx",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Followers faithfully present the shared terminal grid with adaptive device framing and an explicit Take over affordance.",
+      "id": "REQ-P0-002e",
+      "prd_ref": "OT-P0-002",
+      "status": "in_progress",
+      "title": "Multi-Device Follower Presentation",
+      "validation": [
+        {
+          "notes": "Device chrome renders its takeover action at each adaptive tier",
+          "phase": "unit",
+          "ref": "ui/src/components/__tests__/DeviceFrame.test.tsx",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Follower geometry remains bounded and selects adaptive chrome",
+          "phase": "unit",
+          "ref": "ui/src/lib/followerViewport.test.ts",
           "status": "passing",
           "type": "test"
         }

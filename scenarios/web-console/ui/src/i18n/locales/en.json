@@ -10,6 +10,13 @@
       "dismissAriaLabel": "Dismiss"
     }
   },
+  "deviceFrame": {
+    "takeOver": "Take over"
+  },
+  "deviceIdentity": {
+    "label": "This device name",
+    "hint": "Shown to you on other devices sharing this terminal."
+  },
   "aiSuggestBar": {
     "empty": "Type a command description…",
     "generating": "Generating…",

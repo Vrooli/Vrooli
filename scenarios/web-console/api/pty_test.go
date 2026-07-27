@@ -547,7 +547,10 @@ func TestFakePTY_Resize(t *testing.T) {
 	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
 
-	sess.Resize(200, 60)
+	sess.DeclareSize(sub.OutputCh, 200, 60)
+	if err := sess.Resize(sub.OutputCh, 200, 60); err != nil {
+		t.Fatalf("Resize: %v", err)
+	}
 
 	got, _ := sm.Get(sess.ID)
 	if got.Cols != 200 {

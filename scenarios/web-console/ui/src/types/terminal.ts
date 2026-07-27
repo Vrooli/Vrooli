@@ -17,6 +17,8 @@ export interface TerminalMessage {
     | "stdout"
     | "resize"
     | "resize_info"
+	| "size_info"
+	| "take_lease"
     | "exit"
     | "error"
     | "ping"
@@ -78,6 +80,11 @@ export interface TerminalMessage {
    *   - "invalid_input"
    */
   reason?: StdinAckReason;
+	/** Per-connection size-lease state carried by size_info. */
+	leader?: string;
+	leaderDevice?: string;
+	holdsLease?: boolean;
+	viewerCount?: number;
 }
 
 /** Typed reason codes for stdin_ack.ok=false frames. */

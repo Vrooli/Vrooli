@@ -21,6 +21,8 @@ type SubscribeResult struct {
 	OutputCh chan []byte
 	// NotifyCh fires when coalesced frames exceed the configured threshold.
 	NotifyCh chan int
+	// SizeCh receives authoritative grid changes for this connection.
+	SizeCh chan [2]uint16
 	// Snapshot is the self-contained ANSI byte stream reproducing the
 	// current emulator state (screen + alt-buffer flag + scrollback).
 	// Caller must write it before draining OutputCh so live frames are
@@ -48,6 +50,9 @@ type Session struct {
 	// WebSocket clients. The emulator owns the durable replay state.
 	mu              sync.Mutex
 	clients         map[chan []byte]*ClientInfo
+	leaseOwner      chan []byte
+	leaseReason     LeaseReason
+	nextClientOrder uint64
 	emu             *terminal.Emulator
 	processExited   bool // set by readLoop when the PTY read returns an error
 	processExitCode int  // exit code from the PTY process (-1 if unknown)
@@ -312,16 +317,30 @@ func (s *Session) CurrentDir(ctx context.Context) (string, error) {
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-snapshot-replay
 func (s *Session) Subscribe() SubscribeResult {
 	notifyCh := make(chan int, 1)
+	sizeCh := make(chan [2]uint16, 1)
 	s.mu.Lock()
 	snap := s.emu.Snapshot()
 	ch := make(chan []byte, s.clientChannelBuffer)
-	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh}
+	s.nextClientOrder++
+	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh, SizeCh: sizeCh, SubscribedOrder: s.nextClientOrder}
+	if s.leaseOwner == nil {
+		s.leaseOwner = ch
+		s.leaseReason = LeaseReasonFirstClient
+	}
+	// The new connection gets its initial state directly from the WebSocket
+	// forwarder; notify only pre-existing viewers that presence changed.
+	for existing, info := range s.clients {
+		if existing != ch {
+			s.publishSizeLocked(info)
+		}
+	}
 	bctrace("subscribe", s.ID, fmt.Sprintf("snapshot_bytes=%d alt=%v", len(snap), s.inAltBuffer), nil)
 	s.mu.Unlock()
 
 	return SubscribeResult{
 		OutputCh: ch,
 		NotifyCh: notifyCh,
+		SizeCh:   sizeCh,
 		Snapshot: snap,
 	}
 }
@@ -329,15 +348,40 @@ func (s *Session) Subscribe() SubscribeResult {
 // Unsubscribe removes a client channel. The PTY size is unchanged.
 func (s *Session) Unsubscribe(ch chan []byte) {
 	s.mu.Lock()
+	info, exists := s.clients[ch]
+	if !exists {
+		s.mu.Unlock()
+		return
+	}
 	delete(s.clients, ch)
+	close(info.SizeCh)
+	if s.leaseOwner == ch {
+		s.leaseOwner = s.oldestClientLocked()
+		s.leaseReason = LeaseReasonLeaderDisconnect
+		if s.leaseOwner != nil {
+			s.applyDeclaredSizeLocked(s.leaseOwner)
+			s.publishAllSizesLocked()
+		}
+	}
+	s.publishAllSizesLocked()
 	s.mu.Unlock()
 }
 
-// Resize sets the PTY dimensions directly. Last caller wins.
+// Resize applies a declared terminal size only when the caller holds the
+// session's size lease. A session has one PTY winsize, so followers may
+// declare their preferred dimensions but cannot silently reflow the leader.
 // [REQ:P0-002c] Terminal Resize Handling
-func (s *Session) Resize(cols, rows uint16) {
+func (s *Session) Resize(owner chan []byte, cols, rows uint16) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if owner == nil || owner != s.leaseOwner {
+		return ErrLeaseNotHeld
+	}
+	s.applyResizeLocked(cols, rows)
+	return nil
+}
+
+func (s *Session) applyResizeLocked(cols, rows uint16) {
 	if cols == s.Cols && rows == s.Rows {
 		bctrace("resize_noop", s.ID, fmt.Sprintf("cols=%d rows=%d", cols, rows), nil)
 		return
@@ -347,6 +391,7 @@ func (s *Session) Resize(cols, rows uint16) {
 	s.Rows = rows
 	s.emu.Resize(int(cols), int(rows))
 	_ = s.pty.SetSize(cols, rows)
+	s.publishAllSizesLocked()
 }
 
 // GetPolicy returns the session's expiration policy.

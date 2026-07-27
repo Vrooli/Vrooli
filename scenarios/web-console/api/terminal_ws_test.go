@@ -132,8 +132,9 @@ func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 	t.Helper()
 	sawHistoryEnd := false
 	sawSessionReady := false
+	sawSizeInfo := false
 	deadline := time.Now().Add(3 * time.Second)
-	for !(sawHistoryEnd && sawSessionReady) {
+	for !(sawHistoryEnd && sawSessionReady && sawSizeInfo) {
 		_ = conn.SetReadDeadline(deadline)
 		var msg TerminalMessage
 		if err := conn.ReadJSON(&msg); err != nil {
@@ -144,6 +145,8 @@ func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 			sawHistoryEnd = true
 		case MsgTypeSessionReady:
 			sawSessionReady = true
+		case MsgTypeSizeInfo:
+			sawSizeInfo = true
 		case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning:
 			// Non-handshake traffic that may arrive before the handshake
 			// completes (snapshot frames, early shell prompt).
@@ -151,6 +154,78 @@ func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 			t.Fatalf("skipHistoryEnd: unexpected message type=%s before handshake complete", msg.Type)
 		}
 	}
+}
+
+// [REQ:P0-002c] Every connected viewer is told the one authoritative grid.
+func TestTerminalWS_SecondClientReceivesSizeInfo(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessionID := createTestSession(t, ts, srv)
+	url := wsURL(ts, "/api/v1/sessions/"+sessionID+"/ws")
+	first, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		t.Fatalf("dial first: %v", err)
+	}
+	defer first.Close()
+	skipHistoryEnd(t, first)
+	second, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		t.Fatalf("dial second: %v", err)
+	}
+	defer second.Close()
+	skipHistoryEnd(t, second)
+	if err := first.WriteJSON(TerminalMessage{Type: MsgTypeResize, Cols: 120, Rows: 40}); err != nil {
+		t.Fatalf("write resize: %v", err)
+	}
+	for _, conn := range []*websocket.Conn{first, second} {
+		deadline := time.Now().Add(2 * time.Second)
+		found := false
+		for !found {
+			_ = conn.SetReadDeadline(deadline)
+			var msg TerminalMessage
+			if err := conn.ReadJSON(&msg); err != nil {
+				t.Fatalf("read size_info: %v", err)
+			}
+			if msg.Type == MsgTypeSizeInfo {
+				found = msg.Cols == 120 && msg.Rows == 40
+			}
+		}
+	}
+	if session, ok := srv.sessions.Get(sessionID); !ok {
+		t.Fatal("session missing")
+	} else if cols, rows := session.EffectiveSize(); cols != 120 || rows != 40 {
+		t.Fatalf("session size = %dx%d", cols, rows)
+	}
+}
+
+// [REQ:P0-002c] A reconnecting follower declares its size but cannot steal it.
+func TestTerminalWS_ReconnectDoesNotStealSize(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessionID := createTestSession(t, ts, srv)
+	url := wsURL(ts, "/api/v1/sessions/"+sessionID+"/ws")
+	leader, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer leader.Close()
+	skipHistoryEnd(t, leader)
+	if err := leader.WriteJSON(TerminalMessage{Type: MsgTypeResize, Cols: 160, Rows: 50}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	follower, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	skipHistoryEnd(t, follower)
+	if err := follower.WriteJSON(TerminalMessage{Type: MsgTypeResize, Cols: 45, Rows: 30}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	session, _ := srv.sessions.Get(sessionID)
+	if cols, rows := session.EffectiveSize(); cols != 160 || rows != 50 {
+		t.Fatalf("follower stole size: %dx%d", cols, rows)
+	}
+	follower.Close()
 }
 
 // [REQ:P0-002b] WebSocket I/O Streaming - successful WS upgrade and ping/pong

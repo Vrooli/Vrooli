@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef, type DragEvent, type ClipboardEvent } from "react";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type DragEvent, type ClipboardEvent } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -26,6 +26,9 @@ import { useConversationSession } from "../hooks/useConversationSession";
 import { useConversationStore } from "../stores/useConversationStore";
 import type { ConversationEvent } from "../api/conversation";
 import type { TTSPlaybackState } from "../audio-integration";
+import { DeviceFrame } from "./terminal/DeviceFrame";
+import { archetypeForGrid } from "../lib/deviceArchetype";
+import { chromeTier, fitDeviceGrid, fitGrid, screenAperture, surplusRatio } from "../lib/followerViewport";
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
@@ -173,11 +176,12 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // each one — visible as a `resize_noop` storm in api logs.
     const lastSentSizeRef = useRef<{ cols: number; rows: number } | null>(null);
     const [terminal, setTerminal] = useState<Terminal | null>(null);
+    const [paneSize, setPaneSize] = useState({ width: 0, height: 0 });
 
     // Per-pane selectors with fallbacks for old persisted data
-    const paneFontSize = useWorkspaceStore(
-      useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.fontSize ?? TERMINAL_FONT_SIZE, [sessionId]),
-    );
+	const paneFontSize = useWorkspaceStore(
+		useCallback((s) => s.deviceFontSize[sessionId] ?? s.panes.find((p) => p.sessionId === sessionId)?.fontSize ?? TERMINAL_FONT_SIZE, [sessionId]),
+	);
     const paneThemeId = useWorkspaceStore(
       useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.themeId ?? DEFAULT_THEME_ID, [sessionId]),
     );
@@ -260,7 +264,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [needsUnlock, sessionId, unlockAudio]);
 
     // Delegate all WebSocket protocol handling to the session hook
-    const { submitInput, sendResize, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot, sendConversationAck } = useTerminalSession({
+    const { submitInput, sendResize, getServerSize, serverSize, isFollower, leaderDevice, takeLease, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot, sendConversationAck } = useTerminalSession({
       sessionId,
       terminal,
       onExit,
@@ -271,13 +275,24 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           const fit = fitRef.current;
           if (!fit || !terminal) return;
           fit.fit();
-          if (terminal.cols > 0 && terminal.rows > 0) {
-            sendResize(terminal.cols, terminal.rows);
-            lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
-          }
+		  // useTerminalSession is the sole connect-time size declaration.
         });
       },
     });
+    const followerFrame = useMemo(() => {
+	  const size = serverSize;
+      if (!isFollower || !size || paneSize.width <= 0 || paneSize.height <= 0) return null;
+      const currentTerminal = terminal;
+      const screen = currentTerminal?.element?.querySelector(".xterm-screen") as HTMLElement | null;
+      const measuredAspect = screen && currentTerminal && currentTerminal.cols > 0 && currentTerminal.rows > 0 && screen.clientHeight > 0
+        ? (screen.clientWidth / currentTerminal.cols) / (screen.clientHeight / currentTerminal.rows)
+        : 0.5;
+      const fitted = fitGrid(size.cols, size.rows, paneSize.width, paneSize.height, measuredAspect);
+      const tier = chromeTier(surplusRatio(fitted, paneSize.width, paneSize.height), fitted.scale);
+      const archetype = archetypeForGrid(size.cols, size.rows, measuredAspect);
+      const device = fitDeviceGrid(size.cols, size.rows, paneSize.width, paneSize.height, measuredAspect, screenAperture(archetype, tier));
+      return { rect: device.frame, screenRect: device.screen, tier, archetype, cols: size.cols, rows: size.rows };
+    }, [serverSize, isFollower, paneSize, terminal]);
 
     // Auto-TTS is now driven from the conversation store rather than the
     // terminal WS (conversation events arrive via the global SSE channel).
@@ -610,14 +625,52 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // React to font size changes from store
     useEffect(() => {
       if (!terminal || !fitRef.current) return;
-      terminal.options.fontSize = paneFontSize;
+		if (followerFrame) return;
+		terminal.options.fontSize = paneFontSize;
       scrollAwareFit();
-      const last = lastSentSizeRef.current;
-      if (!last || last.cols !== terminal.cols || last.rows !== terminal.rows) {
+	  const last = lastSentSizeRef.current;
+	  const authoritative = getServerSize();
+	  if ((!authoritative || authoritative.cols !== terminal.cols || authoritative.rows !== terminal.rows) && (!last || last.cols !== terminal.cols || last.rows !== terminal.rows)) {
         sendResize(terminal.cols, terminal.rows);
         lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
       }
-    }, [paneFontSize, terminal, sendResize, scrollAwareFit]);
+	}, [paneFontSize, followerFrame, terminal, sendResize, scrollAwareFit, getServerSize]);
+
+    // Keep the rendered xterm grid inside the follower rect.  The outer pane
+    // retains overflow-hidden so this layer never creates the documented
+    // phantom scrollbar on touch devices.
+    useLayoutEffect(() => {
+      const element = terminal?.element;
+      const fit = fitRef.current;
+      if (!element || !fit || !followerFrame) return;
+      const { screenRect } = followerFrame;
+      const naturalWidth = screenRect.width / screenRect.scale;
+      const naturalHeight = screenRect.height / screenRect.scale;
+      element.style.position = "absolute";
+      element.style.left = `${screenRect.x}px`;
+      element.style.top = `${screenRect.y}px`;
+		element.style.width = `${naturalWidth}px`;
+		element.style.height = `${naturalHeight}px`;
+      element.style.transformOrigin = "top left";
+      element.style.transform = screenRect.scale < 1 ? `scale(${screenRect.scale})` : "";
+		// Fit at the unscaled desktop-sized host first, then restore the exact
+		// authoritative grid. Previously xterm fitted to the phone width and
+		// was scaled a second time, producing the narrow, broken tmux view.
+      terminal.options.fontSize = screenRect.fontSize;
+		fit.fit();
+		if (terminal.cols !== followerFrame.cols || terminal.rows !== followerFrame.rows) {
+			terminal.resize(followerFrame.cols, followerFrame.rows);
+		}
+      return () => {
+        element.style.position = "";
+        element.style.left = "";
+        element.style.top = "";
+		element.style.width = "";
+		element.style.height = "";
+        element.style.transformOrigin = "";
+        element.style.transform = "";
+      };
+    }, [terminal, followerFrame]);
 
     // React to theme changes from store
     useEffect(() => {
@@ -674,24 +727,27 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 
       let rafId: number | null = null;
       const resizeObserver = new ResizeObserver(() => {
+		setPaneSize({ width: container.clientWidth, height: container.clientHeight });
         if (rafId !== null) return; // Already scheduled
         rafId = requestAnimationFrame(() => {
           rafId = null;
           scrollAwareFit();
-          const last = lastSentSizeRef.current;
-          if (!last || last.cols !== terminal.cols || last.rows !== terminal.rows) {
+		  const last = lastSentSizeRef.current;
+		  const authoritative = getServerSize();
+		  if ((!authoritative || authoritative.cols !== terminal.cols || authoritative.rows !== terminal.rows) && (!last || last.cols !== terminal.cols || last.rows !== terminal.rows)) {
             sendResize(terminal.cols, terminal.rows);
             lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
           }
         });
       });
+		setPaneSize({ width: container.clientWidth, height: container.clientHeight });
       resizeObserver.observe(container);
 
       return () => {
         resizeObserver.disconnect();
         if (rafId !== null) cancelAnimationFrame(rafId);
       };
-    }, [terminal, sendResize, scrollAwareFit]);
+	}, [terminal, sendResize, scrollAwareFit, getServerSize]);
 
     return (
       <div
@@ -711,6 +767,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {followerFrame && <DeviceFrame archetype={followerFrame.archetype} chromeTier={followerFrame.tier} rect={followerFrame.rect} leaderDevice={leaderDevice} gridCols={followerFrame.cols} gridRows={followerFrame.rows} onTakeOver={takeLease} />}
         {uploading && (
           <div data-testid="upload-overlay" className="absolute inset-0 z-wc-chrome-raised flex items-center justify-center bg-black/50 text-sm text-white">
             {t(strings.terminalPane.uploadingImage)}

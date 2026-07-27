@@ -14,6 +14,10 @@
   --color-secondary: #0ea5b7;  /* cyan-600-ish */
   --color-surface: #0f172a;    /* slate-900 — raised surface */
   --color-accent: #22d3ee;     /* cyan-400 */
+  --wc-device-frame-surface: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  --wc-device-frame-line: color-mix(in srgb, var(--color-foreground) 36%, transparent);
+  --wc-device-frame-text: var(--color-foreground);
+  --wc-device-frame-radius: 20px;
 
   /* Typography. A system-font stack (no bundled webfont): we render with the
    * platform UI typeface rather than shipping a custom font. If the brand later

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Terminal } from "@xterm/xterm";
 import { buildSessionWsUrl } from "../../api/sessions";
 import { refreshConversationSession } from "../../hooks/useConversationSession";
@@ -13,6 +13,7 @@ import {
   type TerminalInputGate,
 } from "../../components/terminal/inputGate";
 import { getTerminalDebugProbe } from "../../components/terminal/debug";
+import { deviceIdentity } from "../../lib/deviceIdentity";
 import type { TerminalMessage } from "../../types/terminal";
 import {
   useTerminalTransport,
@@ -79,6 +80,11 @@ export interface UseTerminalSessionResult {
   submitInput: (data: string, source: InputSource) => GateResult;
   gate: TerminalInputGate;
   sendResize: (cols: number, rows: number) => void;
+	getServerSize: () => { cols: number; rows: number } | null;
+	serverSize: { cols: number; rows: number } | null;
+	isFollower: boolean;
+	leaderDevice: string;
+	takeLease: () => void;
   subscribeInputSettled: (cb: InputSettledListener) => () => void;
   subscribePendingInput: (cb: () => void) => () => void;
   getPendingInputSnapshot: () => readonly PendingInputEntry[];
@@ -131,13 +137,18 @@ export function useTerminalSession({
   // stays disabled so the snapshot's alt-buffer markers / TUI paint render
   // cleanly.
   const inSnapshotRef = useRef(true);
+	const serverSizeRef = useRef<{ cols: number; rows: number } | null>(null);
+	const leaseRequestInFlightRef = useRef(false);
+	const [serverSize, setServerSize] = useState<{ cols: number; rows: number } | null>(null);
+	const [holdsLease, setHoldsLease] = useState(true);
+	const [leaderDevice, setLeaderDevice] = useState("");
 
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
 
-  const wsUrl = buildSessionWsUrl(sessionId);
+  const wsUrl = buildSessionWsUrl(sessionId, typeof window === "undefined" ? undefined : deviceIdentity());
 
   const localEchoRef = useRef(new LocalEchoController());
 
@@ -228,6 +239,25 @@ export function useTerminalSession({
     onClose: onTransportClose,
   });
   transportRef.current = transport;
+
+  const requestLease = useCallback((explicit = false) => {
+		if (!explicit && leaseRequestInFlightRef.current) return;
+		leaseRequestInFlightRef.current = true;
+    transport.sendJson({ type: "take_lease" });
+  }, [transport]);
+
+  // The visible Take over control is an explicit operator action. It must be
+  // retryable even when a preceding automatic input request is awaiting a
+  // server response (for example after a mobile reconnect).
+  const takeLease = useCallback(() => requestLease(true), [requestLease]);
+
+  const submitInput = useCallback(
+    (data: string, source: InputSource): GateResult => {
+      if (!holdsLease) requestLease();
+      return gate.submit(data, source);
+    },
+    [gate, holdsLease, requestLease],
+  );
 
   const sendConversationAck = useCallback(
     (
@@ -325,9 +355,19 @@ export function useTerminalSession({
           );
           break;
         }
-        case "resize_info": {
-          break;
-        }
+		case "size_info": {
+			if (!msg.cols || !msg.rows) break;
+			serverSizeRef.current = { cols: msg.cols, rows: msg.rows };
+			setServerSize(serverSizeRef.current);
+			const nextHoldsLease = msg.holdsLease === true;
+			setHoldsLease(nextHoldsLease);
+			if (nextHoldsLease || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
+			setLeaderDevice(msg.leaderDevice ?? "");
+			useWorkspaceStore.getState().setViewerCount(sessionId, msg.viewerCount ?? 1);
+			const t = terminalRef.current;
+			if (t && (t.cols !== msg.cols || t.rows !== msg.rows)) t.resize(msg.cols, msg.rows);
+			break;
+		}
       }
     });
     return unsubscribe;
@@ -349,12 +389,12 @@ export function useTerminalSession({
       }
       const echo = localEchoRef.current.handleInput(data);
       if (echo) terminal.write(echo);
-      gate.submit(data, "xterm");
+	  submitInput(data, "xterm");
     });
     return () => {
       disposable.dispose();
     };
-  }, [terminal, gate]);
+	}, [terminal, submitInput]);
 
   // Cleanup on unmount.
   useEffect(() => {
@@ -396,15 +436,17 @@ export function useTerminalSession({
     [transport],
   );
 
-  const submitInput = useCallback(
-    (data: string, source: InputSource): GateResult => gate.submit(data, source),
-    [gate],
-  );
+	const getServerSize = useCallback(() => serverSizeRef.current, []);
 
   return {
     submitInput,
     gate,
-    sendResize,
+		sendResize,
+		getServerSize,
+		serverSize,
+		isFollower: !holdsLease,
+		leaderDevice,
+		takeLease,
     subscribeInputSettled: stdin.subscribeInputSettled,
     subscribePendingInput: stdin.subscribePendingInput,
     getPendingInputSnapshot: stdin.getPendingSnapshot,

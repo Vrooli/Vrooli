@@ -77,6 +77,7 @@ export default function SessionSidebar({
   const sidebarOriginTab = useWorkspaceStore((s) => s.sidebarOriginTab);
   const setSidebarOriginTab = useWorkspaceStore((s) => s.setSidebarOriginTab);
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
+	const viewerCounts = useWorkspaceStore((s) => s.viewerCounts);
   const { syncPaneUpdate, syncPaneOrder } = useWorkspaceSync();
   const { removePaneFromGroup } = useGroupActions();
   const [editingPaneId, setEditingPaneId] = useState<string | null>(null);
@@ -376,6 +377,7 @@ export default function SessionSidebar({
             paneColorStyle(pane.headerColor, "bar") ??
             (group?.color ? { backgroundColor: group.color } : undefined);
           const isEditing = editingPaneId === pane.sessionId;
+		  const viewerCount = viewerCounts[pane.sessionId] ?? 1;
           const rowBody = (
             <>
               {accentStyle && (
@@ -411,6 +413,7 @@ export default function SessionSidebar({
                       {unreadCount}
                     </span>
                   )}
+				  {viewerCount > 1 && <span data-testid={`sidebar-viewers-${pane.sessionId}`} className="rounded-full border border-wc-default px-1.5 py-0.5 text-[10px]">{viewerCount}</span>}
                 </span>
                 <span className="mt-0.5 flex items-center gap-1 text-[11px] text-wc-text-muted">
                   {viewMode === "messages" ? <MessageSquareText className="h-3 w-3" /> : <TerminalSquare className="h-3 w-3" />}

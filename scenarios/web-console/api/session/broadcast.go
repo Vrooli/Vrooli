@@ -41,6 +41,15 @@ type ClientInfo struct {
 	pendingTrimmed  bool     // set when pending buffer was trimmed; triggers SIGWINCH after drain
 	CoalescedFrames int      // count of coalesced frames (observability)
 	NotifyCh        chan int // receives cumulative coalesced count when threshold crossed
+	// SizeCh carries the authoritative terminal grid. It is deliberately
+	// separate from PTY output so a slow output consumer cannot make a viewer
+	// retain a stale terminal size.
+	SizeCh          chan [2]uint16
+	DeclaredCols    uint16
+	DeclaredRows    uint16
+	DeviceID        string
+	DeviceLabel     string
+	SubscribedOrder uint64
 }
 
 // broadcast feeds PTY output into the durable emulator and fans out the

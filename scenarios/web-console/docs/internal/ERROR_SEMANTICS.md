@@ -118,15 +118,18 @@ When a client's output channel falls behind (e.g. slow WebSocket consumer, netwo
 
 The client renders a yellow warning in the terminal: `[Warning: 7 output frames coalesced — terminal may lag]`. Coalesced data is automatically delivered when the consumer catches up. If the pending buffer grows beyond the fixed cap (`pendingBufferMax`), the oldest bytes are truncated; the next snapshot replay (on reconnect) restores correct state. This is informational, not an error — the session continues normally.
 
-### Resize Info (Informational)
+### Authoritative Size Info (Informational)
 
-After a resize, the server sends the effective PTY dimensions back to the requesting client:
+After a resize or lease transfer, the server broadcasts the effective PTY grid
+to every connected viewer:
 
 ```json
-{"type": "resize_info", "cols": 120, "rows": 40}
+{"type": "size_info", "cols": 120, "rows": 40, "holdsLease": true}
 ```
 
-The PTY dimensions follow a last-writer-wins model — whichever client sends a resize message last sets the size. xterm.js handles reflow for smaller viewports automatically.
+One shared pseudo-terminal has one winsize. Connections may declare a preferred
+grid, but only the size-lease holder applies it. Followers render the
+authoritative grid and can explicitly take over (or acquire on input).
 
 ### WS Close Code Handling
 

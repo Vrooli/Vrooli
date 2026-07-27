@@ -133,6 +133,9 @@ interface WorkspaceState {
    *  (offscreen sessions are unmounted to keep cost flat in N) and re-injected
    *  on remount. Ephemeral — not persisted. */
   pendingInputDrafts: Record<string, string>;
+	/** Local terminal font preferences; intentionally never sent to the workspace API. */
+  deviceFontSize: Record<string, number>;
+	viewerCounts: Record<string, number>;
 }
 
 interface WorkspaceActions {
@@ -204,6 +207,8 @@ interface WorkspaceActions {
   setPendingInputDraft: (sessionId: string, draft: string) => void;
   /** Read and clear a session's stashed input (returns undefined if none). */
   consumePendingInputDraft: (sessionId: string) => string | undefined;
+	setDeviceFontSize: (sessionId: string, size: number) => void;
+	setViewerCount: (sessionId: string, count: number) => void;
 }
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions;
@@ -251,6 +256,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       adaptiveChrome: true,
       modifiers: { ctrl: false, alt: false, shift: false },
       pendingInputDrafts: {},
+		deviceFontSize: {},
+		viewerCounts: {},
       groups: [],
       tabContextMenu: null,
       manageGroupsTarget: null,
@@ -335,6 +342,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             p.sessionId === sessionId ? { ...p, fontSize: clampFontSize(size) } : p,
           ),
         })),
+
+		setDeviceFontSize: (sessionId, size) => set((state) => ({
+			deviceFontSize: { ...state.deviceFontSize, [sessionId]: clampFontSize(size) },
+		})),
+		setViewerCount: (sessionId, count) => set((state) => ({ viewerCounts: { ...state.viewerCounts, [sessionId]: count } })),
 
       movePaneToIndex: (sessionId, newIndex) =>
         set((state) => {

@@ -42,12 +42,16 @@ func (s *Server) dispatchInputMessage(
 	conn *websocket.Conn,
 	writeMu *sync.Mutex,
 	sess *session.Session,
+	client chan []byte,
 	sessionID string,
 	msg TerminalMessage,
 	sessionReady bool,
 ) inputDispatchResult {
 	switch msg.Type {
 	case MsgTypeStdin:
+		if !sess.HoldsLease(client) {
+			_ = sess.AcquireLease(client, session.LeaseReasonInput)
+		}
 		if !sessionReady {
 			// Should never happen — the client is required to wait
 			// for session_ready before sending stdin. Log and count
@@ -84,7 +88,10 @@ func (s *Server) dispatchInputMessage(
 		}
 	case MsgTypeResize:
 		if msg.Cols > 0 && msg.Rows > 0 {
-			sess.Resize(uint16(msg.Cols), uint16(msg.Rows))
+			sess.DeclareSize(client, uint16(msg.Cols), uint16(msg.Rows))
+			if sess.HoldsLease(client) {
+				_ = sess.Resize(client, uint16(msg.Cols), uint16(msg.Rows))
+			}
 			writeMu.Lock()
 			_ = conn.WriteJSON(TerminalMessage{
 				Type: MsgTypeResizeInfo,
@@ -98,6 +105,10 @@ func (s *Server) dispatchInputMessage(
 				"rows": fmt.Sprintf("%d", msg.Rows),
 			})
 			s.metrics.ResizeCount.Add(1)
+		}
+	case MsgTypeTakeLease:
+		if err := sess.AcquireLease(client, session.LeaseReasonExplicit); err != nil {
+			return inputDispatchResult{CloseReason: err.Error()}
 		}
 	case MsgTypePing:
 		writeMu.Lock()

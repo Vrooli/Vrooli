@@ -81,7 +81,7 @@
           "maturity": "missing",
           "requiredBy": ["generated", "oriented"],
           "completion": "required",
-          "ownerSkills": ["react-coherence", "ux"]
+          "ownerSkills": ["ui-health", "ux"]
         },
         {
           "path": "QUICKSTART.md",

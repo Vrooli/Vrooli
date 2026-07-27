@@ -31,6 +31,8 @@ const (
 	MsgTypeStdout      = "stdout"
 	MsgTypeResize      = "resize"
 	MsgTypeResizeInfo  = "resize_info"
+	MsgTypeSizeInfo    = "size_info"
+	MsgTypeTakeLease   = "take_lease"
 	MsgTypeExit        = "exit"
 	MsgTypeError       = "error"
 	MsgTypePing        = "ping"
@@ -112,7 +114,11 @@ type TerminalMessage struct {
 	Kind string `json:"kind,omitempty"`
 	// Reason is the typed error code populated on stdin_ack frames when
 	// Ok=false (and unset when Ok=true). See StdinAckReason*.
-	Reason string `json:"reason,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+	Leader       string `json:"leader,omitempty"`
+	LeaderDevice string `json:"leaderDevice,omitempty"`
+	HoldsLease   bool   `json:"holdsLease"`
+	ViewerCount  int    `json:"viewerCount,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -164,6 +170,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// are applied on top of the snapshot on the receiver.
 	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
+	sess.SetClientDevice(sub.OutputCh, r.URL.Query().Get("deviceId"), r.URL.Query().Get("deviceLabel"))
 
 	// Assign this connection a fresh generation so clients can detect
 	// reconnect boundaries on their stdin-ack write barrier.
@@ -214,6 +221,11 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			s.metrics.WSMessagesSent.Add(1)
 		}
 		_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeHistoryEnd})
+		cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(sub.OutputCh)
+		if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount}); err != nil {
+			writeMu.Unlock()
+			return
+		}
 		writeMu.Unlock()
 
 		// Server-side WebSocket keepalive: send a ping every 30s to prevent
@@ -256,6 +268,21 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 					CoalescedFrames: coalesced,
 				})
 				writeMu.Unlock()
+				s.metrics.WSMessagesSent.Add(1)
+			case size, ok := <-sub.SizeCh:
+				if !ok {
+					return
+				}
+				cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(sub.OutputCh)
+				if cols != size[0] || rows != size[1] {
+					continue
+				}
+				writeMu.Lock()
+				err := conn.WriteJSON(TerminalMessage{Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount})
+				writeMu.Unlock()
+				if err != nil {
+					return
+				}
 				s.metrics.WSMessagesSent.Add(1)
 			case <-ctx.Done():
 				// Input loop exited (WS disconnect) — stop forwarding.
@@ -305,7 +332,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			sendError(decodeErr)
 			continue
 		}
-		res := s.dispatchInputMessage(conn, &writeMu, sess, sessionID, msg, sessionReady)
+		res := s.dispatchInputMessage(conn, &writeMu, sess, sub.OutputCh, sessionID, msg, sessionReady)
 		if res.CloseReason != "" {
 			sendError(res.CloseReason)
 		}

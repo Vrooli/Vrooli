@@ -22,6 +22,13 @@ export const strings = {
       dismissAriaLabel: "app.connectionBanner.dismissAriaLabel",
     },
   },
+  deviceFrame: {
+    takeOver: "deviceFrame.takeOver",
+  },
+  deviceIdentity: {
+    label: "deviceIdentity.label",
+    hint: "deviceIdentity.hint",
+  },
   aiSuggestBar: {
     empty: "aiSuggestBar.empty",
     generating: "aiSuggestBar.generating",

@@ -82,11 +82,17 @@ It now has two distinct data planes:
 
 ### Resize Strategy
 
-The PTY dimensions follow a **last-writer-wins** model: whichever client sends a resize message last sets the PTY size. This keeps the resize path simple and predictable.
+One shared pseudo-terminal has one physical winsize, so Web Console uses a
+**size lease**, not last-writer-wins. Each connection may declare its preferred
+grid, but only the lease holder can apply a declared size to the PTY. The first
+viewer receives the lease; it moves on explicit Take over, on follower input,
+or to the oldest remaining viewer when the leader disconnects. `size_info`
+broadcasts the authoritative grid and leader state to every viewer.
 
-- `Subscribe()` registers a client for output broadcast
-- `Resize(cols, rows)` sets the PTY size directly
-- `Unsubscribe(ch)` removes the client without altering the PTY size
+Followers render that one grid faithfully rather than pretending to reflow it:
+`fitGrid` computes its fitted viewport, `archetypeForGrid` derives a geometric
+frame from grid aspect ratio, and `DeviceFrame` provides the labelled Take over
+affordance. A follower never has an independent terminal grid.
 
 ### Terminal Snapshot Replay
 

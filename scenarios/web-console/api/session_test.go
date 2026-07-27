@@ -131,7 +131,7 @@ func TestSessionManager_Delete(t *testing.T) {
 	}
 }
 
-// [REQ:P0-002c] Terminal Resize Handling — last writer wins
+// [REQ:P0-002c] Terminal Resize Handling — lease holder applies its declared size
 func TestSession_Resize(t *testing.T) {
 	sm := newSessionManager()
 
@@ -144,7 +144,10 @@ func TestSession_Resize(t *testing.T) {
 	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
 
-	sess.Resize(120, 40)
+	sess.DeclareSize(sub.OutputCh, 120, 40)
+	if err := sess.Resize(sub.OutputCh, 120, 40); err != nil {
+		t.Fatalf("Resize: %v", err)
+	}
 
 	cols, rows := sess.EffectiveSize()
 	if cols != 120 {
@@ -155,8 +158,8 @@ func TestSession_Resize(t *testing.T) {
 	}
 }
 
-// [REQ:P0-002c] Last resize wins regardless of which client sent it
-func TestSession_Resize_LastWriterWins(t *testing.T) {
+// [REQ:P0-002c] A follower cannot resize until it acquires the size lease.
+func TestSession_NonLeaderResizeIsRejected(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
@@ -170,22 +173,96 @@ func TestSession_Resize_LastWriterWins(t *testing.T) {
 	sub2 := sess.Subscribe()
 	defer sess.Unsubscribe(sub2.OutputCh)
 
-	// Desktop resizes to 120x40
-	sess.Resize(120, 40)
+	// The first subscriber owns the initial lease.
+	sess.DeclareSize(sub1.OutputCh, 120, 40)
+	if err := sess.Resize(sub1.OutputCh, 120, 40); err != nil {
+		t.Fatalf("leader resize: %v", err)
+	}
 	cols, rows := sess.EffectiveSize()
 	if cols != 120 || rows != 40 {
 		t.Errorf("after first resize: expected 120x40, got %dx%d", cols, rows)
 	}
 
-	// Phone resizes to 60x20 — last writer wins (not max)
-	sess.Resize(60, 20)
+	// A follower may declare a new size but cannot apply it.
+	sess.DeclareSize(sub2.OutputCh, 60, 20)
+	if err := sess.Resize(sub2.OutputCh, 60, 20); err == nil {
+		t.Fatal("follower resize unexpectedly succeeded")
+	}
 	cols, rows = sess.EffectiveSize()
-	if cols != 60 || rows != 20 {
-		t.Errorf("after second resize: expected 60x20, got %dx%d", cols, rows)
+	if cols != 120 || rows != 40 {
+		t.Errorf("follower resize changed session: got %dx%d", cols, rows)
 	}
 
 	fake.Close()
 	<-sess.Done()
+}
+
+// [REQ:P0-002c] Input attention transfers the size lease to the follower's
+// previously declared grid; declaration alone never changes the PTY.
+func TestSession_StdinFromFollowerAcquiresLease(t *testing.T) {
+	fake := ptyfake.NewFakePTYWithOutput()
+	defer fake.Close()
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	if err != nil { t.Fatalf("Create: %v", err) }
+	leader, follower := sess.Subscribe(), sess.Subscribe()
+	defer sess.Unsubscribe(leader.OutputCh)
+	defer sess.Unsubscribe(follower.OutputCh)
+	sess.DeclareSize(leader.OutputCh, 120, 40)
+	if err := sess.Resize(leader.OutputCh, 120, 40); err != nil { t.Fatalf("leader resize: %v", err) }
+	sess.DeclareSize(follower.OutputCh, 60, 20)
+	if err := sess.AcquireLease(follower.OutputCh, session.LeaseReasonInput); err != nil { t.Fatalf("AcquireLease: %v", err) }
+	if !sess.HoldsLease(follower.OutputCh) { t.Fatal("follower did not receive input lease") }
+	if cols, rows := sess.EffectiveSize(); cols != 60 || rows != 20 { t.Fatalf("input lease size = %dx%d, want 60x20", cols, rows) }
+}
+
+// [REQ:P0-002c] Every viewer receives the one authoritative terminal grid.
+func TestSession_ResizePublishesToAllSubscribers(t *testing.T) {
+	fake := ptyfake.NewFakePTYWithOutput()
+	defer fake.Close()
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	first, second := sess.Subscribe(), sess.Subscribe()
+	defer sess.Unsubscribe(first.OutputCh)
+	defer sess.Unsubscribe(second.OutputCh)
+	sess.DeclareSize(first.OutputCh, 120, 40)
+	if err := sess.Resize(first.OutputCh, 120, 40); err != nil {
+		t.Fatalf("Resize: %v", err)
+	}
+	for name, ch := range map[string]chan [2]uint16{"first": first.SizeCh, "second": second.SizeCh} {
+		select {
+		case got := <-ch:
+			if got != [2]uint16{120, 40} {
+				t.Errorf("%s got %v", name, got)
+			}
+		case <-time.After(time.Second):
+			t.Errorf("%s did not receive authoritative size", name)
+		}
+	}
+}
+
+func TestSession_LeaseMovesOnLeaderDisconnect(t *testing.T) {
+	fake := ptyfake.NewFakePTYWithOutput()
+	defer fake.Close()
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	first, second := sess.Subscribe(), sess.Subscribe()
+	sess.DeclareSize(second.OutputCh, 100, 30)
+	sess.Unsubscribe(first.OutputCh)
+	if !sess.HoldsLease(second.OutputCh) {
+		t.Fatal("remaining subscriber did not receive lease")
+	}
+	cols, rows := sess.EffectiveSize()
+	if cols != 100 || rows != 30 {
+		t.Fatalf("expected transferred declared size 100x30, got %dx%d", cols, rows)
+	}
+	sess.Unsubscribe(second.OutputCh)
 }
 
 // [REQ:P0-002c] PTY size unchanged when all clients disconnect
@@ -199,7 +276,10 @@ func TestSession_NoClients_SizeUnchanged(t *testing.T) {
 	}
 
 	sub := sess.Subscribe()
-	sess.Resize(120, 40)
+	sess.DeclareSize(sub.OutputCh, 120, 40)
+	if err := sess.Resize(sub.OutputCh, 120, 40); err != nil {
+		t.Fatalf("Resize: %v", err)
+	}
 	sess.Unsubscribe(sub.OutputCh)
 
 	// PTY size should remain at last resize value
