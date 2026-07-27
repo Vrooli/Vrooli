@@ -1,0 +1,145 @@
+{
+  "_metadata": {
+    "description": "P1 requirements — category taxonomies and intake routing, the first networked adapter, richer source kinds, consumer events, and the measurement loop over operator overrides.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SIG-P1-001",
+      "title": "Category taxonomies",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "categories",
+      "description": "A category may optionally declare a typed vocabulary, giving its signals a subtype in addition to their category. Alpha-shaped categories declare the vision-walk signal-type vocabulary — workflow, skill, audience-pain, competitor, hook, channel-format, funnel, benchmark, capability-gap, unknown — which is the same vocabulary the agent-system intake pipeline routes on. Categories with no taxonomy carry no subtype and are not made worse by the feature. This keeps alpha-specific structure inside one category's declaration instead of pushing it into the core model, where it would burden every unrelated category.",
+      "tags": ["categories", "taxonomy", "alpha", "intake-pipeline"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A category with a declared taxonomy accepts only that taxonomy's subtypes and rejects unknown ones." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A category without a taxonomy stores no subtype and is unaffected by taxonomy validation." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "The alpha taxonomy's tokens match the vision-walk vocabulary exactly, guarding the routing contract against drift." }
+      ]
+    },
+    {
+      "id": "SIG-P1-002",
+      "title": "Intake-pipeline routing",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "integration",
+      "description": "A triaged signal routes into the agent-system intake pipeline as a team knowledge entry under the `<inbox-name>/<signal-type>/<slug>` topic shape that pipeline expects, preserving the source URL and the operator's raw note. Because the subtype comes from the category taxonomy, this scenario is a deterministic-prefix producer and needs no classifier on the draining side. Routing records an outcome link, so the signal shows what it became and the drain does not have to be reconstructed later.",
+      "tags": ["integration", "prompt-manager", "routing", "outcome-link"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A routed signal produces a topic string matching the declared inbox prefix and its taxonomy subtype." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Routing records an outcome-link annotation naming the created knowledge topic." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "A routed entry appears in the target team's inbox query and carries the source URL and operator note." }
+      ]
+    },
+    {
+      "id": "SIG-P1-003",
+      "title": "Reddit saved-posts adapter",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "ingestion",
+      "description": "The first tier-1 adapter: saved posts through Reddit's official API under operator-supplied credentials for a registered application. Reddit is chosen first because its saved-posts endpoint is documented and permitted, which makes it the lowest-risk networked source available. It ships disabled like every adapter above tier 0 and inherits the auto-disable-on-anomaly behaviour from SIG-P0-014 rather than implementing its own retry policy.",
+      "tags": ["ingestion", "reddit", "tier-1", "oauth"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "The adapter declares tier 1 and reports disabled until an operator enables it." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A throttled response disables the adapter through the shared runner path and issues no retry." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "A sync run imports saved posts idempotently, so a second run over unchanged data adds nothing." },
+        { "type": "manual", "status": "planned", "notes": "Confirm the current API terms, scopes, and rate limits before enabling; platform terms change independently of this scenario." }
+      ]
+    },
+    {
+      "id": "SIG-P1-004",
+      "title": "Conversation share-link extraction",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "enrichment",
+      "description": "Full conversation content is extracted from AI chat share links whose transcripts ship inside the initial HTML rather than through an API. The technique, the failure modes, and a reference decoder are recorded in docs/reference/conversation-extraction.md — the one artifact salvaged from the predecessor scenario. This requirement is the direct application of SIG-P0-003's empty-result rule: naive extraction of these pages returns a plausible-looking blank, which is precisely the silent lossiness the rule exists to catch.",
+      "tags": ["enrichment", "extraction", "conversation", "prior-art"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "The decoder resolves an index-referenced payload into ordered conversation turns." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A share page yielding zero turns marks the signal needs-attention rather than importing an empty conversation." },
+        { "type": "manual", "status": "planned", "notes": "Re-verify against a live share link per provider; these page formats are undocumented and change without notice." }
+      ]
+    },
+    {
+      "id": "SIG-P1-005",
+      "title": "Video transcript capture",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "enrichment",
+      "description": "A video signal is captured by requesting only its transcript from video-downloader, with an optional operator timestamp marking the passage of interest. This scenario never downloads media and never runs speech-to-text itself; the timestamp and the operator's note become annotations, and the transcript window around the timestamp becomes the signal's extracted content. Blocked on video-downloader exposing a transcript-only request, which it does not today — the dependency is declared rather than assumed satisfied.",
+      "tags": ["enrichment", "video-downloader", "transcript", "blocked"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A video capture issues a transcript-only request and never requests media bytes." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "An operator timestamp selects the surrounding transcript window as extracted content and is preserved as an annotation." },
+        { "type": "manual", "status": "planned", "notes": "Confirm video-downloader's transcript-only capability exists and is stable before implementing; this requirement is blocked until it does." }
+      ]
+    },
+    {
+      "id": "SIG-P1-006",
+      "title": "Consumer event publication",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "integration",
+      "description": "A domain event publishes when a signal enters a category, so a consuming scenario reacts without polling the query contract on a timer. The event carries identifiers only — signal id, category, disposition — and never a copy of the signal body, so there is exactly one truth about a signal's content and consumers resolve it through the query contract.",
+      "tags": ["integration", "vrooli-events", "consumers"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A category assignment publishes one event carrying identifiers and no signal body." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A category reassignment publishes an event reflecting the new category." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "A subscriber receives the event and resolves the signal through the structured query contract." }
+      ]
+    },
+    {
+      "id": "SIG-P1-007",
+      "title": "Saved views",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "retrieval",
+      "description": "A named filter over the corpus is saved once and reopened from UI and CLI. Saved views are how a recurring consumer question stops being retyped, and they are the operator-facing counterpart to the ambient view's agent-facing budget.",
+      "tags": ["retrieval", "ui", "cli", "operator"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A saved view round-trips its full filter set and returns the same result as the equivalent ad-hoc filter." },
+        { "type": "test", "phase": "ui", "status": "planned", "notes": "Saved views are creatable, openable, and deletable from the UI, with empty and error states rendered." }
+      ]
+    },
+    {
+      "id": "SIG-P1-008",
+      "title": "Classification quality measurement",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "classification",
+      "description": "Classification accuracy is measured against the labeled corpus that SIG-P0-005 accumulates as a side effect of operator overrides, and reported as a trend rather than a single number. This closes the loop the predecessor scenario asserted but never had: its PRD claimed better than 85 percent categorization accuracy rising to 95 percent with learning, with no mechanism to measure either. A measured accuracy that is bad is more useful than an asserted accuracy that is good.",
+      "tags": ["classification", "measurement", "quality"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Accuracy is computed only over signals carrying both a proposal and an operator confirmation or override." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "The report distinguishes accuracy per category, since a single aggregate hides a category that is uniformly misclassified." },
+        { "type": "manual", "status": "planned", "notes": "Review the first measured trend against operator judgment before treating the metric as trustworthy." }
+      ]
+    },
+    {
+      "id": "SIG-P1-009",
+      "title": "Bulk triage",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-009",
+      "category": "ui",
+      "description": "A filtered set of signals is accepted or dropped in one operation, with the affected set displayed before the operation commits. Bulk operations exist because a backlog import produces more signals than one-at-a-time triage can clear, and the preview exists because a bulk drop over a mis-specified filter is the most damaging mistake the triage surface allows — recoverable, since nothing is deleted, but expensive to unwind.",
+      "tags": ["ui", "triage", "bulk", "safety"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A bulk operation applies to exactly the previewed set and to no signal outside it." },
+        { "type": "test", "phase": "ui", "status": "planned", "notes": "The affected set and its count are shown before the operation can be confirmed." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A bulk drop changes disposition only and deletes no signal, annotation, or index entry." }
+      ]
+    }
+  ]
+}
