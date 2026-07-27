@@ -20,13 +20,13 @@ Early-stage market research has diminishing returns. Per-heartbeat: 1-2 highest-
 - Do not invent values when sources fail; raise a `capability-gap` decision.
 - Do not delete a stale scan during sweep — only the router/method skills supersede or retire.
 
-## Useful Skills
+## Available Skills
 - `prompt-manager skill read benchmark-staleness-sweep` — start of every heartbeat.
 - `prompt-manager skill read signal-classifier` — judgment-only triage loaded on demand from the generated Inbox Flow section.
 - `prompt-manager skill read pricing-comp-capture` — pricing-dimension method (current most-used).
 - `prompt-manager skill read systematic-exploration` — proactive scans when queue is empty and a benchmark gap is known.
 
-## Plan-of-Record References
+## Cross-references
 - `docs/monetization/evidence/BENCHMARKS.md` — grounded benchmarks (downstream destination for material findings).
 - `docs/monetization/strategy/STRATEGY.md` — tier-1 target band and active bundle context.
 - `docs/monetization/catalogs/revenue-lines/README.md` — revenue-stream structure (channel-validation requests reference this).

@@ -1,6 +1,6 @@
 ## Practice focus: Agent System Audit
 
-Audit the whole agent system — all six teams, their members, their plans of record, and the framework canon they run on — as one composed system. Answer two questions the operator cannot otherwise ask cheaply: *is each team internally coherent*, and *do the teams compose toward stated outcomes*.
+Audit the whole agent system — all six teams, their members, their plans of record, and the framework canon they run on — as one composed system. Answer three questions the operator cannot otherwise ask cheaply: *is each team internally coherent*, *do the teams compose*, and *does any of it serve what the operator actually wants*.
 
 Required reading:
 - `docs/agent-system/FRAMEWORK_HEALTH.md` — the targets this audit scores against, each with its sensor, deadband, and actuator, plus the audit-record rule
@@ -18,7 +18,7 @@ Optional reading, when a finding narrows to one target:
 
 | Situation | Use this? | Instead use |
 |---|---|---|
-| "Is the agentic layer meeting our goals?" | Yes | — |
+| "Is the agentic layer meeting our objectives?" | Yes | — |
 | Reviewing team/member/PoR setup as a whole | Yes | — |
 | Preparing a vision walk that covers system shape | Yes | — |
 | One member looks vague or blocked | No | `team-member-capability-architecture-audit` |
@@ -29,14 +29,17 @@ Session boundary: this is an audit. Read, measure, and report. Do not fix what y
 
 ---
 
-### 2. The two axes
-
-Run the horizontal axis first. The vertical axis is well tooled and usually clean; the horizontal axis is where defects hide.
+### 2. The three axes
 
 | Axis | Question | Primary sensor |
 |---|---|---|
 | Vertical (per team) | Does this team's declared contract match how it actually runs? | `prompt-manager graph operating-model validate` / `diff` |
-| Horizontal (across teams) | Do the teams compose? Who feeds whom, what is unowned, what is doubly owned? | `coverage` cross-team rows, plus the contribution map |
+| Horizontal (across teams) | Do the teams compose? Who feeds whom, what is unowned, what is doubly owned? | `prompt-manager graph map --depth member`, against each team's outputs table |
+| Upward (out of the swarm) | Does the whole roster serve stated intent, and does stated intent have anyone serving it? | `OBJECTIVES.md` §"The coverage rule", against the contribution map |
+
+Each axis is blind to the defects of the one above it. Vertical is well tooled and usually clean. Horizontal hides structural defects. **Upward hides whole missing programs** — a roster is always fully self-consistent with itself, so every conformance sensor can read green while nothing serves the operator at all.
+
+The phases below run in data-dependency order, not in value order. Rank findings by objective impact when reporting (§Phase 6), not by the phase that produced them.
 
 ---
 
@@ -46,8 +49,9 @@ Run the horizontal axis first. The vertical axis is well tooled and usually clea
 
 1. Run `prompt-manager graph regenerate`. The graph index is cached; an un-regenerated index reports deleted nodes that no longer exist.
 2. Run `prompt-manager graph audit`. One call reads every sensor in `FRAMEWORK_HEALTH.md` and reports each target as `in-band`, `out-of-band`, `external`, or `no-sensor`.
-3. Run the two `external` sensors the sweep names: `bash scenarios/prompt-manager/test/agent_system_canon_test.sh` and `prompt-manager experiment list`.
+3. Run the two `external` sensors that are commands: `bash scenarios/prompt-manager/test/agent_system_canon_test.sh` and `prompt-manager experiment list`. The third `external` target, objective coverage, is a document read; Phase 4 performs it.
 4. Treat every `out-of-band` target as a finding. Treat every `no-sensor` target as an open-loop gap, not as a pass.
+5. Read the honesty flag on each `no-sensor` target. `pending-telemetry` means no instrument exists and one must be built. `pending-baseline` means the instrument exists and only the corpus sweep is missing — a much cheaper fix, and a different actuator.
 
 #### Phase 2 — Vertical conformance
 
@@ -89,7 +93,6 @@ Report these five structural defects:
 | Drifted claim | A team's own `## Mission` paragraphs disagree with the aggregate map or with the objective table | either |
 
 4. Treat a **declared** gap as reported, not as clean. An objective marked unserved with a dated marker is an open finding whose disposition is known; it stays in the findings list every cycle until it closes.
-5. Do not propose objectives. An unserved objective routes to the owning team's decision context; the objective set is operator-authored.
 
 #### Phase 5 — Entropy and consolidation
 
@@ -100,7 +103,7 @@ Report these five structural defects:
 
 #### Phase 6 — Report and record
 
-1. Produce one findings list. Each finding names: the defect, the evidence command that produced it, the owning team, and the actuator from `FRAMEWORK_HEALTH.md`. Rank by whether the defect blocks a stated outcome, not by count.
+1. Produce one findings list. Each finding names: the defect, the evidence command that produced it, the owning team, and the actuator from `FRAMEWORK_HEALTH.md`. Rank by which objective the defect blocks, not by count and not by phase order. A defect that blocks an objective outranks any number of conformance findings that block none.
 2. Write the readings and the findings list to the audit-record topic named in `docs/agent-system/FRAMEWORK_HEALTH.md` §"Audit record". Without the record the audit has no trend, and the next cycle restarts from zero.
 3. Name the delta against the previous record: which targets moved, in which direction. A cycle that reports only current values has not answered whether the framework is improving.
 
@@ -110,4 +113,4 @@ Report these five structural defects:
 
 - Do not edit team canon. Findings route to the owning team's decision context.
 - Do not audit a single member or a single skill here; route to the narrower skill.
-- Do not invent outcome targets. Unset targets are `pending-operator-input` and stay that way until the operator sets them.
+- Do not invent objectives or outcome targets. Both are operator-authored. Unset ones are `pending-operator-input` and stay that way until the operator sets them; report the hole, do not fill it.

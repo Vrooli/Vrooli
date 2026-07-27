@@ -228,6 +228,9 @@
             "kind": "knowledge"
           },
           {
+            "kind": "decision"
+          },
+          {
             "kind": "task"
           },
           {
@@ -235,9 +238,6 @@
           }
         ],
         "forbiddenWrites": [
-          {
-            "kind": "decision"
-          },
           {
             "base": "repo-root",
             "path": "scenarios/"

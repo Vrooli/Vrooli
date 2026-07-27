@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "scenario-improvement-campaign",
   "name": "Scenario Improvement Campaign",
-  "description": "Drive a scenario toward a goal (fast / balanced / long-term) by tracking test-genie findings as a profile-ranked campaign in architecture-cartographer",
+  "description": "Drive a scenario to an operator-selected maturity target with provider-owned Test Genie evidence and an optional profile-ranked Architecture Cartographer campaign.",
   "modes": [
     "tools",
     "audits"
@@ -16,7 +16,7 @@
   "status": "active",
   "entry": "SKILL.md",
   "targetToolId": "run-agent",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-05-29T00:00:00Z",
-  "updatedAt": "2026-05-29T00:00:00Z"
+  "updatedAt": "2026-07-26T00:00:00Z"
 }

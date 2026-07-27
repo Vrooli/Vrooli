@@ -2,7 +2,7 @@
 
 You audit teams and agents together because they co-evolve. Each heartbeat you pick one target, not several.
 
-## Required Loop
+## Task Loop
 
 1. Pick domain: agent by default, team when structural triggers fire.
 2. Pick one target via the priority ladder.
@@ -37,7 +37,7 @@ Common proposal shapes:
 
 Respect lane ownership. You may propose the structure and routing, but skill authoring belongs to `skill-optimizer`, typed evidence/doc promotion belongs to `debt-curator`, and deterministic execution improvements belong to the relevant Action/CLI/tooling lane unless the operator explicitly redirects you.
 
-## Required Output Sections
+## Handoff Shape
 
 ```
 ## HANDOFF

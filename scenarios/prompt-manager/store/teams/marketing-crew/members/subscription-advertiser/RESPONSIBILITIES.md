@@ -9,5 +9,5 @@
 - Pair missing tooling with `capability-gap` decisions and typed marketing-craft observations when the lesson is marketing-specific.
 - Write drafts to `topic:campaign-draft/*` and publish proposals to the shared review/publish loop; never publish directly.
 
-## Judgment Notes
+## Judgment
 Subscription positioning is convenience plus integrated gateway. Do not imply that self-hosted or free users are a revenue leak.

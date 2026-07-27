@@ -10,6 +10,8 @@ Optional reading:
 - `path:docs/concepts/PAID_FEATURES.md` — the free / metered / gated contract, for cluster 5 (monetization).
 - `prompt-manager skill read morning-vision-walk` — the same lens applied at the portfolio level.
 
+**Where this hands off.** After placement is decided: build a scenario that does not exist yet with `prompt-manager skill read scenario-generation`; change a scenario that already exists with `prompt-manager skill read scenario-work-ladder`, which locates the layer to change before any change is made.
+
 ---
 
 ### 1. When to Use This Skill

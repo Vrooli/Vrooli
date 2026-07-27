@@ -1,4 +1,5 @@
 {
+  "loop_kind": "queue",
   "intake": [
     {
       "prefix": "marketing-craft-observation/*",

@@ -4,12 +4,25 @@
   "id": "scenario-generation",
   "name": "Scenario Generation",
   "description": "Guide an approved scenario idea through template selection, scaffold onboarding, phased-plan development, and evidence-driven maintenance.",
-  "modes": ["tools"],
-  "tags": ["vrooli", "scenario", "generation", "idea", "scaffold"],
-  "topics": ["scenario creation", "scenario generation", "new scenario", "idea execution"],
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "vrooli",
+    "scenario",
+    "generation",
+    "idea",
+    "scaffold"
+  ],
+  "topics": [
+    "scenario creation",
+    "scenario generation",
+    "new scenario",
+    "idea execution"
+  ],
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 2,
+  "revision": 4,
   "createdAt": "2026-03-26T00:00:00Z",
-  "updatedAt": "2026-07-18T00:00:00Z"
+  "updatedAt": "2026-07-27T00:00:00Z"
 }

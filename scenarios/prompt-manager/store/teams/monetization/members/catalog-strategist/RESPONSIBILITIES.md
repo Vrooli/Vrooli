@@ -21,7 +21,7 @@ Services-line lifecycle transitions are SKU-adjacent. Own activation, conversion
 - Do not aggregate member outputs into a team brief.
 - Do not write code in target scenarios.
 
-## Useful Skills
+## Available Skills
 - `prompt-manager skill read swarm-manager-backlog-tools`
 - `prompt-manager skill read documentation-health`
 - `prompt-manager skill read systematic-exploration`

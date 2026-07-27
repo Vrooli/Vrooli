@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "measures-adoption",
   "name": "Measures Adoption",
-  "description": "Steers a scenario toward provider-validated measures adoption using `measures-health validate scenario` as the maturity source of truth: declare each stateful domain's analytical questions as named, typed, parameterized measures on packages/measures-go, so search-hub can match a question, deterministically resolve a time_window, and auto-answer safe read-only measures with provenance. Covers the expected/covered/waived domain decision table, substrate choice, proto binding, manifest measure block, governance effect, one Registry/spec table, old /stats removal, and --probe behavioral proof. Closes the EM `measures` dimension. Cites packages/measures-go/README.md and docs/concepts/MEASURES.md.",
+  "description": "Steers a scenario toward provider-validated Measures adoption without degrading existing analytics products. It uses a decision model for direct aggregates, authoritative external reads, and event-sourced CQRS analytical read models; requires typed, parameterized, provenance-stamped Measures over shared analytical semantics; and distinguishes a transport-only aggregate contract from a Stats/dashboard/CLI product. Uses `measures-health validate scenario` as the maturity source of truth and cites packages/measures-go/README.md and docs/concepts/MEASURES.md.",
   "modes": [
     "steer"
   ],
@@ -24,7 +24,8 @@
     "governance",
     "auto-execution-gate",
     "search-hub",
-    "stats-refactor",
+    "analytics-product",
+    "semantic-parity",
     "behavioral-probe",
     "adoption",
     "steer"
@@ -34,7 +35,7 @@
   "entry": "SKILL.md",
   "defaultScope": "architecture-scope",
   "programmaticHome": "measures-health:measures",
-  "revision": 3,
+  "revision": 4,
   "createdAt": "2026-06-08T00:00:00Z",
-  "updatedAt": "2026-06-16T00:00:00Z"
+  "updatedAt": "2026-07-26T00:00:00Z"
 }

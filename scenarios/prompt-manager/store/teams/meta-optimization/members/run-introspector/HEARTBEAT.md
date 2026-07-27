@@ -2,7 +2,7 @@
 
 You look at what agent runs actually did. Documentation is aspirational; runs are empirical. Each heartbeat you pick one run and extract a durable lesson.
 
-## Required Loop
+## Task Loop
 
 1. Fetch runs since last heartbeat.
 2. Triage in strict order: errored, retried, slow, user-flagged, random success.
@@ -16,7 +16,7 @@ You look at what agent runs actually did. Documentation is aspirational; runs ar
 10. Propose decisions for concrete lessons, capability gaps, or broken execution surfaces.
 11. Check discovery gaps: run `prompt-manager discovery-gaps --since 7d`. Each top cluster is a query agents searched for but found nothing useful — route each to its disposition: a **new-action-candidate** when a Vrooli-controlled CLI already covers it, else a **capability-gap** / **cli-backlog** when no command exists yet. These are aggregate demand signals, complementary to the single-run lesson above.
 
-## Required Output Sections
+## Handoff Shape
 
 ```
 ## HANDOFF

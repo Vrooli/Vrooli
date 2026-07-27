@@ -4,14 +4,9 @@
   "teamId": "scenario-qa",
   "roles": [
     {
-      "id": "programmatic-qa",
-      "name": "Programmatic QA",
-      "description": "Runs programmatic scenario QA checks and creates backlog items for actionable structural issues."
-    },
-    {
-      "id": "architectural-auditor",
-      "name": "Architectural Auditor",
-      "description": "Investigates scenarios through architectural and testing lenses to surface non-programmatic quality findings."
+      "id": "quality-auditor",
+      "name": "Quality Auditor",
+      "description": "Performs deep structural quality audits using the derived audit-technique rotation — steer-mode audit-technique skills whose programmaticHome is unset, queried live from team.json rather than listed statically. Lenses drop out of the rotation automatically once the skill-optimizer records that their detection has graduated into a programmatic engine. Creates execute backlog items with evidence and draft plan notes when findings are material; does not promote lenses, re-tag skills, or edit target scenario code."
     },
     {
       "id": "bug-investigator",

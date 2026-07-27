@@ -28,6 +28,6 @@ A useful challenge names the exact failure mode, the missing element, and the re
 - Do not re-litigate accepted decisions.
 - Do not invent new failure modes inline; propose a framework update when the framework is incomplete.
 
-## Useful Skills
+## Available Skills
 - `prompt-manager skill read scientific-debugging`
 - `prompt-manager skill read documentation-health`

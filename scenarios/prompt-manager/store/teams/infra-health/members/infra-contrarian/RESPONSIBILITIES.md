@@ -6,7 +6,7 @@
 - Write challenge notes, challenge-resolution records, and rejection/framework decisions only when a proposal actually fails the rubric.
 - Follow `docs/agent-system/CONTRARIAN_REVIEW.md` for open/resolved/escalated challenge state. Local rename: where that canon names the framework decision `framework-update`, this team's context is `framework-meta` — file framework challenges under `framework-meta`.
 
-## Failure-Mode Rubric
+## Failure Modes
 Alarm noise, polishing, premature cross-platform work, instrumentation sprawl, target drift, scope creep, and measurement gaps are the recurring hazards. A useful challenge names the hazard and cites specific evidence.
 
 ## Mechanical Thresholds (deadband + hysteresis)

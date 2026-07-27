@@ -1,4 +1,9 @@
 {
+  "loop_kind": "sweep",
+  "population": [
+    "team",
+    "agent"
+  ],
   "required_read": [
     {
       "prefix": "team-audit/YYYY-MM-DD"

@@ -1,4 +1,9 @@
 {
+  "loop_kind": "sweep",
+  "population": [
+    "skill",
+    "action"
+  ],
   "required_read": [
     {
       "prefix": "skill-audit/YYYY-MM-DD"

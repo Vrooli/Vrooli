@@ -4,12 +4,17 @@
   "id": "scenario-maturity-ladder",
   "name": "Scenario Maturity Ladder",
   "description": "Read a scenario's test results, locate its current maturity rung (R0-R4), and pick the right-sized change - including the large architectural and feature work expected at the higher rungs.",
-  "modes": ["practice"],
-  "tags": ["skill", "maturity-ladder"],
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "skill",
+    "maturity-ladder"
+  ],
   "icon": "trendingup",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-06-01T00:00:00Z",
-  "updatedAt": "2026-06-01T00:00:00Z"
+  "updatedAt": "2026-07-27T00:00:00Z"
 }

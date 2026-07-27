@@ -17,6 +17,6 @@ Pre-launch data is often operator-provided or pending telemetry. The job is to k
 - Do not evaluate ideas, critique proposals, gather benchmarks, or manage the catalog.
 - Do not compute values that require unavailable telemetry; flag them instead.
 
-## Useful Skills
+## Available Skills
 - `prompt-manager skill read documentation-health`
 - `prompt-manager skill read scientific-debugging`

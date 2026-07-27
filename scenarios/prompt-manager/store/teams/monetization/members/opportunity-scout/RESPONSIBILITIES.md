@@ -18,12 +18,12 @@ Breadth comes before deep evaluation, but every pool entry must be plausible and
 - Do not aggregate other members' outputs.
 - Do not silently rewrite revisit triggers; flag for repair via the hygiene skill output.
 
-## Useful Skills
+## Available Skills
 - `prompt-manager skill read signal-classifier` — judgment-only classifier loaded on demand from the generated Inbox Flow section.
 - `prompt-manager skill read opportunity-pool-hygiene` — periodic sweep; required when pool >15 entries OR ≥14 days since last sweep.
 - `prompt-manager skill read systematic-exploration` — proactive baseline scans when inbox is empty.
 
-## Plan-of-Record References
+## Cross-references
 - `docs/monetization/catalogs/CATALOG.md` — SKU lifecycle (downstream destination for promoted opportunities).
 - `docs/monetization/catalogs/revenue-lines/README.md` — revenue-stream registry (services-line candidates reference this).
 - `docs/monetization/evidence/BENCHMARKS.md` — pricing comps (referenced by market-scan entries).

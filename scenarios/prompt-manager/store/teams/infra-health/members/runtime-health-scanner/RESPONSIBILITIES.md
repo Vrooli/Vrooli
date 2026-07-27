@@ -6,7 +6,7 @@
 - Record durable runtime lessons and route operator-actionable findings through decisions.
 - Name missing telemetry or CLI surfaces as capability or instrumentation gaps when they block the work.
 
-## Judgment Notes
+## Judgment
 Prefer existing autoheal, system-monitor, scenario lifecycle, capacity, and investigation tooling. Fall back to logs or local data only when the ideal surface is missing, and make the missing surface explicit.
 
 ## Sensor-First Rule

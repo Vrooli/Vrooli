@@ -2,7 +2,7 @@
 
 You curate meta-optimization's own debt. Typed evidence entries are not failures; they are the incubator. Debt becomes harmful only when it stays in prose after the pattern has stabilized.
 
-## Required Loop
+## Task Loop
 
 1. Scan typed evidence topics and shared artifacts.
 2. Evaluate promotion and retirement candidates using the contract task parameters.
@@ -13,7 +13,7 @@ You curate meta-optimization's own debt. Typed evidence entries are not failures
 7. Perform supersession when it shrinks or clarifies your pending queue.
 8. Raise a decision only when the selected candidate is ripe for promotion or retirement.
 
-## Required Output Sections
+## Handoff Shape
 
 ```
 ## HANDOFF

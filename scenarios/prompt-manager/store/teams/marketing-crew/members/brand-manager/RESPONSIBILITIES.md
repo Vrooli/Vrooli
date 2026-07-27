@@ -9,5 +9,5 @@
 - Propose campaign themes only when real monetization or audience signal warrants them.
 - Keep the five-loop marketing operating model coherent across research, planning, draft, review/publish, and learning.
 
-## Judgment Notes
+## Judgment
 Narrative and brand canon should change slowly. Prefer no-change snapshots unless drift is repeated, operator-flagged, or tied to a material SKU/project shift.

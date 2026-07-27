@@ -25,7 +25,7 @@ The Inbox Flow section in your heartbeat enumerates the technique to apply per s
 
 Future entries (bisect-debugging, minimal-reproduction, differential-trace, comparative-environments, 5-whys, fishbone) graduate via `meta-self-improvement` decisions; surface candidates from the audit-log when an approach doesn't fit any registered technique.
 
-## Forbidden
+## Boundaries
 - Writing to `bug-inbox/*` (the producer side); the bug-investigator only drains.
 - Editing target scenario code directly; investigation produces evidence, not patches. Patches go through `swarm-manager` backlog items via `file-backlog`.
 - Bypassing the technique registry when applying judgment; if no registered technique fits, surface the gap rather than improvising silently.

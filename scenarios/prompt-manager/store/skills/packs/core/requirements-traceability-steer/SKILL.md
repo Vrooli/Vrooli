@@ -26,7 +26,8 @@ Read first when present (prior findings — continue, don't restart):
 - recording deferred registry work in `docs/internal/PROBLEMS.md`.
 
 **Out of scope** (hand off):
-- authoring a brand-new PRD or renegotiating product scope → the business-health wizard flow (`business-health wizard`) (`vrooli scenario requirements validate` tells you *what's unlinked*, not *what to build*).
+- authoring a brand-new PRD or renegotiating product scope → `prompt-manager skill read prd-authoring`, which owns the wizard flow (`vrooli scenario requirements validate` tells you *what's unlinked*, not *what to build*).
+- deciding whether the PRD still describes the right product at all → that is the W0 rung of `prompt-manager skill read scenario-work-ladder`, and it is settled before this skill runs. This skill is that ladder's W2 rung: it trues the registry against the contract, and assumes the contract itself is true.
 - test quality / writing new test suites → the `test` skill; here you only **link** evidence that exists (write a test only when a P0 requirement has none at all).
 - the requirements **sync** machinery itself (test-genie internals) → never hand-edit sync snapshots or force sync to make statuses move.
 - CLI/API/manifest contract conformance → `cli-steer` / `api-steer`.

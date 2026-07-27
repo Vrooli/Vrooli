@@ -96,66 +96,53 @@ There are two valid authoring modes:
 plan-manager --auto-start author start --title "<plan title>"
 ```
 
-Then follow the API-owned next action until finalize:
+Global flags such as `--auto-start` go before the subcommand.
 
-```bash
-plan-manager author continue "<session>"
-```
+`plan-manager author --help` lists every subcommand. `plan-manager author
+<subcommand> --help` lists its flags, choices, and synonyms. Read the command
+surface there, not here — the CLI stays accurate through change and a copied
+signature does not. This section carries only what `--help` cannot.
 
-The session is a form, not a stage-gated wizard: every response carries a
-full-disclosure **checklist** (all requirements for the touched scope with
-filled/missing/violation status). Read the checklist and submit any or all
-fields **in any order**, batched when you already know the content:
-
-```bash
-plan-manager author submit "<session>" --set purpose="..." --set scope="..."   # sections in one call
-plan-manager author phase-add "<session>" --title "..." --intent "..."   --set steps="..." --set validation="..." --set acceptance="..."            # add+fill a phase in one call
-plan-manager author phase-submit "<session>" "<phase>" --set "<field>"="..." ...   # batch fields on an existing phase
-```
+**The session is a form, not a stage-gated wizard.** Every response carries a
+full-disclosure checklist: all requirements for the touched scope, with
+filled/missing/violation status. Read the checklist and submit any or all fields
+**in any order**, batched when you already know the content. `author submit`
+batches sections. `author phase-add` adds and fills a phase in one call.
+`author phase-submit` batches fields on an existing phase.
 
 Each batch item returns an accepted/rejected line naming exactly what was
-parsed; a rejected item (unknown field, acceptance duplicating validation) is
-NOT applied while the rest of the batch lands. A complete N-phase plan takes
-≤ 3+N mutation calls. The `continue` loop remains available when you prefer
-one recommended action at a time. The artifact renders in the fixed cluster
-order (Purpose / Problem / Outcome / Approach & Decisions / Boundaries /
+parsed. A rejected item — unknown field, or acceptance duplicating validation —
+is NOT applied while the rest of the batch lands. A complete N-phase plan takes
+≤ 3+N mutation calls. The `author continue` loop remains available when you
+prefer one recommended action at a time. The artifact renders in the fixed
+cluster order (Purpose / Problem / Outcome / Approach & Decisions / Boundaries /
 Assumptions & Risks / Verification / Execution Setup / Phases) regardless of
-submission order. Global flags such as `--auto-start` go before the
-subcommand. `author status <session>` is an alias of `author preview`.
+submission order.
 
-Skill discovery is a low-friction bootstrap, not a curation workflow. Ask Plan
-Manager to add the prompt-manager pack:
+**Skill discovery is a low-friction bootstrap, not a curation workflow.** Run
+`author skill-pack` with 2-5 decomposed concepts. It runs `prompt-manager
+discover --type skill --json`, auto-adds the returned skills as global relevant
+context, and prints the read command. Keep most returned skills unless they are
+clearly irrelevant; they are there to improve professional execution, not only
+to match the task title literally. `--phase` adds the pack to one phase instead
+of the plan; an unknown phase reference fails the call and never falls back to
+global scope.
 
-```bash
-plan-manager author skill-pack "<session>" --concepts "<c1>,<c2>" --complexity "<minor|moderate|major|architectural>"
-```
-
-That command runs `prompt-manager discover --type skill --json`, auto-adds the
-returned skills as global relevant context, and prints the read command (plus a
-recommended read command when prompt-manager budgets the pack down). Keep most
-returned skills unless they are clearly irrelevant; they are there to improve
-professional execution, not only to match the task title literally.
-
-For docs, records, code references, and other context, run search-hub directly
-so you can inspect confidence and attribution yourself:
+**Run search-hub directly** for docs, records, and code references, so you
+inspect confidence and attribution yourself:
 
 ```bash
 search-hub query "<intent>" --type record,doc,skill
 ```
 
 Submit only durable context or references that will help a resumed agent:
-`plan-manager author context-submit ...` for setup commands/notes, normal
-reference fields for `[CODE:]`, `[DOC:]`, `[REQ:]`, or an honest
-`NO_CODE_REFS: <reason>` when there are no useful code references. There is no
-candidate accept/reject/apply step.
+`author context-submit` for setup commands and notes, normal reference fields
+for `[CODE:]`, `[DOC:]`, `[REQ:]`, or an honest `NO_CODE_REFS: <reason>` when
+there are no useful code references. There is no candidate accept/reject/apply
+step.
 
-Review, validate, finalize:
-
-```bash
-plan-manager author preview "<session>"
-plan-manager author validate "<session>"
-plan-manager author finalize "<session>"
-```
+Then `author preview`, `author validate`, `author finalize`. `author status` is
+an alias of `author preview`.
 
 Report back: plan id/slug, `plan-manager plans render <slug>`, any degraded
 notes, and the first execution command (`plan-manager exec continue <slug>`).
@@ -196,11 +183,7 @@ do not strip nuance from it to satisfy the style rules.
   constraints, and validate the intended outcome without the source
   conversation. Add the missing rationale, visual, reference, boundary,
   acceptance expectation, or open question before finalizing.
-- Specifically reject these lossy plans: a plan that says what to do but not
-  why this design; names a component but omits the relevant interaction/data
-  flow; lists phases without exact acceptance or validation; records a decision
-  without its tradeoff; assumes context that exists only in chat; or leaves
-  already-discovered facts behind an opaque “investigate as needed” step.
+- Reject the lossy plans in §4.1 before finalizing.
 - The change boundary must name the paths the work may touch; do not hide scope
   in prose.
 - `validation` is the method of checking; `acceptance` is the outcome gate.
@@ -210,6 +193,12 @@ do not strip nuance from it to satisfy the style rules.
   gates only, never restated phase acceptances.
 - Use `author skill-pack` early, then read the compact skill command it returns.
   Remove a discovered skill only when it is clearly irrelevant or harmful.
+- Scope a skill to a phase when an agent who read the global pack would still
+  work that phase wrongly. That happens when the phase enters a governed surface
+  with its own maturity ladder, uses a different working method than the rest of
+  the plan, or produces an artifact with its own authoring standard. When the
+  global pack already covers the phase, add nothing — a skill list every phase
+  carries and no phase reads is attention debt.
 - Run search-hub directly when docs/records/code context would help, and submit
   only durable context. Do not recreate a candidate queue by hand.
 - Use explicit fallback markers only when honest: `NO_CODE_REFS: <reason>`,
@@ -224,6 +213,20 @@ do not strip nuance from it to satisfy the style rules.
 - For out-of-scope defects found while authoring, use Plan Manager log entries
   during execution, or load `prompt-manager skill read report-bug` if the defect
   needs filing before execution begins.
+
+#### 4.1 Anti-patterns — the lossy plan
+
+Each row is a plan that passes validation and still fails the fresh execution
+agent. Check the plan against every row before `author finalize`.
+
+| Anti-pattern | Why it fails | Better approach |
+|---|---|---|
+| Says what to do, not why this design | The executor hits an unforeseen case and has no principle to decide from, so it invents one | Record the chosen design and the rejected alternative in Approach & Decisions |
+| Names a component, omits the interaction | The executor knows where to write and not what the data does across the boundary | Add the interaction or data flow; author a Mermaid diagram at 3+ actors or states |
+| Lists phases without exact acceptance or validation | "Done" becomes the executor's opinion, so the phase closes on a plausible-looking edit | Give every phase a runnable validation and a distinct outcome gate |
+| Records a decision without its tradeoff | A later agent relitigates the decision because the cost of the alternative is invisible | Record the tradeoff and the revisit trigger with the decision |
+| Assumes context that exists only in chat | The executor never had the conversation and cannot recover the missing premise | Move the premise into the matching durable section before finalizing |
+| Leaves discovered facts behind "investigate as needed" | The executor repeats investigation already paid for, and may reach a different answer | Write the discovered fact and its evidence into the phase |
 
 ---
 

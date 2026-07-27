@@ -14,7 +14,7 @@ For skill experiments, use the declared `development-toolchain-validator/skill-e
 
 Named failure mode for experiment conclusions — **Concluded on unstable substrate:** attributed outcomes were counted whose runs ended in infra-class causes, or conclude proceeded after the contamination recount fell below the protocol minimum. Mechanical check: sample the attributed outcomes' run terminal causes (`agent-manager runs list --json` / `runs get`) and confirm infra-contaminated runs were excluded and each arm still meets the minimum. See `skill-optimizer` RESPONSIBILITIES §Skill Experiments (substrate validity).
 
-## Failure-Mode Framework
+## Failure Modes
 
 Every pending decision is scored against these modes. One tripped mode → challenge note; multiple → rejection recommendation (where the contract allows).
 
