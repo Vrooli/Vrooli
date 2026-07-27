@@ -38,11 +38,11 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/vrooli-memory/v1/shared/health.proto` |
 | journal | Own the append-only entry log and the single write path. | The one authority for what the fleet remembers; everything else is derived and rebuildable. | Entries, facet texts, embeddings, attribution, correlation. | crud | service | Entry, FacetText, Attribution | `api/internal/journal/` |
-| facets | Own the facet taxonomy, classification, and retention policy. | Different memory has different decay laws; the facet decides which policy applies. | Facet assignments, pin state, supersession and expiry marks. | policy | service | Facet, Policy, Pin | `api/internal/facets/` |
+| facets | Own the facet taxonomy, classification, retention policy, and pin curation. | Different memory has different decay laws; the facet decides which policy applies. Pins have no automatic relief valve, so their bounding lives here too. | Facet assignments, pin state, pin review and merge proposals, supersession and expiry marks. | policy | service | Facet, Policy, Pin, PinProposal | `api/internal/facets/` |
 | forest | Own the frontier, clustering, and compaction passes. | Keep ambient recall inside a fixed budget as the corpus grows without bound. | Summary nodes, parent/child edges, frontier membership. | service | scheduler | Frontier, Cluster, Summary, Span | `api/internal/forest/` |
 | recall | Own query, cross-depth ranking, and the wake budget. | Retrieval is the product; compaction only changes what is *ambient*, never what is *findable*. | No data; reads journal and forest. | query | reporting | Hit, Cover, Budget | `api/internal/recall/` |
 | federation | Own the search-hub provider descriptor and control surface. | One registry row makes memory reachable from federated query with no router change. | Descriptor config; no memory content. | integration | service | Descriptor, ResultMapping | `api/internal/federation/` |
-| harness | Own the memory-file projection and prompt-block install. | The interception point that makes every agent runtime share one memory. | Projection state only. | integration | service | Projection, PromptBlock | `api/internal/harness/` |
+| harness | Own the memory-file projection, prompt-block install, native-write capture, and store import. | The integration point that makes every agent runtime share one memory. | Projection and import-key state only. | integration | service | Projection, PromptBlock, Capture, Import | `api/internal/harness/` |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
@@ -88,7 +88,7 @@ upload exception. Copy its shape for your own domains, then remove it.
   entry plus a supersession mark, never an edit.
 - Degradation rule: classification or embedding failure must not lose a write.
   The entry is appended unclassified and queued for retry.
-- Requirements: `VROOLIME-P0-001`, `VROOLIME-P0-002`, `VROOLIME-P1-002`.
+- Requirements: `VMEM-P0-001`, `VMEM-P0-002`, `VMEM-P1-002`.
 
 ### facets
 
@@ -96,15 +96,23 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Primary archetype: policy / rules.
 - Owns: the closed facet set (standing-rule, environment-fact, gotcha, episode,
   thread, entity-record); the policy table mapping facet → retention behaviour;
-  pin state; supersession and expiry marks; operator re-facet corrections.
+  pin state; supersession and expiry marks; operator re-facet corrections; the
+  pin budget, review dates, and the merge/trade-off proposal queue.
 - Does not own: compaction mechanics (`forest`) — it only decides *eligibility*.
+  Pin consolidation *borrows* the forest's cohesion scoring but terminates in an
+  operator proposal, never a collapse (D-018).
 - Invariant: the facet set is closed. An unrecognised facet is a hard error at
   write, never a silent default; a default would route an entry to the wrong
   decay law without anyone noticing.
+- Where the set lives: seeded **data**, not Go constants (D-019). Closed means
+  every write is validated against a known set, not that the set is fixed at
+  compile time. This costs nothing now and is the cheap insurance behind the
+  deferred source-ledger idea in
+  [`ARCHITECTURE.md`](ARCHITECTURE.md) § Deliberately Not Built.
 - Highest-consequence error in the scenario: a standing rule misclassified as an
   episode becomes compaction-eligible and can vanish from ambient context. This
   is why operator re-facet is a first-class action rather than an admin tool.
-- Requirements: `VROOLIME-P0-005`, `VROOLIME-P0-006`.
+- Requirements: `VMEM-P0-005`, `VMEM-P0-006`.
 
 ### forest
 
@@ -120,7 +128,7 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Frontier = the antichain of roots: every journal leaf not yet inside a summary
   plus every summary not yet inside a summary. It mixes depths freely, so a
   fresh leaf can cluster with a depth-2 summary.
-- Requirements: `VROOLIME-P0-007`, `VROOLIME-P1-004`, `VROOLIME-P2-003`.
+- Requirements: `VMEM-P0-007`, `VMEM-P1-004`, `VMEM-P2-003`.
 
 ### recall
 
@@ -130,8 +138,8 @@ upload exception. Copy its shape for your own domains, then remove it.
   for `wake`, and `zoom` descent.
 - Does not own: any data. It reads `journal` and `forest` and stores nothing.
 - Invariant: compaction status never excludes a leaf from the candidate set.
-- Requirements: `VROOLIME-P0-003`, `VROOLIME-P0-004`, `VROOLIME-P0-008`,
-  `VROOLIME-P1-003`.
+- Requirements: `VMEM-P0-003`, `VMEM-P0-004`, `VMEM-P0-008`,
+  `VMEM-P1-003`.
 
 ### federation
 
@@ -141,20 +149,31 @@ upload exception. Copy its shape for your own domains, then remove it.
   the token-gated `SearchControlService` handlers (reindex, config write-back).
 - Does not own: routing. The router holds no memory content and no vectors; it
   routes on the descriptor's natural-language description alone.
-- Requirements: `VROOLIME-P0-009`, `VROOLIME-P2-004`.
+- Requirements: `VMEM-P0-009`, `VMEM-P2-004`.
 
 ### harness
 
 - Purpose: make every agent runtime read and write the same memory.
 - Primary archetype: integration.
 - Owns: the generated memory-file projection, the idempotent prompt-block
-  installer, and the run-correlation lookup that lists sibling events.
+  installer, native-write capture (hook and store-diff channels), the
+  declarative import adapters and their content-addressed keys, and the
+  run-correlation lookup that lists sibling events.
 - Does not own: agent identity or run data. Correlation ids are stored; run
   payloads are never copied — `vrooli-events` stays the one truth about a run.
+- Does not own: coding-agent install, update, or permissions. Those belong to
+  `resources/<agent>/`. This domain **extends** that resource with projection,
+  prompt-block, and hook install; it never edits an agent binary.
 - Invariant: the projection is one-directional. The projected file is never read
   back as a memory source, so there is no bidirectional sync to conflict.
-- Requirements: `VROOLIME-P0-010`, `VROOLIME-P1-002`, `VROOLIME-P1-007`,
-  `VROOLIME-P2-002`.
+  Captured native writes are a *separate* input path — they read the harness's
+  own store, never the projection this scenario wrote.
+- Invariant: the prompt block describes what to remember and names no memory
+  command (D-015).
+- Invariant: import is idempotent by content hash, so a sweep may run at any
+  frequency without duplicating (D-016).
+- Requirements: `VMEM-P0-010`, `VMEM-P1-002`, `VMEM-P1-007`,
+  `VMEM-P1-008`, `VMEM-P0-011`, `VMEM-P2-002`.
 
 ### health
 
@@ -189,15 +208,15 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| `distillation` — propose memories from run receipts | The deliberate write verb is the primary path because it reaches every harness; distillation only reaches agent-manager-spawned agents. Signal-to-noise over the receipt stream is an open empirical question. | `VROOLIME-P2-001`: once the P0 loop has real data, run the experiment on the same substrate. |
-| `eval` — golden retrieval suites for memory | Requires a real corpus. A generated-only corpus cannot certify under the search-hub provider contract. | `VROOLIME-P2-004`: once there is enough reviewed memory content to author positives and junk negatives. |
+| `distillation` — propose memories from run receipts | The deliberate write verb is the primary path because it reaches every harness; distillation only reaches agent-manager-spawned agents. Signal-to-noise over the receipt stream is an open empirical question. | `VMEM-P2-001`: once the P0 loop has real data, run the experiment on the same substrate. |
+| `eval` — golden retrieval suites for memory | Requires a real corpus. A generated-only corpus cannot certify under the search-hub provider contract. | `VMEM-P2-004`: once there is enough reviewed memory content to author positives and junk negatives. |
 
 ## Explicitly Not Domains (Decided)
 
 | Considered | Verdict | Reason |
 |---|---|---|
 | A separate `standing` store for rules and facts | **Rejected.** | An earlier design had two derived structures — a resolved key/value state store beside the episodic tree. It collapsed to a *pin flag plus policy* on one journal once frontier clustering was shown to co-locate contradictions. One storage, one tree, one flag. |
-| A `records` domain mirroring swarm-manager | **Rejected.** | Work records are a *kind* of memory, not a separate context. They enter through the same write path with a required field set (`VROOLIME-P1-001`). |
+| A `records` domain mirroring swarm-manager | **Rejected.** | Work records are a *kind* of memory, not a separate context. They enter through the same write path with a required field set (`VMEM-P1-001`). |
 | A `scope` or `tenant` domain for access control | **Rejected.** | Unified read across all scenarios is the product. Partitioning memory for privacy would undercut the reason to build it. |
 
 ## Non-Domains

@@ -13,20 +13,45 @@ operational view.
 
 ### 1. Per-harness private memory stores
 
-**Today.** Every agent runtime keeps its own memory. Claude Code writes a memory
-directory plus a hand-curated `MEMORY.md` index; Codex, Cursor, and agent-manager
-runs each accumulate their own. None of them can read the others.
+**Today.** Every agent runtime keeps its own memory, in its own shape. Claude
+Code writes 392 individual memory files plus a hand-curated `MEMORY.md` index;
+Gemini CLI appends to a section of `~/.gemini/GEMINI.md`; Codex and opencode
+keep single-blob `AGENTS.md` files; agent-manager runs accumulate their own.
+None of them can read the others. Per-harness detail is in
+[`INTEGRATIONS.md`](INTEGRATIONS.md) → Harness Capability Matrix.
 
-**After.** One journal, one search space. Each harness reads a *generated
-projection* of `memory wake` written to the file it already loads at session
-start, and writes through `memory note`.
+**After.** One journal, one search space, split by direction:
+
+- **Reads are uniform.** Every harness gets a *generated projection* of
+  `memory wake`, written to the file it already loads at session start.
+- **Writes are captured, not redirected.** The agent keeps using its own memory
+  tool; the harness domain captures that write via a pre-write hook where the
+  runtime exposes one, and store diff everywhere else.
 
 **Why the projection rather than a sync.** Bidirectional sync between an
 editable file and a database is a conflict problem with no clean answer. A
 one-directional projection also gives something better than interception: a
 harness with **no hook API at all** still receives memory, because reading its
-own memory file is native behaviour. Hooks (`VROOLIME-P2-002`) are hardening on
-top, never the mechanism.
+own memory file is native behaviour.
+
+**Why capture rather than instruction.** An earlier revision had the prompt
+block tell each harness to call `memory note` instead of writing its own store.
+That is an instruction-compliance problem with three outcomes — the agent
+complies, ignores it, or **writes to both stores and forks memory silently**.
+The third is the worst, because it looks like success. Describing *what* is
+worth remembering and letting the agent use its native tool converts a soft
+adoption failure into a hard, testable capture problem. The prompt block
+(`VMEM-P1-007`) therefore never names a command; capture is
+`VMEM-P1-008`. Recorded as D-015.
+
+**Hooks are load-bearing, not hardening.** Two findings moved them:
+`pretooluse-bash-deny.sh` already ships in the `claude-code` and `grok`
+resources, so the mechanism is proven rather than speculative; and single-blob
+harnesses cannot be diffed reliably into discrete memories, so for those a hook
+is the only precise channel. Hook install rides the existing per-resource
+permissions machinery under `resources/<agent>/cli/internal/permissions/` —
+**this scenario never edits agent binaries**, it extends the resource that
+already configures them.
 
 ### 2. The hand-curated `MEMORY.md` index
 
@@ -69,7 +94,7 @@ remember to pass. Attribution derived from the request cannot be forgotten.
 
 **Migration.** One-time read-only import of existing records as `work-record`
 memories, preserving narrative and outcome. Docs and skills stop referencing
-`records create`. Tracked as `VROOLIME-P1-001`.
+`records create`. Tracked as `VMEM-P1-001`.
 
 ## What This Does **Not** Replace
 
@@ -94,16 +119,31 @@ the one after it lands.
 1. **Journal + recall live.** Memory writes and retrieves. Nothing is retired.
    Both systems run; `records create` still works.
 2. **Facets + pinning live.** Standing rules reach `wake` unconditionally. Still
-   nothing retired.
-3. **Compaction live.** The frontier holds under pressure at realistic corpus
-   size.
-4. **Federation + projection live.** Memory is reachable from `search-hub query`
+   nothing retired. Sequenced before import because imported entries need a
+   facet assigned on the way in.
+3. **Import live; harness stores backfilled.** Existing per-harness memory is
+   imported idempotently (`VMEM-P0-011`). This step is **read-only against
+   the harnesses** and reversible — nothing in a runtime changes yet, so a bad
+   import is corrected by re-facet or delete rather than by rollback.
+   **This must precede any projection.** A projection overwrites the harness
+   memory file, and `MEMORY.md` is itself an import source (§ 2) — projecting
+   first would destroy the corpus before it was read. It also precedes
+   compaction, because a compaction loop over an empty journal cannot be
+   validated (D-022).
+4. **Compaction live.** The frontier holds under pressure at realistic corpus
+   size — realistic because step 3 supplied it.
+5. **Federation + projection live.** Memory is reachable from `search-hub query`
    and each harness reads its projection. `MEMORY.md` becomes generated —
-   the first actual retirement.
-5. **Work-record kind live; records imported.** Docs and skills switch to
-   `memory note --kind work-record`. `records create` is retired from
-   agent-facing documentation but is not deleted.
-6. **Reassess.** Only after the write path has real usage does it make sense to
+   the first actual retirement, and safe only because its content was imported
+   at step 3.
+6. **Capture live per harness.** Hook where the runtime exposes one, store diff
+   elsewhere (`VMEM-P1-008`). Sequenced *after* import deliberately: import
+   proves the adapters and the content-addressed key against real data before
+   anything starts writing into a runtime's hook surface.
+7. **Work-record kind live; records imported.** Docs and skills stop referencing
+   `records create`, which is retired from agent-facing documentation but is not
+   deleted.
+8. **Reassess.** Only after the write path has real usage does it make sense to
    ask whether swarm-manager's records storage should be removed. That is a
    separate decision with its own evidence, not a consequence of this one.
 
@@ -111,10 +151,25 @@ the one after it lands.
 
 Recorded honestly rather than argued away.
 
-- **Adoption depends on the prompt block.** The mechanism for redirecting a
-  harness's built-in memory behaviour is instructional. If the block is not
-  installed or drifts stale in a runtime, that runtime silently keeps its
-  private store, and the unification claim quietly stops being true for it.
+- **Capture coverage varies by storage shape, not by intent.** Under D-015
+  adoption no longer depends on an agent obeying an instruction — but it now
+  depends on the capture channel working per runtime. File-per-fact and
+  append-under-section harnesses diff cleanly. **The two single-blob runtimes
+  (Codex, opencode) do not**: a rewritten `AGENTS.md` carries no per-item
+  identity, so without a hook the best available import is whole-file
+  granularity. Their hook APIs are unverified.
+- **A harness may silently truncate an oversized projection.** Codex documents a
+  32 KiB cap; Claude Code's current `MEMORY.md` is already 18,245 bytes. If the
+  runtime truncates rather than prompting, a pinned standing rule leaves context
+  with no signal. Pin-first ordering is the mitigation (D-017); actual at-cap
+  behaviour per runtime is unverified.
+- **opencode has no native memory feature.** It reads `AGENTS.md`; memory there
+  is community plugins. "Unification" for opencode means projection-only until a
+  plugin is in play — a weaker claim than for the other runtimes, and the docs
+  should not imply otherwise.
+- **Cursor is not yet in scope.** It appears in market-facing docs but has no
+  `resources/cursor`, and stores rules in a SQLite BLOB rather than a file. It
+  is `VMEM-P2-002`, blocked on a prerequisite outside this scenario.
 - **Memory quality is bounded by what agents notice.** The deliberate write path
   (D-004) covers every harness, but it inherits the assumption that agents
   recognise what is worth remembering. The 1-in-200 records measurement is
@@ -127,6 +182,15 @@ Recorded honestly rather than argued away.
   mitigation and operator re-facet is the correction, but a rule wrongly
   classified as an episode is compaction-eligible. This is why facet correction
   is a first-class UI action rather than an admin tool.
+- **The pinned set accretes and nothing automatic removes from it.** Pins are
+  exempt from compaction by design, so they are the one structure with no
+  relief valve. Agents cannot pin, so this is slow accretion rather than a
+  flood — but the binding constraint is attention, not tokens: a wake view of
+  fifteen standing rules is read and one of three hundred is skimmed. The
+  redundancy is already present in the file being replaced, which carries six
+  git entries of which three are one rule stated three times. Curation
+  (`VMEM-P1-010`, D-018) is the response; its budget and review interval
+  are unvalidated.
 
 ## Cross-References
 

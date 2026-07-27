@@ -7,7 +7,7 @@
   },
   "requirements": [
     {
-      "id": "VROOLIME-P2-001",
+      "id": "VMEM-P2-001",
       "title": "Receipt distillation",
       "criticality": "P2",
       "status": "planned",
@@ -21,21 +21,21 @@
       ]
     },
     {
-      "id": "VROOLIME-P2-002",
-      "title": "Write-path enforcement hooks",
+      "id": "VMEM-P2-002",
+      "title": "Cursor harness support",
       "criticality": "P2",
       "status": "planned",
       "prd_ref": "OT-P2-002",
       "category": "harness",
-      "description": "Harness hooks that intercept direct writes to a memory file and redirect them through the governed CLI. Hardening only — the prompt block plus the generated projection are the primary mechanism, because hook APIs are runtime-specific and several supported harnesses have no equivalent. Building on hooks first would make adoption depend on a surface most runtimes do not expose.",
-      "tags": ["harness", "hooks", "deferred"],
+      "description": "Projection, capture, and import for Cursor. Blocked on a prerequisite outside this scenario: there is no resources/cursor, so Cursor has no install/update or permissions layer for the harness domain to extend. Cursor also stores rules as a SQLite BLOB (state.vscdb, ItemTable key aicontext.personalContext) rather than a file, and is an IDE rather than a CLI, so it shares no capture surface with the six CLI harnesses. Until the resource exists, Cursor is research in docs/concepts/INTEGRATIONS.md and must not be described as supported. This entry replaces the retired 'Write-path enforcement hooks' requirement, whose substance was promoted to VMEM-P1-008 once hooks were found to be load-bearing rather than hardening.",
+      "tags": ["harness", "cursor", "blocked", "sqlite"],
       "validation": [
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "A direct write to the projected memory path is intercepted and re-routed to the CLI write path." },
-        { "type": "manual", "status": "planned", "notes": "Per-runtime review of which harnesses expose a usable pre-write hook surface." }
+        { "type": "manual", "status": "planned", "notes": "Prerequisite: a resources/cursor resource exists with install/update and a permissions layer." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "Rules stored in the state.vscdb BLOB are segmented and imported idempotently under the same content-addressed key rule as file-backed harnesses." }
       ]
     },
     {
-      "id": "VROOLIME-P2-003",
+      "id": "VMEM-P2-003",
       "title": "Re-summarization drift monitoring",
       "criticality": "P2",
       "status": "planned",
@@ -49,7 +49,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P2-004",
+      "id": "VMEM-P2-004",
       "title": "Memory retrieval eval corpus",
       "criticality": "P2",
       "status": "planned",

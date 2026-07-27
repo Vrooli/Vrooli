@@ -231,6 +231,90 @@ For detailed product ownership, update [`DOMAINS.md`](DOMAINS.md).
 For persistence and retention, update [`DATA.md`](DATA.md). For
 temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
+## Deliberately Not Built — the general source ledger
+
+**Status: recorded idea, not design. Nothing below is scheduled, and no P0/P1
+requirement depends on it.** It is written down so the seam is deliberate rather
+than rediscovered, and so a future agent does not mistake the absence of
+generalization for an oversight.
+
+### The observation
+
+The bottom of this scenario is not memory-specific. Strip the vocabulary away
+and what remains is an **append-only journal with provenance, a multi-vector
+semantic index, frontier-agglomerative compaction, and a fixed-budget ambient
+view** — plus content-addressed idempotent import. That combination is what any
+*source ledger* needs underneath: a durable, auditable, semantically searchable
+store of accumulated findings that stays navigable as it grows without bound.
+
+Several plausible applications want exactly that substrate and differ only above
+it:
+
+| Application | Ledger holds | Layer built on top |
+|---|---|---|
+| Fact-checking | Claims, evidence, sources, refutations | Belief state and prior updating; research directions that challenge current beliefs |
+| Mathematical research | Conjecture-scoped ideas, lemmas, proof attempts, counterexamples | Formalization via Lean; open/proven/refuted state |
+| Scientific research | Papers, datasets, experiment results, replications | Hypothesis tracking, confidence, contradiction surfacing |
+| Personal health protocols | Interventions, measurements, outcomes over time | Protocol state, adherence, effect attribution |
+
+### Where the seam actually is
+
+What generalizes is everything from the journal down and the compaction
+mechanics up. What does **not** generalize is the vocabulary:
+`DOMAINS.md` makes the facet set closed, and the six facets in it
+(standing-rule, environment-fact, gotcha, episode, thread, entity-record) are
+*agent-memory* facets. A fact-checking ledger wants claim / evidence / source /
+refutation; a conjecture ledger wants lemma / proof-attempt / counterexample.
+
+So the generalization is narrow and precise: **the facet vocabulary and its
+policy table become per-ledger; the engine below them does not change.** That is
+in the grain of this scenario, which already uses "a descriptor, not a build"
+twice — `.vrooli/search.json` for search providers and the declarative harness
+adapters in [`DATA.md`](DATA.md).
+
+Two things a future attempt must not assume are already solved:
+
+- **Belief state is not summarization.** A claim whose confidence updates as
+  evidence arrives, or a conjecture that is open/proven/refuted, is a computed
+  projection with domain logic. Supersession marks are a primitive version and
+  will not stretch that far. That logic belongs in a scenario *on top of* the
+  ledger, not inside it.
+- **Entry shape is the real fork.** See D-020. Compaction scores clusters by
+  node count, so chunking long artifacts into entries would distort the frontier
+  as well as flood it.
+
+### If it is ever taken: two shapes
+
+**Extract the engine as a package** — `journal + forest + cover()` as shared Go,
+with `vrooli-memory` as one consumer and a `source-ledger` scenario as another.
+Each keeps its own facet vocabulary, storage, UI, and search-hub leaves.
+Cross-ledger retrieval is already solved: a second scenario that registers its
+own provider leaf is federated-queryable through `search-hub query` with zero
+work on this side.
+
+**Or multi-store inside this scenario** — a `store_id` on every table and a
+per-store descriptor. Simpler to reach, but it puts multi-tenancy in every query
+path, gives one scenario the blast radius of all ledgers, and forces a UI
+generic enough to serve both agent memory and mathematical research, which
+usually means it serves neither well.
+
+**The package shape is preferred** on current information: it matches how the
+fleet already shares code (`aisearch-go`, `api-core`) and keeps scope discipline
+intact.
+
+### Why it is not built now
+
+The design is unvalidated in exactly the places generalization would multiply.
+Only `health` exists in code. D-007 records the compaction scoring shape as
+unvalidated; D-018 records the pin budget as unvalidated; the facet taxonomy has
+never met a real corpus. If the facet model is wrong, fixing it across one store
+is a correction and fixing it across several is a migration.
+
+What was paid forward instead is the cheap insurance only — D-019 (facet policy
+in data rather than Go constants) and D-020 (entry shape decided rather than
+discovered). Together they cost close to nothing now and keep the door open. See
+D-021.
+
 ## Architecture Maturity
 
 Generated scenarios start with a mature template shape and starter

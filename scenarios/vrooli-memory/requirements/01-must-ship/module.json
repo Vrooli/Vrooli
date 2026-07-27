@@ -7,7 +7,7 @@
   },
   "requirements": [
     {
-      "id": "VROOLIME-P0-001",
+      "id": "VMEM-P0-001",
       "title": "Append-only journal",
       "criticality": "P0",
       "status": "planned",
@@ -22,7 +22,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P0-002",
+      "id": "VMEM-P0-002",
       "title": "Deliberate write verb",
       "criticality": "P0",
       "status": "planned",
@@ -37,7 +37,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P0-003",
+      "id": "VMEM-P0-003",
       "title": "Full-fidelity semantic recall",
       "criticality": "P0",
       "status": "planned",
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P0-004",
+      "id": "VMEM-P0-004",
       "title": "Best-node retrieval with descendant collapse",
       "criticality": "P0",
       "status": "planned",
@@ -66,7 +66,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P0-005",
+      "id": "VMEM-P0-005",
       "title": "Facet-routed retention policy",
       "criticality": "P0",
       "status": "planned",
@@ -81,7 +81,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P0-006",
+      "id": "VMEM-P0-006",
       "title": "Guaranteed pinned recall",
       "criticality": "P0",
       "status": "planned",
@@ -96,7 +96,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P0-007",
+      "id": "VMEM-P0-007",
       "title": "Pressure-driven compaction",
       "criticality": "P0",
       "status": "planned",
@@ -113,7 +113,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P0-008",
+      "id": "VMEM-P0-008",
       "title": "Budgeted ambient recall",
       "criticality": "P0",
       "status": "planned",
@@ -128,7 +128,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P0-009",
+      "id": "VMEM-P0-009",
       "title": "Federated retrieval registration",
       "criticality": "P0",
       "status": "planned",
@@ -143,7 +143,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P0-010",
+      "id": "VMEM-P0-010",
       "title": "Harness memory projection",
       "criticality": "P0",
       "status": "planned",
@@ -155,6 +155,25 @@
         { "type": "test", "phase": "unit", "status": "planned", "notes": "Projection writes a generated-artifact header followed by the current wake output." },
         { "type": "test", "phase": "unit", "status": "planned", "notes": "No read path ingests the projected file as a memory source." },
         { "type": "test", "phase": "integration", "status": "planned", "notes": "Hand edits to the projected file are discarded on the next projection and the journal is unchanged." }
+      ]
+    },
+    {
+      "id": "VMEM-P0-011",
+      "title": "Harness memory import",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "harness",
+      "description": "A recurring, idempotent import of existing harness memory stores into the journal, driven by declarative per-harness adapters supporting markdown file-per-fact, markdown section, single-blob markdown, JSONL, and SQLite. Idempotency is by content-addressed import key hash(harness_id, source_path, normalized_content) with a unique index — never by offset or watermark, because every source is a file a human or agent may rewrite out of order. Import is permanent capability, not one-time migration: it performs the initial backfill and recovers drift when capture fails or an agent writes through an unanticipated path. Imported entries carry source provenance and are never auto-promoted to pinned. Promoted from P1 to P0 (D-022): it is the only P0 path that puts a real corpus in the journal, and without one the compaction, budget, and federation targets cannot be exercised at the milestone that is supposed to prove them.",
+      "tags": ["harness", "import", "idempotency", "migration", "dogfooding"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Running import twice over an unchanged source creates zero additional journal entries." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Reordering entries within a source markdown file produces zero new entries, proving the key is content-addressed rather than positional." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Editing a source entry in place creates a new journal entry rather than mutating the original, preserving append-only semantics." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "An adapter extracting zero items from a non-empty source fails rather than reporting an empty diff, so a vendor format change cannot look like 'nothing new'." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Each supported format — markdown-per-file, markdown-section, markdown-blob, jsonl, sqlite — round-trips through its adapter." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Imported entries are never written with a pinned facet without operator confirmation." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "After importing this machine's existing harness stores, the frontier exceeds its target and a compaction pass runs — proving VMEM-P0-007 and VMEM-P0-008 are exercisable at P0 rather than only asserted." }
       ]
     }
   ]

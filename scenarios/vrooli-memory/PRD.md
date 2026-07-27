@@ -8,7 +8,7 @@
 ## 🎯 Overview
 
 - **Purpose**: Own the fleet's agent memory as a permanent capability — one append-only journal of everything an agent deliberately remembers, semantically searchable at full fidelity forever, with pressure-driven hierarchical compaction that keeps ambient recall inside a fixed context budget as the corpus grows without bound.
-- **Primary users/verticals**: Coding agents in every harness (Claude Code, Codex, Cursor, agent-manager runs); the operator reviewing and correcting what the fleet believes; scenarios that need durable cross-session knowledge.
+- **Primary users/verticals**: Coding agents in every supported harness (Claude Code, Codex, Gemini CLI, grok, opencode, antigravity — the six with a Vrooli resource — plus agent-manager runs); the operator reviewing and correcting what the fleet believes; scenarios that need durable cross-session knowledge. Cursor is out of scope until `resources/cursor` exists (`OT-P2-002`).
 - **Deployment surfaces**: CLI (the agent-facing write and read verbs), API (Connect-RPC), UI (memory browser, frontier explorer, facet review), and a generated harness memory-file projection.
 - **Value promise**: Replaces per-harness private memory stores and the hand-curated MEMORY.md index with one shared, searchable substrate — so knowledge earned by any agent in any runtime is available to every other agent, and retrieval stops depending on a human maintaining pointers.
 
@@ -28,6 +28,7 @@
 - [ ] OT-P0-008 | Budgeted ambient recall | When wake is invoked, the system shall emit a view bounded by a configured line budget whose granularity is finest for the most recent material.
 - [ ] OT-P0-009 | Federated retrieval registration | The system shall register its corpus as a search-hub provider so memory is reachable from federated query without any router change.
 - [ ] OT-P0-010 | Harness memory projection | The system shall write wake output to the harness memory file as a one-directional generated projection that it never reads back as input.
+- [ ] OT-P0-011 | Harness memory import | The system shall import existing harness memory stores idempotently across markdown, JSONL, and SQLite formats, so re-running an import over unchanged sources creates no duplicates.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -37,12 +38,14 @@
 - [ ] OT-P1-004 | Supersession-aware summarization | When a candidate cluster contains contradicting entries, the summarization prompt should resolve them by recency rather than conjoining both claims.
 - [ ] OT-P1-005 | Multi-space facet embedding | The system should embed several derived facet texts per memory so that clustering can group entries by more than one notion of relatedness.
 - [ ] OT-P1-006 | Operator review surface | The system should provide a UI for browsing the journal, inspecting the frontier, and correcting a memory's facet or pinned state.
-- [ ] OT-P1-007 | Harness prompt-block install | The system should install and update the prompt block that teaches each harness to call the memory CLI instead of writing its own store.
+- [ ] OT-P1-007 | Harness prompt-block install | The system should install and update a prompt block that describes what is worth remembering, and shall not instruct the agent to call a specific memory command.
+- [ ] OT-P1-008 | Harness write capture | The system should capture native memory writes made through each harness's own tooling, via a pre-write hook where the runtime exposes one and store diff everywhere else.
+- [ ] OT-P1-010 | Pinned-set bounding | The system should bound the pinned set by operator curation — proposing merges of redundant pins, lapsing pins that are not reconfirmed, and prompting a trade-off when a new pin would exceed the configured budget.
 
 ### 🟢 P2 – Future / expansion
 
 - [ ] OT-P2-001 | Receipt distillation | The system may propose candidate memories distilled from run receipts for operator confirmation rather than requiring every memory to be written deliberately.
-- [ ] OT-P2-002 | Write-path enforcement hooks | The system may provide harness hooks that intercept direct memory-file writes and redirect them through the governed CLI.
+- [ ] OT-P2-002 | Cursor harness support | The system may support Cursor once a `resources/cursor` resource exists; Cursor stores rules in a SQLite BLOB and shares no capture surface with the six CLI harnesses.
 - [ ] OT-P2-003 | Re-summarization drift monitoring | The system may re-read a sample of descendant leaves when re-summarizing a node above a configured depth to detect fact mutation.
 - [ ] OT-P2-004 | Memory retrieval eval corpus | The system may register a golden retrieval suite with search-hub so memory recall quality is measured over time like any other provider.
 
@@ -57,8 +60,8 @@
 
 - Required resources: SQLite in-process; ollama via ai-gateway for embedding and summarization inference.
 - Scenario dependencies: ai-gateway (embeddings, summarization), search-hub (federated retrieval registration), vrooli-events (run correlation, automatic via api-core), swarm-manager (records absorption and migration of existing work records).
-- Operational risks: Summarization quality bounds compaction quality, and repeated re-encoding of the same node can mutate facts rather than merely dropping them; cohesion scoring constants are unvalidated and expected to change once real clustering output exists; adoption depends on the harness prompt block being installed and kept current across runtimes.
-- Launch sequencing: journal plus deliberate write path and full-fidelity recall first; then facet routing and pinning; then pressure-driven compaction and the frontier; then search-hub registration and the harness projection; then work-record absorption and the operator UI.
+- Operational risks: Summarization quality bounds compaction quality, and repeated re-encoding of the same node can mutate facts rather than merely dropping them; cohesion scoring constants are unvalidated and expected to change once real clustering output exists; capture coverage varies by harness storage shape, and the two single-blob runtimes (Codex, opencode) cannot be diffed reliably into discrete memories without a hook whose availability is unverified; a harness that silently truncates an oversized projection could drop a pinned standing rule with no signal; and the pinned set grows monotonically unless curated, where the binding constraint is operator attention rather than the token budget, so it degrades ambient recall well before overflow is reported.
+- Launch sequencing: journal plus deliberate write path and full-fidelity recall first; then harness memory import, which backfills a real corpus and is what makes everything after it measurable rather than merely asserted; then facet routing and pinning; then pressure-driven compaction and the frontier; then search-hub registration and the harness projection; then work-record absorption and the operator UI. Import precedes compaction deliberately — a compaction loop with an empty journal cannot be validated, and the facet taxonomy has never met a real corpus.
 
 ## 🎨 UX & Branding
 

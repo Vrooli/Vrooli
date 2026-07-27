@@ -1,13 +1,13 @@
 {
   "_metadata": {
-    "description": "P1 requirements — records absorption, run linkage, operator surfaces, and the multi-space embedding refinement. All planned; validation entries declare intended evidence without asserting refs that do not exist.",
+    "description": "P1 requirements — records absorption, run linkage, operator surfaces, and the multi-space embedding refinement. All planned; validation entries declare intended evidence without asserting refs that do not exist. Note: id P1-009 is intentionally vacant. Harness memory import was promoted to P0 as VMEM-P0-011 (D-022); the id was retired rather than reused, and P1-010 was not renumbered, so that existing cross-references stay valid and no reader mistakes a renumber for a different requirement.",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
-      "id": "VROOLIME-P1-001",
+      "id": "VMEM-P1-001",
       "title": "Work-record memory kind",
       "criticality": "P1",
       "status": "planned",
@@ -22,7 +22,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P1-002",
+      "id": "VMEM-P1-002",
       "title": "Run correlation and sibling events",
       "criticality": "P1",
       "status": "planned",
@@ -37,7 +37,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P1-003",
+      "id": "VMEM-P1-003",
       "title": "Tree descent",
       "criticality": "P1",
       "status": "planned",
@@ -51,7 +51,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P1-004",
+      "id": "VMEM-P1-004",
       "title": "Supersession-aware summarization",
       "criticality": "P1",
       "status": "planned",
@@ -66,7 +66,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P1-005",
+      "id": "VMEM-P1-005",
       "title": "Multi-space facet embedding",
       "criticality": "P1",
       "status": "planned",
@@ -81,7 +81,7 @@
       ]
     },
     {
-      "id": "VROOLIME-P1-006",
+      "id": "VMEM-P1-006",
       "title": "Operator review surface",
       "criticality": "P1",
       "status": "planned",
@@ -96,17 +96,51 @@
       ]
     },
     {
-      "id": "VROOLIME-P1-007",
+      "id": "VMEM-P1-007",
       "title": "Harness prompt-block install",
       "criticality": "P1",
       "status": "planned",
       "prd_ref": "OT-P1-007",
       "category": "harness",
-      "description": "A command installs and updates the prompt block that teaches each harness to call the memory CLI instead of writing its own store, targeting CLAUDE.md, AGENTS.md, and equivalent runtime convention files. The block is idempotent and delimited so re-running updates in place rather than appending duplicates.",
+      "description": "A command installs and updates the prompt block in each harness convention file (CLAUDE.md, AGENTS.md, and equivalents). The block describes WHAT is worth remembering and MUST NOT instruct the agent to call a specific memory command. Telling an agent to use a foreign write verb is an instruction-compliance problem — it may comply, may not, or may write to both stores and fork memory silently. Describing what to remember lets the agent use its native memory tool, which it does reliably, and the harness domain captures that write. The block is idempotent and delimited so re-running updates in place rather than appending duplicates.",
       "tags": ["harness", "adoption", "cli"],
       "validation": [
         { "type": "test", "phase": "unit", "status": "planned", "notes": "Installing twice leaves exactly one delimited block with the current content." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Installing into a file with unrelated content preserves that content outside the delimiters." }
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Installing into a file with unrelated content preserves that content outside the delimiters." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "The rendered block contains no imperative to invoke a memory CLI command, guarding the describe-what-not-how contract against drift." }
+      ]
+    },
+    {
+      "id": "VMEM-P1-008",
+      "title": "Harness write capture",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "harness",
+      "description": "Native memory writes made by an agent through its own harness tooling are captured into the journal. Two channels, selected per harness by the capability matrix in docs/concepts/INTEGRATIONS.md: a pre-write hook where the runtime exposes one, and store diff as the universal floor. Hook install rides the existing per-resource permissions machinery under resources/<agent>/cli/internal/permissions/, which already ships pretooluse-bash-deny.sh for claude-code and grok — this scenario extends that layer and never touches agent binaries. Capture is required, not hardening: single-blob harnesses (Codex, opencode) cannot be diffed reliably into discrete memories, so for those runtimes a hook is the only precise channel.",
+      "tags": ["harness", "capture", "hooks", "resources"],
+      "validation": [
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "A native memory write in a hook-capable harness appears in the journal without the agent invoking any memory command." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "With the hook disabled, the same write is still captured by the next store-diff sweep — degraded latency, no loss." },
+        { "type": "manual", "status": "planned", "notes": "Per-runtime verification of which harnesses expose a usable pre-write surface; findings update the capability matrix." }
+      ]
+    },
+    {
+      "id": "VMEM-P1-010",
+      "title": "Pinned-set bounding by curation",
+      "criticality": "P1",
+      "status": "planned",
+      "prd_ref": "OT-P1-010",
+      "category": "facets",
+      "description": "The pinned set is bounded by operator curation rather than by compaction, because a rule the system is obliged to display unconditionally cannot be safely auto-merged or auto-evicted. Three mechanisms, each terminating in an operator decision: (1) consolidation proposals — the cohesion scoring the forest already computes is run over pinned entries and surfaces near-duplicate groups as merge proposals, never as automatic collapses; (2) renewal — each pin carries a review date and lapses to unpinned rather than deleted when not reconfirmed, so a lapsed rule stays a searchable standing-rule memory and the mechanism fails safe; (3) a pin budget that returns a trade-off against the weakest current pins when a new pin would exceed it. The budget is the forcing function: without it the first two are optional and therefore skipped, which is the failure mode measured on `--backlog-ref` in D-001. The binding constraint is attention, not tokens — a wake view with fifteen standing rules is read and one with three hundred is skimmed — so this limit binds well below the overflow reported by `VMEM-P0-006`.",
+      "tags": ["pinning", "facets", "curation", "operator"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Near-duplicate pinned entries surface as a merge proposal and are never collapsed without operator confirmation." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A pin whose review date passes without reconfirmation becomes unpinned, remains in the journal, and remains retrievable by recall." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Reconfirming a pin extends its review date without creating a duplicate journal entry." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A pin request that would exceed the budget returns the weakest current pins as a trade-off proposal rather than silently pinning or silently refusing." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "Lapse and merge both change wake output while leaving every affected journal entry intact and searchable." },
+        { "type": "manual", "status": "planned", "notes": "Calibrate the budget and review interval against a real pinned set; both initial values are unvalidated." }
       ]
     }
   ]

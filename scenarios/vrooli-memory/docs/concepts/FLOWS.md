@@ -30,8 +30,11 @@ outcome, statefulness, and validation level.
 | Compaction pass | forest | Frontier exceeds target size (scheduled sweep). | One or more summary nodes; frontier back under target. | Aborts cleanly on inference failure with no partial summary written. Idempotent — a re-run recomputes candidacy from current state. | L3 — scheduled, resumable, no partial writes. |
 | Recall (`recall`) | recall | Agent or operator issues a query. | Ranked hits across all depths with descendants collapsed. | Read-only. No state. | L1 — stateless query. |
 | Wake (`wake`) | recall | Session start, or projection refresh. | Pinned rules + budgeted cover over the frontier. | Read-only. Reports overflow rather than truncating pinned content. | L1 — stateless query. |
-| Projection refresh | harness | Wake output changes, or on demand. | Generated memory file written to each configured harness path. | One-directional. Hand edits to the target are discarded, never merged. | L2 — idempotent write. |
+| Projection refresh | harness | Wake output changes, or on demand. | Generated memory file written to each configured harness path, pin-first and bounded by that harness's documented size cap. | One-directional. Hand edits to the target are discarded, never merged. | L2 — idempotent write. |
+| Native write capture (hook) | harness | Agent writes memory through its own harness tool, in a runtime with a pre-write hook. | The write is appended to the journal in real time, without the agent invoking any memory command. | Hook failure degrades to the import sweep rather than losing the write. | L2 — real-time, at-least-once with hash dedup. |
+| Harness memory import (sweep) | harness | Scheduled, or on demand; also the initial backfill. | New items from each harness store appended; unchanged items produce nothing. | **Idempotent by content-addressed key** — safe to run at any frequency. A per-adapter failure skips that harness rather than recording a partial sweep as complete. | L3 — scheduled, resumable, no partial completion. |
 | Reclassification | facets | Operator correction, or retry of an unclassified entry. | New facet assignment; prior assignment retained as history. | Re-facet may make an entry compaction-eligible or pin it; the forest picks this up on the next pass. | L2 — additive, reversible. |
+| Pin curation | facets | A pin request exceeds the budget, a review date lapses, or the operator opens the review queue. | A merge proposal, a lapse to unpinned, or a trade-off prompt — every path terminates in an operator decision, never an automatic rewrite. | Lapse is automatic and reversible by reconfirming; merge and trade-off require confirmation. No path deletes a journal entry. | L2 — additive, reversible. |
 
 ## Flow Details
 
@@ -95,10 +98,10 @@ enforced. Plain CRUD with no ordering constraints does not appear here.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| Write | `received → classified → embedded → appended` (terminal). Failure branch: `received → unclassified → appended → queued → classified`. | No transition back out of `appended`. An entry never returns to a mutable state. | Repository append tests; classifier-failure test (`VROOLIME-P0-002`). |
-| Compaction pass | `idle → scoring → summarizing → written → idle`. | `summarizing → written` must be atomic: a pass that fails mid-summary returns to `idle` with nothing written. No partial tree. | Pass abort test; frontier-unchanged-on-failure test (`VROOLIME-P0-007`). |
-| Entry lifecycle | `active → superseded` and `active → expired` (thread facet only). Both terminal. | Neither transition deletes the entry. `superseded` and `expired` are marks, not removals. | Facet policy tests (`VROOLIME-P0-005`). |
-| Node lifecycle | `leaf → on-frontier → absorbed`, and for summaries `created → on-frontier → absorbed`. | An absorbed node never leaves the tree; it leaves only the *frontier*. Absorption is not deletion. | Forest membership tests (`VROOLIME-P0-001`, `VROOLIME-P0-007`). |
+| Write | `received → classified → embedded → appended` (terminal). Failure branch: `received → unclassified → appended → queued → classified`. | No transition back out of `appended`. An entry never returns to a mutable state. | Repository append tests; classifier-failure test (`VMEM-P0-002`). |
+| Compaction pass | `idle → scoring → summarizing → written → idle`. | `summarizing → written` must be atomic: a pass that fails mid-summary returns to `idle` with nothing written. No partial tree. | Pass abort test; frontier-unchanged-on-failure test (`VMEM-P0-007`). |
+| Entry lifecycle | `active → superseded` and `active → expired` (thread facet only). Both terminal. | Neither transition deletes the entry. `superseded` and `expired` are marks, not removals. | Facet policy tests (`VMEM-P0-005`). |
+| Node lifecycle | `leaf → on-frontier → absorbed`, and for summaries `created → on-frontier → absorbed`. | An absorbed node never leaves the tree; it leaves only the *frontier*. Absorption is not deletion. | Forest membership tests (`VMEM-P0-001`, `VMEM-P0-007`). |
 
 ## Maturity Ladder
 
@@ -232,9 +235,9 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| Receipt distillation | Deferred to `VROOLIME-P2-001`. The deliberate write verb is the primary path because it reaches every harness, not only agent-manager-spawned agents. Signal-to-noise over the receipt stream is unmeasured. | Once the P0 loop has real data. |
-| Drift detection on re-summarization | Deferred to `VROOLIME-P2-003`. Summaries are lossy by design, so fact *dropping* is intended; only fact *mutation* is a defect, and the two are indistinguishable without re-reading leaves. | Once multi-generation compaction output exists to calibrate against. |
-| Eval suite runs | Deferred to `VROOLIME-P2-004`. Requires a reviewed corpus; generated-only cases cannot certify under the search-hub provider contract. | Once there is enough real memory content to author positives and junk negatives. |
+| Receipt distillation | Deferred to `VMEM-P2-001`. The deliberate write verb is the primary path because it reaches every harness, not only agent-manager-spawned agents. Signal-to-noise over the receipt stream is unmeasured. | Once the P0 loop has real data. |
+| Drift detection on re-summarization | Deferred to `VMEM-P2-003`. Summaries are lossy by design, so fact *dropping* is intended; only fact *mutation* is a defect, and the two are indistinguishable without re-reading leaves. | Once multi-generation compaction output exists to calibrate against. |
+| Eval suite runs | Deferred to `VMEM-P2-004`. Requires a reviewed corpus; generated-only cases cannot certify under the search-hub provider contract. | Once there is enough real memory content to author positives and junk negatives. |
 
 ## Flow Diagram — the write and compaction loop
 
@@ -257,9 +260,17 @@ flowchart TD
     J --> K["ai-gateway: summarize best cluster"]
     K --> L["embed summary → rejoins frontier"]
     L --> H
-    P --> W["wake: unconditional"]
+    P --> PC{"pinned set over budget<br/>or review date lapsed?"}
+    PC -->|no| W["wake: unconditional"]
+    PC -->|yes| PR["operator: merge, renew, or lapse<br/>(lapse ⇒ unpinned, still searchable)"]
+    PR --> W
     I --> W
 ```
+
+Pinned entries never enter the compaction loop, so the only thing that bounds
+them is the curation branch above (`VMEM-P1-010`). Every edge out of `PR`
+is operator-confirmed except lapse, and lapse only clears the pin flag — the
+journal entry itself is untouched and remains retrievable by `recall`.
 
 ## Cross-References
 

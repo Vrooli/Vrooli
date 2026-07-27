@@ -34,10 +34,10 @@ so a future agent can tell a real regression from a wrong budget.
 
 | Operation | Budget | Why this number | Requirement |
 |---|---|---|---|
-| `wake` | Bounded output, independent of corpus size | This is the whole point of the budget model — output size is a function of the configured line budget, not of how much has been remembered. A `wake` whose cost grows with corpus size means `cover()` selection is walking the journal instead of the frontier. | `VROOLIME-P0-008` |
-| `note` (write) | Perceptibly immediate to the calling agent | The write path makes inference calls (classify, derive, embed). If those are synchronous and slow, agents stop writing and the whole scenario fails on adoption. Consider appending first and enriching asynchronously if the budget cannot be met. | `VROOLIME-P0-002` |
-| `recall` | Comparable to other search-hub providers | Memory is one federated provider among many; a slow provider degrades every cross-corpus query it participates in. The provider descriptor declares a latency budget like any other. | `VROOLIME-P0-003`, `VROOLIME-P0-009` |
-| Compaction pass | Off the request path entirely | It is a scheduled background sweep by decision (D-007 / ARCHITECTURE deviations). No user-facing operation should ever block on summarization. | `VROOLIME-P0-007` |
+| `wake` | Bounded output, independent of corpus size | This is the whole point of the budget model — output size is a function of the configured line budget, not of how much has been remembered. A `wake` whose cost grows with corpus size means `cover()` selection is walking the journal instead of the frontier. | `VMEM-P0-008` |
+| `note` (write) | Perceptibly immediate to the calling agent | The write path makes inference calls (classify, derive, embed). If those are synchronous and slow, agents stop writing and the whole scenario fails on adoption. Consider appending first and enriching asynchronously if the budget cannot be met. | `VMEM-P0-002` |
+| `recall` | Comparable to other search-hub providers | Memory is one federated provider among many; a slow provider degrades every cross-corpus query it participates in. The provider descriptor declares a latency budget like any other. | `VMEM-P0-003`, `VMEM-P0-009` |
+| Compaction pass | Off the request path entirely | It is a scheduled background sweep by decision (D-007 / ARCHITECTURE deviations). No user-facing operation should ever block on summarization. | `VMEM-P0-007` |
 
 ## Known Constraints
 
@@ -50,7 +50,7 @@ so a future agent can tell a real regression from a wrong budget.
 - **Inference dominates the write path.** Classification, facet-text derivation,
   and embedding are all ai-gateway calls. Local model latency, not application
   code, sets the floor on `note`.
-- **Embedding count multiplies with facet spaces.** `VROOLIME-P1-005` proposes
+- **Embedding count multiplies with facet spaces.** `VMEM-P1-005` proposes
   ~3 embeddings per memory; each additional facet space is a proportional
   increase in both write-time inference and index size. The count is currently a
   guess (see `PROBLEMS.md`) and should be settled against measured clustering

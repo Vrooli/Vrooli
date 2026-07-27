@@ -11,9 +11,15 @@
 > - **Unclassified backlog** — entries appended without a facet because
 >   classification failed. Non-zero is tolerable; growing is not, because
 >   unclassified entries are routed to no retention policy.
-> - **Pinned-set size vs. wake budget** — approaching the budget means `wake`
->   is close to reporting overflow (`VROOLIME-P0-006`), which is a real
->   operator-facing limit, not an error.
+> - **Pinned-set size vs. pin budget** — the pinned set is the one structure
+>   with no automatic relief valve, so this is the signal that curation is
+>   overdue. Token overflow (`VMEM-P0-006`) is the *outer* limit and a real
+>   operator-facing state rather than an error; the pin budget binds far earlier,
+>   because the constraint that actually degrades ambient recall is attention,
+>   not tokens.
+> - **Pins pending review, and open merge proposals** — the response half of the
+>   metric above (`VMEM-P1-010`). A growing queue against a flat pinned-set
+>   size means curation is not keeping up; both flat means the loop is healthy.
 > - **Summary generation depth** — how many times content has been re-encoded.
 >   The observable proxy for the drift risk deferred in D-012.
 
