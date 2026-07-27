@@ -305,6 +305,16 @@ func inspectQuery(req *http.Request) {
     _ = q.Get("id")
 }
 `, false},
+		{"network-client-query-payload", `
+func ask(client *modelClient) error {
+    payload, err := client.Query("prompt")
+    if err != nil {
+        return err
+    }
+    _ = payload
+    return nil
+}
+`, false},
 		{"rows-nested-scope-leak", `
 func usersNested(db *sql.DB, include bool) error {
     rows, err := db.Query("SELECT id FROM users")

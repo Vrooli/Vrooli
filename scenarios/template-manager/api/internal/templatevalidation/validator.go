@@ -41,9 +41,12 @@ func (v *Validator) ValidateScenario(ctx context.Context, scenario, explicitPath
 	if !found {
 		report.Findings = append(report.Findings, Finding{
 			Code:        CodeProvenanceMissing,
-			Severity:    SeverityError,
+			// A scenario can be hand-built or predate template provenance.
+			// Keep that lineage gap visible and fixable, but do not make it a
+			// deployment blocker unless a generated template is actually claimed.
+			Severity:    SeverityWarn,
 			Title:       "Template provenance is missing",
-			Message:     ".vrooli/service.json has no generation.template id and version.",
+			Message:     ".vrooli/service.json has no generation.template id and version; this is expected for hand-built scenarios but should be stamped when template lineage exists.",
 			Location:    ".vrooli/service.json",
 			Remediation: "Preview and apply the PROVENANCE_MISSING fix to stamp adopted provenance for the latest default template.",
 			Autofix:     true,

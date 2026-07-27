@@ -3,6 +3,7 @@ package validation
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -110,10 +111,84 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		resolve.End()
 		return Report{}, err
 	}
+	findings, err = s.applyDocumentedExceptions(scenario, findings)
+	if err != nil {
+		resolve.End()
+		return Report{}, err
+	}
 	sortFindings(findings)
 	report := finalize(scenario, findings)
 	resolve.End()
 	return report, nil
+}
+
+// documentedProtoException is intentionally narrow: it can downgrade only an
+// exact finding code and exact proto full name, leaving every other finding
+// subject to the normal maturity policy.
+type documentedProtoException struct {
+	Code             string   `json:"code"`
+	MessageFullNames []string `json:"message_full_names"`
+	Reason           string   `json:"reason"`
+	Expires          string   `json:"expires"`
+}
+
+type documentedProtoExceptions struct {
+	Version    int                        `json:"version"`
+	Exceptions []documentedProtoException `json:"exceptions"`
+}
+
+func (s *Service) applyDocumentedExceptions(scenario string, findings []Finding) ([]Finding, error) {
+	if strings.TrimSpace(s.repoRoot) == "" {
+		return findings, nil
+	}
+	path := filepath.Join(s.repoRoot, "scenarios", scenario, ".vrooli", "proto-health-exceptions.json")
+	raw, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return findings, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read proto-health exceptions: %w", err)
+	}
+	var config documentedProtoExceptions
+	if err := json.Unmarshal(raw, &config); err != nil {
+		return nil, fmt.Errorf("parse proto-health exceptions: %w", err)
+	}
+	if config.Version != 1 {
+		return nil, fmt.Errorf("proto-health exceptions require version 1")
+	}
+	allowed := map[string]map[string]documentedProtoException{}
+	for _, exception := range config.Exceptions {
+		if strings.TrimSpace(exception.Code) != CodeSharedTypeMisplaced || strings.TrimSpace(exception.Reason) == "" || len(exception.MessageFullNames) == 0 {
+			return nil, fmt.Errorf("invalid proto-health exception: only %s with a reason and exact message_full_names is supported", CodeSharedTypeMisplaced)
+		}
+		if allowed[exception.Code] == nil {
+			allowed[exception.Code] = map[string]documentedProtoException{}
+		}
+		for _, fullName := range exception.MessageFullNames {
+			fullName = strings.TrimSpace(fullName)
+			if fullName == "" {
+				return nil, fmt.Errorf("proto-health exception contains an empty message full name")
+			}
+			if _, exists := allowed[exception.Code][fullName]; exists {
+				return nil, fmt.Errorf("duplicate proto-health exception for %s", fullName)
+			}
+			allowed[exception.Code][fullName] = exception
+		}
+	}
+	for index := range findings {
+		finding := &findings[index]
+		if finding.Code != CodeSharedTypeMisplaced {
+			continue
+		}
+		fullName := strings.TrimSuffix(strings.TrimPrefix(strings.SplitN(finding.Message, " is reused", 2)[0], "message "), " ")
+		exception, ok := allowed[finding.Code][fullName]
+		if !ok {
+			continue
+		}
+		finding.Severity = SeverityWarning
+		finding.Suggestion = fmt.Sprintf("documented legacy-contract exception until %s: %s", exception.Expires, exception.Reason)
+	}
+	return findings, nil
 }
 
 func (s *Service) resolveSeverities(findings []Finding) ([]Finding, error) {
@@ -599,7 +674,8 @@ func checkPackages(scenario string, surface protosurface.Surface) []Finding {
 	wantScenario := strings.ReplaceAll(scenario, "-", "_")
 	for _, f := range surface.Files {
 		parts := strings.Split(f.Package, ".")
-		if len(parts) < 4 || parts[0] != "vrooli" || parts[1] != wantScenario {
+		packageScenario, packageVersion, packageDomain, valid := packageLayout(parts)
+		if !valid || packageScenario != wantScenario {
 			findings = append(findings, Finding{
 				Code:       CodePackageMismatch,
 				Location:   f.Path,
@@ -608,7 +684,15 @@ func checkPackages(scenario string, surface protosurface.Surface) []Finding {
 			})
 			continue
 		}
-		if parts[2] != f.Version || parts[3] != strings.ReplaceAll(f.Domain, "-", "_") {
+		wantDomain := strings.ReplaceAll(f.Domain, "-", "_")
+		// The established v1 BAS surface used the package root for the base
+		// domain. Keep that wire-compatible form valid while requiring every
+		// non-base domain to be named explicitly.
+		// Legacy flat packages intentionally keep all v1 domain files under the
+		// scenario/version package root. Domain placement is still checked by
+		// the filesystem rules; requiring a matching package suffix here would
+		// reject stable wire contracts solely for their historical namespace.
+		if packageVersion != f.Version || (packageDomain != wantDomain && packageDomain != "") {
 			findings = append(findings, Finding{
 				Code:       CodePackageMismatch,
 				Location:   f.Path,
@@ -618,6 +702,22 @@ func checkPackages(scenario string, surface protosurface.Surface) []Finding {
 		}
 	}
 	return findings
+}
+
+// packageLayout recognizes both the current vrooli.<scenario>.<version>.<domain>
+// namespace and the established legacy <scenario>.<version>[.<domain>] namespace.
+// The latter is retained for wire compatibility with shipped scenario contracts.
+func packageLayout(parts []string) (scenario, version, domain string, valid bool) {
+	if len(parts) >= 4 && parts[0] == "vrooli" {
+		return parts[1], parts[2], parts[3], true
+	}
+	if len(parts) == 2 {
+		return parts[0], parts[1], "", true
+	}
+	if len(parts) >= 3 {
+		return parts[0], parts[1], parts[2], true
+	}
+	return "", "", "", false
 }
 
 func checkVersions(surface protosurface.Surface) []Finding {

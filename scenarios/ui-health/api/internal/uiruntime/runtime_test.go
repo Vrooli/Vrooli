@@ -267,8 +267,8 @@ func TestCheckSurfacesVisualHealthLayoutFindings(t *testing.T) {
 	r := newRunner("http://localhost:5173", nil, bas)
 	finds := r.Check(context.Background(), Input{Scenario: "demo"})
 	got := codes(finds)
-	if _, found := findingForCode(finds, "runtime_render_broken"); !found {
-		t.Fatalf("want runtime summary, got %v", got)
+	if _, found := findingForCode(finds, "runtime_render_broken"); found {
+		t.Fatalf("layout defect must not be summarized as a blank render, got %v", got)
 	}
 	if _, found := findingForCode(finds, "visual_viewport_overflow"); !found {
 		t.Fatalf("want runtime summary plus visual_viewport_overflow detail, got %v", got)

@@ -22,9 +22,10 @@ grouping. Before measures:
 
 - Some scenarios exposed rich stats, most exposed none, and there was **no way to
   check** which did or to drive adoption.
-- The rich ones exposed a **monolithic `/stats` blob** with hardcoded 7d/30d
-  windows and an implicit event-type switch — not individually addressable,
-  declared, or parameterized.
+- Some machine-facing analytics endpoints were **monolithic `/stats` blobs**
+  with hardcoded 7d/30d windows and an implicit event-type switch — not
+  individually addressable, declared, or parameterized. A rich Stats product is
+  not itself a defect; Measures provide a complementary programmatic contract.
 - An agent answering "how many backlog items closed this week" had to discover
   tools, learn their parameters, and assemble a query by hand. There was no
   pre-declared "this question maps to this typed query" layer.
@@ -181,7 +182,10 @@ unexecuted with a confirmation prompt. θ is a conservative, tunable config leve
 ## Adopting measures
 
 Read `prompt-manager skill read measures-adoption` for the step-by-step (identify
-stateful domains → choose a substrate → author the binding + manifest block →
-serve via the Registry → delete any old `/stats` path → prove it with the
-`measures-health --probe`). The package README is the API reference the skill
-cites.
+stateful domains → choose a substrate → classify any existing analytics surface
+as a transport contract or an analytics product → author the binding + manifest
+block → serve via the Registry → prove it with `measures-health --probe`). A
+transport-only aggregate contract can retire after semantic parity and consumer
+migration. A Stats dashboard, operational CLI, or curated analytics workflow is
+a separate consumer surface and remains in place over shared analytical
+semantics. The package README is the API reference the skill cites.

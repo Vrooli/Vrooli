@@ -380,7 +380,12 @@ const artifactCaptureTemplate = `(() => {
       var scrollsY = /(auto|scroll|overlay)/.test(style.overflowY || '');
       if (scrollsY && parent.scrollHeight > parent.clientHeight + 1) { return true; }
     }
-    return false;
+    // The document viewport is also a reachable scroll container.  Without
+    // this check, controls farther down an ordinary scrollable page are
+    // indistinguishable from controls clipped by an unreachable fixed layout.
+    var root = el.ownerDocument && el.ownerDocument.documentElement;
+    var body = el.ownerDocument && el.ownerDocument.body;
+    return !!(root && body && Math.max(root.scrollHeight, body.scrollHeight) > window.innerHeight + 1);
   }
 
   function elementRecord(el) {

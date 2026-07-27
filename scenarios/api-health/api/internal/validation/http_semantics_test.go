@@ -35,7 +35,6 @@ func Users(w http.ResponseWriter, r *http.Request) {
 func validate(*http.Request) error { return nil }
 `)
 	svc := New(Deps{RepoRoot: root})
-
 	report, err := svc.ValidateScenario(context.Background(), "api-app", "", false)
 	require.NoError(t, err)
 	require.False(t, report.Passed)
@@ -46,6 +45,41 @@ func validate(*http.Request) error { return nil }
 	require.NotEmpty(t, report.Target.HTTP.InspectedFiles)
 	require.NotEmpty(t, report.Target.HTTP.Routes)
 	require.NotEmpty(t, report.Target.HTTP.ResponsePatterns)
+}
+
+func TestValidateScenarioAllowsSupportedErrorFallback(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "scenarios", "api-app", ".vrooli", "service.json"), validServiceJSON())
+	writeFile(t, filepath.Join(root, "scenarios", "api-app", "api", "main.go"), compliantMain("api-app"))
+	writeFile(t, filepath.Join(root, "scenarios", "api-app", "api", "handlers", "preview.go"), `package handlers
+
+import (
+	"errors"
+	"net/http"
+)
+
+var errPreviewUnavailable = errors.New("preview unavailable")
+
+func Preview(w http.ResponseWriter, err error) {
+	if err != nil {
+		if errors.Is(err, errPreviewUnavailable) {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+`)
+	svc := New(Deps{RepoRoot: root})
+	report, err := svc.ValidateScenario(context.Background(), "api-app", "", false)
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		if finding.Code == CodeImplicitErrorSuccess {
+			t.Fatalf("supported fallback must not be reported as implicit success: %+v", finding)
+		}
+	}
 }
 
 func TestValidateScenarioAllowsVersionedAndExemptRoutes(t *testing.T) {

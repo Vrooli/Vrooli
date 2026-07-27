@@ -12,6 +12,10 @@ Marketing turns evidence into public-facing artifacts without losing Vrooli's bu
 
 Marketing does not own monetization strategy, product roadmap, or operator approval. It proposes; the operator accepts, rejects, or edits.
 
+**Objective served.** `T1` — income (primary) and `T3` — contribution, via the OSS surface (`path:docs/director-swarm/strategy/OBJECTIVES.md`). Both are **terminal**: this team serves what the operator wants directly, not the system's capacity to want it. `T3` is served only partially today — the OSS discovery channel exists, but nothing yet addresses whether another operator can actually run this system.
+
+**Outcome contribution.** Primary: **Broadcast** (marketing & growth) — campaigns, channels, and publishing move funnel stages. Supporting: **Ledger**, by supplying the funnel that revenue lines convert. The swarm-tier map of which team moves which outcome lives in `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` §"Team contribution map"; this paragraph is this team's own statement of it.
+
 ## Scope
 
 Marketing owns the operating path from marketing signal to public-facing artifact or marketing-canon change:

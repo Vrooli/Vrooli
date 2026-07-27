@@ -199,7 +199,7 @@
       "browser-automation-studio": {
         "enabled": true,
         "required": false,
-        "startup_policy": "try_start",
+        "startup_policy": "ignore",
         "description": "Capture engine for structure reconciliation: drives scenario UIs and captures per-page/state screenshots plus accessibility trees that machine-tier claims are checked against.",
         "degraded_behavior": "Reconciliation checks report skipped (resource unavailable), never failed; spec contract validation, authoring studio, and fleet views work fully without it."
       },

@@ -132,6 +132,13 @@ func TestBrokerControlTransportBindsScopeToPerAppCredential(t *testing.T) {
 	if err := server.RegisterCredentialIssuer("vault", &testCredentialIssuer{}); err != nil {
 		t.Fatal(err)
 	}
+	var managedAction string
+	if err := server.RegisterOwnerLifecycle("vault", OwnerLifecycleFunc(func(_ context.Context, instance ManagedInstance, action string) (any, error) {
+		managedAction = action
+		return map[string]string{"instance": instance.ID, "action": action}, nil
+	})); err != nil {
+		t.Fatal(err)
+	}
 	credential, err := appOne.IssueScopedCredential(context.Background(), lease.ID, "vault")
 	if err != nil || credential.Scope != "app:one" || credential.Credential == "" {
 		t.Fatalf("scoped credential = %#v, %v", credential, err)
@@ -145,12 +152,19 @@ func TestBrokerControlTransportBindsScopeToPerAppCredential(t *testing.T) {
 	if _, err := appOne.AuthorizeManagement(context.Background(), "vault-user"); err == nil {
 		t.Fatal("lease credential must not gain management authority")
 	}
+	if _, err := appOne.Manage(context.Background(), "vault-user", "stop"); err == nil {
+		t.Fatal("lease credential must not execute lifecycle action")
+	}
 	owner, err := NewBrokerControlClient(BrokerControlCredential{Endpoint: endpoint, Scope: "user:alice", Token: "owner-token"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := owner.AuthorizeManagement(context.Background(), "vault-user"); err != nil {
 		t.Fatalf("registered owner management authorization: %v", err)
+	}
+	result, err := owner.Manage(context.Background(), "vault-user", "restart")
+	if err != nil || managedAction != "restart" || result["instance"] != "vault-user" {
+		t.Fatalf("owner lifecycle action = %#v, %v; action=%q", result, err, managedAction)
 	}
 }
 
@@ -165,6 +179,66 @@ func TestBrokerRejectsNonLoopbackManagedRegistration(t *testing.T) {
 	err := broker.Register(ManagedInstance{ID: "remote", Resource: "vault", Provider: resourcedeployment.ProviderManagedShared, OwnerScope: "user:alice", CapabilityVersion: "v1", Endpoint: "https://vault.example", AuthorizedScopes: []string{"app:one"}})
 	if err == nil || !strings.Contains(err.Error(), "loopback") {
 		t.Fatalf("non-loopback managed registration = %v", err)
+	}
+}
+
+func TestBrokerRequiresCurrentOwnershipProofWhenVerifierIsConfigured(t *testing.T) {
+	broker := NewBroker(nil)
+	instance := ManagedInstance{ID: "vault-user", Resource: "vault", Provider: resourcedeployment.ProviderManagedShared, OwnerScope: "user:alice", CapabilityVersion: "v1", Endpoint: "http://127.0.0.1:8200", AuthorizedScopes: []string{"app:one"}}
+	broker.SetOwnershipVerifier(func(ManagedInstance) error { return fmt.Errorf("stale attestation") })
+	if err := broker.Register(instance); err == nil || !strings.Contains(err.Error(), "attestation") {
+		t.Fatalf("registration without current ownership proof = %v", err)
+	}
+
+	broker.SetOwnershipVerifier(nil)
+	if err := broker.Register(instance); err != nil {
+		t.Fatal(err)
+	}
+	broker.SetOwnershipVerifier(func(ManagedInstance) error { return fmt.Errorf("replayed attestation") })
+	if _, err := broker.Acquire("vault", "app:one", time.Minute); err == nil || !strings.Contains(err.Error(), "verified shared") {
+		t.Fatalf("lease issued from replayed ownership proof = %v", err)
+	}
+}
+
+func TestBrokerRefreshesAttestationAfterOwnerRestart(t *testing.T) {
+	broker := NewBroker(nil)
+	instance := ManagedInstance{
+		ID: "vault-user", Resource: "vault", Provider: resourcedeployment.ProviderManagedShared,
+		OwnerScope: "user:alice", CapabilityVersion: "v1", Endpoint: "http://127.0.0.1:8200",
+		AuthorizedScopes: []string{"app:one"}, Attestation: OwnershipAttestation{Proof: "old"},
+	}
+	broker.SetOwnershipVerifier(func(candidate ManagedInstance) error {
+		if candidate.Attestation.Proof != "new" {
+			return fmt.Errorf("attestation belongs to stopped process")
+		}
+		return nil
+	})
+	if err := broker.Register(instance); err == nil {
+		t.Fatal("stale first-process attestation was accepted")
+	}
+
+	// Simulate the record created while the original process was alive, then
+	// require a fresh proof when its replacement starts.
+	broker.SetOwnershipVerifier(nil)
+	if err := broker.Register(instance); err != nil {
+		t.Fatal(err)
+	}
+	broker.SetOwnershipVerifier(func(candidate ManagedInstance) error {
+		if candidate.Attestation.Proof != "new" {
+			return fmt.Errorf("attestation belongs to stopped process")
+		}
+		return nil
+	})
+	instance.Attestation.Proof = "new"
+	refreshed, err := broker.RegisterOrGrantScope(instance, "app:one")
+	if err != nil {
+		t.Fatalf("refresh owner attestation: %v", err)
+	}
+	if refreshed.Attestation.Proof != "new" {
+		t.Fatalf("broker retained stale attestation: %#v", refreshed.Attestation)
+	}
+	if _, err := broker.Acquire("vault", "app:one", time.Minute); err != nil {
+		t.Fatalf("freshly attested restarted service was not leasable: %v", err)
 	}
 }
 

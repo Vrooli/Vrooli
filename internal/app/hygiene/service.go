@@ -98,6 +98,11 @@ func (s Service) Run(req Request) (Report, error) {
 		}
 	}
 
+	if req.IncludeContract {
+		s.checkTrackedBinaries(&report)
+		s.checkOrphanedProtoSurfaces(&report)
+	}
+
 	if req.IncludePnpmConfig {
 		s.checkPnpmConfig(&report, req.FixSafe)
 		s.checkScenarioPnpm(&report)

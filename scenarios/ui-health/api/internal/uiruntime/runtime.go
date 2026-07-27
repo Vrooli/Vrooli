@@ -334,13 +334,28 @@ func applyVisualHealth(ev *evidence.Evidence, step *visualpb.VisualStepArtifact)
 	})
 	var details []manifestvalidation.Finding
 	for _, finding := range resp.GetFindings() {
-		if finding.GetSeverity() == visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR && !ev.RenderBroken {
+		if isRenderBreakingVisualFinding(finding) && !ev.RenderBroken {
 			ev.RenderBroken = true
 			ev.RenderBrokenReason = firstNonEmpty(finding.GetEvidence(), finding.GetMessage())
 		}
 		details = append(details, visualFindingToManifest(finding))
 	}
 	return details
+}
+
+// isRenderBreakingVisualFinding distinguishes a failed render from a visual
+// quality failure. Layout and safe-area findings remain error findings, but
+// they must not be summarized as a blank or solid-color render.
+func isRenderBreakingVisualFinding(finding *visualpb.VisualFinding) bool {
+	if finding == nil || finding.GetSeverity() != visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR {
+		return false
+	}
+	switch finding.GetCode() {
+	case "visual_pixel_blank", "visual_dom_blank", "visual_broken_asset", "visual_stuck_loading":
+		return true
+	default:
+		return false
+	}
 }
 
 func visualFindingToManifest(finding *visualpb.VisualFinding) manifestvalidation.Finding {

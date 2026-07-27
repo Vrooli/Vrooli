@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "cli-manifest/v1",
   "title": "Scenario CLI Manifest",
-  "description": "Declarative contract for a scenario's CLI command surface. Single source of truth for command groups, commands, arg shapes, governance metadata, and the proto-method bindings each command invokes. Resolved at scenario.well_known_paths.cli_manifest in .vrooli/repo-contract.json. Consumed by packages/cli-core/cliapp/LoadFromManifest (registers commands) and by prompt-manager (derives action certainty from governance).",
+  "description": "Declarative contract for a scenario's CLI command surface. Single source of truth for command groups, commands, arg shapes, governance metadata, and bindings: Connect-RPC bindings are registered through cli-core, while explicit local bindings catalog real locally implemented commands. Resolved at scenario.well_known_paths.cli_manifest in .vrooli/repo-contract.json. Consumed by packages/cli-core/cliapp/LoadFromManifest (registers Connect-RPC commands) and by prompt-manager (derives action certainty from governance).",
   "type": "object",
   "required": ["name", "groups"],
   "additionalProperties": false,
@@ -43,6 +43,7 @@
       "properties": {
         "name": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
         "description": { "type": "string" },
+        "flat": { "type": "boolean", "description": "When true, this group dispatches its commands at the CLI top level rather than beneath the group name." },
         "commands": {
           "type": "array",
           "minItems": 1,
@@ -197,11 +198,11 @@
       "type": "object",
       "required": ["kind"],
       "properties": {
-        "kind": { "type": "string", "enum": ["connect-rpc"] }
+        "kind": { "type": "string", "enum": ["connect-rpc", "local"] }
       },
       "allOf": [
         {
-          "if": { "properties": { "kind": { "const": "connect-rpc" } } },
+          "if": { "properties": { "kind": { "const": "connect-rpc" } }, "required": ["kind"] },
           "then": {
             "required": ["service", "method"],
             "additionalProperties": false,
@@ -216,6 +217,19 @@
                 "type": "string",
                 "minLength": 1,
                 "description": "Proto method name, e.g. ListNotes. Must match a method on the named service."
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "local" } }, "required": ["kind"] },
+          "then": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "local",
+                "description": "A real top-level CLI command implemented locally rather than through a Connect RPC. It is cataloged for governance and discoverability but must not be passed to cliapp.LoadFromManifest."
               }
             }
           }

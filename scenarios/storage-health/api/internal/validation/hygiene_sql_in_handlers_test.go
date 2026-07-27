@@ -110,6 +110,26 @@ func (h *Handler) List(ctx context.Context) error {
 		}
 	})
 
+	t.Run("negative_handler_error_message_starting_with_update", func(t *testing.T) {
+		ac := hygieneACForTempScenario(t, "demo", map[string]string{
+			"handlers/orders/update.go": `package orders
+
+import "fmt"
+
+func UpdateHandler() error {
+	return fmt.Errorf("update order failed")
+}
+`,
+		})
+		got, err := a.Analyze(context.Background(), ac)
+		if err != nil {
+			t.Fatalf("analyze: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("expected no finding for a non-SQL error message, got %+v", got)
+		}
+	})
+
 	t.Run("negative_sql_outside_handler", func(t *testing.T) {
 		// Raw SQL in a repository file (not a handler) is NOT this analyzer's
 		// concern — it only flags SQL inside transport handlers.

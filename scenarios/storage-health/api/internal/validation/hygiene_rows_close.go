@@ -316,8 +316,27 @@ func hygieneIsQueryCall(fun ast.Expr) bool {
 	if !ok {
 		return false
 	}
-	_, ok = hygieneQueryFuncNames[sel.Sel.Name]
-	return ok
+	if _, ok = hygieneQueryFuncNames[sel.Sel.Name]; !ok {
+		return false
+	}
+	// Network and model clients commonly expose Query methods that return a
+	// payload and an error, not *sql.Rows. We do not have type information in
+	// this AST-only pass, but a receiver named *Client is strong evidence that
+	// this is not a database cursor and avoids a dangerous false positive.
+	return !hygieneReceiverIsClient(sel.X)
+}
+
+func hygieneReceiverIsClient(expr ast.Expr) bool {
+	switch receiver := expr.(type) {
+	case *ast.Ident:
+		return strings.Contains(strings.ToLower(receiver.Name), "client")
+	case *ast.SelectorExpr:
+		return strings.Contains(strings.ToLower(receiver.Sel.Name), "client") || hygieneReceiverIsClient(receiver.X)
+	case *ast.ParenExpr:
+		return hygieneReceiverIsClient(receiver.X)
+	default:
+		return false
+	}
 }
 
 func hygieneRowsHandled(ctx *hygieneRowsCtx, stmts []ast.Stmt, follow []ast.Stmt, rowsName string) bool {

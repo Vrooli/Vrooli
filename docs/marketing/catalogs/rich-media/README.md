@@ -91,7 +91,7 @@ The `do_not_resemble` field on each character is the contrarian's check against 
 
 ## Future home
 
-When a `rich-media-studio` or `brand-manager` scenario ships, this folder's schema migrates into structured database entries with versioning, and the markdown stand-ins under `assets/` get replaced by real asset storage. Until then, this folder is the operator-curated stand-in.
+This folder is **incubating data** per `docs/agent-system/OPERATING_GRAPHS.md` §"State belongs to scenarios; prose holds judgment": structured entity state held in the PoR only because no scenario serves it yet, with `scenario:brand-manager` (or a future `rich-media-studio`) as the named promotion target. When the owning scenario serves these entities, this folder's schema migrates into structured database entries with versioning, the markdown stand-ins under `assets/` get replaced by real asset storage, and this folder compresses to a pointer plus the judgment sections above. Note 2026-07-24: `scenario:brand-manager` and `scenario:campaign-content-studio` now exist — promotion is a standing audit candidate for the marketing team and meta-optimization's state-in-prose lens; until an approved migration lands, this folder remains the operator-curated stand-in.
 
 ## Cross-references
 

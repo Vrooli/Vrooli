@@ -22,6 +22,21 @@ type ManagedInstance struct {
 	CapabilityVersion string
 	Endpoint          string
 	AuthorizedScopes  []string
+	Attestation       OwnershipAttestation
+}
+
+// OwnershipAttestation is non-secret broker evidence that binds a shared
+// registration to the process the verified supervisor owns. Its proof is
+// derived from the process-only ownership token; the token itself is never
+// persisted in broker state or returned to applications.
+type OwnershipAttestation struct {
+	InstanceID        string    `json:"instance_id"`
+	ArtifactSHA256    string    `json:"artifact_sha256"`
+	Endpoint          string    `json:"endpoint"`
+	ControlCapability string    `json:"control_capability"`
+	IssuedAt          time.Time `json:"issued_at"`
+	ExpiresAt         time.Time `json:"expires_at"`
+	Proof             string    `json:"proof"`
 }
 
 // Lease grants use access to one shared instance. It deliberately carries no
@@ -53,12 +68,33 @@ type CredentialIssuer interface {
 }
 
 type Broker struct {
-	mu        sync.Mutex
-	now       func() time.Time
-	instances map[string]ManagedInstance
-	leases    map[string]Lease
-	sequence  uint64
-	store     BrokerStore
+	mu              sync.Mutex
+	now             func() time.Time
+	instances       map[string]ManagedInstance
+	leases          map[string]Lease
+	sequence        uint64
+	store           BrokerStore
+	verifyOwnership func(ManagedInstance) error
+}
+
+// SetOwnershipVerifier installs the supervisor-backed proof check used by a
+// user resource host. It is deliberately injected: the broker remains
+// resource-agnostic while production reuse still verifies each lease against
+// the live supervised process.
+func (b *Broker) SetOwnershipVerifier(verifier func(ManagedInstance) error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.verifyOwnership = verifier
+}
+
+func (b *Broker) verifyLocked(instance ManagedInstance) error {
+	if b.verifyOwnership == nil {
+		return nil
+	}
+	if err := b.verifyOwnership(instance); err != nil {
+		return fmt.Errorf("verify managed ownership attestation: %w", err)
+	}
+	return nil
 }
 
 func NewBroker(now func() time.Time) *Broker {
@@ -106,6 +142,9 @@ func (b *Broker) Register(instance ManagedInstance) error {
 	if !isLoopbackManagedEndpoint(instance.Endpoint) {
 		return fmt.Errorf("managed instance control endpoint must be an HTTP loopback address")
 	}
+	if err := b.verifyLocked(instance); err != nil {
+		return err
+	}
 	if _, exists := b.instances[instance.ID]; exists {
 		return fmt.Errorf("managed instance %q is already registered", instance.ID)
 	}
@@ -128,8 +167,21 @@ func (b *Broker) RegisterOrGrantScope(instance ManagedInstance, scope string) (M
 		if existing.Resource != instance.Resource || existing.Provider != instance.Provider || existing.OwnerScope != instance.OwnerScope || existing.CapabilityVersion != instance.CapabilityVersion || existing.Endpoint != instance.Endpoint {
 			return ManagedInstance{}, fmt.Errorf("managed instance %q identity changed", instance.ID)
 		}
+		// A restart intentionally produces a new process ownership token. Verify
+		// the supplied current attestation, then replace the old persisted proof
+		// atomically with it; re-checking the old proof here would make an owner
+		// unable to restart its own shared service.
+		if err := b.verifyLocked(instance); err != nil {
+			return ManagedInstance{}, err
+		}
+		attestationChanged := existing.Attestation != instance.Attestation
+		existing.Attestation = instance.Attestation
+		changed := attestationChanged
 		if !scopeAllowed(existing.AuthorizedScopes, scope) {
 			existing.AuthorizedScopes = append(existing.AuthorizedScopes, scope)
+			changed = true
+		}
+		if changed {
 			b.instances[existing.ID] = existing
 			if err := b.persistLocked(); err != nil {
 				return ManagedInstance{}, err
@@ -142,6 +194,9 @@ func (b *Broker) RegisterOrGrantScope(instance ManagedInstance, scope string) (M
 	}
 	if instance.Provider != resourcedeployment.ProviderManagedShared || !isLoopbackManagedEndpoint(instance.Endpoint) {
 		return ManagedInstance{}, fmt.Errorf("only verified loopback user-hosted instances may admit application scopes")
+	}
+	if err := b.verifyLocked(instance); err != nil {
+		return ManagedInstance{}, err
 	}
 	instance.AuthorizedScopes = append([]string(nil), instance.AuthorizedScopes...)
 	if !scopeAllowed(instance.AuthorizedScopes, scope) {
@@ -175,6 +230,9 @@ func (b *Broker) Acquire(resource, scope string, ttl time.Duration) (Lease, erro
 	}
 	for _, instance := range b.instances {
 		if instance.Resource != resource || instance.Provider != resourcedeployment.ProviderManagedShared || !scopeAllowed(instance.AuthorizedScopes, scope) {
+			continue
+		}
+		if err := b.verifyLocked(instance); err != nil {
 			continue
 		}
 		b.sequence++

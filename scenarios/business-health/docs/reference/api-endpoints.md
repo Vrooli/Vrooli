@@ -52,26 +52,33 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Validation & contract services (planned)
+## Validation & contract services
 
 Business Health's product surfaces are exposed as proto-typed
 Connect-RPC services under
 `POST /vrooli.business_health.v1.<domain>.<Domain>Service/<Method>`,
 with REST exceptions (such as multipart uploads) mounted at explicit
-REST paths. These services are being built phase by phase; only the
-`GET /health` endpoint above is live today. Document each RPC here as
-it lands — one section per method, with its auth, request/response
-proto shapes, error codes, and CLI mirror.
+REST paths. These services are being built phase by phase. Document each
+RPC here as it lands — one section per method, with its auth,
+request/response proto shapes, error codes, and CLI mirror.
 
-Planned services:
+Live services (handlers under `api/handlers/`):
 
 - **`ScenarioValidationService`** (shared) — `Validate`, `PreviewFix`,
   and `ApplyFix` over a target scenario's business contract. Other
   scenarios reuse this service for contract checks and remediation.
-- **Business Health report service** — aggregates validation, drift,
-  and traceability into the human and `--json` report surface.
-- **Business Health wizard service** — drives the guided authoring flow
-  for `PRD.md` and `requirements/`.
+  Mirrored by `business-health validate scenario`, `drift`, and `fix`.
+- **Wizard service** — drives the guided authoring flow for `PRD.md`
+  and `requirements/`. Mirrored by `business-health wizard`.
+- **Fleet service** — rolls validation across every scenario. Mirrored
+  by `business-health fleet`.
+- **Search and search-control services** — the fleet-wide intent corpus
+  and its index. Mirrored by `business-health search`.
+
+Planned services:
+
+- **Report service** — aggregates validation, drift, and traceability
+  into the human and `--json` report surface.
 
 ---
 

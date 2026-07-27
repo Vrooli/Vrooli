@@ -98,6 +98,7 @@ For a first read, use this order:
 | `DECISIONS.md` | canon | Decision contexts, lifecycle, direct-write vs swarm-manager routing, capability-gap criteria, action graduation gate, stale-decision policy, cross-team output ownership, inbox backpressure |
 | `CONTRARIAN_REVIEW.md` | canon | Team-local contrarian lifecycle: challenge reports, resolution records, author response, escalation, vision-walk consumption |
 | `SKILL_AUTHORING.md` | canon | Universal authoring quality bars |
+| `FRAMEWORK_HEALTH.md` | canon | The framework's own targets: contract validity, declaration integrity, coupling visibility, canon coherence, skill conditioning quality. Each target names its sensor, deadband, and actuator. Framework health only — portfolio goals live in director-swarm's `OUTCOMES_CHARTER.md` |
 | `DEPRECATION_POLICY.md` | canon | Staleness windows, mandatory roadmap check, archive path, who-files-what |
 | `REFERENCE_SCENARIOS.md` | canon | Gold-star reference scenario registry (template→reference pair, generation date, audit cadence), nomination + demotion rules, rot triage including template-rot |
 | `REFERENCE_PATTERN_FITNESS.md` | canon | Audit lens for artifacts that exist to be copied (templates, references, canonical examples). Composes with scenario-qa's single-instance audit lenses; owned by `toolchain-validator` on `meta-optimization` |

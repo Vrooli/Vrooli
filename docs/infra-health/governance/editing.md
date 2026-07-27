@@ -6,6 +6,8 @@
 
 The team-owned runtime state lives under `scenarios/prompt-manager/store/teams/infra-health/`. Rolling snapshots and logs in that store are working state, not durable PoR canon.
 
+The team contract's `operatingContract.documents.planOfRecord.paths` lists the *consumed-canon subset* agents read each heartbeat (README, operating model, reliability targets, instrumentation roadmap, cross-platform ledger). The governance docs here — `editing.md`, `adoption-validation.md`, `changelog.md` — are required by [`manifest.json`](../manifest.json) for PoR structure but are intentionally omitted from `planOfRecord.paths`, matching the fleet convention (e.g. meta-optimization).
+
 ## Change Flow
 
 1. An infra-health member observes a material reliability, instrumentation, platform-code, or portability signal.

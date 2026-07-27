@@ -25,6 +25,8 @@ type BrokerControlServer struct {
 	credentials map[string]string // scope -> opaque per-scope credential
 	issuers     map[string]CredentialIssuer
 	issuerMu    sync.RWMutex
+	lifecycles  map[string]OwnerLifecycle
+	lifecycleMu sync.RWMutex
 	server      *http.Server
 	listener    net.Listener
 }
@@ -54,6 +56,24 @@ type issueCredentialBrokerRequest struct {
 	Resource string `json:"resource"`
 }
 
+type manageBrokerRequest struct {
+	InstanceID string `json:"instance_id"`
+	Action     string `json:"action"`
+}
+
+// OwnerLifecycle is resource-native lifecycle execution. The broker performs
+// authentication and ownership verification before invoking it; handlers never
+// receive a caller-supplied endpoint or application scope.
+type OwnerLifecycle interface {
+	Manage(context.Context, ManagedInstance, string) (any, error)
+}
+
+type OwnerLifecycleFunc func(context.Context, ManagedInstance, string) (any, error)
+
+func (f OwnerLifecycleFunc) Manage(ctx context.Context, instance ManagedInstance, action string) (any, error) {
+	return f(ctx, instance, action)
+}
+
 // StartBrokerControlServer serves on a caller-provided loopback listener.
 // Supplying the listener lets the embedding runtime retain ownership of port
 // allocation and shutdown. Each credential must be unique and non-empty.
@@ -77,15 +97,30 @@ func StartBrokerControlServer(listener net.Listener, broker *Broker, credentials
 	if len(copyCredentials) == 0 {
 		return nil, fmt.Errorf("broker control credentials are required")
 	}
-	control := &BrokerControlServer{broker: broker, credentials: copyCredentials, issuers: make(map[string]CredentialIssuer), listener: listener}
+	control := &BrokerControlServer{broker: broker, credentials: copyCredentials, issuers: make(map[string]CredentialIssuer), lifecycles: make(map[string]OwnerLifecycle), listener: listener}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/acquire", control.acquire)
 	mux.HandleFunc("/v1/authorize-use", control.authorizeUse)
 	mux.HandleFunc("/v1/authorize-management", control.authorizeManagement)
 	mux.HandleFunc("/v1/credentials", control.issueCredential)
+	mux.HandleFunc("/v1/manage", control.manage)
 	control.server = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	go func() { _ = control.server.Serve(listener) }()
 	return control, nil
+}
+
+func (s *BrokerControlServer) RegisterOwnerLifecycle(resource string, lifecycle OwnerLifecycle) error {
+	resource = strings.TrimSpace(resource)
+	if resource == "" || lifecycle == nil {
+		return fmt.Errorf("resource and owner lifecycle are required")
+	}
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	if _, exists := s.lifecycles[resource]; exists {
+		return fmt.Errorf("owner lifecycle already registered for %s", resource)
+	}
+	s.lifecycles[resource] = lifecycle
+	return nil
 }
 
 // RegisterCredentialIssuer binds resource-native policy issuance to the
@@ -206,6 +241,40 @@ func (s *BrokerControlServer) issueCredential(w http.ResponseWriter, request *ht
 	writeBrokerJSON(w, credential)
 }
 
+func (s *BrokerControlServer) manage(w http.ResponseWriter, request *http.Request) {
+	scope, ok := s.scopeForRequest(w, request)
+	if !ok {
+		return
+	}
+	var input manageBrokerRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, 8<<10)).Decode(&input); err != nil {
+		http.Error(w, "invalid management request", http.StatusBadRequest)
+		return
+	}
+	if input.Action != "start" && input.Action != "stop" && input.Action != "restart" && input.Action != "inspect" && input.Action != "logs" {
+		http.Error(w, "unsupported management action", http.StatusBadRequest)
+		return
+	}
+	instance, err := s.broker.AuthorizeManagement(input.InstanceID, scope)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	s.lifecycleMu.RLock()
+	lifecycle := s.lifecycles[instance.Resource]
+	s.lifecycleMu.RUnlock()
+	if lifecycle == nil {
+		http.Error(w, "resource has no owner lifecycle", http.StatusNotFound)
+		return
+	}
+	result, err := lifecycle.Manage(request.Context(), instance, input.Action)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	writeBrokerJSON(w, result)
+}
+
 func writeBrokerJSON(w http.ResponseWriter, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(value)
@@ -260,6 +329,14 @@ func (c *BrokerControlClient) IssueScopedCredential(ctx context.Context, leaseID
 		return ScopedCredential{}, err
 	}
 	return credential, nil
+}
+
+func (c *BrokerControlClient) Manage(ctx context.Context, instanceID, action string) (map[string]any, error) {
+	var result map[string]any
+	if err := c.post(ctx, "/v1/manage", manageBrokerRequest{InstanceID: instanceID, Action: action}, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (c *BrokerControlClient) post(ctx context.Context, path string, input, output any) error {

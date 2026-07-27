@@ -246,6 +246,14 @@ func Classify(in Inputs) Report {
 		waived[o.Domain] = o.Reason
 		known[o.Domain] = true
 	}
+	// A detected persistence substrate may be intentionally waived even when it
+	// is not represented by a proto domain. Treat that evidence as a live waiver
+	// target, not a stale manifest entry.
+	detected := map[string]bool{}
+	for _, entity := range in.Detected {
+		detected[entity.Name] = true
+		detected[singularize(entity.Name)] = true
+	}
 
 	// 4. Classify every known domain in stable order.
 	names := make([]string, 0, len(known))
@@ -280,6 +288,9 @@ func Classify(in Inputs) Report {
 				FilePath:    manifestPath,
 				Scanner:     "coverage",
 			})
+		case waived[name] != "" && (detected[name] || detected[singularize(name)]):
+			dc.Status = StatusWaived
+			dc.WaiverReason = waived[name]
 		case waived[name] != "":
 			// Waiver pointing at a non-stateful / nonexistent domain -> stale.
 			dc.Status = StatusNotExpected

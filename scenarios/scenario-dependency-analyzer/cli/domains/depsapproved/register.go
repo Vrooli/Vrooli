@@ -83,7 +83,7 @@ func runSearch(core *cliapp.ScenarioApp, args []string) error {
 	var jsonOutput bool
 	fs.StringVar(&ecosystem, "ecosystem", "", "Filter by ecosystem (npm|go|pip)")
 	fs.StringVar(&framework, "framework", "", "Filter by framework/keyword (e.g. react)")
-	fs.StringVar(&surface, "surface", "", "Filter by allowed surface (ui|api|cli|tools/<package>)")
+	fs.StringVar(&surface, "surface", "", "Filter by allowed surface (ui|api|cli|playwright-driver|tools/<package>)")
 	fs.StringVar(&state, "state", "", "Filter by governance state (approved|denied|needs_review|deprecated)")
 	fs.IntVar(&limit, "limit", 20, "Maximum records to return")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
@@ -92,7 +92,7 @@ func runSearch(core *cliapp.ScenarioApp, args []string) error {
 	}
 	query := strings.TrimSpace(strings.Join(fs.Args(), " "))
 	if query == "" && framework == "" && ecosystem == "" && surface == "" && state == "" {
-		return fmt.Errorf("usage: %s deps approved search <query> [--ecosystem npm|go|pip] [--framework react] [--surface ui|api|cli|tools/<package>] [--state approved|denied] [--json]", support.AppName)
+		return fmt.Errorf("usage: %s deps approved search <query> [--ecosystem npm|go|pip] [--framework react] [--surface ui|api|cli|playwright-driver|tools/<package>] [--state approved|denied] [--json]", support.AppName)
 	}
 	resp, err := governanceClient(core).SearchApprovedDependencies(context.Background(), connect.NewRequest(&governancev1.SearchApprovedDependenciesRequest{
 		Query:     query,
@@ -137,7 +137,7 @@ func printSearchResults(records []*governancev1.ApprovedDependencyRecord, guidan
 		ResultsHeading: "Dependency Search",
 		Results:        results,
 		RetrievalHints: []string{
-			fmt.Sprintf("Install an approved package: %s deps install <ecosystem>/<package> --scenario <name> --surface <ui|api|cli|tools/<package>>", support.AppName),
+			fmt.Sprintf("Install an approved package: %s deps install <ecosystem>/<package> --scenario <name> --surface <ui|api|cli|playwright-driver|tools/<package>>", support.AppName),
 			fmt.Sprintf("Propose a new package from observed usage: %s deps approved approve-observed <ecosystem>/<package> --from-findings --apply", support.AppName),
 			fmt.Sprintf("Inspect one record: %s deps approved explain <ecosystem>/<package>", support.AppName),
 		},

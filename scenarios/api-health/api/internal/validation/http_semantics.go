@@ -305,7 +305,7 @@ func (s *functionHTTPState) inspectBlock(block *ast.BlockStmt, inErrorBranch boo
 	for _, stmt := range block.List {
 		ifStmt, ok := stmt.(*ast.IfStmt)
 		if ok {
-			errBranch := inErrorBranch || isErrorCondition(ifStmt.Cond)
+			errBranch := isErrorCondition(ifStmt.Cond) || (inErrorBranch && !isErrorRecoveryCondition(ifStmt.Cond))
 			s.inspectBlock(ifStmt.Body, errBranch, errBranch && blockHasStatus(ifStmt.Body))
 			if ifStmt.Else != nil {
 				if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
@@ -577,9 +577,19 @@ func isHTTPErrorCall(call *ast.CallExpr) bool {
 
 func isErrorCondition(expr ast.Expr) bool {
 	text := exprString(expr)
-	return strings.Contains(text, "err != nil") ||
-		strings.Contains(text, "errors.Is") ||
-		strings.Contains(text, "errors.As")
+	// A direct nil-check identifies an unhandled error path. errors.Is/As
+	// instead classify a known error and may intentionally select a recovery
+	// response (for example a preview fallback), so treating them as failures
+	// creates false "HTTP 200 on error" findings.
+	return strings.Contains(text, "err != nil")
+}
+
+// isErrorRecoveryCondition recognizes a branch that classifies a known error
+// value. It may legitimately return a cached, partial, or fallback success
+// response, so it stops inherited "unhandled error" status tracking.
+func isErrorRecoveryCondition(expr ast.Expr) bool {
+	text := exprString(expr)
+	return strings.Contains(text, "errors.Is") || strings.Contains(text, "errors.As")
 }
 
 func exprString(expr ast.Expr) string {

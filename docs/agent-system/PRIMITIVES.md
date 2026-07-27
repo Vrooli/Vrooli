@@ -126,6 +126,26 @@ Knowledge entries are the fine-grained granularity for evidence and observations
 
 ---
 
+## Objective
+
+What the operator wants the system to be for. Objectives are the top of the goal hierarchy and the only operator-specific layer in the agent system: another operator adopting Vrooli would keep every team, skill, and canon file and replace only their objectives. The set lives in `path:docs/director-swarm/strategy/OBJECTIVES.md` and is authored by the operator, never by an agent.
+
+Objectives divide into two classes. **Terminal** objectives state what the operator wants the world to be like. **Instrumental** objectives state what the system must become to serve them. An instrumental objective is only legitimate when a terminal one justifies it — a self-improving system whose written objectives are all about its own improvement has no reason to stop improving itself.
+
+**Objective is not `Goal`.** They differ by scale, lifespan, and author, and conflating them is the mistake this entry exists to prevent:
+
+| | Objective | Goal |
+|---|---|---|
+| Count | fewer than a dozen | many per objective |
+| Lifespan | years; changes by `vision-update` decision | weeks to months |
+| Author | operator only | agent-proposed, operator-approved |
+| Shape | qualitative and durable | measurable and time-boxed |
+| Home | director-swarm plan of record | `swarm-manager` runtime state |
+
+The hierarchy is `Objective -> Goal -> Milestone -> Backlog item`. Every goal declares a parent objective; a goal without one is unattributed work, and an objective without goals is unstaffed intent. Two coverage directions are checkable and both are enforced — see OBJECTIVES.md §"The coverage rule".
+
+---
+
 ## Backlog item / capability-gap
 
 Unbuilt work. A backlog item names something to build (typically tracked in `swarm-manager`); a `capability-gap` decision names a missing capability that blocks an existing member's work — typically a missing CLI command, action, scenario, or source-of-truth.

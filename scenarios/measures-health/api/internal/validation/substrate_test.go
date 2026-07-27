@@ -109,6 +109,12 @@ func TestClassify_SubstrateWaivedIsSilent(t *testing.T) {
 	if f := findingBy(rep, "measures.undeclared-substrate"); f != nil {
 		t.Fatalf("a waived entity must be silent, got %+v", f)
 	}
+	if f := findingBy(rep, "measures.stale-waiver"); f != nil {
+		t.Fatalf("a detected waived entity must not be stale, got %+v", f)
+	}
+	if d := domainBy(rep, "notes"); d == nil || d.Status != StatusWaived {
+		t.Fatalf("detected waived entity must be classified waived, got %+v", d)
+	}
 }
 
 func TestClassify_SubstrateCoveredIsSilent(t *testing.T) {

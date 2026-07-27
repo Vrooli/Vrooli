@@ -93,6 +93,33 @@ module, writes a sibling manifest and build metadata, and supports freshness
 rebuilds. It is not the deployed-desktop installer. See
 [`packages/cli-core/README.md`](../../packages/cli-core/README.md).
 
+## Pinned Runtime Principle
+
+The Native Artifact Principle pins managed-service binaries by checksum. The
+same determinism requirement applies to the container archetypes: a mature
+`docker-service` or `compose-service` resource references every pulled image
+by an immutable reference — a version tag at minimum, a digest preferred.
+
+Floating references (`latest`, `stable`, `latest-*`) are not acceptable in a
+normal path. With a floating tag, `install` (a pull) can silently replace the
+running engine, which makes regressions indistinguishable from upstream
+changes and makes two hosts running "the same" resource behaviorally
+different. Upgrades must be explicit manifest/compose edits reviewed like any
+other change, never side effects of a lifecycle verb.
+
+Locally built images (a compose `build:` directive) are exempt: their content
+is pinned by the repository's own Dockerfile and base-image pins.
+
+Enforcement:
+
+- manifest validation rejects floating `runtime.image` references for
+  `docker-service` resources (`internal/resources/manifest`,
+  `ValidatePinnedImageRef`)
+- a fleet lint walks `compose-service` compose files and their GPU overlays
+  and rejects floating pulled-image references
+  (`internal/resources/manifest/runtime_pinning_realmanifest_test.go`);
+  grandfathered debt is listed there explicitly and must shrink, not grow
+
 ## Target `resource.json` Shape
 
 Existing manifest fields remain authoritative for runtime, ports, health,
@@ -193,6 +220,24 @@ only a verified Vrooli-owned instance may be reused. An external endpoint is
 always attach-only and may never be initialized, unsealed, stopped, or
 rewritten by Vrooli.
 
+### Bootstrap readiness for stateful managed services
+
+Generic supervision proves only that a verified child process was started and
+that its transport can be reached. A stateful resource must add its own
+readiness transition before generic health can be reported to consumers. Vault
+uses the following ordered states: `process-started`, `reachable`,
+`uninitialized`, `sealed`, `unsealed`, and `usable`. An HTTP `501` from Vault
+means `uninitialized`: it is reachable, but not healthy or consumable.
+
+The resource-native bootstrap adapter owns initialization and recovery. It
+stores recovery material only in supported platform secure storage, unseals an
+already initialized service after restart, creates a scoped application
+credential, and proves a harmless scoped operation before publishing the
+service to a broker or application. Secure-storage failure, missing recovery
+material, a sealed service that cannot be recovered, or a failed scoped probe
+are terminal readiness failures; callers must not downgrade them to transport
+health or silently expose a root credential.
+
 Managed-service policies declare `target_defaults` rather than one static
 default: `control-plane` selects the Vrooli-owned shared host, while
 `desktop-bundle` selects an app-private verified artifact. An explicit provider
@@ -222,8 +267,9 @@ credential-free broker state once per user. Its secure management material is
 stored only through a platform credential-store adapter. The host must fail
 before Vault initialization when that adapter is unavailable; a mode-0600
 state file is not an acceptable fallback. `managed-discovered` is reserved for
-verified existing host tools such as Codex. It grants use only and never
-lifecycle authority.
+a verified executable candidate. It never adopts a running process or external
+endpoint; after checksum/version or trusted-distribution verification, Vrooli
+may supervise that executable with Vrooli-owned state and configuration.
 
 The generic user-resource host stays resource-agnostic: it owns secure-store
 readiness, broker state, loopback ownership checks, and bootstrapper

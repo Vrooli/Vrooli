@@ -27,20 +27,19 @@ grep -rn "REPLACES-MANUAL" docs/infra-health/ scenarios/prompt-manager/store/tea
 
 Each gap lists: stats unblocked, most likely host scenario, shape proposed, downstream effects, and the priority signal that should activate the build.
 
-### Gap 1: Autoheal history CLI
+### Gap 1: Autoheal history CLI — SHIPPED (substantially)
 
-- **Unblocks:** Repeat-failure tier-1 detection without raw SQLite reads. Heal-loop tier-2 detection. Trend graphs of check pass/fail counts over time.
-- **Most likely host:** Extend `vrooli-autoheal` CLI.
-- **Shape required:**
-  - `vrooli-autoheal history --since=<duration> --json` — time-series of check pass/fail counts and per-check status changes
-  - `vrooli-autoheal heal-attempts --since=<duration> --json` — list of heal attempts with scenario / resource, trigger, outcome, duration
-- **Downstream effect:** runtime-health-scanner stops reading SQLite directly; finding cycle time drops; tier-1 / tier-2 triage becomes a single CLI call.
-- **Priority signal:** activates when runtime-health-scanner starts producing recurring `capability-gap` decisions naming this verb shape.
-- **REPLACES-MANUAL:** SQLite fallback path in `runtime-health-scanner/RESPONSIBILITIES.md` ("Current Gaps & Fallbacks") and `TOOLS.md` ("Primary Surfaces").
+- **Status:** Substantially shipped; verified live 2026-07-23 (operator session, teams paused). The shipped verb shape differs from the one proposed here:
+  - `vrooli-autoheal check history` — per-check history (proposed as `history`)
+  - `vrooli-autoheal actions history` — recovery action history (proposed as `heal-attempts`)
+  - `vrooli-autoheal actions uptime | trends | transitions | timeline` — aggregates the proposal didn't anticipate
+- **Unblocked:** Repeat-failure tier-1 detection, heal-loop tier-2 detection, and trend views are now single CLI calls. Uptime and restart-frequency rows in `../strategy/RELIABILITY_TARGETS.md` moved to `pending-baseline`.
+- **Remaining sliver:** resolved 2026-07-23 (round 2) — per-scenario uptime is served by `actions trends` per-check `uptimePercent` (checks map 1:1 to scenarios/resources); the event-weighted `actions uptime` aggregate was re-purposed as the alarm-channel flood sensor in `../strategy/RELIABILITY_TARGETS.md`.
+- **REPLACES-MANUAL:** resolved — the previously referenced fallback sections (`runtime-health-scanner/RESPONSIBILITIES.md` "Current Gaps & Fallbacks", `TOOLS.md`) no longer exist in the member contracts; the scanner's contract now points at the sensor map instead of raw SQLite.
 
 ### Gap 2: Scenario lifecycle stats
 
-- **Unblocks:** Restart-frequency targets (`../strategy/RELIABILITY_TARGETS.md`), slow-restart trend tier-3 detection, setup-step duration tracking, build-time trends.
+- **Unblocks:** Cold-start latency targets (`../strategy/RELIABILITY_TARGETS.md`), slow-restart trend tier-3 detection, setup-step duration tracking, build-time trends. (Per-scenario uptime, previously folded in here, is served by `actions trends` as of 2026-07-23 — this gap narrows to latency/build/runtime stats.)
 - **Most likely host:** Extend the `vrooli` core CLI (the lifecycle owner).
 - **Shape required:**
   - `vrooli scenario stats --since=<duration> --json` — per-scenario aggregated restart count, total runtime, longest-uptime streak, mean cold-start latency, last-N-restart timestamps
@@ -84,13 +83,10 @@ Each gap lists: stats unblocked, most likely host scenario, shape proposed, down
 - **Downstream effect:** Setup-time target moves to `measured`. Regressions in setup time are detectable.
 - **Priority signal:** activates when a clean-machine-install workflow is part of the deployment story (tier-2 onboarding).
 
-### Gap 7: Heal-success-rate stat
+### Gap 7: Heal-success-rate stat — SHIPPED (confirm on resume)
 
-- **Unblocks:** "Heal success rate" platform target in `../strategy/RELIABILITY_TARGETS.md`.
-- **Most likely host:** Probably already in autoheal's SQLite (`heal_trackers`); needs surfaced via the CLI from Gap 1.
-- **Shape required:** Implicit in `vrooli-autoheal heal-attempts --json` if the field set includes outcome (success / failure / no-action-needed).
-- **Downstream effect:** Heal success rate moves to `measured`.
-- **Priority signal:** activates with Gap 1.
+- **Status:** Surface shipped with Gap 1 — `vrooli-autoheal actions history --json` lists recovery actions. The resume-protocol scan must confirm the field set includes outcome (success / failure / no-action-needed) before flipping the target row to `measured`; until then it is `pending-baseline`.
+- **Unblocked:** "Heal success rate" platform target in `../strategy/RELIABILITY_TARGETS.md`.
 
 ### Gap 8: Host update-risk forecasting
 
@@ -116,6 +112,33 @@ Each gap lists: stats unblocked, most likely host scenario, shape proposed, down
 - **Downstream effect:** runtime-health-scanner can generate a visible operator decision from incident evidence instead of scraping logs or package-manager output.
 - **Remaining gap:** Outcome quality is operator-reported today. Future work can correlate reported outcomes with post-check evidence and incident resolution automatically.
 
+### Gap 10: Check shelving and registry reconciliation
+
+- **Unblocks:** Honest uptime measurement during deliberate stops; the alarm-channel flood target; mechanical enforcement of the sensor-integrity rules (ghost / saturated / shelved) in `../strategy/RELIABILITY_TARGETS.md`.
+- **Most likely host:** `vrooli-autoheal` (owns the check registry).
+- **Shape required:**
+  - `vrooli-autoheal check shelve <check-id> --until <duration|timestamp> --reason <text>` / `check unshelve <check-id>` / `check shelved --json` — shelved checks keep recording but are excluded from uptime and flood aggregates and flagged in `actions trends`. Expiry is mandatory (no permanent suppression); an expired shelf reverts to live alarming.
+  - `vrooli-autoheal check reconcile --json` — diff the check registry against the expected set, **in both directions**: ghost checks (registry entry whose target no longer exists) and unsupervised plant (should-be-supervised member with no check) are the two error-row classes, mirroring `vrooli capacity reconcile`. The expected set is derived at reconcile time — core-set closure via scenario-dependency-analyzer ∪ load-bearing declared capability members (per operating-model rule 6) — never a hardcoded list inside autoheal.
+- **Downstream effect:** The alarm-flood target becomes controllable; the supervised-set coverage target in `../strategy/RELIABILITY_TARGETS.md` moves from manual-diff `estimate` to `measured`; the scanner stops hand-tracking shelves in the runtime lessons artifact; resume-protocol re-baselining starts from a clean channel.
+- **Priority signal:** already fired, twice — the 2026-07-23 flood decomposition (4,624 criticals/24h, ~92% from ghost + saturated checks) fired the ghost direction; the 2026-07-24 supervised-set sweep (~55 scenarios running, ~25 supervised; search-hub, plan-manager, and the `*-health` phase-provider fleet all unchecked) fired the missing-check direction. Top of the sensor queue.
+
+### Gap 11: Capability-availability persistence
+
+- **Unblocks:** The capability availability targets in `../strategy/RELIABILITY_TARGETS.md` (all `pending-telemetry`). Today, capability degradation is handled gracefully at query/run time but leaves no queryable history: search-hub's availability state is an in-memory circuit breaker plus an on-demand status probe; meta-optimization-manager marks projections UNAVAILABLE honestly but records nothing; test-genie's per-phase provider-readiness gate (the model contract — `required_when_applicable` vs `best_effort`, emitting run / run_degraded / skip) exists per run but has no aggregate/history surface. An outage is indistinguishable from missing data after the fact.
+- **Most likely host:** each capability owner itself (extend-before-create; the owner already computes the signal, it just doesn't persist it). No central capability-health scenario — that would recreate the roster this PoR forbids.
+- **Shape required:** each owner exposes a queryable availability/coverage aggregate with history, derived over its currently-declared members — e.g. search-hub provider-coverage % and degraded-member count over time; test-genie phase-runnability rates over the declared catalog; meta-optimization projection-availability history. Exact verbs are the owners' design choice.
+- **Contract note (owner-side, recorded here as a pointer):** `test-genie.json` declarations carry a load-bearing distinction (`policy.providerReadiness`); `search.json` declarations carry per-provider performance targets but no equivalent required/best-effort notion. That distinction is the membership filter the Gap 10 reconcile derivation needs from search-hub — schema work for search-hub to close in its own contract, not for infra-health to compensate for with a list.
+- **Downstream effect:** Capability availability rows move `pending-telemetry` → `pending-baseline` → `measured`; repeated unabsorbed capability degradation becomes escalatable evidence under the operating-model escalation rule.
+- **Priority signal:** partially fired — the 2026-07-24 supervised-set sweep showed the entire capability substrate outside supervision, and no owner can currently answer "how available was this capability last week."
+
+### Gap 12: Resource attribution and growth trends
+
+- **Unblocks:** Burst attribution and storage growth-slope rows in the sensor map. Two related blind spots: (a) when host CPU/RAM saturates for a sustained window (e.g. a comprehensive test suite pinning CPU at 100%), no query names the owning scenario/run — triage is manual; (b) no per-scenario disk/DB growth trend exists, so a database growing anomalously (an optimization finding for its owner) surfaces only when system-level disk pressure alerts.
+- **Most likely host:** system-monitor for burst attribution (it already samples per-process metrics and runs investigations); storage-health and/or cleanup-manager for growth trends. The capacity broker is explicitly **not** the host today — it enforces VRAM only, with CPU/RAM named as its V2 vision (`internal/capacity/types.go`); this gap supervises toward that V2 rather than duplicating the broker.
+- **Shape required:** (a) a query mapping a sustained-saturation window to top owning scenarios/runs with evidence; (b) a per-scenario storage trend query (data dir + DB sizes over time, slope flagged against history). Findings route to the **owning scenario** — growth is the owner's optimization opportunity; cleanup-manager and storage-health are remediation surfaces, not the responsible parties.
+- **Downstream effect:** Burst-attribution and growth-slope sensor cells fill; capacity-broker V2 (CPU/RAM claims) gains the observed-usage evidence it needs for honest admission.
+- **Priority signal:** activates on the first sustained-saturation or disk-growth incident the scanner cannot attribute within one heartbeat using existing surfaces.
+
 ## Update protocol
 
 Entries change when:
@@ -125,4 +148,7 @@ Entries change when:
 
 ## Change log
 
+- `2026-07-24` (round 3) — Cascade completion (operator session, teams paused): Gap 10's `check reconcile` extended to both diff directions (ghost checks + unsupervised plant, expected set derived per operating-model rule 6) with the missing-check priority signal fired by the 2026-07-24 supervised-set sweep; Gap 11 added (capability-availability persistence, hosted by each owner — no central capability-health scenario — plus the `search.json` load-bearing contract note); Gap 12 added (burst attribution via system-monitor + storage growth trends via storage-health/cleanup-manager; capacity broker explicitly not the host until its CPU/RAM V2).
+- `2026-07-23` (round 2) — Sensor-integrity hardening (operator session, teams paused): Gap 1's event-weighted sliver resolved via `actions trends` per-check uptime (Gap 2 narrowed to latency/build stats); Gap 10 added (check shelving with mandatory expiry + `check reconcile` registry diff) with its priority signal already fired by the 2026-07-23 alarm-flood decomposition.
+- `2026-07-23` — Operator-curated re-baseline (operator session, teams paused): Gap 1 marked substantially shipped (`check history`, `actions history|uptime|trends|transitions|timeline`), its event-weighted-vs-per-scenario sliver folded into Gap 2, Gap 7 marked shipped pending outcome-field confirmation, dangling REPLACES-MANUAL pointers resolved. Prioritization rule adopted: build sensors for the targets the team intends to control, in loop-importance order — the sensor map in `../strategy/RELIABILITY_TARGETS.md` (empty sensor cells) is the queue.
 - `2026-04-28` — File created with initial seven gaps grounded in runtime-health-scanner and platform-code-auditor's known fallbacks.

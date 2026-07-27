@@ -64,7 +64,11 @@ Some scenarios primarily improve the platform itself through:
 
 These meta-scenarios are part of the recursive-improvement story of the platform.
 
-## Lifecycle Model
+## Process Management
+
+This section covers running a scenario, not evolving one. For the development
+ladder — which layer of a scenario to change and in what order — use
+`prompt-manager skill read scenario-work-ladder`.
 
 At the operational level, scenarios are managed through:
 

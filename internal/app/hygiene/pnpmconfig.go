@@ -3,6 +3,7 @@ package hygiene
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -376,11 +377,19 @@ func (s Service) checkScenarioPnpm(report *Report) {
 		if _, lerr := os.Stat(lockPath); os.IsNotExist(lerr) {
 			missingLock = append(missingLock, relPathFromRoot(root, filepath.Dir(pkgPath)))
 		}
-		boundaryPath := filepath.Join(filepath.Dir(pkgPath), pnpmWorkspaceFile)
-		if _, berr := os.Stat(boundaryPath); os.IsNotExist(berr) {
-			missingBoundary = append(missingBoundary, relPathFromRoot(root, filepath.Dir(pkgPath)))
+	}
+
+	// The boundary requirement is not ui/-specific: ANY node surface under
+	// scenarios/ that lacks pnpm-workspace.yaml lets a plain pnpm install walk up
+	// and join the root workspace. A tools/ sidecar did exactly that and
+	// materialized a root package.json + pnpm-lock.yaml + node_modules, so this
+	// scan deliberately covers every scenario node surface, not just ui/.
+	for _, surface := range scenarioNodeSurfaces(root) {
+		if _, berr := os.Stat(filepath.Join(surface, pnpmWorkspaceFile)); os.IsNotExist(berr) {
+			missingBoundary = append(missingBoundary, relPathFromRoot(root, surface))
 		}
 	}
+	sort.Strings(missingBoundary)
 
 	passed := len(starViolations) == 0 && len(missingLock) == 0 && len(missingBoundary) == 0
 	severity := SeverityInfo
@@ -393,7 +402,7 @@ func (s Service) checkScenarioPnpm(report *Report) {
 		message = fmt.Sprintf("%d scenario UIs missing a committed pnpm-lock.yaml", len(missingLock))
 	} else if len(missingBoundary) > 0 {
 		severity = SeverityWarning
-		message = fmt.Sprintf("%d scenario UIs missing the pnpm-workspace.yaml boundary file", len(missingBoundary))
+		message = fmt.Sprintf("%d scenario node surfaces missing the pnpm-workspace.yaml boundary file", len(missingBoundary))
 	}
 	report.addCheck("scenario_pnpm", passed, severity, message)
 
@@ -432,17 +441,65 @@ func (s Service) checkScenarioPnpm(report *Report) {
 			Severity:   SeverityWarning,
 			Code:       "scenario_missing_workspace_boundary",
 			Locations:  missingBoundary,
-			Message:    "scenario UI has no pnpm-workspace.yaml boundary file; a plain pnpm install there joins the root workspace",
-			Why:        "pnpm resolves its workspace by walking up to the first pnpm-workspace.yaml; without a local boundary, installs run in root-workspace scope, ignore the scenario lockfile/overrides, and regenerate a stray root lock (react-vite template >= 1.1.0 ships the boundary).",
+			Message:    "scenario node surface has no pnpm-workspace.yaml boundary file; a plain pnpm install there joins the root workspace",
+			Why:        "pnpm resolves its workspace by walking up to the first pnpm-workspace.yaml; without a local boundary, installs run in root-workspace scope, ignore the surface lockfile/overrides, and regenerate a stray root lock (react-vite template >= 1.1.0 ships the boundary). This applies to every scenario node surface -- ui/, tools/, sidecar/, platforms/electron/ -- not just ui/.",
 			Fixability: FixabilityGuided,
 			NextActions: []Action{{
 				Code:       "copy_workspace_boundary",
-				Message:    "Copy templates/scenarios/react-vite/ui/pnpm-workspace.yaml into the scenario ui/ directory.",
-				Command:    "cp templates/scenarios/react-vite/ui/pnpm-workspace.yaml <scenario>/ui/pnpm-workspace.yaml",
+				Message:    "Copy templates/scenarios/react-vite/ui/pnpm-workspace.yaml into the surface directory.",
+				Command:    "cp templates/scenarios/react-vite/ui/pnpm-workspace.yaml <surface>/pnpm-workspace.yaml",
 				Fixability: FixabilityGuided,
 			}},
 		})
 	}
+}
+
+// pnpmSurfaceSkipDirs are directory names never treated as authored node
+// surfaces: installed trees, build output, and coverage/run artifacts. A
+// package.json under any of these is generated or vendored, so requiring a
+// workspace boundary there would be noise.
+var pnpmSurfaceSkipDirs = map[string]struct{}{
+	"node_modules": {}, "dist": {}, "build": {}, "bundle": {},
+	"bin": {}, "coverage": {}, "out": {}, "vendor": {},
+}
+
+// scenarioNodeSurfaces returns every authored node surface under scenarios/ --
+// any directory holding a package.json that is not itself generated or
+// installed output. Used for the workspace-boundary check, which applies to all
+// node surfaces (ui/, tools/, sidecar/, platforms/electron/, ...) rather than
+// only ui/.
+func scenarioNodeSurfaces(root string) []string {
+	scenariosDir := filepath.Join(root, "scenarios")
+	var surfaces []string
+	_ = filepath.WalkDir(scenariosDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil //nolint:nilerr // an unreadable subtree must not fail hygiene
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		name := d.Name()
+		if path != scenariosDir {
+			if _, skip := pnpmSurfaceSkipDirs[name]; skip {
+				return filepath.SkipDir
+			}
+			// Backup/scratch copies of a surface are strays to be removed, not
+			// surfaces to be governed; the tidiness pass owns reporting them.
+			if strings.HasSuffix(name, ".backup") || strings.HasSuffix(name, ".bak") || strings.HasSuffix(name, ".old") {
+				return filepath.SkipDir
+			}
+			// Fixture payloads under a scenario's api/data/ are inert test data.
+			if name == "data" && filepath.Base(filepath.Dir(path)) == "api" {
+				return filepath.SkipDir
+			}
+		}
+		if _, serr := os.Stat(filepath.Join(path, "package.json")); serr == nil {
+			surfaces = append(surfaces, path)
+		}
+		return nil
+	})
+	sort.Strings(surfaces)
+	return surfaces
 }
 
 // healPnpmWorkspace returns the canonical file bytes and whether they differ

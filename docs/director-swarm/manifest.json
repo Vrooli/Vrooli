@@ -56,6 +56,11 @@
           }
         },
         {
+          "path": "OBJECTIVES.md",
+          "docType": "objectives",
+          "required": true
+        },
+        {
           "path": "PORTFOLIO_PHILOSOPHY.md",
           "docType": "portfolio-philosophy",
           "required": true

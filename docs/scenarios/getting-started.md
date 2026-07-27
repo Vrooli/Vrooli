@@ -59,6 +59,12 @@ Finalization removes only the template-declared temporary orientation
 metadata. It does not remove scenario provenance, docs, requirements, or
 implementation files.
 
+Orientation gates cover generation only, and finalization retires them.
+Every change after that point is located with the scenario work ladder
+(`prompt-manager skill read scenario-work-ladder`), which walks the same
+order the gates did — contract, then obligations, then evidence, then
+implementation — against a scenario that already exists.
+
 ## Requirements
 
 If the scenario uses requirement tracking:

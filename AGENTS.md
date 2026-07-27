@@ -53,9 +53,11 @@ What is the user doing?
 ├─ Brainstorming/workshopping a new idea  → prompt-manager skill read idea-workshop
 ├─ Debugging a non-obvious issue          → prompt-manager skill read scientific-debugging
 ├─ Creating an implementation plan        → prompt-manager skill read implementation-plan-authoring
-├─ Building/repurposing a scenario        → prompt-manager skill read ecosystem-fit
+├─ Changing a scenario that already exists → prompt-manager skill read scenario-work-ladder
+├─ Creating a scenario that does not exist yet → prompt-manager skill read ecosystem-fit
 ├─ Deploying/publishing a scenario        → prompt-manager skill read deployment-coordinator
 ├─ Authoring plans/requirements/PRDs/tests/reports → prompt-manager skill read writing-standards
+├─ Auditing the agent system (teams/members/PoRs) → prompt-manager skill read agent-system-audit
 ├─ (add new entries as patterns emerge)
 └─ None of the above                      → proceed normally, no skill needed
 ```

@@ -262,6 +262,58 @@ func TestPnpmConfigWarnsOnMissingScenarioBoundary(t *testing.T) {
 	}
 }
 
+// A non-ui node surface (tools/ sidecar, electron platform, ...) needs the
+// boundary just as much as ui/ does: a real tools/mermaid-lint install without
+// one joined the root workspace and materialized a stray root package.json,
+// pnpm-lock.yaml, and node_modules.
+func TestPnpmConfigWarnsOnMissingBoundaryForNonUISurfaces(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "pnpm-workspace.yaml"), canonicalRootWorkspace(t))
+	// ui/ is fully compliant, so any finding must come from the other surfaces.
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "package.json"), `{"name":"demo-ui"}`)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "pnpm-workspace.yaml"), "packages:\n  - .\n")
+
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "tools", "mermaid-lint", "package.json"), `{"name":"mermaid-lint"}`)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "platforms", "electron", "package.json"), `{"name":"demo-electron"}`)
+
+	report := runPnpmHygiene(t, root, false)
+	codes := findingCodes(report)
+	boundary, ok := codes["scenario_missing_workspace_boundary"]
+	if !ok {
+		t.Fatalf("expected scenario_missing_workspace_boundary finding, got %v", keys(codes))
+	}
+	for _, want := range []string{"scenarios/demo/tools/mermaid-lint", "scenarios/demo/platforms/electron"} {
+		if !containsString(boundary.Locations, want) {
+			t.Fatalf("expected location %s, got %v", want, boundary.Locations)
+		}
+	}
+	if containsString(boundary.Locations, "scenarios/demo/ui") {
+		t.Fatalf("compliant ui/ should not be reported, got %v", boundary.Locations)
+	}
+}
+
+// Generated, installed, and backup trees are not authored surfaces: requiring a
+// boundary inside node_modules/dist/bundle or a ui.backup copy would be noise.
+func TestPnpmConfigIgnoresGeneratedAndBackupSurfaces(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "pnpm-workspace.yaml"), canonicalRootWorkspace(t))
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "package.json"), `{"name":"demo-ui"}`)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "pnpm-workspace.yaml"), "packages:\n  - .\n")
+
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "node_modules", "left-pad", "package.json"), `{"name":"left-pad"}`)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "dist", "package.json"), `{"name":"built"}`)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "bundle", "runtime", "package.json"), `{"name":"bundled"}`)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui.backup", "package.json"), `{"name":"stale-copy"}`)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "api", "data", "fixture", "package.json"), `{"name":"fixture"}`)
+
+	report := runPnpmHygiene(t, root, false)
+	if boundary, ok := findingCodes(report)["scenario_missing_workspace_boundary"]; ok {
+		t.Fatalf("generated/backup trees should not require a boundary, got %v", boundary.Locations)
+	}
+}
+
 func TestPnpmConfigFlagsAndRemovesStrayRootLockfile(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "pnpm-workspace.yaml"), canonicalRootWorkspace(t))

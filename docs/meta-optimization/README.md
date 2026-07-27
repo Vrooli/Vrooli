@@ -1,5 +1,7 @@
 # Meta-Optimization — Plan of Record
 
+> **Loop status:** paused since ~2026-06; recorded in the heartbeat control plane as `paused-manual` on 2026-07-24 (resume via `prompt-manager team heartbeat-control meta-optimization resume`). The first heartbeat after resume follows each member's `HEARTBEAT.md` resume protocol. The experiment lane additionally requires the substrate-validity rule (`skill-optimizer` RESPONSIBILITIES §"Skill Experiments") and the registered `skill-experiment-promotion` decision context, both now in place.
+
 This folder is the **plan-of-record** for friction-side canon owned by the `meta-optimization` team: the friction-report taxonomy, routing rules, and any future shared docs that govern how cross-team friction signal flows into the team. The team's broader self-improvement canon lives in [`path:docs/agent-system/`](../agent-system/) (PRIMITIVES, LAYERS, PROMOTION_LADDER, TEAM_DOCS_PATTERNS, TEAM_MEMBER_ARCHITECTURE, INTAKE_PIPELINE, SKILL_AUTHORING, DEPRECATION_POLICY, REFERENCE_SCENARIOS); this folder is the friction-specific sister to that hub.
 
 Maintained by the `meta-optimization` team. Operator-curated via `meta-self-improvement` decisions (owned by debt-curator).

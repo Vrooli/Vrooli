@@ -26,10 +26,39 @@ Team-level topic-family metadata lives in:
 scenarios/prompt-manager/store/teams/<team>/team.json::topicCatalog
 ```
 
+## Loop kinds
+
+Every member declares `loop_kind`. One question generates the taxonomy and the obligation it carries: **where does this loop keep its memory between heartbeats?**
+
+| Loop kind | Memory lives in | Must declare a ledger |
+|---|---|---|
+| `queue` | the intake's unrouted set — draining an entry is what marks it done | no |
+| `reactive` | the pending-artifact set it reviews, typically pending decisions | no |
+| `sweep` | nowhere by default | **yes** |
+| `generative` | nothing; the loop produces on a cadence over no population | no |
+
+A sweep iterates a standing population that never empties — every skill, every agent, every scenario. Nothing marks a target done, so without memory the member re-picks the head of its priority ladder every heartbeat and never reaches the tail. That is the whole reason the field exists.
+
+`generative` is a positive declaration ("nothing to remember"), not a null. An omitted `loop_kind` means undeclared, which is a different and reportable state.
+
+### Coverage ledger
+
+A sweep's memory is a **coverage ledger**: one topic prefix that the member both writes and reads back. The naming shape is `<subject>-visited/<id>`, registered in [`TOPICS.md`](TOPICS.md) § Topic families. One entry per target, superseded on re-visit — current state, not an event log.
+
+Self-reference is the defining property, not an accident: the writer reads it because the next heartbeat's target selection depends on what the last one reached. This is why a ledger legitimately satisfies `orphan_output` without a peer consumer.
+
+A member may sweep more than one population and carry a ledger per population; `team-agent-optimizer` sweeps teams and agents on one ladder. By convention the subject in each ledger prefix names its population, which is how coverage is attributed per population rather than pooled.
+
+The ladder and the stop condition are **not** structural. A ledger gives the loop memory; the priority ladder that consumes it and the quiet-period rule that lets a completed rotation rest both live in the member's `HEARTBEAT.md` as prose. Validation does not check them, and canon should not pretend it does — a sweep with a ledger and no stop condition still converges more than one without a ledger, but it does not rest.
+
+**A self-read output is not by itself a ledger.** A member re-reading its own durable record for continuity — `outcome-target-record/*`, `vision-walk-record/*` — is a third valid shape. What distinguishes a ledger is purpose: it exists to inform target selection over a population.
+
 ## Schema (canonical)
 
 ```json
 {
+  "loop_kind": "sweep",
+  "population": ["skill", "action"],
   "intake": [
     {
       "prefix": "research-inbox/*",
@@ -156,6 +185,12 @@ Implemented in `path:scenarios/prompt-manager/api/memberflow/validation.go`. Run
 
 | Rule | Smell | Severity | Detection |
 |---|---|---|---|
+| `loop_kind_missing` | Member declares no loop kind | warning | Empty `loop_kind` on a member with any flow declaration. Warning during adoption: the value is a judgment call owned by the member's team, and inferring it fleet-wide would make the declaration layer fiction. Promote to error once every member carries a value. |
+| `loop_kind_invalid` | Loop kind is not a known value | error | Not one of `queue` \| `reactive` \| `sweep` \| `generative`. |
+| `loop_kind_intake_mismatch` | Member drains an intake but is not `queue` | error | `len(intake) > 0` and `loop_kind != queue`. This is what makes the field self-checking against declarations that already exist, so `loop_kind` cannot silently drift from the flow it describes. |
+| `sweep_without_ledger` | A sweep has no coverage memory | error | `loop_kind == sweep` and no output prefix that the same member also reads. Gated behind the declaration, so it cannot fire on an undeclared member. |
+| `ledger_shape_invalid` | Ledger-shaped output nobody reads back | error | An output matching `<subject>-visited/` not covered by its writer's own read declarations. Independent of `loop_kind` so a mis-shaped ledger is caught even before the loop kind is declared. |
+| `sweep_population_missing` | A sweep does not name what it iterates | warning | `loop_kind == sweep` and `population` empty. Never hardens to an error: a population that is not graph-resident (a time window over recent runs) legitimately omits it and is honestly unmeasurable rather than silently counted as covered. |
 | `orphan_output` | Knowledge output prefix has no consumer | warning | For each `destination_kind=knowledge` output: any member declares the prefix on `intake[]`, `required_read[]`, or `evidence_consumed[]`. Non-knowledge sinks (decision, por_file, capability_gap, skill_proposal, backlog) are never orphans. |
 | `orphan_input` | Intake prefix has no producer | error | For each intake: another member's output prefix overlaps, or an `external_producer` claims it, or `source_team == "*"` |
 | `unread_required` | `required_read[]` prefix has no producer | error | For each required_read entry (excluding `source_team == "*"`): some member's `output[]` overlaps, or a writer skill's `skill.json::writes_to[]` overlaps. Member-level `external_producers` is intentionally NOT honored here so the rule surfaces drift between declared read and write prefixes. |
@@ -166,15 +201,55 @@ Implemented in `path:scenarios/prompt-manager/api/memberflow/validation.go`. Run
 | `missing_destination_schema` | `output[].schema` doesn't resolve under any taxonomy | warning | Cross-check against `taxonomy.schemas.<id>` across the registry |
 | `dangling_por_sink` | `destination_kind=por_file` references missing `destination_path` | error | Filesystem stat |
 | `dangling_evidence_decision` | `evidence_consumed[].for_decisions[]` references a decision-context id not declared in any team.json | error | Cross-check against `LoadAllTeamContracts` |
-| `topic_key_prefix_mismatch` | Knowledge entry's `topic` doesn't match any declared prefix on its team | warning | Per-entry cross-check against the team's combined intake/output prefix set |
+| `team_role_member_drift` | `roles.json` and the contract member set disagree | error | Both directions: a role id with no matching `team.json::operatingContract.members` entry, and a member with no role entry. Teams that declare no `roles.json` are skipped — the file is optional, and requiring one from every team is a separate decision. |
+| `topic_key_prefix_mismatch` | Knowledge entry's `topic` doesn't match any declared prefix on its team | warning | Cross-check against the team's combined intake/output prefix set, grouped per topic family (see § Per-defect grouping) |
 | `stalled_drain` | Intake has unrouted entries older than threshold (default 7d) | warning | Cross-check against `team knowledge-list` timestamps |
 | `piling_inbox` | Intake has > N unrouted entries (default 50) | warning | Same query |
+| `member_doc_file_missing` | Member has no `HEARTBEAT.md` / `RESPONSIBILITIES.md` | error / warning | Filesystem stat. Error for `HEARTBEAT.md` — that member runs the generic fallback task. Warning for `RESPONSIBILITIES.md` — the member still receives its full generated contract. |
+| `member_doc_section_missing` | Required canonical section absent | error | Level-two heading scan, fenced blocks skipped. Required set is `TEAM_MEMBER_ARCHITECTURE.md` §"Canonical section vocabulary". |
+| `member_doc_section_alias` | Retired heading name in use | error | Heading matches the retired-alias table. The alias satisfies its canonical slot, so a rename reports once rather than as both an alias and a missing section. |
+| `member_doc_section_duplicate` | One canonical section declared twice | error | Counts canonical headings plus aliases mapped onto them, so a file mid-rename reports the rename *and* the resulting duplicate. |
+| `member_doc_section_recommended` | Recommended section absent | warning | Never hardens to an error: the content is team judgment, and an error would push a validator into authoring prose. Closes through the owning team's decision context. |
 
 Errors fail `prompt-manager graph topics` with exit code 1. Warnings do not affect exit code.
+
+The `member_doc_*` family checks the two per-member Markdown files that reach a running agent verbatim. The vocabulary they enforce is canon in `TEAM_MEMBER_ARCHITECTURE.md` §"Member document contract"; the tables in `path:scenarios/prompt-manager/api/memberflow/member_doc.go` are its machine copy. Fenced-block skipping is load-bearing rather than defensive — every `HEARTBEAT.md` embeds a handoff template whose first line is `## HANDOFF`, and a naive scan reports it as a section on every member.
+
+### Per-defect grouping
+
+Rules that scan `knowledge.jsonl` — `actual_writer_undeclared` and `topic_key_prefix_mismatch` — report **one finding per (member, topic family)**, not one per entry.
+
+An undeclared prefix fires on every entry the member ever wrote under it, so a per-entry count measures how long the team has been running, not how many declarations need fixing. One missing `output[]` line produced 25 errors; the repair was one line. Reported that way, a sweep reads as a large repair job and the operator cannot see how many distinct declarations actually need attention.
+
+The collapsed finding carries the family prefix, the occurrence count, and a sample entry id, so the evidence trail survives. The family is derived by truncating the observed topic at its first variable segment — an ISO date, a generated id, or a bare number — which yields the prefix an operator would declare:
+
+| Observed topic | Family |
+|---|---|
+| `initiative-portfolio-record/2026-05-14` | `initiative-portfolio-record/*` |
+| `challenge-resolution-record/dec-1778803361775636366` | `challenge-resolution-record/*` |
+| `friction-report/recurring-workaround/2026-06-15/toolchain-fallback` | `friction-report/recurring-workaround/*` |
+| `contrarian-scan-2026-06-14` | `contrarian-scan-*` |
+| `quality-audit/audio-tools/api-steer` | unchanged — no variable segment |
+
+The fourth row is the case that shaped the rule. A member that builds its topic key by string concatenation instead of path join produces a malformed family, and collapsing it to `contrarian-scan-*` makes a month of the same typo read as one defect — while keeping it visibly distinct from the correctly-formed `contrarian-scan/*` family, because a malformed key and a missing declaration are two different problems with two different fixes.
+
+Rules whose per-entry shape is deliberate keep it. The external-write threshold exists to name exactly which entries crossed the cap, so it is not grouped.
 
 `unread_required` is the producer-side mirror of `orphan_output`: when both fire on a related prefix pair (declared output `X/*` with no consumer, declared required_read `Y/*` with no producer, where X ≠ Y), the operator's reconciliation is a rename — pick one canonical prefix and align both sides. New declarations should land already-aligned; reconciling pre-existing drift is the explicit job of the topic-validation refactor's reconciliation phase.
 
 The rule consults writer-skill `writes_to[]` as a producer source, not only member `output[]`. A required_read prefix that overlaps a writer skill's `writes_to[]` has a documented producer; demanding a member-side `output[]` in addition would force false declarations (e.g., friction-curator does not write `friction-inbox/*` — the `report-friction` skill does).
+
+## Findings reach the member that caused them
+
+Validation output has two audiences with different needs, and for a long time it served only one. `prompt-manager graph topics` is an operator sweep: someone runs it, reads everything, and decides. The member whose declarations are wrong was never told, so a defect could repeat on every heartbeat indefinitely — one member wrote its snapshot topic with a hyphen where the prefix needed a path separator on twenty consecutive runs, every one of them validated, none of them reported to the agent.
+
+The `# Contract Findings` heartbeat prompt section closes that loop (`path:scenarios/prompt-manager/api/heartbeat/contract_findings.go`). Three rules govern it:
+
+1. **Attribution decides inclusion, not an allow-list.** A finding appears in a member's prompt when `Finding.Member` names that member. Any rule that attributes to a member reaches that member automatically; adding a rule does not mean editing the prompt builder. Findings with no member attribution belong to the team or the corpus and are not routed to anyone — choosing a recipient would be a guess.
+2. **Advisory findings are withheld.** See `PROSE_SCAN_TARGETS.md` §"Advisory findings". A heuristic that cannot separate a real defect from a lookalike is review material, not an instruction.
+3. **A clean member sees nothing.** The section is omitted entirely when there are no findings, so the loop costs no prompt budget on a healthy fleet. An unwired provider also renders nothing rather than claiming a clean contract it never checked — an unwired builder and a clean member must not look alike to a reader of the prompt.
+
+The section states the routes a member can actually take: correct its own writes this run, propose the declaration change as a decision in an owned context, or report it as friction. Members do not edit `topics.json` or their own member contract directly.
 
 ## Prefix-match semantics
 

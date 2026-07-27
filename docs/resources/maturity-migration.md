@@ -52,6 +52,35 @@ deployment contract. A resource may be M5 while honestly unsupported for a
 given target; M5 means maximal feasible, evidenced support, not universal OS
 support.
 
+## Runtime Honesty Requirements
+
+M4/M5 additionally require that the platform's picture of the resource matches
+reality. Most hard-to-diagnose reliability failures come from a resource that
+reports better state than it has, not from lifecycle mechanics:
+
+- **Pinned runtime.** Every pulled artifact — binary or container image — is
+  an immutable reference. See the Pinned Runtime Principle in
+  [deployment-contract.md](deployment-contract.md). An engine that can change
+  on the next pull is an undeclared regression source.
+- **Readiness health semantics.** The manifest health check is a readiness
+  probe: it must fail until the resource can serve its primary capability,
+  including model/data load. A liveness-only probe (process up, model absent)
+  breaks orchestration ordering and defeats consumer auto-recovery, which
+  retries against a "healthy" resource that cannot serve. Supplementary checks
+  may declare `kind: liveness` explicitly.
+- **Declared degradation.** A resource with more than one operating mode
+  (GPU/CPU, model sizes, engine fallbacks) must expose the active mode on an
+  info/status surface and must surface running below its configured mode as a
+  visible status. Degraded is a state, never a secret; silent mode switches
+  have historically produced weeks-long invisible failures.
+- **Timeout honesty.** `startup_timeout_seconds` budgets the worst normal
+  case, including first-run downloads. The human-readable estimate can
+  distinguish warm from first-run; the enforced timeout must not kill a
+  genuinely progressing first start.
+- **Capacity visibility.** A resource that declares a `gpu` block also
+  declares a `capacity` block (or records why the broker must not manage it),
+  so co-tenant VRAM planning sees every claimant.
+
 ## Assessment Dimensions
 
 Score each dimension from 0 to 2. The score supports fleet ordering; the
@@ -184,7 +213,12 @@ Mark a resource M4 or M5 only when all applicable statements are true:
 - a fresh installation and configuration work through the native surface
 - existing configuration/data are preserved or explicitly migrated
 - lifecycle, logs, status, health, and diagnostics are Go-native
+- runtime references are pinned and health checks have readiness semantics
+  (see Runtime Honesty Requirements)
 - all claimed resource capabilities have a command/API and focused tests
+- capability documentation (endpoints, commands) describes only surfaces that
+  exist and are exercised by the resource's tests; stale contract fiction
+  fails the gate
 - no normal path requires Bash or sources a legacy shell library
 - runtime integration tests validate the declared driver/runtime
 - at least one consuming scenario smoke test passes when consumers exist

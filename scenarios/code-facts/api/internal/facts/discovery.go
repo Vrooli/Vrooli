@@ -24,6 +24,7 @@ func discoverSurfaces(target *factsv1.TargetContext) []*factsv1.Surface {
 	surfaces := []*factsv1.Surface{
 		scenarioSurface(root, "api", factsv1.SurfaceKind_SURFACE_KIND_API),
 		scenarioSurface(root, "cli", factsv1.SurfaceKind_SURFACE_KIND_CLI),
+		scenarioSurface(root, "runtime", factsv1.SurfaceKind_SURFACE_KIND_RUNTIME),
 		scenarioSurface(root, "ui", factsv1.SurfaceKind_SURFACE_KIND_UI),
 	}
 	for _, name := range []string{"sidecar", "sidecars", "workers", "jobs"} {

@@ -90,30 +90,41 @@ Read values back without an argument:
 business-health configure api_base
 ```
 
-## Scenario commands (planned surface)
+## Scenario commands
 
 Business Health's product commands render through one of the output
 contracts below and mirror the Connect endpoints in
 [`api-endpoints.md`](api-endpoints.md). They are being built phase by
-phase; only the built-in `status` and `configure` commands ship today.
-Document each command here as it lands, one row/section per command.
+phase. Move a row from Planned to Shipped as it lands, and document it
+below with one row/section per command.
 
-Planned commands:
+Shipped:
 
 | Command | Purpose |
 |---|---|
 | `business-health validate scenario <target>` | Validate a scenario's `PRD.md` + `requirements/` against the contract |
-| `business-health report` | Aggregate validation, drift, and traceability into a report |
-| `business-health lint-prd` | Check `PRD.md` structure and required sections |
 | `business-health drift` | Detect divergence between requirements and implementation |
-| `business-health phase` | Show or advance the scenario's business phase |
-| `business-health init` | Scaffold a missing `PRD.md` / `requirements/` skeleton |
 | `business-health manual-log` | Append a manual progress or evidence entry |
 | `business-health wizard` | Guided authoring flow for the business contract |
 | `business-health fix` | Apply deterministic remediation for findings |
 | `business-health fleet` | Roll validation up across every scenario |
 | `business-health matrix` | Render the requirements-to-evidence traceability matrix |
-| `business-health search index status` / `rebuild` | Inspect or rebuild the contract search index |
+| `business-health search` / `search index status` / `rebuild` | Search the fleet-wide intent corpus; inspect or rebuild its index |
+
+Planned:
+
+| Command | Purpose |
+|---|---|
+| `business-health report` | Aggregate validation, drift, and traceability into a report |
+| `business-health lint-prd` | Check `PRD.md` structure and required sections |
+| `business-health phase` | Show or advance the scenario's business phase |
+| `business-health init` | Scaffold a missing `PRD.md` / `requirements/` skeleton |
+
+`validate scenario` is the W1 gate of the scenario work ladder
+(`prompt-manager skill read scenario-work-ladder`). `phase` is that
+ladder's compression target: it is the command that would compute the W0
+rung — whether a scenario's contract still agrees with its approved goal —
+which is judgement-driven prose until it ships.
 
 ## Output contracts
 

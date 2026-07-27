@@ -10,6 +10,7 @@ Use this README first, then choose the module that matches the work:
 
 | Question | Start with |
 |---|---|
+| What is this system for, and which team serves which intent? | [`strategy/OBJECTIVES.md`](strategy/OBJECTIVES.md) |
 | How does the director-swarm team operate end to end? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
 | Which work should matter most, and why? | [`strategy/PORTFOLIO_PHILOSOPHY.md`](strategy/PORTFOLIO_PHILOSOPHY.md) |
 | What sequence of goals are we steering toward? | [`strategy/ROADMAP.md`](strategy/ROADMAP.md) |
@@ -22,7 +23,7 @@ Use this README first, then choose the module that matches the work:
 | Folder | Purpose |
 |---|---|
 | [`operating/`](operating/README.md) | Team operating contract and validation commands. |
-| [`strategy/`](strategy/README.md) | Portfolio philosophy and thematic roadmap canon. |
+| [`strategy/`](strategy/README.md) | Operator objectives, portfolio philosophy, and thematic roadmap canon. |
 | [`evidence/`](evidence/README.md) | Outcome framing and Command Center gap-closure evidence. |
 | [`governance/`](governance/editing.md) | Editing authority, adoption validation, and changelog. |
 
@@ -42,6 +43,7 @@ Decision-context detail lives in [`governance/editing.md`](governance/editing.md
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) - canonical technical reference for how Vrooli works.
 - [`../monetization/`](../monetization/README.md) - monetization strategy and revenue truth consumed by director-swarm.
 - [`../meta-optimization/`](../meta-optimization/README.md) - self-improvement loop that feeds director-level capability gaps.
+- [`../infra-health/`](../infra-health/README.md) - platform-reliability loop whose findings reach the walk at Phase 5.7; director-swarm may raise `capability-gap` decisions into infra-health.
 
 ## Future PoR work
 

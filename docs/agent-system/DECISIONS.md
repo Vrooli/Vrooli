@@ -58,6 +58,16 @@ proposed -> accepted -> executed -> superseded -> stale
 
 A team's `operatingContract.governance.supersession.requiredBeforeNewDecision` enforces that two open decisions in the same context cannot exist at once. If a new proposal arrives while an open decision exists, the old one must be superseded or rejected first.
 
+### Operator legibility (the proposed-state contract)
+
+A decision in `proposed` is written for a reviewer who was not inside the analysis. Whatever evidence structure the owning team's operating model requires, the decision text itself must satisfy:
+
+1. **Plain summary first.** The first 2–3 sentences, in plain prose, answer: what am I being asked to approve, why now, and what happens if I accept vs. reject. Evidence blocks, metrics, and protocol detail come after — never instead.
+2. **Terms defined at first use.** Any metric, lane, or term of art carries a one-clause meaning the first time it appears (e.g. "P(beats control)=0.97 — the probability the variant is genuinely better, not luck"). If the reviewer must open another document to parse the sentence, the sentence is not done.
+3. **Rationale stays prose.** Controlled language (STE-100 and kin) governs procedural artifacts, not rationale — tradeoffs, risks, and confidence live in normal explanatory prose (see the `writing-standards` skill's placement map, which routes decision text here).
+
+A decision that fails this contract is challengeable on legibility alone: an illegible decision cannot be meaningfully accepted, so it is not yet a decision.
+
 ### Contrarian review sidecar
 
 Team-local contrarian review runs while a decision is pending. It does not add new decision states; it attaches a sidecar lifecycle through `challenge-report/<decision-id>` and `challenge-resolution-record/<decision-id>` knowledge topics. The decision remains pending until the operator or approving team accepts, rejects, defers, or supersedes it.
@@ -202,7 +212,7 @@ A team that heartbeats hourly is doing fast-moving work; its decisions go stale 
 
 ### Owner: stale-decision-handler
 
-Each team designates a member as `stale-decision-handler` in its operating contract. The contrarian is a common default, but not required — a team without a contrarian (e.g., infra-health) can designate any member with audit responsibilities. The handler reviews stale decisions each heartbeat and routes each to one of:
+Each team designates a member as `stale-decision-handler` in its operating contract. The contrarian is a common default, but not required — a team without a contrarian (e.g., director-swarm) can designate any member with audit responsibilities. The handler reviews stale decisions each heartbeat and routes each to one of:
 
 - `supersede` — file a replacement decision that supersedes the stale one
 - `reject` — close it; no longer applicable

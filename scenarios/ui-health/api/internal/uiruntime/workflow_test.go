@@ -7,7 +7,7 @@ import (
 
 func TestArtifactCaptureScriptCollectsOnlyDeclaredExperienceSurfaces(t *testing.T) {
 	script := artifactCaptureScript()
-	for _, fragment := range []string{"[data-experience-surface]", "data-experience-state", "experienceSurfaces: experienceSurfaces(doc)"} {
+	for _, fragment := range []string{"[data-experience-surface]", "data-experience-state", "experienceSurfaces: experienceSurfaces(doc)", "Math.max(root.scrollHeight, body.scrollHeight) > window.innerHeight + 1"} {
 		if !strings.Contains(script, fragment) {
 			t.Fatalf("artifact capture script missing %q", fragment)
 		}

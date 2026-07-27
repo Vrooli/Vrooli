@@ -41,6 +41,47 @@ vrooli resource restart "<name>"
 - expose target limitations, host requirements, and fallbacks before scenario
   deployment/runtime attempts the resource
 
+## Health Checks Are Readiness Probes
+
+The manifest `health_checks` entries are what orchestration ordering, status,
+and consumer auto-recovery believe. They must therefore mean "able to serve
+the primary capability" — a service whose model has not loaded, whose first
+request would block on a large download, or whose admission path is closed is
+not healthy, even if its process answers a liveness endpoint.
+
+Declare semantics explicitly with the `kind` field (`readiness` or
+`liveness`). Manifest-level checks are treated as readiness by default; point
+them at a real readiness endpoint (for example `/ready`, not `/health`) when
+the service distinguishes the two.
+
+## Declared Degradation
+
+A resource that can run in more than one mode (GPU/CPU device, model size,
+engine fallback) must:
+
+- expose the active mode on an info/status surface an operator and a consumer
+  can query
+- report running below its configured mode as visible degraded status, not as
+  silent fallback
+
+Silent mode switches are the most expensive failure class in fleet history:
+they keep health green while quality or correctness quietly collapses.
+
+## GPU and Capacity
+
+A `gpu` block without a `capacity` block hides the resource from the capacity
+broker's VRAM planning. Declare both, or record the deliberate decision to
+keep the broker out. The fleet lint in
+`internal/resources/manifest/runtime_pinning_realmanifest_test.go` enforces
+this with an explicit exception list.
+
+## Startup Timeouts
+
+`orchestration.startup_timeout_seconds` must budget the worst normal case,
+including first-run model/image downloads. Use `startup_time_estimate` to
+describe the warm-start experience; never tune the enforced timeout to the
+warm case, or the orchestrator will kill healthy first starts.
+
 ## Related
 
 - [architecture.md](architecture.md)

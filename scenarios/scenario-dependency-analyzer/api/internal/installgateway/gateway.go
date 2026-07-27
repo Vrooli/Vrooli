@@ -50,12 +50,12 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 }
 
 // allowedSurfaces is the closed set of installable top-level scenario surfaces.
-// Tools packages are addressed as tools/<package>; this keeps governed installs
-// scoped to one explicit helper package instead of treating tools/ as a package.
-var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}}
+// playwright-driver is a lifecycle-managed production sidecar, while tools
+// packages are addressed as tools/<package> to keep helper installs scoped.
+var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}, "playwright-driver": {}}
 
 // Resolve maps a request to a Resolution. repoRoot is the Vrooli repo root;
-// surface is ui/api/cli or tools/<package>. It validates the surface exists and that the ecosystem
+// surface is ui/api/cli/playwright-driver or tools/<package>. It validates the surface exists and that the ecosystem
 // matches the surface's detected package manager, and builds the install argv.
 func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string) (Resolution, error) {
 	surface, err := normalizedSurface(surface)
@@ -92,7 +92,7 @@ func normalizedSurface(surface string) (string, error) {
 	if len(parts) == 2 && parts[0] == "tools" && parts[1] != "" && parts[1] != "." && parts[1] != ".." && !strings.Contains(parts[1], `\\`) {
 		return surface, nil
 	}
-	return "", fmt.Errorf("surface %q is not ui/api/cli or tools/<package>", surface)
+	return "", fmt.Errorf("surface %q is not ui/api/cli/playwright-driver or tools/<package>", surface)
 }
 
 // planForEcosystem builds the package manager, manifest path, and install argv

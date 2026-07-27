@@ -31,7 +31,7 @@ Use this shape for canonical team operating models:
 |---|---|---|
 | `Mission` | Names the team mission and what the team exists to make possible. | Required for canonical contract operating models. |
 | `Scope` | Names what the team owns and what it explicitly does not own. | Required for canonical contract operating models. |
-| `Operating Loops` | Describes the team's lifecycle in plain language: how signal enters, moves through members, becomes decisions or outputs, and feeds learning. | Required for canonical contract operating models. |
+| `Operating Loops` | Describes the team's lifecycle in plain language: how signal enters, moves through members, becomes decisions or outputs, and feeds learning. Carries the per-member loop-kind projection (`TOPICS_SCHEMA.md` §"Loop kinds") — which members are queue-, reactive-, sweep-, or generative-driven, and which coverage ledger each sweep declares. | Required for canonical contract operating models. The loop-kind sub-table is a projection of runtime `topics.json`; it is not separately enforced, and undeclared members are marked `pending-declaration` rather than guessed. |
 | `Operating Graph` | Typed Mermaid contract showing members, topics, decisions, external producers, cross-team outputs, POR outputs, and process/future placeholders. | Enforced for `contract` graphs. |
 | `Topic Catalog` | Human-readable projection of topic families, status, owner/writer, readers, and purpose. | Enforced against graph nodes, graph/runtime relationships, and `team.json::topicCatalog`. |
 | `Decisions` | Human-readable projection of decision contexts, owners, purpose, expected evidence, and accepted effect. | Enforced for canonical operating models: table shape, graph/table parity, owner edges, required evidence/effect fields, and concrete accepted-effect surfaces. |
@@ -147,7 +147,7 @@ Team-specific actor groups and aliases may also be declared in metadata:
 
 Actor aliases are graph-local. The docs-table parser automatically treats actor node labels and values as aliases for `member:`, `external:`, and `team:` graph nodes. For example, this graph node makes table text such as `Brand Manager` and `brand-manager` resolve to `member:brand-manager`:
 
-```mermaid
+```text
 %% @node BM member:brand-manager
 BM[Brand Manager]
 ```
@@ -213,14 +213,14 @@ Shape conventions are validated for `checkable` and `contract` graphs. A mismatc
 
 Prefer invisible typed annotations so rendered diagrams stay readable:
 
-```mermaid
+```text
 %% @node R member:researcher
 R[Researcher]
 ```
 
 Inline typed labels are also supported for compact diagrams:
 
-```mermaid
+```text
 R["member:researcher<br/>Researcher"]
 ```
 
@@ -265,6 +265,7 @@ In the first implementation, edge meaning is inferred from typed node kinds and 
 | `decision -> member` | The member declares `decisions_consumed[]` or evidence for that decision. |
 | `member -> por` | The member declares a `por_file` output to that path. |
 | `topic -> team` | A member output declares the topic with `destination_team`. |
+| `team -> topic` | A peer team writes a universal intake topic through a tagged writer skill whose `writes_to[]` prefix overlaps that intake. |
 | `process` / `future` edges | Allowed for readability; they do not satisfy runtime completeness. |
 
 The graph intentionally treats `topic -> member` as a broad read edge. The exact read subtype remains in `topics.json`:
@@ -294,6 +295,7 @@ Diff normalizes Mermaid edges and runtime config into semantic relationships bef
 | `external_producer` | `external -> member` | `external_producers[]` |
 | `external_producer_intake` | `external -> topic` | `external_producers[]` plus matching `intake[]` |
 | `cross_team_output` | `topic -> team` | `output[].destination_team` |
+| `universal_source_write` | `team -> topic` | `intake.source_team: "*"`, matching `external_producers[]`, and the writer skill's `writes_to[]` |
 
 Topic matching uses the same prefix overlap semantics as topic validation, so `campaign-draft/*` matches a more specific compatible prefix.
 
@@ -364,6 +366,19 @@ Feedback, gaps, and adoption sections are parsed as structured contract surfaces
 
 The current-gap section is not a backlog. It records contract-relevant gaps that explain why a surface is future, transitional, explicitly terminal, or intentionally not modeled yet.
 
+**No write-only surfaces.** Every surface a team produces — topic, handoff section, output row — must name the consumer that reads it and the trigger that makes that read happen, or carry an explicit accepted disposition in `## Current Implementation Gaps`. A surface written on every heartbeat that nothing reads is not coverage, it is entropy: the work of producing it recurs forever while the loop it was meant to close stays open. When a validator warning marks an unconsumed output, the choices are exactly three — wire a reader, retire the surface, or record the acceptance with its reason. Leaving the warning unexplained is not one of them.
+
+**State belongs to scenarios; prose holds judgment.** Team plan-of-record content is one of four classes, and each has its own drift rule:
+
+1. **Judgment frames** — philosophies, ranking criteria, charters. Prose forever; they change by decision, not by drift. This is the data-side analog of the retention criteria in `docs/agent-system/PROMOTION_LADDER.md`.
+2. **Checked contracts** — the operating-model tables. The doc is a readable projection of machine truth (`team.json`, `topics.json`, the graph) and the validator enforces the projection.
+3. **Dated observations** — copied live values made honest by an observed date (e.g., a sensor map's "Observed YYYY-MM-DD" column). The date converts silent drift into visible staleness.
+4. **State copies and incubating data** — the drift factory, governed by the read-time rule below.
+
+The read-time rule: **if a scenario can answer it at read time, cite the query — never copy the answer.** Use a typed reference (`docs/reference/machine-readable-references.md`) or the exact command; a copied answer is drift-by-construction. Data with no owning scenario yet may live in the PoR, but only marked as **incubating** with a named promotion target (the scenario that should own it, or the `capability-gap` that would create one). This is the data-side sibling of PROMOTION_LADDER's "stability unlocks compression": ownership unlocks deletion — the day a scenario can serve the data, the doc compresses to a pointer plus whatever judgment remains.
+
+Meta-optimization's team/agent audits treat violations as a named defect class (**state-in-prose**): doc-held data whose owning scenario already exists routes to promotion work; incubating data without a named target routes to a marker fix or a `capability-gap`. The measurable entropy of a PoR is not its size — judgment frames legitimately persist — but its count of dangling typed references, undated state copies, and incubating data without a target.
+
 Topic Catalog statuses are structured even though the table stays human-readable:
 
 | Status | Canonical status | Required topic token | Meaning |
@@ -429,7 +444,8 @@ Current rules:
 | `graph_declared_decision_consumed_missing` | error | Live decision consumption in `topics.json` is missing from a contract graph. |
 | `graph_declared_capability_gap_missing` | warning | Member capability-gap routing is missing from a contract graph. |
 | `graph_declared_external_producer_missing` | warning | Member external producer declaration is missing from a contract graph. |
-| `graph_declared_cross_team_output_missing` | warning | Cross-team output destination is missing from a contract graph. |
+| `graph_declared_cross_team_output_missing` | error | Cross-team output destination is missing from a contract graph. |
+| `graph_declared_universal_source_write_missing` | error | A peer team's declared universal-source write is missing from a contract graph. |
 | `graph_topic_catalog_missing` | error | Contract graph source does not include a scoped `## Topic Catalog` table. |
 | `graph_topic_catalog_invalid_topic` | error | Topic Catalog row does not use a parseable `topic:` token. |
 | `graph_topic_catalog_drift` | error | Topic Catalog rows and graph topic nodes differ. |

@@ -85,13 +85,18 @@ Every skill that effectively writes is tagged `writer-skill` and carries a `writ
 
 ### Domain documentation
 
-Path: `path:docs/<domain>/**/*.md` (e.g. `path:docs/agent-system/`, `path:docs/marketing/`, `path:docs/monetization/`)
+Path: `path:docs/<domain>/**/*.md`, for **declaration-bearing domains only**.
+
+A domain is declaration-bearing when it is a team plan of record — its `manifest.json` declares the `team-plan-of-record` contract — or when it is the agent-system canon, which defines the topic vocabulary itself. The scanner tests the manifest; it does not carry a hardcoded domain list.
 
 | Inclusion rule | Owner | Notes |
 |---|---|---|
-| All `.md` files under `docs/` | `docs:<domain>` (first path segment after `docs/`) | Topic references must resolve to **some** declaration somewhere in the system. Cross-team references are permitted (these are operator-facing PoR docs). |
-| `path:docs/agent-system/` canon docs (this file, RUNTIME_ATTRIBUTION.md, TOPICS.md, TOPICS_SCHEMA.md, INTAKE_PIPELINE.md, PRIMITIVES.md, README.md) | `docs:agent-system` | These docs **describe** the topic system, so they reference example prefixes pedagogically. The scanner respects fenced code blocks (see § Code-block exclusion); examples inside ` ```jsonc ` and similar fences are ignored. Backticked references in body prose still get checked but only at warning severity. |
+| `.md` files under a domain whose `manifest.json` declares `contract.kind: team-plan-of-record` | `docs:<domain>` (first path segment after `docs/`) | Topic references must resolve to **some** declaration somewhere in the system. Cross-team references are permitted (these are operator-facing PoR docs). |
+| `path:docs/agent-system/` canon docs | `docs:agent-system` | These docs **describe** the topic system, so they reference example prefixes pedagogically. The scanner respects fenced code blocks (see § Code-block exclusion); examples inside ` ```jsonc ` and similar fences are ignored. Backticked references in body prose still get checked but only at warning severity. Included by name because the folder carries no plan-of-record manifest yet; the special case retires when it does. |
+| Any other `docs/<domain>/` — implementation plans, reference material, concept essays | excluded | Prose *about* the system, not prose owned by it. A topic prefix named in an implementation plan is descriptive: there is no declaration it is supposed to match, and no owner to route a finding to. |
 | `path:docs/agent-system/drafts/` | excluded | Draft material; not authority. |
+
+**Why the corpus is narrow.** Scanning all of `docs/` made most of the corpus non-declaration-bearing, so `prose_topic_leak`'s warning count measured how much documentation existed rather than how much had drifted. A deadband over that count could only ever be set to whatever the total happened to be, which meant the sensor reported in-band while the defect it was built to catch stood unaddressed. Narrowing the corpus to surfaces with an owner and a declaration to check against is what makes a real deadband reachable. See `FRAMEWORK_HEALTH.md` §"Sensor map".
 
 ---
 
@@ -201,6 +206,19 @@ This is the matrix the scanner consumes when joining a detected reference back t
 
 `cli-knowledge-*` patterns fire at **error** severity; `marked-topic-ref` and `inferred-backtick-topic-ref` fire at **warning**. The split exists because CLI references are executable instructions, while inline topic references are documentation references. Inferred backtick refs also have a higher false-positive risk because backticks are used for file paths, code symbols, and slashed identifiers that happen to look like topic prefixes. `prompt-manager graph topics` exits non-zero on any new `cli-knowledge-*` finding; CI uses this as a regression gate. Inferred backtick refs are a perpetual safety net rather than a temporary migration rule.
 
+### Advisory findings
+
+Severity says how bad a finding is if real. It does not say how likely the finding is to be real, and those are different questions once a finding is shown to an agent rather than to an operator.
+
+`inferred-backtick-topic-ref` is marked **advisory** (`proseRegex.Advisory`, surfaced as `Finding.Advisory`). Its regex matches any backticked lowercase slash-separated string, so it also matches paths and package references — `docs/configuration/host`, `api-core/storage` — that were never topic prefixes. An operator dismisses those in seconds during a sweep. An agent cannot: the finding arrives as an instruction, and acting on it means proposing a correction to a declaration that was never wrong.
+
+The rule therefore is:
+
+- **Advisory findings are reported** by `prompt-manager graph topics` and count toward the prose-coherence sensor. They are review material.
+- **Advisory findings are withheld** from surfaces that ask an agent to act — currently the `# Contract Findings` heartbeat prompt section, which filters on the flag rather than on rule name so a future heuristic opts in the same way.
+
+Marking a pattern advisory is not a substitute for making it precise. It is the honest interim state for a matcher whose precision is known to be low, and the prose-coherence deadband stays at zero so the imprecision remains visible as work rather than being absorbed into a tolerated baseline.
+
 ### Placeholder-segment normalization
 
 Captured prefixes containing `<...>` segments (the parameterized form agents use in TOOLS.md and HEARTBEAT.md to document a CLI invocation shape, e.g., `friction-report/<scope>/<date>/<slug>`) are normalized at join time: the first `<...>`-segment and everything after it collapse into a trailing `/*` wildcard. Without this, `friction-report/<scope>/<date>/<slug>` would not overlap a declared `friction-report/toolchain/*` because `Overlap` (in `schema.go`) treats `<scope>` literally.
@@ -250,23 +268,19 @@ The owner string appears verbatim in the `Finding.OwnerKey` field. CI summary sc
 
 ---
 
-## Inventory snapshot
+## Corpus size
 
-Captured against the live store — this is the size the scanner is built for, not a hard cap.
+The scanner has no hard cap; it walks whatever the target rules above select. Counts are not recorded here — they change every time a member, agent, or skill is added, and a copied number is drift by construction (`OPERATING_GRAPHS.md` §"State belongs to scenarios"). Cite the query:
 
-| Surface | Count |
+| Question | Query |
 |---|---|
-| Teams | 6 (`director-swarm`, `infra-health`, `marketing-crew`, `meta-optimization`, `monetization`, `scenario-qa`) |
-| Members | 29 |
-| Per-member files scanned (RESPONSIBILITIES.md + HEARTBEAT.md) | 58 |
-| Per-team shared files scanned | 18 (TEAM.md ×6 + meta-optimization audits ×9 + infra-health snapshots ×3) |
-| Agent identity templates (SOUL.md + AGENTS.md + TOOLS.md per agent) | 28 agents × 3 files = 84 |
-| Skills total | 144 |
-| Writer-skill `SKILL.md` (scanned with `writes_to[]` consultation) | 3 (`report-bug`, `report-friction`, `morning-vision-walk`) |
-| Classifier / generic skill `SKILL.md` (scanned with strict no-topic rule) | 141 |
-| `path:docs/<domain>/**/*.md` files | varies; `path:docs/agent-system/` alone holds the bulk of the canon corpus |
+| How many surfaces does the scanner walk, and of which kinds? | `prompt-manager graph topics --json` — every `prose_topic_leak` finding carries the owner key of the surface it came from |
+| Which teams and members exist? | `prompt-manager team list`, `prompt-manager member list` |
+| Which agents carry identity templates? | `prompt-manager agent list` |
+| How many skills, and which are writer-skills? | `prompt-manager skill list`; writer-skills are the ones tagged `writer-skill` |
+| Which docs domains are declaration-bearing? | the domains with a `team-plan-of-record` `manifest.json`, plus `docs/agent-system/` |
 
-The scanner's runtime is well under one second on this corpus; budget concerns belong to a later workshop, not this one.
+Scanner runtime is well under a second at present scale; budget concerns belong to a later workshop, not this one.
 
 ---
 

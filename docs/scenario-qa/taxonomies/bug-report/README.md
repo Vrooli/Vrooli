@@ -54,7 +54,7 @@ The investigator may overrule severity based on actual scope of impact discovere
 |-------------------------|-----------------------------------------------------------------------------------------------------------------|
 | `drop`                  | Cannot reproduce + no clear scope; weak one-off. The investigator writes a short bug-investigation entry explaining the drop and deletes the bug-inbox entry. |
 | `observe`               | Confirmed bug; findings recorded in `bug-investigation-report/<slug>` but no fix this heartbeat (deprecated path, queued elsewhere, etc.). |
-| `file-backlog`          | Reproducible; investigator hands off a `swarm-manager` backlog item with full evidence, then closes the bug-inbox entry. |
+| `file-backlog`          | Reproducible; investigator files a `swarm-manager` backlog item whose description states the outcome and its done-condition, attaches the investigation evidence as the item's `research/summary.md`, then closes the bug-inbox entry. Do not put the investigation narrative in `description` — see `swarm-manager-backlog-tools` §"Writing Standard". |
 | `file-decision`         | Cross-cutting; investigator raises `bug-resolution-proposal` for operator review (e.g., a recurring confusion that suggests renaming a CLI verb). |
 | `route-to-another-topic`| Misclassified — actually a documentation gap, capability-gap, or skill-issue. Retag/rewrite to the appropriate inbox or file the appropriate decision. |
 | `capability-gap`        | Repro requires a missing tool/scenario/CLI; raise a `capability-gap` decision and leave the inbox entry until the gap is closed. |

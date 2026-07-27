@@ -110,6 +110,31 @@ func TestValidateScenarioCleanSurfacePasses(t *testing.T) {
 	require.Zero(t, report.Summary.Errors)
 }
 
+func TestApplyDocumentedExceptionsRequiresExactSharedTypeMatch(t *testing.T) {
+	repoRoot := t.TempDir()
+	configPath := filepath.Join(repoRoot, "scenarios", "demo", ".vrooli", "proto-health-exceptions.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
+	require.NoError(t, os.WriteFile(configPath, []byte(`{
+  "version": 1,
+  "exceptions": [{
+    "code": "proto.shared_type_misplaced",
+    "message_full_names": ["demo.v1.LegacyType"],
+    "reason": "versioned migration required",
+    "expires": "v2 migration"
+  }]
+}`), 0o644))
+
+	svc := &Service{repoRoot: repoRoot}
+	findings, err := svc.applyDocumentedExceptions("demo", []Finding{
+		{Code: CodeSharedTypeMisplaced, Severity: SeverityError, Message: "message demo.v1.LegacyType is reused across domains (api, execution) but lives in \"api\""},
+		{Code: CodeSharedTypeMisplaced, Severity: SeverityError, Message: "message demo.v1.UnreviewedType is reused across domains (api, execution) but lives in \"api\""},
+	})
+	require.NoError(t, err)
+	require.Equal(t, SeverityWarning, findings[0].Severity)
+	require.Contains(t, findings[0].Suggestion, "versioned migration required")
+	require.Equal(t, SeverityError, findings[1].Severity)
+}
+
 func TestValidateScenarioFindsGeneratedArtifactDrift(t *testing.T) {
 	svc := newTestService(t, Deps{
 		Loader: fakeLoader{surface: cleanSurface()},

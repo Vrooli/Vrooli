@@ -1,6 +1,8 @@
 # Infra Health Plan of Record
 
-This folder is the plan of record for the platform's own health: Vrooli's internal code, lifecycle, runtime reliability, instrumentation gaps, and cross-platform readiness. It is owned by the `infra-health` team in prompt-manager and curated through approved operator decisions.
+This folder is the plan of record for the platform's own health: Vrooli's internal code, lifecycle, runtime reliability, capacity arbitration, instrumentation gaps, and cross-platform readiness. It is owned by the `infra-health` team in prompt-manager and curated through approved operator decisions.
+
+> **Loop status:** paused since ~2026-06; recorded in the heartbeat control plane as `paused-manual` on 2026-07-24 (resume via `prompt-manager team heartbeat-control infra-health resume`). Honesty flags reflect the pause. First heartbeat after resume follows the resume protocol in the scanner's `HEARTBEAT.md`.
 
 The local contract is [`manifest.json`](manifest.json), which instantiates the shared plan-of-record shape from [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json).
 
@@ -46,7 +48,7 @@ The team that authors these is leaderless: `runtime-health-scanner` watches the 
 
 ## Boundaries
 
-These docs cover the *platform* (internal code, lifecycle, autoheal/system-monitor as observed from outside). They do NOT cover:
+These docs cover the *platform* (internal code, lifecycle, and the layered control stack — commissioning/setup, capacity broker, autoheal, system-monitor — as observed from outside; see the "Platform Under Control" map in [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md)). They do NOT cover:
 - Per-scenario reliability — that's each scenario's PRD and scenario-qa's audit lane
 - Skill / agent / team optimization — meta-optimization owns that
 - Live alerts and immediate-incident response — system-monitor + agent-manager handle the moment; infra-health watches the aggregate
@@ -56,7 +58,7 @@ These docs cover the *platform* (internal code, lifecycle, autoheal/system-monit
 
 - The operator curates these files. Agents propose diffs via decisions (`reliability-target-update`, `instrumentation-gap`, `cross-platform-debt`); approved decisions cite the decision id in the change line.
 - No member of the infra-health team may edit these files directly.
-- Honesty flags are mandatory on every metric: `measured`, `estimate`, `aspirational`, `pending-telemetry`. Unflagged numbers are a guardrail violation.
+- Honesty flags are mandatory on every metric: `measured`, `estimate`, `aspirational`, `pending-baseline`, `pending-telemetry`. Unflagged numbers are a guardrail violation.
 
 Decision-context detail lives in [`governance/editing.md`](governance/editing.md).
 

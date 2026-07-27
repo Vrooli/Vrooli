@@ -91,6 +91,76 @@ The full pattern, including the inbox-router-drain mechanic and topic-prefix con
 
 ---
 
+## Member document contract
+
+Two per-member Markdown files reach the running agent verbatim, and they are the only prose in the heartbeat prompt that no generated section can restate. This section is their contract. It is enforced by the `member_doc_*` rules in `path:scenarios/prompt-manager/api/memberflow/member_doc.go`, reported by `prompt-manager graph topics`, and catalogued in `TOPICS_SCHEMA.md` §"Validation rules".
+
+| File | Layer it carries | Answers |
+|---|---|---|
+| `HEARTBEAT.md` | the run | What do I do *this* heartbeat, in what order, and what must my output contain? |
+| `RESPONSIBILITIES.md` | ownership (per `LAYERS.md`) | What is standing true about my role between runs? |
+
+### Canonical section vocabulary
+
+Headings are exact level-two text. `required` sections are validation errors when absent; `recommended` sections are warnings that a team closes through its own decision context; `optional` sections are named so that teams that want them agree on the word.
+
+**`HEARTBEAT.md`**
+
+| Section | Status | Purpose |
+|---|---|---|
+| `## Reasoning Framework` | optional | The judgment frame applied before the loop runs. |
+| `## Task Loop` | required | The ordered procedure for one heartbeat. |
+| `## Handoff Shape` | required | Fenced template of the `## HANDOFF` block the run must end with. |
+| `## Stop Conditions` | recommended | When to write a minimal snapshot and stop early. |
+
+**`RESPONSIBILITIES.md`**
+
+| Section | Status | Purpose |
+|---|---|---|
+| `## Primary Duties` | recommended | The standing duties, as a decomposition of the contract `lane`. |
+| `## Judgment` | optional | The reusable judgment the member applies. |
+| `## Failure Modes` | optional | Named hazards a contrarian or reviewer scores against. |
+| `## Boundaries` | optional | What this member does not do, beyond the generated write rules. |
+| `## Cross-references` | optional | Canon and plan-of-record the member must follow. |
+| `## Available Skills` | optional | Skills the member loads, with the purpose of each. |
+
+### Retired aliases
+
+These names are validation errors. Each was the same concept under a second word; the canonical name is the one the majority of the roster already used.
+
+| Retired | Canonical | File |
+|---|---|---|
+| `Required Loop` | `Task Loop` | `HEARTBEAT.md` |
+| `Required Output Sections` | `Handoff Shape` | `HEARTBEAT.md` |
+| `Judgment Notes` | `Judgment` | `RESPONSIBILITIES.md` |
+| `Failure-Mode Rubric`, `Failure-Mode Framework` | `Failure Modes` | `RESPONSIBILITIES.md` |
+| `Forbidden`, `What I do NOT do`, `Authority Boundaries` | `Boundaries` | `RESPONSIBILITIES.md` |
+| `Plan-of-Record References` | `Cross-references` | `RESPONSIBILITIES.md` |
+| `Useful Skills` | `Available Skills` | `RESPONSIBILITIES.md` |
+
+### Member-specific sections are allowed
+
+Any heading outside both tables is member-specific content and passes validation untouched — a ledger entry schema, an incident workflow, a rotation rule. The vocabulary exists to stop two members naming one concept differently, not to force every member into one shape.
+
+One caution the validator cannot check: a member-specific heading that names a *reusable* method is usually a skill that has not been extracted yet. `TEAM_MEMBER_ARCHITECTURE.md` §"Architecture smells" calls this **workflow in heartbeat**; the same smell applies to a `RESPONSIBILITIES.md` that has grown past roughly six sections.
+
+### What member prose must not restate
+
+The heartbeat prompt already renders the member's lane, owned decision contexts, decision caps, allowed and forbidden writes, safety-critical rules, task parameters, required reads, outputs, and consumed decisions — all generated from `team.json` and `topics.json`. Restating any of them in member prose is double residency (`LAYERS.md`), and it drifts the moment the config changes.
+
+The test is what the paragraph adds:
+
+| Paragraph | Home |
+|---|---|
+| "I may not write `path:docs/<domain>/`" | `team.json::forbiddenWrites` — delete the prose |
+| "I own the `capability-gap` context" | `topics.json::decisions_owned` — delete the prose |
+| "Never originate content for a topic I only route" | `## Boundaries` — a judgment the config cannot express |
+| "Score the oldest item first, depth over breadth" | `## Judgment` — a judgment the config cannot express |
+
+Config states *what is permitted*. Member prose states *how to choose within it*. When the two disagree the config wins at runtime, so prose that restates config is not a safeguard — it is a second copy that can be wrong.
+
+---
+
 ## Score scale (used by the audit skill)
 
 Layers are scored on this scale:

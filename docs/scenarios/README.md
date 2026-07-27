@@ -6,7 +6,8 @@ Scenarios are one of Vrooli's core primitives. They are how the platform turns r
 
 ## Start Here
 
-- [getting-started.md](getting-started.md) for creating or modifying scenarios
+- [getting-started.md](getting-started.md) for generating a new scenario from a template
+- `prompt-manager skill read scenario-work-ladder` for changing a scenario that already exists — it locates which layer to change (contract, obligations, evidence, implementation) before any change is made
 - [CONCEPTS.md](CONCEPTS.md) for the scenario mental model
 - [storage.md](storage.md) for canonical scenario runtime storage policy
 - [VALIDATION.md](VALIDATION.md) for testing and validation expectations

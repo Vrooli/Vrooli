@@ -21,6 +21,34 @@ There is one canonical registry, drift-protected by `internal/runtime/manifests_
 - The Go map `customToolHandlers` in `internal/runtime/registry.go` lists tools that need custom install logic (e.g. `cloudflared`, `stripe`, `vault`).
 - The invariant test `TestToolManifestsReferenceRegisteredHandlers` ensures every manifest with a custom `handler` field has a corresponding registered Go handler. No drift between code and config.
 
+## Linux credential storage
+
+`secret-tool` is the Linux-only `libsecret` command client used by the
+managed-resource secure-store seam. Installing it is necessary but not enough:
+a shared managed resource first performs a non-secret store/read/delete probe
+against the active user Secret Service. If that probe fails, shared bootstrap
+stops before initialization; Vrooli never falls back to a plaintext state file.
+
+### Repairing the Linux credential-store prerequisite
+
+For a fresh setup with Vault enabled, `vrooli setup` installs this required
+tool during its single privileged setup pass. To repair an existing host, use
+the Vrooli host-tool installer. The install can require an interactive
+administrator authentication prompt because `libsecret-tools` is a system
+package. Do not substitute a raw package-manager command.
+
+```bash
+vrooli host install secret-tool --sudo-mode=ask
+command -v secret-tool
+vrooli resource start vault
+vrooli resource status vault
+```
+
+The Vault start performs the non-secret Secret Service probe. If it fails,
+start and unlock the active user's Secret Service session, then rerun the
+`vrooli resource start vault` command. Do not initialize a shared managed
+resource until that probe passes.
+
 Onboarding consumes the filesystem registry; it does not maintain its own list.
 
 ## hostRequirement shape

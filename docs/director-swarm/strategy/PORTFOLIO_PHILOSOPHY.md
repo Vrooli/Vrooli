@@ -21,7 +21,7 @@ We will not ship broken software to paying users. Refund churn from premature pa
 - **Auditability** — being able to trace what changed, why, and whether it worked.
 - **Reusable quality capabilities** — every goal that hardens the production pipeline compounds; the fifth paid app ships faster than the first because the tooling exists.
 
-This is not a secondary consideration to revenue; it is a hard co-requirement. An goal that accelerates revenue but degrades the quality pipeline is rejected.
+This is not a secondary consideration to revenue; it is a hard co-requirement. A goal that accelerates revenue but degrades the quality pipeline is rejected.
 
 ### 3. Meta-optimization and platform self-improvement
 
@@ -35,13 +35,15 @@ This comes after 1 and 2 but is never zero. A healthy portfolio always has at le
 
 The operator works the portfolio by moving between active goals based on where attention is best spent in the moment — when one goal is blocked waiting on an agent run, the operator picks up another. Hard caps would fight this workflow.
 
-**Priority ordering is Swarm Manager's job, not this doc's.** Swarm Manager's priority algorithm ranks goals based on its own signals (priority field, dependencies, backlog item state). `portfolio-manager` defers to that ordering for tactical sequencing, and only proposes portfolio-level decisions (`goal-portfolio`) when an goal's **category fit** against the criteria above is what's being adjusted — not its position in the queue.
+**Discipline comes from calibration, not caps.** Portfolio decisions carry prediction blocks ([OUTCOMES_CHARTER.md](../evidence/OUTCOMES_CHARTER.md) §"Prediction ledger"), and expected-cost bands keep decision comparisons honest without bounding the goal count.
+
+**Priority ordering is Swarm Manager's job, not this doc's.** Swarm Manager's priority algorithm ranks goals based on its own signals (priority field, dependencies, backlog item state). `portfolio-manager` defers to that ordering for tactical sequencing, and only proposes portfolio-level decisions (`goal-portfolio`) when a goal's **category fit** against the criteria above is what's being adjusted — not its position in the queue.
 
 ## Goal vs backlog item
 
-An **goal** is a multi-step effort with a shared outcome and typically multiple backlog items (fix/execute/research) under it. A **backlog item** is a single piece of work. If a proposal is scoped to one well-defined task, it's a backlog item, not an goal.
+A **goal** is a multi-step effort with a shared outcome and typically multiple backlog items (fix/execute/research) under it, optionally partitioned into milestones. A **backlog item** is a single piece of work. If a proposal is scoped to one well-defined task, it's a backlog item, not a goal. (Entity vocabulary: swarm-manager's glossary and `path:scenarios/swarm-manager/docs/concepts/OPERATOR-JOURNEYS.md`.)
 
-When `portfolio-manager` proposes an `goal-proposal`, the unit-of-work test is: does this warrant multiple dependent backlog items under one shared outcome, or would it fit as a single backlog item under an existing goal? If the latter, propose it as a backlog item.
+When `portfolio-manager` proposes a `goal-proposal`, the unit-of-work test is: does this warrant multiple dependent backlog items under one shared outcome, or would it fit as a single backlog item under an existing goal? If the latter, propose it as a backlog item.
 
 ## What this doc does NOT do
 
@@ -52,4 +54,4 @@ When `portfolio-manager` proposes an `goal-proposal`, the unit-of-work test is: 
 
 ## Updating this doc
 
-Changes go through approved decisions with context `goal-portfolio`. Drift-free authoring is more important than frequent updates — a portfolio philosophy that shifts every heartbeat isn't a philosophy. Expect meaningful revisions rarely (every few months, or when a phase boundary is crossed — e.g., first paying customer, default-alive reached).
+Changes go through approved decisions with context `goal-portfolio`. Drift-free authoring is more important than frequent updates — a portfolio philosophy that shifts every heartbeat isn't a philosophy. Expect meaningful revisions rarely (every few months, or when a phase boundary is crossed — e.g., first paying customer, default-alive reached), or when the prediction ledger shows a ranking criterion systematically mispredicting — measured miscalibration is the one fast lane to revision.

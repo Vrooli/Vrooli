@@ -76,9 +76,52 @@ func getCommand() cliapp.Command {
 			return nil, err
 		}
 		return response.Msg, nil
-	}, func(_ cliapp.OperationContext, response *apipb.GoalResponse) cliapp.ListReport {
-		return cliapp.ListReport{Summary: goalReport(nil, response).Result}
-	}))
+	}, goalDetailReport))
+}
+
+// goalDetailReport renders the goal's substance, not just its title. `get` is
+// the command an operator or agent runs to read what a goal directs; a report
+// that omits the description sends every reader to --json for the one field
+// they came for, and a reader who trusts the default output concludes the goal
+// is empty.
+func goalDetailReport(_ cliapp.OperationContext, response *apipb.GoalResponse) cliapp.ListReport {
+	goal := response.GetGoal()
+	if goal == nil {
+		return cliapp.ListReport{Summary: []string{"Goal not found."}}
+	}
+
+	summary := []string{fmt.Sprintf("Goal %s — %s", goal.GetName(), goal.GetTitle())}
+	if status := goal.GetStatus(); status != "" {
+		summary = append(summary, fmt.Sprintf("Status: %s; priority %d", status, goal.GetPriority()))
+	}
+	if scope := response.GetScope(); scope != nil {
+		summary = append(summary, fmt.Sprintf("Scope: %d total, %d complete, %d ready, %d blocked; %d milestone(s)",
+			len(scope.GetClosure()), len(scope.GetCompleted()), len(scope.GetReady()), len(scope.GetBlocked()), len(scope.GetMilestones())))
+	}
+
+	results := make([]string, 0, len(goal.GetTargets())+8)
+	if description := strings.TrimSpace(goal.GetDescription()); description != "" {
+		results = append(results, "Description:")
+		for _, line := range strings.Split(description, "\n") {
+			results = append(results, "  "+line)
+		}
+	}
+	if targets := goal.GetTargets(); len(targets) > 0 {
+		results = append(results, fmt.Sprintf("Targets (%d):", len(targets)))
+		for _, target := range targets {
+			results = append(results, "  "+target)
+		}
+	}
+
+	return cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Goal",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("swarm-manager goals context --name %s", goal.GetName()),
+			fmt.Sprintf("swarm-manager goals get --name %s --json", goal.GetName()),
+		},
+	}
 }
 
 func createCommand() cliapp.Command {
@@ -133,11 +176,13 @@ func deleteCommand() cliapp.Command {
 		return cliapp.MutationReport{Result: []string{"Goal deleted."}}
 	}))
 }
+
 func archiveCommand() cliapp.Command {
 	return goalNameMutation("archive", "Archive goal (--name NAME) [--json]", func(c apiconnect.GoalServiceClient, name string) (*connect.Response[apipb.GoalResponse], error) {
 		return c.ArchiveGoal(context.Background(), connect.NewRequest(&apipb.ArchiveGoalRequest{Name: name}))
 	})
 }
+
 func unarchiveCommand() cliapp.Command {
 	return goalNameMutation("unarchive", "Unarchive goal (--name NAME) [--json]", func(c apiconnect.GoalServiceClient, name string) (*connect.Response[apipb.GoalResponse], error) {
 		return c.UnarchiveGoal(context.Background(), connect.NewRequest(&apipb.UnarchiveGoalRequest{Name: name}))

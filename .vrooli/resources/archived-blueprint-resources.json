@@ -199,6 +199,17 @@
       "purge_after": "2026-07-11"
     },
     {
+      "name": "judge0",
+      "archived_at": "2026-07-22",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "judge0",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260722-001042-judge0",
+      "archive_hash": "6a8ec753278045b1af850909f32e3fa3db01195f9e31b75b0aeb941e9373b450",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-10-20"
+    },
+    {
       "name": "kafka",
       "archived_at": "2026-04-12",
       "reason": "Archived from active repo implementation after blueprint preservation.",

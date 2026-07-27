@@ -4,6 +4,7 @@
 
 | Document | Purpose |
 |---|---|
+| [`OBJECTIVES.md`](OBJECTIVES.md) | What Vrooli is for: the operator's terminal and instrumental objectives, the coverage rule that joins them to the team roster, and evidence routing. Top of the goal hierarchy. |
 | [`PORTFOLIO_PHILOSOPHY.md`](PORTFOLIO_PHILOSOPHY.md) | Ranking criteria, goal threshold, and portfolio tradeoff discipline. |
 | [`ROADMAP.md`](ROADMAP.md) | Thematic roadmap and sequencing guidance. Swarm Manager remains authoritative for live goal status. |
 

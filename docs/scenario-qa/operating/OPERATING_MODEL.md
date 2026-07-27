@@ -10,6 +10,10 @@ Scenario QA turns observed quality signals into evidence-rich findings, investig
 
 Scenario QA does not own product prioritization, monetization strategy, marketing voice, infrastructure strategy, or direct implementation work. It investigates and routes; downstream execution happens through accepted decisions, swarm-manager backlog, or explicit capability gaps.
 
+**Objective served.** `I1` — capability compounding: a scenario only becomes a permanent capability if it is actually sound, and this team is what makes "permanent" true rather than asserted (`path:docs/director-swarm/strategy/OBJECTIVES.md`).
+
+**Outcome contribution.** Primary: **The Hive** (scenario ecosystem) — structural audits and readiness reviews set which scenarios are headliner-ready. Supporting: **The Forge**, by reducing the defect rework that slows goal throughput. The swarm-tier map of which team moves which outcome lives in `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` §"Team contribution map"; this paragraph is this team's own statement of it.
+
 ## Scope
 
 Scenario QA owns:
@@ -58,6 +62,16 @@ flowchart LR
     OP([Operator])
     %% @node RB external:report-bug
     RB([report-bug skill])
+    %% @node DIR team:director-swarm
+    DIR[[Director Swarm]]
+    %% @node INFRA team:infra-health
+    INFRA[[Infra Health]]
+    %% @node MKT team:marketing-crew
+    MKT[[Marketing Crew]]
+    %% @node META_IN team:meta-optimization
+    META_IN[[Meta Optimization]]
+    %% @node MON team:monetization
+    MON[[Monetization]]
   end
 
   %% Members
@@ -110,6 +124,11 @@ flowchart LR
 
   %% Bug investigation
   RB --> BUGIN
+  DIR --> BUGIN
+  INFRA --> BUGIN
+  MKT --> BUGIN
+  META_IN --> BUGIN
+  MON --> BUGIN
   RB --> BI
   BUGIN --> BI
   BUGREP --> BI

@@ -79,7 +79,7 @@ That second effect is the closing edge of the §1 diagram. It is why the loop is
 
 ## 5. Who runs it — the operating layer
 
-The loop is executed by **agent swarms** — Vrooli's "executive team," running on heartbeats (`ARCHITECTURE.md` → *operator steers, agents execute*). One swarm is dedicated to the loop itself: the **Meta-Optimization Team**, whose plan-of-record is [`docs/meta-optimization/`](../meta-optimization/README.md) and whose operating cadence (six audit loops draining a universal friction inbox) is [`OPERATING_MODEL.md`](../meta-optimization/operating/OPERATING_MODEL.md).
+The loop is executed by **agent swarms** — Vrooli's "executive team," running on heartbeats (`ARCHITECTURE.md` → *operator steers, agents execute*). One swarm is dedicated to the loop itself: the **Meta-Optimization Team**, whose plan-of-record is [`docs/meta-optimization/`](../meta-optimization/README.md) and whose operating cadence (six audit loops draining a universal friction inbox) is [`OPERATING_MODEL.md`](../meta-optimization/operating/OPERATING_MODEL.md). It is not the only loop steering the platform, and its measurements only hold while the substrate beneath it does — how it sits beside the platform-reliability loop and above the fast service loops is *Control topology*, below.
 
 Its instrument is the **`meta-optimization-manager`** scenario — a thin, read-mostly aggregator that **measures** per-projection coverage and **tells the swarms what to prioritize** (it surfaces candidates and numbers; it does not decide — substrate, tiering, and improvement decisions stay agentic). The live measurement is:
 
@@ -88,6 +88,27 @@ meta-optimization-manager coverage status --json
 ```
 
 …which returns each projection's coverage joined live against its owner, paired with denominator-confidence. The manager's own model is its [`COVERAGE-MODEL.md`](../../scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md) and [`DOMAINS.md`](../../scenarios/meta-optimization-manager/docs/concepts/DOMAINS.md) (`coverage`, `convergence`, `focus`, `trials`).
+
+## Control topology
+
+The loop above is the slowest, most reflective of several nested loops — and its measurements only mean something because faster loops hold the ground beneath it steady.
+
+**Fast platform loops.** Beneath the swarms, four platform loops keep individual services alive minute-to-minute: commissioning (`vrooli setup`, host tools), the capacity broker, autoheal, and system-monitor. Each absorbs what it can at its own timescale and escalates only what the inner loops repeatedly fail to catch. The layered map — timescales, ownership, escalation rules — is [`OPERATING_MODEL.md` § Platform Under Control](../infra-health/operating/OPERATING_MODEL.md); this doc does not restate it.
+
+**Two peer slow loops.** Above the fast loops sit two slow loops that do not direct each other:
+
+- **infra-health** keeps the substrate's *aggregate* reliability in band — repeat failures, heal-loops, reliability-target drift, cross-platform debt ([`docs/infra-health/`](../infra-health/README.md)).
+- **meta-optimization** improves the *engineering process* — skills, agents, teams, and the toolchain (§5 above).
+
+Neither is above the other. Both **drain into `director-swarm` and the operator through the morning vision walk**: infra-health findings at Phase 5.7, meta-optimization decisions at Phase 5.5, and both teams' `capability-gap` decisions into Phase 3 (director-swarm consumes them). Authority lives in the **accepted operator decisions** those phases produce, not in the teams themselves — the teams surface and recommend; the operator decides.
+
+**The dependency edge.** The two loops are peers in command but not independent in fact: meta-optimization's measurements are valid only while the substrate its experiments run through — agent runtime, prompt store, sandboxes — is itself in band. A degraded substrate silently corrupts every coverage number and trial verdict. So the peer relationship carries one directed dependency:
+
+- Substrate degradation that impairs the improvement loop is **priority-elevated in infra-health's routing**, not treated as one finding among many.
+- meta-optimization is an **authorized external raiser of `capability-gap` decisions into infra-health** when it observes substrate trouble it cannot itself fix.
+- the experiment **conclude gate carries a substrate-validity precondition** (owned by `skill-optimizer`'s responsibilities): a trial concluded while the substrate was out of band is not admissible evidence.
+
+This is a dependency, not a hierarchy of command: infra-health does not run experiments and meta-optimization does not set reliability targets. The edge exists so the improvement loop never mistakes substrate noise for a real result.
 
 ## 6. Signal in, improvement out
 

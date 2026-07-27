@@ -76,7 +76,9 @@ func TestDescribeScenarioDiscoversSurfacesAndParseUnits(t *testing.T) {
 	}
 	requireSurface(t, report.GetSurfaces(), "api", factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN)
 	requireSurface(t, report.GetSurfaces(), "cli", factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN)
+	requireSurface(t, report.GetSurfaces(), "runtime", factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN)
 	requireSurface(t, report.GetSurfaces(), "ui", factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN)
+	requireSurfaceKind(t, report.GetSurfaces(), "runtime", factsv1.SurfaceKind_SURFACE_KIND_RUNTIME)
 	requireParseUnit(t, report.GetParseUnits(), "go", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
 	requireParseUnit(t, report.GetParseUnits(), "typescript", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
 }
@@ -624,8 +626,8 @@ func TestDescribeHonorsLanguageFilter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Describe() error = %v", err)
 	}
-	if goProvider.calls != 2 {
-		t.Fatalf("go provider calls = %d, want 2", goProvider.calls)
+	if goProvider.calls != 3 {
+		t.Fatalf("go provider calls = %d, want 3", goProvider.calls)
 	}
 	if tsProvider.calls != 0 {
 		t.Fatalf("typescript provider calls = %d, want 0", tsProvider.calls)
@@ -1842,6 +1844,7 @@ func writeScenarioFixtureInRepo(t *testing.T, repo string, name string) string {
 	writeFile(t, filepath.Join(scenarioRoot, "api", "go.mod"), "module demo/api\n\ngo 1.25\n")
 	writeFile(t, filepath.Join(scenarioRoot, "cli", "go.mod"), "module demo/cli\n\ngo 1.25\n")
 	writeFile(t, filepath.Join(scenarioRoot, "cli", "manifest.json"), `{"groups":[]}`)
+	writeFile(t, filepath.Join(scenarioRoot, "runtime", "go.mod"), "module demo/runtime\n\ngo 1.25\n")
 	writeFile(t, filepath.Join(scenarioRoot, "ui", "package.json"), `{"scripts":{"build":"vite"}}`)
 	writeFile(t, filepath.Join(scenarioRoot, "ui", "tsconfig.json"), `{"compilerOptions":{"jsx":"react-jsx"}}`)
 	return scenarioRoot
@@ -1875,6 +1878,19 @@ func requireSurface(t *testing.T, surfaces []*factsv1.Surface, id string, status
 		if surface.GetId() == id {
 			if surface.GetStatus() != status {
 				t.Fatalf("surface %s status = %s, want %s", id, surface.GetStatus(), status)
+			}
+			return
+		}
+	}
+	t.Fatalf("surface %s not found in %#v", id, surfaces)
+}
+
+func requireSurfaceKind(t *testing.T, surfaces []*factsv1.Surface, id string, kind factsv1.SurfaceKind) {
+	t.Helper()
+	for _, surface := range surfaces {
+		if surface.GetId() == id {
+			if surface.GetKind() != kind {
+				t.Fatalf("surface %s kind = %s, want %s", id, surface.GetKind(), kind)
 			}
 			return
 		}

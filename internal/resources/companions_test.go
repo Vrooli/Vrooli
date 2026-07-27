@@ -178,7 +178,7 @@ func TestComposeStatusReportsDeadCompanion(t *testing.T) {
 			Windows: "partial",
 		}),
 	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "whisper", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "whisper", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
 	stateFile := writeFakeDocker(t)
 	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
 		t.Fatalf("write state: %v", err)

@@ -174,10 +174,8 @@ func hygieneIsRawSQLCall(call *ast.CallExpr) bool {
 func hygieneLooksLikeSQL(litValue string) bool {
 	s := strings.TrimSpace(strings.Trim(litValue, "`\""))
 	up := strings.ToUpper(s)
-	for _, kw := range []string{"SELECT ", "INSERT ", "UPDATE ", "DELETE "} {
-		if strings.HasPrefix(up, kw) {
-			return true
-		}
-	}
-	return false
+	return strings.HasPrefix(up, "SELECT ") ||
+		(strings.HasPrefix(up, "INSERT ") && strings.Contains(up, " INTO ")) ||
+		(strings.HasPrefix(up, "UPDATE ") && strings.Contains(up, " SET ")) ||
+		(strings.HasPrefix(up, "DELETE ") && strings.Contains(up, " FROM "))
 }

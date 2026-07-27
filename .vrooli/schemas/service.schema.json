@@ -184,6 +184,24 @@
       },
       "additionalProperties": false
     },
+    "trust_signing": {
+      "type": "object",
+      "description": "Lifecycle-owned trust-signing dependency declaration. It contains only provider routing and credential-file metadata, never raw key material.",
+      "properties": {
+        "provider": { "type": "string", "enum": ["development", "vault-transit"] },
+        "resource": { "type": "string" },
+        "address": { "type": "string", "format": "uri" },
+        "key_name": { "type": "string" },
+        "credential_file": { "type": "string" },
+        "operator_credential_file": { "type": "string" },
+        "operator_subjects": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "operator_tls_cert_file": { "type": "string" },
+        "operator_tls_key_file": { "type": "string" },
+        "operator_tls_client_ca_file": { "type": "string" }
+      },
+      "required": ["provider"],
+      "additionalProperties": false
+    },
     "hostTools": {
       "type": "array",
       "items": {
