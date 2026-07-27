@@ -12,7 +12,7 @@ import (
 
 	adapterrunner "agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil/mocks"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"

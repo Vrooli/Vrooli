@@ -1,3 +1,4 @@
+// Package fixtures provides orchestration test data for stats flows.
 package fixtures
 
 import (

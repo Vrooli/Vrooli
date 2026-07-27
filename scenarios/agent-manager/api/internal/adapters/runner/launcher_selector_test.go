@@ -13,7 +13,7 @@ import (
 
 	adapterrunner "agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"github.com/google/uuid"
 )
@@ -47,17 +47,18 @@ func (s *recordingSink) hasWarning(needle string) bool {
 	return false
 }
 
-func TestLauncherSelectorPick_NonProtectedUsesHost(t *testing.T) {
+func TestLauncherSelectorPick_TrackingWithFactoryAndIDPicksSandbox(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	sandbox := mocks.NewFakeLauncher("sandbox")
 	selector := adapterrunner.NewLauncherSelector(host, mocks.NewFakeSandboxLauncherFactory(sandbox))
 
+	sandboxID := uuid.New()
 	cfg := &domain.RunConfig{
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
 	}
-	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{ResolvedConfig: cfg})
-	if picked != host {
-		t.Errorf("non-protected request picked %v; want host launcher", picked)
+	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{ResolvedConfig: cfg, SandboxID: &sandboxID})
+	if picked != sandbox {
+		t.Errorf("tracking request picked %v; want sandbox launcher", picked)
 	}
 }
 

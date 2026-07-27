@@ -9,8 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"agent-manager/internal/fallback"
 )
 
 // ModelProber is the subset of runner.Runner used by the periodic probe.
@@ -60,7 +58,7 @@ func DefaultProbeConfig() ProbeConfig {
 //
 // The probe:
 //   - writes to the persisted Store
-//   - emits typed observations (Status + fallback.Reason) instead of
+//   - emits typed observations (Status + failure reason) instead of
 //     freeform message strings
 //   - probes runners themselves via runner availability checks (the
 //     model probe success; this is explicit)
@@ -68,7 +66,7 @@ type Probe struct {
 	store    *Store
 	resolve  RunnerProberLookup
 	registry RegistrySnapshot
-	classify fallback.Classifier
+	classify FailureClassifier
 	config   ProbeConfig
 
 	once  sync.Once
@@ -76,9 +74,9 @@ type Probe struct {
 }
 
 // NewProbe wires a probe.
-func NewProbe(store *Store, registry RegistrySnapshot, resolve RunnerProberLookup, classify fallback.Classifier, config ProbeConfig) *Probe {
+func NewProbe(store *Store, registry RegistrySnapshot, resolve RunnerProberLookup, classify FailureClassifier, config ProbeConfig) *Probe {
 	if classify == nil {
-		classify = fallback.NewTextClassifier()
+		classify = unknownFailureClassifier{}
 	}
 	return &Probe{
 		store:    store,
@@ -114,17 +112,17 @@ func (p *Probe) RunOnce(ctx context.Context) {
 				}
 				continue
 			}
-			ce := p.classify.Classify(fallback.ClassifyInput{
+			ce := p.classify.Classify(FailureInput{
 				RunnerType: runnerKey,
 				Cause:      err,
 				Stderr:     err.Error(),
 			})
-			reason, message := fallback.ReasonUnknown, err.Error()
+			reason, message := "unknown", err.Error()
 			if ce != nil {
 				reason = ce.Reason
 				message = ce.Message
 			}
-			if recErr := p.store.RecordModel(ctx, runnerKey, id, StatusFailed, string(reason), message, "probe"); recErr != nil {
+			if recErr := p.store.RecordModel(ctx, runnerKey, id, StatusFailed, reason, message, "probe"); recErr != nil {
 				slog.Warn("health.probe: record failed failed", "err", recErr, "runner", runnerKey, "model", id)
 			}
 		}

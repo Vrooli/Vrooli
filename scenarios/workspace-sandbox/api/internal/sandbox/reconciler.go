@@ -23,6 +23,30 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
+// CommitAttributionReconciler closes provenance after operators commit with
+// plain git. It self-throttles independently of the shared lifecycle tick.
+type CommitAttributionReconciler struct {
+	svc      *Service
+	interval time.Duration
+	lastRun  time.Time
+}
+
+func NewCommitAttributionReconciler(svc *Service, interval time.Duration) *CommitAttributionReconciler {
+	return &CommitAttributionReconciler{svc: svc, interval: interval}
+}
+
+func (r *CommitAttributionReconciler) Name() string { return "commit-attribution" }
+
+func (r *CommitAttributionReconciler) Run(ctx context.Context) ReconcileReport {
+	start := r.svc.clock.Now()
+	if r.interval <= 0 || (!r.lastRun.IsZero() && start.Sub(r.lastRun) < r.interval) {
+		return ReconcileReport{}
+	}
+	r.lastRun = start
+	result := r.svc.ReconcileCommittedChanges(ctx)
+	return ReconcileReport{ItemsProcessed: result.Scanned, ItemsFailed: result.Failed, Duration: r.svc.clock.Since(start), Details: map[string]any{"repaired": result.Repaired}}
+}
+
 // Reconciler is the contract every periodic reconciler implements.
 //
 // Implementations should be idempotent and best-effort: a Run that
@@ -415,7 +439,7 @@ func (r *ManualReviewExpiryReconciler) Run(ctx context.Context) ReconcileReport 
 // retention may be nil — in which case the archive-retention
 // reconciler is omitted. Production wiring always passes a non-nil
 // provider that reads from the retention store.
-func DefaultRunner(svc *Service, interval, manualReviewTTL time.Duration, healCfg HealConfig, retention RetentionPolicyProvider) *Runner {
+func DefaultRunner(svc *Service, interval, manualReviewTTL, commitReconcileInterval time.Duration, healCfg HealConfig, retention RetentionPolicyProvider) *Runner {
 	tracker := newHealTracker().withRepo(svc.repo)
 	_ = tracker.loadFromRepo(context.Background())
 	periodic := []Reconciler{
@@ -426,6 +450,9 @@ func DefaultRunner(svc *Service, interval, manualReviewTTL time.Duration, healCf
 	}
 	if retention != nil {
 		periodic = append(periodic, NewArchiveRetentionReconciler(svc, retention))
+	}
+	if commitReconcileInterval > 0 {
+		periodic = append(periodic, NewCommitAttributionReconciler(svc, commitReconcileInterval))
 	}
 	var startupOnly []Reconciler
 	if manualReviewTTL > 0 {
@@ -445,6 +472,7 @@ var (
 	_ Reconciler = (*DaemonReaperReconciler)(nil)
 	_ Reconciler = (*ManualReviewExpiryReconciler)(nil)
 	_ Reconciler = (*ArchiveRetentionReconciler)(nil)
+	_ Reconciler = (*CommitAttributionReconciler)(nil)
 )
 
 // _ types is a doc-only alias to keep the types import live when the

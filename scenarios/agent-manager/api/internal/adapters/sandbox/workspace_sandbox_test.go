@@ -23,6 +23,14 @@ func TestWorkspaceSandboxProvider_Create(t *testing.T) {
 		if r.Method != "POST" || r.URL.Path != "/api/v1/sandboxes" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		roots, ok := body["auxiliaryRoots"].([]any)
+		if !ok || len(roots) != 1 || roots[0] != "/state/runs" {
+			t.Errorf("auxiliaryRoots = %#v, want [/state/runs]", body["auxiliaryRoots"])
+		}
 
 		// Verify content type
 		if ct := r.Header.Get("Content-Type"); ct != "application/json" {
@@ -43,10 +51,11 @@ func TestWorkspaceSandboxProvider_Create(t *testing.T) {
 	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.Create(context.Background(), sandbox.CreateRequest{
-		ScopePath:   "src/",
-		ProjectRoot: "/project",
-		Owner:       "test-run",
-		OwnerType:   "run",
+		ScopePath:      "src/",
+		ProjectRoot:    "/project",
+		Owner:          "test-run",
+		OwnerType:      "run",
+		AuxiliaryRoots: []string{"/state/runs"},
 	})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)

@@ -9,7 +9,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/orchestration/testutil"
 
 	agentconfig "agent-manager/internal/config"
 

@@ -83,13 +83,6 @@
           "type": "test"
         },
         {
-          "notes": "Verify CLI discovery and removed mutation vocabulary",
-          "phase": "unit",
-          "ref": "cli/app_test.go::TestApp_CmdPolicy_HelpAndUnknownSubcommand",
-          "status": "pending",
-          "type": "test"
-        },
-        {
           "notes": "Measure policy overhead",
           "phase": "performance",
           "ref": "",

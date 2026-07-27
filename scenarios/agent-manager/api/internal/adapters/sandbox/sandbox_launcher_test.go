@@ -424,6 +424,23 @@ func TestSandboxLauncher_StdinPostedNotStaged(t *testing.T) {
 	_ = proc.Wait()
 }
 
+func TestCodecSessionHomeMounts_DeclaresOnlyRunnerSessionHomes(t *testing.T) {
+	mounts := codecSessionHomeMounts(map[string]string{
+		"CODEX_HOME": "/state/run/codex",
+		"GROK_HOME":  "/state/run/grok",
+		"UNRELATED":  "/state/unrelated",
+	})
+	if len(mounts) != 2 {
+		t.Fatalf("mount count = %d, want 2", len(mounts))
+	}
+	if mounts[0].Path != "/state/run/codex" || mounts[0].Purpose != "codec-session-home" {
+		t.Errorf("first mount = %+v", mounts[0])
+	}
+	if mounts[1].Path != "/state/run/grok" || mounts[1].Purpose != "codec-session-home" {
+		t.Errorf("second mount = %+v", mounts[1])
+	}
+}
+
 // TestSandboxLauncher_KillReturnsThroughDelete verifies Kill issues a
 // DELETE and Wait unblocks promptly.
 func TestSandboxLauncher_KillReturnsThroughDelete(t *testing.T) {

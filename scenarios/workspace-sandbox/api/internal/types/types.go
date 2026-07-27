@@ -267,22 +267,23 @@ func (r HomeOverlayRequirement) IsValid() bool {
 
 // Sandbox represents a workspace sandbox with all its metadata.
 type Sandbox struct {
-	ID            uuid.UUID  `json:"id" db:"id"`
-	Name          string     `json:"name,omitempty" db:"name"`
-	ScopePath     string     `json:"scopePath" db:"scope_path"`
-	ReservedPath  string     `json:"reservedPath" db:"reserved_path"`
-	ReservedPaths []string   `json:"reservedPaths,omitempty" db:"reserved_paths"`
-	NoLock        bool       `json:"noLock,omitempty" db:"no_lock"`
-	ProjectRoot   string     `json:"projectRoot" db:"project_root"`
-	Owner         string     `json:"owner,omitempty" db:"owner"`
-	OwnerType     OwnerType  `json:"ownerType" db:"owner_type"`
-	Status        Status     `json:"status" db:"status"`
-	ErrorMsg      string     `json:"errorMessage,omitempty" db:"error_message"`
-	CreatedAt     time.Time  `json:"createdAt" db:"created_at"`
-	LastUsedAt    time.Time  `json:"lastUsedAt" db:"last_used_at"`
-	StoppedAt     *time.Time `json:"stoppedAt,omitempty" db:"stopped_at"`
-	ApprovedAt    *time.Time `json:"approvedAt,omitempty" db:"approved_at"`
-	DeletedAt     *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
+	ID             uuid.UUID  `json:"id" db:"id"`
+	Name           string     `json:"name,omitempty" db:"name"`
+	ScopePath      string     `json:"scopePath" db:"scope_path"`
+	ReservedPath   string     `json:"reservedPath" db:"reserved_path"`
+	ReservedPaths  []string   `json:"reservedPaths,omitempty" db:"reserved_paths"`
+	NoLock         bool       `json:"noLock,omitempty" db:"no_lock"`
+	ProjectRoot    string     `json:"projectRoot" db:"project_root"`
+	AuxiliaryRoots []string   `json:"auxiliaryRoots,omitempty" db:"auxiliary_roots"`
+	Owner          string     `json:"owner,omitempty" db:"owner"`
+	OwnerType      OwnerType  `json:"ownerType" db:"owner_type"`
+	Status         Status     `json:"status" db:"status"`
+	ErrorMsg       string     `json:"errorMessage,omitempty" db:"error_message"`
+	CreatedAt      time.Time  `json:"createdAt" db:"created_at"`
+	LastUsedAt     time.Time  `json:"lastUsedAt" db:"last_used_at"`
+	StoppedAt      *time.Time `json:"stoppedAt,omitempty" db:"stopped_at"`
+	ApprovedAt     *time.Time `json:"approvedAt,omitempty" db:"approved_at"`
+	DeletedAt      *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
 
 	// Driver configuration. DriverID is the canonical driver identifier
 	// (overlayfs-userns, overlayfs-root, fuse-overlayfs, copy). The DB
@@ -456,17 +457,18 @@ type AuditEvent struct {
 //
 // If no IdempotencyKey is provided, each request creates a new sandbox.
 type CreateRequest struct {
-	Name          string                 `json:"name,omitempty"`
-	ScopePath     string                 `json:"scopePath"`
-	ReservedPath  string                 `json:"reservedPath,omitempty"`
-	ReservedPaths []string               `json:"reservedPaths,omitempty"`
-	NoLock        *bool                  `json:"noLock,omitempty"`
-	ProjectRoot   string                 `json:"projectRoot,omitempty"`
-	Owner         string                 `json:"owner,omitempty"`
-	OwnerType     OwnerType              `json:"ownerType,omitempty"`
-	Tags          []string               `json:"tags,omitempty"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
-	Behavior      SandboxBehavior        `json:"behavior,omitempty"`
+	Name           string                 `json:"name,omitempty"`
+	ScopePath      string                 `json:"scopePath"`
+	ReservedPath   string                 `json:"reservedPath,omitempty"`
+	ReservedPaths  []string               `json:"reservedPaths,omitempty"`
+	NoLock         *bool                  `json:"noLock,omitempty"`
+	ProjectRoot    string                 `json:"projectRoot,omitempty"`
+	AuxiliaryRoots []string               `json:"auxiliaryRoots,omitempty"`
+	Owner          string                 `json:"owner,omitempty"`
+	OwnerType      OwnerType              `json:"ownerType,omitempty"`
+	Tags           []string               `json:"tags,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	Behavior       SandboxBehavior        `json:"behavior,omitempty"`
 
 	// IdempotencyKey is an optional client-provided key for request deduplication.
 	// If provided and a sandbox was already created with this key, that sandbox
@@ -867,18 +869,20 @@ type TurnCheckpointRequest struct {
 
 // TurnCheckpointResult reports the outcome of a turn checkpoint.
 type TurnCheckpointResult struct {
-	SandboxID      uuid.UUID `json:"sandboxId"`
-	Status         Status    `json:"status"`
-	Success        bool      `json:"success"`
-	Applied        int       `json:"applied"`
-	Failed         int       `json:"failed"`
-	Remaining      int       `json:"remaining"`
-	IsPartial      bool      `json:"isPartial"`
-	CommitHash     string    `json:"commitHash,omitempty"`
-	BaseCommitHash string    `json:"baseCommitHash,omitempty"`
-	CheckpointID   string    `json:"checkpointId,omitempty"`
-	ErrorMsg       string    `json:"error,omitempty"`
-	AppliedAt      time.Time `json:"appliedAt"`
+	SandboxID        uuid.UUID `json:"sandboxId"`
+	Status           Status    `json:"status"`
+	Success          bool      `json:"success"`
+	Applied          int       `json:"applied"`
+	Failed           int       `json:"failed"`
+	Remaining        int       `json:"remaining"`
+	IsPartial        bool      `json:"isPartial"`
+	CommitHash       string    `json:"commitHash,omitempty"`
+	BaseCommitHash   string    `json:"baseCommitHash,omitempty"`
+	CheckpointID     string    `json:"checkpointId,omitempty"`
+	ErrorMsg         string    `json:"error,omitempty"`
+	AppliedAt        time.Time `json:"appliedAt"`
+	AppliedSizeBytes int64     `json:"appliedSizeBytes,omitempty"`
+	DiffPath         string    `json:"diffPath,omitempty"`
 }
 
 // HunkRange specifies a range of lines to approve within a file.
@@ -898,6 +902,10 @@ type ApprovalResult struct {
 	CommitHash string    `json:"commitHash,omitempty"`
 	ErrorMsg   string    `json:"error,omitempty"`
 	AppliedAt  time.Time `json:"appliedAt"`
+	// AppliedSizeBytes is the authoritative total size of the files applied.
+	AppliedSizeBytes int64 `json:"appliedSizeBytes,omitempty"`
+	// DiffPath names the durable diff endpoint for this sandbox's archive.
+	DiffPath string `json:"diffPath,omitempty"`
 
 	// ConflictInfo contains information about detected conflicts if any.
 	// [OT-P2-002] Conflict Detection

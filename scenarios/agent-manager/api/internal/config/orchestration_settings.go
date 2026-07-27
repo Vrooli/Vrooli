@@ -6,8 +6,6 @@ package config
 
 import (
 	"fmt"
-
-	"agent-manager/internal/domain"
 )
 
 // =============================================================================
@@ -163,7 +161,7 @@ func (s *OrchestrationSettings) Validate() error {
 
 	// Cross-field: heartbeat must fire before stale detection kicks in.
 	if s.HealthDetection.HeartbeatIntervalSeconds >= s.HealthDetection.StaleThresholdSeconds {
-		return wrapConfigSection("healthDetection", domain.NewConfigInvalidError(
+		return wrapConfigSection("healthDetection", NewInvalid(
 			"heartbeatIntervalSeconds",
 			fmt.Sprintf("must be less than staleThresholdSeconds (%d), got %d",
 				s.HealthDetection.StaleThresholdSeconds, s.HealthDetection.HeartbeatIntervalSeconds),
@@ -173,7 +171,7 @@ func (s *OrchestrationSettings) Validate() error {
 
 	// Cross-field: stale threshold must be less than recovery age.
 	if s.HealthDetection.StaleThresholdSeconds >= s.HealthDetection.MaxRecoveryAgeSeconds {
-		return wrapConfigSection("healthDetection", domain.NewConfigInvalidError(
+		return wrapConfigSection("healthDetection", NewInvalid(
 			"staleThresholdSeconds",
 			fmt.Sprintf("must be less than maxRecoveryAgeSeconds (%d), got %d",
 				s.HealthDetection.MaxRecoveryAgeSeconds, s.HealthDetection.StaleThresholdSeconds),
@@ -184,7 +182,7 @@ func (s *OrchestrationSettings) Validate() error {
 	// Cross-field: total termination time must fit within stale detection window.
 	totalTermination := s.ProcessTermination.GracePeriodSeconds * s.ProcessTermination.TerminationMaxRetries
 	if totalTermination >= s.HealthDetection.StaleThresholdSeconds {
-		return wrapConfigSection("processTermination", domain.NewConfigInvalidError(
+		return wrapConfigSection("processTermination", NewInvalid(
 			"gracePeriodSeconds",
 			fmt.Sprintf("gracePeriodSeconds (%d) * terminationMaxRetries (%d) = %d must be less than staleThresholdSeconds (%d)",
 				s.ProcessTermination.GracePeriodSeconds, s.ProcessTermination.TerminationMaxRetries,
@@ -198,49 +196,49 @@ func (s *OrchestrationSettings) Validate() error {
 
 func (r *RunExecutionSettings) validate() error {
 	if r.RunTimeoutMinutes < 1 || r.RunTimeoutMinutes > 9999 {
-		return domain.NewConfigInvalidError("runTimeoutMinutes", fmt.Sprintf("must be between 1 and 9999, got %d", r.RunTimeoutMinutes), nil)
+		return NewInvalid("runTimeoutMinutes", fmt.Sprintf("must be between 1 and 9999, got %d", r.RunTimeoutMinutes), nil)
 	}
 	if r.MaxConcurrentRuns < 1 || r.MaxConcurrentRuns > 9999 {
-		return domain.NewConfigInvalidError("maxConcurrentRuns", fmt.Sprintf("must be between 1 and 9999, got %d", r.MaxConcurrentRuns), nil)
+		return NewInvalid("maxConcurrentRuns", fmt.Sprintf("must be between 1 and 9999, got %d", r.MaxConcurrentRuns), nil)
 	}
 	if r.MaxTurns < 1 || r.MaxTurns > 9999 {
-		return domain.NewConfigInvalidError("maxTurns", fmt.Sprintf("must be between 1 and 9999, got %d", r.MaxTurns), nil)
+		return NewInvalid("maxTurns", fmt.Sprintf("must be between 1 and 9999, got %d", r.MaxTurns), nil)
 	}
 	return nil
 }
 
 func (s *SafetyIsolationSettings) validate() error {
 	if !validNetworkAccess[s.NetworkAccess] {
-		return domain.NewConfigInvalidError("networkAccess", fmt.Sprintf("must be one of none, localhost, full; got %q", s.NetworkAccess), nil)
+		return NewInvalid("networkAccess", fmt.Sprintf("must be one of none, localhost, full; got %q", s.NetworkAccess), nil)
 	}
 	return nil
 }
 
 func (h *HealthDetectionSettings) validate() error {
 	if h.HeartbeatIntervalSeconds < 1 || h.HeartbeatIntervalSeconds > 9999 {
-		return domain.NewConfigInvalidError("heartbeatIntervalSeconds", fmt.Sprintf("must be between 1 and 9999, got %d", h.HeartbeatIntervalSeconds), nil)
+		return NewInvalid("heartbeatIntervalSeconds", fmt.Sprintf("must be between 1 and 9999, got %d", h.HeartbeatIntervalSeconds), nil)
 	}
 	if h.StaleThresholdSeconds < 10 || h.StaleThresholdSeconds > 9999 {
-		return domain.NewConfigInvalidError("staleThresholdSeconds", fmt.Sprintf("must be between 10 and 9999, got %d", h.StaleThresholdSeconds), nil)
+		return NewInvalid("staleThresholdSeconds", fmt.Sprintf("must be between 10 and 9999, got %d", h.StaleThresholdSeconds), nil)
 	}
 	if h.MaxRecoveryAgeSeconds < 30 || h.MaxRecoveryAgeSeconds > 9999 {
-		return domain.NewConfigInvalidError("maxRecoveryAgeSeconds", fmt.Sprintf("must be between 30 and 9999, got %d", h.MaxRecoveryAgeSeconds), nil)
+		return NewInvalid("maxRecoveryAgeSeconds", fmt.Sprintf("must be between 30 and 9999, got %d", h.MaxRecoveryAgeSeconds), nil)
 	}
 	if h.ReconcilerIntervalSeconds < 5 || h.ReconcilerIntervalSeconds > 9999 {
-		return domain.NewConfigInvalidError("reconcilerIntervalSeconds", fmt.Sprintf("must be between 5 and 9999, got %d", h.ReconcilerIntervalSeconds), nil)
+		return NewInvalid("reconcilerIntervalSeconds", fmt.Sprintf("must be between 5 and 9999, got %d", h.ReconcilerIntervalSeconds), nil)
 	}
 	return nil
 }
 
 func (p *ProcessTerminationSettings) validate() error {
 	if p.GracePeriodSeconds < 1 || p.GracePeriodSeconds > 9999 {
-		return domain.NewConfigInvalidError("gracePeriodSeconds", fmt.Sprintf("must be between 1 and 9999, got %d", p.GracePeriodSeconds), nil)
+		return NewInvalid("gracePeriodSeconds", fmt.Sprintf("must be between 1 and 9999, got %d", p.GracePeriodSeconds), nil)
 	}
 	if p.OrphanGracePeriodSeconds < 30 || p.OrphanGracePeriodSeconds > 9999 {
-		return domain.NewConfigInvalidError("orphanGracePeriodSeconds", fmt.Sprintf("must be between 30 and 9999, got %d", p.OrphanGracePeriodSeconds), nil)
+		return NewInvalid("orphanGracePeriodSeconds", fmt.Sprintf("must be between 30 and 9999, got %d", p.OrphanGracePeriodSeconds), nil)
 	}
 	if p.TerminationMaxRetries < 1 || p.TerminationMaxRetries > 99 {
-		return domain.NewConfigInvalidError("terminationMaxRetries", fmt.Sprintf("must be between 1 and 99, got %d", p.TerminationMaxRetries), nil)
+		return NewInvalid("terminationMaxRetries", fmt.Sprintf("must be between 1 and 99, got %d", p.TerminationMaxRetries), nil)
 	}
 	return nil
 }

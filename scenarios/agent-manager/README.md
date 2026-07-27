@@ -184,8 +184,8 @@ agent-manager task create --title "Fix bug" --scope-path "src/"
 agent-manager task list
 
 # Run management
-agent-manager run create --task <id> --profile <id>
-agent-manager run create --task <id> --profile <id> --execution-mode interactive  # run inside a live web-console session
+agent-manager run create --task-id <id> --profile-id <id>
+agent-manager run create --task-id <id> --profile-id <id> --execution-mode interactive  # run inside a live web-console session
 agent-manager run logs <id>
 agent-manager run diff <id>
 agent-manager run approve <id>
@@ -208,6 +208,13 @@ agent-manager permission-policy reconcile --i-was-explicitly-authorized
 
 # Scenario-owned profile sources
 agent-manager profile reconcile-scenario --scenario <scenario> --dry-run
+
+# One bounded, real tracking/provenance verification. It creates a scratch task
+# and file, asserts completion/change/provenance, then removes that scratch file.
+# This prefers an unrestricted code.cheap profile and incurs real agent cost.
+make smoke
+# Or select the profile and Workspace Sandbox endpoint explicitly:
+agent-manager scenario-smoke --profile-id <id> --workspace-sandbox-url http://127.0.0.1:<port>
 ```
 
 See [docs/reference/configuration.md](docs/reference/configuration.md#role-policy-catalog)

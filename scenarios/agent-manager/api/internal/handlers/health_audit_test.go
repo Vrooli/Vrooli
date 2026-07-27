@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/health"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/orchestration/testutil"
 )
 
 func TestHealthAuditHandlerNilStoreAndInvalidQueries(t *testing.T) {

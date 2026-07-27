@@ -11,10 +11,10 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/webconsole"
-	"agent-manager/internal/database"
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/testutil"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"github.com/google/uuid"
 )

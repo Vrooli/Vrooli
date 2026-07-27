@@ -12,13 +12,13 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	cfgpkg "agent-manager/internal/config"
-	"agent-manager/internal/database"
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
-	"agent-manager/internal/testutil"
-	"agent-manager/internal/testutil/fixtures"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/fixtures"
+	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"github.com/google/uuid"
 )

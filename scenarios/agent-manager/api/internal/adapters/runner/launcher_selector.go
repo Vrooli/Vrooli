@@ -17,7 +17,7 @@ import (
 //
 // All three coding-agent runners (claude_code, codex, opencode) need the
 // same routing decision when picking between host and sandbox execution:
-// "tracking mode → host; protected mode → sandbox if a factory is wired
+// "sandboxed tracking or protected mode → sandbox if a factory is wired
 // AND a sandbox ID is present, otherwise warn and fall back to host."
 // Without this seam every runner would copy the switch into its Execute
 // method, drift over time, and need parallel routing tests.
@@ -89,13 +89,14 @@ func (s *LauncherSelector) Pick(ctx context.Context, req ExecuteRequest) Launche
 //
 // Routing rules:
 //
-//  1. Tracking mode (or unspecified) → host launcher.
-//  2. Protected mode without a wired factory → warn-and-fallback to host.
-//  3. Protected mode without sandboxID → warn-and-fallback.
-//  4. Protected mode with factory + sandboxID, factory returns nil →
+//  1. Tracking or protected mode with a sandbox → sandbox launcher.
+//  2. Unspecified/off mode → host launcher.
+//  3. Sandboxed mode without a wired factory → warn-and-fallback to host.
+//  4. Sandboxed mode without sandboxID → warn-and-fallback.
+//  5. Sandboxed mode with factory + sandboxID, factory returns nil →
 //     warn-and-fallback. (Common when the provider doesn't recognise the
 //     sandbox ID, e.g. cross-environment misconfiguration.)
-//  5. Protected mode + factory + sandboxID + non-nil launcher → sandbox.
+//  6. Sandboxed mode + factory + sandboxID + non-nil launcher → sandbox.
 //
 // Each warn-and-fallback path emits a log event on the supplied EventSink
 // (when non-nil) so operators can spot misconfigured environments rather
@@ -107,15 +108,19 @@ func (s *LauncherSelector) PickFor(ctx context.Context, runID uuid.UUID, cfg *do
 	factory := s.sandboxFactory
 	s.mu.RUnlock()
 
-	if cfg == nil || cfg.SandboxConfig == nil || cfg.SandboxConfig.Mode.Effective() != domain.SandboxModeProtected {
+	if cfg == nil || cfg.SandboxConfig == nil {
+		return host
+	}
+	mode := cfg.SandboxConfig.Mode.Effective()
+	if mode != domain.SandboxModeTracking && mode != domain.SandboxModeProtected {
 		return host
 	}
 	if factory == nil {
-		emitLauncherFallbackWarn(runID, sink, "no SandboxLauncherFactory configured")
+		emitLauncherFallbackWarn(runID, sink, "no SandboxLauncherFactory configured for "+string(mode)+" mode")
 		return host
 	}
 	if sandboxID == nil {
-		emitLauncherFallbackWarn(runID, sink, "SandboxID is nil")
+		emitLauncherFallbackWarn(runID, sink, "SandboxID is nil for "+string(mode)+" mode")
 		return host
 	}
 	launcher := factory.LauncherFor(*sandboxID)

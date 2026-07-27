@@ -81,6 +81,7 @@ type Repository interface {
 	RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error
 	GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
 	GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error)
+	GetUnresolvedCommitChanges(ctx context.Context) ([]*types.AppliedChange, error)
 	GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
 	MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error
 	MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error)
@@ -184,7 +185,7 @@ func (r *TxSandboxRepository) BeginTx(ctx context.Context) (TxRepository, error)
 // ---------------------------------------------------------------------------
 
 const sandboxColumns = `
-	id, COALESCE(name, ''), scope_path, COALESCE(reserved_path, ''), reserved_paths, no_lock, project_root,
+	id, COALESCE(name, ''), scope_path, COALESCE(reserved_path, ''), reserved_paths, no_lock, project_root, auxiliary_roots,
 	COALESCE(owner, ''), owner_type, status, COALESCE(error_message, ''),
 	created_at, last_used_at, stopped_at, approved_at, deleted_at,
 	driver_id, driver_version, COALESCE(lower_dir, ''), COALESCE(upper_dir, ''),
@@ -198,25 +199,26 @@ func scanSandbox(row interface {
 },
 ) (*types.Sandbox, error) {
 	var (
-		s             types.Sandbox
-		idStr         string
-		createdAt     string
-		lastUsedAt    string
-		stoppedAt     sql.NullString
-		approvedAt    sql.NullString
-		deletedAt     sql.NullString
-		updatedAt     string
-		reservedPaths string
-		activePIDsStr string
-		tagsStr       string
-		metadataJSON  string
-		behaviorJSON  string
-		noLock        int
+		s              types.Sandbox
+		idStr          string
+		createdAt      string
+		lastUsedAt     string
+		stoppedAt      sql.NullString
+		approvedAt     sql.NullString
+		deletedAt      sql.NullString
+		updatedAt      string
+		reservedPaths  string
+		auxiliaryRoots string
+		activePIDsStr  string
+		tagsStr        string
+		metadataJSON   string
+		behaviorJSON   string
+		noLock         int
 	)
 
 	var homeOverlayState string
 	if err := row.Scan(
-		&idStr, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &noLock, &s.ProjectRoot,
+		&idStr, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &noLock, &s.ProjectRoot, &auxiliaryRoots,
 		&s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&createdAt, &lastUsedAt, &stoppedAt, &approvedAt, &deletedAt,
 		&s.DriverID, &s.DriverVersion, &s.LowerDir, &s.UpperDir,
@@ -235,6 +237,9 @@ func scanSandbox(row interface {
 	}
 	s.ID = id
 	s.NoLock = noLock != 0
+	if s.AuxiliaryRoots, err = parseStrings(auxiliaryRoots); err != nil {
+		return nil, fmt.Errorf("parse auxiliary roots: %w", err)
+	}
 
 	if s.CreatedAt, err = parseTime(createdAt); err != nil {
 		return nil, err
@@ -312,13 +317,13 @@ func insertSandbox(ctx context.Context, exec dbExec, clk clock.Clock, s *types.S
 
 	const query = `
 		INSERT INTO sandboxes (
-			id, name, scope_path, reserved_path, reserved_paths, no_lock, project_root,
+			id, name, scope_path, reserved_path, reserved_paths, no_lock, project_root, auxiliary_roots,
 			owner, owner_type, status,
 			created_at, last_used_at, updated_at,
 			driver_id, driver_version, tags, metadata, behavior,
 			idempotency_key, version, base_commit_hash, active_pids,
 			home_overlay_state
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	homeOverlayState := s.HomeOverlayState
 	if homeOverlayState == "" {
@@ -332,6 +337,7 @@ func insertSandbox(ctx context.Context, exec dbExec, clk clock.Clock, s *types.S
 		jsonStrings(s.ReservedPaths),
 		boolInt(s.NoLock),
 		s.ProjectRoot,
+		jsonStrings(s.AuxiliaryRoots),
 		nullableString(s.Owner),
 		string(s.OwnerType),
 		string(s.Status),
@@ -1234,6 +1240,36 @@ func (r *TxSandboxRepository) GetPendingChangeFiles(ctx context.Context, project
 	return nil, errors.New("GetPendingChangeFiles not implemented for transactions")
 }
 
+// GetUnresolvedCommitChanges returns rows still awaiting a real commit hash,
+// including historical EXTERNAL placeholders that are repair candidates.
+func (r *SandboxRepository) GetUnresolvedCommitChanges(ctx context.Context) ([]*types.AppliedChange, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, sandbox_id, COALESCE(sandbox_owner, ''), COALESCE(sandbox_owner_type, ''),
+		       file_path, project_root, change_type, file_size, applied_at,
+		       COALESCE(agent_manager_run_id, ''), COALESCE(run_outcome, ''),
+		       COALESCE(provenance_state, ''), COALESCE(conversation_id, ''), COALESCE(cost_usd, 0)
+		FROM applied_changes
+		WHERE committed_at IS NULL OR commit_hash = 'EXTERNAL'
+		ORDER BY applied_at ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("query unresolved commit changes: %w", err)
+	}
+	defer rows.Close()
+	var changes []*types.AppliedChange
+	for rows.Next() {
+		change, err := scanAppliedChangePending(rows)
+		if err != nil {
+			return nil, err
+		}
+		changes = append(changes, change)
+	}
+	return changes, rows.Err()
+}
+
+func (r *TxSandboxRepository) GetUnresolvedCommitChanges(ctx context.Context) ([]*types.AppliedChange, error) {
+	return nil, errors.New("GetUnresolvedCommitChanges not implemented for transactions")
+}
+
 func scanAppliedChangePending(rows *sql.Rows) (*types.AppliedChange, error) {
 	var (
 		c            types.AppliedChange
@@ -1357,7 +1393,7 @@ func (r *SandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid
 		args = append(args, id.String())
 	}
 
-	query := "UPDATE applied_changes SET committed_at = ?, commit_hash = ?, commit_message = ?, provenance_state = ? WHERE id IN (" + placeholders + ") AND committed_at IS NULL"
+	query := "UPDATE applied_changes SET committed_at = ?, commit_hash = ?, commit_message = ?, provenance_state = ? WHERE id IN (" + placeholders + ") AND (committed_at IS NULL OR commit_hash = 'EXTERNAL')"
 	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return fmt.Errorf("mark changes committed: %w", err)
 	}

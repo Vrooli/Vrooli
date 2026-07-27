@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"agent-manager/internal/config"
-	"agent-manager/internal/database"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/sirupsen/logrus"
 )

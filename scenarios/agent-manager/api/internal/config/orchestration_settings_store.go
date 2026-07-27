@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"agent-manager/internal/domain"
-
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -29,7 +27,7 @@ func NewOrchestrationSettingsStore(path string) (*OrchestrationSettingsStore, er
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return nil, domain.NewConfigInvalidError("orchestrationSettings", "failed to read orchestration settings", err)
+			return nil, NewInvalid("orchestrationSettings", "failed to read orchestration settings", err)
 		}
 		// File missing — seed with defaults.
 		s.settings = DefaultOrchestrationSettings()
@@ -41,7 +39,7 @@ func NewOrchestrationSettingsStore(path string) (*OrchestrationSettingsStore, er
 
 	var settings OrchestrationSettings
 	if err := json.Unmarshal(data, &settings); err != nil {
-		return nil, domain.NewConfigInvalidError("orchestrationSettings", "failed to parse orchestration settings", err)
+		return nil, NewInvalid("orchestrationSettings", "failed to parse orchestration settings", err)
 	}
 	if err := settings.Validate(); err != nil {
 		return nil, err
@@ -88,19 +86,19 @@ func (s *OrchestrationSettingsStore) Reset() error {
 func (s *OrchestrationSettingsStore) writeToDisk(settings OrchestrationSettings) error {
 	dir := filepath.Dir(s.path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return domain.NewConfigInvalidError("orchestrationSettings", "failed to create directory", err)
+		return NewInvalid("orchestrationSettings", "failed to create directory", err)
 	}
 	payload, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
-		return domain.NewConfigInvalidError("orchestrationSettings", "failed to marshal settings", err)
+		return NewInvalid("orchestrationSettings", "failed to marshal settings", err)
 	}
 	payload = append(payload, '\n')
 	tmp := s.path + ".tmp"
 	if err := os.WriteFile(tmp, payload, 0o644); err != nil {
-		return domain.NewConfigInvalidError("orchestrationSettings", "failed to write temp file", err)
+		return NewInvalid("orchestrationSettings", "failed to write temp file", err)
 	}
 	if err := os.Rename(tmp, s.path); err != nil {
-		return domain.NewConfigInvalidError("orchestrationSettings", "failed to rename temp file", err)
+		return NewInvalid("orchestrationSettings", "failed to rename temp file", err)
 	}
 	return nil
 }

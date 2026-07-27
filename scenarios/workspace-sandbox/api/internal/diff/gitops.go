@@ -30,7 +30,9 @@ package diff
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
@@ -64,6 +66,34 @@ type GitOperations interface {
 
 	// ReconcilePendingWithGit compares database pending files with actual git status.
 	ReconcilePendingWithGit(ctx context.Context, repoDir string, pendingPaths []string) (*ReconcileResult, error)
+
+	// ResolveCommitForPath returns the newest commit touching path at or after
+	// appliedAt. An empty hash means no eligible commit exists.
+	ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error)
+}
+
+// ResolveCommitForPath resolves durable provenance without mutating git state.
+func (g *GitOps) ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error) {
+	if !g.IsGitRepo(ctx, repoDir) {
+		return "", nil
+	}
+	result := g.runner.Run(ctx, "", "", "git", "-C", repoDir, "log", "-1", "--format=%H", "--since="+appliedAt.UTC().Format(time.RFC3339Nano), "--", path)
+	if result.Err != nil {
+		return "", result.Err
+	}
+	hash := strings.TrimSpace(result.Stdout)
+	if hash == "" {
+		return "", nil
+	}
+	if len(hash) != 40 {
+		return "", fmt.Errorf("git returned invalid commit hash %q", hash)
+	}
+	for _, r := range hash {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return "", fmt.Errorf("git returned invalid commit hash %q", hash)
+		}
+	}
+	return hash, nil
 }
 
 // GitOps is the production implementation of GitOperations.
@@ -314,8 +344,16 @@ type MockGitOps struct {
 	// ReconcileError is returned as error from ReconcilePendingWithGit
 	ReconcileError error
 
+	ResolvedCommitHash string
+	ResolveCommitError error
+
 	// Calls records all method calls for verification
 	Calls []string
+}
+
+func (m *MockGitOps) ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error) {
+	m.Calls = append(m.Calls, "ResolveCommitForPath:"+repoDir+":"+path)
+	return m.ResolvedCommitHash, m.ResolveCommitError
 }
 
 // NewMockGitOps creates a new mock for testing.

@@ -11,7 +11,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil/mocks"
 )
 
 // Compile-time proof the mocks fake satisfies the production Waiter seam.

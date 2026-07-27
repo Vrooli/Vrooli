@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"agent-manager/internal/database"
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/workflowruntime"
 

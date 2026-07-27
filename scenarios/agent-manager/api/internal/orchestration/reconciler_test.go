@@ -10,8 +10,8 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/testutil"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"github.com/google/uuid"
 )

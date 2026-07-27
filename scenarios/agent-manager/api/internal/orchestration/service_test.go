@@ -14,7 +14,7 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/google/uuid"
 )

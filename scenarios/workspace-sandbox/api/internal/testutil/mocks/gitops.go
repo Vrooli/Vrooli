@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/types"
@@ -22,15 +23,16 @@ type FakeGitOps struct {
 	mu sync.Mutex
 
 	// Default responses
-	IsRepo           bool
-	CommitHash       string
-	CurrentHash      string
-	RepoChanged      bool
-	ChangedFiles     []string
-	UncommittedFiles []diff.GitFileStatus
-	UncommittedPaths []string
-	ConflictResult   *diff.ConflictCheckResult
-	ReconcileResult  *diff.ReconcileResult
+	IsRepo             bool
+	CommitHash         string
+	CurrentHash        string
+	RepoChanged        bool
+	ChangedFiles       []string
+	UncommittedFiles   []diff.GitFileStatus
+	UncommittedPaths   []string
+	ConflictResult     *diff.ConflictCheckResult
+	ReconcileResult    *diff.ReconcileResult
+	ResolvedCommitHash string
 
 	// Per-method error injection
 	GetCommitHashErr    error
@@ -39,10 +41,19 @@ type FakeGitOps struct {
 	GetUncommittedErr   error
 	CheckConflictsErr   error
 	ReconcilePendingErr error
+	ResolveCommitErr    error
 
 	// Calls records every call as `Method:dir[:arg]`. Tests use
 	// WasCalled / Reset / Calls() for verification.
 	calls []string
+}
+
+func (m *FakeGitOps) ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error) {
+	m.record("ResolveCommitForPath:" + repoDir + ":" + path)
+	if m.ResolveCommitErr != nil {
+		return "", m.ResolveCommitErr
+	}
+	return m.ResolvedCommitHash, nil
 }
 
 // NewFakeGitOps returns a FakeGitOps with sane defaults: IsRepo=true,

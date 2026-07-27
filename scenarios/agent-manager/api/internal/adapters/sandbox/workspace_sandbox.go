@@ -73,11 +73,12 @@ func NewWorkspaceSandboxProvider(baseURL string) *WorkspaceSandboxProvider {
 // Create creates a new sandbox for the given scope.
 func (p *WorkspaceSandboxProvider) Create(ctx context.Context, req CreateRequest) (*Sandbox, error) {
 	body := map[string]interface{}{
-		"scopePath":   req.ScopePath,
-		"projectRoot": req.ProjectRoot,
-		"owner":       req.Owner,
-		"ownerType":   req.OwnerType,
-		"metadata":    req.Metadata,
+		"scopePath":      req.ScopePath,
+		"projectRoot":    req.ProjectRoot,
+		"auxiliaryRoots": req.AuxiliaryRoots,
+		"owner":          req.Owner,
+		"ownerType":      req.OwnerType,
+		"metadata":       req.Metadata,
 	}
 	if req.Name != "" {
 		body["name"] = req.Name
@@ -1188,6 +1189,9 @@ func (p *WorkspaceSandboxProvider) ExecProcess(ctx context.Context, req ExecProc
 	}
 	if req.WorkingDir != "" {
 		body["workingDir"] = req.WorkingDir
+	}
+	if len(req.WritableMounts) > 0 {
+		body["writableMounts"] = req.WritableMounts
 	}
 	switch req.NetworkMode {
 	case "full":

@@ -22,11 +22,12 @@ import (
 
 // SetupWorkspaceInput is the explicit input to SetupWorkspace.
 type SetupWorkspaceInput struct {
-	Deps    Deps
-	Run     *domain.Run
-	Task    *domain.Task
-	Profile *domain.AgentProfile
-	Sandbox sandbox.Provider
+	Deps         Deps
+	Run          *domain.Run
+	Task         *domain.Task
+	Profile      *domain.AgentProfile
+	Sandbox      sandbox.Provider
+	RunStateRoot string
 
 	// ExistingSandboxID is set when WithExistingSandbox was used (resumption,
 	// continue-run, etc.). When non-nil, SetupWorkspace skips creation and
@@ -109,11 +110,16 @@ func CreateSandboxWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupW
 		return SetupWorkspaceOutput{}, err
 	}
 
+	auxiliaryRoots := []string(nil)
+	if in.RunStateRoot != "" {
+		auxiliaryRoots = []string{in.RunStateRoot}
+	}
 	req := sandbox.CreateRequest{
 		Name:           BuildSandboxName(in.Run, in.Task, in.Profile),
 		ScopePath:      in.Task.ScopePath,
 		NoLock:         noLockFromSandboxConfig(in.Run.SandboxConfig),
 		ProjectRoot:    projectRoot,
+		AuxiliaryRoots: auxiliaryRoots,
 		Owner:          in.Run.ID.String(),
 		OwnerType:      "run",
 		IdempotencyKey: idempotencyKey,

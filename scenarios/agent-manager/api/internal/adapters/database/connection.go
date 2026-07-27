@@ -12,7 +12,6 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modules"
-	"agent-manager/internal/sqlcompat"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -227,9 +226,19 @@ func (tx *Tx) NamedExecContext(ctx context.Context, query string, arg any) (sql.
 	return tx.ExecContext(ctx, sqlx.Rebind(sqlx.BindType("sqlite"), bound), args...)
 }
 
-// SQLXCompat is the compatibility seam accepted by read-side components. Both
-// *sqlx.DB (unit tests) and *DB (the routed production graph) satisfy it.
-type SQLXCompat = sqlcompat.DB
+// SQLXCompat is the compatibility seam accepted by database read-side
+// components. Both *sqlx.DB (unit tests) and *DB (the routed production graph)
+// satisfy it. It is owned here because it describes this adapter's SQL surface,
+// not a separate product capability.
+type SQLXCompat interface {
+	Exec(string, ...any) (sql.Result, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	QueryxContext(context.Context, string, ...any) (*sqlx.Rows, error)
+	GetContext(context.Context, any, string, ...any) error
+	SelectContext(context.Context, any, string, ...any) error
+	Conn(context.Context) (*sql.Conn, error)
+}
 
 func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
 	if db != nil && db.Routed == nil && db.DB != nil {

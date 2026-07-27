@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"agent-manager/internal/conformance"
-	"agent-manager/internal/database"
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"

@@ -1,3 +1,4 @@
+// Package mocks provides controllable collaborators for orchestration tests.
 package mocks
 
 import (

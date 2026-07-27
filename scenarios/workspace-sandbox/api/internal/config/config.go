@@ -134,6 +134,10 @@ type LifecycleConfig struct {
 	// Default: 15m
 	GCInterval time.Duration
 
+	// CommitReconcileInterval is the cadence for resolving manual git commits
+	// back onto applied-change provenance. Default: 15m.
+	CommitReconcileInterval time.Duration
+
 	// AutoCleanupTerminal controls whether approved/rejected sandboxes
 	// are automatically cleaned up after a delay.
 	// Default: true
@@ -497,17 +501,18 @@ func Default() Config {
 			MaxListLimit:     1000,
 		},
 		Lifecycle: LifecycleConfig{
-			DefaultTTL:           24 * time.Hour,
-			IdleTimeout:          4 * time.Hour,
-			GCInterval:           15 * time.Minute,
-			AutoCleanupTerminal:  true,
-			TerminalCleanupDelay: 1 * time.Hour,
-			ProcessGracePeriod:   100 * time.Millisecond,
-			ProcessKillWait:      50 * time.Millisecond,
-			AutoHealIdleGrace:    30 * time.Second,
-			AutoHealMaxRetries:   5,
-			AutoHealBaseBackoff:  30 * time.Second,
-			ManualReviewTTL:      7 * 24 * time.Hour, // Decision D1: 7-day TTL from run end
+			DefaultTTL:              24 * time.Hour,
+			IdleTimeout:             4 * time.Hour,
+			GCInterval:              15 * time.Minute,
+			CommitReconcileInterval: 15 * time.Minute,
+			AutoCleanupTerminal:     true,
+			TerminalCleanupDelay:    1 * time.Hour,
+			ProcessGracePeriod:      100 * time.Millisecond,
+			ProcessKillWait:         50 * time.Millisecond,
+			AutoHealIdleGrace:       30 * time.Second,
+			AutoHealMaxRetries:      5,
+			AutoHealBaseBackoff:     30 * time.Second,
+			ManualReviewTTL:         7 * 24 * time.Hour, // Decision D1: 7-day TTL from run end
 		},
 		Policy: PolicyConfig{
 			DefaultNoLock:            true,
@@ -592,6 +597,7 @@ func LoadFromEnv() (Config, error) {
 	cfg.Lifecycle.DefaultTTL = envDuration("WORKSPACE_SANDBOX_DEFAULT_TTL", cfg.Lifecycle.DefaultTTL)
 	cfg.Lifecycle.IdleTimeout = envDuration("WORKSPACE_SANDBOX_IDLE_TTL", cfg.Lifecycle.IdleTimeout)
 	cfg.Lifecycle.GCInterval = envDuration("WORKSPACE_SANDBOX_GC_INTERVAL", cfg.Lifecycle.GCInterval)
+	cfg.Lifecycle.CommitReconcileInterval = envDuration("WORKSPACE_SANDBOX_COMMIT_RECONCILE_INTERVAL", cfg.Lifecycle.CommitReconcileInterval)
 	cfg.Lifecycle.AutoCleanupTerminal = envBool("WORKSPACE_SANDBOX_AUTO_CLEANUP_TERMINAL", cfg.Lifecycle.AutoCleanupTerminal)
 	cfg.Lifecycle.TerminalCleanupDelay = envDuration("WORKSPACE_SANDBOX_TERMINAL_CLEANUP_DELAY", cfg.Lifecycle.TerminalCleanupDelay)
 	cfg.Lifecycle.ProcessGracePeriod = envDuration("WORKSPACE_SANDBOX_PROCESS_GRACE_PERIOD", cfg.Lifecycle.ProcessGracePeriod)
@@ -763,6 +769,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Lifecycle.GCInterval < time.Minute {
 		errs = append(errs, "lifecycle.gcInterval must be at least 1 minute")
+	}
+	if c.Lifecycle.CommitReconcileInterval < time.Minute {
+		errs = append(errs, "lifecycle.commitReconcileInterval must be at least 1 minute")
 	}
 	if c.Lifecycle.AutoHealMaxRetries < 1 {
 		errs = append(errs, "lifecycle.autoHealMaxRetries must be at least 1")

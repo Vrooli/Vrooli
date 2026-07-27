@@ -58,12 +58,13 @@ func (h *Handlers) applyIsolationProfile(sb *types.Sandbox, cfg *driverexec.Bwra
 
 // ExecRequest represents a request to execute a command in a sandbox.
 type ExecRequest struct {
-	Command      string            `json:"command"`
-	Args         []string          `json:"args,omitempty"`
-	AllowNetwork bool              `json:"allowNetwork,omitempty"`
-	Env          map[string]string `json:"env,omitempty"`
-	WorkingDir   string            `json:"workingDir,omitempty"`
-	SessionID    string            `json:"sessionId,omitempty"`
+	Command        string            `json:"command"`
+	Args           []string          `json:"args,omitempty"`
+	AllowNetwork   bool              `json:"allowNetwork,omitempty"`
+	Env            map[string]string `json:"env,omitempty"`
+	WorkingDir     string            `json:"workingDir,omitempty"`
+	SessionID      string            `json:"sessionId,omitempty"`
+	WritableMounts []WritableMount   `json:"writableMounts,omitempty"`
 
 	// IsolationLevel controls filesystem access.
 	// "full" (default): maximum isolation, only /workspace accessible.
@@ -76,6 +77,12 @@ type ExecRequest struct {
 	TimeoutSec    int `json:"timeoutSec,omitempty"`    // Wall-clock timeout in seconds
 	MaxProcesses  int `json:"maxProcesses,omitempty"`  // Max child processes
 	MaxOpenFiles  int `json:"maxOpenFiles,omitempty"`  // Max open file descriptors
+}
+
+// WritableMount is a caller-declared writable host directory.
+type WritableMount struct {
+	Path    string `json:"path"`
+	Purpose string `json:"purpose"`
 }
 
 // ExecResponse is the structured response from a successful Exec call.
@@ -158,7 +165,7 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		h.HandleDomainError(w, err)
 		return
 	}
-	if err := addAgentManagerSessionHomeBinds(&cfg, req.Env); err != nil {
+	if err := addWritableMounts(&cfg, sb, req.WritableMounts); err != nil {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -213,60 +220,52 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// addAgentManagerSessionHomeBinds makes only a run-scoped codec session home
-// writable through the protected home overlay. The overlay intentionally makes
-// the host home read-only; without this later bind, CODEX_HOME points at a
-// visible but unwritable lower-layer directory and Codex cannot create its
-// app-server state. The accepted shape is deliberately narrow so a launch
-// request cannot turn arbitrary host paths into writable mounts.
-func addAgentManagerSessionHomeBinds(cfg *driverexec.BwrapConfig, env map[string]string) error {
-	if len(env) == 0 {
+func addWritableMounts(cfg *driverexec.BwrapConfig, sb *types.Sandbox, mounts []WritableMount) error {
+	if len(mounts) == 0 {
 		return nil
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("resolve host home for codec session mount: %w", err)
-	}
-	runsRoot := filepath.Join(home, ".vrooli", "data", "vrooli", "agent-manager", "runs")
-	for envKey, expectedLeaf := range map[string]string{"CODEX_HOME": "codex", "GROK_HOME": "grok"} {
-		sessionHome := env[envKey]
-		if sessionHome == "" {
-			continue
-		}
-		if err := validateAgentManagerSessionHome(runsRoot, sessionHome, expectedLeaf); err != nil {
-			return fmt.Errorf("invalid %s writable mount: %w", envKey, err)
+	for _, mount := range mounts {
+		if err := validateWritableMount(sb, mount); err != nil {
+			return err
 		}
 		if cfg.ReadWriteBinds == nil {
 			cfg.ReadWriteBinds = make(map[string]string)
 		}
-		cfg.ReadWriteBinds[sessionHome] = sessionHome
+		cfg.ReadWriteBinds[mount.Path] = mount.Path
 	}
 	return nil
 }
 
-func validateAgentManagerSessionHome(runsRoot, sessionHome, expectedLeaf string) error {
-	if !filepath.IsAbs(sessionHome) {
+func validateWritableMount(sb *types.Sandbox, mount WritableMount) error {
+	if mount.Purpose == "" {
+		return fmt.Errorf("writable mount purpose is required")
+	}
+	if !filepath.IsAbs(mount.Path) {
 		return fmt.Errorf("path must be absolute")
 	}
-	rel, err := filepath.Rel(runsRoot, filepath.Clean(sessionHome))
-	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
-		return fmt.Errorf("path must be below run-state root")
-	}
-	parts := strings.Split(filepath.ToSlash(rel), "/")
-	if len(parts) != 2 || parts[1] != expectedLeaf {
-		return fmt.Errorf("path must name a run-scoped %s home", expectedLeaf)
-	}
-	if _, err := uuid.Parse(parts[0]); err != nil {
-		return fmt.Errorf("run directory is not a UUID: %w", err)
-	}
-	info, err := os.Stat(sessionHome)
+	resolved, err := filepath.EvalSymlinks(mount.Path)
 	if err != nil {
-		return fmt.Errorf("session home is unavailable: %w", err)
+		return fmt.Errorf("writable mount is unavailable: %w", err)
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return fmt.Errorf("writable mount is unavailable: %w", err)
 	}
 	if !info.IsDir() {
-		return fmt.Errorf("session home is not a directory")
+		return fmt.Errorf("writable mount is not a directory")
 	}
-	return nil
+	roots := append([]string{sb.ProjectRoot}, sb.AuxiliaryRoots...)
+	for _, root := range roots {
+		resolvedRoot, rootErr := filepath.EvalSymlinks(root)
+		if rootErr != nil {
+			continue
+		}
+		rel, relErr := filepath.Rel(resolvedRoot, resolved)
+		if relErr == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return nil
+		}
+	}
+	return fmt.Errorf("writable mount must be below a registered root")
 }
 
 // firstArg returns args[0] or "" — used by Exec/StartProcess to surface

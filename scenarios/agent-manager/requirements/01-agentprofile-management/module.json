@@ -83,13 +83,6 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Test orchestrator-level profile update"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/database/repository_test.go::TestProfileCRUD",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Verify repository-level CRUD operations"
         }
       ]
     }

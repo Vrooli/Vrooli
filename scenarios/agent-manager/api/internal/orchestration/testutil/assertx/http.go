@@ -1,3 +1,4 @@
+// Package assertx provides orchestration-facing HTTP test assertions.
 package assertx
 
 import (

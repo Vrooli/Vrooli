@@ -23,13 +23,14 @@ import (
 
 // StartProcessRequest is the body for POST /sandboxes/{id}/processes.
 type StartProcessRequest struct {
-	Command      string            `json:"command"`
-	Args         []string          `json:"args,omitempty"`
-	AllowNetwork bool              `json:"allowNetwork,omitempty"`
-	Env          map[string]string `json:"env,omitempty"`
-	WorkingDir   string            `json:"workingDir,omitempty"`
-	SessionID    string            `json:"sessionId,omitempty"`
-	Name         string            `json:"name,omitempty"` // Optional friendly name
+	Command        string            `json:"command"`
+	Args           []string          `json:"args,omitempty"`
+	AllowNetwork   bool              `json:"allowNetwork,omitempty"`
+	Env            map[string]string `json:"env,omitempty"`
+	WorkingDir     string            `json:"workingDir,omitempty"`
+	SessionID      string            `json:"sessionId,omitempty"`
+	WritableMounts []WritableMount   `json:"writableMounts,omitempty"`
+	Name           string            `json:"name,omitempty"` // Optional friendly name
 
 	// WithStdin requests the driver create a stdin pipe wired to the
 	// process. Callers can then stream input via POST /processes/{pid}/stdin
@@ -116,7 +117,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		h.HandleDomainError(w, err)
 		return
 	}
-	if err := addAgentManagerSessionHomeBinds(&cfg, req.Env); err != nil {
+	if err := addWritableMounts(&cfg, sb, req.WritableMounts); err != nil {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}

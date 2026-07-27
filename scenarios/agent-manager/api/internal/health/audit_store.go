@@ -8,8 +8,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"agent-manager/internal/sqlcompat"
 )
 
 // Store persists health observations and serves current-snapshot + audit
@@ -20,7 +18,7 @@ import (
 // return empty). This matches the pre-Phase-2 behaviour for code paths
 // that constructed an Orchestrator without health wiring.
 type Store struct {
-	db sqlcompat.DB
+	db AuditDB
 
 	mu         sync.RWMutex
 	runners    []string // ordered runner registry; seeded via RegisterRunners
@@ -29,7 +27,7 @@ type Store struct {
 
 // NewStore wraps a sqlx.DB. Pass nil for a no-op store (used in test
 // harnesses where health is not under test).
-func NewStore(db sqlcompat.DB) *Store {
+func NewStore(db AuditDB) *Store {
 	return &Store{db: db, seenRunner: make(map[string]struct{})}
 }
 

@@ -1743,11 +1743,14 @@ signals or logs.
 
 `orchestration.PrepareCodecSessionHome` gives codec-pipe Codex and Grok runs a
 durable per-run home under `runstate.RunDir`. The runtime directory is beneath
-the host home mounted by the protected sandbox, so the runner receives an
-explicit `CODEX_HOME` or `GROK_HOME` that survives continuation without
-restoring inherited web-console session variables. Codex credential/config seed
-files are copied into that home and removed at terminal cleanup; rollout and
-transcript data remain for recovery and replay.
+the root Agent Manager registers as a Workspace Sandbox auxiliary root. The
+runner declares that home as a writable mount on each sandboxed launch; the
+Sandbox validates the resolved directory against its persisted roots before
+binding it. This preserves continuation without restoring inherited
+web-console session variables or letting either scenario infer the other's
+private filesystem layout. Codex credential/config seed files are copied into
+that home and removed at terminal cleanup; rollout and transcript data remain
+for recovery and replay.
 
 `codexgoals.Read` is a separate, read-only observability seam. At terminal
 status, Agent Manager looks for the run's Codex `goals_1.sqlite` and emits the

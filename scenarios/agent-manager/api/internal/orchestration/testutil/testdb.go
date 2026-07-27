@@ -1,3 +1,4 @@
+// Package testutil provides lifecycle integration fixtures for orchestration tests.
 package testutil
 
 import (
@@ -6,8 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/database"
 	"agent-manager/internal/modules"
 
 	"github.com/jmoiron/sqlx"

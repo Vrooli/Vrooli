@@ -10,7 +10,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/pricing"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/eventbus"

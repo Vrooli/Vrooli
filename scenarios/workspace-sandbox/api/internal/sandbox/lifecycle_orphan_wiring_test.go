@@ -50,7 +50,7 @@ func TestRunner_Startup_InvokesOrphanReconciler(t *testing.T) {
 	drv := newCountingDriver()
 	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter())
 
-	r := sandbox.DefaultRunner(svc, time.Hour, 0, sandbox.HealConfig{}, nil)
+	r := sandbox.DefaultRunner(svc, time.Hour, 0, 0, sandbox.HealConfig{}, nil)
 	r.Start()
 	defer r.Stop()
 
@@ -75,7 +75,7 @@ func TestRunner_PeriodicTick_InvokesOrphanReconciler(t *testing.T) {
 	drv := newCountingDriver()
 	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter())
 
-	r := sandbox.DefaultRunner(svc, 30*time.Millisecond, 0, sandbox.HealConfig{}, nil)
+	r := sandbox.DefaultRunner(svc, 30*time.Millisecond, 0, 0, sandbox.HealConfig{}, nil)
 	r.Start()
 	defer r.Stop()
 
@@ -101,7 +101,7 @@ func TestRunner_Stop_ReleasesGoroutine(t *testing.T) {
 	drv := newCountingDriver()
 	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter())
 
-	r := sandbox.DefaultRunner(svc, 10*time.Millisecond, 0, sandbox.HealConfig{}, nil)
+	r := sandbox.DefaultRunner(svc, 10*time.Millisecond, 0, 0, sandbox.HealConfig{}, nil)
 	r.Start()
 	r.Stop()
 

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/google/uuid"
 )

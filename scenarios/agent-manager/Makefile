@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help setup start stop restart status logs test open clean build fmt fmt-go fmt-ui lint lint-go lint-ui lint-fix check type-check run dev
+.PHONY: help setup start stop restart status logs test smoke open clean build fmt fmt-go fmt-ui lint lint-go lint-ui lint-fix check type-check run dev
 
 .DEFAULT_GOAL := help
 
@@ -26,6 +26,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make status                     Show scenario runtime status\n"
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
+	@printf "  make smoke                      Run one bounded live tracking/provenance smoke check\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
@@ -52,6 +53,9 @@ logs: ## Show scenario logs
 
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
+
+smoke: ## Run a bounded live tracking/provenance verification (incurs real agent cost)
+	@WORKSPACE_SANDBOX_URL="http://127.0.0.1:$$(vrooli scenario port workspace-sandbox API_PORT)" agent-manager scenario-smoke
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"

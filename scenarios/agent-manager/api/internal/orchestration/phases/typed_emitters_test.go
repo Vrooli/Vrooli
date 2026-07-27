@@ -11,7 +11,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"github.com/google/uuid"
 )

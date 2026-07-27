@@ -28,7 +28,7 @@ var SchemaSQL string
 // durable diff snapshots taken at terminal status transitions. Pure
 // additive change — the new table is created via IF NOT EXISTS, no
 // existing tables are altered.
-const ExpectedSchemaVersion = 2
+const ExpectedSchemaVersion = 3
 
 // EnsureSchema applies the embedded schema and records the schema
 // version. It is the single startup entry point for all DDL: legacy
@@ -142,6 +142,7 @@ func stampSchemaVersion(ctx context.Context, db *sql.DB, version int, t time.Tim
 var migrations = map[int]func(context.Context, *sql.DB) error{
 	1: migrateToV1,
 	2: migrateToV2,
+	3: migrateToV3,
 }
 
 // migrateToV1 marks an empty database as v1. The legacy column
@@ -160,6 +161,18 @@ func migrateToV1(_ context.Context, _ *sql.DB) error {
 // recognizes v1 → v2 as a registered step rather than an unknown bump.
 func migrateToV2(_ context.Context, _ *sql.DB) error {
 	return nil
+}
+
+func migrateToV3(ctx context.Context, db *sql.DB) error {
+	var exists int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_info('sandboxes') WHERE name='auxiliary_roots'`).Scan(&exists); err != nil {
+		return fmt.Errorf("probe auxiliary_roots column: %w", err)
+	}
+	if exists > 0 {
+		return nil
+	}
+	_, err := db.ExecContext(ctx, `ALTER TABLE sandboxes ADD COLUMN auxiliary_roots TEXT NOT NULL DEFAULT '[]'`)
+	return err
 }
 
 // readSchemaVersion returns the highest persisted schema_version row,

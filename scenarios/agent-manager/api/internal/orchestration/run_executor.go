@@ -314,6 +314,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		Task:              e.task,
 		Profile:           e.profile,
 		Sandbox:           e.sandbox,
+		RunStateRoot:      e.runStateRoot,
 		ExistingSandboxID: e.sandboxID,
 		ExistingWorkDir:   e.workDir,
 	})

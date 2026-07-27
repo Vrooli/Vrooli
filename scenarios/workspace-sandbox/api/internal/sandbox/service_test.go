@@ -18,6 +18,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -75,11 +76,12 @@ func TestService_Create_Success(t *testing.T) {
 	ctx := context.Background()
 
 	req := &types.CreateRequest{
-		ScopePath:   "/tmp/project/src",
-		ProjectRoot: "/tmp/project",
-		Owner:       "test-agent",
-		OwnerType:   types.OwnerTypeAgent,
-		Tags:        []string{"test"},
+		ScopePath:      "/tmp/project/src",
+		ProjectRoot:    "/tmp/project",
+		AuxiliaryRoots: []string{"/tmp/agent-state/runs"},
+		Owner:          "test-agent",
+		OwnerType:      types.OwnerTypeAgent,
+		Tags:           []string{"test"},
 	}
 
 	sandbox, err := svc.Create(ctx, req)
@@ -97,6 +99,9 @@ func TestService_Create_Success(t *testing.T) {
 
 	if sandbox.Owner != "test-agent" {
 		t.Errorf("Create() owner = %v, want test-agent", sandbox.Owner)
+	}
+	if got, want := sandbox.AuxiliaryRoots, []string{"/tmp/agent-state/runs"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Create() auxiliary roots = %v, want %v", got, want)
 	}
 
 	// Verify sandbox was stored

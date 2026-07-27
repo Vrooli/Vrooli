@@ -134,6 +134,10 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 	}
 
 	checkpointID := uuid.New().String()
+	var appliedSizeBytes int64
+	for _, change := range applyResult.Changes {
+		appliedSizeBytes += change.FileSize
+	}
 	s.logAuditEvent(ctx, sandbox, "turn_checkpointed", req.Actor, "agent", map[string]interface{}{
 		"agentManagerRunId": req.AgentManagerRunID,
 		"conversationId":    req.ConversationID,
@@ -160,6 +164,8 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 		BaseCommitHash: sandbox.BaseCommitHash,
 		CheckpointID:   checkpointID,
 		AppliedAt:      now,
+		AppliedSizeBytes: appliedSizeBytes,
+		DiffPath: fmt.Sprintf("/api/v1/sandboxes/%s/diff", sandbox.ID),
 	}, nil
 }
 

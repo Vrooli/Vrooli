@@ -257,7 +257,7 @@ func NewServer() (*Server, error) {
 		}
 	}
 
-	lifecycleRecon := sandbox.DefaultRunner(svc, cfg.Lifecycle.GCInterval, cfg.Lifecycle.ManualReviewTTL, healCfg, retentionProvider)
+	lifecycleRecon := sandbox.DefaultRunner(svc, cfg.Lifecycle.GCInterval, cfg.Lifecycle.ManualReviewTTL, cfg.Lifecycle.CommitReconcileInterval, healCfg, retentionProvider)
 
 	// Initialize process tracker (OT-P0-008)
 	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{

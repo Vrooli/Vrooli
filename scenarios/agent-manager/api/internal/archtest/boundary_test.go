@@ -76,9 +76,33 @@ func TestWorkflowRuntimeDoesNotImportOrchestration(t *testing.T) {
 }
 
 func TestProductionOrchestrationDoesNotImportDatabase(t *testing.T) {
-	violations := importsUnder(t, "api/internal/orchestration", "agent-manager/internal/database")
+	violations := importsUnder(t, "api/internal/orchestration", "agent-manager/internal/adapters/database")
 	if len(violations) != 0 {
 		t.Fatalf("orchestration must depend on repository interfaces, not database: %v", violations)
+	}
+}
+
+// Configuration is substrate: validation errors and loading mechanics must
+// remain usable without importing business entities from internal/domain.
+func TestConfigDoesNotImportDomain(t *testing.T) {
+	violations := importsUnder(t, "api/internal/config", "agent-manager/internal/domain")
+	if len(violations) != 0 {
+		t.Fatalf("config must not import domain entities: %v", violations)
+	}
+}
+
+// Health is a substrate observer. It owns narrow contracts for database audit
+// storage and failure observations rather than importing sibling packages.
+func TestHealthDoesNotImportSiblingDomains(t *testing.T) {
+	for _, forbidden := range []string{
+		"agent-manager/internal/domain",
+		"agent-manager/internal/fallback",
+		"agent-manager/internal/sqlcompat",
+	} {
+		violations := importsUnder(t, "api/internal/health", forbidden)
+		if len(violations) != 0 {
+			t.Fatalf("health must not import sibling package %q: %v", forbidden, violations)
+		}
 	}
 }
 
@@ -162,7 +186,7 @@ func TestOnlyWiringMayResolveDatabaseDataDir(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.HasPrefix(filepath.ToSlash(rel), "internal/wiring/") || filepath.ToSlash(rel) == "internal/database/connection.go" {
+		if strings.HasPrefix(filepath.ToSlash(rel), "internal/wiring/") || filepath.ToSlash(rel) == "internal/adapters/database/connection.go" {
 			continue
 		}
 		source, err := os.ReadFile(path)
@@ -243,7 +267,10 @@ func TestBoundaryDetectorRejectsViolatingFixtures(t *testing.T) {
 		name, source, forbidden string
 	}{
 		{"workflow runtime orchestration import", `package workflowruntime; import "agent-manager/internal/orchestration"`, "agent-manager/internal/orchestration"},
-		{"orchestration database import", `package orchestration; import "agent-manager/internal/database"`, "agent-manager/internal/database"},
+		{"orchestration database import", `package orchestration; import "agent-manager/internal/adapters/database"`, "agent-manager/internal/adapters/database"},
+		{"config domain import", `package config; import "agent-manager/internal/domain"`, "agent-manager/internal/domain"},
+		{"health fallback import", `package health; import "agent-manager/internal/fallback"`, "agent-manager/internal/fallback"},
+		{"health sqlcompat import", `package health; import "agent-manager/internal/sqlcompat"`, "agent-manager/internal/sqlcompat"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			imports, err := importsFromSource(tc.source)

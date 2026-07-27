@@ -303,6 +303,13 @@ How often the lifecycle reconciler runs.
 - Range: `>= 1m`
 - Audience: operators
 
+### `WORKSPACE_SANDBOX_COMMIT_RECONCILE_INTERVAL` (Duration, default `15m`)
+How often Workspace Sandbox checks applied provenance for real hashes after an
+operator commits with plain git. It never creates or modifies commits.
+
+- Range: `>= 1m`
+- Audience: operators
+
 ### `WORKSPACE_SANDBOX_AUTO_CLEANUP_TERMINAL` (bool, default `true`)
 When `true`, approved/rejected sandboxes are cleaned up after
 `TerminalCleanupDelay`. When `false`, terminal sandboxes persist

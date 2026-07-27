@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/database"
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/rolepolicy"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil/mocks"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"

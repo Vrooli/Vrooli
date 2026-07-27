@@ -12,6 +12,45 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
+// CommitReconciliationReport records one best-effort manual-commit sweep.
+type CommitReconciliationReport struct {
+	Scanned  int
+	Repaired int
+	Failed   int
+}
+
+// ReconcileCommittedChanges resolves real hashes for changes committed outside
+// Vrooli. It never mutates git state; rows without an eligible commit remain
+// pending for a later pass.
+func (s *Service) ReconcileCommittedChanges(ctx context.Context) CommitReconciliationReport {
+	report := CommitReconciliationReport{}
+	changes, err := s.repo.GetUnresolvedCommitChanges(ctx)
+	if err != nil {
+		report.Failed = 1
+		return report
+	}
+	for _, change := range changes {
+		report.Scanned++
+		relPath := relativeToProjectRoot(change.ProjectRoot, change.FilePath)
+		hash, err := s.gitOps.ResolveCommitForPath(ctx, change.ProjectRoot, relPath, change.AppliedAt)
+		if err != nil {
+			report.Failed++
+			continue
+		}
+		if hash == "" {
+			continue
+		}
+		if err := s.repo.MarkChangesCommitted(ctx, []uuid.UUID{change.ID}, hash, "Committed externally (reconciled)"); err != nil {
+			report.Failed++
+			continue
+		}
+		report.Repaired++
+	}
+	return report
+}
+
+// CommitReconcileInterval exists as a named policy boundary for callers that
+// schedule the sweep. Zero disables periodic reconciliation.
 // service_pending.go: provenance + pending-changes surface.
 //
 // Pending changes are AppliedChange rows that have been written to the

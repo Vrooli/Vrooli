@@ -51,6 +51,7 @@ func wireRunToAPI(w *wireRun) AgentRun {
 		ApprovalState:   normalizeEnum(w.ApprovalState, "APPROVAL_STATE_"),
 		PromptPreview:   w.PromptPreview,
 		SandboxID:       w.SandboxID,
+		CommitHash:      w.CommitHash,
 		Summary:         wireRunSummaryToAPI(w.Summary),
 		Actions:         wireRunActionsToAPI(w.Actions),
 		CreatedAt:       w.CreatedAt,

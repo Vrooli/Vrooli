@@ -109,7 +109,8 @@ type CreateRequest struct {
 	NoLock *bool
 
 	// ProjectRoot is the root directory of the project.
-	ProjectRoot string
+	ProjectRoot    string
+	AuxiliaryRoots []string
 
 	// Owner identifies who owns this sandbox.
 	Owner string
@@ -426,18 +427,25 @@ type LockRequest struct {
 //   - network mode (none / localhost / full) via bwrap
 //   - resource limits (memory, CPU, processes, open files, timeout)
 type ExecProcessRequest struct {
-	SandboxID   uuid.UUID
-	Command     string
-	Args        []string
-	Env         map[string]string
-	WorkingDir  string
-	NetworkMode string // "none" | "localhost" | "full"; "" → workspace-sandbox default
+	SandboxID      uuid.UUID
+	Command        string
+	Args           []string
+	Env            map[string]string
+	WorkingDir     string
+	WritableMounts []WritableMount
+	NetworkMode    string // "none" | "localhost" | "full"; "" → workspace-sandbox default
 
 	MemoryLimitMB int
 	CPUTimeSec    int
 	TimeoutSec    int
 	MaxProcesses  int
 	MaxOpenFiles  int
+}
+
+// WritableMount declares a directory that the sandbox may bind read-write.
+type WritableMount struct {
+	Path    string `json:"path"`
+	Purpose string `json:"purpose"`
 }
 
 // ExecProcessResult mirrors the workspace-sandbox /exec response.

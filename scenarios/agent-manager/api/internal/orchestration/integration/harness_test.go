@@ -7,11 +7,11 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/database"
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	base "agent-manager/internal/testutil"
-	"agent-manager/internal/testutil/mocks"
+	base "agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/mocks"
 )
 
 // fakeClock provides deterministic time for integration lifecycles without

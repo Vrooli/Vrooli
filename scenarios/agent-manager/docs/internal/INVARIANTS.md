@@ -82,13 +82,27 @@ binary that contradicts a declaration fails conformance.
 ## I28. Terminal runs persist sandbox-reported attribution
 
 When a sandbox apply or checkpoint completes, the terminal run persists the
-sandbox's applied-file count, applied byte total, diff artifact path, and
-non-empty commit hash. Agent Manager does not recount the workspace; the
+sandbox's applied-file count, applied byte total, diff artifact path, and a
+real 40-character Git commit hash when the change is committed. `EXTERNAL` is
+not attribution and remains eligible for Workspace Sandbox reconciliation.
+Agent Manager does not recount the workspace; the
 sandbox result is authoritative. Tracking-mode interactive runs use the same
 finalization path, while Protected interactive runs remain rejected.
 
 **Tests:** `internal/orchestration/phases/finalize_test.go` and
 `internal/orchestration/run_executor_lifecycle_test.go`.
+
+## I31. Writable mounts are declared and sandbox-owned
+
+Agent Manager registers its routed run-state root as an auxiliary root when it
+creates a Workspace Sandbox. A process launch declares each run-scoped session
+home as a writable mount; Workspace Sandbox resolves it and accepts it only
+when it is an existing directory beneath a root stored on that sandbox. It
+never derives a caller's storage path from a scenario name or environment-key
+pattern.
+
+**Tests:** Workspace Sandbox process mount validation and Agent Manager sandbox
+launcher contract tests.
 
 ## I29. Codec controls have one translation seam
 

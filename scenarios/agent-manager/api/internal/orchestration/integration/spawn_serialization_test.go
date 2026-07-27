@@ -22,7 +22,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/spawn"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/google/uuid"
 )

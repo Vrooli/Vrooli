@@ -20,8 +20,6 @@ package config
 import (
 	"fmt"
 	"time"
-
-	"agent-manager/internal/domain"
 )
 
 // =============================================================================
@@ -727,163 +725,163 @@ func (l *Levers) Validate() error {
 
 func (w *WorkflowLevers) Validate() error {
 	if w.NudgeWorkers < 1 || w.NudgeWorkers > 32 {
-		return domain.NewConfigInvalidError("nudgeWorkers", fmt.Sprintf("must be between 1 and 32, got %d", w.NudgeWorkers), nil)
+		return NewInvalid("nudgeWorkers", fmt.Sprintf("must be between 1 and 32, got %d", w.NudgeWorkers), nil)
 	}
 	if w.NudgeDriveTimeout < 5*time.Second || w.NudgeDriveTimeout > 10*time.Minute {
-		return domain.NewConfigInvalidError("nudgeDriveTimeout", fmt.Sprintf("must be between 5s and 10m, got %v", w.NudgeDriveTimeout), nil)
+		return NewInvalid("nudgeDriveTimeout", fmt.Sprintf("must be between 5s and 10m, got %v", w.NudgeDriveTimeout), nil)
 	}
 	if w.UnarmedWaitWarningThreshold < time.Minute || w.UnarmedWaitWarningThreshold > 24*time.Hour {
-		return domain.NewConfigInvalidError("unarmedWaitWarningThreshold", fmt.Sprintf("must be between 1m and 24h, got %v", w.UnarmedWaitWarningThreshold), nil)
+		return NewInvalid("unarmedWaitWarningThreshold", fmt.Sprintf("must be between 1m and 24h, got %v", w.UnarmedWaitWarningThreshold), nil)
 	}
 	if w.UnarmedWaitFailureThreshold < 2*time.Minute || w.UnarmedWaitFailureThreshold > 7*24*time.Hour || w.UnarmedWaitFailureThreshold <= w.UnarmedWaitWarningThreshold {
-		return domain.NewConfigInvalidError("unarmedWaitFailureThreshold", fmt.Sprintf("must be between warning threshold (%v) and 7d, got %v", w.UnarmedWaitWarningThreshold, w.UnarmedWaitFailureThreshold), nil)
+		return NewInvalid("unarmedWaitFailureThreshold", fmt.Sprintf("must be between warning threshold (%v) and 7d, got %v", w.UnarmedWaitWarningThreshold, w.UnarmedWaitFailureThreshold), nil)
 	}
 	return nil
 }
 
 func (e *ExecutionLevers) Validate() error {
 	if e.DefaultTimeout < time.Minute || e.DefaultTimeout > 4*time.Hour {
-		return domain.NewConfigInvalidError("defaultTimeout", fmt.Sprintf("must be between 1m and 4h, got %v", e.DefaultTimeout), nil)
+		return NewInvalid("defaultTimeout", fmt.Sprintf("must be between 1m and 4h, got %v", e.DefaultTimeout), nil)
 	}
 	if e.DefaultMaxTurns < 1 || e.DefaultMaxTurns > 1000 {
-		return domain.NewConfigInvalidError("defaultMaxTurns", fmt.Sprintf("must be between 1 and 1000, got %d", e.DefaultMaxTurns), nil)
+		return NewInvalid("defaultMaxTurns", fmt.Sprintf("must be between 1 and 1000, got %d", e.DefaultMaxTurns), nil)
 	}
 	if e.EventBufferSize < 10 || e.EventBufferSize > 10000 {
-		return domain.NewConfigInvalidError("eventBufferSize", fmt.Sprintf("must be between 10 and 10000, got %d", e.EventBufferSize), nil)
+		return NewInvalid("eventBufferSize", fmt.Sprintf("must be between 10 and 10000, got %d", e.EventBufferSize), nil)
 	}
 	if e.EventFlushInterval < 100*time.Millisecond || e.EventFlushInterval > 30*time.Second {
-		return domain.NewConfigInvalidError("eventFlushInterval", fmt.Sprintf("must be between 100ms and 30s, got %v", e.EventFlushInterval), nil)
+		return NewInvalid("eventFlushInterval", fmt.Sprintf("must be between 100ms and 30s, got %v", e.EventFlushInterval), nil)
 	}
 	return nil
 }
 
 func (s *SafetyLevers) Validate() error {
 	if s.MaxFilesPerRun < 1 || s.MaxFilesPerRun > 10000 {
-		return domain.NewConfigInvalidError("maxFilesPerRun", fmt.Sprintf("must be between 1 and 10000, got %d", s.MaxFilesPerRun), nil)
+		return NewInvalid("maxFilesPerRun", fmt.Sprintf("must be between 1 and 10000, got %d", s.MaxFilesPerRun), nil)
 	}
 	if s.MaxBytesPerRun < 1024 || s.MaxBytesPerRun > 1024*1024*1024 {
-		return domain.NewConfigInvalidError("maxBytesPerRun", fmt.Sprintf("must be between 1KB and 1GB, got %d", s.MaxBytesPerRun), nil)
+		return NewInvalid("maxBytesPerRun", fmt.Sprintf("must be between 1KB and 1GB, got %d", s.MaxBytesPerRun), nil)
 	}
 	return nil
 }
 
 func (c *ConcurrencyLevers) Validate() error {
 	if c.MaxConcurrentRuns < 1 || c.MaxConcurrentRuns > 100 {
-		return domain.NewConfigInvalidError("maxConcurrentRuns", fmt.Sprintf("must be between 1 and 100, got %d", c.MaxConcurrentRuns), nil)
+		return NewInvalid("maxConcurrentRuns", fmt.Sprintf("must be between 1 and 100, got %d", c.MaxConcurrentRuns), nil)
 	}
 	if c.MaxConcurrentPerScope < 1 || c.MaxConcurrentPerScope > 10 {
-		return domain.NewConfigInvalidError("maxConcurrentPerScope", fmt.Sprintf("must be between 1 and 10, got %d", c.MaxConcurrentPerScope), nil)
+		return NewInvalid("maxConcurrentPerScope", fmt.Sprintf("must be between 1 and 10, got %d", c.MaxConcurrentPerScope), nil)
 	}
 	if c.ScopeLockTTL < 5*time.Minute || c.ScopeLockTTL > 24*time.Hour {
-		return domain.NewConfigInvalidError("scopeLockTTL", fmt.Sprintf("must be between 5m and 24h, got %v", c.ScopeLockTTL), nil)
+		return NewInvalid("scopeLockTTL", fmt.Sprintf("must be between 5m and 24h, got %v", c.ScopeLockTTL), nil)
 	}
 	if c.ScopeLockRefreshInterval < 30*time.Second || c.ScopeLockRefreshInterval > 10*time.Minute {
-		return domain.NewConfigInvalidError("scopeLockRefreshInterval", fmt.Sprintf("must be between 30s and 10m, got %v", c.ScopeLockRefreshInterval), nil)
+		return NewInvalid("scopeLockRefreshInterval", fmt.Sprintf("must be between 30s and 10m, got %v", c.ScopeLockRefreshInterval), nil)
 	}
 	if c.QueueWaitTimeout < 0 || c.QueueWaitTimeout > 30*time.Minute {
-		return domain.NewConfigInvalidError("queueWaitTimeout", fmt.Sprintf("must be between 0 and 30m, got %v", c.QueueWaitTimeout), nil)
+		return NewInvalid("queueWaitTimeout", fmt.Sprintf("must be between 0 and 30m, got %v", c.QueueWaitTimeout), nil)
 	}
 	return nil
 }
 
 func (a *ApprovalLevers) Validate() error {
 	if a.ReviewTimeoutDays < 1 || a.ReviewTimeoutDays > 90 {
-		return domain.NewConfigInvalidError("reviewTimeoutDays", fmt.Sprintf("must be between 1 and 90, got %d", a.ReviewTimeoutDays), nil)
+		return NewInvalid("reviewTimeoutDays", fmt.Sprintf("must be between 1 and 90, got %d", a.ReviewTimeoutDays), nil)
 	}
 	return nil
 }
 
 func (r *RunnerLevers) Validate() error {
 	if r.HealthCheckInterval < 10*time.Second || r.HealthCheckInterval > 5*time.Minute {
-		return domain.NewConfigInvalidError("healthCheckInterval", fmt.Sprintf("must be between 10s and 5m, got %v", r.HealthCheckInterval), nil)
+		return NewInvalid("healthCheckInterval", fmt.Sprintf("must be between 10s and 5m, got %v", r.HealthCheckInterval), nil)
 	}
 	if r.StartupGracePeriod < 0 || r.StartupGracePeriod > 5*time.Minute {
-		return domain.NewConfigInvalidError("startupGracePeriod", fmt.Sprintf("must be between 0 and 5m, got %v", r.StartupGracePeriod), nil)
+		return NewInvalid("startupGracePeriod", fmt.Sprintf("must be between 0 and 5m, got %v", r.StartupGracePeriod), nil)
 	}
 	if r.ProbeTimeout < time.Second || r.ProbeTimeout > 30*time.Second {
-		return domain.NewConfigInvalidError("probeTimeout", fmt.Sprintf("must be between 1s and 30s, got %v", r.ProbeTimeout), nil)
+		return NewInvalid("probeTimeout", fmt.Sprintf("must be between 1s and 30s, got %v", r.ProbeTimeout), nil)
 	}
 	return nil
 }
 
 func (s *ServerLevers) Validate() error {
 	if s.Port == "" {
-		return domain.NewConfigMissingError("port", "value is required", nil)
+		return NewMissing("port", "value is required", nil)
 	}
 	if s.ReadTimeout < 5*time.Second || s.ReadTimeout > 5*time.Minute {
-		return domain.NewConfigInvalidError("readTimeout", fmt.Sprintf("must be between 5s and 5m, got %v", s.ReadTimeout), nil)
+		return NewInvalid("readTimeout", fmt.Sprintf("must be between 5s and 5m, got %v", s.ReadTimeout), nil)
 	}
 	if s.WriteTimeout < 5*time.Second || s.WriteTimeout > 10*time.Minute {
-		return domain.NewConfigInvalidError("writeTimeout", fmt.Sprintf("must be between 5s and 10m, got %v", s.WriteTimeout), nil)
+		return NewInvalid("writeTimeout", fmt.Sprintf("must be between 5s and 10m, got %v", s.WriteTimeout), nil)
 	}
 	if s.IdleTimeout < 30*time.Second || s.IdleTimeout > 10*time.Minute {
-		return domain.NewConfigInvalidError("idleTimeout", fmt.Sprintf("must be between 30s and 10m, got %v", s.IdleTimeout), nil)
+		return NewInvalid("idleTimeout", fmt.Sprintf("must be between 30s and 10m, got %v", s.IdleTimeout), nil)
 	}
 	if s.MaxRequestBodyBytes < 1024 || s.MaxRequestBodyBytes > 100*1024*1024 {
-		return domain.NewConfigInvalidError("maxRequestBodyBytes", fmt.Sprintf("must be between 1KB and 100MB, got %d", s.MaxRequestBodyBytes), nil)
+		return NewInvalid("maxRequestBodyBytes", fmt.Sprintf("must be between 1KB and 100MB, got %d", s.MaxRequestBodyBytes), nil)
 	}
 	return nil
 }
 
 func (s *StorageLevers) Validate() error {
 	if s.MaxOpenConns < 5 || s.MaxOpenConns > 100 {
-		return domain.NewConfigInvalidError("maxOpenConns", fmt.Sprintf("must be between 5 and 100, got %d", s.MaxOpenConns), nil)
+		return NewInvalid("maxOpenConns", fmt.Sprintf("must be between 5 and 100, got %d", s.MaxOpenConns), nil)
 	}
 	if s.MaxIdleConns < 1 || s.MaxIdleConns > 50 {
-		return domain.NewConfigInvalidError("maxIdleConns", fmt.Sprintf("must be between 1 and 50, got %d", s.MaxIdleConns), nil)
+		return NewInvalid("maxIdleConns", fmt.Sprintf("must be between 1 and 50, got %d", s.MaxIdleConns), nil)
 	}
 	if s.ConnMaxLifetime < time.Minute || s.ConnMaxLifetime > time.Hour {
-		return domain.NewConfigInvalidError("connMaxLifetime", fmt.Sprintf("must be between 1m and 1h, got %v", s.ConnMaxLifetime), nil)
+		return NewInvalid("connMaxLifetime", fmt.Sprintf("must be between 1m and 1h, got %v", s.ConnMaxLifetime), nil)
 	}
 	if s.EventRetentionDays < 1 || s.EventRetentionDays > 365 {
-		return domain.NewConfigInvalidError("eventRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.EventRetentionDays), nil)
+		return NewInvalid("eventRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.EventRetentionDays), nil)
 	}
 	if s.ArtifactRetentionDays < 1 || s.ArtifactRetentionDays > 365 {
-		return domain.NewConfigInvalidError("artifactRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.ArtifactRetentionDays), nil)
+		return NewInvalid("artifactRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.ArtifactRetentionDays), nil)
 	}
 	if s.RunStateRetentionDays < 1 || s.RunStateRetentionDays > 365 {
-		return domain.NewConfigInvalidError("runStateRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.RunStateRetentionDays), nil)
+		return NewInvalid("runStateRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.RunStateRetentionDays), nil)
 	}
 	return nil
 }
 
 func (h *HeartbeatLevers) Validate() error {
 	if h.RunHeartbeatInterval < time.Second || h.RunHeartbeatInterval > 5*time.Minute {
-		return domain.NewConfigInvalidError("runHeartbeatInterval", fmt.Sprintf("must be between 1s and 5m, got %v", h.RunHeartbeatInterval), nil)
+		return NewInvalid("runHeartbeatInterval", fmt.Sprintf("must be between 1s and 5m, got %v", h.RunHeartbeatInterval), nil)
 	}
 	if h.CheckpointInterval < 5*time.Second || h.CheckpointInterval > 10*time.Minute {
-		return domain.NewConfigInvalidError("checkpointInterval", fmt.Sprintf("must be between 5s and 10m, got %v", h.CheckpointInterval), nil)
+		return NewInvalid("checkpointInterval", fmt.Sprintf("must be between 5s and 10m, got %v", h.CheckpointInterval), nil)
 	}
 	if h.StaleThreshold < time.Minute || h.StaleThreshold > 30*time.Minute {
-		return domain.NewConfigInvalidError("staleThreshold", fmt.Sprintf("must be between 1m and 30m, got %v", h.StaleThreshold), nil)
+		return NewInvalid("staleThreshold", fmt.Sprintf("must be between 1m and 30m, got %v", h.StaleThreshold), nil)
 	}
 	if h.StaleThreshold <= h.RunHeartbeatInterval {
-		return domain.NewConfigInvalidError("staleThreshold", fmt.Sprintf("must exceed runHeartbeatInterval (%v), got %v", h.RunHeartbeatInterval, h.StaleThreshold), nil)
+		return NewInvalid("staleThreshold", fmt.Sprintf("must exceed runHeartbeatInterval (%v), got %v", h.RunHeartbeatInterval, h.StaleThreshold), nil)
 	}
 	if h.TeardownTimeout < 5*time.Second || h.TeardownTimeout > 5*time.Minute {
-		return domain.NewConfigInvalidError("teardownTimeout", fmt.Sprintf("must be between 5s and 5m, got %v", h.TeardownTimeout), nil)
+		return NewInvalid("teardownTimeout", fmt.Sprintf("must be between 5s and 5m, got %v", h.TeardownTimeout), nil)
 	}
 	if h.MaxRetriesPerPhase < 0 || h.MaxRetriesPerPhase > 10 {
-		return domain.NewConfigInvalidError("maxRetriesPerPhase", fmt.Sprintf("must be between 0 and 10, got %d", h.MaxRetriesPerPhase), nil)
+		return NewInvalid("maxRetriesPerPhase", fmt.Sprintf("must be between 0 and 10, got %d", h.MaxRetriesPerPhase), nil)
 	}
 	if h.AgentTickInterval < 100*time.Millisecond || h.AgentTickInterval > 10*time.Second {
-		return domain.NewConfigInvalidError("agentTickInterval", fmt.Sprintf("must be between 100ms and 10s, got %v", h.AgentTickInterval), nil)
+		return NewInvalid("agentTickInterval", fmt.Sprintf("must be between 100ms and 10s, got %v", h.AgentTickInterval), nil)
 	}
 	if h.AgentIdleThreshold < time.Second || h.AgentIdleThreshold > 5*time.Minute {
-		return domain.NewConfigInvalidError("agentIdleThreshold", fmt.Sprintf("must be between 1s and 5m, got %v", h.AgentIdleThreshold), nil)
+		return NewInvalid("agentIdleThreshold", fmt.Sprintf("must be between 1s and 5m, got %v", h.AgentIdleThreshold), nil)
 	}
 	if h.RunnerSignalGracePeriod < time.Second || h.RunnerSignalGracePeriod > time.Minute {
-		return domain.NewConfigInvalidError("runnerSignalGracePeriod", fmt.Sprintf("must be between 1s and 1m, got %v", h.RunnerSignalGracePeriod), nil)
+		return NewInvalid("runnerSignalGracePeriod", fmt.Sprintf("must be between 1s and 1m, got %v", h.RunnerSignalGracePeriod), nil)
 	}
 	return nil
 }
 
 func (r *RecoveryLevers) Validate() error {
 	if r.TranscriptTailInterval < 50*time.Millisecond || r.TranscriptTailInterval > 5*time.Second {
-		return domain.NewConfigInvalidError("transcriptTailInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", r.TranscriptTailInterval), nil)
+		return NewInvalid("transcriptTailInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", r.TranscriptTailInterval), nil)
 	}
 	if r.TranscriptPollInterval < 50*time.Millisecond || r.TranscriptPollInterval > 5*time.Second {
-		return domain.NewConfigInvalidError("transcriptPollInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", r.TranscriptPollInterval), nil)
+		return NewInvalid("transcriptPollInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", r.TranscriptPollInterval), nil)
 	}
 	return nil
 }
@@ -892,62 +890,62 @@ func (s *ScannerLevers) Validate() error {
 	const minBuf = 64 * 1024
 	const maxBuf = 64 * 1024 * 1024
 	if s.StdoutMaxLineBytes < minBuf || s.StdoutMaxLineBytes > maxBuf {
-		return domain.NewConfigInvalidError("stdoutMaxLineBytes", fmt.Sprintf("must be between 64KB and 64MB, got %d", s.StdoutMaxLineBytes), nil)
+		return NewInvalid("stdoutMaxLineBytes", fmt.Sprintf("must be between 64KB and 64MB, got %d", s.StdoutMaxLineBytes), nil)
 	}
 	if s.TranscriptMaxLineBytes < minBuf || s.TranscriptMaxLineBytes > maxBuf {
-		return domain.NewConfigInvalidError("transcriptMaxLineBytes", fmt.Sprintf("must be between 64KB and 64MB, got %d", s.TranscriptMaxLineBytes), nil)
+		return NewInvalid("transcriptMaxLineBytes", fmt.Sprintf("must be between 64KB and 64MB, got %d", s.TranscriptMaxLineBytes), nil)
 	}
 	return nil
 }
 
 func (d *DiagnosticsLevers) Validate() error {
 	if d.LaunchFailedMaxDuration < 100*time.Millisecond || d.LaunchFailedMaxDuration > 30*time.Second {
-		return domain.NewConfigInvalidError("launchFailedMaxDuration", fmt.Sprintf("must be between 100ms and 30s, got %v", d.LaunchFailedMaxDuration), nil)
+		return NewInvalid("launchFailedMaxDuration", fmt.Sprintf("must be between 100ms and 30s, got %v", d.LaunchFailedMaxDuration), nil)
 	}
 	if d.RateLimitMessageMaxLen < 64 || d.RateLimitMessageMaxLen > 8192 {
-		return domain.NewConfigInvalidError("rateLimitMessageMaxLen", fmt.Sprintf("must be between 64 and 8192, got %d", d.RateLimitMessageMaxLen), nil)
+		return NewInvalid("rateLimitMessageMaxLen", fmt.Sprintf("must be between 64 and 8192, got %d", d.RateLimitMessageMaxLen), nil)
 	}
 	return nil
 }
 
 func (s *SpawnLevers) Validate() error {
 	if s.MaxStartingConcurrency < 1 || s.MaxStartingConcurrency > 16 {
-		return domain.NewConfigInvalidError("maxStartingConcurrency", fmt.Sprintf("must be between 1 and 16, got %d", s.MaxStartingConcurrency), nil)
+		return NewInvalid("maxStartingConcurrency", fmt.Sprintf("must be between 1 and 16, got %d", s.MaxStartingConcurrency), nil)
 	}
 	if s.MinSpacing < 0 || s.MinSpacing > 30*time.Second {
-		return domain.NewConfigInvalidError("minSpacing", fmt.Sprintf("must be between 0 and 30s, got %v", s.MinSpacing), nil)
+		return NewInvalid("minSpacing", fmt.Sprintf("must be between 0 and 30s, got %v", s.MinSpacing), nil)
 	}
 	// QueueCapacity == 0 means "auto-derive at orchestrator wiring time".
 	if s.QueueCapacity < 0 || s.QueueCapacity > 1024 {
-		return domain.NewConfigInvalidError("queueCapacity", fmt.Sprintf("must be 0 (auto) or between 1 and 1024, got %d", s.QueueCapacity), nil)
+		return NewInvalid("queueCapacity", fmt.Sprintf("must be 0 (auto) or between 1 and 1024, got %d", s.QueueCapacity), nil)
 	}
 	if s.QueueCapacity > 0 && s.QueueCapacity < s.MaxStartingConcurrency {
-		return domain.NewConfigInvalidError("queueCapacity", fmt.Sprintf("must be >= maxStartingConcurrency (%d), got %d", s.MaxStartingConcurrency, s.QueueCapacity), nil)
+		return NewInvalid("queueCapacity", fmt.Sprintf("must be >= maxStartingConcurrency (%d), got %d", s.MaxStartingConcurrency, s.QueueCapacity), nil)
 	}
 	return nil
 }
 
 func (s *SandboxLevers) Validate() error {
 	if s.AvailabilityCheckTimeout < 100*time.Millisecond || s.AvailabilityCheckTimeout > 10*time.Second {
-		return domain.NewConfigInvalidError("availabilityCheckTimeout", fmt.Sprintf("must be between 100ms and 10s, got %v", s.AvailabilityCheckTimeout), nil)
+		return NewInvalid("availabilityCheckTimeout", fmt.Sprintf("must be between 100ms and 10s, got %v", s.AvailabilityCheckTimeout), nil)
 	}
 	if s.EnsureStartTimeout < 5*time.Second || s.EnsureStartTimeout > 2*time.Minute {
-		return domain.NewConfigInvalidError("ensureStartTimeout", fmt.Sprintf("must be between 5s and 2m, got %v", s.EnsureStartTimeout), nil)
+		return NewInvalid("ensureStartTimeout", fmt.Sprintf("must be between 5s and 2m, got %v", s.EnsureStartTimeout), nil)
 	}
 	if s.EnsurePollInterval < 50*time.Millisecond || s.EnsurePollInterval > 5*time.Second {
-		return domain.NewConfigInvalidError("ensurePollInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", s.EnsurePollInterval), nil)
+		return NewInvalid("ensurePollInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", s.EnsurePollInterval), nil)
 	}
 	if s.EnsurePollInterval >= s.EnsureStartTimeout {
-		return domain.NewConfigInvalidError("ensurePollInterval", fmt.Sprintf("must be less than ensureStartTimeout (%v), got %v", s.EnsureStartTimeout, s.EnsurePollInterval), nil)
+		return NewInvalid("ensurePollInterval", fmt.Sprintf("must be less than ensureStartTimeout (%v), got %v", s.EnsureStartTimeout, s.EnsurePollInterval), nil)
 	}
 	if s.OperationMaxAttempts < 1 || s.OperationMaxAttempts > 8 {
-		return domain.NewConfigInvalidError("operationMaxAttempts", fmt.Sprintf("must be between 1 and 8, got %d", s.OperationMaxAttempts), nil)
+		return NewInvalid("operationMaxAttempts", fmt.Sprintf("must be between 1 and 8, got %d", s.OperationMaxAttempts), nil)
 	}
 	if s.OperationInitialBackoff < 25*time.Millisecond || s.OperationInitialBackoff > 5*time.Second {
-		return domain.NewConfigInvalidError("operationInitialBackoff", fmt.Sprintf("must be between 25ms and 5s, got %v", s.OperationInitialBackoff), nil)
+		return NewInvalid("operationInitialBackoff", fmt.Sprintf("must be between 25ms and 5s, got %v", s.OperationInitialBackoff), nil)
 	}
 	if s.OperationMaxBackoff < s.OperationInitialBackoff || s.OperationMaxBackoff > 30*time.Second {
-		return domain.NewConfigInvalidError("operationMaxBackoff", fmt.Sprintf("must be between operationInitialBackoff (%v) and 30s, got %v", s.OperationInitialBackoff, s.OperationMaxBackoff), nil)
+		return NewInvalid("operationMaxBackoff", fmt.Sprintf("must be between operationInitialBackoff (%v) and 30s, got %v", s.OperationInitialBackoff, s.OperationMaxBackoff), nil)
 	}
 	return nil
 }
@@ -956,12 +954,12 @@ func (o *ObservabilityLevers) Validate() error {
 	switch o.LogFormat {
 	case "text", "json":
 	default:
-		return domain.NewConfigInvalidError("logFormat", fmt.Sprintf("must be \"text\" or \"json\", got %q", o.LogFormat), nil)
+		return NewInvalid("logFormat", fmt.Sprintf("must be \"text\" or \"json\", got %q", o.LogFormat), nil)
 	}
 	switch o.LogLevel {
 	case "debug", "info", "warn", "error":
 	default:
-		return domain.NewConfigInvalidError("logLevel", fmt.Sprintf("must be one of debug|info|warn|error, got %q", o.LogLevel), nil)
+		return NewInvalid("logLevel", fmt.Sprintf("must be one of debug|info|warn|error, got %q", o.LogLevel), nil)
 	}
 	return nil
 }
@@ -970,7 +968,7 @@ func wrapConfigSection(section string, err error) error {
 	if err == nil {
 		return nil
 	}
-	if cfgErr, ok := err.(*domain.ConfigError); ok {
+	if cfgErr, ok := err.(*Error); ok {
 		if cfgErr.Setting != "" {
 			cfgErr.Setting = section + "." + cfgErr.Setting
 		} else {
@@ -978,5 +976,5 @@ func wrapConfigSection(section string, err error) error {
 		}
 		return cfgErr
 	}
-	return domain.NewConfigInvalidError(section, err.Error(), err)
+	return NewInvalid(section, err.Error(), err)
 }

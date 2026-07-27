@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS sandboxes (
     reserved_paths      TEXT NOT NULL DEFAULT '[]',
     no_lock             INTEGER NOT NULL DEFAULT 0,
     project_root        TEXT NOT NULL,
+    auxiliary_roots     TEXT NOT NULL DEFAULT '[]',
     owner               TEXT,
     owner_type          TEXT NOT NULL DEFAULT 'user',
     status              TEXT NOT NULL DEFAULT 'creating',

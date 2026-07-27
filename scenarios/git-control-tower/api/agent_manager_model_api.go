@@ -71,6 +71,7 @@ type AgentRun struct {
 	ApprovalState   string           `json:"approvalState,omitempty"`
 	PromptPreview   string           `json:"promptPreview,omitempty"`
 	SandboxID       string           `json:"sandboxId,omitempty"`
+	CommitHash      string           `json:"commitHash,omitempty"`
 	Summary         *AgentRunSummary `json:"summary,omitempty"`
 	Actions         *AgentRunActions `json:"actions,omitempty"`
 	CreatedAt       string           `json:"createdAt"`

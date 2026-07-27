@@ -6,7 +6,7 @@ import (
 
 	"agent-manager/internal/fallback"
 	"agent-manager/internal/health"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/orchestration/testutil"
 )
 
 func TestHealthMarkerAdapterRecordsHealthyAndUnavailableObservations(t *testing.T) {

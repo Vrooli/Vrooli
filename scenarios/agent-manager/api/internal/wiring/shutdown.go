@@ -1,7 +1,7 @@
 package wiring
 
 import (
-	"agent-manager/internal/database"
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 )

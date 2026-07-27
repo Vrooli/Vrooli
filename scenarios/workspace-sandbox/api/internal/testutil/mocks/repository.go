@@ -359,6 +359,21 @@ func (r *FakeRepository) GetPendingChangeFiles(ctx context.Context, projectRoot 
 	return out, nil
 }
 
+func (r *FakeRepository) GetUnresolvedCommitChanges(ctx context.Context) ([]*types.AppliedChange, error) {
+	if r.GetPendingChangeFilesErr != nil {
+		return nil, r.GetPendingChangeFilesErr
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	changes := make([]*types.AppliedChange, 0, len(r.AppliedChanges))
+	for _, change := range r.AppliedChanges {
+		if change.CommittedAt == nil || change.CommitHash == "EXTERNAL" {
+			changes = append(changes, change)
+		}
+	}
+	return changes, nil
+}
+
 func (r *FakeRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
 	if r.GetFileProvenanceErr != nil {
 		return nil, r.GetFileProvenanceErr
@@ -369,6 +384,18 @@ func (r *FakeRepository) GetFileProvenance(ctx context.Context, filePath, projec
 func (r *FakeRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
 	if r.MarkChangesCommittedErr != nil {
 		return r.MarkChangesCommittedErr
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	now := time.Now().UTC()
+	for _, id := range ids {
+		for _, change := range r.AppliedChanges {
+			if change.ID == id {
+				change.CommitHash = commitHash
+				change.CommitMessage = commitMessage
+				change.CommittedAt = &now
+			}
+		}
 	}
 	return nil
 }

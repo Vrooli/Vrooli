@@ -90,6 +90,7 @@ func (a *App) dependencies() support.Dependencies {
 		Ops:              a.cmdOps,
 		Health:           a.cmdHealth,
 		Events:           a.cmdEvents,
+		ScenarioSmoke:    a.cmdScenarioSmoke,
 	}
 }
 

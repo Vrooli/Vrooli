@@ -77,10 +77,14 @@ type wireRun struct {
 	ApprovalState   string          `json:"approval_state,omitempty"`
 	PromptPreview   string          `json:"prompt_preview,omitempty"`
 	SandboxID       string          `json:"sandbox_id,omitempty"`
-	StartedAt       string          `json:"started_at,omitempty"`
-	EndedAt         string          `json:"ended_at,omitempty"`
-	CreatedAt       string          `json:"created_at,omitempty"`
-	UpdatedAt       string          `json:"updated_at,omitempty"`
+	// CommitHash identifies the commit produced when this run's sandbox changes
+	// were applied. Keeping it in the proxy model preserves the run-to-commit
+	// attribution that agent-manager owns for Git Control Tower consumers.
+	CommitHash string `json:"commit_hash,omitempty"`
+	StartedAt  string `json:"started_at,omitempty"`
+	EndedAt    string `json:"ended_at,omitempty"`
+	CreatedAt  string `json:"created_at,omitempty"`
+	UpdatedAt  string `json:"updated_at,omitempty"`
 }
 
 // Wire event oneof data structs.

@@ -230,6 +230,8 @@ func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndReq
 		CommitHash: result.CommitHash,
 		ErrorMsg:   result.ErrorMsg,
 		AppliedAt:  result.AppliedAt,
+		AppliedSizeBytes: result.AppliedSizeBytes,
+		DiffPath: result.DiffPath,
 	}, nil
 }
 
@@ -367,6 +369,10 @@ func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, 
 	remainingChanges := totalChanges - len(changes)
 	isPartial := remainingChanges > 0
 	now := s.clock.Now()
+	var appliedSizeBytes int64
+	for _, change := range changes {
+		appliedSizeBytes += change.FileSize
+	}
 
 	if isPartial {
 		for _, change := range changes {
@@ -425,6 +431,8 @@ func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, 
 		IsPartial:  isPartial,
 		CommitHash: commitHash,
 		AppliedAt:  now,
+		AppliedSizeBytes: appliedSizeBytes,
+		DiffPath: fmt.Sprintf("/api/v1/sandboxes/%s/diff", sandbox.ID),
 	}
 	s.notifyAgentManager(ctx, sandbox, "approved", req.Actor, result)
 	return result

@@ -16,8 +16,8 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
-	"agent-manager/internal/testutil"
-	"agent-manager/internal/testutil/mocks"
+	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"agent-manager/internal/adapters/runner"
 

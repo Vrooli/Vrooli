@@ -62,13 +62,6 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Test orchestrator-level task CRUD and status"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/database/repository_test.go::TestTaskCRUD",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Verify repository-level task operations"
         }
       ]
     }

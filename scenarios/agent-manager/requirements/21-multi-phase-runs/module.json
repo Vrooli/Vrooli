@@ -37,13 +37,6 @@
           "type": "test"
         },
         {
-          "notes": "Verify abnormal terminal recovery remains eligible until the current retry generation has a durable cleanup disposition",
-          "phase": "integration",
-          "ref": "api/internal/database/repository_workflow_test.go",
-          "status": "complete",
-          "type": "test"
-        },
-        {
           "notes": "Confirm phase integrity",
           "phase": "business",
           "ref": "",
@@ -165,13 +158,6 @@
           "notes": "Verify immediate-terminal return, block-until-terminal, deadline timeout with the execution unchanged, concurrent waiters, and cancel-does-not-cancel-execution [REQ:REQ-P2-006]",
           "phase": "unit",
           "ref": "api/internal/orchestration/workflow_wait_test.go",
-          "status": "complete",
-          "type": "test"
-        },
-        {
-          "notes": "Verify the reverse run->execution link that resolves the owning execution for a completed run [REQ:REQ-P2-006]",
-          "phase": "integration",
-          "ref": "api/internal/database/repository_workflow_test.go::TestWorkflowExecutionRepositoryExecutionIDForRun",
           "status": "complete",
           "type": "test"
         }

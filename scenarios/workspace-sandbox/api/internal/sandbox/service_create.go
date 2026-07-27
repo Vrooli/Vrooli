@@ -216,6 +216,7 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 		ReservedPaths:  normalizedReservedPaths,
 		NoLock:         *req.NoLock,
 		ProjectRoot:    projectRoot,
+		AuxiliaryRoots: append([]string(nil), req.AuxiliaryRoots...),
 		Owner:          req.Owner,
 		OwnerType:      req.OwnerType,
 		Status:         types.StatusCreating,

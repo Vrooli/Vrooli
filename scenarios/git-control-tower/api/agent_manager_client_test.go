@@ -527,6 +527,7 @@ func TestWireRunToAPI(t *testing.T) {
 		ErrorMsg:        "",
 		SessionID:       "sess-789",
 		ApprovalState:   "APPROVAL_STATE_PENDING",
+		CommitHash:      "abc123def",
 		Summary: &wireRunSummary{
 			FilesModified: []string{"a.go", "b.go"},
 			FilesCreated:  []string{"c.go"},
@@ -550,6 +551,7 @@ func TestWireRunToAPI(t *testing.T) {
 	assertStringField(t, "Phase", got.Phase, "reviewing")
 	assertStringField(t, "SessionID", got.SessionID, "sess-789")
 	assertStringField(t, "ApprovalState", got.ApprovalState, "pending")
+	assertStringField(t, "CommitHash", got.CommitHash, "abc123def")
 
 	if got.Summary == nil {
 		t.Fatal("Summary is nil")

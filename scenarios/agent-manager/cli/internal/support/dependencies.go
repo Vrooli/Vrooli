@@ -18,6 +18,7 @@ type Dependencies struct {
 	Ops              CommandFunc
 	Health           CommandFunc
 	Events           CommandFunc
+	ScenarioSmoke    CommandFunc
 }
 
 func Command(name, description string, run CommandFunc) cliapp.Command {

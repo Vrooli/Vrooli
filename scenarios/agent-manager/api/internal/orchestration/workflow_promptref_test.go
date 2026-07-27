@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/promptmanager"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/orchestration/testutil"
 )
 
 // fakePromptSource is a prompt-manager stand-in implementing both the read and

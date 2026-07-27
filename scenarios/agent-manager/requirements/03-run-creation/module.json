@@ -31,13 +31,6 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Test listing runs"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/database/repository_test.go::TestRunCRUD",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Verify repository-level run operations"
         }
       ]
     }

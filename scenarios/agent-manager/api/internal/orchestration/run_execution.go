@@ -333,6 +333,10 @@ func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *doma
 	if err != nil {
 		return "", err
 	}
+	runStateRoot, err := o.resolveRunStateRoot(ctx)
+	if err != nil {
+		return "", err
+	}
 	switch sb.Status {
 	case sandbox.SandboxStatusCheckpointed:
 		sb, err = o.sandbox.Resume(ctx, sb.ID)
@@ -363,6 +367,7 @@ func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *doma
 			Run:                      run,
 			Task:                     task,
 			Sandbox:                  o.sandbox,
+			RunStateRoot:             runStateRoot,
 			SandboxIdempotencySuffix: ":continuation:" + run.SessionID,
 		})
 		if createErr != nil {
@@ -893,11 +898,17 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		return
 	}
 
+	runStateRoot, err := o.resolveRunStateRoot(ctx)
+	if err != nil {
+		o.failInteractiveRun(ctx, run, "resolve interactive run state: "+err.Error())
+		return
+	}
+
 	var workDir string
 	if run.RunMode == domain.RunModeSandboxed {
 		setup, err := phases.SetupWorkspace(ctx, phases.SetupWorkspaceInput{
 			Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
-			Run:  run, Task: task, Sandbox: o.sandbox,
+			Run:  run, Task: task, Sandbox: o.sandbox, RunStateRoot: runStateRoot,
 		})
 		if err != nil {
 			o.failInteractiveRun(ctx, run, fmt.Sprintf("prepare interactive tracking workspace: %v", err))
@@ -912,11 +923,6 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 			o.failInteractiveRun(ctx, run, fmt.Sprintf("resolve interactive working directory: %v", err))
 			return
 		}
-	}
-	runStateRoot, err := o.resolveRunStateRoot(ctx)
-	if err != nil {
-		o.failInteractiveRun(ctx, run, "resolve interactive run state: "+err.Error())
-		return
 	}
 	runDir, err := runstate.RunDir(runStateRoot, run.ID)
 	if err != nil {

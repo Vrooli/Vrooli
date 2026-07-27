@@ -3,11 +3,29 @@ package wiring
 import (
 	"context"
 
+	"agent-manager/internal/fallback"
+	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/rolepolicy"
 
 	"github.com/vrooli/api-core/health"
 )
+
+// NewModelHealthProbe adapts runner failure classification at the composition
+// root, leaving the health substrate dependent only on its local contract.
+func NewModelHealthProbe(store *healthstore.Store, registry healthstore.RegistrySnapshot, resolve healthstore.RunnerProberLookup, config healthstore.ProbeConfig) *healthstore.Probe {
+	return healthstore.NewProbe(store, registry, resolve, fallbackHealthClassifier{classifier: fallback.NewTextClassifier()}, config)
+}
+
+type fallbackHealthClassifier struct{ classifier fallback.Classifier }
+
+func (a fallbackHealthClassifier) Classify(in healthstore.FailureInput) *healthstore.ClassifiedFailure {
+	classified := a.classifier.Classify(fallback.ClassifyInput{RunnerType: in.RunnerType, Stderr: in.Stderr, Cause: in.Cause})
+	if classified == nil {
+		return nil
+	}
+	return &healthstore.ClassifiedFailure{Reason: string(classified.Reason), Message: classified.Message}
+}
 
 // RolePolicyHealthChecker keeps portable role authority a readiness
 // dependency. A run can never safely resolve a role from an absent catalog.
