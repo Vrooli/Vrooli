@@ -1,4 +1,4 @@
-import { BarChart3, Home, Settings } from "lucide-react";
+import { BarChart3, Home, Inbox, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "../components/ui/bottom-nav";
@@ -42,7 +42,8 @@ export function BottomNav() {
 function iconForItem(item: NavItem) {
   const iconClass = "h-5 w-5";
   switch (item.key) {
-    case "notes":
+    case "signals":
+		return <Inbox aria-hidden className={iconClass} />;
       return <BarChart3 aria-hidden className={iconClass} />;
     case "settings":
       return <Settings aria-hidden className={iconClass} />;

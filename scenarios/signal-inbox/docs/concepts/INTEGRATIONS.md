@@ -57,6 +57,34 @@ conversation share-link decoder recorded in
 [`../reference/conversation-extraction.md`](../reference/conversation-extraction.md),
 because no other scenario owns that shape.
 
+### Measured delegation surface (2026-07-27)
+
+- Image OCR is invoked as `image-tools analyze ocr <input> [--json]`. The
+  input is a local image path; the signals BlobStore seam must materialize a
+  temporary read-only file for that request and remove only the temporary copy
+  afterwards, never the retained signal media.
+- `ai-gateway inventory roles --json` exposed `embedding.default` (embedding)
+  and `classify.routing` (classify/generate). Classification therefore uses the
+  gateway classification route rather than a nearest-neighbour substitute.
+- No `video-downloader` CLI is installed in this workspace, so a
+  transcript-only operation cannot be measured. This leaves the existing P1
+  dependency blocked; it does not authorize a local media-download workaround.
+
+### Source-format measurement status
+
+The browser bookmark format was measured on 2026-07-27 from an operator-supplied
+Chrome export. It is Netscape Bookmark HTML, UTF-8 encoded, with nested
+`DL`/`DT` lists: folder entries are `H3`, and bookmark entries are `A`.
+
+| Source | URL field | Timestamp field | Stable identity | Other parsed structure | Ignored fields |
+|---|---|---|---|---|---|
+| Chrome bookmarks HTML | `A@HREF` | `A@ADD_DATE` (Unix seconds) | Normalized `HREF` | Folder path from enclosing `H3` hierarchy; title from anchor text | `ICON`, folder `LAST_MODIFIED`, and toolbar flags |
+
+The X archive and Reddit export parsers remain deliberately unimplemented until
+they are measured against operator-owned exports. The remaining observations
+are each file's layout/encoding plus source URL, timestamp, and stable identity
+field names; record field names only, never personal sample content.
+
 ### Blocked dependencies
 
 | Dependency | Blocked Requirement | Status |

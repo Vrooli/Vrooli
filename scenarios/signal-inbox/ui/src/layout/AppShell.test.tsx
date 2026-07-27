@@ -41,7 +41,7 @@ describe("AppShell structure (cimode)", () => {
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
-    for (const key of ["dashboard", "notes", "settings"] as const) {
+    for (const key of ["dashboard", "signals", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
       expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
     }

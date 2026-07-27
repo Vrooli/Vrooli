@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
 	"signal-inbox/handlers/health"
 	"signal-inbox/internal/clock"
 	"signal-inbox/internal/server"

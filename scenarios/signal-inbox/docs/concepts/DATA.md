@@ -37,8 +37,9 @@ such as BlobStore.
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Signal | signals | SQLite | `api/internal/signals/schema.sql` | **Permanent. Never deleted.** | Append-only. Source identity, captured_at, raw payload reference, extracted content, content hash. Written once; no UPDATE, no DELETE (D-006). |
+| Signal | signals | SQLite | `api/internal/signals/schema.sql` | **Permanent. Never deleted.** | Append-only `signal` table. It records capture facts: source identity, captured_at, raw payload reference, direct-text content (when known at capture), and content hash. Written once; no UPDATE, no DELETE (D-006). |
 | Signal media | signals | Filesystem BlobStore | BlobStore seam in the signals module | Same lifecycle as its signal — permanent | Pasted or uploaded images. Opaque bytes stay outside proto payloads. |
+| Signal enrichment | enrichment | SQLite | `api/internal/enrichment/schema.sql` | Permanent, append-only | A post-capture extraction attempt: content units, readable content when found, and an attention reason when not. It is a read-model sidecar over `signal`, never an update to it (D-027). |
 | Adapter state | sources | SQLite | `api/internal/sources/schema.sql` | Until the adapter is removed | Enabled/disabled flag, declared risk tier, last run, last error, auto-disable reason. Survives restart so an auto-disabled adapter stays disabled (D-016). |
 | Import run | sources | SQLite | `api/internal/sources/schema.sql` | Rolling window, operator-configurable | Per-run counts of created, deduplicated, and failed entries. Diagnostic, not authoritative. |
 | Category | categories | SQLite | `api/internal/categories/schema.sql` | Until retired by the operator | Operator-defined at runtime. Retiring reassigns signals to `uncategorized`; it never deletes them (D-007). |
@@ -56,6 +57,7 @@ Each domain's schema file lives beside the code that interprets it. The
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
 | signal, signal_media | signals | `api/internal/signals/schema.sql` | signals repository/service/handlers; read by every other domain |
+| signal_enrichment | enrichment | `api/internal/enrichment/schema.sql` | enrichment repository/service; joined into the signal read model by signals/retrieval |
 | adapter_state, import_run | sources | `api/internal/sources/schema.sql` | sources repository/service/handlers |
 | category, taxonomy, classification | categories | `api/internal/categories/schema.sql` | categories repository/service/handlers |
 | disposition, annotation | triage | `api/internal/triage/schema.sql` | triage repository/service/handlers |
@@ -72,34 +74,6 @@ what the others produce. `sources` writes into `signals` and reads nothing else.
 No table carries a foreign key into another scenario's domain objects. Outcome
 links store an identifier and a target kind, never a copied payload, so there is
 exactly one truth about whatever a signal produced.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships the `notes` domain as a worked CRUD slice with a
-binary attachment-upload exception, showing how a real domain owns its
-tables, metadata, and opaque blob bytes. Copy its shape, then remove it.
-
-Its Data Ownership rows:
-
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
-
-Its Schema Map row:
-
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-
-Its Retention And Deletion row:
-
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## Migrations And Compatibility
 

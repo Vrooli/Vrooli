@@ -1,150 +1,47 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "signal-inbox",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Signal Inbox CLI surface. Commands are generated-client wrappers over the SignalsService journal contract.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "signals",
+      "description": "Capture and read immutable external signals",
       "commands": [
         {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
+          "name": "capture",
+          "description": "Capture one URL, text value, or uploaded-image payload reference",
           "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
+            {"name": "url", "description": "Source URL"},
+            {"name": "text", "description": "Captured text"},
+            {"name": "image-payload-ref", "description": "Previously uploaded opaque image payload reference"},
+            {"name": "note", "description": "Capture-time note"}
           ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
+          "binding": {"kind": "connect-rpc", "service": "SignalsService", "method": "CaptureSignal"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
         },
         {
           "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
+          "description": "Read one signal by id",
+          "positionals": [{"name": "id", "required": true, "description": "Signal id"}],
+          "binding": {"kind": "connect-rpc", "service": "SignalsService", "method": "GetSignal"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         },
         {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
+          "name": "list",
+          "description": "List the full immutable signal corpus",
+          "flags": [{"name": "page-size", "description": "Maximum rows to return"}],
+          "binding": {"kind": "connect-rpc", "service": "SignalsService", "method": "ListSignals"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
+  "exceptions": [],
   "omitted": []
 }

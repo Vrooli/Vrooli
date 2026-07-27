@@ -3,6 +3,7 @@ package modeltest_test
 import (
 	"errors"
 	"testing"
+
 	"signal-inbox/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

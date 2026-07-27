@@ -1,5 +1,6 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
@@ -26,21 +27,22 @@ import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 //              produce the perf bundle through the standard lifecycle path.
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
+  const protobufRoot = fileURLToPath(new URL("./node_modules/@bufbuild/protobuf", import.meta.url));
+	// The generated local proto package is outside ui/node_modules, so its
+	// codegen imports need explicit resolution. These regular expressions are
+	// exact on purpose: a broad `@bufbuild/protobuf` alias corrupts Connect's
+	// legitimate subpaths such as `@bufbuild/protobuf/wire`.
+	const aliases = [
+		{ find: /^@bufbuild\/protobuf\/codegenv2$/, replacement: `${protobufRoot}/dist/esm/codegenv2/index.js` },
+		{ find: /^@bufbuild\/protobuf\/wkt$/, replacement: `${protobufRoot}/dist/esm/wkt/index.js` },
+		{ find: /^@bufbuild\/protobuf$/, replacement: `${protobufRoot}/dist/esm/index.js` },
+		...(isProfile ? [{ find: "react-dom/client", replacement: "react-dom/profiling" }, { find: "react-dom$", replacement: "react-dom/profiling" }] : []),
+	];
 
   return {
     base: './',  // Required for tunnel/proxy contexts
     plugins: [react(), stringsCodegen()],
-    resolve: isProfile
-      ? {
-          alias: {
-            "react-dom/client": "react-dom/profiling",
-            // Internal references inside react-dom/client.js do
-            // `require('react-dom')`, which would resolve back to the
-            // stripped-prod bundle. Force them through the profiling entry too.
-            "react-dom$": "react-dom/profiling",
-          },
-        }
-      : undefined,
+		resolve: { alias: aliases },
     esbuild: isProfile
       ? {
           keepNames: true,

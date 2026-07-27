@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
 	"signal-inbox/internal/testutil/repokit"
 
 	"github.com/stretchr/testify/require"

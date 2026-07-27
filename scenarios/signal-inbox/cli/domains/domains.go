@@ -1,9 +1,8 @@
 package domains
 
 import (
-	"signal-inbox/cli/domains/notes" // EXAMPLE-DOMAIN:notes
-
 	"github.com/vrooli/cli-core/cliapp"
+	"signal-inbox/cli/domains/signals"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -36,13 +35,9 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	group, err := signals.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
-	return groups, nil
+	return []cliapp.SubcommandGroup{group}, nil
 }
