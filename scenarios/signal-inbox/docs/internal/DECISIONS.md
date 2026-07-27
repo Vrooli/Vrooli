@@ -62,6 +62,7 @@ hypothesized.**
 | 2026-07-27 | D-025 — Domain events carry identifiers only. | Consumers need to react without polling, but a copied signal body would become a second, drifting truth. | Events carry signal id, category, and disposition; consumers resolve content through the query contract. | None. |
 | 2026-07-27 | D-026 — Inference routes only through ai-gateway. | `ai-go/search` defaults to a direct provider subprocess, while the scenario integration contract requires ai-gateway to own routing, capacity, and failure policy. The live gateway role inventory exposes `embedding.default` and `classify.routing`. | `internal/inference.Client` is the sole scenario boundary; its `Embedder` adapter preserves separate `search_document:` and `search_query:` instructions. Domains receive this client through composition and may not call provider resources directly. | Only if ai-gateway retires either role; replace the gateway role policy, never with a direct provider call. |
 | 2026-07-27 | D-027 — Post-capture extraction is an append-only enrichment sidecar. | A URL or image must be journaled before a slow or unavailable extractor runs, but updating its `signal` row afterwards would violate D-006. | `signal_enrichment` records each extraction attempt and its readable content or attention outcome. Signal reads compose the immutable capture row with the latest enrichment record; no extraction path updates or deletes `signal`. | Revisit only if a measured query cost requires a materialized read model; that model must be rebuildable from these append-only records. |
+| 2026-07-27 | D-028 — Classification history is the authoritative proposal and override record. | D-009's wording required an annotation, while `categories` owns classifications and `triage` owns annotations. Having categories write a triage row would create a cycle and two independently mutable records of one judgment. | A confirmation or override appends a classification record preserving the original proposal. The triage annotation thread renders that record as a system-authored item when it exists; it does not store a duplicate. | Revisit only if an observed detail-query cost warrants a rebuildable read projection; never create a second source of truth. |
 
 ## Withdrawn Positions
 
@@ -79,6 +80,7 @@ session.
 
 | Date | Superseded Decision | Replacement | Details |
 |---|---|---|---|
+| 2026-07-27 | D-009 — Every override is recorded as an annotation. | D-028 — Classification history is the authoritative proposal and override record. | The annotation is a rendered system entry, not a separately stored copy; preserving both proposal and operator decision in `classification` supplies the future accuracy corpus without a domain cycle. |
 | 2026-07-27 | Use the generated `react-vite` documentation contract as shipped. | Retained, with scenario-specific content authored over the stubs. | The template contract is kept; only its placeholder content is replaced. Recorded so the generated row is not mistaken for an unmade decision. |
 
 ## Cross-References

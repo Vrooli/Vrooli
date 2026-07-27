@@ -45,6 +45,90 @@
       }
     },
     {
+      "id": "categories_create",
+      "path": "/vrooli.signal_inbox.v1.categories.CategoriesService/CreateCategory",
+      "method": "POST",
+      "summary": "Create category",
+      "description": "Creates an operator-defined category at runtime.",
+      "category": "categories",
+      "request": {
+        "type": "CreateCategoryRequest"
+      },
+      "response": {
+        "type": "CreateCategoryResponse"
+      }
+    },
+    {
+      "id": "categories_list",
+      "path": "/vrooli.signal_inbox.v1.categories.CategoriesService/ListCategories",
+      "method": "POST",
+      "summary": "List categories",
+      "description": "Lists active categories, optionally including retired categories.",
+      "category": "categories",
+      "request": {
+        "type": "ListCategoriesRequest"
+      },
+      "response": {
+        "type": "ListCategoriesResponse"
+      }
+    },
+    {
+      "id": "categories_rename",
+      "path": "/vrooli.signal_inbox.v1.categories.CategoriesService/RenameCategory",
+      "method": "POST",
+      "summary": "Rename category",
+      "description": "Renames a non-reserved category.",
+      "category": "categories",
+      "request": {
+        "type": "RenameCategoryRequest"
+      },
+      "response": {
+        "type": "RenameCategoryResponse"
+      }
+    },
+    {
+      "id": "categories_retire",
+      "path": "/vrooli.signal_inbox.v1.categories.CategoriesService/RetireCategory",
+      "method": "POST",
+      "summary": "Retire category",
+      "description": "Retires a category and reassigns confirmed signals to the reserved fallback without deleting signals.",
+      "category": "categories",
+      "request": {
+        "type": "RetireCategoryRequest"
+      },
+      "response": {
+        "type": "RetireCategoryResponse"
+      }
+    },
+    {
+      "id": "categories_get_classification",
+      "path": "/vrooli.signal_inbox.v1.categories.CategoriesService/GetClassification",
+      "method": "POST",
+      "summary": "Get classification",
+      "description": "Returns the latest advisory or confirmed classification for a signal.",
+      "category": "categories",
+      "request": {
+        "type": "GetClassificationRequest"
+      },
+      "response": {
+        "type": "GetClassificationResponse"
+      }
+    },
+    {
+      "id": "categories_confirm_classification",
+      "path": "/vrooli.signal_inbox.v1.categories.CategoriesService/ConfirmClassification",
+      "method": "POST",
+      "summary": "Confirm classification",
+      "description": "Appends an operator confirmation or override while retaining the proposal.",
+      "category": "categories",
+      "request": {
+        "type": "ConfirmClassificationRequest"
+      },
+      "response": {
+        "type": "ConfirmClassificationResponse"
+      }
+    },
+    {
       "id": "signals_capture",
       "path": "/vrooli.signal_inbox.v1.signals.SignalsService/CaptureSignal",
       "method": "POST",

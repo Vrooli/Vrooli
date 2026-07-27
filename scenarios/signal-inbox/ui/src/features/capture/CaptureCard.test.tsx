@@ -19,6 +19,10 @@ vi.mock("../../api/signals", () => ({
   uploadSignalImage: api.uploadSignalImage,
 }));
 
+vi.mock("../categories/SignalClassificationControl", () => ({
+  SignalClassificationControl: () => <span data-testid="classification-control" />,
+}));
+
 import { CaptureCard } from "./CaptureCard";
 
 describe("CaptureCard [REQ:SIG-P0-002]", () => {

@@ -44,6 +44,9 @@
     "serviceLabel": "الخدمة:",
     "timestampLabel": "الطابع الزمني:"
   },
+  "categories": {
+    "title": "الفئات", "description": "حدّد الفئات المستخدمة للتصنيف الاستشاري. إيقاف الفئة لا يحذف الإشارات أو تاريخها.", "name": "اسم الفئة", "descriptionInput": "وصف اختياري", "newName": "اسم الفئة الجديدة", "newDescription": "وصف الفئة الجديدة", "create": "إنشاء فئة", "creating": "جارٍ الإنشاء…", "save": "حفظ الفئة", "retire": "إيقاف", "reserved": "محجوزة", "fallback": "بديل للإشارات التي لم تُصنّف.", "load": "جارٍ تحميل الفئات…", "loadError": "تعذر تحميل الفئات.", "createError": "تعذر إنشاء الفئة. حاول مرة أخرى.", "changeError": "فشل تغيير الفئة. حاول مرة أخرى.", "activeList": "الفئات النشطة", "nameFor": "اسم {{name}}", "descriptionFor": "وصف {{name}}", "classificationLoading": "جارٍ التصنيف…", "classificationPending": "التصنيف قيد الانتظار.", "proposed": "الفئة المقترحة", "confirmed": "الفئة المؤكدة", "confidence": "الثقة {{value}}٪", "choose": "اختر فئة", "categoryFor": "فئة الإشارة {{id}}", "confirm": "تأكيد الفئة", "change": "تغيير الفئة", "confirmError": "تعذر حفظ قرار الفئة."
+  },
   "notifications": {
     "summary": "{{count}} إشعارات",
     "summary_zero": "لا توجد إشعارات",

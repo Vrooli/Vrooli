@@ -22,11 +22,14 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	categoriesH "signal-inbox/handlers/categories"
 	healthH "signal-inbox/handlers/health"
 	signalsH "signal-inbox/handlers/signals"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/enrichment"
+	"signal-inbox/internal/triage"
 
+	categoriesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/categories"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals"
 )
 
@@ -37,6 +40,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, categoriesH.Endpoints...)
 	out = append(out, signalsH.Endpoints...)
 	return out
 }
@@ -63,7 +67,7 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{{Module: "signals", File: signalsv1.File_signal_inbox_v1_signals_signals_proto}}
+	return []ProtoFileEntry{{Module: "categories", File: categoriesv1.File_signal_inbox_v1_categories_categories_proto}, {Module: "signals", File: signalsv1.File_signal_inbox_v1_signals_signals_proto}}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -77,7 +81,9 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(categoriesH.Schema),
 		apidb.SchemaProviderFunc(signalsH.Schema),
 		apidb.SchemaProviderFunc(enrichment.Schema),
+		apidb.SchemaProviderFunc(triage.Schema),
 	}
 }

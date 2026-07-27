@@ -43,6 +43,9 @@
     "serviceLabel": "サービス:",
     "timestampLabel": "タイムスタンプ:"
   },
+  "categories": {
+    "title": "カテゴリ", "description": "助言的な分類に使うカテゴリを定義します。廃止してもシグナルや履歴は削除されません。", "name": "カテゴリ名", "descriptionInput": "任意の説明", "newName": "新しいカテゴリ名", "newDescription": "新しいカテゴリの説明", "create": "カテゴリを作成", "creating": "作成中…", "save": "カテゴリを保存", "retire": "廃止", "reserved": "予約済み", "fallback": "未分類のシグナルのフォールバックです。", "load": "カテゴリを読み込み中…", "loadError": "カテゴリを読み込めませんでした。", "createError": "カテゴリを作成できませんでした。もう一度試してください。", "changeError": "カテゴリの変更に失敗しました。もう一度試してください。", "activeList": "有効なカテゴリ", "nameFor": "{{name}} の名前", "descriptionFor": "{{name}} の説明", "classificationLoading": "分類中…", "classificationPending": "分類待ちです。", "proposed": "提案カテゴリ", "confirmed": "確認済みカテゴリ", "confidence": "信頼度 {{value}}%", "choose": "カテゴリを選択", "categoryFor": "シグナル {{id}} のカテゴリ", "confirm": "カテゴリを確認", "change": "カテゴリを変更", "confirmError": "カテゴリの決定を保存できませんでした。"
+  },
   "notifications": {
     "summary": "{{count}} 件の通知"
   },

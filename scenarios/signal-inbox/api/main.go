@@ -9,19 +9,24 @@ import (
 	"path/filepath"
 	"strings"
 
+	"signal-inbox/internal/categories"
 	"signal-inbox/internal/clock"
+	"signal-inbox/internal/inference"
 	"signal-inbox/internal/modules"
 	"signal-inbox/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
 	_ "modernc.org/sqlite"
 
+	categoriesH "signal-inbox/handlers/categories"
 	healthH "signal-inbox/handlers/health"
 	signalsH "signal-inbox/handlers/signals"
 )
@@ -131,6 +136,16 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	var inferenceClient inference.Client
+	if gatewayURL, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "ai-gateway"); resolveErr != nil {
+		log.Printf("ai-gateway unavailable; capture will record uncategorized signals: %v", resolveErr)
+	} else {
+		inferenceClient = inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL))
+	}
+	categoryService := categories.NewService(categories.NewSQLiteRepository(db), clock.System{}, inferenceClient)
+	if _, err := categoryService.Bootstrap(context.Background()); err != nil {
+		log.Fatalf("seed reserved category: %v", err)
+	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
 		log.Fatalf("file storage configuration failed: %v", err)
@@ -140,7 +155,8 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "signal-inbox-api", "1.0.0"),
-		signalsH.Module(db, clock.System{}, log.Default()),
+		categoriesH.Module(categoryService),
+		signalsH.Module(db, clock.System{}, log.Default(), categoryService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

@@ -19,22 +19,23 @@ import (
 	internal "signal-inbox/internal/signals"
 )
 
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, hooks ...internal.PostCapture) module.Module {
 	store, err := defaultBlobStore()
 	if err != nil {
 		logger.Fatalf("signals BlobStore: %v", err)
 	}
-	return ModuleWithBlobStore(db, clk, store, logger)
+	return ModuleWithBlobStore(db, clk, store, logger, hooks...)
 }
 
-func ModuleWithBlobStore(db *database.RoutedDB, clk clock.Clock, store blobstore.BlobStore, logger *log.Logger) module.Module {
+func ModuleWithBlobStore(db *database.RoutedDB, clk clock.Clock, store blobstore.BlobStore, logger *log.Logger, hooks ...internal.PostCapture) module.Module {
 	enricher := enrichment.NewService(
 		enrichment.NewSQLiteRepository(db),
 		clk,
 		enrichment.NewHTMLExtractor(&http.Client{Timeout: 15 * time.Second}),
 		enrichment.NewImageExtractor(store, enrichment.OSCommandRunner{}),
 	)
-	svc := internal.NewService(internal.NewSQLiteRepository(db, clk), clk, enricher)
+	allHooks := append([]internal.PostCapture{enricher}, hooks...)
+	svc := internal.NewService(internal.NewSQLiteRepository(db, clk), clk, allHooks...)
 	path, handler := signalsconnect.NewSignalsServiceHandler(NewConnectHandler(Deps{Service: svc, Logger: logger}))
 	upload := NewImageUploadHandler(store, logger)
 	return module.Module{Name: "signals", Mount: func(router *mux.Router) {

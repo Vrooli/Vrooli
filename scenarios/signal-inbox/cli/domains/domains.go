@@ -2,6 +2,7 @@ package domains
 
 import (
 	"github.com/vrooli/cli-core/cliapp"
+	"signal-inbox/cli/domains/categories"
 	"signal-inbox/cli/domains/signals"
 )
 
@@ -39,5 +40,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{group}, nil
+	categoriesGroup, err := categories.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{categoriesGroup, group}, nil
 }

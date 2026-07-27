@@ -4,8 +4,56 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "signal-inbox",
   "generator": "v1.0.0",
-  "manifest_hash": "1ebdb1ad2bc791540ca12cbc2b2525e44eb0a1089c6c3f5f4a6a3a04e0575985",
+  "manifest_hash": "d38e0065c2d17aa0ca4e2412b38dfce9a083f720e3a61a25a33c0971acd74a8d",
   "commands": [
+    {
+      "path": "categories confirm",
+      "group": "categories",
+      "command": "confirm",
+      "binding": "CategoriesService.ConfirmClassification",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "categories create",
+      "group": "categories",
+      "command": "create",
+      "binding": "CategoriesService.CreateCategory",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "categories get-classification",
+      "group": "categories",
+      "command": "get-classification",
+      "binding": "CategoriesService.GetClassification",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "categories list",
+      "group": "categories",
+      "command": "list",
+      "binding": "CategoriesService.ListCategories",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "categories rename",
+      "group": "categories",
+      "command": "rename",
+      "binding": "CategoriesService.RenameCategory",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "categories retire",
+      "group": "categories",
+      "command": "retire",
+      "binding": "CategoriesService.RetireCategory",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
     {
       "path": "signals capture",
       "group": "signals",

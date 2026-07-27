@@ -37,6 +37,62 @@
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         }
       ]
+    },
+    {
+      "name": "categories",
+      "description": "Manage operator-owned categories and review classifications",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create an operator-owned category",
+          "flags": [{"name": "name", "description": "Category name", "required": true}, {"name": "description", "description": "Optional category description"}],
+          "binding": {"kind": "connect-rpc", "service": "CategoriesService", "method": "CreateCategory"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "list",
+          "description": "List categories",
+          "flags": [{"name": "include-retired", "description": "Include retired categories"}],
+          "binding": {"kind": "connect-rpc", "service": "CategoriesService", "method": "ListCategories"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "rename",
+          "description": "Rename or describe an active category",
+          "positionals": [{"name": "id", "required": true, "description": "Category id"}],
+          "flags": [{"name": "name", "description": "New category name", "required": true}, {"name": "description", "description": "Optional category description"}],
+          "binding": {"kind": "connect-rpc", "service": "CategoriesService", "method": "RenameCategory"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "retire",
+          "description": "Retire a category and retain its history",
+          "positionals": [{"name": "id", "required": true, "description": "Category id"}],
+          "binding": {"kind": "connect-rpc", "service": "CategoriesService", "method": "RetireCategory"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "get-classification",
+          "description": "Read the latest advisory and confirmed classification for a signal",
+          "positionals": [{"name": "signal-id", "required": true, "description": "Signal id"}],
+          "binding": {"kind": "connect-rpc", "service": "CategoriesService", "method": "GetClassification"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "confirm",
+          "description": "Confirm or override a proposed category for a signal",
+          "positionals": [{"name": "signal-id", "required": true, "description": "Signal id"}],
+          "flags": [{"name": "category-id", "description": "Confirmed active category id", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "CategoriesService", "method": "ConfirmClassification"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
     }
   ],
   "measures": {

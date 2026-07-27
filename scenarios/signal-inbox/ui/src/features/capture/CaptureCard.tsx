@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { selectors } from "../../consts/selectors";
+import { SignalClassificationControl } from "../categories/SignalClassificationControl";
 
 const signalsKey = ["signals"] as const;
 
@@ -72,7 +73,7 @@ export function CaptureCard() {
         {!list.isLoading && !list.error && list.data && list.data.signals.length === 0 && <p data-testid={selectors.capture.empty}>No signals captured yet.</p>}
         {list.data && list.data.signals.length > 0 && (
           <ul data-testid={selectors.capture.list} aria-label="Captured signals" className="space-y-2">
-            {list.data.signals.map((signal) => <li key={signal.id} className="rounded border border-app-border p-2 text-sm">{signal.sourceKind}: {signal.sourceUrl || signal.extractedContent || signal.rawPayloadRef}{signal.needsAttention && <span data-testid={selectors.capture.needsAttention} className="ml-2 text-app-danger">Needs attention</span>}</li>)}
+            {list.data.signals.map((signal) => <li key={signal.id} className="rounded border border-app-border p-2 text-sm">{signal.sourceKind}: {signal.sourceUrl || signal.extractedContent || signal.rawPayloadRef}{signal.needsAttention && <span data-testid={selectors.capture.needsAttention} className="ml-2 text-app-danger">Needs attention</span>}<SignalClassificationControl signalID={signal.id} /></li>)}
           </ul>
         )}
       </CardContent>
