@@ -55,33 +55,30 @@ func TestOperatingMapStore_CachesAndInvalidates(t *testing.T) {
 }
 
 func TestLoadTeamGoalLinkages_UsesContributionMap(t *testing.T) {
-	repoRoot, err := repoRootForOperatingMapTest()
-	if err != nil {
+	repoRoot := t.TempDir()
+	charterPath := filepath.Join(repoRoot, "docs", "director-swarm", "evidence", "OUTCOMES_CHARTER.md")
+	if err := os.MkdirAll(filepath.Dir(charterPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(charterPath, []byte(`## Team contribution map
+
+| Outcome category | Primary teams | Supporting teams |
+| --- | --- | --- |
+| Forge | team:alpha, team:bravo | team:charlie |
+| Ledger | team:charlie | team:alpha |
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	linkages, err := LoadTeamGoalLinkages(repoRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := linkages["monetization"]; got != "primary: Ledger — revenue & subscriptions; supporting: Broadcast — marketing & growth" {
-		t.Fatalf("unexpected monetization linkage: %q", got)
+	if got := linkages["alpha"]; got != "primary: Forge; supporting: Ledger" {
+		t.Fatalf("alpha linkage = %q, want declared-order linkage", got)
 	}
-}
-
-func repoRootForOperatingMapTest() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "docs", "director-swarm", "evidence", "OUTCOMES_CHARTER.md")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", os.ErrNotExist
-		}
-		dir = parent
+	if got := linkages["charlie"]; got != "supporting: Forge; primary: Ledger" {
+		t.Fatalf("charlie linkage = %q, want declared-order linkage", got)
 	}
 }
 

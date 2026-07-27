@@ -9,10 +9,11 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
 	"sort"
 	"strings"
 	"time"
+
+	"prompt-manager/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -53,6 +54,11 @@ type topicFinding struct {
 	// it empty.
 	OwnerKey string `json:"owner_key,omitempty"`
 	Detail   string `json:"detail"`
+	// Advisory marks a finding from a heuristic that cannot fully separate a
+	// real defect from a lookalike — review material for this sweep, withheld
+	// from surfaces that instruct an agent. Mirrors memberflow.Finding; the
+	// field is decoded here so `--json` consumers see what the API sent.
+	Advisory bool `json:"advisory,omitempty"`
 }
 
 type topicValidation struct {

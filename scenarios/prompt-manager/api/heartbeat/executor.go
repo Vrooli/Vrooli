@@ -6,10 +6,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
 	"strings"
 	"time"
+
+	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 
 	"github.com/google/uuid"
 )
@@ -52,6 +53,17 @@ type Executor struct {
 // (they have a circular dependency at construction time).
 func (e *Executor) SetTeamExecStore(s TeamExecStoreRegistrar) {
 	e.teamExecStore = s
+}
+
+// SetContractFindingsProvider forwards the findings source to the executor's
+// prompt builder. This is the builder that produces the prompt an agent is
+// actually spawned with, so a provider wired only to the preview builder
+// would show findings to the operator and never to the member.
+func (e *Executor) SetContractFindingsProvider(provider ContractFindingsProvider) {
+	if e == nil || e.promptBuilder == nil {
+		return
+	}
+	e.promptBuilder.SetContractFindingsProvider(provider)
 }
 
 // NewExecutor creates a new heartbeat executor

@@ -1075,7 +1075,7 @@ Validation should reject shell pipelines, command separators, raw external tools
 Run an active, runnable Action with typed input through the governed API runtime. The CLI remains a thin API client and does not duplicate validation, permission checks, timeout handling, concurrency throttling, stdout/stderr caps, or audit history.
 
 ```bash
-prompt-manager action run <id> [--input='{"key":"value"}'|--input-file=payload.json] [--dry-run] [--json]
+prompt-manager action run <id> [--<declared-input>=<value> ...] [--input='{"key":"value"}'|--input-file=payload.json] [--dry-run] [--json]
 ```
 
 Safe seed dry-run:
@@ -1084,7 +1084,7 @@ Safe seed dry-run:
 prompt-manager action run scenario.status.show --input='{"scenario":"prompt-manager"}' --dry-run --json
 ```
 
-Use `--dry-run` to validate inputs and return the rendered argv without starting the process. Non-JSON output prints status, exit code, duration, rendered argv, stdout/stderr snippets, parsed output, and any API error message. `failed`, `timed-out`, `rejected`, and `throttled` responses return a non-zero CLI error after printing the run envelope.
+Declared Action inputs may be supplied directly as named flags, for example `prompt-manager action run scenario.status.show --scenario=prompt-manager --dry-run`. The CLI resolves the Action contract first, converts scalar values according to its declared type, and sends the same governed run request as the JSON forms. Do not provide the same input in both a named flag and `--input`; that is rejected as ambiguous. Use `--dry-run` to validate inputs and return the rendered argv without starting the process. Non-JSON output prints status, exit code, duration, rendered argv, stdout/stderr snippets, parsed output, and any API error message. `failed`, `timed-out`, `rejected`, and `throttled` responses return a non-zero CLI error after printing the run envelope.
 
 Branching and implementation logic belong in the owning CLI, not in the Action wrapper.
 

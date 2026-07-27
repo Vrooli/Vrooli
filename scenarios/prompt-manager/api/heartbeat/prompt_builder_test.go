@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -211,8 +213,7 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		"## Coordination",
 		"## Governance",
 		"## Your Member Contract",
-		"## Document Authority",
-		"## Write Rules",
+		"## Operating Constraints",
 		"The complete task source is included later in `# Heartbeat Task (HEARTBEAT.md)`.",
 		"## Write Surface",
 		"## Required Memory",
@@ -236,6 +237,14 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing storage map content %q", want)
+		}
+	}
+	// Document surfaces and write paths have one home each. These headings
+	// used to restate `# Storage Map` and the brief's write surface inside
+	// `# Operating Policy`; see TestRenderMemberPolicyDoesNotRestateDocumentSurfaces.
+	for _, duplicated := range []string{"## Document Authority", "## Write Rules"} {
+		if strings.Contains(prompt, duplicated) {
+			t.Fatalf("prompt restates %q, which `# Storage Map` and `# Active Task Brief` already own", duplicated)
 		}
 	}
 	if strings.Contains(prompt, "# Durable State") {
@@ -331,15 +340,9 @@ Decision caps:
 - max new decisions this heartbeat: 1
 - skip new decisions when 3+ owned-context decisions are already pending
 
-## Document Authority
+## Operating Constraints
 
-
-## Write Rules
-
-Allowed writes:
-- knowledge
-- decision
-- handoff`
+Your write surfaces are listed in ` + "`# Active Task Brief`" + ` and described in ` + "`# Storage Map`" + `.`
 	if policy != want {
 		t.Fatalf("operating policy golden mismatch\nwant:\n%s\n\ngot:\n%s", want, policy)
 	}
@@ -1284,4 +1287,116 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 			t.Fatalf("BuildContext should include %q section", section)
 		}
 	}
+}
+
+// decisionCapNumbers extracts every integer stated in a prompt section's
+// decision-cap region, so the two renderers can be compared without coupling
+// the test to either one's phrasing.
+func decisionCapNumbers(t *testing.T, section, startMarker string) []int {
+	t.Helper()
+	idx := strings.Index(section, startMarker)
+	if idx < 0 {
+		return nil
+	}
+	region := section[idx+len(startMarker):]
+	// The brief states caps on a single line; the operating policy uses a
+	// bullet list terminated by the next blank line or heading.
+	if end := strings.Index(region, "\n\n"); end >= 0 {
+		region = region[:end]
+	}
+	var numbers []int
+	for _, field := range strings.FieldsFunc(region, func(r rune) bool { return r < '0' || r > '9' }) {
+		n, err := strconv.Atoi(field)
+		if err != nil {
+			t.Fatalf("parse cap number %q: %v", field, err)
+		}
+		numbers = append(numbers, n)
+	}
+	sort.Ints(numbers)
+	return numbers
+}
+
+// TestPromptSectionsAgreeOnDecisionCaps walks the live roster and proves that
+// "# Active Task Brief" and "# Operating Policy" never state different
+// new-decision caps for the same member.
+//
+// Regression guard: buildMemberStoragePolicy previously carried only
+// newDecisionCapPerHeartbeat, so every member capped by
+// newDecisionCapsByContext read "no explicit per-heartbeat cap" in the brief
+// while the operating policy 240 lines later named real caps.
+func TestPromptSectionsAgreeOnDecisionCaps(t *testing.T) {
+	ctx := context.Background()
+	fileStore := store.NewFileStore(paths.RootsForRepoStoreTest(t, "../../store"))
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	builder := NewPromptBuilder(teamStore, fileStore.Agents().(*store.FileAgentStore))
+
+	teams, err := teamStore.List(ctx)
+	if err != nil {
+		t.Fatalf("list teams: %v", err)
+	}
+	if len(teams) == 0 {
+		t.Fatalf("expected at least one bundled team")
+	}
+
+	checked := 0
+	for _, team := range teams {
+		if team.OperatingContract == nil {
+			continue
+		}
+		for memberID, member := range team.OperatingContract.Members {
+			sections, err := builder.BuildStructured(ctx, PromptBuildRequest{TeamID: team.ID, AgentID: memberID})
+			if err != nil {
+				t.Fatalf("build %s/%s: %v", team.ID, memberID, err)
+			}
+			var brief, policy string
+			for _, section := range sections {
+				switch section.Kind {
+				case promptSectionKindActiveTaskBrief:
+					brief = section.Content
+				case promptSectionKindOperatingPolicy:
+					policy = section.Content
+				}
+			}
+			if brief == "" || policy == "" {
+				t.Fatalf("%s/%s: missing brief or operating-policy section", team.ID, memberID)
+			}
+
+			declaresCap := member.NewDecisionCapPerHeartbeat != nil || len(member.NewDecisionCapsByContext) > 0
+			if declaresCap && strings.Contains(brief, "no explicit per-heartbeat cap") {
+				t.Errorf("%s/%s: brief claims no per-heartbeat cap while the contract declares one", team.ID, memberID)
+			}
+
+			// Every capped context must be named in the brief, not only in the
+			// operating policy the agent reads much later.
+			for contextID := range member.NewDecisionCapsByContext {
+				if !strings.Contains(brief, contextID) {
+					t.Errorf("%s/%s: brief omits capped decision context %q", team.ID, memberID, contextID)
+				}
+			}
+
+			if !strings.Contains(brief, "Decision cap: ") {
+				// Decision writes are not allowed for this member; the
+				// operating policy must not advertise a nonzero cap.
+				for _, n := range decisionCapNumbers(t, policy, "\nDecision caps:\n") {
+					if n != 0 {
+						t.Errorf("%s/%s: brief forbids decision writes while operating policy states cap %d", team.ID, memberID, n)
+					}
+				}
+				checked++
+				continue
+			}
+
+			briefNumbers := decisionCapNumbers(t, brief, "Decision cap: ")
+			policyNumbers := decisionCapNumbers(t, policy, "\nDecision caps:\n")
+			if !slices.Equal(briefNumbers, policyNumbers) {
+				t.Errorf("%s/%s: decision caps disagree across prompt sections.\n  brief:  %v\n  policy: %v\n  brief line: %s",
+					team.ID, memberID, briefNumbers, policyNumbers, strings.SplitN(brief[strings.Index(brief, "Decision cap: "):], "\n", 2)[0])
+			}
+			checked++
+		}
+	}
+	if checked == 0 {
+		t.Fatalf("expected to check at least one bundled member")
+	}
+	t.Logf("checked decision-cap agreement across %d bundled members", checked)
 }

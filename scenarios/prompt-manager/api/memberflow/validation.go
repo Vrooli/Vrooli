@@ -33,6 +33,14 @@ type Finding struct {
 	Prefix   string    `json:"prefix,omitempty"`
 	OwnerKey string    `json:"owner_key,omitempty"`
 	Detail   string    `json:"detail"`
+
+	// Advisory marks a finding produced by a heuristic that cannot fully
+	// distinguish a real defect from a lookalike. Advisory findings are
+	// review material for an operator sweep, not instructions: they are
+	// reported by `graph topics` and withheld from surfaces that ask an
+	// agent to act on them. See prose_scan.go's proseRegex.Advisory for the
+	// case that motivated the split.
+	Advisory bool `json:"advisory,omitempty"`
 }
 
 // ValidationOptions configures runtime checks that depend on filesystem state
@@ -147,8 +155,20 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 	findings = append(findings, ruleMissingDestinationSchema(members, opts)...)
 	findings = append(findings, ruleDanglingPORSink(members, opts)...)
 	findings = append(findings, ruleDanglingEvidenceDecision(members, opts)...)
+	findings = append(findings, ruleTeamRoleMemberDrift(opts)...)
 	findings = append(findings, ruleActualWriterUndeclared(members, opts)...)
 	findings = append(findings, ruleProseTopicLeak(members, opts)...)
+	findings = append(findings, ruleMemberDocSections(members, opts)...)
+
+	// Loop-kind rules (loopkind.go). Declare rules run unconditionally;
+	// enforce rules are gated behind an explicit LoopKind and stay silent
+	// on members that have not declared one.
+	findings = append(findings, ruleLoopKindInvalid(members)...)
+	findings = append(findings, ruleLoopKindMissing(members)...)
+	findings = append(findings, ruleLoopKindIntakeMismatch(members)...)
+	findings = append(findings, ruleSweepWithoutLedger(members)...)
+	findings = append(findings, ruleLedgerShapeInvalid(members)...)
+	findings = append(findings, ruleSweepPopulationMissing(members)...)
 
 	// stalled_drain and piling_inbox depend on team-knowledge queue depth +
 	// age; those are computed by the CLI layer (which has access to the
@@ -264,7 +284,7 @@ func ruleOrphanOutput(members []MemberTopics, opts ValidationOptions) []Finding 
 				Severity: SeverityWarning,
 				Member:   m.Ref,
 				Prefix:   o.Prefix,
-				Detail:   fmt.Sprintf("output prefix %q has no peer-member consumer (operator-only snapshot is acceptable; pair with an intake if this should be drained)", o.Prefix),
+				Detail:   fmt.Sprintf("output prefix %q has no declared consumer (operator-only snapshot is acceptable; pair with an intake if this should be drained)", o.Prefix),
 			})
 		}
 	}
@@ -636,4 +656,73 @@ func LoadSkillIDs(configDir string) (map[string]bool, error) {
 		}
 	}
 	return out, nil
+}
+
+// ruleTeamRoleMemberDrift cross-checks `roles.json` role ids against the team's
+// contract member ids. Both directions are drift:
+//
+//   - a role with no matching member describes someone who does not exist;
+//   - a member with no matching role has no role description at all.
+//
+// Nothing consumed roles.json at runtime — every team currently sets
+// `showOrgContext: false`, so the file never reaches a prompt — and nothing
+// validated it either. A file that is neither read nor checked rots silently,
+// and one had: three of four role entries on a live team named or omitted the
+// wrong member. This rule is what makes the file's correctness observable
+// regardless of whether a given team renders it.
+//
+// Teams with no roles.json are skipped rather than flagged. The file is
+// optional, and demanding one from every team would be a different decision
+// than checking the ones that exist.
+func ruleTeamRoleMemberDrift(opts ValidationOptions) []Finding {
+	if len(opts.TeamContracts) == 0 {
+		return nil
+	}
+	var out []Finding
+	for _, teamID := range opts.TeamContracts.IDs() {
+		contract := opts.TeamContracts[teamID]
+		if contract == nil || contract.Contract == nil || contract.RolesSourcePath == "" {
+			continue
+		}
+
+		memberIDs := make(map[string]bool, len(contract.Contract.Members))
+		for memberID := range contract.Contract.Members {
+			memberIDs[memberID] = true
+		}
+		roleIDs := make(map[string]bool, len(contract.RoleIDs))
+		for _, roleID := range contract.RoleIDs {
+			roleIDs[roleID] = true
+		}
+
+		for _, roleID := range contract.RoleIDs {
+			if memberIDs[roleID] {
+				continue
+			}
+			out = append(out, Finding{
+				Rule:     "team_role_member_drift",
+				Severity: SeverityError,
+				Member:   MemberRef{Team: teamID, Member: roleID},
+				Detail: fmt.Sprintf("roles.json on team %q declares role %q but team.json::operatingContract.members has no such member; remove the role or add the member",
+					teamID, roleID),
+			})
+		}
+
+		missing := make([]string, 0, len(memberIDs))
+		for memberID := range memberIDs {
+			if !roleIDs[memberID] {
+				missing = append(missing, memberID)
+			}
+		}
+		sort.Strings(missing)
+		for _, memberID := range missing {
+			out = append(out, Finding{
+				Rule:     "team_role_member_drift",
+				Severity: SeverityError,
+				Member:   MemberRef{Team: teamID, Member: memberID},
+				Detail: fmt.Sprintf("member %q on team %q has no entry in roles.json; add the role or drop the member from the contract",
+					memberID, teamID),
+			})
+		}
+	}
+	return out
 }

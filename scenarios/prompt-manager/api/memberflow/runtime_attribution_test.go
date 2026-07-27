@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"prompt-manager/store"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
+
+	"prompt-manager/store"
 )
 
 // runtimeFixture is a small DSL for laying down a synthetic store under
@@ -856,6 +857,103 @@ func TestRuntimeAttribution_RealStoreCanary(t *testing.T) {
 		if f.Rule == "actual_writer_undeclared" || f.Rule == "attribution_malformed" {
 			t.Errorf("real-store runtime-attribution finding: %s [%s] %s prefix=%q detail=%s",
 				f.Rule, f.Severity, f.Member, f.Prefix, f.Detail)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------
+// Per-defect grouping
+// ---------------------------------------------------------------------
+
+// TestRuntimeAttribution_GroupsRepeatWritesIntoOneFinding proves the rule
+// reports declarations to fix, not entries written. One undeclared prefix on
+// one member fired once per heartbeat, so a month of runs read as a month of
+// separate errors; the repair was always a single topics.json line.
+func TestRuntimeAttribution_GroupsRepeatWritesIntoOneFinding(t *testing.T) {
+	rf := newRuntimeFixture(t)
+	rf.writeTeam(t, "alpha", "2026-05-04", 0)
+	rf.writeMember(t, "alpha", "researcher", "audience-scan/*")
+	for _, day := range []string{"05", "06", "07", "08", "09"} {
+		rf.appendKnowledge(t, "alpha", agentMemberRow(
+			"knw-"+day, "2026-05-"+day+"T10:00:00Z",
+			"initiative-portfolio-record/2026-05-"+day, "alpha", "researcher", ""))
+	}
+
+	findings := rf.run(t)
+	if len(findings) != 1 {
+		t.Fatalf("5 writes under one undeclared family should be 1 finding; got %d:\n%v", len(findings), formatFindings(findings))
+	}
+	got := findings[0]
+	if got.Prefix != "initiative-portfolio-record/*" {
+		t.Errorf("Prefix = %q, want the declarable family %q", got.Prefix, "initiative-portfolio-record/*")
+	}
+	if !strings.Contains(got.Detail, "5 entries") {
+		t.Errorf("Detail should carry the occurrence count so the evidence survives collapsing; got %q", got.Detail)
+	}
+	if !strings.Contains(got.Detail, "knw-05") {
+		t.Errorf("Detail should cite a sample entry id; got %q", got.Detail)
+	}
+}
+
+// TestRuntimeAttribution_MalformedKeyFamilyStaysDistinct guards the case that
+// motivated the family normalizer: monetization-contrarian built its topic key
+// by concatenation (`contrarian-scan-2026-06-14`) instead of path join for a
+// month, then started writing the correct `contrarian-scan/<date>` form. These
+// are two different defects — a malformed key and a missing declaration — and
+// collapsing them together would hide the first.
+func TestRuntimeAttribution_MalformedKeyFamilyStaysDistinct(t *testing.T) {
+	rf := newRuntimeFixture(t)
+	rf.writeTeam(t, "alpha", "2026-05-04", 0)
+	rf.writeMember(t, "alpha", "contrarian", "aging-scan/*")
+	for _, day := range []string{"05", "06", "07"} {
+		rf.appendKnowledge(t, "alpha", agentMemberRow(
+			"knw-bad-"+day, "2026-05-"+day+"T10:00:00Z",
+			"contrarian-scan-2026-05-"+day, "alpha", "contrarian", ""))
+	}
+	for _, day := range []string{"08", "09"} {
+		rf.appendKnowledge(t, "alpha", agentMemberRow(
+			"knw-ok-"+day, "2026-05-"+day+"T10:00:00Z",
+			"contrarian-scan/2026-05-"+day, "alpha", "contrarian", ""))
+	}
+
+	findings := rf.run(t)
+	if len(findings) != 2 {
+		t.Fatalf("expected 2 findings (malformed family + declarable family); got %d:\n%v", len(findings), formatFindings(findings))
+	}
+	byPrefix := map[string]Finding{}
+	for _, f := range findings {
+		byPrefix[f.Prefix] = f
+	}
+	malformed, ok := byPrefix["contrarian-scan-*"]
+	if !ok {
+		t.Fatalf("expected a finding for the malformed `contrarian-scan-*` family; got %v", formatFindings(findings))
+	}
+	if !strings.Contains(malformed.Detail, "3 entries") {
+		t.Errorf("malformed family should report 3 entries; got %q", malformed.Detail)
+	}
+	correct, ok := byPrefix["contrarian-scan/*"]
+	if !ok {
+		t.Fatalf("expected a finding for the undeclared `contrarian-scan/*` family; got %v", formatFindings(findings))
+	}
+	if !strings.Contains(correct.Detail, "2 entries") {
+		t.Errorf("declarable family should report 2 entries; got %q", correct.Detail)
+	}
+}
+
+func TestObservedTopicFamily(t *testing.T) {
+	for _, tc := range []struct{ topic, want string }{
+		{"initiative-portfolio-record/2026-05-14", "initiative-portfolio-record/*"},
+		{"challenge-resolution-record/dec-1778803361775636366", "challenge-resolution-record/*"},
+		{"friction-report/recurring-workaround/2026-06-15/toolchain-fallback", "friction-report/recurring-workaround/*"},
+		{"contrarian-scan-2026-06-14", "contrarian-scan-*"},
+		{"contrarian-scan/2026-06-15", "contrarian-scan/*"},
+		{"quality-audit/audio-tools/api-steer", "quality-audit/audio-tools/api-steer"},
+		{"bug-inbox/prompt-confusion/stale-topic-hint", "bug-inbox/prompt-confusion/stale-topic-hint"},
+		{"2026-05-14", "2026-05-14"},
+		{"", ""},
+	} {
+		if got := observedTopicFamily(tc.topic); got != tc.want {
+			t.Errorf("observedTopicFamily(%q) = %q, want %q", tc.topic, got, tc.want)
 		}
 	}
 }

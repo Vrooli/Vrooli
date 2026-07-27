@@ -82,16 +82,16 @@ store/
 ├── relations/
 │   └── team-member/
 │       └── team-id__agent-1.json
-├── indexes/                    # Generated (never hand-edit)
-│   ├── skills.index.json
-│   ├── agents.index.json
-│   └── teams.index.json
-└── schemas/                    # JSON Schemas for validation
-    ├── skill.schema.json
-    ├── agent.schema.json
-    ├── action.schema.json
-    └── team.schema.json
+└── indexes/                    # Generated (never hand-edit)
+    ├── skills.index.json
+    ├── agents.index.json
+    └── teams.index.json
 ```
+
+Store shapes are validated in Go, not by JSON Schema. `team.json` is enforced by
+[`api/teamcontract/contract.go`](../../api/teamcontract/contract.go); member
+`topics.json` and the operating-model contract by
+[`api/memberflow/`](../../api/memberflow/).
 
 ### skill.json Format
 

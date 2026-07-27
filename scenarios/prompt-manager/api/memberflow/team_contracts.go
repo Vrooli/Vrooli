@@ -19,9 +19,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"prompt-manager/teamcontract"
 	"sort"
 	"strings"
+
+	"prompt-manager/teamcontract"
 )
 
 // LoadedTeamContract pairs a team id with its parsed operating contract
@@ -59,6 +60,13 @@ type LoadedTeamContract struct {
 	// per-ISO-week count-vs-threshold findings on
 	// ruleActualWriterUndeclared.
 	FlagExternalWritesPerWeek int
+	// RoleIDs are the role ids declared in the team's sibling roles.json,
+	// in file order. Nil when the team declares no roles.json at all, which
+	// ruleTeamRoleMemberDrift treats as "not adopted" rather than as drift.
+	RoleIDs []string
+	// RolesSourcePath is the roles.json path findings attribute to. Empty
+	// when the team declares no roles.json.
+	RolesSourcePath string
 }
 
 // TeamContractRegistry indexes loaded contracts by team id. Methods on the
@@ -178,6 +186,10 @@ func parseTeamFile(path string) (*LoadedTeamContract, error) {
 	if tf.Policy != nil {
 		flag = tf.Policy.FlagExternalWritesPerWeek
 	}
+	roleIDs, rolesPath, err := loadTeamRoleIDs(filepath.Join(filepath.Dir(path), "roles.json"))
+	if err != nil {
+		return nil, err
+	}
 	return &LoadedTeamContract{
 		TeamID:                    tf.ID,
 		Contract:                  tf.OperatingContract,
@@ -186,7 +198,40 @@ func parseTeamFile(path string) (*LoadedTeamContract, error) {
 		PlanOfRecordDocuments:     operatingContractPlanOfRecord(tf.OperatingContract),
 		AttributionValidFrom:      strings.TrimSpace(tf.AttributionValidFrom),
 		FlagExternalWritesPerWeek: flag,
+		RoleIDs:                   roleIDs,
+		RolesSourcePath:           rolesPath,
 	}, nil
+}
+
+// rolesFile is the minimal slice of roles.json the parity rule reads.
+type rolesFile struct {
+	Roles []struct {
+		ID string `json:"id"`
+	} `json:"roles"`
+}
+
+// loadTeamRoleIDs reads a team's roles.json. A missing file returns nil ids
+// and an empty path, which the parity rule reads as "this team has not adopted
+// roles.json" rather than as drift.
+func loadTeamRoleIDs(path string) ([]string, string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, "", nil
+		}
+		return nil, "", fmt.Errorf("read %q: %w", path, err)
+	}
+	var rf rolesFile
+	if err := json.Unmarshal(data, &rf); err != nil {
+		return nil, "", fmt.Errorf("parse %q: %w", path, err)
+	}
+	ids := make([]string, 0, len(rf.Roles))
+	for _, role := range rf.Roles {
+		if id := strings.TrimSpace(role.ID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids, path, nil
 }
 
 func operatingContractPlanOfRecord(contract *teamcontract.OperatingContract) []teamcontract.PlanOfRecordDocument {

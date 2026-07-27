@@ -127,6 +127,42 @@ func (h *Handlers) triggerDeleteAsync(skillID string) {
 	}()
 }
 
+// templateVariableKeys extracts the explicit {{variable}} contract from a
+// skill body. The Prompt Manager owns the durable skill store, so this generic
+// check protects every write path (CLI, API, and Swarm Manager proxy) instead
+// of relying on a caller-specific catalog guard.
+func templateVariableKeys(content string) map[string]struct{} {
+	keys := make(map[string]struct{})
+	for {
+		start := strings.Index(content, "{{")
+		if start < 0 {
+			return keys
+		}
+		content = content[start+2:]
+		end := strings.Index(content, "}}")
+		if end < 0 {
+			return keys
+		}
+		if key := strings.TrimSpace(content[:end]); key != "" {
+			keys[key] = struct{}{}
+		}
+		content = content[end+2:]
+	}
+}
+
+func removedTemplateVariables(previous, replacement string) []string {
+	before := templateVariableKeys(previous)
+	after := templateVariableKeys(replacement)
+	missing := make([]string, 0)
+	for key := range before {
+		if _, present := after[key]; !present {
+			missing = append(missing, key)
+		}
+	}
+	sort.Strings(missing)
+	return missing
+}
+
 // List handles GET /skills - returns all skills with optional filtering.
 func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 	store := h.storeFor(r.Context())
@@ -220,7 +256,6 @@ func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
 	}
-
 	// Load content
 	content, err := store.GetContent(folder, skill.File)
 	if err != nil {
@@ -354,6 +389,17 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
+	}
+	if req.Content != nil {
+		current, err := store.GetContent(folder, skill.File)
+		if err != nil {
+			http.Error(w, "Failed to read existing skill content", http.StatusInternalServerError)
+			return
+		}
+		if missing := removedTemplateVariables(current, *req.Content); len(missing) > 0 {
+			http.Error(w, "content removes existing template variables: "+strings.Join(missing, ", "), http.StatusBadRequest)
+			return
+		}
 	}
 
 	// Only allow updates to local/drafts skills

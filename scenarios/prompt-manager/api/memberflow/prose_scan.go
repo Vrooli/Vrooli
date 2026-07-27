@@ -99,6 +99,19 @@ type proseRegex struct {
 	Re       *regexp.Regexp // nil for parser-backed patterns
 	IsCLI    bool           // true for cli-knowledge-*; false for marked/inferred refs
 	IsWrite  bool           // true when the pattern represents a write (knowledge-add / knowledge-update); false for reads
+
+	// Advisory marks a pattern whose hits are review material rather than
+	// definite drift. The inferred-backtick pattern cannot tell a topic
+	// prefix from any other slash-separated lowercase string, so it also
+	// matches paths (`docs/configuration/host`, `api-core/storage`) and
+	// package references. That is acceptable for an operator sweep, where
+	// a human dismisses the misses in seconds, and unacceptable for a
+	// surface that instructs an agent — telling a member to correct a
+	// declaration that was never wrong is worse than saying nothing.
+	//
+	// Advisory findings still appear in `graph topics`. They are withheld
+	// only from surfaces that ask an agent to act.
+	Advisory bool
 }
 
 // proseRegexes is the locked CLI regex set from docs/agent-system/PROSE_SCAN_TARGETS.md
@@ -165,6 +178,7 @@ var (
 		Re:       regexp.MustCompile("`([a-z][a-z0-9-]*/[a-z0-9<>_*/-]+)`"),
 		IsCLI:    false,
 		IsWrite:  false,
+		Advisory: true,
 	}
 )
 
@@ -463,9 +477,47 @@ func discoverSkillTargets(configDir string) ([]proseTarget, error) {
 	return out, nil
 }
 
-// discoverDocsTargets walks <docsDir>/<domain>/**/*.md and emits targets
-// under owner key `docs:<domain>`. Drafts and the agent-system outline
-// are excluded per the doc.
+// isDeclarationBearingDomain reports whether docs/<domain>/ is a surface whose
+// topic references are answerable against the declaration layer.
+//
+// A team plan of record qualifies: it is owned by a team, and every topic it
+// names should resolve to that system's declarations. So does the agent-system
+// canon, which defines the topic vocabulary itself.
+//
+// Everything else under docs/ — implementation plans, reference material,
+// concept essays — is prose about the system rather than prose owned by it.
+// Scanning those made the corpus mostly non-declaration-bearing, so the rule's
+// warning count measured how much had been written rather than how much had
+// drifted, and its deadband had to be pinned to whatever the total happened to
+// be. Narrowing the corpus is what makes a real deadband reachable.
+//
+// The agent-system special case disappears once that folder carries its own
+// plan-of-record manifest.
+func isDeclarationBearingDomain(docsDir, domain string) bool {
+	if domain == agentSystemDocsDomain {
+		return true
+	}
+	data, err := os.ReadFile(filepath.Join(docsDir, domain, "manifest.json"))
+	if err != nil {
+		return false
+	}
+	var header struct {
+		Contract PlanOfRecordContract `json:"contract"`
+	}
+	if err := json.Unmarshal(data, &header); err != nil {
+		return false
+	}
+	return header.Contract.Kind == teamPlanOfRecordKind || header.Contract.Schema == teamPlanOfRecordSchema
+}
+
+// agentSystemDocsDomain is the framework canon folder, scanned because it
+// defines the topic vocabulary even though it is not a team plan of record.
+const agentSystemDocsDomain = "agent-system"
+
+// discoverDocsTargets walks <docsDir>/<domain>/**/*.md for each
+// declaration-bearing domain and emits targets under owner key
+// `docs:<domain>`. Drafts and the agent-system outline are excluded per the
+// doc.
 func discoverDocsTargets(docsDir string) ([]proseTarget, error) {
 	domains, err := os.ReadDir(docsDir)
 	if err != nil {
@@ -480,6 +532,9 @@ func discoverDocsTargets(docsDir string) ([]proseTarget, error) {
 			continue
 		}
 		domain := d.Name()
+		if !isDeclarationBearingDomain(docsDir, domain) {
+			continue
+		}
 		domainRoot := filepath.Join(docsDir, domain)
 		err := filepath.WalkDir(domainRoot, func(path string, entry fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
@@ -814,6 +869,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 		return Finding{
 			Rule:     proseScanRule,
 			Severity: m.Pattern.Severity,
+			Advisory: m.Pattern.Advisory,
 			Member:   MemberRef{Team: m.Target.TeamID},
 			Prefix:   candidate,
 			OwnerKey: m.Target.OwnerKey,
@@ -839,6 +895,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 		return Finding{
 			Rule:     proseScanRule,
 			Severity: m.Pattern.Severity,
+			Advisory: m.Pattern.Advisory,
 			Prefix:   candidate,
 			OwnerKey: m.Target.OwnerKey,
 			Detail:   detail,
@@ -878,6 +935,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 				return Finding{
 					Rule:     proseScanRule,
 					Severity: m.Pattern.Severity,
+					Advisory: m.Pattern.Advisory,
 					Prefix:   candidate,
 					OwnerKey: m.Target.OwnerKey,
 					Detail:   detail,
@@ -899,6 +957,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 			return Finding{
 				Rule:     proseScanRule,
 				Severity: m.Pattern.Severity,
+				Advisory: m.Pattern.Advisory,
 				Prefix:   candidate,
 				OwnerKey: m.Target.OwnerKey,
 				Detail:   fmt.Sprintf("%s: line %d references topic prefix %q via %s pattern (read), but no member on any team declares an overlapping prefix in topics.json", m.Target.Path, m.Line, candidate, m.Pattern.Name),
@@ -908,6 +967,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 		return Finding{
 			Rule:     proseScanRule,
 			Severity: m.Pattern.Severity,
+			Advisory: m.Pattern.Advisory,
 			Prefix:   candidate,
 			OwnerKey: m.Target.OwnerKey,
 			Detail:   fmt.Sprintf("%s: line %d references topic prefix %q via %s pattern; classifier and generic skills must be portable across teams (no topic strings allowed)", m.Target.Path, m.Line, candidate, m.Pattern.Name),
@@ -921,6 +981,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 		return Finding{
 			Rule:     proseScanRule,
 			Severity: m.Pattern.Severity,
+			Advisory: m.Pattern.Advisory,
 			Prefix:   candidate,
 			OwnerKey: m.Target.OwnerKey,
 			Detail:   fmt.Sprintf("%s: line %d references topic prefix %q via %s pattern, but no member on any team declares an overlapping prefix in topics.json", m.Target.Path, m.Line, candidate, m.Pattern.Name),
@@ -937,6 +998,7 @@ func memberFinding(m proseMatch, candidate string) Finding {
 	return Finding{
 		Rule:     proseScanRule,
 		Severity: m.Pattern.Severity,
+		Advisory: m.Pattern.Advisory,
 		Member:   MemberRef{Team: m.Target.TeamID, Member: m.Target.MemberID},
 		Prefix:   candidate,
 		OwnerKey: m.Target.OwnerKey,

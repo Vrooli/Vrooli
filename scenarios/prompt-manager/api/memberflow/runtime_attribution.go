@@ -62,10 +62,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"prompt-manager/store"
 	"sort"
 	"strings"
 	"time"
+
+	"prompt-manager/store"
 )
 
 // ruleActualWriterUndeclared is the Pillar 3 runtime ground-truth rule.
@@ -155,6 +156,14 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 	threshold := contract.FlagExternalWritesPerWeek
 	externalByWeek := make(map[string][]knowledgeEntryRow)
 
+	// Undeclared-writer drift is grouped per (member, topic family): the same
+	// missing declaration fires on every entry the member ever wrote under it,
+	// so a per-entry count measures how often the member ran, not how many
+	// declarations need fixing. The external-threshold pass below stays
+	// per-entry on purpose — see externalThresholdFindings.
+	undeclaredByMember := map[string]*findingGrouper{}
+	var undeclaredOrder []string
+
 	var findings []Finding
 	for _, e := range entries {
 		// Skip pre-cutoff entries entirely. The migration tool stamps
@@ -169,9 +178,25 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 
 		switch e.Attribution.Kind {
 		case store.KnowledgeKindAgentMember:
-			if f, ok := checkAgentMemberDeclaration(teamID, teamMembers, e); ok {
-				findings = append(findings, f)
+			result := checkAgentMemberDeclaration(teamID, teamMembers, e)
+			if result.Malformed != nil {
+				findings = append(findings, *result.Malformed)
+				break
 			}
+			if !result.Drift {
+				break
+			}
+			key := result.MemberID
+			if result.UnknownMember {
+				key = result.MemberID + "\x00unknown"
+			}
+			grouper, ok := undeclaredByMember[key]
+			if !ok {
+				grouper = &findingGrouper{}
+				undeclaredByMember[key] = grouper
+				undeclaredOrder = append(undeclaredOrder, key)
+			}
+			grouper.Add(e.Topic, e.ID)
 
 		case store.KnowledgeKindExternal:
 			if threshold > 0 {
@@ -233,6 +258,28 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 		}
 	}
 
+	// Undeclared-writer pass. One finding per (member, topic family), in
+	// stable member-then-family order.
+	sort.Strings(undeclaredOrder)
+	for _, key := range undeclaredOrder {
+		memberID, unknownMember := strings.CutSuffix(key, "\x00unknown")
+		findings = append(findings, undeclaredByMember[key].Emit(func(family, evidence string) Finding {
+			detail := fmt.Sprintf("agent-member %s/%s wrote %s under %q but member's output[] declares no overlapping prefix; either declare it on topics.json or correct the writer",
+				teamID, memberID, evidence, family)
+			if unknownMember {
+				detail = fmt.Sprintf("%s claims kind=agent-member writer %q under %q but no team member of that id exists in the store",
+					evidence, memberID, family)
+			}
+			return Finding{
+				Rule:     "actual_writer_undeclared",
+				Severity: SeverityError,
+				Member:   MemberRef{Team: teamID, Member: memberID},
+				Prefix:   family,
+				Detail:   detail,
+			}
+		})...)
+	}
+
 	// External-threshold pass. Findings are emitted in stable order
 	// (week ascending, then entry index within the week) so list
 	// output is diff-friendly and findings.json renders deterministically.
@@ -243,53 +290,54 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 	return findings
 }
 
+// agentMemberCheck is the per-entry verdict from checkAgentMemberDeclaration.
+//
+// Malformed findings are emitted as-is because each one is separate bad data
+// the API should have rejected at write time. Drift is reported as a verdict
+// rather than a finding so the caller can group occurrences by topic family:
+// one missing `output[]` declaration fires on every entry the member ever
+// wrote under it, and the operator needs the declaration count, not the run
+// count.
+type agentMemberCheck struct {
+	Malformed     *Finding
+	MemberID      string
+	Drift         bool
+	UnknownMember bool
+}
+
 // checkAgentMemberDeclaration asks: did the writer's topics.json declare
-// an output[] prefix overlapping the entry's topic? Returns (finding,
-// true) when drift is detected; (Finding{}, false) when the write is
-// declared (no finding emitted).
+// an output[] prefix overlapping the entry's topic?
 //
 // `teamMembers` is the per-team slice of memberIndex from
 // ruleActualWriterUndeclared — nil/empty when the team has no member
 // declarations (still walked, with the "unknown member" branch firing
 // for every agent-member entry, which is the correct behavior: a
 // declared agent-member writer with zero topics.json files is drift).
-func checkAgentMemberDeclaration(teamID string, teamMembers map[string]MemberTopics, e knowledgeEntryRow) (Finding, bool) {
+func checkAgentMemberDeclaration(teamID string, teamMembers map[string]MemberTopics, e knowledgeEntryRow) agentMemberCheck {
 	if e.Attribution.MemberID == nil || strings.TrimSpace(*e.Attribution.MemberID) == "" {
 		// API rejects this at write time; defensive check.
-		return Finding{
+		return agentMemberCheck{Malformed: &Finding{
 			Rule:     "attribution_malformed",
 			Severity: SeverityError,
 			Member:   MemberRef{Team: teamID},
 			Prefix:   e.Topic,
 			Detail:   fmt.Sprintf("entry %q has kind=agent-member but no member_id", e.ID),
-		}, true
+		}}
 	}
 	memberID := strings.TrimSpace(*e.Attribution.MemberID)
 
 	mt, ok := teamMembers[memberID]
 	if !ok {
-		return Finding{
-			Rule:     "actual_writer_undeclared",
-			Severity: SeverityError,
-			Member:   MemberRef{Team: teamID, Member: memberID},
-			Prefix:   e.Topic,
-			Detail:   fmt.Sprintf("entry %q claims kind=agent-member writer %q but no team member of that id exists in the store", e.ID, memberID),
-		}, true
+		return agentMemberCheck{MemberID: memberID, Drift: true, UnknownMember: true}
 	}
 
 	for _, o := range mt.Topics.Output {
 		if Overlap(o.Prefix, e.Topic) {
-			return Finding{}, false
+			return agentMemberCheck{MemberID: memberID}
 		}
 	}
 
-	return Finding{
-		Rule:     "actual_writer_undeclared",
-		Severity: SeverityError,
-		Member:   MemberRef{Team: teamID, Member: memberID},
-		Prefix:   e.Topic,
-		Detail:   fmt.Sprintf("agent-member %s/%s wrote topic %q (entry %q) but member's output[] declares no overlapping prefix; either declare it on topics.json or correct the writer", teamID, memberID, e.Topic, e.ID),
-	}, true
+	return agentMemberCheck{MemberID: memberID, Drift: true}
 }
 
 // externalThresholdFindings groups external-kind entries by ISO week and

@@ -10,7 +10,3 @@
 - `swarm-manager` CLI — used for `file-backlog` outcomes (creating a fix/chore/execute backlog item with the bug evidence) and for Phase 0 prior-art checks during scientific-debugging
 - `vrooli help`
 
-## Forbidden
-- Direct edits to target scenarios; investigation produces evidence, not patches. Patches go through `swarm-manager` backlog items.
-- Writing to `bug-inbox/*` (the producer side); the bug-investigator only drains.
-- Bypassing the technique registry; if a recurring approach doesn't fit any registered technique, surface a `meta-self-improvement` proposal naming the gap.

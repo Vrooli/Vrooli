@@ -9,31 +9,33 @@ import (
 )
 
 type fakeContext struct {
-	method   string
-	path     string
-	query    url.Values
-	payload  any
-	response any
+	method       string
+	path         string
+	query        url.Values
+	payload      any
+	response     any
+	getResponse  any
+	postResponse any
 }
 
 func (f *fakeContext) Get(path string, result interface{}) error {
 	f.method = "GET"
 	f.path = path
-	return f.writeResult(result)
+	return f.writeResultWith(f.responseOr(f.getResponse), result)
 }
 
 func (f *fakeContext) GetWithQuery(path string, query url.Values, result interface{}) error {
 	f.method = "GET"
 	f.path = path
 	f.query = query
-	return f.writeResult(result)
+	return f.writeResultWith(f.response, result)
 }
 
 func (f *fakeContext) Post(path string, payload interface{}, result interface{}) error {
 	f.method = "POST"
 	f.path = path
 	f.payload = payload
-	return f.writeResult(result)
+	return f.writeResultWith(f.responseOr(f.postResponse), result)
 }
 
 func (f *fakeContext) Put(path string, payload interface{}, result interface{}) error {
@@ -56,10 +58,21 @@ func (f *fakeContext) DeleteWithQuery(path string, _ url.Values, result interfac
 }
 
 func (f *fakeContext) writeResult(result interface{}) error {
-	if result == nil || f.response == nil {
+	return f.writeResultWith(f.response, result)
+}
+
+func (f *fakeContext) responseOr(specific any) any {
+	if specific != nil {
+		return specific
+	}
+	return f.response
+}
+
+func (f *fakeContext) writeResultWith(response any, result interface{}) error {
+	if result == nil || response == nil {
 		return nil
 	}
-	raw, err := json.Marshal(f.response)
+	raw, err := json.Marshal(response)
 	if err != nil {
 		return err
 	}
@@ -290,7 +303,7 @@ func TestCmdValidateReturnsErrorForInvalidAction(t *testing.T) {
 
 func TestCmdRunPostsInputToRunEndpoint(t *testing.T) {
 	exitCode := 0
-	ctx := &fakeContext{response: RunResponse{
+	ctx := &fakeContext{postResponse: RunResponse{
 		ActionID:   "team.decisions.list",
 		Status:     "completed",
 		ExitCode:   &exitCode,
@@ -317,6 +330,43 @@ func TestCmdRunPostsInputToRunEndpoint(t *testing.T) {
 	}
 	if req.Input["limit"] != float64(3) {
 		t.Fatalf("limit input = %#v, want JSON number 3", req.Input["limit"])
+	}
+}
+
+func TestCmdRunAcceptsDeclaredNamedInputFlags(t *testing.T) {
+	exitCode := 0
+	ctx := &fakeContext{
+		getResponse: Action{ID: "bas.screenshot", Inputs: map[string]ActionInput{
+			"url": {Type: "string", Required: true},
+			"out": {Type: "path", Required: true},
+		}},
+		postResponse: RunResponse{ActionID: "bas.screenshot", Status: "completed", ExitCode: &exitCode},
+	}
+
+	err := cmdRun(ctx, []string{"bas.screenshot", "--url", "scenario=react-component-library,path=/assets/Button", "--out", "rcl-button"})
+	if err != nil {
+		t.Fatalf("cmdRun: %v", err)
+	}
+	if ctx.method != "POST" || ctx.path != "/actions/bas.screenshot/run" {
+		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
+	}
+	req, ok := ctx.payload.(RunRequest)
+	if !ok {
+		t.Fatalf("payload type = %T, want RunRequest", ctx.payload)
+	}
+	if req.Input["url"] != "scenario=react-component-library,path=/assets/Button" || req.Input["out"] != "rcl-button" {
+		t.Fatalf("named inputs = %#v", req.Input)
+	}
+}
+
+func TestCmdRunRejectsDuplicateNamedAndJSONInput(t *testing.T) {
+	ctx := &fakeContext{getResponse: Action{ID: "bas.screenshot", Inputs: map[string]ActionInput{"url": {Type: "string"}}}}
+	err := cmdRun(ctx, []string{"bas.screenshot", "--input", `{"url":"one"}`, "--url", "two"})
+	if err == nil {
+		t.Fatal("expected duplicate input error")
+	}
+	if ctx.method != "GET" {
+		t.Fatalf("expected no POST, got %s %s", ctx.method, ctx.path)
 	}
 }
 

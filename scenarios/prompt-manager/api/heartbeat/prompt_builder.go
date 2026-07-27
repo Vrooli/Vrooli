@@ -24,8 +24,9 @@ type PromptBuildRequest struct {
 
 // PromptBuilder assembles prompts using agent + team context.
 type PromptBuilder struct {
-	teamStore  *store.FileTeamStore
-	agentStore *store.FileAgentStore
+	teamStore        *store.FileTeamStore
+	agentStore       *store.FileAgentStore
+	contractFindings ContractFindingsProvider
 }
 
 // NewPromptBuilder creates a new prompt builder.
@@ -248,6 +249,17 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			})
 		}
 
+		// Sits directly after the declarations it reports on, so the contract
+		// and the ways this member is currently breaking it read together.
+		if section := b.buildContractFindingsSection(ctx, teamID, agentID); section != "" {
+			sections = append(sections, PromptSection{
+				Kind:       promptSectionKindContractFindings,
+				Label:      promptSectionLabelContractFindings,
+				SourcePath: fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID),
+				Content:    section,
+			})
+		}
+
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)
 		if err == nil && responsibilities != "" {
 			sections = append(sections, PromptSection{
@@ -316,6 +328,7 @@ type memberStoragePolicy struct {
 	ForbiddenWriteLabels      []string
 	RequiredReadPrefixes      []string
 	DecisionCapPerHeartbeat   *int
+	DecisionCapsByContext     map[string]int
 	PendingOwnedDecisionCap   *int
 }
 
@@ -397,21 +410,33 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 		section.WriteString("- No required handoff declared for this member.\n\n")
 	}
 	if policy.CanWriteDecision {
-		section.WriteString("Decision cap: ")
-		if policy.DecisionCapPerHeartbeat != nil {
-			section.WriteString(fmt.Sprintf("%d new decisions this heartbeat", *policy.DecisionCapPerHeartbeat))
-		} else {
-			section.WriteString("no explicit per-heartbeat cap")
-		}
-		if policy.PendingOwnedDecisionCap != nil {
-			section.WriteString(fmt.Sprintf("; skip new decisions when %d owned-context decisions are already pending", *policy.PendingOwnedDecisionCap))
-		}
-		section.WriteString(".\n\n")
+		section.WriteString("Decision cap: " + describeDecisionCaps(policy) + ".\n\n")
 	} else {
 		section.WriteString("Decision writes: not allowed for this member. Review decisions when useful; do not create them.\n\n")
 	}
+	// This block used to point at `# Storage Map`'s authority order to resolve
+	// section conflicts. That list ranks sources of truth about the world
+	// (plan of record, decisions, working state, knowledge, handoff) and names
+	// no prompt section, so it could not settle the conflicts it was cited for
+	// — for example RESPONSIBILITIES.md against the generated Topic Contract.
+	// The two questions are separate and now have separate answers.
 	section.WriteString("## Operating Rule\n\n")
-	section.WriteString("If context sections disagree, follow the authority order in `# Storage Map`. If the heartbeat task conflicts with lower-priority context, follow the heartbeat task unless it violates the operator instruction or your write rules.")
+	section.WriteString("When sections of this prompt disagree, the later rule yields to the earlier one:\n\n")
+	rank := 1
+	writeRank := func(text string) {
+		section.WriteString(fmt.Sprintf("%d. %s\n", rank, text))
+		rank++
+	}
+	writeRank("Operator instruction given during this run")
+	writeRank("Your contract — `" + promptHeadingActiveTaskBrief + "`, `" + promptHeadingOperatingPolicy + "`, `" + promptHeadingTopicContract + "`. Write surfaces, decision caps, and safety-critical rules bound the task; the task cannot widen them.")
+	// The context-only build omits the heartbeat task, so naming it here would
+	// rank a section the reader cannot find.
+	if includeHeartbeat {
+		writeRank("`" + promptHeadingHeartbeatTask + "` — the job for this run")
+	}
+	writeRank("`# Team Responsibilities` and `# Agent Files` — standing guidance that a task may override")
+	writeRank("`# Previous Heartbeat Handoff` — prior-run notes, never authority")
+	section.WriteString("\nThat order settles disagreements between sections. For disagreements about the state of the world — what is accepted, current, or true — use the authority order in `# Storage Map` instead.")
 	return section.String()
 }
 
@@ -629,6 +654,42 @@ func firstHeartbeatTaskHeading(markdown string) string {
 	return ""
 }
 
+// describeDecisionCaps renders the member's new-decision caps as a single
+// clause for the Active Task Brief. It must stay consistent with the bullet
+// list rendered into "# Operating Policy" by teamcontract.RenderMemberContract;
+// TestPromptSectionsAgreeOnDecisionCaps enforces that across the live roster.
+//
+// A member may cap per heartbeat (newDecisionCapPerHeartbeat), per owned
+// context (newDecisionCapsByContext), or both. Reporting only the scalar left
+// per-context members reading "no explicit per-heartbeat cap" in the brief
+// while the operating policy named real caps.
+func describeDecisionCaps(policy memberStoragePolicy) string {
+	var clauses []string
+	if policy.DecisionCapPerHeartbeat != nil {
+		clauses = append(clauses, fmt.Sprintf("%d new decisions this heartbeat", *policy.DecisionCapPerHeartbeat))
+	}
+	if len(policy.DecisionCapsByContext) > 0 {
+		contexts := make([]string, 0, len(policy.DecisionCapsByContext))
+		for contextID := range policy.DecisionCapsByContext {
+			contexts = append(contexts, contextID)
+		}
+		sort.Strings(contexts)
+		perContext := make([]string, 0, len(contexts))
+		for _, contextID := range contexts {
+			perContext = append(perContext, fmt.Sprintf("`%s` %d", contextID, policy.DecisionCapsByContext[contextID]))
+		}
+		clauses = append(clauses, "per owned context — "+strings.Join(perContext, ", "))
+	}
+	if len(clauses) == 0 {
+		clauses = append(clauses, "no explicit per-heartbeat cap")
+	}
+	caps := strings.Join(clauses, "; ")
+	if policy.PendingOwnedDecisionCap != nil {
+		caps += fmt.Sprintf("; skip new decisions when %d owned-context decisions are already pending", *policy.PendingOwnedDecisionCap)
+	}
+	return caps
+}
+
 func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string) memberStoragePolicy {
 	if team == nil || team.OperatingContract == nil {
 		return memberStoragePolicy{}
@@ -641,6 +702,7 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string
 		RequiresHandoff:         teamconfig.RequiresHandoff(team.Contract()) && !writeRefsContainKind(member.ForbiddenWrites, "handoff"),
 		RequiredReadPrefixes:    loadRequiredReadPrefixes(configDir, team.ID, agentID),
 		DecisionCapPerHeartbeat: member.NewDecisionCapPerHeartbeat,
+		DecisionCapsByContext:   member.NewDecisionCapsByContext,
 		PendingOwnedDecisionCap: member.PendingOwnedDecisionCap,
 	}
 	for _, ref := range member.AllowedWrites {

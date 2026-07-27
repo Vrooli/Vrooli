@@ -383,6 +383,24 @@ func Validate(contract *OperatingContract, input ValidationInput) error {
 				return fmt.Errorf("operatingContract.members.%s.ownedDecisionContexts contains undeclared context %q", id, contextID)
 			}
 		}
+		// A member that forbids decision writes must zero its caps. Owning a
+		// context while forbidding writes is legitimate — it attributes the
+		// context without granting authorship — but a nonzero cap advertises a
+		// permission the member does not have, and the generated prompt then
+		// states both "decision writes: not allowed" and "max new decisions: N".
+		if writeRefsContainKind(member.ForbiddenWrites, "decision") {
+			if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat != 0 {
+				return fmt.Errorf("operatingContract.members.%s forbids decision writes but declares newDecisionCapPerHeartbeat %d; set it to 0 or drop the forbidden write", id, *member.NewDecisionCapPerHeartbeat)
+			}
+			if member.PendingOwnedDecisionCap != nil && *member.PendingOwnedDecisionCap != 0 {
+				return fmt.Errorf("operatingContract.members.%s forbids decision writes but declares pendingOwnedDecisionCap %d; set it to 0 or drop the forbidden write", id, *member.PendingOwnedDecisionCap)
+			}
+			for contextID, cap := range member.NewDecisionCapsByContext {
+				if cap != 0 {
+					return fmt.Errorf("operatingContract.members.%s forbids decision writes but declares newDecisionCapsByContext.%s %d; set it to 0 or drop the forbidden write", id, contextID, cap)
+				}
+			}
+		}
 		if err := validateWriteRefs(member.AllowedWrites, input, id, "allowedWrites"); err != nil {
 			return err
 		}
@@ -458,24 +476,35 @@ func renderMemberPolicyBody(b *strings.Builder, contract *OperatingContract, mem
 		b.WriteString(fmt.Sprintf("Lane: %s\n", member.Lane))
 	}
 	writeStringList(b, "Owned decision contexts", member.OwnedDecisionContexts)
-	b.WriteString("\nDecision caps:\n")
-	if member.NewDecisionCapPerHeartbeat != nil {
-		b.WriteString(fmt.Sprintf("- max new decisions this heartbeat: %d\n", *member.NewDecisionCapPerHeartbeat))
-	}
-	if len(member.NewDecisionCapsByContext) > 0 {
-		keys := sortedKeys(member.NewDecisionCapsByContext)
-		for _, contextID := range keys {
-			b.WriteString(fmt.Sprintf("- %s: max %d new decisions this heartbeat\n", contextID, member.NewDecisionCapsByContext[contextID]))
+	// Caps describe how many decisions a member may create. Printing them for a
+	// member that cannot create any contradicts the Active Task Brief, which
+	// resolves the same contract to "decision writes: not allowed".
+	if writeRefsContainKind(member.ForbiddenWrites, "decision") {
+		b.WriteString("\nDecision caps: decision writes are not allowed for this member.\n")
+	} else {
+		b.WriteString("\nDecision caps:\n")
+		if member.NewDecisionCapPerHeartbeat != nil {
+			b.WriteString(fmt.Sprintf("- max new decisions this heartbeat: %d\n", *member.NewDecisionCapPerHeartbeat))
+		}
+		if len(member.NewDecisionCapsByContext) > 0 {
+			keys := sortedKeys(member.NewDecisionCapsByContext)
+			for _, contextID := range keys {
+				b.WriteString(fmt.Sprintf("- %s: max %d new decisions this heartbeat\n", contextID, member.NewDecisionCapsByContext[contextID]))
+			}
+		}
+		if member.PendingOwnedDecisionCap != nil {
+			b.WriteString(fmt.Sprintf("- skip new decisions when %d+ owned-context decisions are already pending\n", *member.PendingOwnedDecisionCap))
 		}
 	}
-	if member.PendingOwnedDecisionCap != nil {
-		b.WriteString(fmt.Sprintf("- skip new decisions when %d+ owned-context decisions are already pending\n", *member.PendingOwnedDecisionCap))
-	}
-	b.WriteString("\n## Document Authority\n\n")
-	renderDocuments(b, contract, input)
-	b.WriteString("\n## Write Rules\n\n")
-	renderWriteRefs(b, "Allowed writes", member.AllowedWrites, input)
-	renderWriteRefs(b, "Forbidden writes", member.ForbiddenWrites, input)
+	// Document authority and the allowed/forbidden write paths are deliberately
+	// absent here. Both were rendered a second time in this section while
+	// `# Storage Map` (RenderTeamStorage) and `# Active Task Brief`
+	// (Write Surface) already carry them with more context — Storage Map adds
+	// each surface's kind, owner, and purpose; the brief names what each write
+	// surface is for. A contract restated in two vocabularies is a contract an
+	// agent has to reconcile at read time.
+	b.WriteString("\n## Operating Constraints\n\n")
+	b.WriteString("Your write surfaces are listed in `# Active Task Brief` and described in `# Storage Map`.\n")
 	writeStringList(b, "Safety-critical rules", member.SafetyCriticalRules)
 	if len(member.TaskParameters) > 0 {
 		b.WriteString("\nTask parameters:\n")
@@ -710,39 +739,6 @@ func writeStringList(b *strings.Builder, title string, values []string) {
 	}
 }
 
-func renderDocuments(b *strings.Builder, contract *OperatingContract, input RenderInput) {
-	validationInput := ValidationInput{TeamID: input.TeamID, DecisionMode: input.DecisionMode, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot}
-	if len(contract.Documents.PlanOfRecord) > 0 {
-		b.WriteString("Plan of record authorities:\n")
-		for _, doc := range contract.Documents.PlanOfRecord {
-			hub, err := planOfRecordHubPath(doc, validationInput, input.MemberID)
-			if err != nil {
-				continue
-			}
-			b.WriteString("- " + hub + "\n")
-			b.WriteString(fmt.Sprintf("  Policy: %s\n", doc.WritePolicy))
-			if consumers := storageConsumerLine(doc.Consumers, doc.Rationale); consumers != "" {
-				b.WriteString(fmt.Sprintf("  Consumers: %s\n", consumers))
-			}
-			if useFor := storageUseForLine(doc); useFor != "" {
-				b.WriteString(fmt.Sprintf("  Use for: %s\n", useFor))
-			}
-			if len(doc.Paths) > 1 {
-				b.WriteString(fmt.Sprintf("  Coverage: %d declared files; start at the hub and follow its file map to the relevant spoke.\n", len(doc.Paths)))
-			}
-		}
-		b.WriteString("\n")
-	}
-	if len(contract.Documents.SharedState) > 0 {
-		b.WriteString("Team working state:\n")
-		for _, doc := range contract.Documents.SharedState {
-			if p, err := NormalizePath(doc.Path, validationInput, input.MemberID); err == nil {
-				b.WriteString("- " + p + "\n")
-			}
-		}
-	}
-}
-
 func RenderTeamStorage(contract *OperatingContract, input RenderInput) (string, error) {
 	if err := Validate(contract, ValidationInput{
 		TeamID: input.TeamID, DecisionMode: input.DecisionMode, MemberIDs: []string{input.MemberID}, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot,
@@ -865,6 +861,7 @@ func renderStoragePlanOfRecordHubs(b *strings.Builder, docs []PlanOfRecordDocume
 			Policy:    doc.WritePolicy,
 			Consumers: storageConsumerLine(doc.Consumers, doc.Rationale),
 			UseFor:    storageUseForLine(doc),
+			FileCount: len(doc.Paths),
 		})
 	}
 	for _, row := range rows {
@@ -876,7 +873,15 @@ func renderStoragePlanOfRecordHubs(b *strings.Builder, docs []PlanOfRecordDocume
 		if row.UseFor != "" {
 			b.WriteString(fmt.Sprintf("  Use for: %s\n", row.UseFor))
 		}
-		b.WriteString("  Navigation: start at the hub and follow its file map to the relevant spoke.\n")
+		// The file count used to live in a second rendering of the same
+		// documents under "## Document Authority". That section printed a
+		// strict subset of this one, so it was removed and its only unique
+		// value folded in here.
+		if row.FileCount > 1 {
+			b.WriteString(fmt.Sprintf("  Navigation: %d declared files; start at the hub and follow its file map to the relevant spoke.\n", row.FileCount))
+		} else {
+			b.WriteString("  Navigation: start at the hub and follow its file map to the relevant spoke.\n")
+		}
 	}
 }
 
@@ -885,6 +890,7 @@ type storagePlanOfRecordRow struct {
 	Policy    string
 	Consumers string
 	UseFor    string
+	FileCount int
 }
 
 func planOfRecordHubPath(doc PlanOfRecordDocument, input ValidationInput, activeMemberID string) (string, error) {
@@ -912,23 +918,6 @@ func storageConsumerLine(consumers []string, rationale string) string {
 		return strings.Join(consumers, ", ")
 	}
 	return strings.TrimSpace(rationale)
-}
-
-func renderWriteRefs(b *strings.Builder, title string, refs []WriteRef, input RenderInput) {
-	if len(refs) == 0 {
-		return
-	}
-	validationInput := ValidationInput{TeamID: input.TeamID, DecisionMode: input.DecisionMode, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot}
-	b.WriteString(title + ":\n")
-	for _, ref := range refs {
-		if ref.Kind != "" {
-			b.WriteString("- " + ref.Kind + "\n")
-			continue
-		}
-		if p, err := NormalizePath(PathRef{Base: ref.Base, Path: ref.Path, MemberID: ref.MemberID, AgentID: ref.AgentID}, validationInput, input.MemberID); err == nil {
-			b.WriteString("- " + p + "\n")
-		}
-	}
 }
 
 func sortedKeys(m map[string]int) []string {

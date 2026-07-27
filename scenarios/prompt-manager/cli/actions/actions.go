@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"prompt-manager/cli/internal/appctx"
@@ -654,16 +655,32 @@ func cmdValidate(ctx appctx.Context, args []string) error {
 }
 
 func cmdRun(ctx appctx.Context, args []string) error {
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return fmt.Errorf("usage: action run <id> [--<input>=<value> ...] [--input='{\"key\":\"value\"}'|--input-file=payload.json] [--dry-run] [--json]")
+	}
+	actionID := args[0]
+	if err := preflightRunInputForms(args[1:]); err != nil {
+		return err
+	}
+	var action Action
+	if err := ctx.Get(actionPath(actionID), &action); err != nil {
+		return fmt.Errorf("failed to get action %s: %w", actionID, err)
+	}
+
 	fs := flag.NewFlagSet("action run", flag.ContinueOnError)
 	input := fs.String("input", "", "JSON object containing Action input values")
 	inputFile := fs.String("input-file", "", "Path to a JSON object containing Action input values")
 	dryRun := fs.Bool("dry-run", false, "Validate and render argv without starting the process")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+	namedInputs, err := registerActionInputFlags(fs, action.Inputs)
+	if err != nil {
 		return err
 	}
-	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: action run <id> [--input='{\"key\":\"value\"}'|--input-file=payload.json] [--dry-run] [--json]")
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("usage: action run <id> [--<input>=<value> ...] [--input='{\"key\":\"value\"}'|--input-file=payload.json] [--dry-run] [--json]")
 	}
 	if *input != "" && *inputFile != "" {
 		return fmt.Errorf("use either --input or --input-file, not both")
@@ -673,13 +690,16 @@ func cmdRun(ctx appctx.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := mergeNamedActionInputs(fs, values, namedInputs); err != nil {
+		return err
+	}
 
 	req := RunRequest{
 		Input:  values,
 		DryRun: *dryRun,
 	}
 	var result RunResponse
-	if err := ctx.Post(actionPath(fs.Arg(0))+"/run", req, &result); err != nil {
+	if err := ctx.Post(actionPath(actionID)+"/run", req, &result); err != nil {
 		return fmt.Errorf("failed to run action: %w", err)
 	}
 	if *jsonOut {
@@ -696,6 +716,118 @@ func cmdRun(ctx appctx.Context, args []string) error {
 		return fmt.Errorf("action %s %s", result.ActionID, result.Status)
 	}
 	return nil
+}
+
+// preflightRunInputForms preserves the CLI's no-network validation for the
+// JSON input forms. Named inputs require fetching the action contract, but a
+// malformed --input payload should still fail locally before that lookup.
+func preflightRunInputForms(args []string) error {
+	var input, inputFile string
+	for index := 0; index < len(args); index++ {
+		argument := args[index]
+		for _, candidate := range []struct {
+			name  string
+			value *string
+		}{
+			{name: "--input", value: &input},
+			{name: "--input-file", value: &inputFile},
+		} {
+			if argument == candidate.name {
+				if index+1 < len(args) {
+					*candidate.value = args[index+1]
+					index++
+				}
+				break
+			}
+			if strings.HasPrefix(argument, candidate.name+"=") {
+				*candidate.value = strings.TrimPrefix(argument, candidate.name+"=")
+				break
+			}
+		}
+	}
+	if input != "" && inputFile != "" {
+		return fmt.Errorf("use either --input or --input-file, not both")
+	}
+	_, err := readRunInput(input, inputFile)
+	return err
+}
+
+type actionInputFlag struct {
+	spec    ActionInput
+	text    *string
+	boolean *bool
+}
+
+func registerActionInputFlags(fs *flag.FlagSet, inputs map[string]ActionInput) (map[string]actionInputFlag, error) {
+	result := make(map[string]actionInputFlag, len(inputs))
+	names := make([]string, 0, len(inputs))
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if fs.Lookup(name) != nil {
+			return nil, fmt.Errorf("action input %q conflicts with a reserved action run flag", name)
+		}
+		spec := inputs[name]
+		entry := actionInputFlag{spec: spec}
+		if spec.Type == "boolean" {
+			entry.boolean = fs.Bool(name, false, spec.Description)
+		} else {
+			entry.text = fs.String(name, "", spec.Description)
+		}
+		result[name] = entry
+	}
+	return result, nil
+}
+
+func mergeNamedActionInputs(fs *flag.FlagSet, values map[string]any, inputs map[string]actionInputFlag) error {
+	var mergeErr error
+	fs.Visit(func(f *flag.Flag) {
+		if mergeErr != nil {
+			return
+		}
+		input, ok := inputs[f.Name]
+		if !ok {
+			return
+		}
+		if _, exists := values[f.Name]; exists {
+			mergeErr = fmt.Errorf("action input %q was supplied by both --input and --%s", f.Name, f.Name)
+			return
+		}
+		value, err := actionFlagValue(f.Name, input)
+		if err != nil {
+			mergeErr = err
+			return
+		}
+		values[f.Name] = value
+	})
+	return mergeErr
+}
+
+func actionFlagValue(name string, input actionInputFlag) (any, error) {
+	if input.boolean != nil {
+		return *input.boolean, nil
+	}
+	value := *input.text
+	switch input.spec.Type {
+	case "string", "file", "path", "scenario", "team", "action", "":
+		return value, nil
+	case "number":
+		number, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return nil, fmt.Errorf("--%s must be a number: %w", name, err)
+		}
+		return number, nil
+	case "integer":
+		number, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("--%s must be an integer: %w", name, err)
+		}
+		return float64(number), nil
+	default:
+		return nil, fmt.Errorf("action input %q has unsupported type %q for named flags; use --input JSON", name, input.spec.Type)
+	}
 }
 
 func readActionFile(path string) (Action, error) {

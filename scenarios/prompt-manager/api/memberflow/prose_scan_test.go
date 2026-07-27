@@ -749,3 +749,67 @@ func TestFinding_JSONRoundTrip_OwnerKey(t *testing.T) {
 		t.Errorf("owner_key not present in serialized form: %s", bs)
 	}
 }
+
+// TestProseScanSkipsNonDeclarationBearingDocsDomains proves the docs corpus is
+// the set of surfaces whose topic references are answerable — team plans of
+// record plus the agent-system canon — and not everything under docs/.
+//
+// Regression guard: scanning all of docs/ pulled in implementation plans,
+// reference material, and concept essays. Those referenced topic prefixes
+// descriptively, so the rule's warning count tracked how much prose existed
+// rather than how much had drifted, and its deadband had to be pinned to the
+// observed total to stay green.
+func TestProseScanSkipsNonDeclarationBearingDocsDomains(t *testing.T) {
+	repoRoot := t.TempDir()
+
+	// A team plan of record: has a manifest declaring the PoR contract.
+	writeProseFile(t, repoRoot, "docs/team-a/manifest.json",
+		`{"contract":{"kind":"team-plan-of-record","schema":"team-plan-of-record/v1","team":"team-a"},"version":"1.0.0","sections":[]}`)
+	writeProseFile(t, repoRoot, "docs/team-a/operating/OPERATING_MODEL.md", "# Model\n")
+
+	// The framework canon: no manifest yet, included by name because it
+	// defines the topic vocabulary.
+	writeProseFile(t, repoRoot, "docs/agent-system/TOPICS.md", "# Topics\n")
+
+	// Not declaration-bearing: no manifest at all.
+	writeProseFile(t, repoRoot, "docs/plans/some-implementation-plan.md", "# Plan\n")
+	writeProseFile(t, repoRoot, "docs/reference/some-reference.md", "# Reference\n")
+
+	// A manifest that is not a plan-of-record contract does not qualify.
+	writeProseFile(t, repoRoot, "docs/other/manifest.json", `{"contract":{"kind":"something-else"}}`)
+	writeProseFile(t, repoRoot, "docs/other/notes.md", "# Notes\n")
+
+	targets, err := discoverProseTargets(repoRoot)
+	if err != nil {
+		t.Fatalf("discover prose targets: %v", err)
+	}
+
+	scanned := map[string]bool{}
+	for _, target := range targets {
+		if target.Kind == proseTargetDocs {
+			scanned[target.DocsDomain] = true
+		}
+	}
+
+	for _, want := range []string{"team-a", "agent-system"} {
+		if !scanned[want] {
+			t.Errorf("docs:%s should be scanned", want)
+		}
+	}
+	for _, notWant := range []string{"plans", "reference", "other"} {
+		if scanned[notWant] {
+			t.Errorf("docs:%s is not declaration-bearing and should not be scanned", notWant)
+		}
+	}
+}
+
+func writeProseFile(t *testing.T, repoRoot, rel, content string) {
+	t.Helper()
+	path := filepath.Join(repoRoot, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir for %s: %v", rel, err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", rel, err)
+	}
+}

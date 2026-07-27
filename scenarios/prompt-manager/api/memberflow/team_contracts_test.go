@@ -1,11 +1,14 @@
 package memberflow
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
-	"prompt-manager/teamcontract"
 	"reflect"
+	"runtime"
 	"testing"
+
+	"prompt-manager/teamcontract"
 )
 
 // stubContract is a tiny test helper that builds a *teamcontract.OperatingContract
@@ -363,5 +366,109 @@ func TestRegistry_NilEntriesAndContracts(t *testing.T) {
 	}
 	if reg.TeamsForDecisionContext("anything") != nil {
 		t.Errorf("nil entries / contracts should yield nil teams slice")
+	}
+}
+
+// TestTeamRoleMemberDrift proves roles.json is checked against the contract in
+// both directions, and that a team without roles.json is skipped rather than
+// flagged.
+func TestTeamRoleMemberDrift(t *testing.T) {
+	storeDir := t.TempDir()
+	writeRolesFixtureTeam(t, storeDir, "alpha", []string{"researcher", "publisher"}, []string{"researcher", "ghost"})
+	writeRolesFixtureTeam(t, storeDir, "beta", []string{"scanner"}, nil)
+
+	registry, err := LoadAllTeamContracts(storeDir)
+	if err != nil {
+		t.Fatalf("load team contracts: %v", err)
+	}
+
+	findings := ruleTeamRoleMemberDrift(ValidationOptions{TeamContracts: registry})
+	byMember := map[string]string{}
+	for _, f := range findings {
+		if f.Rule != "team_role_member_drift" {
+			t.Errorf("unexpected rule %q", f.Rule)
+		}
+		if f.Severity != SeverityError {
+			t.Errorf("%s: severity = %q, want error", f.Member.Member, f.Severity)
+		}
+		byMember[f.Member.Team+"/"+f.Member.Member] = f.Detail
+	}
+
+	if _, ok := byMember["alpha/ghost"]; !ok {
+		t.Errorf("role %q has no matching member and should be flagged; got %v", "ghost", byMember)
+	}
+	if _, ok := byMember["alpha/publisher"]; !ok {
+		t.Errorf("member %q has no role entry and should be flagged; got %v", "publisher", byMember)
+	}
+	if _, ok := byMember["alpha/researcher"]; ok {
+		t.Errorf("member %q matches a role and should not be flagged", "researcher")
+	}
+	if _, ok := byMember["beta/scanner"]; ok {
+		t.Errorf("team beta declares no roles.json and must be skipped, not flagged")
+	}
+	if len(findings) != 2 {
+		t.Fatalf("expected exactly 2 findings; got %d: %v", len(findings), byMember)
+	}
+}
+
+// TestBundledTeamRolesMatchContractMembers is the live-roster guard: the rule
+// above only helps if the shipped teams satisfy it.
+func TestBundledTeamRolesMatchContractMembers(t *testing.T) {
+	registry, err := LoadAllTeamContracts(repoStoreDirForTest(t))
+	if err != nil {
+		t.Fatalf("load bundled team contracts: %v", err)
+	}
+	if len(registry) == 0 {
+		t.Fatalf("expected bundled teams")
+	}
+	for _, f := range ruleTeamRoleMemberDrift(ValidationOptions{TeamContracts: registry}) {
+		t.Errorf("%s: %s", f.Member.Team, f.Detail)
+	}
+}
+
+func repoStoreDirForTest(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("resolve test filename")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "store"))
+}
+
+func writeRolesFixtureTeam(t *testing.T, storeDir, teamID string, memberIDs, roleIDs []string) {
+	t.Helper()
+	teamDir := filepath.Join(storeDir, "teams", teamID)
+	if err := os.MkdirAll(teamDir, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", teamDir, err)
+	}
+
+	members := map[string]any{}
+	for _, id := range memberIDs {
+		members[id] = map[string]any{"lane": "test lane"}
+	}
+	teamJSON, err := json.Marshal(map[string]any{
+		"id":                teamID,
+		"operatingContract": map[string]any{"members": members},
+	})
+	if err != nil {
+		t.Fatalf("marshal team.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(teamDir, "team.json"), teamJSON, 0o644); err != nil {
+		t.Fatalf("write team.json: %v", err)
+	}
+
+	if roleIDs == nil {
+		return
+	}
+	roles := make([]map[string]any, 0, len(roleIDs))
+	for _, id := range roleIDs {
+		roles = append(roles, map[string]any{"id": id, "name": id, "description": "test role"})
+	}
+	rolesJSON, err := json.Marshal(map[string]any{"kind": "team-roles", "teamId": teamID, "roles": roles})
+	if err != nil {
+		t.Fatalf("marshal roles.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(teamDir, "roles.json"), rolesJSON, 0o644); err != nil {
+		t.Fatalf("write roles.json: %v", err)
 	}
 }

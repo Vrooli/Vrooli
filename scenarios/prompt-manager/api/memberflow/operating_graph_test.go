@@ -3,9 +3,10 @@ package memberflow
 import (
 	"os"
 	"path/filepath"
-	"prompt-manager/teamcontract"
 	"strings"
 	"testing"
+
+	"prompt-manager/teamcontract"
 )
 
 func TestParseOperatingMermaidTypedNodesAndEdges(t *testing.T) {

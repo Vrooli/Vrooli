@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	pmstore "prompt-manager/store"
 )
 
@@ -230,6 +231,38 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 	_ = json.Unmarshal(w3.Body.Bytes(), &resp3)
 	if resp3.ID != "new-skill-2" {
 		t.Errorf("third skill: expected ID 'new-skill-2', got '%s'", resp3.ID)
+	}
+}
+
+func TestUpdate_RejectsRemovingExistingTemplateVariable(t *testing.T) {
+	store := NewMockStore()
+	handlers := NewHandlers(store, &MockMetricsService{}, "/test/store")
+	create := CreateRequest{Name: "Variable Guard", Content: "# Skill\n{{goal}} {{actor}}", Folder: "local"}
+	createBody, _ := json.Marshal(create)
+	createRequest := httptest.NewRequest(http.MethodPost, "/skills", bytes.NewReader(createBody))
+	createResponse := httptest.NewRecorder()
+	handlers.Create(createResponse, createRequest)
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("create: got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+
+	replacement := "# Skill\n{{goal}}"
+	updateBody, _ := json.Marshal(UpdateRequest{Content: &replacement})
+	updateRequest := mux.SetURLVars(httptest.NewRequest(http.MethodPut, "/skills/variable-guard", bytes.NewReader(updateBody)), map[string]string{"id": "variable-guard"})
+	updateResponse := httptest.NewRecorder()
+	handlers.Update(updateResponse, updateRequest)
+	if updateResponse.Code != http.StatusBadRequest {
+		t.Fatalf("update status = %d, want 400: %s", updateResponse.Code, updateResponse.Body.String())
+	}
+	if !strings.Contains(updateResponse.Body.String(), "actor") {
+		t.Fatalf("missing variable not named: %s", updateResponse.Body.String())
+	}
+	content, err := store.GetContent("local", "variable-guard.md")
+	if err != nil {
+		t.Fatalf("read stored content: %v", err)
+	}
+	if content != create.Content {
+		t.Fatalf("rejected update changed content: %q", content)
 	}
 }
 

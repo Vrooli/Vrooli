@@ -91,14 +91,19 @@ func TestRenderMemberPolicyIncludesMemberPolicy(t *testing.T) {
 	}
 }
 
-func TestRenderMemberUsesPlanOfRecordHubs(t *testing.T) {
+// Document surfaces have exactly one renderer. RenderMemberPolicy used to
+// print plan-of-record hubs and shared-state paths under "## Document
+// Authority", which RenderTeamStorage already prints with each surface's
+// kind, owner, and purpose. Two renderings of one contract meant the agent
+// reconciled them at read time, so the subset was removed. This test fails if
+// it comes back.
+func TestRenderMemberPolicyDoesNotRestateDocumentSurfaces(t *testing.T) {
 	contract := Minimal(DecisionModeApproval, "agent-1")
 	contract.Documents.PlanOfRecord = []PlanOfRecordDocument{{
 		ID:  "canon",
 		Hub: &PathRef{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 		Paths: []PathRef{
 			{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
-			{Base: BaseRepoRoot, Path: "docs/monetization/catalogs/CATALOG.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 			{Base: BaseRepoRoot, Path: "docs/monetization/strategy/PRICING.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 		},
 		WritePolicy:    "operator-curated-via-decisions",
@@ -107,6 +112,18 @@ func TestRenderMemberUsesPlanOfRecordHubs(t *testing.T) {
 		Required:       boolPtr(false),
 		OptionalReason: "test fixture",
 	}}
+	contract.Documents.SharedState = []SharedStateDocument{{
+		ID:             "state",
+		Path:           PathRef{Base: BaseTeamShared, Path: "STATE.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+		Kind:           "rolling-snapshot",
+		Required:       false,
+		OptionalReason: "test fixture",
+	}}
+	member := contract.Members["agent-1"]
+	member.AllowedWrites = append(member.AllowedWrites, WriteRef{Base: BaseTeamShared, Path: "STATE.md"})
+	member.ForbiddenWrites = []WriteRef{{Base: BaseRepoRoot, Path: "docs/monetization/"}}
+	member.SafetyCriticalRules = []string{"Do not edit canon directly."}
+	contract.Members["agent-1"] = member
 
 	rendered, err := RenderMemberPolicy(contract, RenderInput{
 		TeamID:       "team-1",
@@ -117,20 +134,31 @@ func TestRenderMemberUsesPlanOfRecordHubs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderMemberPolicy: %v", err)
 	}
-	for _, want := range []string{
+
+	for _, restated := range []string{
+		"## Document Authority",
 		"Plan of record authorities:",
-		"- docs/monetization/README.md",
-		"Policy: operator-curated-via-decisions",
-		"Consumers: monetization",
-		"Use for: monetization strategy, catalog, pricing, and channels",
-		"Coverage: 3 declared files; start at the hub and follow its file map to the relevant spoke.",
+		"Team working state:",
+		"## Write Rules",
+		"Allowed writes:",
+		"Forbidden writes:",
+		"docs/monetization/README.md",
+		"STATE.md",
 	} {
-		if !strings.Contains(rendered, want) {
-			t.Fatalf("rendered contract missing %q:\n%s", want, rendered)
+		if strings.Contains(rendered, restated) {
+			t.Fatalf("member policy restates document surface %q owned by RenderTeamStorage / the active task brief:\n%s", restated, rendered)
 		}
 	}
-	if strings.Contains(rendered, "docs/monetization/catalogs/CATALOG.md") {
-		t.Fatalf("rendered contract should not dump plan-of-record spokes:\n%s", rendered)
+
+	// What is unique to this renderer must survive the removal.
+	for _, want := range []string{
+		"## Operating Constraints",
+		"Safety-critical rules:",
+		"Do not edit canon directly.",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("member policy dropped member-only content %q:\n%s", want, rendered)
+		}
 	}
 }
 
@@ -262,7 +290,9 @@ func TestRenderTeamStorageUsesPlanOfRecordHubs(t *testing.T) {
 		"Policy: `operator-curated-via-decisions`",
 		"Consumers: `monetization`",
 		"Use for: monetization strategy, catalog, pricing, and channels",
-		"Navigation: start at the hub and follow its file map to the relevant spoke.",
+		// The file count folded in from the removed "## Document Authority"
+		// rendering; this is now its only home.
+		"Navigation: 3 declared files; start at the hub and follow its file map to the relevant spoke.",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered storage missing %q:\n%s", want, rendered)
@@ -302,7 +332,9 @@ func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *test
 		t.Fatalf("Validate bundled contract: %v", err)
 	}
 
-	rendered, err := RenderMemberPolicy(team.OperatingContract, RenderInput{
+	// Shared-state paths render in team storage, which is their single home
+	// since "## Document Authority" was removed from the member policy.
+	rendered, err := RenderTeamStorage(team.OperatingContract, RenderInput{
 		TeamID:       "meta-optimization",
 		TeamName:     "Meta Optimization",
 		DecisionMode: team.DecisionMode,
@@ -311,14 +343,14 @@ func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *test
 		RepoRoot:     repoRoot,
 	})
 	if err != nil {
-		t.Fatalf("RenderMemberPolicy bundled contract: %v", err)
+		t.Fatalf("RenderTeamStorage bundled contract: %v", err)
 	}
 	want := "scenarios/prompt-manager/store/teams/meta-optimization/shared/TEAM_AUDIT.md"
 	if !strings.Contains(rendered, want) {
-		t.Fatalf("rendered contract missing repo-root TEAM_AUDIT path %q:\n%s", want, rendered)
+		t.Fatalf("rendered storage missing repo-root TEAM_AUDIT path %q:\n%s", want, rendered)
 	}
 	if strings.Contains(rendered, "\n- shared/TEAM_AUDIT.md") {
-		t.Fatalf("rendered contract contains ambiguous TEAM_AUDIT path:\n%s", rendered)
+		t.Fatalf("rendered storage contains ambiguous TEAM_AUDIT path:\n%s", rendered)
 	}
 }
 

@@ -54,7 +54,6 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "modernc.org/sqlite"
 )
 
 // gorillaMuxAdapter gives api-core's development-only Connect registration a
@@ -770,6 +769,15 @@ func main() {
 		runRegistry,
 		nil, // uses default SentinelExtractor
 	)
+	// Routes each member's own open declaration findings into its heartbeat
+	// prompt. Wired on the executor because that builder serves both the real
+	// spawn path and `team prompt-preview`, so the operator previews exactly
+	// what the agent receives.
+	heartbeatExecutor.SetContractFindingsProvider(&heartbeat.MemberflowContractFindings{
+		StoreDir:       roots.Config,
+		RepoRoot:       roots.RepoRoot,
+		RuntimeDataDir: roots.RuntimeData,
+	})
 	memberFlowHandlers.SetPromptSectionProvider(heartbeatPromptSectionProvider{executor: heartbeatExecutor})
 	operatingMapStore, err := graph.NewOperatingMapStore(memberflow.OperatingModelService{
 		RepoRoot:       roots.RepoRoot,

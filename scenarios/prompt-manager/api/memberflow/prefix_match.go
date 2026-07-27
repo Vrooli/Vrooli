@@ -17,6 +17,7 @@ package memberflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -49,8 +50,15 @@ func EnrichWithKeyPrefixMismatch(members []MemberTopics, q KnowledgeQuery) []Fin
 		}
 	}
 
+	teams := make([]string, 0, len(prefixesByTeam))
+	for team := range prefixesByTeam {
+		teams = append(teams, team)
+	}
+	sort.Strings(teams)
+
 	var findings []Finding
-	for team, prefixes := range prefixesByTeam {
+	for _, team := range teams {
+		prefixes := prefixesByTeam[team]
 		entries, err := q.ListAll(team)
 		if err != nil {
 			findings = append(findings, Finding{
@@ -61,18 +69,25 @@ func EnrichWithKeyPrefixMismatch(members []MemberTopics, q KnowledgeQuery) []Fin
 			})
 			continue
 		}
+		// Grouped per topic family: one undeclared family produces an entry
+		// per write, so a per-entry count reports how long the team has been
+		// running rather than how many prefixes need declaring.
+		grouper := &findingGrouper{}
 		for _, e := range entries {
 			if topicMatchesAnyPrefix(e.Topic, prefixes) {
 				continue
 			}
-			findings = append(findings, Finding{
+			grouper.Add(e.Topic, e.ID)
+		}
+		findings = append(findings, grouper.Emit(func(family, evidence string) Finding {
+			return Finding{
 				Rule:     "topic_key_prefix_mismatch",
 				Severity: SeverityWarning,
 				Member:   MemberRef{Team: team},
-				Prefix:   e.Topic,
-				Detail:   fmt.Sprintf("entry %s has topic %q with no matching declared prefix in any member's topics.json on team %q", e.ID, e.Topic, team),
-			})
-		}
+				Prefix:   family,
+				Detail:   fmt.Sprintf("%s under %q have no matching declared prefix in any member's topics.json on team %q", evidence, family, team),
+			}
+		})...)
 	}
 	return findings
 }

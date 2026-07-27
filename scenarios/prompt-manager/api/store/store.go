@@ -9,6 +9,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
+	_ "modernc.org/sqlite"
 	"prompt-manager/internal/paths"
 )
 

@@ -108,6 +108,7 @@ func auditCollectors() []func(appctx.Context) auditTarget {
 		auditContractModeCoverage,
 		auditGraphRuntimeDrift,
 		auditTopicIntegrity,
+		auditMemberDocConformance,
 		auditProseCoherence,
 		auditCrossTeamCoupling,
 		auditCanonCoherence,
@@ -213,12 +214,50 @@ func auditTopicIntegrity(ctx appctx.Context) auditTarget {
 	return t
 }
 
+func auditMemberDocConformance(ctx appctx.Context) auditTarget {
+	t := auditTarget{
+		Target:   "Member-document conformance",
+		Sensor:   "prompt-manager graph topics — member_doc_* findings",
+		Deadband: "0 errors; recommended-section gaps are reported, not banded",
+		Actuator: "framework-update for errors; the owning team's decision context for recommended-section gaps",
+	}
+	resp, err := topicsAudit(ctx)
+	if err != nil {
+		return auditFailed(t, err)
+	}
+
+	errors, gaps := 0, 0
+	for _, f := range resp.Validation.Findings {
+		if !strings.HasPrefix(f.Rule, "member_doc_") {
+			continue
+		}
+		switch {
+		case f.Severity == "error":
+			errors++
+			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s %s/%s: %s", f.Rule, f.Member.Team, f.Member.Member, f.Detail))
+		case f.Rule == "member_doc_section_recommended":
+			gaps++
+		}
+	}
+
+	// Two readings, one band. Errors are mechanical — a validator can demand
+	// a heading the roster already carries everywhere, so they belong in the
+	// band. Recommended-section gaps need a team to author content that no
+	// validator can infer, and they route to a different actuator; banding
+	// them here would put the wrong fix in the actuator column. They stay
+	// visible in Observed so the band never reads as fuller coverage than it
+	// has.
+	t.Observed = fmt.Sprintf("%d errors, %d recommended-section gaps", errors, gaps)
+	t.Status = auditBand(errors == 0)
+	return t
+}
+
 func auditProseCoherence(ctx appctx.Context) auditTarget {
 	t := auditTarget{
 		Target:   "Prose/declaration coherence",
 		Sensor:   "prompt-manager graph topics — prose_topic_leak warnings",
-		Deadband: "519 warnings or fewer pending triage",
-		Actuator: "framework-update",
+		Deadband: "0 warnings on declaration-bearing surfaces",
+		Actuator: "framework-update — tighten the inferred-backtick matcher, then triage the residue",
 	}
 	resp, err := topicsAudit(ctx)
 	if err != nil {
@@ -230,8 +269,13 @@ func auditProseCoherence(ctx appctx.Context) auditTarget {
 			leaks++
 		}
 	}
+	// The deadband is the target, not the current reading. A deadband set
+	// equal to the observation reports in-band while the defect stands and can
+	// only ever detect growth — the failure mode infra-contrarian's rubric
+	// names as "dead-sensor evidence" and "target drift", applied here to the
+	// framework's own sensor map.
 	t.Observed = fmt.Sprintf("%d warnings", leaks)
-	t.Status = auditBand(leaks <= 519)
+	t.Status = auditBand(leaks == 0)
 	return t
 }
 
@@ -255,7 +299,7 @@ func auditSkillReachability(ctx appctx.Context) auditTarget {
 	t := auditTarget{
 		Target:   "Skill reachability",
 		Sensor:   "prompt-manager graph orphaned-skills",
-		Deadband: "54 candidates or fewer pending triage",
+		Deadband: "0 unreachable candidates",
 		Actuator: "skill-deprecation or skill-improvement",
 	}
 	var nodes []node
@@ -263,7 +307,7 @@ func auditSkillReachability(ctx appctx.Context) auditTarget {
 		return auditFailed(t, err)
 	}
 	t.Observed = fmt.Sprintf("%d candidates", len(nodes))
-	t.Status = auditBand(len(nodes) <= 54)
+	t.Status = auditBand(len(nodes) == 0)
 	return t
 }
 

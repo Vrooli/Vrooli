@@ -746,7 +746,7 @@ stop:
 - Per-entity JSON files (skill.json, agent.json, team.json)
 - Relations stored in `store/relations/` with composite keys
 - Generated indexes in `store/indexes/` for fast lookups
-- JSON Schemas in `store/schemas/` for validation
+- Store shapes validated in Go (`api/teamcontract`, `api/memberflow`), not by JSON Schema
 - Embedded SQLite for tags, metrics, and test history
 
 ### API Design

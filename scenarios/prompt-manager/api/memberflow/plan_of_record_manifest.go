@@ -10,9 +10,11 @@ import (
 	"strings"
 )
 
-const teamPlanOfRecordSchema = "team-plan-of-record/v1"
-const teamPlanOfRecordKind = "team-plan-of-record"
-const maxPlanOfRecordBaseDepth = 8
+const (
+	teamPlanOfRecordSchema   = "team-plan-of-record/v1"
+	teamPlanOfRecordKind     = "team-plan-of-record"
+	maxPlanOfRecordBaseDepth = 8
+)
 
 var planOfRecordBannedPhrases = []string{
 	"PLAN_OF_RECORD_STRUCTURE",

@@ -144,16 +144,15 @@ store/
 ├── relations/
 │   └── team-member/
 │       └── team-id--agent-1.json
-├── indexes/                    # Generated (never hand-edit)
-│   ├── skills.json
-│   ├── agents.json
-│   └── teams.json
-└── schemas/                    # JSON Schemas for validation
-    ├── skill.schema.json
-    ├── agent.schema.json
-    ├── action.schema.json       # Executable Action contracts
-    └── team.schema.json
+└── indexes/                    # Generated (never hand-edit)
+    ├── skills.json
+    ├── agents.json
+    └── teams.json
 ```
+
+Store shapes are validated in Go rather than by JSON Schema: `team.json` in
+`api/teamcontract/contract.go`, member `topics.json` and the operating-model
+contract in `api/memberflow/`.
 
 **Key Design Changes:**
 - Per-entity files instead of monolithic `metadata.json`

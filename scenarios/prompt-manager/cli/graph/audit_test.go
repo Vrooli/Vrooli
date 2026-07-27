@@ -54,6 +54,7 @@ func TestCmdAuditCoversEveryFrameworkHealthTarget(t *testing.T) {
 		"Contract-mode coverage",
 		"Graph/runtime drift",
 		"Topic-flow declaration integrity",
+		"Member-document conformance",
 		"Prose/declaration coherence",
 		"Cross-team coupling visibility",
 		"Canon coherence",
