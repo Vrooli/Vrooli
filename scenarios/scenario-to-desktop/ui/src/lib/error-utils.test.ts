@@ -3,21 +3,20 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { ApiError, type RecoveryAction } from "./api";
-import {
-  getErrorMessage,
-  logError,
-  createErrorInfo,
-} from "./error-utils";
+import { getErrorMessage, logError, createErrorInfo } from "./error-utils";
 
 // Helper to create ApiError instances
-function makeApiError(opts: {
-  error?: string;
-  code?: string;
-  recovery?: RecoveryAction;
-  recoveryHint?: string;
-  details?: Record<string, unknown>;
-} = {}): ApiError {
+function makeApiError(
+  opts: {
+    error?: string;
+    code?: string;
+    recovery?: RecoveryAction;
+    recoveryHint?: string;
+    details?: Record<string, unknown>;
+  } = {},
+): ApiError {
   return new ApiError({
     error: opts.error ?? "Test error",
     code: opts.code,
@@ -111,6 +110,31 @@ describe("logError", () => {
 // ============================================================================
 
 describe("createErrorInfo", () => {
+  it("preserves Connect code, metadata, and details for recovery UI", () => {
+    const connectError = new ConnectError(
+      "pipeline service is temporarily unavailable",
+      Code.Unavailable,
+      { "x-request-id": "request-123" },
+    );
+    connectError.details.push({
+      type: "type.googleapis.com/vrooli.scenario_to_desktop.v1.ErrorDetail",
+      value: new Uint8Array([1, 2, 3]),
+    });
+
+    const info = createErrorInfo(connectError);
+
+    expect(info).toMatchObject({
+      message: "pipeline service is temporarily unavailable",
+      code: "Unavailable",
+      canRetry: true,
+      details: {
+        connectCode: Code.Unavailable,
+        connectMetadata: { "x-request-id": "request-123" },
+      },
+    });
+    expect(info.details?.connectDetails).toHaveLength(1);
+  });
+
   it("creates ErrorInfo from ApiError", () => {
     const error = makeApiError({
       error: "Validation failed",

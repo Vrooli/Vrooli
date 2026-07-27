@@ -1,15 +1,19 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"scenario-to-desktop-api/internal/testutil"
 	"slices"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
-	"scenario-to-desktop-api/internal/testutil"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
 )
 
 // TestHealthHandler tests the health check endpoint comprehensively
@@ -117,11 +121,8 @@ func TestServerRoutes(t *testing.T) {
 		allow404 bool // Allow 404 for routes with path parameters (resource not found is valid)
 	}{
 		{"GET", "/api/v1/health", false},
-		{"GET", "/api/v1/status", false},
-		{"GET", "/api/v1/templates", false},
-		{"GET", "/api/v1/templates/react-vite", true}, // Template file might not exist in test env
 		// NOTE: POST /api/v1/desktop/generate, GET /api/v1/desktop/status/{id}, and
-		// POST /api/v1/desktop/build were removed - use /api/v1/pipeline/* instead
+		// POST /api/v1/desktop/build was removed; use PipelineService instead.
 		// NOTE: POST /api/v1/desktop/package was removed - use pipeline bundle stage instead
 		{"POST", "/api/v1/desktop/webhook/build-complete", false},
 	}
@@ -140,6 +141,41 @@ func TestServerRoutes(t *testing.T) {
 			}
 		})
 	}
+
+	for _, retired := range []string{"/api/v1/status", "/api/v1/templates", "/api/v1/templates/universal", "/api/v1/system/wine/check", "/api/v1/scenarios/desktop-status", "/api/v1/desktop/probe", "/api/v1/desktop/proxy-hints/scenario-to-desktop", "/api/v1/ports/scenario-to-desktop/api", "/api/v1/pipeline/run", "/api/v1/pipeline/example", "/api/v1/pipelines", "/api/v1/scenarios/example/pipeline/active", "/api/v1/scenarios/example/pipeline", "/api/v1/scenarios/example/pipeline/reset", "/api/v1/scenarios/example/pipeline/history", "/api/v1/scenarios/example/pipeline/start", "/api/v1/scenarios/example/bundle/clean", "/api/v1/signing/prerequisites", "/api/v1/signing/example", "/api/v1/signing/example/ready"} {
+		t.Run("retired_"+retired, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, retired, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+			if w.Code != http.StatusNotFound {
+				t.Errorf("retired REST route %s returned %d, want 404", retired, w.Code)
+			}
+		})
+	}
+
+	t.Run("system_connect_replacement", func(t *testing.T) {
+		ts := httptest.NewServer(server.Router())
+		defer ts.Close()
+		client := domainconnect.NewSystemServiceClient(ts.Client(), ts.URL)
+		status, err := client.GetSystemStatus(context.Background(), connect.NewRequest(&domainv1.GetSystemStatusRequest{}))
+		if err != nil || status.Msg.GetService().GetStatus() != "running" {
+			t.Fatalf("GetSystemStatus() = %#v, %v", status.Msg, err)
+		}
+		templates, err := client.ListTemplates(context.Background(), connect.NewRequest(&domainv1.ListTemplatesRequest{}))
+		if err != nil || templates.Msg.GetCount() != 4 {
+			t.Fatalf("ListTemplates() = %#v, %v", templates.Msg, err)
+		}
+	})
+
+	t.Run("operations_connect_replacement", func(t *testing.T) {
+		ts := httptest.NewServer(server.Router())
+		defer ts.Close()
+		client := domainconnect.NewOperationsServiceClient(ts.Client(), ts.URL)
+		response, err := client.GetProxyHints(context.Background(), connect.NewRequest(&domainv1.ProxyHintsRequest{ScenarioName: "scenario-to-desktop"}))
+		if err != nil || response.Msg.GetScenarioName() != "scenario-to-desktop" {
+			t.Fatalf("GetProxyHints() = %#v, %v", response.Msg, err)
+		}
+	})
 }
 
 // TestCORSMiddleware tests CORS headers

@@ -38,7 +38,7 @@ export type ParseResult<T> =
  */
 export function safeParse<T>(
   schema: ZodSchema<T>,
-  data: unknown
+  data: unknown,
 ): ParseResult<T> {
   const result = schema.safeParse(data);
 
@@ -68,7 +68,7 @@ export function safeParse<T>(
 export function safeParseWithDefault<T>(
   schema: ZodSchema<T>,
   data: unknown,
-  defaultValue: T
+  defaultValue: T,
 ): T {
   const result = schema.safeParse(data);
   if (result.success) {

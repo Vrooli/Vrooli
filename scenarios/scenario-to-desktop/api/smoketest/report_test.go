@@ -2,11 +2,10 @@ package smoketest_test
 
 import (
 	"encoding/json"
+	"scenario-to-desktop-api/smoketest"
 	"strings"
 	"testing"
 	"time"
-
-	"scenario-to-desktop-api/smoketest"
 )
 
 func TestGenerateFailureReport_BasicFields(t *testing.T) {

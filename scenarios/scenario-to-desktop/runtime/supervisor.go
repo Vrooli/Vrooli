@@ -168,112 +168,113 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 	if opts.Manifest == nil {
 		return nil, errors.New("manifest is required")
 	}
-	var resolvedResourcePlan *resourceplan.Plan
-	if opts.BundlePath != "" {
-		var err error
-		resolvedResourcePlan, err = resourceplan.Load(opts.BundlePath)
-		if err != nil {
-			return nil, fmt.Errorf("validate resolved resource deployment plan: %w", err)
-		}
+	resourcePlan, err := loadResourcePlan(opts.BundlePath)
+	if err != nil {
+		return nil, err
 	}
-
-	appData := opts.AppDataDir
-	if appData == "" {
-		base, err := os.UserConfigDir()
-		if err != nil {
-			return nil, fmt.Errorf("resolve app data dir: %w", err)
-		}
-		appData = filepath.Join(base, config.SanitizeAppName(opts.Manifest.App.Name))
+	appData, err := resolveAppDataDir(opts)
+	if err != nil {
+		return nil, err
 	}
-
-	// Set default implementations for nil dependencies.
-	clock := opts.Clock
-	if clock == nil {
-		clock = RealClock{}
-	}
-
-	fileSystem := opts.FileSystem
-	if fileSystem == nil {
-		fileSystem = RealFileSystem{}
-	}
-
-	dialer := opts.NetworkDialer
-	if dialer == nil {
-		dialer = RealNetworkDialer{}
-	}
-
-	procRunner := opts.ProcessRunner
-	if procRunner == nil {
-		procRunner = infra.RealProcessRunner{}
-	}
-
-	cmdRunner := opts.CommandRunner
-	if cmdRunner == nil {
-		cmdRunner = infra.RealCommandRunner{}
-	}
-
-	envReader := opts.EnvReader
-	if envReader == nil {
-		envReader = infra.RealEnvReader{}
-	}
-
-	gpuDetector := opts.GPUDetector
-	if gpuDetector == nil {
-		gpuDetector = gpu.NewDetector(cmdRunner, envReader)
-	}
-
-	portAllocator := opts.PortAllocator
-	if portAllocator == nil {
-		portAllocator = ports.NewManager(opts.Manifest, dialer)
-	}
-
-	// Compute paths for secret manager.
-	secretsPath := filepath.Join(appData, "secrets.json")
-
-	// Create or use provided SecretStore.
-	secretStore := opts.SecretStore
-	if secretStore == nil {
-		secretStore = secrets.NewManager(opts.Manifest, fileSystem, secretsPath)
-	}
+	deps := resolveDependencies(opts, appData)
 
 	s := &Supervisor{
 		opts:          opts,
-		clock:         clock,
-		fs:            fileSystem,
-		dialer:        dialer,
-		procRunner:    procRunner,
-		cmdRunner:     cmdRunner,
-		gpuDetector:   gpuDetector,
-		envReader:     envReader,
-		portAllocator: portAllocator,
-		secretStore:   secretStore,
+		clock:         deps.clock,
+		fs:            deps.fileSystem,
+		dialer:        deps.dialer,
+		procRunner:    deps.procRunner,
+		cmdRunner:     deps.cmdRunner,
+		gpuDetector:   deps.gpuDetector,
+		envReader:     deps.envReader,
+		portAllocator: deps.portAllocator,
+		secretStore:   deps.secretStore,
 		appData:       appData,
 		serviceStatus: make(map[string]ServiceStatus),
 		procs:         make(map[string]*serviceProcess),
 		instanceID:    newInstanceID(),
 		manifestHash:  hashManifest(opts.Manifest),
-		resourcePlan:  resolvedResourcePlan,
+		resourcePlan:  resourcePlan,
 		// Create envRenderer now since all dependencies are available.
-		envRenderer: env.NewRenderer(appData, opts.BundlePath, portAllocator, envReader),
+		envRenderer: env.NewRenderer(appData, opts.BundlePath, deps.portAllocator, deps.envReader),
 	}
 
-	// Create or use provided HealthChecker.
-	if opts.HealthChecker != nil {
-		s.healthChecker = opts.HealthChecker
-	} else {
-		s.healthChecker = health.NewMonitor(health.MonitorConfig{
-			Manifest:     opts.Manifest,
-			Ports:        portAllocator,
-			Dialer:       dialer,
-			CmdRunner:    cmdRunner,
-			FS:           fileSystem,
-			Clock:        clock,
-			AppData:      appData,
-			StatusGetter: s.getStatus, // Closure captures supervisor
-		})
-	}
+	s.healthChecker = resolveHealthChecker(opts, deps, appData, s.getStatus)
 
 	return s, nil
+}
+
+type runtimeDependencies struct {
+	clock         Clock
+	fileSystem    FileSystem
+	dialer        NetworkDialer
+	procRunner    ProcessRunner
+	cmdRunner     CommandRunner
+	gpuDetector   GPUDetector
+	envReader     EnvReader
+	portAllocator PortAllocator
+	secretStore   secrets.Store
+}
+
+func loadResourcePlan(bundlePath string) (*resourceplan.Plan, error) {
+	if bundlePath == "" {
+		return nil, nil
+	}
+	plan, err := resourceplan.Load(bundlePath)
+	if err != nil {
+		return nil, fmt.Errorf("validate resolved resource deployment plan: %w", err)
+	}
+	return plan, nil
+}
+
+func resolveAppDataDir(opts Options) (string, error) {
+	if opts.AppDataDir != "" {
+		return opts.AppDataDir, nil
+	}
+	base, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve app data dir: %w", err)
+	}
+	return filepath.Join(base, config.SanitizeAppName(opts.Manifest.App.Name)), nil
+}
+
+func resolveDependencies(opts Options, appData string) runtimeDependencies {
+	deps := runtimeDependencies{clock: opts.Clock, fileSystem: opts.FileSystem, dialer: opts.NetworkDialer, procRunner: opts.ProcessRunner, cmdRunner: opts.CommandRunner, gpuDetector: opts.GPUDetector, envReader: opts.EnvReader, portAllocator: opts.PortAllocator, secretStore: opts.SecretStore}
+	if deps.clock == nil {
+		deps.clock = RealClock{}
+	}
+	if deps.fileSystem == nil {
+		deps.fileSystem = RealFileSystem{}
+	}
+	if deps.dialer == nil {
+		deps.dialer = RealNetworkDialer{}
+	}
+	if deps.procRunner == nil {
+		deps.procRunner = infra.RealProcessRunner{}
+	}
+	if deps.cmdRunner == nil {
+		deps.cmdRunner = infra.RealCommandRunner{}
+	}
+	if deps.envReader == nil {
+		deps.envReader = infra.RealEnvReader{}
+	}
+	if deps.gpuDetector == nil {
+		deps.gpuDetector = gpu.NewDetector(deps.cmdRunner, deps.envReader)
+	}
+	if deps.portAllocator == nil {
+		deps.portAllocator = ports.NewManager(opts.Manifest, deps.dialer)
+	}
+	if deps.secretStore == nil {
+		deps.secretStore = secrets.NewManager(opts.Manifest, deps.fileSystem, filepath.Join(appData, "secrets.json"))
+	}
+	return deps
+}
+
+func resolveHealthChecker(opts Options, deps runtimeDependencies, appData string, statusGetter func(string) (health.Status, bool)) HealthChecker {
+	if opts.HealthChecker != nil {
+		return opts.HealthChecker
+	}
+	return health.NewMonitor(health.MonitorConfig{Manifest: opts.Manifest, Ports: deps.portAllocator, Dialer: deps.dialer, CmdRunner: deps.cmdRunner, FS: deps.fileSystem, Clock: deps.clock, AppData: appData, StatusGetter: statusGetter})
 }
 
 // Start initializes the supervisor and begins service orchestration.
@@ -327,7 +328,9 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
-		_ = s.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer shutdownCancel()
+		_ = s.Shutdown(shutdownCtx)
 	}()
 	go func() {
 		if serveErr := s.server.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
@@ -457,8 +460,9 @@ func (s *Supervisor) startControlAPI() (net.Listener, error) {
 	}
 
 	s.server = &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, actualAddr.Port),
-		Handler: apiServer.AuthMiddleware(mux),
+		Addr:              fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, actualAddr.Port),
+		Handler:           apiServer.AuthMiddleware(mux),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 	return ln, nil
 }

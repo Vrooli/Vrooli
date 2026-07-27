@@ -4,7 +4,9 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -13,15 +15,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
-	"time"
-
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
-
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
@@ -31,12 +24,10 @@ import (
 	"scenario-to-desktop-api/livedesktop"
 	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
-	preflightdomain "scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/records"
 	"scenario-to-desktop-api/scenario"
 	"scenario-to-desktop-api/screenrecording"
-	httputil "scenario-to-desktop-api/shared/http"
 	"scenario-to-desktop-api/signing"
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/state"
@@ -45,6 +36,23 @@ import (
 	"scenario-to-desktop-api/system"
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
+	"strconv"
+	"time"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttp"
+	coredb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite"
+
+	preflightdomain "scenario-to-desktop-api/preflight"
+
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 // Global logger for middleware and initialization code
@@ -59,10 +67,13 @@ func init() {
 
 // Server represents the API server
 type Server struct {
-	router      *mux.Router
-	port        int
-	templateDir string
-	logger      *slog.Logger
+	router          *mux.Router
+	port            int
+	templateDir     string
+	logger          *slog.Logger
+	lifecycleCancel context.CancelFunc
+	routedDB        *coredb.RoutedDB
+	fileRoots       *filerouting.RoutedRoots
 
 	// Domain handlers (screaming architecture)
 	buildHandler     *build.Handler
@@ -73,22 +84,36 @@ type Server struct {
 	pipelineHandler  *pipeline.Handler
 	stateHandler     *state.Handler
 	deployHandler    *deploy.Handler
+	signingHandler   *signing.Handler
+	preflightService preflightdomain.Service
+	configAnalyzer   generation.ScenarioAnalyzer
 
 	// Task orchestration service
 	taskSvc *tasks.Service
 
 	// Live desktop handler
 	liveDesktopHandler *livedesktop.Handler
+	liveDesktopService *livedesktop.Service
 
 	// Captures handler
 	capturesHandler *captures.Handler
+	capturesService *captures.Service
 
 	// Smoke test store for video serving
-	smokeTestStore smoketest.Store
+	smokeTestStore   smoketest.Store
+	smokeTestService smoketest.Service
+	smokeTestCancels smoketest.CancelManager
 }
 
 // NewServer creates a new server instance
 func NewServer(port int) *Server {
+	lifecycleCtx, lifecycleCancel := context.WithCancel(context.Background())
+	initialized := false
+	defer func() {
+		if !initialized {
+			lifecycleCancel()
+		}
+	}()
 	vrooliRoot := detectVrooliRoot()
 	scenarioRoot := filepath.Join(vrooliRoot, "scenarios")
 	templateDir := "../templates" // Templates are in parent directory when running from api/
@@ -98,15 +123,37 @@ func NewServer(port int) *Server {
 		Level: slog.LevelInfo,
 	}))
 
-	storePaths, err := storagepaths.NewLocator()
+	storePaths, ok := initStoragePaths(logger)
+	if !ok {
+		return nil
+	}
+	primaryPaths, err := storePaths.Paths()
 	if err != nil {
-		logger.Error("failed to initialize storage paths", "error", err)
+		logger.Error("failed to resolve primary storage roots", "error", err)
 		return nil
 	}
-	if _, err := storePaths.EnsureAll(); err != nil {
-		logger.Error("failed to prepare storage roots", "error", err)
+	fileRoots := filerouting.New(primaryPaths)
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer dbCancel()
+	routedDB, err := coredb.Open(dbCtx, coredb.Config{
+		Driver:       coredb.DriverSQLite,
+		DSN:          filepath.Join(primaryPaths.DataDir, "scenario-to-desktop.db"),
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+		Logger:       logger.Info,
+	})
+	if err != nil {
+		logger.Error("failed to open routed scenario database", "error", err)
 		return nil
 	}
+	if err := coredb.EnsureSchemas(dbCtx, routedDB.Primary()); err != nil {
+		_ = routedDB.Close()
+		logger.Error("failed to initialize scenario database schema", "error", err)
+		return nil
+	}
+	routedDB.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return coredb.EnsureSchemas(ctx, pool)
+	})
 
 	// ===== Domain Services (Screaming Architecture) =====
 
@@ -211,7 +258,7 @@ func NewServer(port int) *Server {
 	}
 	liveDesktopHandler := livedesktop.NewHandler(liveDesktopService)
 	// Start idle session janitor (30s check interval, 30m idle timeout)
-	livedesktop.StartJanitor(context.Background(), liveDesktopService, 30*time.Second, 30*time.Minute)
+	livedesktop.StartJanitor(lifecycleCtx, liveDesktopService, 30*time.Second, 30*time.Minute)
 
 	// Telemetry domain
 	telemetryDir, err := storePaths.EnsureTelemetryDir()
@@ -226,11 +273,7 @@ func NewServer(port int) *Server {
 	scenarioHandler := scenario.NewHandler(vrooliRoot, scenarioRecordStore, logger)
 
 	// State domain (scenario state persistence)
-	stateDir, err := storePaths.EnsureScenarioStateDir()
-	if err != nil {
-		logger.Warn("state directory unavailable", "error", err)
-	}
-	stateStore, err := state.NewStore(stateDir)
+	stateStore, err := state.NewRoutedStore(fileRoots)
 	if err != nil {
 		logger.Warn("state store unavailable, using nil", "error", err)
 		stateStore = nil
@@ -245,6 +288,7 @@ func NewServer(port int) *Server {
 	wineService := system.NewWineService(logger)
 	systemBuildStore := &systemBuildStoreAdapter{store: buildStore}
 	systemHandler := system.NewHandler(wineService, systemBuildStore, templateDir)
+	configAnalyzer := generation.NewAnalyzer(vrooliRoot)
 
 	pipelineDeps := pipelineInitDeps{
 		scenarioRoot:         scenarioRoot,
@@ -267,15 +311,19 @@ func NewServer(port int) *Server {
 	if err != nil {
 		logger.Warn("data root unavailable", "error", err)
 	}
-	taskSvc := initTaskOrchestration(dataRoot, pipelineOrchestrator, logger)
+	taskSvc := initTaskOrchestration(dataRoot, pipelineOrchestrator, logger, fmt.Sprintf("http://127.0.0.1:%d", port))
+	signingHandler := signing.NewHandler()
 
 	// ===== Create Server =====
 
 	srv := &Server{
-		router:      mux.NewRouter(),
-		port:        port,
-		templateDir: templateDir,
-		logger:      logger,
+		router:          mux.NewRouter(),
+		port:            port,
+		templateDir:     templateDir,
+		logger:          logger,
+		lifecycleCancel: lifecycleCancel,
+		routedDB:        routedDB,
+		fileRoots:       fileRoots,
 
 		// Domain handlers
 		buildHandler:     buildHandler,
@@ -286,18 +334,39 @@ func NewServer(port int) *Server {
 		pipelineHandler:  pipelineHandler,
 		stateHandler:     stateHandler,
 		deployHandler:    deployHandler,
+		signingHandler:   signingHandler,
+		preflightService: preflightService,
+		configAnalyzer:   configAnalyzer,
 		// Live desktop handler
 		liveDesktopHandler: liveDesktopHandler,
+		liveDesktopService: liveDesktopService,
 		// Captures handler
 		capturesHandler: capturesHandler,
+		capturesService: capturesService,
 		// Task orchestration
 		taskSvc: taskSvc,
 
 		// Smoke test store for video serving
-		smokeTestStore: smokeTestStore,
+		smokeTestStore:   smokeTestStore,
+		smokeTestService: smokeTestService,
+		smokeTestCancels: cancelManager,
 	}
 	srv.registerDomainHandlers()
+	initialized = true
 	return srv
+}
+
+func initStoragePaths(logger *slog.Logger) (*storagepaths.Locator, bool) {
+	paths, err := storagepaths.NewLocator()
+	if err != nil {
+		logger.Error("failed to initialize storage paths", "error", err)
+		return nil, false
+	}
+	if _, err := paths.EnsureAll(); err != nil {
+		logger.Error("failed to prepare storage roots", "error", err)
+		return nil, false
+	}
+	return paths, true
 }
 
 // pipelineInitDeps bundles the services required to build the pipeline stack.
@@ -447,7 +516,7 @@ func initCapturesDomain(paths *storagepaths.Locator, logger *slog.Logger) (*capt
 }
 
 // initTaskOrchestration sets up the task orchestration service with agent manager integration.
-func initTaskOrchestration(dataDir string, pipelineOrchestrator *pipeline.DefaultOrchestrator, logger *slog.Logger) *tasks.Service {
+func initTaskOrchestration(dataDir string, pipelineOrchestrator *pipeline.DefaultOrchestrator, logger *slog.Logger, pipelineAPIURL string) *tasks.Service {
 	if os.Getenv("AGENT_MANAGER_ENABLED") == "false" {
 		return nil
 	}
@@ -466,7 +535,7 @@ func initTaskOrchestration(dataDir string, pipelineOrchestrator *pipeline.Defaul
 	cancel()
 
 	pipelineStore := &pipelineStoreAdapter{store: pipelineOrchestrator}
-	return tasks.NewService(invStore, pipelineStore, agentSvc, nil)
+	return tasks.NewService(invStore, pipelineStore, agentSvc, nil, pipelineAPIURL)
 }
 
 // registerDomainHandlers configures all API routes organized by domain.
@@ -485,6 +554,7 @@ func (s *Server) registerDomainHandlers() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	s.registerConnectHandlers()
 
 	// ===== Domain Handlers (Screaming Architecture) =====
 	// Note: Preflight and Generation are now pipeline-only (no direct routes)
@@ -492,32 +562,12 @@ func (s *Server) registerDomainHandlers() {
 	// Build domain: /api/v1/desktop/download/*, /api/v1/desktop/webhook/*
 	s.buildHandler.RegisterRoutes(s.router)
 
-	// Telemetry domain: /api/v1/deployment/telemetry*
-	s.telemetryHandler.RegisterRoutes(s.router)
+	// Telemetry raw export remains HTTP; all domain operations are Connect RPCs.
+	s.telemetryHandler.RegisterDownloadRoute(s.router)
 
-	// Records domain: /api/v1/desktop/records*
-	s.recordsHandler.RegisterRoutes(s.router)
+	// Signing is served exclusively by the generated SigningService.
 
-	// Scenario domain: /api/v1/scenarios/desktop-status
-	s.scenarioHandler.RegisterRoutes(s.router)
-
-	// State domain: /api/v1/scenarios/{scenario}/state*
-	if s.stateHandler != nil {
-		s.stateHandler.RegisterRoutes(s.router)
-	}
-
-	// System domain: /api/v1/status, /api/v1/templates*, /api/v1/system/wine/*
-	s.systemHandler.RegisterRoutes(s.router)
-
-	// Signing domain: /api/v1/signing/*
-	signingHandler := signing.NewHandler()
-	signingHandler.RegisterRoutes(s.router)
-
-	// Pipeline orchestration - one-button deployment: /api/v1/pipeline/*
-	s.pipelineHandler.RegisterRoutes(s.router)
-
-	// Deploy target management: /api/v1/deploy-targets/*
-	s.deployHandler.RegisterRoutes(s.router)
+	// Pipeline orchestration is served exclusively by the generated PipelineService.
 
 	// Live desktop: /api/v1/livedesktop/*
 	if s.liveDesktopHandler != nil {
@@ -530,17 +580,9 @@ func (s *Server) registerDomainHandlers() {
 	}
 
 	// Task orchestration - agent spawning for pipeline investigations
-	s.registerTaskRoutes()
 
 	// ===== Legacy Routes (Not Yet Fully Migrated) =====
 	// These handlers remain on Server struct until they're migrated to domain modules
-
-	// Probe and proxy utilities
-	s.router.HandleFunc("/api/v1/desktop/probe", s.probeEndpointsHandler).Methods("POST")
-	s.router.HandleFunc("/api/v1/desktop/proxy-hints/{scenario_name}", s.proxyHintsHandler).Methods("GET")
-
-	// Port resolution
-	s.router.HandleFunc("/api/v1/ports/{scenario}/{port_name}", s.getScenarioPortHandler).Methods("GET")
 
 	// Docs
 	s.router.HandleFunc("/api/v1/docs/manifest", s.docsManifestHandler).Methods("GET")
@@ -554,6 +596,7 @@ func (s *Server) registerDomainHandlers() {
 	s.router.HandleFunc("/api/v1/icons/preview", s.iconPreviewHandler).Methods("GET")
 
 	// Setup middleware - CORS must be registered before logging to handle OPTIONS requests correctly
+	s.router.Use(httputil.SecurityHeaders())
 	s.router.Use(httputil.CORSMiddlewareFromEnv(s.logger))
 	s.router.Use(httputil.LoggingMiddlewareStdout())
 }
@@ -563,8 +606,47 @@ func (s *Server) Router() http.Handler {
 	s.logger.Info("initializing server",
 		"service", "scenario-to-desktop-api",
 		"port", s.port,
-		"endpoints", []string{"/api/v1/health", "/api/v1/status", "/api/v1/desktop/generate"})
-	return handlers.RecoveryHandler()(s.router)
+		"endpoints", []string{"/api/v1/health"})
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, s.routedDB, s.fileRoots)
+	rootMux.Handle("/", handlers.RecoveryHandler()(s.router))
+	return apihttp.TestModeMiddleware(rootMux)
+}
+
+// Shutdown stops scenario-owned background work after the HTTP server has
+// stopped accepting requests. It is safe to call more than once.
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	if s.lifecycleCancel != nil {
+		s.lifecycleCancel()
+	}
+	var shutdownErr error
+	if preflightJanitor, ok := s.preflightService.(interface {
+		StopJanitor(context.Context) error
+	}); ok {
+		if err := preflightJanitor.StopJanitor(ctx); err != nil {
+			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("stop preflight janitor: %w", err))
+		}
+	}
+
+	if s.liveDesktopService != nil {
+		for _, session := range s.liveDesktopService.ListSessions() {
+			if err := s.liveDesktopService.StopSession(session.ID); err != nil {
+				s.logger.Warn("failed to stop live desktop session during shutdown", "session_id", session.ID, "error", err)
+			}
+		}
+	}
+	if s.taskSvc != nil {
+		if err := s.taskSvc.Shutdown(ctx); err != nil {
+			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shut down task service: %w", err))
+		}
+	}
+	if s.routedDB != nil {
+		shutdownErr = errors.Join(shutdownErr, s.routedDB.Close())
+	}
+	return shutdownErr
 }
 
 // Main function
@@ -619,6 +701,13 @@ func main() {
 
 	// Create server
 	srv := NewServer(port)
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			globalLogger.Error("scenario shutdown incomplete", "error", err)
+		}
+	}()
 
 	// Start with graceful shutdown via api-core
 	if err := server.Run(server.Config{
@@ -626,7 +715,7 @@ func main() {
 		Port:    strconv.Itoa(port),
 	}); err != nil {
 		globalLogger.Error("server failed", "error", err)
-		log.Fatal(err)
+		return
 	}
 }
 
@@ -654,11 +743,11 @@ func runStorageRelocate(args []string) error {
 	}
 
 	for _, moved := range result.Moved {
-		fmt.Printf("moved %-4s %s -> %s\n", moved.Kind, moved.Source, moved.Destination)
+		_, _ = fmt.Fprintf(os.Stdout, "moved %-4s %s -> %s\n", moved.Kind, moved.Source, moved.Destination)
 	}
 	for _, skipped := range result.Skipped {
-		fmt.Printf("skipped %-4s %s\n", skipped.Kind, skipped.Source)
+		_, _ = fmt.Fprintf(os.Stdout, "skipped %-4s %s\n", skipped.Kind, skipped.Source)
 	}
-	fmt.Printf("storage relocation complete: %d moved, %d skipped\n", len(result.Moved), len(result.Skipped))
+	_, _ = fmt.Fprintf(os.Stdout, "storage relocation complete: %d moved, %d skipped\n", len(result.Moved), len(result.Skipped))
 	return nil
 }

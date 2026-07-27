@@ -510,3 +510,22 @@ func TestGenerateRequestID(t *testing.T) {
 		t.Error("expected different request IDs")
 	}
 }
+
+func TestSecurityHeaders(t *testing.T) {
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/health", nil)
+	SecurityHeaders()(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})).ServeHTTP(response, request)
+
+	for header, want := range map[string]string{
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "DENY",
+		"X-XSS-Protection":          "0",
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+	} {
+		if got := response.Header().Get(header); got != want {
+			t.Errorf("%s = %q, want %q", header, got, want)
+		}
+	}
+}

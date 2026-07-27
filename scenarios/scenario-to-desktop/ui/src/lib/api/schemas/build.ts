@@ -30,7 +30,11 @@ export type PlatformBuildStatus = z.infer<typeof PlatformBuildStatusSchema>;
  * Smoke test status values.
  * @see SmokeTestStatus enum in domain/build_pb.ts
  */
-export const SmokeTestStatusEnumSchema = z.enum(["running", "passed", "failed"]);
+export const SmokeTestStatusEnumSchema = z.enum([
+  "running",
+  "passed",
+  "failed",
+]);
 export type SmokeTestStatusEnum = z.infer<typeof SmokeTestStatusEnumSchema>;
 
 /**
@@ -64,7 +68,9 @@ export const BuildStatusResponseSchema = z.object({
   framework: z.union([FrameworkSchema, z.string()]).optional(),
   template_type: z.union([TemplateTypeSchema, z.string()]).optional(),
   platforms: z.array(z.union([PlatformSchema, z.string()])),
-  requested_platforms: z.array(z.union([PlatformSchema, z.string()])).optional(),
+  requested_platforms: z
+    .array(z.union([PlatformSchema, z.string()]))
+    .optional(),
   platform_results: z.record(PlatformBuildResultSchema).optional(),
   output_path: z.string(),
   created_at: z.string(),
@@ -98,7 +104,9 @@ export const SmokeTestStatusResponseSchema = z.object({
   telemetry_uploaded: z.boolean().optional(),
   telemetry_upload_error: z.string().optional(),
 });
-export type SmokeTestStatusResponse = z.infer<typeof SmokeTestStatusResponseSchema>;
+export type SmokeTestStatusResponse = z.infer<
+  typeof SmokeTestStatusResponseSchema
+>;
 
 // Backward compatibility alias
 export const SmokeTestStatusSchema = SmokeTestStatusResponseSchema;
@@ -145,6 +153,6 @@ export const DesktopRecordResponseSchema = z.object({
       build_state: z.string().optional(),
       smoke_test_id: z.string().optional(),
       screen_recording: ScreenRecordingViewSchema.optional(),
-    })
+    }),
   ),
 });

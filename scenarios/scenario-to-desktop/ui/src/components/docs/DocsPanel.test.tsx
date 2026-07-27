@@ -2,11 +2,12 @@ import { fireEvent, render, screen, waitFor } from "@/test-utils";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { DocsPanel } from "./DocsPanel";
 
-const { fetchDocsManifestMock, fetchDocContentMock, writeToClipboardMock } = vi.hoisted(() => ({
-  fetchDocsManifestMock: vi.fn(),
-  fetchDocContentMock: vi.fn(),
-  writeToClipboardMock: vi.fn(),
-}));
+const { fetchDocsManifestMock, fetchDocContentMock, writeToClipboardMock } =
+  vi.hoisted(() => ({
+    fetchDocsManifestMock: vi.fn(),
+    fetchDocContentMock: vi.fn(),
+    writeToClipboardMock: vi.fn(),
+  }));
 
 vi.mock("../../lib/api", () => ({
   fetchDocsManifest: fetchDocsManifestMock,
@@ -26,8 +27,16 @@ const manifest = {
       id: "guides",
       title: "Guides",
       documents: [
-        { path: "guides/getting-started.md", title: "Getting started", description: "Set up the desktop wrapper" },
-        { path: "guides/runbook.md", title: "Operator runbook", description: "Operate a build" },
+        {
+          path: "guides/getting-started.md",
+          title: "Getting started",
+          description: "Set up the desktop wrapper",
+        },
+        {
+          path: "guides/runbook.md",
+          title: "Operator runbook",
+          description: "Operate a build",
+        },
       ],
     },
   ],
@@ -36,7 +45,10 @@ const manifest = {
 describe("DocsPanel", () => {
   beforeEach(() => {
     fetchDocsManifestMock.mockResolvedValue(manifest);
-    fetchDocContentMock.mockImplementation(async (path: string) => ({ path, content: "" }));
+    fetchDocContentMock.mockImplementation(async (path: string) => ({
+      path,
+      content: "",
+    }));
     writeToClipboardMock.mockResolvedValue({ success: true });
   });
 
@@ -45,9 +57,13 @@ describe("DocsPanel", () => {
 
     render(<DocsPanel onPathChange={onPathChange} />);
 
-    expect(await screen.findByRole("button", { name: /Getting started/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /Getting started/i }),
+    ).toBeInTheDocument();
     await waitFor(() => {
-      expect(fetchDocContentMock).toHaveBeenCalledWith("guides/getting-started.md");
+      expect(fetchDocContentMock).toHaveBeenCalledWith(
+        "guides/getting-started.md",
+      );
     });
     expect(onPathChange).toHaveBeenLastCalledWith("guides/getting-started.md");
     expect(screen.getByText("guides/getting-started.md")).toBeInTheDocument();
@@ -57,10 +73,16 @@ describe("DocsPanel", () => {
     render(<DocsPanel />);
 
     await screen.findByRole("button", { name: /Getting started/i });
-    fireEvent.change(screen.getByPlaceholderText("Search docs..."), { target: { value: "runbook" } });
+    fireEvent.change(screen.getByPlaceholderText("Search docs..."), {
+      target: { value: "runbook" },
+    });
 
-    expect(screen.getByRole("button", { name: /Operator runbook/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Getting started/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Operator runbook/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Getting started/i }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Operator runbook/i }));
     await waitFor(() => {

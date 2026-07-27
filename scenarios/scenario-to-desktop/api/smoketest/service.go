@@ -4,10 +4,9 @@ package smoketest
 import (
 	"fmt"
 	"log/slog"
-	"time"
-
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
+	"time"
 )
 
 // DefaultService is the default implementation of Service.

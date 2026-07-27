@@ -2,9 +2,8 @@ package generation
 
 import (
 	"bytes"
-	"text/template"
-
 	"scenario-to-desktop-api/signing/types"
+	"text/template"
 )
 
 // notarizeScriptTemplateAPIKey is the template for notarization using API Key (preferred method).
@@ -117,7 +116,7 @@ func generateNotarizeJS(config *types.MacOSSigningConfig) ([]byte, error) {
 		// API Key method (preferred)
 		tmplStr = notarizeScriptTemplateAPIKey
 
-		apiKeyIDEnv := "APPLE_API_KEY_ID"
+		apiKeyIDEnv := "APPLE_API_KEY_ID" // #nosec G101 -- environment variable name, never a credential value
 		apiIssuerEnv := "APPLE_API_ISSUER"
 
 		data = map[string]string{
@@ -138,7 +137,7 @@ func generateNotarizeJS(config *types.MacOSSigningConfig) ([]byte, error) {
 
 		appleIDPasswordEnv := config.AppleIDPasswordEnv
 		if appleIDPasswordEnv == "" {
-			appleIDPasswordEnv = "APPLE_ID_PASSWORD"
+			appleIDPasswordEnv = "APPLE_ID_PASSWORD" // gitleaks:allow -- environment-variable name, never a credential value
 		}
 
 		data = map[string]string{

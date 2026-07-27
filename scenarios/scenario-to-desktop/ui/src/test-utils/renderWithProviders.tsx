@@ -4,11 +4,18 @@
  */
 
 import React from "react";
-import { render, type RenderOptions, type RenderResult } from "@testing-library/react";
+import {
+  render,
+  type RenderOptions,
+  type RenderResult,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 /** Options for renderWithProviders */
-export interface RenderWithProvidersOptions extends Omit<RenderOptions, "wrapper"> {
+export interface RenderWithProvidersOptions extends Omit<
+  RenderOptions,
+  "wrapper"
+> {
   /** Custom QueryClient instance */
   queryClient?: QueryClient;
 }
@@ -36,9 +43,7 @@ export function createTestQueryClient(): QueryClient {
 function createWrapper(queryClient: QueryClient) {
   return function TestWrapper({ children }: { children: React.ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
   };
 }
@@ -59,7 +64,7 @@ function createWrapper(queryClient: QueryClient) {
  */
 export function renderWithProviders(
   ui: React.ReactElement,
-  options: RenderWithProvidersOptions = {}
+  options: RenderWithProvidersOptions = {},
 ): RenderResult & { queryClient: QueryClient } {
   const { queryClient = createTestQueryClient(), ...renderOptions } = options;
   const Wrapper = createWrapper(queryClient);

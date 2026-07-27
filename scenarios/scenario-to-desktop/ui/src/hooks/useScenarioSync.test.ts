@@ -7,6 +7,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
+import { create } from "@bufbuild/protobuf";
+import { PreflightResponseSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 import { useScenarioSync, type UseScenarioSyncProps } from "./useScenarioSync";
 import { useFormStore } from "../store/formStore";
 
@@ -19,7 +21,11 @@ const mockSaveNow = vi.fn().mockResolvedValue(undefined);
 vi.mock("./useScenarioState", () => ({
   useScenarioState: vi.fn(({ onStateLoaded, onStateCleared }) => {
     // Store callbacks for testing
-    (globalThis as unknown as { __testCallbacks: { onStateLoaded?: unknown; onStateCleared?: unknown } }).__testCallbacks = {
+    (
+      globalThis as unknown as {
+        __testCallbacks: { onStateLoaded?: unknown; onStateCleared?: unknown };
+      }
+    ).__testCallbacks = {
       onStateLoaded,
       onStateCleared,
     };
@@ -30,7 +36,10 @@ vi.mock("./useScenarioState", () => ({
       isStale: false,
       pendingChanges: [],
       validationStatus: { valid: true },
-      timestamps: { createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-02T00:00:00Z" },
+      timestamps: {
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-02T00:00:00Z",
+      },
       updateFormState: mockUpdateFormState,
       saveStageResult: mockSaveStageResult,
       clearState: mockClearState,
@@ -48,7 +57,11 @@ function createWrapper() {
     },
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   };
 }
 
@@ -230,13 +243,20 @@ describe("useScenarioSync", () => {
   describe("callbacks", () => {
     it("calls onTemplateChange when state is loaded with template", () => {
       const onTemplateChange = vi.fn();
-      renderHook(
-        () => useScenarioSync({ ...defaultProps, onTemplateChange }),
-        { wrapper: createWrapper() }
-      );
+      renderHook(() => useScenarioSync({ ...defaultProps, onTemplateChange }), {
+        wrapper: createWrapper(),
+      });
 
       // Simulate state loaded callback
-      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { selected_template?: string } }) => void } }).__testCallbacks;
+      const callbacks = (
+        globalThis as unknown as {
+          __testCallbacks: {
+            onStateLoaded?: (state: {
+              form_state?: { selected_template?: string };
+            }) => void;
+          };
+        }
+      ).__testCallbacks;
       if (callbacks.onStateLoaded) {
         act(() => {
           callbacks.onStateLoaded?.({
@@ -254,11 +274,24 @@ describe("useScenarioSync", () => {
       const onPreflightSeedLoaded = vi.fn();
       renderHook(
         () => useScenarioSync({ ...defaultProps, onPreflightSeedLoaded }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       // Simulate state loaded callback
-      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { preflight_result?: unknown; preflight_error?: string; preflight_override?: boolean; preflight_secrets?: Record<string, string> } }) => void } }).__testCallbacks;
+      const callbacks = (
+        globalThis as unknown as {
+          __testCallbacks: {
+            onStateLoaded?: (state: {
+              form_state?: {
+                preflight_result?: unknown;
+                preflight_error?: string;
+                preflight_override?: boolean;
+                preflight_secrets?: Record<string, string>;
+              };
+            }) => void;
+          };
+        }
+      ).__testCallbacks;
       if (callbacks.onStateLoaded) {
         act(() => {
           callbacks.onStateLoaded?.({
@@ -273,7 +306,9 @@ describe("useScenarioSync", () => {
       }
 
       expect(onPreflightSeedLoaded).toHaveBeenCalledWith({
-        result: { validation: { valid: true } },
+        result: create(PreflightResponseSchema, {
+          validation: { valid: true },
+        }),
         error: null,
         override: true,
         secrets: { API_KEY: "secret" },
@@ -284,7 +319,7 @@ describe("useScenarioSync", () => {
       const onBundleSeedLoaded = vi.fn();
       renderHook(
         () => useScenarioSync({ ...defaultProps, onBundleSeedLoaded }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       const mockBundleResult = {
@@ -293,7 +328,15 @@ describe("useScenarioSync", () => {
       };
 
       // Simulate state loaded callback
-      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { bundle_result?: unknown } }) => void } }).__testCallbacks;
+      const callbacks = (
+        globalThis as unknown as {
+          __testCallbacks: {
+            onStateLoaded?: (state: {
+              form_state?: { bundle_result?: unknown };
+            }) => void;
+          };
+        }
+      ).__testCallbacks;
       if (callbacks.onStateLoaded) {
         act(() => {
           callbacks.onStateLoaded?.({
@@ -311,11 +354,15 @@ describe("useScenarioSync", () => {
       const onBundleSeedLoaded = vi.fn();
       renderHook(
         () => useScenarioSync({ ...defaultProps, onBundleSeedLoaded }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       // Simulate state cleared callback
-      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateCleared?: () => void } }).__testCallbacks;
+      const callbacks = (
+        globalThis as unknown as {
+          __testCallbacks: { onStateCleared?: () => void };
+        }
+      ).__testCallbacks;
       if (callbacks.onStateCleared) {
         act(() => {
           callbacks.onStateCleared?.();
@@ -333,14 +380,20 @@ describe("useScenarioSync", () => {
       });
 
       // Simulate state loaded callback with form state
-      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: unknown }) => void } }).__testCallbacks;
+      const callbacks = (
+        globalThis as unknown as {
+          __testCallbacks: {
+            onStateLoaded?: (state: { form_state?: unknown }) => void;
+          };
+        }
+      ).__testCallbacks;
       if (callbacks.onStateLoaded) {
         act(() => {
           callbacks.onStateLoaded?.({
             form_state: {
               app_display_name: "Loaded App",
               app_description: "Loaded Description",
-              framework: "tauri",
+              framework: "electron",
               deployment_mode: "external-server",
               server_type: "node",
               platforms: { win: true, mac: false, linux: true },
@@ -353,7 +406,7 @@ describe("useScenarioSync", () => {
       const formState = useFormStore.getState();
       expect(formState.appMetadata.displayName).toBe("Loaded App");
       expect(formState.appMetadata.description).toBe("Loaded Description");
-      expect(formState.deployment.framework).toBe("tauri");
+      expect(formState.deployment.framework).toBe("electron");
       expect(formState.deployment.mode).toBe("external-server");
       expect(formState.deployment.serverType).toBe("node");
       expect(formState.platforms.mac).toBe(false);
@@ -371,7 +424,11 @@ describe("useScenarioSync", () => {
       });
 
       // Simulate state cleared callback
-      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateCleared?: () => void } }).__testCallbacks;
+      const callbacks = (
+        globalThis as unknown as {
+          __testCallbacks: { onStateCleared?: () => void };
+        }
+      ).__testCallbacks;
       if (callbacks.onStateCleared) {
         act(() => {
           callbacks.onStateCleared?.();

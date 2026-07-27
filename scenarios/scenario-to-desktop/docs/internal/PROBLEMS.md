@@ -21,6 +21,26 @@ production modules would hide the gap rather than resolve it.
 the measured coverage reaches the declared floor, then re-run the Test Genie
 unit phase.
 
+### Mutating Desktop BAS Journeys Need Routed File Isolation (OPEN)
+
+**Severity**: Medium
+**Date Discovered**: 2026-07-26
+
+**Problem**: Six BAS playbooks now cover the generator, preflight, build,
+smoke-test, signing, and live-desktop prerequisite surfaces, but the scenario
+does not yet provide a routed file lease or deterministic built-artifact
+fixture for mutating browser workflows.
+
+**Impact**: Generating wrappers, building installers, saving signing
+configuration, and launching VNC must not be executed by a browser test
+against normal file-backed state. The catalog accurately observes the UI but
+does not claim success-path artifact, signing-save, or VNC-canvas evidence.
+
+**Next Step**: Add an isolated desktop-artifact fixture and routed file lease,
+then add mutating cases labelled `requires_confirmation` and
+`routed_isolation` that assert the generated artifact, build result, smoke
+report, and `@selector/liveDesktop.canvas`.
+
 ## Recently Resolved Issues
 
 ### 1. Business Test Shell Compatibility (RESOLVED - Session 21)

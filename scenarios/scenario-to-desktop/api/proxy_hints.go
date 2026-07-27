@@ -4,18 +4,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"scenario-to-desktop-api/generation"
+	"scenario-to-desktop-api/storagepaths"
 	"strings"
 
-	"github.com/gorilla/mux"
-
-	"scenario-to-desktop-api/generation"
-	httputil "scenario-to-desktop-api/shared/http"
 	sharedpath "scenario-to-desktop-api/shared/path"
-	"scenario-to-desktop-api/storagepaths"
 )
 
 type ProxyHint struct {
@@ -23,21 +19,6 @@ type ProxyHint struct {
 	Source     string `json:"source"`
 	Confidence string `json:"confidence"`
 	Message    string `json:"message"`
-}
-
-func (s *Server) proxyHintsHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	scenario := vars["scenario_name"]
-	if scenario == "" {
-		http.Error(w, "scenario_name is required", http.StatusBadRequest)
-		return
-	}
-
-	hints := s.collectProxyHints(scenario)
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{
-		"scenario": scenario,
-		"hints":    hints,
-	})
 }
 
 func (s *Server) collectProxyHints(scenario string) []ProxyHint {

@@ -4,29 +4,51 @@
  * and form submission logic.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   fetchProxyHints,
   fetchScenarioDesktopStatus,
   fetchBundleManifest,
   probeEndpoints,
-  type BundlePreflightResponse,
+  type PreflightStageDetails,
   type BundleManifestResponse,
   type ProbeResponse,
   type ProxyHintsResponse,
   type PipelineConfig,
 } from "../../lib/api";
-import type { BundleSectionHandle, BundleResult } from "../sections/bundle/BundleSection";
-import type { DesktopConnectionConfig, ScenariosResponse } from "../scenario-inventory/types";
 import {
-  DEFAULT_DEPLOYMENT_MODE,
+  deserializePreflight,
+  serializePreflight,
+} from "../../lib/preflightPersistence";
+import type {
+  BundleSectionHandle,
+  BundleResult,
+} from "../sections/bundle/BundleSection";
+import type {
+  DesktopConnectionConfig,
+  ScenariosResponse,
+} from "../scenario-inventory/types";
+import {
   DEFAULT_SERVER_TYPE,
   SERVER_TYPE_OPTIONS,
   type DeploymentMode,
-  type ServerType
+  type ServerType,
 } from "../../domain/deployment";
 import type { OutputLocation } from "../../domain/generator";
+import {
+  deploymentModeFromFormValue,
+  platformFromFormValue,
+  templateTypeFromFormValue,
+} from "../../lib/pipeline-enums";
+import { StageName } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 import {
   useScenarioState,
   useSigningConfig,
@@ -43,7 +65,7 @@ import {
 } from "../../store";
 import type { FormState } from "../../lib/api";
 import { validateFormInputs } from "../../domain/generator";
-import type { ExposedFormState, ValidationState } from "./GeneratorForm";
+import type { ExposedFormState, ValidationState } from "./types";
 
 interface UseGeneratorFormStateOptions {
   selectedTemplate: string;
@@ -53,7 +75,10 @@ interface UseGeneratorFormStateOptions {
   onScenarioNameChange: (name: string) => void;
   selectionSource?: "inventory" | "manual" | null;
   onOpenSigningTab: (scenario?: string) => void;
-  onGenerateStateChange?: (state: { pending: boolean; error: string | null }) => void;
+  onGenerateStateChange?: (state: {
+    pending: boolean;
+    error: string | null;
+  }) => void;
   onFormStateChange?: (state: ExposedFormState) => void;
   onSubmitHandlerReady?: (submitFn: () => void) => void;
   onValidationStateChange?: (state: ValidationState) => void;
@@ -122,20 +147,39 @@ export function useGeneratorFormState({
   } = formState;
 
   // Destructure for easier access
-  const { displayName: appDisplayName, description: appDescription, iconPath, iconPreviewError } = appMetadata;
+  const {
+    displayName: appDisplayName,
+    description: appDescription,
+    iconPath,
+    iconPreviewError,
+  } = appMetadata;
   const { displayNameEdited, descriptionEdited, iconPathEdited } = appMetadata;
   const { mode: deploymentMode, serverType, framework } = deployment;
   const { locationMode, outputPath } = output;
-  const { proxyUrl, bundleManifestPath, serverPort, localServerPath, localApiEndpoint, autoManageTier1, vrooliBinaryPath, connectionResult, connectionError } = connection;
+  const {
+    proxyUrl,
+    bundleManifestPath,
+    serverPort,
+    localServerPath,
+    localApiEndpoint,
+    autoManageTier1,
+    vrooliBinaryPath,
+    connectionResult,
+    connectionError,
+  } = connection;
   const [preflightSeed, setPreflightSeed] = useState({
-    result: null as BundlePreflightResponse | null,
+    result: null as PreflightStageDetails | null,
     error: null as string | null,
     override: false,
-    secrets: {} as Record<string, string>
+    secrets: {} as Record<string, string>,
   });
   // Bundle result seed from server state - similar pattern to preflightSeed
-  const [bundleResultSeed, setBundleResultSeed] = useState<BundleResult | null>(null);
-  const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
+  const [bundleResultSeed, setBundleResultSeed] = useState<BundleResult | null>(
+    null,
+  );
+  const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(
+    null,
+  );
   const bundleHelperRef = useRef<BundleSectionHandle>(null);
 
   // Pipeline store for preflight
@@ -168,7 +212,7 @@ export function useGeneratorFormState({
 
   // Initialize preflight state from server-persisted seed
   useEffect(() => {
-    if (preflightSeed.secrets && Object.keys(preflightSeed.secrets).length > 0) {
+    if (Object.keys(preflightSeed.secrets).length > 0) {
       setPreflightSecrets(preflightSeed.secrets);
     }
     if (preflightSeed.override) {
@@ -188,12 +232,17 @@ export function useGeneratorFormState({
 
   // Wrapper for running preflight with the right config
   const _runPreflight = useCallback(
-    async (secretsOverride?: Record<string, string>, configOverride?: Partial<PipelineConfig>) => {
+    async (
+      secretsOverride?: Record<string, string>,
+      configOverride?: Partial<PipelineConfig>,
+    ) => {
       if (!scenarioName) return;
       const manifestPath = bundleManifestPath.trim();
       if (!manifestPath && isBundled) return;
 
-      const filteredSecrets = Object.entries(secretsOverride ?? preflightSecrets)
+      const filteredSecrets = Object.entries(
+        secretsOverride ?? preflightSecrets,
+      )
         .filter(([, value]) => value.trim())
         .reduce<Record<string, string>>((acc, [key, value]) => {
           acc[key] = value;
@@ -203,12 +252,20 @@ export function useGeneratorFormState({
       setPreflightOverride(false);
 
       await runPreflightStage({
-        bundle_manifest_path: manifestPath || undefined,
-        preflight_secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
+        bundleManifestPath: manifestPath || undefined,
+        preflightSecrets:
+          Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
         ...configOverride,
       });
     },
-    [scenarioName, bundleManifestPath, isBundled, preflightSecrets, runPreflightStage, setPreflightOverride]
+    [
+      scenarioName,
+      bundleManifestPath,
+      isBundled,
+      preflightSecrets,
+      runPreflightStage,
+      setPreflightOverride,
+    ],
   );
 
   const {
@@ -217,27 +274,36 @@ export function useGeneratorFormState({
     loading: signingLoading,
     enabledForBuild: signingEnabledForBuild,
     setEnabledForBuild: setSigningEnabledForBuild,
-    refreshAll: refreshSigning
+    refreshAll: refreshSigning,
   } = useSigningConfig({ scenarioName });
 
-  const resetFormState = useCallback((resetTemplate: boolean) => {
-    // Reset all hook-managed form state
-    resetHookState();
-    // Reset remaining non-hook state
-    setSigningEnabledForBuild(false);
-    setLastLoadedScenario(null);
-    clearValidationErrors();
-    setPreflightSeed({
-      result: null,
-      error: null,
-      override: false,
-      secrets: {}
-    });
-    resetPreflight();
-    if (resetTemplate) {
-      onTemplateChange("basic");
-    }
-  }, [resetHookState, onTemplateChange, resetPreflight, setSigningEnabledForBuild, clearValidationErrors]);
+  const resetFormState = useCallback(
+    (resetTemplate: boolean) => {
+      // Reset all hook-managed form state
+      resetHookState();
+      // Reset remaining non-hook state
+      setSigningEnabledForBuild(false);
+      setLastLoadedScenario(null);
+      clearValidationErrors();
+      setPreflightSeed({
+        result: null,
+        error: null,
+        override: false,
+        secrets: {},
+      });
+      resetPreflight();
+      if (resetTemplate) {
+        onTemplateChange("basic");
+      }
+    },
+    [
+      resetHookState,
+      onTemplateChange,
+      resetPreflight,
+      setSigningEnabledForBuild,
+      clearValidationErrors,
+    ],
+  );
 
   // Server-side state persistence via useScenarioState
   const {
@@ -255,7 +321,6 @@ export function useGeneratorFormState({
     scenarioName,
     enabled: Boolean(scenarioName),
     onStateLoaded: (state) => {
-      if (!state.form_state) return;
       const fs = state.form_state;
 
       // Hydrate form state from server using the hook's hydration method
@@ -270,9 +335,9 @@ export function useGeneratorFormState({
           iconPreviewError: false,
         },
         deployment: {
-          framework: fs.framework || "electron",
-          serverType: (fs.server_type as ServerType) ?? DEFAULT_SERVER_TYPE,
-          mode: (fs.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE,
+          framework: "electron",
+          serverType: fs.server_type as ServerType,
+          mode: fs.deployment_mode as DeploymentMode,
         },
         platforms: {
           win: fs.platforms?.win ?? true,
@@ -280,7 +345,7 @@ export function useGeneratorFormState({
           linux: fs.platforms?.linux ?? true,
         },
         output: {
-          locationMode: (fs.location_mode as OutputLocation) ?? "proper",
+          locationMode: fs.location_mode as OutputLocation,
           outputPath: fs.output_path ?? "",
         },
         connection: {
@@ -291,7 +356,8 @@ export function useGeneratorFormState({
           localApiEndpoint: fs.local_api_endpoint ?? DEFAULT_LOCAL_API_ENDPOINT,
           autoManageTier1: fs.auto_manage_tier1 ?? false,
           vrooliBinaryPath: fs.vrooli_binary_path ?? "vrooli",
-          connectionResult: (fs.connection_result as ProbeResponse | null) ?? null,
+          connectionResult:
+            (fs.connection_result as ProbeResponse | null) ?? null,
           connectionError: fs.connection_error ?? null,
         },
       });
@@ -303,13 +369,13 @@ export function useGeneratorFormState({
       }
       // Apply preflight seed from server state
       setPreflightSeed({
-        result: fs.preflight_result ?? null,
+        result: deserializePreflight(fs.preflight_result),
         error: fs.preflight_error ?? null,
         override: fs.preflight_override ?? false,
-        secrets: fs.preflight_secrets ?? {}
+        secrets: fs.preflight_secrets ?? {},
       });
       // Apply bundle result seed from server state
-      setBundleResultSeed((fs.bundle_result as BundleResult) ?? null);
+      setBundleResultSeed(fs.bundle_result as BundleResult);
     },
     onStateCleared: () => {
       resetFormState(true);
@@ -317,7 +383,7 @@ export function useGeneratorFormState({
         result: null,
         error: null,
         override: false,
-        secrets: {}
+        secrets: {},
       });
       setBundleResultSeed(null);
       resetPreflight();
@@ -334,48 +400,68 @@ export function useGeneratorFormState({
       hasInitiallyLoaded
     ) {
       void saveStageResult("preflight", preflightResult, {
-        preflight_result: preflightResult,
+        preflight_result: serializePreflight(preflightResult),
         preflight_error: null,
       });
     }
     prevPreflightResultRef.current = preflightResult;
-  }, [preflightResult, preflightRunStatus, scenarioName, hasInitiallyLoaded, saveStageResult]);
+  }, [
+    preflightResult,
+    preflightRunStatus,
+    scenarioName,
+    hasInitiallyLoaded,
+    saveStageResult,
+  ]);
 
   // Convert local state to FormState for server persistence
-  const formStateForServer = useMemo((): Partial<FormState> => ({
-    selected_template: selectedTemplate,
-    app_display_name: appMetadata.displayName,
-    app_description: appMetadata.description,
-    icon_path: appMetadata.iconPath,
-    display_name_edited: appMetadata.displayNameEdited,
-    description_edited: appMetadata.descriptionEdited,
-    icon_path_edited: appMetadata.iconPathEdited,
-    framework: deployment.framework,
-    server_type: deployment.serverType,
-    deployment_mode: deployment.mode,
-    platforms,
-    location_mode: output.locationMode,
-    output_path: output.outputPath,
-    proxy_url: connection.proxyUrl,
-    bundle_manifest_path: connection.bundleManifestPath,
-    server_port: connection.serverPort,
-    local_server_path: connection.localServerPath,
-    local_api_endpoint: connection.localApiEndpoint,
-    auto_manage_tier1: connection.autoManageTier1,
-    vrooli_binary_path: connection.vrooliBinaryPath,
-    connection_result: connection.connectionResult,
-    connection_error: connection.connectionError,
-    preflight_result: preflightResult,
-    preflight_error: preflightError,
-    preflight_override: preflightOverride,
-    preflight_secrets: preflightSecrets,
-    signing_enabled_for_build: signingEnabledForBuild,
-    bundle_result: bundleResultSeed
-  }), [
-    selectedTemplate, appMetadata, deployment, output, platforms, connection,
-    preflightResult, preflightError, preflightOverride, preflightSecrets,
-    signingEnabledForBuild, bundleResultSeed
-  ]);
+  const formStateForServer = useMemo(
+    (): Partial<FormState> => ({
+      selected_template: selectedTemplate,
+      app_display_name: appMetadata.displayName,
+      app_description: appMetadata.description,
+      icon_path: appMetadata.iconPath,
+      display_name_edited: appMetadata.displayNameEdited,
+      description_edited: appMetadata.descriptionEdited,
+      icon_path_edited: appMetadata.iconPathEdited,
+      framework: deployment.framework,
+      server_type: deployment.serverType,
+      deployment_mode: deployment.mode,
+      platforms,
+      location_mode: output.locationMode,
+      output_path: output.outputPath,
+      proxy_url: connection.proxyUrl,
+      bundle_manifest_path: connection.bundleManifestPath,
+      server_port: connection.serverPort,
+      local_server_path: connection.localServerPath,
+      local_api_endpoint: connection.localApiEndpoint,
+      auto_manage_tier1: connection.autoManageTier1,
+      vrooli_binary_path: connection.vrooliBinaryPath,
+      connection_result: connection.connectionResult,
+      connection_error: connection.connectionError,
+      preflight_result: preflightResult
+        ? serializePreflight(preflightResult)
+        : null,
+      preflight_error: preflightError,
+      preflight_override: preflightOverride,
+      preflight_secrets: preflightSecrets,
+      signing_enabled_for_build: signingEnabledForBuild,
+      bundle_result: bundleResultSeed,
+    }),
+    [
+      selectedTemplate,
+      appMetadata,
+      deployment,
+      output,
+      platforms,
+      connection,
+      preflightResult,
+      preflightError,
+      preflightOverride,
+      preflightSecrets,
+      signingEnabledForBuild,
+      bundleResultSeed,
+    ],
+  );
 
   // Debounced save to server when form state changes
   const prevFormStateRef = useRef<string>("");
@@ -399,7 +485,7 @@ export function useGeneratorFormState({
     updateFormState(formStateForServer);
   }, [scenarioName, formStateForServer, updateFormState, hasInitiallyLoaded]);
 
-  // Legacy compatibility
+  // Server-state helpers used by the generator flow.
   const draftTimestamps = serverTimestamps;
   const draftLoadedScenario = serverFormState ? scenarioName : null;
   const clearDraft = clearState;
@@ -414,14 +500,15 @@ export function useGeneratorFormState({
         bundle_result: result,
       });
     },
-    [scenarioName, hasInitiallyLoaded, saveStageResult]
+    [scenarioName, hasInitiallyLoaded, saveStageResult],
   );
 
   // Fetch available scenarios
-  const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
-    queryKey: ['scenarios-desktop-status'],
-    queryFn: fetchScenarioDesktopStatus,
-  });
+  const { data: scenariosData, isLoading: loadingScenarios } =
+    useQuery<ScenariosResponse>({
+      queryKey: ["scenarios-desktop-status"],
+      queryFn: fetchScenarioDesktopStatus,
+    });
 
   // Pipeline store for generating
   const runStage = usePipelineStore((s) => s.runStage);
@@ -430,7 +517,8 @@ export function useGeneratorFormState({
   const storeErrorInfo = usePipelineStore((s) => s.errorInfo);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
-  const generateErrorMessage = generateError ?? (storeErrorInfo?.message || null);
+  const generateErrorMessage =
+    generateError ?? (storeErrorInfo?.message || null);
   const isGenerateError = Boolean(generateError) || Boolean(storeErrorInfo);
 
   const connectionMutation = useMutation({
@@ -447,20 +535,28 @@ export function useGeneratorFormState({
     onError: (error: Error) => {
       setConnectionError(error.message);
       setConnectionResult(null);
-    }
+    },
   });
 
   useEffect(() => {
     if (!onGenerateStateChange) {
       return;
     }
-    onGenerateStateChange({ pending: isSubmittingGenerate || isGenerating, error: generateErrorMessage });
-  }, [isSubmittingGenerate, isGenerating, generateErrorMessage, onGenerateStateChange]);
+    onGenerateStateChange({
+      pending: isSubmittingGenerate || isGenerating,
+      error: generateErrorMessage,
+    });
+  }, [
+    isSubmittingGenerate,
+    isGenerating,
+    generateErrorMessage,
+    onGenerateStateChange,
+  ]);
 
   // Memoize selectedScenario
   const selectedScenario = useMemo(
     () => scenariosData?.scenarios.find((s) => s.name === scenarioName),
-    [scenariosData?.scenarios, scenarioName]
+    [scenariosData?.scenarios, scenarioName],
   );
 
   // Apply scenario defaults ONLY when selecting a new scenario
@@ -472,30 +568,39 @@ export function useGeneratorFormState({
       return;
     }
     if (!hasInitiallyLoaded) return;
-    const hasServerAppMetadata = serverFormState && (
-      serverFormState.app_display_name ||
-      serverFormState.app_description ||
-      serverFormState.icon_path
-    );
+    const hasServerAppMetadata =
+      serverFormState &&
+      (serverFormState.app_display_name ||
+        serverFormState.app_description ||
+        serverFormState.icon_path);
     if (hasServerAppMetadata) return;
     if (!selectedScenario) return;
-    if (!displayNameEdited) setAppDisplayName(selectedScenario.service_display_name || "");
-    if (!descriptionEdited) setAppDescription(selectedScenario.service_description || "");
+    if (!displayNameEdited)
+      setAppDisplayName(selectedScenario.service_display_name || "");
+    if (!descriptionEdited)
+      setAppDescription(selectedScenario.service_description || "");
     if (!iconPathEdited) setIconPath(selectedScenario.service_icon_path || "");
   }, [
-    scenarioName, selectedScenario, hasInitiallyLoaded, serverFormState,
-    displayNameEdited, descriptionEdited, iconPathEdited,
-    setAppDisplayName, setAppDescription, setIconPath
+    scenarioName,
+    selectedScenario,
+    hasInitiallyLoaded,
+    serverFormState,
+    displayNameEdited,
+    descriptionEdited,
+    iconPathEdited,
+    setAppDisplayName,
+    setAppDescription,
+    setIconPath,
   ]);
 
   const { data: proxyHints } = useQuery<ProxyHintsResponse | null>({
-    queryKey: ['proxy-hints', scenarioName],
+    queryKey: ["proxy-hints", scenarioName],
     queryFn: async () => {
       if (!scenarioName) return null;
       try {
         return await fetchProxyHints(scenarioName);
       } catch (error) {
-        console.warn('Failed to load proxy hints', error);
+        console.warn("Failed to load proxy hints", error);
         return null;
       }
     },
@@ -510,7 +615,7 @@ export function useGeneratorFormState({
       if (!path) return Promise.resolve(null);
       return fetchBundleManifest({ bundle_manifest_path: path });
     },
-    enabled: Boolean(bundleManifestPath.trim())
+    enabled: Boolean(bundleManifestPath.trim()),
   });
 
   // Notify parent of form state changes
@@ -525,22 +630,40 @@ export function useGeneratorFormState({
       bundleHelperRef,
     });
   }, [
-    bundleManifestPath, isBundled, bundleManifestResp?.manifest,
-    onFormStateChange, setBundleManifestPath, handleBundleComplete, bundleHelperRef,
+    bundleManifestPath,
+    isBundled,
+    bundleManifestResp?.manifest,
+    onFormStateChange,
+    setBundleManifestPath,
+    handleBundleComplete,
+    bundleHelperRef,
   ]);
 
-  const applySavedConnection = useCallback((config?: DesktopConnectionConfig | null) => {
-    if (!config) return;
-    setDeploymentMode((config.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE);
-    setProxyUrl(config.proxy_url ?? config.server_url ?? "");
-    setAutoManageTier1(config.auto_manage_vrooli ?? false);
-    setVrooliBinaryPath(config.vrooli_binary_path ?? "vrooli");
-    setBundleManifestPath(config.bundle_manifest_path ?? "");
-    if (config.app_display_name) setAppDisplayName(config.app_display_name);
-    if (config.app_description) setAppDescription(config.app_description);
-    if (config.icon) setIconPath(config.icon);
-    if (config.server_type) setServerType((config.server_type as ServerType) ?? DEFAULT_SERVER_TYPE);
-  }, [setDeploymentMode, setProxyUrl, setAutoManageTier1, setVrooliBinaryPath, setBundleManifestPath, setAppDisplayName, setAppDescription, setIconPath, setServerType]);
+  const applySavedConnection = useCallback(
+    (config?: DesktopConnectionConfig | null) => {
+      if (!config) return;
+      setDeploymentMode(config.deployment_mode as DeploymentMode);
+      setProxyUrl(config.proxy_url ?? config.server_url ?? "");
+      setAutoManageTier1(config.auto_manage_vrooli ?? false);
+      setVrooliBinaryPath(config.vrooli_binary_path ?? "vrooli");
+      setBundleManifestPath(config.bundle_manifest_path ?? "");
+      if (config.app_display_name) setAppDisplayName(config.app_display_name);
+      if (config.app_description) setAppDescription(config.app_description);
+      if (config.icon) setIconPath(config.icon);
+      if (config.server_type) setServerType(config.server_type as ServerType);
+    },
+    [
+      setDeploymentMode,
+      setProxyUrl,
+      setAutoManageTier1,
+      setVrooliBinaryPath,
+      setBundleManifestPath,
+      setAppDisplayName,
+      setAppDescription,
+      setIconPath,
+      setServerType,
+    ],
+  );
 
   useEffect(() => {
     if (!scenarioName) return;
@@ -552,7 +675,13 @@ export function useGeneratorFormState({
     if (draftLoadedScenario === scenarioName) return;
     applySavedConnection(connectionConfig);
     setLastLoadedScenario(configKey);
-  }, [scenarioName, selectedScenario?.connection_config, lastLoadedScenario, draftLoadedScenario, applySavedConnection]);
+  }, [
+    scenarioName,
+    selectedScenario?.connection_config,
+    lastLoadedScenario,
+    draftLoadedScenario,
+    applySavedConnection,
+  ]);
 
   useEffect(() => {
     if (connectionDecision.kind === "bundled-runtime") {
@@ -563,7 +692,13 @@ export function useGeneratorFormState({
         setAutoManageTier1(false);
       }
     }
-  }, [autoManageTier1, connectionDecision, serverType, setAutoManageTier1, setServerType]);
+  }, [
+    autoManageTier1,
+    connectionDecision,
+    serverType,
+    setAutoManageTier1,
+    setServerType,
+  ]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -574,12 +709,15 @@ export function useGeneratorFormState({
 
       const outputPathForRequest = locationMode === "custom" ? outputPath : "";
 
-      const effectivePreflightResult = preflightResult ?? serverFormState?.preflight_result ?? null;
+      const effectivePreflightResult =
+        preflightResult ??
+        deserializePreflight(serverFormState?.preflight_result) ??
+        null;
       const effectivePreflightOk = effectivePreflightResult
         ? Boolean(
             effectivePreflightResult.validation?.valid &&
             effectivePreflightResult.ready?.ready &&
-            missingPreflightSecrets.length === 0
+            missingPreflightSecrets.length === 0,
           )
         : preflightOk;
 
@@ -608,26 +746,30 @@ export function useGeneratorFormState({
       }
 
       const pipelineConfig: Partial<PipelineConfig> = {
-        template_type: selectedTemplate,
-        deployment_mode: deploymentMode === "bundled" ? "bundled" : "proxy",
-        proxy_url: proxyUrl || undefined,
-        platforms: selectedPlatformsList,
+        templateType: templateTypeFromFormValue(selectedTemplate),
+        deploymentMode: deploymentModeFromFormValue(deploymentMode),
+        proxyUrl: proxyUrl || undefined,
+        platforms: selectedPlatformsList.map(platformFromFormValue),
       };
 
-      const pipelineId = await runStage("generate", pipelineConfig);
+      const pipelineId = await runStage(StageName.GENERATE, pipelineConfig);
       onBuildStart?.(pipelineId);
     } catch (err) {
       console.error("[GeneratorForm] Unexpected error during submit:", err);
-      const message = err instanceof Error ? err.message : "An unexpected error occurred. Check the browser console for details.";
+      const message =
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred. Check the browser console for details.";
       setGenerateError(message);
     }
   };
 
   const handleDeploymentChange = (nextMode: DeploymentMode) => {
     setDeploymentMode(nextMode);
-    const nextAllowed: ServerType[] = nextMode === "bundled" || nextMode === "cloud-api"
-      ? ["external"]
-      : SERVER_TYPE_OPTIONS.map((option) => option.value);
+    const nextAllowed: ServerType[] =
+      nextMode === "bundled" || nextMode === "cloud-api"
+        ? ["external"]
+        : SERVER_TYPE_OPTIONS.map((option) => option.value);
     if (!nextAllowed.includes(serverType)) {
       setServerType(nextAllowed[0] ?? DEFAULT_SERVER_TYPE);
     }
@@ -635,7 +777,9 @@ export function useGeneratorFormState({
 
   const connectionTester = {
     isPending: connectionMutation.isPending,
-    mutate: () => connectionMutation.mutate(),
+    mutate: () => {
+      connectionMutation.mutate();
+    },
   };
 
   const draftUpdatedLabel = draftTimestamps?.updatedAt
@@ -651,7 +795,7 @@ export function useGeneratorFormState({
       void cancelPreflightPipeline();
     }
     void resetCurrentPipeline();
-    clearDraft();
+    void clearDraft();
     resetFormState(true);
   };
 
@@ -661,7 +805,7 @@ export function useGeneratorFormState({
 
   const triggerSubmit = useCallback(() => {
     const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleSubmitRef.current(syntheticEvent);
+    void handleSubmitRef.current(syntheticEvent);
   }, []);
 
   // Expose submit handler to parent
@@ -682,55 +826,116 @@ export function useGeneratorFormState({
       isUpdateMode,
     });
   }, [
-    onValidationStateChange, validationErrors, clearValidationErrors,
-    isSubmittingGenerate, isGenerating, isGenerateError, generateErrorMessage, isUpdateMode,
+    onValidationStateChange,
+    validationErrors,
+    clearValidationErrors,
+    isSubmittingGenerate,
+    isGenerating,
+    isGenerateError,
+    generateErrorMessage,
+    isUpdateMode,
   ]);
 
   return {
     // Modals
-    modals, openModal, closeModal,
+    modals,
+    openModal,
+    closeModal,
 
     // Form field values and setters
-    appMetadata, appDisplayName, appDescription, iconPath, iconPreviewError, iconPreviewUrl,
-    setAppDisplayName, setAppDescription, setIconPath, setIconPreviewError,
-    deployment, deploymentMode, serverType, framework,
-    setFramework, setServerType,
-    output, locationMode, outputPath,
-    setLocationMode, setOutputPath,
-    platforms, handlePlatformChange,
-    connection, proxyUrl, bundleManifestPath, serverPort, localServerPath,
-    localApiEndpoint, autoManageTier1, vrooliBinaryPath, connectionResult, connectionError,
-    setProxyUrl, setBundleManifestPath, setServerPort, setLocalServerPath,
-    setLocalApiEndpoint, setAutoManageTier1, setVrooliBinaryPath,
+    appMetadata,
+    appDisplayName,
+    appDescription,
+    iconPath,
+    iconPreviewError,
+    iconPreviewUrl,
+    setAppDisplayName,
+    setAppDescription,
+    setIconPath,
+    setIconPreviewError,
+    deployment,
+    deploymentMode,
+    serverType,
+    framework,
+    setFramework,
+    setServerType,
+    output,
+    locationMode,
+    outputPath,
+    setLocationMode,
+    setOutputPath,
+    platforms,
+    handlePlatformChange,
+    connection,
+    proxyUrl,
+    bundleManifestPath,
+    serverPort,
+    localServerPath,
+    localApiEndpoint,
+    autoManageTier1,
+    vrooliBinaryPath,
+    connectionResult,
+    connectionError,
+    setProxyUrl,
+    setBundleManifestPath,
+    setServerPort,
+    setLocalServerPath,
+    setLocalApiEndpoint,
+    setAutoManageTier1,
+    setVrooliBinaryPath,
 
     // Derived state
-    connectionDecision, isBundled, requiresRemoteConfig,
-    standardOutputPath, stagingPreviewPath, selectedPlatformsList,
-    allowedServerTypes, isCustomLocation, isUpdateMode,
-    scenarioLocked, setScenarioLocked,
+    connectionDecision,
+    isBundled,
+    requiresRemoteConfig,
+    standardOutputPath,
+    stagingPreviewPath,
+    selectedPlatformsList,
+    allowedServerTypes,
+    isCustomLocation,
+    isUpdateMode,
+    scenarioLocked,
+    setScenarioLocked,
 
     // Validation
-    validationErrors, clearValidationErrors,
+    validationErrors,
+    clearValidationErrors,
 
     // Server state
-    validationStatus, stateSaving, isStale, pendingChanges,
+    validationStatus,
+    stateSaving,
+    isStale,
+    pendingChanges,
 
     // Scenarios
-    scenariosData, loadingScenarios, selectedScenario,
+    scenariosData,
+    loadingScenarios,
+    selectedScenario,
 
     // Signing
-    signingConfig, signingReadiness, signingLoading,
-    signingEnabledForBuild, setSigningEnabledForBuild, refreshSigning,
+    signingConfig,
+    signingReadiness,
+    signingLoading,
+    signingEnabledForBuild,
+    setSigningEnabledForBuild,
+    refreshSigning,
 
     // Connection
-    connectionTester, proxyHints,
+    connectionTester,
+    proxyHints,
 
     // Labels
-    draftCreatedLabel, draftUpdatedLabel,
+    draftCreatedLabel,
+    draftUpdatedLabel,
 
     // Submission
-    handleSubmit, handleDeploymentChange, handleReset,
-    isSubmittingGenerate, isGenerating, isGenerateError, generateErrorMessage,
+    handleSubmit,
+    handleDeploymentChange,
+    handleReset,
+    isSubmittingGenerate,
+    isGenerating,
+    isGenerateError,
+    generateErrorMessage,
 
     // Connection config
     applySavedConnection,

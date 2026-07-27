@@ -3,12 +3,11 @@ package smoketest_test
 import (
 	"context"
 	"runtime"
+	"scenario-to-desktop-api/smoketest"
+	"scenario-to-desktop-api/smoketest/mocks"
 	"strings"
 	"testing"
 	"time"
-
-	"scenario-to-desktop-api/smoketest"
-	"scenario-to-desktop-api/smoketest/mocks"
 )
 
 func TestProcessExecutor_Execute_Success(t *testing.T) {

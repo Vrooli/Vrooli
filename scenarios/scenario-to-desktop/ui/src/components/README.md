@@ -40,6 +40,7 @@ components/
 ### Import Patterns
 
 Components should import from:
+
 - `../../lib/api` for API functions and types
 - `../../domain/*` for domain logic and types
 - `../../hooks` for React hooks

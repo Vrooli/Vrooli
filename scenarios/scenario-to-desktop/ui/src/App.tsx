@@ -7,7 +7,10 @@ import { ScenarioInventory } from "./components/scenario-inventory";
 import { DocsPanel } from "./components/docs/DocsPanel";
 import { SigningPage } from "./components/signing";
 import { SpawnAgentButton } from "./components/state/SpawnAgentButton";
-import { ErrorBoundary, SectionErrorBoundary } from "./components/ui/ErrorBoundary";
+import {
+  ErrorBoundary,
+  SectionErrorBoundary,
+} from "./components/ui/ErrorBoundary";
 import { LiveDesktopDrawer } from "./components/livedesktop";
 import { CapturesDrawer } from "./components/captures";
 import type { ScenarioDesktopStatus } from "./components/scenario-inventory/types";
@@ -15,17 +18,21 @@ import { usePipelineStore } from "./store";
 import { useFormStore } from "./store/formStore";
 import { useUrlState, type ViewMode } from "./hooks/useUrlState";
 import { useServerSync } from "./hooks/useServerSync";
-import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
+import {
+  loadGeneratorAppState,
+  saveGeneratorAppState,
+} from "./lib/draftStorage";
 import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/scenario-inventory/RecordsManager";
+import { selectors } from "./consts/selectors";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 1
-    }
-  }
+      retry: 1,
+    },
+  },
 });
 
 function AppContent() {
@@ -33,16 +40,25 @@ function AppContent() {
 
   // URL state is the single source of truth for view, scenario, and doc
   const urlState = useUrlState({
-    defaultView: (storedState?.viewMode as ViewMode) ?? "inventory",
+    defaultView: storedState ? (storedState.viewMode as ViewMode) : "inventory",
     defaultScenario: storedState?.selectedScenarioName ?? "",
     defaultDoc: storedState?.docPath ?? null,
   });
 
-  const { viewMode, setViewMode, scenarioName: selectedScenarioName, setScenarioName: setSelectedScenarioName, docPath, setDocPath } = urlState;
+  const {
+    viewMode,
+    setViewMode,
+    scenarioName: selectedScenarioName,
+    setScenarioName: setSelectedScenarioName,
+    docPath,
+    setDocPath,
+  } = urlState;
 
   // selectionSource is transient metadata — always changes alongside scenarioName
   const selectionSourceRef = useRef<"inventory" | "manual" | null>(
-    urlState.initialParams.scenario ? "manual" : storedState?.selectionSource ?? null
+    urlState.initialParams.scenario
+      ? "manual"
+      : (storedState?.selectionSource ?? null),
   );
 
   // selectedTemplate lives in formStore (it's form state)
@@ -51,10 +67,13 @@ function AppContent() {
 
   // Initialize template from localStorage on mount
   useEffect(() => {
-    if (storedState?.selectedTemplate && storedState.selectedTemplate !== "basic") {
+    if (
+      storedState?.selectedTemplate &&
+      storedState.selectedTemplate !== "basic"
+    ) {
       setSelectedTemplate(storedState.selectedTemplate);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Intentionally run once on mount
 
   // Pipeline store - single source of truth for build status
@@ -84,7 +103,7 @@ function AppContent() {
     }
     return {
       status,
-      output_path: storeGenerateResult?.desktop_path,
+      output_path: storeGenerateResult?.desktopPath,
       pipeline_id: storePipelineId,
     };
   }, [storePipelineId, storeRunStatus, storeGenerateResult]);
@@ -107,14 +126,14 @@ function AppContent() {
       selectedTemplate,
       selectionSource: selectionSourceRef.current,
       currentBuildId: storePipelineId,
-      docPath
+      docPath,
     });
   }, [
     viewMode,
     selectedScenarioName,
     selectedTemplate,
     storePipelineId,
-    docPath
+    docPath,
   ]);
 
   const handleInventorySelect = (scenario: ScenarioDesktopStatus) => {
@@ -149,17 +168,22 @@ function AppContent() {
       { mode: "signing", icon: Shield, label: "Signing" },
       { mode: "docs", icon: Book, label: "Docs" },
     ],
-    []
+    [],
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-slate-50 scroll-smooth">
+    <div
+      data-testid={selectors.app.root}
+      className="min-h-full w-full overflow-x-clip bg-[var(--color-background)] text-slate-50 scroll-smooth"
+    >
       <div className="mx-auto max-w-7xl p-2 md:p-6">
         {/* Header + tabs — merged into a compact strip on mobile */}
         <div className="mb-3 md:mb-8 text-center">
           <div className="mb-1.5 md:mb-3 flex items-center justify-center gap-2 md:gap-3">
             <Monitor className="hidden md:block h-10 w-10 text-blue-400" />
-            <h1 className="text-xl md:text-4xl font-bold">Scenario to Desktop</h1>
+            <h1 className="text-xl md:text-4xl font-bold">
+              Scenario to Desktop
+            </h1>
           </div>
           <p className="hidden md:block text-lg text-slate-300">
             Transform Vrooli scenarios into professional desktop applications
@@ -178,13 +202,22 @@ function AppContent() {
                 type="button"
                 role="tab"
                 aria-selected={viewMode === mode}
+                data-testid={
+                  mode === "generator"
+                    ? selectors.app.generateTab
+                    : mode === "signing"
+                      ? selectors.app.signingTab
+                      : undefined
+                }
                 className={cn(
                   "flex items-center gap-1.5 md:gap-2 rounded-full px-2.5 md:px-4 py-1.5 md:py-2 text-sm font-semibold transition whitespace-nowrap shrink-0",
                   viewMode === mode
                     ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                    : "text-slate-300 hover:text-white"
+                    : "text-slate-300 hover:text-white",
                 )}
-                onClick={() => setViewMode(mode)}
+                onClick={() => {
+                  setViewMode(mode);
+                }}
               >
                 <Icon className="h-4 w-4" />
                 {(!isMobile || viewMode === mode) && <span>{label}</span>}
@@ -203,9 +236,7 @@ function AppContent() {
             <DocsPanel
               initialPath={docPath}
               onPathChange={(path) => {
-                if (viewMode === "docs") {
-                  setDocPath(path || null);
-                }
+                setDocPath(path || null);
               }}
             />
           </SectionErrorBoundary>
@@ -226,8 +257,12 @@ function AppContent() {
                 openGeneratorForScenario(scenarioName);
                 setSelectedTemplate(templateType || "basic");
               }}
-              onEditSigning={(scenarioName) => openSigningTab(scenarioName)}
-              onRebuildWithSigning={(scenarioName) => openGeneratorForScenario(scenarioName)}
+              onEditSigning={(scenarioName) => {
+                openSigningTab(scenarioName);
+              }}
+              onRebuildWithSigning={(scenarioName) => {
+                openGeneratorForScenario(scenarioName);
+              }}
             />
           </SectionErrorBoundary>
         ) : (
@@ -269,21 +304,15 @@ function AppContent() {
                   </span>
                 </div>
                 <span className="text-xs text-slate-400 hidden sm:inline">
-                  {uiBuildStatus.status === "failed" ? (
-                    "Build failed - spawn an agent to investigate"
-                  ) : uiBuildStatus.status === "ready" ? (
-                    "Build ready - spawn an agent to verify or improve"
-                  ) : uiBuildStatus.status === "building" ? (
-                    "Build in progress..."
-                  ) : (
-                    "Spawn an agent to analyze this build"
-                  )}
+                  {uiBuildStatus.status === "failed"
+                    ? "Build failed - spawn an agent to investigate"
+                    : uiBuildStatus.status === "ready"
+                      ? "Build ready - spawn an agent to verify or improve"
+                      : "Build in progress..."}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <SpawnAgentButton
-                  pipelineId={storePipelineId}
-                />
+                <SpawnAgentButton pipelineId={storePipelineId} />
               </div>
             </div>
           </div>

@@ -483,4 +483,3 @@ func TestStartService_HappyPath(t *testing.T) {
 		t.Error("startService() should track the process")
 	}
 }
-

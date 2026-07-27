@@ -12,5 +12,5 @@
 
 ## External Inspiration
 - Electron auto-update ecosystems (Squirrel/MSIX/PKG + differential updates) for release channels.
-- Portable runtime supervisors (Tauri sidecar handling, Deno deploy kits) for ideas on embedding binaries without root privileges.
+- Portable runtime supervisors and Deno deploy kits for ideas on embedding binaries without root privileges.
 - Offline-first app packaging patterns from VS Code and Obsidian (data dir versioning, extension sandboxing) for future bundled mode. 

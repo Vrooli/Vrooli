@@ -5,12 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"scenario-to-desktop-api/smoketest"
+	"scenario-to-desktop-api/smoketest/mocks"
 	"strings"
 	"testing"
 	"time"
-
-	"scenario-to-desktop-api/smoketest"
-	"scenario-to-desktop-api/smoketest/mocks"
 )
 
 // TestMain builds the test fixture before running integration tests.

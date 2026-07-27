@@ -1,18 +1,18 @@
 package fix
 
 import (
-	"strings"
-	"testing"
-
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/tasks/shared"
+	"strings"
+	"testing"
 )
 
 // --- Test helpers ---
 
 func newTestInput() shared.TaskInput {
 	return shared.TaskInput{
+		PipelineAPIURL: "http://127.0.0.1:19001",
 		Pipeline: &pipeline.Status{
 			PipelineID:   "pipe-1",
 			ScenarioName: "test-app",

@@ -1,0 +1,1495 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "scenario-to-desktop",
+  "description": "Authoritative CLI contract. Pipeline, signing, bundle, and system commands are being migrated to generated Connect clients; every RPC is explicitly accounted for here so transport parity is governed rather than inferred.",
+  "groups": [
+    {
+      "name": "build",
+      "description": "Inspect desktop build status",
+      "commands": [
+        {
+          "name": "get",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BuildService",
+            "method": "GetBuild"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "build",
+            "intent": "Inspect durable desktop build status by build identifier.",
+            "questions": [
+              "What is the status of this desktop build?",
+              "Show the durable build record for this desktop package."
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "status",
+              "unit": "build status",
+              "summary_template": "Desktop build status is {status}."
+            }
+          },
+          "positionals": [
+            {
+              "name": "build",
+              "required": true,
+              "description": "Build ID"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pipeline",
+      "description": "Create and inspect desktop packaging pipelines",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Start a desktop packaging pipeline for a scenario",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "Run"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "status",
+          "description": "Show a pipeline",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "positionals": [
+            {
+              "name": "pipeline",
+              "required": true,
+              "description": "Pipeline ID"
+            }
+          ]
+        },
+        {
+          "name": "resume",
+          "description": "Resume a pipeline",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "Resume"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a pipeline",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "Cancel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List pipelines",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "active",
+          "description": "Show a scenario's active pipeline",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "GetActive"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a scenario pipeline",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "CreateActive"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "reset",
+          "description": "Reset a scenario pipeline",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "ResetActive"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "history",
+          "description": "Show pipeline history",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "GetHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start an active pipeline",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "StartActive"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "gate",
+          "description": "Show a pipeline release-gate state",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "GetReleaseGate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "preflight",
+      "description": "Inspect desktop preflight jobs",
+      "commands": [
+        {
+          "name": "get",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PreflightService",
+            "method": "GetPreflightJob"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "preflight",
+            "intent": "Inspect durable desktop preflight job status.",
+            "questions": [
+              "What is the status of this desktop preflight job?",
+              "Show the preflight validation record for this bundle."
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "status",
+              "unit": "preflight status",
+              "summary_template": "Preflight job status is {status}."
+            }
+          },
+          "positionals": [
+            {
+              "name": "job",
+              "required": true,
+              "description": "Preflight job ID"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bundle",
+      "description": "Manage generated bundle output",
+      "commands": [
+        {
+          "name": "clean",
+          "description": "Clean a generated bundle",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PipelineService",
+            "method": "CleanBundle"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "signing",
+      "description": "Manage signing configuration",
+      "commands": [
+        {
+          "name": "get",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SigningService",
+            "method": "GetSigningConfig"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "signing",
+            "intent": "Show the current signing configuration for a desktop scenario.",
+            "questions": [
+              "What signing configuration does this desktop scenario use?",
+              "Is code signing configured for this scenario?"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "config",
+              "unit": "configuration",
+              "summary_template": "Signing configuration is available for {scenario_name}."
+            }
+          }
+        },
+        {
+          "name": "set",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SigningService",
+            "method": "PutSigningConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "delete",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SigningService",
+            "method": "DeleteSigningConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "validate",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SigningService",
+            "method": "ValidateSigningConfig"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "ready",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SigningService",
+            "method": "GetSigningReadiness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "prerequisites",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SigningService",
+            "method": "ListSigningPrerequisites"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "discover",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SigningService",
+            "method": "DiscoverSigningCertificates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "generate-key",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SigningService",
+            "method": "GenerateLinuxSigningKey"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wine",
+      "description": "Manage Wine",
+      "commands": [
+        {
+          "name": "check",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SystemService",
+            "method": "CheckWine"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "install",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SystemService",
+            "method": "InstallWine"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SystemService",
+            "method": "GetWineInstallStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "telemetry",
+      "description": "Inspect and manage deployment telemetry",
+      "commands": [
+        {
+          "name": "ingest",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TelemetryService",
+            "method": "IngestTelemetry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "file",
+              "required": true,
+              "description": "Telemetry JSONL file"
+            },
+            {
+              "name": "source",
+              "default": "cli",
+              "description": "Telemetry source"
+            }
+          ]
+        },
+        {
+          "name": "summary",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TelemetryService",
+            "method": "GetTelemetrySummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "telemetry",
+            "intent": "Summarize durable deployment telemetry for a scenario.",
+            "questions": [
+              "What deployment telemetry has this scenario recorded?",
+              "Show the telemetry summary for this desktop deployment."
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "events",
+              "unit": "events",
+              "summary_template": "Telemetry summary contains {events} events."
+            }
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ]
+        },
+        {
+          "name": "insights",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TelemetryService",
+            "method": "GetTelemetryInsights"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ]
+        },
+        {
+          "name": "tail",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TelemetryService",
+            "method": "GetTelemetryTail"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ]
+        },
+        {
+          "name": "delete",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TelemetryService",
+            "method": "DeleteTelemetry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ]
+        },
+        {
+          "name": "download",
+          "description": "Download the raw telemetry JSONL file",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "evidence",
+      "description": "Inspect durable desktop validation evidence",
+      "commands": [
+        {
+          "name": "list",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "ListEvidenceCaptures"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "evidence",
+            "intent": "List durable evidence captures from desktop validation sessions.",
+            "questions": [
+              "What screenshots and recordings prove this desktop app ran?",
+              "List the desktop validation evidence for this scenario."
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "captures",
+              "unit": "captures",
+              "summary_template": "Found {captures} durable evidence captures."
+            }
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ]
+        },
+        {
+          "name": "summary",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "GetEvidenceCapturesSummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "docs",
+      "description": "Inspect scenario documentation",
+      "commands": [
+        {
+          "name": "manifest",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DocumentationService",
+            "method": "GetDocumentationManifest"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "docs",
+            "intent": "Inspect the authoritative scenario documentation manifest.",
+            "questions": [
+              "What documentation is available for this desktop deployment scenario?",
+              "Show the documentation sections for scenario-to-desktop."
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "sections",
+              "unit": "sections",
+              "summary_template": "Documentation manifest contains {sections} sections."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "state",
+      "description": "Inspect persisted desktop scenario state",
+      "commands": [
+        {
+          "name": "get",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StateService",
+            "method": "LoadScenarioState"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "state",
+            "intent": "Load the persisted desktop-generator state for a scenario.",
+            "questions": [
+              "What persisted desktop state exists for this scenario?",
+              "Show the saved desktop generator state for a scenario."
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "payload",
+              "unit": "state document",
+              "summary_template": "Persisted state is available for {scenario_name}."
+            }
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tasks",
+      "description": "Inspect desktop investigation tasks",
+      "commands": [
+        {
+          "name": "list",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TaskService",
+            "method": "ListTasks"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "tasks",
+            "intent": "List durable investigation tasks for a desktop pipeline.",
+            "questions": [
+              "Which investigation tasks exist for this desktop pipeline?",
+              "Show the task history for a packaging pipeline."
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "tasks",
+              "unit": "tasks",
+              "summary_template": "Found {tasks} investigation tasks."
+            }
+          },
+          "positionals": [
+            {
+              "name": "pipeline",
+              "required": true,
+              "description": "Pipeline ID"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "desktop",
+      "flat": true,
+      "description": "Root-level operations",
+      "commands": [
+        {
+          "name": "templates",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SystemService",
+            "method": "ListTemplates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "template",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SystemService",
+            "method": "GetTemplate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "records",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesktopRecordsService",
+            "method": "ListDesktopRecords"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "records",
+            "intent": "List durable desktop generation records for a scenario.",
+            "questions": [
+              "Which desktop builds have been recorded?",
+              "Show desktop application records for this scenario."
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "records",
+              "unit": "records",
+              "summary_template": "Found {records} desktop records."
+            }
+          }
+        },
+        {
+          "name": "records-move",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesktopRecordsService",
+            "method": "MoveDesktopRecord"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "records-delete",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesktopRecordsService",
+            "method": "DeleteDesktopScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "download",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "desktop-status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OperationsService",
+            "method": "ListDesktopScenarioStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "operations",
+            "intent": "List current desktop-generation operational status across scenarios.",
+            "questions": [
+              "Which scenarios are ready for desktop generation?",
+              "Show desktop deployment operational status."
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "scenarios",
+              "unit": "scenarios",
+              "summary_template": "Desktop status is available for {scenarios} scenarios."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "deploy-target",
+      "description": "Manage durable desktop deployment targets",
+      "commands": [
+        {
+          "name": "list",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeployTargetService",
+            "method": "ListDeployTargets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "deploy",
+            "intent": "List configured deployment targets.",
+            "questions": [
+              "Which desktop deployment targets are configured?"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "targets",
+              "unit": "targets",
+              "summary_template": "Configured deployment targets: {targets}."
+            }
+          }
+        },
+        {
+          "name": "get",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeployTargetService",
+            "method": "GetDeployTarget"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Deploy target name"
+            }
+          ]
+        },
+        {
+          "name": "add",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeployTargetService",
+            "method": "SaveDeployTarget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Deploy target name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Remote deployment scenario"
+            },
+            {
+              "name": "profile",
+              "required": true,
+              "description": "Remote deployment profile"
+            },
+            {
+              "name": "label",
+              "description": "Human-readable label"
+            },
+            {
+              "name": "deployment-manager-profile-id",
+              "description": "Deployment Manager profile identifier"
+            }
+          ]
+        },
+        {
+          "name": "remove",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeployTargetService",
+            "method": "DeleteDeployTarget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Deploy target name"
+            }
+          ]
+        },
+        {
+          "name": "test",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeployTargetService",
+            "method": "TestDeployTarget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Deploy target name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "require-service-auth",
+              "description": "Require service-auth readiness"
+            }
+          ]
+        },
+        {
+          "name": "doctor",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeployTargetService",
+            "method": "DiagnoseDeployTarget"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Deploy target name"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    {
+      "service": "SigningService",
+      "method": "PatchSigningPlatform",
+      "reason": "The CLI exposes complete config replacement, not partial platform patches."
+    },
+    {
+      "service": "SigningService",
+      "method": "DeleteSigningPlatform",
+      "reason": "The CLI exposes complete config deletion; platform-level deletion has no dedicated operator workflow."
+    },
+    {
+      "service": "BuildService",
+      "method": "StartBuild",
+      "reason": "Pipeline owns build orchestration in the CLI."
+    },
+    {
+      "service": "BuildService",
+      "method": "StartScenarioBuild",
+      "reason": "Pipeline owns build orchestration in the CLI."
+    },
+    {
+      "service": "SmokeTestService",
+      "method": "StartSmokeTest",
+      "reason": "Pipeline owns smoke-test orchestration in the CLI."
+    },
+    {
+      "service": "SmokeTestService",
+      "method": "GetSmokeTest",
+      "reason": "Pipeline owns smoke-test orchestration in the CLI."
+    },
+    {
+      "service": "SmokeTestService",
+      "method": "CancelSmokeTest",
+      "reason": "Pipeline owns smoke-test orchestration in the CLI."
+    },
+    {
+      "service": "SystemService",
+      "method": "GetSystemStatus",
+      "reason": "System CLI migration is pending."
+    },
+    {
+      "service": "ConfigService",
+      "method": "GetScenarioMetadata",
+      "reason": "Configuration is available through the UI and pipeline inputs; no dedicated CLI command yet."
+    },
+    {
+      "service": "ConfigService",
+      "method": "CreateDesktopConfig",
+      "reason": "Configuration is available through the UI and pipeline inputs; no dedicated CLI command yet."
+    },
+    {
+      "service": "PreflightService",
+      "method": "RunPreflight",
+      "reason": "Pipeline invokes preflight as a stage."
+    },
+    {
+      "service": "PreflightService",
+      "method": "InspectManifest",
+      "reason": "Pipeline owns manifest inspection in the CLI."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "StartDesktopSession",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "GetDesktopSession",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "ListDesktopSessions",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "LaunchDesktopArtifact",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "HeartbeatDesktopSession",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "FindDesktopArtifact",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "CaptureScreenshot",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "ControlDesktop",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "StopDesktopSession",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "DeleteEvidenceCapture",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "DeleteAllEvidenceCaptures",
+      "reason": "Evidence commands are UI-first pending a dedicated CLI workflow."
+    },
+    {
+      "service": "StateService",
+      "method": "SaveScenarioState",
+      "reason": "Scenario editor state is UI-owned; no stable operator CLI workflow is defined."
+    },
+    {
+      "service": "StateService",
+      "method": "DeleteScenarioState",
+      "reason": "Scenario editor state is UI-owned; no stable operator CLI workflow is defined."
+    },
+    {
+      "service": "StateService",
+      "method": "CheckScenarioState",
+      "reason": "Scenario editor state is UI-owned; no stable operator CLI workflow is defined."
+    },
+    {
+      "service": "StateService",
+      "method": "GetScenarioStateLog",
+      "reason": "Scenario editor state is UI-owned; no stable operator CLI workflow is defined."
+    },
+    {
+      "service": "StateService",
+      "method": "InvalidateScenarioState",
+      "reason": "Scenario editor state is UI-owned; no stable operator CLI workflow is defined."
+    },
+    {
+      "service": "TaskService",
+      "method": "GetAgentManagerStatus",
+      "reason": "Agent-assisted investigation is UI-first until its operator workflow and permission model are specified for the CLI."
+    },
+    {
+      "service": "TaskService",
+      "method": "CreateTask",
+      "reason": "Agent-assisted investigation is UI-first until its operator workflow and permission model are specified for the CLI."
+    },
+    {
+      "service": "TaskService",
+      "method": "GetTask",
+      "reason": "Agent-assisted investigation is UI-first until its operator workflow and permission model are specified for the CLI."
+    },
+    {
+      "service": "TaskService",
+      "method": "StopTask",
+      "reason": "Agent-assisted investigation is UI-first until its operator workflow and permission model are specified for the CLI."
+    },
+    {
+      "service": "DocumentationService",
+      "method": "GetDocumentationContent",
+      "reason": "Documentation navigation is consumed by the UI; the CLI has no documentation-browser command."
+    },
+    {
+      "service": "OperationsService",
+      "method": "ResolveScenarioPort",
+      "reason": "Port discovery is an internal UI/runtime helper with no stable operator CLI workflow."
+    },
+    {
+      "service": "OperationsService",
+      "method": "GetProxyHints",
+      "reason": "Proxy hints are UI generation assistance with no stable operator CLI workflow."
+    },
+    {
+      "service": "OperationsService",
+      "method": "ProbeEndpoints",
+      "reason": "Endpoint probing is an internal diagnostic helper; lifecycle health is the supported CLI/operator probe."
+    },
+    {
+      "service": "HealthService",
+      "method": "Check",
+      "reason": "Lifecycle health remains an ops probe."
+    }
+  ]
+}

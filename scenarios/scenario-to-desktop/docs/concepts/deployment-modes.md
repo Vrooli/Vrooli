@@ -58,13 +58,11 @@ artifact inputs.
 
 ## Thin Client Mode
 
-Use thin client when you need multiple users connecting to the same server:
+Use thin client when users connect to the same server. Configure the external
+server URL and deployment mode in the UI, then start the packaging pipeline:
 
 ```bash
-scenario-to-desktop generate <scenario> \
-  --deployment-mode external-server \
-  --server-type external \
-  --server-url https://app-monitor.<domain>/apps/<scenario>/proxy/
+scenario-to-desktop pipeline run "my-scenario"
 ```
 
 ## References

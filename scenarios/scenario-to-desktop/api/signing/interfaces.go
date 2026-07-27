@@ -3,9 +3,8 @@ package signing
 import (
 	"context"
 	"os"
-	"time"
-
 	"scenario-to-desktop-api/signing/types"
+	"time"
 )
 
 // FileSystem abstracts all file operations for testing.

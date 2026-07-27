@@ -1,48 +1,13 @@
 /**
  * Zod schemas for miscellaneous API response types.
  *
- * Covers health, docs, desktop records, probing, wine, telemetry,
+ * Covers health, desktop records, probing, wine, telemetry,
  * and port endpoints. These schemas provide runtime validation at the
  * API boundary so callers receive verified data rather than trusting
  * untyped JSON.
  */
 
 import { z } from "zod";
-
-// ==================== Docs ====================
-
-export const DocsDocumentSchema = z.object({
-  path: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
-});
-
-export const DocsSectionSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  icon: z.string().optional(),
-  description: z.string().optional(),
-  documents: z.array(DocsDocumentSchema),
-});
-
-export const DocsNavigationSchema = z.object({
-  primary: z.array(z.string()).optional(),
-  secondary: z.array(z.string()).optional(),
-});
-
-export const DocsManifestSchema = z.object({
-  version: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
-  defaultDocument: z.string(),
-  sections: z.array(DocsSectionSchema),
-  navigation: DocsNavigationSchema.optional(),
-});
-
-export const DocsContentResponseSchema = z.object({
-  path: z.string(),
-  content: z.string(),
-});
 
 // ==================== Proxy / Bundle ====================
 
@@ -137,15 +102,17 @@ export const TelemetrySummarySchema = z.object({
   last_ingested_at: z.string().optional(),
 });
 
-export const TelemetryEventSchema = z.object({
-  event: z.string().optional(),
-  timestamp: z.string().optional(),
-  level: z.string().optional(),
-  session_id: z.string().optional(),
-  session_kind: z.string().optional(),
-  details: z.record(z.unknown()).optional(),
-  detail: z.string().optional(),
-}).passthrough();
+export const TelemetryEventSchema = z
+  .object({
+    event: z.string().optional(),
+    timestamp: z.string().optional(),
+    level: z.string().optional(),
+    session_id: z.string().optional(),
+    session_kind: z.string().optional(),
+    details: z.record(z.unknown()).optional(),
+    detail: z.string().optional(),
+  })
+  .passthrough();
 
 export const TelemetryTailEntrySchema = z.object({
   raw: z.string(),

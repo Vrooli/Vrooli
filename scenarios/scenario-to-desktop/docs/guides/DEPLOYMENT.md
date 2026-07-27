@@ -7,7 +7,7 @@ This guide explains how scenario-to-desktop deploys built artifacts to a Landing
 - [CODE: api/pipeline/stage_deploy.go] - deploy stage execution, validation, artifact upload loop
 - [CODE: api/deploy/lpbs_client.go] - LPBS discovery, proxy calls, presign/upload/commit/apply flow
 - [CODE: api/deploy/targets.go] - saved deploy target persistence in the scenario-to-desktop config storage root
-- [CODE: cli/pipeline/commands.go] - `--deploy-target`, `--deploy-to`, `--remote-profile`, `--app-key`
+- [CODE: cli/domains/pipeline/commands.go] - generated Connect pipeline commands
 - [CODE: ui/src/components/sections/deploy/DeploySection.tsx] - UI status and deploy result rendering
 
 ## Overview
@@ -15,7 +15,7 @@ This guide explains how scenario-to-desktop deploys built artifacts to a Landing
 The deploy stage uploads desktop application artifacts to a remote LPBS instance through a local LPBS proxy. This replaces the previous self-contained S3 distribution system with a lightweight integration that reuses LPBS's existing download infrastructure.
 
 ```
-scenario-to-desktop          Local LPBS              Remote LPBS (production)
+Desktop packager             Local LPBS              Remote LPBS (production)
 ┌──────────────┐   discovery  ┌──────────┐  proxy    ┌─────────────────────┐
 │ Deploy Stage │────────────▶│ Admin API │─────────▶│ presign-upload      │
 │              │  Bearer auth │          │          │ commit              │
@@ -49,52 +49,25 @@ Deploy targets are saved configurations stored in `deploy-targets.json` beneath 
 }
 ```
 
-### Managing Targets via CLI
+### Managing targets
+
+Deploy targets are administered through the generated Connect CLI and are
+consumed by the pipeline configuration. The target’s name, remote scenario,
+and remote profile are durable configuration; secrets remain local to the API
+process and are never stored in the target or sent by the CLI.
 
 ```bash
-# List saved targets
-scenario-to-desktop deploy-target list
-
-# Add a target
-scenario-to-desktop deploy-target add vrooli-production \
-  --scenario landing-page-business-suite \
-  --profile prod-server \
-  --label "Vrooli.com Production"
-
-# Remove a target
-scenario-to-desktop deploy-target remove vrooli-production
-
-# Test connectivity
-scenario-to-desktop deploy-target test vrooli-production
-
-# Test connectivity + service auth readiness
-scenario-to-desktop deploy-target test vrooli-production --require-service-auth
-
-# One-shot readiness diagnosis (session + auth + secret scope)
-scenario-to-desktop deploy-target doctor vrooli-production
+scenario-to-desktop deploy-target add "vrooli-production" --scenario "landing-page-business-suite" --profile "prod-server" --label "Vrooli.com Production"
+scenario-to-desktop deploy-target doctor "vrooli-production"
 ```
-
-`deploy-target list` prints both target key and label. Use the key (for example `vrooli-production`) in `deploy-target test` and pipeline commands.
 
 ## Running the Deploy Stage
 
-### Using a saved target
+Start and inspect the durable packaging workflow through the generated CLI:
 
 ```bash
-scenario-to-desktop pipeline run my-scenario \
-  --deploy-target vrooli-production \
-  --app-key my-desktop-app \
-  --wait
-```
-
-### Using inline parameters
-
-```bash
-scenario-to-desktop pipeline run my-scenario \
-  --deploy-to landing-page-business-suite \
-  --remote-profile prod-server \
-  --app-key my-desktop-app \
-  --wait
+scenario-to-desktop pipeline run "my-scenario"
+scenario-to-desktop pipeline list
 ```
 
 ## Stage Behavior
@@ -169,7 +142,7 @@ See [AUTO_UPDATES.md](./AUTO_UPDATES.md) for full auto-update configuration deta
 ### Deploy stage is skipped
 
 Ensure deploy config is provided via either:
-- saved target: `--deploy-target <name> --app-key <key>`
+- deploy target configuration is supplied through the UI/pipeline configuration
 - inline target: `--deploy-to <scenario> --remote-profile <tag> --app-key <key>`
 
 ### "LPBS_SERVICE_SECRET environment variable not set"
@@ -182,11 +155,11 @@ Run build first and confirm the build stage produced at least one artifact.
 
 ### Remote profile test fails
 
-Use `scenario-to-desktop deploy-target test <name>` and confirm the remote profile is active/logged in on LPBS.
+Confirm the remote profile is active/logged in on LPBS before starting the pipeline.
 
 ### Service auth readiness fails
 
-Run `scenario-to-desktop deploy-target doctor <name>` for a triage report and exact next steps.
-If `deploy-target test <name> --require-service-auth` fails, verify both scopes:
+Use the deployment UI diagnostics for a triage report and exact next steps. If
+service authentication fails, verify both scopes:
 1) LPBS runtime scope (`landing-page-business-suite` scenario/deployment)
 2) `scenario-to-desktop` scenario scope

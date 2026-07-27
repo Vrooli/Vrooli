@@ -53,6 +53,15 @@ func TestConfigGetDeploymentMode(t *testing.T) {
 	})
 }
 
+func TestConfigValidateFramework(t *testing.T) {
+	if err := (&Config{Framework: FrameworkElectron}).ValidateFramework(); err != nil {
+		t.Fatalf("electron should be accepted: %v", err)
+	}
+	if err := (&Config{Framework: "unsupported"}).ValidateFramework(); err == nil {
+		t.Fatal("unsupported framework should be rejected")
+	}
+}
+
 func TestConfigGetTemplateType(t *testing.T) {
 	t.Run("empty returns basic", func(t *testing.T) {
 		c := Config{}

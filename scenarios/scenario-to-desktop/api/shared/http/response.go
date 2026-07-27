@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-
 	"scenario-to-desktop-api/shared/errors"
 )
 

@@ -218,9 +218,6 @@ const (
 const (
 	// FrameworkElectron is the Electron desktop framework.
 	FrameworkElectron = "electron"
-
-	// FrameworkTauri is the Tauri desktop framework (future support).
-	FrameworkTauri = "tauri"
 )
 
 // Template type constants.

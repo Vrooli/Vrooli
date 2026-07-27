@@ -4,10 +4,9 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"scenario-to-desktop-api/shared/errors"
 	"scenario-to-desktop-api/smoketest"
+	"time"
 )
 
 // SmokeTestStage implements the smoke test stage of the pipeline.

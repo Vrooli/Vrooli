@@ -4,10 +4,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"testing"
-
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/smoketest/mocks"
+	"testing"
 )
 
 func TestTelemetryPathResolver_ExtractFromOutput(t *testing.T) {

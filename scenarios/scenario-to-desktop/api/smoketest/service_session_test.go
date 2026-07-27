@@ -2,11 +2,10 @@ package smoketest_test
 
 import (
 	"context"
-	"testing"
-	"time"
-
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/smoketest/mocks"
+	"testing"
+	"time"
 )
 
 // TestService_SessionIDExtraction validates that session ID is extracted from output

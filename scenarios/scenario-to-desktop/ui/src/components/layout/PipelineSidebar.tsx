@@ -31,7 +31,7 @@ export function PipelineSidebar({ onSectionClick }: PipelineSidebarProps) {
     <aside
       className={cn(
         "relative flex h-full flex-col border-r border-white/10 bg-slate-950/50 transition-all duration-300",
-        isMobile ? "w-full" : isCollapsed ? "w-14" : "w-72"
+        isMobile ? "w-full" : isCollapsed ? "w-14" : "w-72",
       )}
     >
       {/* Scrollable content */}
@@ -56,9 +56,10 @@ export function PipelineSidebar({ onSectionClick }: PipelineSidebarProps) {
             variant="ghost"
             size="sm"
             onClick={toggleCollapsed}
+            aria-label={isCollapsed ? "Expand pipeline sidebar" : "Collapse pipeline sidebar"}
             className={cn(
               "w-full justify-center text-slate-400 hover:text-slate-200",
-              isCollapsed && "px-0"
+              isCollapsed && "px-0",
             )}
           >
             {isCollapsed ? (

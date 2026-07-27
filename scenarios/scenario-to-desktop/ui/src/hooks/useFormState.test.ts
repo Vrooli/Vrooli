@@ -7,7 +7,10 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useFormState, type UseFormStateProps } from "./useFormState";
 import { useFormStore } from "../store/formStore";
-import type { DesktopConnectionConfig, ScenarioDesktopStatus } from "../components/scenario-inventory/types";
+import type {
+  DesktopConnectionConfig,
+  ScenarioDesktopStatus,
+} from "../components/scenario-inventory/types";
 
 // Reset store state before each test
 beforeEach(() => {
@@ -132,7 +135,7 @@ describe("useFormState", () => {
 
       // All platforms selected by default
       expect(result.current.selectedPlatformsList).toEqual(
-        expect.arrayContaining(["win", "mac", "linux"])
+        expect.arrayContaining(["win", "mac", "linux"]),
       );
 
       act(() => {
@@ -140,28 +143,28 @@ describe("useFormState", () => {
       });
 
       expect(result.current.selectedPlatformsList).toEqual(
-        expect.arrayContaining(["win", "mac"])
+        expect.arrayContaining(["win", "mac"]),
       );
       expect(result.current.selectedPlatformsList).not.toContain("linux");
     });
 
     it("computes standardOutputPath from scenarioName", () => {
       const { result } = renderHook(() =>
-        useFormState({ scenarioName: "my-scenario", selectionSource: null })
+        useFormState({ scenarioName: "my-scenario", selectionSource: null }),
       );
 
       expect(result.current.standardOutputPath).toBe(
-        "scenarios/my-scenario/platforms/electron"
+        "scenarios/my-scenario/platforms/electron",
       );
     });
 
     it("computes stagingPreviewPath from scenarioName", () => {
       const { result } = renderHook(() =>
-        useFormState({ scenarioName: "my-scenario", selectionSource: null })
+        useFormState({ scenarioName: "my-scenario", selectionSource: null }),
       );
 
       expect(result.current.stagingPreviewPath).toBe(
-        "<cache-root>/vrooli/scenario-to-desktop/staging/my-scenario/<build-id>"
+        "<cache-root>/vrooli/scenario-to-desktop/staging/my-scenario/<build-id>",
       );
     });
 
@@ -177,7 +180,9 @@ describe("useFormState", () => {
 
       // URL-encoded path should be present in the preview URL
       expect(result.current.iconPreviewUrl).toContain("icons/preview");
-      expect(result.current.iconPreviewUrl).toContain(encodeURIComponent("/path/to/icon.png"));
+      expect(result.current.iconPreviewUrl).toContain(
+        encodeURIComponent("/path/to/icon.png"),
+      );
     });
 
     it("computes isCustomLocation from locationMode", () => {
@@ -195,12 +200,12 @@ describe("useFormState", () => {
 
     it("computes isUpdateMode from selectionSource", () => {
       const { result: manualResult } = renderHook(() =>
-        useFormState({ scenarioName: "test", selectionSource: "manual" })
+        useFormState({ scenarioName: "test", selectionSource: "manual" }),
       );
       expect(manualResult.current.isUpdateMode).toBe(false);
 
       const { result: inventoryResult } = renderHook(() =>
-        useFormState({ scenarioName: "test", selectionSource: "inventory" })
+        useFormState({ scenarioName: "test", selectionSource: "inventory" }),
       );
       expect(inventoryResult.current.isUpdateMode).toBe(true);
     });
@@ -210,14 +215,22 @@ describe("useFormState", () => {
     it("syncs scenarioLocked with selectionSource", async () => {
       const { result, rerender } = renderHook(
         (props: UseFormStateProps) => useFormState(props),
-        { initialProps: { scenarioName: "test", selectionSource: null } as UseFormStateProps }
+        {
+          initialProps: {
+            scenarioName: "test",
+            selectionSource: null,
+          } as UseFormStateProps,
+        },
       );
 
       // Initially not locked
       expect(result.current.scenarioLocked).toBe(false);
 
       // Rerender with inventory selection source
-      rerender({ scenarioName: "test", selectionSource: "inventory" } as UseFormStateProps);
+      rerender({
+        scenarioName: "test",
+        selectionSource: "inventory",
+      } as UseFormStateProps);
 
       await waitFor(() => {
         expect(result.current.scenarioLocked).toBe(true);
@@ -269,7 +282,9 @@ describe("useFormState", () => {
       const { result } = renderHook(() => useFormState(defaultProps));
 
       // In bundled mode, server type should be forced to external
-      expect(result.current.connectionDecision.effectiveServerType).toBe("external");
+      expect(result.current.connectionDecision.effectiveServerType).toBe(
+        "external",
+      );
     });
 
     it("disables autoManageTier1 in bundled mode", async () => {
@@ -380,14 +395,14 @@ describe("useFormState", () => {
             displayNameEdited: true,
           },
           deployment: {
-            framework: "tauri",
+            framework: "electron",
           },
         });
       });
 
       expect(result.current.appMetadata.displayName).toBe("Server App Name");
       expect(result.current.appMetadata.displayNameEdited).toBe(true);
-      expect(result.current.deployment.framework).toBe("tauri");
+      expect(result.current.deployment.framework).toBe("electron");
       // Other fields should remain at defaults
       expect(result.current.appMetadata.description).toBe("");
     });
@@ -429,7 +444,9 @@ describe("useFormState", () => {
       expect(result.current.output.locationMode).toBe("custom");
       expect(result.current.output.outputPath).toBe("/custom/path");
       expect(result.current.platforms.mac).toBe(false);
-      expect(result.current.connection.proxyUrl).toBe("https://api.example.com");
+      expect(result.current.connection.proxyUrl).toBe(
+        "https://api.example.com",
+      );
       expect(result.current.connection.serverPort).toBe(4000);
     });
   });
@@ -469,10 +486,16 @@ describe("useFormState", () => {
       });
 
       expect(result.current.deployment.mode).toBe("external-server");
-      expect(result.current.connection.proxyUrl).toBe("https://proxy.example.com");
+      expect(result.current.connection.proxyUrl).toBe(
+        "https://proxy.example.com",
+      );
       expect(result.current.connection.autoManageTier1).toBe(true);
-      expect(result.current.connection.vrooliBinaryPath).toBe("/usr/local/bin/vrooli");
-      expect(result.current.connection.bundleManifestPath).toBe("/path/to/manifest.json");
+      expect(result.current.connection.vrooliBinaryPath).toBe(
+        "/usr/local/bin/vrooli",
+      );
+      expect(result.current.connection.bundleManifestPath).toBe(
+        "/path/to/manifest.json",
+      );
       expect(result.current.appMetadata.displayName).toBe("My Desktop App");
       expect(result.current.appMetadata.description).toBe("A great app");
       expect(result.current.appMetadata.iconPath).toBe("/path/to/icon.png");
@@ -490,7 +513,9 @@ describe("useFormState", () => {
         result.current.applySavedConnection(config);
       });
 
-      expect(result.current.connection.proxyUrl).toBe("https://fallback.example.com");
+      expect(result.current.connection.proxyUrl).toBe(
+        "https://fallback.example.com",
+      );
     });
 
     it("only applies optional fields when present", () => {
@@ -514,7 +539,9 @@ describe("useFormState", () => {
 
       // These should remain unchanged since config didn't include them
       expect(result.current.appMetadata.displayName).toBe("Original Name");
-      expect(result.current.appMetadata.description).toBe("Original Description");
+      expect(result.current.appMetadata.description).toBe(
+        "Original Description",
+      );
     });
   });
 
@@ -535,8 +562,12 @@ describe("useFormState", () => {
       });
 
       expect(result.current.appMetadata.displayName).toBe("Test Scenario App");
-      expect(result.current.appMetadata.description).toBe("A test scenario description");
-      expect(result.current.appMetadata.iconPath).toBe("/scenarios/test-scenario/icon.png");
+      expect(result.current.appMetadata.description).toBe(
+        "A test scenario description",
+      );
+      expect(result.current.appMetadata.iconPath).toBe(
+        "/scenarios/test-scenario/icon.png",
+      );
     });
 
     it("does not override edited fields", () => {
@@ -555,8 +586,12 @@ describe("useFormState", () => {
       // Display name should remain "Custom Name" because it was edited
       expect(result.current.appMetadata.displayName).toBe("Custom Name");
       // But description and icon should be applied since they weren't edited
-      expect(result.current.appMetadata.description).toBe("A test scenario description");
-      expect(result.current.appMetadata.iconPath).toBe("/scenarios/test-scenario/icon.png");
+      expect(result.current.appMetadata.description).toBe(
+        "A test scenario description",
+      );
+      expect(result.current.appMetadata.iconPath).toBe(
+        "/scenarios/test-scenario/icon.png",
+      );
     });
 
     it("respects all edit flags independently", () => {
@@ -573,9 +608,13 @@ describe("useFormState", () => {
 
       // Display name and icon should come from scenario (not edited)
       expect(result.current.appMetadata.displayName).toBe("Test Scenario App");
-      expect(result.current.appMetadata.iconPath).toBe("/scenarios/test-scenario/icon.png");
+      expect(result.current.appMetadata.iconPath).toBe(
+        "/scenarios/test-scenario/icon.png",
+      );
       // Description should remain custom (was edited)
-      expect(result.current.appMetadata.description).toBe("My Custom Description");
+      expect(result.current.appMetadata.description).toBe(
+        "My Custom Description",
+      );
     });
 
     it("handles missing scenario fields gracefully", () => {

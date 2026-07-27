@@ -6,3 +6,12 @@ git-control-tower-linux.AppImage
 api/scenario-to-desktop
 api/scenario-to-desktop-api
 cli/scenario-to-desktop
+api/bin/
+api/coverage.out
+runtime/coverage.out
+ui.backup/
+test/artifacts/
+logs/*.lifecycle.log
+data/
+initialization/
+.vrooli/service.json.backup*

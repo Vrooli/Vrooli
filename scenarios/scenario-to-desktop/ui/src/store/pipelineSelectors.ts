@@ -3,16 +3,16 @@
  * Extracted from pipelineStore.ts for modularity and reuse.
  */
 
-import type { BundlePreflightSecret } from "../lib/api";
-import type { PipelineStore, PipelineStage } from "./pipelineTypes";
+import type { PreflightSecret } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import type { PipelineStore } from "./pipelineTypes";
 
 // ============================================================================
 // Pipeline Status Selectors
 // ============================================================================
-
-/** Get build provenance from pipeline status */
-export const selectProvenance = (state: PipelineStore) =>
-  state.pipelineStatus?.provenance ?? null;
 
 /** Check if pipeline is currently running or starting */
 export const selectIsRunning = (state: PipelineStore) =>
@@ -20,33 +20,57 @@ export const selectIsRunning = (state: PipelineStore) =>
 
 /** Get the current active stage name */
 export const selectCurrentStage = (state: PipelineStore) =>
-  state.pipelineStatus?.current_stage ?? null;
+  state.pipelineStatus?.currentStage ?? null;
 
 /** Calculate overall progress (0-1) based on completed stages */
 export const selectProgress = (state: PipelineStore) => {
   if (!state.pipelineStatus) return 0;
-  const { stage_order, stages } = state.pipelineStatus;
-  if (!stage_order?.length) return 0;
-  const completed = stage_order.filter(
-    (s) => stages?.[s]?.status === "completed" || stages?.[s]?.status === "skipped"
+  const { stageOrder, stages } = state.pipelineStatus;
+  if (!stageOrder.length) return 0;
+  const completed = stageOrder.filter(
+    (s) =>
+      stages[stageResultKey(s)]?.status === StageStatus.COMPLETED ||
+      stages[stageResultKey(s)]?.status === StageStatus.SKIPPED,
   ).length;
-  return completed / stage_order.length;
+  return completed / stageOrder.length;
 };
 
 /** Get status of a specific stage */
 export const selectStageStatus =
-  (stage: PipelineStage) =>
-  (state: PipelineStore): string =>
-    state.pipelineStatus?.stages?.[stage]?.status ?? "pending";
+  (stage: StageName) =>
+  (state: PipelineStore): StageStatus =>
+    state.pipelineStatus?.stages[stageResultKey(stage)]?.status ??
+    StageStatus.PENDING;
 
 /** Check if pipeline can be resumed (stopped after a stage) */
 export const selectCanResume = (state: PipelineStore) =>
-  state.pipelineStatus?.status === "completed" &&
-  Boolean(state.pipelineStatus?.stopped_after_stage);
+  state.pipelineStatus?.status === StageStatus.COMPLETED &&
+  Boolean(state.pipelineStatus.stoppedAfterStage);
 
 /** Get the stage where pipeline stopped (for resume) */
 export const selectStoppedAfterStage = (state: PipelineStore) =>
-  state.pipelineStatus?.stopped_after_stage ?? null;
+  state.pipelineStatus?.stoppedAfterStage ?? null;
+
+export function stageResultKey(stage: StageName): string {
+  switch (stage) {
+    case StageName.RESOLVE_DEPLOYMENT:
+      return "resolve-deployment";
+    case StageName.BUNDLE:
+      return "bundle";
+    case StageName.PREFLIGHT:
+      return "preflight";
+    case StageName.GENERATE:
+      return "generate";
+    case StageName.BUILD:
+      return "build";
+    case StageName.SMOKE_TEST:
+      return "smoketest";
+    case StageName.DEPLOY:
+      return "deploy";
+    default:
+      return "";
+  }
+}
 
 /**
  * Check if a pipeline request is currently being submitted.
@@ -88,7 +112,7 @@ export const selectPreflightReadinessOk = (state: PipelineStore) =>
  * Stable empty array reference to avoid creating new arrays on every selector call.
  * This prevents infinite re-renders when Zustand compares selector results with Object.is.
  */
-const EMPTY_SECRETS_ARRAY: BundlePreflightSecret[] = [];
+const EMPTY_SECRETS_ARRAY: PreflightSecret[] = [];
 
 /**
  * Get missing required secrets from preflight result.
@@ -101,7 +125,7 @@ export const selectMissingSecrets = (state: PipelineStore) => {
   const pf = state.preflightResult;
   if (!pf?.secrets) return EMPTY_SECRETS_ARRAY;
 
-  const missing = pf.secrets.filter((s) => s.required && !s.has_value);
+  const missing = pf.secrets.filter((s) => s.required && !s.hasValue);
   return missing.length === 0 ? EMPTY_SECRETS_ARRAY : missing;
 };
 
@@ -140,16 +164,19 @@ export const selectPreflightOk = (state: PipelineStore) => {
 export const selectBundleResult = (state: PipelineStore) => state.bundleResult;
 
 /** Get preflight stage result */
-export const selectPreflightResult = (state: PipelineStore) => state.preflightResult;
+export const selectPreflightResult = (state: PipelineStore) =>
+  state.preflightResult;
 
 /** Get generate stage result */
-export const selectGenerateResult = (state: PipelineStore) => state.generateResult;
+export const selectGenerateResult = (state: PipelineStore) =>
+  state.generateResult;
 
 /** Get build stage result */
 export const selectBuildResult = (state: PipelineStore) => state.buildResult;
 
 /** Get smoke test stage result */
-export const selectSmokeTestResult = (state: PipelineStore) => state.smokeTestResult;
+export const selectSmokeTestResult = (state: PipelineStore) =>
+  state.smokeTestResult;
 
 /** Get deploy stage result */
 export const selectDeployResult = (state: PipelineStore) => state.deployResult;
@@ -180,14 +207,16 @@ export const selectErrorMessage = selectError;
 export const selectErrorInfo = (state: PipelineStore) => state.errorInfo;
 
 /** Check if there's an error state */
-export const selectHasError = (state: PipelineStore) => Boolean(state.errorInfo);
+export const selectHasError = (state: PipelineStore) =>
+  Boolean(state.errorInfo);
 
 // ============================================================================
 // History Selectors
 // ============================================================================
 
 /** Get pipeline history for the current scenario */
-export const selectPipelineHistory = (state: PipelineStore) => state.pipelineHistory;
+export const selectPipelineHistory = (state: PipelineStore) =>
+  state.pipelineHistory;
 
 /** Get the most recent pipeline ID from history */
 export const selectLatestPipelineId = (state: PipelineStore) =>
@@ -200,7 +229,9 @@ export const selectLatestPipelineId = (state: PipelineStore) =>
 // ============================================================================
 
 /** Get preflight secrets input state */
-export const selectPreflightSecrets = (state: PipelineStore) => state.preflightSecrets;
+export const selectPreflightSecrets = (state: PipelineStore) =>
+  state.preflightSecrets;
 
 /** Get preflight override flag */
-export const selectPreflightOverride = (state: PipelineStore) => state.preflightOverride;
+export const selectPreflightOverride = (state: PipelineStore) =>
+  state.preflightOverride;

@@ -1,0 +1,92 @@
+{
+  "selectors": {
+    "app.root": {
+      "testId": "scenario-to-desktop-app",
+      "selector": "[data-testid=\"scenario-to-desktop-app\"]"
+    },
+    "app.generateTab": {
+      "testId": "scenario-to-desktop-tab-generate",
+      "selector": "[data-testid=\"scenario-to-desktop-tab-generate\"]"
+    },
+    "app.signingTab": {
+      "testId": "scenario-to-desktop-tab-signing",
+      "selector": "[data-testid=\"scenario-to-desktop-tab-signing\"]"
+    },
+    "generator.scenarioPicker": {
+      "testId": "generator-scenario-picker",
+      "selector": "[data-testid=\"generator-scenario-picker\"]"
+    },
+    "generator.templatePicker": {
+      "testId": "generator-template-picker",
+      "selector": "[data-testid=\"generator-template-picker\"]"
+    },
+    "generator.generateSubmit": {
+      "testId": "generator-generate-submit",
+      "selector": "[data-testid=\"generator-generate-submit\"]"
+    },
+    "generator.preflightRun": {
+      "testId": "generator-preflight-run",
+      "selector": "[data-testid=\"generator-preflight-run\"]"
+    },
+    "generator.buildStart": {
+      "testId": "generator-build-start",
+      "selector": "[data-testid=\"generator-build-start\"]"
+    },
+    "generator.smokeTestRun": {
+      "testId": "generator-smoke-test-run",
+      "selector": "[data-testid=\"generator-smoke-test-run\"]"
+    },
+    "generator.liveDesktopLaunch": {
+      "testId": "generator-live-desktop-launch",
+      "selector": "[data-testid=\"generator-live-desktop-launch\"]"
+    },
+    "generator.buildSection": {
+      "testId": "generator-build-section",
+      "selector": "[data-testid=\"generator-build-section\"]"
+    },
+    "generator.smokeTestSection": {
+      "testId": "generator-smoke-test-section",
+      "selector": "[data-testid=\"generator-smoke-test-section\"]"
+    },
+    "signing.scenarioSelect": {
+      "testId": "signing-scenario-select",
+      "selector": "[data-testid=\"signing-scenario-select\"]"
+    },
+    "signing.enabled": {
+      "testId": "signing-enabled",
+      "selector": "[data-testid=\"signing-enabled\"]"
+    },
+    "signing.windowsForm": {
+      "testId": "signing-windows-form",
+      "selector": "[data-testid=\"signing-windows-form\"]"
+    },
+    "signing.macosForm": {
+      "testId": "signing-macos-form",
+      "selector": "[data-testid=\"signing-macos-form\"]"
+    },
+    "signing.linuxForm": {
+      "testId": "signing-linux-form",
+      "selector": "[data-testid=\"signing-linux-form\"]"
+    },
+    "signing.validate": {
+      "testId": "signing-validate",
+      "selector": "[data-testid=\"signing-validate\"]"
+    },
+    "liveDesktop.start": {
+      "testId": "live-desktop-start",
+      "selector": "[data-testid=\"live-desktop-start\"]"
+    },
+    "liveDesktop.canvas": {
+      "testId": "live-desktop-canvas",
+      "selector": "[data-testid=\"live-desktop-canvas\"]"
+    },
+    "liveDesktop.close": {
+      "testId": "live-desktop-close",
+      "selector": "[data-testid=\"live-desktop-close\"]"
+    },
+    "liveDesktop.error": {
+      "testId": "live-desktop-error",
+      "selector": "[data-testid=\"live-desktop-error\"]"
+    }
+  }
+}

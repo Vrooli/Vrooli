@@ -12,7 +12,7 @@
 
 import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
 import { Braces, Copy, Download, LayoutList } from "lucide-react";
-import type { BundlePreflightStep, PipelineConfig } from "../../../lib/api";
+import type { PipelineConfig } from "../../../lib/api";
 import { writeToClipboard, triggerBlobDownload } from "../../../lib/browser";
 import {
   getDiagnosticsStatus,
@@ -20,17 +20,22 @@ import {
   getSecretsStatus,
   getServicesStatus,
   getValidationStatus,
-  resolveJobStepStatus
+  resolveJobStepStatus,
 } from "../../../lib/preflight-status";
+import type { PreflightJobStep } from "../../../lib/preflight-status";
 import {
   detectLikelyRootMismatch,
   formatDuration,
   formatPortSummary,
   getBundleRootFromManifestPath,
-  parseTimestamp
+  parseTimestamp,
 } from "../../../lib/preflight-utils";
+import { presentPreflight } from "../../../lib/preflightPresentation";
 import { Button } from "../../ui/button";
+import { selectors } from "../../../consts/selectors";
 import { Checkbox } from "../../ui/checkbox";
+import type { StageResult } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import { StageStatus } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 import {
   CoverageMap,
   FingerprintsPanel,
@@ -42,12 +47,9 @@ import {
   RuntimeInfoPanel,
   ServicesReadinessGrid,
   ValidationIssuesPanel,
-  ValidationWarningsPanel
+  ValidationWarningsPanel,
 } from "../../preflight";
-import {
-  SectionCard,
-  StagePlaceholder,
-} from "../shared";
+import { SectionCard, StagePlaceholder } from "../shared";
 import {
   usePipelineStore,
   selectIsRunning,
@@ -65,10 +67,18 @@ interface PreflightSectionProps {
   isBundled?: boolean;
 }
 
-export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps>(
-  ({ scenarioName, bundleManifestPath = "", bundleManifest, isBundled = true }, ref) => {
+export const PreflightSection = forwardRef<
+  HTMLDivElement,
+  PreflightSectionProps
+>(
+  (
+    { scenarioName, bundleManifestPath = "", bundleManifest, isBundled = true },
+    ref,
+  ) => {
     const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
-    const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+    const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
+      "idle",
+    );
     const [tick, setTick] = useState(() => Date.now());
 
     // Pipeline store state
@@ -76,7 +86,9 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
     const preflightSecrets = usePipelineStore((s) => s.preflightSecrets);
     const preflightOverride = usePipelineStore((s) => s.preflightOverride);
     const pipelineStatus = usePipelineStore((s) => s.pipelineStatus);
-    const preflightError = usePipelineStore((s) => s.errorInfo?.message ?? null);
+    const preflightError = usePipelineStore(
+      (s) => s.errorInfo?.message ?? null,
+    );
     const preflightPending = usePipelineStore(selectIsRunning);
     const preflightOk = usePipelineStore(selectPreflightOk);
     const missingSecrets = usePipelineStore(selectMissingSecrets);
@@ -85,18 +97,25 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
     const runPreflightStage = usePipelineStore((s) => s.runPreflightStage);
     const cancelPipeline = usePipelineStore((s) => s.cancelPipeline);
     const setPreflightSecret = usePipelineStore((s) => s.setPreflightSecret);
-    const setPreflightOverride = usePipelineStore((s) => s.setPreflightOverride);
+    const setPreflightOverride = usePipelineStore(
+      (s) => s.setPreflightOverride,
+    );
 
     // ============================================================================
     // Run preflight callback
     // ============================================================================
     const runPreflight = useCallback(
-      async (secretsOverride?: Record<string, string>, configOverride?: Partial<PipelineConfig>) => {
+      async (
+        secretsOverride?: Record<string, string>,
+        configOverride?: Partial<PipelineConfig>,
+      ) => {
         if (!scenarioName) return;
         const manifestPath = bundleManifestPath.trim();
         if (!manifestPath && isBundled) return;
 
-        const filteredSecrets = Object.entries(secretsOverride ?? preflightSecrets)
+        const filteredSecrets = Object.entries(
+          secretsOverride ?? preflightSecrets,
+        )
           .filter(([, value]) => value.trim())
           .reduce<Record<string, string>>((acc, [key, value]) => {
             acc[key] = value;
@@ -106,12 +125,22 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
         setPreflightOverride(false);
 
         await runPreflightStage({
-          bundle_manifest_path: manifestPath || undefined,
-          preflight_secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
+          bundleManifestPath: manifestPath || undefined,
+          preflightSecrets:
+            Object.keys(filteredSecrets).length > 0
+              ? filteredSecrets
+              : undefined,
           ...configOverride,
         });
       },
-      [scenarioName, bundleManifestPath, isBundled, preflightSecrets, runPreflightStage, setPreflightOverride]
+      [
+        scenarioName,
+        bundleManifestPath,
+        isBundled,
+        preflightSecrets,
+        runPreflightStage,
+        setPreflightOverride,
+      ],
     );
 
     // ============================================================================
@@ -120,25 +149,29 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
 
     // Map pipeline stages to preflight steps for compatibility with existing UI
     const jobStepById = useMemo(() => {
-      const map = new Map<string, BundlePreflightStep>();
+      const map = new Map<string, PreflightJobStep>();
       if (!pipelineStatus?.stages) return map;
 
       // Map pipeline stages to preflight step format
-      const stageToStep = (stageName: string, stage: { status: string; error?: string }): BundlePreflightStep | null => {
-        if (!stage) return null;
-        const stateMap: Record<string, BundlePreflightStep["state"]> = {
-          "pending": "pending",
-          "running": "running",
-          "completed": "pass",
-          "failed": "fail",
-          "cancelled": "fail",
-          "skipped": "skipped"
+      const stageToStep = (
+        stageName: string,
+        stage: StageResult,
+      ): PreflightJobStep | null => {
+        const stateMap: Partial<
+          Record<StageStatus, PreflightJobStep["state"]>
+        > = {
+          [StageStatus.PENDING]: "pending",
+          [StageStatus.RUNNING]: "running",
+          [StageStatus.COMPLETED]: "pass",
+          [StageStatus.FAILED]: "fail",
+          [StageStatus.CANCELLED]: "fail",
+          [StageStatus.SKIPPED]: "skipped",
         };
         return {
           id: stageName,
           name: stageName.charAt(0).toUpperCase() + stageName.slice(1),
           state: stateMap[stage.status] || "pending",
-          detail: stage.error
+          detail: stage.error,
         };
       };
 
@@ -160,61 +193,110 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
       return map;
     }, [pipelineStatus?.stages]);
 
-    const validation = preflightResult?.validation;
-    const readiness = preflightResult?.ready;
-    const ports = preflightResult?.ports;
-    const telemetry = preflightResult?.telemetry;
-    const runtimeInfo = preflightResult?.runtime;
-    const fingerprints = preflightResult?.service_fingerprints ?? [];
-    const logTails = preflightResult?.log_tails;
-    const checks = preflightResult?.checks ?? [];
-    const preflightErrors = preflightResult?.errors ?? [];
+    const preflight = useMemo(
+      () => (preflightResult ? presentPreflight(preflightResult) : undefined),
+      [preflightResult],
+    );
+    const validation = preflight?.validation;
+    const readiness = preflight?.ready;
+    const ports = preflight?.ports;
+    const telemetry = preflight?.telemetry;
+    const runtimeInfo = preflight?.runtime;
+    const fingerprints = preflight?.fingerprints ?? [];
+    const logTails = preflight?.logTails;
+    const checks = preflight?.checks ?? [];
+    const preflightErrors = preflight?.errors ?? [];
 
     const bundleRootPreview = getBundleRootFromManifestPath(bundleManifestPath);
-    const readinessDetails = readiness?.details ? Object.entries(readiness.details) : [];
+    const readinessDetails = readiness?.details
+      ? Object.entries(readiness.details)
+      : [];
     const portSummary = formatPortSummary(ports);
 
-    const latestServiceUpdate = readinessDetails.reduce((latest, [, status]) => {
-      const ts = parseTimestamp(status.updated_at);
-      return ts ? Math.max(latest, ts) : latest;
-    }, 0);
-    const snapshotTs = parseTimestamp(readiness?.snapshot_at) || latestServiceUpdate || 0;
-    const snapshotLabel = snapshotTs ? new Date(snapshotTs).toLocaleTimeString() : "";
-    const snapshotAge = snapshotTs ? formatDuration(Math.max(0, tick - snapshotTs)) : "";
+    const latestServiceUpdate = readinessDetails.reduce(
+      (latest, [, status]) => {
+        const ts = parseTimestamp(status.updated_at);
+        return ts ? Math.max(latest, ts) : latest;
+      },
+      0,
+    );
+    const snapshotTs =
+      parseTimestamp(readiness?.snapshot_at) || latestServiceUpdate || 0;
+    const snapshotLabel = snapshotTs
+      ? new Date(snapshotTs).toLocaleTimeString()
+      : "";
+    const snapshotAge = snapshotTs
+      ? formatDuration(Math.max(0, tick - snapshotTs))
+      : "";
 
     const likelyRootMismatch = detectLikelyRootMismatch(
       validation?.valid,
-      validation?.missing_assets?.length ?? 0,
-      validation?.missing_binaries?.length ?? 0,
-      bundleManifestPath
+      validation?.missing_assets.length ?? 0,
+      validation?.missing_binaries.length ?? 0,
+      bundleManifestPath,
     );
 
     const diagnosticsAvailable = Boolean(
-      portSummary || telemetry?.path || (logTails && logTails.length > 0)
+      portSummary || telemetry?.path || (logTails && logTails.length > 0),
     );
 
     const hasRun = Boolean(preflightResult || preflightError || pipelineStatus);
 
     // Filter checks by step
-    const validationChecks = checks.filter((check) => check.step === "validation");
+    const validationChecks = checks.filter(
+      (check) => check.step === "validation",
+    );
     const secretChecks = checks.filter((check) => check.step === "secrets");
     const runtimeChecks = checks.filter((check) => check.step === "runtime");
     const serviceChecks = checks.filter((check) => check.step === "services");
-    const diagnosticsChecks = checks.filter((check) => check.step === "diagnostics");
+    const diagnosticsChecks = checks.filter(
+      (check) => check.step === "diagnostics",
+    );
 
     // Resolve step statuses
-    const resolvedValidationStatus = resolveJobStepStatus(jobStepById, "validation")
-      ?? getValidationStatus(preflightPending, preflightError, hasRun, validation?.valid);
-    const resolvedSecretsStatus = resolveJobStepStatus(jobStepById, "secrets")
-      ?? getSecretsStatus(preflightPending, preflightError, hasRun, missingSecrets.length);
-    const resolvedRuntimeStatus = resolveJobStepStatus(jobStepById, "runtime")
-      ?? getRuntimeStatus(preflightPending, preflightError, Boolean(preflightResult), hasRun);
-    const resolvedServicesStatus = resolveJobStepStatus(jobStepById, "services")
-      ?? getServicesStatus(preflightPending, preflightError, hasRun, readiness?.ready);
-    const resolvedDiagnosticsStatus = resolveJobStepStatus(jobStepById, "diagnostics")
-      ?? getDiagnosticsStatus(preflightPending, preflightError, hasRun, diagnosticsAvailable);
+    const resolvedValidationStatus =
+      resolveJobStepStatus(jobStepById, "validation") ??
+      getValidationStatus(
+        preflightPending,
+        preflightError,
+        hasRun,
+        validation?.valid,
+      );
+    const resolvedSecretsStatus =
+      resolveJobStepStatus(jobStepById, "secrets") ??
+      getSecretsStatus(
+        preflightPending,
+        preflightError,
+        hasRun,
+        missingSecrets.length,
+      );
+    const resolvedRuntimeStatus =
+      resolveJobStepStatus(jobStepById, "runtime") ??
+      getRuntimeStatus(
+        preflightPending,
+        preflightError,
+        Boolean(preflightResult),
+        hasRun,
+      );
+    const resolvedServicesStatus =
+      resolveJobStepStatus(jobStepById, "services") ??
+      getServicesStatus(
+        preflightPending,
+        preflightError,
+        hasRun,
+        readiness?.ready,
+      );
+    const resolvedDiagnosticsStatus =
+      resolveJobStepStatus(jobStepById, "diagnostics") ??
+      getDiagnosticsStatus(
+        preflightPending,
+        preflightError,
+        hasRun,
+        diagnosticsAvailable,
+      );
 
-    const resolveJobStepDetail = (stepId: string) => jobStepById.get(stepId)?.detail;
+    const resolveJobStepDetail = (stepId: string) =>
+      jobStepById.get(stepId)?.detail;
 
     // JSON export payload
     const preflightPayload = useMemo(
@@ -223,9 +305,9 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
         start_services: true,
         result: preflightResult,
         error: preflightError || undefined,
-        missing_secrets: missingSecrets
+        missing_secrets: missingSecrets,
       }),
-      [bundleManifestPath, preflightResult, preflightError, missingSecrets]
+      [bundleManifestPath, preflightResult, preflightError, missingSecrets],
     );
 
     // ============================================================================
@@ -236,8 +318,12 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
       if (!preflightResult) {
         return;
       }
-      const interval = window.setInterval(() => setTick(Date.now()), 1000);
-      return () => window.clearInterval(interval);
+      const interval = window.setInterval(() => {
+        setTick(Date.now());
+      }, 1000);
+      return () => {
+        window.clearInterval(interval);
+      };
     }, [preflightResult]);
 
     // ============================================================================
@@ -248,19 +334,27 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
       if (!preflightResult && !preflightError) {
         return;
       }
-      const result = await writeToClipboard(JSON.stringify(preflightPayload, null, 2));
+      const result = await writeToClipboard(
+        JSON.stringify(preflightPayload, null, 2),
+      );
       if (result.success) {
         setCopyStatus("copied");
-        setTimeout(() => setCopyStatus("idle"), 1500);
+        setTimeout(() => {
+          setCopyStatus("idle");
+        }, 1500);
       } else {
         console.warn("Failed to copy preflight JSON", result.error);
         setCopyStatus("error");
-        setTimeout(() => setCopyStatus("idle"), 2000);
+        setTimeout(() => {
+          setCopyStatus("idle");
+        }, 2000);
       }
     };
 
     const downloadJson = () => {
-      const blob = new Blob([JSON.stringify(preflightPayload, null, 2)], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(preflightPayload, null, 2)], {
+        type: "application/json",
+      });
       triggerBlobDownload(blob, "preflight.json");
     };
 
@@ -277,7 +371,10 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
           variant="pipeline"
           collapsible={true}
         >
-          <StagePlaceholder scenarioName={scenarioName} withScenarioText="Preflight validation is only required for bundled deployment mode." />
+          <StagePlaceholder
+            scenarioName={scenarioName}
+            withScenarioText="Preflight validation is only required for bundled deployment mode."
+          />
         </SectionCard>
       );
     }
@@ -296,329 +393,410 @@ export const PreflightSection = forwardRef<HTMLDivElement, PreflightSectionProps
         collapsible={true}
         contentClassName="space-y-3"
       >
-          {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-100">Preflight validation</p>
-              <p className="text-xs text-slate-400">
-                Validates the bundle manifest + staged assets by running the bundled runtime (no desktop wrapper needed).
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 rounded-full border border-slate-800/70 bg-slate-950/60 p-1 text-[11px]">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={viewMode === "summary" ? "default" : "ghost"}
-                  onClick={() => setViewMode("summary")}
-                  aria-label="Show preflight summary"
-                  className="h-10 w-10 p-0"
-                >
-                  <LayoutList className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={viewMode === "json" ? "default" : "ghost"}
-                  onClick={() => setViewMode("json")}
-                  aria-label="Show preflight JSON"
-                  className="h-10 w-10 p-0"
-                >
-                  <Braces className="h-4 w-4" />
-                </Button>
-              </div>
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-100">
+              Preflight validation
+            </p>
+            <p className="text-xs text-slate-400">
+              Validates the bundle manifest + staged assets by running the
+              bundled runtime (no desktop wrapper needed).
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-full border border-slate-800/70 bg-slate-950/60 p-1 text-[11px]">
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
-                onClick={() => runPreflight()}
-                disabled={preflightPending || !bundleManifestPath.trim()}
-                className="gap-2"
+                variant={viewMode === "summary" ? "default" : "ghost"}
+                onClick={() => {
+                  setViewMode("summary");
+                }}
+                aria-label="Show preflight summary"
+                className="h-10 w-10 p-0"
               >
-                {preflightPending ? "Running..." : "Run preflight"}
+                <LayoutList className="h-4 w-4" />
               </Button>
-              {preflightPending && (
+              <Button
+                type="button"
+                size="sm"
+                variant={viewMode === "json" ? "default" : "ghost"}
+                onClick={() => {
+                  setViewMode("json");
+                }}
+                aria-label="Show preflight JSON"
+                className="h-10 w-10 p-0"
+              >
+                <Braces className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void runPreflight();
+              }}
+              disabled={preflightPending || !bundleManifestPath.trim()}
+              className="gap-2"
+              data-testid={selectors.generator.preflightRun}
+            >
+              {preflightPending ? "Running..." : "Run preflight"}
+            </Button>
+            {preflightPending && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  void cancelPipeline();
+                }}
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Warnings */}
+        {!bundleManifestPath.trim() && (
+          <p className="text-xs text-amber-200">
+            Configure the bundle manifest path in the Configuration section
+            above to enable preflight checks.
+          </p>
+        )}
+
+        {preflightError && (
+          <div className="rounded-md border border-red-800 bg-red-950/40 p-3 text-sm text-red-200">
+            {preflightError}
+          </div>
+        )}
+
+        {/* Summary View */}
+        {viewMode === "summary" && (
+          <div className="space-y-4">
+            {/* Bundle Context */}
+            <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200 space-y-2">
+              <p className="font-semibold text-slate-100">Bundle context</p>
+              <div className="space-y-1 text-[11px] text-slate-300">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400">Manifest</span>
+                  <span className="text-slate-200">
+                    {bundleManifestPath.trim() || "Not set"}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400">Bundle root</span>
+                  <span className="text-slate-200">
+                    {bundleRootPreview || "Unknown"}
+                  </span>
+                </div>
+              </div>
+              {likelyRootMismatch && (
+                <p className="text-[11px] text-amber-200">
+                  Missing artifacts detected. If your bundle assets live
+                  elsewhere, re-export the bundle so the manifest and staged
+                  files sit in the same directory.
+                </p>
+              )}
+              {preflightErrors.length > 0 && (
+                <div className="rounded-md border border-amber-800/60 bg-amber-950/20 p-2 text-[11px] text-amber-100">
+                  <p className="font-semibold text-amber-100">
+                    Preflight warnings
+                  </p>
+                  <ul className="mt-1 space-y-1">
+                    {preflightErrors.map((err, idx) => (
+                      <li key={`preflight-error-${String(idx)}`}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Runtime Info */}
+            {runtimeInfo && <RuntimeInfoPanel runtimeInfo={runtimeInfo} />}
+
+            {/* Steps */}
+            <div className="space-y-3">
+              {/* Step 1: Validation */}
+              <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+                <PreflightStepHeader
+                  index={1}
+                  title="Load bundle + validate"
+                  subtitle="Manifest structure and staged binaries/assets"
+                  status={resolvedValidationStatus}
+                />
+                <p className="text-[11px] text-slate-400">
+                  Confirms the manifest is valid and staged files exist with
+                  matching checksums.
+                </p>
+                {resolveJobStepDetail("validation") && (
+                  <p className="text-[11px] text-slate-300">
+                    {resolveJobStepDetail("validation")}
+                  </p>
+                )}
+                {validation?.valid && !preflightError && (
+                  <p className="text-[11px] text-slate-300">
+                    No validation issues detected.
+                  </p>
+                )}
+                {preflightError && !validation && (
+                  <p className="text-[11px] text-red-200">
+                    Validation did not complete. Review the error above and
+                    re-run preflight.
+                  </p>
+                )}
+                {validation && !validation.valid && (
+                  <ValidationIssuesPanel validation={validation} />
+                )}
+                {validation?.warnings && (
+                  <ValidationWarningsPanel warnings={validation.warnings} />
+                )}
+                <PreflightCheckList checks={validationChecks} />
+              </div>
+
+              {/* Step 2: Secrets */}
+              <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+                <PreflightStepHeader
+                  index={2}
+                  title="Apply secrets"
+                  subtitle="Required secrets must be present for readiness"
+                  status={resolvedSecretsStatus}
+                />
+                {!hasRun && (
+                  <p className="text-[11px] text-slate-400">
+                    Run preflight to detect required secrets.
+                  </p>
+                )}
+                {resolveJobStepDetail("secrets") && (
+                  <p className="text-[11px] text-slate-300">
+                    {resolveJobStepDetail("secrets")}
+                  </p>
+                )}
+                {preflightError && (
+                  <p className="text-[11px] text-red-200">
+                    Secrets were not checked because preflight failed.
+                  </p>
+                )}
+                {hasRun && !preflightError && missingSecrets.length === 0 && (
+                  <p className="text-[11px] text-slate-300">
+                    All required secrets are present for this run.
+                  </p>
+                )}
+                <MissingSecretsForm
+                  missingSecrets={missingSecrets}
+                  secretInputs={preflightSecrets}
+                  preflightPending={preflightPending}
+                  onSecretChange={setPreflightSecret}
+                  onApplySecrets={(secrets) => {
+                    void runPreflight(secrets);
+                  }}
+                />
+                <PreflightCheckList checks={secretChecks} />
+              </div>
+
+              {/* Step 3: Runtime */}
+              <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+                <PreflightStepHeader
+                  index={3}
+                  title="Start runtime control API"
+                  subtitle="IPC auth token + control API readiness"
+                  status={resolvedRuntimeStatus}
+                />
+                {preflightPending && (
+                  <p className="text-[11px] text-slate-400">
+                    Starting the runtime supervisor and waiting for the control
+                    API.
+                  </p>
+                )}
+                {resolveJobStepDetail("runtime") && (
+                  <p className="text-[11px] text-slate-300">
+                    {resolveJobStepDetail("runtime")}
+                  </p>
+                )}
+                {!preflightPending && preflightResult && (
+                  <p className="text-[11px] text-slate-300">
+                    Control API is responding. Runtime supervisor initialized.
+                  </p>
+                )}
+                {!preflightPending && !preflightResult && !preflightError && (
+                  <p className="text-[11px] text-slate-400">
+                    Run preflight to boot the runtime supervisor.
+                  </p>
+                )}
+                {preflightError && (
+                  <p className="text-[11px] text-red-200">
+                    Control API failed to start. Review the error above.
+                  </p>
+                )}
+                <PreflightCheckList checks={runtimeChecks} />
+              </div>
+
+              {/* Step 4: Services */}
+              <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+                <PreflightStepHeader
+                  index={4}
+                  title="Services ready"
+                  subtitle="Optional service startup + readiness checks"
+                  status={resolvedServicesStatus}
+                />
+                {readiness && readinessDetails.length > 0 && (
+                  <details
+                    className="rounded-md border border-slate-800/70 bg-slate-950/70 p-3 text-xs text-slate-200"
+                    open={!readiness.ready}
+                  >
+                    <summary className="cursor-pointer text-xs font-semibold text-slate-100">
+                      Readiness details
+                    </summary>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Snapshot{" "}
+                      {snapshotLabel
+                        ? `at ${snapshotLabel}`
+                        : "captured during this preflight run"}
+                      {snapshotAge ? ` (${snapshotAge} ago)` : ""}.
+                      {typeof readiness.waited_seconds === "number" &&
+                      readiness.waited_seconds > 0
+                        ? ` Waited ${String(readiness.waited_seconds)}s before capturing status.`
+                        : ""}
+                    </p>
+                    <ServicesReadinessGrid
+                      readinessDetails={readinessDetails}
+                      ports={ports}
+                      bundleManifest={bundleManifest}
+                      snapshotTs={snapshotTs}
+                      tick={tick}
+                    />
+                    {!readiness.ready && (
+                      <p className="mt-2 text-[11px] text-slate-300">
+                        Readiness is a snapshot from preflight. Services shut
+                        down after this run, so re-run to refresh status or
+                        inspect log tails for why a service is waiting.
+                      </p>
+                    )}
+                  </details>
+                )}
+                {(!readiness || readinessDetails.length === 0) && (
+                  <p className="text-[11px] text-slate-400">
+                    No service readiness details yet. Re-run preflight or verify
+                    the bundle defines services for this target.
+                  </p>
+                )}
+                {resolveJobStepDetail("services") && (
+                  <p className="text-[11px] text-slate-300">
+                    {resolveJobStepDetail("services")}
+                  </p>
+                )}
+                <PreflightCheckList checks={serviceChecks} />
+              </div>
+
+              {/* Step 5: Diagnostics */}
+              <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+                <PreflightStepHeader
+                  index={5}
+                  title="Diagnostics"
+                  subtitle="Ports, telemetry, and optional log tails"
+                  status={resolvedDiagnosticsStatus}
+                />
+                {!hasRun && (
+                  <p className="text-[11px] text-slate-400">
+                    Run preflight to collect diagnostics.
+                  </p>
+                )}
+                {resolveJobStepDetail("diagnostics") && (
+                  <p className="text-[11px] text-slate-300">
+                    {resolveJobStepDetail("diagnostics")}
+                  </p>
+                )}
+                {hasRun && !diagnosticsAvailable && (
+                  <p className="text-[11px] text-slate-400">
+                    No diagnostics reported yet.
+                  </p>
+                )}
+                <PortSummaryPanel
+                  portSummary={portSummary}
+                  telemetryPath={telemetry?.path}
+                />
+                {logTails && <LogTailsPanel logTails={logTails} />}
+                {fingerprints.length > 0 && (
+                  <FingerprintsPanel fingerprints={fingerprints} />
+                )}
+                <PreflightCheckList checks={diagnosticsChecks} />
+              </div>
+            </div>
+
+            {/* Coverage Map */}
+            <CoverageMap />
+
+            {/* Override */}
+            {!preflightOk && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-800 bg-amber-950/20 p-3 text-xs text-amber-100">
+                <span>Override preflight and allow generation anyway.</span>
+                <Checkbox
+                  checked={preflightOverride}
+                  onChange={(e) => {
+                    setPreflightOverride(e.target.checked);
+                  }}
+                  label="Override"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* JSON View */}
+        {viewMode === "json" && (
+          <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-200">
+                Preflight JSON
+              </p>
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   size="sm"
-                  variant="ghost"
-                  onClick={() => cancelPipeline()}
+                  variant="outline"
+                  onClick={() => {
+                    void copyJson();
+                  }}
+                  disabled={!preflightResult && !preflightError}
+                  aria-label="Copy preflight JSON"
+                  className="h-10 w-10 p-0"
                 >
-                  Cancel
+                  <Copy className="h-4 w-4" />
                 </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Warnings */}
-          {!bundleManifestPath.trim() && (
-            <p className="text-xs text-amber-200">Configure the bundle manifest path in the Configuration section above to enable preflight checks.</p>
-          )}
-
-          {preflightError && (
-            <div className="rounded-md border border-red-800 bg-red-950/40 p-3 text-sm text-red-200">
-              {preflightError}
-            </div>
-          )}
-
-          {/* Summary View */}
-          {viewMode === "summary" && (
-            <div className="space-y-4">
-              {/* Bundle Context */}
-              <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200 space-y-2">
-                <p className="font-semibold text-slate-100">Bundle context</p>
-                <div className="space-y-1 text-[11px] text-slate-300">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-slate-400">Manifest</span>
-                    <span className="text-slate-200">{bundleManifestPath.trim() || "Not set"}</span>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-slate-400">Bundle root</span>
-                    <span className="text-slate-200">{bundleRootPreview || "Unknown"}</span>
-                  </div>
-                </div>
-                {likelyRootMismatch && (
-                  <p className="text-[11px] text-amber-200">
-                    Missing artifacts detected. If your bundle assets live elsewhere, re-export the bundle so the manifest
-                    and staged files sit in the same directory.
-                  </p>
-                )}
-                {preflightErrors.length > 0 && (
-                  <div className="rounded-md border border-amber-800/60 bg-amber-950/20 p-2 text-[11px] text-amber-100">
-                    <p className="font-semibold text-amber-100">Preflight warnings</p>
-                    <ul className="mt-1 space-y-1">
-                      {preflightErrors.map((err, idx) => (
-                        <li key={`preflight-error-${idx}`}>{err}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={downloadJson}
+                  disabled={!preflightResult && !preflightError}
+                  aria-label="Download preflight JSON"
+                  className="h-10 w-10 p-0"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
               </div>
-
-              {/* Runtime Info */}
-              {runtimeInfo && <RuntimeInfoPanel runtimeInfo={runtimeInfo} />}
-
-              {/* Steps */}
-              <div className="space-y-3">
-                {/* Step 1: Validation */}
-                <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
-                  <PreflightStepHeader
-                    index={1}
-                    title="Load bundle + validate"
-                    subtitle="Manifest structure and staged binaries/assets"
-                    status={resolvedValidationStatus}
-                  />
-                  <p className="text-[11px] text-slate-400">
-                    Confirms the manifest is valid and staged files exist with matching checksums.
-                  </p>
-                  {resolveJobStepDetail("validation") && (
-                    <p className="text-[11px] text-slate-300">{resolveJobStepDetail("validation")}</p>
-                  )}
-                  {validation?.valid && !preflightError && (
-                    <p className="text-[11px] text-slate-300">No validation issues detected.</p>
-                  )}
-                  {preflightError && !validation && (
-                    <p className="text-[11px] text-red-200">
-                      Validation did not complete. Review the error above and re-run preflight.
-                    </p>
-                  )}
-                  {validation && !validation.valid && <ValidationIssuesPanel validation={validation} />}
-                  {validation?.warnings && <ValidationWarningsPanel warnings={validation.warnings} />}
-                  <PreflightCheckList checks={validationChecks} />
-                </div>
-
-                {/* Step 2: Secrets */}
-                <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
-                  <PreflightStepHeader
-                    index={2}
-                    title="Apply secrets"
-                    subtitle="Required secrets must be present for readiness"
-                    status={resolvedSecretsStatus}
-                  />
-                  {!hasRun && (
-                    <p className="text-[11px] text-slate-400">Run preflight to detect required secrets.</p>
-                  )}
-                  {resolveJobStepDetail("secrets") && (
-                    <p className="text-[11px] text-slate-300">{resolveJobStepDetail("secrets")}</p>
-                  )}
-                  {preflightError && (
-                    <p className="text-[11px] text-red-200">Secrets were not checked because preflight failed.</p>
-                  )}
-                  {hasRun && !preflightError && missingSecrets.length === 0 && (
-                    <p className="text-[11px] text-slate-300">All required secrets are present for this run.</p>
-                  )}
-                  <MissingSecretsForm
-                    missingSecrets={missingSecrets}
-                    secretInputs={preflightSecrets}
-                    preflightPending={preflightPending}
-                    onSecretChange={setPreflightSecret}
-                    onApplySecrets={(secrets) => runPreflight(secrets)}
-                  />
-                  <PreflightCheckList checks={secretChecks} />
-                </div>
-
-                {/* Step 3: Runtime */}
-                <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
-                  <PreflightStepHeader
-                    index={3}
-                    title="Start runtime control API"
-                    subtitle="IPC auth token + control API readiness"
-                    status={resolvedRuntimeStatus}
-                  />
-                  {preflightPending && (
-                    <p className="text-[11px] text-slate-400">
-                      Starting the runtime supervisor and waiting for the control API.
-                    </p>
-                  )}
-                  {resolveJobStepDetail("runtime") && (
-                    <p className="text-[11px] text-slate-300">{resolveJobStepDetail("runtime")}</p>
-                  )}
-                  {!preflightPending && preflightResult && (
-                    <p className="text-[11px] text-slate-300">
-                      Control API is responding. Runtime supervisor initialized.
-                    </p>
-                  )}
-                  {!preflightPending && !preflightResult && !preflightError && (
-                    <p className="text-[11px] text-slate-400">Run preflight to boot the runtime supervisor.</p>
-                  )}
-                  {preflightError && (
-                    <p className="text-[11px] text-red-200">Control API failed to start. Review the error above.</p>
-                  )}
-                  <PreflightCheckList checks={runtimeChecks} />
-                </div>
-
-                {/* Step 4: Services */}
-                <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
-                  <PreflightStepHeader
-                    index={4}
-                    title="Services ready"
-                    subtitle="Optional service startup + readiness checks"
-                    status={resolvedServicesStatus}
-                  />
-                  {readiness && readinessDetails.length > 0 && (
-                    <details className="rounded-md border border-slate-800/70 bg-slate-950/70 p-3 text-xs text-slate-200" open={!readiness.ready}>
-                      <summary className="cursor-pointer text-xs font-semibold text-slate-100">
-                        Readiness details
-                      </summary>
-                      <p className="mt-1 text-[11px] text-slate-400">
-                        Snapshot {snapshotLabel ? `at ${snapshotLabel}` : "captured during this preflight run"}
-                        {snapshotAge ? ` (${snapshotAge} ago)` : ""}.
-                        {typeof readiness?.waited_seconds === "number" && readiness.waited_seconds > 0
-                          ? ` Waited ${readiness.waited_seconds}s before capturing status.`
-                          : ""}
-                      </p>
-                      <ServicesReadinessGrid
-                        readinessDetails={readinessDetails}
-                        ports={ports}
-                        bundleManifest={bundleManifest}
-                        snapshotTs={snapshotTs}
-                        tick={tick}
-                      />
-                      {!readiness.ready && (
-                        <p className="mt-2 text-[11px] text-slate-300">
-                          Readiness is a snapshot from preflight. Services shut down after this run, so re-run to refresh status or inspect log tails for why a service is waiting.
-                        </p>
-                      )}
-                    </details>
-                  )}
-                  {(!readiness || readinessDetails.length === 0) && (
-                    <p className="text-[11px] text-slate-400">
-                      No service readiness details yet. Re-run preflight or verify the bundle defines services for this target.
-                    </p>
-                  )}
-                  {resolveJobStepDetail("services") && (
-                    <p className="text-[11px] text-slate-300">{resolveJobStepDetail("services")}</p>
-                  )}
-                  <PreflightCheckList checks={serviceChecks} />
-                </div>
-
-                {/* Step 5: Diagnostics */}
-                <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
-                  <PreflightStepHeader
-                    index={5}
-                    title="Diagnostics"
-                    subtitle="Ports, telemetry, and optional log tails"
-                    status={resolvedDiagnosticsStatus}
-                  />
-                  {!hasRun && (
-                    <p className="text-[11px] text-slate-400">Run preflight to collect diagnostics.</p>
-                  )}
-                  {resolveJobStepDetail("diagnostics") && (
-                    <p className="text-[11px] text-slate-300">{resolveJobStepDetail("diagnostics")}</p>
-                  )}
-                  {hasRun && !diagnosticsAvailable && (
-                    <p className="text-[11px] text-slate-400">No diagnostics reported yet.</p>
-                  )}
-                  <PortSummaryPanel portSummary={portSummary} telemetryPath={telemetry?.path} />
-                  {logTails && <LogTailsPanel logTails={logTails} />}
-                  {fingerprints.length > 0 && <FingerprintsPanel fingerprints={fingerprints} />}
-                  <PreflightCheckList checks={diagnosticsChecks} />
-                </div>
-              </div>
-
-              {/* Coverage Map */}
-              <CoverageMap />
-
-              {/* Override */}
-              {!preflightOk && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-800 bg-amber-950/20 p-3 text-xs text-amber-100">
-                  <span>Override preflight and allow generation anyway.</span>
-                  <Checkbox
-                    checked={preflightOverride}
-                    onChange={(e) => setPreflightOverride(e.target.checked)}
-                    label="Override"
-                  />
-                </div>
-              )}
             </div>
-          )}
-
-          {/* JSON View */}
-          {viewMode === "json" && (
-            <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-slate-200">Preflight JSON</p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={copyJson}
-                    disabled={!preflightResult && !preflightError}
-                    aria-label="Copy preflight JSON"
-                    className="h-10 w-10 p-0"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={downloadJson}
-                    disabled={!preflightResult && !preflightError}
-                    aria-label="Download preflight JSON"
-                    className="h-10 w-10 p-0"
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md border border-slate-800/70 bg-slate-950/80 p-3 text-[11px] text-slate-200">
-                {JSON.stringify(preflightPayload, null, 2)}
-              </pre>
-              {copyStatus !== "idle" && (
-                <p className="text-[11px] text-slate-400">
-                  {copyStatus === "copied" ? "Copied to clipboard." : "Copy failed."}
-                </p>
-              )}
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md border border-slate-800/70 bg-slate-950/80 p-3 text-[11px] text-slate-200">
+              {JSON.stringify(preflightPayload, null, 2)}
+            </pre>
+            {copyStatus !== "idle" && (
               <p className="text-[11px] text-slate-400">
-                Use this view to share the full preflight snapshot with an agent or teammate.
+                {copyStatus === "copied"
+                  ? "Copied to clipboard."
+                  : "Copy failed."}
               </p>
-            </div>
-          )}
+            )}
+            <p className="text-[11px] text-slate-400">
+              Use this view to share the full preflight snapshot with an agent
+              or teammate.
+            </p>
+          </div>
+        )}
       </SectionCard>
     );
-  }
+  },
 );
 
 PreflightSection.displayName = "PreflightSection";

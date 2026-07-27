@@ -68,11 +68,3 @@ func (a *App) dependencies() support.Dependencies {
 		},
 	}
 }
-
-func (a *App) registerCommands() []cliapp.CommandGroup {
-	return domains.CommandGroups(a.dependencies())
-}
-
-func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
-	return domains.SubcommandGroups(a.dependencies())
-}

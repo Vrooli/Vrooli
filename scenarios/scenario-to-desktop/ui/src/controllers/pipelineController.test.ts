@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import {
   buildPipelineConfig,
   buildGenerateConfig,
@@ -15,7 +16,17 @@ import {
   filterNonEmptySecrets,
   mapValidationErrorsToFormErrors,
 } from "./pipelineController";
-import type { BundlePreflightResponse } from "../lib/api";
+import {
+  DeploymentMode,
+  Platform,
+  StageName,
+  TemplateType,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import { PreflightResponseSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
+
+const preflight = (
+  init: MessageInitShape<typeof PreflightResponseSchema> = {},
+) => create(PreflightResponseSchema, init);
 
 // ============================================================================
 // buildPipelineConfig tests
@@ -27,14 +38,14 @@ describe("buildPipelineConfig", () => {
       scenarioName: "my-scenario",
       templateType: "basic",
       deploymentMode: "bundled",
-      platforms: ["linux-x64"],
+      platforms: ["linux"],
     });
 
     expect(config).toEqual({
-      scenario_name: "my-scenario",
-      template_type: "basic",
-      deployment_mode: "bundled",
-      platforms: ["linux-x64"],
+      scenarioName: "my-scenario",
+      templateType: TemplateType.BASIC,
+      deploymentMode: DeploymentMode.BUNDLED,
+      platforms: [Platform.LINUX],
     });
   });
 
@@ -47,7 +58,7 @@ describe("buildPipelineConfig", () => {
       stopAfterStage: "generate",
     });
 
-    expect(config.stop_after_stage).toBe("generate");
+    expect(config.stopAfterStage).toBe(StageName.GENERATE);
   });
 
   it("includes proxy_url when provided", () => {
@@ -59,7 +70,7 @@ describe("buildPipelineConfig", () => {
       platforms: ["linux-x64"],
     });
 
-    expect(config.proxy_url).toBe("http://localhost:3000");
+    expect(config.proxyUrl).toBe("http://localhost:3000");
   });
 
   it("trims whitespace from proxy_url", () => {
@@ -71,7 +82,7 @@ describe("buildPipelineConfig", () => {
       platforms: ["linux-x64"],
     });
 
-    expect(config.proxy_url).toBe("http://localhost:3000");
+    expect(config.proxyUrl).toBe("http://localhost:3000");
   });
 
   it("excludes proxy_url when empty", () => {
@@ -83,7 +94,7 @@ describe("buildPipelineConfig", () => {
       platforms: ["linux-x64"],
     });
 
-    expect(config.proxy_url).toBeUndefined();
+    expect(config.proxyUrl).toBeUndefined();
   });
 
   it("includes bundle_manifest_path when provided", () => {
@@ -95,7 +106,7 @@ describe("buildPipelineConfig", () => {
       platforms: ["linux-x64"],
     });
 
-    expect(config.bundle_manifest_path).toBe("/path/to/manifest.json");
+    expect(config.bundleManifestPath).toBe("/path/to/manifest.json");
   });
 
   it("filters empty secrets", () => {
@@ -112,7 +123,7 @@ describe("buildPipelineConfig", () => {
       },
     });
 
-    expect(config.preflight_secrets).toEqual({
+    expect(config.preflightSecrets).toEqual({
       API_KEY: "secret123",
       VALID: "value",
     });
@@ -130,7 +141,7 @@ describe("buildPipelineConfig", () => {
       },
     });
 
-    expect(config.preflight_secrets).toBeUndefined();
+    expect(config.preflightSecrets).toBeUndefined();
   });
 });
 
@@ -145,7 +156,7 @@ describe("buildGenerateConfig", () => {
       bundleManifestPath: "",
     });
 
-    expect(config.stop_after_stage).toBe("generate");
+    expect(config.stopAfterStage).toBe(StageName.GENERATE);
   });
 });
 
@@ -198,7 +209,9 @@ describe("validateBeforeRun", () => {
     });
 
     expect(result.valid).toBe(false);
-    expect(result.error).toBe("Bundle manifest path is required for bundled mode");
+    expect(result.error).toBe(
+      "Bundle manifest path is required for bundled mode",
+    );
   });
 
   it("allows empty manifest path in proxy mode", () => {
@@ -218,11 +231,10 @@ describe("validateBeforeRun", () => {
 // ============================================================================
 
 describe("canProceedToGeneration", () => {
-  const validPreflightResult: BundlePreflightResponse = {
-    status: "completed",
+  const validPreflightResult = preflight({
     validation: { valid: true },
     ready: { ready: true },
-  } as BundlePreflightResponse;
+  });
 
   it("allows proceed when override is enabled", () => {
     const result = canProceedToGeneration(null, true, 0);
@@ -237,9 +249,9 @@ describe("canProceedToGeneration", () => {
 
   it("blocks when validation failed", () => {
     const result = canProceedToGeneration(
-      { ...validPreflightResult, validation: { valid: false } } as BundlePreflightResponse,
+      preflight({ validation: { valid: false }, ready: { ready: true } }),
       false,
-      0
+      0,
     );
     expect(result.canProceed).toBe(false);
     expect(result.reason).toBe("Bundle validation failed");
@@ -253,9 +265,9 @@ describe("canProceedToGeneration", () => {
 
   it("blocks when services not ready", () => {
     const result = canProceedToGeneration(
-      { ...validPreflightResult, ready: { ready: false } } as BundlePreflightResponse,
+      preflight({ validation: { valid: true }, ready: { ready: false } }),
       false,
-      0
+      0,
     );
     expect(result.canProceed).toBe(false);
     expect(result.reason).toBe("Services are not ready");
@@ -272,8 +284,8 @@ describe("canProceedToGeneration", () => {
 // ============================================================================
 
 describe("getEffectivePreflightResult", () => {
-  const storeResult = { status: "store" } as unknown as BundlePreflightResponse;
-  const serverResult = { status: "server" } as unknown as BundlePreflightResponse;
+  const storeResult = preflight();
+  const serverResult = preflight();
 
   it("prefers store result when available", () => {
     const result = getEffectivePreflightResult({
@@ -310,22 +322,34 @@ describe("getEffectivePreflightOk", () => {
   });
 
   it("returns false when validation is invalid", () => {
-    const result = { validation: { valid: false }, ready: { ready: true } } as BundlePreflightResponse;
+    const result = preflight({
+      validation: { valid: false },
+      ready: { ready: true },
+    });
     expect(getEffectivePreflightOk(result, 0)).toBe(false);
   });
 
   it("returns false when services not ready", () => {
-    const result = { validation: { valid: true }, ready: { ready: false } } as BundlePreflightResponse;
+    const result = preflight({
+      validation: { valid: true },
+      ready: { ready: false },
+    });
     expect(getEffectivePreflightOk(result, 0)).toBe(false);
   });
 
   it("returns false when missing secrets", () => {
-    const result = { validation: { valid: true }, ready: { ready: true } } as BundlePreflightResponse;
+    const result = preflight({
+      validation: { valid: true },
+      ready: { ready: true },
+    });
     expect(getEffectivePreflightOk(result, 2)).toBe(false);
   });
 
   it("returns true when all conditions pass", () => {
-    const result = { validation: { valid: true }, ready: { ready: true } } as BundlePreflightResponse;
+    const result = preflight({
+      validation: { valid: true },
+      ready: { ready: true },
+    });
     expect(getEffectivePreflightOk(result, 0)).toBe(true);
   });
 });
@@ -421,11 +445,19 @@ describe("filterNonEmptySecrets", () => {
 describe("mapValidationErrorsToFormErrors", () => {
   it("maps errors with field property", () => {
     const errors = [
-      { id: "required_scenario", message: "Scenario required", field: "scenario" },
+      {
+        id: "required_scenario",
+        message: "Scenario required",
+        field: "scenario",
+      },
     ];
     const result = mapValidationErrorsToFormErrors(errors);
     expect(result).toEqual([
-      { field: "scenario", message: "Scenario required", code: "required_scenario" },
+      {
+        field: "scenario",
+        message: "Scenario required",
+        code: "required_scenario",
+      },
     ]);
   });
 
@@ -433,7 +465,11 @@ describe("mapValidationErrorsToFormErrors", () => {
     const errors = [{ id: "required_scenario", message: "Scenario required" }];
     const result = mapValidationErrorsToFormErrors(errors);
     expect(result).toEqual([
-      { field: "required_scenario", message: "Scenario required", code: "required_scenario" },
+      {
+        field: "required_scenario",
+        message: "Scenario required",
+        code: "required_scenario",
+      },
     ]);
   });
 

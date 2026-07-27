@@ -1,9 +1,26 @@
 package preflight
 
 import (
+	"context"
 	"testing"
 	"time"
 )
+
+func TestServiceJanitorLifecycle(t *testing.T) {
+	service := NewService()
+	service.StartJanitor()
+	// Starting twice must not create a second, unowned ticker worker.
+	service.StartJanitor()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := service.StopJanitor(ctx); err != nil {
+		t.Fatalf("StopJanitor() error = %v", err)
+	}
+	if err := service.StopJanitor(ctx); err != nil {
+		t.Fatalf("second StopJanitor() error = %v", err)
+	}
+}
 
 func TestInMemorySessionStore(t *testing.T) {
 	store := NewInMemorySessionStore()

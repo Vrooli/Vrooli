@@ -7,14 +7,13 @@ import (
 	"log/slog"
 	"path/filepath"
 	"runtime"
+	"scenario-to-desktop-api/captures"
+	"scenario-to-desktop-api/screenrecording"
+	"scenario-to-desktop-api/shared/packaging"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-
-	"scenario-to-desktop-api/captures"
-	"scenario-to-desktop-api/screenrecording"
-	"scenario-to-desktop-api/shared/packaging"
 )
 
 // Service orchestrates live desktop session lifecycle.
@@ -56,6 +55,9 @@ func (s *Service) WithDataDir(dir string) {
 
 // StartSession creates a new live desktop session with remote access.
 func (s *Service) StartSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("starting desktop session: %w", err)
+	}
 	if cfg.Width == 0 {
 		cfg.Width = 1280
 	}
@@ -82,6 +84,7 @@ func (s *Service) StartSession(ctx context.Context, cfg SessionConfig) (*Session
 		Platform:      requestedPlatform,
 		CreatedAt:     time.Now(),
 		LastHeartbeat: time.Now(),
+		stopCh:        make(chan struct{}),
 	}
 
 	if err := s.store.Create(session); err != nil {
@@ -109,6 +112,13 @@ func (s *Service) StartSession(ctx context.Context, cfg SessionConfig) (*Session
 	session.RemoteInfo = info
 	session.VNCPort = info.Port
 	session.WSPort = info.WSPort
+	if err := ctx.Err(); err != nil {
+		s.backend.StopRemoteAccess(handle)
+		display.Stop()
+		session.SetError("session creation cancelled")
+		_ = s.store.Update(session)
+		return session, fmt.Errorf("starting desktop session: %w", err)
+	}
 
 	session.SetState(StateRunning)
 	_ = s.store.Update(session)
@@ -133,6 +143,7 @@ func (s *Service) StopSession(sessionID string) error {
 
 	session.SetState(StateStopping)
 	_ = s.store.Update(session)
+	session.signalStop()
 
 	// Kill launched app process
 	s.killAppProcess(session)
@@ -224,16 +235,26 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 		}
 	}
 
-	// Reap the process in the background so it doesn't become a zombie
+	// Reap the process in the background so it doesn't become a zombie. Its
+	// lifecycle belongs to the desktop session, not to the request that launched
+	// the app.
 	go func() {
-		// Wait for process to exit by polling
-		for proc.IsRunning() {
-			time.Sleep(500 * time.Millisecond)
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			if !proc.IsRunning() {
+				if m := session.GetMonitor(); m != nil {
+					m.Stop()
+				}
+				session.SetAppRunning(false)
+				return
+			}
+			select {
+			case <-session.Done():
+				return
+			case <-ticker.C:
+			}
 		}
-		if m := session.GetMonitor(); m != nil {
-			m.Stop()
-		}
-		session.SetAppRunning(false)
 	}()
 
 	s.logger.Info("app launched on desktop", "session_id", sessionID, "app", appPath,

@@ -5,10 +5,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"scenario-to-desktop-api/storagepaths"
 	"strings"
 
 	sharedpath "scenario-to-desktop-api/shared/path"
-	"scenario-to-desktop-api/storagepaths"
 )
 
 // Options configures one storage relocation run.

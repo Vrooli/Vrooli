@@ -1,0 +1,10 @@
+{
+  "metadata": {"name":"scenario-to-desktop-smoke-test-surface","description":"Given an operator opens a selected desktop target, when they inspect its pipeline, then the generated-artifact smoke-test stage is rendered.","labels":{"reset":"none","requirements_json":"[\"STD-E2E-GENERATION\"]","purpose":"desktop-smoke-test-surface"},"execution_mode":"observer"},
+  "settings":{"viewport_width":1440,"viewport_height":900},
+  "nodes":[
+    {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-desktop","scenario_path":"/?view=generator&scenario=scenario-to-desktop","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open the desktop pipeline"}}},
+    {"id":"assert-smoke-test","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/generator.smokeTestSection","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Smoke-test stage renders"}}},
+    {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture smoke-test stage"}}}
+  ],
+  "edges":[{"id":"c7c1c1e0-77f1-4b39-9f21-4f0000000001","source":"navigate","target":"assert-smoke-test"},{"id":"c7c1c1e0-77f1-4b39-9f21-4f0000000002","source":"assert-smoke-test","target":"capture"}]
+}

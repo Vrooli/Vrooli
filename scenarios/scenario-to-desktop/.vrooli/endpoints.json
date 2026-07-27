@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schemas.vrooli.dev/endpoints/v1.json",
+  "version": "1.0",
+  "endpoints": [
+    { "id": "pipeline-run", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/Run", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-get", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/Get", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-get-release-gate", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/GetReleaseGate", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-resume", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/Resume", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-cancel", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/Cancel", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-list", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/List", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-get-active", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/GetActive", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-create-active", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/CreateActive", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-reset-active", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/ResetActive", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-get-history", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/GetHistory", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-start-active", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/StartActive", "method": "POST", "category": "pipeline" },
+    { "id": "pipeline-clean-bundle", "path": "/vrooli.scenario_to_desktop.v1.pipeline.PipelineService/CleanBundle", "method": "POST", "category": "pipeline" }
+  ]
+}

@@ -31,12 +31,14 @@ describe("useScenarioState", () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockSaveScenarioState.mockResolvedValue(createSaveStateResponse());
 
       const { result, unmount } = renderHook(
         () => useScenarioState(defaultOptions),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       // Wait for initial load
@@ -73,14 +75,16 @@ describe("useScenarioState", () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockSaveScenarioState.mockRejectedValue(new Error("Save failed"));
 
       const onSaveError = vi.fn();
 
       const { result } = renderHook(
         () => useScenarioState({ ...defaultOptions, onSaveError }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       // Wait for initial load
@@ -105,7 +109,9 @@ describe("useScenarioState", () => {
         expect(onSaveError).toHaveBeenCalled();
       });
 
-      expect((onSaveError.mock.calls?.[0]?.[0] as Error | undefined)?.message).toBe("Save failed");
+      expect(
+        (onSaveError.mock.calls?.[0]?.[0] as Error | undefined)?.message,
+      ).toBe("Save failed");
 
       vi.useRealTimers();
     });
@@ -114,7 +120,9 @@ describe("useScenarioState", () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockSaveScenarioState.mockRejectedValue(new Error("Save failed"));
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
@@ -153,7 +161,9 @@ describe("useScenarioState", () => {
         created_at: "2024-01-01T00:00:00Z",
         updated_at: "2024-01-15T12:30:00Z",
       });
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
         wrapper: createWrapper(),
@@ -185,13 +195,19 @@ describe("useScenarioState", () => {
 
     it("returns build artifacts from server state", async () => {
       const mockArtifacts = [
-        { platform: "win", status: "ready" as const, file_path: "/output/app.exe" },
+        {
+          platform: "win",
+          status: "ready" as const,
+          file_path: "/output/app.exe",
+        },
         { platform: "mac", status: "building" as const },
       ];
       const mockState = createMockScenarioState({
         build_artifacts: mockArtifacts,
       });
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
         wrapper: createWrapper(),
@@ -206,7 +222,9 @@ describe("useScenarioState", () => {
 
     it("returns empty array when no build artifacts", async () => {
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
         wrapper: createWrapper(),
@@ -235,7 +253,9 @@ describe("useScenarioState", () => {
       const mockState = createMockScenarioState({
         stages: mockStages,
       });
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
         wrapper: createWrapper(),
@@ -252,15 +272,19 @@ describe("useScenarioState", () => {
   describe("isSaving state", () => {
     it("is true while save is in progress", async () => {
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
 
       // Make save hang
       let resolveSave: () => void = () => {};
       mockSaveScenarioState.mockImplementation(
         () =>
           new Promise((resolve) => {
-            resolveSave = () => resolve(createSaveStateResponse());
-          })
+            resolveSave = () => {
+              resolve(createSaveStateResponse());
+            };
+          }),
       );
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
@@ -301,9 +325,11 @@ describe("useScenarioState", () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const mockState = createMockScenarioState({ hash: "original" });
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockSaveScenarioState.mockResolvedValue(
-        createSaveStateResponse({ hash: "updated" })
+        createSaveStateResponse({ hash: "updated" }),
       );
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
@@ -339,7 +365,9 @@ describe("useScenarioState", () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const mockState = createMockScenarioState({ hash: "currenthash" });
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockSaveScenarioState.mockResolvedValue(createSaveStateResponse());
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
@@ -368,8 +396,10 @@ describe("useScenarioState", () => {
         expect(mockSaveScenarioState).toHaveBeenCalled();
       });
 
-      const call = mockSaveScenarioState.mock.calls?.[0] as [string, FormState, SaveStateOptions?] | undefined;
-      const options = call?.[2] as SaveStateOptions | undefined;
+      const call = mockSaveScenarioState.mock.calls?.[0] as
+        | [string, FormState, SaveStateOptions?]
+        | undefined;
+      const options = call?.[2];
       expect(options?.expectedHash).toBe("currenthash");
 
       vi.useRealTimers();
@@ -381,9 +411,11 @@ describe("useScenarioState", () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockSaveScenarioState.mockResolvedValue(
-        createSaveStateResponse({ updated_at: "2024-01-20T15:00:00Z" })
+        createSaveStateResponse({ updated_at: "2024-01-20T15:00:00Z" }),
       );
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {

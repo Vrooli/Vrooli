@@ -1,0 +1,144 @@
+{
+  "_metadata": {
+    "description": "Explicit planned requirements for operational targets that are not yet implemented or backed by live test evidence.",
+    "module": "uncovered-targets",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "When a signed release is published to a configured channel, generated Electron applications shall discover, verify, download, and apply the permitted update without bypassing release policy.",
+      "id": "SCENARIO-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "Auto-updater hooks",
+      "validation": [
+        {
+          "notes": "Planned: exercise a signed update feed in an isolated release fixture and assert both accepted and rejected update outcomes.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "For each supported signing platform, the release pipeline shall produce a platform-appropriate signed artifact and complete the required notarization step where the platform requires it.",
+      "id": "SCENARIO-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Code signing + notarization",
+      "validation": [
+        {
+          "notes": "Planned: validate generated signing and notarization configuration against credential-free fixtures and controlled platform runners.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When a release is approved for a configured store, the distribution pipeline shall produce the store submission artifact and record the provider response as deployment evidence.",
+      "id": "SCENARIO-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "App store submission automation",
+      "validation": [
+        {
+          "notes": "Planned: use provider sandbox fixtures to validate submission packaging and evidence recording.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When a generated application opens or restores multiple windows, it shall persist the declared window state and route communication only through the approved Electron IPC boundary.",
+      "id": "SCENARIO-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Multi-window workflows",
+      "validation": [
+        {
+          "notes": "Planned: run a desktop fixture that opens, restores, and exchanges typed messages between multiple windows.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When a generated application runs, it shall record the approved performance and build telemetry with the configured privacy boundary and expose it to authorized operators.",
+      "id": "SCENARIO-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Performance monitoring + analytics",
+      "validation": [
+        {
+          "notes": "Planned: verify telemetry capture, redaction, persistence, and operator retrieval in a controlled runtime fixture.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When an enterprise distribution profile is selected, the pipeline shall produce the configured installer format and support its documented unattended-install contract.",
+      "id": "SCENARIO-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Enterprise deployment features",
+      "validation": [
+        {
+          "notes": "Planned: validate Windows and macOS enterprise artifacts on controlled target-platform runners.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may provide an operator interface that composes a desktop application configuration from supported scenarios, templates, and deployment options.",
+      "id": "SCENARIO-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Visual desktop app builder",
+      "validation": [
+        {
+          "notes": "Planned: define an accessibility and generation acceptance flow when the visual builder is implemented.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may load versioned template feature packs only when their declared capabilities, integrity metadata, and compatibility constraints are satisfied.",
+      "id": "SCENARIO-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Plugin architecture for templates",
+      "validation": [
+        {
+          "notes": "Planned: define feature-pack verification and compatibility fixture coverage when the extension model is implemented.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "When kiosk controls are enabled, the generated application may enforce the configured hardware restrictions and provide authorized remote-control operations with auditable evidence.",
+      "id": "SCENARIO-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Kiosk mode enhancements",
+      "validation": [
+        {
+          "notes": "Planned: define controlled-device fixtures and authorization evidence when enhanced kiosk support is implemented.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

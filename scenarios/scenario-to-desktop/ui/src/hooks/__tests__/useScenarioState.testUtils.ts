@@ -35,12 +35,18 @@ export function createWrapper() {
     },
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   };
 }
 
 // Helper to create a ScenarioState for testing
-export function createMockScenarioState(overrides: Partial<ScenarioState> = {}): ScenarioState {
+export function createMockScenarioState(
+  overrides: Partial<ScenarioState> = {},
+): ScenarioState {
   return {
     scenario_name: "test-scenario",
     schema_version: 1,
@@ -60,7 +66,7 @@ export function createMockScenarioState(overrides: Partial<ScenarioState> = {}):
 // Helper to create LoadStateResponse
 export function createLoadStateResponse(
   state: ScenarioState | null,
-  overrides: Partial<LoadStateResponse> = {}
+  overrides: Partial<LoadStateResponse> = {},
 ): LoadStateResponse {
   return {
     state,
@@ -71,7 +77,7 @@ export function createLoadStateResponse(
 
 // Helper to create SaveStateResponse
 export function createSaveStateResponse(
-  overrides: Partial<SaveStateResponse> = {}
+  overrides: Partial<SaveStateResponse> = {},
 ): SaveStateResponse {
   return {
     success: true,

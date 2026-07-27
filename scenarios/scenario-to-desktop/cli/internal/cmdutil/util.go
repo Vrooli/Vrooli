@@ -12,18 +12,6 @@ import (
 
 var globalFormat = "json"
 
-// APIPath builds a versioned API path from a relative path.
-func APIPath(path string) string {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return ""
-	}
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
-	return "/api/v1" + path
-}
-
 // MapToValues converts a simple string map to url.Values format.
 func MapToValues(m map[string]string) map[string][]string {
 	if m == nil {

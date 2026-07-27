@@ -6,9 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
-
 	"scenario-to-desktop-api/shared/path"
+	"strings"
 
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
@@ -90,20 +89,6 @@ type FullServiceJSON struct {
 	Deployment DeploymentSection `json:"deployment"`
 }
 
-// FallbackUnbundleableResources is used ONLY when a resource has no
-// platform_support metadata in the scenario's service.json.
-// Prefer using the scenario's declared metadata over this list.
-var FallbackUnbundleableResources = map[string]bool{
-	"postgres":      true,
-	"redis":         true,
-	"qdrant":        true,
-	"mysql":         true,
-	"mongodb":       true,
-	"elasticsearch": true,
-	"rabbitmq":      true,
-	"kafka":         true,
-}
-
 // UIPackageJSON represents relevant fields from ui/package.json.
 type UIPackageJSON struct {
 	Name        string `json:"name"`
@@ -160,7 +145,7 @@ func (a *DefaultAnalyzer) ValidateScenarioForDesktop(scenarioName string) error 
 	}
 
 	if !metadata.HasUI {
-		return fmt.Errorf("scenario '%s' does not have a built UI - build the UI first with: cd scenarios/%s/ui && npm run build",
+		return fmt.Errorf("scenario '%s' does not have a built UI - build the UI first with: cd scenarios/%s/ui && pnpm run build",
 			scenarioName, scenarioName)
 	}
 
@@ -204,8 +189,9 @@ type SwapWarning struct {
 // and which resources prevent it if not.
 //
 // This method uses a data-driven approach:
-// 1. Primary: Check scenario's deployment.dependencies.resources.<name>.platform_support.tier-2-desktop
-// 2. Fallback: Use FallbackUnbundleableResources for resources without metadata
+//  1. Primary: Check scenario's deployment.dependencies.resources.<name>.platform_support.tier-2-desktop
+//  2. Reject resources without declared platform support rather than relying on
+//     a scenario-agnostic fallback list.
 //
 // If a resource is not supported but has alternatives/swaps declared, the method
 // returns a warning but allows the build to proceed.
@@ -351,23 +337,6 @@ func (a *DefaultAnalyzer) getAlternatives(dep DeploymentResourceDependency, tier
 	return alternatives
 }
 
-// checkBundleabilityFallback uses the legacy hard-coded approach when deployment metadata is unavailable.
-func (a *DefaultAnalyzer) checkBundleabilityFallback(result *BundleabilityResult) (*BundleabilityResult, error) {
-	for _, resource := range result.RequiredResources {
-		if FallbackUnbundleableResources[resource] {
-			result.Bundleable = false
-			result.UnbundleableResource = resource
-			result.UnbundleableReason = fmt.Sprintf(
-				"Scenario requires '%s' which cannot be bundled into a desktop application. "+
-					"Use --deployment-mode external-server to connect to a running server instead.",
-				resource)
-			break
-		}
-	}
-
-	return result, nil
-}
-
 // readFullServiceJSON reads and parses .vrooli/service.json with deployment metadata.
 func (a *DefaultAnalyzer) readFullServiceJSON(scenarioPath string) (*FullServiceJSON, error) {
 	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
@@ -388,7 +357,7 @@ func (a *DefaultAnalyzer) readFullServiceJSON(scenarioPath string) (*FullService
 // CreateDesktopConfigFromMetadata generates a DesktopConfig from analyzed metadata.
 func (a *DefaultAnalyzer) CreateDesktopConfigFromMetadata(metadata *ScenarioMetadata, templateType string) (*DesktopConfig, error) {
 	if !metadata.HasUI {
-		return nil, fmt.Errorf("scenario '%s' does not have a built UI at %s/ui/dist - run 'cd %s/ui && npm run build' first",
+		return nil, fmt.Errorf("scenario '%s' does not have a built UI at %s/ui/dist - run 'cd %s/ui && pnpm run build' first",
 			metadata.Name, metadata.ScenarioPath, metadata.ScenarioPath)
 	}
 

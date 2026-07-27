@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
-
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/shared/errors"
+	"strings"
+	"time"
 )
 
 // BuildStage implements the Electron build stage of the pipeline.

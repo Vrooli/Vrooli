@@ -1,9 +1,9 @@
 import "@testing-library/jest-dom";
-import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { cleanup } from "@testing-library/react";
+import { afterEach, vi } from "vitest";
 
-// Mock noVNC — it uses top-level await which breaks in jsdom/vitest
-vi.mock("@novnc/novnc/lib/rfb", () => ({
+// Mock noVNC because the browser-only transport cannot initialize in jsdom.
+vi.mock("@novnc/novnc", () => ({
   default: vi.fn().mockImplementation(() => ({
     scaleViewport: false,
     resizeSession: false,

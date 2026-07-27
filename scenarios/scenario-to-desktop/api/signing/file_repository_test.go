@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"scenario-to-desktop-api/signing/mocks"
+	"scenario-to-desktop-api/signing/types"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/signing/mocks"
-	"scenario-to-desktop-api/signing/types"
 )
 
 func TestFileRepository_Get_Success(t *testing.T) {

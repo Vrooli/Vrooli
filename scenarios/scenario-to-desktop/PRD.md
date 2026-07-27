@@ -23,13 +23,13 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | Generate complete Electron desktop applications | API generates template files successfully with required assets and configs
-- [ ] OT-P0-002 | Multi-framework scaffolding with Electron primary | Electron fully implemented; Tauri/Neutralino tracked as P2 enhancements
+- [ ] OT-P0-001 | Generate complete Electron desktop applications | API generates template files successfully with required assets and configs
+- [ ] OT-P0-002 | Electron desktop scaffolding | Electron wrappers are generated with the supported template variants
 - [ ] OT-P0-003 | Cross-platform packaging | Template configs exist; full builds require electron-builder in target environments
 - [ ] OT-P0-004 | Development tooling | Make targets, CLI commands, and test infrastructure are in place
 - [ ] OT-P0-005 | Integration with scenario APIs | Templates include secure IPC and API integration patterns
-- [ ] OT-P0-006 | Native OS features | Menus, tray, notifications, and file dialogs implemented in templates
-- [x] OT-P0-007 | Auto-updater hooks | electron-updater wiring included; release pipeline pending
+- [x] OT-P0-006 | Native OS features | Menus, tray, notifications, and file dialogs implemented in templates
+- [ ] OT-P0-007 | Auto-updater hooks | electron-updater wiring included; release pipeline pending
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Code signing + notarization | Automate per-platform signing workflows
@@ -49,7 +49,7 @@ Preferred stacks and architectural intent:
 
 - **API**: Go HTTP server with screaming architecture (domain handlers for build, pipeline, records, scenario, system, tools)
 - **UI**: React + Vite SPA with iframe-bridge interop for Vrooli dashboard embedding
-- **Templates**: Electron-first with template variants (basic, advanced, kiosk, multi-window); Tauri/Neutralino deferred to P2
+- **Templates**: Electron with template variants (basic, advanced, kiosk, multi-window)
 - **Build system**: electron-builder for packaging; Wine/Flatpak for cross-platform Windows builds on Linux
 - **Data storage**: Filesystem-based (template files, build artifacts, deployment telemetry); optional postgres/redis for history and caching
 - **Integration**: Secure IPC between Electron main/renderer processes; scenario API communication via bundled runtime or thin-client proxy
@@ -67,7 +67,7 @@ Preferred stacks and architectural intent:
 - Cross-platform packaging requires electron-builder plus Wine/macOS CI runners
 - Code signing and notarization require manual certificate setup
 - Electron security vulnerabilities require regular dependency updates
-- Large bundle sizes (~100-200MB) inherent to Electron; Tauri alternative planned for P2
+- Large bundle sizes (~100-200MB) inherent to Electron
 
 **Launch sequencing**:
 1. Start scenario-to-desktop (`make start` or `vrooli scenario start scenario-to-desktop`)

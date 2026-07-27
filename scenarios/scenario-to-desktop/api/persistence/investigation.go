@@ -8,11 +8,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"scenario-to-desktop-api/domain"
 	"sort"
 	"sync"
 	"time"
-
-	"scenario-to-desktop-api/domain"
 )
 
 // InvestigationStore stores investigation records in memory with optional file persistence.

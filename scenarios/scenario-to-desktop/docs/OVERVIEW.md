@@ -53,9 +53,14 @@ Thin client mode is available for scenarios where you want a lightweight desktop
 3) In scenario-to-desktop UI, choose Thin Client mode and paste the proxy URL
 4) Build and distribute installers
 
+## Where this fits
+
+scenario-to-desktop is the Tier 2 ramp. It owns build, packaging, signing, publishing, and running the artifact on desktop targets. `deployment-manager` owns the approval gate and the release record, and this pipeline asks it for permission before publishing. See [API Contract](reference/api-contract.md#release-authority).
+
 ## What's not yet automated
+- User-flow evidence is not captured during smoke tests. The smoke test checks process and telemetry health; it does not replay `bas/` workflow assets or record them
 - `cloud-api` mode remains a stub for future SaaS deployments
-- Alternative frameworks (Tauri/Neutralino) are placeholders; Electron is the maintained path
+- Electron is the supported desktop framework.
 - Auto-updates, signing, and app-store submissions remain optional/manual
 - Resource artifact execution is limited to the declared bundled modes. Docker,
   compose, and native-host-tool resources remain explicit host prerequisites

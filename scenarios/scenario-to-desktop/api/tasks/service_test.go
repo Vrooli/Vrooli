@@ -4,16 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"scenario-to-desktop-api/agentmanager"
+	"scenario-to-desktop-api/domain"
+	"scenario-to-desktop-api/pipeline"
+	"scenario-to-desktop-api/tasks/shared"
 	"strings"
 	"testing"
 	"time"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
-	"scenario-to-desktop-api/agentmanager"
-	"scenario-to-desktop-api/domain"
-	"scenario-to-desktop-api/pipeline"
-	"scenario-to-desktop-api/tasks/shared"
 )
 
 // --- Mock implementations ---
@@ -253,7 +252,7 @@ func newTestService() (*Service, *mockInvStore, *mockPipelineStore, *mockAgentEx
 	hub := &mockProgressHub{}
 
 	// Use NewService but we need to override handlers since it imports investigate/fix
-	svc := NewService(invStore, pipeStore, agentExec, hub)
+	svc := NewService(invStore, pipeStore, agentExec, hub, "http://127.0.0.1:19001")
 
 	return svc, invStore, pipeStore, agentExec, hub
 }

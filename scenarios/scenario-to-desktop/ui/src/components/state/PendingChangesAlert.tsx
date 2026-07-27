@@ -46,12 +46,12 @@ export function PendingChangesAlert({
   onDismiss,
   isRerunning = false,
 }: PendingChangesAlertProps) {
-  if (!changes || changes.length === 0) {
+  if (changes.length === 0) {
     return null;
   }
 
   // Group changes by affected stage
-  const changesByStage = changes.reduce(
+  const changesByStage = changes.reduce<Record<string, StateChange[]>>(
     (acc, change) => {
       const stage = change.affected_stage;
       if (!acc[stage]) {
@@ -60,13 +60,14 @@ export function PendingChangesAlert({
       acc[stage].push(change);
       return acc;
     },
-    {} as Record<string, StateChange[]>
+    {},
   );
 
   // Find earliest affected stage for display
   const stageOrder = ["bundle", "preflight", "generate", "build", "smoke_test"];
   const affectedStages = Object.keys(changesByStage);
-  const earliestStage = stageOrder.find((s) => affectedStages.includes(s)) || affectedStages[0];
+  const earliestStage =
+    stageOrder.find((s) => affectedStages.includes(s)) || affectedStages[0];
 
   return (
     <div className="rounded-lg border border-yellow-700/50 bg-yellow-950/30 p-4">
@@ -78,14 +79,18 @@ export function PendingChangesAlert({
           </h4>
           <p className="mt-1 text-xs text-yellow-300/80">
             The following changes may invalidate cached results from{" "}
-            <span className="font-medium">{(earliestStage && stageLabels[earliestStage]) || earliestStage || "this stage"}</span>{" "}
+            <span className="font-medium">
+              {(earliestStage && stageLabels[earliestStage]) ||
+                earliestStage ||
+                "this stage"}
+            </span>{" "}
             onward:
           </p>
 
           <ul className="mt-2 space-y-1">
             {changes.map((change, idx) => (
               <li
-                key={`${change.change_type}-${idx}`}
+                key={`${change.change_type}-${String(idx)}`}
                 className="flex items-start gap-2 text-xs text-yellow-200/90"
               >
                 <span className="text-yellow-400">-</span>
@@ -94,7 +99,9 @@ export function PendingChangesAlert({
                     {changeTypeLabels[change.change_type] || change.change_type}
                   </span>
                   {change.reason && (
-                    <span className="text-yellow-300/70">: {change.reason}</span>
+                    <span className="text-yellow-300/70">
+                      : {change.reason}
+                    </span>
                   )}
                   {change.old_value && change.new_value && (
                     <span className="text-yellow-300/60">

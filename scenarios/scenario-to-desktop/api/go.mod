@@ -3,6 +3,7 @@ module scenario-to-desktop-api
 go 1.25.0
 
 require (
+	connectrpc.com/connect v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.1
@@ -10,10 +11,12 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime v0.0.0
-	golang.org/x/text v0.32.0
+	golang.org/x/text v0.39.0
 	google.golang.org/protobuf v1.36.11
+	modernc.org/sqlite v1.54.0
 	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
 
@@ -36,8 +39,15 @@ replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../run
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 require (
+	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/ncruces/go-strftime v1.0.0 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
-	github.com/vrooli/vrooli v0.0.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	modernc.org/libc v1.74.1 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.11.0 // indirect
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core

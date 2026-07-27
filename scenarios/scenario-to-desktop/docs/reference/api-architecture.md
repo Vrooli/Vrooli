@@ -114,37 +114,24 @@ The pipeline orchestrator is the core engine that coordinates multi-stage deskto
 
 ---
 
-## HTTP Endpoints
+## Pipeline API Surface
 
-### Pipeline Endpoints
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/v1/pipeline/run` | POST | Start new pipeline (async or `?block=true&timeout=600`) |
-| `/api/v1/pipeline/{id}` | GET | Get pipeline status (`?verbose=true` for details) |
-| `/api/v1/pipeline/{id}/cancel` | POST | Cancel running pipeline |
-| `/api/v1/pipeline/{id}/resume` | POST | Resume stopped pipeline |
-| `/api/v1/pipelines` | GET | List all pipelines |
-
-### Scenario-Based Pipeline Endpoints
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/v1/scenarios/{name}/pipeline/active` | GET | Get/create active pipeline for scenario |
-| `/api/v1/scenarios/{name}/pipeline` | POST | Create new pipeline |
-| `/api/v1/scenarios/{name}/pipeline/start` | POST | Start active pipeline |
-| `/api/v1/scenarios/{name}/pipeline/reset` | POST | Clear active pipeline |
-| `/api/v1/scenarios/{name}/pipeline/history` | GET | Get historical pipelines |
+Pipeline orchestration is served only through the generated
+`PipelineService` Connect contract. The generated UI and CLI clients expose
+`Run`, `Get`, `Resume`, `Cancel`, `List`, `GetActive`, `CreateActive`,
+`ResetActive`, `GetHistory`, `StartActive`, and `CleanBundle`. A caller polls a
+long-running run by calling `Get(pipeline_id)`; no response contains a
+hand-authored REST status URL.
 
 ## Request Flow Examples
 
-### Starting a Pipeline via HTTP
+### Starting a Pipeline via Connect
 
 ```
-POST /api/v1/pipeline/run
+PipelineService.Run(PipelineRunRequest)
   │
   ▼
-Handler.handleRun() [pipeline/handler.go]
+ConnectService.Run() [pipeline/connect_handler.go]
   │
   ▼
 Orchestrator.RunPipeline(ctx, config)
@@ -161,14 +148,14 @@ runPipelineAsync(ctx, pipelineID, config)
   ▼
 Status persisted to Store
   │
-  ▼ (HTTP response returns immediately)
-Return: { "pipeline_id": "...", "status_url": "/api/v1/pipeline/..." }
+  ▼ (Connect response returns immediately)
+Return: { "pipeline_id": "..." }
 ```
 
 ### Resuming a Pipeline
 
 ```
-POST /api/v1/pipeline/{id}/resume
+PipelineService.Resume(PipelineResumeRequest)
   │
   ▼
 Orchestrator.ResumePipeline(pipelineID, config)

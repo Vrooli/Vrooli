@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"scenario-to-desktop-api/shared/store"
 	"time"
 
-	"scenario-to-desktop-api/shared/store"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 // ErrInvalidKey is returned when a scenario name is empty.
@@ -16,6 +18,28 @@ var ErrInvalidKey = errors.New("invalid key: scenario name is required")
 type Store struct {
 	fileStore *store.JSONFileStore[string, ScenarioState]
 	stateDir  string
+	roots     *filerouting.RoutedRoots
+}
+
+// NewRoutedStore resolves its state root from each request context. The
+// test-mode middleware marks BAS requests, and RoutedRoots then selects the
+// lease-owned state directory instead of the live one.
+func NewRoutedStore(roots *filerouting.RoutedRoots) (*Store, error) {
+	if roots == nil {
+		return nil, errors.New("routed state roots are required")
+	}
+	return &Store{roots: roots}, nil
+}
+
+func (s *Store) scoped(ctx context.Context) (*Store, error) {
+	if s.roots == nil {
+		return s, nil
+	}
+	dir, err := s.roots.Pick(ctx, storage.ClassState)
+	if err != nil {
+		return nil, err
+	}
+	return NewStore(dir)
 }
 
 // NewStore creates a new state store at the given state directory.
@@ -56,7 +80,11 @@ func NewStore(stateDir string) (*Store, error) {
 // Get retrieves scenario state by name.
 // Returns nil, nil if not found.
 func (s *Store) Get(ctx context.Context, scenarioName string) (*ScenarioState, error) {
-	state, err := s.fileStore.Get(ctx, scenarioName)
+	scoped, err := s.scoped(ctx)
+	if err != nil {
+		return nil, err
+	}
+	state, err := scoped.fileStore.Get(ctx, scenarioName)
 	if err == store.ErrNotFound {
 		return nil, nil
 	}
@@ -71,27 +99,59 @@ func (s *Store) Save(ctx context.Context, state *ScenarioState) error {
 	if state.ScenarioName == "" {
 		return ErrInvalidKey
 	}
-	return s.fileStore.Save(ctx, state.ScenarioName, *state)
+	scoped, err := s.scoped(ctx)
+	if err != nil {
+		return err
+	}
+	if err := scoped.fileStore.Save(ctx, state.ScenarioName, *state); err != nil {
+		return err
+	}
+	if s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
+	return nil
 }
 
 // Delete removes scenario state.
 func (s *Store) Delete(ctx context.Context, scenarioName string) error {
-	return s.fileStore.Delete(ctx, scenarioName)
+	scoped, err := s.scoped(ctx)
+	if err != nil {
+		return err
+	}
+	if err := scoped.fileStore.Delete(ctx, scenarioName); err != nil {
+		return err
+	}
+	if s.roots != nil {
+		s.roots.RecordWrite(ctx)
+	}
+	return nil
 }
 
 // Exists checks if scenario state exists.
 func (s *Store) Exists(ctx context.Context, scenarioName string) (bool, error) {
-	return s.fileStore.Exists(ctx, scenarioName)
+	scoped, err := s.scoped(ctx)
+	if err != nil {
+		return false, err
+	}
+	return scoped.fileStore.Exists(ctx, scenarioName)
 }
 
 // List returns all stored scenario states.
 func (s *Store) List(ctx context.Context) ([]ScenarioState, error) {
-	return s.fileStore.List(ctx)
+	scoped, err := s.scoped(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return scoped.fileStore.List(ctx)
 }
 
 // ListScenarios returns all scenario names with stored state.
 func (s *Store) ListScenarios(ctx context.Context) ([]string, error) {
-	return s.fileStore.ListKeys(ctx)
+	scoped, err := s.scoped(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return scoped.fileStore.ListKeys(ctx)
 }
 
 // Update atomically updates a scenario state using a modifier function.
@@ -127,5 +187,8 @@ func (s *Store) GetDataDir() string {
 
 // Close flushes any pending changes.
 func (s *Store) Close() error {
+	if s.roots != nil {
+		return nil
+	}
 	return s.fileStore.Close()
 }

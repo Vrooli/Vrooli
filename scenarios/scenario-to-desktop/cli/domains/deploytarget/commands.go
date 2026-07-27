@@ -1,326 +1,144 @@
-// Package deploytarget provides CLI commands for managing deploy targets.
+// Package deploytarget provides generated-Connect commands for release targets.
 package deploytarget
 
 import (
-	"encoding/json"
-	"flag"
+	"context"
 	"fmt"
-	"os"
-	"sort"
 	"strings"
 
-	"scenario-to-desktop/cli/internal/support"
-
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
+
+	"scenario-to-desktop/cli/internal/support"
 )
 
-// Commands provides deploy target CLI commands.
-type Commands struct {
-	deps support.Dependencies
+type deployTargetRPC interface {
+	ListDeployTargets(context.Context, *connect.Request[domainv1.ListDeployTargetsRequest]) (*connect.Response[domainv1.ListDeployTargetsResponse], error)
+	GetDeployTarget(context.Context, *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.GetDeployTargetResponse], error)
+	SaveDeployTarget(context.Context, *connect.Request[domainv1.SaveDeployTargetRequest]) (*connect.Response[domainv1.SaveDeployTargetResponse], error)
+	DeleteDeployTarget(context.Context, *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.DeleteDeployTargetResponse], error)
+	TestDeployTarget(context.Context, *connect.Request[domainv1.TestDeployTargetRequest]) (*connect.Response[domainv1.TestDeployTargetResponse], error)
+	DiagnoseDeployTarget(context.Context, *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.DiagnoseDeployTargetResponse], error)
 }
 
-type doctorReport struct {
-	Ready         bool   `json:"ready"`
-	Name          string `json:"name"`
-	ScenarioName  string `json:"scenario_name"`
-	RemoteProfile string `json:"remote_profile"`
-	Checks        []struct {
-		Name     string `json:"name"`
-		Required bool   `json:"required"`
-		Passed   bool   `json:"passed"`
-		Blocked  bool   `json:"blocked"`
-		Detail   string `json:"detail"`
-	} `json:"checks"`
-	NextSteps []string `json:"next_steps"`
-}
+type Commands struct{ rpc deployTargetRPC }
 
-// New creates a new deploy target Commands instance.
 func New(deps support.Dependencies) *Commands {
-	return &Commands{deps: deps}
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(deps.ScenarioApp())
+	return &Commands{rpc: domainconnect.NewDeployTargetServiceClient(httpClient, baseURL)}
 }
 
 func Register(deps support.Dependencies) cliapp.SubcommandGroup {
-	cmds := New(deps)
-	return cliapp.SubcommandGroup{
-		Name:        "deploy-target",
-		Description: "Manage LPBS deploy targets (run 'deploy-target help' for details)",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{Name: "list", Description: "List saved deploy targets", Run: cmds.List},
-			{Name: "add", Description: "Add/update deploy target: add <name> --scenario <s> --profile <p> [--label <l>]", Run: cmds.Add},
-			{Name: "remove", Description: "Remove deploy target: remove <name>", Run: cmds.Remove},
-			{Name: "test", Description: "Test deploy target session: test <name> [--require-service-auth]", Run: cmds.Test},
-			{Name: "doctor", Description: "Diagnose deploy target readiness: doctor <name>", Run: cmds.Doctor},
-		},
-	}
+	c := New(deps)
+	nameArgs := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "name", Required: true, Description: "Deploy target name"}}}
+	return cliapp.SubcommandGroup{Name: "deploy-target", Description: "Manage durable desktop deployment targets", NeedsAPI: true, Subcommands: []cliapp.Command{
+		(cliapp.Command{Name: "list", Description: "List saved deployment targets"}).WithPrimitive(c.listPrimitive()),
+		(cliapp.Command{Name: "get", Description: "Get a deployment target", Args: nameArgs}).WithPrimitive(c.getPrimitive()),
+		(cliapp.Command{Name: "add", Description: "Create or update a deployment target", Args: cliapp.ArgSchema{Positionals: nameArgs.Positionals, Flags: []cliapp.Flag{{Name: "scenario", Required: true}, {Name: "profile", Required: true}, {Name: "label"}, {Name: "deployment-manager-profile-id"}}}}).WithPrimitive(c.savePrimitive()),
+		(cliapp.Command{Name: "remove", Description: "Remove a deployment target", Args: nameArgs}).WithPrimitive(c.deletePrimitive()),
+		(cliapp.Command{Name: "test", Description: "Verify deployment-target connectivity", Args: cliapp.ArgSchema{Positionals: nameArgs.Positionals, Flags: []cliapp.Flag{{Name: "require-service-auth", Bool: true}}}}).WithPrimitive(c.testPrimitive()),
+		(cliapp.Command{Name: "doctor", Description: "Diagnose deployment-target readiness", Args: nameArgs}).WithPrimitive(c.doctorPrimitive()),
+	}}
 }
 
-// List shows all saved deploy targets.
-func (c *Commands) List(args []string) error {
-	fs := flag.NewFlagSet("deploy-target-list", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	body, err := c.deps.Get("/deploy-targets", nil)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	var resp struct {
-		Targets map[string]struct {
-			Label         string `json:"label"`
-			ScenarioName  string `json:"scenario_name"`
-			RemoteProfile string `json:"remote_profile"`
-		} `json:"targets"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	if len(resp.Targets) == 0 {
-		return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
-			Summary:        []string{"Deploy targets: 0"},
-			ResultsHeading: "Targets",
-			RetrievalHints: []string{"Add one with `scenario-to-desktop deploy-target add <name> --scenario <s> --profile <p>`."},
-		})
-	}
-
-	names := make([]string, 0, len(resp.Targets))
-	for name := range resp.Targets {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	report := cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Deploy targets: %d", len(names))},
-		ResultsHeading: "Targets",
-		RetrievalHints: []string{"Use `scenario-to-desktop deploy-target doctor <name>` to diagnose readiness."},
-	}
-	for _, name := range names {
-		t := resp.Targets[name]
-		label := t.Label
-		if label == "" {
-			label = name
+func (c *Commands) getPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*domainv1.GetDeployTargetResponse, error) {
+		response, err := c.rpc.GetDeployTarget(context.Background(), connect.NewRequest(&domainv1.DeployTargetNameRequest{Name: ctx.Positional("name")}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("get deployment target", err, nil)
 		}
-		report.Results = append(report.Results, fmt.Sprintf("%s | label=%q | scenario=%s | profile=%s", name, label, t.ScenarioName, t.RemoteProfile))
-	}
-	return cliapp.RenderListReport(os.Stdout, report)
-}
-
-// Add creates or updates a deploy target.
-func (c *Commands) Add(args []string) error {
-	fs := flag.NewFlagSet("deploy-target-add", flag.ContinueOnError)
-	scenario := fs.String("scenario", "", "LPBS scenario name (required)")
-	profile := fs.String("profile", "", "Remote profile tag (required)")
-	label := fs.String("label", "", "Human-readable label")
-	jsonOutput := cliutil.JSONFlag(fs)
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: deploy-target add <name> --scenario <s> --profile <p> [--label <l>]")
-	}
-	name := fs.Args()[0]
-
-	if *scenario == "" || *profile == "" {
-		return fmt.Errorf("--scenario and --profile are required")
-	}
-
-	req := map[string]interface{}{
-		"scenario_name":  *scenario,
-		"remote_profile": *profile,
-	}
-	if *label != "" {
-		req["label"] = *label
-	}
-
-	body, err := c.deps.Request("PUT", "/deploy-targets/"+name, nil, req)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Deploy target %q saved.", name)},
-		Changes:     []string{fmt.Sprintf("Scenario: %s", *scenario), fmt.Sprintf("Profile: %s", *profile)},
-		NextCommand: []string{fmt.Sprintf("scenario-to-desktop deploy-target doctor %s", name)},
+		return response.Msg, nil
+	}, func(_ cliapp.OperationContext, response *domainv1.GetDeployTargetResponse) cliapp.ListReport {
+		target := response.GetTarget()
+		return cliapp.ListReport{Summary: []string{"Deployment target: " + target.GetName()}, ResultsHeading: "Configuration", Results: []string{fmt.Sprintf("Scenario: %s", target.GetScenarioName()), fmt.Sprintf("Profile: %s", target.GetRemoteProfile())}}
 	})
 }
 
-// Remove deletes a deploy target.
-func (c *Commands) Remove(args []string) error {
-	fs := flag.NewFlagSet("deploy-target-remove", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: deploy-target remove <name>")
-	}
-	name := fs.Args()[0]
-
-	body, err := c.deps.Request("DELETE", "/deploy-targets/"+name, nil, nil)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Deploy target %q removed.", name)},
-		Changes:     []string{"Saved deploy-target configuration was deleted."},
-		NextCommand: []string{"scenario-to-desktop deploy-target list"},
+func (c *Commands) listPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoList(func(cliapp.OperationContext) (*domainv1.ListDeployTargetsResponse, error) {
+		response, err := c.rpc.ListDeployTargets(context.Background(), connect.NewRequest(&domainv1.ListDeployTargetsRequest{}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("list deployment targets", err, nil)
+		}
+		return response.Msg, nil
+	}, func(_ cliapp.OperationContext, response *domainv1.ListDeployTargetsResponse) cliapp.ListReport {
+		report := cliapp.ListReport{Summary: []string{fmt.Sprintf("Deployment targets: %d", len(response.GetTargets()))}, ResultsHeading: "Targets", RetrievalHints: []string{"Add one with `scenario-to-desktop deploy-target add <name> --scenario <scenario> --profile <profile>`."}}
+		for _, target := range response.GetTargets() {
+			label := target.GetLabel()
+			if label == "" {
+				label = target.GetName()
+			}
+			report.Results = append(report.Results, fmt.Sprintf("%s | label=%q | scenario=%s | profile=%s", target.GetName(), label, target.GetScenarioName(), target.GetRemoteProfile()))
+		}
+		return report
 	})
 }
 
-// Test validates a deploy target's remote profile session.
-func (c *Commands) Test(args []string) error {
-	fs := flag.NewFlagSet("deploy-target-test", flag.ContinueOnError)
-	requireServiceAuth := fs.Bool("require-service-auth", false, "Also verify LPBS service auth is enabled and LPBS_SERVICE_SECRET is set")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: deploy-target test <name>")
-	}
-	name := fs.Args()[0]
-
-	req := map[string]bool{
-		"require_service_auth": *requireServiceAuth,
-	}
-	body, err := c.deps.Request("POST", "/deploy-targets/"+name+"/test", nil, req)
-	if err != nil {
-		if *requireServiceAuth && isServiceAuthReadinessError(err) {
-			return fmt.Errorf(
-				"%v\n\nNext steps:\n%s",
-				err,
-				buildServiceAuthNextSteps(err, name),
-			)
+func (c *Commands) savePrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*domainv1.SaveDeployTargetResponse, error) {
+		target := &domainv1.DeployTarget{Name: strings.TrimSpace(ctx.Positional("name")), Label: strings.TrimSpace(ctx.Flag("label")), ScenarioName: strings.TrimSpace(ctx.Flag("scenario")), RemoteProfile: strings.TrimSpace(ctx.Flag("profile"))}
+		if id := strings.TrimSpace(ctx.Flag("deployment-manager-profile-id")); id != "" {
+			target.DeploymentManagerProfileId = &id
 		}
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	status := fmt.Sprintf("Deploy target %q: remote profile session is active.", name)
-	if *requireServiceAuth {
-		status = fmt.Sprintf("Deploy target %q: remote profile session is active and service auth is ready.", name)
-	}
-	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
-		Status:    []string{status},
-		NextSteps: []string{fmt.Sprintf("scenario-to-desktop deploy-target doctor %s", name)},
+		response, err := c.rpc.SaveDeployTarget(context.Background(), connect.NewRequest(&domainv1.SaveDeployTargetRequest{Target: target}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("save deployment target", err, nil)
+		}
+		return response.Msg, nil
+	}, func(_ cliapp.OperationContext, response *domainv1.SaveDeployTargetResponse) cliapp.MutationReport {
+		target := response.GetTarget()
+		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Deployment target %q saved.", target.GetName())}, Changes: []string{"Scenario: " + target.GetScenarioName(), "Profile: " + target.GetRemoteProfile()}, NextCommand: []string{"scenario-to-desktop deploy-target doctor " + target.GetName()}}
 	})
 }
 
-// Doctor runs an end-to-end deploy-target readiness diagnosis with triage output.
-func (c *Commands) Doctor(args []string) error {
-	fs := flag.NewFlagSet("deploy-target-doctor", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: deploy-target doctor <name>")
-	}
-	name := fs.Args()[0]
-
-	body, err := c.deps.Request("POST", "/deploy-targets/"+name+"/doctor", nil, map[string]bool{})
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	var report doctorReport
-	if err := json.Unmarshal(body, &report); err != nil {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	status := "NOT READY"
-	if report.Ready {
-		status = "READY"
-	}
-	opReport := cliapp.OperationalReport{
-		Status: []string{
-			fmt.Sprintf("Status: %s", status),
-			fmt.Sprintf("Target: %s (scenario=%s profile=%s)", report.Name, report.ScenarioName, report.RemoteProfile),
-		},
-		NextSteps: report.NextSteps,
-	}
-	for _, check := range report.Checks {
-		state := "PASS"
-		if check.Blocked {
-			state = "BLOCKED"
-		} else if !check.Passed {
-			state = "FAIL"
+func (c *Commands) deletePrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*domainv1.DeleteDeployTargetResponse, error) {
+		response, err := c.rpc.DeleteDeployTarget(context.Background(), connect.NewRequest(&domainv1.DeployTargetNameRequest{Name: ctx.Positional("name")}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("delete deployment target", err, nil)
 		}
-		opReport.Triage = append(opReport.Triage, cliapp.TriageGroup{
-			Heading: check.Name,
-			Items:   []string{fmt.Sprintf("[%s] %s", state, check.Detail)},
-		})
-	}
-	if err := cliapp.RenderOperationalReport(os.Stdout, opReport); err != nil {
-		return err
-	}
-	if !report.Ready {
-		return fmt.Errorf("deploy target doctor checks failed")
-	}
-	return nil
+		return response.Msg, nil
+	}, func(_ cliapp.OperationContext, response *domainv1.DeleteDeployTargetResponse) cliapp.MutationReport {
+		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Deployment target %q removed.", response.GetName())}, NextCommand: []string{"scenario-to-desktop deploy-target list"}}
+	})
 }
 
-func isServiceAuthReadinessError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(strings.TrimSpace(err.Error()))
-	return strings.Contains(msg, "lpbs_service_secret is not set") ||
-		strings.Contains(msg, "service auth") ||
-		strings.Contains(msg, "service-auth")
+func (c *Commands) testPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoOperational(func(ctx cliapp.OperationContext) (*domainv1.TestDeployTargetResponse, error) {
+		response, err := c.rpc.TestDeployTarget(context.Background(), connect.NewRequest(&domainv1.TestDeployTargetRequest{Name: ctx.Positional("name"), RequireServiceAuth: ctx.BoolFlag("require-service-auth")}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("test deployment target", err, nil)
+		}
+		return response.Msg, nil
+	}, func(_ cliapp.OperationContext, response *domainv1.TestDeployTargetResponse) cliapp.OperationalReport {
+		return cliapp.OperationalReport{Status: []string{fmt.Sprintf("Deployment target %q connectivity verified.", response.GetTarget().GetName())}, NextSteps: []string{"scenario-to-desktop deploy-target doctor " + response.GetTarget().GetName()}}
+	})
 }
 
-func buildServiceAuthNextSteps(err error, name string) string {
-	msg := ""
-	if err != nil {
-		msg = strings.ToLower(strings.TrimSpace(err.Error()))
-	}
-
-	if strings.Contains(msg, "scenario-to-desktop runtime") {
-		return fmt.Sprintf(
-			"  1) Verify LPBS source secret exists: scenario-to-cloud secrets get LPBS_SERVICE_SECRET --scenario landing-page-business-suite --targets scenario\n  2) Set scenario-to-desktop secret to the same value: scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario scenario-to-desktop --value <same_secret_value> --targets scenario\n  3) Retry deploy-target auth gate: scenario-to-desktop deploy-target test %s --require-service-auth",
-			name,
-		)
-	}
-
-	return fmt.Sprintf(
-		"  1) Set shared secret (portable): scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart\n  2) Verify LPBS runtime auth gate: landing-page-business-suite service-auth-status --require-enabled\n  3) Retry deploy-target auth gate: scenario-to-desktop deploy-target test %s --require-service-auth",
-		name,
-	)
+func (c *Commands) doctorPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoOperational(func(ctx cliapp.OperationContext) (*domainv1.DiagnoseDeployTargetResponse, error) {
+		response, err := c.rpc.DiagnoseDeployTarget(context.Background(), connect.NewRequest(&domainv1.DeployTargetNameRequest{Name: ctx.Positional("name")}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("diagnose deployment target", err, nil)
+		}
+		return response.Msg, nil
+	}, func(_ cliapp.OperationContext, response *domainv1.DiagnoseDeployTargetResponse) cliapp.OperationalReport {
+		status := "NOT READY"
+		if response.GetReady() {
+			status = "READY"
+		}
+		report := cliapp.OperationalReport{Status: []string{"Status: " + status, fmt.Sprintf("Target: %s (scenario=%s profile=%s)", response.GetTarget().GetName(), response.GetTarget().GetScenarioName(), response.GetTarget().GetRemoteProfile())}, NextSteps: response.GetNextSteps()}
+		for _, check := range response.GetChecks() {
+			state := "PASS"
+			if check.GetBlocked() {
+				state = "BLOCKED"
+			} else if !check.GetPassed() {
+				state = "FAIL"
+			}
+			report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: check.GetName(), Items: []string{fmt.Sprintf("[%s] %s", state, check.GetDetail())}})
+		}
+		return report
+	})
 }

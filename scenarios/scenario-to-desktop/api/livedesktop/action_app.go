@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
-
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/screenrecording"
+	"time"
 )
 
 // LaunchAppAction launches an application on the session's display.

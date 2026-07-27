@@ -5,10 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"scenario-to-desktop-api/generation"
 	"strings"
 	"testing"
-
-	"scenario-to-desktop-api/generation"
 )
 
 func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {

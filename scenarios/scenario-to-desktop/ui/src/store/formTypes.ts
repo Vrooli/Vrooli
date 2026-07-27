@@ -5,15 +5,16 @@
 
 import { resolveApiBase } from "@vrooli/api-base";
 import type { ProbeResponse } from "../lib/api";
-import type {
-  DeploymentMode,
-  ServerType,
-} from "../domain/deployment";
+import type { DeploymentMode, ServerType } from "../domain/deployment";
 import type { BundleResult } from "../components/sections/bundle/BundleSection";
 // Use the correct output location type from domain
 export type OutputLocation = "proper" | "temp" | "custom";
 // Import ValidationError from domain - single source of truth
-import type { PlatformSelection, ValidationError } from "../domain/generator";
+import type {
+  DesktopFramework,
+  PlatformSelection,
+  ValidationError,
+} from "../domain/generator";
 
 // Re-export for consumers
 export type { ValidationError };
@@ -41,7 +42,7 @@ export interface AppMetadataState {
 export interface DeploymentState {
   mode: DeploymentMode;
   serverType: ServerType;
-  framework: string;
+  framework: DesktopFramework;
 }
 
 /** Output location state group */
@@ -112,7 +113,7 @@ export interface FormStoreActions {
   // Deployment setters
   setDeploymentMode: (mode: DeploymentMode) => void;
   setServerType: (type: ServerType) => void;
-  setFramework: (framework: string) => void;
+  setFramework: (framework: DesktopFramework) => void;
 
   // Output setters
   setLocationMode: (mode: OutputLocation) => void;
@@ -203,7 +204,8 @@ export const defaultPlatforms: PlatformsState = {
 
 /** Default local API endpoint, resolved via @vrooli/api-base with env-var override. */
 export const DEFAULT_LOCAL_API_ENDPOINT: string =
-  (import.meta.env.VITE_LOCAL_API_ENDPOINT as string | undefined) ?? resolveApiBase({ appendSuffix: true });
+  (import.meta.env.VITE_LOCAL_API_ENDPOINT as string | undefined) ??
+  resolveApiBase({ appendSuffix: true });
 
 export const defaultConnection: ConnectionState = {
   proxyUrl: "",

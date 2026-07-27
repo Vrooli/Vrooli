@@ -12,3 +12,7 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Keep newly released packages out of this deployment surface until the
+# ecosystem has had a full week to surface supply-chain regressions.
+minimumReleaseAge: 10080

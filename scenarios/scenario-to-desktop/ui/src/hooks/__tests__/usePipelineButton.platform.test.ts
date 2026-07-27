@@ -9,10 +9,9 @@ import {
   localStorageMock,
 } from "./usePipelineButton.testUtils";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import {
-  usePlatformSelection,
-  useWineCheck,
-} from "../usePipelineButton";
+import { create } from "@bufbuild/protobuf";
+import { WineCheckResponseSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/config_pb";
+import { usePlatformSelection, useWineCheck } from "../usePipelineButton";
 import type { WineCheckResponse } from "../../lib/api";
 
 beforeEach(() => {
@@ -28,7 +27,7 @@ describe("usePlatformSelection", () => {
   it("returns default platforms when no stored value", () => {
     const { result } = renderHook(
       () => usePlatformSelection({ storageKey: "test-platforms" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     expect(result.current.selectedPlatforms).toEqual(["win", "mac", "linux"]);
@@ -41,7 +40,7 @@ describe("usePlatformSelection", () => {
           storageKey: "test-platforms",
           defaultPlatforms: ["win"],
         }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     expect(result.current.selectedPlatforms).toEqual(["win"]);
@@ -52,7 +51,7 @@ describe("usePlatformSelection", () => {
 
     const { result } = renderHook(
       () => usePlatformSelection({ storageKey: "test-platforms" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     expect(result.current.selectedPlatforms).toEqual(["win", "mac"]);
@@ -63,7 +62,7 @@ describe("usePlatformSelection", () => {
 
     const { result } = renderHook(
       () => usePlatformSelection({ storageKey: "test-platforms" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     expect(result.current.selectedPlatforms).toEqual(["win", "mac", "linux"]);
@@ -74,7 +73,7 @@ describe("usePlatformSelection", () => {
 
     const { result } = renderHook(
       () => usePlatformSelection({ storageKey: "test-platforms" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     expect(result.current.selectedPlatforms).toEqual(["win", "mac", "linux"]);
@@ -83,7 +82,7 @@ describe("usePlatformSelection", () => {
   it("saves to localStorage when platforms change", async () => {
     const { result } = renderHook(
       () => usePlatformSelection({ storageKey: "test-platforms" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     act(() => {
@@ -93,7 +92,7 @@ describe("usePlatformSelection", () => {
     await waitFor(() => {
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         "test-platforms",
-        JSON.stringify(["win"])
+        JSON.stringify(["win"]),
       );
     });
   });
@@ -103,7 +102,7 @@ describe("usePlatformSelection", () => {
 
     const { result } = renderHook(
       () => usePlatformSelection({ storageKey: "test-platforms" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     act(() => {
@@ -118,7 +117,7 @@ describe("usePlatformSelection", () => {
 
     const { result } = renderHook(
       () => usePlatformSelection({ storageKey: "test-platforms" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     act(() => {
@@ -131,11 +130,11 @@ describe("usePlatformSelection", () => {
 
 describe("useWineCheck", () => {
   it("fetches wine check status", async () => {
-    const mockWineCheck: WineCheckResponse = {
+    const mockWineCheck: WineCheckResponse = create(WineCheckResponseSchema, {
       installed: true,
       platform: "linux",
       version: "wine-9.0",
-    };
+    });
     mockCheckWineStatus.mockResolvedValue(mockWineCheck);
 
     const { result } = renderHook(() => useWineCheck(), {
@@ -148,7 +147,10 @@ describe("useWineCheck", () => {
   });
 
   it("showWineDialog starts as false", () => {
-    mockCheckWineStatus.mockResolvedValue({ installed: false, platform: "linux" });
+    mockCheckWineStatus.mockResolvedValue({
+      installed: false,
+      platform: "linux",
+    });
 
     const { result } = renderHook(() => useWineCheck(), {
       wrapper: createWrapper(),
@@ -158,7 +160,10 @@ describe("useWineCheck", () => {
   });
 
   it("setShowWineDialog updates state", () => {
-    mockCheckWineStatus.mockResolvedValue({ installed: false, platform: "linux" });
+    mockCheckWineStatus.mockResolvedValue({
+      installed: false,
+      platform: "linux",
+    });
 
     const { result } = renderHook(() => useWineCheck(), {
       wrapper: createWrapper(),
@@ -172,7 +177,10 @@ describe("useWineCheck", () => {
   });
 
   it("pendingPlatforms starts as empty", () => {
-    mockCheckWineStatus.mockResolvedValue({ installed: false, platform: "linux" });
+    mockCheckWineStatus.mockResolvedValue({
+      installed: false,
+      platform: "linux",
+    });
 
     const { result } = renderHook(() => useWineCheck(), {
       wrapper: createWrapper(),
@@ -182,7 +190,10 @@ describe("useWineCheck", () => {
   });
 
   it("setPendingPlatforms updates state", () => {
-    mockCheckWineStatus.mockResolvedValue({ installed: false, platform: "linux" });
+    mockCheckWineStatus.mockResolvedValue({
+      installed: false,
+      platform: "linux",
+    });
 
     const { result } = renderHook(() => useWineCheck(), {
       wrapper: createWrapper(),
@@ -263,14 +274,20 @@ describe("useWineCheck", () => {
         expect(result.current.wineCheck).toBeDefined();
       });
 
-      expect(result.current.needsWineForPlatforms(["mac", "linux"])).toBe(false);
+      expect(result.current.needsWineForPlatforms(["mac", "linux"])).toBe(
+        false,
+      );
     });
   });
 
   it("handleWineInstallComplete closes dialog and invalidates query", async () => {
     mockCheckWineStatus
       .mockResolvedValueOnce({ installed: false, platform: "linux" })
-      .mockResolvedValueOnce({ installed: true, platform: "linux", version: "wine-9.0" });
+      .mockResolvedValueOnce({
+        installed: true,
+        platform: "linux",
+        version: "wine-9.0",
+      });
 
     const { result } = renderHook(() => useWineCheck(), {
       wrapper: createWrapper(),

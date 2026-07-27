@@ -6,14 +6,13 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"scenario-to-desktop-api/procmetrics"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/procmetrics"
 )
 
 // --- Mock PlatformBackend ---
@@ -159,6 +158,19 @@ func TestStartSession_Success(t *testing.T) {
 	assert.Equal(t, 5900, session.VNCPort)
 	assert.Equal(t, 6080, session.WSPort)
 	assert.Equal(t, "linux", session.Platform)
+}
+
+func TestStartSession_RejectsCancelledContext(t *testing.T) {
+	store := NewInMemoryStore()
+	svc := newTestService(store, newMockBackend())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	session, err := svc.StartSession(ctx, SessionConfig{ScenarioName: "test"})
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, session)
+	assert.Empty(t, store.List())
 }
 
 func TestStartSession_ExplicitLinuxPlatform(t *testing.T) {

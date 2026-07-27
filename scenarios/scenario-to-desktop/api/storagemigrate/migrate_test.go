@@ -3,11 +3,10 @@ package storagemigrate
 import (
 	"os"
 	"path/filepath"
+	"scenario-to-desktop-api/storagepaths"
 	"testing"
 
 	"github.com/vrooli/api-core/storage"
-
-	"scenario-to-desktop-api/storagepaths"
 )
 
 func TestRunMovesLegacyData(t *testing.T) {

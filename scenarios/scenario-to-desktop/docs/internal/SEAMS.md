@@ -5,6 +5,12 @@
 | Seam | Production implementation | Test implementation | Owner |
 |---|---|---|---|
 | Pipeline polling clock | `pipeline.systemClock` delegates to `time.Now` | `pipeline.Clock` implementations provide deterministic deadlines | `cli/domains/pipeline` |
+| Evidence capture query | `EvidenceService.ListEvidenceCaptures` and `GetEvidenceCapturesSummary` read the durable local capture store through generated Connect clients | `cli/domains/evidence.evidenceRPC` supplies typed responses for primitive-contract tests | `api/evidence`, `cli/domains/evidence` |
+
+Evidence capture queries are deliberately local-host operations today. A bridge-targeted
+capture needs a bridge-side desktop-session and artifact-transfer protocol; the existing
+bridge job dispatcher has neither, so a remote job identifier must not be represented as
+a local `DesktopSession` or evidence capture.
 
 This document captures the architectural seams, boundaries, and responsibility zones for the scenario-to-desktop codebase. It serves as the source of truth for understanding where behavior can vary, where responsibilities live, and how to test each layer.
 

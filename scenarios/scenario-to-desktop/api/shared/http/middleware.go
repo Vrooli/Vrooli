@@ -104,6 +104,20 @@ func CORSMiddlewareFromEnv(logger *slog.Logger) func(http.Handler) http.Handler 
 	})
 }
 
+// SecurityHeaders stamps the baseline browser and transport protections on
+// every API response, including Connect procedures and CORS preflights.
+func SecurityHeaders() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("X-XSS-Protection", "0")
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // LoggingMiddleware creates a request logging middleware that writes Apache-style
 // combined logs to the provided writer.
 func LoggingMiddleware(w io.Writer) func(http.Handler) http.Handler {

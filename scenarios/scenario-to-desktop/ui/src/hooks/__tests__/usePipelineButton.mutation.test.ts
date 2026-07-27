@@ -10,15 +10,29 @@ import {
   localStorageMock,
 } from "./usePipelineButton.testUtils";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { create } from "@bufbuild/protobuf";
 import {
-  usePipelineMutation,
-  usePipelineStatus,
-} from "../usePipelineButton";
+  PipelineRunResponseSchema,
+  PipelineStatusSchema,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import { usePipelineMutation, usePipelineStatus } from "../usePipelineButton";
 import type {
   PipelineRunResponse,
   PipelineConfig,
   PipelineStatus,
 } from "../../lib/api";
+import {
+  Platform,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+
+const pipelineRunResponse = (
+  pipelineId = "build-123",
+  message = "Pipeline started",
+) => create(PipelineRunResponseSchema, { pipelineId, message });
+
+const pipelineStatus = (status: StageStatus) =>
+  create(PipelineStatusSchema, { pipelineId: "build-123", status });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -40,10 +54,7 @@ describe("usePipelineMutation", () => {
   });
 
   it("sets buildId on successful run", async () => {
-    const mockResponse: PipelineRunResponse = {
-      pipeline_id: "build-123",
-      message: "Pipeline started",
-    };
+    const mockResponse: PipelineRunResponse = pipelineRunResponse();
     mockRunPipeline.mockResolvedValue(mockResponse);
 
     const { result } = renderHook(() => usePipelineMutation(), {
@@ -51,8 +62,8 @@ describe("usePipelineMutation", () => {
     });
 
     const config: PipelineConfig = {
-      scenario_name: "test-scenario",
-      platforms: ["win"],
+      scenarioName: "test-scenario",
+      platforms: [Platform.WIN],
     };
 
     act(() => {
@@ -77,8 +88,8 @@ describe("usePipelineMutation", () => {
 
     act(() => {
       result.current.runPipelineWithConfig({
-        scenario_name: "test-scenario",
-        platforms: ["win"],
+        scenarioName: "test-scenario",
+        platforms: [Platform.WIN],
       });
     });
 
@@ -90,23 +101,19 @@ describe("usePipelineMutation", () => {
   });
 
   it("calls onSuccess callback", async () => {
-    const mockResponse: PipelineRunResponse = {
-      pipeline_id: "build-123",
-      message: "Pipeline started",
-    };
+    const mockResponse: PipelineRunResponse = pipelineRunResponse();
     mockRunPipeline.mockResolvedValue(mockResponse);
 
     const onSuccess = vi.fn();
 
-    const { result } = renderHook(
-      () => usePipelineMutation({ onSuccess }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => usePipelineMutation({ onSuccess }), {
+      wrapper: createWrapper(),
+    });
 
     act(() => {
       result.current.runPipelineWithConfig({
-        scenario_name: "test-scenario",
-        platforms: ["win"],
+        scenarioName: "test-scenario",
+        platforms: [Platform.WIN],
       });
     });
 
@@ -120,15 +127,14 @@ describe("usePipelineMutation", () => {
 
     const onError = vi.fn();
 
-    const { result } = renderHook(
-      () => usePipelineMutation({ onError }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => usePipelineMutation({ onError }), {
+      wrapper: createWrapper(),
+    });
 
     act(() => {
       result.current.runPipelineWithConfig({
-        scenario_name: "test-scenario",
-        platforms: ["win"],
+        scenarioName: "test-scenario",
+        platforms: [Platform.WIN],
       });
     });
 
@@ -138,10 +144,7 @@ describe("usePipelineMutation", () => {
   });
 
   it("reset clears state", async () => {
-    const mockResponse: PipelineRunResponse = {
-      pipeline_id: "build-123",
-      message: "Pipeline started",
-    };
+    const mockResponse: PipelineRunResponse = pipelineRunResponse();
     mockRunPipeline.mockResolvedValue(mockResponse);
 
     const { result } = renderHook(() => usePipelineMutation(), {
@@ -150,8 +153,8 @@ describe("usePipelineMutation", () => {
 
     act(() => {
       result.current.runPipelineWithConfig({
-        scenario_name: "test-scenario",
-        platforms: ["win"],
+        scenarioName: "test-scenario",
+        platforms: [Platform.WIN],
       });
     });
 
@@ -168,10 +171,7 @@ describe("usePipelineMutation", () => {
   });
 
   it("clearBuildId only clears buildId", async () => {
-    const mockResponse: PipelineRunResponse = {
-      pipeline_id: "build-123",
-      message: "Pipeline started",
-    };
+    const mockResponse: PipelineRunResponse = pipelineRunResponse();
     mockRunPipeline.mockResolvedValue(mockResponse);
 
     const { result } = renderHook(() => usePipelineMutation(), {
@@ -180,8 +180,8 @@ describe("usePipelineMutation", () => {
 
     act(() => {
       result.current.runPipelineWithConfig({
-        scenario_name: "test-scenario",
-        platforms: ["win"],
+        scenarioName: "test-scenario",
+        platforms: [Platform.WIN],
       });
     });
 
@@ -204,7 +204,7 @@ describe("usePipelineMutation", () => {
       () =>
         new Promise((resolve) => {
           resolveRun = resolve;
-        })
+        }),
     );
 
     const { result } = renderHook(() => usePipelineMutation(), {
@@ -215,8 +215,8 @@ describe("usePipelineMutation", () => {
 
     act(() => {
       result.current.runPipelineWithConfig({
-        scenario_name: "test-scenario",
-        platforms: ["win"],
+        scenarioName: "test-scenario",
+        platforms: [Platform.WIN],
       });
     });
 
@@ -225,7 +225,7 @@ describe("usePipelineMutation", () => {
     });
 
     await act(async () => {
-      resolveRun({ pipeline_id: "build-123", message: "Started" });
+      resolveRun(pipelineRunResponse("build-123", "Started"));
     });
 
     await waitFor(() => {
@@ -238,10 +238,9 @@ describe("usePipelineStatus", () => {
   it("returns null when no buildId", () => {
     mockGetPipelineStatus.mockResolvedValue(null);
 
-    const { result } = renderHook(
-      () => usePipelineStatus({ buildId: null }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => usePipelineStatus({ buildId: null }), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.pipelineStatus).toBeUndefined();
     expect(result.current.mappedStatus).toBeNull();
@@ -251,17 +250,16 @@ describe("usePipelineStatus", () => {
   });
 
   it("fetches status when buildId is provided", async () => {
-    const mockStatus: PipelineStatus = {
-      pipeline_id: "build-123",
-      status: "running",
-      progress_message: "Building...",
-      started_at: Date.now(),
-    };
+    const mockStatus: PipelineStatus = create(PipelineStatusSchema, {
+      pipelineId: "build-123",
+      status: StageStatus.RUNNING,
+      progressMessage: "Building...",
+    });
     mockGetPipelineStatus.mockResolvedValue(mockStatus);
 
     const { result } = renderHook(
       () => usePipelineStatus({ buildId: "build-123" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -270,16 +268,13 @@ describe("usePipelineStatus", () => {
   });
 
   it("maps running status to building", async () => {
-    mockGetPipelineStatus.mockResolvedValue({
-      pipeline_id: "build-123",
-      status: "running",
-      message: "Building...",
-      started_at: new Date().toISOString(),
-    });
+    mockGetPipelineStatus.mockResolvedValue(
+      pipelineStatus(StageStatus.RUNNING),
+    );
 
     const { result } = renderHook(
       () => usePipelineStatus({ buildId: "build-123" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -292,16 +287,13 @@ describe("usePipelineStatus", () => {
   });
 
   it("maps pending status to building", async () => {
-    mockGetPipelineStatus.mockResolvedValue({
-      pipeline_id: "build-123",
-      status: "pending",
-      message: "Queued",
-      started_at: new Date().toISOString(),
-    });
+    mockGetPipelineStatus.mockResolvedValue(
+      pipelineStatus(StageStatus.PENDING),
+    );
 
     const { result } = renderHook(
       () => usePipelineStatus({ buildId: "build-123" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -312,17 +304,13 @@ describe("usePipelineStatus", () => {
   });
 
   it("maps completed status to ready", async () => {
-    mockGetPipelineStatus.mockResolvedValue({
-      pipeline_id: "build-123",
-      status: "completed",
-      message: "Done",
-      started_at: new Date().toISOString(),
-      completed_at: new Date().toISOString(),
-    });
+    mockGetPipelineStatus.mockResolvedValue(
+      pipelineStatus(StageStatus.COMPLETED),
+    );
 
     const { result } = renderHook(
       () => usePipelineStatus({ buildId: "build-123" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -335,17 +323,11 @@ describe("usePipelineStatus", () => {
   });
 
   it("maps failed status to failed", async () => {
-    mockGetPipelineStatus.mockResolvedValue({
-      pipeline_id: "build-123",
-      status: "failed",
-      message: "Build error",
-      started_at: new Date().toISOString(),
-      error: "Compilation failed",
-    });
+    mockGetPipelineStatus.mockResolvedValue(pipelineStatus(StageStatus.FAILED));
 
     const { result } = renderHook(
       () => usePipelineStatus({ buildId: "build-123" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -358,16 +340,13 @@ describe("usePipelineStatus", () => {
   });
 
   it("maps cancelled status to failed", async () => {
-    mockGetPipelineStatus.mockResolvedValue({
-      pipeline_id: "build-123",
-      status: "cancelled",
-      message: "Cancelled by user",
-      started_at: new Date().toISOString(),
-    });
+    mockGetPipelineStatus.mockResolvedValue(
+      pipelineStatus(StageStatus.CANCELLED),
+    );
 
     const { result } = renderHook(
       () => usePipelineStatus({ buildId: "build-123" }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -378,12 +357,9 @@ describe("usePipelineStatus", () => {
   });
 
   it("uses custom query key prefix", async () => {
-    mockGetPipelineStatus.mockResolvedValue({
-      pipeline_id: "build-123",
-      status: "running",
-      message: "Building...",
-      started_at: new Date().toISOString(),
-    });
+    mockGetPipelineStatus.mockResolvedValue(
+      pipelineStatus(StageStatus.RUNNING),
+    );
 
     const { result } = renderHook(
       () =>
@@ -391,7 +367,7 @@ describe("usePipelineStatus", () => {
           buildId: "build-123",
           queryKeyPrefix: "custom-status",
         }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -400,13 +376,13 @@ describe("usePipelineStatus", () => {
   });
 
   it("fetches verbose status when requested", async () => {
-    mockGetPipelineStatus.mockResolvedValue({
-      pipeline_id: "build-123",
-      status: "running",
-      message: "Building...",
-      started_at: new Date().toISOString(),
-      stages: [{ name: "bundle", status: "completed" }],
-    });
+    mockGetPipelineStatus.mockResolvedValue(
+      create(PipelineStatusSchema, {
+        pipelineId: "build-123",
+        status: StageStatus.RUNNING,
+        stages: { bundle: { stage: 1, status: StageStatus.COMPLETED } },
+      }),
+    );
 
     const { result } = renderHook(
       () =>
@@ -414,13 +390,15 @@ describe("usePipelineStatus", () => {
           buildId: "build-123",
           verbose: true,
         }),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
       expect(result.current.pipelineStatus).toBeDefined();
     });
 
-    expect(mockGetPipelineStatus).toHaveBeenCalledWith("build-123", { verbose: true });
+    expect(mockGetPipelineStatus).toHaveBeenCalledWith("build-123", {
+      verbose: true,
+    });
   });
 });

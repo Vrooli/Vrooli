@@ -107,67 +107,69 @@ func (e *DefaultProcessExecutor) Execute(ctx context.Context, workDir, command s
 
 // ExecuteWithResult runs a command and returns detailed execution result with separated stdout/stderr.
 func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir, command string, args, env []string, timeout time.Duration) (*ExecutionResult, error) {
-	if timeout <= 0 {
-		timeout = 30 * time.Second
-	}
-
+	timeout = normalizedTimeout(timeout)
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	cmd, capture := e.executionCommand(workDir, command, args, env)
+	startTime := e.clock.Now()
+	result := func(waitCompleted bool) *ExecutionResult {
+		return capture.result(e.clock.Now().Sub(startTime), cmd, waitCompleted)
+	}
+	if err := commandContextError(execCtx.Err(), timeout); err != nil {
+		return result(false), err
+	}
+	if err := e.startProcess(cmd); err != nil {
+		return result(false), err
+	}
+	return e.waitForProcess(execCtx, cmd, timeout, result)
+}
 
+type executionCapture struct{ stdout, stderr, combined *limitedWriter }
+
+func normalizedTimeout(timeout time.Duration) time.Duration {
+	if timeout <= 0 {
+		return 30 * time.Second
+	}
+	return timeout
+}
+
+func (e *DefaultProcessExecutor) executionCommand(workDir, command string, args, env []string) (*exec.Cmd, executionCapture) {
 	cmd := exec.Command(command, args...)
 	cmd.Dir = workDir
-
-	// Set process group on Unix systems for clean termination
 	if runtime.GOOS != "windows" {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	}
-
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)
 	}
+	capture := executionCapture{newLimitedWriter(e.maxOutputBytes), newLimitedWriter(e.maxOutputBytes), newLimitedWriter(e.maxOutputBytes)}
+	cmd.Stdout = io.MultiWriter(capture.stdout, capture.combined)
+	cmd.Stderr = io.MultiWriter(capture.stderr, capture.combined)
+	return cmd, capture
+}
 
-	// Create limited writers for stdout and stderr
-	stdoutWriter := newLimitedWriter(e.maxOutputBytes)
-	stderrWriter := newLimitedWriter(e.maxOutputBytes)
-	combinedWriter := newLimitedWriter(e.maxOutputBytes)
-
-	// Use MultiWriter to capture both separate and combined output
-	cmd.Stdout = io.MultiWriter(stdoutWriter, combinedWriter)
-	cmd.Stderr = io.MultiWriter(stderrWriter, combinedWriter)
-
-	startTime := e.clock.Now()
-
-	type execResult struct {
-		err error
+func (c executionCapture) result(duration time.Duration, cmd *exec.Cmd, waitCompleted bool) *ExecutionResult {
+	truncated := c.stdout.truncatedBytes + c.stderr.truncatedBytes
+	result := &ExecutionResult{Stdout: c.stdout.String(), Stderr: c.stderr.String(), Combined: c.combined.String(), ExitCode: -1, Duration: duration, Truncated: truncated > 0, TruncatedBytes: truncated}
+	if waitCompleted && cmd.ProcessState != nil {
+		result.ExitCode = cmd.ProcessState.ExitCode()
 	}
-	buildResult := func(waitCompleted bool) *ExecutionResult {
-		duration := e.clock.Now().Sub(startTime)
-		truncatedBytes := stdoutWriter.truncatedBytes + stderrWriter.truncatedBytes
-		result := &ExecutionResult{
-			Stdout:         stdoutWriter.String(),
-			Stderr:         stderrWriter.String(),
-			Combined:       combinedWriter.String(),
-			ExitCode:       -1,
-			Duration:       duration,
-			Truncated:      truncatedBytes > 0,
-			TruncatedBytes: truncatedBytes,
-		}
-		if waitCompleted && cmd.ProcessState != nil {
-			result.ExitCode = cmd.ProcessState.ExitCode()
-		}
-		return result
-	}
-	if err := execCtx.Err(); err != nil {
-		if err == context.DeadlineExceeded {
-			return buildResult(false), fmt.Errorf("command timed out after %s", timeout)
-		}
-		return buildResult(false), fmt.Errorf("command cancelled")
-	}
+	return result
+}
 
-	// Start synchronously so cancellation only ever observes a fully initialized
-	// os/exec.Cmd. cmd.Start mutates Process and must not race with termination.
+func commandContextError(err error, timeout time.Duration) error {
+	if err == context.DeadlineExceeded {
+		return fmt.Errorf("command timed out after %s", timeout)
+	}
+	if err != nil {
+		return fmt.Errorf("command cancelled")
+	}
+	return nil
+}
+
+func (e *DefaultProcessExecutor) startProcess(cmd *exec.Cmd) error {
 	if err := cmd.Start(); err != nil {
-		return buildResult(false), err
+		return err
 	}
 	if e.onProcessStarted != nil {
 		e.onProcessStarted()
@@ -175,34 +177,23 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 	if e.onProcessStartedPID != nil && cmd.Process != nil {
 		e.onProcessStartedPID(cmd.Process.Pid)
 	}
+	return nil
+}
 
-	resultCh := make(chan execResult, 1)
-	go func() {
-		resultCh <- execResult{err: cmd.Wait()}
-	}()
-
+func (e *DefaultProcessExecutor) waitForProcess(ctx context.Context, cmd *exec.Cmd, timeout time.Duration, result func(bool) *ExecutionResult) (*ExecutionResult, error) {
+	completed := make(chan error, 1)
+	go func() { completed <- cmd.Wait() }()
 	select {
-	case res := <-resultCh:
-		return buildResult(true), res.err
-
-	case <-execCtx.Done():
+	case err := <-completed:
+		return result(true), err
+	case <-ctx.Done():
 		e.terminateProcess(cmd)
-
-		// Wait briefly for process to exit and collect output
-		select {
-		case <-resultCh:
-			result := buildResult(true)
-			if execCtx.Err() == context.DeadlineExceeded {
-				return result, fmt.Errorf("command timed out after %s", timeout)
-			}
-			return result, fmt.Errorf("command cancelled")
-		case <-e.clock.After(e.killGracePeriod):
-			result := buildResult(false)
-			if execCtx.Err() == context.DeadlineExceeded {
-				return result, fmt.Errorf("command timed out after %s", timeout)
-			}
-			return result, fmt.Errorf("command cancelled")
-		}
+	}
+	select {
+	case <-completed:
+		return result(true), commandContextError(ctx.Err(), timeout)
+	case <-e.clock.After(e.killGracePeriod):
+		return result(false), commandContextError(ctx.Err(), timeout)
 	}
 }
 

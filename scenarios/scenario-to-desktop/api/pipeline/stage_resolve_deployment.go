@@ -3,8 +3,8 @@ package pipeline
 import (
 	"context"
 	"path/filepath"
-
 	"scenario-to-desktop-api/shared/errors"
+
 	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
@@ -19,6 +19,7 @@ type ResolveDeploymentStageOption func(*ResolveDeploymentStage)
 func WithResolveDeploymentScenarioRoot(root string) ResolveDeploymentStageOption {
 	return func(s *ResolveDeploymentStage) { s.scenarioRoot = root }
 }
+
 func NewResolveDeploymentStage(opts ...ResolveDeploymentStageOption) *ResolveDeploymentStage {
 	s := &ResolveDeploymentStage{timeProvider: NewRealTimeProvider()}
 	for _, opt := range opts {
@@ -37,6 +38,7 @@ func (s *ResolveDeploymentStage) Dependencies() []string { return nil }
 func (s *ResolveDeploymentStage) CanSkip(input *StageInput) bool {
 	return input.Config.GetDeploymentMode() != DeploymentModeBundled
 }
+
 func (s *ResolveDeploymentStage) Execute(ctx context.Context, input *StageInput) *StageResult {
 	result := newStageResult(s.Name(), s.timeProvider)
 	if s.CanSkip(input) {

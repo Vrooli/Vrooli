@@ -9,14 +9,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"scenario-to-desktop-api/captures"
+	"scenario-to-desktop-api/screenrecording"
 	"testing"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/captures"
-	"scenario-to-desktop-api/screenrecording"
 
 	"github.com/vrooli/api-core/storage"
 )

@@ -44,11 +44,9 @@ vrooli scenario requirements validate scenario-to-desktop --json
 
 This compares `module.json` status fields against actual test results and code presence. After syncing, PRD checkboxes may auto-update to reflect validated completion.
 
-To regenerate requirements from PRD targets:
-
-```bash
-business-health wizard apply  # (was: requirements generate) scenario-to-desktop --context-file scenarios/scenario-to-desktop/PRD.md --json
-```
+Requirements reconciliation is owned by the business-health workflow. Consult
+`business-health wizard apply --help` for the current argument contract rather
+than copying a stale invocation here.
 
 ## Requirements Status
 
@@ -67,7 +65,6 @@ business-health wizard apply  # (was: requirements generate) scenario-to-desktop
 - Cross-platform packaging depends on electron-builder and platform prerequisites (e.g., Wine for Windows on Linux)
 
 ### Future (P2) 🔮
-- Tauri/Neutralino frameworks
 - Code signing and notarization automation
 - App store submission automation
 

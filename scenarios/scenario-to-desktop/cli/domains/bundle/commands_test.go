@@ -1,181 +1,70 @@
 package bundle
 
 import (
+	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
+	"errors"
 	"testing"
 
-	"scenario-to-desktop/cli/internal/support"
-
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliapptest"
+	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 )
 
-func newTestClient(handler http.Handler) support.Dependencies {
-	server := httptest.NewServer(handler)
-	app, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		Name:             "scenario-to-desktop-test",
-		Version:          "test",
-		Description:      "test",
-		DefaultAPIBase:   server.URL,
-		AllowAnonymous:   true,
-		CommandGroups:    func(*cliapp.ScenarioApp) []cliapp.CommandGroup { return nil },
-		SubcommandGroups: func(*cliapp.ScenarioApp) []cliapp.SubcommandGroup { return nil },
-	})
-	if err != nil {
-		panic(err)
-	}
-	return support.Dependencies{Core: func() *cliapp.ScenarioApp { return app }}
+type fakePipelineRPC struct {
+	request  *pipelinev1.BundleCleanRequest
+	response *pipelinev1.BundleCleanResponse
+	err      error
 }
 
-func TestClean_MissingScenarioArg(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-
-	err := cmds.Clean([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing scenario argument")
+func (f *fakePipelineRPC) CleanBundle(_ context.Context, request *connect.Request[pipelinev1.BundleCleanRequest]) (*connect.Response[pipelinev1.BundleCleanResponse], error) {
+	f.request = request.Msg
+	if f.err != nil {
+		return nil, f.err
 	}
-	if !strings.Contains(err.Error(), "usage:") {
-		t.Errorf("error = %q, want usage message", err.Error())
-	}
+	return connect.NewResponse(f.response), nil
 }
 
-func TestClean_EmptyScenarioArg(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
+var cleanSchema = cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "location-mode", Default: "proper", Values: []string{"proper", "staging", "temp"}}, {Name: "pipeline-id"}}}
 
-	// Whitespace-only scenario should fail
-	err := cmds.Clean([]string{"  "})
-	if err == nil {
-		t.Fatal("expected error for whitespace-only scenario")
+func runClean(t *testing.T, command *Commands, args []string) cliapptest.PrimitiveModes {
+	t.Helper()
+	return cliapptest.RunPrimitiveHandlerModes(t, command.cleanPrimitive(), cleanSchema, args, nil)
+}
+
+func assertCleanSuccess(t *testing.T, modes cliapptest.PrimitiveModes) {
+	t.Helper()
+	if modes.HumanErr != nil || modes.JSONErr != nil {
+		t.Fatalf("clean errors: human=%v json=%v", modes.HumanErr, modes.JSONErr)
 	}
-	if !strings.Contains(err.Error(), "scenario is required") {
-		t.Errorf("error = %q, want 'scenario is required'", err.Error())
+	var value any
+	if err := json.Unmarshal([]byte(modes.JSON), &value); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
 	}
 }
 
-func TestClean_PipelineIDRequiredForStaging(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{"staging without pipeline-id", []string{"my-scenario", "--location-mode", "staging"}},
-		{"temp without pipeline-id", []string{"my-scenario", "--location-mode", "temp"}},
+func TestCleanPrimitiveUsesProductionParserAndTypedRequest(t *testing.T) {
+	rpc := &fakePipelineRPC{response: &pipelinev1.BundleCleanResponse{Path: "/tmp/bundle", Removed: true}}
+	assertCleanSuccess(t, runClean(t, &Commands{rpc: rpc}, []string{"demo", "--location-mode", "staging", "--pipeline-id", "pipe-1"}))
+	if rpc.request.GetScenarioName() != "demo" || rpc.request.GetLocationMode() != "staging" || rpc.request.GetPipelineId() != "pipe-1" {
+		t.Fatalf("request = %#v", rpc.request)
 	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := cmds.Clean(tc.args)
-			if err == nil {
-				t.Fatal("expected error for missing pipeline-id")
-			}
-			if !strings.Contains(err.Error(), "--pipeline-id is required") {
-				t.Errorf("error = %q, want '--pipeline-id is required'", err.Error())
-			}
-		})
+	if _, err := cliapptest.NewTestRunContextFromArgs(cleanSchema, nil, nil, nil, nil); err == nil {
+		t.Fatal("missing scenario accepted")
+	}
+	if _, err := cliapptest.NewTestRunContextFromArgs(cleanSchema, []string{"demo", "--framework", "electron"}, nil, nil, nil); err == nil {
+		t.Fatal("removed framework flag accepted")
 	}
 }
 
-func TestClean_PipelineIDNotRequiredForProper(t *testing.T) {
-	var receivedPath string
-	var receivedBody map[string]interface{}
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedPath = r.URL.Path
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"path":    "/tmp/bundle",
-			"removed": true,
-		})
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Clean([]string{"my-scenario"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestCleanPrimitiveRejectsIncompleteOrFailedOperations(t *testing.T) {
+	modes := runClean(t, &Commands{rpc: &fakePipelineRPC{response: &pipelinev1.BundleCleanResponse{Path: "/tmp/bundle"}}}, []string{"demo", "--location-mode", "temp"})
+	if modes.HumanErr == nil || modes.JSONErr == nil {
+		t.Fatal("missing pipeline id accepted")
 	}
-
-	if !strings.Contains(receivedPath, "/scenarios/my-scenario/bundle/clean") {
-		t.Errorf("request path = %q, want to contain '/scenarios/my-scenario/bundle/clean'", receivedPath)
-	}
-
-	if receivedBody["framework"] != "electron" {
-		t.Errorf("framework = %v, want 'electron'", receivedBody["framework"])
-	}
-	if receivedBody["location_mode"] != "proper" {
-		t.Errorf("location_mode = %v, want 'proper'", receivedBody["location_mode"])
-	}
-}
-
-func TestClean_StagingWithPipelineID(t *testing.T) {
-	var receivedBody map[string]interface{}
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"path":    "/tmp/staging-bundle",
-			"removed": true,
-		})
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Clean([]string{"my-scenario", "--location-mode", "staging", "--pipeline-id", "pipe-123"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if receivedBody["location_mode"] != "staging" {
-		t.Errorf("location_mode = %v, want 'staging'", receivedBody["location_mode"])
-	}
-	if receivedBody["pipeline_id"] != "pipe-123" {
-		t.Errorf("pipeline_id = %v, want 'pipe-123'", receivedBody["pipeline_id"])
-	}
-}
-
-func TestClean_CustomFramework(t *testing.T) {
-	var receivedBody map[string]interface{}
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"path":    "/tmp/bundle",
-			"removed": false,
-		})
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Clean([]string{"my-scenario", "--framework", "tauri"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if receivedBody["framework"] != "tauri" {
-		t.Errorf("framework = %v, want 'tauri'", receivedBody["framework"])
-	}
-}
-
-func TestClean_APIError(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"error":"internal server error"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Clean([]string{"my-scenario"})
-	if err == nil {
-		t.Fatal("expected error from API failure")
-	}
-}
-
-func TestClean_InvalidFlag(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Clean([]string{"--unknown-flag"})
-	if err == nil {
-		t.Fatal("expected error for unknown flag")
+	modes = runClean(t, &Commands{rpc: &fakePipelineRPC{err: errors.New("unavailable")}}, []string{"demo"})
+	if modes.HumanErr == nil || modes.JSONErr == nil {
+		t.Fatal("API error was lost")
 	}
 }

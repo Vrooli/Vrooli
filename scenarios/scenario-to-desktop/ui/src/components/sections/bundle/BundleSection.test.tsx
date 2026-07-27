@@ -6,9 +6,15 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@/test-utils";
 import { act } from "@testing-library/react";
+import { create } from "@bufbuild/protobuf";
 import { BundleSection } from "./BundleSection";
 import { usePipelineStore } from "../../../store";
 import { createPipelineStatus } from "../../../test-utils/mocks";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import { BundleStageDetailsSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
 
 // Reset store state before each test
 beforeEach(() => {
@@ -23,9 +29,13 @@ describe("BundleSection", () => {
     render(<BundleSection scenarioName="test-scenario" />);
 
     expect(screen.getByText("Bundle")).toBeInTheDocument();
-    expect(screen.getByText("Package dependencies for distribution")).toBeInTheDocument();
+    expect(
+      screen.getByText("Package dependencies for distribution"),
+    ).toBeInTheDocument();
     // Non-bundled mode shows placeholder
-    expect(screen.getByText(/Bundle stage will run when you generate/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Bundle stage will run when you generate/),
+    ).toBeInTheDocument();
   });
 
   it("renders running state with status badge", () => {
@@ -33,11 +43,14 @@ describe("BundleSection", () => {
       usePipelineStore.setState({
         runStatus: "running",
         pipelineStatus: createPipelineStatus({
-          status: "running",
-          current_stage: "bundle",
+          status: StageStatus.RUNNING,
+          currentStage: StageName.BUNDLE,
           stages: {
             ...createPipelineStatus().stages,
-            bundle: { stage: "bundle", status: "running", started_at: Date.now() },
+            bundle: {
+              stage: StageName.BUNDLE,
+              status: StageStatus.RUNNING,
+            },
           },
         }),
       });
@@ -52,18 +65,21 @@ describe("BundleSection", () => {
   it("renders completed state with bundle details", () => {
     act(() => {
       usePipelineStore.setState({
-        bundleResult: {
-          bundle_dir: "/path/to/bundle/dir",
-          manifest_path: "/path/to/manifest.json",
-          total_size_human: "150 MB",
-          copied_artifacts: ["app.js", "index.html", "styles.css"],
-          runtime_binaries: { linux: "/path/to/binary" },
-        },
+        bundleResult: create(BundleStageDetailsSchema, {
+          bundleDir: "/path/to/bundle/dir",
+          manifestPath: "/path/to/manifest.json",
+          totalSizeHuman: "150 MB",
+          copiedArtifacts: ["app.js", "index.html", "styles.css"],
+          runtimeBinaries: { linux: "/path/to/binary" },
+        }),
         pipelineStatus: createPipelineStatus({
-          status: "completed",
+          status: StageStatus.COMPLETED,
           stages: {
             ...createPipelineStatus().stages,
-            bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
+            bundle: {
+              stage: StageName.BUNDLE,
+              status: StageStatus.COMPLETED,
+            },
           },
         }),
       });
@@ -84,21 +100,24 @@ describe("BundleSection", () => {
   it("shows size warning when present", () => {
     act(() => {
       usePipelineStore.setState({
-        bundleResult: {
-          bundle_dir: "/path/to/bundle",
-          manifest_path: "/path/to/manifest.json",
-          total_size_human: "2 GB",
-          copied_artifacts: [],
-          runtime_binaries: {},
-          size_warning: {
+        bundleResult: create(BundleStageDetailsSchema, {
+          bundleDir: "/path/to/bundle",
+          manifestPath: "/path/to/manifest.json",
+          totalSizeHuman: "2 GB",
+          copiedArtifacts: [],
+          runtimeBinaries: {},
+          sizeWarning: {
             message: "Bundle size exceeds 1 GB. Consider optimizing.",
           },
-        },
+        }),
         pipelineStatus: createPipelineStatus({
-          status: "completed",
+          status: StageStatus.COMPLETED,
           stages: {
             ...createPipelineStatus().stages,
-            bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
+            bundle: {
+              stage: StageName.BUNDLE,
+              status: StageStatus.COMPLETED,
+            },
           },
         }),
       });
@@ -114,10 +133,14 @@ describe("BundleSection", () => {
       usePipelineStore.setState({
         errorInfo: { message: "Bundle failed" },
         pipelineStatus: createPipelineStatus({
-          status: "failed",
+          status: StageStatus.FAILED,
           stages: {
             ...createPipelineStatus().stages,
-            bundle: { stage: "bundle", status: "failed", started_at: Date.now(), error: "Bundle failed" },
+            bundle: {
+              stage: StageName.BUNDLE,
+              status: StageStatus.FAILED,
+              error: "Bundle failed",
+            },
           },
         }),
       });
@@ -131,7 +154,9 @@ describe("BundleSection", () => {
   it("shows placeholder when scenario selected but not bundled", () => {
     render(<BundleSection scenarioName="test-scenario" isBundled={false} />);
 
-    expect(screen.getByText(/Bundle stage will run when you generate/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Bundle stage will run when you generate/),
+    ).toBeInTheDocument();
   });
 
   it("shows different placeholder when no scenario selected", () => {
@@ -143,18 +168,21 @@ describe("BundleSection", () => {
   it("shows artifact count for single artifact", () => {
     act(() => {
       usePipelineStore.setState({
-        bundleResult: {
-          bundle_dir: "/path",
-          manifest_path: "/path/manifest.json",
-          total_size_human: "10 MB",
-          copied_artifacts: ["app.js"],
-          runtime_binaries: {},
-        },
+        bundleResult: create(BundleStageDetailsSchema, {
+          bundleDir: "/path",
+          manifestPath: "/path/manifest.json",
+          totalSizeHuman: "10 MB",
+          copiedArtifacts: ["app.js"],
+          runtimeBinaries: {},
+        }),
         pipelineStatus: createPipelineStatus({
-          status: "completed",
+          status: StageStatus.COMPLETED,
           stages: {
             ...createPipelineStatus().stages,
-            bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
+            bundle: {
+              stage: StageName.BUNDLE,
+              status: StageStatus.COMPLETED,
+            },
           },
         }),
       });
@@ -169,22 +197,25 @@ describe("BundleSection", () => {
   it("shows platform builds for runtime binaries", () => {
     act(() => {
       usePipelineStore.setState({
-        bundleResult: {
-          bundle_dir: "/path",
-          manifest_path: "/path/manifest.json",
-          total_size_human: "50 MB",
-          copied_artifacts: ["app.js"],
-          runtime_binaries: {
+        bundleResult: create(BundleStageDetailsSchema, {
+          bundleDir: "/path",
+          manifestPath: "/path/manifest.json",
+          totalSizeHuman: "50 MB",
+          copiedArtifacts: ["app.js"],
+          runtimeBinaries: {
             linux: "/path/linux",
             win: "/path/win",
             mac: "/path/mac",
           },
-        },
+        }),
         pipelineStatus: createPipelineStatus({
-          status: "completed",
+          status: StageStatus.COMPLETED,
           stages: {
             ...createPipelineStatus().stages,
-            bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
+            bundle: {
+              stage: StageName.BUNDLE,
+              status: StageStatus.COMPLETED,
+            },
           },
         }),
       });

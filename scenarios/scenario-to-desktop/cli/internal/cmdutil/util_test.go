@@ -4,29 +4,6 @@ import (
 	"testing"
 )
 
-func TestAPIPath(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"with leading slash", "/health", "/api/v1/health"},
-		{"without leading slash", "health", "/api/v1/health"},
-		{"nested path", "/signing/config", "/api/v1/signing/config"},
-		{"empty string", "", ""},
-		{"whitespace only", "   ", ""},
-		{"path with whitespace", "  /health  ", "/api/v1/health"},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := APIPath(tc.input)
-			if got != tc.expected {
-				t.Errorf("APIPath(%q) = %q, want %q", tc.input, got, tc.expected)
-			}
-		})
-	}
-}
-
 func TestMapToValues(t *testing.T) {
 	t.Run("nil map", func(t *testing.T) {
 		got := MapToValues(nil)

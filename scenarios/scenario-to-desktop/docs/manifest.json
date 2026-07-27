@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "Scenario-to-Desktop Documentation",
   "description": "Desktop packaging guide for Vrooli scenarios",
   "defaultDocument": "OVERVIEW.md",
@@ -9,8 +9,39 @@
       "title": "Overview",
       "icon": "info",
       "documents": [
-        { "path": "OVERVIEW.md", "title": "Current vs Roadmap", "description": "Thin-client reality and bundling status" },
-        { "path": "concepts/deployment-modes.md", "title": "Deployment Modes", "description": "Choose deployment_mode and server_type" }
+        {
+          "path": "OVERVIEW.md",
+          "title": "Current vs Roadmap",
+          "description": "Thin-client reality and bundling status",
+          "docType": "overview-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/deployment-modes.md",
+          "title": "Deployment Modes",
+          "description": "Choose deployment_mode and server_type",
+          "docType": "concepts-deployment-modes-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "manifest.json",
+          "docType": "manifest",
+          "title": "Documentation Manifest",
+          "description": "Machine-readable scenario documentation contract",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -18,8 +49,39 @@
       "title": "Concepts",
       "icon": "lightbulb",
       "documents": [
-        { "path": "concepts/ARCHITECTURE.md", "title": "Architecture", "description": "Visual guide to system architecture, templates, and workflows" },
-        { "path": "concepts/GLOSSARY.md", "title": "Glossary", "description": "Key terms and definitions" }
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Visual guide to system architecture, templates, and workflows",
+          "docType": "concepts-architecture-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Key terms and definitions",
+          "docType": "concepts-glossary-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/DOMAINS.md",
+          "docType": "domains",
+          "title": "Domain Map",
+          "description": "Desktop deployment capability and ownership map",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -27,7 +89,17 @@
       "title": "Getting Started",
       "icon": "rocket",
       "documents": [
-        { "path": "QUICKSTART.md", "title": "Quick Start", "description": "Thin-client generation via UI/CLI" }
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Thin-client generation via UI/CLI",
+          "docType": "quickstart-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -35,11 +107,61 @@
       "title": "Build & Troubleshoot",
       "icon": "package",
       "documents": [
-        { "path": "guides/build-and-packaging.md", "title": "Build Checklist", "description": "Prereqs, commands, and outputs" },
-        { "path": "guides/cross-platform-builds.md", "title": "Cross-Platform Builds", "description": "Build strategy and caveats for Windows/macOS/Linux targets" },
-        { "path": "guides/debugging-windows.md", "title": "Debugging Windows", "description": "Windows build/runtime troubleshooting" },
-        { "path": "guides/wine-installation.md", "title": "Wine (No-Sudo)", "description": "Install Wine via Flatpak for Windows builds" },
-        { "path": "guides/code-signing.md", "title": "Code Signing", "description": "Platform-specific signing setup and troubleshooting" }
+        {
+          "path": "guides/build-and-packaging.md",
+          "title": "Build Checklist",
+          "description": "Prereqs, commands, and outputs",
+          "docType": "guides-build-and-packaging-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/cross-platform-builds.md",
+          "title": "Cross-Platform Builds",
+          "description": "Build strategy and caveats for Windows/macOS/Linux targets",
+          "docType": "guides-cross-platform-builds-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/debugging-windows.md",
+          "title": "Debugging Windows",
+          "description": "Windows build/runtime troubleshooting",
+          "docType": "guides-debugging-windows-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/wine-installation.md",
+          "title": "Wine (No-Sudo)",
+          "description": "Install Wine via Flatpak for Windows builds",
+          "docType": "guides-wine-installation-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/code-signing.md",
+          "title": "Code Signing",
+          "description": "Platform-specific signing setup and troubleshooting",
+          "docType": "guides-code-signing-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -47,10 +169,39 @@
       "title": "Desktop Features",
       "icon": "desktop",
       "documents": [
-        { "path": "guides/desktop-integration.md", "title": "Desktop Feature Cookbook", "description": "File system, menus, tray, notifications" },
-        { "path": "guides/interactive-desktop.md", "title": "Interactive Desktop", "description": "Use the browser-based VNC viewer to interact with generated apps" },
-        { "path": "../templates/README.md", "title": "Template System", "description": "Template types and generator details" },
-        { "path": "../templates/DESKTOP_WRAPPER_GUIDE.md", "title": "Wrapper Patterns", "description": "Server_type patterns and embeddings" }
+        {
+          "path": "guides/desktop-integration.md",
+          "title": "Desktop Feature Cookbook",
+          "description": "File system, menus, tray, notifications",
+          "docType": "guides-desktop-integration-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/interactive-desktop.md",
+          "title": "Interactive Desktop",
+          "description": "Use the browser-based VNC viewer to interact with generated apps",
+          "docType": "guides-interactive-desktop-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../templates/DESKTOP_WRAPPER_GUIDE.md",
+          "title": "Wrapper Patterns",
+          "description": "Server_type patterns and embeddings",
+          "docType": "templates-desktop-wrapper-guide-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -58,12 +209,61 @@
       "title": "Operations & Roadmap",
       "icon": "activity",
       "documents": [
-        { "path": "guides/DEPLOYMENT.md", "title": "LPBS Deployment", "description": "Deploy artifacts to Landing Page Business Suite" },
-        { "path": "guides/AUTO_UPDATES.md", "title": "Auto-Updates", "description": "Configure electron-updater for desktop apps" },
-        { "path": "guides/logging-bundled-desktop.md", "title": "Bundled App Logging", "description": "Run and debug packaged AppImage builds with runtime logs" },
-        { "path": "reference/telemetry.md", "title": "Telemetry & Ops", "description": "deployment-telemetry.jsonl and auto-manage" },
-        { "path": "../runtime/README.md", "title": "Bundled Runtime (Roadmap)", "description": "Supervisor design for offline bundles" },
-        { "path": "../../../docs/deployment/scenarios/scenario-to-desktop.md", "title": "Deployment Hub", "description": "How desktop fits Tier 1/2 and deployment-manager" }
+        {
+          "path": "guides/DEPLOYMENT.md",
+          "title": "LPBS Deployment",
+          "description": "Deploy artifacts to Landing Page Business Suite",
+          "docType": "guides-deployment-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/AUTO_UPDATES.md",
+          "title": "Auto-Updates",
+          "description": "Configure electron-updater for desktop apps",
+          "docType": "guides-auto-updates-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/logging-bundled-desktop.md",
+          "title": "Bundled App Logging",
+          "description": "Run and debug packaged AppImage builds with runtime logs",
+          "docType": "guides-logging-bundled-desktop-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/telemetry.md",
+          "title": "Telemetry & Ops",
+          "description": "deployment-telemetry.jsonl and auto-manage",
+          "docType": "reference-telemetry-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../../../docs/deployment/scenarios/scenario-to-desktop.md",
+          "title": "Deployment Hub",
+          "description": "How desktop fits Tier 1/2 and deployment-manager",
+          "docType": "docs-deployment-scenarios-scenario-to-desktop-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -71,15 +271,94 @@
       "title": "Reference",
       "icon": "book",
       "documents": [
-        { "path": "reference/api-architecture.md", "title": "API Architecture", "description": "Visual overview of API structure, pipeline system, and tool execution" },
-        { "path": "reference/smoke-test-pipeline.md", "title": "Smoke Test Pipeline", "description": "Deep dive into smoke test stage execution, configuration, and troubleshooting" },
-        { "path": "reference/api-contract.md", "title": "API Contract & Data Models", "description": "Endpoint schemas, data models, event interfaces, and cross-scenario interactions" },
-        { "path": "reference/cli-commands.md", "title": "CLI Commands", "description": "CLI binary command structure, flags, and usage" },
-        { "path": "reference/live-desktop-api.md", "title": "Live Desktop API", "description": "Interactive VNC desktop session API endpoints" },
-        { "path": "../README.md", "title": "Scenario README", "description": "Overview, limitations, installer matrix" },
-        { "path": "../PRD.md", "title": "PRD", "description": "Product requirements and success metrics" },
-        { "path": "../TEST_IMPLEMENTATION_SUMMARY.md", "title": "Tests", "description": "Test suite summary (coverage refresh needed)" },
-        { "path": "../requirements/README.md", "title": "Requirements Tracking", "description": "Requirement coverage registry" }
+        {
+          "path": "reference/api-architecture.md",
+          "title": "API Architecture",
+          "description": "Visual overview of API structure, pipeline system, and tool execution",
+          "docType": "reference-api-architecture-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/smoke-test-pipeline.md",
+          "title": "Smoke Test Pipeline",
+          "description": "Deep dive into smoke test stage execution, configuration, and troubleshooting",
+          "docType": "reference-smoke-test-pipeline-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/api-contract.md",
+          "title": "API Contract & Data Models",
+          "description": "Endpoint schemas, data models, event interfaces, and cross-scenario interactions",
+          "docType": "reference-api-contract-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "CLI binary command structure, flags, and usage",
+          "docType": "reference-cli-commands-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/live-desktop-api.md",
+          "title": "Live Desktop API",
+          "description": "Interactive VNC desktop session API endpoints",
+          "docType": "reference-live-desktop-api-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../README.md",
+          "title": "Scenario README",
+          "description": "Overview, limitations, installer matrix",
+          "docType": "readme-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../PRD.md",
+          "title": "PRD",
+          "description": "Product requirements and success metrics",
+          "docType": "prd-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../TEST_IMPLEMENTATION_SUMMARY.md",
+          "title": "Tests",
+          "description": "Test suite summary (coverage refresh needed)",
+          "docType": "test-implementation-summary-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -88,22 +367,187 @@
       "icon": "lock",
       "visibility": "developers-only",
       "documents": [
-        { "path": "internal/PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking", "internal": true },
-        { "path": "internal/PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers", "internal": true },
-        { "path": "internal/SEAMS.md", "title": "Seams", "description": "Integration points, boundaries, and architectural seams", "internal": true },
-        { "path": "internal/ASSUMPTIONS.md", "title": "Assumptions", "description": "Documented assumptions and hardening status", "internal": true },
-        { "path": "internal/COHERENCE-NOTES.md", "title": "Coherence Notes", "description": "React coherence audit — responsive layout decisions and patterns", "internal": true },
-        { "path": "internal/INVARIANTS.md", "title": "Invariants", "description": "System contracts that must never be violated", "internal": true },
-        { "path": "internal/ERROR-SEMANTICS.md", "title": "Error Semantics", "description": "Error codes, recovery actions, and user messaging", "internal": true },
-        { "path": "internal/SECURITY-POSTURE.md", "title": "Security Posture", "description": "Security hardening status by category", "internal": true },
-        { "path": "internal/TEMPORAL-FLOWS.md", "title": "Temporal Flows", "description": "Async patterns, concurrency, and pipeline execution", "internal": true },
-        { "path": "internal/EXPERIENCE-AUDIT.md", "title": "Experience Audit", "description": "UX friction analysis and accessibility review", "internal": true },
-        { "path": "internal/RESEARCH.md", "title": "Research", "description": "Research notes and open questions", "internal": true }
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development progress tracking",
+          "internal": true,
+          "docType": "internal-progress-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Current issues and blockers",
+          "internal": true,
+          "docType": "internal-problems-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "description": "Integration points, boundaries, and architectural seams",
+          "internal": true,
+          "docType": "internal-seams-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "description": "Documented assumptions and hardening status",
+          "internal": true,
+          "docType": "internal-assumptions-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "Coherence Notes",
+          "description": "React coherence audit — responsive layout decisions and patterns",
+          "internal": true,
+          "docType": "internal-coherence-notes-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "Invariants",
+          "description": "System contracts that must never be violated",
+          "internal": true,
+          "docType": "internal-invariants-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/ERROR-SEMANTICS.md",
+          "title": "Error Semantics",
+          "description": "Error codes, recovery actions, and user messaging",
+          "internal": true,
+          "docType": "internal-error-semantics-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/SECURITY-POSTURE.md",
+          "title": "Security Posture",
+          "description": "Security hardening status by category",
+          "internal": true,
+          "docType": "internal-security-posture-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Async patterns, concurrency, and pipeline execution",
+          "internal": true,
+          "docType": "internal-temporal-flows-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "title": "Experience Audit",
+          "description": "UX friction analysis and accessibility review",
+          "internal": true,
+          "docType": "internal-experience-audit-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/RESEARCH.md",
+          "title": "Research",
+          "description": "Research notes and open questions",
+          "internal": true,
+          "docType": "internal-research-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/TEST-GENIE-BASELINE-20260726.md",
+          "docType": "test-genie-baseline",
+          "title": "Test Genie Baseline",
+          "description": "Historical Test Genie baseline evidence",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        }
       ]
     }
   ],
   "navigation": {
-    "primary": ["overview", "concepts", "getting-started", "build", "features", "operations", "reference"],
-    "secondary": ["internal"]
+    "primary": [
+      "overview",
+      "concepts",
+      "getting-started",
+      "build",
+      "features",
+      "operations",
+      "reference"
+    ],
+    "secondary": [
+      "internal"
+    ]
+  },
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
+    "extensionRule": "Register every durable scenario document. Keep concepts, guides, references, and internal agent memory in their documented locations."
   }
 }

@@ -23,7 +23,7 @@ func TestIdempotencyKeyBasic(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	idempotencyKey := "test-idempotency-key-123"
+	idempotencyKey := "idem-fixture-001"
 
 	// First request
 	config1 := &Config{

@@ -1,10 +1,9 @@
 package livedesktop
 
 import (
+	"scenario-to-desktop-api/procmetrics"
 	"sync"
 	"time"
-
-	"scenario-to-desktop-api/procmetrics"
 )
 
 // SessionState represents the lifecycle state of a live desktop session.
@@ -48,7 +47,9 @@ type Session struct {
 	AppRunning    bool                `json:"app_running"`
 	Monitor       procmetrics.Monitor `json:"-"`
 
-	mu sync.Mutex
+	mu       sync.Mutex
+	stopOnce sync.Once
+	stopCh   chan struct{}
 }
 
 // SetState updates the session state under lock.
@@ -71,6 +72,25 @@ func (s *Session) Touch() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.LastHeartbeat = time.Now()
+}
+
+// Done is closed when the session is stopped. Background work that belongs to
+// a session must use it instead of inheriting the request that created it.
+func (s *Session) Done() <-chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.stopCh
+}
+
+func (s *Session) signalStop() {
+	s.stopOnce.Do(func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.stopCh == nil {
+			s.stopCh = make(chan struct{})
+		}
+		close(s.stopCh)
+	})
 }
 
 // SessionConfig is the configuration for creating a new session.

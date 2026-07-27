@@ -20,31 +20,44 @@
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-help: ## Show this help message
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
+help: ## Show the supported scenario entrypoints
+	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
+	@printf "  make setup                      Run scenario setup lifecycle\n"
+	@printf "  make start                      Start the scenario\n"
+	@printf "  make stop                       Stop the scenario\n"
+	@printf "  make restart                    Restart the scenario\n"
+	@printf "  make status                     Show scenario runtime status\n"
+	@printf "  make logs                       Show scenario logs\n"
+	@printf "  make test                       Run scenario tests\n"
+	@printf "  make open                       Open the scenario in a browser\n"
+	@printf "  make run                        Alias for make start\n"
+	@printf "  make dev                        Alias for make start\n"
+	@printf "\n"
+	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\n"
 
-start: ## Start this scenario
-	@vrooli scenario start $(SCENARIO_NAME)
+start: ## Start the scenario
+	@vrooli scenario start "$(SCENARIO_NAME)"
 
-stop: ## Stop this scenario
-	@vrooli scenario stop $(SCENARIO_NAME)
+stop: ## Stop the scenario
+	@vrooli scenario stop "$(SCENARIO_NAME)"
 
-restart: ## Restart this scenario
-	@vrooli scenario restart $(SCENARIO_NAME)
+restart: ## Restart the scenario
+	@vrooli scenario restart "$(SCENARIO_NAME)"
 
 test: ## Run scenario tests
-	@vrooli scenario test $(SCENARIO_NAME)
+	@vrooli scenario test "$(SCENARIO_NAME)"
 
 logs: ## Show scenario logs
-	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
+	@vrooli scenario logs "$(SCENARIO_NAME)" --tail 50
 
-status: ## Show scenario status
-	@vrooli scenario status $(SCENARIO_NAME)
+status: ## Show scenario runtime status
+	@vrooli scenario status "$(SCENARIO_NAME)"
 
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true
+	@rm -rf api/bin 2>/dev/null || true
 	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
+	@rm -f api/coverage.out runtime/coverage.out 2>/dev/null || true
 
 build: ## Build the scenario
 	@if [ -f api/go.mod ]; then \
@@ -57,30 +70,34 @@ build: ## Build the scenario
 fmt: fmt-go fmt-ui ## Format all code
 
 fmt-go: ## Format Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
+	@for surface in api cli runtime; do \
+		if [ -d "$$surface" ] && find "$$surface" -name "*.go" -print -quit | grep -q .; then \
+			if command -v gofumpt >/dev/null 2>&1; then \
+				find "$$surface" -name "*.go" -type f -print0 | xargs -0 gofumpt -w; \
+			else \
+				find "$$surface" -name "*.go" -type f -print0 | xargs -0 gofmt -w; \
+			fi; \
 		fi; \
-	fi
+	done
 
 fmt-ui: ## Format UI code
-	@true
+	@cd ui && pnpm run lint:fix && pnpm run format
 
 lint: lint-go lint-ui ## Lint all code
 
 lint-go: ## Lint Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run ./...; \
-		elif command -v go >/dev/null 2>&1; then \
-			cd api && go vet ./... && go fmt ./...; \
+	@for surface in api cli runtime; do \
+		if [ -d "$$surface" ] && find "$$surface" -name "*.go" -print -quit | grep -q .; then \
+			if command -v golangci-lint >/dev/null 2>&1; then \
+				cd "$$surface" && golangci-lint run ./... && cd - >/dev/null; \
+			else \
+				cd "$$surface" && go vet ./... && cd - >/dev/null; \
+			fi; \
 		fi; \
-	fi
+	done
 
 lint-ui: ## Lint UI code
-	@true
+	@cd ui && pnpm run lint && pnpm run type-check && pnpm run format:check
 
 check: fmt lint test ## Run full quality gates
 

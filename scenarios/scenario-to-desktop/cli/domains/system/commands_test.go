@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,618 +12,152 @@ import (
 
 	"scenario-to-desktop/cli/internal/support"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliapptest"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func newTestClient(handler http.Handler) support.Dependencies {
+type fakeRecordsRPC struct {
+	list    *domainv1.DesktopRecordsResponse
+	move    *domainv1.MoveDesktopRecordRequest
+	deleted *domainv1.DeleteDesktopScenarioRequest
+}
+type fakeSystemRPC struct {
+	templates *domainv1.ListTemplatesResponse
+	template  *domainv1.TemplateConfigResponse
+	wine      *domainv1.WineCheckResponse
+	install   *domainv1.InstallWineRequest
+	status    *domainv1.GetWineInstallStatusRequest
+}
+type fakeOperationsRPC struct {
+	response *domainv1.DesktopScenarioStatusResponse
+}
+
+func (f *fakeOperationsRPC) ListDesktopScenarioStatus(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[domainv1.DesktopScenarioStatusResponse], error) {
+	return connect.NewResponse(f.response), nil
+}
+
+func (f *fakeSystemRPC) ListTemplates(context.Context, *connect.Request[domainv1.ListTemplatesRequest]) (*connect.Response[domainv1.ListTemplatesResponse], error) {
+	return connect.NewResponse(f.templates), nil
+}
+
+func (f *fakeSystemRPC) GetTemplate(context.Context, *connect.Request[domainv1.GetTemplateRequest]) (*connect.Response[domainv1.TemplateConfigResponse], error) {
+	return connect.NewResponse(f.template), nil
+}
+
+func (f *fakeSystemRPC) CheckWine(context.Context, *connect.Request[domainv1.CheckWineRequest]) (*connect.Response[domainv1.WineCheckResponse], error) {
+	return connect.NewResponse(f.wine), nil
+}
+
+func (f *fakeSystemRPC) InstallWine(_ context.Context, r *connect.Request[domainv1.InstallWineRequest]) (*connect.Response[domainv1.WineInstallResponse], error) {
+	f.install = r.Msg
+	return connect.NewResponse(&domainv1.WineInstallResponse{InstallId: "inst-001", Method: r.Msg.GetMethod(), Status: "started"}), nil
+}
+
+func (f *fakeSystemRPC) GetWineInstallStatus(_ context.Context, r *connect.Request[domainv1.GetWineInstallStatusRequest]) (*connect.Response[domainv1.WineInstallStatusResponse], error) {
+	f.status = r.Msg
+	return connect.NewResponse(&domainv1.WineInstallStatusResponse{InstallId: r.Msg.GetInstallId(), Status: "complete"}), nil
+}
+
+func (f *fakeRecordsRPC) ListDesktopRecords(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[domainv1.DesktopRecordsResponse], error) {
+	return connect.NewResponse(f.list), nil
+}
+
+func (f *fakeRecordsRPC) MoveDesktopRecord(_ context.Context, r *connect.Request[domainv1.MoveDesktopRecordRequest]) (*connect.Response[domainv1.MoveDesktopRecordResponse], error) {
+	f.move = r.Msg
+	return connect.NewResponse(&domainv1.MoveDesktopRecordResponse{RecordId: r.Msg.GetRecordId(), Status: "moved"}), nil
+}
+
+func (f *fakeRecordsRPC) DeleteDesktopScenario(_ context.Context, r *connect.Request[domainv1.DeleteDesktopScenarioRequest]) (*connect.Response[domainv1.DeleteDesktopScenarioResponse], error) {
+	f.deleted = r.Msg
+	return connect.NewResponse(&domainv1.DeleteDesktopScenarioResponse{ScenarioName: r.Msg.GetScenarioName(), Status: "success"}), nil
+}
+
+func newTestDependencies(t *testing.T, handler http.Handler) support.Dependencies {
+	t.Helper()
 	server := httptest.NewServer(handler)
-	app, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		Name:             "scenario-to-desktop-test",
-		Version:          "test",
-		Description:      "test",
-		DefaultAPIBase:   server.URL,
-		AllowAnonymous:   true,
-		CommandGroups:    func(*cliapp.ScenarioApp) []cliapp.CommandGroup { return nil },
-		SubcommandGroups: func(*cliapp.ScenarioApp) []cliapp.SubcommandGroup { return nil },
-	})
+	t.Cleanup(server.Close)
+	app, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{Name: "scenario-to-desktop-test", Version: "test", Description: "test", DefaultAPIBase: server.URL, AllowAnonymous: true, CommandGroups: func(*cliapp.ScenarioApp) []cliapp.CommandGroup { return nil }, SubcommandGroups: func(*cliapp.ScenarioApp) []cliapp.SubcommandGroup { return nil }})
 	if err != nil {
-		panic(err)
+		t.Fatalf("new app: %v", err)
 	}
 	return support.Dependencies{Core: func() *cliapp.ScenarioApp { return app }}
 }
 
-// jsonHandler returns an http.HandlerFunc that responds with the given JSON body.
-func jsonHandler(body string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(body))
+func assertPrimitiveModes(t *testing.T, handler cliapp.PrimitiveHandler, schema cliapp.ArgSchema, args []string, core *cliapp.ScenarioApp) {
+	t.Helper()
+	modes := cliapptest.RunPrimitiveHandlerModes(t, handler, schema, args, core)
+	if modes.HumanErr != nil || modes.JSONErr != nil {
+		t.Fatalf("primitive errors: human=%v json=%v", modes.HumanErr, modes.JSONErr)
+	}
+	if !strings.Contains(modes.Human, "Result:") && !strings.Contains(modes.Human, "Summary:") && !strings.Contains(modes.Human, "Status:") {
+		t.Fatalf("missing human primitive report: %q", modes.Human)
+	}
+	var body any
+	if err := json.Unmarshal([]byte(modes.JSON), &body); err != nil {
+		t.Fatalf("invalid JSON output: %v (%q)", err, modes.JSON)
 	}
 }
 
-// --- TemplatesList ---
-
-func TestTemplatesList_Success(t *testing.T) {
-	handler := jsonHandler(`{"templates":[{"name":"Basic","type":"basic","description":"Simple wrapper","complexity":"low"},{"name":"Kiosk","type":"kiosk","description":"Kiosk mode","complexity":"medium"}]}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.TemplatesList([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestSystemPrimitivesUseTypedContracts(t *testing.T) {
+	records := &fakeRecordsRPC{list: &domainv1.DesktopRecordsResponse{Records: []*domainv1.DesktopRecordWithBuild{{Record: &domainv1.DesktopRecord{Id: "record-1", ScenarioName: "demo"}}}}}
+	systemRPC := &fakeSystemRPC{templates: &domainv1.ListTemplatesResponse{Templates: []*domainv1.TemplateInfo{{Type: "basic", Name: "Basic"}}}, template: &domainv1.TemplateConfigResponse{}, wine: &domainv1.WineCheckResponse{Installed: false, InstallMethods: []*domainv1.WineInstallMethod{{Id: "flatpak"}}}}
+	operations := &fakeOperationsRPC{response: &domainv1.DesktopScenarioStatusResponse{Scenarios: []*domainv1.DesktopScenarioStatus{{Name: "demo", Built: true}}, Stats: &domainv1.DesktopScenarioStats{Total: 1, Built: 1}}}
+	cmds := &Commands{records: records, system: systemRPC, operations: operations}
+	assertPrimitiveModes(t, cmds.templatesListPrimitive(), cliapp.ArgSchema{}, nil, nil)
+	assertPrimitiveModes(t, cmds.templateGetPrimitive(), cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "type", Required: true}}}, []string{"basic"}, nil)
+	assertPrimitiveModes(t, cmds.recordsListPrimitive(), cliapp.ArgSchema{}, nil, nil)
+	assertPrimitiveModes(t, cmds.recordsMovePrimitive(), cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true}}, Flags: []cliapp.Flag{{Name: "target", Default: "destination"}, {Name: "path"}}}, []string{"record-1", "--target", "custom", "--path", "/opt/apps"}, nil)
+	if records.move.GetTarget() != "custom" || records.move.GetDestinationPath() != "/opt/apps" {
+		t.Fatalf("move request = %#v", records.move)
+	}
+	assertPrimitiveModes(t, cmds.recordsDeletePrimitive(), cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}}, []string{"demo"}, nil)
+	if records.deleted.GetScenarioName() != "demo" {
+		t.Fatalf("delete request = %#v", records.deleted)
+	}
+	assertPrimitiveModes(t, cmds.desktopStatusPrimitive(), cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "name"}}}, []string{"--name", "demo"}, nil)
+	assertPrimitiveModes(t, cmds.wineCheckPrimitive(), cliapp.ArgSchema{}, nil, nil)
+	assertPrimitiveModes(t, cmds.wineInstallPrimitive(), cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "method", Required: true}}}, []string{"--method", "flatpak"}, nil)
+	if systemRPC.install.GetMethod() != "flatpak" {
+		t.Fatalf("install request = %#v", systemRPC.install)
+	}
+	assertPrimitiveModes(t, cmds.wineStatusPrimitive(), cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "install_id", Required: true}}}, []string{"inst-001"}, nil)
+	if systemRPC.status.GetInstallId() != "inst-001" {
+		t.Fatalf("status request = %#v", systemRPC.status)
 	}
 }
 
-func TestTemplatesList_JSONOutput(t *testing.T) {
-	handler := jsonHandler(`{"templates":[]}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.TemplatesList([]string{"--json"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestDownloadPrimitiveWritesPackagesAndUsesDeclaredPlatforms(t *testing.T) {
+	deps := newTestDependencies(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/desktop/download/demo/linux" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		_, _ = w.Write([]byte("desktop-package"))
+	}))
+	cmds := &Commands{deps: deps}
+	output := filepath.Join(t.TempDir(), "demo.AppImage")
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}, {Name: "platform", Required: true}}, Flags: []cliapp.Flag{{Name: "output"}}}
+	assertPrimitiveModes(t, cmds.downloadPrimitive(), schema, []string{"demo", "linux", "--output", output}, deps.Core())
+	body, err := os.ReadFile(output)
+	if err != nil || string(body) != "desktop-package" {
+		t.Fatalf("download = %q, err=%v", body, err)
 	}
 }
 
-func TestTemplatesList_UnmarshalFallback(t *testing.T) {
-	// When response doesn't match expected struct, it should fall back to PrintJSON
-	handler := jsonHandler(`{"unexpected":"format"}`)
-
-	cmds := New(newTestClient(handler))
-	// Should not error — falls back to raw JSON printing
-	err := cmds.TemplatesList([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error on unmarshal fallback: %v", err)
-	}
-}
-
-func TestTemplatesList_APIError(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"error":"server error"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.TemplatesList([]string{})
-	if err == nil {
-		t.Fatal("expected error from API failure")
-	}
-}
-
-// --- TemplateGet ---
-
-func TestTemplateGet_MissingType(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.TemplateGet([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing template type")
-	}
-	if !strings.Contains(err.Error(), "usage:") {
-		t.Errorf("error = %q, want usage message", err.Error())
-	}
-}
-
-func TestTemplateGet_Success(t *testing.T) {
-	var receivedPath string
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedPath = r.URL.Path
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"type":"kiosk","name":"Kiosk Template"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.TemplateGet([]string{"kiosk"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(receivedPath, "/templates/kiosk") {
-		t.Errorf("path = %q, want to contain '/templates/kiosk'", receivedPath)
-	}
-}
-
-func TestTemplateGet_JSONOutput(t *testing.T) {
-	handler := jsonHandler(`{"type":"basic"}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.TemplateGet([]string{"basic", "--json"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- RecordsList ---
-
-func TestRecordsList_Success(t *testing.T) {
-	handler := jsonHandler(`{"records":[{"record":{"id":"abc-123","scenario_name":"my-app","status":"complete"},"build_state":"built"}]}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.RecordsList([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestRecordsList_EmptyRecords(t *testing.T) {
-	handler := jsonHandler(`{"records":[]}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.RecordsList([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestRecordsList_UnmarshalFallback(t *testing.T) {
-	handler := jsonHandler(`{"not_records":"value"}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.RecordsList([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error on unmarshal fallback: %v", err)
-	}
-}
-
-func TestRecordsList_JSONOutput(t *testing.T) {
-	handler := jsonHandler(`{"records":[]}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.RecordsList([]string{"--json"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- RecordsMove ---
-
-func TestRecordsMove_MissingID(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.RecordsMove([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing record ID")
-	}
-	if !strings.Contains(err.Error(), "usage:") {
-		t.Errorf("error = %q, want usage message", err.Error())
-	}
-}
-
-func TestRecordsMove_DefaultTarget(t *testing.T) {
-	var receivedBody map[string]interface{}
-	var receivedPath string
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedPath = r.URL.Path
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"moved":true}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.RecordsMove([]string{"record-123"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(receivedPath, "/desktop/records/record-123/move") {
-		t.Errorf("path = %q, want to contain '/desktop/records/record-123/move'", receivedPath)
-	}
-	if receivedBody["target"] != "destination" {
-		t.Errorf("target = %v, want 'destination'", receivedBody["target"])
-	}
-}
-
-func TestRecordsMove_CustomPath(t *testing.T) {
-	var receivedBody map[string]interface{}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"moved":true}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.RecordsMove([]string{"record-123", "--target", "custom", "--path", "/opt/apps"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if receivedBody["target"] != "custom" {
-		t.Errorf("target = %v, want 'custom'", receivedBody["target"])
-	}
-	if receivedBody["destination_path"] != "/opt/apps" {
-		t.Errorf("destination_path = %v, want '/opt/apps'", receivedBody["destination_path"])
-	}
-}
-
-func TestRecordsMove_JSONOutput(t *testing.T) {
-	handler := jsonHandler(`{"moved":true}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.RecordsMove([]string{"record-123", "--json"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- RecordsDelete ---
-
-func TestRecordsDelete_MissingScenario(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.RecordsDelete([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing scenario")
-	}
-	if !strings.Contains(err.Error(), "usage:") {
-		t.Errorf("error = %q, want usage message", err.Error())
-	}
-}
-
-func TestRecordsDelete_Success(t *testing.T) {
-	var receivedPath string
-	var receivedMethod string
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedPath = r.URL.Path
-		receivedMethod = r.Method
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"deleted":true}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.RecordsDelete([]string{"my-app"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if receivedMethod != http.MethodDelete {
-		t.Errorf("method = %q, want DELETE", receivedMethod)
-	}
-	if !strings.Contains(receivedPath, "/desktop/delete/my-app") {
-		t.Errorf("path = %q, want to contain '/desktop/delete/my-app'", receivedPath)
-	}
-}
-
-func TestRecordsDelete_JSONOutput(t *testing.T) {
-	handler := jsonHandler(`{"deleted":true}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.RecordsDelete([]string{"my-app", "--json"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- Download ---
-
-func TestDownload_MissingArgs(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{"no args", []string{}},
-		{"only scenario", []string{"my-app"}},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := cmds.Download(tc.args)
-			if err == nil {
-				t.Fatal("expected error for missing arguments")
+func TestSystemCommandGroupsCarryOnlyPrimitiveHandlers(t *testing.T) {
+	deps := newTestDependencies(t, http.NotFoundHandler())
+	for _, group := range CommandGroups(deps) {
+		for _, command := range group.Commands {
+			if command.PrimitiveEvidence() == "" || command.Run != nil {
+				t.Fatalf("command %q has non-primitive production path", command.Name)
 			}
-			if !strings.Contains(err.Error(), "usage:") {
-				t.Errorf("error = %q, want usage message", err.Error())
-			}
-		})
+		}
 	}
-}
-
-func TestDownload_PlatformExtensions(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/octet-stream")
-		_, _ = w.Write([]byte("binary-content"))
-	})
-
-	tests := []struct {
-		platform    string
-		expectedExt string
-	}{
-		{"win", ".exe"},
-		{"mac", ".zip"},
-		{"linux", ".AppImage"},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.platform, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			cmds := New(newTestClient(handler))
-			err := cmds.Download([]string{"my-app", tc.platform, "--output", filepath.Join(tmpDir, "out"+tc.expectedExt)})
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			data, err := os.ReadFile(filepath.Join(tmpDir, "out"+tc.expectedExt))
-			if err != nil {
-				t.Fatalf("failed to read output: %v", err)
-			}
-			if string(data) != "binary-content" {
-				t.Errorf("content = %q, want 'binary-content'", string(data))
-			}
-		})
-	}
-}
-
-func TestDownload_DefaultFilename(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("bin"))
-	})
-
-	// Use a temp dir to avoid writing to cwd
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	_ = os.Chdir(tmpDir)
-	t.Cleanup(func() { _ = os.Chdir(origDir) })
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Download([]string{"my-app", "win"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	expectedFile := filepath.Join(tmpDir, "my-app-win.exe")
-	if _, err := os.Stat(expectedFile); os.IsNotExist(err) {
-		t.Errorf("expected file %q to be created", expectedFile)
-	}
-}
-
-func TestDownload_APIError(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error":"not found"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Download([]string{"nonexistent", "win", "--output", filepath.Join(t.TempDir(), "out.exe")})
-	if err == nil {
-		t.Fatal("expected error from API failure")
-	}
-}
-
-// --- DesktopStatus ---
-
-func TestDesktopStatus_Success(t *testing.T) {
-	handler := jsonHandler(`{
-		"scenarios":[
-			{"name":"app-a","display_name":"App A","version":"1.0","built":true,"platforms":["win","linux"],"build_artifacts":[{"platform":"win","file_name":"app.exe","size_bytes":1024}]},
-			{"name":"app-b","display_name":"","version":"","built":false,"platforms":[],"build_artifacts":[]}
-		],
-		"stats":{"total":2,"with_desktop":1,"built":1,"web_only":1}
-	}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.DesktopStatus([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestDesktopStatus_NameFilter(t *testing.T) {
-	handler := jsonHandler(`{
-		"scenarios":[
-			{"name":"app-a","display_name":"","version":"1.0","built":true,"platforms":["win"],"build_artifacts":[]},
-			{"name":"app-b","display_name":"","version":"2.0","built":true,"platforms":["linux"],"build_artifacts":[]}
-		],
-		"stats":{"total":2,"with_desktop":2,"built":2,"web_only":0}
-	}`)
-
-	cmds := New(newTestClient(handler))
-	// Filtering by name should only show app-a
-	err := cmds.DesktopStatus([]string{"--name", "app-a"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestDesktopStatus_FilterNoMatch(t *testing.T) {
-	handler := jsonHandler(`{
-		"scenarios":[{"name":"app-a","display_name":"","version":"1.0","built":true,"platforms":[],"build_artifacts":[]}],
-		"stats":{"total":1,"with_desktop":1,"built":1,"web_only":0}
-	}`)
-
-	cmds := New(newTestClient(handler))
-	// Filter that matches nothing should print "No scenarios found"
-	err := cmds.DesktopStatus([]string{"--name", "nonexistent"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestDesktopStatus_EmptyScenarios(t *testing.T) {
-	handler := jsonHandler(`{"scenarios":[],"stats":{"total":0,"with_desktop":0,"built":0,"web_only":0}}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.DesktopStatus([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestDesktopStatus_JSONOutput(t *testing.T) {
-	handler := jsonHandler(`{"scenarios":[],"stats":{}}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.DesktopStatus([]string{"--json"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestDesktopStatus_UnexpectedPositionalArgs(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.DesktopStatus([]string{"some-arg"})
-	if err == nil {
-		t.Fatal("expected error for unexpected positional args")
-	}
-	if !strings.Contains(err.Error(), "usage:") {
-		t.Errorf("error = %q, want usage message", err.Error())
-	}
-}
-
-func TestDesktopStatus_UnmarshalFallback(t *testing.T) {
-	handler := jsonHandler(`{"unexpected":"data"}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.DesktopStatus([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error on unmarshal fallback: %v", err)
-	}
-}
-
-func TestDesktopStatus_ArtifactFallbackPath(t *testing.T) {
-	// When file_name is empty, should fall back to relative_path
-	handler := jsonHandler(`{
-		"scenarios":[{"name":"app-a","display_name":"","version":"1.0","built":true,"platforms":["linux"],
-			"build_artifacts":[{"platform":"linux","file_name":"","size_bytes":2048,"relative_path":"dist/app.AppImage"}]}],
-		"stats":{"total":1,"with_desktop":1,"built":1,"web_only":0}
-	}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.DesktopStatus([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- WineCheck ---
-
-func TestWineCheck_Installed(t *testing.T) {
-	handler := jsonHandler(`{"installed":true,"version":"9.0","usable":true,"install_method":"flatpak","available_install_methods":[]}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineCheck([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestWineCheck_NotInstalled(t *testing.T) {
-	handler := jsonHandler(`{"installed":false,"version":"","usable":false,"install_method":"","available_install_methods":["flatpak","appimage"]}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineCheck([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestWineCheck_InstalledButNotUsable(t *testing.T) {
-	handler := jsonHandler(`{"installed":true,"version":"8.0","usable":false,"install_method":"apt","available_install_methods":[]}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineCheck([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestWineCheck_JSONOutput(t *testing.T) {
-	handler := jsonHandler(`{"installed":true,"version":"9.0","usable":true}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineCheck([]string{"--json"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestWineCheck_UnmarshalFallback(t *testing.T) {
-	handler := jsonHandler(`{"bad":"data"}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineCheck([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error on unmarshal fallback: %v", err)
-	}
-}
-
-// --- WineInstall ---
-
-func TestWineInstall_MissingMethod(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.WineInstall([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing method")
-	}
-	if !strings.Contains(err.Error(), "usage:") {
-		t.Errorf("error = %q, want usage message", err.Error())
-	}
-}
-
-func TestWineInstall_Success(t *testing.T) {
-	var receivedBody map[string]interface{}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"install_id":"inst-001","status":"started","status_url":"/wine/status/inst-001"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineInstall([]string{"--method", "flatpak"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if receivedBody["method"] != "flatpak" {
-		t.Errorf("method = %v, want 'flatpak'", receivedBody["method"])
-	}
-}
-
-func TestWineInstall_JSONOutput(t *testing.T) {
-	handler := jsonHandler(`{"install_id":"inst-001","status":"started"}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineInstall([]string{"--method", "appimage", "--json"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestWineInstall_UnmarshalFallback(t *testing.T) {
-	handler := jsonHandler(`{"unexpected":"format"}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineInstall([]string{"--method", "flatpak"})
-	if err != nil {
-		t.Fatalf("unexpected error on unmarshal fallback: %v", err)
-	}
-}
-
-// --- WineStatus ---
-
-func TestWineStatus_MissingInstallID(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.WineStatus([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing install ID")
-	}
-	if !strings.Contains(err.Error(), "usage:") {
-		t.Errorf("error = %q, want usage message", err.Error())
-	}
-}
-
-func TestWineStatus_Success(t *testing.T) {
-	var receivedPath string
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedPath = r.URL.Path
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"install_id":"inst-001","status":"complete","progress":100}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineStatus([]string{"inst-001"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(receivedPath, "/system/wine/install/status/inst-001") {
-		t.Errorf("path = %q, want to contain '/system/wine/install/status/inst-001'", receivedPath)
-	}
-}
-
-func TestWineStatus_JSONOutput(t *testing.T) {
-	handler := jsonHandler(`{"install_id":"inst-001","status":"running"}`)
-
-	cmds := New(newTestClient(handler))
-	err := cmds.WineStatus([]string{"inst-001", "--json"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	for _, command := range WineRegister(deps).Subcommands {
+		if command.PrimitiveEvidence() == "" || command.Run != nil {
+			t.Fatalf("wine command %q has non-primitive production path", command.Name)
+		}
 	}
 }

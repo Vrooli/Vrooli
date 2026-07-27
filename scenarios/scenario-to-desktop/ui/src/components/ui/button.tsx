@@ -10,28 +10,40 @@ const buttonVariants = cva(
         default: "bg-slate-50 text-slate-900 hover:bg-white",
         outline: "border border-white/30 text-white hover:bg-white/10",
         ghost: "text-slate-300 hover:text-white hover:bg-white/10",
-        destructive: "bg-red-600 text-white hover:bg-red-700"
+        destructive: "bg-red-600 text-white hover:bg-red-700",
       },
       size: {
         default: "h-11 px-5",
-        sm: "h-9 px-4"
-      }
+        sm: "h-9 px-4",
+      },
     },
     defaultVariants: {
       variant: "default",
-      size: "default"
-    }
-  }
+      size: "default",
+    },
+  },
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 
-export function Button({ className, variant, size, asChild = false, ...props }: ButtonProps) {
+export function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: ButtonProps) {
   const Comp = asChild ? Slot : "button";
 
-  return <Comp className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  return (
+    <Comp
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
 }

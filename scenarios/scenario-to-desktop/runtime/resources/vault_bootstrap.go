@@ -16,10 +16,12 @@ import (
 	"github.com/vrooli/vrooli/packages/resource-deployment/securestore"
 )
 
-const desktopVaultSecretService = "vrooli.desktop.vault"
+const desktopVaultSecretService = "vrooli.desktop.vault" // #nosec G101 -- secure-store service namespace, not a credential
 
 var desktopVaultStore = securestore.Default
 
+// desktopVaultMaterial is recovery material read only from platform secure
+// storage and never logged or serialized outside that store. #nosec G101
 type desktopVaultMaterial struct {
 	RootToken string `json:"root_token"`
 	UnsealKey string `json:"unseal_key"`

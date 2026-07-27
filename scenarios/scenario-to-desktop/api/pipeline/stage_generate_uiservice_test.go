@@ -2,12 +2,11 @@ package pipeline
 
 import (
 	"context"
+	"scenario-to-desktop-api/bundle"
+	"scenario-to-desktop-api/generation"
 	"strings"
 	"testing"
 	"time"
-
-	"scenario-to-desktop-api/bundle"
-	"scenario-to-desktop-api/generation"
 )
 
 // TestExtractBundleUIServiceConfig tests the helper function directly.

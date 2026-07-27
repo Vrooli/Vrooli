@@ -1,10 +1,9 @@
 package smoketest_test
 
 import (
+	"scenario-to-desktop-api/smoketest"
 	"testing"
 	"time"
-
-	"scenario-to-desktop-api/smoketest"
 )
 
 func TestDefaultConfig_Values(t *testing.T) {

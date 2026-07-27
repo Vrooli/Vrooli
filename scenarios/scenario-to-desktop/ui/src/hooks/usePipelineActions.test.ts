@@ -7,15 +7,29 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
-import { usePipelineActions, type UsePipelineActionsProps } from "./usePipelineActions";
+import {
+  usePipelineActions,
+  type UsePipelineActionsProps,
+} from "./usePipelineActions";
 import { usePipelineStore } from "../store";
+import {
+  Platform,
+  TemplateType,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 // Mock the API module - use importOriginal to preserve non-mocked exports
 vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/api")>();
+  const { create } = await import("@bufbuild/protobuf");
+  const { PipelineRunResponseSchema } =
+    await import("@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb");
   return {
     ...actual,
-    runPipeline: vi.fn().mockResolvedValue({ pipeline_id: "test-pipeline-123" }),
+    runPipeline: vi
+      .fn()
+      .mockResolvedValue(
+        create(PipelineRunResponseSchema, { pipelineId: "test-pipeline-123" }),
+      ),
     probeEndpoints: vi.fn().mockResolvedValue({
       proxy_url: "https://api.example.com",
       healthy: true,
@@ -23,7 +37,6 @@ vi.mock("../lib/api", async (importOriginal) => {
     }),
     startActivePipeline: vi.fn().mockResolvedValue({
       pipeline: { pipeline_id: "test-pipeline-123", status: "running" },
-      status_url: "/pipeline/test-pipeline-123",
     }),
     getActivePipeline: vi.fn().mockResolvedValue({
       pipeline: { pipeline_id: "test-pipeline-123", status: "pending" },
@@ -49,7 +62,11 @@ function createWrapper() {
     },
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   };
 }
 
@@ -97,7 +114,7 @@ describe("usePipelineActions", () => {
         {
           initialProps: { scenarioName: "scenario-1" },
           wrapper: createWrapper(),
-        }
+        },
       );
 
       // Verify initial scenario was set
@@ -161,9 +178,9 @@ describe("usePipelineActions", () => {
       });
 
       const config = {
-        scenario_name: "test-scenario",
-        template_type: "basic",
-        platforms: ["win", "mac"],
+        scenarioName: "test-scenario",
+        templateType: TemplateType.BASIC,
+        platforms: [Platform.WIN, Platform.MAC],
       };
 
       act(() => {
@@ -182,7 +199,7 @@ describe("usePipelineActions", () => {
 
       expect(result.current.generatePending).toBe(false);
 
-      const config = { scenario_name: "test-scenario" };
+      const config = { scenarioName: "test-scenario" };
 
       // Call the mutation - since the mock resolves immediately,
       // we may not capture the pending=true state in tests
@@ -203,11 +220,11 @@ describe("usePipelineActions", () => {
       const onBuildStart = vi.fn();
       const { result } = renderHook(
         () => usePipelineActions({ scenarioName: "test", onBuildStart }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       act(() => {
-        result.current.generateDesktop({ scenario_name: "test" });
+        result.current.generateDesktop({ scenarioName: "test" });
       });
 
       await waitFor(() => {
@@ -216,14 +233,16 @@ describe("usePipelineActions", () => {
     });
 
     it("captures generate error", async () => {
-      vi.mocked(runPipeline).mockRejectedValueOnce(new Error("Generation failed"));
+      vi.mocked(runPipeline).mockRejectedValueOnce(
+        new Error("Generation failed"),
+      );
 
       const { result } = renderHook(() => usePipelineActions(defaultProps), {
         wrapper: createWrapper(),
       });
 
       act(() => {
-        result.current.generateDesktop({ scenario_name: "test" });
+        result.current.generateDesktop({ scenarioName: "test" });
       });
 
       await waitFor(() => {
@@ -243,7 +262,9 @@ describe("usePipelineActions", () => {
       });
 
       await waitFor(() => {
-        expect(probeEndpoints).toHaveBeenCalledWith({ proxy_url: "https://api.example.com" });
+        expect(probeEndpoints).toHaveBeenCalledWith({
+          proxy_url: "https://api.example.com",
+        });
       });
     });
 
@@ -266,7 +287,9 @@ describe("usePipelineActions", () => {
       });
 
       // Verify the API was called
-      expect(probeEndpoints).toHaveBeenCalledWith({ proxy_url: "https://api.example.com" });
+      expect(probeEndpoints).toHaveBeenCalledWith({
+        proxy_url: "https://api.example.com",
+      });
     });
 
     it("stores connection test result on success", async () => {
@@ -298,13 +321,15 @@ describe("usePipelineActions", () => {
 
       await waitFor(() => {
         expect(result.current.connectionTestError).toBe(
-          "Enter the proxy URL above before testing."
+          "Enter the proxy URL above before testing.",
         );
       });
     });
 
     it("captures connection test error", async () => {
-      vi.mocked(probeEndpoints).mockRejectedValueOnce(new Error("Connection failed"));
+      vi.mocked(probeEndpoints).mockRejectedValueOnce(
+        new Error("Connection failed"),
+      );
 
       const { result } = renderHook(() => usePipelineActions(defaultProps), {
         wrapper: createWrapper(),
@@ -330,7 +355,9 @@ describe("usePipelineActions", () => {
         result.current.setPreflightSecrets({ API_KEY: "test-key" });
       });
 
-      expect(usePipelineStore.getState().preflightSecrets).toEqual({ API_KEY: "test-key" });
+      expect(usePipelineStore.getState().preflightSecrets).toEqual({
+        API_KEY: "test-key",
+      });
     });
 
     it("exposes setPreflightSecret for individual secrets", () => {
@@ -342,7 +369,9 @@ describe("usePipelineActions", () => {
         result.current.setPreflightSecret("API_KEY", "secret-value");
       });
 
-      expect(usePipelineStore.getState().preflightSecrets.API_KEY).toBe("secret-value");
+      expect(usePipelineStore.getState().preflightSecrets.API_KEY).toBe(
+        "secret-value",
+      );
     });
 
     it("exposes setPreflightOverride from store", () => {
@@ -378,9 +407,12 @@ describe("usePipelineActions", () => {
     });
 
     it("filters empty secrets before running preflight", async () => {
-      const { result } = renderHook(() => usePipelineActions({ scenarioName: "test-scenario" }), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineActions({ scenarioName: "test-scenario" }),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       // Set secrets including empty ones
       act(() => {
@@ -405,7 +437,7 @@ describe("usePipelineActions", () => {
     it("does nothing when scenarioName is empty", async () => {
       const { result } = renderHook(
         () => usePipelineActions({ scenarioName: "" }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await act(async () => {

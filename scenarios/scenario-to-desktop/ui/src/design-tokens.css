@@ -1,0 +1,15 @@
+:root {
+  color-scheme: dark;
+  --color-background: #0b1220;
+  --color-foreground: #f8fafc;
+  --color-primary: #60a5fa;
+  --color-primary-foreground: #0b1220;
+  --color-secondary: #22d3ee;
+  --color-muted: #94a3b8;
+  --color-surface: #111827;
+  --color-border: #334155;
+  --font-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono:
+    ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}

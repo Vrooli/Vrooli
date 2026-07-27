@@ -5,15 +5,16 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useScenarioState, type UseScenarioStateResult } from "./useScenarioState";
+import {
+  useScenarioState,
+  type UseScenarioStateResult,
+} from "./useScenarioState";
 import { useFormStore } from "../store/formStore";
-import type { FormState, BundlePreflightResponse } from "../lib/api";
+import type { FormState, PreflightStageDetails } from "../lib/api";
+import { deserializePreflight } from "../lib/preflightPersistence";
 import type { BundleResult } from "../components/sections/bundle/BundleSection";
 import type { ProbeResponse } from "../lib/api";
-import type {
-  DeploymentMode,
-  ServerType,
-} from "../domain/deployment";
+import type { DeploymentMode, ServerType } from "../domain/deployment";
 import type { OutputLocation } from "../domain/generator";
 import { DEFAULT_LOCAL_API_ENDPOINT } from "../store/formTypes";
 
@@ -30,7 +31,7 @@ export interface UseScenarioSyncProps {
 }
 
 export interface PreflightSeed {
-  result: BundlePreflightResponse | null;
+  result: PreflightStageDetails | null;
   error: string | null;
   override: boolean;
   secrets: Record<string, string>;
@@ -63,7 +64,9 @@ export interface UseScenarioSyncReturn {
 // Hook Implementation
 // ============================================================================
 
-export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncReturn {
+export function useScenarioSync(
+  props: UseScenarioSyncProps,
+): UseScenarioSyncReturn {
   const {
     scenarioName,
     enabled = true,
@@ -92,7 +95,6 @@ export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncRet
     scenarioName,
     enabled: enabled && Boolean(scenarioName),
     onStateLoaded: (state) => {
-      if (!state.form_state) return;
       const fs = state.form_state;
 
       // Hydrate form store from server
@@ -107,12 +109,12 @@ export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncRet
           iconPreviewError: false,
         },
         deployment: {
-          framework: fs.framework || "electron",
-          serverType: (fs.server_type as ServerType) ?? "external",
-          mode: (fs.deployment_mode as DeploymentMode) ?? "bundled",
+          framework: "electron",
+          serverType: fs.server_type as ServerType,
+          mode: fs.deployment_mode as DeploymentMode,
         },
         output: {
-          locationMode: (fs.location_mode as OutputLocation) ?? "proper",
+          locationMode: fs.location_mode as OutputLocation,
           outputPath: fs.output_path ?? "",
         },
         platforms: {
@@ -128,7 +130,8 @@ export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncRet
           localApiEndpoint: fs.local_api_endpoint ?? DEFAULT_LOCAL_API_ENDPOINT,
           autoManageTier1: fs.auto_manage_tier1 ?? false,
           vrooliBinaryPath: fs.vrooli_binary_path ?? "vrooli",
-          connectionResult: (fs.connection_result as ProbeResponse | null) ?? null,
+          connectionResult:
+            (fs.connection_result as ProbeResponse | null) ?? null,
           connectionError: fs.connection_error ?? null,
         },
         signingEnabledForBuild: fs.signing_enabled_for_build ?? false,
@@ -142,7 +145,7 @@ export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncRet
 
       // Load preflight seed
       const preflightSeed: PreflightSeed = {
-        result: fs.preflight_result ?? null,
+        result: deserializePreflight(fs.preflight_result),
         error: fs.preflight_error ?? null,
         override: fs.preflight_override ?? false,
         secrets: fs.preflight_secrets ?? {},
@@ -150,7 +153,7 @@ export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncRet
       onPreflightSeedLoaded?.(preflightSeed);
 
       // Load bundle result seed
-      const bundleSeed = (fs.bundle_result as BundleResult) ?? null;
+      const bundleSeed = fs.bundle_result as BundleResult;
       formStore.setBundleResultSeed(bundleSeed);
       onBundleSeedLoaded?.(bundleSeed);
     },
@@ -163,7 +166,16 @@ export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncRet
   // ========== Form State Serialization ==========
 
   const getFormStateForServer = useCallback((): Partial<FormState> => {
-    const { appMetadata, deployment, output, platforms, connection, signingEnabledForBuild, selectedTemplate, bundleResultSeed } = formStore;
+    const {
+      appMetadata,
+      deployment,
+      output,
+      platforms,
+      connection,
+      signingEnabledForBuild,
+      selectedTemplate,
+      bundleResultSeed,
+    } = formStore;
 
     return {
       selected_template: selectedTemplate,
@@ -216,7 +228,12 @@ export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncRet
     if (serialized === prevFormStateRef.current) return;
     prevFormStateRef.current = serialized;
     updateFormState(formStateForServer);
-  }, [scenarioName, hasInitiallyLoaded, getFormStateForServer, updateFormState]);
+  }, [
+    scenarioName,
+    hasInitiallyLoaded,
+    getFormStateForServer,
+    updateFormState,
+  ]);
 
   // ========== Timestamps ==========
 
@@ -235,7 +252,9 @@ export function useScenarioSync(props: UseScenarioSyncProps): UseScenarioSyncRet
     hasInitiallyLoaded,
     isSaving,
     isStale,
-    pendingChanges: pendingChanges.map((c) => (c as unknown as { field: string }).field || String(c)),
+    pendingChanges: pendingChanges.map(
+      (change) => `${change.affected_stage}: ${change.reason}`,
+    ),
     validationStatus,
     timestamps: timestampsFormatted,
     saveStageResult,

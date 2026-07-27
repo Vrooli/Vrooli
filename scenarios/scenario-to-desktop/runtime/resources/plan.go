@@ -97,31 +97,38 @@ func Load(bundleRoot string) (*Plan, error) {
 		return nil, fmt.Errorf("unsupported resource deployment plan version %q", plan.SchemaVersion)
 	}
 	for _, item := range plan.Resources {
-		if err := validateItem(item); err != nil {
+		if err := verifyPlanItem(bundleRoot, item); err != nil {
 			return nil, err
-		}
-		if item.OS != runtimeOS() || item.Architecture != runtime.GOARCH {
-			continue
-		}
-		switch item.Mode {
-		case "bundled-client":
-			if err := verifyClient(bundleRoot, item); err != nil {
-				return nil, err
-			}
-		case "bundled-service":
-			if err := verifyClient(bundleRoot, item); err != nil {
-				return nil, err
-			}
-			if err := verifyService(bundleRoot, item); err != nil {
-				return nil, err
-			}
-		case "docker-desktop":
-			if _, err := findDocker("docker"); err != nil {
-				return nil, fmt.Errorf("resource %s requires Docker Desktop or Docker Engine before it can run: install and start Docker, then retry", item.Resource)
-			}
 		}
 	}
 	return &plan, nil
+}
+
+func verifyPlanItem(bundleRoot string, item Item) error {
+	if err := validateItem(item); err != nil {
+		return err
+	}
+	if item.OS != runtimeOS() || item.Architecture != runtime.GOARCH {
+		return nil
+	}
+	return verifyHostResource(bundleRoot, item)
+}
+
+func verifyHostResource(bundleRoot string, item Item) error {
+	switch item.Mode {
+	case "bundled-client":
+		return verifyClient(bundleRoot, item)
+	case "bundled-service":
+		if err := verifyClient(bundleRoot, item); err != nil {
+			return err
+		}
+		return verifyService(bundleRoot, item)
+	case "docker-desktop":
+		if _, err := findDocker("docker"); err != nil {
+			return fmt.Errorf("resource %s requires Docker Desktop or Docker Engine before it can run: install and start Docker, then retry", item.Resource)
+		}
+	}
+	return nil
 }
 
 func validateItem(item Item) error {
@@ -147,39 +154,8 @@ func verifyService(bundleRoot string, item Item) error {
 		return fmt.Errorf("bundled-service resource %s is missing its server artifact", item.Resource)
 	}
 	service := item.Service
-	if err := service.ProviderPolicy.ValidateManagedServiceTargets(); err != nil {
-		return fmt.Errorf("resource %s has invalid bundled service provider policy: %w", item.Resource, err)
-	}
-	if _, err := service.ProviderPolicy.ResolveProvider(resourcedeployment.ProviderRequest{Target: resourcedeployment.ProviderTargetDesktopBundle}); err != nil {
-		return fmt.Errorf("resource %s cannot resolve the desktop bundled provider: %w", item.Resource, err)
-	}
-	if strings.TrimSpace(service.Version) == "" || !resourcedeployment.IsSafeArtifactName(service.Artifact) || len(service.SHA256) != sha256.Size*2 {
-		return fmt.Errorf("resource %s has an invalid bundled service identity", item.Resource)
-	}
-	if len(service.Files) != 1 || service.Files[0].Name != service.Artifact || !strings.EqualFold(service.Files[0].SHA256, service.SHA256) {
-		return fmt.Errorf("resource %s has an invalid bundled service file record", item.Resource)
-	}
-	if service.Config != nil {
-		if err := service.Config.Validate(); err != nil {
-			return fmt.Errorf("resource %s has invalid bundled service config: %w", item.Resource, err)
-		}
-	}
-	for _, check := range service.HealthChecks {
-		if check.Type != "http" || strings.TrimSpace(check.Target) == "" {
-			return fmt.Errorf("resource %s has an unsupported bundled service health check", item.Resource)
-		}
-		for _, status := range check.ExpectedStatus {
-			if status < 100 || status > 599 {
-				return fmt.Errorf("resource %s has invalid bundled service health status", item.Resource)
-			}
-		}
-	}
-	seenPorts := map[string]bool{}
-	for _, port := range service.Ports {
-		if strings.TrimSpace(port.Name) == "" || port.Host <= 0 || port.Host > 65535 || seenPorts[port.Name] {
-			return fmt.Errorf("resource %s has an invalid bundled service port", item.Resource)
-		}
-		seenPorts[port.Name] = true
+	if err := validateServiceDeclaration(item.Resource, service); err != nil {
+		return err
 	}
 	data, err := os.ReadFile(filepath.Join(bundleRoot, "resources", item.Resource, service.Artifact))
 	if err != nil {
@@ -188,6 +164,69 @@ func verifyService(bundleRoot string, item Item) error {
 	sum := sha256.Sum256(data)
 	if !strings.EqualFold(hex.EncodeToString(sum[:]), service.SHA256) {
 		return fmt.Errorf("bundled service artifact hash mismatch for %s", service.Artifact)
+	}
+	return nil
+}
+
+func validateServiceDeclaration(resource string, service *Service) error {
+	if err := validateServicePolicy(resource, service); err != nil {
+		return err
+	}
+	if err := validateServiceIdentity(resource, service); err != nil {
+		return err
+	}
+	if err := validateServiceRuntime(resource, service); err != nil {
+		return err
+	}
+	return validateServicePorts(resource, service.Ports)
+}
+
+func validateServicePolicy(resource string, service *Service) error {
+	if err := service.ProviderPolicy.ValidateManagedServiceTargets(); err != nil {
+		return fmt.Errorf("resource %s has invalid bundled service provider policy: %w", resource, err)
+	}
+	if _, err := service.ProviderPolicy.ResolveProvider(resourcedeployment.ProviderRequest{Target: resourcedeployment.ProviderTargetDesktopBundle}); err != nil {
+		return fmt.Errorf("resource %s cannot resolve the desktop bundled provider: %w", resource, err)
+	}
+	return nil
+}
+
+func validateServiceIdentity(resource string, service *Service) error {
+	if strings.TrimSpace(service.Version) == "" || !resourcedeployment.IsSafeArtifactName(service.Artifact) || len(service.SHA256) != sha256.Size*2 {
+		return fmt.Errorf("resource %s has an invalid bundled service identity", resource)
+	}
+	if len(service.Files) != 1 || service.Files[0].Name != service.Artifact || !strings.EqualFold(service.Files[0].SHA256, service.SHA256) {
+		return fmt.Errorf("resource %s has an invalid bundled service file record", resource)
+	}
+	return nil
+}
+
+func validateServiceRuntime(resource string, service *Service) error {
+	if service.Config != nil {
+		if err := service.Config.Validate(); err != nil {
+			return fmt.Errorf("resource %s has invalid bundled service config: %w", resource, err)
+		}
+	}
+	for _, check := range service.HealthChecks {
+		if check.Type != "http" || strings.TrimSpace(check.Target) == "" {
+			return fmt.Errorf("resource %s has an unsupported bundled service health check", resource)
+		}
+		for _, status := range check.ExpectedStatus {
+			if status < 100 || status > 599 {
+				return fmt.Errorf("resource %s has invalid bundled service health status", resource)
+			}
+		}
+	}
+	return nil
+}
+
+func validateServicePorts(resource string, ports []ServicePort) error {
+	seen := map[string]bool{}
+	for _, port := range ports {
+		if strings.TrimSpace(port.Name) == "" || port.Host <= 0 || port.Host > 65535 || seen[port.Name] {
+			return fmt.Errorf("resource %s has an invalid bundled service port", resource)
+		}
+		seen[port.Name] = true
 	}
 	return nil
 }
@@ -206,6 +245,16 @@ func verifyClient(bundleRoot string, item Item) error {
 	if len(item.Files) != 3 {
 		return fmt.Errorf("resource %s must include binary, manifest, and build metadata", item.Resource)
 	}
+	if err := verifyClientFiles(bundleRoot, item); err != nil {
+		return err
+	}
+	if err := verifyClientContract(bundleRoot, item); err != nil {
+		return err
+	}
+	return verifyClientMetadata(bundleRoot, item)
+}
+
+func verifyClientFiles(bundleRoot string, item Item) error {
 	expectedFiles, err := resourcedeployment.ArtifactFiles(item.Artifact)
 	if err != nil {
 		return err
@@ -230,6 +279,10 @@ func verifyClient(bundleRoot string, item Item) error {
 			return fmt.Errorf("resource %s is missing required artifact %s", item.Resource, expected)
 		}
 	}
+	return nil
+}
+
+func verifyClientContract(bundleRoot string, item Item) error {
 	var contract struct {
 		Name string `json:"name"`
 	}
@@ -243,6 +296,10 @@ func verifyClient(bundleRoot string, item Item) error {
 	if contract.Name != item.Resource {
 		return fmt.Errorf("resource artifact contract mismatch: plan selects %s, contract names %s", item.Resource, contract.Name)
 	}
+	return nil
+}
+
+func verifyClientMetadata(bundleRoot string, item Item) error {
 	var metadata struct {
 		Resource string `json:"resource"`
 		Artifact string `json:"artifact"`

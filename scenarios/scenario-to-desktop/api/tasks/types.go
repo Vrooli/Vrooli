@@ -10,7 +10,6 @@ package tasks
 
 import (
 	"context"
-
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/tasks/shared"
 )

@@ -12,25 +12,33 @@ interface BundleManifestInputProps {
   disabled?: boolean;
 }
 
-export function BundleManifestInput({ value, onChange, disabled }: BundleManifestInputProps) {
+export function BundleManifestInput({
+  value,
+  onChange,
+  disabled,
+}: BundleManifestInputProps) {
   return (
     <div className="space-y-2">
       <div>
         <Label htmlFor="bundleManifest">Bundle manifest path</Label>
         <p className="text-[11px] text-slate-400 mt-0.5">
-          Path to the bundle.json file. Generated automatically when you run the bundle stage.
+          Path to the bundle.json file. Generated automatically when you run the
+          bundle stage.
         </p>
       </div>
       <Input
         id="bundleManifest"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+        }}
         placeholder="/home/you/Vrooli/scenarios/my-scenario/platforms/electron/bundle/bundle.json"
         disabled={disabled}
       />
       {value.trim() && (
         <p className="text-[11px] text-slate-400">
-          Expect this file to live alongside staged binaries/assets in the bundle directory.
+          Expect this file to live alongside staged binaries/assets in the
+          bundle directory.
         </p>
       )}
     </div>

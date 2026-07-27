@@ -8,7 +8,17 @@ import (
 
 func waitForPipelineTerminal(t *testing.T, orchestrator *DefaultOrchestrator, pipelineID string) *Status {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
+	// A pipeline first captures provenance and then writes several observable
+	// state transitions. The previous two-second wall-clock budget could expire
+	// under ordinary package-level CPU contention even though the pipeline was
+	// still making progress, yielding a false negative after it completed. Use
+	// the Go test's own deadline when available so a real deadlock still fails
+	// the test while normal scheduler variance cannot turn completion into a
+	// failure.
+	deadline, hasDeadline := t.Deadline()
+	if !hasDeadline {
+		deadline = time.Now().Add(30 * time.Second)
+	}
 	for time.Now().Before(deadline) {
 		if status, ok := orchestrator.GetStatus(pipelineID); ok && (status.Status == StatusCompleted || status.Status == StatusFailed || status.Status == StatusCancelled) {
 			return status

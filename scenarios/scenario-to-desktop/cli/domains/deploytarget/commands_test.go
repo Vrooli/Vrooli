@@ -1,69 +1,64 @@
 package deploytarget
 
 import (
-	"errors"
-	"strings"
+	"context"
 	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliapptest"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
 
-func TestIsServiceAuthReadinessError(t *testing.T) {
-	cases := []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{
-			name: "lpbs secret missing",
-			err:  errors.New("api error (400): LPBS_SERVICE_SECRET is not set"),
-			want: true,
-		},
-		{
-			name: "service auth disabled",
-			err:  errors.New("api error (400): service auth is not configured"),
-			want: true,
-		},
-		{
-			name: "other api error",
-			err:  errors.New("api error (500): internal error"),
-			want: false,
-		},
-		{
-			name: "nil",
-			err:  nil,
-			want: false,
-		},
-	}
+type fakeRPC struct {
+	saveRequest *domainv1.SaveDeployTargetRequest
+	listCalls   int
+}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := isServiceAuthReadinessError(tc.err)
-			if got != tc.want {
-				t.Fatalf("isServiceAuthReadinessError() = %v, want %v", got, tc.want)
-			}
-		})
+func (f *fakeRPC) ListDeployTargets(context.Context, *connect.Request[domainv1.ListDeployTargetsRequest]) (*connect.Response[domainv1.ListDeployTargetsResponse], error) {
+	f.listCalls++
+	return connect.NewResponse(&domainv1.ListDeployTargetsResponse{}), nil
+}
+
+func (f *fakeRPC) GetDeployTarget(context.Context, *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.GetDeployTargetResponse], error) {
+	return connect.NewResponse(&domainv1.GetDeployTargetResponse{}), nil
+}
+
+func (f *fakeRPC) SaveDeployTarget(_ context.Context, request *connect.Request[domainv1.SaveDeployTargetRequest]) (*connect.Response[domainv1.SaveDeployTargetResponse], error) {
+	f.saveRequest = request.Msg
+	return connect.NewResponse(&domainv1.SaveDeployTargetResponse{Target: request.Msg.GetTarget()}), nil
+}
+
+func (f *fakeRPC) DeleteDeployTarget(context.Context, *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.DeleteDeployTargetResponse], error) {
+	return connect.NewResponse(&domainv1.DeleteDeployTargetResponse{Deleted: true}), nil
+}
+
+func (f *fakeRPC) TestDeployTarget(context.Context, *connect.Request[domainv1.TestDeployTargetRequest]) (*connect.Response[domainv1.TestDeployTargetResponse], error) {
+	return connect.NewResponse(&domainv1.TestDeployTargetResponse{}), nil
+}
+
+func (f *fakeRPC) DiagnoseDeployTarget(context.Context, *connect.Request[domainv1.DeployTargetNameRequest]) (*connect.Response[domainv1.DiagnoseDeployTargetResponse], error) {
+	return connect.NewResponse(&domainv1.DiagnoseDeployTargetResponse{}), nil
+}
+
+func TestSavePrimitiveUsesTypedDeployTargetRequest(t *testing.T) {
+	fake := &fakeRPC{}
+	commands := &Commands{rpc: fake}
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "name", Required: true}}, Flags: []cliapp.Flag{{Name: "scenario", Required: true}, {Name: "profile", Required: true}, {Name: "label"}, {Name: "deployment-manager-profile-id"}}}
+	modes := cliapptest.RunPrimitiveHandlerModes(t, commands.savePrimitive(), schema, []string{"release", "--scenario", "landing-page-business-suite", "--profile", "production", "--deployment-manager-profile-id", "profile-1"}, nil)
+	if modes.HumanErr != nil || modes.JSONErr != nil {
+		t.Fatalf("save primitive errors: human=%v json=%v", modes.HumanErr, modes.JSONErr)
+	}
+	if got := fake.saveRequest.GetTarget(); got.GetName() != "release" || got.GetScenarioName() != "landing-page-business-suite" || got.GetDeploymentManagerProfileId() != "profile-1" {
+		t.Fatalf("saved target = %#v", got)
 	}
 }
 
-func TestBuildServiceAuthNextSteps(t *testing.T) {
-	t.Run("scenario-to-desktop-secret-missing", func(t *testing.T) {
-		err := errors.New("api error (400): LPBS_SERVICE_SECRET is not set for scenario-to-desktop runtime (checked env and ~/.vrooli/secrets.json)")
-		steps := buildServiceAuthNextSteps(err, "prod")
-		if !strings.Contains(steps, "--scenario scenario-to-desktop") {
-			t.Fatalf("expected scenario-to-desktop guidance, got: %s", steps)
-		}
-		if !strings.Contains(steps, "test prod --require-service-auth") {
-			t.Fatalf("expected retry command for target prod, got: %s", steps)
-		}
-	})
-
-	t.Run("lpbs-runtime-auth-missing", func(t *testing.T) {
-		err := errors.New("api error (400): service auth is not configured in landing-page-business-suite runtime")
-		steps := buildServiceAuthNextSteps(err, "prod")
-		if !strings.Contains(steps, "--scenario landing-page-business-suite") {
-			t.Fatalf("expected LPBS runtime guidance, got: %s", steps)
-		}
-		if !strings.Contains(steps, "service-auth-status --require-enabled") {
-			t.Fatalf("expected service-auth-status command, got: %s", steps)
-		}
-	})
+func TestListPrimitiveUsesGeneratedClient(t *testing.T) {
+	fake := &fakeRPC{}
+	commands := &Commands{rpc: fake}
+	modes := cliapptest.RunPrimitiveHandlerModes(t, commands.listPrimitive(), cliapp.ArgSchema{}, nil, nil)
+	if modes.HumanErr != nil || modes.JSONErr != nil || fake.listCalls != 2 {
+		t.Fatalf("list primitive = human=%v json=%v calls=%d", modes.HumanErr, modes.JSONErr, fake.listCalls)
+	}
 }

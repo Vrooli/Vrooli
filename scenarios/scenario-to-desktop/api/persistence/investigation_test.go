@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"scenario-to-desktop-api/domain"
 	"sync"
 	"testing"
 	"time"
-
-	"scenario-to-desktop-api/domain"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

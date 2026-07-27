@@ -14,7 +14,10 @@ export { CoverageBadge } from "./CoverageBadge";
 export { CoverageMap } from "./CoverageMap";
 
 // Validation step
-export { ValidationIssuesPanel, ValidationWarningsPanel } from "./ValidationIssuesPanel";
+export {
+  ValidationIssuesPanel,
+  ValidationWarningsPanel,
+} from "./ValidationIssuesPanel";
 
 // Secrets step
 export { MissingSecretsForm } from "./MissingSecretsForm";
@@ -26,4 +29,8 @@ export { RuntimeInfoPanel } from "./RuntimeInfoPanel";
 export { ServicesReadinessGrid } from "./ServicesReadinessGrid";
 
 // Diagnostics step
-export { LogTailsPanel, FingerprintsPanel, PortSummaryPanel } from "./DiagnosticsPanels";
+export {
+  LogTailsPanel,
+  FingerprintsPanel,
+  PortSummaryPanel,
+} from "./DiagnosticsPanels";

@@ -128,15 +128,11 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 	if exists {
 		return nil
 	}
-	dataDir := filepath.Join(s.appDataDir, "resources", item.Resource, "data")
-	configDir := filepath.Join(s.appDataDir, "resources", item.Resource, "config")
-	logDir := filepath.Join(s.appDataDir, "resources", item.Resource, "logs")
-	for _, directory := range []string{dataDir, configDir, logDir} {
-		if err := os.MkdirAll(directory, 0o700); err != nil {
-			return fmt.Errorf("create bundled service directory: %w", err)
-		}
+	launch, err := s.prepareLaunch(item)
+	if err != nil {
+		return err
 	}
-	logPath := filepath.Join(logDir, "service.log")
+	logPath := filepath.Join(launch.logDir, "service.log")
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("open bundled service log: %w", err)
@@ -148,28 +144,8 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 		return fmt.Errorf("allocate bundled service ports: %w", err)
 	}
 	artifactPath := filepath.Join(s.bundleRoot, "resources", item.Resource, service.Artifact)
-	environmentMap := mergeEnvironmentMap(os.Environ(), service.Environment, map[string]string{
-		"VROOLI_RESOURCE_DATA_DIR":   dataDir,
-		"VROOLI_RESOURCE_CONFIG_DIR": configDir,
-		"VROOLI_RESOURCE_LOGS_DIR":   logDir,
-		"RESOURCE_DATA_DIR":          dataDir,
-		"RESOURCE_CONFIG_DIR":        configDir,
-		"RESOURCE_LOGS_DIR":          logDir,
-		"VROOLI_MANAGED_PROVIDER":    "managed-private",
-	})
-	for name, port := range servicePorts {
-		envName := servicePortEnvName(name)
-		environmentMap[envName] = fmt.Sprintf("%d", port)
-		environmentMap["VROOLI_"+envName] = fmt.Sprintf("%d", port)
-	}
-	for key, value := range environmentMap {
-		environmentMap[key] = expandServiceTemplate(value, environmentMap)
-	}
-	arguments := make([]string, len(service.Arguments))
-	for index, value := range service.Arguments {
-		arguments[index] = expandServiceTemplate(value, environmentMap)
-	}
-	if err := writeServiceConfig(service.Config, configDir, environmentMap); err != nil {
+	environmentMap, arguments := launch.environment(service, servicePorts)
+	if err := writeServiceConfig(service.Config, launch.configDir, environmentMap); err != nil {
 		logFile.Close()
 		return fmt.Errorf("write bundled service config: %w", err)
 	}
@@ -207,6 +183,36 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 	}
 	s.mu.Unlock()
 	return nil
+}
+
+type serviceLaunchDirectories struct{ dataDir, configDir, logDir string }
+
+func (s *ServiceSupervisor) prepareLaunch(item Item) (serviceLaunchDirectories, error) {
+	root := filepath.Join(s.appDataDir, "resources", item.Resource)
+	dirs := serviceLaunchDirectories{filepath.Join(root, "data"), filepath.Join(root, "config"), filepath.Join(root, "logs")}
+	for _, directory := range []string{dirs.dataDir, dirs.configDir, dirs.logDir} {
+		if err := os.MkdirAll(directory, 0o700); err != nil {
+			return serviceLaunchDirectories{}, fmt.Errorf("create bundled service directory: %w", err)
+		}
+	}
+	return dirs, nil
+}
+
+func (dirs serviceLaunchDirectories) environment(service *Service, ports map[string]int) (map[string]string, []string) {
+	env := mergeEnvironmentMap(os.Environ(), service.Environment, map[string]string{"VROOLI_RESOURCE_DATA_DIR": dirs.dataDir, "VROOLI_RESOURCE_CONFIG_DIR": dirs.configDir, "VROOLI_RESOURCE_LOGS_DIR": dirs.logDir, "RESOURCE_DATA_DIR": dirs.dataDir, "RESOURCE_CONFIG_DIR": dirs.configDir, "RESOURCE_LOGS_DIR": dirs.logDir, "VROOLI_MANAGED_PROVIDER": "managed-private"})
+	for name, port := range ports {
+		envName := servicePortEnvName(name)
+		env[envName] = fmt.Sprintf("%d", port)
+		env["VROOLI_"+envName] = fmt.Sprintf("%d", port)
+	}
+	for key, value := range env {
+		env[key] = expandServiceTemplate(value, env)
+	}
+	arguments := make([]string, len(service.Arguments))
+	for index, value := range service.Arguments {
+		arguments[index] = expandServiceTemplate(value, env)
+	}
+	return env, arguments
 }
 
 func (s *ServiceSupervisor) wait(resource string, running *runningService) {

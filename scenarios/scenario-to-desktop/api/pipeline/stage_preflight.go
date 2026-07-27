@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/shared/errors"

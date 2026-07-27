@@ -3,7 +3,7 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -97,8 +97,13 @@ func (s *AgentService) Initialize(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 
-	log.Printf("[agent-manager] Reconciled profiles for %s (created=%d updated=%d unchanged=%d failed=%d)",
-		resp.Scenario, resp.Created, resp.Updated, resp.Unchanged, resp.Failed)
+	slog.Info("reconciled agent-manager profiles",
+		"scenario", resp.Scenario,
+		"created", resp.Created,
+		"updated", resp.Updated,
+		"unchanged", resp.Unchanged,
+		"failed", resp.Failed,
+	)
 
 	return nil
 }

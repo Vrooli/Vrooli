@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-	"time"
-
+	"log/slog"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/pipeline"
@@ -14,6 +12,7 @@ import (
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/system"
+	"time"
 )
 
 // systemBuildStoreAdapter adapts build.Store to system.BuildStore interface
@@ -198,7 +197,7 @@ type generationRecordStoreAdapter struct {
 
 func (a *generationRecordStoreAdapter) Upsert(record *generation.DesktopAppRecord) error {
 	if a.store == nil {
-		log.Printf("[adapters] warning: generationRecordStoreAdapter.Upsert called with nil store - record for %q will not be persisted", record.ScenarioName)
+		slog.Warn("generation record store is unavailable; record will not be persisted", "scenario_name", record.ScenarioName)
 		return nil // Gracefully handle nil store
 	}
 	// Convert generation.DesktopAppRecord to records.DesktopAppRecord
@@ -227,7 +226,7 @@ type scenarioRecordStoreAdapter struct {
 
 func (a *scenarioRecordStoreAdapter) List() []*scenario.DesktopAppRecord {
 	if a.store == nil {
-		log.Printf("[adapters] warning: scenarioRecordStoreAdapter.List called with nil store - returning empty list")
+		slog.Warn("scenario record store is unavailable; returning an empty list")
 		return nil
 	}
 	list := a.store.List()

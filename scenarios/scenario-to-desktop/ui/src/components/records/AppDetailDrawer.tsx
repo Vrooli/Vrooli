@@ -13,7 +13,6 @@ import {
   ScreenShare,
   AlertTriangle,
 } from "lucide-react";
-import type { DesktopRecordResponse } from "../../lib/api";
 import { buildUrl } from "../../lib/api";
 import { formatBytes } from "../../domain/download";
 import { Drawer, DrawerBody } from "../ui/drawer";
@@ -25,14 +24,19 @@ import { SigningBadge } from "./SigningBadge";
 import { pathLabel } from "./utils";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
 import { CapturesSection } from "../captures/CapturesSection";
+import type { DesktopRecordItemView } from "./recordPresentation";
 
-type RecordItem = DesktopRecordResponse["records"][number];
+type RecordItem = DesktopRecordItemView;
 
 interface AppDetailDrawerProps {
   item: RecordItem | null;
   open: boolean;
   onClose: () => void;
-  onMove: (recordId: string, target: "destination" | "custom", customPath?: string) => void;
+  onMove: (
+    recordId: string,
+    target: "destination" | "custom",
+    customPath?: string,
+  ) => void;
   onDelete: (scenarioName: string) => void;
   movePending: boolean;
   onSwitchTemplate?: (scenarioName: string, templateType?: string) => void;
@@ -54,7 +58,12 @@ export function AppDetailDrawer({
   const [showCustomMove, setShowCustomMove] = useState(false);
   const [customPath, setCustomPath] = useState("");
 
-  if (!item) return <Drawer open={open} onClose={onClose} title="App Details"><DrawerBody /></Drawer>;
+  if (!item)
+    return (
+      <Drawer open={open} onClose={onClose} title="App Details">
+        <DrawerBody />
+      </Drawer>
+    );
 
   const rec = item.record;
   const locationPath = pathLabel(item);
@@ -78,16 +87,23 @@ export function AppDetailDrawer({
             <video
               controls
               className="w-full rounded-lg border border-slate-700"
-              src={buildUrl(`/smoketest/${encodeURIComponent(item.smoke_test_id)}/video`)}
+              src={buildUrl(
+                `/smoketest/${encodeURIComponent(item.smoke_test_id)}/video`,
+              )}
             >
               Your browser does not support the video tag.
             </video>
             <div className="flex gap-4 text-xs text-slate-500">
               {item.screen_recording?.duration_ms != null && (
-                <span>Duration: {(item.screen_recording.duration_ms / 1000).toFixed(1)}s</span>
+                <span>
+                  Duration:{" "}
+                  {(item.screen_recording.duration_ms / 1000).toFixed(1)}s
+                </span>
               )}
               {item.screen_recording?.file_size_bytes != null && (
-                <span>Size: {formatBytes(item.screen_recording.file_size_bytes)}</span>
+                <span>
+                  Size: {formatBytes(item.screen_recording.file_size_bytes)}
+                </span>
               )}
             </div>
           </section>
@@ -96,7 +112,9 @@ export function AppDetailDrawer({
         {item.screen_recording?.error && (
           <section className="space-y-2">
             <SectionTitle icon={Video}>Smoke Test Video</SectionTitle>
-            <p className="text-xs text-red-300">Recording error: {item.screen_recording.error}</p>
+            <p className="text-xs text-red-300">
+              Recording error: {item.screen_recording.error}
+            </p>
           </section>
         )}
 
@@ -115,7 +133,9 @@ export function AppDetailDrawer({
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => useLiveDesktopStore.getState().open(rec.scenario_name)}
+              onClick={() => {
+                useLiveDesktopStore.getState().open(rec.scenario_name);
+              }}
             >
               Open
             </Button>
@@ -134,13 +154,26 @@ export function AppDetailDrawer({
               <p className="text-xs text-slate-500">Signing</p>
               <SigningBadge scenarioName={rec.scenario_name} />
             </div>
-            <InfoItem label="Deployment" value={rec.deployment_mode || "local"} />
+            <InfoItem
+              label="Deployment"
+              value={rec.deployment_mode || "local"}
+            />
             <InfoItem
               label="Template"
-              value={rec.template_type || item.build_status?.template_type || "Unknown"}
+              value={
+                rec.template_type ||
+                item.build_status?.template_type ||
+                "Unknown"
+              }
             />
-            <InfoItem label="Framework" value={rec.framework || item.build_status?.framework} />
-            <InfoItem label="Location Mode" value={rec.location_mode || "proper"} />
+            <InfoItem
+              label="Framework"
+              value={rec.framework || item.build_status?.framework}
+            />
+            <InfoItem
+              label="Location Mode"
+              value={rec.location_mode || "proper"}
+            />
             {typeof metadata?.version === "string" && (
               <InfoItem label="Version" value={metadata.version} />
             )}
@@ -194,8 +227,14 @@ export function AppDetailDrawer({
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={movePending || (!rec.destination_path) || locationPath === rec.destination_path}
-                onClick={() => onMove(rec.id, "destination")}
+                disabled={
+                  movePending ||
+                  !rec.destination_path ||
+                  locationPath === rec.destination_path
+                }
+                onClick={() => {
+                  onMove(rec.id, "destination");
+                }}
               >
                 Move
               </Button>
@@ -209,7 +248,9 @@ export function AppDetailDrawer({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => setShowCustomMove(!showCustomMove)}
+                onClick={() => {
+                  setShowCustomMove(!showCustomMove);
+                }}
               >
                 {showCustomMove ? "Cancel" : "Choose"}
               </Button>
@@ -218,7 +259,9 @@ export function AppDetailDrawer({
               <div className="flex gap-2 pl-6">
                 <Input
                   value={customPath}
-                  onChange={(e) => setCustomPath(e.target.value)}
+                  onChange={(e) => {
+                    setCustomPath(e.target.value);
+                  }}
                   placeholder="/path/to/destination"
                   className="text-xs flex-1"
                 />
@@ -254,7 +297,9 @@ export function AppDetailDrawer({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => onEditSigning(rec.scenario_name)}
+                    onClick={() => {
+                      onEditSigning(rec.scenario_name);
+                    }}
                   >
                     Configure
                   </Button>
@@ -270,7 +315,9 @@ export function AppDetailDrawer({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => onRebuildWithSigning(rec.scenario_name)}
+                    onClick={() => {
+                      onRebuildWithSigning(rec.scenario_name);
+                    }}
                   >
                     Rebuild
                   </Button>
@@ -286,7 +333,9 @@ export function AppDetailDrawer({
             <SectionTitle icon={LayoutTemplate}>Template</SectionTitle>
             <div className="flex items-center gap-2 mb-2">
               <Badge variant="secondary" className="capitalize">
-                {rec.template_type || item.build_status?.template_type || "Unknown"}
+                {rec.template_type ||
+                  item.build_status?.template_type ||
+                  "Unknown"}
               </Badge>
             </div>
             <ActionRow
@@ -298,12 +347,12 @@ export function AppDetailDrawer({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() =>
+                onClick={() => {
                   onSwitchTemplate(
                     rec.scenario_name,
                     rec.template_type || item.build_status?.template_type,
-                  )
-                }
+                  );
+                }}
               >
                 Change
               </Button>

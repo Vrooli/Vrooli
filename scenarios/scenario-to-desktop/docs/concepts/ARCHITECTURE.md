@@ -31,7 +31,7 @@ This document provides a visual guide to the scenario-to-desktop system architec
 ## Directory Structure
 
 ```
-scenario-to-desktop/
+scenario root
 ├── api/                          # Go API server (port 15000-19999)
 │   ├── generation/               # Desktop wrapper generation logic
 │   ├── build/                    # Build orchestration
@@ -584,6 +584,22 @@ Desktop apps write telemetry to track deployment health:
 | `app_ready` | Fully initialized |
 | `startup_error` | Errors during startup |
 | `app_shutdown` | Clean exit |
+
+---
+
+## UI automation contract
+
+The management UI exposes a canonical semantic-selector registry at
+`ui/src/consts/selectors.ts`. Its generated
+`ui/src/consts/selectors.manifest.json` is the contract consumed by Browser
+Automation Studio playbooks: a playbook uses `@selector/group.name`, and BAS
+resolves that reference to the matching `data-testid` selector. The manifest is
+regenerated before UI build, type-check, and test commands, so a renamed UI
+control cannot leave automation using an unreviewed stale selector.
+
+This keeps evidence workflows portable across local Linux desktop launches and
+future bridge-backed remote hosts: the workflow describes product intent rather
+than CSS structure or a machine-specific endpoint.
 
 ---
 

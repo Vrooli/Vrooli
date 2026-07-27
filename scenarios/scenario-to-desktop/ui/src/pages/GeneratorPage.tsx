@@ -5,7 +5,11 @@
 
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { GeneratorLayout } from "../components/layout";
-import { GeneratorForm, type ExposedFormState, type ValidationState } from "../components/generator/GeneratorForm";
+import { GeneratorForm } from "../components/generator/GeneratorForm";
+import type {
+  ExposedFormState,
+  ValidationState,
+} from "../components/generator/types";
 import {
   SectionCard,
   BundleSection,
@@ -56,7 +60,8 @@ export function GeneratorPage({
   }, []);
 
   // Validation state for the submit button in GenerateSection
-  const [validationState, setValidationState] = useState<ValidationState | null>(null);
+  const [validationState, setValidationState] =
+    useState<ValidationState | null>(null);
   const handleValidationStateChange = useCallback((state: ValidationState) => {
     setValidationState(state);
   }, []);
@@ -80,7 +85,7 @@ export function GeneratorPage({
       smoketest: smoketestRef,
       deploy: deployRef,
     }),
-    []
+    [],
   );
 
   // NOTE: Pipeline scenario is set by App.tsx via setPipelineScenario
@@ -118,7 +123,9 @@ export function GeneratorPage({
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, [setActiveSection, sectionRefs]);
 
   return (
@@ -182,13 +189,13 @@ export function GeneratorPage({
         />
 
         {/* Section 4: Build */}
-        <BuildSection
-          ref={sectionRefs.build}
-          scenarioName={scenarioName}
-        />
+        <BuildSection ref={sectionRefs.build} scenarioName={scenarioName} />
 
         {/* Section 5: Smoke Test */}
-        <SmokeTestSection ref={sectionRefs.smoketest} scenarioName={scenarioName} />
+        <SmokeTestSection
+          ref={sectionRefs.smoketest}
+          scenarioName={scenarioName}
+        />
 
         {/* Section 6: Deploy */}
         <DeploySection ref={sectionRefs.deploy} scenarioName={scenarioName} />

@@ -9,16 +9,16 @@ function cpuColor(percent: number): string {
 
 function formatMB(mb: number): string {
   if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
-  return `${Math.round(mb)} MB`;
+  return `${String(Math.round(mb))} MB`;
 }
 
-function formatSeconds(ms: number): string {
-  return `${(ms / 1000).toFixed(1)}s`;
+function formatSeconds(ms: bigint): string {
+  return `${(Number(ms) / 1000).toFixed(1)}s`;
 }
 
 export function MetricsBar() {
   const metrics = useLiveDesktopStore((s) => s.activeSession?.metrics);
-  const appRunning = useLiveDesktopStore((s) => s.activeSession?.app_running);
+  const appRunning = useLiveDesktopStore((s) => s.activeSession?.appRunning);
 
   if (!appRunning) return null;
 
@@ -27,10 +27,10 @@ export function MetricsBar() {
   // - "Splash 0.8s | Loading..." after splash but before main window
   // - "Splash 0.8s | Ready 2.1s" when main window is visible
   // - "Ready 1.2s" if splash and ready are the same (no splash screen)
-  const splashMs = metrics?.splash_duration_ms;
-  const readyMs = metrics?.ready_duration_ms;
-  const hasSplash = metrics?.splash_detected && splashMs != null;
-  const hasReady = metrics?.ready_detected && readyMs != null;
+  const splashMs = metrics?.splashDurationMs;
+  const readyMs = metrics?.readyDurationMs;
+  const hasSplash = metrics?.splashDetected && splashMs != null;
+  const hasReady = metrics?.readyDetected && readyMs != null;
 
   return (
     <div className="flex items-center gap-3 px-3 py-1 border-t border-slate-800/50 bg-slate-900/40 text-[11px]">
@@ -42,7 +42,10 @@ export function MetricsBar() {
         )}
         {hasSplash && !hasReady && (
           <>
-            <span className="text-emerald-400" title="Time to first window (splash screen)">
+            <span
+              className="text-emerald-400"
+              title="Time to first window (splash screen)"
+            >
               Splash {formatSeconds(splashMs)}
             </span>
             <span className="text-slate-600 mx-0.5">|</span>
@@ -51,11 +54,17 @@ export function MetricsBar() {
         )}
         {hasReady && hasSplash && splashMs !== readyMs && (
           <>
-            <span className="text-slate-400" title="Time to first window (splash screen)">
+            <span
+              className="text-slate-400"
+              title="Time to first window (splash screen)"
+            >
               Splash {formatSeconds(splashMs)}
             </span>
             <span className="text-slate-600 mx-0.5">|</span>
-            <span className="text-emerald-400" title="Time to main application window">
+            <span
+              className="text-emerald-400"
+              title="Time to main application window"
+            >
               Ready {formatSeconds(readyMs)}
             </span>
           </>
@@ -67,23 +76,32 @@ export function MetricsBar() {
         )}
       </div>
 
-      {metrics && metrics.sample_count > 0 && (
+      {metrics && metrics.sampleCount > 0 && (
         <>
           {/* CPU */}
-          {metrics.current_cpu_percent != null && (
+          {metrics.currentCpuPercent != null && (
             <div className="flex items-center gap-1">
               <Cpu className="h-3 w-3 text-slate-500" />
-              <span className={cpuColor(metrics.current_cpu_percent)}>
-                {Math.round(metrics.current_cpu_percent)}%
+              <span className={cpuColor(metrics.currentCpuPercent)}>
+                {Math.round(metrics.currentCpuPercent)}%
               </span>
             </div>
           )}
 
           {/* Memory */}
-          {metrics.current_rss_mb != null && (
-            <div className="flex items-center gap-1" title={metrics.peak_rss_mb != null ? `Peak: ${formatMB(metrics.peak_rss_mb)}` : undefined}>
+          {metrics.currentRssMb != null && (
+            <div
+              className="flex items-center gap-1"
+              title={
+                metrics.peakRssMb != null
+                  ? `Peak: ${formatMB(metrics.peakRssMb)}`
+                  : undefined
+              }
+            >
               <HardDrive className="h-3 w-3 text-slate-500" />
-              <span className="text-slate-300">{formatMB(metrics.current_rss_mb)}</span>
+              <span className="text-slate-300">
+                {formatMB(metrics.currentRssMb)}
+              </span>
             </div>
           )}
         </>

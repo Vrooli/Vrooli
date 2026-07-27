@@ -414,4 +414,3 @@ func TestStartService_ProcessStartFails(t *testing.T) {
 		t.Fatal("startService() expected error when process start fails")
 	}
 }
-

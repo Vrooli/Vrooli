@@ -18,10 +18,24 @@ import {
   type DeploymentMode,
   type ServerType,
 } from "../domain/deployment";
-import { getSelectedPlatforms } from "../domain/generator";
+import {
+  getSelectedPlatforms,
+  type DesktopFramework,
+} from "../domain/generator";
 import { getIconPreviewUrl } from "../lib/api";
-import type { DesktopConnectionConfig, ScenarioDesktopStatus } from "../components/scenario-inventory/types";
-import type { HydrateFormData, ValidationError, AppMetadataState, DeploymentState, OutputState, PlatformsState, ConnectionState } from "../store/formTypes";
+import type {
+  DesktopConnectionConfig,
+  ScenarioDesktopStatus,
+} from "../components/scenario-inventory/types";
+import type {
+  HydrateFormData,
+  ValidationError,
+  AppMetadataState,
+  DeploymentState,
+  OutputState,
+  PlatformsState,
+  ConnectionState,
+} from "../store/formTypes";
 
 // ============================================================================
 // Types
@@ -44,7 +58,7 @@ export interface UseFormStateReturn {
   deployment: DeploymentState;
   setDeploymentMode: (mode: DeploymentMode) => void;
   setServerType: (type: ServerType) => void;
-  setFramework: (framework: string) => void;
+  setFramework: (framework: DesktopFramework) => void;
   handleDeploymentChange: (nextMode: DeploymentMode) => void;
 
   // Output
@@ -162,7 +176,7 @@ export function useFormState(props: UseFormStateProps): UseFormStateReturn {
   // ========== Derived Values ==========
   const connectionDecision = useMemo(
     () => decideConnection(deployment.mode, deployment.serverType),
-    [deployment.mode, deployment.serverType]
+    [deployment.mode, deployment.serverType],
   );
   const isBundled = connectionDecision.kind === "bundled-runtime";
   const requiresRemoteConfig = connectionDecision.requiresProxyUrl;
@@ -178,22 +192,22 @@ export function useFormState(props: UseFormStateProps): UseFormStateReturn {
 
   const selectedPlatformsList = useMemo(
     () => getSelectedPlatforms(platforms),
-    [platforms]
+    [platforms],
   );
 
   const standardOutputPath = useMemo(
     () => selectStandardOutputPath(scenarioName),
-    [scenarioName]
+    [scenarioName],
   );
 
   const stagingPreviewPath = useMemo(
     () => selectStagingPreviewPath(scenarioName),
-    [scenarioName]
+    [scenarioName],
   );
 
   const iconPreviewUrl = useMemo(
-    () => appMetadata.iconPath ? getIconPreviewUrl(appMetadata.iconPath) : "",
-    [appMetadata.iconPath]
+    () => (appMetadata.iconPath ? getIconPreviewUrl(appMetadata.iconPath) : ""),
+    [appMetadata.iconPath],
   );
 
   const isCustomLocation = output.locationMode === "custom";
@@ -223,7 +237,10 @@ export function useFormState(props: UseFormStateProps): UseFormStateReturn {
       if (deployment.serverType !== connectionDecision.effectiveServerType) {
         setServerType(connectionDecision.effectiveServerType);
       }
-      if (!connectionDecision.allowsAutoManageTier1 && connection.autoManageTier1) {
+      if (
+        !connectionDecision.allowsAutoManageTier1 &&
+        connection.autoManageTier1
+      ) {
         setAutoManageTier1(false);
       }
     }
@@ -248,7 +265,7 @@ export function useFormState(props: UseFormStateProps): UseFormStateReturn {
         setServerType(nextAllowed[0] ?? DEFAULT_SERVER_TYPE);
       }
     },
-    [deployment.serverType, setDeploymentMode, setServerType]
+    [deployment.serverType, setDeploymentMode, setServerType],
   );
 
   const resetFormState = useCallback(
@@ -258,13 +275,13 @@ export function useFormState(props: UseFormStateProps): UseFormStateReturn {
         setSelectedTemplate("basic");
       }
     },
-    [resetFormStateStore, setSelectedTemplate]
+    [resetFormStateStore, setSelectedTemplate],
   );
 
   const applySavedConnection = useCallback(
     (config?: DesktopConnectionConfig | null) => {
       if (!config) return;
-      setDeploymentMode((config.deployment_mode as DeploymentMode) ?? "bundled");
+      setDeploymentMode(config.deployment_mode as DeploymentMode);
       setProxyUrl(config.proxy_url ?? config.server_url ?? "");
       setAutoManageTier1(config.auto_manage_vrooli ?? false);
       setVrooliBinaryPath(config.vrooli_binary_path ?? "vrooli");
@@ -272,7 +289,7 @@ export function useFormState(props: UseFormStateProps): UseFormStateReturn {
       if (config.app_display_name) setAppDisplayName(config.app_display_name);
       if (config.app_description) setAppDescription(config.app_description);
       if (config.icon) setIconPath(config.icon);
-      if (config.server_type) setServerType((config.server_type as ServerType) ?? DEFAULT_SERVER_TYPE);
+      if (config.server_type) setServerType(config.server_type as ServerType);
     },
     [
       setDeploymentMode,
@@ -284,7 +301,7 @@ export function useFormState(props: UseFormStateProps): UseFormStateReturn {
       setAppDescription,
       setIconPath,
       setServerType,
-    ]
+    ],
   );
 
   const applyScenarioDefaults = useCallback(
@@ -306,7 +323,7 @@ export function useFormState(props: UseFormStateProps): UseFormStateReturn {
       setAppDisplayName,
       setAppDescription,
       setIconPath,
-    ]
+    ],
   );
 
   // ========== Return ==========

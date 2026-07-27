@@ -4,7 +4,11 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@/test-utils";
-import { PipelineErrorDisplay, PipelineErrorRecovery, InlineError } from "./PipelineErrorDisplay";
+import {
+  PipelineErrorDisplay,
+  PipelineErrorRecovery,
+  InlineError,
+} from "./PipelineErrorDisplay";
 import { suggestRecovery } from "./pipelineUtils";
 import type { PipelineErrorInfo } from "../../store/pipelineTypes";
 
@@ -15,7 +19,10 @@ vi.mock("../../lib/browser", () => ({
 
 describe("suggestRecovery", () => {
   it("suggests scenario check for 404 errors", () => {
-    const suggestion = suggestRecovery("Resource not found (404)", "my-scenario");
+    const suggestion = suggestRecovery(
+      "Resource not found (404)",
+      "my-scenario",
+    );
     expect(suggestion).toContain("my-scenario");
     expect(suggestion).toContain("exists");
   });
@@ -62,7 +69,7 @@ describe("PipelineErrorDisplay", () => {
       <PipelineErrorDisplay
         errorMessage="Error"
         suggestion="Try this to fix it"
-      />
+      />,
     );
     expect(screen.getByText("Try this to fix it")).toBeInTheDocument();
   });
@@ -78,7 +85,9 @@ describe("PipelineErrorDisplay", () => {
 
   it("does not render retry button when onRetry not provided", () => {
     render(<PipelineErrorDisplay errorMessage="Error" />);
-    expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /retry/i }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -127,12 +136,16 @@ describe("PipelineErrorRecovery", () => {
   it("renders category-based suggestions when errorInfo has no suggestions", () => {
     render(<PipelineErrorRecovery errorInfo={baseErrorInfo} />);
     // Network category suggestions include "Check your internet connection"
-    expect(screen.getByText(/Check your internet connection/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Check your internet connection/i),
+    ).toBeInTheDocument();
   });
 
   it("renders retry button when onRetry provided", () => {
     const onRetry = vi.fn();
-    render(<PipelineErrorRecovery errorInfo={baseErrorInfo} onRetry={onRetry} />);
+    render(
+      <PipelineErrorRecovery errorInfo={baseErrorInfo} onRetry={onRetry} />,
+    );
     const retryButton = screen.getByRole("button", { name: /retry/i });
     expect(retryButton).toBeInTheDocument();
     fireEvent.click(retryButton);
@@ -141,7 +154,9 @@ describe("PipelineErrorRecovery", () => {
 
   it("renders dismiss button when onDismiss provided", () => {
     const onDismiss = vi.fn();
-    render(<PipelineErrorRecovery errorInfo={baseErrorInfo} onDismiss={onDismiss} />);
+    render(
+      <PipelineErrorRecovery errorInfo={baseErrorInfo} onDismiss={onDismiss} />,
+    );
     const dismissButton = screen.getByRole("button", { name: /dismiss/i });
     expect(dismissButton).toBeInTheDocument();
     fireEvent.click(dismissButton);
@@ -168,7 +183,9 @@ describe("PipelineErrorRecovery", () => {
       category: "permission",
     };
     render(<PipelineErrorRecovery errorInfo={permissionError} />);
-    expect(screen.getByText(/Check file and directory permissions/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Check file and directory permissions/i),
+    ).toBeInTheDocument();
   });
 
   it("handles unknown category", () => {
@@ -177,7 +194,9 @@ describe("PipelineErrorRecovery", () => {
       category: "unknown",
     };
     render(<PipelineErrorRecovery errorInfo={unknownError} />);
-    expect(screen.getByText(/An unexpected error occurred/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/An unexpected error occurred/i),
+    ).toBeInTheDocument();
   });
 
   it("handles error without category", () => {

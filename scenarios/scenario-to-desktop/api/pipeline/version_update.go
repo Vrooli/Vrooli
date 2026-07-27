@@ -7,13 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"scenario-to-desktop-api/generation"
+	"scenario-to-desktop-api/shared/path"
 	"strconv"
 	"strings"
 	"sync"
 
-	"scenario-to-desktop-api/generation"
 	apperrors "scenario-to-desktop-api/shared/errors"
-	"scenario-to-desktop-api/shared/path"
 )
 
 const (

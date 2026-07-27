@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
 )
 
 // TestHealthEndpointPerformance tests health check performance
@@ -139,18 +144,18 @@ func TestStatusEndpointPerformance(t *testing.T) {
 	defer cleanup()
 
 	server := NewServer(0)
+	ts := httptest.NewServer(server.Router())
+	defer ts.Close()
+	client := domainconnect.NewSystemServiceClient(ts.Client(), ts.URL)
 
 	t.Run("SequentialRequests", func(t *testing.T) {
 		requestCount := 50
 		start := time.Now()
 
 		for i := 0; i < requestCount; i++ {
-			req := httptest.NewRequest("GET", "/api/v1/status", nil)
-			w := httptest.NewRecorder()
-			server.router.ServeHTTP(w, req)
-
-			if w.Code != 200 {
-				t.Errorf("Request %d failed with status %d", i, w.Code)
+			response, err := client.GetSystemStatus(context.Background(), connect.NewRequest(&domainv1.GetSystemStatusRequest{}))
+			if err != nil || response.Msg.GetService().GetStatus() != "running" {
+				t.Errorf("request %d failed: response=%#v error=%v", i, response.Msg, err)
 			}
 		}
 
@@ -177,18 +182,18 @@ func TestTemplateListingPerformance(t *testing.T) {
 
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
+	ts := httptest.NewServer(env.Server.Router())
+	defer ts.Close()
+	client := domainconnect.NewSystemServiceClient(ts.Client(), ts.URL)
 
 	t.Run("SequentialRequests", func(t *testing.T) {
 		requestCount := 30
 		start := time.Now()
 
 		for i := 0; i < requestCount; i++ {
-			req := httptest.NewRequest("GET", "/api/v1/templates", nil)
-			w := httptest.NewRecorder()
-			env.Server.router.ServeHTTP(w, req)
-
-			if w.Code != 200 {
-				t.Errorf("Request %d failed with status %d", i, w.Code)
+			response, err := client.ListTemplates(context.Background(), connect.NewRequest(&domainv1.ListTemplatesRequest{}))
+			if err != nil || response.Msg.GetCount() != 4 {
+				t.Errorf("request %d failed: response=%#v error=%v", i, response.Msg, err)
 			}
 		}
 

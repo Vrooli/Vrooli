@@ -51,7 +51,7 @@ interface DesktopConfig {
     lpbs_url?: string; // Vrooli platform URL for auth (defaults to https://vrooli.com)
 
     // Template configuration
-    framework: 'electron' | 'tauri' | 'neutralino';
+    framework: 'electron';
     template_type: 'basic' | 'universal' | 'advanced' | 'kiosk' | 'multi_window';
 
     // Features

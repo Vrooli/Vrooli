@@ -4,12 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"testing"
-	"time"
-
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
+	"testing"
+	"time"
 )
 
 // =============================================================================

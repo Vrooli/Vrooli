@@ -20,60 +20,40 @@ import (
 func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.T) {
 	root := t.TempDir()
 	scenarioPath := filepath.Join(root, "scenarios", "demo")
-	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	mustMkdirAll(t, filepath.Join(scenarioPath, ".vrooli"))
 	service := `{"dependencies":{"resources":{"openrouter":{"enabled":true,"required":true}}}}`
-	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(service), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteFile(t, filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(service), 0o644)
 	resourceDir := filepath.Join(root, "resources", "openrouter")
-	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	mustMkdirAll(t, resourceDir)
 	resource := `{"cli":{"distribution":{"kind":"prebuilt_artifact","artifact_name":"resource-openrouter_${os}_${arch}"}},"deployment":{"profiles":{"desktop":{"linux":{"support":"supported","mode":"bundled-client","architectures":["amd64","arm64"],"evidence":["test"]},"macos":{"support":"unsupported","mode":"bundled-client","reason":"test"},"windows":{"support":"unsupported","mode":"bundled-client","reason":"test"}}}}}`
-	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), []byte(resource), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteFile(t, filepath.Join(resourceDir, "resource.json"), []byte(resource), 0o644)
 	artifactRoot := filepath.Join(root, "release")
-	if err := os.MkdirAll(artifactRoot, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	mustMkdirAll(t, artifactRoot)
 	checksums := make([]string, 0, 6)
 	for _, arch := range []string{"amd64", "arm64"} {
 		name := "resource-openrouter_linux_" + arch
 		for _, suffix := range []string{"", ".manifest.json", ".build.json"} {
 			file := name + suffix
 			body := []byte("artifact-" + arch + suffix)
-			if err := os.WriteFile(filepath.Join(artifactRoot, file), body, 0o755); err != nil {
-				t.Fatal(err)
-			}
+			mustWriteFile(t, filepath.Join(artifactRoot, file), body, 0o755)
 			sum := sha256.Sum256(body)
 			checksums = append(checksums, hex.EncodeToString(sum[:])+"  "+file)
 		}
 	}
 	checksumData := []byte(strings.Join(checksums, "\n") + "\n")
-	if err := os.WriteFile(filepath.Join(artifactRoot, "SHA256SUMS"), checksumData, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteFile(t, filepath.Join(artifactRoot, "SHA256SUMS"), checksumData, 0o644)
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
 
 	bundleDir := filepath.Join(root, "bundle")
 	plan, err := resolveResourceDeploymentPlan(scenarioPath, artifactRoot, []string{"linux-amd64"})
-	if err != nil {
-		t.Fatalf("resolve plan: %v", err)
-	}
+	mustNoError(t, err, "resolve plan")
 	copied, err := stageBundledResourceArtifacts(bundleDir, artifactRoot, plan)
-	if err != nil {
-		t.Fatalf("stage artifacts: %v", err)
-	}
+	mustNoError(t, err, "stage artifacts")
 	if len(copied) != 4 {
 		t.Fatalf("copied = %v, want executable, contract, provenance, and plan", copied)
 	}
 	for _, suffix := range []string{"", ".manifest.json", ".build.json"} {
-		if _, err := os.Stat(filepath.Join(bundleDir, "resources", "openrouter", "resource-openrouter_linux_amd64"+suffix)); err != nil {
-			t.Fatalf("staged artifact %s: %v", suffix, err)
-		}
+		mustPathExist(t, filepath.Join(bundleDir, "resources", "openrouter", "resource-openrouter_linux_amd64"+suffix))
 	}
 	planData, err := os.ReadFile(filepath.Join(bundleDir, "resource-deployment-plan.json"))
 	if err != nil || !strings.Contains(string(planData), "resource-openrouter_linux_amd64") {
@@ -84,49 +64,31 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 	root := t.TempDir()
 	scenarioPath := filepath.Join(root, "scenarios", "demo")
-	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(`{"dependencies":{"resources":{"vault":{"enabled":true,"required":true}}}}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	mustMkdirAll(t, filepath.Join(scenarioPath, ".vrooli"))
+	mustWriteFile(t, filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(`{"dependencies":{"resources":{"vault":{"enabled":true,"required":true}}}}`), 0o644)
 	artifactRoot := filepath.Join(root, "release")
-	if err := os.MkdirAll(artifactRoot, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	mustMkdirAll(t, artifactRoot)
 	serverName, serverBody := "vault_linux_amd64", []byte("verified server")
-	if err := os.WriteFile(filepath.Join(artifactRoot, serverName), serverBody, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteFile(t, filepath.Join(artifactRoot, serverName), serverBody, 0o755)
 	serverSum := sha256.Sum256(serverBody)
 	resource := `{"cli":{"distribution":{"kind":"prebuilt_artifact","artifact_name":"resource-vault_${os}_${arch}"}},"managed_service":{"provider_policy":{"target_defaults":{"control-plane":"managed-shared","desktop-bundle":"managed-private"},"allowed_modes":["managed-private","managed-shared"],"shared_reuse_requires_consent":true},"artifact":{"path":"bin/vault","version":"1.17.6","bundle_artifact":"vault_${os}_${arch}","sha256":"` + hex.EncodeToString(serverSum[:]) + `"}},"ports":[{"name":"http","host":8200}],"health_checks":[{"type":"http","target":"http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health","expected_status":[200,501],"timeout_seconds":5}],"deployment":{"profiles":{"desktop":{"linux":{"support":"supported","mode":"bundled-service","architectures":["amd64"],"limitations":["test"],"evidence":["test"]},"macos":{"support":"unsupported","mode":"bundled-service","reason":"test"},"windows":{"support":"unsupported","mode":"bundled-service","reason":"test"}}}}}`
 	resourceDir := filepath.Join(root, "resources", "vault")
-	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), []byte(resource), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	mustMkdirAll(t, resourceDir)
+	mustWriteFile(t, filepath.Join(resourceDir, "resource.json"), []byte(resource), 0o644)
 	checksums := []string{hex.EncodeToString(serverSum[:]) + "  " + serverName}
 	controller := "resource-vault_linux_amd64"
 	for _, suffix := range []string{"", ".manifest.json", ".build.json"} {
 		file, body := controller+suffix, []byte("controller"+suffix)
-		if err := os.WriteFile(filepath.Join(artifactRoot, file), body, 0o755); err != nil {
-			t.Fatal(err)
-		}
+		mustWriteFile(t, filepath.Join(artifactRoot, file), body, 0o755)
 		sum := sha256.Sum256(body)
 		checksums = append(checksums, hex.EncodeToString(sum[:])+"  "+file)
 	}
 	checksumData := []byte(strings.Join(checksums, "\n") + "\n")
-	if err := os.WriteFile(filepath.Join(artifactRoot, "SHA256SUMS"), checksumData, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteFile(t, filepath.Join(artifactRoot, "SHA256SUMS"), checksumData, 0o644)
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
 
 	plan, err := resolveResourceDeploymentPlan(scenarioPath, artifactRoot, []string{"linux-amd64"})
-	if err != nil {
-		t.Fatalf("resolve plan: %v", err)
-	}
+	mustNoError(t, err, "resolve plan")
 	item := plan.Resources[0]
 	if item.Service == nil || item.Service.Artifact != serverName || len(item.Service.Files) != 1 {
 		t.Fatalf("bundled service plan = %#v", item.Service)
@@ -141,14 +103,32 @@ func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 		t.Fatalf("bundled service health contract = %#v", item.Service.HealthChecks)
 	}
 	copied, err := stageBundledResourceArtifacts(filepath.Join(root, "bundle"), artifactRoot, plan)
-	if err != nil {
-		t.Fatalf("stage artifacts: %v", err)
-	}
+	mustNoError(t, err, "stage artifacts")
 	if len(copied) != 5 {
 		t.Fatalf("copied = %v, want controller, server, and plan", copied)
 	}
-	if _, err := os.Stat(filepath.Join(root, "bundle", "resources", "vault", serverName)); err != nil {
-		t.Fatalf("staged server: %v", err)
+	mustPathExist(t, filepath.Join(root, "bundle", "resources", "vault", serverName))
+}
+
+func mustMkdirAll(t *testing.T, path string) {
+	t.Helper()
+	mustNoError(t, os.MkdirAll(path, 0o755), "create directory")
+}
+
+func mustWriteFile(t *testing.T, path string, data []byte, mode os.FileMode) {
+	t.Helper()
+	mustNoError(t, os.WriteFile(path, data, mode), "write file")
+}
+
+func mustPathExist(t *testing.T, path string) {
+	t.Helper()
+	mustNoError(t, func() error { _, err := os.Stat(path); return err }(), "expected staged path")
+}
+
+func mustNoError(t *testing.T, err error, operation string) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("%s: %v", operation, err)
 	}
 }
 

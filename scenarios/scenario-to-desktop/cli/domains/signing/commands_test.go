@@ -1,407 +1,101 @@
 package signing
 
 import (
+	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
-	"scenario-to-desktop/cli/internal/support"
-
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliapptest"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func newTestClient(handler http.Handler) support.Dependencies {
-	server := httptest.NewServer(handler)
-	app, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		Name:             "scenario-to-desktop-test",
-		Version:          "test",
-		Description:      "test",
-		DefaultAPIBase:   server.URL,
-		AllowAnonymous:   true,
-		CommandGroups:    func(*cliapp.ScenarioApp) []cliapp.CommandGroup { return nil },
-		SubcommandGroups: func(*cliapp.ScenarioApp) []cliapp.SubcommandGroup { return nil },
-	})
-	if err != nil {
-		panic(err)
-	}
-	return support.Dependencies{Core: func() *cliapp.ScenarioApp { return app }}
+type fakeSigningRPC struct {
+	put      *domainv1.UpsertSigningConfigRequest
+	discover *domainv1.DiscoverSigningCertificatesRequest
+	key      *domainv1.GenerateLinuxSigningKeyRequest
 }
 
-// --- Get ---
-
-func TestGet_MissingScenario(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Get([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing scenario")
-	}
-	if !strings.Contains(err.Error(), "usage:") {
-		t.Errorf("error = %q, want usage message", err.Error())
-	}
+func (f *fakeSigningRPC) GetSigningConfig(context.Context, *connect.Request[domainv1.SigningScenarioRequest]) (*connect.Response[domainv1.SigningConfigResponse], error) {
+	return connect.NewResponse(&domainv1.SigningConfigResponse{}), nil
 }
 
-func TestGet_Success(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("method = %q, want GET", r.Method)
-		}
-		if !strings.Contains(r.URL.Path, "/signing/my-scenario") {
-			t.Errorf("path = %q, want to contain '/signing/my-scenario'", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"schema_version":"1.0","windows":{}}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Get([]string{"my-scenario"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+func (f *fakeSigningRPC) PutSigningConfig(_ context.Context, r *connect.Request[domainv1.UpsertSigningConfigRequest]) (*connect.Response[domainv1.SigningConfigResponse], error) {
+	f.put = r.Msg
+	return connect.NewResponse(&domainv1.SigningConfigResponse{}), nil
 }
 
-// --- Set ---
+func (f *fakeSigningRPC) ValidateSigningConfig(context.Context, *connect.Request[domainv1.ValidateSigningRequest]) (*connect.Response[domainv1.SigningValidationResult], error) {
+	return connect.NewResponse(&domainv1.SigningValidationResult{Valid: true}), nil
+}
 
-func TestSet_MissingScenario(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Set([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing scenario")
+func (f *fakeSigningRPC) GetSigningReadiness(context.Context, *connect.Request[domainv1.SigningScenarioRequest]) (*connect.Response[domainv1.ReadinessResponse], error) {
+	return connect.NewResponse(&domainv1.ReadinessResponse{}), nil
+}
+
+func (f *fakeSigningRPC) DeleteSigningConfig(context.Context, *connect.Request[domainv1.DeleteSigningConfigRequest]) (*connect.Response[domainv1.DeleteSigningResponse], error) {
+	return connect.NewResponse(&domainv1.DeleteSigningResponse{}), nil
+}
+
+func (f *fakeSigningRPC) GenerateLinuxSigningKey(_ context.Context, r *connect.Request[domainv1.GenerateLinuxSigningKeyRequest]) (*connect.Response[domainv1.GenerateLinuxSigningKeyResponse], error) {
+	f.key = r.Msg
+	return connect.NewResponse(&domainv1.GenerateLinuxSigningKeyResponse{Fingerprint: "test"}), nil
+}
+
+func (f *fakeSigningRPC) ListSigningPrerequisites(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[domainv1.ListSigningPrerequisitesResponse], error) {
+	return connect.NewResponse(&domainv1.ListSigningPrerequisitesResponse{}), nil
+}
+
+func (f *fakeSigningRPC) DiscoverSigningCertificates(_ context.Context, r *connect.Request[domainv1.DiscoverSigningCertificatesRequest]) (*connect.Response[domainv1.DiscoverSigningCertificatesResponse], error) {
+	f.discover = r.Msg
+	return connect.NewResponse(&domainv1.DiscoverSigningCertificatesResponse{}), nil
+}
+
+func assertPrimitiveModes(t *testing.T, handler cliapp.PrimitiveHandler, schema cliapp.ArgSchema, args []string) {
+	t.Helper()
+	modes := cliapptest.RunPrimitiveHandlerModes(t, handler, schema, args, nil)
+	if modes.HumanErr != nil || modes.JSONErr != nil {
+		t.Fatalf("primitive errors: human=%v json=%v", modes.HumanErr, modes.JSONErr)
+	}
+	var result any
+	if err := json.Unmarshal([]byte(modes.JSON), &result); err != nil {
+		t.Fatalf("JSON result: %v", err)
 	}
 }
 
-func TestSet_MissingConfig(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Set([]string{"my-scenario"})
-	if err == nil {
-		t.Fatal("expected error for missing --config")
+func TestSetPrimitiveUsesCanonicalProtoConfig(t *testing.T) {
+	rpc := &fakeSigningRPC{}
+	c := &Commands{rpc: rpc}
+	assertPrimitiveModes(t, c.setPrimitive(), cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "config", Required: true}}}, []string{"demo", "--config", `{"enabled":true,"linux":{"gpg_key_id":"key"}}`})
+	if rpc.put.GetScenarioName() != "demo" || !rpc.put.GetConfig().GetEnabled() || rpc.put.GetConfig().GetLinux().GetGpgKeyId() != "key" {
+		t.Fatalf("unexpected request %#v", rpc.put)
 	}
 }
 
-func TestSet_InvalidJSON(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Set([]string{"my-scenario", "--config", "not-json"})
-	if err == nil {
-		t.Fatal("expected error for invalid JSON")
-	}
-	if !strings.Contains(err.Error(), "invalid JSON") {
-		t.Errorf("error = %q, want 'invalid JSON'", err.Error())
+func TestDiscoverPrimitiveUsesTypedPlatform(t *testing.T) {
+	rpc := &fakeSigningRPC{}
+	c := &Commands{rpc: rpc}
+	assertPrimitiveModes(t, c.discoverPrimitive(), scenarioSchema("platform"), []string{"windows"})
+	if rpc.discover.GetPlatform() != sharedv1.Platform_PLATFORM_WIN {
+		t.Fatalf("platform=%v", rpc.discover.GetPlatform())
 	}
 }
 
-func TestSet_InlineJSON(t *testing.T) {
-	var receivedBody map[string]interface{}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPut {
-			t.Errorf("method = %q, want PUT", r.Method)
-		}
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Set([]string{"my-scenario", "--config", `{"windows":{"enabled":true}}`})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	win, ok := receivedBody["windows"].(map[string]interface{})
-	if !ok {
-		t.Fatal("expected windows key in body")
-	}
-	if win["enabled"] != true {
-		t.Errorf("windows.enabled = %v, want true", win["enabled"])
+func TestGenerateKeyProductionParserRejectsInlineSecret(t *testing.T) {
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "name", Required: true}, {Name: "email", Required: true}, {Name: "passphrase-env"}, {Name: "force", Bool: true}}}
+	if _, err := cliapptest.NewTestRunContextFromArgs(schema, []string{"demo", "--name", "n", "--email", "a@example.com", "--passphrase", "secret"}, nil, nil, nil); err == nil {
+		t.Fatal("inline passphrase accepted")
 	}
 }
 
-func TestSet_FromFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
-	if err := os.WriteFile(configPath, []byte(`{"linux":{"enabled":true}}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	var receivedBody map[string]interface{}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Set([]string{"my-scenario", "--config", "@" + configPath})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if _, ok := receivedBody["linux"]; !ok {
-		t.Error("expected linux key in body from file")
-	}
-}
-
-func TestSet_FromFile_NotFound(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Set([]string{"my-scenario", "--config", "@/nonexistent/file.json"})
-	if err == nil {
-		t.Fatal("expected error for missing file")
-	}
-	if !strings.Contains(err.Error(), "failed to read config file") {
-		t.Errorf("error = %q, want 'failed to read config file'", err.Error())
-	}
-}
-
-// --- Delete ---
-
-func TestDelete_MissingScenario(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Delete([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing scenario")
-	}
-}
-
-func TestDelete_Success(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodDelete {
-			t.Errorf("method = %q, want DELETE", r.Method)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"deleted"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Delete([]string{"my-scenario"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- Validate ---
-
-func TestValidate_MissingScenario(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Validate([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing scenario")
-	}
-}
-
-func TestValidate_ValidConfig(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Errorf("method = %q, want POST", r.Method)
-		}
-		if !strings.HasSuffix(r.URL.Path, "/validate") {
-			t.Errorf("path = %q, want to end with '/validate'", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"valid":true,"errors":[]}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Validate([]string{"my-scenario"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestValidate_InvalidConfig(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"valid":false,"errors":[{"message":"cert expired"}]}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Validate([]string{"my-scenario"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- Ready ---
-
-func TestReady_MissingScenario(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Ready([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing scenario")
-	}
-}
-
-func TestReady_Success(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("method = %q, want GET", r.Method)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"ready":true,"platforms":{"windows":{"ready":true},"linux":{"ready":false,"reason":"no GPG key"}}}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Ready([]string{"my-scenario"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- Discover ---
-
-func TestDiscover_MissingPlatform(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-	err := cmds.Discover([]string{})
-	if err == nil {
-		t.Fatal("expected error for missing platform")
-	}
-	if !strings.Contains(err.Error(), "usage:") {
-		t.Errorf("error = %q, want usage message", err.Error())
-	}
-}
-
-func TestDiscover_Success(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.URL.Path, "/discover/windows") {
-			t.Errorf("path = %q, want to contain '/discover/windows'", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`[{"subject":"CN=Test","issuer":"CN=CA"}]`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Discover([]string{"windows"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- GenerateKey ---
-
-func TestGenerateKey_MissingRequiredArgs(t *testing.T) {
-	cmds := New(newTestClient(http.NotFoundHandler()))
-
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{"no args", []string{}},
-		{"scenario only", []string{"my-scenario"}},
-		{"missing email", []string{"my-scenario", "--name", "Test"}},
-		{"missing name", []string{"my-scenario", "--email", "test@test.com"}},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := cmds.GenerateKey(tc.args)
-			if err == nil {
-				t.Fatal("expected error for missing required args")
-			}
-		})
-	}
-}
-
-func TestGenerateKey_Success(t *testing.T) {
-	var receivedBody map[string]interface{}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Errorf("method = %q, want POST", r.Method)
-		}
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"created","key_id":"ABC123","fingerprint":"DEADBEEF"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.GenerateKey([]string{"my-scenario", "--name", "Test User", "--email", "test@example.com"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if receivedBody["name"] != "Test User" {
-		t.Errorf("name = %v, want 'Test User'", receivedBody["name"])
-	}
-	if receivedBody["email"] != "test@example.com" {
-		t.Errorf("email = %v, want 'test@example.com'", receivedBody["email"])
-	}
-}
-
-func TestGenerateKey_WithOptionalFlags(t *testing.T) {
-	var receivedBody map[string]interface{}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"created","key_id":"ABC123","fingerprint":"DEADBEEF"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.GenerateKey([]string{
-		"my-scenario",
-		"--name", "Test User",
-		"--email", "test@example.com",
-		"--passphrase", "secret123",
-		"--force",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if receivedBody["passphrase"] != "secret123" {
-		t.Errorf("passphrase = %v, want 'secret123'", receivedBody["passphrase"])
-	}
-	if receivedBody["force"] != true {
-		t.Errorf("force = %v, want true", receivedBody["force"])
-	}
-}
-
-// --- Prerequisites ---
-
-func TestPrerequisites_Success(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("method = %q, want GET", r.Method)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`[{"name":"signtool","available":true}]`))
-	})
-
-	cmds := New(newTestClient(handler))
-	err := cmds.Prerequisites([]string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- API Error Handling ---
-
-func TestAPIError_PropagatesHTTPErrors(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"error":"internal failure"}`))
-	})
-
-	cmds := New(newTestClient(handler))
-
-	// All commands that make API calls should propagate errors
-	tests := []struct {
-		name string
-		fn   func() error
-	}{
-		{"Get", func() error { return cmds.Get([]string{"s"}) }},
-		{"Delete", func() error { return cmds.Delete([]string{"s"}) }},
-		{"Validate", func() error { return cmds.Validate([]string{"s"}) }},
-		{"Ready", func() error { return cmds.Ready([]string{"s"}) }},
-		{"Discover", func() error { return cmds.Discover([]string{"windows"}) }},
-		{"Prerequisites", func() error { return cmds.Prerequisites([]string{}) }},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.fn()
-			if err == nil {
-				t.Error("expected error from 500 response")
-			}
-		})
+func TestGenerateKeyPrimitiveUsesEnvironmentReference(t *testing.T) {
+	rpc := &fakeSigningRPC{}
+	c := &Commands{rpc: rpc}
+	assertPrimitiveModes(t, c.generateKeyPrimitive(), cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}, Flags: []cliapp.Flag{{Name: "name", Required: true}, {Name: "email", Required: true}, {Name: "passphrase-env"}, {Name: "force", Bool: true}}}, []string{"demo", "--name", "n", "--email", "a@example.com", "--passphrase-env", "GPG_SECRET", "--force"})
+	if rpc.key.GetPassphraseEnv() != "GPG_SECRET" || !rpc.key.GetForce() {
+		t.Fatalf("unexpected request %#v", rpc.key)
 	}
 }

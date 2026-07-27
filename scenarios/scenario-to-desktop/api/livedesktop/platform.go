@@ -2,7 +2,6 @@ package livedesktop
 
 import (
 	"context"
-
 	"scenario-to-desktop-api/procmetrics"
 )
 

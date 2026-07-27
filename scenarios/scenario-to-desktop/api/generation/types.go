@@ -36,7 +36,7 @@ type DesktopConfig struct {
 	ExternalAPIURL    string `json:"external_api_url"`
 
 	// Template configuration
-	Framework    string `json:"framework" validate:"required,oneof=electron tauri neutralino"`
+	Framework    string `json:"framework" validate:"required,oneof=electron"`
 	TemplateType string `json:"template_type" validate:"required,oneof=basic advanced multi_window kiosk"`
 
 	// Features
@@ -208,7 +208,7 @@ type GenerateResponse struct {
 	// Deprecated: Use PipelineID instead. Will be removed in a future release.
 	BuildID string `json:"build_id"`
 	// PipelineID is the canonical identifier for tracking this build.
-	// Use this with /api/v1/pipeline/{id} endpoints for status and task spawning.
+	// Use PipelineService.Get with PipelineID for status and task spawning.
 	PipelineID          string            `json:"pipeline_id"`
 	Status              string            `json:"status"`
 	ScenarioName        string            `json:"scenario_name,omitempty"`

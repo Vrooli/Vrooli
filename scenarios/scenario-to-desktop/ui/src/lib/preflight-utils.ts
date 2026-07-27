@@ -25,12 +25,12 @@ export function formatDuration(ms: number): string {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   if (hours > 0) {
-    return `${hours}h ${minutes}m`;
+    return `${String(hours)}h ${String(minutes)}m`;
   }
   if (minutes > 0) {
-    return `${minutes}m ${seconds}s`;
+    return `${String(minutes)}m ${String(seconds)}s`;
   }
-  return `${seconds}s`;
+  return `${String(seconds)}s`;
 }
 
 /**
@@ -73,7 +73,7 @@ export function formatBytes(value?: number): string {
     return "";
   }
   if (value < 1024) {
-    return `${value} B`;
+    return `${String(value)} B`;
   }
   const kb = value / 1024;
   if (kb < 1024) {
@@ -118,7 +118,7 @@ export function getListenURL(detail?: string): string | null {
   if (!Number.isFinite(port) || port <= 0) {
     return null;
   }
-  return `http://localhost:${port}`;
+  return `http://localhost:${String(port)}`;
 }
 
 export type ServiceURLResult = {
@@ -138,7 +138,7 @@ export type ServiceURLResult = {
 export function getServiceURL(
   serviceId: string,
   ports?: Record<string, Record<string, number>>,
-  preferredPortName?: string
+  preferredPortName?: string,
 ): ServiceURLResult {
   if (!ports) {
     return null;
@@ -150,7 +150,11 @@ export function getServiceURL(
   if (preferredPortName) {
     const port = portMap[preferredPortName];
     if (port !== undefined && Number.isFinite(port) && port > 0) {
-      return { url: `http://localhost:${port}`, port, portName: preferredPortName };
+      return {
+        url: `http://localhost:${String(port)}`,
+        port,
+        portName: preferredPortName,
+      };
     }
     return null;
   }
@@ -167,7 +171,7 @@ export function getServiceURL(
   if (port === undefined || !Number.isFinite(port) || port <= 0) {
     return null;
   }
-  return { url: `http://localhost:${port}`, port, portName };
+  return { url: `http://localhost:${String(port)}`, port, portName };
 }
 
 // ============================================================================
@@ -183,7 +187,10 @@ export type ManifestHealthConfig = {
 /**
  * Extract health check configuration from a bundle manifest for a specific service.
  */
-export function getManifestHealthConfig(manifest: unknown, serviceId: string): ManifestHealthConfig | null {
+export function getManifestHealthConfig(
+  manifest: unknown,
+  serviceId: string,
+): ManifestHealthConfig | null {
   if (!manifest || typeof manifest !== "object") {
     return null;
   }
@@ -197,13 +204,20 @@ export function getManifestHealthConfig(manifest: unknown, serviceId: string): M
     }
     const id = (entry as { id?: unknown }).id;
     return typeof id === "string" && id === serviceId;
-  }) as { health?: { type?: unknown; path?: unknown; port_name?: unknown } } | undefined;
+  }) as
+    | { health?: { type?: unknown; path?: unknown; port_name?: unknown } }
+    | undefined;
   if (!service || !service.health || typeof service.health !== "object") {
     return null;
   }
-  const type = typeof service.health.type === "string" ? service.health.type : undefined;
-  const path = typeof service.health.path === "string" ? service.health.path : undefined;
-  const portName = typeof service.health.port_name === "string" ? service.health.port_name : undefined;
+  const type =
+    typeof service.health.type === "string" ? service.health.type : undefined;
+  const path =
+    typeof service.health.path === "string" ? service.health.path : undefined;
+  const portName =
+    typeof service.health.port_name === "string"
+      ? service.health.port_name
+      : undefined;
   return { type, path, portName };
 }
 
@@ -226,14 +240,16 @@ export function normalizeHealthPath(path?: string): string | null {
  * Generate a summary string of all service ports.
  * Format: "service1(name1:port1, name2:port2) · service2(name3:port3)"
  */
-export function formatPortSummary(ports?: Record<string, Record<string, number>>): string {
+export function formatPortSummary(
+  ports?: Record<string, Record<string, number>>,
+): string {
   if (!ports) {
     return "";
   }
   return Object.entries(ports)
     .map(([svc, portMap]) => {
       const pairs = Object.entries(portMap)
-        .map(([name, port]) => `${name}:${port}`)
+        .map(([name, port]) => `${name}:${String(port)}`)
         .join(", ");
       return `${svc}(${pairs})`;
     })
@@ -264,15 +280,15 @@ export function detectLikelyRootMismatch(
   validationValid: boolean | undefined,
   missingAssetsCount: number,
   missingBinariesCount: number,
-  bundleManifestPath: string
+  bundleManifestPath: string,
 ): boolean {
-  const hasMissingArtifacts = Boolean(
-    validationValid === false && (missingAssetsCount > 0 || missingBinariesCount > 0)
-  );
+  const hasMissingArtifacts =
+    validationValid === false &&
+    (missingAssetsCount > 0 || missingBinariesCount > 0);
   const normalizedPath = bundleManifestPath.split("\\").join("/");
-  return Boolean(
+  return (
     hasMissingArtifacts &&
-    bundleManifestPath.trim() &&
+    bundleManifestPath.trim().length > 0 &&
     !normalizedPath.includes("/vrooli/scenario-to-desktop/staging/")
   );
 }

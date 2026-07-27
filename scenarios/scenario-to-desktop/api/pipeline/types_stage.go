@@ -140,36 +140,3 @@ type ProcessDiagnosticInfo struct {
 	RuntimeMs  int64  `json:"runtime_ms,omitempty"`
 	LastOutput string `json:"last_output,omitempty"`
 }
-
-// RunRequest is the HTTP request body for starting a pipeline.
-type RunRequest struct {
-	Config
-	VersionUpdate *VersionUpdateRequest `json:"version_update,omitempty"`
-}
-
-// RunResponse is the HTTP response for starting a pipeline.
-type RunResponse struct {
-	PipelineID string `json:"pipeline_id"`
-	StatusURL  string `json:"status_url"`
-	Message    string `json:"message,omitempty"`
-}
-
-// CancelResponse is the HTTP response for cancelling a pipeline.
-type CancelResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message,omitempty"`
-}
-
-// ResumeResponse is the HTTP response for resuming a pipeline.
-type ResumeResponse struct {
-	PipelineID       string `json:"pipeline_id"`
-	ParentPipelineID string `json:"parent_pipeline_id"`
-	StatusURL        string `json:"status_url"`
-	ResumeFromStage  string `json:"resume_from_stage"`
-	Message          string `json:"message,omitempty"`
-}
-
-// ListResponse is the HTTP response for listing pipelines.
-type ListResponse struct {
-	Pipelines []*Status `json:"pipelines"`
-}

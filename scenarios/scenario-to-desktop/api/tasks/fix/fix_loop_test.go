@@ -2,12 +2,11 @@ package fix
 
 import (
 	"context"
+	"scenario-to-desktop-api/domain"
+	"scenario-to-desktop-api/tasks/shared"
 	"strings"
 	"testing"
 	"time"
-
-	"scenario-to-desktop-api/domain"
-	"scenario-to-desktop-api/tasks/shared"
 )
 
 // =============================================================================

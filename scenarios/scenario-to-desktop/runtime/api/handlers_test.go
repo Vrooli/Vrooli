@@ -513,4 +513,3 @@ func TestHandleLogs(t *testing.T) {
 		}
 	})
 }
-

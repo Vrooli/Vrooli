@@ -2,10 +2,9 @@ package smoketest
 
 import (
 	"fmt"
+	"scenario-to-desktop-api/shared/errors"
 	"strings"
 	"time"
-
-	"scenario-to-desktop-api/shared/errors"
 )
 
 func (s *DefaultService) processResults(smokeTestID, scenarioName, platform, artifactPath, displayCommand string, execResult *ExecutionResult, execErr error) {

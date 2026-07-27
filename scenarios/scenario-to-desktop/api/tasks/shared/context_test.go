@@ -1,10 +1,9 @@
 package shared
 
 import (
+	"scenario-to-desktop-api/pipeline"
 	"strings"
 	"testing"
-
-	"scenario-to-desktop-api/pipeline"
 )
 
 // --- Test helpers ---

@@ -177,7 +177,9 @@ describe("getListenURL", () => {
   });
 
   it("handles messages with surrounding text", () => {
-    expect(getListenURL("Server is listening on 5000 now")).toBe("http://localhost:5000");
+    expect(getListenURL("Server is listening on 5000 now")).toBe(
+      "http://localhost:5000",
+    );
   });
 
   it("returns null for messages without port", () => {
@@ -195,8 +197,8 @@ describe("getServiceURL", () => {
   const ports = {
     "web-app": { ui: 3000, api: 4000 },
     "api-server": { http: 8080 },
-    "worker": { debug: 9229 },
-    "invalid": { broken: -1 },
+    worker: { debug: 9229 },
+    invalid: { broken: -1 },
   };
 
   it("returns null for undefined ports", () => {
@@ -384,16 +386,22 @@ describe("getBundleRootFromManifestPath", () => {
   });
 
   it("removes filename from Unix paths", () => {
-    expect(getBundleRootFromManifestPath("/home/user/bundle/manifest.yaml")).toBe("/home/user/bundle");
+    expect(
+      getBundleRootFromManifestPath("/home/user/bundle/manifest.yaml"),
+    ).toBe("/home/user/bundle");
   });
 
   it("removes filename from Windows paths", () => {
-    expect(getBundleRootFromManifestPath("C:\\Users\\user\\bundle\\manifest.yaml")).toBe("C:\\Users\\user\\bundle");
+    expect(
+      getBundleRootFromManifestPath("C:\\Users\\user\\bundle\\manifest.yaml"),
+    ).toBe("C:\\Users\\user\\bundle");
   });
 
   it("handles paths without directory", () => {
     // When there's no directory separator, the regex doesn't match and returns the original
-    expect(getBundleRootFromManifestPath("manifest.yaml")).toBe("manifest.yaml");
+    expect(getBundleRootFromManifestPath("manifest.yaml")).toBe(
+      "manifest.yaml",
+    );
   });
 });
 
@@ -408,12 +416,33 @@ describe("detectLikelyRootMismatch", () => {
   });
 
   it("returns false when path includes staging directory", () => {
-    expect(detectLikelyRootMismatch(false, 1, 0, "/path/vrooli/scenario-to-desktop/staging/manifest.yaml")).toBe(false);
+    expect(
+      detectLikelyRootMismatch(
+        false,
+        1,
+        0,
+        "/path/vrooli/scenario-to-desktop/staging/manifest.yaml",
+      ),
+    ).toBe(false);
   });
 
   it("returns true when artifacts missing and path is not staging", () => {
-    expect(detectLikelyRootMismatch(false, 1, 0, "/home/user/my-bundle/manifest.yaml")).toBe(true);
-    expect(detectLikelyRootMismatch(false, 0, 1, "/home/user/my-bundle/manifest.yaml")).toBe(true);
+    expect(
+      detectLikelyRootMismatch(
+        false,
+        1,
+        0,
+        "/home/user/my-bundle/manifest.yaml",
+      ),
+    ).toBe(true);
+    expect(
+      detectLikelyRootMismatch(
+        false,
+        0,
+        1,
+        "/home/user/my-bundle/manifest.yaml",
+      ),
+    ).toBe(true);
   });
 
   it("returns false for empty path", () => {

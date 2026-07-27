@@ -2,38 +2,38 @@
 package telemetry
 
 import (
-	"encoding/json"
-	"flag"
-	"fmt"
-	"os"
-	"strings"
+	"context"
 
 	"scenario-to-desktop/cli/internal/support"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
 )
 
 // Commands provides telemetry CLI commands.
 type Commands struct {
 	deps support.Dependencies
+	rpc  telemetryRPC
 }
 
 // New creates a new telemetry Commands instance.
 func New(deps support.Dependencies) *Commands {
-	return &Commands{deps: deps}
+	return &Commands{deps: deps, rpc: newTelemetryRPC(deps.ScenarioApp())}
 }
 
-func (c *Commands) apiGet(path string, query map[string]string) ([]byte, error) {
-	return c.deps.Get(path, query)
+type telemetryRPC interface {
+	IngestTelemetry(context.Context, *connect.Request[domainv1.IngestTelemetryRequest]) (*connect.Response[domainv1.IngestTelemetryResponse], error)
+	GetTelemetrySummary(context.Context, *connect.Request[domainv1.TelemetryScenarioRequest]) (*connect.Response[domainv1.TelemetryPayloadResponse], error)
+	GetTelemetryInsights(context.Context, *connect.Request[domainv1.TelemetryScenarioRequest]) (*connect.Response[domainv1.TelemetryPayloadResponse], error)
+	GetTelemetryTail(context.Context, *connect.Request[domainv1.TelemetryTailRequest]) (*connect.Response[domainv1.TelemetryPayloadResponse], error)
+	DeleteTelemetry(context.Context, *connect.Request[domainv1.TelemetryScenarioRequest]) (*connect.Response[domainv1.TelemetryDeleteResponse], error)
 }
 
-func (c *Commands) apiPost(path string, body interface{}) ([]byte, error) {
-	return c.deps.Request("POST", path, nil, body)
-}
-
-func (c *Commands) apiDelete(path string) ([]byte, error) {
-	return c.deps.Request("DELETE", path, nil, nil)
+func newTelemetryRPC(app *cliapp.ScenarioApp) telemetryRPC {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(app)
+	return domainconnect.NewTelemetryServiceClient(httpClient, baseURL)
 }
 
 func Register(deps support.Dependencies) cliapp.SubcommandGroup {
@@ -43,222 +43,34 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Description: "Deployment telemetry (run 'telemetry help' for details)",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "ingest", Description: "Ingest telemetry from file: ingest <scenario> --file <path>", Run: cmds.Ingest},
-			{Name: "summary", Description: "Get telemetry summary: summary <scenario>", Run: cmds.Summary},
-			{Name: "insights", Description: "Get AI-generated insights: insights <scenario>", Run: cmds.Insights},
-			{Name: "tail", Description: "Get recent telemetry: tail <scenario> [--limit N]", Run: cmds.Tail},
-			{Name: "download", Description: "Download telemetry file: download <scenario> [--output <path>]", Run: cmds.Download},
-			{Name: "delete", Description: "Delete telemetry: delete <scenario>", Run: cmds.Delete},
+			(cliapp.Command{Name: "ingest", Description: "Ingest telemetry from file: ingest <scenario> --file <path>", Args: telemetryScenarioArgs("file", "source")}).WithPrimitive(cmds.ingestPrimitive()),
+			(cliapp.Command{Name: "summary", Description: "Get telemetry summary: summary <scenario>", Args: telemetryScenarioArgs()}).WithPrimitive(cmds.summaryPrimitive()),
+			(cliapp.Command{Name: "insights", Description: "Get AI-generated insights: insights <scenario>", Args: telemetryScenarioArgs()}).WithPrimitive(cmds.insightsPrimitive()),
+			(cliapp.Command{Name: "tail", Description: "Get recent telemetry: tail <scenario> [--limit N]", Args: telemetryScenarioArgs("limit")}).WithPrimitive(cmds.tailPrimitive()),
+			(cliapp.Command{Name: "download", Description: "Download telemetry file: download <scenario> [--output <path>]", Args: telemetryScenarioArgs("output")}).WithPrimitive(cmds.downloadPrimitive()),
+			(cliapp.Command{Name: "delete", Description: "Delete telemetry: delete <scenario>", Args: telemetryScenarioArgs()}).WithPrimitive(cmds.deletePrimitive()),
 		},
 	}
 }
 
-// Ingest ingests telemetry from file.
-func (c *Commands) Ingest(args []string) error {
-	fs := flag.NewFlagSet("telemetry-ingest", flag.ContinueOnError)
-	filePath := fs.String("file", "", "Path to telemetry JSONL file")
-	source := fs.String("source", "cli", "Source identifier")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 || *filePath == "" {
-		return fmt.Errorf("usage: telemetry-ingest <scenario> --file <path>")
-	}
-
-	scenario := fs.Args()[0]
-
-	// Read file
-	data, err := os.ReadFile(*filePath)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Parse JSONL lines into events
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	events := make([]map[string]interface{}, 0, len(lines))
-	for _, line := range lines {
-		if line == "" {
-			continue
+func telemetryScenarioArgs(flags ...string) cliapp.ArgSchema {
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true, Description: "Scenario name"}}}
+	for _, name := range flags {
+		flag := cliapp.Flag{Name: name}
+		switch name {
+		case "file":
+			flag.Required = true
+			flag.Description = "Path to telemetry JSONL file"
+		case "source":
+			flag.Default = "cli"
+			flag.Description = "Telemetry source identifier"
+		case "limit":
+			flag.Default = "200"
+			flag.Description = "Maximum entries to return"
+		case "output":
+			flag.Description = "Write raw JSONL to this file instead of reporting it"
 		}
-		var event map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			continue
-		}
-		events = append(events, event)
+		schema.Flags = append(schema.Flags, flag)
 	}
-
-	if len(events) == 0 {
-		return fmt.Errorf("no valid events found in file")
-	}
-
-	req := map[string]interface{}{
-		"scenario_name": scenario,
-		"source":        *source,
-		"events":        events,
-	}
-
-	body, err := c.apiPost("/deployment/telemetry", req)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	var resp struct {
-		Status         string `json:"status"`
-		EventsIngested int    `json:"events_ingested"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Printf("Ingested %d events for %s\n", resp.EventsIngested, scenario)
-	return nil
-}
-
-// Summary gets telemetry summary.
-func (c *Commands) Summary(args []string) error {
-	fs := flag.NewFlagSet("telemetry-summary", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: telemetry-summary <scenario>")
-	}
-
-	scenario := fs.Args()[0]
-	body, err := c.apiGet("/deployment/telemetry/"+scenario+"/summary", nil)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	cliutil.PrintJSON(body)
-	return nil
-}
-
-// Insights gets telemetry insights.
-func (c *Commands) Insights(args []string) error {
-	fs := flag.NewFlagSet("telemetry-insights", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: telemetry-insights <scenario>")
-	}
-
-	scenario := fs.Args()[0]
-	body, err := c.apiGet("/deployment/telemetry/"+scenario+"/insights", nil)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	cliutil.PrintJSON(body)
-	return nil
-}
-
-// Tail gets recent telemetry.
-func (c *Commands) Tail(args []string) error {
-	fs := flag.NewFlagSet("telemetry-tail", flag.ContinueOnError)
-	limit := fs.Int("limit", 200, "Number of entries to return")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: telemetry-tail <scenario> [--limit N]")
-	}
-
-	scenario := fs.Args()[0]
-	query := map[string]string{"limit": fmt.Sprintf("%d", *limit)}
-
-	body, err := c.apiGet("/deployment/telemetry/"+scenario+"/tail", query)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	cliutil.PrintJSON(body)
-	return nil
-}
-
-// Download downloads telemetry file.
-func (c *Commands) Download(args []string) error {
-	fs := flag.NewFlagSet("telemetry-download", flag.ContinueOnError)
-	output := fs.String("output", "", "Output file path (default: stdout)")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: telemetry-download <scenario> [--output <path>]")
-	}
-
-	scenario := fs.Args()[0]
-	body, err := c.apiGet("/deployment/telemetry/"+scenario+"/download", nil)
-	if err != nil {
-		return err
-	}
-
-	if *output != "" {
-		if err := os.WriteFile(*output, body, 0o644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
-		}
-		fmt.Printf("Downloaded to %s\n", *output)
-		return nil
-	}
-
-	fmt.Println(string(body))
-	return nil
-}
-
-// Delete deletes telemetry.
-func (c *Commands) Delete(args []string) error {
-	fs := flag.NewFlagSet("telemetry-delete", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: telemetry-delete <scenario>")
-	}
-
-	scenario := fs.Args()[0]
-	body, err := c.apiDelete("/deployment/telemetry/" + scenario)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Printf("Telemetry deleted for %s\n", scenario)
-	return nil
+	return schema
 }

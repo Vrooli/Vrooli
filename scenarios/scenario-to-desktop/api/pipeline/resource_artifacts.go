@@ -168,53 +168,14 @@ func resolveResourceForTarget(root, requested, candidate string, alternatives []
 	if err != nil {
 		return ResourceDeploymentPlanItem{}, false, fmt.Errorf("load deployment contract for resource %q: %w", candidate, err)
 	}
-	target, found := manifest.Deployment.ResolveTarget("desktop", platform)
-	if found && target.Support != "unsupported" {
-		item := ResourceDeploymentPlanItem{RequestedResource: requested, Resource: candidate, OS: platform.OS, Architecture: platform.Arch, Mode: target.Mode, Support: target.Support, Requires: target.Requires, Limitations: target.Limitations, Evidence: target.Evidence}
-		bundled := strings.HasPrefix(target.Mode, "bundled-")
-		if bundled {
-			if manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact" {
-				return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resource %s uses %s but has no prebuilt artifact contract", candidate, target.Mode)
-			}
-			artifact, err := resourcedeployment.ArtifactName(manifest.CLI.Distribution.ArtifactName, platform.OS, platform.Arch)
-			if err != nil {
-				return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resolve artifact for %s: %w", candidate, err)
-			}
-			item.Artifact = artifact
-			if target.Mode == "bundled-service" {
-				if manifest.ManagedService == nil {
-					return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resource %s uses bundled-service but has no managed_service contract", candidate)
-				}
-				if err := manifest.ManagedService.ProviderPolicy.ValidateManagedServiceTargets(); err != nil {
-					return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resource %s has an invalid managed-service provider policy: %w", candidate, err)
-				}
-				serviceArtifact, err := manifest.ManagedService.Artifact.ForPlatform(platform.OS, platform.Arch)
-				if err != nil {
-					return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resolve managed-service artifact for %s: %w", candidate, err)
-				}
-				serviceName, err := serviceArtifact.BundleArtifactForPlatform(platform.OS, platform.Arch)
-				if err != nil {
-					return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resolve bundled service artifact for %s: %w", candidate, err)
-				}
-				item.Service = &ResourceDeploymentService{
-					ProviderPolicy: manifest.ManagedService.ProviderPolicy,
-					Artifact:       serviceName,
-					Version:        serviceArtifact.Version,
-					SHA256:         serviceArtifact.SHA256,
-					Arguments:      append([]string(nil), manifest.ManagedService.Arguments...),
-					Environment:    cloneServiceEnvironment(manifest.ManagedService.Environment),
-					Config:         cloneServiceConfig(manifest.ManagedService.Config),
-					Ports:          append([]ResourceDeploymentServicePort(nil), manifest.Ports...),
-					HealthChecks:   append([]ResourceDeploymentHealthCheck(nil), manifest.HealthChecks...),
-				}
-			}
-		}
+	item, bundled, applicable, err := resourcePlanItem(requested, candidate, &manifest, platform)
+	if err != nil {
+		return ResourceDeploymentPlanItem{}, false, err
+	}
+	if applicable {
 		return item, bundled, nil
 	}
-	reason := "no desktop deployment profile covers this OS/architecture"
-	if found && target.Reason != "" {
-		reason = target.Reason
-	}
+	reason := unsupportedResourceReason(&manifest, platform)
 	for _, fallback := range alternatives {
 		if fallback == candidate {
 			continue
@@ -226,6 +187,67 @@ func resolveResourceForTarget(root, requested, candidate string, alternatives []
 		}
 	}
 	return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resource %s cannot deploy on %s: %s", requested, platform.String(), reason)
+}
+
+func resourcePlanItem(requested, candidate string, manifest *resourceArtifactManifest, platform resourcedeployment.Platform) (ResourceDeploymentPlanItem, bool, bool, error) {
+	target, found := manifest.Deployment.ResolveTarget("desktop", platform)
+	if !found || target.Support == "unsupported" {
+		return ResourceDeploymentPlanItem{}, false, false, nil
+	}
+	item := ResourceDeploymentPlanItem{RequestedResource: requested, Resource: candidate, OS: platform.OS, Architecture: platform.Arch, Mode: target.Mode, Support: target.Support, Requires: target.Requires, Limitations: target.Limitations, Evidence: target.Evidence}
+	if !strings.HasPrefix(target.Mode, "bundled-") {
+		return item, false, true, nil
+	}
+	if err := addBundledResourceArtifacts(&item, candidate, target.Mode, manifest, platform); err != nil {
+		return ResourceDeploymentPlanItem{}, false, false, err
+	}
+	return item, true, true, nil
+}
+
+func unsupportedResourceReason(manifest *resourceArtifactManifest, platform resourcedeployment.Platform) string {
+	target, found := manifest.Deployment.ResolveTarget("desktop", platform)
+	if found && target.Reason != "" {
+		return target.Reason
+	}
+	return "no desktop deployment profile covers this OS/architecture"
+}
+
+func addBundledResourceArtifacts(item *ResourceDeploymentPlanItem, candidate, mode string, manifest *resourceArtifactManifest, platform resourcedeployment.Platform) error {
+	if manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact" {
+		return fmt.Errorf("resource %s uses %s but has no prebuilt artifact contract", candidate, mode)
+	}
+	artifact, err := resourcedeployment.ArtifactName(manifest.CLI.Distribution.ArtifactName, platform.OS, platform.Arch)
+	if err != nil {
+		return fmt.Errorf("resolve artifact for %s: %w", candidate, err)
+	}
+	item.Artifact = artifact
+	if mode != "bundled-service" {
+		return nil
+	}
+	service, err := bundledServicePlan(manifest, candidate, platform)
+	if err != nil {
+		return err
+	}
+	item.Service = service
+	return nil
+}
+
+func bundledServicePlan(manifest *resourceArtifactManifest, candidate string, platform resourcedeployment.Platform) (*ResourceDeploymentService, error) {
+	if manifest.ManagedService == nil {
+		return nil, fmt.Errorf("resource %s uses bundled-service but has no managed_service contract", candidate)
+	}
+	if err := manifest.ManagedService.ProviderPolicy.ValidateManagedServiceTargets(); err != nil {
+		return nil, fmt.Errorf("resource %s has an invalid managed-service provider policy: %w", candidate, err)
+	}
+	artifact, err := manifest.ManagedService.Artifact.ForPlatform(platform.OS, platform.Arch)
+	if err != nil {
+		return nil, fmt.Errorf("resolve managed-service artifact for %s: %w", candidate, err)
+	}
+	name, err := artifact.BundleArtifactForPlatform(platform.OS, platform.Arch)
+	if err != nil {
+		return nil, fmt.Errorf("resolve bundled service artifact for %s: %w", candidate, err)
+	}
+	return &ResourceDeploymentService{ProviderPolicy: manifest.ManagedService.ProviderPolicy, Artifact: name, Version: artifact.Version, SHA256: artifact.SHA256, Arguments: append([]string(nil), manifest.ManagedService.Arguments...), Environment: cloneServiceEnvironment(manifest.ManagedService.Environment), Config: cloneServiceConfig(manifest.ManagedService.Config), Ports: append([]ResourceDeploymentServicePort(nil), manifest.Ports...), HealthChecks: append([]ResourceDeploymentHealthCheck(nil), manifest.HealthChecks...)}, nil
 }
 
 func cloneServiceConfig(config *resourcedeployment.ServiceConfig) *resourcedeployment.ServiceConfig {
@@ -448,6 +470,7 @@ func sha256File(path string) (string, error) {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:]), nil
 }
+
 func copyArtifact(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {

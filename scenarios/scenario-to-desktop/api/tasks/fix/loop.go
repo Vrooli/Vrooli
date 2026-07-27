@@ -1,14 +1,12 @@
 package fix
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"time"
-
 	"scenario-to-desktop-api/domain"
+	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/tasks/shared"
+	"time"
 )
 
 // LoopConfig configures the iterative fix loop.
@@ -89,43 +87,12 @@ func (s *LoopState) ToJSON() ([]byte, error) {
 	return json.Marshal(state)
 }
 
-// CheckBuildArtifacts verifies that build artifacts exist.
-func CheckBuildArtifacts(ctx context.Context, pipelineAPIURL, pipelineID string, timeout time.Duration) (bool, error) {
-	if pipelineAPIURL == "" || pipelineID == "" {
-		return false, nil // Can't check, skip
-	}
-
-	client := &http.Client{
-		Timeout: timeout,
-	}
-
-	url := fmt.Sprintf("%s/api/v1/pipeline/%s", pipelineAPIURL, pipelineID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return false, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, nil // Connection error = not available, not an error
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return false, nil
-	}
-
-	// Parse response to check for artifacts
-	var status struct {
-		Status         string            `json:"status"`
-		FinalArtifacts map[string]string `json:"final_artifacts"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
-		return false, nil
-	}
-
-	// Check if status is completed and artifacts exist
-	return status.Status == "completed" && len(status.FinalArtifacts) > 0, nil
+// CheckBuildArtifacts verifies the authoritative in-process pipeline state.
+// The task worker and pipeline orchestrator share a domain store, so routing
+// this through the server's retired REST API would add an unnecessary and
+// failure-prone transport hop.
+func CheckBuildArtifacts(status *pipeline.Status) bool {
+	return status != nil && status.Status == pipeline.StatusCompleted && len(status.FinalArtifacts) > 0
 }
 
 // TerminationReason provides human-readable termination messages.

@@ -27,7 +27,11 @@ export function createWrapper() {
     },
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   };
 }
 
@@ -40,7 +44,7 @@ export const localStorageMock = (() => {
       store[key] = value;
     }),
     removeItem: vi.fn((key: string) => {
-      delete store[key];
+      Reflect.deleteProperty(store, key);
     }),
     clear: vi.fn(() => {
       store = {};

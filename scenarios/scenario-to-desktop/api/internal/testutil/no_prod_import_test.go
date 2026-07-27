@@ -26,9 +26,15 @@ func TestNoProductionImports(t *testing.T) {
 			}
 			t.Fatalf("decode go list package: %v", err)
 		}
+		if strings.HasPrefix(pkg.ImportPath, prefix) {
+			continue
+		}
 		for _, imported := range pkg.Imports {
 			if strings.HasPrefix(imported, prefix) {
 				t.Errorf("production package %s imports %s", pkg.ImportPath, imported)
+			}
+			if imported == "testing" || imported == "net/http/httptest" {
+				t.Errorf("production package %s imports test-only package %s", pkg.ImportPath, imported)
 			}
 		}
 	}

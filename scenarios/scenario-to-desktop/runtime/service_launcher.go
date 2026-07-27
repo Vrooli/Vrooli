@@ -329,7 +329,10 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	}
 
 	handler := s.buildUIHandler(svc, serveRoot)
-	server := &http.Server{Handler: handler}
+	server := &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 	serverCtx, cancel := context.WithCancel(ctx)
 
 	svcProc := &serviceProcess{
@@ -347,7 +350,7 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	}()
 	go func() {
 		<-serverCtx.Done()
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(serverCtx), 3*time.Second)
 		defer shutdownCancel()
 		_ = server.Shutdown(shutdownCtx)
 	}()

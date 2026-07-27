@@ -7,14 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"scenario-to-desktop-api/procmetrics"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/procmetrics"
 )
 
 func newTestHandler() (*Handler, *Service) {

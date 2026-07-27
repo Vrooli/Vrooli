@@ -8,7 +8,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@/test-utils";
 import { createRef } from "react";
-import { useSidebarStore, SECTION_IDS, type SectionId } from "../../store/sidebarStore";
+import {
+  useSidebarStore,
+  SECTION_IDS,
+  type SectionId,
+} from "../../store/sidebarStore";
 
 // Mock the responsive hook — default to desktop
 const mockUseIsMobile = vi.fn(() => false);
@@ -20,9 +24,18 @@ vi.mock("../../hooks/useMediaQuery", () => ({
 
 // Mock PipelineSidebar and MobilePipelineSummary to keep tests focused on layout
 vi.mock("./PipelineSidebar", () => ({
-  PipelineSidebar: ({ onSectionClick }: { onSectionClick: (s: string) => void }) => (
+  PipelineSidebar: ({
+    onSectionClick,
+  }: {
+    onSectionClick: (s: string) => void;
+  }) => (
     <div data-testid="pipeline-sidebar">
-      <button type="button" onClick={() => onSectionClick("build")}>
+      <button
+        type="button"
+        onClick={() => {
+          onSectionClick("build");
+        }}
+      >
         Go to build
       </button>
     </div>
@@ -40,7 +53,10 @@ vi.mock("./MobilePipelineSummary", () => ({
 // Lazy import so mocks are resolved first
 const { GeneratorLayout } = await import("./GeneratorLayout");
 
-function buildSectionRefs(): Record<SectionId, React.RefObject<HTMLDivElement>> {
+function buildSectionRefs(): Record<
+  SectionId,
+  React.RefObject<HTMLDivElement>
+> {
   const refs = {} as Record<SectionId, React.RefObject<HTMLDivElement>>;
   for (const id of SECTION_IDS) {
     refs[id] = createRef<HTMLDivElement>();
@@ -53,7 +69,7 @@ function renderLayout() {
   return render(
     <GeneratorLayout sectionRefs={refs}>
       <div data-testid="main-content">Hello</div>
-    </GeneratorLayout>
+    </GeneratorLayout>,
   );
 }
 

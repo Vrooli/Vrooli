@@ -2,11 +2,10 @@ package generation
 
 import (
 	"bytes"
+	"scenario-to-desktop-api/signing/types"
 	"sort"
 	"strings"
 	"text/template"
-
-	"scenario-to-desktop-api/signing/types"
 )
 
 // EntitlementKey represents a macOS entitlement key.

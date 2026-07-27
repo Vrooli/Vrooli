@@ -2,13 +2,33 @@ package tasks
 
 import (
 	"context"
-	"strings"
-	"testing"
-
 	"scenario-to-desktop-api/domain"
+	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/tasks/fix"
 	"scenario-to-desktop-api/tasks/shared"
+	"strings"
+	"testing"
+	"time"
 )
+
+func TestShutdownCancelsActiveWorkersAndRejectsNewTasks(t *testing.T) {
+	svc, _, pipelineStore, _, _ := newTestService()
+	pipelineStore.statuses["pipe-1"] = &pipeline.Status{PipelineID: "pipe-1"}
+
+	if _, err := svc.TriggerTask(context.Background(), validInvestigateRequest("pipe-1")); err != nil {
+		t.Fatalf("TriggerTask() error = %v", err)
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := svc.Shutdown(shutdownCtx); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+
+	if _, err := svc.TriggerTask(context.Background(), validInvestigateRequest("pipe-1")); err == nil || !strings.Contains(err.Error(), "shutting down") {
+		t.Fatalf("TriggerTask() after Shutdown() error = %v, want shutdown rejection", err)
+	}
+}
 
 // --- StopTask tests ---
 

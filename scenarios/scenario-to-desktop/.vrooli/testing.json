@@ -4,6 +4,18 @@
     "description": "Testing configuration for scenario-to-desktop",
     "last_updated": "2025-11-06T23:58:55-05:00"
   },
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
+    }
+  },
   "version": "1.0.0",
   "unit": {
     "options": {
@@ -33,6 +45,16 @@
             "surface_id": "cli",
             "kind": "cli",
             "path": "cli",
+            "language": "go"
+          }
+        },
+        {
+          "role": "runtime",
+          "policy_class": "go_runtime",
+          "match": {
+            "surface_id": "runtime",
+            "kind": "runtime",
+            "path": "runtime",
             "language": "go"
           }
         },
@@ -87,6 +109,26 @@
             "required_files": [
               "cli/app_test.go",
               "cli/internal/testutil/no_prod_import_test.go"
+            ]
+          }
+        },
+        "go_runtime": {
+          "language": "go",
+          "framework": "go test",
+          "package_manager": "go",
+          "coverage": {
+            "minimum_percent": 75,
+            "mode": "total"
+          },
+          "test_utils": {
+            "required_roots": [
+              "runtime/testutil"
+            ],
+            "production_import_ban": true
+          },
+          "projection": {
+            "required_files": [
+              "runtime/internal/testutil/no_prod_import_test.go"
             ]
           }
         },

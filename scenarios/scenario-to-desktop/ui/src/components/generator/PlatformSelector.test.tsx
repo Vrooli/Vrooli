@@ -16,7 +16,7 @@ describe("PlatformSelector", () => {
       <PlatformSelector
         platforms={defaultPlatforms}
         onPlatformChange={onPlatformChange}
-      />
+      />,
     );
 
     expect(screen.getByText("Target Platforms")).toBeInTheDocument();
@@ -31,7 +31,7 @@ describe("PlatformSelector", () => {
       <PlatformSelector
         platforms={{ win: true, mac: false, linux: true }}
         onPlatformChange={onPlatformChange}
-      />
+      />,
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
@@ -46,7 +46,7 @@ describe("PlatformSelector", () => {
       <PlatformSelector
         platforms={defaultPlatforms}
         onPlatformChange={onPlatformChange}
-      />
+      />,
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
@@ -63,7 +63,7 @@ describe("PlatformSelector", () => {
       <PlatformSelector
         platforms={defaultPlatforms}
         onPlatformChange={onPlatformChange}
-      />
+      />,
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
@@ -80,7 +80,7 @@ describe("PlatformSelector", () => {
       <PlatformSelector
         platforms={defaultPlatforms}
         onPlatformChange={onPlatformChange}
-      />
+      />,
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
@@ -97,7 +97,7 @@ describe("PlatformSelector", () => {
       <PlatformSelector
         platforms={{ win: true, mac: true, linux: true }}
         onPlatformChange={onPlatformChange}
-      />
+      />,
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
@@ -114,7 +114,7 @@ describe("PlatformSelector", () => {
       <PlatformSelector
         platforms={{ win: true, mac: true, linux: true }}
         onPlatformChange={onPlatformChange}
-      />
+      />,
     );
 
     const checkboxes = screen.getAllByRole("checkbox");

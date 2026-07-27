@@ -45,7 +45,7 @@ Generate a desktop application for a scenario.
 **Flags**:
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--framework` | Desktop framework (electron, tauri, neutralino) | `electron` |
+| `--framework` | Desktop framework (electron) | `electron` |
 | `--template` | Application template type (basic, advanced, kiosk, multi_window) | `basic` |
 | `--platforms` | Target platforms (win, mac, linux or 'all') | `all` |
 | `--output` | Output directory for generated application | — |

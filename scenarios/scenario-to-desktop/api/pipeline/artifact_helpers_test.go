@@ -1,9 +1,8 @@
 package pipeline
 
 import (
-	"testing"
-
 	"scenario-to-desktop-api/build"
+	"testing"
 )
 
 func TestIsArtifactReady(t *testing.T) {

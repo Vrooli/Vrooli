@@ -1,229 +1,262 @@
 {
-  "service": {
-    "name": "scenario-to-desktop",
-    "displayName": "Scenario To Desktop",
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "automation",
-    "tags": [],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/scenario-to-desktop"
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "cli": {
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "command": "scenario-to-desktop",
+    "enabled": true,
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     },
-    "description": "Transform Vrooli scenarios into professional desktop applications using Electron and other frameworks",
-    "version": "1.0.0"
+    "invoke": {
+      "command": "scenario-to-desktop",
+      "kind": "installed_command"
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
   },
-  "version": "1.0.0",
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "range": "15000-19999",
-      "description": "Desktop build API server port"
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "description": "Fallback: File-based template storage",
+        "enabled": false,
+        "purpose": "Store desktop application templates and build history",
+        "required": false,
+        "type": "postgres"
+      },
+      "redis": {
+        "description": "Fallback: Local filesystem caching",
+        "enabled": false,
+        "purpose": "Cache compiled applications and build artifacts",
+        "required": false,
+        "type": "redis"
+      }
     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "range": "20000-24999",
-      "description": "Desktop build UI server port"
+    "scenarios": {
+      "agent-manager": {
+        "config": {
+          "declarations": {
+            "profileMode": "update_if_unmodified",
+            "reconcile": true,
+            "sources": [
+              ".vrooli/agent-manager/default.json"
+            ]
+          }
+        },
+        "description": "Agent orchestration layer for pipeline investigations",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "type": "scenario"
+      },
+      "deployment-manager": {
+        "purpose": "Bundle manifest generation for bundled runtime mode",
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": "\u003e=1.0.0"
+      }
+    }
+  },
+  "generation": {
+    "adopted": true,
+    "content_sha": "532fcf8d6300617b7f2b220739859c7a09615c0990b7d89839bd699f0a44c45d",
+    "generated_at": "2026-07-26T19:20:20Z",
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
     }
   },
   "hostTools": [
     {
       "name": "ffmpeg",
-      "required": false,
-      "reason": "Capture screenshots and assemble desktop smoke-test artifacts on Linux",
-      "when": [
-        "setup",
-        "develop"
-      ],
+      "notes": "Native runtime handler exists; scenario also uses the resource-ffmpeg CLI for recording flows",
       "platforms": [
         "linux"
       ],
-      "notes": "Native runtime handler exists; scenario also uses the resource-ffmpeg CLI for recording flows"
+      "reason": "Capture screenshots and assemble desktop smoke-test artifacts on Linux",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
     },
     {
       "name": "Xvfb",
-      "required": false,
-      "reason": "Provide a virtual X display for Linux smoke tests and live desktop sessions",
-      "when": [
-        "setup",
-        "develop"
-      ],
+      "notes": "Native runtime handler provisions the Linux virtual display dependency when absent",
       "platforms": [
         "linux"
       ],
-      "notes": "Native runtime handler provisions the Linux virtual display dependency when absent"
+      "reason": "Provide a virtual X display for Linux smoke tests and live desktop sessions",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
     },
     {
       "name": "x11vnc",
-      "required": false,
-      "reason": "Expose the Linux virtual desktop over VNC for interactive desktop sessions",
-      "when": [
-        "setup",
-        "develop"
-      ],
+      "notes": "Native runtime handler provisions the Linux VNC bridge when absent",
       "platforms": [
         "linux"
       ],
-      "notes": "Native runtime handler provisions the Linux VNC bridge when absent"
+      "reason": "Expose the Linux virtual desktop over VNC for interactive desktop sessions",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
     },
     {
       "name": "websockify",
-      "required": false,
-      "reason": "Bridge the Linux VNC desktop session to a browser WebSocket endpoint",
-      "when": [
-        "setup",
-        "develop"
-      ],
+      "notes": "Native runtime handler provisions the browser WebSocket bridge when absent",
       "platforms": [
         "linux"
       ],
-      "notes": "Native runtime handler provisions the browser WebSocket bridge when absent"
+      "reason": "Bridge the Linux VNC desktop session to a browser WebSocket endpoint",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
     },
     {
       "name": "openbox",
-      "required": false,
-      "reason": "Provide a lightweight window manager inside the Linux virtual display",
-      "when": [
-        "setup",
-        "develop"
-      ],
+      "notes": "Native runtime handler provisions the lightweight Linux window manager when absent",
       "platforms": [
         "linux"
       ],
-      "notes": "Native runtime handler provisions the lightweight Linux window manager when absent"
+      "reason": "Provide a lightweight window manager inside the Linux virtual display",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
     },
     {
       "name": "xdotool",
-      "required": false,
-      "reason": "Detect and inspect visible X11 windows during desktop smoke tests",
-      "when": [
-        "setup",
-        "develop"
-      ],
+      "notes": "Native runtime handler provisions X11 window inspection tooling when absent",
       "platforms": [
         "linux"
       ],
-      "notes": "Native runtime handler provisions X11 window inspection tooling when absent"
+      "reason": "Detect and inspect visible X11 windows during desktop smoke tests",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
     }
   ],
   "lifecycle": {
+    "develop": {
+      "description": "Start scenario-to-desktop services",
+      "steps": [
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-desktop-api"
+          },
+          "description": "Start Go API server in background",
+          "name": "start-api",
+          "run": "cd api \u0026\u0026 ./scenario-to-desktop-api"
+        },
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Start UI server in background (serves ui/dist production bundle)",
+          "name": "start-ui",
+          "run": "cd ui \u0026\u0026 node server.js"
+        }
+      ]
+    },
     "health": {
+      "checks": [
+        {
+          "critical": true,
+          "interval": 30000,
+          "name": "api_endpoint",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 5000,
+          "type": "http"
+        },
+        {
+          "critical": false,
+          "interval": 45000,
+          "name": "ui_endpoint",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 3000,
+          "type": "http"
+        }
+      ],
       "description": "Scenario to Desktop health check configuration",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
       },
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 45000
-        }
-      ],
-      "timeout": 5000,
       "interval": 30000,
-      "startup_grace_period": 10000
+      "startup_grace_period": 10000,
+      "timeout": 5000
     },
     "setup": {
-      "description": "Initialize scenario-to-desktop",
       "condition": {
         "checks": [
           {
-            "type": "binaries",
             "targets": [
               "api/scenario-to-desktop-api"
-            ]
+            ],
+            "type": "binaries"
           },
           {
-            "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
+            "note": "Vite build output",
             "source_dir": "ui/src",
-            "note": "Vite build output"
+            "type": "ui-bundle"
           },
           {
-            "type": "cli",
             "command": "scenario-to-desktop",
             "targets": [
               "scenario-to-desktop"
-            ]
+            ],
+            "type": "cli"
           },
           {
-            "type": "files",
             "paths": [
               "ui/package.json"
-            ]
+            ],
+            "type": "files"
           }
         ]
       },
+      "description": "Initialize scenario-to-desktop",
       "steps": [
         {
+          "description": "Build Go API binary",
           "name": "build-api",
-          "run": "cd api && go build -o scenario-to-desktop-api .",
-          "description": "Build Go API binary"
+          "run": "cd api \u0026\u0026 go build -o scenario-to-desktop-api ."
         },
         {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace",
+          "condition": {
+            "file_exists": "ui/package.json"
+          },
           "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
+          "name": "install-ui-deps",
+          "run": "cd ui \u0026\u0026 pnpm install --ignore-workspace"
         },
         {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
+          "condition": {
+            "file_exists": "ui/package.json"
+          },
           "description": "Build production UI with Vite",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start scenario-to-desktop services",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-to-desktop-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-to-desktop-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server in background (serves ui/dist production bundle)",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
+          "name": "build-ui",
+          "run": "cd ui \u0026\u0026 pnpm run build"
         }
       ]
     },
@@ -231,14 +264,14 @@
       "description": "Stop services",
       "steps": [
         {
+          "description": "Stop API process",
           "name": "stop-api",
-          "run": "pkill -f \"scenario-to-desktop-api\" || true; sleep 1; pkill -9 -f \"scenario-to-desktop-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+          "run": "pkill -f \"scenario-to-desktop-api\" || true; sleep 1; pkill -9 -f \"scenario-to-desktop-api\" 2\u003e/dev/null || true"
         },
         {
+          "description": "Stop UI server process",
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/scenario-to-desktop/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop/ui/server.js\" 2>/dev/null || true",
-          "description": "Stop UI server process"
+          "run": "pkill -f \"scenarios/scenario-to-desktop/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop/ui/server.js\" 2\u003e/dev/null || true"
         }
       ]
     },
@@ -246,75 +279,52 @@
       "description": "Comprehensive phased testing for scenario-to-desktop",
       "steps": [
         {
+          "description": "Execute phased scenario test suite",
           "name": "run-phased-tests",
-          "run": "test-genie execute scenario-to-desktop --preset comprehensive",
-          "description": "Execute phased scenario test suite"
+          "run": "test-genie execute scenario-to-desktop --preset comprehensive"
         }
       ]
     }
   },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": false,
-        "required": false,
-        "purpose": "Store desktop application templates and build history",
-        "description": "Fallback: File-based template storage"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": false,
-        "required": false,
-        "purpose": "Cache compiled applications and build artifacts",
-        "description": "Fallback: Local filesystem caching"
-      }
+  "ports": {
+    "api": {
+      "description": "Desktop build API server port",
+      "env_var": "API_PORT",
+      "range": "15000-19999"
     },
-    "scenarios": {
-      "agent-manager": {
-        "type": "scenario",
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "description": "Agent orchestration layer for pipeline investigations",
-        "config": {
-          "declarations": {
-            "reconcile": true,
-            "profileMode": "update_if_unmodified",
-            "sources": [
-              ".vrooli/agent-manager/default.json"
-            ]
-          }
-        }
-      },
-      "deployment-manager": {
-        "required": true,
-        "version": "1.0.0",
-        "versionRange": ">=1.0.0",
-        "purpose": "Bundle manifest generation for bundled runtime mode"
-      }
+    "ui": {
+      "description": "Desktop build UI server port",
+      "env_var": "UI_PORT",
+      "range": "20000-24999"
     }
   },
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
-  "cli": {
-    "enabled": true,
-    "command": "scenario-to-desktop",
-    "adapter": {
-      "kind": "go_module",
-      "module_dir": "cli"
+  "service": {
+    "category": "automation",
+    "description": "Transform Vrooli scenarios into professional Electron desktop applications",
+    "displayName": "Scenario to Desktop",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "license": "MIT",
+    "maintainers": [
+      {
+        "email": "support@vrooli.com",
+        "name": "Vrooli Team",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "name": "scenario-to-desktop",
+    "parent": "vrooli",
+    "repository": {
+      "directory": "/scenarios/scenario-to-desktop",
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli"
     },
-    "invoke": {
-      "kind": "installed_command",
-      "command": "scenario-to-desktop"
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
     },
-    "freshness": {
-      "inputs": [
-        "cli/**",
-        ".vrooli/service.json"
-      ]
-    },
-    "source_build": {
-      "kind": "go_module"
-    }
-  }
+    "tags": [],
+    "type": "scenario",
+    "version": "1.0.0"
+  },
+  "version": "1.0.0"
 }

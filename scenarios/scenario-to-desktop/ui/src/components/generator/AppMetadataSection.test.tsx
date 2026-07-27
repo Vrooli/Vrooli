@@ -49,7 +49,7 @@ describe("AppMetadataSection", () => {
       <AppMetadataSection
         {...defaultProps}
         onAppDisplayNameChange={onAppDisplayNameChange}
-      />
+      />,
     );
     expandSection();
 
@@ -62,7 +62,10 @@ describe("AppMetadataSection", () => {
   it("calls onIconPathChange when icon path is typed", () => {
     const onIconPathChange = vi.fn();
     render(
-      <AppMetadataSection {...defaultProps} onIconPathChange={onIconPathChange} />
+      <AppMetadataSection
+        {...defaultProps}
+        onIconPathChange={onIconPathChange}
+      />,
     );
     expandSection();
 
@@ -78,7 +81,7 @@ describe("AppMetadataSection", () => {
       <AppMetadataSection
         {...defaultProps}
         onAppDescriptionChange={onAppDescriptionChange}
-      />
+      />,
     );
     expandSection();
 
@@ -101,7 +104,7 @@ describe("AppMetadataSection", () => {
         {...defaultProps}
         iconPreviewUrl="/path/to/icon.png"
         iconPreviewError={false}
-      />
+      />,
     );
     expandSection();
 
@@ -116,7 +119,7 @@ describe("AppMetadataSection", () => {
         {...defaultProps}
         iconPreviewUrl="/path/to/icon.png"
         iconPreviewError={true}
-      />
+      />,
     );
     expandSection();
 
@@ -132,7 +135,7 @@ describe("AppMetadataSection", () => {
         iconPreviewUrl="/path/to/invalid.png"
         iconPreviewError={false}
         onIconPreviewError={onIconPreviewError}
-      />
+      />,
     );
     expandSection();
 
@@ -149,13 +152,19 @@ describe("AppMetadataSection", () => {
         appDisplayName="My Desktop App"
         iconPath="/icons/app.png"
         appDescription="A great desktop app"
-      />
+      />,
     );
     expandSection();
 
-    expect(screen.getByLabelText("App display name")).toHaveValue("My Desktop App");
-    expect(screen.getByLabelText("Icon path (PNG)")).toHaveValue("/icons/app.png");
-    expect(screen.getByLabelText("App description")).toHaveValue("A great desktop app");
+    expect(screen.getByLabelText("App display name")).toHaveValue(
+      "My Desktop App",
+    );
+    expect(screen.getByLabelText("Icon path (PNG)")).toHaveValue(
+      "/icons/app.png",
+    );
+    expect(screen.getByLabelText("App description")).toHaveValue(
+      "A great desktop app",
+    );
   });
 
   it("shows preview success message when icon loads", () => {
@@ -164,7 +173,7 @@ describe("AppMetadataSection", () => {
         {...defaultProps}
         iconPreviewUrl="/path/to/icon.png"
         iconPreviewError={false}
-      />
+      />,
     );
     expandSection();
 
@@ -176,7 +185,7 @@ describe("AppMetadataSection", () => {
     expandSection();
 
     expect(
-      screen.getByText("Preview will appear once a valid PNG path is set.")
+      screen.getByText("Preview will appear once a valid PNG path is set."),
     ).toBeInTheDocument();
   });
 });

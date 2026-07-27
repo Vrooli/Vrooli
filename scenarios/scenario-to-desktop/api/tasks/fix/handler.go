@@ -3,10 +3,9 @@ package fix
 import (
 	"context"
 	"encoding/json"
-	"strings"
-
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/tasks/shared"
+	"strings"
 )
 
 // Handler implements TaskHandler for fix tasks.

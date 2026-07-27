@@ -20,7 +20,9 @@ describe("ScenarioSelector", () => {
 
     expect(screen.getByText("Scenario Name")).toBeInTheDocument();
     expect(screen.getByText("Select a scenario")).toBeInTheDocument();
-    expect(screen.getByText("Browse scenarios to choose a desktop target.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Browse scenarios to choose a desktop target."),
+    ).toBeInTheDocument();
   });
 
   it("shows loading state when loading scenarios", () => {
@@ -30,12 +32,7 @@ describe("ScenarioSelector", () => {
   });
 
   it("displays selected scenario name", () => {
-    render(
-      <ScenarioSelector
-        {...defaultProps}
-        scenarioName="my-app"
-      />
-    );
+    render(<ScenarioSelector {...defaultProps} scenarioName="my-app" />);
 
     expect(screen.getByText("my-app")).toBeInTheDocument();
     expect(screen.getByText("Slug: my-app")).toBeInTheDocument();
@@ -53,7 +50,7 @@ describe("ScenarioSelector", () => {
         {...defaultProps}
         scenarioName="my-app"
         selectedScenario={selectedScenario}
-      />
+      />,
     );
 
     expect(screen.getByText("My Application")).toBeInTheDocument();
@@ -65,14 +62,16 @@ describe("ScenarioSelector", () => {
       <ScenarioSelector
         {...defaultProps}
         onOpenScenarioModal={onOpenScenarioModal}
-      />
+      />,
     );
 
     // There are two "Browse scenarios" elements - a link and a button
     // Get all buttons - the actual Button component
     const buttons = screen.getAllByRole("button");
     // The Browse scenarios button is the one with that text
-    const browseButton = buttons.find(btn => btn.textContent === "Browse scenarios");
+    const browseButton = buttons.find(
+      (btn) => btn.textContent === "Browse scenarios",
+    );
     if (!browseButton) {
       throw new Error("Browse scenarios button not found");
     }
@@ -87,7 +86,7 @@ describe("ScenarioSelector", () => {
       <ScenarioSelector
         {...defaultProps}
         onOpenScenarioModal={onOpenScenarioModal}
-      />
+      />,
     );
 
     // Click the text link (styled as button but is actually a button element)
@@ -108,7 +107,7 @@ describe("ScenarioSelector", () => {
           {...defaultProps}
           scenarioName="locked-app"
           locked={true}
-        />
+        />,
       );
 
       expect(screen.getByText("Scenario")).toBeInTheDocument();
@@ -125,10 +124,12 @@ describe("ScenarioSelector", () => {
           scenarioName="locked-app"
           locked={true}
           onUnlock={onUnlock}
-        />
+        />,
       );
 
-      const changeButton = screen.getByRole("button", { name: /change scenario/i });
+      const changeButton = screen.getByRole("button", {
+        name: /change scenario/i,
+      });
       expect(changeButton).toBeInTheDocument();
 
       fireEvent.click(changeButton);
@@ -141,19 +142,17 @@ describe("ScenarioSelector", () => {
           {...defaultProps}
           scenarioName="locked-app"
           locked={true}
-        />
+        />,
       );
 
-      expect(screen.queryByRole("button", { name: /change scenario/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /change scenario/i }),
+      ).not.toBeInTheDocument();
     });
 
     it("shows normal selector when locked but no scenario", () => {
       render(
-        <ScenarioSelector
-          {...defaultProps}
-          scenarioName=""
-          locked={true}
-        />
+        <ScenarioSelector {...defaultProps} scenarioName="" locked={true} />,
       );
 
       // Should show normal selector UI
@@ -179,10 +178,12 @@ describe("ScenarioSelector", () => {
           scenarioName="my-app"
           selectedScenario={selectedScenario}
           onLoadSaved={onLoadSaved}
-        />
+        />,
       );
 
-      const loadSavedButton = screen.getByRole("button", { name: /load saved urls/i });
+      const loadSavedButton = screen.getByRole("button", {
+        name: /load saved urls/i,
+      });
       fireEvent.click(loadSavedButton);
 
       expect(onLoadSaved).toHaveBeenCalled();
@@ -202,10 +203,12 @@ describe("ScenarioSelector", () => {
           scenarioName="my-app"
           selectedScenario={selectedScenario}
           onLoadSaved={onLoadSaved}
-        />
+        />,
       );
 
-      expect(screen.queryByRole("button", { name: /load saved urls/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /load saved urls/i }),
+      ).not.toBeInTheDocument();
     });
 
     it("hides load saved button when onLoadSaved not provided", () => {
@@ -223,16 +226,22 @@ describe("ScenarioSelector", () => {
           {...defaultProps}
           scenarioName="my-app"
           selectedScenario={selectedScenario}
-        />
+        />,
       );
 
-      expect(screen.queryByRole("button", { name: /load saved urls/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /load saved urls/i }),
+      ).not.toBeInTheDocument();
     });
   });
 
   it("shows helper text for scenario selection", () => {
     render(<ScenarioSelector {...defaultProps} />);
 
-    expect(screen.getByText(/Select from available scenarios or enter a slug from the modal/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Select from available scenarios or enter a slug from the modal/,
+      ),
+    ).toBeInTheDocument();
   });
 });

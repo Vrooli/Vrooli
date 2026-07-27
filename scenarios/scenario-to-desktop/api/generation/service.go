@@ -8,11 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"scenario-to-desktop-api/signing"
 	"time"
 
 	"github.com/google/uuid"
 
-	"scenario-to-desktop-api/signing"
 	signinggeneration "scenario-to-desktop-api/signing/generation"
 )
 

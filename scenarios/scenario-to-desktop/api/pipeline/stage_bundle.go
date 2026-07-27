@@ -4,10 +4,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
-
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/shared/errors"
+	"strings"
+
 	sharedpath "scenario-to-desktop-api/shared/path"
 )
 

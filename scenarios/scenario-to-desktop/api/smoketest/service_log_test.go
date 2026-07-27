@@ -2,10 +2,9 @@ package smoketest_test
 
 import (
 	"context"
-	"testing"
-
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/smoketest/mocks"
+	"testing"
 )
 
 func TestService_LogContent_ContainsScenarioName(t *testing.T) {

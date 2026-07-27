@@ -21,7 +21,7 @@ func generateWindowsConfig(config *types.WindowsSigningConfig, opts *Options) *t
 		win.CertificateFile = config.CertificateFile
 		// Use environment variable reference for password
 		if config.CertificatePasswordEnv != "" {
-			win.CertificatePassword = "${" + config.CertificatePasswordEnv + "}"
+			win.CertificatePassword = electronBuilderEnvironmentReference(config.CertificatePasswordEnv)
 		}
 	case types.CertSourceStore:
 		win.CertificateSha1 = config.CertificateThumbprint
@@ -50,6 +50,12 @@ func generateWindowsConfig(config *types.WindowsSigningConfig, opts *Options) *t
 	}
 
 	return win
+}
+
+// electronBuilderEnvironmentReference produces electron-builder's deferred
+// environment interpolation syntax. It never reads or embeds a credential.
+func electronBuilderEnvironmentReference(name string) string {
+	return "${" + name + "}"
 }
 
 // generateMacOSConfig creates electron-builder macOS signing configuration.

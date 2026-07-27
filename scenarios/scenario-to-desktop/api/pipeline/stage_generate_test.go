@@ -2,12 +2,11 @@ package pipeline
 
 import (
 	"context"
+	"scenario-to-desktop-api/generation"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	"scenario-to-desktop-api/generation"
 )
 
 // trackingBuildStore tracks Get/Update calls for test verification.

@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
-	"strings"
-	"time"
-
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/shared/errors"
+	"strings"
+	"time"
+
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
 )
 
 // DefaultDemoHoldMs is the default duration (in milliseconds) to hold the
@@ -296,7 +297,7 @@ func (s *DefaultService) resolveCommand(smokeTestID, platform, artifactPath stri
 
 func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand, displayID string, displayWidth, displayHeight int) (*ExecutionResult, error) {
 	// Build environment
-	uploadURL := fmt.Sprintf("http://127.0.0.1:%d/api/v1/deployment/telemetry", s.port)
+	uploadURL := telemetryIngestURL(s.port)
 	env := []string{
 		"SMOKE_TEST=1",
 		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", s.config.TimeoutMS()),
@@ -333,6 +334,10 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 	s.logExecutionResultWithDetails(smokeTestID, displayCommand, result, err)
 
 	return result, err
+}
+
+func telemetryIngestURL(port int) string {
+	return fmt.Sprintf("http://127.0.0.1:%d%s", port, domainconnect.TelemetryServiceIngestTelemetryProcedure)
 }
 
 // executeDemoLaunch runs the app in normal mode for screen recording.

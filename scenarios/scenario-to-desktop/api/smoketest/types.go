@@ -1,9 +1,8 @@
 package smoketest
 
 import (
-	"time"
-
 	"scenario-to-desktop-api/procmetrics"
+	"time"
 )
 
 // State represents the current phase of a smoke test.

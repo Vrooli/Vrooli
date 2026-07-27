@@ -18,8 +18,11 @@ import {
   getStageStatusDisplay,
   getPipelineStatusDisplay,
   formatStageName,
-  type StageStatus,
 } from "./status-display";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 // ============================================================================
 // Stage Status Config
@@ -27,46 +30,58 @@ import {
 
 describe("STAGE_STATUS_CONFIG", () => {
   it("has config for all stage statuses", () => {
-    const statuses: StageStatus[] = ["pending", "running", "completed", "failed", "skipped"];
+    const statuses: StageStatus[] = [
+      StageStatus.PENDING,
+      StageStatus.RUNNING,
+      StageStatus.COMPLETED,
+      StageStatus.FAILED,
+      StageStatus.SKIPPED,
+    ];
     for (const status of statuses) {
       expect(STAGE_STATUS_CONFIG[status]).toBeDefined();
-      expect(STAGE_STATUS_CONFIG[status].label).toBeTypeOf("string");
-      expect(STAGE_STATUS_CONFIG[status].icon).toBeDefined();
-      expect(STAGE_STATUS_CONFIG[status].className).toBeTypeOf("string");
+      expect(STAGE_STATUS_CONFIG[status]?.label).toBeTypeOf("string");
+      expect(STAGE_STATUS_CONFIG[status]?.icon).toBeDefined();
+      expect(STAGE_STATUS_CONFIG[status]?.className).toBeTypeOf("string");
     }
   });
 
   it("has correct labels", () => {
-    expect(STAGE_STATUS_CONFIG.pending.label).toBe("Pending");
-    expect(STAGE_STATUS_CONFIG.running.label).toBe("Running");
-    expect(STAGE_STATUS_CONFIG.completed.label).toBe("Completed");
-    expect(STAGE_STATUS_CONFIG.failed.label).toBe("Failed");
-    expect(STAGE_STATUS_CONFIG.skipped.label).toBe("Skipped");
+    expect(STAGE_STATUS_CONFIG[StageStatus.PENDING]?.label).toBe("Pending");
+    expect(STAGE_STATUS_CONFIG[StageStatus.RUNNING]?.label).toBe("Running");
+    expect(STAGE_STATUS_CONFIG[StageStatus.COMPLETED]?.label).toBe("Completed");
+    expect(STAGE_STATUS_CONFIG[StageStatus.FAILED]?.label).toBe("Failed");
+    expect(STAGE_STATUS_CONFIG[StageStatus.SKIPPED]?.label).toBe("Skipped");
   });
 
   it("has correct icons", () => {
-    expect(STAGE_STATUS_CONFIG.pending.icon).toBe(Clock);
-    expect(STAGE_STATUS_CONFIG.running.icon).toBe(Clock);
-    expect(STAGE_STATUS_CONFIG.completed.icon).toBe(CheckCircle2);
-    expect(STAGE_STATUS_CONFIG.failed.icon).toBe(XCircle);
-    expect(STAGE_STATUS_CONFIG.skipped.icon).toBe(Circle);
+    expect(STAGE_STATUS_CONFIG[StageStatus.PENDING]?.icon).toBe(Clock);
+    expect(STAGE_STATUS_CONFIG[StageStatus.RUNNING]?.icon).toBe(Clock);
+    expect(STAGE_STATUS_CONFIG[StageStatus.COMPLETED]?.icon).toBe(CheckCircle2);
+    expect(STAGE_STATUS_CONFIG[StageStatus.FAILED]?.icon).toBe(XCircle);
+    expect(STAGE_STATUS_CONFIG[StageStatus.SKIPPED]?.icon).toBe(Circle);
   });
 });
 
 describe("HEADER_STATUS_CONFIG", () => {
   it("has config for all stage statuses", () => {
-    const statuses: StageStatus[] = ["pending", "running", "completed", "failed", "skipped"];
+    const statuses: StageStatus[] = [
+      StageStatus.PENDING,
+      StageStatus.RUNNING,
+      StageStatus.COMPLETED,
+      StageStatus.FAILED,
+      StageStatus.SKIPPED,
+    ];
     for (const status of statuses) {
       expect(HEADER_STATUS_CONFIG[status]).toBeDefined();
-      expect(HEADER_STATUS_CONFIG[status].label).toBeTypeOf("string");
-      expect(HEADER_STATUS_CONFIG[status].icon).toBeDefined();
-      expect(HEADER_STATUS_CONFIG[status].badgeClass).toBeTypeOf("string");
-      expect(HEADER_STATUS_CONFIG[status].iconClass).toBeTypeOf("string");
+      expect(HEADER_STATUS_CONFIG[status]?.label).toBeTypeOf("string");
+      expect(HEADER_STATUS_CONFIG[status]?.icon).toBeDefined();
+      expect(HEADER_STATUS_CONFIG[status]?.badgeClass).toBeTypeOf("string");
+      expect(HEADER_STATUS_CONFIG[status]?.iconClass).toBeTypeOf("string");
     }
   });
 
   it("running status has spinner icon", () => {
-    expect(HEADER_STATUS_CONFIG.running.icon).toBe(Loader2);
+    expect(HEADER_STATUS_CONFIG[StageStatus.RUNNING]?.icon).toBe(Loader2);
   });
 });
 
@@ -76,39 +91,62 @@ describe("HEADER_STATUS_CONFIG", () => {
 
 describe("getStageStatusDisplay", () => {
   it("returns correct config for known statuses", () => {
-    expect(getStageStatusDisplay("pending")).toEqual(STAGE_STATUS_CONFIG.pending);
-    expect(getStageStatusDisplay("running")).toEqual(STAGE_STATUS_CONFIG.running);
-    expect(getStageStatusDisplay("completed")).toEqual(STAGE_STATUS_CONFIG.completed);
-    expect(getStageStatusDisplay("failed")).toEqual(STAGE_STATUS_CONFIG.failed);
-    expect(getStageStatusDisplay("skipped")).toEqual(STAGE_STATUS_CONFIG.skipped);
+    expect(getStageStatusDisplay(StageStatus.PENDING)).toEqual(
+      STAGE_STATUS_CONFIG[StageStatus.PENDING],
+    );
+    expect(getStageStatusDisplay(StageStatus.RUNNING)).toEqual(
+      STAGE_STATUS_CONFIG[StageStatus.RUNNING],
+    );
+    expect(getStageStatusDisplay(StageStatus.COMPLETED)).toEqual(
+      STAGE_STATUS_CONFIG[StageStatus.COMPLETED],
+    );
+    expect(getStageStatusDisplay(StageStatus.FAILED)).toEqual(
+      STAGE_STATUS_CONFIG[StageStatus.FAILED],
+    );
+    expect(getStageStatusDisplay(StageStatus.SKIPPED)).toEqual(
+      STAGE_STATUS_CONFIG[StageStatus.SKIPPED],
+    );
   });
 
-  it("falls back to pending for unknown statuses", () => {
-    expect(getStageStatusDisplay("unknown")).toEqual(STAGE_STATUS_CONFIG.pending);
-    expect(getStageStatusDisplay("")).toEqual(STAGE_STATUS_CONFIG.pending);
+  it("falls back to pending for an unspecified enum", () => {
+    expect(getStageStatusDisplay(StageStatus.UNSPECIFIED)).toEqual(
+      STAGE_STATUS_CONFIG[StageStatus.PENDING],
+    );
   });
 
   it("applies custom labels when provided", () => {
-    const result = getStageStatusDisplay("running", { running: "Building" });
+    const result = getStageStatusDisplay(StageStatus.RUNNING, {
+      [StageStatus.RUNNING]: "Building",
+    });
     expect(result.label).toBe("Building");
-    expect(result.icon).toBe(STAGE_STATUS_CONFIG.running.icon);
-    expect(result.className).toBe(STAGE_STATUS_CONFIG.running.className);
+    expect(result.icon).toBe(STAGE_STATUS_CONFIG[StageStatus.RUNNING]?.icon);
+    expect(result.className).toBe(
+      STAGE_STATUS_CONFIG[StageStatus.RUNNING]?.className,
+    );
   });
 
   it("does not apply custom label for other statuses", () => {
-    const result = getStageStatusDisplay("pending", { running: "Building" });
+    const result = getStageStatusDisplay(StageStatus.PENDING, {
+      [StageStatus.RUNNING]: "Building",
+    });
     expect(result.label).toBe("Pending");
   });
 
   it("handles multiple custom labels", () => {
     const labels = {
-      pending: "Waiting",
-      running: "Processing",
-      completed: "Done",
+      [StageStatus.PENDING]: "Waiting",
+      [StageStatus.RUNNING]: "Processing",
+      [StageStatus.COMPLETED]: "Done",
     };
-    expect(getStageStatusDisplay("pending", labels).label).toBe("Waiting");
-    expect(getStageStatusDisplay("running", labels).label).toBe("Processing");
-    expect(getStageStatusDisplay("completed", labels).label).toBe("Done");
+    expect(getStageStatusDisplay(StageStatus.PENDING, labels).label).toBe(
+      "Waiting",
+    );
+    expect(getStageStatusDisplay(StageStatus.RUNNING, labels).label).toBe(
+      "Processing",
+    );
+    expect(getStageStatusDisplay(StageStatus.COMPLETED, labels).label).toBe(
+      "Done",
+    );
   });
 });
 
@@ -122,6 +160,13 @@ describe("getPipelineStatusDisplay", () => {
     expect(result.label).toBe("Running");
     expect(result.icon).toBe(Loader2);
     expect(result.className).toContain("blue");
+  });
+
+  it("keeps enum-backed pipeline statuses and an idle pipeline distinct", () => {
+    expect(getPipelineStatusDisplay("idle").label).toBe("Ready");
+    expect(getPipelineStatusDisplay(StageStatus.RUNNING).label).toBe("Running");
+    expect(getPipelineStatusDisplay(StageStatus.COMPLETED).label).toBe("Completed");
+    expect(getPipelineStatusDisplay(StageStatus.FAILED).label).toBe("Failed");
   });
 
   it("returns running config for starting status", () => {
@@ -152,7 +197,7 @@ describe("getPipelineStatusDisplay", () => {
   });
 
   it("returns pending config for pending status", () => {
-    const result = getPipelineStatusDisplay("pending");
+    const result = getPipelineStatusDisplay(StageStatus.PENDING);
     expect(result.label).toBe("Pending");
     expect(result.icon).toBe(Circle);
     expect(result.className).toContain("slate");
@@ -171,7 +216,7 @@ describe("getPipelineStatusDisplay", () => {
   });
 
   it("returns no pipeline config for skipped status", () => {
-    const result = getPipelineStatusDisplay("skipped");
+    const result = getPipelineStatusDisplay(StageStatus.SKIPPED);
     expect(result.label).toBe("No Pipeline");
   });
 });
@@ -185,23 +230,23 @@ describe("formatStageName", () => {
     expect(formatStageName(null)).toBe("");
   });
 
-  it("returns empty string for empty string", () => {
-    expect(formatStageName("")).toBe("");
+  it("returns empty string for an unspecified enum", () => {
+    expect(formatStageName(StageName.UNSPECIFIED)).toBe("");
   });
 
   it("capitalizes first letter", () => {
-    expect(formatStageName("bundle")).toBe("Bundle");
-    expect(formatStageName("generate")).toBe("Generate");
-    expect(formatStageName("build")).toBe("Build");
+    expect(formatStageName(StageName.BUNDLE)).toBe("Bundle");
+    expect(formatStageName(StageName.GENERATE)).toBe("Generate");
+    expect(formatStageName(StageName.BUILD)).toBe("Build");
   });
 
-  it("preserves rest of the string", () => {
-    expect(formatStageName("smokeTest")).toBe("SmokeTest");
-    expect(formatStageName("UPPER")).toBe("UPPER");
+  it("formats the compound smoke-test stage", () => {
+    expect(formatStageName(StageName.SMOKE_TEST)).toBe("Smoke test");
   });
 
-  it("handles single character", () => {
-    expect(formatStageName("a")).toBe("A");
-    expect(formatStageName("B")).toBe("B");
+  it("formats every remaining pipeline stage name", () => {
+    expect(formatStageName(StageName.RESOLVE_DEPLOYMENT)).toBe("Resolve deployment");
+    expect(formatStageName(StageName.PREFLIGHT)).toBe("Preflight");
+    expect(formatStageName(StageName.DEPLOY)).toBe("Deploy");
   });
 });

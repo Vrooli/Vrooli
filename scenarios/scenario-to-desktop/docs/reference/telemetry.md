@@ -13,9 +13,7 @@ Every generated desktop app records lifecycle events to help deployment-manager 
 
 ## Collecting telemetry
 ```bash
-scenario-to-desktop telemetry collect \
-  --scenario <name> \
-  --file "<path-to>/deployment-telemetry.jsonl"
+scenario-to-desktop telemetry ingest "my-scenario" --file "telemetry.jsonl"
 ```
 - The API stores results at `deployment/telemetry/<scenario>.jsonl` beneath the resolved scenario-to-desktop logs root.
 - The UI has an upload card under Scenario Inventory.

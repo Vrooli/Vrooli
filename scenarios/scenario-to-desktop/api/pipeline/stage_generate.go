@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"time"
-
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/shared/errors"
+	"time"
+
 	sharedpath "scenario-to-desktop-api/shared/path"
 )
 

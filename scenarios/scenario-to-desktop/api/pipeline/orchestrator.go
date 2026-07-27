@@ -8,13 +8,13 @@ import (
 	"log/slog"
 	"path/filepath"
 	"runtime"
-	"strings"
-
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
-	sharedpath "scenario-to-desktop-api/shared/path"
 	"scenario-to-desktop-api/shared/validation"
 	"scenario-to-desktop-api/storagepaths"
+	"strings"
+
+	sharedpath "scenario-to-desktop-api/shared/path"
 
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
@@ -152,103 +152,88 @@ func (l *SlogLogger) Debug(msg string, args ...interface{}) { l.Logger.Debug(msg
 // pipeline status is returned instead of starting a new one. This enables safe retries
 // where "running twice is no worse than running once".
 func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
-	// Validate config
+	if err := validatePipelineConfig(config); err != nil {
+		return nil, err
+	}
+	if existing := o.idempotentPipeline(config.IdempotencyKey); existing != nil {
+		return existing, nil
+	}
+	if err := normalizePipelinePlatforms(config); err != nil {
+		return nil, err
+	}
+	status := o.newPipelineStatus(config)
+	o.store.Save(status)
+	pipelineCtx, cancel := context.WithCancel(ctx)
+	o.cancelManager.Set(status.PipelineID, cancel)
+	go o.runPipelineAsync(pipelineCtx, status.PipelineID, config)
+	return status, nil
+}
+
+func validatePipelineConfig(config *Config) error {
+	if err := config.ValidateFramework(); err != nil {
+		return err
+	}
 	if !validation.IsSafeScenarioName(config.ScenarioName) {
 		if config.ScenarioName == "" {
-			return nil, fmt.Errorf("scenario_name is required")
+			return fmt.Errorf("scenario_name is required")
 		}
-		return nil, fmt.Errorf("invalid scenario_name: contains path traversal characters")
+		return fmt.Errorf("invalid scenario_name: contains path traversal characters")
 	}
-
-	// Validate stop_after_stage if provided
 	if config.StopAfterStage != "" && !IsValidStageName(config.StopAfterStage) {
-		return nil, fmt.Errorf("invalid stop_after_stage: %s", config.StopAfterStage)
+		return fmt.Errorf("invalid stop_after_stage: %s", config.StopAfterStage)
 	}
-
-	// Validate resume_from_stage if provided
 	if config.ResumeFromStage != "" && !IsValidStageName(config.ResumeFromStage) {
-		return nil, fmt.Errorf("invalid resume_from_stage: %s", config.ResumeFromStage)
+		return fmt.Errorf("invalid resume_from_stage: %s", config.ResumeFromStage)
 	}
-
-	// Validate stages if provided
-	if stages := config.GetStages(); len(stages) > 0 {
-		for _, stage := range stages {
-			if !IsValidStageName(stage) {
-				return nil, fmt.Errorf("invalid stage name: %q", stage)
-			}
+	for _, stage := range config.GetStages() {
+		if !IsValidStageName(stage) {
+			return fmt.Errorf("invalid stage name: %q", stage)
 		}
 	}
+	return nil
+}
 
-	// Idempotency check: if an idempotency key is provided, check for existing pipeline
-	// This enables safe retries where replaying a request returns the existing pipeline
-	// instead of starting duplicate work.
-	if config.IdempotencyKey != "" {
-		if existing, ok := o.store.GetByIdempotencyKey(config.IdempotencyKey); ok {
-			o.logger.Info("Idempotency key matched existing pipeline",
-				"idempotency_key", config.IdempotencyKey,
-				"pipeline_id", existing.PipelineID,
-				"status", existing.Status,
-			)
-			return existing, nil
-		}
+func (o *DefaultOrchestrator) idempotentPipeline(key string) *Status {
+	if key == "" {
+		return nil
 	}
+	existing, ok := o.store.GetByIdempotencyKey(key)
+	if !ok {
+		return nil
+	}
+	o.logger.Info("Idempotency key matched existing pipeline", "idempotency_key", key, "pipeline_id", existing.PipelineID, "status", existing.Status)
+	return existing
+}
 
-	// Normalize CLI-facing platform aliases once. All later stages receive a
-	// concrete OS/architecture matrix and cannot accidentally select every arch.
+func normalizePipelinePlatforms(config *Config) error {
 	if len(config.Platforms) == 0 {
 		config.Platforms = []string{currentPlatform()}
 	}
-	normalizedPlatforms := make([]string, 0, len(config.Platforms))
+	normalized := make([]string, 0, len(config.Platforms))
 	for _, value := range config.Platforms {
 		platform, err := normalizeDesktopPlatform(value)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		normalizedPlatforms = append(normalizedPlatforms, platform.String())
+		normalized = append(normalized, platform.String())
 	}
-	config.Platforms = normalizedPlatforms
+	config.Platforms = normalized
+	return nil
+}
 
-	// Generate pipeline ID
-	pipelineID := o.idGenerator.Generate()
-
-	// Build stage order (filtered if specific stages requested)
-	stagesToUse := o.stages
-	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
-		stagesToUse = o.filterStages(requestedStages)
+func (o *DefaultOrchestrator) newPipelineStatus(config *Config) *Status {
+	stages := o.stages
+	if requested := config.GetStages(); len(requested) > 0 {
+		stages = o.filterStages(requested)
 	}
-	stageOrder := make([]string, 0, len(stagesToUse))
-	for _, stage := range stagesToUse {
-		stageOrder = append(stageOrder, stage.Name())
+	order := make([]string, 0, len(stages))
+	for _, stage := range stages {
+		order = append(order, stage.Name())
 	}
-
-	// Create initial status
-	status := &Status{
-		PipelineID:     pipelineID,
-		ScenarioName:   config.ScenarioName,
-		Status:         StatusPending,
-		Stages:         make(map[string]*StageResult),
-		StageOrder:     stageOrder,
-		Config:         config,
-		StartedAt:      o.timeProvider.Now(),
-		IdempotencyKey: config.IdempotencyKey, // Store for future lookups
-	}
-
-	// Set initial state and progress
+	status := &Status{PipelineID: o.idGenerator.Generate(), ScenarioName: config.ScenarioName, Status: StatusPending, Stages: make(map[string]*StageResult), StageOrder: order, Config: config, StartedAt: o.timeProvider.Now(), IdempotencyKey: config.IdempotencyKey}
 	status.TransitionTo(PipelineStateCreated, "Pipeline created and queued")
 	status.UpdateProgress()
-
-	// Save initial status
-	o.store.Save(status)
-
-	// Create cancellable context
-	pipelineCtx, cancel := context.WithCancel(ctx)
-	o.cancelManager.Set(pipelineID, cancel)
-
-	// Run pipeline asynchronously
-	go o.runPipelineAsync(pipelineCtx, pipelineID, config)
-
-	// Return immediately with pipeline ID
-	return status, nil
+	return status
 }
 
 func normalizeDesktopPlatform(value string) (resourcedeployment.Platform, error) {

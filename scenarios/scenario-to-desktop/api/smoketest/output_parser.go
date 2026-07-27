@@ -91,6 +91,7 @@ func (p *DefaultOutputParser) ExtractLastLifecycleState(output string) string {
 // LifecycleStateDescription returns a human-readable description for a lifecycle state.
 // This helps users understand where the app failed during startup.
 func LifecycleStateDescription(state string) string {
+	// #nosec G101 -- lifecycle labels describe a token file; they contain no credential material.
 	descriptions := map[string]string{
 		"":                  "App crashed before smoke test code ran. Check for missing dependencies or Electron initialization failures.",
 		"init":              "App started smoke test but crashed during initialization. A bundled service likely failed to start.",

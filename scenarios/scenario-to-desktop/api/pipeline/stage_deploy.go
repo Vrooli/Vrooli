@@ -3,12 +3,12 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"scenario-to-desktop-api/deploy"
+	"scenario-to-desktop-api/shared/errors"
 	"strings"
 	"time"
 
-	"scenario-to-desktop-api/deploy"
 	sharedenv "scenario-to-desktop-api/shared/env"
-	"scenario-to-desktop-api/shared/errors"
 )
 
 // LPBSClientFactory creates an LPBSClient for the given scenario and token.

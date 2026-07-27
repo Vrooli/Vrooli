@@ -1,69 +1,33 @@
-import { buildUrl, throwIfNotOk } from "./client";
-import type { BundlePreflightResponse } from "./types";
+import type {
+  PipelineCancelResponse as ProtoPipelineCancelResponse,
+  GenerateResponse as ProtoGenerateResponse,
+  PipelineConfig as ProtoPipelineConfig,
+  PipelineRunResponse as ProtoPipelineRunResponse,
+  PipelineResumeResponse as ProtoPipelineResumeResponse,
+  PipelineStatus as ProtoPipelineStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import type { BundleStageDetails } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import type { DeployStageDetails as ProtoDeployStageDetails } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import type { SmokeTestStatusResponse as ProtoSmokeTestStatusResponse } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/operation_results_pb";
+import type {
+  BuildStatusResponse as ProtoBuildStatusResponse,
+  PlatformBuildResult,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/operation_results_pb";
+import type { PreflightResponse as ProtoPreflightResponse } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import { PipelineConfigSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import { pipelineConnectClient } from "./connect";
 
 // ==================== Pipeline API Types ====================
 
-export interface PipelineConfig {
-  scenario_name: string;
-  platforms?: string[];
-  deployment_mode?: "bundled" | "proxy";
-  template_type?: string;
-  location_mode?: "proper" | "staging" | "temp" | "custom" | string;
-  proxy_url?: string;
-  bundle_manifest_path?: string;
-  skip_preflight?: boolean;
-  skip_smoke_test?: boolean;
-  stop_after_stage?: "bundle" | "preflight" | "generate" | "build" | "smoketest" | "deploy";
-  clean?: boolean;
-  sign?: boolean;
-  deploy?: DeployConfig;
-  /** @deprecated Use deploy.target_name */
-  deploy_target?: string;
-  /** @deprecated Use deploy.scenario_name */
-  deploy_to?: string;
-  /** @deprecated Use deploy.remote_profile */
-  remote_profile?: string;
-  /** @deprecated Use deploy.app_key */
-  app_key?: string;
-  version?: string;
-  version_update?: VersionUpdateRequest;
-  preflight_timeout_seconds?: number;
-  preflight_secrets?: Record<string, string>;
-  /**
-   * Client-provided key for request deduplication.
-   * If a pipeline with the same idempotency key already exists and is running or completed,
-   * the existing pipeline status will be returned instead of starting a new pipeline.
-   * This enables safe retries where "running twice is no worse than running once".
-   */
-  idempotency_key?: string;
-}
-
-export interface DeployConfig {
-  target_name?: string;
-  scenario_name?: string;
-  remote_profile?: string;
-  app_key?: string;
-  update_url?: string;
-  deployment_manager_profile_id?: string;
-}
-
-export interface VersionUpdateRequest {
-  mode?: "set" | "bump" | string;
-  version?: string;
-  bump?: "patch" | "minor" | "medium" | "major" | string;
-  persist?: boolean;
-  allow_downgrade?: boolean;
-  source?: "both" | "service" | "ui" | string;
-}
-
-export interface PipelineStageResult {
-  stage: string;
-  status: string;
-  started_at: number;
-  completed_at?: number;
-  error?: string;
-  details?: unknown;
-}
+export type PipelineConfig = Exclude<
+  MessageInitShape<typeof PipelineConfigSchema>,
+  ProtoPipelineConfig
+>;
 
 export interface BuildProvenance {
   git_commit_hash: string;
@@ -73,216 +37,49 @@ export interface BuildProvenance {
   version: string;
 }
 
-export interface PipelineStatus {
-  pipeline_id: string;
-  scenario_name?: string;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled" | string;
-  current_state?: string;
-  current_stage?: string;
-  /** Completion percentage (0-100) */
-  progress_percent?: number;
-  /** Human-readable progress message (e.g., "Running bundle stage (1/6)") */
-  progress_message?: string;
-  stages?: Record<string, PipelineStageResult>;
-  stage_order?: string[];
-  config?: PipelineConfig;
-  started_at?: number;
-  completed_at?: number;
-  error?: string;
-  final_artifacts?: Record<string, string>;
-  stopped_after_stage?: string;
-  provenance?: BuildProvenance;
-}
+export type PipelineStatus = ProtoPipelineStatus;
 
-export interface PipelineRunResponse {
-  pipeline_id: string;
-  status_url?: string;
-  message?: string;
-}
+export type PipelineRunResponse = ProtoPipelineRunResponse;
 
-export interface PipelineResumeResponse {
-  pipeline_id: string;
-  parent_pipeline_id: string;
-  status_url: string;
-  resume_from_stage: string;
-  message?: string;
-}
+export type PipelineResumeResponse = ProtoPipelineResumeResponse;
+export type { BundleStageDetails } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
 
 // ==================== Verbose Stage Details ====================
 
 /** Bundle stage details (from bundle/types.go PackageResult) */
-export interface BundleStageDetails {
-  bundle_dir?: string;
-  manifest_path?: string;
-  manifest_content?: Record<string, unknown>;
-  runtime_binaries?: Record<string, string>;
-  copied_artifacts?: string[];
-  total_size_bytes?: number;
-  total_size_human?: string;
-  size_warning?: {
-    level?: string;
-    message?: string;
-    total_bytes?: number;
-    total_human?: string;
-    large_files?: { path: string; size_bytes: number; size_human?: string }[];
-  };
-}
-
 /** Generate stage details (from generation/types.go GenerateResponse) */
-export interface GenerateStageDetails {
-  build_id?: string;
-  pipeline_id?: string;
-  status?: string;
-  scenario_name?: string;
-  desktop_path?: string;
-  install_instructions?: string;
-  test_command?: string;
-  status_url?: string;
-  detected_metadata?: {
-    name: string;
-    display_name?: string;
-    description?: string;
-    version?: string;
-    author?: string;
-    license?: string;
-    app_id?: string;
-    has_ui?: boolean;
-    ui_dist_path?: string;
-    ui_port?: number;
-    api_port?: number;
-    scenario_path?: string;
-    category?: string;
-    tags?: string[];
-  };
-}
+export type GenerateStageDetails = ProtoGenerateResponse;
 
-/** Build stage platform result (from build/types.go PlatformResult) */
-export interface BuildPlatformResult {
-  platform: string;
-  status: "pending" | "building" | "ready" | "failed" | "skipped";
-  started_at?: string;
-  completed_at?: string;
-  artifact?: string;
-  file_size?: number;
-  error_log?: string[];
-  skip_reason?: string;
-}
-
-/** Build stage details (from build/types.go Status) */
-export interface BuildStageDetails {
-  build_id?: string;
-  scenario_name?: string;
-  status?: string;
-  framework?: string;
-  template_type?: string;
-  platforms?: string[];
-  requested_platforms?: string[];
-  platform_results?: Record<string, BuildPlatformResult>;
-  output_path?: string;
-  created_at?: string;
-  completed_at?: string;
-  build_log?: string[];
-  error_log?: string[];
-  artifacts?: Record<string, string>;
-  metadata?: Record<string, unknown>;
-}
+export type BuildPlatformResult = PlatformBuildResult;
+export type BuildStageDetails = ProtoBuildStatusResponse;
 
 /** SmokeTest stage details (from smoketest/types.go Status) */
-export interface SmokeTestStageDetails {
-  smoke_test_id?: string;
-  scenario_name?: string;
-  platform?: string;
-  status?: string;
-  artifact_path?: string;
-  started_at?: string;
-  completed_at?: string;
-  logs?: string[];
-  error?: string;
-  telemetry_uploaded?: boolean;
-  telemetry_upload_error?: string;
+export type SmokeTestStageDetails = ProtoSmokeTestStatusResponse;
 
-  /** Screen recording results (populated when recording is enabled) */
-  screen_recording?: {
-    recorded: boolean;
-    video_path?: string;
-    duration_ms?: number;
-    file_size_bytes?: number;
-    error?: string;
-  };
-}
+export type PreflightStageDetails = ProtoPreflightResponse;
 
-/** Deploy artifact result (from pipeline/types.go DeployArtifactResult) */
-export interface DeployArtifactResult {
-  artifact_id?: number;
-  platform?: string;
-}
-
-/** Deploy stage details (from pipeline/types.go DeployResult) */
-export interface DeployStageDetails {
-  artifacts?: DeployArtifactResult[];
-  update_url?: string;
-}
+export type DeployStageDetails = ProtoDeployStageDetails;
 
 /** Union type for all possible stage details */
 export type StageDetails =
   | BundleStageDetails
+  | PreflightStageDetails
   | GenerateStageDetails
   | BuildStageDetails
   | SmokeTestStageDetails
   | DeployStageDetails;
 
-/** Verbose stage result includes details and logs */
-export interface VerboseStageResult extends Omit<PipelineStageResult, "details"> {
-  details?: StageDetails;
-  logs?: string[];
-}
-
-/** Verbose pipeline status includes full stage details */
-export interface VerbosePipelineStatus extends Omit<PipelineStatus, "stages"> {
-  stages: Record<string, VerboseStageResult>;
-  provenance?: BuildProvenance;
-}
+/** Pipeline status is the generated wire message; display projections live in domain/. */
+export type VerbosePipelineStatus = ProtoPipelineStatus;
 
 // ==================== Pipeline API Functions ====================
 
-function normalizePipelineConfig(config: Partial<PipelineConfig>): Record<string, unknown> {
-  const normalized: Record<string, unknown> = { ...config };
-  const existingDeploy = config.deploy;
-
-  if (!existingDeploy) {
-    const hasLegacyDeployFields =
-      Boolean(config.deploy_target) ||
-      Boolean(config.deploy_to) ||
-      Boolean(config.remote_profile) ||
-      Boolean(config.app_key);
-
-    if (hasLegacyDeployFields) {
-      normalized.deploy = {
-        target_name: config.deploy_target,
-        scenario_name: config.deploy_to,
-        remote_profile: config.remote_profile,
-        app_key: config.app_key,
-      };
-    }
-  }
-
-  // Strip legacy fields from request payload once normalized.
-  delete normalized.deploy_target;
-  delete normalized.deploy_to;
-  delete normalized.remote_profile;
-  delete normalized.app_key;
-
-  return normalized;
-}
-
-export async function runPipeline(config: PipelineConfig): Promise<PipelineRunResponse> {
-  const response = await fetch(buildUrl("/pipeline/run"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(normalizePipelineConfig(config))
+export async function runPipeline(
+  config: PipelineConfig,
+): Promise<PipelineRunResponse> {
+  return pipelineConnectClient.run({
+    config: create(PipelineConfigSchema, config),
   });
-  await throwIfNotOk(response);
-  return await response.json() as PipelineRunResponse;
 }
 
 /** Options for getPipelineStatus */
@@ -299,50 +96,55 @@ export interface GetPipelineStatusOptions {
  */
 export async function getPipelineStatus(
   pipelineId: string,
-  options?: { verbose: true }
+  options?: { verbose: true },
 ): Promise<VerbosePipelineStatus>;
 export async function getPipelineStatus(
   pipelineId: string,
-  options?: { verbose?: false } | undefined
+  options?: { verbose?: false },
 ): Promise<PipelineStatus>;
 export async function getPipelineStatus(
   pipelineId: string,
-  options?: GetPipelineStatusOptions
-): Promise<PipelineStatus | VerbosePipelineStatus> {
-  const params = new URLSearchParams();
-  if (options?.verbose) {
-    params.set("verbose", "true");
+  options?: GetPipelineStatusOptions,
+): Promise<PipelineStatus> {
+  // The Proto status always includes stage details and logs; `verbose` remains
+  // only as a source-compatible UI display option, not a wire-level branch.
+  void options;
+  return pipelineConnectClient.get({ pipelineId });
+}
+
+export async function resumePipeline(
+  pipelineId: string,
+): Promise<PipelineResumeResponse> {
+  return pipelineConnectClient.resume({ pipelineId });
+}
+
+export async function cancelPipeline(
+  pipelineId: string,
+): Promise<ProtoPipelineCancelResponse> {
+  return pipelineConnectClient.cancel({ pipelineId });
+}
+
+export function stageDetailsFromProto(
+  value: ProtoPipelineStatus["stages"][string]["details"],
+): StageDetails | undefined {
+  if (!value?.kind.case) return undefined;
+
+  switch (value.kind.case) {
+    case "bundle":
+      return value.kind.value;
+    case "generate":
+      return value.kind.value;
+    case "build":
+      return value.kind.value;
+    case "smokeTest":
+      return value.kind.value;
+    case "deploy":
+      return value.kind.value;
+    case "preflight":
+      return value.kind.value;
+    case "resolveDeployment":
+      return undefined;
   }
-
-  const queryString = params.toString();
-  const url = buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}`) +
-    (queryString ? `?${queryString}` : "");
-
-  const response = await fetch(url);
-  await throwIfNotOk(response);
-  return await response.json() as PipelineStatus | VerbosePipelineStatus;
-}
-
-export async function resumePipeline(pipelineId: string): Promise<PipelineResumeResponse> {
-  const response = await fetch(buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/resume`), {
-    method: "POST"
-  });
-  await throwIfNotOk(response);
-  return await response.json() as PipelineResumeResponse;
-}
-
-export async function cancelPipeline(pipelineId: string): Promise<{ status: string; message?: string }> {
-  const response = await fetch(buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/cancel`), {
-    method: "POST"
-  });
-  await throwIfNotOk(response);
-  return await response.json() as { status: string; message?: string };
-}
-
-export async function listPipelines(): Promise<{ pipelines: PipelineStatus[] }> {
-  const response = await fetch(buildUrl("/pipelines"));
-  await throwIfNotOk(response);
-  return await response.json() as { pipelines: PipelineStatus[] };
 }
 
 /**
@@ -352,12 +154,12 @@ export async function listPipelines(): Promise<{ pipelines: PipelineStatus[] }> 
  */
 export async function runPreflightPipeline(
   scenarioName: string,
-  config: Partial<PipelineConfig> = {}
+  config: Partial<PipelineConfig> = {},
 ): Promise<PipelineRunResponse> {
   return runPipeline({
-    scenario_name: scenarioName,
-    stop_after_stage: "preflight",
-    ...config
+    scenarioName,
+    stopAfterStage: StageName.PREFLIGHT,
+    ...config,
   });
 }
 
@@ -365,13 +167,16 @@ export async function runPreflightPipeline(
  * Extracts the preflight result from a pipeline status.
  * Returns null if the preflight stage hasn't completed or failed.
  */
-export function extractPreflightResult(status: PipelineStatus): BundlePreflightResponse | null {
-  const preflightStage = status.stages?.preflight;
-  if (!preflightStage || preflightStage.status !== "completed") {
+export function extractPreflightResult(
+  status: PipelineStatus,
+): PreflightStageDetails | null {
+  const preflightStage = status.stages.preflight;
+  if (!preflightStage || preflightStage.status !== StageStatus.COMPLETED) {
     return null;
   }
-  // The preflight stage stores the response in Details
-  return preflightStage.details as BundlePreflightResponse | null;
+  return preflightStage.details?.kind.case === "preflight"
+    ? preflightStage.details.kind.value
+    : null;
 }
 
 // ==================== Scenario-Based Pipeline Management API ====================
@@ -385,12 +190,12 @@ export interface ActivePipelineResponse {
 /** Response from creating new pipeline */
 export interface CreatePipelineResponse {
   pipeline: PipelineStatus;
-  archived_id?: string;
+  archivedPipelineId?: string;
 }
 
 /** Response from resetting pipeline */
 export interface ResetPipelineResponse {
-  archived_id?: string;
+  archivedPipelineId?: string;
   cleared: boolean;
 }
 
@@ -412,20 +217,16 @@ export interface GetActivePipelineOptions {
  */
 export async function getActivePipeline(
   scenarioName: string,
-  options?: GetActivePipelineOptions
+  options?: GetActivePipelineOptions,
 ): Promise<ActivePipelineResponse> {
-  const params = new URLSearchParams();
-  if (options?.autoCreate === false) {
-    params.set("auto_create", "false");
-  }
-
-  const queryString = params.toString();
-  const url = buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline/active`) +
-    (queryString ? `?${queryString}` : "");
-
-  const response = await fetch(url);
-  await throwIfNotOk(response);
-  return await response.json() as ActivePipelineResponse;
+  const response = await pipelineConnectClient.getActive({
+    scenarioName,
+    autoCreate: options?.autoCreate !== false,
+  });
+  return {
+    pipeline: response.pipeline ?? null,
+    created: response.created,
+  };
 }
 
 /**
@@ -434,28 +235,35 @@ export async function getActivePipeline(
  */
 export async function createNewPipeline(
   scenarioName: string,
-  config?: Partial<PipelineConfig>
+  config?: Partial<PipelineConfig>,
 ): Promise<CreatePipelineResponse> {
-  const body = config ? normalizePipelineConfig(config) : undefined;
-  const response = await fetch(buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline`), {
-    method: "POST",
-    headers: config ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
+  const response = await pipelineConnectClient.createActive({
+    scenarioName,
+    config: config
+      ? create(PipelineConfigSchema, { scenarioName, ...config })
+      : undefined,
   });
-  await throwIfNotOk(response);
-  return await response.json() as CreatePipelineResponse;
+  if (!response.pipeline) {
+    throw new Error("CreateActive returned no pipeline");
+  }
+  return {
+    pipeline: response.pipeline,
+    archivedPipelineId: response.archivedPipelineId,
+  };
 }
 
 /**
  * Reset the active pipeline for a scenario.
  * Archives the current active pipeline and clears the active slot.
  */
-export async function resetPipeline(scenarioName: string): Promise<ResetPipelineResponse> {
-  const response = await fetch(buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline/reset`), {
-    method: "POST",
-  });
-  await throwIfNotOk(response);
-  return await response.json() as ResetPipelineResponse;
+export async function resetPipeline(
+  scenarioName: string,
+): Promise<ResetPipelineResponse> {
+  const response = await pipelineConnectClient.resetActive({ scenarioName });
+  return {
+    archivedPipelineId: response.archivedPipelineId,
+    cleared: response.cleared,
+  };
 }
 
 /** Options for getting pipeline history */
@@ -469,26 +277,21 @@ export interface GetPipelineHistoryOptions {
  */
 export async function getPipelineHistory(
   scenarioName: string,
-  options?: GetPipelineHistoryOptions
+  options?: GetPipelineHistoryOptions,
 ): Promise<PipelineHistoryResponse> {
-  const params = new URLSearchParams();
-  if (options?.limit && options.limit > 0) {
-    params.set("limit", options.limit.toString());
-  }
-
-  const queryString = params.toString();
-  const url = buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline/history`) +
-    (queryString ? `?${queryString}` : "");
-
-  const response = await fetch(url);
-  await throwIfNotOk(response);
-  return await response.json() as PipelineHistoryResponse;
+  const response = await pipelineConnectClient.getHistory({
+    scenarioName,
+    limit: options?.limit,
+  });
+  return {
+    pipelines: response.pipelines,
+    total: response.total,
+  };
 }
 
 /** Response from starting the active pipeline */
 export interface StartActivePipelineResponse {
   pipeline: PipelineStatus;
-  status_url: string;
   message?: string;
 }
 
@@ -502,17 +305,19 @@ export interface StartActivePipelineResponse {
  */
 export async function startActivePipeline(
   scenarioName: string,
-  config?: Partial<PipelineConfig>
+  config?: Partial<PipelineConfig>,
 ): Promise<StartActivePipelineResponse> {
-  const body = config ? normalizePipelineConfig(config) : undefined;
-  const response = await fetch(
-    buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline/start`),
-    {
-      method: "POST",
-      headers: config ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    }
-  );
-  await throwIfNotOk(response);
-  return await response.json() as StartActivePipelineResponse;
+  const response = await pipelineConnectClient.startActive({
+    scenarioName,
+    configOverrides: config
+      ? create(PipelineConfigSchema, { scenarioName, ...config })
+      : undefined,
+  });
+  if (!response.pipeline) {
+    throw new Error("StartActive returned no pipeline");
+  }
+  return {
+    pipeline: response.pipeline,
+    message: response.message,
+  };
 }

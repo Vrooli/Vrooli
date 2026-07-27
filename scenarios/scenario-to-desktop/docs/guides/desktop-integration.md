@@ -386,7 +386,7 @@ npm run dist:mac
 ```bash
 # Set certificate path
 export CSC_LINK="/path/to/certificate.pfx"
-export CSC_KEY_PASSWORD="your-password"
+export CSC_KEY_PASSWORD="$WINDOWS_CERTIFICATE_PASSWORD"
 
 # Build with signing
 npm run dist:win

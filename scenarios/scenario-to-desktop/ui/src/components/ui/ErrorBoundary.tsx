@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
       {
         componentStack: errorInfo.componentStack,
         error,
-      }
+      },
     );
 
     // Call optional error handler for telemetry/logging
@@ -91,7 +91,9 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-red-800/50 bg-red-950/20 p-8 text-center">
           <div className="flex items-center gap-2 text-red-400">
             <AlertTriangle className="h-6 w-6" />
-            <h2 className="text-lg font-semibold">Something went wrong {sectionLabel}</h2>
+            <h2 className="text-lg font-semibold">
+              Something went wrong {sectionLabel}
+            </h2>
           </div>
 
           <p className="max-w-md text-sm text-slate-400">

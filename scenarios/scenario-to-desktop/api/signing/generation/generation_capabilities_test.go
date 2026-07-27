@@ -1,10 +1,9 @@
 package generation
 
 import (
+	"scenario-to-desktop-api/signing/types"
 	"strings"
 	"testing"
-
-	"scenario-to-desktop-api/signing/types"
 )
 
 // --- ParseCapabilities tests ---

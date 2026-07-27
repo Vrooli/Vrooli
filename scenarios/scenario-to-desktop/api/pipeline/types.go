@@ -2,9 +2,8 @@ package pipeline
 
 import (
 	"fmt"
-	"time"
-
 	"scenario-to-desktop-api/generation"
+	"time"
 )
 
 // Stage names as constants for consistency.
@@ -233,6 +232,15 @@ type Config struct {
 	// If nil, the default provider (generic) is used but auto-updates are disabled
 	// until generic.url is configured.
 	UpdateConfig *generation.UpdateConfig `json:"update_config,omitempty"`
+}
+
+// ValidateFramework rejects framework values that the generation pipeline does
+// not implement. An empty value is valid because Electron is the default.
+func (c *Config) ValidateFramework() error {
+	if c.Framework == "" || c.Framework == FrameworkElectron {
+		return nil
+	}
+	return fmt.Errorf("unsupported framework %q: only %q is supported", c.Framework, FrameworkElectron)
 }
 
 // DeployConfig configures the deploy stage for LPBS deployment.

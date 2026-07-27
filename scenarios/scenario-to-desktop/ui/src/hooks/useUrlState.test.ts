@@ -5,11 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import {
-  useUrlState,
-  parseSearchParams,
-  type ViewMode,
-} from "./useUrlState";
+import { useUrlState, parseSearchParams, type ViewMode } from "./useUrlState";
 
 // Store original values
 const originalLocation = window.location;
@@ -83,7 +79,9 @@ describe("parseSearchParams", () => {
 
   it("parses doc param", () => {
     Object.defineProperty(window, "location", {
-      value: createMockLocation("http://localhost:5173/?doc=/docs/getting-started"),
+      value: createMockLocation(
+        "http://localhost:5173/?doc=/docs/getting-started",
+      ),
       writable: true,
       configurable: true,
     });
@@ -95,7 +93,7 @@ describe("parseSearchParams", () => {
   it("parses all params together", () => {
     Object.defineProperty(window, "location", {
       value: createMockLocation(
-        "http://localhost:5173/?view=docs&scenario=test-scenario&doc=/docs/intro"
+        "http://localhost:5173/?view=docs&scenario=test-scenario&doc=/docs/intro",
       ),
       writable: true,
       configurable: true,
@@ -131,7 +129,7 @@ describe("useUrlState", () => {
 
     it("uses custom default view", () => {
       const { result } = renderHook(() =>
-        useUrlState({ defaultView: "generator" })
+        useUrlState({ defaultView: "generator" }),
       );
 
       expect(result.current.viewMode).toBe("generator");
@@ -151,7 +149,9 @@ describe("useUrlState", () => {
 
     it("uses scenario from URL when present", () => {
       Object.defineProperty(window, "location", {
-        value: createMockLocation("http://localhost:5173/?scenario=my-scenario"),
+        value: createMockLocation(
+          "http://localhost:5173/?scenario=my-scenario",
+        ),
         writable: true,
         configurable: true,
       });
@@ -187,7 +187,9 @@ describe("useUrlState", () => {
 
     it("provides initial params", () => {
       Object.defineProperty(window, "location", {
-        value: createMockLocation("http://localhost:5173/?view=signing&scenario=test"),
+        value: createMockLocation(
+          "http://localhost:5173/?view=signing&scenario=test",
+        ),
         writable: true,
         configurable: true,
       });
@@ -216,9 +218,7 @@ describe("useUrlState", () => {
     it("calls onViewChange callback", () => {
       const onViewChange = vi.fn();
 
-      const { result } = renderHook(() =>
-        useUrlState({ onViewChange })
-      );
+      const { result } = renderHook(() => useUrlState({ onViewChange }));
 
       act(() => {
         result.current.setViewMode("records");
@@ -256,9 +256,7 @@ describe("useUrlState", () => {
     it("calls onScenarioChange callback", () => {
       const onScenarioChange = vi.fn();
 
-      const { result } = renderHook(() =>
-        useUrlState({ onScenarioChange })
-      );
+      const { result } = renderHook(() => useUrlState({ onScenarioChange }));
 
       act(() => {
         result.current.setScenarioName("test-scenario");
@@ -283,7 +281,9 @@ describe("useUrlState", () => {
 
     it("removes scenario from URL when cleared", () => {
       Object.defineProperty(window, "location", {
-        value: createMockLocation("http://localhost:5173/?view=inventory&scenario=old-scenario"),
+        value: createMockLocation(
+          "http://localhost:5173/?view=inventory&scenario=old-scenario",
+        ),
         writable: true,
         configurable: true,
       });
@@ -316,9 +316,7 @@ describe("useUrlState", () => {
     it("calls onDocChange callback", () => {
       const onDocChange = vi.fn();
 
-      const { result } = renderHook(() =>
-        useUrlState({ onDocChange })
-      );
+      const { result } = renderHook(() => useUrlState({ onDocChange }));
 
       act(() => {
         result.current.setDocPath("/docs/api");
@@ -336,9 +334,7 @@ describe("useUrlState", () => {
 
       const onDocChange = vi.fn();
 
-      const { result } = renderHook(() =>
-        useUrlState({ onDocChange })
-      );
+      const { result } = renderHook(() => useUrlState({ onDocChange }));
 
       act(() => {
         result.current.setDocPath(null);
@@ -363,7 +359,9 @@ describe("useUrlState", () => {
 
     it("removes doc from URL when cleared", () => {
       Object.defineProperty(window, "location", {
-        value: createMockLocation("http://localhost:5173/?view=docs&doc=/docs/old"),
+        value: createMockLocation(
+          "http://localhost:5173/?view=docs&doc=/docs/old",
+        ),
         writable: true,
         configurable: true,
       });

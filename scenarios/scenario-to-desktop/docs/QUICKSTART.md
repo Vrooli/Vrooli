@@ -43,9 +43,7 @@ Use thin client only when you need multiple users connecting to a shared server.
 4. **Distribute & collect telemetry**
    - Ask testers for the telemetry file and upload via the UI, or run:
      ```bash
-     scenario-to-desktop telemetry collect \
-       --scenario <name> \
-       --file "<path-to>/deployment-telemetry.jsonl"
+     scenario-to-desktop telemetry ingest "my-scenario" --file "telemetry.jsonl"
      ```
 
 5. **Stop services when done**
@@ -53,14 +51,14 @@ Use thin client only when you need multiple users connecting to a shared server.
    make stop     # or: vrooli scenario stop scenario-to-desktop
    ```
 
-### CLI-only path (thin client)
+### CLI pipeline path
+
+The interactive deployment-mode fields are configured in the UI. Use the CLI
+to start and inspect the resulting packaging pipeline:
+
 ```bash
-scenario-to-desktop generate <scenario> \
-  --deployment-mode external-server \
-  --server-type external \
-  --server-url https://app-monitor.<domain>/apps/<scenario>/proxy/ \
-  --api-url https://app-monitor.<domain>/apps/<scenario>/proxy/api/ \
-  --auto-manage-vrooli=false
+scenario-to-desktop pipeline run "my-scenario"
+scenario-to-desktop pipeline list
 ```
 
 ### Thin client preconditions
@@ -70,5 +68,5 @@ scenario-to-desktop generate <scenario> \
 
 ### Check build artifacts (CLI)
 ```bash
-scenario-to-desktop desktop-status --name <scenario>
+scenario-to-desktop desktop-status
 ```
