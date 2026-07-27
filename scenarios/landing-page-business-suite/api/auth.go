@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
@@ -15,17 +16,18 @@ import (
 	"github.com/gorilla/sessions"
 	apisecrets "github.com/vrooli/api-core/secrets"
 	"golang.org/x/crypto/bcrypt"
+	"landing-page-business-suite-api/internal/envx"
 )
 
 // isSecureCookiesEnabled returns whether secure cookies should be enabled.
 // Defaults to true in production (LPBS_SECURE_COOKIES not set or "true").
 // Can be disabled for development by setting LPBS_SECURE_COOKIES=false.
 func isSecureCookiesEnabled() bool {
-	val := strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_SECURE_COOKIES")))
+	val := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_SECURE_COOKIES")))
 	// Default to secure in production
 	if val == "" {
 		// Check if we're in a production environment
-		env := strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_ENVIRONMENT")))
+		env := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
 		return env == "production" || env == "prod"
 	}
 	return val != "false" && val != "0" && val != "no"
@@ -41,19 +43,31 @@ func generateSessionID() (string, error) {
 }
 
 const (
-	defaultAdminEmail        = "admin@localhost"
-	defaultAdminPasswordHash = "$2a$10$nhmpbhFPQUZZwEH.qaYHCeiKBWDvr8z5Z7eM4v62MmNwm.0N.5xeG" // changeme123
-	seededAdminID            = 1                                                              // Reserved ID for the seeded/default admin account
+	defaultAdminEmail = "admin@localhost"
+	seededAdminID     = 1 // Reserved ID for the seeded/default admin account
 )
 
-// resolveSecret resolves a secret from environment first, then the shared local
-// plaintext user secrets file.
+// secretStore resolves project-local secrets when VROOLI_ROOT explicitly points
+// to one, otherwise the user-local secrets store. Environment values always win.
+func secretStore() (*apisecrets.Store, error) {
+	if root := strings.TrimSpace(envx.Get("VROOLI_ROOT")); root != "" {
+		path := filepath.Join(root, ".vrooli", "secrets.json")
+		if _, err := os.Stat(path); err == nil {
+			return apisecrets.NewFileStore(path)
+		}
+	}
+	return apisecrets.NewUserStore(apisecrets.Config{EnvLookup: envx.Get})
+}
+
+// resolveSecret resolves a secret from environment first, then an explicitly
+// configured project secrets file or the shared user-local plaintext file.
 func resolveSecret(key string) string {
-	store, err := apisecrets.NewUserStore(apisecrets.Config{
-		EnvLookup: os.Getenv,
-	})
+	if value := strings.TrimSpace(envx.Get(key)); value != "" {
+		return value
+	}
+	store, err := secretStore()
 	if err != nil {
-		return strings.TrimSpace(os.Getenv(key))
+		return strings.TrimSpace(envx.Get(key))
 	}
 	return strings.TrimSpace(store.ResolveValue(key))
 }
@@ -61,9 +75,7 @@ func resolveSecret(key string) string {
 // findSecretsFile returns the resolved local plaintext user secrets path when
 // it exists.
 func findSecretsFile() string {
-	store, err := apisecrets.NewUserStore(apisecrets.Config{
-		EnvLookup: os.Getenv,
-	})
+	store, err := secretStore()
 	if err != nil {
 		return ""
 	}
@@ -74,9 +86,8 @@ func findSecretsFile() string {
 	return ""
 }
 
-// getAdminDefaults returns admin email and password hash.
-// Resolution order: environment variables -> ~/.vrooli/secrets.json -> hardcoded defaults.
-// This enables customization via scenario-to-cloud's Secrets Tab.
+// getAdminDefaults returns an explicitly configured admin credential. Development
+// uses an ephemeral password so a committed default can never authenticate a user.
 func getAdminDefaults() (email string, passwordHash string, err error) {
 	email = resolveSecret("ADMIN_DEFAULT_EMAIL")
 	if email == "" {
@@ -93,8 +104,21 @@ func getAdminDefaults() (email string, passwordHash string, err error) {
 		return email, string(hash), nil
 	}
 
-	// Fall back to default hash
-	return email, defaultAdminPasswordHash, nil
+	if isProductionSecurityEnvironment() {
+		return "", "", fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be configured in production")
+	}
+	ephemeralPassword := make([]byte, 32)
+	if _, err := rand.Read(ephemeralPassword); err != nil {
+		return "", "", fmt.Errorf("generate ephemeral admin password: %w", err)
+	}
+	passwordHashBytes, err := bcrypt.GenerateFromPassword([]byte(hex.EncodeToString(ephemeralPassword)), bcrypt.DefaultCost)
+	if err != nil {
+		return "", "", fmt.Errorf("hash ephemeral admin password: %w", err)
+	}
+	logStructured("admin_password_missing", map[string]interface{}{
+		"level": "warn", "message": "ADMIN_DEFAULT_PASSWORD is not configured; generated an ephemeral development credential",
+	})
+	return email, string(passwordHashBytes), nil
 }
 
 // sessionStore is kept for backwards compatibility with sessionAdminEmail helper.
@@ -106,16 +130,38 @@ var sessionStore *sessions.CookieStore
 func initSessionManager() SessionManager {
 	secret := resolveSecret("SESSION_SECRET")
 	if secret == "" {
+		ephemeral := make([]byte, 32)
+		if _, err := rand.Read(ephemeral); err != nil {
+			panic(fmt.Sprintf("generate ephemeral session key: %v", err))
+		}
 		logStructured("session_secret_missing", map[string]interface{}{
 			"level":   "warn",
-			"message": "SESSION_SECRET not set; using placeholder for development",
+			"message": "SESSION_SECRET not set; generated an ephemeral key; sessions will not survive restart",
 			"action":  "Set SESSION_SECRET in environment or ~/.vrooli/secrets.json",
 		})
-		secret = "dev-session-placeholder"
+		secret = hex.EncodeToString(ephemeral)
 	}
 	// Initialize global for backwards compatibility
 	sessionStore = sessions.NewCookieStore([]byte(secret))
 	return NewCookieSessionManager(secret)
+}
+
+func isProductionSecurityEnvironment() bool {
+	environment := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
+	return environment == "production" || environment == "prod"
+}
+
+func validateProductionCredentials() error {
+	if !isProductionSecurityEnvironment() {
+		return nil
+	}
+	if strings.TrimSpace(resolveSecret("SESSION_SECRET")) == "" {
+		return fmt.Errorf("SESSION_SECRET must be configured in production")
+	}
+	if strings.TrimSpace(resolveSecret("ADMIN_DEFAULT_PASSWORD")) == "" {
+		return fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be configured in production")
+	}
+	return nil
 }
 
 type LoginRequest struct {
@@ -151,12 +197,7 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Query user from database
-	var passwordHash string
-	err := s.db.QueryRow(
-		"SELECT password_hash FROM admin_users WHERE email = $1",
-		req.Email,
-	).Scan(&passwordHash)
+	passwordHash, err := s.adminAuth().PasswordHash(r.Context(), req.Email)
 
 	if err == sql.ErrNoRows {
 		logStructured("login_invalid_email", map[string]interface{}{
@@ -184,7 +225,7 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update last login timestamp
-	if _, err := s.db.Exec("UPDATE admin_users SET last_login = NOW() WHERE email = $1", req.Email); err != nil {
+	if err := s.adminAuth().UpdateLastLogin(r.Context(), req.Email); err != nil {
 		logStructuredError("last_login_update_failed", map[string]interface{}{
 			"error": err.Error(),
 			"email": req.Email,
@@ -207,10 +248,7 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	clientIP := getClientIP(r)
 	userAgent := r.UserAgent()
 
-	if _, err := s.db.Exec(`
-		INSERT INTO admin_sessions (id, admin_email, expires_at, ip_address, user_agent)
-		VALUES ($1, $2, $3, $4, $5)
-	`, serverSessionID, req.Email, expiresAt, clientIP, userAgent); err != nil {
+	if err := s.adminAuth().CreateSession(r.Context(), serverSessionID, req.Email, expiresAt, clientIP, userAgent); err != nil {
 		logStructuredError("admin_session_create_failed", map[string]interface{}{
 			"error": err.Error(),
 			"email": req.Email,
@@ -233,7 +271,7 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 			"error": err.Error(),
 		})
 		// Clean up server-side session if cookie save fails
-		_, cleanupErr := s.db.Exec("DELETE FROM admin_sessions WHERE id = $1", serverSessionID)
+		cleanupErr := s.adminAuth().DeleteSession(r.Context(), serverSessionID)
 		logOnError(cleanupErr, "session_cleanup_after_save_failure", map[string]interface{}{
 			"session_id": serverSessionID,
 		})
@@ -255,6 +293,16 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) adminAuth() *AdminAuthService {
+	if s.adminAuthService != nil {
+		return s.adminAuthService
+	}
+	if s.routedDB != nil {
+		return NewAdminAuthService(s.routedDB)
+	}
+	return NewAdminAuthService(s.db)
+}
+
 // handleAdminLogout destroys the admin session
 func (s *Server) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
 	session, _ := s.sessionManager.GetSession(r, "admin_session")
@@ -263,7 +311,7 @@ func (s *Server) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
 
 	// Invalidate server-side session
 	if serverSessionID != "" {
-		if _, err := s.db.Exec("DELETE FROM admin_sessions WHERE id = $1", serverSessionID); err != nil {
+		if err := s.adminAuth().DeleteSession(r.Context(), serverSessionID); err != nil {
 			logStructuredError("admin_session_delete_failed", map[string]interface{}{
 				"error":      err.Error(),
 				"session_id": serverSessionID,
@@ -305,11 +353,7 @@ func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 	// Validate server-side session
 	serverSessionID, _ := session.Values["session_id"].(string)
 	if serverSessionID != "" {
-		var expiresAt time.Time
-		err := s.db.QueryRow(`
-			SELECT expires_at FROM admin_sessions
-			WHERE id = $1 AND admin_email = $2
-		`, serverSessionID, email).Scan(&expiresAt)
+		expiresAt, err := s.adminAuth().SessionExpiry(r.Context(), serverSessionID, email)
 
 		if err == sql.ErrNoRows || (err == nil && time.Now().After(expiresAt)) {
 			// Session not found or expired - clear cookie
@@ -334,9 +378,7 @@ func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 			// Fall through to allow session on DB error (graceful degradation)
 		} else {
 			// Update last activity
-			if _, err := s.db.Exec(`
-				UPDATE admin_sessions SET last_activity = NOW() WHERE id = $1
-			`, serverSessionID); err != nil {
+			if err := s.adminAuth().TouchSession(r.Context(), serverSessionID); err != nil {
 				logStructuredError("session_activity_update_failed", map[string]interface{}{
 					"error":      err.Error(),
 					"session_id": serverSessionID,
@@ -383,11 +425,7 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		// Validate server-side session
 		serverSessionID, _ := session.Values["session_id"].(string)
 		if serverSessionID != "" {
-			var expiresAt time.Time
-			err := s.db.QueryRow(`
-				SELECT expires_at FROM admin_sessions
-				WHERE id = $1 AND admin_email = $2
-			`, serverSessionID, email).Scan(&expiresAt)
+			expiresAt, err := s.adminAuth().SessionExpiry(r.Context(), serverSessionID, email)
 
 			if err == sql.ErrNoRows || (err == nil && time.Now().After(expiresAt)) {
 				// Session not found or expired
@@ -424,11 +462,13 @@ type AdminProfileUpdateRequest struct {
 }
 
 func buildAdminProfileResponse(email, passwordHash string) AdminProfileResponse {
-	envEmail, envHash, _ := getAdminDefaults()
+	envEmail, _, _ := getAdminDefaults()
+	configuredPassword := resolveSecret("ADMIN_DEFAULT_PASSWORD")
+	isDefaultPassword := configuredPassword != "" && bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(configuredPassword)) == nil
 	return AdminProfileResponse{
 		Email:             email,
 		IsDefaultEmail:    strings.EqualFold(email, envEmail),
-		IsDefaultPassword: passwordHash == envHash,
+		IsDefaultPassword: isDefaultPassword,
 	}
 }
 
@@ -449,8 +489,7 @@ func (s *Server) handleAdminProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var storedEmail, passwordHash string
-	err := s.db.QueryRow(`SELECT email, password_hash FROM admin_users WHERE email = $1`, email).Scan(&storedEmail, &passwordHash)
+	profile, err := s.adminAuth().Profile(r.Context(), email)
 	if err == sql.ErrNoRows {
 		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
 		return
@@ -463,7 +502,7 @@ func (s *Server) handleAdminProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(buildAdminProfileResponse(storedEmail, passwordHash)); err != nil {
+	if err := json.NewEncoder(w).Encode(buildAdminProfileResponse(profile.Email, profile.PasswordHash)); err != nil {
 		logStructuredError("admin_profile_encode_failed", map[string]interface{}{
 			"error": err.Error(),
 		})
@@ -497,10 +536,7 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var adminID int64
-	var storedEmail, passwordHash string
-	err := s.db.QueryRow(`SELECT id, email, password_hash FROM admin_users WHERE email = $1`, currentEmail).
-		Scan(&adminID, &storedEmail, &passwordHash)
+	profile, err := s.adminAuth().Profile(r.Context(), currentEmail)
 	if err == sql.ErrNoRows {
 		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
 		return
@@ -512,36 +548,36 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.CurrentPassword)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(profile.PasswordHash), []byte(req.CurrentPassword)); err != nil {
 		writeJSONError(w, http.StatusUnauthorized, "Invalid credentials", ApiErrorTypeUnauthorized)
 		return
 	}
 
-	targetEmail := storedEmail
-	if req.NewEmail != "" && !strings.EqualFold(req.NewEmail, storedEmail) {
+	targetEmail := profile.Email
+	if req.NewEmail != "" && !strings.EqualFold(req.NewEmail, profile.Email) {
 		// Use centralized email validation (RFC 5322 compliant)
 		if _, err := ValidateEmail(req.NewEmail); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid email address", ApiErrorTypeValidation)
 			return
 		}
-		var exists int
-		if err := s.db.QueryRow(`SELECT COUNT(*) FROM admin_users WHERE LOWER(email) = LOWER($1) AND id <> $2`, req.NewEmail, adminID).Scan(&exists); err != nil {
+		exists, err := s.adminAuth().EmailInUse(r.Context(), req.NewEmail, profile.ID)
+		if err != nil {
 			logStructuredError("admin_email_validation_failed", map[string]interface{}{
 				"error": err.Error(),
 			})
 			writeJSONError(w, http.StatusInternalServerError, "Failed to validate email. Please try again.", ApiErrorTypeServerError)
 			return
 		}
-		if exists > 0 {
+		if exists {
 			writeJSONError(w, http.StatusConflict, "Email already in use", ApiErrorTypeValidation)
 			return
 		}
 		targetEmail = req.NewEmail
 	}
 
-	targetPasswordHash := passwordHash
+	targetPasswordHash := profile.PasswordHash
 	if req.NewPassword != "" {
-		if err := validateAdminPasswordUpdate(req.NewPassword, passwordHash); err != nil {
+		if err := validateAdminPasswordUpdate(req.NewPassword, profile.PasswordHash); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
@@ -556,12 +592,12 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 		targetPasswordHash = string(hashed)
 	}
 
-	if targetEmail == storedEmail && targetPasswordHash == passwordHash {
+	if targetEmail == profile.Email && targetPasswordHash == profile.PasswordHash {
 		writeJSONError(w, http.StatusBadRequest, "No changes detected", ApiErrorTypeValidation)
 		return
 	}
 
-	if _, err := s.db.Exec(`UPDATE admin_users SET email = $1, password_hash = $2 WHERE id = $3`, targetEmail, targetPasswordHash, adminID); err != nil {
+	if err := s.adminAuth().UpdateProfile(r.Context(), profile.ID, targetEmail, targetPasswordHash); err != nil {
 		logStructuredError("admin_profile_update_failed", map[string]interface{}{
 			"error": err.Error(),
 		})
@@ -573,17 +609,14 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 	currentSessionID, _ := session.Values["session_id"].(string)
 
 	// If password was changed, invalidate all other sessions for security
-	if targetPasswordHash != passwordHash {
-		result, err := s.db.Exec(`
-			DELETE FROM admin_sessions
-			WHERE admin_email = $1 AND id != $2
-		`, currentEmail, currentSessionID)
+	if targetPasswordHash != profile.PasswordHash {
+		affected, err := s.adminAuth().RevokeOtherSessions(r.Context(), currentEmail, currentSessionID)
 		if err != nil {
 			logStructuredError("admin_sessions_invalidation_failed", map[string]interface{}{
 				"error": err.Error(),
 				"email": currentEmail,
 			})
-		} else if affected, _ := result.RowsAffected(); affected > 0 {
+		} else if affected > 0 {
 			logStructured("admin_sessions_invalidated_on_password_change", map[string]interface{}{
 				"level":            "info",
 				"email":            currentEmail,
@@ -603,8 +636,8 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 
 	logStructured("admin_profile_updated", map[string]interface{}{
 		"level":          "info",
-		"changed_email":  targetEmail != storedEmail,
-		"changed_secret": targetPasswordHash != passwordHash,
+		"changed_email":  targetEmail != profile.Email,
+		"changed_secret": targetPasswordHash != profile.PasswordHash,
 	})
 
 	w.Header().Set("Content-Type", "application/json")

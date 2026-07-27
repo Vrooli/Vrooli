@@ -1,6 +1,7 @@
 import React from 'react';
+import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { BrandingSettings } from './BrandingSettings';
@@ -96,7 +97,7 @@ describe('BrandingSettings', () => {
     renderWithProviders(<BrandingSettings />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('branding-header')).toBeInTheDocument();
+      expect(screen.getByTestId('branding-identity-section')).toBeInTheDocument();
     });
 
     // Check for main sections
@@ -204,7 +205,7 @@ describe('BrandingSettings', () => {
     const colorInputs = screen.getAllByRole('textbox').filter(
       input => input.getAttribute('type') === 'text' &&
                (input.getAttribute('placeholder')?.includes('#') ||
-                (input as HTMLInputElement).value?.startsWith('#'))
+                (input as HTMLInputElement).value.startsWith('#'))
     );
     expect(colorInputs.length).toBeGreaterThan(0);
   });
@@ -218,6 +219,32 @@ describe('BrandingSettings', () => {
 
     // Should have robots.txt textarea
     expect(screen.getByPlaceholderText(/User-agent/i)).toBeInTheDocument();
+  });
+
+  it('supports operational preview, refresh, coming-soon mode, and clearing configured colors', async () => {
+    const user = userEvent.setup();
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    renderWithProviders(<BrandingSettings />);
+
+    await screen.findByTestId('branding-header');
+    await user.click(screen.getByTestId('branding-preview'));
+    await user.click(screen.getByTestId('branding-refresh'));
+    expect(open).toHaveBeenCalledWith('/', '_blank', 'noopener,noreferrer');
+    expect(mockGetBranding).toHaveBeenCalledTimes(2);
+
+    await user.click(screen.getByRole('switch'));
+    expect(screen.getByPlaceholderText(/working hard/i)).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(/working hard/i), 'Launches soon');
+    expect(screen.getByDisplayValue('Launches soon')).toBeInTheDocument();
+
+    const clearButtons = screen.getAllByTitle('Clear color');
+    await user.click(clearButtons[0]!);
+    await user.click(clearButtons[1]!);
+    await waitFor(() => {
+      expect(mockClearBrandingField).toHaveBeenCalledWith('theme_primary_color');
+      expect(mockClearBrandingField).toHaveBeenCalledWith('theme_background_color');
+    });
   });
 
   it('uses generated derivatives from a single upload to populate related branding fields', async () => {
@@ -302,7 +329,7 @@ describe('BrandingSettings', () => {
     });
 
     const { container } = renderWithProviders(<BrandingSettings />);
-    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getByTestId('branding-header')).toBeInTheDocument(); });
 
     const fileInputs = container.querySelectorAll('input[type="file"]');
     const faviconInput = fileInputs.item(2) as HTMLInputElement | null;
@@ -348,7 +375,7 @@ describe('BrandingSettings', () => {
     });
 
     const { container } = renderWithProviders(<BrandingSettings />);
-    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getByTestId('branding-header')).toBeInTheDocument(); });
 
     const fileInputs = container.querySelectorAll('input[type="file"]');
     const ogInput = fileInputs.item(4) as HTMLInputElement | null;

@@ -106,7 +106,7 @@ export function useFeedbackManagement(): UseFeedbackManagementReturn {
 
   // Initial load
   useEffect(() => {
-    loadFeedback();
+    void loadFeedback();
   }, [loadFeedback]);
 
   /**

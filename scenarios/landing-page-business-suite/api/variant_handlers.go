@@ -4,8 +4,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/json"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"time"
 )
@@ -70,7 +71,11 @@ func selectWeightedRandomVariant(variants []*VariantSnapshot) *VariantSnapshot {
 	}
 
 	// Pick a random point in the total weight range
-	pick := rand.Intn(totalWeight)
+	pickValue, err := rand.Int(rand.Reader, big.NewInt(int64(totalWeight)))
+	if err != nil {
+		return variants[0]
+	}
+	pick := int(pickValue.Int64())
 
 	// Find which variant this falls into
 	cumulative := 0

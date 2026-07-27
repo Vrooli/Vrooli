@@ -101,14 +101,15 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
 
   // Create abort controller for timeout handling
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  const timeoutId = setTimeout(() => { controller.abort(); }, timeout);
+  const headers = {
+    'Content-Type': 'application/json',
+    ...Object.fromEntries(new Headers(fetchOptions.headers).entries()),
+  };
 
   try {
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...fetchOptions.headers,
-      },
+      headers,
       credentials: 'include',
       signal: controller.signal,
       ...fetchOptions,
@@ -152,7 +153,7 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
       }
 
       throw new ApiError(
-        `API call failed (${res.status}): ${errorText}`,
+        `API call failed (${String(res.status)}): ${errorText}`,
         errorTypeOverride ?? errorType,
         res.status,
         userMessage,
@@ -161,17 +162,17 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
     }
 
     if (typeof (res as { json?: () => Promise<unknown> }).json === 'function') {
-      return res.json() as Promise<T>;
+      return await res.json() as T;
     }
 
-    return Promise.resolve(undefined as unknown as T);
+    return await Promise.resolve(undefined as unknown as T);
   } catch (err) {
     clearTimeout(timeoutId);
 
     // Handle abort (timeout)
     if (err instanceof Error && err.name === 'AbortError') {
       throw new ApiError(
-        `Request to ${endpoint} timed out after ${timeout}ms`,
+        `Request to ${endpoint} timed out after ${String(timeout)}ms`,
         'timeout',
         undefined,
         'The request took too long. Please try again.'

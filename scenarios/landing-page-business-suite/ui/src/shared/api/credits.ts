@@ -78,7 +78,7 @@ export async function createAPIKey(request: APIKeyCreateRequest): Promise<APIKey
 }
 
 export async function deleteAPIKey(provider: string): Promise<void> {
-  await apiDelete<void>(`/api/v1/admin/api-keys?provider=${encodeURIComponent(provider)}`);
+  await apiDelete<undefined>(`/api/v1/admin/api-keys?provider=${encodeURIComponent(provider)}`);
 }
 
 export async function testAPIKey(provider: string): Promise<APIKeyTestResult> {
@@ -86,7 +86,7 @@ export async function testAPIKey(provider: string): Promise<APIKeyTestResult> {
 }
 
 export async function toggleAPIKey(provider: string, active: boolean): Promise<void> {
-  return apiPost<void>('/api/v1/admin/api-keys/toggle', { provider, active });
+  await apiPost<undefined>('/api/v1/admin/api-keys/toggle', { provider, active });
 }
 
 // Tier Limits Management
@@ -117,7 +117,7 @@ export async function createTierLimit(limit: Partial<TierLimit>): Promise<TierLi
 }
 
 export async function deleteTierLimit(tierID: string, limitKey: string, appBundleKey?: string): Promise<void> {
-  return apiDelete<void>('/api/v1/admin/limits', {
+  await apiDelete<undefined>('/api/v1/admin/limits', {
     tier_id: tierID,
     limit_key: limitKey,
     app_bundle_key: appBundleKey,

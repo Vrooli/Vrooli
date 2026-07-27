@@ -45,32 +45,32 @@ describe('useFeedbackManagement', () => {
     it('starts with loading state', async () => {
       const { result } = renderHook(() => useFeedbackManagement());
       expect(result.current.loading).toBe(true);
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
     });
 
     it('has empty feedback list initially', async () => {
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.feedbackList).toEqual([]);
     });
 
     it('has default filter values', async () => {
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.statusFilter).toBe('all');
       expect(result.current.typeFilter).toBe('all');
     });
 
     it('has empty selection initially', async () => {
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.selectedIds.size).toBe(0);
       expect(result.current.expandedId).toBeNull();
     });
 
     it('has zero counts initially', async () => {
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.pendingCount).toBe(0);
       expect(result.current.inProgressCount).toBe(0);
     });
@@ -85,7 +85,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue(mockFeedback);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.feedbackList).toHaveLength(2);
       expect(mockFetchFeedbackList).toHaveBeenCalledTimes(1);
@@ -95,7 +95,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.error).toBe('Network error');
     });
@@ -104,7 +104,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue([]);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(mockFetchFeedbackList).toHaveBeenCalledTimes(1);
 
@@ -126,7 +126,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue(mockFeedback);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.filteredFeedback).toHaveLength(3);
 
@@ -147,7 +147,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue(mockFeedback);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setTypeFilter('bug');
@@ -166,7 +166,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue(mockFeedback);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setStatusFilter('pending');
@@ -188,7 +188,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue(mockFeedback);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.pendingCount).toBe(2);
     });
@@ -202,7 +202,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue(mockFeedback);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.inProgressCount).toBe(2);
     });
@@ -217,7 +217,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue(mockFeedback);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleToggleSelect(1);
@@ -243,7 +243,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue(mockFeedback);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleToggleSelectAll();
@@ -267,7 +267,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue(mockFeedback);
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setStatusFilter('pending');
@@ -285,7 +285,7 @@ describe('useFeedbackManagement', () => {
 
     it('sets expanded id', async () => {
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setExpandedId(5);
@@ -310,7 +310,7 @@ describe('useFeedbackManagement', () => {
       );
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let updateResult: { success: boolean; message?: string };
       await act(async () => {
@@ -323,11 +323,12 @@ describe('useFeedbackManagement', () => {
     });
 
     it('handles update error', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       mockFetchFeedbackList.mockResolvedValue([createMockFeedback({ id: 1 })]);
       mockUpdateFeedbackStatus.mockRejectedValue(new Error('Update failed'));
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let updateResult: { success: boolean; message?: string };
       await act(async () => {
@@ -336,6 +337,7 @@ describe('useFeedbackManagement', () => {
 
       expect(updateResult!.success).toBe(false);
       expect(updateResult!.message).toBe('Update failed');
+      expect(consoleError).toHaveBeenCalledWith('Failed to update status:', expect.any(Error));
     });
 
     it('sets action loading state during update', async () => {
@@ -348,7 +350,7 @@ describe('useFeedbackManagement', () => {
       );
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let updatePromise: Promise<{ success: boolean; message?: string }>;
       act(() => {
@@ -376,7 +378,7 @@ describe('useFeedbackManagement', () => {
       mockDeleteFeedback.mockResolvedValue({ success: true, id: 1 });
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.feedbackList).toHaveLength(2);
 
@@ -396,7 +398,7 @@ describe('useFeedbackManagement', () => {
       mockDeleteFeedback.mockResolvedValue({ success: true, id: 1 });
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleToggleSelect(1);
@@ -412,11 +414,12 @@ describe('useFeedbackManagement', () => {
     });
 
     it('handles delete error', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       mockFetchFeedbackList.mockResolvedValue([createMockFeedback({ id: 1 })]);
       mockDeleteFeedback.mockRejectedValue(new Error('Delete failed'));
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deleteResult: { success: boolean; message?: string };
       await act(async () => {
@@ -425,6 +428,7 @@ describe('useFeedbackManagement', () => {
 
       expect(deleteResult!.success).toBe(false);
       expect(deleteResult!.message).toBe('Delete failed');
+      expect(consoleError).toHaveBeenCalledWith('Failed to delete feedback:', expect.any(Error));
     });
 
     it('sets action loading state during delete', async () => {
@@ -432,12 +436,12 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue([createMockFeedback({ id: 1 })]);
       mockDeleteFeedback.mockReturnValue(
         new Promise((resolve) => {
-          resolvePromise = () => resolve({ success: true, id: 1 });
+          resolvePromise = () => { resolve({ success: true, id: 1 }); };
         })
       );
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deletePromise: Promise<{ success: boolean; message?: string }>;
       act(() => {
@@ -466,7 +470,7 @@ describe('useFeedbackManagement', () => {
       mockDeleteFeedbackBulk.mockResolvedValue({ success: true, deleted: 2 });
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleToggleSelect(1);
@@ -487,7 +491,7 @@ describe('useFeedbackManagement', () => {
 
     it('returns failure when no items selected', async () => {
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deleteResult: { success: boolean; message?: string };
       await act(async () => {
@@ -499,11 +503,12 @@ describe('useFeedbackManagement', () => {
     });
 
     it('handles bulk delete error', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       mockFetchFeedbackList.mockResolvedValue([createMockFeedback({ id: 1 })]);
       mockDeleteFeedbackBulk.mockRejectedValue(new Error('Bulk delete failed'));
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleToggleSelect(1);
@@ -516,6 +521,7 @@ describe('useFeedbackManagement', () => {
 
       expect(deleteResult!.success).toBe(false);
       expect(deleteResult!.message).toBe('Bulk delete failed');
+      expect(consoleError).toHaveBeenCalledWith('Failed to bulk delete:', expect.any(Error));
     });
 
     it('sets bulk action loading state during delete', async () => {
@@ -523,12 +529,12 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockResolvedValue([createMockFeedback({ id: 1 })]);
       mockDeleteFeedbackBulk.mockReturnValue(
         new Promise((resolve) => {
-          resolvePromise = () => resolve({ success: true, deleted: 1 });
+          resolvePromise = () => { resolve({ success: true, deleted: 1 }); };
         })
       );
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleToggleSelect(1);
@@ -553,7 +559,7 @@ describe('useFeedbackManagement', () => {
   describe('handleReply', () => {
     it('calls openEmailReply with correct arguments', async () => {
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleReply('test@example.com', 'Test Subject');
@@ -568,7 +574,7 @@ describe('useFeedbackManagement', () => {
       mockFetchFeedbackList.mockRejectedValue(new Error('Test error'));
 
       const { result } = renderHook(() => useFeedbackManagement());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.error).toBe('Test error');
 

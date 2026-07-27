@@ -22,7 +22,7 @@ Authenticates an admin user.
 ```json
 {
   "email": "admin@localhost",
-  "password": "changeme123"
+  "password": "<replace-at-deploy>"
 }
 ```
 
@@ -247,7 +247,7 @@ Logs in to the remote LPBS instance and stores the remote session cookie.
 ```json
 {
   "email": "admin@localhost",
-  "password": "changeme123"
+  "password": "your-remote-admin-password"
 }
 ```
 

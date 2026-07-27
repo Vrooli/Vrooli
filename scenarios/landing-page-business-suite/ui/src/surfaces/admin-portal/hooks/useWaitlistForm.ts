@@ -63,7 +63,7 @@ export function useWaitlistForm(): UseWaitlistFormReturn {
         fetchBranding(),
       ]);
       setEmails(emailsData);
-      setComingSoonEnabled(brandingData?.coming_soon_enabled ?? false);
+      setComingSoonEnabled(brandingData.coming_soon_enabled ?? false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -73,7 +73,7 @@ export function useWaitlistForm(): UseWaitlistFormReturn {
 
   // Initial load
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [loadData]);
 
   /**

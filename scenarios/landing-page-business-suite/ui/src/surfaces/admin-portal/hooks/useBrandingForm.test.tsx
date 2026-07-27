@@ -380,14 +380,16 @@ describe('useBrandingForm', () => {
         result.current.handleFieldChange('site_name', 'Changed');
       });
 
+      let submission: Promise<void>;
       act(() => {
-        result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+        submission = result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
       });
 
       expect(result.current.saving).toBe(true);
 
       await act(async () => {
-        resolveSave?.({ ...mockBranding, site_name: 'Changed' });
+        resolveSave!({ ...mockBranding, site_name: 'Changed' });
+        await submission;
       });
 
       expect(result.current.saving).toBe(false);

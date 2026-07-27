@@ -15,7 +15,7 @@ const trackedScrollDepth = new Map<string, Set<number>>();
 const activeScrollListeners = new Map<string, { count: number; handler: () => void }>();
 
 function generateId(prefix: string) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+	return `${prefix}_${Date.now().toString()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
 function logStorageWarning(kind: 'session' | 'local', error: unknown) {
@@ -156,7 +156,7 @@ export function useMetrics() {
     const currentCount = activePageViews.get(pageKey) ?? 0;
     activePageViews.set(pageKey, currentCount + 1);
     if (currentCount === 0) {
-      trackEvent('page_view', {
+      void trackEvent('page_view', {
         page: window.location.pathname,
         referrer: document.referrer,
       });
@@ -204,7 +204,7 @@ export function useMetrics() {
       for (const band of bands) {
         if (scrollPercentage >= band && !trackedBands.has(band)) {
           trackedBands.add(band);
-          trackEvent('scroll_depth', { depth: band });
+          void trackEvent('scroll_depth', { depth: band });
         }
       }
     };
@@ -227,7 +227,7 @@ export function useMetrics() {
   // Track CTA clicks
   const trackCTAClick = useCallback((elementId: string, elementData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('click', {
+    void trackEvent('click', {
       element_id: elementId,
       element_type: 'cta',
       ...elementData,
@@ -237,7 +237,7 @@ export function useMetrics() {
   // Track form submission
   const trackFormSubmit = useCallback((formId: string, formData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('form_submit', {
+    void trackEvent('form_submit', {
       form_id: formId,
       ...formData,
     });
@@ -246,12 +246,12 @@ export function useMetrics() {
   // Track conversion (e.g., Stripe checkout success)
   const trackConversion = useCallback((conversionData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('conversion', conversionData);
+    void trackEvent('conversion', conversionData);
   }, [previewMode, trackEvent]);
 
   const trackDownload = useCallback((downloadData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('download', downloadData);
+    void trackEvent('download', downloadData);
   }, [previewMode, trackEvent]);
 
   return {

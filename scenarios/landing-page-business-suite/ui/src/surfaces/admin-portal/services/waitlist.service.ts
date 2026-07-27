@@ -32,7 +32,8 @@ export function calculateStats(emails: WaitlistEmail[]): WaitlistStats {
  */
 export async function fetchWaitlistEmails(): Promise<WaitlistEmail[]> {
   const emails = await getWaitlistEmails();
-  return emails || [];
+  const rawEmails = emails as WaitlistEmail[] | null | undefined;
+  return rawEmails ?? [];
 }
 
 /**

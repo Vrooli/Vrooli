@@ -181,11 +181,19 @@ func (t *artifactScanTargets) hydrate() DownloadArtifact {
 }
 
 type DownloadHostingService struct {
-	db        *sql.DB
+	db        DownloadHostingStore
 	providers map[string]DownloadStorageProvider
 }
 
-func NewDownloadHostingService(db *sql.DB, providers ...DownloadStorageProvider) *DownloadHostingService {
+// DownloadHostingStore owns parameterized metadata queries for managed
+// artifacts and storage settings.
+type DownloadHostingStore interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func NewDownloadHostingService(db DownloadHostingStore, providers ...DownloadStorageProvider) *DownloadHostingService {
 	registered := map[string]DownloadStorageProvider{}
 	for _, provider := range providers {
 		if provider == nil {

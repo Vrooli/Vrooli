@@ -117,7 +117,7 @@ export function StepCredentials({
         <Callout
           type="info"
           message={credentialsCalloutMessage}
-          actions={[{ label: 'Credentials guide', onClick: () => setShowCredentialsHelp(true) }]}
+          actions={[{ label: 'Credentials guide', onClick: () => { setShowCredentialsHelp(true); } }]}
         />
       )}
 
@@ -146,10 +146,10 @@ export function StepCredentials({
           <input
             value={credentials.accessKeyId}
             onChange={(e) =>
-              onCredentialsChange({
+              { onCredentialsChange({
                 accessKeyId: e.target.value,
                 clearAccessKeyId: false,
-              })
+              }); }
             }
             className={inputBaseClassName}
             placeholder={existingSettings?.access_key_id_set ? '••••••••••••' : 'AKIA...'}
@@ -162,10 +162,10 @@ export function StepCredentials({
                 type="checkbox"
                 checked={credentials.clearAccessKeyId}
                 onChange={(e) =>
-                  onCredentialsChange({
+                  { onCredentialsChange({
                     clearAccessKeyId: e.target.checked,
                     accessKeyId: e.target.checked ? '' : credentials.accessKeyId,
-                  })
+                  }); }
                 }
                 className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
               />
@@ -187,10 +187,10 @@ export function StepCredentials({
             type="password"
             value={credentials.secretAccessKey}
             onChange={(e) =>
-              onCredentialsChange({
+              { onCredentialsChange({
                 secretAccessKey: e.target.value,
                 clearSecretAccessKey: false,
-              })
+              }); }
             }
             className={inputBaseClassName}
             placeholder={existingSettings?.secret_access_key_set ? '••••••••••••' : 'Enter secret key'}
@@ -203,10 +203,10 @@ export function StepCredentials({
                 type="checkbox"
                 checked={credentials.clearSecretAccessKey}
                 onChange={(e) =>
-                  onCredentialsChange({
+                  { onCredentialsChange({
                     clearSecretAccessKey: e.target.checked,
                     secretAccessKey: e.target.checked ? '' : credentials.secretAccessKey,
-                  })
+                  }); }
                 }
                 className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
               />
@@ -233,10 +233,10 @@ export function StepCredentials({
               type="password"
               value={credentials.sessionToken}
               onChange={(e) =>
-                onCredentialsChange({
+                { onCredentialsChange({
                   sessionToken: e.target.value,
                   clearSessionToken: false,
-                })
+                }); }
               }
               className={inputBaseClassName}
               placeholder="Optional session token"
@@ -249,10 +249,10 @@ export function StepCredentials({
                   type="checkbox"
                   checked={credentials.clearSessionToken}
                   onChange={(e) =>
-                    onCredentialsChange({
+                    { onCredentialsChange({
                       clearSessionToken: e.target.checked,
                       sessionToken: e.target.checked ? '' : credentials.sessionToken,
-                    })
+                    }); }
                   }
                   className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
                 />
@@ -290,7 +290,7 @@ export function StepCredentials({
       {provider !== 'custom' && (
         <HelpModal
           open={showCredentialsHelp}
-          onClose={() => setShowCredentialsHelp(false)}
+          onClose={() => { setShowCredentialsHelp(false); }}
           title={getCredentialsHelpTitle()}
         >
           {getCredentialsHelpContent()}

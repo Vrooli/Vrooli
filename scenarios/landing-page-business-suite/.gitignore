@@ -10,6 +10,8 @@ api/0
 *.out
 coverage.out
 cover*.out
+coverage/
+api/.gocache/
 
 # Editor / OS junk
 .DS_Store

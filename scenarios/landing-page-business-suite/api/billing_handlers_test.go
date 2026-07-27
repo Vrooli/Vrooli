@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -49,7 +49,7 @@ func TestHandleBillingCreateCheckoutSession_Success(t *testing.T) {
 		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	var resp landing_page_react_vite_v1.CreateCheckoutSessionResponse
+	var resp landing_page_business_suite_v1.CreateCheckoutSessionResponse
 	if err := protojson.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}

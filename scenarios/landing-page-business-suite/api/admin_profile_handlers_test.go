@@ -26,7 +26,15 @@ func attachAdminSession(t *testing.T, req *http.Request, email string) {
 	}
 }
 
+func configureAdminProfileTestCredentials(t *testing.T) {
+	t.Helper()
+	t.Setenv("ADMIN_DEFAULT_EMAIL", defaultAdminEmail)
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "changeme123")
+	t.Setenv("SESSION_SECRET", "admin-profile-test-session-secret")
+}
+
 func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
+	configureAdminProfileTestCredentials(t)
 	db := setupTestDB(t)
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, sessionManager: sessionMgr}
@@ -58,6 +66,7 @@ func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
 }
 
 func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
+	configureAdminProfileTestCredentials(t)
 	db := setupTestDB(t)
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, sessionManager: sessionMgr}
@@ -114,6 +123,7 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 }
 
 func TestHandleAdminProfileUpdate_InvalidPassword(t *testing.T) {
+	configureAdminProfileTestCredentials(t)
 	db := setupTestDB(t)
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, sessionManager: sessionMgr}
@@ -131,6 +141,7 @@ func TestHandleAdminProfileUpdate_InvalidPassword(t *testing.T) {
 }
 
 func TestHandleAdminProfileUpdate_EmailConflict(t *testing.T) {
+	configureAdminProfileTestCredentials(t)
 	db := setupTestDB(t)
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, sessionManager: sessionMgr}
@@ -149,7 +160,11 @@ func TestHandleAdminProfileUpdate_EmailConflict(t *testing.T) {
 	if _, err := db.Exec(`DELETE FROM admin_users WHERE email = $1`, takenEmail); err != nil {
 		t.Fatalf("failed to cleanup conflicting admin: %v", err)
 	}
-	if _, err := db.Exec(`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)`, takenEmail, defaultAdminPasswordHash); err != nil {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("test-only-password"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("generate password hash: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)`, takenEmail, string(passwordHash)); err != nil {
 		t.Fatalf("failed to seed conflicting admin: %v", err)
 	}
 	t.Cleanup(func() {

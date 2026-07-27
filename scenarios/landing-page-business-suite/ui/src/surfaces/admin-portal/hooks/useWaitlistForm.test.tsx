@@ -49,24 +49,24 @@ describe('useWaitlistForm', () => {
     it('starts with loading state', async () => {
       const { result } = renderHook(() => useWaitlistForm());
       expect(result.current.loading).toBe(true);
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
     });
 
     it('has empty emails initially', async () => {
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.emails).toEqual([]);
     });
 
     it('has coming soon disabled by default', async () => {
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.comingSoonEnabled).toBe(false);
     });
 
     it('has stats initialized to zero', async () => {
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.stats).toEqual({ totalSignups: 0, comingSoonCount: 0 });
     });
   });
@@ -78,7 +78,7 @@ describe('useWaitlistForm', () => {
       mockFetchBranding.mockResolvedValue(createMockBranding({ coming_soon_enabled: true }));
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.emails).toHaveLength(2);
       expect(result.current.comingSoonEnabled).toBe(true);
@@ -90,7 +90,7 @@ describe('useWaitlistForm', () => {
       mockFetchWaitlistEmails.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.error).toBe('Network error');
     });
@@ -100,7 +100,7 @@ describe('useWaitlistForm', () => {
       mockFetchBranding.mockResolvedValue(createMockBranding());
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(mockFetchWaitlistEmails).toHaveBeenCalledTimes(1);
 
@@ -122,7 +122,7 @@ describe('useWaitlistForm', () => {
       mockFetchWaitlistEmails.mockResolvedValue(mockEmails);
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.stats.totalSignups).toBe(3);
       expect(result.current.stats.comingSoonCount).toBe(2);
@@ -139,7 +139,7 @@ describe('useWaitlistForm', () => {
       mockDeleteWaitlistEmail.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.emails).toHaveLength(2);
 
@@ -159,7 +159,7 @@ describe('useWaitlistForm', () => {
       mockDeleteWaitlistEmail.mockRejectedValue(new Error('Delete failed'));
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deleteResult: { success: boolean; message?: string };
       await act(async () => {
@@ -176,12 +176,12 @@ describe('useWaitlistForm', () => {
       mockFetchWaitlistEmails.mockResolvedValue([createMockEmail({ id: 1 })]);
       mockDeleteWaitlistEmail.mockReturnValue(
         new Promise((resolve) => {
-          resolvePromise = () => resolve(undefined);
+          resolvePromise = () => { resolve(undefined); };
         })
       );
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deletePromise: Promise<{ success: boolean; message?: string }>;
       act(() => {
@@ -205,7 +205,7 @@ describe('useWaitlistForm', () => {
       mockToggleComingSoonMode.mockResolvedValue(true);
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.comingSoonEnabled).toBe(false);
 
@@ -224,7 +224,7 @@ describe('useWaitlistForm', () => {
       mockToggleComingSoonMode.mockResolvedValue(false);
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.comingSoonEnabled).toBe(true);
 
@@ -242,7 +242,7 @@ describe('useWaitlistForm', () => {
       mockToggleComingSoonMode.mockRejectedValue(new Error('Toggle failed'));
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let toggleResult: { success: boolean; message?: string };
       await act(async () => {
@@ -259,12 +259,12 @@ describe('useWaitlistForm', () => {
       mockFetchBranding.mockResolvedValue(createMockBranding({ coming_soon_enabled: false }));
       mockToggleComingSoonMode.mockReturnValue(
         new Promise((resolve) => {
-          resolvePromise = () => resolve(true);
+          resolvePromise = () => { resolve(true); };
         })
       );
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let togglePromise: Promise<{ success: boolean; message?: string }>;
       act(() => {
@@ -285,7 +285,7 @@ describe('useWaitlistForm', () => {
   describe('handleExport', () => {
     it('calls exportToCsv', async () => {
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleExport();
@@ -300,7 +300,7 @@ describe('useWaitlistForm', () => {
       mockFetchWaitlistEmails.mockRejectedValue(new Error('Test error'));
 
       const { result } = renderHook(() => useWaitlistForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.error).toBe('Test error');
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { waitFor } from "@testing-library/react";
 import { SEOHead } from './SEOHead';
 import type { LandingBranding, VariantSEOConfig } from '../api';
 
@@ -11,12 +12,12 @@ describe('SEOHead', () => {
     originalHead = document.head.innerHTML;
     document.title = 'Initial Title';
     // Clear any meta tags we'll be testing
-    document.querySelectorAll('meta[name="description"]').forEach(el => el.remove());
-    document.querySelectorAll('meta[property^="og:"]').forEach(el => el.remove());
-    document.querySelectorAll('meta[name^="twitter:"]').forEach(el => el.remove());
-    document.querySelectorAll('link[rel="icon"]').forEach(el => el.remove());
-    document.querySelectorAll('link[rel="canonical"]').forEach(el => el.remove());
-    document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove());
+    document.querySelectorAll('meta[name="description"]').forEach(el => { el.remove(); });
+    document.querySelectorAll('meta[property^="og:"]').forEach(el => { el.remove(); });
+    document.querySelectorAll('meta[name^="twitter:"]').forEach(el => { el.remove(); });
+    document.querySelectorAll('link[rel="icon"]').forEach(el => { el.remove(); });
+    document.querySelectorAll('link[rel="canonical"]').forEach(el => { el.remove(); });
+    document.querySelectorAll('meta[name="theme-color"]').forEach(el => { el.remove(); });
   });
 
   afterEach(() => {
@@ -102,10 +103,11 @@ describe('SEOHead', () => {
     });
   });
 
-  it('sets theme color from branding', async () => {
+  it('sets browser chrome color from the branding background', async () => {
     const branding: LandingBranding = {
       site_name: 'Test',
       theme_primary_color: '#6366f1',
+      theme_background_color: '#07090F',
     };
 
     render(<SEOHead branding={branding} />);
@@ -113,7 +115,7 @@ describe('SEOHead', () => {
     await waitFor(() => {
       const meta = document.querySelector('meta[name="theme-color"]');
       expect(meta).toBeTruthy();
-      expect(meta?.getAttribute('content')).toBe('#6366f1');
+      expect(meta?.getAttribute('content')).toBe('#07090F');
     });
   });
 
@@ -192,7 +194,7 @@ describe('SEOHead', () => {
     });
   });
 
-  it('handles null/undefined gracefully', async () => {
+  it('handles null/undefined gracefully', () => {
     const { rerender } = render(<SEOHead branding={null} seoConfig={null} />);
 
     // Should not throw

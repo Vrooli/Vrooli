@@ -141,23 +141,26 @@ export async function testRemoteProfile(id: number): Promise<RemoteProfile> {
 
 export async function getRemoteProfileSessionLinks(id: number): Promise<RemoteProfileSessionLinks> {
   const links = await getRemoteProfileSessionLinksAdmin(id);
+  const rawLinks = links as RemoteProfileSessionLinks & { remote_sessions?: RemoteProfileSessionLinks['remote_sessions'] };
   return {
     ...links,
-    remote_sessions: links.remote_sessions ?? [],
+    remote_sessions: rawLinks.remote_sessions ?? [],
   };
 }
 
 export async function revokeRemoteProfileSessions(id: number): Promise<RemoteProfileSessionLinks> {
   const links = await revokeRemoteProfileSessionsAdmin(id);
+  const rawLinks = links as RemoteProfileSessionLinks & { remote_sessions?: RemoteProfileSessionLinks['remote_sessions'] };
   return {
     ...links,
-    remote_sessions: links.remote_sessions ?? [],
+    remote_sessions: rawLinks.remote_sessions ?? [],
   };
 }
 
 export async function fetchIncomingRemoteProfileSessions(connectorID?: string): Promise<IncomingRemoteProfileSession[]> {
   const response = await listIncomingRemoteProfileSessionsAdmin(connectorID);
-  return response.sessions ?? [];
+  const rawResponse = response as { sessions?: IncomingRemoteProfileSession[] };
+  return rawResponse.sessions ?? [];
 }
 
 export async function revokeIncomingRemoteProfileSession(sessionID: string): Promise<void> {

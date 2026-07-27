@@ -463,7 +463,7 @@ func TestDiscoverSkillPackAutoAddsMultipleSkillsAndIsIdempotent(t *testing.T) {
 	sess, _, err := svc.StartSession(ctx, "Skill pack cutover", "", "")
 	require.NoError(t, err)
 
-	updated, result, added, kept, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"plan-manager authoring", "skill discovery"}, "architectural")
+	updated, result, added, kept, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, "", []string{"plan-manager authoring", "skill discovery"}, "architectural")
 	require.NoError(t, err)
 	require.Empty(t, violations)
 	require.Len(t, added, 2)
@@ -473,12 +473,71 @@ func TestDiscoverSkillPackAutoAddsMultipleSkillsAndIsIdempotent(t *testing.T) {
 	require.Equal(t, []string{"plan-manager authoring", "skill discovery"}, discovery.gotConcepts)
 	require.Equal(t, "architectural", discovery.gotComplexity)
 
-	updated, _, added, kept, violations, _, err = svc.DiscoverSkillPack(ctx, sess.ID, []string{"plan-manager authoring"}, "architectural")
+	updated, _, added, kept, violations, _, err = svc.DiscoverSkillPack(ctx, sess.ID, "", []string{"plan-manager authoring"}, "architectural")
 	require.NoError(t, err)
 	require.Empty(t, violations)
 	require.Empty(t, added)
 	require.Len(t, kept, 2)
 	require.Len(t, updated.RelevantContext, 2)
+}
+
+func TestDiscoverSkillPackPhaseScopedLandsOnPhaseNotGlobal(t *testing.T) {
+	discovery := &fakeSkillPackDiscoverer{result: authoring.SkillPackResult{
+		Items: []planmodel.RelevantContextItem{
+			{Kind: planmodel.RelevantContextSkill, Label: "Storage Steer", Target: "storage-steer", Reason: "embedding metadata", Instruction: "load", Source: planmodel.RelevantContextSourceDiscovered, Status: planmodel.RelevantContextStatusReady},
+		},
+		ReadCommand: "prompt-manager skill read storage-steer",
+		Summary:     "prompt-manager returned 1 skill(s)",
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Skills: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Phase-scoped skills", "", "")
+	require.NoError(t, err)
+	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Embeddings", "Embed each facet text.")
+	require.NoError(t, err)
+
+	updated, _, added, kept, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, phase.ID, []string{"embedding metadata"}, "moderate")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Len(t, added, 1)
+	require.Empty(t, kept)
+	// The pack lands on the phase and NOT in global context — the whole point of
+	// the flag is that a phase-only skill does not enter every phase's setup.
+	require.Empty(t, updated.RelevantContext)
+	require.Len(t, updated.PhaseDrafts, 1)
+	require.Len(t, updated.PhaseDrafts[0].RelevantContext, 1)
+	item := updated.PhaseDrafts[0].RelevantContext[0]
+	require.Equal(t, planmodel.RelevantContextScopePhase, item.Scope)
+	require.Equal(t, phase.ID, item.PhaseID)
+	require.Equal(t, "storage-steer", item.Target)
+
+	// Re-running the same phase-scoped discovery is idempotent.
+	updated, _, added, kept, violations, _, err = svc.DiscoverSkillPack(ctx, sess.ID, phase.ID, []string{"embedding metadata"}, "moderate")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Empty(t, added)
+	require.Len(t, kept, 1)
+	require.Len(t, updated.PhaseDrafts[0].RelevantContext, 1)
+}
+
+func TestDiscoverSkillPackUnknownPhaseFailsInsteadOfFallingBackToGlobal(t *testing.T) {
+	discovery := &fakeSkillPackDiscoverer{result: authoring.SkillPackResult{
+		Items: []planmodel.RelevantContextItem{
+			{Kind: planmodel.RelevantContextSkill, Label: "Storage Steer", Target: "storage-steer", Reason: "embedding metadata", Instruction: "load", Source: planmodel.RelevantContextSourceDiscovered, Status: planmodel.RelevantContextStatusReady},
+		},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Skills: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Unknown phase ref", "", "")
+	require.NoError(t, err)
+
+	_, _, _, _, _, _, err = svc.DiscoverSkillPack(ctx, sess.ID, "no-such-phase", []string{"embedding metadata"}, "moderate")
+	require.Error(t, err)
+
+	// A bad phase ref must not silently demote the pack into global context.
+	reloaded, _, err := svc.GetSession(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Empty(t, reloaded.RelevantContext)
 }
 
 func TestDiscoverSkillPackPreservesManualSkillsAndDegradesWhenUnavailable(t *testing.T) {
@@ -493,7 +552,7 @@ func TestDiscoverSkillPackPreservesManualSkillsAndDegradesWhenUnavailable(t *tes
 	require.Empty(t, violations)
 	require.Len(t, sess.RelevantContext, 1)
 
-	updated, result, added, kept, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"anything"}, "")
+	updated, result, added, kept, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, "", []string{"anything"}, "")
 	require.NoError(t, err)
 	require.True(t, result.Degraded)
 	require.Contains(t, result.DegradedReason, "prompt-manager down")

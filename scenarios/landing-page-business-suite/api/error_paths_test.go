@@ -32,10 +32,8 @@ func TestErrorPaths_ContextCancellation(t *testing.T) {
 		AppBundleKey: "test-app",
 	})
 
-	if err == nil {
-		t.Log("RecordUsage succeeded with cancelled context (may be acceptable for fast operations)")
-	} else if !errors.Is(err, context.Canceled) {
-		t.Logf("RecordUsage returned error (may or may not be context.Canceled): %v", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RecordUsage error = %v, want context.Canceled", err)
 	}
 }
 
@@ -57,9 +55,8 @@ func TestErrorPaths_ContextTimeout(t *testing.T) {
 		AppBundleKey: "test-app",
 	})
 
-	// The operation may succeed if it's fast enough, or fail with deadline exceeded
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		t.Logf("RecordUsage error (expected DeadlineExceeded or success): %v", err)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("RecordUsage error = %v, want context.DeadlineExceeded", err)
 	}
 }
 
@@ -115,8 +112,9 @@ func TestErrorPaths_NegativeAmount(t *testing.T) {
 		AppBundleKey: "test-app",
 	})
 
-	// Depending on implementation, negative amounts might be rejected or treated as refunds
-	t.Logf("Negative amount handling: err=%v", err)
+	if err == nil {
+		t.Fatal("negative usage amount must be rejected")
+	}
 }
 
 func TestErrorPaths_GetUsage_NonexistentUser(t *testing.T) {

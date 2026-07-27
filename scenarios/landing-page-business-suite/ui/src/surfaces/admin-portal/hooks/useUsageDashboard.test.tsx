@@ -69,23 +69,23 @@ describe('useUsageDashboard', () => {
     it('starts with loading state', async () => {
       const { result } = renderHook(() => useUsageDashboard());
       expect(result.current.loading).toBe(true);
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
     });
 
     it('has null summary initially', async () => {
       mockFetchUsageSummary.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(createMockSummary()), 10))
+        () => new Promise((resolve) => setTimeout(() => { resolve(createMockSummary()); }, 10))
       );
       const { result } = renderHook(() => useUsageDashboard());
       expect(result.current.summary).toBeNull();
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
     });
 
     it('uses current billing period', async () => {
       mockGetCurrentPeriod.mockReturnValue('2024-03');
       const { result } = renderHook(() => useUsageDashboard());
       expect(result.current.billingPeriod).toBe('2024-03');
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
     });
   });
 
@@ -95,7 +95,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.summary).toEqual(mockSummary);
       expect(mockFetchUsageSummary).toHaveBeenCalledTimes(1);
@@ -105,7 +105,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.error).toBe('Network error');
       expect(result.current.summary).toBeNull();
@@ -115,7 +115,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockResolvedValue(createMockSummary());
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(mockFetchUsageSummary).toHaveBeenCalledTimes(1);
 
@@ -132,7 +132,7 @@ describe('useUsageDashboard', () => {
       mockGetCurrentPeriod.mockReturnValue('2024-03');
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.navigateMonth(-1);
@@ -145,7 +145,7 @@ describe('useUsageDashboard', () => {
       mockGetCurrentPeriod.mockReturnValue('2024-03');
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       // First go back
       act(() => {
@@ -165,7 +165,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockResolvedValue(createMockSummary());
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(mockFetchUsageSummary).toHaveBeenCalledTimes(1);
 
@@ -183,7 +183,7 @@ describe('useUsageDashboard', () => {
       mockIsCurrentPeriod.mockImplementation((period: string) => period === '2024-03');
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.isCurrentPeriod).toBe(true);
 
@@ -198,7 +198,7 @@ describe('useUsageDashboard', () => {
       mockGetCurrentPeriod.mockReturnValue('2024-01');
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.formattedPeriod).toBe('January 2024');
     });
@@ -216,7 +216,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.totalUsage).toBe(1000);
     });
@@ -232,7 +232,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.sortedAppTotals[0]?.app).toBe('high-app');
       expect(result.current.sortedAppTotals[1]?.app).toBe('mid-app');
@@ -250,7 +250,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.sortedAppTotals[0]?.percentage).toBe(50);
       expect(result.current.sortedAppTotals[1]?.percentage).toBe(25);
@@ -267,7 +267,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.topUsers[0]?.user).toBe('high@example.com');
       expect(result.current.topUsers[0]?.usage).toBe(500);
@@ -281,7 +281,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.recentRecords).toHaveLength(20);
     });
@@ -292,7 +292,7 @@ describe('useUsageDashboard', () => {
       mockFetchUsageSummary.mockRejectedValue(new Error('Test error'));
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.error).toBe('Test error');
 
@@ -309,7 +309,7 @@ describe('useUsageDashboard', () => {
         .mockResolvedValueOnce(createMockSummary());
 
       const { result } = renderHook(() => useUsageDashboard());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.error).toBe('First error');
 

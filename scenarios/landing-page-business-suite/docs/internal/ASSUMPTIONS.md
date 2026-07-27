@@ -14,7 +14,7 @@ This document records the **operating assumptions** the landing-page-business-su
 ## Runtime environment
 
 - **Postgres is always reachable.** The API connects to a Postgres database at startup using `POSTGRES_*` env vars (or `DATABASE_URL`); see `api/main.go:resolveDatabaseURL`. The scenario does not run in a degraded "no-database" mode.
-- **Schema is owned by this scenario.** `ensureSchema` in `api/main.go` runs idempotent `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE … ADD COLUMN IF NOT EXISTS` statements. The authoritative DDL is mirrored at `initialization/postgres/schema.sql`. We assume nothing else writes to the same database.
+- **Schema is owned by this scenario.** Domain packages under `api/internal/*/schema.sql` hold the authoritative declarative DDL; `applyRuntimeSchema` applies the same source at boot and in tests. Historical data moves are one-shot operator work, never boot-time migrations. In particular, before deploying an installation that retains `intro_anomaly_log`, export and transform its rows into `payment_anomaly_log` in a maintenance window, verify counts, then archive or drop the legacy table under operator control. We assume nothing else writes to the same database.
 - **The lifecycle system seeds `POSTGRES_*` env vars and a writable filesystem.** Variant + branding JSON config under `config/` is treated as **tracked, source-of-truth** state, not runtime state.
 - **Stripe keys, webhook secrets, and AI provider keys are optional at boot.** The API starts without them and reports them as missing through `/api/v1/health` and `/api/v1/deploy-readiness`. Features that require them surface clear error semantics rather than crashing.
 

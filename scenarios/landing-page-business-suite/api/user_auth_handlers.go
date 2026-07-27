@@ -290,6 +290,7 @@ func handleAuthMe(authService *UserAuthService) http.HandlerFunc {
 // setAuthCookies sets HTTP-only cookies for access and refresh tokens.
 func setAuthCookies(w http.ResponseWriter, tokenPair *TokenPair) {
 	// Access token cookie (short-lived)
+	// #nosec G124 -- Secure is environment-aware for local HTTP; production defaults to Secure, and all cookies set HttpOnly/SameSite.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    tokenPair.AccessToken,
@@ -302,6 +303,7 @@ func setAuthCookies(w http.ResponseWriter, tokenPair *TokenPair) {
 
 	// Refresh token cookie (longer-lived)
 	// Expires in 7 days from now
+	// #nosec G124 -- Secure is environment-aware for local HTTP; production defaults to Secure, and all cookies set HttpOnly/SameSite.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    tokenPair.RefreshToken,
@@ -315,6 +317,7 @@ func setAuthCookies(w http.ResponseWriter, tokenPair *TokenPair) {
 
 // clearAuthCookies removes authentication cookies.
 func clearAuthCookies(w http.ResponseWriter) {
+	// #nosec G124 -- deletion must mirror the environment-aware Secure cookie attributes used at issuance.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    "",
@@ -325,6 +328,7 @@ func clearAuthCookies(w http.ResponseWriter) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
+	// #nosec G124 -- deletion must mirror the environment-aware Secure cookie attributes used at issuance.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",

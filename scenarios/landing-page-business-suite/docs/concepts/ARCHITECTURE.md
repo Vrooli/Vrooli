@@ -8,7 +8,8 @@ audience: ["developers"]
 
 # Architecture
 
-This document describes the system architecture of landing pages generated from this template.
+This document describes the architecture of the Landing Page Business Suite: a
+subscription, credit, customer, download, and admin-operations service.
 
 **Key Implementation Files:**
 - [CODE: api/main.go] - API server entry point and service initialization
@@ -23,7 +24,7 @@ This document describes the system architecture of landing pages generated from 
 - [CODE: api/remote_profiles_service.go] - Remote profile storage + proxy service
 - [CODE: api/plan_store.go] - File-based plan catalog (pricing source of truth)
 - [CODE: cli/main.go] - Operator CLI surface
-- [CODE: initialization/postgres/schema.sql] - Authoritative database DDL
+- [CODE: api/internal/schema/schema.go] - Ordered registry for authoritative, domain-owned database DDL
 
 ## Table of Contents
 
@@ -64,7 +65,7 @@ This document describes the system architecture of landing pages generated from 
 |                          v                                                        |
 |              +-----------------------+                                            |
 |              |      GO API           |                                            |
-|              |      (Gin)            |                                            |
+|              |   (net/http + mux)    |                                            |
 |              +-----------+-----------+                                            |
 |                          |                                                        |
 |            +-------------+-------------+                                          |
@@ -143,7 +144,7 @@ The scenario ships **three runtime surfaces** that share the same database and c
 
 ```
 api/
-├── main.go                  # Server struct, service composition, schema bootstrap
+├── main.go                  # Server composition and lifecycle wiring only
 ├── routes.go                # Per-domain register*Routes() calls — single composer
 ├── auth.go                  # Admin session middleware (requireAdmin, requireAdminOrService)
 ├── user_auth_*.go           # End-user magic-link + JWT auth (handlers, middleware, service)
@@ -170,11 +171,15 @@ cli/
 ├── domains/                 # Per-domain CLI commands (mirrors API domains)
 └── internal/                # Shared CLI helpers (auth, config)
 
-initialization/
-├── postgres/
-│   ├── schema.sql           # Database DDL (authoritative location)
-│   └── seed.sql             # Initial data
-└── configuration/           # Variant + branding seed payloads
+api/internal/
+├── admin/                   # Admin accounts, sessions, remote profiles + schema
+├── financial/               # Plans, Stripe, subscriptions, credits + schema
+├── download/                # Entitled download catalog/storage + schema
+├── operations/              # Usage, reservations, API keys, user auth + schema
+├── metrics/                 # Analytics event persistence + schema
+├── content/                 # Assets, feedback, waitlist + schema
+├── schema/                  # Thin ordered schema registry (no business rules)
+└── testutil/                # Test-only shared helpers; forbidden in production imports
 ```
 
 #### Domain map
@@ -193,7 +198,24 @@ The HTTP API exposes ~8 logical domains, registered from `api/routes.go`:
 | `user-auth` | `/api/v1/auth/*`, `/api/v1/me/*`, `/api/v1/entitlements` | `registerAuthRoutes`, `registerAccountRoutes` |
 | `health` (cross-cutting) | `/health`, `/api/v1/health`, `/api/v1/deploy-readiness` | `registerHealthRoutes`, `registerDeployReadinessRoute` |
 
-> **Transitional layout.** All HTTP-API source today lives in a single `package main` under `api/`. Per-domain `register*Routes` functions provide *file-level* grouping; physical `api/domain/<name>/` subpackages have **not yet** been extracted. The follow-up backlog item `qa-deep-landing-page-business-suite-api-domain-subpackages-20260424` tracks the move into per-domain Go subpackages and the design of any shared package needed to break import cycles. Until then, "domain boundaries" in the API are enforced by file naming + route-registration grouping rather than by package boundaries.
+> **Migration state.** Runtime schema ownership has moved into domain packages.
+> Services and handlers remain partially colocated in `package main`; each move
+> must preserve HTTP contracts and land with its tests. `main.go` is restricted
+> to configuration, database wiring, schema registration, service composition,
+> route registration, and process start.
+
+### Target capability ownership
+
+| Capability | Primary archetype | API owner | UI/CLI owner |
+|---|---|---|---|
+| Admin and remote profiles | CRUD + integration | `admin` | admin portal / `cli/domains/remoteprofiles` |
+| Plans, subscriptions, Stripe, coupons | Temporal workflow + integration | `financial` | billing portal / `cli/domains/billing` |
+| Credits, usage, reservations, provider keys | Policy + temporal workflow | `operations` | admin usage views / `cli/domains/credits` |
+| Downloads and release hosting | Blob + entitlement policy | `download` | downloads views / `cli/domains/downloads` |
+| Landing configuration and variants | Configuration | file-backed config substrate | public landing / `cli/domains/variants` |
+| Metrics, feedback, waitlist | Reporting + CRUD | `metrics` and `content` | analytics/admin portal |
+| End-user authentication | Temporal security workflow | `operations` | user-auth surface / `cli/domains/auth` |
+| AI gateway | Integration + credit orchestration | `operations` with provider seams | API surface / `cli/domains/ai` |
 
 ### Responsibility Layers
 
@@ -565,6 +587,36 @@ User action → Frontend SDK → POST /metrics/track → Database INSERT
 4. **CDN** - Static asset distribution
 
 ---
+
+## Zone Map
+
+The API is in an incremental migration: legacy root files remain the composition
+edge, while new work follows this zone map. Domain packages must remain
+transport-free; `handlers/` translates HTTP and receives generic response
+behavior from the root.
+
+| Directory | Zone | May Import | Enforcement |
+|---|---|---|---|
+| `api/handlers/metrics/` | transport edge | `internal/metrics`, standard library | `internal/testutil/no_prod_import_test.go` and handler tests |
+| `api/internal/admin/` | domain and persistence | standard library, database driver as needed | production-import test |
+| `api/internal/clock/` | cross-cutting substrate | standard library | seam-registry test |
+| `api/internal/content/` | domain and persistence | standard library, database driver as needed | production-import test |
+| `api/internal/download/` | domain and persistence | standard library, database driver as needed | production-import test |
+| `api/internal/financial/` | domain and persistence | standard library, database driver as needed | production-import test |
+| `api/internal/metrics/` | domain and persistence | `internal/clock`, standard library, database driver as needed | production-import and seam-registry tests |
+| `api/internal/operations/` | domain and persistence | standard library, database driver as needed | production-import test |
+| `api/internal/schema/` | schema registry substrate | domain schema packages and standard library | schema registry tests |
+| `api/internal/testutil/` | test-only substrate | standard library | production imports are forbidden |
+| `api/templates/` | embedded API templates | standard library | compile/test coverage |
+
+### Boundary Maturity
+
+| Zone | Level | Evidence | Remaining Drift |
+|---|---|---|---|
+| API transport/domain | 2 | Metrics handlers live under `handlers/metrics`; its domain logic is transport-free. | Most legacy handlers and services remain in the root `main` package. |
+| API substrate | 2 | Schema registry, clock, and test utility packages have named responsibilities. | Generic HTTP response and server composition seams are still root-owned. |
+| UI | 3 | Surface-aligned routes, providers, and typed clients are documented and tested. | Keep consolidating legacy shared utility imports as files move. |
+| CLI | 2 | Per-domain CLI packages and a manifest exist. | Continue migrating legacy command wiring to typed command contracts. |
 
 ## See Also
 

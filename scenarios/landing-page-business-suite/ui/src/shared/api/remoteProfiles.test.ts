@@ -1,67 +1,40 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  createRemoteProfileAdmin,
-  getRemoteProfileSessionLinksAdmin,
-  listIncomingRemoteProfileSessionsAdmin,
-  revokeIncomingRemoteProfileSessionAdmin,
-} from './remoteProfiles';
-import { createFetchMock, getFetchCall, installFetchMock, mockResponses } from '../test-utils/api-mocks';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as remoteProfiles from './remoteProfiles';
+import { apiCall } from './common';
 
-describe('remoteProfiles API', () => {
-  let fetchMock: ReturnType<typeof createFetchMock>;
+vi.mock('./common', () => ({ apiCall: vi.fn() }));
+const mockApiCall = vi.mocked(apiCall);
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    fetchMock = createFetchMock();
-    installFetchMock(fetchMock);
+describe('remote profile API transport', () => {
+  beforeEach(() => { vi.clearAllMocks(); mockApiCall.mockResolvedValue({} as never); });
+
+  it('keeps invalid list payloads safely empty and sends all profile lifecycle requests to their scoped endpoints', async () => {
+    await expect(remoteProfiles.listRemoteProfilesAdmin()).resolves.toEqual({ profiles: [] });
+    await expect(remoteProfiles.createRemoteProfileAdmin({ tag: 'partner', api_base: 'https://partner.example/api/v1' })).rejects.toThrow('Invalid remote profile response from API');
+    await expect(remoteProfiles.updateRemoteProfileAdmin(7, { label: 'Partner' })).rejects.toThrow('Invalid remote profile response from API');
+    await expect(remoteProfiles.deleteRemoteProfileAdmin(7)).resolves.toEqual({});
+    await expect(remoteProfiles.loginRemoteProfileAdmin(7, { email: 'admin@example.com', password: 'secret' })).rejects.toThrow('Invalid remote profile response from API');
+    await expect(remoteProfiles.logoutRemoteProfileAdmin(7)).rejects.toThrow('Invalid remote profile response from API');
+    await expect(remoteProfiles.testRemoteProfileAdmin(7)).rejects.toThrow('Invalid remote profile response from API');
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles');
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles', expect.objectContaining({ method: 'POST' }));
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles/7', expect.objectContaining({ method: 'PUT' }));
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles/7', { method: 'DELETE' });
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles/7/login', expect.objectContaining({ method: 'POST' }));
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles/7/logout', { method: 'POST' });
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles/7/test', { method: 'POST' });
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('encodes connector_id when listing incoming sessions', async () => {
-    fetchMock.mockResolvedValue(mockResponses.success({ sessions: [] }));
-
-    await listIncomingRemoteProfileSessionsAdmin('connector with spaces/slash');
-
-    const [url] = getFetchCall(fetchMock);
-    expect(url).toContain('/admin/remote-profile-sessions?connector_id=');
-    expect(url).toContain(encodeURIComponent('connector with spaces/slash'));
-  });
-
-  it('throws when create response schema is invalid', async () => {
-    fetchMock.mockResolvedValue(mockResponses.success({ id: 10 }));
-
-    await expect(createRemoteProfileAdmin({
-      tag: 'prod',
-      api_base: 'https://example.com/api/v1',
-    })).rejects.toThrow('Invalid remote profile response from API');
-  });
-
-  it('throws when session-links response schema is invalid', async () => {
-    fetchMock.mockResolvedValue(mockResponses.success({ profile_id: 7 }));
-
-    await expect(getRemoteProfileSessionLinksAdmin(7)).rejects.toThrow(
-      'Invalid remote profile session links response from API'
-    );
-  });
-
-  it('returns fallback empty session list when payload is invalid', async () => {
-    fetchMock.mockResolvedValue(mockResponses.success({ hello: 'world' }));
-
-    const result = await listIncomingRemoteProfileSessionsAdmin();
-
-    expect(result).toEqual({ sessions: [] });
-  });
-
-  it('sends delete request for incoming remote session revoke', async () => {
-    fetchMock.mockResolvedValue(mockResponses.success({ success: true }));
-
-    await revokeIncomingRemoteProfileSessionAdmin('remote-session-42');
-
-    const [url, options] = getFetchCall(fetchMock);
-    expect(url).toContain('/admin/remote-profile-sessions/remote-session-42');
-    expect(options.method).toBe('DELETE');
+  it('validates session links and keeps malformed incoming-session lists safely empty', async () => {
+    await expect(remoteProfiles.getRemoteProfileSessionLinksAdmin(7)).rejects.toThrow('Invalid remote profile session links response from API');
+    await expect(remoteProfiles.revokeRemoteProfileSessionsAdmin(7)).rejects.toThrow('Invalid remote profile session links response from API');
+    await expect(remoteProfiles.listIncomingRemoteProfileSessionsAdmin()).resolves.toEqual({ sessions: [] });
+    await expect(remoteProfiles.listIncomingRemoteProfileSessionsAdmin(' connector/1 ')).resolves.toEqual({ sessions: [] });
+    await expect(remoteProfiles.revokeIncomingRemoteProfileSessionAdmin('session/1')).resolves.toEqual({});
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles/7/session-links');
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles/7/remote-revoke', { method: 'POST' });
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profile-sessions');
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profile-sessions?connector_id=connector%2F1');
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profile-sessions/session%2F1', { method: 'DELETE' });
   });
 });

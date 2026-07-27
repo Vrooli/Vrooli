@@ -404,6 +404,7 @@ func TestIntroPricing_MarkIntroUsed_RecordsUsage(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 	resetStripeTestData(t, db)
+	upsertTestBundleProduct(t, db, "intro_coupon_test", "Intro Coupon Test", "prod_intro_coupon_test", "test", 1_000_000, 1, "credits")
 
 	// Create required tables
 	_, err := db.Exec(`
@@ -949,7 +950,7 @@ func TestCouponIntegrationWithSchedule(t *testing.T) {
 	resetStripeTestData(t, db)
 
 	// Ensure subscription_schedules has all columns needed for this test
-	// (ensureSchema already created it, just add any missing columns)
+	// The declarative runtime schema already created it; add only test-specific data.
 	_, err := db.Exec(`
 		ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS customer_id VARCHAR(255);
 		ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS current_phase_start TIMESTAMP;

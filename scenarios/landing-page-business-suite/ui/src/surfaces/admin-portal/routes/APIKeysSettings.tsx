@@ -73,7 +73,6 @@ export function APIKeysSettings() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="API Keys"
           description="Manage AI provider API keys for Vrooli-hosted AI services"
           icon={Key}
@@ -82,7 +81,7 @@ export function APIKeysSettings() {
           testId="apikeys-header"
           actions={
             <Button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => { setShowAddModal(true); }}
               disabled={availableProviders.length === 0}
               className="gap-2"
             >
@@ -106,7 +105,7 @@ export function APIKeysSettings() {
             <CardContent className="pt-6 text-center">
               <Key className="h-12 w-12 text-slate-500 mx-auto mb-4" />
               <p className="text-slate-400 mb-4">No API keys configured yet</p>
-              <Button onClick={() => setShowAddModal(true)} className="gap-2">
+              <Button onClick={() => { setShowAddModal(true); }} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add Your First API Key
               </Button>
@@ -171,7 +170,7 @@ export function APIKeysSettings() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onTestKey(key.provider)}
+                        onClick={() => { void onTestKey(key.provider); }}
                         disabled={testingProvider === key.provider}
                         className="gap-1"
                       >
@@ -183,7 +182,7 @@ export function APIKeysSettings() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onToggleKey(key.provider, key.is_active)}
+                        onClick={() => { void onToggleKey(key.provider, key.is_active); }}
                         className="gap-1"
                       >
                         {key.is_active ? (
@@ -201,7 +200,7 @@ export function APIKeysSettings() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onDeleteKey(key.provider)}
+                        onClick={() => { void onDeleteKey(key.provider); }}
                         className="gap-1 text-red-400 hover:text-red-300 hover:border-red-500/50"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -230,7 +229,7 @@ export function APIKeysSettings() {
                   <select
                     id="provider"
                     value={newKeyProvider}
-                    onChange={(e) => setNewKeyProvider(e.target.value)}
+                    onChange={(e) => { setNewKeyProvider(e.target.value); }}
                     className={inputClassName}
                   >
                     <option value="">Select a provider...</option>
@@ -246,7 +245,7 @@ export function APIKeysSettings() {
                     id="key"
                     type="password"
                     value={newKeyValue}
-                    onChange={(e) => setNewKeyValue(e.target.value)}
+                    onChange={(e) => { setNewKeyValue(e.target.value); }}
                     placeholder="sk-..."
                     className={`${inputClassName} font-mono`}
                   />
@@ -255,7 +254,7 @@ export function APIKeysSettings() {
                   <Button variant="outline" onClick={clearAddForm}>
                     Cancel
                   </Button>
-                  <Button onClick={onAddKey} disabled={addingKey || !newKeyProvider || !newKeyValue}>
+                  <Button onClick={() => { void onAddKey(); }} disabled={addingKey || !newKeyProvider || !newKeyValue}>
                     {addingKey ? 'Adding...' : 'Add Key'}
                   </Button>
                 </div>

@@ -346,7 +346,7 @@ func TestDiscoverSkillPackExecutesPromptManagerAndIsIdempotent(t *testing.T) {
 	sess, _, err := svc.StartSession(ctx, "Probe discovery", "probe-discovery", "")
 	require.NoError(t, err)
 
-	updated, result, added, kept, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"microphone lifecycle"}, "architectural")
+	updated, result, added, kept, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, "", []string{"microphone lifecycle"}, "architectural")
 	require.NoError(t, err)
 	require.Empty(t, violations)
 	require.False(t, result.Degraded)
@@ -359,7 +359,7 @@ func TestDiscoverSkillPackExecutesPromptManagerAndIsIdempotent(t *testing.T) {
 	require.Equal(t, planmodel.RelevantContextScopeGlobal, updated.RelevantContext[0].Scope)
 	require.Equal(t, planmodel.RelevantContextOncePerExecution, updated.RelevantContext[0].RepeatPolicy)
 
-	updated, _, added, kept, violations, _, err = svc.DiscoverSkillPack(ctx, sess.ID, []string{"microphone lifecycle"}, "architectural")
+	updated, _, added, kept, violations, _, err = svc.DiscoverSkillPack(ctx, sess.ID, "", []string{"microphone lifecycle"}, "architectural")
 	require.NoError(t, err)
 	require.Empty(t, violations)
 	require.Empty(t, added)
@@ -373,7 +373,7 @@ func TestDiscoverSkillPackDegradesWithoutBlocking(t *testing.T) {
 	sess, _, err := svc.StartSession(ctx, "All down", "all-down", "")
 	require.NoError(t, err)
 
-	updated, result, added, kept, violations, step, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"anything"}, "")
+	updated, result, added, kept, violations, step, err := svc.DiscoverSkillPack(ctx, sess.ID, "", []string{"anything"}, "")
 	require.NoError(t, err, "skill-pack discovery must never block authoring when prompt-manager is unavailable")
 	require.True(t, result.Degraded)
 	require.Contains(t, result.DegradedReason, "unavailable")
@@ -420,7 +420,7 @@ func TestDiscoverSkillPackNormalizesAndValidatesComplexity(t *testing.T) {
 			sess, _, err := svc.StartSession(ctx, "Complexity probe", "complexity-probe-"+strings.ReplaceAll(tc.name, " ", "-"), "")
 			require.NoError(t, err)
 
-			_, result, _, _, _, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"anything"}, tc.complexity)
+			_, result, _, _, _, _, err := svc.DiscoverSkillPack(ctx, sess.ID, "", []string{"anything"}, tc.complexity)
 			if tc.wantErrorNames {
 				require.Error(t, err)
 				require.ErrorAs(t, err, &authoring.ErrInvalidSession{})
@@ -456,7 +456,7 @@ func TestDiscoverSkillPackDegradedReasonCarriesOutputAndRecovery(t *testing.T) {
 	sess, _, err := svc.StartSession(ctx, "Degraded probe", "degraded-probe", "")
 	require.NoError(t, err)
 
-	_, result, _, _, _, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"anything"}, "architectural")
+	_, result, _, _, _, _, err := svc.DiscoverSkillPack(ctx, sess.ID, "", []string{"anything"}, "architectural")
 	require.NoError(t, err, "discovery failure degrades, never blocks")
 	require.True(t, result.Degraded)
 	require.Contains(t, result.DegradedReason, "exit status 1")
@@ -500,7 +500,7 @@ func TestSkillContextIsAdvisoryAndResolverSuggestionsAutoAdd(t *testing.T) {
 	require.NoError(t, err)
 	fillMandatory(t, svc, sess.ID)
 
-	updated, _, added, _, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"gate semantics"}, "minor")
+	updated, _, added, _, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, "", []string{"gate semantics"}, "minor")
 	require.NoError(t, err)
 	require.Empty(t, violations)
 	require.Len(t, added, 1)

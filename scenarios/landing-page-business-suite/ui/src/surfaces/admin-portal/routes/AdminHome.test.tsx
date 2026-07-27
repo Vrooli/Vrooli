@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
 import type { ReactNode } from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminHome } from './AdminHome';
@@ -132,22 +133,19 @@ const renderWithRouter = (component: React.ReactElement) =>
 
 const renderWithAuth = async (component: React.ReactElement) => {
   const utils = renderWithRouter(component);
-  await waitFor(() => expect(mockedCheckAdminSession).toHaveBeenCalled());
+  await waitFor(() => { expect(mockedCheckAdminSession).toHaveBeenCalled(); });
   return utils;
 };
 
 describe('AdminHome [REQ:ADMIN-MODES]', () => {
   const originalFetch = globalThis.fetch;
   const originalLocation = window.location;
-  const setLocation = (next: Location) => {
-    Object.defineProperty(window, 'location', { value: next, writable: true });
-  };
   let fetchAnalyticsSpy: ReturnType<typeof vi.spyOn> | null = null;
 
   beforeEach(() => {
     vi.clearAllMocks();
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
-    setLocation({ ...originalLocation, pathname: '/admin' } as Location);
+    window.history.replaceState({}, '', '/admin');
     window.localStorage.clear();
     mockedListVariants.mockResolvedValue(mockVariantsResponse);
     mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev', reset_enabled: false });
@@ -158,7 +156,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    setLocation(originalLocation);
+    window.history.replaceState({}, '', `${originalLocation.pathname}${originalLocation.search}`);
     window.localStorage.clear();
     fetchAnalyticsSpy?.mockRestore();
   });

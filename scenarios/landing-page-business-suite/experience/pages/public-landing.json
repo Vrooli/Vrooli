@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "public-landing",
+    "title": "Public Landing",
+    "routes": ["/"],
+    "purpose": "Present the selected landing-page variant, pricing, and subscription entry points after the runtime configuration is resolved.",
+    "prd_refs": ["OT-P0-031", "OT-P0-032", "OT-P0-034"]
+  },
+  "priorities": [
+    { "statement": "The selected landing experience becomes usable only after its runtime configuration reaches a terminal state." },
+    { "statement": "Pricing and download entry points remain available from the resolved public experience." }
+  ],
+  "states": [
+    { "id": "loading", "description": "The landing configuration is loading and the shell truthfully communicates preparation." },
+    { "id": "default", "description": "A selected or fallback landing configuration is rendered and its public content is usable.", "setup": { "route": "/", "settleMs": 2000 } },
+    { "id": "request-error", "description": "Neither the runtime configuration nor the baked fallback configuration could be resolved." }
+  ],
+  "regions": [
+    {
+      "id": "public-landing",
+      "purpose": "Render the public landing experience through loading, ready, and configuration-failure states.",
+      "component": { "library": { "component": "experience-surface", "version": "1.0.0" } },
+      "lifecycle": { "kind": "async", "states": ["loading", "ready", "error"] }
+    }
+  ],
+  "elements": [
+    { "id": "experience-header", "role": "banner", "description": "Sticky branding and public navigation for the resolved landing experience." }
+  ],
+  "claims": [
+    {
+      "id": "landing-header-perceivable",
+      "type": "element-present",
+      "statement": "The resolved public landing experience exposes its header as a perceivable banner.",
+      "tier": "machine",
+      "elements": ["experience-header"],
+      "states": ["default"]
+    },
+    {
+      "id": "loading-state-truthful",
+      "type": "state-covered",
+      "statement": "While the landing configuration loads, the public surface communicates preparation instead of presenting a blank page.",
+      "tier": "manual",
+      "states": ["loading"],
+      "rationale": "Live reconciliation captures the ready state; the loading state is covered by the route guard regression test."
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "public-landing": { "testid": "landing-experience-surface" }
+    },
+    "elements": {
+      "experience-header": { "testid": "landing-experience-header" }
+    }
+  }
+}

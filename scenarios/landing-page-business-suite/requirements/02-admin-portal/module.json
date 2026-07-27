@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-25T22:27:02-04:00"
+    "last_validated_at": "2026-07-27T03:01:20-04:00"
   },
   "requirements": [
     {
       "id": "AGENT-TRIGGER",
       "title": "Agent integration trigger",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "description": "Expose customization trigger in generated landing so the factory can initiate agent runs (factory calls into template endpoint)",
       "validation": [
@@ -14,14 +14,14 @@
           "type": "automation",
           "ref": "api/main.go",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "AGENT-INPUT",
       "title": "Structured agent input",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "description": "Agent receives structured brief (text + assets + goals) and is constrained to template-defined APIs/files only; factory remains read-only",
       "validation": [
@@ -29,7 +29,7 @@
           "type": "automation",
           "ref": "ui/src/surfaces/admin-portal/routes/AgentCustomization.tsx",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -66,13 +66,20 @@
           "ref": "api/auth_test.go",
           "phase": "unit",
           "status": "failing"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/admin-login-loads.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Observer BAS smoke case verifies that the protected admin entry route exposes credential controls without supplying credentials."
         }
       ]
     },
     {
       "id": "ADMIN-MODES",
       "title": "Admin home modes",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "description": "Admin home displays exactly two modes: Analytics / Metrics and Customization",
       "validation": [
@@ -80,14 +87,14 @@
           "type": "test",
           "ref": "ui/src/surfaces/admin-portal/routes/AdminHome.tsx",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "ADMIN-NAV",
       "title": "Navigation efficiency",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "description": "Navigate to any customization card in ≤ 3 clicks from admin home",
       "validation": [
@@ -95,20 +102,20 @@
           "type": "test",
           "ref": "ui/src/surfaces/admin-portal/routes/AdminHome.tsx",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "ui/src/surfaces/admin-portal/components/AdminLayout.tsx",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "ADMIN-BREADCRUMB",
       "title": "Breadcrumb navigation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "description": "All admin pages show breadcrumb indicating current location",
       "validation": [
@@ -116,7 +123,7 @@
           "type": "test",
           "ref": "ui/src/surfaces/admin-portal/components/AdminLayout.tsx",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     }

@@ -17,13 +17,16 @@ interface FeedbackFormData {
   orderId?: string;
 }
 
-type ClassifiedError = {
+type ClassifiedError = Error & {
   type: 'server' | 'validation' | 'unknown';
   message: string;
 };
 
+const classifiedError = (type: ClassifiedError['type'], message: string): ClassifiedError =>
+  Object.assign(new Error(message), { type });
+
 const isClassifiedError = (value: unknown): value is ClassifiedError =>
-  isRecord(value) && typeof value.type === 'string' && typeof value.message === 'string';
+  value instanceof Error && isRecord(value) && typeof value.type === 'string';
 
 const feedbackTypes: { value: FeedbackType; label: string; icon: React.ReactNode; description: string }[] = [
   {
@@ -80,7 +83,7 @@ export function FeedbackPage() {
 
     // Create AbortController for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => { controller.abort(); }, 30000);
 
     try {
       const response = await fetch('/api/feedback', {
@@ -106,12 +109,12 @@ export function FeedbackPage() {
         }
 
         if (status >= 500) {
-          throw { type: 'server', message: errorMessage || 'Our servers are experiencing issues. Please try again later.' };
+          throw classifiedError('server', errorMessage || 'Our servers are experiencing issues. Please try again later.');
         }
         if (status === 400 || status === 422) {
-          throw { type: 'validation', message: errorMessage || 'Please check your input and try again.' };
+          throw classifiedError('validation', errorMessage || 'Please check your input and try again.');
         }
-        throw { type: 'unknown', message: errorMessage || 'Failed to submit feedback' };
+        throw classifiedError('unknown', errorMessage || 'Failed to submit feedback');
       }
 
       setSubmitted(true);
@@ -182,7 +185,7 @@ export function FeedbackPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
+      <div className="min-h-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
         <div className="mx-auto max-w-2xl px-6 py-16">
           <Card className="bg-slate-900 border-slate-800 shadow-2xl shadow-indigo-900/30">
             <CardContent className="flex flex-col items-center gap-6 py-12">
@@ -197,7 +200,7 @@ export function FeedbackPage() {
                     : "We've received your message and will get back to you if needed."}
                 </p>
               </div>
-              <Button onClick={() => navigate('/')} variant="outline" className="border-white/20 text-white hover:border-white/40">
+              <Button onClick={() => { navigate('/'); }} variant="outline" className="border-white/20 text-white hover:border-white/40">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to home
               </Button>
@@ -209,14 +212,14 @@ export function FeedbackPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
+    <div className="min-h-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       <div className="mx-auto max-w-3xl px-6 py-16 space-y-8">
         <div className="flex flex-col gap-3">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => navigate('/')}
+            onClick={() => { navigate('/'); }}
             className="self-start rounded-full border-white/10 text-xs uppercase tracking-[0.25em] text-slate-300 hover:border-white/30"
           >
             <ArrowLeft className="mr-1 h-3 w-3" />
@@ -239,14 +242,14 @@ export function FeedbackPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={(event) => { void handleSubmit(event); }} className="space-y-6">
               {/* Feedback Type Selection */}
               <div className="grid gap-3 sm:grid-cols-2">
                 {feedbackTypes.map((type) => (
                   <button
                     key={type.value}
                     type="button"
-                    onClick={() => setForm((f) => ({ ...f, type: type.value }))}
+                    onClick={() => { setForm((f) => ({ ...f, type: type.value })); }}
                     className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
                       form.type === type.value
                         ? 'border-orange-500 bg-orange-500/10'
@@ -274,7 +277,7 @@ export function FeedbackPage() {
                   size="md"
                   required
                   value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  onChange={(e) => { setForm((f) => ({ ...f, email: e.target.value })); }}
                   placeholder="you@example.com"
                   className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                 />
@@ -290,7 +293,7 @@ export function FeedbackPage() {
                     type="text"
                     size="md"
                     value={form.orderId}
-                    onChange={(e) => setForm((f) => ({ ...f, orderId: e.target.value }))}
+                    onChange={(e) => { setForm((f) => ({ ...f, orderId: e.target.value })); }}
                     placeholder="sub_xxxxx or cs_xxxxx"
                     className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                   />
@@ -310,7 +313,7 @@ export function FeedbackPage() {
                   size="md"
                   required
                   value={form.subject}
-                  onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+                  onChange={(e) => { setForm((f) => ({ ...f, subject: e.target.value })); }}
                   placeholder={
                     form.type === 'refund'
                       ? 'Refund request for my subscription'
@@ -334,7 +337,7 @@ export function FeedbackPage() {
                   size="md"
                   rows={5}
                   value={form.message}
-                  onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+                  onChange={(e) => { setForm((f) => ({ ...f, message: e.target.value })); }}
                   placeholder={
                     form.type === 'refund'
                       ? "Tell us why you'd like a refund (optional but helpful for us to improve)."

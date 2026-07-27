@@ -12,9 +12,22 @@ import (
 	"time"
 )
 
+// UsageStore is the context-aware persistence contract for usage records and
+// credit reservations.
+//
+// seam: UsageStore keeps metering persistence independent of a concrete pool
+// and preserves request-scoped test isolation.
+type UsageStore interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	PingContext(context.Context) error
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
 // UsageService tracks credit usage per user and billing period.
 type UsageService struct {
-	db           *sql.DB
+	db           UsageStore
 	limitsSvc    LimitsServicer // Interface for testing
 	serviceToken string         // Token for service-to-service auth
 	dialect      string         // "postgres" or "sqlite"
@@ -59,7 +72,7 @@ type UsageSummary struct {
 }
 
 // NewUsageService creates a new usage service.
-func NewUsageService(db *sql.DB, limitsSvc LimitsServicer, dialect string) *UsageService {
+func NewUsageService(db UsageStore, limitsSvc LimitsServicer, dialect string) *UsageService {
 	return NewUsageServiceWithOptions(UsageServiceOptions{
 		DB:            db,
 		LimitsService: limitsSvc,
@@ -69,7 +82,7 @@ func NewUsageService(db *sql.DB, limitsSvc LimitsServicer, dialect string) *Usag
 
 // UsageServiceOptions provides full configurability for testing.
 type UsageServiceOptions struct {
-	DB            *sql.DB
+	DB            UsageStore
 	LimitsService LimitsServicer
 	Dialect       string
 	ServiceToken  string // If empty, resolves from environment
@@ -578,7 +591,7 @@ func handleGetUsageSummary(svc *UsageService, accountSvc *AccountService) http.H
 		// If no tier provided, try to get it from the account service
 		if tier == "" && accountSvc != nil {
 			// Try to get subscription info to determine tier
-			sub, err := accountSvc.GetSubscription(userIdentity)
+			sub, err := accountSvc.GetSubscriptionContext(r.Context(), userIdentity)
 			if err == nil && sub != nil && sub.PlanTier != nil {
 				tier = *sub.PlanTier
 			}

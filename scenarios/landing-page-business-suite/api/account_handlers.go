@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -38,7 +39,7 @@ func handlePlans(service *PlanService) http.HandlerFunc {
 			writeJSONError(w, http.StatusInternalServerError, "Failed to load pricing plans. Please try again.", ApiErrorTypeServerError)
 			return
 		}
-		writeJSON(w, &landing_page_react_vite_v1.GetPricingResponse{Pricing: overview})
+		writeJSON(w, &landing_page_business_suite_v1.GetPricingResponse{Pricing: overview})
 	}
 }
 
@@ -49,7 +50,7 @@ func handleMeSubscription(accountService *AccountService) http.HandlerFunc {
 			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
 			return
 		}
-		subscription, err := accountService.GetSubscription(user)
+		subscription, err := accountService.GetSubscriptionContext(r.Context(), user)
 		if err != nil {
 			logStructuredError("subscription_fetch_failed", map[string]interface{}{
 				"user":  user,
@@ -58,7 +59,7 @@ func handleMeSubscription(accountService *AccountService) http.HandlerFunc {
 			writeJSONError(w, http.StatusInternalServerError, "Failed to retrieve subscription status. Please try again.", ApiErrorTypeServerError)
 			return
 		}
-		writeJSON(w, &landing_page_react_vite_v1.VerifySubscriptionResponse{Status: subscription})
+		writeJSON(w, &shared.VerifySubscriptionResponse{Status: subscription})
 	}
 }
 
@@ -69,7 +70,7 @@ func handleMeCredits(accountService *AccountService) http.HandlerFunc {
 			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
 			return
 		}
-		credits, err := accountService.GetCredits(user)
+		credits, err := accountService.GetCreditsContext(r.Context(), user)
 		if err != nil {
 			logStructuredError("credits_fetch_failed", map[string]interface{}{
 				"user":  user,
@@ -106,7 +107,7 @@ func handleEntitlements(accountService *AccountService) http.HandlerFunc {
 			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
 			return
 		}
-		entitlements, err := accountService.GetEntitlements(user)
+		entitlements, err := accountService.GetEntitlementsContext(r.Context(), user)
 		if err != nil {
 			logStructuredError("entitlements_fetch_failed", map[string]interface{}{
 				"user":  user,
@@ -138,7 +139,7 @@ func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingSer
 			return
 		}
 
-		asset, err := authorizer.Authorize(appKey, platform, user)
+		asset, err := authorizer.Authorize(r.Context(), appKey, platform, user)
 		if err != nil {
 			logStructuredError("download_authorization_failed", map[string]interface{}{
 				"app_key":  appKey,
@@ -210,12 +211,15 @@ func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingSer
 
 func writeJSON(w http.ResponseWriter, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	if msg, ok := payload.(proto.Message); ok {
 		data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(msg)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Failed to encode response", ApiErrorTypeServerError)
 			return
 		}
+		// #nosec G705 -- this is an application/json response with nosniff, not an HTML sink;
+		// protojson output is required to preserve the generated API contract.
 		if _, err := w.Write(data); err != nil {
 			logStructuredError("write_json_failed", map[string]interface{}{
 				"error": err.Error(),

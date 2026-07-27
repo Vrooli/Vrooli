@@ -480,18 +480,22 @@ func (s *StripeService) markIntroUsed(ctx context.Context, email, customerID, co
 
 	// Also update Stripe customer metadata as backup
 	if customerID != "" {
-		go func() {
+		stripeCustomerID := customerID
+		introCouponID := couponID
+		// #nosec G118 -- best-effort metadata sync receives immutable string copies.
+		metadataCtx := context.WithoutCancel(ctx)
+		go func(ctx context.Context, customerID, couponID string) {
 			values := url.Values{}
 			values.Set("metadata[has_used_intro]", "true")
 			values.Set("metadata[intro_coupon_id]", couponID)
-			_, updateErr := s.doStripeForm(context.Background(), http.MethodPost, "/v1/customers/"+url.PathEscape(customerID), values)
+			_, updateErr := s.doStripeForm(ctx, http.MethodPost, "/v1/customers/"+url.PathEscape(customerID), values)
 			if updateErr != nil {
 				logStructuredError("stripe_customer_metadata_update_failed", map[string]interface{}{
 					"customer_id": customerID,
 					"error":       updateErr.Error(),
 				})
 			}
-		}()
+		}(metadataCtx, stripeCustomerID, introCouponID)
 	}
 
 	logStructured("intro_coupon_marked_used", map[string]interface{}{

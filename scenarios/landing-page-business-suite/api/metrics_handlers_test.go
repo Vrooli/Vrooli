@@ -187,6 +187,7 @@ func TestHandleMetricsSummary_InvalidDateFormat(t *testing.T) {
 
 // --- handleMetricsVariantStats Tests ---
 
+// [REQ:METRIC-DETAIL] Variant analytics endpoint returns a detailed statistics response.
 func TestHandleMetricsVariantStats_Success(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

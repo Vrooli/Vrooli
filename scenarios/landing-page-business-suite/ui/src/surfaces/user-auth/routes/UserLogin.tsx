@@ -124,7 +124,7 @@ export function UserLogin() {
       title="Sign In"
       subtitle={appName ? `Sign in to access ${appName}` : 'Sign in with your email'}
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={(event) => { void handleSubmit(event); }} className="space-y-6">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
             Email address

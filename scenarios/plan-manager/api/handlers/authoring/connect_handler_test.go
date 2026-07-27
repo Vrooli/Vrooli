@@ -126,7 +126,7 @@ func (f *fakeAuthoringService) RemoveRelevantContextItem(_ context.Context, sess
 	return f.session, f.violations, f.step, f.err
 }
 
-func (f *fakeAuthoringService) DiscoverSkillPack(_ context.Context, sessionID string, concepts []string, complexity string) (internalauthoring.Session, internalauthoring.SkillPackResult, []internalplans.RelevantContextItem, []internalplans.RelevantContextItem, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+func (f *fakeAuthoringService) DiscoverSkillPack(_ context.Context, sessionID, phaseID string, concepts []string, complexity string) (internalauthoring.Session, internalauthoring.SkillPackResult, []internalplans.RelevantContextItem, []internalplans.RelevantContextItem, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotConcepts, f.gotComplexity = sessionID, append([]string(nil), concepts...), complexity
 	return f.session, f.skillPackResult, f.addedItems, f.keptItems, f.violations, f.step, f.err
 }

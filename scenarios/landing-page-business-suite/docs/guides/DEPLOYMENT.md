@@ -48,7 +48,7 @@ cd scenarios/<your-slug>
 make start
 
 # Or using Vrooli CLI
-vrooli scenario start <your-slug>
+vrooli scenario start "<your-slug>"
 ```
 
 ### Accessing Local Services
@@ -63,8 +63,8 @@ Once started, your landing page is available at:
 
 Get the actual ports:
 ```bash
-vrooli scenario port <your-slug> UI_PORT
-vrooli scenario port <your-slug> API_PORT
+vrooli scenario port "<your-slug>" UI_PORT
+vrooli scenario port "<your-slug>" API_PORT
 ```
 
 ### Development Workflow
@@ -96,15 +96,9 @@ vrooli scenario port <your-slug> API_PORT
 
 ### Option 1: Vrooli Managed (Recommended)
 
-Vrooli can deploy your landing page via Cloudflare Tunnel:
-
-```bash
-# Enable cloud deployment
-vrooli deploy <slug> --tunnel
-
-# This creates a public URL like:
-# https://<slug>.vrooli.app
-```
+Vrooli's deployment surface is environment-specific. Start with `vrooli help`
+and follow the current deployment runbook for the target environment; do not
+copy an undocumented tunnel command from this guide.
 
 ### Option 2: Docker Deployment
 
@@ -391,13 +385,13 @@ If something goes wrong:
 
 ```bash
 # 1. Stop the broken deployment
-vrooli scenario stop <slug>
+vrooli scenario stop "<slug>"
 
 # 2. If you have a backup:
 cp -r backups/<slug>-<date> scenarios/<slug>
 
 # 3. Restart
-vrooli scenario start <slug>
+vrooli scenario start "<slug>"
 ```
 
 ### Database Rollback

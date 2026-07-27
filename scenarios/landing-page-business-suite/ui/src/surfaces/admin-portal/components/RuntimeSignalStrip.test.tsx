@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
+import { screen } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
 import type { useLandingVariant } from '../../../app/providers/useLandingVariant';

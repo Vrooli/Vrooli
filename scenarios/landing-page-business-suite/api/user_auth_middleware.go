@@ -5,9 +5,10 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
+
+	"landing-page-business-suite-api/internal/envx"
 )
 
 // trustedProxyCIDRs holds the parsed CIDR ranges for trusted proxies.
@@ -25,7 +26,7 @@ var (
 //   - Empty string means no proxies are trusted (X-Forwarded-For always ignored)
 func initTrustedProxies() {
 	trustedProxiesOnce.Do(func() {
-		cidrsEnv := strings.TrimSpace(os.Getenv("TRUSTED_PROXY_CIDRS"))
+		cidrsEnv := strings.TrimSpace(envx.Get("TRUSTED_PROXY_CIDRS"))
 		if cidrsEnv == "" {
 			// No trusted proxies configured - this is the secure default
 			logStructured("trusted_proxies_not_configured", map[string]interface{}{

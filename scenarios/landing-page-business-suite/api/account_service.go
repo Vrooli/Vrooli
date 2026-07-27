@@ -1,22 +1,34 @@
 package main
 
 import (
+	"context"
 	"database/sql"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"landing-page-business-suite-api/internal/envx"
+
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// AccountStore is the context-aware persistence contract for subscription and
+// credit lookups. It is satisfied by both *sql.DB and database.RoutedDB.
+//
+// seam: AccountStore keeps account persistence independent of a concrete pool
+// and allows HTTP requests to select Test Genie's lease-owned database.
+type AccountStore interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
 // AccountService exposes subscription, credits, and entitlement helpers.
 type AccountService struct {
-	db          *sql.DB
+	db          AccountStore
 	planService *PlanService
 	bundleKey   string
 	cacheTTL    time.Duration
@@ -26,27 +38,27 @@ type AccountService struct {
 
 // EntitlementPayload is used by bundled apps to unlock features.
 type EntitlementPayload struct {
-	Status            string                                         `json:"status"`
-	PlanTier          string                                         `json:"plan_tier,omitempty"`
-	PriceID           string                                         `json:"price_id,omitempty"`
-	Features          []string                                       `json:"features,omitempty"`
-	BillingCycleStart int                                            `json:"billing_cycle_start,omitempty"`
-	Credits           *landing_page_react_vite_v1.CreditsBalance     `json:"credits,omitempty"`
-	Subscription      *landing_page_react_vite_v1.SubscriptionStatus `json:"subscription,omitempty"`
+	Status            string                     `json:"status"`
+	PlanTier          string                     `json:"plan_tier,omitempty"`
+	PriceID           string                     `json:"price_id,omitempty"`
+	Features          []string                   `json:"features,omitempty"`
+	BillingCycleStart int                        `json:"billing_cycle_start,omitempty"`
+	Credits           *shared.CreditsBalance     `json:"credits,omitempty"`
+	Subscription      *shared.SubscriptionStatus `json:"subscription,omitempty"`
 }
 
 type CreditsEnvelope struct {
-	Balance                  *landing_page_react_vite_v1.CreditsBalance `json:"balance"`
-	DisplayCreditsLabel      string                                     `json:"display_credits_label"`
-	DisplayCreditsMultiplier float64                                    `json:"display_credits_multiplier"`
+	Balance                  *shared.CreditsBalance `json:"balance"`
+	DisplayCreditsLabel      string                 `json:"display_credits_label"`
+	DisplayCreditsMultiplier float64                `json:"display_credits_multiplier"`
 }
 
 type subscriptionCacheEntry struct {
-	status    *landing_page_react_vite_v1.SubscriptionStatus
+	status    *shared.SubscriptionStatus
 	expiresAt time.Time
 }
 
-func NewAccountService(db *sql.DB, planService *PlanService) *AccountService {
+func NewAccountService(db AccountStore, planService *PlanService) *AccountService {
 	return &AccountService{
 		db:          db,
 		planService: planService,
@@ -58,7 +70,7 @@ func NewAccountService(db *sql.DB, planService *PlanService) *AccountService {
 
 func loadCacheTTL() time.Duration {
 	const defaultTTL = 60 * time.Second
-	value := strings.TrimSpace(os.Getenv("SUBSCRIPTION_CACHE_TTL_SECONDS"))
+	value := strings.TrimSpace(envx.Get("SUBSCRIPTION_CACHE_TTL_SECONDS"))
 	if value == "" {
 		return defaultTTL
 	}
@@ -71,11 +83,16 @@ func loadCacheTTL() time.Duration {
 	return time.Duration(seconds) * time.Second
 }
 
-func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
+func (s *AccountService) GetSubscription(userIdentity string) (*shared.SubscriptionStatus, error) {
+	return s.GetSubscriptionContext(context.Background(), userIdentity)
+}
+
+// GetSubscriptionContext reads subscription state using the caller's context.
+func (s *AccountService) GetSubscriptionContext(ctx context.Context, userIdentity string) (*shared.SubscriptionStatus, error) {
 	user := NormalizeEmail(userIdentity)
 	if user == "" {
-		return &landing_page_react_vite_v1.SubscriptionStatus{
-			State:        landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
+		return &shared.SubscriptionStatus{
+			State:        shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
 			UserIdentity: "",
 			Message:      proto.String("user not provided"),
 		}, nil
@@ -93,7 +110,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 		LIMIT 1
 	`
 
-	row := s.db.QueryRow(query, user)
+	row := s.db.QueryRowContext(ctx, query, user)
 	var subID, status, customerEmail string
 	var planTier, priceID, bundleKey sql.NullString
 	var billingCycleStart int
@@ -111,7 +128,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 		&updatedAt,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			return &landing_page_react_vite_v1.SubscriptionStatus{State: landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, UserIdentity: user}, nil
+			return &shared.SubscriptionStatus{State: shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, UserIdentity: user}, nil
 		}
 		return nil, err
 	}
@@ -137,7 +154,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 			})
 			planTierStr = ""
 		} else if planTier.String == "" || bundleKey.String == "" {
-			_, _ = s.db.Exec(`
+			_, _ = s.db.ExecContext(ctx, `
 				UPDATE subscriptions
 				SET plan_tier = COALESCE(NULLIF($1,''), plan_tier),
 					bundle_key = COALESCE(NULLIF($2,''), bundle_key),
@@ -149,7 +166,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 
 	state := mapSubscriptionState(status)
 	cacheAge := time.Since(updatedAt)
-	result := &landing_page_react_vite_v1.SubscriptionStatus{
+	result := &shared.SubscriptionStatus{
 		State:          state,
 		SubscriptionId: proto.String(subID),
 		UserIdentity:   user,
@@ -175,10 +192,15 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 }
 
 func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, error) {
+	return s.GetCreditsContext(context.Background(), userIdentity)
+}
+
+// GetCreditsContext reads credit balance using the caller's context.
+func (s *AccountService) GetCreditsContext(ctx context.Context, userIdentity string) (*CreditsEnvelope, error) {
 	userIdentity = NormalizeEmail(userIdentity)
 	if userIdentity == "" {
 		return &CreditsEnvelope{
-			Balance: &landing_page_react_vite_v1.CreditsBalance{
+			Balance: &shared.CreditsBalance{
 				CustomerEmail:  "",
 				BalanceCredits: 0,
 				BundleKey:      s.bundleKey,
@@ -196,8 +218,8 @@ func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, erro
 		LIMIT 1
 	`
 
-	row := s.db.QueryRow(query, userIdentity)
-	var balance landing_page_react_vite_v1.CreditsBalance
+	row := s.db.QueryRowContext(ctx, query, userIdentity)
+	var balance shared.CreditsBalance
 	var updatedAt time.Time
 	if err := row.Scan(
 		&balance.CustomerEmail,
@@ -240,13 +262,17 @@ func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, erro
 
 // getBillingCycleStart retrieves billing cycle start for a user.
 func (s *AccountService) getBillingCycleStart(userIdentity string) int {
+	return s.getBillingCycleStartContext(context.Background(), userIdentity)
+}
+
+func (s *AccountService) getBillingCycleStartContext(ctx context.Context, userIdentity string) int {
 	userIdentity = NormalizeEmail(userIdentity)
 	if userIdentity == "" {
 		return 0
 	}
 
 	var billingCycleStart int
-	err := s.db.QueryRow(`
+	err := s.db.QueryRowContext(ctx, `
 		SELECT COALESCE(billing_cycle_start, 0)
 		FROM subscriptions
 		WHERE (customer_email = $1 OR customer_id = $1)
@@ -260,13 +286,19 @@ func (s *AccountService) getBillingCycleStart(userIdentity string) int {
 }
 
 func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPayload, error) {
+	return s.GetEntitlementsContext(context.Background(), userIdentity)
+}
+
+// GetEntitlementsContext resolves subscription and credit state using the
+// caller's context for all account persistence.
+func (s *AccountService) GetEntitlementsContext(ctx context.Context, userIdentity string) (*EntitlementPayload, error) {
 	userIdentity = NormalizeEmail(userIdentity)
-	subscription, err := s.GetSubscription(userIdentity)
+	subscription, err := s.GetSubscriptionContext(ctx, userIdentity)
 	if err != nil {
 		return nil, err
 	}
 
-	credits, err := s.GetCredits(userIdentity)
+	credits, err := s.GetCreditsContext(ctx, userIdentity)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +307,7 @@ func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPaylo
 		Status:            legacyStateLabel(subscription.State),
 		PlanTier:          subscription.GetPlanTier(),
 		PriceID:           subscription.GetStripePriceId(),
-		BillingCycleStart: s.getBillingCycleStart(userIdentity),
+		BillingCycleStart: s.getBillingCycleStartContext(ctx, userIdentity),
 		Credits:           flattenCredits(credits),
 		Subscription:      subscription,
 	}
@@ -289,7 +321,7 @@ func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPaylo
 	return payload, nil
 }
 
-func (s *AccountService) getCachedSubscription(user string) (*landing_page_react_vite_v1.SubscriptionStatus, bool) {
+func (s *AccountService) getCachedSubscription(user string) (*shared.SubscriptionStatus, bool) {
 	s.cacheMutex.RLock()
 	entry, ok := s.cache[user]
 	if !ok {
@@ -305,39 +337,39 @@ func (s *AccountService) getCachedSubscription(user string) (*landing_page_react
 		return nil, false
 	}
 
-	cached := proto.Clone(entry.status).(*landing_page_react_vite_v1.SubscriptionStatus)
+	cached := proto.Clone(entry.status).(*shared.SubscriptionStatus)
 	s.cacheMutex.RUnlock()
 	return cached, true
 }
 
-func (s *AccountService) cacheSubscription(user string, status *landing_page_react_vite_v1.SubscriptionStatus) {
+func (s *AccountService) cacheSubscription(user string, status *shared.SubscriptionStatus) {
 	if status == nil || s.cacheTTL <= 0 {
 		return
 	}
 
 	entry := subscriptionCacheEntry{
-		status:    &landing_page_react_vite_v1.SubscriptionStatus{},
+		status:    &shared.SubscriptionStatus{},
 		expiresAt: time.Now().Add(s.cacheTTL),
 	}
-	entry.status = proto.Clone(status).(*landing_page_react_vite_v1.SubscriptionStatus)
+	entry.status = proto.Clone(status).(*shared.SubscriptionStatus)
 
 	s.cacheMutex.Lock()
 	s.cache[user] = entry
 	s.cacheMutex.Unlock()
 }
 
-func mapSubscriptionState(state string) landing_page_react_vite_v1.SubscriptionState {
+func mapSubscriptionState(state string) shared.SubscriptionState {
 	switch strings.ToLower(strings.TrimSpace(state)) {
 	case "active":
-		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE
+		return shared.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE
 	case "trialing":
-		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING
+		return shared.SubscriptionState_SUBSCRIPTION_STATE_TRIALING
 	case "past_due", "past-due":
-		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE
+		return shared.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE
 	case "canceled", "cancelled":
-		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED
+		return shared.SubscriptionState_SUBSCRIPTION_STATE_CANCELED
 	default:
-		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE
+		return shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE
 	}
 }
 
@@ -365,22 +397,22 @@ func extractFeatureFlags(metadata map[string]*commonv1.JsonValue) []string {
 	return features
 }
 
-func flattenCredits(resp *CreditsEnvelope) *landing_page_react_vite_v1.CreditsBalance {
+func flattenCredits(resp *CreditsEnvelope) *shared.CreditsBalance {
 	if resp == nil {
 		return nil
 	}
 	return resp.Balance
 }
 
-func legacyStateLabel(state landing_page_react_vite_v1.SubscriptionState) string {
+func legacyStateLabel(state shared.SubscriptionState) string {
 	switch state {
-	case landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE:
+	case shared.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE:
 		return "active"
-	case landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING:
+	case shared.SubscriptionState_SUBSCRIPTION_STATE_TRIALING:
 		return "trialing"
-	case landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE:
+	case shared.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE:
 		return "past_due"
-	case landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED:
+	case shared.SubscriptionState_SUBSCRIPTION_STATE_CANCELED:
 		return "canceled"
 	default:
 		return "inactive"

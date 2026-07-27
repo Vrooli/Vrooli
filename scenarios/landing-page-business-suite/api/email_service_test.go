@@ -365,14 +365,14 @@ func TestExtractSMTPConfig_AllFields(t *testing.T) {
 	host := "smtp.test.com"
 	port := 465
 	username := "testuser"
-	password := "testpass"
+	smtpPassphrase := "testpass"
 	from := "custom@example.com"
 
 	branding := &SiteBranding{
 		SMTPHost:     &host,
 		SMTPPort:     &port,
 		SMTPUsername: &username,
-		SMTPPassword: &password,
+		SMTPPassword: &smtpPassphrase,
 		SMTPFrom:     &from,
 	}
 
@@ -388,8 +388,8 @@ func TestExtractSMTPConfig_AllFields(t *testing.T) {
 	if config.Username != username {
 		t.Errorf("expected username '%s', got '%s'", username, config.Username)
 	}
-	if config.Password != password {
-		t.Errorf("expected password '%s', got '%s'", password, config.Password)
+	if config.Password != smtpPassphrase {
+		t.Errorf("expected password '%s', got '%s'", smtpPassphrase, config.Password)
 	}
 	if config.From != from {
 		t.Errorf("expected from '%s', got '%s'", from, config.From)

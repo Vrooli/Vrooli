@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 )
 
 func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeService *StripeService) http.HandlerFunc {
@@ -42,7 +42,7 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 			snapshot.WebhookSecretSet = true
 		}
 
-		resp := &landing_page_react_vite_v1.GetStripeSettingsResponse{
+		resp := &landing_page_business_suite_v1.GetStripeSettingsResponse{
 			Snapshot: snapshot,
 			Settings: record,
 		}
@@ -126,7 +126,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 			return
 		}
 
-		req := landing_page_react_vite_v1.UpdateStripeSettingsRequest{
+		req := landing_page_business_suite_v1.UpdateStripeSettingsRequest{
 			PublishableKey:        body.PublishableKey,
 			SecretKey:             body.SecretKey,
 			WebhookSecret:         body.WebhookSecret,
@@ -306,7 +306,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		if hasWebhook {
 			snapshot.WebhookSecretSet = true
 		}
-		resp := &landing_page_react_vite_v1.UpdateStripeSettingsResponse{
+		resp := &landing_page_business_suite_v1.UpdateStripeSettingsResponse{
 			Snapshot: snapshot,
 			Settings: record,
 		}

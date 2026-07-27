@@ -13,11 +13,13 @@ import (
 	"sync"
 	"time"
 
+	"landing-page-business-suite-api/internal/envx"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // PlanStoreReader provides read-only access to plan configuration.
@@ -116,8 +118,8 @@ type planFileFormat struct {
 
 // NewPlanStore creates a new PlanStore with path to the JSON file.
 func NewPlanStore(plansPath string) *PlanStore {
-	bundleKey := stringsTrimOrDefault(os.Getenv("BUNDLE_KEY"), "business_suite")
-	env := stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
+	bundleKey := stringsTrimOrDefault(envx.Get("BUNDLE_KEY"), "business_suite")
+	env := stringsTrimOrDefault(envx.Get("BUNDLE_ENVIRONMENT"), "production")
 	return &PlanStore{
 		plans:          make([]*PlanOption, 0),
 		couponMappings: make(map[string]string),
@@ -137,11 +139,11 @@ type PlanStoreOptions struct {
 func NewPlanStoreWithOptions(opts PlanStoreOptions) *PlanStore {
 	bundleKey := opts.BundleKey
 	if bundleKey == "" {
-		bundleKey = stringsTrimOrDefault(os.Getenv("BUNDLE_KEY"), "business_suite")
+		bundleKey = stringsTrimOrDefault(envx.Get("BUNDLE_KEY"), "business_suite")
 	}
 	env := opts.DisplayEnv
 	if env == "" {
-		env = stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
+		env = stringsTrimOrDefault(envx.Get("BUNDLE_ENVIRONMENT"), "production")
 	}
 	return &PlanStore{
 		plans:          make([]*PlanOption, 0),
@@ -346,7 +348,7 @@ func (ps *PlanStore) savePlansLocked() error {
 			planFile.IntroAmountCents = &val
 		}
 
-		if plan.IntroType != landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED {
+		if plan.IntroType != shared.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED {
 			planFile.IntroType = introPricingTypeString(plan.IntroType)
 		}
 
@@ -369,7 +371,7 @@ func (ps *PlanStore) savePlansLocked() error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(ps.plansPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create plans directory: %w", err)
 	}
 
@@ -583,9 +585,9 @@ func (ps *PlanStore) GetPricingOverview() (*PricingOverview, error) {
 		}
 
 		switch plan.BillingInterval {
-		case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH:
+		case shared.BillingInterval_BILLING_INTERVAL_MONTH:
 			monthly = append(monthly, proto.Clone(plan).(*PlanOption))
-		case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR:
+		case shared.BillingInterval_BILLING_INTERVAL_YEAR:
 			yearly = append(yearly, proto.Clone(plan).(*PlanOption))
 		}
 	}
@@ -852,7 +854,7 @@ func (ps *PlanStore) updatePlanWithStripeDetailsLocked(priceID string, input Upd
 	}
 
 	updatedPlan.BundleKey = ps.bundleKey
-	if updatedPlan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_UNSPECIFIED {
+	if updatedPlan.Kind == shared.PlanKind_PLAN_KIND_UNSPECIFIED {
 		updatedPlan.Kind = planKindForTier(updatedPlan.PlanTier)
 	}
 
@@ -1147,22 +1149,22 @@ func convertProtoMetadataToMap(m map[string]*commonv1.JsonValue) map[string]inte
 	return result
 }
 
-func mapIntroPricingTypeFromString(s string) landing_page_react_vite_v1.IntroPricingType {
+func mapIntroPricingTypeFromString(s string) shared.IntroPricingType {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "percentage", "percent", "pct":
-		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE
+		return shared.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE
 	case "flat_amount", "flat-amount", "flat", "amount":
-		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT
+		return shared.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT
 	default:
-		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
+		return shared.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
 	}
 }
 
-func introPricingTypeString(t landing_page_react_vite_v1.IntroPricingType) string {
+func introPricingTypeString(t shared.IntroPricingType) string {
 	switch t {
-	case landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE:
+	case shared.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE:
 		return "percentage"
-	case landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT:
+	case shared.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT:
 		return "flat_amount"
 	default:
 		return ""
@@ -1280,7 +1282,7 @@ func normalizePlanOption(plan *PlanOption, bundleKey string) error {
 	}
 
 	expectedKind := planKindForTier(plan.PlanTier)
-	if plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_UNSPECIFIED {
+	if plan.Kind == shared.PlanKind_PLAN_KIND_UNSPECIFIED {
 		plan.Kind = expectedKind
 	} else if plan.Kind != expectedKind {
 		return fmt.Errorf("plan_kind %s does not match plan_tier %s", planKindString(plan.Kind), plan.PlanTier)
@@ -1305,7 +1307,7 @@ func validatePlanTierConstraints(plan *PlanOption) error {
 			return fmt.Errorf("free plan amount_cents must be 0")
 		}
 	case "credits", "donation":
-		if plan.BillingInterval != landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME {
+		if plan.BillingInterval != shared.BillingInterval_BILLING_INTERVAL_ONE_TIME {
 			return fmt.Errorf("%s plans must use one_time billing_interval", plan.PlanTier)
 		}
 	}

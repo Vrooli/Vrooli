@@ -339,7 +339,7 @@ func RunDeployReadiness(deps support.Dependencies, args []string) error {
 		Domain:     domain,
 		Checks:     checks,
 		NextSteps:  nextSteps,
-		CheckedAt:  time.Now().UTC().Format(time.RFC3339),
+		CheckedAt:  deps.Now().UTC().Format(time.RFC3339),
 	}
 
 	if *jsonOut {

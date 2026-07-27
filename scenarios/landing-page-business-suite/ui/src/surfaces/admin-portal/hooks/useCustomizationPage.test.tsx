@@ -91,18 +91,18 @@ describe('useCustomizationPage', () => {
     it('starts with loading state', async () => {
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
       expect(result.current.loading).toBe(true);
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
     });
 
     it('has empty variants initially', async () => {
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.variants).toEqual([]);
     });
 
     it('has default filter values', async () => {
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.variantQuery).toBe('');
       expect(result.current.attentionOnly).toBe(false);
     });
@@ -114,7 +114,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.variants).toHaveLength(2);
       expect(mockLoadCustomizationData).toHaveBeenCalledTimes(1);
@@ -125,7 +125,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: [], error: 'Network error' });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.error).toBe('Network error');
     });
@@ -134,7 +134,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: [], error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(mockLoadCustomizationData).toHaveBeenCalledTimes(1);
 
@@ -156,7 +156,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.activeVariants).toHaveLength(2);
       expect(result.current.archivedVariants).toHaveLength(1);
@@ -170,7 +170,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.filteredActiveVariants).toHaveLength(2);
 
@@ -189,7 +189,7 @@ describe('useCustomizationPage', () => {
       });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setVariantQuery('test');
@@ -218,7 +218,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.totalAssignedWeight).toBe(100);
       expect(result.current.weightStatus).toBe('balanced');
@@ -232,7 +232,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.totalAssignedWeight).toBe(50);
       expect(result.current.weightStatus).toBe('under');
@@ -246,7 +246,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.totalAssignedWeight).toBe(120);
       expect(result.current.weightStatus).toBe('over');
@@ -260,7 +260,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.normalizeShare(50)).toBe(50);
     });
@@ -273,7 +273,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.trafficShareMode).toBe('even');
     });
@@ -283,7 +283,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setWeightDraft('v1', 75);
@@ -298,7 +298,7 @@ describe('useCustomizationPage', () => {
       mockHandleUpdateWeight.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       await act(async () => {
         await result.current.persistWeight('v1', 75);
@@ -320,7 +320,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.staleVariants.length).toBeGreaterThanOrEqual(1);
       expect(result.current.staleVariants.some((s) => s.variant.slug === 'stale')).toBe(true);
@@ -334,7 +334,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.neverUpdatedVariants).toHaveLength(1);
       expect(result.current.neverUpdatedVariants[0]?.slug).toBe('never-updated');
@@ -355,8 +355,8 @@ describe('useCustomizationPage', () => {
       mockLoadAnalyticsSnapshot.mockResolvedValue({ analytics: mockAnalytics, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
-      await waitFor(() => expect(result.current.analyticsLoading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      await waitFor(() => { expect(result.current.analyticsLoading).toBe(false); });
 
       expect(result.current.underperformingInfo?.stats.variant_slug).toBe('bad');
     });
@@ -372,7 +372,7 @@ describe('useCustomizationPage', () => {
       mockLoadCustomizationData.mockResolvedValue({ variants: mockVariants, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.attentionCandidateSlugs.has('stale')).toBe(true);
       expect(result.current.attentionCandidateSlugs.has('never-updated')).toBe(true);
@@ -386,7 +386,7 @@ describe('useCustomizationPage', () => {
       mockHandleArchiveVariant.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       await act(async () => {
         await result.current.handleArchive('to-archive');
@@ -402,7 +402,7 @@ describe('useCustomizationPage', () => {
       mockHandleDeleteVariant.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       await act(async () => {
         await result.current.handleDelete('to-delete');
@@ -424,7 +424,7 @@ describe('useCustomizationPage', () => {
       mockLoadAnalyticsSnapshot.mockResolvedValue({ analytics: mockAnalytics, error: null });
 
       const { result } = renderHook(() => useCustomizationPage(), { wrapper });
-      await waitFor(() => expect(result.current.analyticsLoading).toBe(false));
+      await waitFor(() => { expect(result.current.analyticsLoading).toBe(false); });
 
       expect(result.current.statsBySlug.get('variant-a')?.views).toBe(100);
       expect(result.current.statsBySlug.get('variant-b')?.views).toBe(200);

@@ -22,12 +22,18 @@ export interface SectionFormFields {
   content: Record<string, unknown>;
 }
 
+function normalizeSectionContent(content: unknown): Record<string, unknown> {
+  return typeof content === 'object' && content !== null && !Array.isArray(content)
+    ? content as Record<string, unknown>
+    : {};
+}
+
 export function buildFormFields(section: ContentSection): SectionFormFields {
   return {
     sectionType: section.section_type,
     enabled: section.enabled,
     order: section.order,
-    content: section.content ?? {},
+    content: normalizeSectionContent(section.content),
   };
 }
 
@@ -94,10 +100,6 @@ function formatAxisLabel(axisId: string) {
 }
 
 function buildAxisContext(space: VariantSpace, axes?: VariantAxes): VariantAxisContext[] {
-  if (!space?.axes) {
-    return [];
-  }
-
   return Object.entries(space.axes).map(([axisId, axisDef]) => {
     const selectionId = axes?.[axisId];
     const selection = axisDef.variants.find((variant) => variant.id === selectionId);

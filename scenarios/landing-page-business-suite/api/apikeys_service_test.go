@@ -164,7 +164,7 @@ func TestAPIKeyService_Store_EncryptsKey(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	plainKey := "sk-or-test-key-12345678"
+	plainKey := "test-openrouter-key-12345678"
 
 	// Store a key
 	_, err := svc.Store(ctx, "openrouter", plainKey)
@@ -290,7 +290,7 @@ func TestAPIKeyService_Get_ReturnsDecryptedKey(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	plainKey := "sk-or-test-key-12345678"
+	plainKey := "test-openrouter-key-12345678"
 
 	// Store a key
 	_, err := svc.Store(ctx, "openrouter", plainKey)
@@ -828,7 +828,7 @@ func TestHandleCreateAPIKey_Success(t *testing.T) {
 
 	handler := handleCreateAPIKey(svc)
 
-	body := `{"provider": "openrouter", "key": "sk-or-test-12345678"}`
+	body := `{"provider": "openrouter", "key": "test-openrouter-key-12345678"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()

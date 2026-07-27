@@ -1,4 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import type React from 'react';
+import { MetricsModeContext } from './MetricsModeContext';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useMetrics } from './useMetricsHook';
 import type { MetricEvent } from '../api/types';
@@ -74,11 +76,11 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
 
     const { result } = renderHook(() => useMetrics());
 
-    await waitFor(() => expect(trackMetricMock).toHaveBeenCalled());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalled(); });
 
     trackMetricMock.mockClear();
     result.current.trackCTAClick('primary');
-    await waitFor(() => expect(trackMetricMock).toHaveBeenCalled());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalled(); });
 
     const event = trackMetricMock.mock.calls[0]?.[0];
     if (!event) {
@@ -100,10 +102,10 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
         memory[key] = value;
       },
       removeItem: (key: string) => {
-        delete memory[key];
+        Reflect.deleteProperty(memory, key);
       },
       clear: () => {
-        Object.keys(memory).forEach((key) => delete memory[key]);
+        Object.keys(memory).forEach((key) => { Reflect.deleteProperty(memory, key); });
       },
       key: (index: number) => Object.keys(memory)[index] ?? null,
       length: 0,
@@ -116,7 +118,7 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
 
     const { result } = renderHook(() => useMetrics());
 
-    await waitFor(() => expect(trackMetricMock).toHaveBeenCalled());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalled(); });
     const firstEvent = trackMetricMock.mock.calls[0]?.[0];
     if (!firstEvent) {
       throw new Error('Expected initial metric event payload to be defined');
@@ -124,7 +126,7 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
 
     trackMetricMock.mockClear();
     result.current.trackDownload({ platform: 'mac' });
-    await waitFor(() => expect(trackMetricMock).toHaveBeenCalled());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalled(); });
     const secondEvent = trackMetricMock.mock.calls[0]?.[0];
     if (!secondEvent) {
       throw new Error('Expected follow-up metric event payload to be defined');
@@ -132,5 +134,36 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
 
     expect(secondEvent.session_id).toBe(firstEvent.session_id);
     expect(secondEvent.visitor_id).toBe(firstEvent.visitor_id);
+  });
+
+  it('does not emit metrics in preview mode or when a variant is absent', async () => {
+    const previewWrapper = ({ children }: { children: React.ReactNode }) => (
+      <MetricsModeContext.Provider value="preview">{children}</MetricsModeContext.Provider>
+    );
+    renderHook(() => useMetrics(), { wrapper: previewWrapper });
+    expect(trackMetricMock).not.toHaveBeenCalled();
+
+    useLandingVariantMock.mockReturnValue({
+      variant: null, config: null, loading: false, error: null, resolution: 'unknown', statusNote: null, lastUpdated: null, refresh: vi.fn(),
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { result } = renderHook(() => useMetrics());
+    result.current.trackConversion({ source: 'test' });
+    await Promise.resolve();
+    expect(trackMetricMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith('[useMetrics] No variant selected, skipping event tracking');
+    warnSpy.mockRestore();
+  });
+
+  it('contains tracking transport failures and continues to expose interaction helpers', async () => {
+    trackMetricMock.mockRejectedValue(new Error('metrics unavailable'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { result } = renderHook(() => useMetrics());
+    await waitFor(() => expect(trackMetricMock).toHaveBeenCalled());
+    result.current.trackFormSubmit('waitlist', { email: 'customer@example.com' });
+    result.current.trackDownload({ platform: 'linux' });
+    await waitFor(() => expect(trackMetricMock).toHaveBeenCalledTimes(3));
+    expect(errorSpy).toHaveBeenCalledWith('[useMetrics] Error tracking event:', expect.any(Error));
+    errorSpy.mockRestore();
   });
 });

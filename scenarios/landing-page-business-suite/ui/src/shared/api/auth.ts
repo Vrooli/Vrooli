@@ -165,8 +165,7 @@ export async function refreshUserTokens(refreshToken: string): Promise<UserAuthT
  * Log out the current user session.
  */
 export async function userLogout(): Promise<void> {
-  // No response validation needed for void return
-  return apiPost<void>('/auth/logout', undefined);
+  await apiPost<undefined>('/auth/logout', undefined);
 }
 
 /**

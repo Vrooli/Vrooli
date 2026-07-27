@@ -65,7 +65,7 @@ export function useEntitlements() {
   }, [email]);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   return { email, setEmail, entitlements, loading, error, refresh };

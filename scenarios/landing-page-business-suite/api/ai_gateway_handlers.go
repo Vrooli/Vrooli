@@ -225,7 +225,7 @@ func handleAIUsage(deps *AIGatewayDeps) http.HandlerFunc {
 		// Get the user's tier
 		tier := "free"
 		if deps.AccountService != nil {
-			sub, err := deps.AccountService.GetSubscription(userIdentity)
+			sub, err := deps.AccountService.GetSubscriptionContext(r.Context(), userIdentity)
 			if err == nil && sub != nil && sub.PlanTier != nil {
 				tier = *sub.PlanTier
 			}

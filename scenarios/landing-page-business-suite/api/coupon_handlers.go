@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"strings"
 )
+
+type CouponUsageStore interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
 
 // ListCouponsResponse contains the list of coupons and intro coupon mapping.
 type ListCouponsResponse struct {
@@ -333,7 +338,7 @@ func handleAdminStripeCouponsPreview(stripe *StripeService) http.HandlerFunc {
 }
 
 // handleAdminCouponUsage returns usage statistics for intro coupons from the local database.
-func handleAdminCouponUsage(stripe *StripeService, db *sql.DB) http.HandlerFunc {
+func handleAdminCouponUsage(stripe *StripeService, db CouponUsageStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if db == nil {
 			writeJSONError(w, http.StatusServiceUnavailable, "Database unavailable", ApiErrorTypeServerError)

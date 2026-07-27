@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -59,7 +58,7 @@ type httpDoer interface {
 // AnomalyAlertDispatcher dispatches anomaly webhooks with retry, rate
 // limiting, and per-row dispatch-state tracking.
 type AnomalyAlertDispatcher struct {
-	db          *sql.DB
+	db          PaymentAnomalyStore
 	httpClient  httpDoer
 	mu          sync.Mutex
 	buckets     map[string]*tokenBucket
@@ -70,7 +69,7 @@ type AnomalyAlertDispatcher struct {
 
 // NewAnomalyAlertDispatcher returns a dispatcher with production defaults:
 // 3 attempts, 5s per attempt, 1s/2s/4s backoff between failed attempts.
-func NewAnomalyAlertDispatcher(db *sql.DB) *AnomalyAlertDispatcher {
+func NewAnomalyAlertDispatcher(db PaymentAnomalyStore) *AnomalyAlertDispatcher {
 	return &AnomalyAlertDispatcher{
 		db: db,
 		httpClient: &http.Client{
@@ -197,10 +196,11 @@ func (d *AnomalyAlertDispatcher) recordFailure(ctx context.Context, rowID int64,
 	if len(trimmed) > 512 {
 		trimmed = trimmed[:512]
 	}
-	// Use Background context for the record so a cancelled parent ctx still
-	// persists the terminal state — otherwise a shutdown mid-retry would
-	// leave the row stuck in "pending" forever.
-	if _, err := d.db.ExecContext(context.Background(), `
+	// Detach cancellation while preserving request values (for tracing and
+	// attribution) so a shutdown mid-retry still records the terminal state
+	// rather than leaving the row stuck in "pending" forever.
+	persistCtx := context.WithoutCancel(ctx)
+	if _, err := d.db.ExecContext(persistCtx, `
 		UPDATE payment_anomaly_log
 		SET dispatch_status = $1, dispatch_attempts = $2, dispatch_error = NULLIF($3, '')
 		WHERE id = $4

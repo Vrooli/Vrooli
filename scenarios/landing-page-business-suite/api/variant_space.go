@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 var defaultVariantSpaceJSON = []byte(`{
@@ -70,7 +72,7 @@ type VariantSpaceConstraints struct {
 func mustLoadVariantSpace() *VariantSpace {
 	space, err := parseVariantSpace(variantSpaceBytes)
 	if err != nil {
-		log.Printf("failed to parse variant space: %v; using baked defaults", err)
+		logx.Printf("failed to parse variant space: %v; using baked defaults", err)
 		space, err = parseVariantSpace(defaultVariantSpaceJSON)
 		if err != nil {
 			panic(fmt.Sprintf("default variant space invalid: %v", err))
@@ -85,7 +87,7 @@ func readVariantSpaceFile() []byte {
 }
 
 func variantSpaceFilePath() string {
-	if override := strings.TrimSpace(os.Getenv("VARIANT_SPACE_PATH")); override != "" {
+	if override := strings.TrimSpace(envx.Get("VARIANT_SPACE_PATH")); override != "" {
 		return override
 	}
 	candidates := []string{
@@ -104,7 +106,7 @@ func variantSpaceFilePath() string {
 func loadVariantSpaceBytes(path string) []byte {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		log.Printf("failed to read variant space at %s: %v", path, err)
+		logx.Printf("failed to read variant space at %s: %v", path, err)
 		return cloneBytes(defaultVariantSpaceJSON)
 	}
 	return cloneBytes(data)

@@ -21,13 +21,14 @@ export function generateNavLinkId(prefix: string): string {
       // ignore
     }
   }
-  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 1000)}`;
+  return `${prefix}-${String(Date.now())}-${String(Math.round(Math.random() * 1000))}`;
 }
 
 /**
  * Create a navigation link from a content section
  */
 export function createNavLinkFromSection(section: ContentSection): LandingHeaderNavLink {
+  const rawSectionId: unknown = section.id;
   const anchorSection = {
     id: section.id,
     section_type: section.section_type,
@@ -40,7 +41,7 @@ export function createNavLinkFromSection(section: ContentSection): LandingHeader
     type: 'section',
     label: section.section_type.replace(/_/g, ' '),
     section_type: section.section_type,
-    section_id: section.id ?? undefined,
+    section_id: typeof rawSectionId === 'number' ? rawSectionId : undefined,
     anchor: getSectionAnchorId(anchorSection),
     visible_on: { desktop: true, mobile: true },
   };

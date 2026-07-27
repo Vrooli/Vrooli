@@ -49,25 +49,33 @@ function formatCredits(amount: number, multiplier: number, label: string) {
   if (value >= 1_000) {
     return `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}k ${label}`;
   }
-  return `${value} ${label}`;
+  return `${String(value)} ${label}`;
 }
 
 function ensureFreeTier(pricing: PricingOverview | null, fallbackPricing: PricingOverview | null): PricingOverview | null {
   if (!pricing) return fallbackPricing;
+  const monthlyPlans = Array.isArray(pricing.monthly) ? pricing.monthly : [];
+  const yearlyPlans = Array.isArray(pricing.yearly) ? pricing.yearly : [];
   const hasFree =
-    [...(pricing.monthly ?? []), ...(pricing.yearly ?? [])].some(
+    [...monthlyPlans, ...yearlyPlans].some(
       (p) => typeof p.plan_tier === 'string' && p.plan_tier.toLowerCase() === 'free',
     );
   if (hasFree) return pricing;
+  const fallbackMonthlyPlans = fallbackPricing && Array.isArray(fallbackPricing.monthly)
+    ? fallbackPricing.monthly
+    : [];
+  const fallbackYearlyPlans = fallbackPricing && Array.isArray(fallbackPricing.yearly)
+    ? fallbackPricing.yearly
+    : [];
   const fallbackFree =
-    [...(fallbackPricing?.monthly ?? []), ...(fallbackPricing?.yearly ?? [])].find(
+    [...fallbackMonthlyPlans, ...fallbackYearlyPlans].find(
       (p) => typeof p.plan_tier === 'string' && p.plan_tier.toLowerCase() === 'free',
     );
   if (!fallbackFree) return pricing;
   const merged: PricingOverview = {
     ...pricing,
-    monthly: [fallbackFree, ...(pricing.monthly ?? [])],
-    yearly: pricing.yearly ?? [],
+    monthly: [fallbackFree, ...monthlyPlans],
+    yearly: yearlyPlans,
   };
   return merged;
 }
@@ -86,11 +94,12 @@ function buildTierFromPlan({ option, bundle, fallbackHighlight, interval, assign
   const hasAmount = amount > 0;
   const isFree = amount === 0;
   const priceLabel = hasAmount ? formatCurrency(amount, option.currency) : isFree ? 'Free' : 'Custom';
-  const introAmount = option.intro_amount_cents;
+  const introAmount = option.intro_amount_cents ?? 0;
+  const hasIntroAmount = option.intro_amount_cents != null;
   const metadata = option.metadata || {};
-  const metaFeatures = Array.isArray(metadata.features) ? (metadata.features as string[]) : [];
+  const metaFeatures = Array.isArray(metadata.features) ? (metadata.features) : [];
   const creditsLabel = bundle.display_credits_label || 'credits';
-  const badgeOverride = typeof metadata.badge === 'string' ? (metadata.badge as string) : undefined;
+  const badgeOverride = typeof metadata.badge === 'string' ? (metadata.badge) : undefined;
   const bonusLabel =
     typeof option.bonus_type === 'string' && option.bonus_type.trim().toLowerCase() !== 'none'
       ? option.bonus_type.replace('_', ' ')
@@ -101,9 +110,9 @@ function buildTierFromPlan({ option, bundle, fallbackHighlight, interval, assign
   if (assignedCoupon && hasAmount) {
     // Use shared utility to format coupon discount badge
     introBadge = formatDiscountBadge(amount, assignedCoupon, interval);
-  } else if (option.intro_enabled && introAmount !== undefined && introAmount !== null) {
+  } else if (option.intro_enabled && hasIntroAmount) {
     // Fall back to plan's native intro pricing config
-    introBadge = `${formatCurrency(introAmount, option.currency)} intro for ${option.intro_periods || 1} month${option.intro_periods === 1 ? '' : 's'}`;
+    introBadge = `${formatCurrency(introAmount, option.currency)} intro for ${String(option.intro_periods || 1)} month${option.intro_periods === 1 ? '' : 's'}`;
   }
 
   const badge = badgeOverride || introBadge || bonusLabel;
@@ -120,19 +129,19 @@ function buildTierFromPlan({ option, bundle, fallbackHighlight, interval, assign
 
   const subtitle =
     typeof metadata.subtitle === 'string' && metadata.subtitle.trim().length > 0
-      ? (metadata.subtitle as string)
+      ? (metadata.subtitle)
       : Number.isFinite(option.plan_rank)
-        ? `Plan rank #${option.plan_rank}`
+        ? `Plan rank #${String(option.plan_rank)}`
         : 'Flexible access';
 
   // Determine CTA text - prioritize assigned coupon info
   let ctaText: string;
   if (typeof metadata.cta_label === 'string' && metadata.cta_label.trim().length > 0) {
-    ctaText = metadata.cta_label as string;
+    ctaText = metadata.cta_label;
   } else if (assignedCoupon && hasAmount) {
     // Show coupon-aware CTA
     ctaText = `Start with ${getCouponSummary(assignedCoupon)}`;
-  } else if (option.intro_enabled && introAmount !== undefined && introAmount !== null) {
+  } else if (option.intro_enabled && hasIntroAmount) {
     ctaText = `Start ${formatCurrency(introAmount, option.currency)} intro`;
   } else {
     ctaText = 'Choose plan';
@@ -253,7 +262,7 @@ const PricingTierCard = memo(function PricingTierCard({
 }: PricingTierCardProps) {
   const highlight = tier.highlighted;
   const priceId = resolvePriceId(tier.cta_url);
-  const loading = redirectingPrice === priceId;
+  const loading = priceId !== null && redirectingPrice === priceId;
 
   return (
     <div
@@ -262,7 +271,7 @@ const PricingTierCard = memo(function PricingTierCard({
           ? 'border-accent/50 bg-gradient-to-b from-surface-primary via-surface-deep to-surface-darker text-white shadow-[0_30px_80px_-40px_rgba(var(--color-accent),0.45)]'
           : 'border-slate-200 bg-white text-slate-900 hover:-translate-y-1 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.4)]'
       }`}
-      data-testid={`pricing-tier-${index}`}
+      data-testid={`pricing-tier-${String(index)}`}
     >
       {highlight && <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(var(--color-accent),0.12),transparent_32%)]" />}
       {tier.badge && (
@@ -296,7 +305,7 @@ const PricingTierCard = memo(function PricingTierCard({
           variant={highlight ? 'default' : 'ghost'}
           className={`w-full ${highlight ? '' : 'bg-slate-900/5 text-slate-900 hover:bg-slate-900/10'}`}
           size="lg"
-          onClick={() => onSelect(tier)}
+          onClick={() => { onSelect(tier); }}
           disabled={loading}
           data-testid={`pricing-cta-${tier.name.toLowerCase().replace(/\s+/g, '-')}`}
         >
@@ -305,7 +314,7 @@ const PricingTierCard = memo(function PricingTierCard({
 
         <ul className="space-y-3">
           {getTierFeatures(tier).map((feature, featureIndex) => (
-            <li key={`${feature}-${featureIndex}`} className="flex items-start gap-3">
+            <li key={`${feature}-${String(featureIndex)}`} className="flex items-start gap-3">
               <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${highlight ? 'text-success' : 'text-accent'}`} />
               <span className={highlight ? 'text-slate-200' : 'text-slate-600'}>{feature}</span>
             </li>
@@ -356,7 +365,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
         success_url: buildDefaultURLs.success,
         cancel_url: buildDefaultURLs.cancel,
       });
-      if (session?.url) {
+      if (session.url) {
         window.location.href = session.url;
         return;
       }
@@ -487,8 +496,14 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
     }
   }, [activeInterval, hasYearly]);
 
-  const monthlyAnchor = monthlyPlansRaw[0];
-  const yearlyAnchor = yearlyPlansRaw[0];
+  // The required free tier may be prepended to the monthly plans. Savings must
+  // compare paid plans; using a $0 anchor silently hid a valid yearly discount.
+  const monthlyAnchor = monthlyPlansRaw.find((plan) =>
+    typeof plan.amount_cents === 'number' && plan.amount_cents > 0,
+  );
+  const yearlyAnchor = yearlyPlansRaw.find((plan) =>
+    typeof plan.amount_cents === 'number' && plan.amount_cents > 0,
+  );
   const savingsPercent =
     monthlyAnchor && yearlyAnchor
       ? Math.max(
@@ -498,7 +513,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
           ),
         )
       : null;
-  const savingsLabel = savingsPercent && savingsPercent > 0 ? `Save ${savingsPercent}% yearly` : null;
+  const savingsLabel = savingsPercent && savingsPercent > 0 ? `Save ${String(savingsPercent)}% yearly` : null;
 
   const effectiveInterval =
     bundle && activeInterval === 'yearly' && hasYearly ? 'yearly' : 'monthly';
@@ -545,7 +560,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => setActiveInterval(mode)}
+                  onClick={() => { setActiveInterval(mode); }}
                   className={`flex-1 rounded-full px-4 py-2 transition ${
                     active ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:text-slate-900'
                   }`}
@@ -565,14 +580,14 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
         <div className="mt-12 -mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-visible pb-6 pt-4 md:mx-0">
           {paddedTiers.map((tier, index) => (
             <div
-              key={`${tier.name}-${tier.price ?? 'n/a'}-${index}`}
+              key={`${tier.name}-${tier.price}-${String(index)}`}
               className="min-w-[82%] flex-shrink-0 snap-center md:min-w-[360px] lg:min-w-[380px]"
             >
               <PricingTierCard
                 tier={tier}
                 index={index}
                 redirectingPrice={redirectingPrice}
-                onSelect={handleTierSelect}
+                onSelect={(selectedTier) => { void handleTierSelect(selectedTier); }}
               />
             </div>
           ))}
@@ -596,15 +611,21 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
-                onClick={() => handleTierSelect(featuredTier)}
-                disabled={redirectingPrice === resolvePriceId(featuredTier.cta_url)}
+                onClick={() => { void handleTierSelect(featuredTier); }}
+                disabled={
+                  resolvePriceId(featuredTier.cta_url) !== null &&
+                  redirectingPrice === resolvePriceId(featuredTier.cta_url)
+                }
               >
-                {redirectingPrice === resolvePriceId(featuredTier.cta_url) ? 'Redirecting...' : featuredTier.cta_text || 'Choose'}
+                {resolvePriceId(featuredTier.cta_url) !== null &&
+                redirectingPrice === resolvePriceId(featuredTier.cta_url)
+                  ? 'Redirecting...'
+                  : featuredTier.cta_text || 'Choose'}
               </Button>
               <button
                 type="button"
                 className="text-xs text-slate-500 hover:text-slate-700"
-                onClick={() => setStickyDismissed(true)}
+                onClick={() => { setStickyDismissed(true); }}
                 aria-label="Dismiss pricing sticky"
               >
                 ✕

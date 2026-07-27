@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // testPlansJSON returns a sample plans.json content for testing.
@@ -316,7 +316,7 @@ func TestAddPlan(t *testing.T) {
 		StripePriceId:   "price_new_plan",
 		PlanName:        "New Plan",
 		PlanTier:        "solo",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 		AmountCents:     1900,
 		Currency:        "usd",
 		DisplayWeight:   15,
@@ -345,7 +345,7 @@ func TestAddPlan_DuplicatePriceID(t *testing.T) {
 		StripePriceId:   "price_monthly_pro", // Already exists
 		PlanName:        "Duplicate",
 		PlanTier:        "pro",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 		AmountCents:     1000,
 		Currency:        "usd",
 		DisplayWeight:   10,
@@ -373,7 +373,7 @@ func TestAddPlan_SetsBundleKey(t *testing.T) {
 		StripePriceId:   "price_bundle_test",
 		PlanName:        "Bundle Test",
 		PlanTier:        "pro",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 		AmountCents:     1000,
 		Currency:        "usd",
 		DisplayWeight:   10,
@@ -545,7 +545,7 @@ func TestSetPlans(t *testing.T) {
 			StripePriceId:   "price_set_1",
 			PlanName:        "Set Plan 1",
 			PlanTier:        "solo",
-			BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+			BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 			AmountCents:     999,
 			Currency:        "usd",
 			DisplayWeight:   10,
@@ -555,7 +555,7 @@ func TestSetPlans(t *testing.T) {
 			StripePriceId:   "price_set_2",
 			PlanName:        "Set Plan 2",
 			PlanTier:        "pro",
-			BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR,
+			BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_YEAR,
 			AmountCents:     9999,
 			Currency:        "usd",
 			DisplayWeight:   10,
@@ -597,7 +597,7 @@ func TestSetPlans_NilBundle(t *testing.T) {
 			StripePriceId:   "price_only",
 			PlanName:        "Only Plan",
 			PlanTier:        "pro",
-			BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+			BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 			AmountCents:     1000,
 			Currency:        "usd",
 			DisplayWeight:   10,
@@ -640,7 +640,7 @@ func TestSavePlans_CreatesDirectory(t *testing.T) {
 			StripePriceId:   "price_test",
 			PlanName:        "Test",
 			PlanTier:        "pro",
-			BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+			BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 			AmountCents:     1000,
 			Currency:        "usd",
 			DisplayWeight:   10,
@@ -685,7 +685,7 @@ func TestConcurrentAccess(t *testing.T) {
 				StripePriceId:   priceID,
 				PlanName:        "Concurrent Plan",
 				PlanTier:        "pro",
-				BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+				BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 				AmountCents:     1000,
 				Currency:        "usd",
 				DisplayWeight:   10,
@@ -701,12 +701,12 @@ func TestConcurrentAccess(t *testing.T) {
 func TestBillingIntervalMapping(t *testing.T) {
 	tests := []struct {
 		input    string
-		expected landing_page_react_vite_v1.BillingInterval
+		expected landing_page_business_suite_v1.BillingInterval
 	}{
-		{"month", landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH},
-		{"year", landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR},
-		{"one_time", landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME},
-		{"unknown", landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_UNSPECIFIED},
+		{"month", landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH},
+		{"year", landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_YEAR},
+		{"one_time", landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME},
+		{"unknown", landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_UNSPECIFIED},
 	}
 
 	for _, tt := range tests {
@@ -720,14 +720,14 @@ func TestBillingIntervalMapping(t *testing.T) {
 func TestPlanKindMapping(t *testing.T) {
 	tests := []struct {
 		input    string
-		expected landing_page_react_vite_v1.PlanKind
+		expected landing_page_business_suite_v1.PlanKind
 	}{
-		{"subscription", landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION},
-		{"credits", landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP},
-		{"credits_topup", landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP},
-		{"supporter", landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION},
-		{"supporter_contribution", landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION},
-		{"unknown", landing_page_react_vite_v1.PlanKind_PLAN_KIND_UNSPECIFIED},
+		{"subscription", landing_page_business_suite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION},
+		{"credits", landing_page_business_suite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP},
+		{"credits_topup", landing_page_business_suite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP},
+		{"supporter", landing_page_business_suite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION},
+		{"supporter_contribution", landing_page_business_suite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION},
+		{"unknown", landing_page_business_suite_v1.PlanKind_PLAN_KIND_UNSPECIFIED},
 	}
 
 	for _, tt := range tests {
@@ -743,12 +743,12 @@ func TestNormalizePlanOptionRejectsKindMismatch(t *testing.T) {
 		StripePriceId:   "price_mismatch",
 		PlanName:        "Credits Topup",
 		PlanTier:        "credits",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 		AmountCents:     5000,
 		Currency:        "usd",
 		DisplayWeight:   10,
 		DisplayEnabled:  true,
-		Kind:            landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION,
+		Kind:            landing_page_business_suite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION,
 	}
 
 	err := normalizePlanOption(plan, "test_bundle")
@@ -761,7 +761,7 @@ func TestNormalizePlanOptionRejectsFreeNonZeroAmount(t *testing.T) {
 		StripePriceId:   "price_free_mismatch",
 		PlanName:        "Free Plan",
 		PlanTier:        "free",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 		AmountCents:     100,
 		Currency:        "usd",
 		DisplayWeight:   10,
@@ -779,7 +779,7 @@ func TestNormalizePlanOptionRejectsCreditsNonOneTime(t *testing.T) {
 		StripePriceId:   "price_credits_monthly",
 		PlanName:        "Credits Monthly",
 		PlanTier:        "credits",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 		AmountCents:     1000,
 		Currency:        "usd",
 		DisplayWeight:   10,
@@ -816,7 +816,7 @@ func TestApplyStripeImportSelections_OverwritesTier(t *testing.T) {
 		StripePriceId:   "price_existing",
 		PlanName:        "Solo Plan",
 		PlanTier:        "solo",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 		AmountCents:     1000,
 		Currency:        "usd",
 		DisplayWeight:   10,
@@ -878,7 +878,7 @@ func TestUpdatePlanWithStripeDetails_RejectsMismatchedProduct(t *testing.T) {
 		StripePriceId:   "price_existing",
 		PlanName:        "Existing Plan",
 		PlanTier:        "pro",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 		AmountCents:     1000,
 		Currency:        "usd",
 		DisplayWeight:   10,
@@ -929,7 +929,7 @@ func TestUpdatePlanWithStripeDetails_RejectsFreeAmountMismatch(t *testing.T) {
 		StripePriceId:   "price_free",
 		PlanName:        "Free Plan",
 		PlanTier:        "free",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 		AmountCents:     0,
 		Currency:        "usd",
 		DisplayWeight:   10,
@@ -980,7 +980,7 @@ func TestUpdatePlanWithStripeDetails_RejectsCreditsIntervalMismatch(t *testing.T
 		StripePriceId:   "price_credits",
 		PlanName:        "Credits Pack",
 		PlanTier:        "credits",
-		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME,
+		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME,
 		AmountCents:     1000,
 		Currency:        "usd",
 		DisplayWeight:   10,
@@ -1056,16 +1056,16 @@ func TestApplyStripeImportSelections_RejectsMismatchedProduct(t *testing.T) {
 func TestIntroPricingTypeMapping(t *testing.T) {
 	tests := []struct {
 		input    string
-		expected landing_page_react_vite_v1.IntroPricingType
+		expected landing_page_business_suite_v1.IntroPricingType
 	}{
-		{"percentage", landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE},
-		{"percent", landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE},
-		{"pct", landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE},
-		{"flat_amount", landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT},
-		{"flat-amount", landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT},
-		{"flat", landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT},
-		{"amount", landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT},
-		{"unknown", landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED},
+		{"percentage", landing_page_business_suite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE},
+		{"percent", landing_page_business_suite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE},
+		{"pct", landing_page_business_suite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE},
+		{"flat_amount", landing_page_business_suite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT},
+		{"flat-amount", landing_page_business_suite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT},
+		{"flat", landing_page_business_suite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT},
+		{"amount", landing_page_business_suite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT},
+		{"unknown", landing_page_business_suite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED},
 	}
 
 	for _, tt := range tests {
@@ -1205,7 +1205,7 @@ func TestSaveLoadWithIntroFields(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, plan.IntroEnabled)
-	assert.Equal(t, landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE, plan.IntroType)
+	assert.Equal(t, landing_page_business_suite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE, plan.IntroType)
 	assert.NotNil(t, plan.IntroAmountCents)
 	assert.Equal(t, int64(2450), *plan.IntroAmountCents)
 	assert.Equal(t, int32(3), plan.IntroPeriods)

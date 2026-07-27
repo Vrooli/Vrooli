@@ -19,9 +19,20 @@ type LimitsServicer interface {
 	GetTierLimits(ctx context.Context, tierID string) ([]TierLimit, error)
 }
 
+// LimitsStore is the context-aware persistence contract for subscription tier
+// limits.
+//
+// seam: LimitsStore keeps limit persistence independent of a concrete pool and
+// preserves request-scoped test isolation.
+type LimitsStore interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
 // LimitsService manages subscription tier limits for the credit system.
 type LimitsService struct {
-	db       *sql.DB
+	db       LimitsStore
 	dialects *DialectHelper
 }
 
@@ -53,7 +64,7 @@ type TierLimitUpdate struct {
 }
 
 // NewLimitsService creates a new limits service.
-func NewLimitsService(db *sql.DB, dialect string) *LimitsService {
+func NewLimitsService(db LimitsStore, dialect string) *LimitsService {
 	return &LimitsService{
 		db:       db,
 		dialects: NewDialectHelper(dialect),

@@ -21,50 +21,61 @@ import (
 // setupTestDB creates a test database connection
 // This is the canonical setup function used across all test files
 func setupTestDB(t *testing.T) *sql.DB {
-	dbURL := ""
-	if resolved, err := resolveDatabaseURL(); err == nil {
-		dbURL = resolved
-	}
-	if dbURL == "" {
-		dbURL = strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
-	}
-	if dbURL == "" {
-		dbURL = startTestContainerDB(t)
+	// Tests must never fall back to DATABASE_URL. That variable is owned by the
+	// scenario lifecycle and may point at a developer or deployed database; using
+	// it makes the suite both unsafe and dependent on whatever schema happens to
+	// exist there. An explicitly named test database is allowed for CI. When it
+	// is absent or unavailable, the suite creates an isolated testcontainer.
+	if dbURL, configured := configuredTestDatabaseURL(); configured {
+		if db, err := openAndPrepareTestDatabase(dbURL); err == nil {
+			return db
+		} else {
+			t.Logf("Failed to connect using configured test database; using isolated container: %v", err)
+		}
 	}
 
+	db, err := openAndPrepareTestDatabase(startTestContainerDB(t))
+	if err != nil {
+		t.Fatalf("Failed to initialize isolated test database: %v", err)
+	}
+	return db
+}
+
+func configuredTestDatabaseURL() (string, bool) {
+	dbURL := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
+	return dbURL, dbURL != ""
+}
+
+func openAndPrepareTestDatabase(dbURL string) (*sql.DB, error) {
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		// Retry with container if an external URL is misconfigured
-		if dbURL != "" {
-			t.Logf("Failed to connect using %s, retrying with container: %v", dbURL, err)
-			dbURL = startTestContainerDB(t)
-			db, err = sql.Open("postgres", dbURL)
-		}
-		if err != nil {
-			t.Fatalf("Failed to connect to test database: %v", err)
-		}
+		return nil, err
 	}
 
 	if err := db.Ping(); err != nil {
-		t.Fatalf("Failed to ping test database: %v", err)
+		_ = db.Close()
+		return nil, err
 	}
 
-	if err := ensureSchema(db); err != nil {
-		t.Fatalf("Failed to ensure schema: %v", err)
+	if err := applyRuntimeSchema(db); err != nil {
+		_ = db.Close()
+		return nil, err
 	}
 
 	if err := seedDefaultData(db); err != nil {
-		t.Fatalf("Failed to seed default data: %v", err)
+		_ = db.Close()
+		return nil, err
 	}
 
 	// NOTE: syncVariantSnapshots has been removed.
 	// Variant configuration is now loaded from JSON files via ConfigStore.
 	// For tests that need ConfigStore, use setupTestConfigStore().
 
-	return db
+	return db, nil
 }
 
 var (
+	testRequestContext   = context.Background()
 	testContainerOnce    sync.Once
 	testContainerURL     string
 	testContainerCleanup func()

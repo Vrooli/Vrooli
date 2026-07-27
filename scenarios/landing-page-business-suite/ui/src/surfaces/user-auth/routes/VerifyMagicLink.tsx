@@ -181,7 +181,7 @@ export function VerifyMagicLink() {
 
   // Run verification on mount
   useEffect(() => {
-    performVerification();
+    void performVerification();
   }, [performVerification]);
 
   // Verifying state
@@ -254,7 +254,7 @@ export function VerifyMagicLink() {
 
         {state.errorCode === 'network' && (
           <button
-            onClick={performVerification}
+            onClick={() => { void performVerification(); }}
             className="
               inline-flex items-center gap-2
               px-4 py-2 rounded-lg

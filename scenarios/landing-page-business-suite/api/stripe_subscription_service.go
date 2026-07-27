@@ -11,7 +11,8 @@ import (
 	"strings"
 	"time"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -21,11 +22,11 @@ import (
 
 // VerifySubscription checks subscription status for a user
 // [REQ:SUB-VERIFY] GET /api/subscription/verify endpoint
-func (s *StripeService) VerifySubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
+func (s *StripeService) VerifySubscription(userIdentity string) (*shared.SubscriptionStatus, error) {
 	user := strings.TrimSpace(userIdentity)
 	if user == "" {
-		return &landing_page_react_vite_v1.SubscriptionStatus{
-			State:        landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
+		return &shared.SubscriptionStatus{
+			State:        shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
 			UserIdentity: "",
 			Message:      proto.String("user not provided"),
 		}, nil
@@ -79,15 +80,15 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*landing_page_r
 	}
 
 	if err == sql.ErrNoRows {
-		return &landing_page_react_vite_v1.SubscriptionStatus{
-			State:        landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
+		return &shared.SubscriptionStatus{
+			State:        shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
 			UserIdentity: user,
 			Message:      proto.String("No subscription found"),
 		}, nil
 	}
 
 	state := mapSubscriptionState(status)
-	result := &landing_page_react_vite_v1.SubscriptionStatus{
+	result := &shared.SubscriptionStatus{
 		State:        state,
 		UserIdentity: user,
 		CachedAt:     timestamppb.New(updatedAt),
@@ -139,7 +140,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*landing_page_r
 
 // CancelSubscription cancels an active subscription
 // [REQ:SUB-CANCEL] POST /api/subscription/cancel endpoint
-func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_react_vite_v1.CancelSubscriptionResponse, error) {
+func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_business_suite_v1.CancelSubscriptionResponse, error) {
 	var subscriptionID string
 	var status string
 	var customerID sql.NullString
@@ -187,7 +188,7 @@ func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_r
 		return nil, err
 	}
 
-	return &landing_page_react_vite_v1.CancelSubscriptionResponse{
+	return &landing_page_business_suite_v1.CancelSubscriptionResponse{
 		SubscriptionId: proto.String(subscriptionID),
 		State:          mapSubscriptionState("canceled"),
 		CanceledAt:     timestamppb.New(now),
@@ -196,7 +197,7 @@ func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_r
 }
 
 // CreateBillingPortalSession creates a Stripe billing portal session for subscription management.
-func (s *StripeService) CreateBillingPortalSession(ctx context.Context, userIdentity string, returnURL string) (*landing_page_react_vite_v1.BillingPortalResponse, error) {
+func (s *StripeService) CreateBillingPortalSession(ctx context.Context, userIdentity string, returnURL string) (*landing_page_business_suite_v1.BillingPortalResponse, error) {
 	user := strings.TrimSpace(userIdentity)
 	if user == "" {
 		return nil, errors.New("user identity is required")
@@ -241,11 +242,11 @@ func (s *StripeService) CreateBillingPortalSession(ctx context.Context, userIden
 		return nil, errors.New("Stripe portal URL not returned")
 	}
 
-	return &landing_page_react_vite_v1.BillingPortalResponse{Url: resp.URL}, nil
+	return &landing_page_business_suite_v1.BillingPortalResponse{Url: resp.URL}, nil
 }
 
 // refreshSubscriptionFromStripe fetches subscription data from Stripe and updates local cache.
-func (s *StripeService) refreshSubscriptionFromStripe(userIdentity string, currentSubscriptionID string) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
+func (s *StripeService) refreshSubscriptionFromStripe(userIdentity string, currentSubscriptionID string) (*shared.SubscriptionStatus, error) {
 	ctx := context.Background()
 
 	if currentSubscriptionID != "" {
@@ -294,7 +295,7 @@ func (s *StripeService) refreshSubscriptionFromStripe(userIdentity string, curre
 }
 
 // persistSubscriptionFromStripe saves subscription data from Stripe to local database.
-func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stripeSubscription) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
+func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stripeSubscription) (*shared.SubscriptionStatus, error) {
 	if sub == nil {
 		return nil, nil
 	}
@@ -378,7 +379,7 @@ func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stri
 	}
 
 	user := chooseUserIdentity(userHint, sub)
-	status := &landing_page_react_vite_v1.SubscriptionStatus{
+	status := &shared.SubscriptionStatus{
 		State:        state,
 		UserIdentity: user,
 		CachedAt:     timestamppb.New(now),

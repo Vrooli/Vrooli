@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -35,7 +36,7 @@ func newMockFeedbackService() *mockFeedbackService {
 	}
 }
 
-func (m *mockFeedbackService) Create(input *CreateFeedbackInput) (*FeedbackRequest, error) {
+func (m *mockFeedbackService) Create(_ context.Context, input *CreateFeedbackInput) (*FeedbackRequest, error) {
 	if m.createErr != nil {
 		return nil, m.createErr
 	}
@@ -55,7 +56,7 @@ func (m *mockFeedbackService) Create(input *CreateFeedbackInput) (*FeedbackReque
 	return f, nil
 }
 
-func (m *mockFeedbackService) List(status string) ([]FeedbackRequest, error) {
+func (m *mockFeedbackService) List(_ context.Context, status string) ([]FeedbackRequest, error) {
 	if m.listErr != nil {
 		return nil, m.listErr
 	}
@@ -68,7 +69,7 @@ func (m *mockFeedbackService) List(status string) ([]FeedbackRequest, error) {
 	return result, nil
 }
 
-func (m *mockFeedbackService) GetByID(id int) (*FeedbackRequest, error) {
+func (m *mockFeedbackService) GetByID(_ context.Context, id int) (*FeedbackRequest, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
@@ -79,7 +80,7 @@ func (m *mockFeedbackService) GetByID(id int) (*FeedbackRequest, error) {
 	return f, nil
 }
 
-func (m *mockFeedbackService) UpdateStatus(id int, status string) (*FeedbackRequest, error) {
+func (m *mockFeedbackService) UpdateStatus(_ context.Context, id int, status string) (*FeedbackRequest, error) {
 	if m.updateStatusErr != nil {
 		return nil, m.updateStatusErr
 	}
@@ -92,7 +93,7 @@ func (m *mockFeedbackService) UpdateStatus(id int, status string) (*FeedbackRequ
 	return f, nil
 }
 
-func (m *mockFeedbackService) Delete(id int) error {
+func (m *mockFeedbackService) Delete(_ context.Context, id int) error {
 	if m.deleteErr != nil {
 		return m.deleteErr
 	}
@@ -103,7 +104,7 @@ func (m *mockFeedbackService) Delete(id int) error {
 	return nil
 }
 
-func (m *mockFeedbackService) DeleteBulk(ids []int) (int64, error) {
+func (m *mockFeedbackService) DeleteBulk(_ context.Context, ids []int) (int64, error) {
 	if m.deleteBulkErr != nil {
 		return 0, m.deleteBulkErr
 	}
@@ -252,13 +253,13 @@ func TestHandleFeedbackList_Success(t *testing.T) {
 	svc := NewFeedbackService(db)
 
 	// Create some test feedback
-	_, _ = svc.Create(&CreateFeedbackInput{
+	_, _ = svc.Create(context.Background(), &CreateFeedbackInput{
 		Type:    "general",
 		Email:   "test1@example.com",
 		Subject: "Test 1",
 		Message: "Message 1",
 	})
-	_, _ = svc.Create(&CreateFeedbackInput{
+	_, _ = svc.Create(context.Background(), &CreateFeedbackInput{
 		Type:    "bug",
 		Email:   "test2@example.com",
 		Subject: "Test 2",
@@ -340,7 +341,7 @@ func TestHandleFeedbackGet_Success(t *testing.T) {
 	svc := NewFeedbackService(db)
 
 	// Create test feedback
-	feedback, _ := svc.Create(&CreateFeedbackInput{
+	feedback, _ := svc.Create(context.Background(), &CreateFeedbackInput{
 		Type:    "general",
 		Email:   "test@example.com",
 		Subject: "Test",
@@ -412,7 +413,7 @@ func TestHandleFeedbackUpdateStatus_Success(t *testing.T) {
 	svc := NewFeedbackService(db)
 
 	// Create test feedback
-	feedback, _ := svc.Create(&CreateFeedbackInput{
+	feedback, _ := svc.Create(context.Background(), &CreateFeedbackInput{
 		Type:    "general",
 		Email:   "test@example.com",
 		Subject: "Test",
@@ -443,7 +444,7 @@ func TestHandleFeedbackUpdateStatus_InvalidStatus(t *testing.T) {
 	svc := NewFeedbackService(db)
 
 	// Create test feedback
-	feedback, _ := svc.Create(&CreateFeedbackInput{
+	feedback, _ := svc.Create(context.Background(), &CreateFeedbackInput{
 		Type:    "general",
 		Email:   "test@example.com",
 		Subject: "Test",
@@ -476,7 +477,7 @@ func TestHandleFeedbackDelete_Success(t *testing.T) {
 	svc := NewFeedbackService(db)
 
 	// Create test feedback
-	feedback, _ := svc.Create(&CreateFeedbackInput{
+	feedback, _ := svc.Create(context.Background(), &CreateFeedbackInput{
 		Type:    "general",
 		Email:   "test@example.com",
 		Subject: "Test",
@@ -507,8 +508,8 @@ func TestHandleFeedbackDeleteBulk_Success(t *testing.T) {
 	svc := NewFeedbackService(db)
 
 	// Create test feedbacks
-	f1, _ := svc.Create(&CreateFeedbackInput{Type: "general", Email: "a@x.com", Subject: "A", Message: "A"})
-	f2, _ := svc.Create(&CreateFeedbackInput{Type: "general", Email: "b@x.com", Subject: "B", Message: "B"})
+	f1, _ := svc.Create(context.Background(), &CreateFeedbackInput{Type: "general", Email: "a@x.com", Subject: "A", Message: "A"})
+	f2, _ := svc.Create(context.Background(), &CreateFeedbackInput{Type: "general", Email: "b@x.com", Subject: "B", Message: "B"})
 
 	handler := handleFeedbackDeleteBulk(svc)
 
@@ -592,7 +593,7 @@ func TestHandleFeedbackList_ServiceError(t *testing.T) {
 func TestHandleFeedbackList_VerifyResponseBody(t *testing.T) {
 	mock := newMockFeedbackService()
 	// Add test feedback
-	if _, err := mock.Create(&CreateFeedbackInput{
+	if _, err := mock.Create(context.Background(), &CreateFeedbackInput{
 		Type:    "bug",
 		Email:   "test@example.com",
 		Subject: "Bug Report",
@@ -648,7 +649,7 @@ func TestHandleFeedbackGet_ServiceError(t *testing.T) {
 func TestHandleFeedbackUpdateStatus_ServiceError(t *testing.T) {
 	mock := newMockFeedbackService()
 	// Create a feedback entry first
-	if _, err := mock.Create(&CreateFeedbackInput{
+	if _, err := mock.Create(context.Background(), &CreateFeedbackInput{
 		Type:    "general",
 		Email:   "test@example.com",
 		Subject: "Test",
@@ -701,7 +702,7 @@ func TestHandleFeedbackUpdateStatus_AllValidStatuses(t *testing.T) {
 		t.Run(status, func(t *testing.T) {
 			mock := newMockFeedbackService()
 			// Create a feedback entry
-			if _, err := mock.Create(&CreateFeedbackInput{
+			if _, err := mock.Create(context.Background(), &CreateFeedbackInput{
 				Type:    "general",
 				Email:   "test@example.com",
 				Subject: "Test",
@@ -741,7 +742,7 @@ func TestHandleFeedbackUpdateStatus_AllValidStatuses(t *testing.T) {
 func TestHandleFeedbackDelete_ServiceError(t *testing.T) {
 	mock := newMockFeedbackService()
 	// Create a feedback entry
-	if _, err := mock.Create(&CreateFeedbackInput{
+	if _, err := mock.Create(context.Background(), &CreateFeedbackInput{
 		Type:    "general",
 		Email:   "test@example.com",
 		Subject: "Test",

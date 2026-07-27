@@ -30,6 +30,7 @@ func setupMetricsTestDB(t *testing.T) (*sql.DB, *MetricsService) {
 	return db, service
 }
 
+// [REQ:METRIC-TAG] Tracked events preserve the variant identity supplied by the client.
 // TestTrackEvent_Valid tests successful event tracking
 func TestTrackEvent_Valid(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
@@ -51,14 +52,19 @@ func TestTrackEvent_Valid(t *testing.T) {
 
 	// Verify event was inserted
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&count); err != nil {
-		t.Fatalf("failed to count metrics events: %v", err)
+	var storedVariant string
+	if err := db.QueryRow("SELECT COUNT(*), MIN(variant_slug) FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&count, &storedVariant); err != nil {
+		t.Fatalf("failed to load metrics event: %v", err)
 	}
 	if count != 1 {
 		t.Errorf("Expected 1 event, got %d", count)
 	}
+	if storedVariant != event.VariantSlug {
+		t.Errorf("Expected variant %q, got %q", event.VariantSlug, storedVariant)
+	}
 }
 
+// [REQ:METRIC-IDEMPOTENT] Duplicate event IDs do not create additional metric rows.
 // TestTrackEvent_Idempotency tests that duplicate events are ignored
 func TestTrackEvent_Idempotency(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
@@ -256,6 +262,7 @@ func TestGetVariantStats(t *testing.T) {
 	}
 }
 
+// [REQ:METRIC-FILTER] Analytics can be narrowed to one landing variant.
 // TestGetVariantStats_FilterBySlug tests filtering stats by variant slug
 func TestGetVariantStats_FilterBySlug(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
@@ -296,6 +303,7 @@ func TestGetVariantStats_FilterBySlug(t *testing.T) {
 	}
 }
 
+// [REQ:METRIC-SUMMARY] Analytics summary includes visitors, variant conversion data, and CTA CTR.
 // TestGetAnalyticsSummary tests the analytics summary aggregation
 func TestGetAnalyticsSummary(t *testing.T) {
 	_, service := setupMetricsTestDB(t)

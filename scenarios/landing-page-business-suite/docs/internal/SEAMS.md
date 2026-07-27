@@ -8,7 +8,7 @@ audience: ["developers"]
 
 # Seams & Architecture
 
-> **Last Updated**: 2026-02-05
+> **Last Updated**: 2026-07-26
 > **Purpose**: Document deliberate boundaries (seams) where behavior can vary or be substituted without invasive changes
 
 ## Overview
@@ -16,6 +16,35 @@ audience: ["developers"]
 A seam is a deliberate boundary where behavior can vary or be substituted without invasive changes. In this scenario, seams keep Stripe integration and landing-page logic testable without calling real services.
 
 This document reflects the current code; claims here have been verified against the implementation.
+
+---
+
+## Seam Registry
+
+| Seam | Declaration | Production Impl | Test Double | Why it exists |
+|---|---|---|---|---|
+| metricshttp.EventTracker | `api/handlers/metrics/waitlist.go` | `*metrics.Service` wired in `api/metrics_handlers.go` | `api/handlers/metrics/mocks.FakeEventTracker` | Exercise event-ingestion transport without a database. |
+| metricshttp.AnalyticsReader | `api/handlers/metrics/waitlist.go` | `*metrics.Service` wired in `api/metrics_handlers.go` | `api/handlers/metrics/mocks.FakeAnalyticsReader` | Exercise summary and variant transport without a database. |
+| metricshttp.FeedbackNotifier | `api/handlers/metrics/feedback.go` | `feedbackEmailNotifier` wired in `api/feedback_handlers.go` | `api/handlers/metrics/mocks.FakeFeedbackNotifier` | Keep feedback HTTP creation separate from branding/email delivery. |
+| clock.Clock | `api/internal/clock/clock.go` | `clock.System` | `api/internal/testutil/mocks.FakeClock` | Keep domain time-dependent IDs deterministic in tests. |
+| envx.Reader | `api/internal/envx/env.go` | `envx.System` | `api/internal/testutil/mocks.FakeEnvironment` | Isolate process configuration from business and startup logic. |
+| logx.Logger | `api/internal/logx/log.go` | `logx.System` | `api/internal/testutil/mocks.FakeLogger` | Keep structured logging substitutable in tests and composition. |
+| metrics.WaitlistStore | `api/internal/metrics/waitlist.go` | `*database.RoutedDB` in API composition | `api/internal/testutil/mocks.FakeWaitlistStore` | Route context-aware waitlist persistence to Test Genie’s lease-owned pool. |
+| metrics.FeedbackStore | `api/internal/metrics/feedback.go` | `*database.RoutedDB` in API composition | `api/internal/testutil/mocks.FakeFeedbackStore` | Route context-aware feedback persistence to Test Genie’s lease-owned pool. |
+| main.AccountStore | `api/account_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in account service tests | Route subscription, credit, and entitlement reads to Test Genie’s lease-owned pool. |
+| main.UserManagementStore | `api/user_management_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-management service tests | Keep admin user and session operations transport-free and routed to Test Genie’s lease-owned pool. |
+| main.APIKeyStore | `api/apikeys_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in API-key service tests | Route encrypted provider-key reads and writes through the request-scoped database seam. |
+| main.UsageStore | `api/usage_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in usage service tests | Route credit usage and reservations through the request-scoped database seam. |
+| main.RemoteProfileStore | `api/remote_profiles_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in remote-profile service tests | Route encrypted remote-profile configuration and session operations through the request-scoped database seam. |
+| main.PaymentSettingsStore | `api/payment_settings_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-settings service tests | Route Stripe and payment-anomaly configuration through the request-scoped database seam. |
+| main.PaymentAnomalyStore | `api/payment_anomaly_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-anomaly tests | Route payment anomaly records and delivery state through the request-scoped database seam. |
+| main.LimitsStore | `api/limits_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in limits service tests | Route subscription-tier limits through the request-scoped database seam. |
+| main.UserAuthStore | `api/user_auth_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-auth service tests | Route user identities, magic links, and sessions through the request-scoped database seam. |
+| download.EntitlementLookup | `api/internal/download/authorizer.go` | `entitlementStatusLookup` in `api/download_service.go` | `entitlementStub` in `api/internal/download/authorizer_test.go` | Keep paid-download policy independent of account persistence. |
+
+The `api/internal/testutil` seam-registry test reconciles the tagged interface
+set with this table. New seams must add their `// seam:` declaration, production
+assertion, reusable fake, and row in the same change.
 
 ---
 
@@ -76,7 +105,7 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   - `AnomalyAlertDispatcher.Dispatch` is the outbound HTTP seam: 3 attempts × 5 s per-attempt timeout with 1 s/2 s/4 s backoff, retries on 5xx + transport errors, does not retry on 4xx. Test seam: `AnomalyAlertDispatcher.UseHTTPClient(httpDoer)` and `UseBackoff(...)` swap the client/backoffs for deterministic tests.
   - Rate limiter: in-process token bucket per `anomaly_type`, guarded by `sync.Mutex`, with defaults of `burst=5` + `refill=1/60s`. Per-type overrides are read from `payment_settings.anomaly_rate_limits` JSONB. Known constraint: the bucket is **in-process** and therefore single-instance; multi-replica deployments would need a postgres-backed limiter, but LPBS runs as one instance today.
   - Dispatch lifecycle: `Log(...)` returns after the row is committed and fires `go s.dispatcher.Dispatch(s.shutdownCtx, payload)` on an unbounded goroutine. Each goroutine exits within ~7 s worst-case (3 attempts × 5 s + 1 s/2 s backoffs); the per-type rate limiter caps spawn rate. HTTP requests use `http.NewRequestWithContext(shutdownCtx, ...)` so in-flight POSTs abort on server shutdown.
-  - Historical note: the legacy `intro_anomaly_log` table has been removed. Its rows were migrated into `payment_anomaly_log` with `subject_kind='intro_coupon'` by a one-time boot-time migration in `ensureSchema`.
+  - Historical note: the legacy `intro_anomaly_log` table is not part of the runtime schema. Any retained local rows require the documented one-shot operator migration before deploying this declarative schema.
 
 ---
 
@@ -90,8 +119,11 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   - Stripe import flows through `PlanService.ImportStripePrices(...)` → `PlanStore.ApplyStripeImportSelections(...)` to batch updates and persist once (rejecting prices that do not belong to the bundle's Stripe product).
   - Plan catalog writes are atomic (temp file + rename) and re-normalize bundle/plan fields on save to keep `.vrooli/plans.json` consistent.
 
-- **Metrics ingestion** (`metrics_service.go`, `metrics_handlers.go`)  
-  Validation and storage happen in the service; handlers only marshal/unmarshal requests.
+- **Metrics transport** (`api/internal/metrics/`, `api/handlers/metrics/`)
+  Validation and storage happen in the service; event, aggregate, waitlist, and
+  feedback-management handlers only translate HTTP. Feedback persistence is
+  routed through `metrics.FeedbackStore`; branding/email notification remains
+  isolated behind `metricshttp.FeedbackNotifier`.
 
 - **Content & variants** (`content_service.go`, `variant_service.go`)  
   UI content and A/B variants are isolated behind services so new presentations do not touch SQL.
@@ -327,6 +359,26 @@ defer aiGatewayRateLimiter.UseTimeProvider(nil)
 ---
 
 ## See Also
+
+### Administrator Authentication Persistence Seam
+
+**Location:** `api/admin_auth_service.go`
+
+`AdminAuthService` owns administrator credentials, server-side sessions, and
+profile persistence through `AdminAuthStore`. It receives request contexts for
+every query and mutation. HTTP handlers own cookies and response formatting,
+not SQL; production wires the service to `database.RoutedDB` and tests can
+supply a database-backed seam.
+
+### Routed Persistence Store Contracts
+
+**Locations:** `api/{assets,download_service,download_hosting,stripe_service,stripe_repository}.go`, `api/internal/metrics/service.go`
+
+Production domain services expose narrow store contracts instead of retaining
+`*sql.DB`. The contracts preserve the query and transaction capabilities each
+domain actually needs, allowing request-facing services to be wired to the
+routed database seam while unit tests retain simple database-backed fixtures.
+`StripeTestStore` applies the same boundary to Stripe configuration helpers.
 
 - `docs/STRIPE_RESTRICTED_KEYS.md`
 - `docs/STRIPE_WEBHOOKS.md`

@@ -112,10 +112,9 @@ The main window has three areas:
 2. Enable "Schedule" and set frequency (hourly, daily, weekly, cron)
 3. The workflow runs automatically at specified times
 
-**Via CLI:**
-```bash
-browser-automation-studio workflow execute "my-workflow" --wait
-```
+**Via CLI:** Use the current Browser Automation Studio workflow command shown
+by its built-in help. Command names vary by installed release, so do not copy a
+stale invocation from this guide.
 
 **Via API:**
 ```bash
@@ -240,23 +239,10 @@ Before exporting, customize the replay appearance:
 
 ### Exporting
 
-**HTML Package:**
-```bash
-browser-automation-studio execution render <execution-id> --output ./replay-folder
-```
-Creates a self-contained HTML file with embedded assets.
-
-**Video (MP4/WEBM):**
-```bash
-browser-automation-studio execution render-video <execution-id> --output ./demo.mp4
-```
-Generates a video file suitable for product demos or marketing.
-
-**JSON Metadata:**
-```bash
-browser-automation-studio execution export <execution-id> --output ./export.json
-```
-Exports structured data for custom processing or integration.
+Use the current Browser Automation Studio help to export an execution as an
+HTML replay, video, or JSON metadata. The export command surface is versioned
+separately from Landing Page Business Suite, so this guide intentionally avoids
+an unverified copy-paste command.
 
 ---
 

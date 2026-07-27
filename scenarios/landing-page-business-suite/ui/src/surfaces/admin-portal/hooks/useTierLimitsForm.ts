@@ -121,7 +121,7 @@ export function useTierLimitsForm(): UseTierLimitsFormReturn {
 
   // Load limits on mount
   useEffect(() => {
-    fetchLimits();
+    void fetchLimits();
   }, [fetchLimits]);
 
   /**
@@ -140,7 +140,7 @@ export function useTierLimitsForm(): UseTierLimitsFormReturn {
   const clearEditedValue = useCallback((editKey: string) => {
     setEditedValues((prev) => {
       const next = { ...prev };
-      delete next[editKey];
+      Reflect.deleteProperty(next, editKey);
       return next;
     });
   }, []);

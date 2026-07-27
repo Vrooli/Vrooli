@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 )
 
 // --- StripeAdminService Interface Implementation ---
@@ -33,11 +33,11 @@ func (s *StripeService) GetSecretValue(field string) (string, bool) {
 // ConfigSnapshot returns a redacted view of the active Stripe configuration.
 // Note: PublishableKeyPreview is only set when hasPublishable is true to avoid
 // leaking placeholder values that could be mistaken for real configuration.
-func (s *StripeService) ConfigSnapshot() *landing_page_react_vite_v1.StripeConfigSnapshot {
+func (s *StripeService) ConfigSnapshot() *landing_page_business_suite_v1.StripeConfigSnapshot {
 	cfg := s.getConfig()
-	source := landing_page_react_vite_v1.ConfigSource_CONFIG_SOURCE_ENV
+	source := landing_page_business_suite_v1.ConfigSource_CONFIG_SOURCE_ENV
 	if cfg.source == "database" {
-		source = landing_page_react_vite_v1.ConfigSource_CONFIG_SOURCE_DATABASE
+		source = landing_page_business_suite_v1.ConfigSource_CONFIG_SOURCE_DATABASE
 	}
 
 	// Only show preview when a real key is configured (not the placeholder)
@@ -46,7 +46,7 @@ func (s *StripeService) ConfigSnapshot() *landing_page_react_vite_v1.StripeConfi
 		publishablePreview = maskValue(cfg.publishableKey)
 	}
 
-	return &landing_page_react_vite_v1.StripeConfigSnapshot{
+	return &landing_page_business_suite_v1.StripeConfigSnapshot{
 		PublishableKeyPreview: publishablePreview,
 		PublishableKeySet:     cfg.hasPublishable,
 		SecretKeySet:          cfg.hasSecret,

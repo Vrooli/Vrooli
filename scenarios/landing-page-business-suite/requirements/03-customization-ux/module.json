@@ -8,7 +8,23 @@
       "title": "API-driven landing config + fallback",
       "status": "planned",
       "prd_ref": "OT-P0-031",
-      "description": "Public landing page renders ordered sections/pricing/download entries from GET /api/v1/landing-config?variant=… and includes a baked fallback variant that is shown when the API fails or misconfigurations prevent fetching live data."
+      "description": "Public landing page renders ordered sections, pricing, and download entries from GET /api/v1/landing-config?variant=… and includes a baked fallback variant when the API fails or configuration prevents fetching live data.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/landing_config_service_test.go::TestParseFallbackLandingConfigNormalizesSectionsAndAxes",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The fallback parser test proves the baked landing configuration is normalized into renderable sections and pricing axes."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/public-landing-loads.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Observer BAS smoke case verifies the public runtime landing surface renders after configuration resolution."
+        }
+      ]
     },
     {
       "id": "CUSTOM-SPLIT",

@@ -31,7 +31,11 @@ const BRANDING_CACHE_TTL_MS = 60000; // 1 minute cache
 function refreshBrandingCache() {
   if (fetchInProgress) return;
 
-  const apiPort = process.env.API_PORT || 3001;
+  const apiPort = process.env.API_PORT;
+  if (!apiPort) {
+    console.warn('[SSR] Branding fetch skipped: API_PORT is not configured');
+    return;
+  }
   const apiUrl = `http://localhost:${apiPort}/api/v1/branding`;
 
   fetchInProgress = true;
@@ -156,10 +160,10 @@ function generateMetaTags(branding) {
     tags.push(`<meta name="google-site-verification" content="${escapeHtml(branding.google_site_verification)}" />`);
   }
 
-  // Theme color for mobile browsers
-  if (branding.theme_primary_color) {
-    tags.push(`<meta name="theme-color" content="${escapeHtml(branding.theme_primary_color)}" />`);
-  }
+  // Browser chrome follows the application surface. The primary color is an
+  // interactive accent and can have insufficient contrast against browser UI.
+  const browserChromeColor = branding.theme_background_color || '#07090F';
+  tags.push(`<meta name="theme-color" content="${escapeHtml(browserChromeColor)}" />`);
 
   return tags.join('\n    ');
 }

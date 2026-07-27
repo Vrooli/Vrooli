@@ -1,5 +1,5 @@
 import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
-import { SubscriptionState, VerifySubscriptionResponseSchema, type VerifySubscriptionResponse } from '@proto-lprv/billing_pb';
+import { SubscriptionState, VerifySubscriptionResponseSchema, type VerifySubscriptionResponse } from '@proto-lpbs/shared/commerce_pb';
 import { apiCall } from './common';
 import { parseOrNull } from './safeParse';
 import {
@@ -17,13 +17,13 @@ export function getSubscriptionInfo() {
     const status = message.status;
     const mapState = (state?: SubscriptionState) => {
       switch (state) {
-        case SubscriptionState.SUBSCRIPTION_STATE_ACTIVE:
+        case SubscriptionState.ACTIVE:
           return 'active';
-        case SubscriptionState.SUBSCRIPTION_STATE_TRIALING:
+        case SubscriptionState.TRIALING:
           return 'trialing';
-        case SubscriptionState.SUBSCRIPTION_STATE_PAST_DUE:
+        case SubscriptionState.PAST_DUE:
           return 'past_due';
-        case SubscriptionState.SUBSCRIPTION_STATE_CANCELED:
+        case SubscriptionState.CANCELED:
           return 'canceled';
         default:
           return 'inactive';
@@ -60,13 +60,13 @@ type CreditsEnvelope = {
 
 export function getCreditInfo() {
   return apiCall<CreditsEnvelope>('/me/credits').then((resp) => {
-    const balance = resp?.balance ?? {};
+    const balance = resp.balance ?? {};
     const credits: CreditInfo = {
       customer_email: balance.customer_email ?? '',
       balance_credits: balance.balance_credits ?? 0,
       bonus_credits: 0,
-      display_credits_label: resp?.display_credits_label ?? 'credits',
-      display_credits_multiplier: resp?.display_credits_multiplier ?? 1,
+      display_credits_label: resp.display_credits_label ?? 'credits',
+      display_credits_multiplier: resp.display_credits_multiplier ?? 1,
     };
     const validated = parseOrNull(CreditInfoSchema, credits, 'CreditInfo');
     if (!validated) {

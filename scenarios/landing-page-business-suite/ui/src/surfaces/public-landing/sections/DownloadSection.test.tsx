@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
+import { fireEvent, screen } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
 import { DownloadSection } from './DownloadSection';
@@ -26,7 +27,7 @@ vi.mock('../../../shared/hooks/useEntitlements', () => ({
   }),
 }));
 
-vi.mock('../../../shared/hooks/useMetrics', () => ({
+vi.mock('../../../shared/hooks/useMetricsHook', () => ({
   useMetrics: () => ({
     trackDownload: vi.fn(),
     trackCTAClick: vi.fn(),
@@ -289,5 +290,23 @@ describe('DownloadSection', () => {
     await user.click(toggleButton);
 
     expect(screen.getByTestId('subscription-input-panel')).toBeInTheDocument();
+  });
+
+  it('renders branded download content and falls back safely when an icon fails to load', () => {
+    const app = buildApp({ icon_url: '/assets/icon.png', screenshot_url: '/assets/preview.png' });
+    render(<DownloadSection content={{ title: 'Get the desktop app', subtitle: 'Choose your installer' }} downloads={[app]} supportEmail="help@example.com" />);
+
+    expect(screen.getByRole('heading', { name: 'Get the desktop app' })).toBeInTheDocument();
+    expect(screen.getByText('Choose your installer')).toBeInTheDocument();
+    const icon = screen.getByAltText('Automation Studio icon');
+    fireEvent.error(icon);
+    expect(icon).toHaveStyle({ display: 'none' });
+    expect(screen.getByAltText('Automation Studio screenshot')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Contact support' })).toHaveAttribute('href', 'mailto:help@example.com');
+  });
+
+  it('does not render when every app lacks an install target', () => {
+    render(<DownloadSection downloads={[buildApp(undefined, [])]} />);
+    expect(screen.queryByTestId('downloads-section')).not.toBeInTheDocument();
   });
 });

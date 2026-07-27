@@ -75,16 +75,12 @@ err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(inputPassword))
 - Adaptive cost factor (increases with hardware improvements)
 - Timing-safe comparison
 
-### Default Admin Account
+### Initial Admin Account
 
-On first run, a default admin account is seeded:
-
-| Field | Value |
-|-------|-------|
-| Email | `admin@localhost` |
-| Password | `changeme123` |
-
-**⚠️ CRITICAL: Change the default email and password immediately in production!**
+Development may seed an admin account with an ephemeral password when no
+credential is configured. The generated password is intentionally not stable
+across restarts. Production does not have a default account credential: startup
+requires `ADMIN_DEFAULT_PASSWORD` from the deployment secret store.
 
 #### Option 1: Environment Variable Override (Recommended for Deployments)
 
@@ -93,7 +89,7 @@ Override the default credentials using environment variables:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ADMIN_DEFAULT_EMAIL` | Admin account email | `admin@localhost` |
-| `ADMIN_DEFAULT_PASSWORD` | Admin account password (plaintext, hashed on startup) | `changeme123` |
+| `ADMIN_DEFAULT_PASSWORD` | Admin account password (plaintext, hashed on startup) | Required in production; ephemeral development value otherwise |
 
 **For scenario-to-cloud deployments:**
 1. Navigate to the Secrets Tab in scenario-to-cloud
@@ -141,7 +137,14 @@ The session encryption key is loaded from `SESSION_SECRET`:
 openssl rand -base64 32
 ```
 
-**⚠️ CRITICAL:** Always set `SESSION_SECRET` in production. If not set, a development placeholder is used with a warning logged.
+**⚠️ CRITICAL:** Always set `SESSION_SECRET` in production. The API refuses to
+start without it. Development generates a cryptographically random ephemeral
+key and logs a warning; sessions therefore end after an API restart. No shared
+or committed fallback signing key exists.
+
+Production startup also requires `ADMIN_DEFAULT_PASSWORD` to be supplied by the
+deployment secret store. Development uses an ephemeral password hash when it is
+absent, so a known built-in admin credential can never authenticate a request.
 
 ### Session Lifecycle
 
@@ -347,8 +350,8 @@ db.QueryRow("SELECT * FROM admin_users WHERE email = '" + email + "'")
 | `LPBS_API_KEY_ENCRYPTION_KEY` | Encrypts stored AI provider API keys | **Yes** in production |
 | `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhooks | Yes if using Stripe |
 | `DATABASE_URL` | Database connection (use SSL) | Yes |
-| `ADMIN_DEFAULT_EMAIL` | Override default admin email | No (default: `admin@localhost`) |
-| `ADMIN_DEFAULT_PASSWORD` | Override default admin password | No (default: `changeme123`) |
+| `ADMIN_DEFAULT_EMAIL` | Admin account email | No (default: `admin@localhost`) |
+| `ADMIN_DEFAULT_PASSWORD` | Admin account password | **Yes** in production; ephemeral development value otherwise |
 
 ### Recommended Settings
 
@@ -358,7 +361,7 @@ SESSION_SECRET=$(openssl rand -base64 32)
 LPBS_REMOTE_PROFILE_ENCRYPTION_KEY=$(openssl rand -base64 32)
 LPBS_API_KEY_ENCRYPTION_KEY=$(openssl rand -base64 32)
 
-# Admin credentials (override defaults for production)
+# Admin credentials (required for production)
 ADMIN_DEFAULT_EMAIL=admin@yourdomain.com
 ADMIN_DEFAULT_PASSWORD=$(openssl rand -base64 16)  # Strong random password
 
@@ -377,14 +380,15 @@ DATABASE_URL=postgres://user:pass@host:5432/db?sslmode=require
 
 ### Pre-Deployment
 
-- [ ] **Change default admin credentials** - Either set `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` environment variables, or change via `/admin/profile` after first login
+- [ ] **Set production admin credentials** - Set `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` in the deployment secret store before startup
 - [ ] **Set SESSION_SECRET** - Generate cryptographically random 32+ byte key
 - [ ] **Set encryption keys** - `LPBS_REMOTE_PROFILE_ENCRYPTION_KEY` and `LPBS_API_KEY_ENCRYPTION_KEY` in production
 - [ ] **Enable HTTPS** - All traffic must be encrypted
-- [ ] **Set Secure cookie flag** - Modify `auth.go` line 99: `session.Options.Secure = true`
+- [ ] **Set secure-cookie policy** - Keep `LPBS_SECURE_COOKIES` enabled (the production default)
 - [ ] **Configure CORS** - Restrict to your production domain only
 - [ ] **Use SSL for database** - `sslmode=require` in connection string
 - [ ] **Set Stripe webhook secret** - Configure in admin portal or environment
+- [ ] **Use the pinned Go toolchain** - Build API and CLI with Go 1.25.12 or newer; both modules enforce this minimum to include patched standard-library security fixes
 
 ### Deployment
 

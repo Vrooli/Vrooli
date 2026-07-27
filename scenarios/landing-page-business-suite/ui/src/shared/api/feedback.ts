@@ -28,23 +28,23 @@ export function createFeedback(input: CreateFeedbackInput) {
 }
 
 export function fetchFeedbackList(status?: string) {
-  const url = status ? `/admin/feedback?status=${status}` : '/admin/feedback';
+  const url = status ? `/admin/feedback?status=${encodeURIComponent(status)}` : '/admin/feedback';
   return apiCall<FeedbackRequest[]>(url);
 }
 
 export function fetchFeedbackById(id: number) {
-  return apiCall<FeedbackRequest>(`/admin/feedback/${id}`);
+  return apiCall<FeedbackRequest>(`/admin/feedback/${String(id)}`);
 }
 
 export function updateFeedbackStatus(id: number, status: string) {
-  return apiCall<FeedbackRequest>(`/admin/feedback/${id}/status`, {
+  return apiCall<FeedbackRequest>(`/admin/feedback/${String(id)}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
 }
 
 export function deleteFeedback(id: number) {
-  return apiCall<{ success: boolean; id: number }>(`/admin/feedback/${id}`, {
+  return apiCall<{ success: boolean; id: number }>(`/admin/feedback/${String(id)}`, {
     method: 'DELETE',
   });
 }

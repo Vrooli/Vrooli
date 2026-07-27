@@ -14,6 +14,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"landing-page-business-suite-api/internal/envx"
 )
 
 // HTTPDoer is an interface for making HTTP requests, used for testing.
@@ -21,9 +23,20 @@ type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+// APIKeyStore is the context-aware persistence contract for encrypted provider
+// credentials.
+//
+// seam: APIKeyStore keeps API-key persistence independent of a concrete pool
+// and preserves request-scoped test isolation.
+type APIKeyStore interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
 // APIKeyService manages encrypted API keys for AI providers.
 type APIKeyService struct {
-	db            *sql.DB
+	db            APIKeyStore
 	encryptionKey []byte // 32 bytes for AES-256
 	httpClient    HTTPDoer
 	dialects      *DialectHelper
@@ -47,25 +60,25 @@ type APIKeyCreateRequest struct {
 }
 
 // NewAPIKeyService creates a new API key service with encryption.
-func NewAPIKeyService(db *sql.DB) (*APIKeyService, error) {
+func NewAPIKeyService(db APIKeyStore) (*APIKeyService, error) {
 	return NewAPIKeyServiceWithHTTPClient(db, &http.Client{Timeout: 15 * time.Second})
 }
 
 // NewAPIKeyServiceWithHTTPClient creates a new API key service with a custom HTTP client.
 // This is useful for testing with a mock HTTP client.
-func NewAPIKeyServiceWithHTTPClient(db *sql.DB, httpClient HTTPDoer) (*APIKeyService, error) {
+func NewAPIKeyServiceWithHTTPClient(db APIKeyStore, httpClient HTTPDoer) (*APIKeyService, error) {
 	return NewAPIKeyServiceWithOptions(db, httpClient, "postgres")
 }
 
 // isProductionEnvironment checks if the service is running in production mode.
 func isProductionEnvironment() bool {
-	env := strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_ENVIRONMENT")))
+	env := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
 	return env == "production" || env == "prod"
 }
 
 // NewAPIKeyServiceWithOptions creates a new API key service with custom options.
 // Dialect can be "postgres" or "sqlite".
-func NewAPIKeyServiceWithOptions(db *sql.DB, httpClient HTTPDoer, dialect string) (*APIKeyService, error) {
+func NewAPIKeyServiceWithOptions(db APIKeyStore, httpClient HTTPDoer, dialect string) (*APIKeyService, error) {
 	dialects := NewDialectHelper(dialect)
 
 	// Get encryption key from environment
@@ -603,8 +616,8 @@ func handleToggleAPIKey(svc *APIKeyService) http.HandlerFunc {
 // init registers the key generation command for setup
 func init() {
 	if len(os.Args) > 1 && os.Args[1] == "generate-encryption-key" {
-		fmt.Println("New encryption key (add to LPBS_API_KEY_ENCRYPTION_KEY):")
-		fmt.Println(GenerateEncryptionKey())
+		_, _ = os.Stdout.WriteString("New encryption key (add to LPBS_API_KEY_ENCRYPTION_KEY):\n")
+		_, _ = os.Stdout.WriteString(GenerateEncryptionKey() + "\n")
 		os.Exit(0)
 	}
 }

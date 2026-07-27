@@ -112,7 +112,7 @@ export const DEFAULT_BRANDING_FORM: BrandingFormState = {
  */
 export function brandingToForm(branding: SiteBranding): BrandingFormState {
   return {
-    site_name: branding.site_name ?? '',
+    site_name: branding.site_name,
     tagline: branding.tagline ?? '',
     logo_url: branding.logo_url ?? '',
     logo_icon_url: branding.logo_icon_url ?? '',
@@ -163,8 +163,8 @@ export function formToBrandingPayload(
     }
 
     // Handle string fields - ensure we have strings
-    const currentStr = String(current ?? '').trim();
-    const originalStr = String(originalValue ?? '').trim();
+    const currentStr = String(current).trim();
+    const originalStr = String(originalValue).trim();
     if (currentStr !== originalStr && currentStr.length > 0) {
       // Convert smtp_port to number
       if (key === 'smtp_port') {
@@ -241,8 +241,8 @@ export function selectLogoDerivatives(
   return {
     logo_url: primaryLogo,
     logo_icon_url: iconLogo,
-    favicon_url: favicon ?? currentForm.favicon_url,
-    apple_touch_icon_url: touch ?? currentForm.apple_touch_icon_url,
+    favicon_url: favicon,
+    apple_touch_icon_url: touch,
   };
 }
 
@@ -279,7 +279,7 @@ export function selectOgDerivatives(asset: Asset): OgDerivatives {
   const og = asset.derivatives?.og_image_1200x630 || asset.url;
 
   return {
-    default_og_image_url: og ?? '',
+    default_og_image_url: typeof og === 'string' ? og : '',
   };
 }
 

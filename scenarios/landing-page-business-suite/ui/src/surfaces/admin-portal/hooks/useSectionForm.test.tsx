@@ -79,7 +79,7 @@ vi.mock('../services/section.service', async () => {
   return {
     ...actual,
     loadComparePreference: (...args: Parameters<LoadComparePreferenceFn>) => loadComparePreferenceMock(...args),
-    saveComparePreference: (...args: Parameters<SaveComparePreferenceFn>) => saveComparePreferenceMock(...args),
+    saveComparePreference: (...args: Parameters<SaveComparePreferenceFn>) => { saveComparePreferenceMock(...args); },
   };
 });
 
@@ -229,6 +229,7 @@ describe('useSectionForm', () => {
     });
 
     it('handles section load error', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       loadSectionEditorMock.mockRejectedValue(new Error('Section not found'));
 
       const { result } = renderHook(() =>
@@ -240,6 +241,8 @@ describe('useSectionForm', () => {
       });
 
       expect(result.current.error).toBe('Section not found');
+      expect(consoleError).toHaveBeenCalledWith('Section fetch error:', expect.any(Error));
+      consoleError.mockRestore();
     });
   });
 
@@ -335,7 +338,26 @@ describe('useSectionForm', () => {
       expect(onError).toHaveBeenCalledWith('Variant slug is required to save section');
     });
 
+    it('reports unsupported new-section saves and malformed section identifiers', async () => {
+      const onError = vi.fn();
+      const { result: newResult } = renderHook(() =>
+        useSectionForm({ variantSlug: 'control', sectionId: 'new', onError })
+      );
+      await waitForExistingVariantReady(newResult);
+      await act(async () => { await newResult.current.handleSave(); });
+      expect(onError).toHaveBeenCalledWith('Creating new sections requires variant ID. This is a placeholder.');
+
+      const { result: invalidResult } = renderHook(() =>
+        useSectionForm({ variantSlug: 'control', sectionId: 'not-a-number', onError })
+      );
+      await waitForExistingVariantReady(invalidResult);
+      await act(async () => { await invalidResult.current.handleSave(); });
+      expect(invalidResult.current.error).toBe('Section ID is missing.');
+      expect(onError).toHaveBeenCalledWith('Cannot save: section ID is missing');
+    });
+
     it('handles save error', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       persistExistingSectionContentMock.mockRejectedValue(new Error('Save failed'));
 
       const onError = vi.fn();
@@ -353,6 +375,8 @@ describe('useSectionForm', () => {
 
       expect(result.current.error).toBe('Save failed');
       expect(onError).toHaveBeenCalledWith('Failed to save section changes');
+      expect(consoleError).toHaveBeenCalledWith('Section save error:', expect.any(Error));
+      consoleError.mockRestore();
     });
   });
 
@@ -449,6 +473,24 @@ describe('useSectionForm', () => {
       expect(result.current.reorderError).toBe('Reorder failed');
       expect(onError).toHaveBeenCalledWith('Failed to reorder sections');
     });
+
+    it('does not persist impossible reorders and explains missing neighbor data', async () => {
+      const { result } = renderHook(() =>
+        useSectionForm({ variantSlug: 'control', sectionId: '42' })
+      );
+      await waitForExistingVariantReady(result);
+
+      await act(async () => {
+        await result.current.handleReorderSection({ id: 42, section_type: 'hero', content: {}, order: 1 }, 'up');
+      });
+      expect(result.current.reorderError).toBe('Unable to move section. Missing neighbor information.');
+      expect(updateSectionOrderMock).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await result.current.handleReorderSection({ section_type: 'hero', content: {}, order: 1 }, 'down');
+      });
+      expect(updateSectionOrderMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('comparison', () => {
@@ -517,6 +559,20 @@ describe('useSectionForm', () => {
 
       // Should use cache, not call API again
       expect(getLandingConfigMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('surfaces comparison load failures without retaining stale content', async () => {
+      const { result } = renderHook(() =>
+        useSectionForm({ variantSlug: 'control', sectionId: '42' })
+      );
+      await waitForExistingVariantReady(result);
+
+      getLandingConfigMock.mockRejectedValueOnce(new Error('Comparison unavailable'));
+
+      await act(async () => { await result.current.handleCompareVariantChange('test-a'); });
+      expect(result.current.compareError).toBe('Comparison unavailable');
+      expect(result.current.compareConfig).toBeNull();
+      expect(result.current.comparisonVariantLabel).toBe('Test A');
     });
   });
 
@@ -610,13 +666,14 @@ describe('useSectionForm', () => {
 
   describe('error recovery', () => {
     it('can retry after transient save failure', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       let callCount = 0;
-      persistExistingSectionContentMock.mockImplementation(async () => {
+      persistExistingSectionContentMock.mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
-          throw new Error('Network error');
+          return Promise.reject(new Error('Network error'));
         }
-        return {
+        return Promise.resolve({
           section: { ...mockSection, content: { title: 'Updated' } },
           form: {
             sectionType: 'hero',
@@ -624,7 +681,7 @@ describe('useSectionForm', () => {
             order: 1,
             content: { title: 'Updated' },
           },
-        };
+        });
       });
 
       const onError = vi.fn();
@@ -655,16 +712,18 @@ describe('useSectionForm', () => {
       });
 
       expect(onSuccess).toHaveBeenCalled();
+      expect(consoleError).toHaveBeenCalledWith('Section save error:', expect.any(Error));
+      consoleError.mockRestore();
     });
 
     it('can retry after reorder failure', async () => {
       let callCount = 0;
-      updateSectionOrderMock.mockImplementation(async () => {
+      updateSectionOrderMock.mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
-          throw new Error('Reorder failed');
+          return Promise.reject(new Error('Reorder failed'));
         }
-        return undefined;
+        return Promise.resolve();
       });
 
       const onError = vi.fn();
@@ -694,6 +753,7 @@ describe('useSectionForm', () => {
     });
 
     it('maintains form state after failed save', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       persistExistingSectionContentMock.mockRejectedValue(new Error('Save failed'));
 
       const { result } = renderHook(() =>
@@ -715,9 +775,12 @@ describe('useSectionForm', () => {
       // Form state should be preserved after failure
       expect(result.current.content.title).toBe('My Custom Title');
       expect(result.current.error).toBe('Save failed');
+      expect(consoleError).toHaveBeenCalledWith('Section save error:', expect.any(Error));
+      consoleError.mockRestore();
     });
 
     it('clears error state when load succeeds after failure', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       loadSectionEditorMock
         .mockRejectedValueOnce(new Error('Initial load failed'))
         .mockResolvedValueOnce({
@@ -749,6 +812,8 @@ describe('useSectionForm', () => {
         expect(result.current.loading).toBe(false);
         expect(result.current.error).toBeNull();
       });
+      expect(consoleError).toHaveBeenCalledWith('Section fetch error:', expect.any(Error));
+      consoleError.mockRestore();
     });
   });
 

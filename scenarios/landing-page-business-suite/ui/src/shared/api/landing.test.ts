@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getLandingConfig, getPlans } from './landing';
 import { ApiError } from './common';
 import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
+import { BillingInterval, IntroPricingType, PlanKind } from '@proto-lpbs/shared/commerce_pb';
 
 vi.mock('@bufbuild/protobuf', () => ({
   fromJson: <T,>(_schema: unknown, data: T): T => data,
@@ -286,6 +287,46 @@ describe('landing API', () => {
       expect(result.monthly[0]?.monthly_included_credits).toBe(0);
       expect(result.monthly[0]?.one_time_bonus_credits).toBe(0);
       expect(result.monthly[0]?.display_weight).toBe(0);
+    });
+
+    it('maps plan kinds, intervals, intros, and metadata from generated proto values', async () => {
+      const protoResponse = {
+        pricing: {
+          bundle: {
+            bundleKey: 'main',
+            name: 'Main',
+            stripeProductId: 'prod_123',
+            metadata: { source: { toJson: () => 'seeded' } },
+          },
+          monthly: [
+            {
+              planName: 'Top up', planTier: 'credits', amountCents: '500', currency: 'usd',
+              kind: PlanKind.CREDITS_TOPUP,
+              billingInterval: BillingInterval.ONE_TIME,
+              introType: IntroPricingType.PERCENTAGE,
+              introAmountCents: '20', introPeriods: '2', metadata: { label: { toJson: () => 'popular' } },
+            },
+          ],
+          yearly: [{
+            planName: 'Support', planTier: 'support', amountCents: 100, currency: 'usd',
+            kind: PlanKind.SUPPORTER_CONTRIBUTION,
+            billingInterval: BillingInterval.YEAR,
+            introType: IntroPricingType.FLAT_AMOUNT,
+          }],
+        },
+      };
+      fetchMock.mockResolvedValue(mockResponses.success(protoResponse));
+
+      const result = await getPlans();
+
+      expect(result.monthly).toEqual([expect.objectContaining({
+        kind: 'credits_topup', billing_interval: 'one_time', intro_type: 'percentage',
+        intro_amount_cents: 20, intro_periods: 2, metadata: { label: 'popular' },
+      })]);
+      expect(result.yearly).toEqual([expect.objectContaining({
+        kind: 'supporter_contribution', billing_interval: 'year', intro_type: 'flat_amount',
+      })]);
+      expect(result.bundle.metadata).toEqual({ source: 'seeded' });
     });
   });
 });

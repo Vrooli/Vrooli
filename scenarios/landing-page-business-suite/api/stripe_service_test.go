@@ -15,7 +15,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // [REQ:STRIPE-CONFIG] Test Stripe environment configuration
@@ -166,7 +167,7 @@ func TestCreateCheckoutSession(t *testing.T) {
 		t.Errorf("Expected customer test@example.com, got %v", session.CustomerEmail)
 	}
 
-	if session.Status != landing_page_react_vite_v1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN {
+	if session.Status != landing_page_business_suite_v1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN {
 		t.Errorf("Expected status open, got %v", session.Status)
 	}
 
@@ -279,6 +280,7 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 			plan_tier VARCHAR(50),
 			price_id VARCHAR(255),
 			bundle_key VARCHAR(100),
+			billing_cycle_start INTEGER DEFAULT 0,
 			canceled_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
@@ -408,7 +410,7 @@ func TestVerifySubscription(t *testing.T) {
 		t.Fatalf("VerifySubscription failed: %v", err)
 	}
 
-	if result.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+	if result.State != shared.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
 		t.Errorf("Expected status active, got %v", result.State)
 	}
 
@@ -427,7 +429,7 @@ func TestVerifySubscription(t *testing.T) {
 		t.Fatalf("VerifySubscription failed: %v", err)
 	}
 
-	if result.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
+	if result.State != shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
 		t.Errorf("Expected status inactive, got %v", result.State)
 	}
 }
@@ -485,7 +487,7 @@ func TestCancelSubscription(t *testing.T) {
 		t.Errorf("Expected subscription_id sub_cancel_test, got %v", result.GetSubscriptionId())
 	}
 
-	if result.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
+	if result.State != shared.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
 		t.Errorf("Expected status canceled, got %v", result.State)
 	}
 
@@ -553,7 +555,7 @@ func TestVerifySubscription_CacheWarning(t *testing.T) {
 		t.Fatalf("VerifySubscription failed: %v", err)
 	}
 
-	if result == nil || result.State == landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
+	if result == nil || result.State == shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
 		t.Errorf("Expected a subscription status, got %v", result)
 	}
 }
@@ -1344,7 +1346,7 @@ func TestBillingIntervalDuration_Year(t *testing.T) {
 
 	service := NewStripeService(db)
 
-	result := service.billingIntervalDuration(landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR)
+	result := service.billingIntervalDuration(shared.BillingInterval_BILLING_INTERVAL_YEAR)
 	expected := 365 * 24 * time.Hour
 	if result != expected {
 		t.Errorf("expected %v, got %v", expected, result)
@@ -1357,7 +1359,7 @@ func TestBillingIntervalDuration_Month(t *testing.T) {
 
 	service := NewStripeService(db)
 
-	result := service.billingIntervalDuration(landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH)
+	result := service.billingIntervalDuration(shared.BillingInterval_BILLING_INTERVAL_MONTH)
 	expected := 30 * 24 * time.Hour
 	if result != expected {
 		t.Errorf("expected %v, got %v", expected, result)
@@ -1370,7 +1372,7 @@ func TestBillingIntervalDuration_Default(t *testing.T) {
 
 	service := NewStripeService(db)
 
-	result := service.billingIntervalDuration(landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_UNSPECIFIED)
+	result := service.billingIntervalDuration(shared.BillingInterval_BILLING_INTERVAL_UNSPECIFIED)
 	expected := 30 * 24 * time.Hour
 	if result != expected {
 		t.Errorf("expected default of %v, got %v", expected, result)
@@ -1421,8 +1423,8 @@ func TestMaskValue_ShortValue(t *testing.T) {
 }
 
 func TestMaskValue_LongValue(t *testing.T) {
-	result := maskValue("pk_test_1234567890")
-	if !strings.HasPrefix(result, "pk_t") || !strings.HasSuffix(result, "90") {
+	result := maskValue("stripe-test-value-1234567890")
+	if !strings.HasPrefix(result, "stri") || !strings.HasSuffix(result, "90") {
 		t.Errorf("expected masked value, got '%s'", result)
 	}
 }
@@ -1455,7 +1457,7 @@ func TestCreditTopup_NilBundle_ReturnsError(t *testing.T) {
 	plan := &PlanOption{
 		StripePriceId: "price_test",
 		AmountCents:   1000,
-		Kind:          landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP,
+		Kind:          shared.PlanKind_PLAN_KIND_CREDITS_TOPUP,
 	}
 
 	err := service.handleCreditTopup("test@example.com", 1000, plan, "evt_test", nil)

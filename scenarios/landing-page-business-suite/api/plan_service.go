@@ -2,16 +2,16 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 	"unicode"
+
+	"landing-page-business-suite-api/internal/envx"
 
 	"google.golang.org/protobuf/types/known/structpb"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // PlanService exposes helper utilities for pricing/plan metadata.
@@ -24,9 +24,9 @@ type PlanService struct {
 
 type (
 	// BundleProduct is a thin alias to the shared protobuf bundle for readability.
-	BundleProduct   = landing_page_react_vite_v1.Bundle
-	PlanOption      = landing_page_react_vite_v1.PlanOption
-	PricingOverview = landing_page_react_vite_v1.PricingOverview
+	BundleProduct   = shared.Bundle
+	PlanOption      = shared.PlanOption
+	PricingOverview = shared.PricingOverview
 )
 
 // StripePriceFetcher resolves Stripe price details for plan updates.
@@ -54,11 +54,12 @@ type StripeImportResult struct {
 	Errors      []string `json:"errors,omitempty"`
 }
 
-// NewPlanService creates a PlanService with a PlanStore.
-// The db parameter is kept for backward compatibility but is no longer used for plans.
-func NewPlanService(db *sql.DB) *PlanService {
-	bundle := stringsTrimOrDefault(os.Getenv("BUNDLE_KEY"), "business_suite")
-	env := stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
+// NewPlanService creates a PlanService with a PlanStore. Plans are file-backed;
+// the ignored legacy argument keeps existing callers source-compatible while
+// ensuring this service never captures a database pool.
+func NewPlanService(_ any) *PlanService {
+	bundle := stringsTrimOrDefault(envx.Get("BUNDLE_KEY"), "business_suite")
+	env := stringsTrimOrDefault(envx.Get("BUNDLE_ENVIRONMENT"), "production")
 
 	// Create and load the plan store
 	plansPath := resolvePlansPath()
@@ -79,8 +80,8 @@ func NewPlanService(db *sql.DB) *PlanService {
 
 // NewPlanServiceWithPlanStore creates a PlanService with an explicit PlanStore.
 func NewPlanServiceWithPlanStore(planStore *PlanStore) *PlanService {
-	bundle := stringsTrimOrDefault(os.Getenv("BUNDLE_KEY"), "business_suite")
-	env := stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
+	bundle := stringsTrimOrDefault(envx.Get("BUNDLE_KEY"), "business_suite")
+	env := stringsTrimOrDefault(envx.Get("BUNDLE_ENVIRONMENT"), "production")
 	return &PlanService{planStore: planStore, defaultBundle: bundle, displayEnv: env}
 }
 
@@ -95,11 +96,11 @@ type PlanServiceOptions struct {
 func NewPlanServiceWithOptions(opts PlanServiceOptions) *PlanService {
 	bundle := opts.DefaultBundle
 	if bundle == "" {
-		bundle = stringsTrimOrDefault(os.Getenv("BUNDLE_KEY"), "business_suite")
+		bundle = stringsTrimOrDefault(envx.Get("BUNDLE_KEY"), "business_suite")
 	}
 	env := opts.DisplayEnv
 	if env == "" {
-		env = stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
+		env = stringsTrimOrDefault(envx.Get("BUNDLE_ENVIRONMENT"), "production")
 	}
 	planStore := opts.PlanStore
 	if planStore == nil {
@@ -664,16 +665,16 @@ func ensureStripePriceMatchesBundle(bundle *BundleProduct, stripeDetails *Stripe
 	return nil
 }
 
-func mapPlanKind(kind string) landing_page_react_vite_v1.PlanKind {
+func mapPlanKind(kind string) shared.PlanKind {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
 	case "subscription":
-		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION
+		return shared.PlanKind_PLAN_KIND_SUBSCRIPTION
 	case "credits_topup", "credits-topup", "credits":
-		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP
+		return shared.PlanKind_PLAN_KIND_CREDITS_TOPUP
 	case "supporter_contribution", "supporter-contribution", "supporter":
-		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION
+		return shared.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION
 	default:
-		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_UNSPECIFIED
+		return shared.PlanKind_PLAN_KIND_UNSPECIFIED
 	}
 }
 
@@ -698,14 +699,14 @@ func normalizePlanTier(raw string) (string, error) {
 	return value, nil
 }
 
-func planKindForTier(tier string) landing_page_react_vite_v1.PlanKind {
+func planKindForTier(tier string) shared.PlanKind {
 	switch tier {
 	case "credits":
-		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP
+		return shared.PlanKind_PLAN_KIND_CREDITS_TOPUP
 	case "donation":
-		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION
+		return shared.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION
 	default:
-		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION
+		return shared.PlanKind_PLAN_KIND_SUBSCRIPTION
 	}
 }
 
@@ -761,8 +762,8 @@ func planNameFromStripeImport(price *StripePriceImport) string {
 // stripePriceImportToPlanOption converts a StripePriceImport to a PlanOption.
 func stripePriceImportToPlanOption(price *StripePriceImport) *PlanOption {
 	interval := mapBillingInterval(price.Interval)
-	if interval == landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_UNSPECIFIED {
-		interval = landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME
+	if interval == shared.BillingInterval_BILLING_INTERVAL_UNSPECIFIED {
+		interval = shared.BillingInterval_BILLING_INTERVAL_ONE_TIME
 	}
 
 	planTier, ok := derivePlanTierFromStripe(price)
@@ -820,8 +821,8 @@ func normalizeStripePriceID(raw string) (string, error) {
 	return value, nil
 }
 
-func validateBillingInterval(interval landing_page_react_vite_v1.BillingInterval) error {
-	if interval == landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_UNSPECIFIED {
+func validateBillingInterval(interval shared.BillingInterval) error {
+	if interval == shared.BillingInterval_BILLING_INTERVAL_UNSPECIFIED {
 		return fmt.Errorf("billing_interval is required")
 	}
 	return nil
@@ -834,47 +835,39 @@ func planRankForTier(tier string) int32 {
 	return 0
 }
 
-//nolint:unused // helper retained for future optional fields
-func nullableString(ns sql.NullString) *string {
-	if !ns.Valid {
-		return nil
-	}
-	return &ns.String
-}
-
-func planKindString(kind landing_page_react_vite_v1.PlanKind) string {
+func planKindString(kind shared.PlanKind) string {
 	switch kind {
-	case landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
+	case shared.PlanKind_PLAN_KIND_CREDITS_TOPUP:
 		return "credits_topup"
-	case landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
+	case shared.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
 		return "supporter_contribution"
-	case landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION:
+	case shared.PlanKind_PLAN_KIND_SUBSCRIPTION:
 		return "subscription"
 	default:
 		return "subscription"
 	}
 }
 
-func mapBillingInterval(raw string) landing_page_react_vite_v1.BillingInterval {
+func mapBillingInterval(raw string) shared.BillingInterval {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "month", "monthly", "m":
-		return landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH
+		return shared.BillingInterval_BILLING_INTERVAL_MONTH
 	case "year", "yearly", "y":
-		return landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR
+		return shared.BillingInterval_BILLING_INTERVAL_YEAR
 	case "one_time", "one-time", "one time", "onetime", "ot":
-		return landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME
+		return shared.BillingInterval_BILLING_INTERVAL_ONE_TIME
 	default:
-		return landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_UNSPECIFIED
+		return shared.BillingInterval_BILLING_INTERVAL_UNSPECIFIED
 	}
 }
 
-func billingIntervalLabel(interval landing_page_react_vite_v1.BillingInterval) string {
+func billingIntervalLabel(interval shared.BillingInterval) string {
 	switch interval {
-	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH:
+	case shared.BillingInterval_BILLING_INTERVAL_MONTH:
 		return "month"
-	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR:
+	case shared.BillingInterval_BILLING_INTERVAL_YEAR:
 		return "year"
-	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME:
+	case shared.BillingInterval_BILLING_INTERVAL_ONE_TIME:
 		return "one_time"
 	default:
 		return "unspecified"

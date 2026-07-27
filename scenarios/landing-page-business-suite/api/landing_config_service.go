@@ -7,11 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"landing-page-business-suite-api/internal/logx"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -554,7 +555,7 @@ func init() {
 		payload, err = loadFallbackLandingFromFile(path)
 	}
 	if err != nil {
-		log.Printf("failed to read fallback config at %s: %v; using baked defaults", path, err)
+		logx.Printf("failed to read fallback config at %s: %v; using baked defaults", path, err)
 		payload, err = parseFallbackLandingConfig(defaultFallbackLandingJSON)
 		if err != nil {
 			panic(fmt.Sprintf("default fallback config invalid: %v", err))
@@ -598,6 +599,7 @@ type LandingBranding struct {
 	ThemePrimaryColor    *string `json:"theme_primary_color,omitempty"`
 	ThemeBackgroundColor *string `json:"theme_background_color,omitempty"`
 	SupportChatURL       *string `json:"support_chat_url,omitempty"`
+	SupportEmail         *string `json:"support_email,omitempty"`
 	ComingSoonEnabled    *bool   `json:"coming_soon_enabled,omitempty"`
 	ComingSoonMessage    *string `json:"coming_soon_message,omitempty"`
 }
@@ -698,6 +700,7 @@ func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Conte
 			ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
 			ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
 			SupportChatURL:       siteBranding.SupportChatURL,
+			SupportEmail:         siteBranding.SupportEmail,
 			ComingSoonEnabled:    siteBranding.ComingSoonEnabled,
 			ComingSoonMessage:    siteBranding.ComingSoonMessage,
 		}
@@ -807,6 +810,7 @@ func (s *LandingConfigService) fallbackResponse(mark bool) *LandingConfigRespons
 				ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
 				ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
 				SupportChatURL:       siteBranding.SupportChatURL,
+				SupportEmail:         siteBranding.SupportEmail,
 				ComingSoonEnabled:    siteBranding.ComingSoonEnabled,
 				ComingSoonMessage:    siteBranding.ComingSoonMessage,
 			}

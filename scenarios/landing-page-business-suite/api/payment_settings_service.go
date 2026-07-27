@@ -8,14 +8,23 @@ import (
 	"strings"
 	"time"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// PaymentSettingsStore is the context-aware persistence contract for Stripe
+// and payment-anomaly configuration.
+//
+// seam: PaymentSettingsStore keeps sensitive payment configuration independent
+// of a concrete pool and preserves request-scoped test isolation.
+type PaymentSettingsStore interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 // PaymentSettingsService manages Stripe configuration stored by admins.
 type PaymentSettingsService struct {
-	db *sql.DB
+	db PaymentSettingsStore
 }
 
 // StripeSettingsInput captures optional fields for upserts.
@@ -29,12 +38,12 @@ type StripeSettingsInput struct {
 	AnomalyRateLimits     *string
 }
 
-func NewPaymentSettingsService(db *sql.DB) *PaymentSettingsService {
+func NewPaymentSettingsService(db PaymentSettingsStore) *PaymentSettingsService {
 	return &PaymentSettingsService{db: db}
 }
 
 // GetStripeSettings returns the latest persisted Stripe configuration.
-func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landing_page_react_vite_v1.StripeSettings, error) {
+func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landing_page_business_suite_v1.StripeSettings, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT publishable_key, secret_key, webhook_secret, dashboard_url,
 			anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at
@@ -42,7 +51,7 @@ func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landin
 		WHERE id = 1
 	`)
 
-	record := &landing_page_react_vite_v1.StripeSettings{}
+	record := &landing_page_business_suite_v1.StripeSettings{}
 	var publishable, secret, webhook, dashboard, anomalyURL, anomalyLimits sql.NullString
 	var anomalyEnabled sql.NullBool
 	var updatedAt time.Time
@@ -83,7 +92,7 @@ func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landin
 }
 
 // SaveStripeSettings persists the provided fields and returns the resulting record.
-func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input StripeSettingsInput) (*landing_page_react_vite_v1.StripeSettings, error) {
+func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input StripeSettingsInput) (*landing_page_business_suite_v1.StripeSettings, error) {
 	current, err := s.GetStripeSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load current stripe settings: %w", err)
@@ -119,7 +128,7 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 	anomalyLimits := normalize(input.AnomalyRateLimits)
 
 	if current == nil {
-		current = &landing_page_react_vite_v1.StripeSettings{}
+		current = &landing_page_business_suite_v1.StripeSettings{}
 	}
 
 	nextPublishable := updateStringField(current.PublishableKey, pub)
@@ -153,7 +162,7 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 	`, nextPublishable, nextSecret, nextWebhook, nextDashboard,
 		nextAnomalyURL, nextAnomalyEnabled, jsonOrEmptyObject(nextAnomalyLimits))
 
-	record := &landing_page_react_vite_v1.StripeSettings{}
+	record := &landing_page_business_suite_v1.StripeSettings{}
 	var anomalyURLOut, anomalyLimitsOut sql.NullString
 	var anomalyEnabledOut sql.NullBool
 	var updatedAt time.Time

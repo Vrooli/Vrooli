@@ -31,6 +31,20 @@ const (
 	remoteProfileStatusError   = "error"
 )
 
+// remoteProfileSessionCookie describes the admin session credential used for
+// an outbound remote-profile request. Request.AddCookie transmits only its
+// name and value, but keeping the policy on the cookie value prevents this
+// call path from becoming an insecure-cookie exception as it evolves.
+func remoteProfileSessionCookie(value string) *http.Cookie {
+	return &http.Cookie{
+		Name:     remoteProfileCookieName,
+		Value:    value,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	}
+}
+
 const (
 	remoteProfileProxyBodyLimit   = 1 << 20 // 1MB
 	remoteProfileProxyResponseMax = 2 << 20 // 2MB
@@ -145,13 +159,24 @@ type RemoteProfileError struct {
 	Message   string
 }
 
+// RemoteProfileStore is the context-aware persistence contract for remote
+// profile configuration and encrypted remote sessions.
+//
+// seam: RemoteProfileStore keeps remote-profile persistence independent of a
+// concrete pool and preserves request-scoped test isolation.
+type RemoteProfileStore interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
 func (e *RemoteProfileError) Error() string {
 	return e.Message
 }
 
 // RemoteProfileService manages remote profile storage and remote admin sessions.
 type RemoteProfileService struct {
-	db            *sql.DB
+	db            RemoteProfileStore
 	encryptionKey []byte
 	httpClient    HTTPDoer
 	now           func() time.Time
@@ -159,7 +184,7 @@ type RemoteProfileService struct {
 }
 
 // NewRemoteProfileService creates a RemoteProfileService with defaults.
-func NewRemoteProfileService(db *sql.DB) (*RemoteProfileService, error) {
+func NewRemoteProfileService(db RemoteProfileStore) (*RemoteProfileService, error) {
 	client := &http.Client{
 		Timeout: 20 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -170,7 +195,7 @@ func NewRemoteProfileService(db *sql.DB) (*RemoteProfileService, error) {
 }
 
 // NewRemoteProfileServiceWithOptions creates a RemoteProfileService with a custom client/dialect.
-func NewRemoteProfileServiceWithOptions(db *sql.DB, client HTTPDoer, dialect string) (*RemoteProfileService, error) {
+func NewRemoteProfileServiceWithOptions(db RemoteProfileStore, client HTTPDoer, dialect string) (*RemoteProfileService, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 20 * time.Second}
 	}
@@ -829,7 +854,7 @@ func (s *RemoteProfileService) Proxy(ctx context.Context, id int64, req RemotePr
 	if len(req.Body) > 0 && httpReq.Header.Get("Content-Type") == "" {
 		httpReq.Header.Set("Content-Type", "application/json")
 	}
-	httpReq.AddCookie(&http.Cookie{Name: remoteProfileCookieName, Value: sessionValue})
+	httpReq.AddCookie(remoteProfileSessionCookie(sessionValue))
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
@@ -939,12 +964,12 @@ func (s *RemoteProfileService) lookupAdminID(ctx context.Context, email string) 
 		return nil, nil
 	}
 	var id int64
-	res := ScanSingleRow(ctx, s.db, `SELECT id FROM admin_users WHERE LOWER(email) = LOWER($1)`, []any{trimmed}, &id)
-	if res.Err() != nil {
-		return nil, res.Err()
-	}
-	if res.NotFound() {
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM admin_users WHERE LOWER(email) = LOWER($1)`, trimmed).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 	return &id, nil
 }
@@ -1018,6 +1043,8 @@ func (s *RemoteProfileService) buildRemoteURL(apiBase string, pathValue string, 
 }
 
 func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, email string, password string, metadata RemoteProfileSessionMetadata) (string, string, *time.Time, error) {
+	// #nosec G117 -- this password is intentionally sent only to a configured remote
+	// admin login endpoint; production profile validation requires an HTTPS API base.
 	payload, err := json.Marshal(LoginRequest{Email: email, Password: password})
 	if err != nil {
 		return "", "", nil, err
@@ -1084,7 +1111,7 @@ func (s *RemoteProfileService) nowTime() time.Time {
 
 func (s *RemoteProfileService) remoteSessionCheck(ctx context.Context, apiBase string, sessionValue string) (bool, error) {
 	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/session"
-	cookies := []*http.Cookie{{Name: remoteProfileCookieName, Value: sessionValue}}
+	cookies := []*http.Cookie{remoteProfileSessionCookie(sessionValue)}
 	resp, body, err := s.doJSONRequest(ctx, http.MethodGet, urlValue, nil, cookies)
 	if err != nil {
 		return false, err
@@ -1109,7 +1136,7 @@ func (s *RemoteProfileService) remoteSessionCheck(ctx context.Context, apiBase s
 
 func (s *RemoteProfileService) remoteLogout(ctx context.Context, apiBase string, sessionValue string) error {
 	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/logout"
-	cookies := []*http.Cookie{{Name: remoteProfileCookieName, Value: sessionValue}}
+	cookies := []*http.Cookie{remoteProfileSessionCookie(sessionValue)}
 	resp, _, err := s.doJSONRequest(ctx, http.MethodPost, urlValue, nil, cookies)
 	if err != nil {
 		return err
@@ -1137,7 +1164,7 @@ func (s *RemoteProfileService) listIncomingRemoteSessions(ctx context.Context, a
 		urlValue += "?" + encoded
 	}
 
-	cookies := []*http.Cookie{{Name: remoteProfileCookieName, Value: sessionValue}}
+	cookies := []*http.Cookie{remoteProfileSessionCookie(sessionValue)}
 	resp, body, err := s.doJSONRequest(ctx, http.MethodGet, urlValue, nil, cookies)
 	if err != nil {
 		return nil, err
@@ -1171,7 +1198,7 @@ func (s *RemoteProfileService) listIncomingRemoteSessions(ctx context.Context, a
 
 func (s *RemoteProfileService) revokeIncomingRemoteSession(ctx context.Context, apiBase string, sessionValue string, sessionID string) error {
 	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/remote-profile-sessions/" + url.PathEscape(strings.TrimSpace(sessionID))
-	cookies := []*http.Cookie{{Name: remoteProfileCookieName, Value: sessionValue}}
+	cookies := []*http.Cookie{remoteProfileSessionCookie(sessionValue)}
 	resp, body, err := s.doJSONRequest(ctx, http.MethodDelete, urlValue, nil, cookies)
 	if err != nil {
 		return err

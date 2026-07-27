@@ -11,11 +11,21 @@ import (
 // StripeRepository handles all database operations for Stripe-related data.
 // It provides a clean separation between business logic and data access.
 type StripeRepository struct {
-	db *sql.DB
+	db StripeStore
+}
+
+// StripeStore is the transaction-capable persistence boundary for Stripe data.
+// RoutedDB implements this interface so request paths can use test-specific pools.
+type StripeStore interface {
+	QueryRow(string, ...any) *sql.Row
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	Exec(string, ...any) (sql.Result, error)
+	Begin() (*sql.Tx, error)
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
 
 // NewStripeRepository creates a new repository with the given database connection.
-func NewStripeRepository(db *sql.DB) *StripeRepository {
+func NewStripeRepository(db StripeStore) *StripeRepository {
 	return &StripeRepository{db: db}
 }
 

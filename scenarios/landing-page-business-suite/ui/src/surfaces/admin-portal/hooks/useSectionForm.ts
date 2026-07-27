@@ -240,7 +240,7 @@ export function useSectionForm({
       return;
     }
     const targetPath = target.id
-      ? `/admin/customization/variants/${variantSlug}/sections/${target.id}`
+      ? `/admin/customization/variants/${variantSlug}/sections/${String(target.id)}`
       : `/admin/customization/variants/${variantSlug}/sections/new`;
     navigate(targetPath);
   }, [variantSlug, navigate]);
@@ -300,7 +300,7 @@ export function useSectionForm({
   }, [previewConfig]);
 
   const previewVariantLabel = useMemo(() => {
-    return previewConfig?.variant?.name || variantContext?.variant?.name || variantSlug || 'Active variant';
+    return previewConfig?.variant.name || variantContext?.variant.name || variantSlug || 'Active variant';
   }, [previewConfig, variantContext, variantSlug]);
 
   const comparisonVariantLabel = useMemo(() => {
@@ -315,7 +315,7 @@ export function useSectionForm({
     if (!compareConfig) {
       return null;
     }
-    return findSectionByType(compareConfig.sections ?? [], sectionType);
+    return findSectionByType(compareConfig.sections, sectionType);
   }, [compareConfig, sectionType]);
 
   const comparisonContent = comparisonSection?.content ?? {};
@@ -324,7 +324,7 @@ export function useSectionForm({
   // Load section on mount
   useEffect(() => {
     if (!isNew && numericSectionId !== null) {
-      fetchSection();
+      void fetchSection();
     }
   }, [isNew, numericSectionId, fetchSection]);
 
@@ -357,7 +357,7 @@ export function useSectionForm({
         }
       }
     };
-    fetchContext();
+    void fetchContext();
 
     return () => {
       cancelled = true;
@@ -366,7 +366,7 @@ export function useSectionForm({
 
   // Load preview config
   useEffect(() => {
-    loadPreviewConfig(variantSlug);
+    void loadPreviewConfig(variantSlug);
   }, [variantSlug, loadPreviewConfig]);
 
   // Load variant options
@@ -391,7 +391,7 @@ export function useSectionForm({
         }
       }
     };
-    fetchVariantOptions();
+    void fetchVariantOptions();
     return () => {
       cancelled = true;
     };
@@ -426,7 +426,7 @@ export function useSectionForm({
     if (!variantSlug) return;
     const saved = loadComparePreference(variantSlug);
     if (saved && saved !== compareVariantSlug) {
-      handleCompareVariantChange(saved);
+      void handleCompareVariantChange(saved);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variantSlug]);

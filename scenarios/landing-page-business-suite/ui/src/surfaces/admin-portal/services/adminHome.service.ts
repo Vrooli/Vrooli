@@ -135,10 +135,10 @@ export function describeWeightStatus(
     return 'Traffic is fully allocated across variants.';
   }
   if (status === 'under') {
-    return `${Math.max(0, 100 - Math.round(totalWeight))}% of visitors are idle because weights total less than 100%.`;
+    return `${String(Math.max(0, 100 - Math.round(totalWeight)))}% of visitors are idle because weights total less than 100%.`;
   }
   if (status === 'over') {
-    return `Weights exceed 100% by ${Math.round(totalWeight - 100)}%. Adjust them to match your intent.`;
+    return `Weights exceed 100% by ${String(Math.round(totalWeight - 100))}%. Adjust them to match your intent.`;
   }
   return 'Assign weights to control where visitors land.';
 }
@@ -170,7 +170,7 @@ export function buildHealthSnapshot(
   }
 
   const statsBySlug = new Map<string, VariantStats>();
-  analytics?.variant_stats?.forEach((stat) => statsBySlug.set(stat.variant_slug, stat));
+  analytics?.variant_stats.forEach((stat) => statsBySlug.set(stat.variant_slug, stat));
 
   const attentionEntries = new Map<string, VariantAttention>();
 
@@ -194,13 +194,13 @@ export function buildHealthSnapshot(
 
     attentionEntries.set(variant.slug, {
       slug: variant.slug,
-      name: variant.name ?? variant.slug,
+      name: variant.name,
       reasons: [reason],
       conversionRate: extras?.conversionRate,
       daysSinceUpdate: calculateDaysSince(variant.updated_at),
       updatedLabel: formatUpdatedLabel(variant.updated_at),
       sectionId: extras?.sectionId,
-      sectionType: extras?.sectionType ?? 'hero',
+      sectionType: extras?.sectionType || 'hero',
     });
   };
 
@@ -210,12 +210,12 @@ export function buildHealthSnapshot(
     if (daysSinceUpdate === null) {
       registerAttention(variant, 'Never customized');
     } else if (daysSinceUpdate >= STALE_VARIANT_DAYS) {
-      registerAttention(variant, `Stale · ${daysSinceUpdate}d`, { daysSinceUpdate });
+      registerAttention(variant, `Stale · ${String(daysSinceUpdate)}d`, { daysSinceUpdate });
     }
   });
 
   // Check for underperforming variants
-  if (analytics?.variant_stats?.length) {
+  if (analytics?.variant_stats.length) {
     const activeSlugs = new Set(activeVariants.map((variant) => variant.slug));
     const relevantStats = analytics.variant_stats.filter((stat) =>
       activeSlugs.has(stat.variant_slug)
@@ -301,14 +301,13 @@ export function computeDownloadsHealth(apps: DownloadApp[]): DownloadsHealthStat
   let storefrontsConfigured = 0;
 
   apps.forEach((app) => {
-    if (app.platforms) {
-      platformsConfigured += app.platforms.filter(
-        (p) => p.artifact_url && p.release_version
-      ).length;
-    }
-    if (app.storefronts) {
-      storefrontsConfigured += app.storefronts.filter((s) => s.url).length;
-    }
+    const partialApp = app as Partial<DownloadApp>;
+    const platforms = partialApp.platforms ?? [];
+    const storefronts = partialApp.storefronts ?? [];
+    platformsConfigured += platforms.filter(
+      (platform) => platform.artifact_url && platform.release_version
+    ).length;
+    storefrontsConfigured += storefronts.filter((storefront) => storefront.url).length;
   });
 
   return {

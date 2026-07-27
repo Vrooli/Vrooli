@@ -21,10 +21,19 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	"landing-page-business-suite/cli/internal/clock"
 )
 
 type Dependencies struct {
-	Core func() *cliapp.ScenarioApp
+	Core  func() *cliapp.ScenarioApp
+	Clock clock.Clock
+}
+
+func (d Dependencies) Now() time.Time {
+	if d.Clock == nil {
+		return clock.System{}.Now()
+	}
+	return d.Clock.Now()
 }
 
 type EndpointDef struct {
@@ -300,7 +309,7 @@ func (d Dependencies) LoadAdminSession() (AdminSessionConfig, error) {
 		if strings.TrimSpace(cfg.Session) == "" {
 			return AdminSessionConfig{}, nil
 		}
-		if cfg.ExpiresAt != nil && time.Now().After(cfg.ExpiresAt.UTC()) {
+		if cfg.ExpiresAt != nil && d.Now().After(cfg.ExpiresAt.UTC()) {
 			delete(store.Sessions, base)
 			_ = cfgFile.Save(store)
 			return AdminSessionConfig{}, nil
@@ -322,7 +331,7 @@ func (d Dependencies) LoadAdminSession() (AdminSessionConfig, error) {
 	if legacy.APIBase != "" && !strings.EqualFold(NormalizeAPIBase(legacy.APIBase), base) {
 		return AdminSessionConfig{}, nil
 	}
-	if legacy.ExpiresAt != nil && time.Now().After(legacy.ExpiresAt.UTC()) {
+	if legacy.ExpiresAt != nil && d.Now().After(legacy.ExpiresAt.UTC()) {
 		_ = cfgFile.Save(AdminSessionConfig{})
 		return AdminSessionConfig{}, nil
 	}
@@ -360,7 +369,7 @@ func (d Dependencies) SaveAdminSession(cfg AdminSessionConfig) error {
 	}
 
 	cfg.APIBase = base
-	cfg.UpdatedAt = time.Now().UTC()
+	cfg.UpdatedAt = d.Now().UTC()
 	store.Sessions[base] = cfg
 	return cfgFile.Save(store)
 }

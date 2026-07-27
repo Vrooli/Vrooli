@@ -41,7 +41,7 @@ export async function uploadAsset(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Upload failed with status ${response.status}`);
+    throw new Error(text || `Upload failed with status ${String(response.status)}`);
   }
 
   const raw = await response.text();
@@ -97,7 +97,7 @@ export async function listAssets(category?: AssetCategory): Promise<Asset[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to list assets: ${response.status}`);
+    throw new Error(`Failed to list assets: ${String(response.status)}`);
   }
 
   const raw = await response.text();
@@ -110,12 +110,12 @@ export async function listAssets(category?: AssetCategory): Promise<Asset[]> {
  * @param id - The asset ID to delete
  */
 export async function deleteAsset(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE}/admin/assets/${id}`, {
+  const response = await fetch(`${API_BASE}/admin/assets/${String(id)}`, {
     method: 'DELETE',
     credentials: 'include',
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to delete asset: ${response.status}`);
+    throw new Error(`Failed to delete asset: ${String(response.status)}`);
   }
 }

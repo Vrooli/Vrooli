@@ -52,7 +52,7 @@ export function HeroSection({ content }: HeroSectionProps) {
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-bg-base via-surface-deep to-surface-primary text-white">
-      <div className="absolute inset-0 opacity-30 mix-blend-plus-lighter">
+      <div className="pointer-events-none absolute inset-0 opacity-30 mix-blend-plus-lighter">
         <div className="noise-overlay absolute inset-0" />
       </div>
       <div className="absolute left-1/3 top-10 h-64 w-64 rounded-full bg-accent-secondary/10 blur-3xl" />
@@ -330,7 +330,7 @@ function RecordModePreview({ isActive }: { isActive: boolean }) {
           <div
             key={action.target}
             className="flex items-center gap-2 px-2 py-1.5 bg-flow-surface/50 rounded-md animate-slide-in-right text-xs"
-            style={{ animationDelay: `${index * 50}ms` }}
+            style={{ animationDelay: `${String(index * 50)}ms` }}
           >
             <span className="text-flow-text-muted w-8">{action.timestamp}</span>
             <div className="flex items-center gap-1.5">
@@ -551,7 +551,7 @@ function TestMonitorPreview({ isActive }: { isActive: boolean }) {
         <div className="h-1.5 bg-flow-surface rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
+            style={{ width: `${String(progress)}%` }}
           />
         </div>
       </div>
@@ -569,13 +569,11 @@ function TestMonitorPreview({ isActive }: { isActive: boolean }) {
               <div className="flex items-center gap-2">
                 {getStatusIcon(status)}
                 <span
-                  className={`${
-                    status === 'passed'
+                  className={status === 'passed'
                       ? 'text-flow-text-secondary'
                       : status === 'running'
                         ? 'text-blue-300'
-                        : 'text-flow-text-muted'
-                  }`}
+                        : 'text-flow-text-muted'}
                 >
                   {step.name}
                 </span>
@@ -605,18 +603,24 @@ function NavigationDots({
       {Array.from({ length: total }).map((_, index) => (
         <button
           key={index}
-          onClick={() => onSelect(index)}
-          className={`relative h-2 rounded-full transition-all duration-300 ${
-            index === active ? 'w-8 bg-flow-accent' : 'w-2 bg-flow-border hover:bg-flow-text-muted'
+          onClick={() => { onSelect(index); }}
+          className={`group relative flex h-8 w-8 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent focus-visible:ring-offset-2 ${
+            index === active ? 'bg-flow-accent/10' : 'hover:bg-flow-text-muted/10'
           }`}
-          aria-label={`Go to preview ${index + 1}`}
+          aria-label={`Go to preview ${String(index + 1)}`}
         >
-          {index === active && !isPaused && (
-            <span
-              className="absolute inset-0 bg-white/30 rounded-full origin-left animate-progress-bar"
-              style={{ animationDuration: `${CYCLE_DURATION}ms` }}
-            />
-          )}
+          <span
+            className={`relative h-2 rounded-full transition-all duration-300 ${
+              index === active ? 'w-8 bg-flow-accent' : 'w-2 bg-flow-border group-hover:bg-flow-text-muted'
+            }`}
+          >
+            {index === active && !isPaused && (
+              <span
+                className="absolute inset-0 rounded-full bg-white/30 origin-left animate-progress-bar"
+                style={{ animationDuration: `${String(CYCLE_DURATION)}ms` }}
+              />
+            )}
+          </span>
         </button>
       ))}
       {isPaused && (
@@ -671,8 +675,8 @@ function FeatureShowcase({ onActiveIndexChange }: { onActiveIndexChange?: (index
     }, ANIMATION_DURATION / 2);
   }, []);
 
-  const handleMouseEnter = useCallback(() => setIsPaused(true), []);
-  const handleMouseLeave = useCallback(() => setIsPaused(false), []);
+  const handleMouseEnter = useCallback(() => { setIsPaused(true); }, []);
+  const handleMouseLeave = useCallback(() => { setIsPaused(false); }, []);
 
   const activeFeature = FEATURE_CONFIGS[activeIndex] ?? FEATURE_CONFIGS[0];
   if (!activeFeature) {
@@ -702,7 +706,7 @@ function FeatureShowcase({ onActiveIndexChange }: { onActiveIndexChange?: (index
 
       <div className="relative">
         <div
-          className={`absolute inset-0 blur-3xl transition-colors duration-500 ${getGlowClass(activeFeature.accentColor)}`}
+          className={`pointer-events-none absolute inset-0 blur-3xl transition-colors duration-500 ${getGlowClass(activeFeature.accentColor)}`}
         />
         <div className={`relative transition-all duration-300 ${isTransitioning ? 'opacity-0 scale-98' : 'opacity-100 scale-100'}`}>
           {previews[activeIndex]}

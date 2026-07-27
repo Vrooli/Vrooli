@@ -260,7 +260,7 @@ export function commitDownloadArtifactAdmin(payload: {
 }
 
 export function presignDownloadArtifactGetAdmin(artifactId: number) {
-  return apiCall<{ url: string }>(`/admin/download-artifacts/${artifactId}/presign-get`).then((resp) => {
+  return apiCall<{ url: string }>(`/admin/download-artifacts/${String(artifactId)}/presign-get`).then((resp) => {
     const validated = parseOrNull(PresignGetResponseSchema, resp, 'PresignGetResponse');
     if (!validated) {
       throw new Error('Invalid presign get response from API');

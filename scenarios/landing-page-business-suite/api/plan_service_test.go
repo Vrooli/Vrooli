@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // createTestPlansFile creates a temporary plans.json file for testing.
@@ -134,7 +134,7 @@ func TestPlanServicePricingOverview(t *testing.T) {
 	}
 
 	yearly := overview.Yearly[0]
-	if yearly.BillingInterval != landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR {
+	if yearly.BillingInterval != landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_YEAR {
 		t.Fatalf("expected yearly billing interval, got %v", yearly.BillingInterval)
 	}
 	if yearly.IntroEnabled {

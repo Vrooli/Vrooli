@@ -30,7 +30,7 @@ export default function FactoryHome() {
             <div className="text-xl font-semibold">CLI-first flow</div>
             <p className="text-sm text-slate-300">Use the CLI to generate a new landing scenario and customize it with agents.</p>
             <code className="block rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-200 border border-white/10">
-              template-manager lifecycle generate landing-page-react-vite --id "vrooli-pro" --display-name "Vrooli Pro" --description "Productivity bundle for developers"
+              template-manager lifecycle generate landing-page-business-suite --id "vrooli-pro" --display-name "Vrooli Pro" --description "Productivity bundle for developers"
             </code>
           </div>
 

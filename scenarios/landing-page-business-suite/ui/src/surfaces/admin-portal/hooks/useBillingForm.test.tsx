@@ -420,7 +420,7 @@ describe('useBillingForm', () => {
     });
 
     it('shows checking status during verification', async () => {
-      let resolveVerify: (value: PriceVerificationResult) => void;
+      let resolveVerify: ((value: PriceVerificationResult) => void) | undefined;
       verifyPriceIdMock.mockReturnValue(
         new Promise<PriceVerificationResult>((resolve) => {
           resolveVerify = resolve;
@@ -434,13 +434,16 @@ describe('useBillingForm', () => {
       });
 
       act(() => {
-        result.current.handleVerifyPrice('test_bundle', 'price_123');
+        void result.current.handleVerifyPrice('test_bundle', 'price_123');
       });
 
       expect(result.current.priceChecks['test_bundle:price_123']?.status).toBe('checking');
 
-      await act(async () => {
+      act(() => {
         resolveVerify?.({ status: 'ok', message: 'Done' });
+      });
+      await waitFor(() => {
+        expect(result.current.priceChecks['test_bundle:price_123']?.status).toBe('ok');
       });
     });
   });
@@ -459,7 +462,10 @@ describe('useBillingForm', () => {
         result.current.toggleDemoPlaceholders();
       });
 
-      expect(result.current.includeDemoPlaceholders).toBe(true);
+      await waitFor(() => {
+        expect(result.current.includeDemoPlaceholders).toBe(true);
+        expect(result.current.loadingBundles).toBe(false);
+      });
     });
 
     it('removes demo plan from UI', async () => {
@@ -505,12 +511,18 @@ describe('useBillingForm', () => {
     it('initializes with month tab', async () => {
       const { result } = renderHook(() => useBillingForm());
 
+      await waitFor(() => {
+        expect(result.current.loadingBundles).toBe(false);
+      });
       expect(result.current.pricingTab).toBe('month');
     });
 
     it('allows changing pricing tab', async () => {
       const { result } = renderHook(() => useBillingForm());
 
+      await waitFor(() => {
+        expect(result.current.loadingBundles).toBe(false);
+      });
       act(() => {
         result.current.setPricingTab('year');
       });

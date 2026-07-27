@@ -168,6 +168,7 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			metadata JSONB DEFAULT '{}'::jsonb,
 			display_order INTEGER DEFAULT 0,
 			update_api_key TEXT,
+			update_policy JSONB NOT NULL DEFAULT '{"check_interval_hours":4,"update_mode":"optional","allow_downgrade":false}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW(),
 			UNIQUE(bundle_key, app_key)
@@ -272,7 +273,7 @@ func TestE2E_Checkout_Webhook_Entitlement_Download_HappyPath(t *testing.T) {
 	require.NotNil(t, session)
 
 	// Step 2: Before webhook — download should be denied (no subscription)
-	_, err = h.authorizer.Authorize("desktop-app", "windows", "happy@example.com")
+	_, err = h.authorizer.Authorize(testRequestContext, "desktop-app", "windows", "happy@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription) || strings.Contains(err.Error(), "subscription"),
 		"expected download denied before payment, got: %v", err)
 
@@ -298,7 +299,7 @@ func TestE2E_Checkout_Webhook_Entitlement_Download_HappyPath(t *testing.T) {
 	assert.Equal(t, "active", subStatus)
 
 	// Step 5: Download should now be authorized
-	asset, err := h.authorizer.Authorize("desktop-app", "windows", "happy@example.com")
+	asset, err := h.authorizer.Authorize(testRequestContext, "desktop-app", "windows", "happy@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 }
@@ -392,7 +393,7 @@ func TestE2E_Webhook_OutOfOrder_InvoicePaid_BeforeCheckoutCompleted(t *testing.T
 	assert.Equal(t, "pro", planTier, "plan tier should be set")
 
 	// Download should be authorized
-	asset, err := h.authorizer.Authorize("desktop-app", "windows", "ooo@example.com")
+	asset, err := h.authorizer.Authorize(testRequestContext, "desktop-app", "windows", "ooo@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 }

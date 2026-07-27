@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // StripeCheckoutService handles checkout session creation and price verification.
 type StripeCheckoutService interface {
 	// CreateCheckoutSession creates a new Stripe checkout session for the given price.
-	CreateCheckoutSession(priceID, successURL, cancelURL, customerEmail string) (*landing_page_react_vite_v1.CheckoutSession, error)
+	CreateCheckoutSession(priceID, successURL, cancelURL, customerEmail string) (*landing_page_business_suite_v1.CheckoutSession, error)
 
 	// VerifyStripePrice verifies a price exists and returns its details as a map.
 	VerifyStripePrice(key string) (map[string]interface{}, error)
@@ -21,13 +22,13 @@ type StripeCheckoutService interface {
 // StripeSubscriptionService handles subscription verification and management.
 type StripeSubscriptionService interface {
 	// VerifySubscription checks the subscription status for a user (by email or customer ID).
-	VerifySubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error)
+	VerifySubscription(userIdentity string) (*shared.SubscriptionStatus, error)
 
 	// CancelSubscription cancels the subscription for a user.
-	CancelSubscription(userIdentity string) (*landing_page_react_vite_v1.CancelSubscriptionResponse, error)
+	CancelSubscription(userIdentity string) (*landing_page_business_suite_v1.CancelSubscriptionResponse, error)
 
 	// CreateBillingPortalSession creates a Stripe billing portal session for subscription management.
-	CreateBillingPortalSession(ctx context.Context, userIdentity, returnURL string) (*landing_page_react_vite_v1.BillingPortalResponse, error)
+	CreateBillingPortalSession(ctx context.Context, userIdentity, returnURL string) (*landing_page_business_suite_v1.BillingPortalResponse, error)
 }
 
 // StripeWebhookService handles incoming Stripe webhooks.
@@ -72,7 +73,7 @@ type StripeAdminService interface {
 	FetchStripePriceDetails(ctx context.Context, priceID string) (*StripePriceImport, error)
 
 	// ConfigSnapshot returns the current Stripe configuration.
-	ConfigSnapshot() *landing_page_react_vite_v1.StripeConfigSnapshot
+	ConfigSnapshot() *landing_page_business_suite_v1.StripeConfigSnapshot
 
 	// RefreshConfig reloads the Stripe configuration.
 	RefreshConfig(ctx context.Context) error

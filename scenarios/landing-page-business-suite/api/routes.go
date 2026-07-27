@@ -7,6 +7,7 @@ import (
 )
 
 func (s *Server) setupRoutes() {
+	s.router.Use(securityHeadersMiddleware)
 	s.router.Use(loggingMiddleware)
 
 	registerHealthRoutes(s)
@@ -30,6 +31,17 @@ func (s *Server) setupRoutes() {
 	registerDeployReadinessRoute(s)
 }
 
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		header := w.Header()
+		header.Set("X-Content-Type-Options", "nosniff")
+		header.Set("X-Frame-Options", "DENY")
+		header.Set("X-XSS-Protection", "0")
+		header.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func registerDeployReadinessRoute(s *Server) {
 	s.router.HandleFunc(
 		"/api/v1/deploy-readiness",
@@ -39,7 +51,7 @@ func registerDeployReadinessRoute(s *Server) {
 
 func registerHealthRoutes(s *Server) {
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.primaryDB()), health.Critical).Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 }
@@ -112,8 +124,8 @@ func registerRemoteProfileRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/session-links", s.requireAdmin(handleAdminRemoteProfileSessionLinks(s.remoteProfileService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/remote-revoke", s.requireAdmin(handleAdminRemoteProfileRemoteRevoke(s.remoteProfileService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/proxy", s.requireAdminOrService(handleAdminRemoteProfileProxy(s.remoteProfileService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions", s.requireAdmin(handleAdminListIncomingRemoteProfileSessions(s.db))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions/{session_id}", s.requireAdmin(handleAdminRevokeIncomingRemoteProfileSession(s.db))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions", s.requireAdmin(handleAdminListIncomingRemoteProfileSessions(s.routedDB))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions/{session_id}", s.requireAdmin(handleAdminRevokeIncomingRemoteProfileSession(s.routedDB))).Methods("DELETE")
 }
 
 func registerCommerceAdminRoutes(s *Server) {
@@ -146,7 +158,7 @@ func registerCommerceAdminRoutes(s *Server) {
 	// Coupon management endpoints
 	s.router.HandleFunc("/api/v1/admin/coupons", s.requireAdmin(handleAdminListCoupons(s.stripeService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/coupons", s.requireAdmin(handleAdminCreateCoupon(s.stripeService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/coupons/usage", s.requireAdmin(handleAdminCouponUsage(s.stripeService, s.db))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/coupons/usage", s.requireAdmin(handleAdminCouponUsage(s.stripeService, s.routedDB))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/coupons/{coupon_id}", s.requireAdmin(handleAdminGetCoupon(s.stripeService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/coupons/{coupon_id}", s.requireAdmin(handleAdminUpdateCoupon(s.stripeService))).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/admin/coupons/{coupon_id}", s.requireAdmin(handleAdminDeleteCoupon(s.stripeService))).Methods("DELETE")
@@ -190,8 +202,8 @@ func registerContentRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/assets/{id}", s.requireAdmin(handleAssetGet(s.assetsService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/assets/{id}", s.requireAdmin(handleAssetDelete(s.assetsService))).Methods("DELETE")
 
-	// Serve uploaded files publicly
-	s.router.PathPrefix("/api/v1/uploads/").Handler(http.StripPrefix("/api/v1/uploads/", http.FileServer(http.Dir(s.assetsService.GetUploadDir()))))
+	// Serve uploaded files publicly through the request-aware asset root.
+	s.router.HandleFunc("/api/v1/uploads/{path:.*}", handleServeUpload(s.assetsService)).Methods("GET", "HEAD")
 
 	// SEO endpoints
 	s.router.HandleFunc("/api/v1/seo/{slug}", handleGetVariantSEO(s.seoService)).Methods("GET")
@@ -210,7 +222,9 @@ func registerMetricsRoutes(s *Server) {
 }
 
 func registerFeedbackRoutes(s *Server) {
-	// Feedback endpoints
+	// Feedback endpoints. /api/v1/feedback is canonical; the legacy path is
+	// retained for existing embedded landing pages while clients migrate.
+	s.router.HandleFunc("/api/v1/feedback", handleFeedbackCreateWithConfigStore(s.feedbackService, s.configStore, s.emailService)).Methods("POST")
 	s.router.HandleFunc("/api/feedback", handleFeedbackCreateWithConfigStore(s.feedbackService, s.configStore, s.emailService)).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/feedback", s.requireAdmin(handleFeedbackList(s.feedbackService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/feedback/bulk-delete", s.requireAdmin(handleFeedbackDeleteBulk(s.feedbackService))).Methods("POST")
@@ -273,11 +287,11 @@ func registerDocsRoutes(s *Server) {
 
 func registerAdminUserRoutes(s *Server) {
 	// User Management endpoints (Admin)
-	s.router.HandleFunc("/api/v1/admin/users", s.requireAdmin(handleAdminListUsers(s.db))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/users/{id}", s.requireAdmin(handleAdminGetUser(s.db))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions", s.requireAdmin(handleAdminGetUserSessions(s.db))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/{sid}", s.requireAdmin(handleAdminRevokeUserSession(s.db))).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/revoke-all", s.requireAdmin(handleAdminRevokeAllUserSessions(s.db))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/users", s.requireAdmin(handleAdminListUsers(s.userManagementService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/users/{id}", s.requireAdmin(handleAdminGetUser(s.userManagementService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions", s.requireAdmin(handleAdminGetUserSessions(s.userManagementService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/{sid}", s.requireAdmin(handleAdminRevokeUserSession(s.userManagementService))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/revoke-all", s.requireAdmin(handleAdminRevokeAllUserSessions(s.userManagementService))).Methods("POST")
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {

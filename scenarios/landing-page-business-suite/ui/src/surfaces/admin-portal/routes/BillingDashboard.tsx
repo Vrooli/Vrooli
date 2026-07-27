@@ -42,7 +42,6 @@ export function BillingDashboard() {
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.sectionSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Billing Dashboard"
           icon={CreditCard}
           iconBgClass="bg-amber-500/10"
@@ -62,7 +61,7 @@ export function BillingDashboard() {
               icon={CreditCard}
               iconBg="bg-amber-500/20"
               iconColor="text-amber-300"
-              onClick={() => navigate('/admin/billing')}
+              onClick={() => { navigate('/admin/billing'); }}
               testId="flow-stripe"
             />
             <QuickFlowCard
@@ -71,7 +70,7 @@ export function BillingDashboard() {
               icon={Layers}
               iconBg="bg-purple-500/20"
               iconColor="text-purple-300"
-              onClick={() => navigate('/admin/tiers')}
+              onClick={() => { navigate('/admin/tiers'); }}
               testId="flow-plans"
               badge="Soon"
             />
@@ -81,7 +80,7 @@ export function BillingDashboard() {
               icon={Key}
               iconBg="bg-blue-500/20"
               iconColor="text-blue-300"
-              onClick={() => navigate('/admin/api-keys')}
+              onClick={() => { navigate('/admin/api-keys'); }}
               testId="flow-api-keys"
             />
             <QuickFlowCard
@@ -90,7 +89,7 @@ export function BillingDashboard() {
               icon={Tag}
               iconBg="bg-emerald-500/20"
               iconColor="text-emerald-300"
-              onClick={() => navigate('/admin/coupons')}
+              onClick={() => { navigate('/admin/coupons'); }}
               testId="flow-coupons"
             />
           </div>
@@ -114,7 +113,7 @@ export function BillingDashboard() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={refreshStripeStatus}
+                onClick={() => { void refreshStripeStatus(); }}
                 className="gap-2"
                 data-testid="billing-stripe-refresh"
               >
@@ -123,7 +122,7 @@ export function BillingDashboard() {
               </Button>
               <Button
                 size="sm"
-                onClick={() => navigate('/admin/billing')}
+                onClick={() => { navigate('/admin/billing'); }}
               >
                 Configure Stripe
               </Button>
@@ -140,7 +139,7 @@ export function BillingDashboard() {
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100 flex items-center gap-3">
               <AlertTriangle className="h-4 w-4" />
               <span>{stripeError}</span>
-              <Button size="sm" variant="ghost" onClick={refreshStripeStatus}>
+              <Button size="sm" variant="ghost" onClick={() => { void refreshStripeStatus(); }}>
                 Retry
               </Button>
             </div>
@@ -216,7 +215,7 @@ export function BillingDashboard() {
                 <div className="flex flex-wrap gap-3">
                   <Button
                     size="sm"
-                    onClick={() => navigate('/admin/billing')}
+                    onClick={() => { navigate('/admin/billing'); }}
                     data-testid="billing-guidance-setup"
                   >
                     {stripePartial ? 'Complete setup' : 'Set up Stripe'}

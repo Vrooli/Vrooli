@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/mail"
+	"strconv"
 	"strings"
 )
 
@@ -71,10 +72,10 @@ func ValidateNonEmpty(value, fieldName string) error {
 func ValidateStringLength(value, fieldName string, minLen, maxLen int) error {
 	length := len(value)
 	if minLen > 0 && length < minLen {
-		return errors.New(fieldName + " must be at least " + string(rune('0'+minLen)) + " characters")
+		return errors.New(fieldName + " must be at least " + strconv.Itoa(minLen) + " characters")
 	}
 	if maxLen > 0 && length > maxLen {
-		return errors.New(fieldName + " must be at most " + string(rune('0'+maxLen)) + " characters")
+		return errors.New(fieldName + " must be at most " + strconv.Itoa(maxLen) + " characters")
 	}
 	return nil
 }

@@ -229,7 +229,7 @@ func skillPackRecoveryHint(sessionID string) string {
 	return "; fallback: run `prompt-manager discover \"<concept>\" --type skill --json` directly, then add each skill via `plan-manager author context-submit " + sessionID + " --kind skill --label \"<name>\" --command \"prompt-manager skill read <slug>\" --reason \"<why>\"`"
 }
 
-func (s *service) DiscoverSkillPack(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, SkillPackResult, []planmodel.RelevantContextItem, []planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
+func (s *service) DiscoverSkillPack(ctx context.Context, sessionID, phaseID string, concepts []string, complexity string) (Session, SkillPackResult, []planmodel.RelevantContextItem, []planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
 	// Skill discovery shells out and can take tens of seconds — run it against a
 	// pre-lock read so prompt-manager never holds the session lock; only the
 	// upsert happens under the lock.
@@ -255,11 +255,24 @@ func (s *service) DiscoverSkillPack(ctx context.Context, sessionID string, conce
 	var added, kept []planmodel.RelevantContextItem
 	var violations []StructureViolation
 	sess, err = s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		// Resolve the phase once, before the item loop: an unknown phase ref must
+		// fail the whole call rather than silently demote the pack to global scope.
+		phaseIdx := -1
+		if phaseID != "" {
+			if phaseIdx = indexOfDraft(sess.PhaseDrafts, phaseID); phaseIdx < 0 {
+				return false, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+			}
+		}
 		changed := false
 		for _, item := range result.Items {
-			item = normalizeContextItem(item, "")
-			item.Scope = planmodel.RelevantContextScopeGlobal
-			item.PhaseID = ""
+			item = normalizeContextItem(item, phaseID)
+			if phaseIdx >= 0 {
+				item.Scope = planmodel.RelevantContextScopePhase
+				item.PhaseID = sess.PhaseDrafts[phaseIdx].ID
+			} else {
+				item.Scope = planmodel.RelevantContextScopeGlobal
+				item.PhaseID = ""
+			}
 			item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
 			item.Source = planmodel.RelevantContextSourceDiscovered
 			item.Status = planmodel.RelevantContextStatusReady
@@ -268,16 +281,25 @@ func (s *service) DiscoverSkillPack(ctx context.Context, sessionID string, conce
 				violations = append(violations, itemViolations...)
 				continue
 			}
-			if pos := indexOfContextItemByKey(sess.RelevantContext, item); pos >= 0 {
-				kept = append(kept, sess.RelevantContext[pos])
+			target := &sess.RelevantContext
+			if phaseIdx >= 0 {
+				target = &sess.PhaseDrafts[phaseIdx].RelevantContext
+			}
+			if pos := indexOfContextItemByKey(*target, item); pos >= 0 {
+				kept = append(kept, (*target)[pos])
 				continue
 			}
-			sess.RelevantContext = append(sess.RelevantContext, item)
+			*target = append(*target, item)
 			added = append(added, item)
 			changed = true
 		}
 		if changed {
-			*sess = syncContextSection(*sess)
+			if phaseIdx >= 0 {
+				sess.CurrentPhaseID = nextIncompletePhaseID(sess.PhaseDrafts)
+				*sess = syncPhaseSection(*sess)
+			} else {
+				*sess = syncContextSection(*sess)
+			}
 		}
 		return changed, nil
 	})

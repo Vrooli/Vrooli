@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminLogin } from './AdminLogin';
@@ -41,15 +42,12 @@ const renderWithRouter = (component: React.ReactElement) =>
 
 const renderWithAuth = async (component: React.ReactElement) => {
   const utils = renderWithRouter(component);
-  await waitFor(() => expect(mockCheckAdminSession).toHaveBeenCalled());
+  await waitFor(() => { expect(mockCheckAdminSession).toHaveBeenCalled(); });
   return utils;
 };
 
 describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
   const originalLocation = window.location;
-  const setLocation = (next: Location) => {
-    Object.defineProperty(window, 'location', { value: next, writable: true });
-  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,11 +56,11 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
 
     // Mock location to avoid session check trigger
-    setLocation({ ...originalLocation, pathname: '/admin/login' } as Location);
+    window.history.replaceState({}, '', '/admin/login');
   });
 
   afterEach(() => {
-    setLocation(originalLocation);
+    window.history.replaceState({}, '', `${originalLocation.pathname}${originalLocation.search}`);
   });
 
   it('[REQ:ADMIN-AUTH] should render login form with email and password fields', async () => {

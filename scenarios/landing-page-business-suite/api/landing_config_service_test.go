@@ -37,6 +37,7 @@ func TestParseFallbackLandingConfigRequiresVariant(t *testing.T) {
 	}
 }
 
+// [REQ:LANDING-CONFIG] The baked fallback remains renderable when live configuration is unavailable.
 func TestParseFallbackLandingConfigNormalizesSectionsAndAxes(t *testing.T) {
 	payloadJSON := []byte(`{
 		"variant": {

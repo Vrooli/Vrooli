@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { MetricsModeProvider } from '../../../shared/hooks/useMetrics';
 import { Button } from '../../../shared/ui/button';
 import type {
@@ -70,14 +71,14 @@ export function VariantSectionTimeline({
               ? section.id === currentSectionId
               : section.section_type === currentSectionType;
             const badge = section.enabled === false ? 'Disabled' : 'Enabled';
-            const isFirst = sections[0]?.id === section.id;
-            const isLast = sections[sections.length - 1]?.id === section.id;
+            const isFirst = sections.at(0)?.id === section.id;
+            const isLast = sections.at(-1)?.id === section.id;
             return (
               <div
-                key={`${section.section_type}-${section.id ?? section.order}`}
+                key={`${section.section_type}-${String(section.id ?? section.order)}`}
                 role="button"
                 tabIndex={0}
-                onClick={() => onNavigateSection(section)}
+                onClick={() => { onNavigateSection(section); }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
@@ -90,7 +91,7 @@ export function VariantSectionTimeline({
               >
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <div className="text-xs text-slate-500">#{section.order ?? '-'}</div>
+                    <div className="text-xs text-slate-500">#{String(section.order)}</div>
                     <div className="text-sm font-medium capitalize text-white">{section.section_type}</div>
                     <div className="text-[11px] uppercase tracking-wide text-slate-500">{badge}</div>
                   </div>
@@ -151,6 +152,8 @@ export function VariantContextCard({ context, error, loading }: VariantContextCa
     return null;
   }
 
+  const agentGuidelines = context?.variantSpace.agentGuidelines ?? [];
+
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4" data-testid="variant-context-card">
       <div className="flex items-center justify-between gap-4">
@@ -201,11 +204,11 @@ export function VariantContextCard({ context, error, loading }: VariantContextCa
             </div>
           ))}
 
-          {(context.variantSpace.agentGuidelines && context.variantSpace.agentGuidelines.length > 0) && (
+          {agentGuidelines.length > 0 && (
             <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4 text-sm text-slate-300 space-y-2">
               <div className="font-medium text-slate-200">Agent Guidelines</div>
               <ul className="list-disc list-inside space-y-1">
-                {context.variantSpace.agentGuidelines.map((guideline, index) => (
+                {agentGuidelines.map((guideline, index) => (
                   <li key={index}>{guideline}</li>
                 ))}
               </ul>
@@ -237,17 +240,17 @@ export function StylingGuardrailsCard({ variantSlug }: StylingGuardrailsCardProp
           </p>
         </div>
         <span className="text-xs uppercase tracking-wide text-slate-500 bg-slate-900/60 px-3 py-1 rounded-full">
-          {STYLING_CONFIG.brand?.product_name ?? 'Brand'}
+          {STYLING_CONFIG.brand.product_name}
         </span>
       </div>
 
-      {STYLING_CONFIG.tone?.voice && (
+      {STYLING_CONFIG.tone.voice && (
         <p className="text-sm text-slate-300">
           Voice: <span className="text-white font-medium">{STYLING_CONFIG.tone.voice}</span>
         </p>
       )}
 
-      {STYLING_CONFIG.tone?.keywords && (
+      {STYLING_CONFIG.tone.keywords.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {STYLING_CONFIG.tone.keywords.map((keyword) => (
             <span key={keyword} className="text-xs uppercase tracking-wide bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full">
@@ -257,7 +260,7 @@ export function StylingGuardrailsCard({ variantSlug }: StylingGuardrailsCardProp
         </div>
       )}
 
-      {STYLING_CONFIG.usage_notes && STYLING_CONFIG.usage_notes.length > 0 && (
+      {STYLING_CONFIG.usage_notes.length > 0 && (
         <div className="space-y-2">
           <div className="text-xs uppercase text-slate-500">Usage Notes</div>
           <ul className="list-disc list-inside text-sm text-slate-300 space-y-1">
@@ -296,7 +299,7 @@ type PreviewRenderer = (params: {
   content: Record<string, unknown>;
   sectionType: ContentSection['section_type'];
   config: LandingConfigResponse | null;
-}) => JSX.Element | null;
+}) => ReactNode;
 
 interface PreviewPanelProps {
   title: string;

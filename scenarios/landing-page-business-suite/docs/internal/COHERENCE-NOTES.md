@@ -27,7 +27,7 @@ This file lists places where the **physical structure** and the **documented men
 
 ## Docs: `docs/reference/api/README.md` is an in-section overview
 
-- **Documented model:** Manifest registers it as `path: reference/api/README.md`.
+- **Documented model:** Manifest registers it as `path:docs/reference/api/README.md`.
 - **Actual code:** The file is `README.md` literally — by convention some doc tooling treats `README.md` as the index of its parent. Some upstream docs-health checks flag this as misplaced.
 - **Resolution:** Open. The file is correct in place; rename to `reference/api/index.md` if/when docs tooling enforces a strict naming convention.
 

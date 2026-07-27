@@ -35,7 +35,7 @@ interface SectionRendererContext {
   config: LandingConfigResponse | null;
 }
 
-type SectionRenderer = (context: SectionRendererContext) => JSX.Element | null;
+type SectionRenderer = (context: SectionRendererContext) => React.JSX.Element | null;
 
 interface HeaderNavRenderItem {
   id: string;
@@ -86,9 +86,9 @@ const RESOLUTION_LABELS: Record<VariantResolution, string> = {
  * Safely parse section content with fallback to original content.
  * Since section schemas have optional fields, parsing rarely fails.
  */
-function getSafeContent<T>(sectionType: string, content: Record<string, unknown>): T {
+function getSafeContent(sectionType: string, content: Record<string, unknown>): Record<string, unknown> {
   const result = parseDynamicSectionContent(sectionType, content);
-  return (result.success ? result.data : content) as T;
+  return result.success ? result.data : content;
 }
 
 // Map section types declared in variant schemas to their React implementations.
@@ -113,7 +113,7 @@ const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
   footer: ({ section }) => <FooterSection content={getSafeContent(section.section_type, section.content)} />,
   video: ({ section }) => <VideoSection content={getSafeContent(section.section_type, section.content)} />,
   downloads: ({ section, config }) => (
-    <DownloadSection content={getSafeContent(section.section_type, section.content)} downloads={config?.downloads} />
+    <DownloadSection content={getSafeContent(section.section_type, section.content)} downloads={config?.downloads} supportEmail={config?.branding?.support_email} />
   ),
 };
 
@@ -168,7 +168,7 @@ export function PublicLanding() {
   const heroCtaText = typeof heroCTAContent?.cta_text === 'string' ? heroCTAContent.cta_text : undefined;
   const heroCtaUrl = typeof heroCTAContent?.cta_url === 'string' ? heroCTAContent.cta_url : undefined;
   const variantLabel = variant?.name ?? variant?.slug ?? 'Variant not resolved';
-  const resolutionLabel = RESOLUTION_LABELS[resolution] ?? RESOLUTION_LABELS.unknown;
+  const resolutionLabel = RESOLUTION_LABELS[resolution];
   const downloadButtonLabel = useMemo(
     () => getDownloadButtonLabel(downloadApps),
     [downloadApps]
@@ -202,7 +202,7 @@ export function PublicLanding() {
 
   if (configLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-full bg-slate-950 flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-slate-400">Loading your landing page...</p>
@@ -213,7 +213,7 @@ export function PublicLanding() {
 
   if (configError && !fallbackActive) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+      <div className="min-h-full bg-slate-950 flex items-center justify-center px-6">
         <div className="max-w-md w-full rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-center space-y-4">
           <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
             <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -223,7 +223,7 @@ export function PublicLanding() {
           <h1 className="text-2xl font-bold text-red-400">Failed to Load Variant</h1>
           <p className="text-red-300">{configError}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => { window.location.reload(); }}
             className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors text-red-300"
           >
             Retry
@@ -235,7 +235,7 @@ export function PublicLanding() {
 
   if (!variant || !config) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+      <div className="min-h-full bg-slate-950 flex items-center justify-center px-6">
         <div className="max-w-md w-full rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-8 text-center space-y-4">
           <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto">
             <svg className="w-8 h-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -275,14 +275,14 @@ export function PublicLanding() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-base text-slate-50">
+    <div className="min-h-full bg-bg-base text-slate-50">
       {/* Client-side SEO meta tag updates based on branding */}
-      <SEOHead branding={config?.branding} />
+      <SEOHead branding={config.branding} />
 
       <React.Profiler id="LandingHeader" onRender={onProfilerRender}>
         <LandingExperienceHeader
           headerConfig={headerConfig}
-          branding={config?.branding}
+          branding={config.branding}
           navLinks={navLinks}
           runtimeMeta={runtimeMeta}
           ctas={ctas}
@@ -291,7 +291,7 @@ export function PublicLanding() {
       </React.Profiler>
       {variantPinnedViaParam && (
         <div className="border border-accent-secondary/30 bg-accent-secondary/10 py-3 px-4 text-center text-sm text-accent-secondary/80" data-testid="variant-source-banner">
-          Variant <strong>{variant?.name ?? variant?.slug}</strong> is pinned via URL parameter. Remove the <code>?variant=</code> query to resume weighted traffic allocation.
+          Variant <strong>{variant.name}</strong> is pinned via URL parameter. Remove the <code>?variant=</code> query to resume weighted traffic allocation.
         </div>
       )}
 
@@ -325,7 +325,7 @@ export function PublicLanding() {
       {sectionsToRender.length > 0 ? (
         sectionsToRender.map(renderSection)
       ) : (
-        <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="min-h-full flex items-center justify-center px-6">
           <div className="max-w-md w-full rounded-2xl border border-white/10 bg-white/5 p-8 text-center space-y-4">
             <h1 className="text-2xl font-bold">No Content Yet</h1>
             <p className="text-slate-300">
@@ -339,6 +339,7 @@ export function PublicLanding() {
         <div id={downloadAnchorId} className="scroll-mt-28">
           <DownloadSection
             downloads={downloadApps}
+            supportEmail={config.branding?.support_email}
             content={{
               title: 'Download Vrooli Ascension',
               subtitle: 'Install on Windows, macOS, Linux, or via the stores while we verify entitlements.',
@@ -367,8 +368,8 @@ function LandingExperienceHeader({
   ctas,
   showMeta,
 }: LandingExperienceHeaderProps) {
-  const sticky = headerConfig.behavior?.sticky ?? true;
-  const hideOnScroll = sticky && headerConfig.behavior?.hide_on_scroll;
+  const sticky = headerConfig.behavior.sticky;
+  const hideOnScroll = sticky && headerConfig.behavior.hide_on_scroll;
   const isHidden = useHideOnScroll(hideOnScroll);
   const hasDesktopNav = navLinks.some((link) => link.desktop);
   const hasMobileNav = navLinks.some((link) => link.mobile);
@@ -498,17 +499,17 @@ function BrandingBlock({
   runtime: HeaderRuntimeMeta;
   showMeta: boolean;
 }) {
-  const mode = header.branding?.mode ?? 'logo_and_name';
-  const label = header.branding?.label ?? branding?.site_name ?? runtime.variantLabel;
-  const subtitle = header.branding?.subtitle ?? branding?.tagline ?? null;
+  const mode = header.branding.mode;
+  const label = (header.branding.label ?? branding?.site_name ?? runtime.variantLabel) || 'Landing';
+  const subtitle = header.branding.subtitle ?? branding?.tagline ?? null;
   const defaultLogo = '/logo-mask-512x512.webp';
   const logoUrl =
-    header.branding?.logo_icon_url ??
-    header.branding?.logo_url ??
+    header.branding.logo_icon_url ??
+    header.branding.logo_url ??
     branding?.logo_icon_url ??
     branding?.logo_url ??
     defaultLogo;
-  const mobilePref = header.branding?.mobile_preference ?? 'auto';
+  const mobilePref = header.branding.mobile_preference || 'auto';
   const showLogo = mode === 'logo' || mode === 'logo_and_name';
   const showName = mode === 'name' || mode === 'logo_and_name';
 
@@ -608,7 +609,7 @@ function useHideOnScroll(enabled: boolean) {
       lastScroll = current;
     };
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => { window.removeEventListener('scroll', handleScroll); };
   }, [enabled]);
 
   return hidden;
@@ -629,7 +630,7 @@ function resolveNavLinks(
     type: 'link',
   }));
 
-  const configuredLinks = headerConfig.nav?.links ?? [];
+  const configuredLinks = headerConfig.nav.links;
   if (configuredLinks.length === 0) {
     return defaultLinks;
   }
@@ -650,7 +651,7 @@ function resolveNavLinks(
       }
       return [
         {
-          id: link.id || `nav-downloads-${index}`,
+          id: link.id || `nav-downloads-${String(index)}`,
           label,
           href: `#${downloadAnchorId}`,
           desktop: visibility.desktop,
@@ -663,7 +664,7 @@ function resolveNavLinks(
     if (link.type === 'custom' && link.href) {
       return [
         {
-          id: link.id || `nav-custom-${index}`,
+          id: link.id || `nav-custom-${String(index)}`,
           label,
           href: link.href,
           desktop: visibility.desktop,
@@ -694,7 +695,7 @@ function resolveNavLinks(
               : child.href || '#';
 
         return {
-          id: child.id || `${link.id || 'menu'}-child-${childIdx}`,
+          id: child.id || `${link.id || 'menu'}-child-${String(childIdx)}`,
           label: childLabel,
           href: childHref,
           desktop: childVisibility.desktop,
@@ -703,7 +704,7 @@ function resolveNavLinks(
       });
       return [
         {
-          id: link.id || `nav-menu-${index}`,
+          id: link.id || `nav-menu-${String(index)}`,
           label,
           type: 'menu',
           desktop: visibility.desktop,
@@ -726,7 +727,7 @@ function resolveNavLinks(
 
     return [
       {
-        id: link.id || `nav-section-${index}`,
+        id: link.id || `nav-section-${String(index)}`,
         label,
         href: `#${anchor}`,
         desktop: visibility.desktop,
@@ -755,12 +756,12 @@ function resolveHeaderCTAs(
   downloadCTA: { label: string; href: string } | null,
 ): HeaderCTASet {
   return {
-    primary: resolveCTA(headerConfig.ctas?.primary, heroCTA, downloadCTA, 'landing-nav-cta'),
+    primary: resolveCTA(headerConfig.ctas.primary, heroCTA, downloadCTA, 'landing-nav-cta'),
     secondary: resolveCTA(
-      headerConfig.ctas?.secondary,
+      headerConfig.ctas.secondary,
       heroCTA,
       downloadCTA,
-      headerConfig.ctas?.secondary?.mode === 'downloads' ? 'landing-nav-download' : 'landing-nav-cta-secondary',
+      headerConfig.ctas.secondary.mode === 'downloads' ? 'landing-nav-download' : 'landing-nav-cta-secondary',
     ),
   };
 }
@@ -802,7 +803,7 @@ function resolveCTA(
     };
   }
 
-  if (mode === 'custom' && config?.label && config?.href) {
+  if (mode === 'custom' && config != null && config.label && config.href) {
     return {
       label: config.label,
       href: config.href,

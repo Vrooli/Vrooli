@@ -19,9 +19,19 @@ import (
 // Used for testing to capture tokens without requiring email interception.
 type magicLinkTokenCallback func(email, token, magicLink string)
 
+// UserAuthStore is the context-aware persistence contract for user identity,
+// tokens, and sessions.
+//
+// seam: UserAuthStore keeps user authentication persistence independent of a
+// concrete pool and preserves request-scoped test isolation.
+type UserAuthStore interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
 // UserAuthService handles user authentication (magic links + JWT).
 type UserAuthService struct {
-	db           *sql.DB
+	db           UserAuthStore
 	emailService *EmailService
 	jwtSecret    []byte
 	jwtIssuer    string
@@ -80,7 +90,7 @@ var ErrTokenInvalid = errors.New("invalid token")
 var ErrSessionRevoked = errors.New("session has been revoked")
 
 // NewUserAuthService creates a new user authentication service.
-func NewUserAuthService(db *sql.DB, emailService *EmailService) *UserAuthService {
+func NewUserAuthService(db UserAuthStore, emailService *EmailService) *UserAuthService {
 	// Load configuration from secrets
 	jwtSecret := resolveSecret("JWT_SECRET")
 	if jwtSecret == "" {

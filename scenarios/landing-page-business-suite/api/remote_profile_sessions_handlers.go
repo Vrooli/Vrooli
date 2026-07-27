@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"strings"
@@ -22,7 +23,12 @@ type IncomingRemoteProfileSessionResponse struct {
 	UserAgent    *string   `json:"user_agent,omitempty"`
 }
 
-func handleAdminListIncomingRemoteProfileSessions(db *sql.DB) http.HandlerFunc {
+type RemoteProfileSessionStore interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func handleAdminListIncomingRemoteProfileSessions(db RemoteProfileSessionStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		connectorFilter := strings.TrimSpace(r.URL.Query().Get("connector_id"))
 		rows, err := db.QueryContext(r.Context(), `
@@ -75,7 +81,7 @@ func handleAdminListIncomingRemoteProfileSessions(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func handleAdminRevokeIncomingRemoteProfileSession(db *sql.DB) http.HandlerFunc {
+func handleAdminRevokeIncomingRemoteProfileSession(db RemoteProfileSessionStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := strings.TrimSpace(mux.Vars(r)["session_id"])
 		if sessionID == "" {

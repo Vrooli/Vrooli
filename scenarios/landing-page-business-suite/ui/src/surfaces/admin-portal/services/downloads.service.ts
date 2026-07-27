@@ -59,6 +59,17 @@ export interface AppFormValues {
  */
 export const PLATFORM_KEYS: PlatformKey[] = ['windows', 'mac', 'linux'];
 
+function isDownloadAsset(value: unknown): value is DownloadAsset {
+  return typeof value === 'object' && value !== null && 'platform' in value;
+}
+
+function normalizeDownloadAssets(value: unknown): DownloadAsset[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(isDownloadAsset);
+}
+
 /**
  * Build platform form values from a download asset
  *
@@ -99,9 +110,14 @@ export function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset):
 export function deserializeApp(app: DownloadApp): AppFormValues {
   const appleStore = app.storefronts?.find((store) => store.store === 'app_store');
   const googleStore = app.storefronts?.find((store) => store.store === 'play_store');
+  // The generated contract marks these required, but persisted legacy records may
+  // still omit them. Normalize the untrusted response at this boundary.
+  const rawPlatforms: unknown = app.platforms;
+  const platforms = normalizeDownloadAssets(rawPlatforms);
+  const rawName: unknown = app.name;
 
   const platformMap: Record<PlatformKey, PlatformFormValues> = PLATFORM_KEYS.reduce((acc, key) => {
-    const asset = app.platforms?.find((platform) => platform.platform === key);
+    const asset = platforms.find((platform) => platform.platform === key);
     acc[key] = buildPlatformForm(key, asset);
     return acc;
   }, {} as Record<PlatformKey, PlatformFormValues>);
@@ -112,7 +128,7 @@ export function deserializeApp(app: DownloadApp): AppFormValues {
 
   return {
     appKey: app.app_key,
-    name: app.name ?? '',
+    name: typeof rawName === 'string' ? rawName : '',
     tagline: app.tagline ?? '',
     description: app.description ?? '',
     iconUrl: app.icon_url ?? '',
@@ -219,7 +235,7 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
     };
   }).filter((platform) => {
     if (!platform.metadata.enabled) return false;
-    if (!platform.release_version?.length) return false;
+    if (!platform.release_version.length) return false;
     if (platform.artifact_source === 'managed') return Boolean(platform.artifact_id);
     return platform.artifact_url.length > 0;
   });

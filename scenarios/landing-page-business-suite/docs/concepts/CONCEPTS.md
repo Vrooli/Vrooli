@@ -356,16 +356,16 @@ cd scenarios/<slug>
 make start
 
 # Or using Vrooli CLI
-vrooli scenario start <slug>
+vrooli scenario start "<slug>"
 
 # Stop
-vrooli scenario stop <slug>
+vrooli scenario stop "<slug>"
 
 # View logs
-vrooli scenario logs <slug> --tail 100
+vrooli scenario logs "<slug>" --tail 100
 
 # Check status
-vrooli scenario status <slug>
+vrooli scenario status "<slug>"
 ```
 
 ---

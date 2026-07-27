@@ -93,12 +93,12 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
-  Boolean(
-    value &&
-      typeof value === "object" &&
-      (value as DynamicSelectorDefinition<ParamSchema | undefined>).kind === "dynamic-selector",
-  );
+const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> => {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  return (value as { kind?: unknown }).kind === "dynamic-selector";
+};
 
 const normalizeParams = (
   definition: DynamicSelectorDefinition<ParamSchema | undefined>,
@@ -179,7 +179,7 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
+      const paramEntries = Object.entries(value.params ?? {});
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -221,8 +221,8 @@ const mergeLiteralAndDynamicNodes = (
 
     if (literalValue && typeof literalValue === "object") {
       merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
+        literalValue,
+        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue),
         nextPath,
       );
       return;
@@ -233,7 +233,7 @@ const mergeLiteralAndDynamicNodes = (
         merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
         return;
       }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
+      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue, nextPath);
     }
   });
 
@@ -359,6 +359,7 @@ const literalSelectors: LiteralSelectorTree = {
     },
   },
   publicLanding: {
+    surface: 'landing-experience-surface',
     experienceHeader: 'landing-experience-header',
     navCta: 'landing-nav-cta',
     navMobile: 'landing-nav-mobile',

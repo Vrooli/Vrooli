@@ -141,7 +141,7 @@ function DefaultErrorFallback({ error, level, onRetry }: DefaultErrorFallbackPro
 
   if (level === 'app') {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+      <div className="min-h-full bg-slate-950 flex items-center justify-center px-6">
         <div className="max-w-lg w-full rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-center space-y-6">
           <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
             <AlertTriangle className="w-10 h-10 text-red-400" />
@@ -257,7 +257,7 @@ function DefaultErrorFallback({ error, level, onRetry }: DefaultErrorFallbackPro
  * Avoids exposing stack traces or sensitive information in production.
  */
 function getUserFriendlyMessage(error: Error): string {
-  const message = error.message ?? '';
+  const message = error.message;
 
   // Common React errors with user-friendly alternatives
   const errorMappings: Array<[RegExp, string]> = [

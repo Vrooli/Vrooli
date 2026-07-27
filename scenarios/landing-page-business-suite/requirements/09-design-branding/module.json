@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-25T22:27:02-04:00"
+    "last_validated_at": "2026-07-27T03:01:20-04:00"
   },
   "requirements": [
     {
       "id": "DESIGN-GUIDE",
       "title": "Aesthetic guidelines in template",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "description": "Template specification includes frontend_aesthetics block in description for design agents",
       "validation": [
@@ -14,7 +14,7 @@
           "type": "test",
           "ref": "api/templates/saas-landing-page.json",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Frontend aesthetics block implemented in api/templates/saas-landing-page.json with style, colors, typography, layout, components, and animations guidelines"
         }
       ]
@@ -23,7 +23,7 @@
       "id": "DESIGN-FONT",
       "title": "Custom typography",
       "status": "in_progress",
-      "prd_ref": "OT-P1-005",
+      "prd_ref": "OT-P1-006",
       "description": "Default template declares custom font stack (not Inter, Roboto, Arial, or system default)",
       "validation": [
         {
@@ -39,7 +39,7 @@
       "id": "DESIGN-VARS",
       "title": "CSS theming",
       "status": "in_progress",
-      "prd_ref": "OT-P1-005",
+      "prd_ref": "OT-P1-007",
       "description": "Template uses defined CSS variables for colors and spacing",
       "validation": [
         {
@@ -55,7 +55,7 @@
       "id": "DESIGN-BG",
       "title": "Non-trivial backgrounds",
       "status": "in_progress",
-      "prd_ref": "OT-P1-005",
+      "prd_ref": "OT-P1-008",
       "description": "Template includes at least one layered gradient/shape/texture background (not flat solid)",
       "validation": [
         {
@@ -71,7 +71,7 @@
       "id": "DESIGN-VIDEO",
       "title": "Video section support",
       "status": "in_progress",
-      "prd_ref": "OT-P1-005",
+      "prd_ref": "OT-P1-009",
       "description": "Template supports at least one video demo section (URL, thumbnail, caption, layout) configurable via admin",
       "validation": [
         {

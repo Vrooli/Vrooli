@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -60,7 +61,7 @@ func TestHandlePlans_Success(t *testing.T) {
 		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	var resp landing_page_react_vite_v1.GetPricingResponse
+	var resp landing_page_business_suite_v1.GetPricingResponse
 	if err := protojson.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
@@ -102,7 +103,7 @@ func TestHandleMeSubscription_Success(t *testing.T) {
 		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	var resp landing_page_react_vite_v1.VerifySubscriptionResponse
+	var resp shared.VerifySubscriptionResponse
 	if err := protojson.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
@@ -447,7 +448,7 @@ func TestHandleDownloads_AppNotFound(t *testing.T) {
 func TestWriteJSON_Protobuf(t *testing.T) {
 	rr := httptest.NewRecorder()
 
-	msg := &landing_page_react_vite_v1.CreditsBalance{
+	msg := &shared.CreditsBalance{
 		BalanceCredits: 1000000,
 	}
 

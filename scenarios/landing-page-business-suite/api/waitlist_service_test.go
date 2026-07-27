@@ -15,8 +15,8 @@ func TestNewWaitlistService(t *testing.T) {
 	if service == nil {
 		t.Fatal("NewWaitlistService returned nil")
 	}
-	if service.db != db {
-		t.Error("Expected service to hold reference to provided db")
+	if _, err := service.Count(context.Background()); err != nil {
+		t.Fatalf("new service is not usable: %v", err)
 	}
 }
 

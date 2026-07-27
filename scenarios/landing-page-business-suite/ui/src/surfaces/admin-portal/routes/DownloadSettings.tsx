@@ -99,7 +99,6 @@ export function DownloadSettings() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Configure apps and installers for your landing page"
           description="Set up bundled apps with desktop installers and mobile store links. These appear in your landing page's download section for verified distribution."
           icon={Download}
@@ -112,7 +111,7 @@ export function DownloadSettings() {
                 <ExternalLink className="h-4 w-4" />
                 Preview landing
               </Button>
-              <Button variant="outline" size="sm" onClick={loadApps} disabled={loading} data-testid="downloads-refresh">
+              <Button variant="outline" size="sm" onClick={() => { void loadApps(); }} disabled={loading} data-testid="downloads-refresh">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
               </Button>
@@ -120,7 +119,7 @@ export function DownloadSettings() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={handleSaveAll}
+                  onClick={() => { void handleSaveAll(); }}
                   disabled={savingAll}
                   className="gap-2 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
                   data-testid="downloads-save-all"
@@ -150,22 +149,22 @@ export function DownloadSettings() {
             columns={4}
             badges={[
               {
-                label: `${downloadHealth.appCount} app${downloadHealth.appCount !== 1 ? 's' : ''}`,
+                label: `${String(downloadHealth.appCount)} app${downloadHealth.appCount !== 1 ? 's' : ''}`,
                 status: 'info',
                 description: downloadHealth.appCount === 0 ? 'Add your first app' : 'Configured',
               },
               {
-                label: `${downloadHealth.platformsConfigured} platform${downloadHealth.platformsConfigured !== 1 ? 's' : ''}`,
+                label: `${String(downloadHealth.platformsConfigured)} platform${downloadHealth.platformsConfigured !== 1 ? 's' : ''}`,
                 status: downloadHealth.platformsConfigured > 0 ? 'success' : 'warning',
-                description: downloadHealth.platformsMissing > 0 ? `${downloadHealth.platformsMissing} missing` : 'All set',
+                description: downloadHealth.platformsMissing > 0 ? `${String(downloadHealth.platformsMissing)} missing` : 'All set',
               },
               {
-                label: `${downloadHealth.storefrontsConfigured} store link${downloadHealth.storefrontsConfigured !== 1 ? 's' : ''}`,
+                label: `${String(downloadHealth.storefrontsConfigured)} store link${downloadHealth.storefrontsConfigured !== 1 ? 's' : ''}`,
                 status: downloadHealth.storefrontsConfigured > 0 ? 'success' : 'info',
                 description: downloadHealth.storefrontsConfigured === 0 ? 'Optional' : 'App Store / Play Store',
               },
               {
-                label: dirtyCount === 0 ? 'All saved' : `${dirtyCount} unsaved`,
+                label: dirtyCount === 0 ? 'All saved' : `${String(dirtyCount)} unsaved`,
                 status: dirtyCount === 0 ? 'success' : 'warning',
                 description: dirtyCount === 0 ? 'Up to date' : 'Save changes below',
               },
@@ -177,7 +176,7 @@ export function DownloadSettings() {
           <Button
             size="sm"
             variant={activeTab === 'apps' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('apps')}
+            onClick={() => { setActiveTab('apps'); }}
             className="gap-2"
           >
             <Download className="h-4 w-4" />
@@ -186,7 +185,7 @@ export function DownloadSettings() {
           <Button
             size="sm"
             variant={activeTab === 'hosting' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('hosting')}
+            onClick={() => { setActiveTab('hosting'); }}
             className="gap-2"
           >
             <Package className="h-4 w-4" />
@@ -197,7 +196,7 @@ export function DownloadSettings() {
         {activeTab === 'apps' && dirtyCount > 0 && (
           <Callout
             type="warning"
-            message={`${dirtyCount} app${dirtyCount === 1 ? '' : 's'} have unsaved changes. Save each card to update the runtime payload.`}
+            message={`${String(dirtyCount)} app${dirtyCount === 1 ? '' : 's'} have unsaved changes. Save each card to update the runtime payload.`}
           />
         )}
 
@@ -353,7 +352,7 @@ export function DownloadSettings() {
                   </select>
                   <input
                     value={artifactsQuery}
-                    onChange={(e) => setArtifactsQuery(e.target.value)}
+                    onChange={(e) => { setArtifactsQuery(e.target.value); }}
                     className={inputBaseClassName}
                     placeholder="Search filename, version…"
                   />
@@ -443,9 +442,10 @@ export function DownloadSettings() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={async () => {
-                                  const { url } = await presignDownloadArtifactGetAdmin(artifact.id);
-                                  window.open(url, '_blank');
+                                onClick={() => {
+                                  void presignDownloadArtifactGetAdmin(artifact.id).then(({ url }) => {
+                                    window.open(url, '_blank');
+                                  });
                                 }}
                               >
                                 Download
@@ -457,7 +457,7 @@ export function DownloadSettings() {
                                   setSelectedArtifact(artifact);
                                   setApplyTarget({
                                     appKey: artifact.app_key ?? (forms[0]?.values.appKey ?? ''),
-                                    platform: (artifact.platform as PlatformKey) || 'windows',
+                                    platform: artifact.platform as PlatformKey,
                                     requiresEntitlement: false,
                                     releaseVersion: artifact.release_version ?? '',
                                     releaseNotes: '',
@@ -489,7 +489,7 @@ export function DownloadSettings() {
                         <p className="text-sm font-semibold text-white">Apply artifact to app</p>
                         <p className="text-xs text-slate-400">{selectedArtifact.original_filename || selectedArtifact.object_key}</p>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedArtifact(null)}>
+                      <Button variant="outline" size="sm" onClick={() => { setSelectedArtifact(null); }}>
                         Cancel
                       </Button>
                     </div>
@@ -498,7 +498,7 @@ export function DownloadSettings() {
                         <label className="text-xs text-slate-500">Target app</label>
                         <select
                           value={applyTarget.appKey}
-                          onChange={(e) => setApplyTarget((prev) => ({ ...prev, appKey: e.target.value }))}
+                          onChange={(e) => { setApplyTarget((prev) => ({ ...prev, appKey: e.target.value })); }}
                           className={inputBaseClassName}
                         >
                           {forms.map((form) => (
@@ -512,7 +512,7 @@ export function DownloadSettings() {
                         <label className="text-xs text-slate-500">Platform</label>
                         <select
                           value={applyTarget.platform}
-                          onChange={(e) => setApplyTarget((prev) => ({ ...prev, platform: e.target.value as PlatformKey }))}
+                          onChange={(e) => { setApplyTarget((prev) => ({ ...prev, platform: e.target.value as PlatformKey })); }}
                           className={inputBaseClassName}
                         >
                           <option value="windows">Windows</option>
@@ -524,7 +524,7 @@ export function DownloadSettings() {
                         <label className="text-xs text-slate-500">Release version</label>
                         <input
                           value={applyTarget.releaseVersion}
-                          onChange={(e) => setApplyTarget((prev) => ({ ...prev, releaseVersion: e.target.value }))}
+                          onChange={(e) => { setApplyTarget((prev) => ({ ...prev, releaseVersion: e.target.value })); }}
                           className={inputBaseClassName}
                         />
                       </div>
@@ -532,7 +532,7 @@ export function DownloadSettings() {
                         <label className="text-xs text-slate-500">Release notes (optional)</label>
                         <input
                           value={applyTarget.releaseNotes}
-                          onChange={(e) => setApplyTarget((prev) => ({ ...prev, releaseNotes: e.target.value }))}
+                          onChange={(e) => { setApplyTarget((prev) => ({ ...prev, releaseNotes: e.target.value })); }}
                           className={inputBaseClassName}
                         />
                       </div>
@@ -541,7 +541,7 @@ export function DownloadSettings() {
                           <input
                             type="checkbox"
                             checked={applyTarget.requiresEntitlement}
-                            onChange={(e) => setApplyTarget((prev) => ({ ...prev, requiresEntitlement: e.target.checked }))}
+                            onChange={(e) => { setApplyTarget((prev) => ({ ...prev, requiresEntitlement: e.target.checked })); }}
                             className="rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
                           />
                           Requires entitlement
@@ -549,7 +549,7 @@ export function DownloadSettings() {
                       </div>
                     </div>
                     <Button
-                      onClick={handleApplyArtifact}
+                      onClick={() => { void handleApplyArtifact(); }}
                       className="gap-2"
                     >
                       <Save className="h-4 w-4" />
@@ -642,7 +642,7 @@ function AppCard({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onDelete(form.key)}
+            onClick={() => { void onDelete(form.key); }}
             disabled={form.saving}
             className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
             data-testid={`download-delete-${form.key}`}
@@ -657,7 +657,7 @@ function AppCard({
           <input
             type="text"
             value={form.values.appKey}
-            onChange={(event) => onFieldChange(form.key, 'appKey', event.target.value)}
+            onChange={(event) => { onFieldChange(form.key, 'appKey', event.target.value); }}
             disabled={!form.isNew}
             className={inputLargeDisabledClassName}
             placeholder="automation_suite"
@@ -673,7 +673,7 @@ function AppCard({
             <input
               type="text"
               value={form.values.name}
-              onChange={(event) => onFieldChange(form.key, 'name', event.target.value)}
+              onChange={(event) => { onFieldChange(form.key, 'name', event.target.value); }}
               className={inputLargeClassName}
             />
           </div>
@@ -682,7 +682,7 @@ function AppCard({
             <input
               type="text"
               value={form.values.tagline}
-              onChange={(event) => onFieldChange(form.key, 'tagline', event.target.value)}
+              onChange={(event) => { onFieldChange(form.key, 'tagline', event.target.value); }}
               className={inputLargeClassName}
             />
           </div>
@@ -690,7 +690,7 @@ function AppCard({
             <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Description</label>
             <Textarea
               value={form.values.description}
-              onChange={(event) => onFieldChange(form.key, 'description', event.target.value)}
+              onChange={(event) => { onFieldChange(form.key, 'description', event.target.value); }}
               rows={3}
               className={textareaLargeClassName}
             />
@@ -708,7 +708,7 @@ function AppCard({
                 <p className="text-xs text-slate-500 mb-2">Small icon shown in the download section (recommended: 128x128px)</p>
                 <ImageUploader
                   value={form.values.iconUrl}
-                  onChange={(url) => onFieldChange(form.key, 'iconUrl', url ?? '')}
+                  onChange={(url) => { onFieldChange(form.key, 'iconUrl', url ?? ''); }}
                   category="general"
                   placeholder="No icon set"
                   uploadLabel="Upload icon"
@@ -722,7 +722,7 @@ function AppCard({
                 <p className="text-xs text-slate-500 mb-2">Preview image shown in expanded view (recommended: 1280x720px)</p>
                 <ImageUploader
                   value={form.values.screenshotUrl}
-                  onChange={(url) => onFieldChange(form.key, 'screenshotUrl', url ?? '')}
+                  onChange={(url) => { onFieldChange(form.key, 'screenshotUrl', url ?? ''); }}
                   category="general"
                   placeholder="No screenshot set"
                   uploadLabel="Upload screenshot"
@@ -738,7 +738,7 @@ function AppCard({
             <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Install overview</label>
             <Textarea
               value={form.values.installOverview}
-              onChange={(event) => onFieldChange(form.key, 'installOverview', event.target.value)}
+              onChange={(event) => { onFieldChange(form.key, 'installOverview', event.target.value); }}
               rows={3}
               className={textareaLargeClassName}
             />
@@ -747,7 +747,7 @@ function AppCard({
             <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Install steps (one per line)</label>
             <Textarea
               value={form.values.installSteps}
-              onChange={(event) => onFieldChange(form.key, 'installSteps', event.target.value)}
+              onChange={(event) => { onFieldChange(form.key, 'installSteps', event.target.value); }}
               rows={4}
               className={textareaLargeClassName}
             />
@@ -760,24 +760,24 @@ function AppCard({
             <StorefrontFields
               title="Apple App Store"
               enabled={form.values.appleEnabled}
-              onEnabledChange={(value) => onFieldChange(form.key, 'appleEnabled', value)}
+              onEnabledChange={(value) => { onFieldChange(form.key, 'appleEnabled', value); }}
               labelValue={form.values.appleLabel}
               urlValue={form.values.appleUrl}
               badgeValue={form.values.appleBadge}
-              onLabelChange={(value) => onFieldChange(form.key, 'appleLabel', value)}
-              onUrlChange={(value) => onFieldChange(form.key, 'appleUrl', value)}
-              onBadgeChange={(value) => onFieldChange(form.key, 'appleBadge', value)}
+              onLabelChange={(value) => { onFieldChange(form.key, 'appleLabel', value); }}
+              onUrlChange={(value) => { onFieldChange(form.key, 'appleUrl', value); }}
+              onBadgeChange={(value) => { onFieldChange(form.key, 'appleBadge', value); }}
             />
             <StorefrontFields
               title="Google Play"
               enabled={form.values.googleEnabled}
-              onEnabledChange={(value) => onFieldChange(form.key, 'googleEnabled', value)}
+              onEnabledChange={(value) => { onFieldChange(form.key, 'googleEnabled', value); }}
               labelValue={form.values.googleLabel}
               urlValue={form.values.googleUrl}
               badgeValue={form.values.googleBadge}
-              onLabelChange={(value) => onFieldChange(form.key, 'googleLabel', value)}
-              onUrlChange={(value) => onFieldChange(form.key, 'googleUrl', value)}
-              onBadgeChange={(value) => onFieldChange(form.key, 'googleBadge', value)}
+              onLabelChange={(value) => { onFieldChange(form.key, 'googleLabel', value); }}
+              onUrlChange={(value) => { onFieldChange(form.key, 'googleUrl', value); }}
+              onBadgeChange={(value) => { onFieldChange(form.key, 'googleBadge', value); }}
             />
           </div>
         </div>
@@ -789,7 +789,7 @@ function AppCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onManageDownloads(form.values.appKey)}
+                onClick={() => { onManageDownloads(form.values.appKey); }}
                 className="gap-2 text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
               >
                 <Upload className="h-3.5 w-3.5" />
@@ -808,7 +808,7 @@ function AppCard({
                 const k = 1024;
                 const sizes = ['B', 'KB', 'MB', 'GB'];
                 const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+                return `${String(parseFloat((bytes / Math.pow(k, i)).toFixed(1)))} ${sizes[i] ?? 'B'}`;
               };
               return (
                 <div
@@ -833,7 +833,7 @@ function AppCard({
                         type="checkbox"
                         checked={platform.enabled}
                         onChange={(event) =>
-                          onPlatformChange(form.key, platformKey, 'enabled', event.target.checked)
+                          { onPlatformChange(form.key, platformKey, 'enabled', event.target.checked); }
                         }
                         className="rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
                       />
@@ -889,7 +889,7 @@ function AppCard({
                         value={platform.artifactUrl}
                         disabled={isDisabled}
                         onChange={(event) =>
-                          onPlatformChange(form.key, platformKey, 'artifactUrl', event.target.value)
+                          { onPlatformChange(form.key, platformKey, 'artifactUrl', event.target.value); }
                         }
                         className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
                         placeholder="https://example.com/app.exe"
@@ -911,7 +911,7 @@ function AppCard({
                       value={platform.releaseVersion}
                       disabled={isDisabled}
                       onChange={(event) =>
-                        onPlatformChange(form.key, platformKey, 'releaseVersion', event.target.value)
+                        { onPlatformChange(form.key, platformKey, 'releaseVersion', event.target.value); }
                       }
                       className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
                       placeholder="e.g. 2.1.0"
@@ -923,7 +923,7 @@ function AppCard({
                       value={platform.releaseNotes}
                       disabled={isDisabled}
                       onChange={(event) =>
-                        onPlatformChange(form.key, platformKey, 'releaseNotes', event.target.value)
+                        { onPlatformChange(form.key, platformKey, 'releaseNotes', event.target.value); }
                       }
                       rows={2}
                       className="w-full bg-transparent text-sm disabled:opacity-50"
@@ -937,7 +937,7 @@ function AppCard({
                         checked={platform.requiresEntitlement}
                         disabled={isDisabled}
                         onChange={(event) =>
-                          onPlatformChange(form.key, platformKey, 'requiresEntitlement', event.target.checked)
+                          { onPlatformChange(form.key, platformKey, 'requiresEntitlement', event.target.checked); }
                         }
                         className="rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400 disabled:opacity-50"
                       />
@@ -952,7 +952,7 @@ function AppCard({
 
         <div className="flex flex-wrap items-center gap-3">
           <Button
-            onClick={() => onSave(form.key)}
+            onClick={() => { void onSave(form.key); }}
             disabled={form.saving || !dirty}
             className="gap-2"
             data-testid={`download-save-${form.key}`}
@@ -971,7 +971,7 @@ function AppCard({
           </Button>
           <Button
             variant="outline"
-            onClick={() => onReset(form.key)}
+            onClick={() => { onReset(form.key); }}
             disabled={!dirty}
             data-testid={`download-reset-${form.key}`}
           >
@@ -1030,7 +1030,7 @@ function StorefrontFields({
           <input
             type="checkbox"
             checked={enabled}
-            onChange={(event) => onEnabledChange(event.target.checked)}
+            onChange={(event) => { onEnabledChange(event.target.checked); }}
             className="rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
           />
           Enabled
@@ -1042,7 +1042,7 @@ function StorefrontFields({
           type="text"
           value={labelValue}
           disabled={!enabled}
-          onChange={(event) => onLabelChange(event.target.value)}
+          onChange={(event) => { onLabelChange(event.target.value); }}
           className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
         />
       </div>
@@ -1052,7 +1052,7 @@ function StorefrontFields({
           type="text"
           value={urlValue}
           disabled={!enabled}
-          onChange={(event) => onUrlChange(event.target.value)}
+          onChange={(event) => { onUrlChange(event.target.value); }}
           className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
         />
       </div>
@@ -1062,7 +1062,7 @@ function StorefrontFields({
           type="text"
           value={badgeValue}
           disabled={!enabled}
-          onChange={(event) => onBadgeChange(event.target.value)}
+          onChange={(event) => { onBadgeChange(event.target.value); }}
           className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
         />
       </div>

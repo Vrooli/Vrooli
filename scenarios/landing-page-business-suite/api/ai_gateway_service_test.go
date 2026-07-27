@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // TestAIGatewayService_CalculateCost tests cost calculation.
@@ -686,9 +686,9 @@ type MockAccountService struct {
 	GetSubscriptionFn func(userIdentity string) (*SubscriptionStatus, error)
 }
 
-type SubscriptionStatus = landing_page_react_vite_v1.SubscriptionStatus
+type SubscriptionStatus = landing_page_business_suite_v1.SubscriptionStatus
 
-func (m *MockAccountService) GetSubscription(userIdentity string) (*SubscriptionStatus, error) {
+func (m *MockAccountService) GetSubscriptionContext(_ context.Context, userIdentity string) (*SubscriptionStatus, error) {
 	if m.GetSubscriptionFn != nil {
 		return m.GetSubscriptionFn(userIdentity)
 	}

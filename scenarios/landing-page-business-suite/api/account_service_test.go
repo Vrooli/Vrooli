@@ -1,11 +1,26 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
+
+func TestAccountServiceCreditsContextCancellationReachesPersistence(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	service := NewAccountService(db, NewPlanService(db))
+	_, err := service.GetCreditsContext(ctx, "canceled-context@example.com")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("GetCreditsContext() error = %v, want context cancellation", err)
+	}
+}
 
 func TestAccountServiceSubscriptionCache(t *testing.T) {
 	db := setupTestDB(t)
@@ -38,7 +53,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initial GetSubscription failed: %v", err)
 	}
-	if info.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+	if info.State != landing_page_business_suite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
 		t.Fatalf("expected status active, got %s", info.State)
 	}
 
@@ -55,7 +70,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cached GetSubscription failed: %v", err)
 	}
-	if cached.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+	if cached.State != landing_page_business_suite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
 		t.Fatalf("expected cached status active, got %s", cached.State)
 	}
 
@@ -65,7 +80,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("refresher GetSubscription failed: %v", err)
 	}
-	if refreshed.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
+	if refreshed.State != landing_page_business_suite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
 		t.Fatalf("expected refreshed status canceled, got %s", refreshed.State)
 	}
 }
@@ -81,7 +96,7 @@ func TestAccountServiceSubscriptionMissingUser(t *testing.T) {
 		t.Fatalf("unexpected error for missing user: %v", err)
 	}
 
-	if status.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
+	if status.State != landing_page_business_suite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
 		t.Fatalf("expected inactive state for missing user, got %s", status.State)
 	}
 	if status.GetMessage() == "" || status.GetMessage() != "user not provided" {

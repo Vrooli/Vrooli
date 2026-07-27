@@ -80,7 +80,7 @@ export function FeedbackManagement() {
   };
 
   const onBulkDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${selectedIds.size} feedback item(s)?`)) return;
+    if (!confirm(`Are you sure you want to delete ${String(selectedIds.size)} feedback item(s)?`)) return;
     await handleBulkDelete();
   };
 
@@ -99,7 +99,7 @@ export function FeedbackManagement() {
       <AdminLayout>
         <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4">
           <p className="text-red-400">Error: {error}</p>
-          <Button onClick={loadFeedback} variant="outline" className="mt-4">
+          <Button onClick={() => { void loadFeedback(); }} variant="outline" className="mt-4">
             Retry
           </Button>
         </div>
@@ -111,14 +111,13 @@ export function FeedbackManagement() {
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Feedback Management"
-          description={`${feedbackList.length} total items${pendingCount > 0 ? ` (${pendingCount} pending)` : ''}${inProgressCount > 0 ? ` (${inProgressCount} in progress)` : ''}`}
+          description={`${String(feedbackList.length)} total items${pendingCount > 0 ? ` (${String(pendingCount)} pending)` : ''}${inProgressCount > 0 ? ` (${String(inProgressCount)} in progress)` : ''}`}
           icon={MessageSquare}
           iconBgClass="bg-blue-500/10"
           iconColorClass="text-blue-400"
           actions={
-            <Button onClick={loadFeedback} variant="outline" className="gap-2">
+            <Button onClick={() => { void loadFeedback(); }} variant="outline" className="gap-2">
               <RefreshCcw className="h-4 w-4" />
               Refresh
             </Button>
@@ -165,7 +164,7 @@ export function FeedbackManagement() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={onBulkDelete}
+                    onClick={() => { void onBulkDelete(); }}
                     disabled={bulkActionLoading}
                     className="gap-2 text-red-400 border-red-500/20 hover:bg-red-500/10"
                   >
@@ -209,12 +208,12 @@ export function FeedbackManagement() {
               <span>
                 {selectedIds.size === filteredFeedback.length
                   ? 'Deselect all'
-                  : `Select all (${filteredFeedback.length})`}
+                  : `Select all (${String(filteredFeedback.length)})`}
               </span>
             </div>
 
             {filteredFeedback.map((feedback) => {
-              const statusConfig = STATUS_CONFIG[feedback.status as FeedbackStatus] || STATUS_CONFIG.pending;
+              const statusConfig = STATUS_CONFIG[feedback.status as FeedbackStatus];
               const typeIcon = typeIcons[feedback.type as FeedbackType] || typeIcons.general;
               const statusIcon = statusIcons[feedback.status as FeedbackStatus] || statusIcons.pending;
               const isExpanded = expandedId === feedback.id;
@@ -230,7 +229,7 @@ export function FeedbackManagement() {
                     {/* Main Row */}
                     <div className="flex items-center gap-3 p-4">
                       <button
-                        onClick={() => handleToggleSelect(feedback.id)}
+                        onClick={() => { handleToggleSelect(feedback.id); }}
                         className="hover:text-white transition-colors text-slate-400"
                         aria-label={isSelected ? 'Deselect' : 'Select'}
                       >
@@ -242,7 +241,7 @@ export function FeedbackManagement() {
                       </button>
 
                       <button
-                        onClick={() => setExpandedId(isExpanded ? null : feedback.id)}
+                        onClick={() => { setExpandedId(isExpanded ? null : feedback.id); }}
                         className="flex-1 flex items-start gap-4 text-left hover:bg-white/5 -m-2 p-2 rounded-lg transition-colors"
                       >
                         {/* Type Badge */}
@@ -297,7 +296,7 @@ export function FeedbackManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleReply(feedback.email, feedback.subject)}
+                            onClick={() => { handleReply(feedback.email, feedback.subject); }}
                             className="gap-2"
                           >
                             <Mail className="h-4 w-4" />
@@ -309,7 +308,7 @@ export function FeedbackManagement() {
                             <span className="text-xs text-slate-500">Status:</span>
                             <Select
                               value={feedback.status}
-                              onValueChange={(value) => handleStatusChange(feedback.id, value as FeedbackStatus)}
+                              onValueChange={(value) => { void handleStatusChange(feedback.id, value as FeedbackStatus); }}
                               disabled={isLoading}
                             >
                               <SelectTrigger className="w-[140px] h-8 bg-white/5 border-white/10">
@@ -329,7 +328,7 @@ export function FeedbackManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => onDelete(feedback.id)}
+                            onClick={() => { void onDelete(feedback.id); }}
                             disabled={isLoading}
                             className="gap-2 text-red-400 border-red-500/20 hover:bg-red-500/10"
                           >

@@ -824,6 +824,49 @@
       ]
     },
     {
+      "id": "feedback-create",
+      "path": "/api/v1/feedback",
+      "method": "POST",
+      "summary": "Submit public feedback",
+      "description": "Creates a feedback request for the landing-page business suite.",
+      "category": "support",
+      "response": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "id": "integer"
+        }
+      }
+    },
+    {
+      "id": "feedback-create-legacy",
+      "path": "/api/feedback",
+      "method": "POST",
+      "summary": "Legacy public feedback endpoint",
+      "description": "Compatibility alias for embedded landing pages; new clients use /api/v1/feedback.",
+      "category": "support",
+      "rest_exception": {
+        "reason": "legacy_embedded_client_compatibility",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "landing_page_business_suite.v1.FeedbackCreateRequest",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "response": {
+            "proto_full_name": "landing_page_business_suite.v1.FeedbackCreateResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "landing_page_business_suite.v1.FeedbackError",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
       "id": "section-delete",
       "path": "/api/v1/sections/{id}",
       "method": "DELETE",

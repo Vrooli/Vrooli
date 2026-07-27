@@ -9,11 +9,23 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	delivery "landing-page-business-suite-api/internal/download"
 )
 
 // DownloadService provides helpers for retrieving bundle download metadata.
 type DownloadService struct {
-	db *sql.DB
+	db DownloadStore
+}
+
+// DownloadStore is the transaction-capable persistence boundary for download
+// metadata and entitlement-gated artifact configuration.
+type DownloadStore interface {
+	Query(string, ...any) (*sql.Rows, error)
+	QueryRow(string, ...any) *sql.Row
+	Exec(string, ...any) (sql.Result, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
 
 var (
@@ -198,7 +210,7 @@ func (t *appScanTargets) hydrate() DownloadApp {
 	return t.app
 }
 
-func NewDownloadService(db *sql.DB) *DownloadService {
+func NewDownloadService(db DownloadStore) *DownloadService {
 	return &DownloadService{db: db}
 }
 
@@ -501,13 +513,30 @@ func (s *DownloadService) DeleteApp(bundleKey, appKey string) error {
 		return fmt.Errorf("bundle_key and app_key are required")
 	}
 
-	result, err := s.db.Exec(`DELETE FROM download_apps WHERE bundle_key = $1 AND app_key = $2`, bundleKey, appKey)
+	// Do not rely solely on the database foreign-key cascade here. Existing
+	// deployments created before the constraint was introduced must still remove
+	// entitlement-bearing assets when an app is deleted.
+	tx, err := s.db.BeginTx(context.Background(), nil)
+	if err != nil {
+		return fmt.Errorf("begin delete download app transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(`DELETE FROM download_assets WHERE bundle_key = $1 AND app_key = $2`, bundleKey, appKey); err != nil {
+		return fmt.Errorf("delete download app assets: %w", err)
+	}
+
+	result, err := tx.Exec(`DELETE FROM download_apps WHERE bundle_key = $1 AND app_key = $2`, bundleKey, appKey)
 	if err != nil {
 		return fmt.Errorf("delete download app: %w", err)
 	}
 
 	if rows, err := result.RowsAffected(); err == nil && rows == 0 {
 		return ErrDownloadAppNotFound
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete download app: %w", err)
 	}
 
 	return nil
@@ -695,7 +724,23 @@ type downloadAssetLookup interface {
 }
 
 type entitlementProvider interface {
-	GetEntitlements(userIdentity string) (*EntitlementPayload, error)
+	GetEntitlementsContext(context.Context, string) (*EntitlementPayload, error)
+}
+
+type entitlementStatusLookup struct {
+	ctx      context.Context
+	provider entitlementProvider
+}
+
+func (l entitlementStatusLookup) GetStatus(userIdentity string) (string, error) {
+	entitlements, err := l.provider.GetEntitlementsContext(l.ctx, userIdentity)
+	if err != nil {
+		return "", err
+	}
+	if entitlements == nil {
+		return "", delivery.ErrEntitlementsUnavailable
+	}
+	return entitlements.Status, nil
 }
 
 // DownloadAuthorizer coordinates entitlement checks before returning assets.
@@ -715,7 +760,7 @@ func NewDownloadAuthorizer(downloads downloadAssetLookup, entitlements entitleme
 }
 
 // Authorize ensures the caller can access the requested download asset.
-func (a *DownloadAuthorizer) Authorize(appKey string, platform string, userIdentity string) (*DownloadAsset, error) {
+func (a *DownloadAuthorizer) Authorize(ctx context.Context, appKey string, platform string, userIdentity string) (*DownloadAsset, error) {
 	trimmedApp := strings.TrimSpace(appKey)
 	if trimmedApp == "" {
 		return nil, ErrDownloadAppNotFound
@@ -730,26 +775,23 @@ func (a *DownloadAuthorizer) Authorize(appKey string, platform string, userIdent
 		return nil, err
 	}
 
-	if !asset.RequiresEntitlement {
-		return asset, nil
-	}
-
-	userIdentity = strings.TrimSpace(userIdentity)
-	if userIdentity == "" {
-		return nil, ErrDownloadIdentityRequired
-	}
-
-	entitlements, err := a.entitlements.GetEntitlements(userIdentity)
+	err = delivery.Authorize(delivery.Request{
+		AppKey:              trimmedApp,
+		Platform:            trimmedPlatform,
+		UserIdentity:        userIdentity,
+		RequiresEntitlement: asset.RequiresEntitlement,
+	}, entitlementStatusLookup{ctx: ctx, provider: a.entitlements})
 	if err != nil {
-		return nil, fmt.Errorf("retrieve entitlements: %w", err)
-	}
-	if entitlements == nil {
-		return nil, fmt.Errorf("retrieve entitlements: %w", ErrDownloadEntitlementsUnavailable)
-	}
-
-	status := entitlements.Status
-	if status != "active" && status != "trialing" {
-		return nil, ErrDownloadRequiresActiveSubscription
+		switch {
+		case errors.Is(err, delivery.ErrIdentityRequired):
+			return nil, ErrDownloadIdentityRequired
+		case errors.Is(err, delivery.ErrRequiresActiveSubscription):
+			return nil, ErrDownloadRequiresActiveSubscription
+		case errors.Is(err, delivery.ErrEntitlementsUnavailable):
+			return nil, fmt.Errorf("retrieve entitlements: %w", ErrDownloadEntitlementsUnavailable)
+		default:
+			return nil, err
+		}
 	}
 
 	return asset, nil

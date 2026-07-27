@@ -9,16 +9,17 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"landing-page-business-suite-api/internal/envx"
 )
 
 // StripeService handles Stripe payment integration
 type StripeService struct {
-	db                *sql.DB
+	db                StripeServiceStore
 	planService       *PlanService
 	paymentSettings   *PaymentSettingsService
 	paymentAnomaly    *PaymentAnomalyService
@@ -29,6 +30,16 @@ type StripeService struct {
 	runtimeConfig     stripeRuntimeConfig
 	configLoader      stripeConfigLoader
 	introCouponConfig IntroCouponConfig
+}
+
+// StripeServiceStore is the transaction-capable persistence boundary shared by
+// checkout, subscription, credit, coupon, and webhook workflows.
+type StripeServiceStore interface {
+	QueryRow(string, ...any) *sql.Row
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	Exec(string, ...any) (sql.Result, error)
+	Begin() (*sql.Tx, error)
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
 
 // SetPaymentAnomaly wires the anomaly service after construction. Required
@@ -66,7 +77,7 @@ type IntroCouponConfig struct {
 
 // loadIntroCouponConfig loads intro coupon configuration from environment variables.
 func loadIntroCouponConfig() IntroCouponConfig {
-	enabled := strings.ToLower(strings.TrimSpace(os.Getenv("INTRO_ENABLED"))) == "true"
+	enabled := strings.ToLower(strings.TrimSpace(envx.Get("INTRO_ENABLED"))) == "true"
 	if !enabled {
 		return IntroCouponConfig{Enabled: false}
 	}
@@ -80,7 +91,7 @@ func loadIntroCouponConfig() IntroCouponConfig {
 	}
 
 	for tier, envVar := range tierEnvMap {
-		if couponID := strings.TrimSpace(os.Getenv(envVar)); couponID != "" {
+		if couponID := strings.TrimSpace(envx.Get(envVar)); couponID != "" {
 			couponMap[tier] = couponID
 		}
 	}
@@ -143,12 +154,12 @@ func (e *StripeBundleProductNotFoundError) Error() string {
 }
 
 // NewStripeService creates a new Stripe service instance.
-func NewStripeService(db *sql.DB) *StripeService {
+func NewStripeService(db StripeServiceStore) *StripeService {
 	return NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))
 }
 
 // NewStripeServiceWithSettings wires explicit plan/payment dependencies (used by server).
-func NewStripeServiceWithSettings(db *sql.DB, planService *PlanService, paymentSettings *PaymentSettingsService) *StripeService {
+func NewStripeServiceWithSettings(db StripeServiceStore, planService *PlanService, paymentSettings *PaymentSettingsService) *StripeService {
 	if planService == nil {
 		planService = NewPlanService(db)
 	}
@@ -237,10 +248,10 @@ func (s *StripeService) UseIntroCouponConfig(config IntroCouponConfig) {
 
 func (s *StripeService) loadStripeConfig(ctx context.Context) (stripeRuntimeConfig, error) {
 	// Start with environment defaults.
-	envPublishable := strings.TrimSpace(os.Getenv("STRIPE_PUBLISHABLE_KEY"))
-	envSecret := strings.TrimSpace(os.Getenv("STRIPE_SECRET_KEY"))
-	envWebhook := strings.TrimSpace(os.Getenv("STRIPE_WEBHOOK_SECRET"))
-	apiBase := strings.TrimSpace(os.Getenv("STRIPE_API_BASE"))
+	envPublishable := strings.TrimSpace(envx.Get("STRIPE_PUBLISHABLE_KEY"))
+	envSecret := strings.TrimSpace(envx.Get("STRIPE_SECRET_KEY"))
+	envWebhook := strings.TrimSpace(envx.Get("STRIPE_WEBHOOK_SECRET"))
+	apiBase := strings.TrimSpace(envx.Get("STRIPE_API_BASE"))
 	if apiBase == "" {
 		apiBase = "https://api.stripe.com"
 	}
@@ -286,24 +297,21 @@ func (s *StripeService) loadStripeConfig(ctx context.Context) (stripeRuntimeConf
 	}
 
 	if !cfg.hasPublishable {
-		cfg.publishableKey = "pk_test_placeholder"
-		logStructured("STRIPE_PUBLISHABLE_KEY missing - using placeholder", map[string]interface{}{
+		logStructured("STRIPE_PUBLISHABLE_KEY missing", map[string]interface{}{
 			"level":   "warn",
-			"message": "STRIPE_PUBLISHABLE_KEY not set; using placeholder for development",
+			"message": "STRIPE_PUBLISHABLE_KEY is not set",
 		})
 	}
 	if !cfg.hasSecret {
-		cfg.secretKey = "sk_test_placeholder"
-		logStructured("STRIPE_SECRET_KEY (restricted) missing - using placeholder", map[string]interface{}{
+		logStructured("STRIPE_SECRET_KEY (restricted) missing", map[string]interface{}{
 			"level":   "warn",
-			"message": "STRIPE_SECRET_KEY (restricted key) not set; using placeholder for development",
+			"message": "STRIPE_SECRET_KEY (restricted key) is not set",
 		})
 	}
 	if !cfg.hasWebhook {
-		cfg.webhookSecret = "whsec_placeholder"
-		logStructured("STRIPE_WEBHOOK_SECRET missing - using placeholder", map[string]interface{}{
+		logStructured("STRIPE_WEBHOOK_SECRET missing", map[string]interface{}{
 			"level":   "warn",
-			"message": "STRIPE_WEBHOOK_SECRET not set; using placeholder for development",
+			"message": "STRIPE_WEBHOOK_SECRET is not set",
 		})
 	}
 
@@ -356,6 +364,8 @@ func (s *StripeService) doStripeRequest(ctx context.Context, method, path string
 		return nil, &StripeConfigError{MissingKey: "secret_key"}
 	}
 
+	// #nosec G704 -- stripeAPIURL is derived from controlled Stripe configuration; test
+	// fixtures inject a local HTTPS/HTTP server through the service seam.
 	req, err := http.NewRequestWithContext(ctx, method, s.stripeAPIURL(path), body)
 	if err != nil {
 		return nil, err
@@ -370,6 +380,7 @@ func (s *StripeService) doStripeRequest(ctx context.Context, method, path string
 		client = http.DefaultClient
 	}
 
+	// #nosec G704 -- request target is validated at construction above.
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

@@ -32,6 +32,10 @@ func withAPIBase(t *testing.T, base string) {
 
 func TestServiceAuthStatusRequireEnabledPassesWhenConfigured(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/usage/health" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -52,6 +56,10 @@ func TestServiceAuthStatusRequireEnabledPassesWhenConfigured(t *testing.T) {
 
 func TestServiceAuthStatusRequireEnabledFailsWhenDisabled(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/usage/health" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -87,6 +95,10 @@ func withAdminSession(t *testing.T, app *App, apiBase string) {
 func TestRemoteProfilesLoginAcceptsTagSelector(t *testing.T) {
 	var sawList, sawLogin bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -131,6 +143,10 @@ func TestRemoteProfilesLoginAcceptsTagSelector(t *testing.T) {
 func TestRemoteProfilesLoginAcceptsProfileIDFlag(t *testing.T) {
 	var sawList, sawLogin bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -165,6 +181,10 @@ func TestRemoteProfilesLoginAcceptsProfileIDFlag(t *testing.T) {
 func TestRemoteProfilesTestAcceptsTagSelector(t *testing.T) {
 	var sawList, sawTest bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -198,6 +218,10 @@ func TestRemoteProfilesTestAcceptsTagSelector(t *testing.T) {
 
 func TestDeployReadinessReportsFailuresWhenUnconfigured(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/download-storage/test":
 			_, _ = w.Write([]byte(`{"ok":false}`))
@@ -226,6 +250,10 @@ func TestDeployReadinessReportsFailuresWhenUnconfigured(t *testing.T) {
 
 func TestDeployReadinessPassesWithProfileTag(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/download-storage/test":
 			_, _ = w.Write([]byte(`{"ok":true}`))
@@ -258,6 +286,10 @@ func TestDeployReadinessPassesWithProfileTag(t *testing.T) {
 
 func TestDeployReadinessDoesNotSuggestRemoteLoginWhenBlockedByAdminSession(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/usage/health":
 			_, _ = w.Write([]byte(`{"healthy":true,"database_connected":true,"service_auth_configured":false,"service_auth_mode":"disabled"}`))

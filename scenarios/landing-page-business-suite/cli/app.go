@@ -2,6 +2,7 @@ package main
 
 import (
 	"landing-page-business-suite/cli/domains"
+	"landing-page-business-suite/cli/internal/clock"
 	"landing-page-business-suite/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -56,5 +57,6 @@ func (a *App) dependencies() support.Dependencies {
 		Core: func() *cliapp.ScenarioApp {
 			return a.core
 		},
+		Clock: clock.System{},
 	}
 }

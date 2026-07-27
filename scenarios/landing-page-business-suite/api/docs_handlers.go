@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"landing-page-business-suite-api/internal/envx"
 )
 
 // DocEntry represents a documentation file or directory
@@ -26,7 +28,7 @@ type DocContent struct {
 // getDocsRoot returns the absolute path to the docs directory
 func getDocsRoot() string {
 	// Check for explicit override first
-	if override := strings.TrimSpace(os.Getenv("DOCS_ROOT")); override != "" {
+	if override := strings.TrimSpace(envx.Get("DOCS_ROOT")); override != "" {
 		if abs, err := filepath.Abs(override); err == nil {
 			return abs
 		}
@@ -34,7 +36,7 @@ func getDocsRoot() string {
 	}
 
 	// Check for scenario root
-	if scenarioRoot := strings.TrimSpace(os.Getenv("SCENARIO_ROOT")); scenarioRoot != "" {
+	if scenarioRoot := strings.TrimSpace(envx.Get("SCENARIO_ROOT")); scenarioRoot != "" {
 		return filepath.Join(scenarioRoot, "docs")
 	}
 

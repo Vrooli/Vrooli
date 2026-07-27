@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 )
+
+var feedbackTestContext = context.Background()
 
 func TestNewFeedbackService(t *testing.T) {
 	db := setupTestDB(t)
@@ -13,8 +16,8 @@ func TestNewFeedbackService(t *testing.T) {
 	if service == nil {
 		t.Fatal("NewFeedbackService returned nil")
 	}
-	if service.db != db {
-		t.Error("Expected service to hold reference to provided db")
+	if _, err := service.List(feedbackTestContext, ""); err != nil {
+		t.Fatalf("new service is not usable: %v", err)
 	}
 }
 
@@ -32,7 +35,7 @@ func TestFeedbackService_Create_Success(t *testing.T) {
 		Message: "Test Message",
 	}
 
-	feedback, err := service.Create(input)
+	feedback, err := service.Create(feedbackTestContext, input)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -70,7 +73,7 @@ func TestFeedbackService_Create_StatusPending(t *testing.T) {
 		Message: "Please add this feature",
 	}
 
-	feedback, err := service.Create(input)
+	feedback, err := service.Create(feedbackTestContext, input)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -95,7 +98,7 @@ func TestFeedbackService_Create_WithOrderID(t *testing.T) {
 		OrderID: &orderID,
 	}
 
-	feedback, err := service.Create(input)
+	feedback, err := service.Create(feedbackTestContext, input)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -116,7 +119,7 @@ func TestFeedbackService_List_All(t *testing.T) {
 
 	// Create multiple feedback entries
 	for i := 0; i < 3; i++ {
-		_, err := service.Create(&CreateFeedbackInput{
+		_, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
 			Type:    "general",
 			Email:   "list@example.com",
 			Subject: "Test",
@@ -128,7 +131,7 @@ func TestFeedbackService_List_All(t *testing.T) {
 	}
 
 	// List all (no filter)
-	requests, err := service.List("")
+	requests, err := service.List(feedbackTestContext, "")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -145,13 +148,13 @@ func TestFeedbackService_List_ByStatus(t *testing.T) {
 	service := NewFeedbackService(db)
 
 	// Create entries
-	feedback1, err := service.Create(&CreateFeedbackInput{
+	feedback1, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
 		Type: "bug", Email: "1@example.com", Subject: "S1", Message: "M1",
 	})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	_, err = service.Create(&CreateFeedbackInput{
+	_, err = service.Create(feedbackTestContext, &CreateFeedbackInput{
 		Type: "bug", Email: "2@example.com", Subject: "S2", Message: "M2",
 	})
 	if err != nil {
@@ -159,13 +162,13 @@ func TestFeedbackService_List_ByStatus(t *testing.T) {
 	}
 
 	// Update one to resolved
-	_, err = service.UpdateStatus(feedback1.ID, "resolved")
+	_, err = service.UpdateStatus(feedbackTestContext, feedback1.ID, "resolved")
 	if err != nil {
 		t.Fatalf("UpdateStatus failed: %v", err)
 	}
 
 	// List only pending
-	pendingRequests, err := service.List("pending")
+	pendingRequests, err := service.List(feedbackTestContext, "pending")
 	if err != nil {
 		t.Fatalf("List pending failed: %v", err)
 	}
@@ -174,7 +177,7 @@ func TestFeedbackService_List_ByStatus(t *testing.T) {
 	}
 
 	// List only resolved
-	resolvedRequests, err := service.List("resolved")
+	resolvedRequests, err := service.List(feedbackTestContext, "resolved")
 	if err != nil {
 		t.Fatalf("List resolved failed: %v", err)
 	}
@@ -190,7 +193,7 @@ func TestFeedbackService_List_Empty(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	requests, err := service.List("")
+	requests, err := service.List(feedbackTestContext, "")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -207,7 +210,7 @@ func TestFeedbackService_GetByID_Success(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	created, err := service.Create(&CreateFeedbackInput{
+	created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
 		Type:    "general",
 		Email:   "getbyid@example.com",
 		Subject: "Help needed",
@@ -217,7 +220,7 @@ func TestFeedbackService_GetByID_Success(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	fetched, err := service.GetByID(created.ID)
+	fetched, err := service.GetByID(feedbackTestContext, created.ID)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -239,7 +242,7 @@ func TestFeedbackService_GetByID_NotFound(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	_, err := service.GetByID(99999)
+	_, err := service.GetByID(feedbackTestContext, 99999)
 	if err == nil {
 		t.Fatal("Expected error for non-existent ID")
 	}
@@ -255,14 +258,14 @@ func TestFeedbackService_UpdateStatus_Success(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	created, err := service.Create(&CreateFeedbackInput{
+	created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
 		Type: "bug", Email: "update@example.com", Subject: "S", Message: "M",
 	})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	updated, err := service.UpdateStatus(created.ID, "resolved")
+	updated, err := service.UpdateStatus(feedbackTestContext, created.ID, "resolved")
 	if err != nil {
 		t.Fatalf("UpdateStatus failed: %v", err)
 	}
@@ -281,7 +284,7 @@ func TestFeedbackService_UpdateStatus_NotFound(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	_, err := service.UpdateStatus(99999, "resolved")
+	_, err := service.UpdateStatus(feedbackTestContext, 99999, "resolved")
 	if err == nil {
 		t.Fatal("Expected error for non-existent ID")
 	}
@@ -297,20 +300,20 @@ func TestFeedbackService_Delete_Success(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	created, err := service.Create(&CreateFeedbackInput{
+	created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
 		Type: "bug", Email: "delete@example.com", Subject: "S", Message: "M",
 	})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	err = service.Delete(created.ID)
+	err = service.Delete(feedbackTestContext, created.ID)
 	if err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
 
 	// Verify deletion
-	_, err = service.GetByID(created.ID)
+	_, err = service.GetByID(feedbackTestContext, created.ID)
 	if err != sql.ErrNoRows {
 		t.Errorf("Expected sql.ErrNoRows after delete, got %v", err)
 	}
@@ -323,7 +326,7 @@ func TestFeedbackService_Delete_NotFound(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	err := service.Delete(99999)
+	err := service.Delete(feedbackTestContext, 99999)
 	if err == nil {
 		t.Fatal("Expected error for non-existent ID")
 	}
@@ -342,7 +345,7 @@ func TestFeedbackService_DeleteBulk_Success(t *testing.T) {
 	// Create multiple entries
 	var ids []int
 	for i := 0; i < 5; i++ {
-		created, err := service.Create(&CreateFeedbackInput{
+		created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
 			Type: "bug", Email: "bulk@example.com", Subject: "S", Message: "M",
 		})
 		if err != nil {
@@ -352,7 +355,7 @@ func TestFeedbackService_DeleteBulk_Success(t *testing.T) {
 	}
 
 	// Delete first 3
-	affected, err := service.DeleteBulk(ids[:3])
+	affected, err := service.DeleteBulk(feedbackTestContext, ids[:3])
 	if err != nil {
 		t.Fatalf("DeleteBulk failed: %v", err)
 	}
@@ -361,7 +364,7 @@ func TestFeedbackService_DeleteBulk_Success(t *testing.T) {
 	}
 
 	// Verify remaining count
-	remaining, err := service.List("")
+	remaining, err := service.List(feedbackTestContext, "")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -377,7 +380,7 @@ func TestFeedbackService_DeleteBulk_EmptySlice(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	affected, err := service.DeleteBulk([]int{})
+	affected, err := service.DeleteBulk(feedbackTestContext, []int{})
 	if err != nil {
 		t.Fatalf("DeleteBulk with empty slice failed: %v", err)
 	}
@@ -394,7 +397,7 @@ func TestFeedbackService_DeleteBulk_PartialMatch(t *testing.T) {
 	service := NewFeedbackService(db)
 
 	// Create one entry
-	created, err := service.Create(&CreateFeedbackInput{
+	created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
 		Type: "bug", Email: "partial@example.com", Subject: "S", Message: "M",
 	})
 	if err != nil {
@@ -402,7 +405,7 @@ func TestFeedbackService_DeleteBulk_PartialMatch(t *testing.T) {
 	}
 
 	// Try to delete the real ID and a non-existent one
-	affected, err := service.DeleteBulk([]int{created.ID, 99999})
+	affected, err := service.DeleteBulk(feedbackTestContext, []int{created.ID, 99999})
 	if err != nil {
 		t.Fatalf("DeleteBulk failed: %v", err)
 	}
@@ -421,7 +424,7 @@ func TestFeedbackService_List_OrderByCreatedDesc(t *testing.T) {
 	// Create entries with different subjects to identify them
 	subjects := []string{"First", "Second", "Third"}
 	for _, subject := range subjects {
-		_, err := service.Create(&CreateFeedbackInput{
+		_, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
 			Type: "general", Email: "order@example.com", Subject: subject, Message: "M",
 		})
 		if err != nil {
@@ -429,7 +432,7 @@ func TestFeedbackService_List_OrderByCreatedDesc(t *testing.T) {
 		}
 	}
 
-	requests, err := service.List("")
+	requests, err := service.List(feedbackTestContext, "")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}

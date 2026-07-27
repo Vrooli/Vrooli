@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // webhookTimestampTolerance defines the maximum age of webhook timestamps
@@ -203,7 +203,7 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 	amountCents := s.extractAmount(obj, sessionRec)
 
 	switch {
-	case plan != nil && plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
+	case plan != nil && plan.Kind == shared.PlanKind_PLAN_KIND_CREDITS_TOPUP:
 		if _, err := s.db.Exec(`
 			UPDATE checkout_sessions
 			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
@@ -214,7 +214,7 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 		return s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, map[string]interface{}{
 			"session_id": sessionID,
 		})
-	case plan != nil && plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
+	case plan != nil && plan.Kind == shared.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
 		if _, err := s.db.Exec(`
 			UPDATE checkout_sessions
 			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
@@ -267,7 +267,7 @@ func (s *StripeService) handleSubscriptionCompletion(tx *sql.Tx, subscriptionID,
 		return err
 	}
 
-	if plan.IntroEnabled && plan.BillingInterval == landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH {
+	if plan.IntroEnabled && plan.BillingInterval == shared.BillingInterval_BILLING_INTERVAL_MONTH {
 		scheduleID, err := s.createSubscriptionSchedule(tx, subscriptionID, plan, amountCents)
 		if err != nil {
 			return err
@@ -348,11 +348,11 @@ func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID st
 	return scheduleID, nil
 }
 
-func (s *StripeService) billingIntervalDuration(interval landing_page_react_vite_v1.BillingInterval) time.Duration {
+func (s *StripeService) billingIntervalDuration(interval shared.BillingInterval) time.Duration {
 	switch interval {
-	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR:
+	case shared.BillingInterval_BILLING_INTERVAL_YEAR:
 		return 365 * 24 * time.Hour
-	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH:
+	case shared.BillingInterval_BILLING_INTERVAL_MONTH:
 		return 30 * 24 * time.Hour
 	default:
 		return 30 * 24 * time.Hour

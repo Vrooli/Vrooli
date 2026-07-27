@@ -328,6 +328,7 @@ func (h *handlers) getSession(ctx cliapp.RunContext) error {
 func (h *handlers) skillPack(ctx cliapp.RunContext) error {
 	resp, err := h.client.DiscoverSkillPack(context.Background(), connect.NewRequest(&authoringv1.DiscoverSkillPackRequest{
 		SessionId:  ctx.Positional("session"),
+		PhaseId:    ctx.Flag("phase"),
 		Concepts:   parseList(ctx.Flag("concepts")),
 		Complexity: ctx.Flag("complexity"),
 	}))

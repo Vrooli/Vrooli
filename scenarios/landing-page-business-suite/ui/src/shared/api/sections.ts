@@ -9,7 +9,7 @@ import { SuccessResponseSchema } from './schemas/common.schema';
 import type { ContentSection } from './types';
 
 export function getSections(variantId: number) {
-  return apiCall<{ sections: ContentSection[] }>(`/public/variants/${variantId}/sections`).then((resp) => {
+  return apiCall<{ sections: ContentSection[] }>(`/public/variants/${String(variantId)}/sections`).then((resp) => {
     const validated = parseOrNull(SectionsListResponseSchema, resp, 'SectionsListResponse');
     if (!validated) {
       return { sections: [] };
@@ -19,7 +19,7 @@ export function getSections(variantId: number) {
 }
 
 export function getAdminSections(variantId: number) {
-  return apiCall<{ sections: ContentSection[] }>(`/variants/${variantId}/sections`).then((resp) => {
+  return apiCall<{ sections: ContentSection[] }>(`/variants/${String(variantId)}/sections`).then((resp) => {
     const validated = parseOrNull(SectionsListResponseSchema, resp, 'SectionsListResponse');
     if (!validated) {
       return { sections: [] };
@@ -29,7 +29,7 @@ export function getAdminSections(variantId: number) {
 }
 
 export function getSection(sectionId: number) {
-  return apiCall<ContentSection>(`/sections/${sectionId}`).then((resp) => {
+  return apiCall<ContentSection>(`/sections/${String(sectionId)}`).then((resp) => {
     const validated = parseOrNull(ContentSectionSchema, resp, 'ContentSection');
     if (!validated) {
       throw new Error('Invalid section response from API');
@@ -39,7 +39,7 @@ export function getSection(sectionId: number) {
 }
 
 export function updateSection(sectionId: number, content: Record<string, unknown>) {
-  return apiCall<{ success: boolean; message: string }>(`/sections/${sectionId}`, {
+  return apiCall<{ success: boolean; message: string }>(`/sections/${String(sectionId)}`, {
     method: 'PATCH',
     body: JSON.stringify({ content }),
   }).then((resp) => {
@@ -52,7 +52,7 @@ export function updateSection(sectionId: number, content: Record<string, unknown
 }
 
 export function patchSection(sectionId: number, payload: Partial<Pick<ContentSection, 'order' | 'enabled' | 'section_type'>>) {
-  return apiCall<{ success: boolean }>(`/sections/${sectionId}`, {
+  return apiCall<{ success: boolean }>(`/sections/${String(sectionId)}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   }).then((resp) => {
@@ -78,7 +78,7 @@ export function createSection(section: Omit<ContentSection, 'id' | 'created_at' 
 }
 
 export function deleteSection(sectionId: number) {
-  return apiCall<{ success: boolean }>(`/sections/${sectionId}`, {
+  return apiCall<{ success: boolean }>(`/sections/${String(sectionId)}`, {
     method: 'DELETE',
   }).then((resp) => {
     const validated = parseOrNull(SuccessResponseSchema, resp, 'DeleteSectionResponse');

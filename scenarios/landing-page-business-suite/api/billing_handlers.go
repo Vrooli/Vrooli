@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"strings"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 )
 
 // createCheckoutSessionHandler creates a parameterized checkout session handler.
 // This consolidates common logic between subscription and credits checkout flows.
 func createCheckoutSessionHandler(service *StripeService, logKey, errorMsg string, requireEmail bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req landing_page_react_vite_v1.CreateCheckoutSessionRequest
+		var req landing_page_business_suite_v1.CreateCheckoutSessionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
 			return
@@ -65,7 +65,7 @@ func createCheckoutSessionHandler(service *StripeService, logKey, errorMsg strin
 			writeJSONError(w, http.StatusBadRequest, errorMsg, ApiErrorTypeServerError)
 			return
 		}
-		writeJSON(w, &landing_page_react_vite_v1.CreateCheckoutSessionResponse{Session: session})
+		writeJSON(w, &landing_page_business_suite_v1.CreateCheckoutSessionResponse{Session: session})
 	}
 }
 

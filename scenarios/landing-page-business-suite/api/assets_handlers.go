@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -35,7 +34,7 @@ func handleAssetUpload(as *AssetsService) http.HandlerFunc {
 		uploadedBy := r.FormValue("uploaded_by")
 
 		// Upload the file
-		asset, err := as.Upload(&AssetUploadRequest{
+		asset, err := as.UploadContext(r.Context(), &AssetUploadRequest{
 			File:       file,
 			Header:     header,
 			Category:   category,
@@ -129,7 +128,7 @@ func handleAssetDelete(as *AssetsService) http.HandlerFunc {
 			return
 		}
 
-		if err := as.Delete(id); err != nil {
+		if err := as.DeleteContext(r.Context(), id); err != nil {
 			if err == ErrAssetNotFound {
 				writeJSONError(w, http.StatusNotFound, "Asset not found", ApiErrorTypeNotFound)
 				return
@@ -161,15 +160,11 @@ func handleServeUpload(as *AssetsService) http.HandlerFunc {
 			return
 		}
 
-		// Security: prevent directory traversal
-		cleanPath := filepath.Clean(storagePath)
-		if strings.Contains(cleanPath, "..") {
+		fullPath, err := as.ResolveStoragePathContext(r.Context(), storagePath)
+		if err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid path", ApiErrorTypeValidation)
 			return
 		}
-
-		// Get full file path
-		fullPath := as.GetFilePath(cleanPath)
 
 		// Check if file exists
 		stat, err := os.Stat(fullPath)

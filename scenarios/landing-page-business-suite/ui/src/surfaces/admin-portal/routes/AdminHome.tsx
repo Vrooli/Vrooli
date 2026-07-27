@@ -52,7 +52,7 @@ export function AdminHome() {
 
   // Compute quick stats
   const activeVariants = healthLoading ? '...' : (healthSnapshot?.activeCount ?? 0);
-  const trafficAllocated = healthLoading ? '...' : `${Math.max(0, Math.round(healthSnapshot?.totalWeight ?? 0))}%`;
+  const trafficAllocated = healthLoading ? '...' : `${String(Math.max(0, Math.round(healthSnapshot?.totalWeight ?? 0)))}%`;
   const stripeConfigured = stripeLoading
     ? '...'
     : isStripeFullyConfigured(stripeSettings)
@@ -64,7 +64,6 @@ export function AdminHome() {
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.sectionSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Landing Page Business Suite Admin"
           icon={Home}
           iconBgClass="bg-slate-500/10"
@@ -107,7 +106,7 @@ export function AdminHome() {
               icon={Palette}
               iconBg="bg-purple-500/20"
               iconColor="text-purple-300"
-              onClick={() => navigate('/admin/landing')}
+              onClick={() => { navigate('/admin/landing'); }}
               testId="flow-landing"
             />
             <QuickFlowCard
@@ -116,7 +115,7 @@ export function AdminHome() {
               icon={CreditCard}
               iconBg="bg-amber-500/20"
               iconColor="text-amber-300"
-              onClick={() => navigate('/admin/billing-home')}
+              onClick={() => { navigate('/admin/billing-home'); }}
               testId="flow-billing"
             />
             <QuickFlowCard
@@ -125,7 +124,7 @@ export function AdminHome() {
               icon={AppWindow}
               iconBg="bg-blue-500/20"
               iconColor="text-blue-300"
-              onClick={() => navigate('/admin/apps')}
+              onClick={() => { navigate('/admin/apps'); }}
               testId="flow-apps"
             />
             <QuickFlowCard
@@ -134,7 +133,7 @@ export function AdminHome() {
               icon={Users}
               iconBg="bg-emerald-500/20"
               iconColor="text-emerald-300"
-              onClick={() => navigate('/admin/users')}
+              onClick={() => { navigate('/admin/users'); }}
               testId="flow-users"
             />
           </div>
@@ -188,7 +187,7 @@ export function AdminHome() {
         >
           <button
             type="button"
-            onClick={() => setDangerExpanded(!dangerExpanded)}
+            onClick={() => { setDangerExpanded(!dangerExpanded); }}
             className="w-full p-4 flex items-center justify-between text-left hover:bg-rose-500/10 transition-colors rounded-2xl"
             data-testid="admin-danger-toggle"
           >
@@ -219,7 +218,7 @@ export function AdminHome() {
                 <Button
                   variant="outline"
                   className="gap-2 border-rose-500/50 text-rose-200 hover:bg-rose-500/10"
-                  onClick={() => setShowResetConfirm(true)}
+                  onClick={() => { setShowResetConfirm(true); }}
                   disabled={resettingDemoData}
                   data-testid="admin-reset-demo-btn"
                 >
@@ -248,14 +247,14 @@ export function AdminHome() {
                     <Button
                       variant="outline"
                       className="gap-2"
-                      onClick={() => setShowResetConfirm(false)}
+                      onClick={() => { setShowResetConfirm(false); }}
                       disabled={resettingDemoData}
                     >
                       Cancel
                     </Button>
                     <Button
                       className="gap-2 bg-rose-600 hover:bg-rose-700 text-white"
-                      onClick={handleResetDemoData}
+                      onClick={() => { void handleResetDemoData(); }}
                       disabled={resettingDemoData}
                       data-testid="admin-reset-confirm-btn"
                     >

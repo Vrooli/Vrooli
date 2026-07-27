@@ -12,7 +12,7 @@ import (
 func insertAnomalyRow(t *testing.T, svc *PaymentAnomalyService) int64 {
 	t.Helper()
 	var id int64
-	err := svc.db.QueryRow(`
+	err := svc.db.QueryRowContext(context.Background(), `
 		INSERT INTO payment_anomaly_log (anomaly_type, severity, dispatch_status, created_at)
 		VALUES ('t_test', 'warn', 'pending', NOW())
 		RETURNING id

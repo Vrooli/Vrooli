@@ -96,7 +96,7 @@ func TestMigration_FreshDB(t *testing.T) {
 	}
 }
 
-func TestMigration_IntroAnomalyLog(t *testing.T) {
+func TestRuntimeSchema_DoesNotPerformLegacyIntroAnomalyMigration(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
@@ -124,46 +124,29 @@ func TestMigration_IntroAnomalyLog(t *testing.T) {
 	}
 
 	// Baseline: payment_anomaly_log already exists from setupTestDB. Purge it
-	// so the upgrade migration is the sole source of the observed rows.
+	// so we can prove declarative reconciliation does not copy historical rows.
 	if _, err := db.Exec(`DELETE FROM payment_anomaly_log`); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ensureSchema(db); err != nil {
-		t.Fatalf("re-run migrations: %v", err)
+	if err := applyRuntimeSchema(db); err != nil {
+		t.Fatalf("re-run runtime schema: %v", err)
 	}
 
 	var exists bool
 	if err := db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'intro_anomaly_log')`).Scan(&exists); err != nil {
 		t.Fatal(err)
 	}
-	if exists {
-		t.Fatalf("intro_anomaly_log should be dropped after migration")
+	if !exists {
+		t.Fatalf("runtime schema must not drop legacy data; use the operator migration before deployment")
 	}
 
-	rows, err := db.Query(`SELECT anomaly_type, severity, email, customer_id, subject_id, subject_kind, details::text, dispatch_status FROM payment_anomaly_log ORDER BY email`)
-	if err != nil {
+	var migratedRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM payment_anomaly_log`).Scan(&migratedRows); err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
-	type migrated struct {
-		Type, Sev, Email, Cust, SubID, SubKind, Details, Disp string
-	}
-	var got []migrated
-	for rows.Next() {
-		var m migrated
-		if err := rows.Scan(&m.Type, &m.Sev, &m.Email, &m.Cust, &m.SubID, &m.SubKind, &m.Details, &m.Disp); err != nil {
-			t.Fatal(err)
-		}
-		got = append(got, m)
-	}
-	if len(got) != 2 {
-		t.Fatalf("expected 2 migrated rows, got %d", len(got))
-	}
-	for _, m := range got {
-		if m.Sev != "warn" || m.SubKind != "intro_coupon" || m.Disp != "skipped" {
-			t.Fatalf("unexpected mapped row: %+v", m)
-		}
+	if migratedRows != 0 {
+		t.Fatalf("runtime schema must not copy legacy rows, got %d", migratedRows)
 	}
 }
 
@@ -172,7 +155,7 @@ func TestMigration_ReRun(t *testing.T) {
 	defer db.Close()
 
 	// Second invocation must be a no-op.
-	if err := ensureSchema(db); err != nil {
+	if err := applyRuntimeSchema(db); err != nil {
 		t.Fatalf("re-run: %v", err)
 	}
 	var exists bool

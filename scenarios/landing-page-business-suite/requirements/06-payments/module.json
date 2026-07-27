@@ -28,7 +28,7 @@
       "id": "STRIPE-ROUTES",
       "title": "Stripe routes",
       "status": "in_progress",
-      "prd_ref": "OT-P0-025",
+      "prd_ref": "OT-P0-026",
       "description": "Each landing page includes routes for creating checkout sessions and handling webhook events",
       "validation": [
         {
@@ -49,7 +49,7 @@
       "id": "STRIPE-SIG",
       "title": "Webhook signature verification",
       "status": "in_progress",
-      "prd_ref": "OT-P0-025",
+      "prd_ref": "OT-P0-027",
       "description": "All webhook endpoints verify Stripe signature before processing",
       "validation": [
         {
@@ -91,7 +91,7 @@
       "id": "SUB-CACHE",
       "title": "Verification caching",
       "status": "in_progress",
-      "prd_ref": "OT-P0-028",
+      "prd_ref": "OT-P0-029",
       "description": "Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes",
       "validation": [
         {
@@ -112,7 +112,7 @@
       "id": "SUB-CANCEL",
       "title": "Subscription cancellation endpoint",
       "status": "in_progress",
-      "prd_ref": "OT-P0-028",
+      "prd_ref": "OT-P0-030",
       "description": "API exposes POST /api/subscription/cancel validating user and returning status",
       "validation": [
         {

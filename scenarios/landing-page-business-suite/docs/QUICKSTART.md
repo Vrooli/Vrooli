@@ -20,10 +20,9 @@ Before starting, ensure you have:
 - [ ] Node.js 18+ with pnpm (`pnpm --version`)
 
 If Vrooli isn't set up yet:
-```bash
-cd ~/Vrooli
-vrooli setup --yes yes
-```
+initialize the workspace from its repository root using the setup procedure
+documented by the installed Vrooli release. Run `vrooli help` to discover the
+available lifecycle commands before continuing.
 
 ---
 
@@ -33,7 +32,7 @@ Template Manager generates complete landing pages from this template.
 
 ```bash
 # Generate a new landing page
-template-manager lifecycle generate landing-page-react-vite --id <your-slug> --display-name "<Your Landing Page>" --description "<brief description>"
+template-manager lifecycle generate landing-page-react-vite --id "<your-slug>" --display-name "<Your Landing Page>" --description "<brief description>"
 
 # Follow the prompts to configure your landing page
 # This creates a new scenario in scenarios/<your-slug>/
@@ -76,7 +75,10 @@ export DATABASE_URL="postgres://postgres:postgres@localhost:5432/landing_dev"
 ### Step 4: Initialize Database
 
 ```bash
-psql $DATABASE_URL -f initialization/postgres/schema.sql
+# The API applies the authoritative domain schemas at startup. Start the
+# scenario after provisioning the empty database rather than applying a stale
+# monolithic SQL file manually.
+make start
 psql $DATABASE_URL -f initialization/postgres/seed.sql  # Optional demo data
 ```
 
@@ -221,11 +223,11 @@ make logs
 make test
 
 # Check status
-vrooli scenario status <slug>
+vrooli scenario status "<scenario-name>"
 
 # Get allocated ports
-vrooli scenario port <slug> UI_PORT
-vrooli scenario port <slug> API_PORT
+vrooli scenario port "<scenario-name>" UI_PORT
+vrooli scenario port "<scenario-name>" API_PORT
 ```
 
 ---
@@ -272,6 +274,6 @@ go build -o landing-api .
 
 ## Getting Help
 
-1. Check [FAQ](FAQ.md) for common questions
+1. Check [FAQ](guides/faq.md) for common questions
 2. Review [Troubleshooting](guides/TROUBLESHOOTING.md) for specific issues
 3. Run `vrooli help` for CLI assistance

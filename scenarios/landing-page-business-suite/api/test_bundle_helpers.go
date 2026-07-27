@@ -10,7 +10,23 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"landing-page-business-suite-api/internal/envx"
 )
+
+const (
+	minInt32 = -1 << 31
+	maxInt32 = 1<<31 - 1
+)
+
+func requireInt32(t *testing.T, field string, value int) int32 {
+	t.Helper()
+	if value < minInt32 || value > maxInt32 {
+		t.Fatalf("%s=%d is outside int32 range", field, value)
+	}
+	// #nosec G115 -- the bounds check immediately above proves this conversion is safe.
+	return int32(value)
+}
 
 // globalTestPlanStore holds the plan store used by test helpers.
 // This is needed because the old test pattern used database inserts,
@@ -29,8 +45,8 @@ func configureTestBundleEnv(t *testing.T, env string) string {
 
 	replacer := strings.NewReplacer("/", "_", ".", "_")
 	bundleKey := fmt.Sprintf("bundle_%s", replacer.Replace(strings.ToLower(t.Name())))
-	prevKey := os.Getenv("BUNDLE_KEY")
-	prevEnv := os.Getenv("BUNDLE_ENVIRONMENT")
+	prevKey := envx.Get("BUNDLE_KEY")
+	prevEnv := envx.Get("BUNDLE_ENVIRONMENT")
 
 	if err := os.Setenv("BUNDLE_KEY", bundleKey); err != nil {
 		t.Fatalf("failed to set BUNDLE_KEY: %v", err)
@@ -75,7 +91,7 @@ func upsertTestBundleProduct(
 	// Create a fresh plans file for this test
 	tmpDir := t.TempDir()
 	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
-	if err := os.MkdirAll(filepath.Dir(plansPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(plansPath), 0o750); err != nil {
 		t.Fatalf("failed to create test dir: %v", err)
 	}
 
@@ -97,7 +113,7 @@ func upsertTestBundleProduct(
 		t.Fatalf("failed to marshal plans: %v", err)
 	}
 
-	if err := os.WriteFile(plansPath, data, 0o644); err != nil {
+	if err := os.WriteFile(plansPath, data, 0o600); err != nil {
 		t.Fatalf("failed to write plans file: %v", err)
 	}
 
@@ -162,15 +178,15 @@ func insertBundlePrice(
 		BillingInterval:        billingInterval,
 		AmountCents:            int64(amountCents),
 		Currency:               currency,
-		DisplayWeight:          int32(displayWeight),
+		DisplayWeight:          requireInt32(t, "display weight", displayWeight),
 		DisplayEnabled:         true,
 		MonthlyIncludedCredits: int64(monthlyIncluded),
 		OneTimeBonusCredits:    int64(oneTimeBonus),
-		PlanRank:               int32(planRank),
+		PlanRank:               requireInt32(t, "plan rank", planRank),
 		BonusType:              bonusType,
 		Kind:                   kind,
 		IntroEnabled:           introEnabled,
-		IntroPeriods:           int32(introPeriods),
+		IntroPeriods:           requireInt32(t, "intro periods", introPeriods),
 		IntroPriceLookupKey:    introLookupKey,
 		Metadata:               metadata,
 	}
@@ -191,7 +207,7 @@ func insertBundlePrice(
 		t.Fatalf("failed to marshal plans: %v", err)
 	}
 
-	if err := os.WriteFile(globalTestPlansPath, newData, 0o644); err != nil {
+	if err := os.WriteFile(globalTestPlansPath, newData, 0o600); err != nil {
 		t.Fatalf("failed to write plans file: %v", err)
 	}
 
@@ -229,7 +245,12 @@ func requireTestPlanService(t *testing.T) *PlanService {
 // requireTestStripeService returns a StripeService wired to the test plan store
 // and a PaymentAnomalyService so logIntroAnomaly forwards through the unified
 // payment_anomaly_log pipeline.
-func requireTestStripeService(t *testing.T, db *sql.DB) *StripeService {
+type StripeTestStore interface {
+	StripeServiceStore
+	PaymentAnomalyStore
+}
+
+func requireTestStripeService(t *testing.T, db StripeTestStore) *StripeService {
 	t.Helper()
 	svc := NewStripeServiceWithSettings(db, requireTestPlanService(t), NewPaymentSettingsService(db))
 	anomaly := NewPaymentAnomalyService(context.Background(), db, context.Background())

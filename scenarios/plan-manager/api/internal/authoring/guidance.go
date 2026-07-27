@@ -267,7 +267,7 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 			"Run skill-pack with those concepts; prompt-manager returns a broad professional skill pack and plan-manager auto-adds it as global relevant context.",
 			"Keep most returned skills unless clearly irrelevant. These skills improve execution quality; they do not have to be narrowly task-literal.",
 			"Use search-hub directly for docs/records/code when useful, inspect its native confidence and attribution, then submit only durable context or references.",
-			"Phase-specific setup belongs on the phase, not here.",
+			"Phase-specific setup belongs on the phase, not here. Run `author skill-pack <session> --phase <phase>` for a skill one phase needs and the rest of the plan does not.",
 		},
 		RequiredInputs: []string{"recommended: skill-pack with 2-5 decomposed concepts"},
 		Checklist:      sessionChecklist(sess),

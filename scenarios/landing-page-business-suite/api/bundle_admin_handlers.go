@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 type bundleCatalogResponse struct {
@@ -139,7 +139,7 @@ func planOptionResponseFromProto(plan *PlanOption) planOptionResponse {
 	}
 
 	var kind *string
-	if plan.Kind != landing_page_react_vite_v1.PlanKind_PLAN_KIND_UNSPECIFIED {
+	if plan.Kind != shared.PlanKind_PLAN_KIND_UNSPECIFIED {
 		value := planKindString(plan.Kind)
 		kind = &value
 	}

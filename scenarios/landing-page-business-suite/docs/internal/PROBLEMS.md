@@ -6,6 +6,19 @@ This file tracks known issues and technical debt that need attention.
 
 ## Security Issues
 
+### Resolved: reachable dependency and Go toolchain vulnerabilities
+
+**Status:** Resolved
+**Updated:** 2026-07-26
+
+Reachability analysis found production paths through an outdated JWT parser and
+AWS S3 EventStream decoder, plus Go 1.25.0 standard-library vulnerabilities.
+The API now requires `github.com/golang-jwt/jwt/v5` 5.2.2, AWS S3 1.97.3, and
+the scenario API and CLI modules require Go 1.25.12. The upgrades were applied
+through Scenario Dependency Analyzer, then validated with the complete API and
+CLI test suites and `GOWORK=off govulncheck ./...` (zero reachable
+vulnerabilities).
+
 ### SQL-002: SQL Injection in download_hosting.go
 
 **Severity:** ~~Critical~~ False Positive
@@ -76,6 +89,25 @@ Added `ui/eslint.config.js` with the safety rules; dependencies already exist in
 
 ## Test Organization
 
+### Resolved: Concurrent Stripe webhook tests used a stale signing fixture
+
+**Status:** Resolved
+**Updated:** 2026-07-26
+
+The concurrency tests signed mock Stripe events with `whsec_test_default`, while
+`ConfigureStripeService` injects `DefaultStripeTestConfig().WebhookSecret`
+(`stripe-test-webhook`). Valid events were therefore rejected before their
+subscription upsert, which made the tests report zero persisted subscriptions.
+The tests now derive their HMAC secret from the injected `StripeTestConfig`.
+
+**Validation:** Focused concurrent webhook, subscription, credit, and email
+migration tests pass, as does `GOWORK=off go test ./... -count=1 -timeout 10m`
+from `api/`.
+
+**Remaining follow-up:** Triage the 17 skipped API tests and the assertion-free
+`TestMain` separately; these are test-debt advisories, not evidence that the
+Stripe workflow remains broken.
+
 ### Monolithic Test Files
 
 **Severity:** Medium
@@ -123,6 +155,29 @@ No performance issues currently tracked.
 
 ---
 
+## Requirements Traceability
+
+### Operational-target linkage and live evidence
+
+**Status:** In progress
+**Updated:** 2026-07-26
+
+The requirements registry now links every operational target to the requirement
+that describes that exact behavior. The structural validator passes. The
+remaining business findings are limited to checked P0/P1 targets whose linked
+requirements have not yet earned live completion from a comprehensive test run.
+
+**Next steps:**
+
+- Add focused `[REQ:<id>]` tags and precise test references for the affected
+  metrics, billing, subscription, and design requirements.
+- Run a comprehensive Test Genie suite so the requirements snapshot can earn
+  live evidence; do not hand-edit requirement status or sync artifacts.
+- Consolidate the legacy PRD extension headings under the canonical appendix
+  through the business-health-owned PRD workflow.
+
+---
+
 ## UI/UX
 
 ### UX Issues
@@ -159,4 +214,4 @@ The import modal used per-row action dropdowns (import/overwrite/skip), which ma
 
 ## Last Updated
 
-2026-01-26 by Codex
+2026-07-26 by Codex

@@ -215,7 +215,7 @@ func (h *connectHandler) RemoveRelevantContextItem(ctx context.Context, req *con
 }
 
 func (h *connectHandler) DiscoverSkillPack(ctx context.Context, req *connect.Request[authoringv1.DiscoverSkillPackRequest]) (*connect.Response[authoringv1.DiscoverSkillPackResponse], error) {
-	sess, result, added, kept, violations, step, err := h.deps.Service.DiscoverSkillPack(ctx, req.Msg.GetSessionId(), req.Msg.GetConcepts(), req.Msg.GetComplexity())
+	sess, result, added, kept, violations, step, err := h.deps.Service.DiscoverSkillPack(ctx, req.Msg.GetSessionId(), req.Msg.GetPhaseId(), req.Msg.GetConcepts(), req.Msg.GetComplexity())
 	if err != nil {
 		return nil, internalauthoring.ToConnectError(err)
 	}

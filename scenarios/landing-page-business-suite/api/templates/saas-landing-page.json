@@ -192,7 +192,7 @@
       "api/",
       "ui/src/",
       "ui/public/",
-      "initialization/postgres/",
+      "api/internal/",
       "test/",
       "docs/"
     ],
@@ -203,7 +203,7 @@
       "PRD.md",
       "api/main.go",
       "ui/src/App.tsx",
-      "initialization/postgres/schema.sql"
+      "api/internal/*/schema.sql"
     ]
   }
 }

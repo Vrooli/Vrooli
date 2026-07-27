@@ -32,8 +32,8 @@ export const mockResponses = {
       ok: true,
       status,
       statusText: 'OK',
-      json: async () => data,
-      text: async () => JSON.stringify(data),
+      json: () => Promise.resolve(data),
+      text: () => Promise.resolve(JSON.stringify(data)),
     };
   },
 
@@ -46,8 +46,8 @@ export const mockResponses = {
       ok: false,
       status,
       statusText: getStatusText(status),
-      json: async () => body,
-      text: async () => JSON.stringify(body),
+      json: () => Promise.resolve(body),
+      text: () => Promise.resolve(JSON.stringify(body)),
     };
   },
 
@@ -75,8 +75,8 @@ export const mockResponses = {
       ok: true,
       status,
       statusText: status === 204 ? 'No Content' : 'OK',
-      json: async () => undefined,
-      text: async () => '',
+      json: () => Promise.resolve(undefined),
+      text: () => Promise.resolve(''),
     };
   },
 
@@ -88,8 +88,8 @@ export const mockResponses = {
       ok: false,
       status: 400,
       statusText: 'Bad Request',
-      json: async () => ({ error: 'Validation failed', errors }),
-      text: async () => JSON.stringify({ error: 'Validation failed', errors }),
+      json: () => Promise.resolve({ error: 'Validation failed', errors }),
+      text: () => Promise.resolve(JSON.stringify({ error: 'Validation failed', errors })),
     };
   },
 
@@ -122,8 +122,8 @@ export const mockResponses = {
       ok: false,
       status: 429,
       statusText: 'Too Many Requests',
-      json: async () => ({ error: 'Rate limited', retry_after: retryAfter }),
-      text: async () => JSON.stringify({ error: 'Rate limited', retry_after: retryAfter }),
+      json: () => Promise.resolve({ error: 'Rate limited', retry_after: retryAfter }),
+      text: () => Promise.resolve(JSON.stringify({ error: 'Rate limited', retry_after: retryAfter })),
     };
   },
 
@@ -216,7 +216,7 @@ export function expectApiError(
     throw new Error(`Expected ApiError type "${expectedType}" but got "${error.type}"`);
   }
   if (expectedStatus !== undefined && error.status !== expectedStatus) {
-    throw new Error(`Expected ApiError status ${expectedStatus} but got ${error.status}`);
+    throw new Error(`Expected ApiError status ${String(expectedStatus)} but got ${String(error.status)}`);
   }
 }
 
@@ -247,20 +247,35 @@ export function createObjectURLMock(): {
   mock: Mock<Parameters<typeof URL.createObjectURL>, ReturnType<typeof URL.createObjectURL>>;
   restore: () => void;
 } {
-  const originalCreateObjectURL = URL.createObjectURL;
-  const originalRevokeObjectURL = URL.revokeObjectURL;
+  // jsdom does not provide these browser APIs in every supported version.
+  // Preserve their optional runtime presence so this helper can install and
+  // cleanly remove its own test-only implementation.
+  const urlApi = URL as typeof URL & {
+    createObjectURL?: typeof URL.createObjectURL;
+    revokeObjectURL?: typeof URL.revokeObjectURL;
+  };
+  const originalCreateObjectURL = urlApi.createObjectURL;
+  const originalRevokeObjectURL = urlApi.revokeObjectURL;
   const mock = vi.fn<Parameters<typeof URL.createObjectURL>, ReturnType<typeof URL.createObjectURL>>(
     () => 'blob:test-url'
   );
   const revokeMock = vi.fn();
-  URL.createObjectURL = mock;
-  URL.revokeObjectURL = revokeMock;
+  urlApi.createObjectURL = mock;
+  urlApi.revokeObjectURL = revokeMock;
 
   return {
     mock,
     restore: () => {
-      URL.createObjectURL = originalCreateObjectURL;
-      URL.revokeObjectURL = originalRevokeObjectURL;
+      if (originalCreateObjectURL) {
+        urlApi.createObjectURL = originalCreateObjectURL;
+      } else {
+        delete (urlApi as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL;
+      }
+      if (originalRevokeObjectURL) {
+        urlApi.revokeObjectURL = originalRevokeObjectURL;
+      } else {
+        delete (urlApi as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL;
+      }
     },
   };
 }
@@ -299,7 +314,7 @@ export function getCall<TArgs extends unknown[], TReturn>(
 ): TArgs {
   const call = mock.mock.calls[index];
   if (!call) {
-    throw new Error(`Expected mock to have call at index ${index}, but only ${mock.mock.calls.length} calls were made`);
+    throw new Error(`Expected mock to have call at index ${String(index)}, but only ${String(mock.mock.calls.length)} calls were made`);
   }
   return call;
 }
@@ -314,9 +329,14 @@ export function getFetchCall(
 ): [string, RequestInit] {
   const call = mock.mock.calls[index];
   if (!call) {
-    throw new Error(`Expected fetch mock to have call at index ${index}, but only ${mock.mock.calls.length} calls were made`);
+    throw new Error(`Expected fetch mock to have call at index ${String(index)}, but only ${String(mock.mock.calls.length)} calls were made`);
   }
-  const url = typeof call[0] === 'string' ? call[0] : call[0].toString();
+  const [request] = call;
+  const url = typeof request === 'string'
+    ? request
+    : request instanceof URL
+      ? request.href
+      : request.url;
   const options: RequestInit = call[1] ?? {};
   return [url, options];
 }
@@ -337,24 +357,23 @@ export function parseJsonBody(body: BodyInit | null | undefined): Record<string,
  */
 export function createDownloadLinkMock(): {
   element: HTMLAnchorElement;
-  clickSpy: Mock<[], void>;
+  clickSpy: Mock<[], undefined>;
   appendChildSpy: Mock<[Node], Node>;
   removeChildSpy: Mock<[Node], Node>;
   restore: () => void;
 } {
-  const clickSpy = vi.fn<[], void>();
+  const clickSpy = vi.fn<[], undefined>();
   const appendChildSpy = vi.fn<[Node], Node>();
   const removeChildSpy = vi.fn<[Node], Node>();
 
-  const originalCreateElement = document.createElement.bind(document);
-  const element = originalCreateElement('a') as HTMLAnchorElement;
+  const element = document.createElementNS('http://www.w3.org/1999/xhtml', 'a') as HTMLAnchorElement;
   element.click = clickSpy;
 
   vi.spyOn(document, 'createElement').mockImplementation((tag) => {
     if (tag === 'a') {
       return element;
     }
-    return originalCreateElement(tag);
+    return document.createElementNS('http://www.w3.org/1999/xhtml', tag);
   });
 
   vi.spyOn(document.body, 'appendChild').mockImplementation((node) => {

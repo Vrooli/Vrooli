@@ -13,6 +13,10 @@ import (
 func TestRemoteProfilesProxyAcceptsProfileTagSelector(t *testing.T) {
 	var sawList, sawProxy bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -82,6 +86,10 @@ func TestRemoteProfilesProxyRejectsMixingIDAndProfileTag(t *testing.T) {
 func TestRemoteProfilesProxyPositionalIDStillWorks(t *testing.T) {
 	var sawProxy bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/admin/remote-profiles/12/proxy" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -114,6 +122,10 @@ func TestRemoteProfilesProxyPositionalIDStillWorks(t *testing.T) {
 func TestRemoteProfilesDownloadStorageTest_UsesProxyEndpoint(t *testing.T) {
 	var sawList, sawProxy bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -162,6 +174,10 @@ func TestRemoteProfilesDownloadStorageTest_UsesProxyEndpoint(t *testing.T) {
 func TestRemoteProfilesDownloadAppsList_UsesProxyEndpoint(t *testing.T) {
 	var sawProxy bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/admin/remote-profiles/12/proxy" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}

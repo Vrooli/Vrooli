@@ -1,11 +1,9 @@
 import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
 import {
-  BillingInterval,
   GetPricingResponseSchema,
-  IntroPricingType,
-  PlanKind,
   type GetPricingResponse,
-} from '@proto-lprv/pricing_pb';
+} from '@proto-lpbs/pricing_pb';
+import { BillingInterval, IntroPricingType, PlanKind } from '@proto-lpbs/shared/commerce_pb';
 import { apiCall } from './common';
 import type { LandingConfigResponse, PlanOption, PricingOverview } from './types';
 import { normalizeTimestampOrNow } from '../lib/protobuf-utils';
@@ -29,14 +27,14 @@ export function getPlans() {
     const toObjectMap = (input?: Record<string, { toJson?: () => unknown }>) => {
       if (!input) return undefined;
       return Object.fromEntries(
-        Object.entries(input).map(([key, value]) => [key, value?.toJson?.() ?? null])
+        Object.entries(input).map(([key, value]) => [key, value.toJson?.() ?? null])
       );
     };
     const planKind = (kind?: PlanKind): PlanOption['kind'] => {
       switch (kind) {
-        case PlanKind.PLAN_KIND_CREDITS_TOPUP:
+        case PlanKind.CREDITS_TOPUP:
           return 'credits_topup';
-        case PlanKind.PLAN_KIND_SUPPORTER_CONTRIBUTION:
+        case PlanKind.SUPPORTER_CONTRIBUTION:
           return 'supporter_contribution';
         default:
           return 'subscription';
@@ -45,9 +43,9 @@ export function getPlans() {
 
     const billingInterval = (interval?: BillingInterval): PlanOption['billing_interval'] => {
       switch (interval) {
-        case BillingInterval.BILLING_INTERVAL_YEAR:
+        case BillingInterval.YEAR:
           return 'year';
-        case BillingInterval.BILLING_INTERVAL_ONE_TIME:
+        case BillingInterval.ONE_TIME:
           return 'one_time';
         default:
           return 'month';
@@ -56,9 +54,9 @@ export function getPlans() {
 
     const introType = (type?: IntroPricingType): PlanOption['intro_type'] => {
       switch (type) {
-        case IntroPricingType.INTRO_PRICING_TYPE_PERCENTAGE:
+        case IntroPricingType.PERCENTAGE:
           return 'percentage';
-        case IntroPricingType.INTRO_PRICING_TYPE_FLAT_AMOUNT:
+        case IntroPricingType.FLAT_AMOUNT:
           return 'flat_amount';
         default:
           return undefined;

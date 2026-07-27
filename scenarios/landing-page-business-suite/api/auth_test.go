@@ -453,10 +453,10 @@ func TestValidateAdminPasswordUpdate_NoDigits(t *testing.T) {
 }
 
 func TestValidateAdminPasswordUpdate_SameAsOld(t *testing.T) {
-	password := "samepassword123"
-	currentHash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	currentPassphrase := "same-admin-credential-123"
+	currentHash, _ := bcrypt.GenerateFromPassword([]byte(currentPassphrase), bcrypt.DefaultCost)
 
-	err := validateAdminPasswordUpdate(password, string(currentHash))
+	err := validateAdminPasswordUpdate(currentPassphrase, string(currentHash))
 	if err == nil {
 		t.Error("Expected error for same password as current")
 	}
@@ -518,9 +518,15 @@ func TestGenerateSessionID(t *testing.T) {
 }
 
 func TestIsSecureCookiesEnabled(t *testing.T) {
-	// This tests the function based on environment
-	// Result depends on current env, so we just verify it doesn't panic
-	_ = isSecureCookiesEnabled()
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("LPBS_SECURE_COOKIES", "")
+	if !isSecureCookiesEnabled() {
+		t.Fatal("production must default to secure cookies")
+	}
+	t.Setenv("LPBS_SECURE_COOKIES", "false")
+	if isSecureCookiesEnabled() {
+		t.Fatal("explicit false must disable secure cookies for local development")
+	}
 }
 
 func TestResolveSecret(t *testing.T) {
@@ -552,10 +558,43 @@ func TestResolveSecretFromProjectSecretsFile(t *testing.T) {
 	}
 }
 
+func TestValidateProductionCredentialsRejectsMissingSessionSecret(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "SESSION_SECRET") {
+		t.Fatalf("validateProductionCredentials() error = %v, want missing SESSION_SECRET", err)
+	}
+}
+
+func TestValidateProductionCredentialsRejectsMissingAdminPassword(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "ADMIN_DEFAULT_PASSWORD") {
+		t.Fatalf("validateProductionCredentials() error = %v, want missing ADMIN_DEFAULT_PASSWORD", err)
+	}
+}
+
+func TestValidateProductionCredentialsAcceptsExplicitSecrets(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+
+	if err := validateProductionCredentials(); err != nil {
+		t.Fatalf("validateProductionCredentials() error = %v", err)
+	}
+}
+
 func TestSessionManager_Interface(t *testing.T) {
-	// Test that MockSessionManager implements SessionManager
-	var _ SessionManager = &MockSessionManager{}
-	var _ SessionManager = &cookieSessionManager{}
+	managers := []SessionManager{&MockSessionManager{}, &cookieSessionManager{}}
+	if len(managers) != 2 {
+		t.Fatalf("session manager implementations = %d, want 2", len(managers))
+	}
 }
 
 func TestMockSessionManager_SetAndGetValues(t *testing.T) {

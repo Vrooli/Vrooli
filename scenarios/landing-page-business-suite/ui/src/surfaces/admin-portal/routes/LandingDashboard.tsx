@@ -55,7 +55,7 @@ export function LandingDashboard() {
     if (!resumeVariant) return;
     const path =
       resumeVariant.surface === 'section' && resumeVariant.sectionId
-        ? `/admin/customization/variants/${resumeVariant.slug}/sections/${resumeVariant.sectionId}`
+        ? `/admin/customization/variants/${resumeVariant.slug}/sections/${String(resumeVariant.sectionId)}`
         : `/admin/customization/variants/${resumeVariant.slug}`;
     navigate(path);
   };
@@ -80,13 +80,12 @@ export function LandingDashboard() {
   const runtimeLabel =
     liveVariant?.name ?? liveVariant?.slug ?? 'Variant not resolved';
   const resolutionLabel =
-    RESOLUTION_LABELS[liveResolution] ?? RESOLUTION_LABELS.unknown;
+    RESOLUTION_LABELS[liveResolution];
 
   return (
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.sectionSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Landing Dashboard"
           icon={Palette}
           iconBgClass="bg-purple-500/10"
@@ -106,7 +105,7 @@ export function LandingDashboard() {
               icon={Palette}
               iconBg="bg-purple-500/20"
               iconColor="text-purple-300"
-              onClick={() => navigate('/admin/customization')}
+              onClick={() => { navigate('/admin/customization'); }}
               testId="flow-customization"
             />
             <QuickFlowCard
@@ -115,7 +114,7 @@ export function LandingDashboard() {
               icon={BarChart3}
               iconBg="bg-blue-500/20"
               iconColor="text-blue-300"
-              onClick={() => navigate('/admin/analytics')}
+              onClick={() => { navigate('/admin/analytics'); }}
               testId="flow-analytics"
             />
             <QuickFlowCard
@@ -124,7 +123,7 @@ export function LandingDashboard() {
               icon={Settings2}
               iconBg="bg-emerald-500/20"
               iconColor="text-emerald-300"
-              onClick={() => navigate('/admin/branding')}
+              onClick={() => { navigate('/admin/branding'); }}
               testId="flow-branding"
             />
             <QuickFlowCard
@@ -133,7 +132,7 @@ export function LandingDashboard() {
               icon={Bot}
               iconBg="bg-amber-500/20"
               iconColor="text-amber-300"
-              onClick={() => navigate('/admin/customization/agent')}
+              onClick={() => { navigate('/admin/customization/agent'); }}
               testId="flow-agent"
             />
           </div>
@@ -166,7 +165,7 @@ export function LandingDashboard() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={refreshHealthSnapshot}
+                onClick={() => { void refreshHealthSnapshot(); }}
                 className="gap-2"
                 data-testid="landing-health-refresh"
               >
@@ -189,7 +188,7 @@ export function LandingDashboard() {
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100 flex items-center gap-3">
               <AlertTriangle className="h-4 w-4" />
               <span>{healthError}</span>
-              <Button size="sm" variant="ghost" onClick={refreshHealthSnapshot}>
+              <Button size="sm" variant="ghost" onClick={() => { void refreshHealthSnapshot(); }}>
                 Retry
               </Button>
             </div>
@@ -265,7 +264,7 @@ export function LandingDashboard() {
                           : 'bg-amber-400'
                     }`}
                     style={{
-                      width: `${Math.max(0, Math.min(100, healthSnapshot.totalWeight))}%`,
+                      width: `${String(Math.max(0, Math.min(100, healthSnapshot.totalWeight)))}%`,
                     }}
                   />
                 </div>
@@ -295,7 +294,7 @@ export function LandingDashboard() {
                 Site identity and SEO configuration
               </h2>
             </div>
-            <Button size="sm" onClick={() => navigate('/admin/branding')}>
+            <Button size="sm" onClick={() => { navigate('/admin/branding'); }}>
               Configure branding
             </Button>
           </div>

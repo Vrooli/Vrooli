@@ -18,13 +18,13 @@ Run these commands to diagnose most issues:
 
 ```bash
 # Check scenario status
-vrooli scenario status <your-scenario>
+vrooli scenario status "<your-scenario>"
 
 # Check PostgreSQL
 resource-postgres status
 
 # View logs
-vrooli scenario logs <your-scenario> --tail 50
+vrooli scenario logs "<your-scenario>" --tail 50
 
 # Check health endpoint
 curl http://localhost:<port>/health
@@ -343,10 +343,10 @@ curl -X POST https://landing.yourdomain.com/api/v1/webhooks/stripe
 
 ```bash
 # Scenario status
-vrooli scenario status <name>
+vrooli scenario status "<name>"
 
 # Recent logs
-vrooli scenario logs <name> --tail 200
+vrooli scenario logs "<name>" --tail 200
 
 # Port allocations
 ./scripts/resources/port-registry.sh list
@@ -365,6 +365,6 @@ When reporting issues, include:
 
 ## See Also
 
-- [FAQ](../FAQ.md) - Frequently asked questions
+- [FAQ](faq.md) - Frequently asked questions
 - [Concepts](../concepts/CONCEPTS.md) - Architecture understanding
 - [Deployment Guide](DEPLOYMENT.md) - Deployment troubleshooting

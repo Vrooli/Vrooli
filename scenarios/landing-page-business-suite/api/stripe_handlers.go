@@ -9,7 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // handleCheckoutCreate creates a new Stripe checkout session
@@ -66,7 +67,7 @@ func handleCheckoutCreate(service *StripeService) http.HandlerFunc {
 			body.CancelURL = "/cancel"
 		}
 
-		req := landing_page_react_vite_v1.CreateCheckoutSessionRequest{
+		req := landing_page_business_suite_v1.CreateCheckoutSessionRequest{
 			PriceId:       body.PriceID,
 			CustomerEmail: body.CustomerEmail,
 			SuccessUrl:    body.SuccessURL,
@@ -93,7 +94,7 @@ func handleCheckoutCreate(service *StripeService) http.HandlerFunc {
 			"session_id": session.GetSessionId(),
 		})
 
-		writeJSON(w, &landing_page_react_vite_v1.CreateCheckoutSessionResponse{Session: session})
+		writeJSON(w, &landing_page_business_suite_v1.CreateCheckoutSessionResponse{Session: session})
 	}
 }
 
@@ -169,7 +170,7 @@ func handleSubscriptionVerify(service *StripeService) http.HandlerFunc {
 			return
 		}
 
-		writeJSON(w, &landing_page_react_vite_v1.VerifySubscriptionResponse{Status: result})
+		writeJSON(w, &shared.VerifySubscriptionResponse{Status: result})
 	}
 }
 
@@ -192,7 +193,7 @@ func handleSubscriptionCancel(service *StripeService) http.HandlerFunc {
 			return
 		}
 
-		req := landing_page_react_vite_v1.CancelSubscriptionRequest{UserIdentity: body.UserIdentity}
+		req := landing_page_business_suite_v1.CancelSubscriptionRequest{UserIdentity: body.UserIdentity}
 
 		result, err := service.CancelSubscription(req.UserIdentity)
 		if err != nil {

@@ -135,7 +135,7 @@ describe('section.service', () => {
         throw new Error('QuotaExceededError');
       });
 
-      expect(() => saveComparePreference('test-variant', 'compare-variant')).not.toThrow();
+      expect(() => { saveComparePreference('test-variant', 'compare-variant'); }).not.toThrow();
     });
   });
 

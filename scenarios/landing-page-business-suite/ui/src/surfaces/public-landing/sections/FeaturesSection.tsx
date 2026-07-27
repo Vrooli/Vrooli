@@ -160,7 +160,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
                 <button
                   key={category.id}
                   type="button"
-                  onClick={() => setActiveTab(category.id)}
+                  onClick={() => { setActiveTab(category.id); }}
                   className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-accent ${
                     activeTab === category.id
                       ? 'bg-accent text-white shadow-lg'
@@ -174,16 +174,19 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
 
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {activeFeatures.map((feature, index) => {
-                const IconComponent = feature.icon ? iconMap[feature.icon] ?? Check : Check;
+                const iconKey = feature.icon as string | undefined;
+                const IconComponent = iconKey && iconKey in iconMap
+                  ? iconMap[iconKey as keyof typeof iconMap]
+                  : Check;
                 const bullets = feature.bullets && feature.bullets.length > 0 ? feature.bullets : [feature.description];
                 return (
                   <article
-                    key={feature.title + index}
+                    key={`${feature.title}-${String(index)}`}
                     className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 via-surface-muted to-surface-deep p-6 text-left transition duration-300 hover:-translate-y-1 hover:border-accent-tertiary hover:shadow-[0_0_0_1px_rgba(var(--color-accent-tertiary),0.4),0_25px_60px_-30px_rgba(0,0,0,0.75)] ${
                       animateCards ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
                     }`}
-                    style={{ transitionDelay: `${index * 60}ms` }}
-                    data-testid={`feature-${index}`}
+                    style={{ transitionDelay: `${String(index * 60)}ms` }}
+                    data-testid={`feature-${String(index)}`}
                   >
                     <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(var(--color-accent-tertiary),0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(var(--color-accent-cool),0.12),transparent_35%)]" />
@@ -195,7 +198,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
                       <h3 className="mt-6 text-xl font-semibold text-white">{feature.title}</h3>
                       <ul className="mt-3 space-y-2 text-sm text-slate-300">
                         {bullets.map((item, bulletIndex) => (
-                          <li key={`${feature.title}-bullet-${bulletIndex}`} className="flex items-start gap-2">
+                          <li key={`${feature.title}-bullet-${String(bulletIndex)}`} className="flex items-start gap-2">
                             <span className="mt-1 h-1.5 w-1.5 rounded-full bg-accent opacity-80" />
                             <span>{item}</span>
                           </li>

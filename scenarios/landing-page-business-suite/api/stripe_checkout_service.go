@@ -9,7 +9,8 @@ import (
 	"net/url"
 	"strings"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -145,7 +146,7 @@ func (s *StripeService) VerifyStripePrice(key string) (map[string]interface{}, e
 
 // CreateCheckoutSession creates a Stripe checkout session
 // [REQ:STRIPE-ROUTES] POST /api/checkout/create endpoint
-func (s *StripeService) CreateCheckoutSession(priceID string, successURL string, cancelURL string, customerEmail string) (*landing_page_react_vite_v1.CheckoutSession, error) {
+func (s *StripeService) CreateCheckoutSession(priceID string, successURL string, cancelURL string, customerEmail string) (*landing_page_business_suite_v1.CheckoutSession, error) {
 	ctx := context.Background()
 
 	// Normalize email at entry point for consistent lookups and eligibility checks
@@ -169,15 +170,15 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 	}
 
 	mode := "subscription"
-	sessionKind := landing_page_react_vite_v1.SessionKind_SESSION_KIND_SUBSCRIPTION
+	sessionKind := landing_page_business_suite_v1.SessionKind_SESSION_KIND_SUBSCRIPTION
 	sessionType := sessionTypeSubscription
-	if plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP {
+	if plan.Kind == shared.PlanKind_PLAN_KIND_CREDITS_TOPUP {
 		mode = "payment"
-		sessionKind = landing_page_react_vite_v1.SessionKind_SESSION_KIND_CREDITS_TOPUP
+		sessionKind = landing_page_business_suite_v1.SessionKind_SESSION_KIND_CREDITS_TOPUP
 		sessionType = sessionTypeCreditsTopup
-	} else if plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION {
+	} else if plan.Kind == shared.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION {
 		mode = "payment"
-		sessionKind = landing_page_react_vite_v1.SessionKind_SESSION_KIND_SUPPORTER_CONTRIBUTION
+		sessionKind = landing_page_business_suite_v1.SessionKind_SESSION_KIND_SUPPORTER_CONTRIBUTION
 		sessionType = sessionTypeSupporterContribution
 	}
 
@@ -227,7 +228,7 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 					"source":    "plan_mapping",
 				})
 			}
-		} else if plan.BillingInterval == landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH {
+		} else if plan.BillingInterval == shared.BillingInterval_BILLING_INTERVAL_MONTH {
 			// Fallback to tier-based intro coupon (legacy env var config)
 			eligible, eligErr := s.checkIntroEligibility(ctx, customerEmail)
 			if eligErr != nil {
@@ -311,10 +312,10 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 	}
 
 	cfg := s.getConfig()
-	session := &landing_page_react_vite_v1.CheckoutSession{
+	session := &landing_page_business_suite_v1.CheckoutSession{
 		SessionId:      resp.ID,
 		SessionKind:    sessionKind,
-		Status:         landing_page_react_vite_v1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN,
+		Status:         landing_page_business_suite_v1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN,
 		Url:            resp.URL,
 		PublishableKey: cfg.publishableKey,
 		CustomerEmail:  resp.CustomerEmail,

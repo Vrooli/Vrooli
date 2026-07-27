@@ -19,7 +19,7 @@ preflight.Run                         (api/main.go)
 NewServer
   ├─ database.Connect                 (with retry/backoff)
   ├─ seedDefaultData
-  │   ├─ ensureSchema                  (idempotent CREATE/ALTER)
+  │   ├─ applyRuntimeSchema            (domain-owned declarative DDL)
   │   ├─ upsert seeded admin (id=1)
   │   ├─ seed payment_settings (id=1)
   │   ├─ seedDownloadDefaults
@@ -31,7 +31,7 @@ server.Run
   └─ blocks; on shutdown calls srv.Cleanup → db.Close
 ```
 
-- `ensureSchema` is the only schema authority at runtime; the SQL files in `initialization/postgres/` mirror it.
+- `api/internal/*/schema.sql` is the sole schema authority. `applyRuntimeSchema` applies those files at runtime and test setup.
 - `ConfigStore.LoadAll` is also called inside `resetDemoData`, so an admin "reset" reloads JSON config without restarting.
 
 ## Magic-link login

@@ -8,13 +8,13 @@ declare global {
 
 type ProtoSchema<_T> = unknown;
 
-declare module '@proto-lprv/billing_pb' {
+declare module '@proto-lpbs/billing_pb' {
   export enum SubscriptionState {
-    SUBSCRIPTION_STATE_UNSPECIFIED = 0,
-    SUBSCRIPTION_STATE_ACTIVE = 1,
-    SUBSCRIPTION_STATE_TRIALING = 2,
-    SUBSCRIPTION_STATE_PAST_DUE = 3,
-    SUBSCRIPTION_STATE_CANCELED = 4,
+    UNSPECIFIED = 0,
+    ACTIVE = 1,
+    TRIALING = 2,
+    PAST_DUE = 3,
+    CANCELED = 4,
   }
 
   export interface SubscriptionStatus {
@@ -34,11 +34,58 @@ declare module '@proto-lprv/billing_pb' {
   export const VerifySubscriptionResponseSchema: ProtoSchema<VerifySubscriptionResponse>;
 }
 
-declare module '@proto-lprv/settings_pb' {
+declare module '@proto-lpbs/shared/commerce_pb' {
+  export enum SubscriptionState {
+    UNSPECIFIED = 0,
+    ACTIVE = 1,
+    TRIALING = 2,
+    PAST_DUE = 3,
+    CANCELED = 4,
+    INACTIVE = 5,
+  }
+
+  export enum BillingInterval {
+    UNSPECIFIED = 0,
+    MONTH = 1,
+    YEAR = 2,
+    ONE_TIME = 3,
+  }
+
+  export enum IntroPricingType {
+    UNSPECIFIED = 0,
+    FLAT_AMOUNT = 1,
+    PERCENTAGE = 2,
+  }
+
+  export enum PlanKind {
+    UNSPECIFIED = 0,
+    SUBSCRIPTION = 1,
+    CREDITS_TOPUP = 2,
+    SUPPORTER_CONTRIBUTION = 3,
+  }
+
+  export interface SubscriptionStatus {
+    state?: SubscriptionState;
+    subscriptionId?: string;
+    userIdentity?: string;
+    planTier?: string;
+    stripePriceId?: string;
+    bundleKey?: string;
+    cachedAt?: { toJsonString?: () => string };
+  }
+
+  export interface VerifySubscriptionResponse {
+    status?: SubscriptionStatus;
+  }
+
+  export const VerifySubscriptionResponseSchema: ProtoSchema<VerifySubscriptionResponse>;
+}
+
+declare module '@proto-lpbs/settings_pb' {
   export enum ConfigSource {
-    CONFIG_SOURCE_UNSPECIFIED = 0,
-    CONFIG_SOURCE_ENV = 1,
-    CONFIG_SOURCE_DATABASE = 2,
+    UNSPECIFIED = 0,
+    ENV = 1,
+    DATABASE = 2,
   }
 
   export interface StripeConfigSnapshot {
@@ -68,25 +115,25 @@ declare module '@proto-lprv/settings_pb' {
   export const UpdateStripeSettingsResponseSchema: ProtoSchema<UpdateStripeSettingsResponse>;
 }
 
-declare module '@proto-lprv/pricing_pb' {
+declare module '@proto-lpbs/pricing_pb' {
   export enum BillingInterval {
-    BILLING_INTERVAL_UNSPECIFIED = 0,
-    BILLING_INTERVAL_MONTH = 1,
-    BILLING_INTERVAL_YEAR = 2,
-    BILLING_INTERVAL_ONE_TIME = 3,
+    UNSPECIFIED = 0,
+    MONTH = 1,
+    YEAR = 2,
+    ONE_TIME = 3,
   }
 
   export enum IntroPricingType {
-    INTRO_PRICING_TYPE_UNSPECIFIED = 0,
-    INTRO_PRICING_TYPE_FLAT_AMOUNT = 1,
-    INTRO_PRICING_TYPE_PERCENTAGE = 2,
+    UNSPECIFIED = 0,
+    FLAT_AMOUNT = 1,
+    PERCENTAGE = 2,
   }
 
   export enum PlanKind {
-    PLAN_KIND_UNSPECIFIED = 0,
-    PLAN_KIND_SUBSCRIPTION = 1,
-    PLAN_KIND_CREDITS_TOPUP = 2,
-    PLAN_KIND_SUPPORTER_CONTRIBUTION = 3,
+    UNSPECIFIED = 0,
+    SUBSCRIPTION = 1,
+    CREDITS_TOPUP = 2,
+    SUPPORTER_CONTRIBUTION = 3,
   }
 
   export interface PricingBundle {

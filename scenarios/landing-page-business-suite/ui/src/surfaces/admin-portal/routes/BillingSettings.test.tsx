@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
 import { BrowserRouter } from 'react-router-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { BillingSettings } from './BillingSettings';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
@@ -108,12 +109,12 @@ describe('BillingSettings', () => {
     render(wrap(<BillingSettings />));
 
     expect(await screen.findByText('Stripe Configuration')).toBeInTheDocument();
-    expect(screen.getAllByText('Publishable Key')[0]).toBeInTheDocument();
+    expect((await screen.findAllByText('Publishable Key'))[0]).toBeInTheDocument();
     // Badge text reflects initial status flags
     expect(screen.getAllByText('Restricted Key')[0]).toBeInTheDocument();
     expect(screen.getAllByText('Webhook Secret')[0]).toBeInTheDocument();
 
-    await waitFor(() => expect(mockedGetBundleCatalog).toHaveBeenCalled());
+    await waitFor(() => { expect(mockedGetBundleCatalog).toHaveBeenCalled(); });
     // In preview mode, the section title is "Preview" (not "Plan Display Manager")
     expect(screen.getByText('Preview')).toBeInTheDocument();
     // In preview mode, plan name is displayed as text (not input field)
@@ -130,5 +131,28 @@ describe('BillingSettings', () => {
 
     expect(screen.getByText('Enter at least one field before saving.')).toBeInTheDocument();
     expect(mockedUpdateStripeSettings).not.toHaveBeenCalled();
+  });
+
+  it('saves a rotated key, refreshes settings, opens Stripe, and routes to plan management', async () => {
+    const user = userEvent.setup();
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    render(wrap(<BillingSettings />));
+
+    await user.click(await screen.findByRole('button', { name: 'Replace secret' }));
+    const publishableKey = screen.getByPlaceholderText('pk_live_...');
+    await user.type(publishableKey, 'pk_live_rotated');
+    await user.click(screen.getByRole('button', { name: /save stripe settings/i }));
+
+    await waitFor(() => {
+      expect(mockedUpdateStripeSettings).toHaveBeenCalledWith(expect.objectContaining({ publishable_key: 'pk_live_rotated' }));
+    });
+    await user.click(screen.getByRole('button', { name: 'Refresh' }));
+    await user.click(screen.getByRole('button', { name: 'Open Stripe Dashboard' }));
+    await user.click(screen.getByRole('button', { name: 'Manage Plans' }));
+
+    expect(mockedGetStripeSettings).toHaveBeenCalledTimes(2);
+    expect(open).toHaveBeenCalledWith('https://dashboard.stripe.com/test', '_blank', 'noopener,noreferrer');
+    expect(window.location.pathname).toBe('/admin/tiers');
   });
 });

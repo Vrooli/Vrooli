@@ -260,7 +260,7 @@ describe('common API utilities', () => {
           ok: false,
           status: 500,
           statusText: 'Internal Server Error',
-          text: async () => 'Not JSON',
+          text: () => Promise.resolve('Not JSON'),
         });
 
         try {

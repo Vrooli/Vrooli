@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { screen, waitFor } from "@testing-library/react";
 import { AdminAuthProvider } from './AdminAuthProvider';
 import { useAdminAuth } from './useAdminAuth';
 import { adminLogin, adminLogout, checkAdminSession } from '../../shared/api';
@@ -25,7 +26,7 @@ function TestComponent() {
       <div data-testid="auth-status">{isAuthenticated ? 'authenticated' : 'not-authenticated'}</div>
       <div data-testid="user-email">{user?.email || 'no-user'}</div>
       <div data-testid="reset-flag">{canResetDemoData ? 'reset-enabled' : 'reset-disabled'}</div>
-      <button onClick={() => login('test@example.com', 'password')} data-testid="login-btn">
+      <button onClick={() => { void login('test@example.com', 'password'); }} data-testid="login-btn">
         Login
       </button>
       <button onClick={logout} data-testid="logout-btn">
@@ -40,10 +41,15 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   const setLocation = (next: Location) => {
     Object.defineProperty(window, 'location', { value: next, writable: true });
   };
+  const createLocation = (pathname: string): Location => {
+    const location = Object.create(originalLocation) as Location;
+    Object.defineProperty(location, 'pathname', { value: pathname, writable: true });
+    return location;
+  };
 
   beforeEach(() => {
     // Mock window.location
-    setLocation({ ...originalLocation, pathname: '/admin/home' } as Location);
+    setLocation(createLocation('/admin/home'));
 
     mockCheckAdminSession.mockResolvedValue({
       authenticated: false,
@@ -157,7 +163,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
         <div>
           <div data-testid="auth-status">{isAuthenticated ? 'authenticated' : 'not-authenticated'}</div>
           <div data-testid="user-email">{user?.email || 'no-user'}</div>
-          <button onClick={handleLogin} data-testid="login-btn">
+          <button onClick={() => { void handleLogin(); }} data-testid="login-btn">
             Login
           </button>
           <button onClick={logout} data-testid="logout-btn">

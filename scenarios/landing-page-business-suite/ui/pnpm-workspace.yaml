@@ -12,3 +12,7 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Hold newly published packages for one week before they can enter this
+# subscription and billing surface.
+minimumReleaseAge: 10080

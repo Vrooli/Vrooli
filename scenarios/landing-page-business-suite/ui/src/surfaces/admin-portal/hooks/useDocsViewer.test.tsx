@@ -59,6 +59,12 @@ describe('useDocsViewer', () => {
   });
 
   describe('initial state', () => {
+    beforeEach(() => {
+      // Keep the mount request pending so assertions exercise the synchronous
+      // initial state without an asynchronous state update escaping React act.
+      fetchDocsTreeMock.mockReturnValue(new Promise<DocEntry[]>(() => undefined));
+    });
+
     it('starts with loading true', () => {
       const { result } = renderHook(() => useDocsViewer());
 
@@ -199,7 +205,7 @@ describe('useDocsViewer', () => {
       expect(result.current.loadingDoc).toBe(true);
 
       // Resolve the document
-      await act(async () => {
+      act(() => {
         resolveDoc!(mockDoc);
       });
 

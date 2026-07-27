@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // UsageServicer provides credit management for AI gateway.
@@ -27,7 +26,7 @@ type UsageServicer interface {
 // AccountServicer provides tier lookup for AI gateway.
 // This interface enables testing without the real AccountService.
 type AccountServicer interface {
-	GetSubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error)
+	GetSubscriptionContext(context.Context, string) (*shared.SubscriptionStatus, error)
 }
 
 // APIKeyServicer provides API key retrieval for AI gateway.
@@ -97,7 +96,6 @@ type APIKeyServicer interface {
 // The reservation system prevents the more serious issue: concurrent requests
 // from multiple sessions exceeding the credit limit.
 type AIGatewayService struct {
-	db             *sql.DB
 	apiKeyService  APIKeyServicer  // Interface for testing
 	usageService   UsageServicer   // Interface for testing
 	accountService AccountServicer // Interface for testing
@@ -121,7 +119,6 @@ type ModelPricing struct {
 
 // AIGatewayServiceOptions configures the AI gateway service.
 type AIGatewayServiceOptions struct {
-	DB             *sql.DB
 	APIKeyService  *APIKeyService
 	UsageService   *UsageService
 	AccountService *AccountService
@@ -205,7 +202,6 @@ func NewAIGatewayService(opts AIGatewayServiceOptions) *AIGatewayService {
 	}
 
 	return &AIGatewayService{
-		db:               opts.DB,
 		apiKeyService:    opts.APIKeyService,
 		usageService:     opts.UsageService,
 		accountService:   opts.AccountService,
@@ -570,7 +566,7 @@ func (s *AIGatewayService) getUserTier(ctx context.Context, userIdentity string)
 		return "free", nil
 	}
 
-	sub, err := s.accountService.GetSubscription(userIdentity)
+	sub, err := s.accountService.GetSubscriptionContext(ctx, userIdentity)
 	if err != nil {
 		// Log with security tag - this could indicate tier bypass attempt or service issue
 		s.log("tier_lookup_failed_defaulting_to_free", map[string]interface{}{

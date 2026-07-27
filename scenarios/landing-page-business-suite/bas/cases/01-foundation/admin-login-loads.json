@@ -1,0 +1,77 @@
+{
+  "metadata": {
+    "name": "admin-login-loads",
+    "description": "Given an operator opens the admin login route, when the route renders, then the email, password, and submit controls are visible without exposing credentials.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"ADMIN-AUTH\"]",
+      "spec_entry_id": "admin-login",
+      "purpose": "admin-login-smoke"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-admin-login",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "landing-page-business-suite",
+          "scenario_path": "/admin/login",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the admin login page" }
+      }
+    },
+    {
+      "id": "assert-email-control",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/admin.login.email",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The administrator email control did not render"
+        },
+        "metadata": { "label": "Administrator email control is visible" }
+      }
+    },
+    {
+      "id": "assert-password-control",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/admin.login.passwordField",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "The administrator password control did not render"
+        },
+        "metadata": { "label": "Administrator password control is visible" }
+      }
+    },
+    {
+      "id": "assert-submit-control",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/admin.login.submit",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "The administrator login submit control did not render"
+        },
+        "metadata": { "label": "Administrator login submit control is visible" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-admin-login", "target": "assert-email-control", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "assert-email-control", "target": "assert-password-control", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-password-control", "target": "assert-submit-control", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

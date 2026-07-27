@@ -1,6 +1,6 @@
 module landing-page-business-suite/cli
 
-go 1.25.0
+go 1.25.12
 
 require github.com/vrooli/cli-core v0.0.0
 

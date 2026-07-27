@@ -1,11 +1,11 @@
 # Landing Page Business Suite
 
-A production-ready SaaS landing page with A/B testing, analytics, Stripe payments, and an admin portal for content management.
+A SaaS landing page and operations suite with A/B testing, analytics, Stripe payments, subscriptions, credits, and an admin portal for content management.
 
 ## What's Included
 
 - **React + Vite Frontend**: Modern UI with public landing and admin portal
-- **Go (Gin) API**: High-performance backend with PostgreSQL
+- **Go HTTP API**: Backend service with PostgreSQL
 - **A/B Testing**: Whole-page variant testing with weight-based traffic allocation
 - **Stripe Integration**: Subscriptions, one-time payments, credits, customer portal
 - **Analytics Dashboard**: Page views, clicks, conversions, per-variant metrics
@@ -27,11 +27,13 @@ make stop
 **Access Points:**
 | Surface | URL |
 |---------|-----|
-| Public Landing | http://localhost:3000/ |
-| Admin Portal | http://localhost:3000/admin |
-| API Health | http://localhost:8080/health |
+| Public Landing | `http://localhost:${UI_PORT}/` |
+| Admin Portal | `http://localhost:${UI_PORT}/admin` |
+| API Health | `http://localhost:${API_PORT}/health` |
 
-**Default Admin:** `admin@localhost` / `changeme123` (change immediately in production)
+Vrooli allocates `API_PORT` and `UI_PORT` during lifecycle startup. Configure
+administrator credentials through the scenario's supported secret/configuration
+surface; do not rely on development defaults in a deployed environment.
 
 ## Documentation
 
@@ -61,7 +63,7 @@ Key configuration files:
 
 **Frontend:** React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Lucide icons
 
-**Backend:** Go 1.21+, Gin framework, PostgreSQL 14+
+**Backend:** Go, `net/http`, PostgreSQL
 
 ## Requirements
 

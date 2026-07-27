@@ -1,0 +1,77 @@
+{
+  "metadata": {
+    "name": "public-landing-loads",
+    "description": "Given a visitor opens the public landing route, when its configuration resolves, then the public landing experience surface is visible.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"LANDING-CONFIG\"]",
+      "spec_entry_id": "public-landing",
+      "purpose": "public-landing-smoke"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-public-landing",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "landing-page-business-suite",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the public landing page" }
+      }
+    },
+    {
+      "id": "assert-public-surface",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid=\"landing-experience-surface\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The public landing experience surface did not render"
+        },
+        "metadata": { "label": "Public landing experience is visible" }
+      }
+    },
+    {
+      "id": "assert-public-loading-state",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid=\"landing-experience-surface\"][data-experience-state=\"loading\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The public landing route did not expose its loading state while configuration resolved"
+        },
+        "metadata": { "label": "Public landing loading state is visible" }
+      }
+    },
+    {
+      "id": "assert-public-ready-state",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid=\"landing-experience-surface\"][data-experience-state=\"ready\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The public landing route did not reach its ready state"
+        },
+        "metadata": { "label": "Public landing ready state is visible" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-public-landing", "target": "assert-public-surface", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "assert-public-surface", "target": "assert-public-loading-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-public-loading-state", "target": "assert-public-ready-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

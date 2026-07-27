@@ -1756,7 +1756,7 @@
         },
         {
           "name": "skill-pack",
-          "description": "Discover a prompt-manager skill pack from 2-5 concepts and auto-add the skills as global relevant context",
+          "description": "Discover a prompt-manager skill pack from 2-5 concepts and auto-add the skills as relevant context, global by default or phase-scoped with --phase",
           "positionals": [
             {
               "name": "session",
@@ -1769,6 +1769,10 @@
               "name": "concepts",
               "required": true,
               "description": "Comma-separated skill discovery concepts"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; adds the pack as phase-scoped context on that phase instead of global context"
             },
             {
               "name": "complexity",

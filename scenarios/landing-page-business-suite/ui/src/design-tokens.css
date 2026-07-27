@@ -1,0 +1,26 @@
+/* Brand foundation shared by public and operator surfaces. */
+:root {
+  /* brand-manager: iOS safe-area inset for the translucent status bar */
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --color-background: #07090f;
+  --color-foreground: #f6f5f2;
+  --color-primary: #38bdf8;
+  --color-primary-foreground: #07090f;
+  --color-surface: #0f172a;
+  --color-muted: #94a3b8;
+  --color-border: #1e2433;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -427,14 +427,12 @@ describe('useTierLimitsForm', () => {
       });
 
       act(() => {
-        result.current.handleSave('solo', soloLimit);
+        void result.current.handleSave('solo', soloLimit);
       });
 
       expect(result.current.saving).toBe('solo:ai_credits');
 
-      await act(async () => {
-        resolveSave!();
-      });
+      act(() => { resolveSave!(); });
 
       await waitFor(() => {
         expect(result.current.saving).toBeNull();
@@ -564,26 +562,26 @@ describe('useTierLimitsForm', () => {
   });
 
   describe('utility functions', () => {
-    it('exposes getEditKey function', async () => {
+    it('exposes getEditKey function', () => {
       const { result } = renderHook(() => useTierLimitsForm());
 
       expect(result.current.getEditKey('solo', 'ai_credits')).toBe('solo:ai_credits');
     });
 
-    it('exposes getTierLabel function', async () => {
+    it('exposes getTierLabel function', () => {
       const { result } = renderHook(() => useTierLimitsForm());
 
       expect(result.current.getTierLabel('solo')).toBe('Solo');
     });
 
-    it('exposes getTierColor function', async () => {
+    it('exposes getTierColor function', () => {
       const { result } = renderHook(() => useTierLimitsForm());
 
       expect(result.current.getTierColor('solo')).toBe('text-blue-400');
       expect(result.current.getTierColor('pro')).toBe('text-purple-400');
     });
 
-    it('exposes isUnlimitedValue function', async () => {
+    it('exposes isUnlimitedValue function', () => {
       const { result } = renderHook(() => useTierLimitsForm());
 
       expect(result.current.isUnlimitedValue(-1)).toBe(true);
@@ -623,7 +621,7 @@ describe('useTierLimitsForm', () => {
       expect(result.current.getDisplayValue(businessLimit)).toBe('unlimited');
     });
 
-    it('exposes TIER_OPTIONS', async () => {
+    it('exposes TIER_OPTIONS', () => {
       const { result } = renderHook(() => useTierLimitsForm());
 
       expect(result.current.TIER_OPTIONS).toBeDefined();

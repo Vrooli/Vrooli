@@ -20,6 +20,13 @@ function describePlan(plan?: PlanOption) {
   return `${price} / ${interval}`;
 }
 
+function getPlanFeatures(plan: PlanOption): string[] {
+  const metadata = plan.metadata as { features?: unknown } | undefined;
+  return Array.isArray(metadata?.features)
+    ? metadata.features.filter((feature): feature is string => typeof feature === 'string')
+    : [];
+}
+
 function buildDefaultURLs() {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   return {
@@ -90,39 +97,49 @@ export function CheckoutPage() {
   const [attemptKey, setAttemptKey] = useState(0);
   const [loadAttemptKey, setLoadAttemptKey] = useState(0);
   const startedRef = useRef(false);
+  const loadRequestRef = useRef(0);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
+    const requestId = ++loadRequestRef.current;
+    const loadPlans = async () => {
       setLoading(true);
       setError(null);
       try {
         const plans = await getPlans();
-        if (mounted) {
+        if (loadRequestRef.current === requestId) {
           setPricing(plans);
         }
       } catch (err) {
-        if (mounted) {
+        if (loadRequestRef.current === requestId) {
           setError(classifyErrorState(err));
         }
       } finally {
-        if (mounted) setLoading(false);
+        if (loadRequestRef.current === requestId) setLoading(false);
       }
-    })();
+    };
+    void loadPlans();
     return () => {
-      mounted = false;
+      if (loadRequestRef.current === requestId) {
+        loadRequestRef.current += 1;
+      }
     };
   }, [loadAttemptKey]);
 
   const selectedPlan = useMemo<PlanOption | undefined>(() => {
     if (!pricing) return undefined;
-    const candidates = [...(pricing.monthly || []), ...(pricing.yearly || [])].filter((plan) => plan.display_enabled);
+    const monthlyPlans = Array.isArray(pricing.monthly) ? pricing.monthly : [];
+    const yearlyPlans = Array.isArray(pricing.yearly) ? pricing.yearly : [];
+    const candidates = [...monthlyPlans, ...yearlyPlans].filter((plan) => plan.display_enabled);
     if (priceParam) {
       const match = candidates.find((plan) => plan.stripe_price_id === priceParam);
       if (match) return match;
     }
     return candidates[0];
   }, [pricing, priceParam]);
+  const selectedPlanFeatures = useMemo(
+    () => (selectedPlan ? getPlanFeatures(selectedPlan) : []),
+    [selectedPlan],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -139,7 +156,7 @@ export function CheckoutPage() {
           cancel_url: urls.cancel,
         });
 
-        if (!cancelled && session?.url) {
+        if (!cancelled && session.url) {
           window.location.href = session.url;
           return;
         }
@@ -163,7 +180,7 @@ export function CheckoutPage() {
       }
     };
 
-    startCheckout();
+    void startCheckout();
 
     return () => {
       cancelled = true;
@@ -172,7 +189,7 @@ export function CheckoutPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+      <div className="min-h-full bg-slate-950 flex items-center justify-center text-white">
         <div className="animate-pulse text-lg">Loading pricing…</div>
       </div>
     );
@@ -185,7 +202,7 @@ export function CheckoutPage() {
     const bgColor = error.type === 'network' ? 'bg-amber-500/10' : 'bg-rose-500/10';
 
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white px-6">
+      <div className="min-h-full bg-slate-950 flex items-center justify-center text-white px-6">
         <Card className={`max-w-xl bg-slate-900 ${borderColor} text-white`}>
           <CardHeader>
             <div className={`w-12 h-12 rounded-full ${bgColor} flex items-center justify-center mb-4`}>
@@ -199,14 +216,14 @@ export function CheckoutPage() {
           <CardContent className="flex flex-col gap-3 sm:flex-row">
             {error.retryable && (
               <Button
-                onClick={() => setLoadAttemptKey((k) => k + 1)}
+                onClick={() => { setLoadAttemptKey((k) => k + 1); }}
                 className="gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 Try Again
               </Button>
             )}
-            <Button variant="ghost" onClick={() => navigate('/')}>
+            <Button variant="ghost" onClick={() => { navigate('/'); }}>
               Back to Landing
             </Button>
           </CardContent>
@@ -216,12 +233,12 @@ export function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
+    <div className="min-h-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       <div className="mx-auto max-w-5xl px-6 py-16 space-y-10">
         <div className="flex flex-col gap-3">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => { navigate(-1); }}
             className="self-start rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-300 hover:border-white/30"
           >
             Go back
@@ -260,9 +277,9 @@ export function CheckoutPage() {
                         )}
                       </div>
                     </div>
-                    {Array.isArray(selectedPlan.metadata?.features) && selectedPlan.metadata?.features.length > 0 && (
+                    {selectedPlanFeatures.length > 0 && (
                       <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        {(selectedPlan.metadata?.features as string[]).map((feature) => (
+                        {selectedPlanFeatures.map((feature) => (
                           <div key={feature} className="rounded-xl border border-white/5 bg-black/20 px-3 py-2 text-sm text-slate-200">
                             {feature}
                           </div>
@@ -334,7 +351,7 @@ export function CheckoutPage() {
                     {submitting ? 'Redirecting…' : 'Preparing checkout…'}
                   </Button>
                 )}
-                <Button variant="ghost" onClick={() => navigate('/')}>Back to landing</Button>
+                <Button variant="ghost" onClick={() => { navigate('/'); }}>Back to landing</Button>
               </div>
               <p className="pt-4 text-xs text-slate-500">
                 By continuing you agree to the terms and acknowledge this subscription powers the Silent Founder OS suite.

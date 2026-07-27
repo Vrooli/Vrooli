@@ -27,7 +27,7 @@ func TestCoupon_PaymentTimeEligibilityRecheck(t *testing.T) {
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 100, 0.001, "credits")
 
 	// Recreate the minimum tables the scenario needs; payment_anomaly_log is
-	// created by setupTestDB via ensureSchema.
+	// created by setupTestDB via the declarative runtime schema.
 	_, err := db.Exec(`
 		DROP TABLE IF EXISTS intro_coupon_usage CASCADE;
 		DROP TABLE IF EXISTS subscriptions CASCADE;
@@ -127,7 +127,7 @@ func TestCoupon_EligibleUser_NoAnomalyLogged(t *testing.T) {
 	// Set up bundle product for ConfigureStripeService
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 100, 0.001, "credits")
 
-	// Create tables (payment_anomaly_log is provided by ensureSchema in setupTestDB).
+	// Create tables (payment_anomaly_log is provided by setupTestDB's runtime schema).
 	_, err := db.Exec(`
 		DROP TABLE IF EXISTS intro_coupon_usage CASCADE;
 		DROP TABLE IF EXISTS subscriptions CASCADE;

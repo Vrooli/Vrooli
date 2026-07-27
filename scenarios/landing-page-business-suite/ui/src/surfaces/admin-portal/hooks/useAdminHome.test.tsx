@@ -184,7 +184,7 @@ describe('useAdminHome', () => {
       expect(result.current.downloadsLoading).toBe(true);
     });
 
-    it('loads experience snapshot on mount', async () => {
+    it('loads experience snapshot on mount', () => {
       const { result } = renderHook(() => useAdminHome());
 
       expect(result.current.experience).toEqual(mockExperience);
@@ -459,13 +459,13 @@ describe('useAdminHome', () => {
       });
 
       act(() => {
-        result.current.handleResetDemoData();
+        void result.current.handleResetDemoData();
       });
 
       expect(result.current.resettingDemoData).toBe(true);
 
-      await act(async () => {
-        resolveReset?.(mockResetResponse);
+      act(() => {
+        resolveReset(mockResetResponse);
       });
 
       await waitFor(() => {

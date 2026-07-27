@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"net/http/httptest"
 	"testing"
 )
@@ -20,9 +19,9 @@ type StripeTestConfig struct {
 // DefaultStripeTestConfig returns sensible test defaults.
 func DefaultStripeTestConfig() StripeTestConfig {
 	return StripeTestConfig{
-		PublishableKey: "pk_test_default",
-		SecretKey:      "sk_test_default",
-		WebhookSecret:  "whsec_test_default",
+		PublishableKey: "stripe-test-publishable",
+		SecretKey:      "stripe-test-secret",
+		WebhookSecret:  "stripe-test-webhook",
 	}
 }
 
@@ -60,7 +59,7 @@ func (c StripeTestConfig) WithKeys(publishable, secret, webhook string) StripeTe
 //
 //	cfg := DefaultStripeTestConfig().WithIntroCoupon(true, map[string]string{"pro": "coupon_pro"})
 //	service := ConfigureStripeService(t, db, cfg, server)
-func ConfigureStripeService(t *testing.T, db *sql.DB, cfg StripeTestConfig, server *httptest.Server) *StripeService {
+func ConfigureStripeService(t *testing.T, db StripeTestStore, cfg StripeTestConfig, server *httptest.Server) *StripeService {
 	t.Helper()
 
 	service := requireTestStripeService(t, db)
@@ -102,7 +101,7 @@ func ConfigureStripeService(t *testing.T, db *sql.DB, cfg StripeTestConfig, serv
 
 // ConfigureStripeServiceSimple creates a StripeService without a mock server.
 // Use this for tests that don't make actual HTTP calls.
-func ConfigureStripeServiceSimple(t *testing.T, db *sql.DB) *StripeService {
+func ConfigureStripeServiceSimple(t *testing.T, db StripeTestStore) *StripeService {
 	t.Helper()
 	return ConfigureStripeService(t, db, DefaultStripeTestConfig(), nil)
 }

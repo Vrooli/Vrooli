@@ -8,7 +8,7 @@ import {
   type UpdateStripeSettingsResponse,
   type StripeConfigSnapshot,
   type StripeSettings,
-} from '@proto-lprv/settings_pb';
+} from '@proto-lpbs/settings_pb';
 import { apiCall } from './common';
 import type { BillingPortalResponse, BundleCatalogEntry, CheckoutSession, PlanOption } from './types';
 import { normalizeTimestamp } from '../lib/protobuf-utils';
@@ -36,11 +36,11 @@ const normalizeBundleCatalog = (response: BundleCatalogResponseParsed): BundleCa
     bundle: entry.bundle,
     prices: entry.prices.map((plan): PlanOption => ({
       ...plan,
-      intro_enabled: plan.intro_enabled ?? false,
-      monthly_included_credits: plan.monthly_included_credits ?? 0,
-      one_time_bonus_credits: plan.one_time_bonus_credits ?? 0,
-      display_enabled: plan.display_enabled ?? false,
-      display_weight: plan.display_weight ?? 0,
+      intro_enabled: plan.intro_enabled,
+      monthly_included_credits: typeof plan.monthly_included_credits === 'number' ? plan.monthly_included_credits : 0,
+      one_time_bonus_credits: typeof plan.one_time_bonus_credits === 'number' ? plan.one_time_bonus_credits : 0,
+      display_enabled: plan.display_enabled,
+      display_weight: typeof plan.display_weight === 'number' ? plan.display_weight : 0,
     })),
   })),
 });
@@ -52,7 +52,7 @@ export interface StripeSettingsResponse {
   webhook_secret_set: boolean;
   dashboard_url?: string;
   updated_at?: string;
-  source: 'env' | 'database' | string;
+  source: string;
 }
 
 export interface StripeSettingsUpdatePayload {
@@ -79,14 +79,14 @@ export interface UpdateBundlePricePayload {
 }
 
 function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: StripeSettings): StripeSettingsResponse {
-  const normalizeSource = (source?: ConfigSource | string | number): 'env' | 'database' | string => {
+  const normalizeSource = (source?: unknown): string => {
     switch (source) {
-      case ConfigSource.CONFIG_SOURCE_DATABASE:
+      case ConfigSource.DATABASE:
         return 'database';
-      case ConfigSource.CONFIG_SOURCE_ENV:
+      case ConfigSource.ENV:
         return 'env';
       default:
-        return typeof source === 'number' ? String(source) : source ?? 'env';
+        return typeof source === 'string' || typeof source === 'number' ? String(source) : 'env';
     }
   };
 

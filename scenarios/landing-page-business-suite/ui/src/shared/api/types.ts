@@ -354,6 +354,7 @@ export interface LandingBranding {
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
   support_chat_url?: string | null;
+  support_email?: string | null;
   coming_soon_enabled?: boolean | null;
   coming_soon_message?: string | null;
 }
@@ -557,7 +558,7 @@ export interface VariantSEOResponse {
   og_title: string;
   og_description: string;
   og_image_url?: string;
-  twitter_card?: 'summary' | 'summary_large_image' | string;
+  twitter_card?: string;
   canonical_url?: string;
   favicon_url?: string;
   apple_touch_icon_url?: string;

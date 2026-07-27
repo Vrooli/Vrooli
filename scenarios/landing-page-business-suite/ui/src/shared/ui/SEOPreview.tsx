@@ -1,4 +1,4 @@
-import { Globe, Twitter, Facebook } from 'lucide-react';
+import { Globe, MessageCircle, Share2 } from 'lucide-react';
 
 export interface SEOPreviewProps {
   title?: string;
@@ -58,7 +58,7 @@ export function SEOPreview({
       {/* Twitter/X Card Preview */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm text-slate-400">
-          <Twitter className="h-4 w-4" />
+          <MessageCircle className="h-4 w-4" />
           Twitter/X Card Preview
         </div>
         <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden max-w-[500px]">
@@ -105,7 +105,7 @@ export function SEOPreview({
       {/* Facebook/Open Graph Preview */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm text-slate-400">
-          <Facebook className="h-4 w-4" />
+          <Share2 className="h-4 w-4" />
           Facebook Preview
         </div>
         <div className="rounded-lg border border-slate-300 bg-white overflow-hidden max-w-[500px]">

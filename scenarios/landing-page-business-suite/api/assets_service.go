@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -18,13 +19,18 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/filerouting"
+	corestorage "github.com/vrooli/api-core/storage"
+	"landing-page-business-suite-api/internal/envx"
 )
 
 var (
-	ErrAssetNotFound   = errors.New("asset not found")
-	ErrInvalidFileType = errors.New("invalid file type")
-	ErrFileTooLarge    = errors.New("file exceeds maximum size")
-	ErrUploadFailed    = errors.New("failed to save uploaded file")
+	ErrAssetNotFound    = errors.New("asset not found")
+	ErrInvalidFileType  = errors.New("invalid file type")
+	ErrFileTooLarge     = errors.New("file exceeds maximum size")
+	ErrUploadFailed     = errors.New("failed to save uploaded file")
+	ErrInvalidAssetPath = errors.New("invalid asset storage path")
 )
 
 // Asset represents an uploaded file
@@ -55,22 +61,30 @@ type AssetUploadRequest struct {
 
 // AssetsService handles file upload operations
 type AssetsService struct {
-	db           *sql.DB
+	db           AssetStore
 	uploadDir    string
 	maxSize      int64
 	baseURL      string
 	allowedTypes map[string]bool
+	fileRoots    *filerouting.RoutedRoots
+}
+
+// AssetStore is the persistence boundary for asset metadata.
+type AssetStore interface {
+	QueryRow(string, ...any) *sql.Row
+	Query(string, ...any) (*sql.Rows, error)
+	Exec(string, ...any) (sql.Result, error)
 }
 
 // NewAssetsService creates a new assets service
-func NewAssetsService(db *sql.DB) *AssetsService {
-	uploadDir := os.Getenv("UPLOAD_DIR")
+func NewAssetsService(db AssetStore) *AssetsService {
+	uploadDir := envx.Get("UPLOAD_DIR")
 	if uploadDir == "" {
 		uploadDir = "./uploads"
 	}
 
 	// Ensure upload directory exists
-	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+	if err := os.MkdirAll(uploadDir, 0o750); err != nil {
 		logStructuredError("create_upload_dir_failed", map[string]interface{}{
 			"dir":   uploadDir,
 			"error": err.Error(),
@@ -80,7 +94,7 @@ func NewAssetsService(db *sql.DB) *AssetsService {
 	// Create subdirectories for organization
 	for _, subdir := range []string{"logos", "favicons", "og-images", "general"} {
 		path := filepath.Join(uploadDir, subdir)
-		if err := os.MkdirAll(path, 0o755); err != nil {
+		if err := os.MkdirAll(path, 0o750); err != nil {
 			logStructuredError("create_upload_subdir_failed", map[string]interface{}{
 				"dir":   path,
 				"error": err.Error(),
@@ -105,8 +119,28 @@ func NewAssetsService(db *sql.DB) *AssetsService {
 	}
 }
 
+// SetFileRoots enables request-scoped file routing for live HTTP traffic.
+// Unit tests and command paths that do not install roots retain the existing
+// uploadDir behavior.
+func (s *AssetsService) SetFileRoots(roots *filerouting.RoutedRoots) {
+	s.fileRoots = roots
+}
+
+func (s *AssetsService) uploadRoot(ctx context.Context) (string, error) {
+	if s.fileRoots == nil {
+		return s.uploadDir, nil
+	}
+	return s.fileRoots.Pick(ctx, corestorage.ClassData)
+}
+
 // Upload handles file upload, validation, and storage
 func (s *AssetsService) Upload(req *AssetUploadRequest) (*Asset, error) {
+	return s.UploadContext(context.Background(), req)
+}
+
+// UploadContext persists an asset in the root selected for the request. A
+// Test-Genie test-mode request therefore writes only to its leased data root.
+func (s *AssetsService) UploadContext(ctx context.Context, req *AssetUploadRequest) (*Asset, error) {
 	if req.File == nil || req.Header == nil {
 		return nil, errors.New("no file provided")
 	}
@@ -142,14 +176,19 @@ func (s *AssetsService) Upload(req *AssetUploadRequest) (*Asset, error) {
 
 	// Create full path
 	storagePath := filepath.Join(subdir, uniqueName)
-	fullPath := filepath.Join(s.uploadDir, storagePath)
+	uploadRoot, err := s.uploadRoot(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve upload root: %w", err)
+	}
+	fullPath := filepath.Join(uploadRoot, storagePath)
 
 	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
 	}
 
 	// Create destination file
+	// #nosec G304 -- fullPath is rooted at trusted configured storage and storagePath uses a fixed category plus a generated filename.
 	dst, err := os.Create(fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
@@ -159,8 +198,13 @@ func (s *AssetsService) Upload(req *AssetUploadRequest) (*Asset, error) {
 	// Copy file content
 	written, err := io.Copy(dst, req.File)
 	if err != nil {
-		os.Remove(fullPath) // Clean up on failure
+		if removeErr := os.Remove(fullPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			logStructuredError("asset_upload_cleanup_failed", map[string]interface{}{"path": fullPath, "error": removeErr.Error()})
+		}
 		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
+	}
+	if s.fileRoots != nil {
+		s.fileRoots.RecordWrite(ctx)
 	}
 
 	// Insert into database
@@ -200,7 +244,9 @@ func (s *AssetsService) Upload(req *AssetUploadRequest) (*Asset, error) {
 		uploadedBy,
 	).Scan(&asset.ID, &asset.CreatedAt)
 	if err != nil {
-		os.Remove(fullPath) // Clean up on failure
+		if removeErr := os.Remove(fullPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			logStructuredError("asset_metadata_cleanup_failed", map[string]interface{}{"path": fullPath, "error": removeErr.Error()})
+		}
 		return nil, fmt.Errorf("failed to save asset metadata: %w", err)
 	}
 
@@ -208,7 +254,7 @@ func (s *AssetsService) Upload(req *AssetUploadRequest) (*Asset, error) {
 
 	// Generate derivatives for known categories (best-effort)
 	if strings.HasPrefix(mimeType, "image/") && mimeType != "image/svg+xml" {
-		derivatives, derr := s.generateDerivatives(fullPath, storagePath, mimeType, category)
+		derivatives, derr := s.generateDerivativesAtRoot(uploadRoot, fullPath, storagePath, mimeType, category)
 		if derr != nil {
 			logStructuredError("asset_derivative_failed", map[string]interface{}{
 				"error":    derr.Error(),
@@ -308,6 +354,11 @@ func (s *AssetsService) List(category string) ([]Asset, error) {
 
 // Delete removes an asset by ID
 func (s *AssetsService) Delete(id int) error {
+	return s.DeleteContext(context.Background(), id)
+}
+
+// DeleteContext removes an asset from the request-selected data root.
+func (s *AssetsService) DeleteContext(ctx context.Context, id int) error {
 	// Get asset to find file path
 	asset, err := s.Get(id)
 	if err != nil {
@@ -321,20 +372,25 @@ func (s *AssetsService) Delete(id int) error {
 	}
 
 	// Delete file from disk
-	fullPath := filepath.Join(s.uploadDir, asset.StoragePath)
-	if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
+	fullPath, pathErr := s.ResolveStoragePathContext(ctx, asset.StoragePath)
+	if pathErr != nil {
+		logStructuredError("delete_asset_path_invalid", map[string]interface{}{"id": id, "path": asset.StoragePath, "error": pathErr.Error()})
+	} else if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		logStructuredError("delete_asset_file_failed", map[string]interface{}{
 			"id":    id,
 			"path":  fullPath,
 			"error": err.Error(),
 		})
 		// Don't return error - DB record is already deleted
+	} else if s.fileRoots != nil {
+		s.fileRoots.RecordWrite(ctx)
 	}
 
 	// Delete thumbnail if exists
 	if asset.ThumbnailPath != nil {
-		thumbPath := filepath.Join(s.uploadDir, *asset.ThumbnailPath)
-		os.Remove(thumbPath) // Ignore errors
+		if thumbPath, err := s.ResolveStoragePathContext(ctx, *asset.ThumbnailPath); err == nil {
+			_ = os.Remove(thumbPath)
+		}
 	}
 
 	return nil
@@ -342,7 +398,38 @@ func (s *AssetsService) Delete(id int) error {
 
 // GetFilePath returns the full filesystem path for an asset
 func (s *AssetsService) GetFilePath(storagePath string) string {
-	return filepath.Join(s.uploadDir, storagePath)
+	path, _ := s.ResolveStoragePath(storagePath)
+	return path
+}
+
+// ResolveStoragePath returns a path that is guaranteed to remain under the
+// configured upload root. Storage paths can originate from a URL or database,
+// so every filesystem operation must resolve them through this boundary.
+func (s *AssetsService) ResolveStoragePath(storagePath string) (string, error) {
+	return s.ResolveStoragePathContext(context.Background(), storagePath)
+}
+
+// ResolveStoragePathContext resolves a storage-relative asset path under the
+// root selected for this request and rejects traversal before touching disk.
+func (s *AssetsService) ResolveStoragePathContext(ctx context.Context, storagePath string) (string, error) {
+	cleanPath := filepath.Clean(strings.TrimSpace(storagePath))
+	if cleanPath == "." || filepath.IsAbs(cleanPath) || cleanPath == ".." || strings.HasPrefix(cleanPath, ".."+string(filepath.Separator)) {
+		return "", ErrInvalidAssetPath
+	}
+	uploadRoot, err := s.uploadRoot(ctx)
+	if err != nil {
+		return "", fmt.Errorf("resolve upload root: %w", err)
+	}
+	root, err := filepath.Abs(uploadRoot)
+	if err != nil {
+		return "", fmt.Errorf("resolve upload root: %w", err)
+	}
+	fullPath := filepath.Join(root, cleanPath)
+	relative, err := filepath.Rel(root, fullPath)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", ErrInvalidAssetPath
+	}
+	return fullPath, nil
 }
 
 // Helper functions
@@ -411,6 +498,10 @@ func (s *AssetsService) GetUploadDir() string {
 }
 
 func (s *AssetsService) generateDerivatives(fullPath, storagePath, mimeType, category string) (map[string]string, error) {
+	return s.generateDerivativesAtRoot(s.uploadDir, fullPath, storagePath, mimeType, category)
+}
+
+func (s *AssetsService) generateDerivativesAtRoot(uploadRoot, fullPath, storagePath, mimeType, category string) (map[string]string, error) {
 	// SVGs can't be rasterized without extra deps; fallback to reusing the original for all slots.
 	if mimeType == "image/svg+xml" {
 		return map[string]string{
@@ -453,7 +544,7 @@ func (s *AssetsService) generateDerivatives(fullPath, storagePath, mimeType, cat
 		}
 		for _, size := range sizes {
 			path := filepath.Join(baseDir, fmt.Sprintf("%s-%s.png", baseName, size.key))
-			if err := saveResizedPNG(srcImg, filepath.Join(s.uploadDir, path), size.w, size.h); err != nil {
+			if err := saveResizedPNG(srcImg, filepath.Join(uploadRoot, path), size.w, size.h); err != nil {
 				return nil, err
 			}
 			derivatives[size.key] = path
@@ -478,14 +569,14 @@ func (s *AssetsService) generateDerivatives(fullPath, storagePath, mimeType, cat
 		}
 		for _, size := range sizes {
 			path := filepath.Join(baseDir, fmt.Sprintf("%s-%s.png", baseName, size.key))
-			if err := saveResizedPNG(srcImg, filepath.Join(s.uploadDir, path), size.w, size.h); err != nil {
+			if err := saveResizedPNG(srcImg, filepath.Join(uploadRoot, path), size.w, size.h); err != nil {
 				return nil, err
 			}
 			derivatives[size.key] = path
 		}
 	case "og_image":
 		path := filepath.Join(baseDir, fmt.Sprintf("%s-og-1200x630.png", baseName))
-		if err := saveResizedPNG(srcImg, filepath.Join(s.uploadDir, path), 1200, 630); err != nil {
+		if err := saveResizedPNG(srcImg, filepath.Join(uploadRoot, path), 1200, 630); err != nil {
 			return nil, err
 		}
 		derivatives["og_image_1200x630"] = path
@@ -499,6 +590,7 @@ func (s *AssetsService) generateDerivatives(fullPath, storagePath, mimeType, cat
 }
 
 func (s *AssetsService) decodeImage(path string, mimeType string) (image.Image, error) {
+	// #nosec G304 -- derivative paths are generated beneath the selected trusted storage root.
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open image: %w", err)
@@ -518,10 +610,11 @@ func saveResizedPNG(src image.Image, outputPath string, targetW, targetH int) er
 		return fmt.Errorf("resize failed for %s", outputPath)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o750); err != nil {
 		return fmt.Errorf("create dir: %w", err)
 	}
 
+	// #nosec G304 -- derivative output paths are generated beneath the selected trusted storage root.
 	f, err := os.Create(outputPath)
 	if err != nil {
 		return fmt.Errorf("create output: %w", err)

@@ -75,9 +75,9 @@ export function filterByProperties<T>(
  * sortBy(users, 'name', 'asc')       // A-Z by name
  * sortBy(products, 'price', 'desc')  // highest price first
  */
-export function sortBy<T, K extends keyof T>(
+export function sortBy<T>(
   items: T[],
-  key: K,
+  key: keyof T,
   direction: SortDirection = 'asc'
 ): T[] {
   return [...items].sort((a, b) => {
@@ -109,9 +109,9 @@ export function sortBy<T, K extends keyof T>(
  * @example
  * sortByDate(emails, 'created_at', 'desc')  // newest first
  */
-export function sortByDate<T, K extends keyof T>(
+export function sortByDate<T>(
   items: T[],
-  key: K,
+  key: keyof T,
   direction: SortDirection = 'desc'
 ): T[] {
   return [...items].sort((a, b) => {
@@ -265,9 +265,9 @@ export function updateById<T, K extends keyof T = 'id' & keyof T>(
  * @example
  * searchByProperty(users, 'email', 'gmail')  // users with 'gmail' in email
  */
-export function searchByProperty<T, K extends keyof T>(
+export function searchByProperty<T>(
   items: T[],
-  property: K,
+  property: keyof T,
   query: string
 ): T[] {
   const trimmed = query.trim();
@@ -329,11 +329,11 @@ export function countByProperty<T, K extends keyof T>(
  * @example
  * groupBy(users, 'role')  // { admin: [...], user: [...] }
  */
-export function groupBy<T, K extends keyof T>(
+export function groupBy<T>(
   items: T[],
-  property: K
+  property: keyof T
 ): Record<string, T[]> {
-  return items.reduce(
+  return items.reduce<Record<string, T[]>>(
     (groups, item) => {
       const key = String(item[property]);
       if (!groups[key]) {
@@ -342,6 +342,6 @@ export function groupBy<T, K extends keyof T>(
       groups[key].push(item);
       return groups;
     },
-    {} as Record<string, T[]>
+    {}
   );
 }

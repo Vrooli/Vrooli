@@ -451,7 +451,7 @@ func (cs *ConfigStore) SaveBranding(branding *SiteBranding) error {
 		return fmt.Errorf("marshal branding: %w", err)
 	}
 
-	if err := os.WriteFile(cs.brandingPath, data, 0o644); err != nil {
+	if err := os.WriteFile(cs.brandingPath, data, 0o600); err != nil {
 		return fmt.Errorf("write branding file: %w", err)
 	}
 
@@ -704,7 +704,7 @@ func (cs *ConfigStore) saveBrandingLocked() error {
 		return fmt.Errorf("marshal branding: %w", err)
 	}
 
-	if err := os.WriteFile(cs.brandingPath, data, 0o644); err != nil {
+	if err := os.WriteFile(cs.brandingPath, data, 0o600); err != nil {
 		return fmt.Errorf("write branding file: %w", err)
 	}
 

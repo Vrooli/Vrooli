@@ -80,7 +80,7 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
       const slugToUse = urlSlug || undefined;
 
       const landingConfig = await getLandingConfig(slugToUse);
-      if (!landingConfig?.variant?.slug) {
+      if (!landingConfig.variant.slug) {
         throw new Error('Landing config missing variant');
       }
 
@@ -109,7 +109,7 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
         // Log successful fallback activation
         console.info('[LandingVariantProvider] Fallback activated', {
           reason: message,
-          fallbackVariant: fallbackConfig.variant?.slug,
+          fallbackVariant: fallbackConfig.variant.slug,
         });
       } catch (fallbackErr) {
         logVariantError('loadFallback', fallbackErr, {
@@ -125,7 +125,7 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
   }, [applyConfig]);
 
   useEffect(() => {
-    loadVariant();
+    void loadVariant();
   }, [loadVariant]);
 
   const refresh = useCallback(async () => {

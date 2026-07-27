@@ -25,7 +25,7 @@ export async function getWaitlistEmails(): Promise<WaitlistEmail[]> {
  * Delete a waitlist email by ID (admin only)
  */
 export async function deleteWaitlistEmail(id: number): Promise<{ success: boolean }> {
-  return apiCall(`/admin/waitlist/${id}`, {
+  return apiCall(`/admin/waitlist/${String(id)}`, {
     method: 'DELETE',
   });
 }

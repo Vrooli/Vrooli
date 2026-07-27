@@ -59,9 +59,19 @@ type anomalyConfig struct {
 	rateLimits map[string]anomalyRateLimit
 }
 
+// PaymentAnomalyStore is the context-aware persistence contract for anomaly
+// records, configuration, and dispatch state.
+//
+// seam: PaymentAnomalyStore keeps payment anomaly persistence independent of a
+// concrete pool and preserves request-scoped test isolation.
+type PaymentAnomalyStore interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
 // PaymentAnomalyService records anomalies and triggers webhook alerts.
 type PaymentAnomalyService struct {
-	db          *sql.DB
+	db          PaymentAnomalyStore
 	dispatcher  *AnomalyAlertDispatcher
 	cfg         atomic.Pointer[anomalyConfig]
 	shutdownCtx context.Context
@@ -74,9 +84,12 @@ type PaymentAnomalyService struct {
 // shutdownCtx scopes long-lived background dispatch goroutines.
 //
 //revive:disable-next-line:context-as-argument
-func NewPaymentAnomalyService(ctx context.Context, db *sql.DB, shutdownCtx context.Context) *PaymentAnomalyService {
+func NewPaymentAnomalyService(ctx context.Context, db PaymentAnomalyStore, shutdownCtx context.Context) *PaymentAnomalyService {
 	if shutdownCtx == nil {
-		shutdownCtx = context.Background()
+		shutdownCtx = ctx
+	}
+	if shutdownCtx == nil {
+		shutdownCtx = context.TODO()
 	}
 	s := &PaymentAnomalyService{
 		db:          db,

@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { installChunkReloadGuard } from "@vrooli/api-base";
 import App from "./App";
 import { onProfilerRender } from "./lib/profiler";
@@ -10,7 +11,23 @@ import "./styles.css";
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next
 // navigation. This guard reloads once (rate-limited) instead.
+// INTEROP-CRITICAL: preserve the host's keyboard/gamepad focus contract.
 installChunkReloadGuard();
+initSpatialNav();
+
+function registerServiceWorker() {
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) {
+    return;
+  }
+
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch((error: unknown) => {
+      console.warn('Service worker registration failed', error);
+    });
+  });
+}
+
+registerServiceWorker();
 
 declare global {
   interface Window {

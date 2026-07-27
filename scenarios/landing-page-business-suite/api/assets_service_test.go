@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -11,7 +13,77 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	corestorage "github.com/vrooli/api-core/storage"
 )
+
+func TestAssetsServiceResolveStoragePathRejectsTraversalAndAbsolutePaths(t *testing.T) {
+	service := &AssetsService{uploadDir: t.TempDir()}
+	for _, storagePath := range []string{"../secret", "/etc/passwd", ".", ""} {
+		if _, err := service.ResolveStoragePath(storagePath); !errors.Is(err, ErrInvalidAssetPath) {
+			t.Fatalf("ResolveStoragePath(%q) error = %v, want ErrInvalidAssetPath", storagePath, err)
+		}
+	}
+	resolved, err := service.ResolveStoragePath("logos/logo.png")
+	if err != nil {
+		t.Fatalf("ResolveStoragePath valid path: %v", err)
+	}
+	if !strings.HasSuffix(resolved, filepath.Join("logos", "logo.png")) {
+		t.Fatalf("resolved path = %q", resolved)
+	}
+}
+
+func TestAssetsServiceUploadContextRoutesTestModeWritesToLeasedRoot(t *testing.T) {
+	db := setupTestDB(t)
+	t.Cleanup(func() { _ = db.Close() })
+
+	primaryRoot := t.TempDir()
+	leasedRoot := t.TempDir()
+	roots := filerouting.New(corestorage.Paths{DataDir: primaryRoot})
+	if err := roots.InstallTestRoots(corestorage.Paths{DataDir: leasedRoot}, "asset-lease", time.Minute); err != nil {
+		t.Fatalf("install leased roots: %v", err)
+	}
+	t.Cleanup(func() { _ = roots.ClearTestRoots("asset-lease") })
+
+	svc := NewAssetsService(db)
+	svc.SetFileRoots(roots)
+	source := filepath.Join(t.TempDir(), "asset.png")
+	if err := os.WriteFile(source, []byte("not a real png"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	file, err := os.Open(source)
+	if err != nil {
+		t.Fatalf("open source: %v", err)
+	}
+	defer file.Close()
+
+	asset, err := svc.UploadContext(database.WithTestMode(context.Background()), &AssetUploadRequest{
+		File: file,
+		Header: &multipart.FileHeader{
+			Filename: "asset.png",
+			Header:   textproto.MIMEHeader{"Content-Type": []string{"image/png"}},
+			Size:     int64(len("not a real png")),
+		},
+		Category: "logo",
+	})
+	if err != nil {
+		t.Fatalf("upload in test mode: %v", err)
+	}
+	t.Cleanup(func() { _, _ = db.Exec(`DELETE FROM assets WHERE id = $1`, asset.ID) })
+
+	if _, err := os.Stat(filepath.Join(leasedRoot, asset.StoragePath)); err != nil {
+		t.Fatalf("expected leased-root asset: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(primaryRoot, asset.StoragePath)); !os.IsNotExist(err) {
+		t.Fatalf("primary root must remain untouched, stat error = %v", err)
+	}
+	if got := roots.LeaseStats().TestRootWrites; got != 1 {
+		t.Fatalf("test-root write count = %d, want 1", got)
+	}
+}
 
 func TestGenerateLogoDerivatives(t *testing.T) {
 	tmpDir := t.TempDir()

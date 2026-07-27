@@ -156,6 +156,7 @@ describe('useVariantForm', () => {
 
       expect(result.current.loading).toBe(false);
       expect(loadVariantEditorDataMock).not.toHaveBeenCalled();
+      await waitFor(() => { expect(result.current.variantSpace).not.toBeNull(); });
     });
 
     it('loads variant space definition', async () => {
@@ -192,6 +193,7 @@ describe('useVariantForm', () => {
 
     it('handles variant load error', async () => {
       loadVariantEditorDataMock.mockRejectedValue(new Error('Variant not found'));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
       const { result } = renderHook(() => useVariantForm(defaultProps));
 
@@ -200,6 +202,8 @@ describe('useVariantForm', () => {
       });
 
       expect(result.current.error).toBe('Variant not found');
+      expect(consoleError).toHaveBeenCalledWith('Variant fetch error:', expect.any(Error));
+      consoleError.mockRestore();
     });
   });
 
@@ -259,6 +263,7 @@ describe('useVariantForm', () => {
 
     it('sanitizes slug input', async () => {
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       const sanitized = result.current.sanitizeSlugInput('Test Slug 123!');
 
@@ -269,6 +274,7 @@ describe('useVariantForm', () => {
   describe('tab state', () => {
     it('defaults to form tab', async () => {
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.activeTab).toBe('form');
       expect(result.current.isJsonTab).toBe(false);
@@ -276,6 +282,7 @@ describe('useVariantForm', () => {
 
     it('switches between tabs', async () => {
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setActiveTab('json');
@@ -287,6 +294,7 @@ describe('useVariantForm', () => {
 
     it('computes saving label based on tab', async () => {
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.savingLabel).toBe('Save');
 
@@ -337,6 +345,7 @@ describe('useVariantForm', () => {
 
     it('handles save error', async () => {
       persistVariantMock.mockRejectedValue(new Error('Save failed'));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
       const onError = vi.fn();
       const { result } = renderHook(() =>
@@ -354,6 +363,8 @@ describe('useVariantForm', () => {
       expect(saveResult.success).toBe(false);
       expect(result.current.error).toBe('Save failed');
       expect(onError).toHaveBeenCalledWith('Failed to save variant changes');
+      expect(consoleError).toHaveBeenCalledWith('Variant save error:', expect.any(Error));
+      consoleError.mockRestore();
     });
 
     it('returns saved variant on create', async () => {
@@ -417,6 +428,28 @@ describe('useVariantForm', () => {
       expect(saveResult).toBe(false);
       expect(result.current.snapshotError).toContain('Invalid JSON');
       expect(onError).toHaveBeenCalledWith('Invalid JSON syntax');
+    });
+
+    it('rejects JSON that does not match the variant snapshot contract', async () => {
+      const onError = vi.fn();
+      const { result } = renderHook(() =>
+        useVariantForm({ ...defaultProps, onError })
+      );
+
+      await waitFor(() => {
+        expect(result.current.snapshotLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.setSnapshotDraft(JSON.stringify({ variant: { slug: 'control' } }));
+      });
+
+      const saveResult = await act(async () => result.current.handleSaveJson());
+
+      expect(saveResult).toBe(false);
+      expect(result.current.snapshotError).toBe('Invalid JSON structure for variant snapshot');
+      expect(onError).toHaveBeenCalledWith('Failed to apply variant JSON');
+      expect(persistVariantSnapshotMock).not.toHaveBeenCalled();
     });
 
     it('handles missing slug', async () => {
@@ -561,12 +594,58 @@ describe('useVariantForm', () => {
       });
 
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
       await act(async () => {
         await result.current.handleCopySchema({ type: 'object' });
       });
 
       expect(result.current.copyStatus).toBe('Copy failed');
+      expect(consoleError).toHaveBeenCalledWith('Schema copy failed', expect.any(Error));
+      consoleError.mockRestore();
+    });
+
+    it('copies Monaco marker details and disposes the listener when unmounted', async () => {
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      const dispose = vi.fn();
+      let onMarkersChanged: ((changed: readonly { toString: () => string }[]) => void) | undefined;
+      const marker = { message: 'Missing title', startLineNumber: 3, startColumn: 7 };
+      const monaco = {
+        languages: { json: { jsonDefaults: { setDiagnosticsOptions: vi.fn() } } },
+        Uri: { parse: vi.fn((value: string) => ({ toString: () => value })) },
+        editor: {
+          getModelMarkers: vi.fn(() => [marker]),
+          onDidChangeMarkers: vi.fn((handler) => {
+            onMarkersChanged = handler;
+            return { dispose };
+          }),
+        },
+      };
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: writeTextMock },
+        configurable: true,
+      });
+
+      const { result, unmount } = renderHook(() => useVariantForm(defaultProps));
+      act(() => {
+        result.current.handleEditorMount({} as never, monaco as never);
+      });
+      act(() => {
+        onMarkersChanged?.([{ toString: () => 'file://variant.json' }]);
+      });
+
+      await act(async () => {
+        await result.current.handleCopyIssues();
+      });
+
+      expect(monaco.languages.json.jsonDefaults.setDiagnosticsOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ validate: true, allowComments: false })
+      );
+      expect(writeTextMock).toHaveBeenCalledWith('Missing title (line 3:7)');
+      expect(result.current.copyStatus).toBe('Copied schema issues');
+
+      unmount();
+      expect(dispose).toHaveBeenCalledOnce();
     });
   });
 

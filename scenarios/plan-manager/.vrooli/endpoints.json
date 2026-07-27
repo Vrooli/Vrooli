@@ -481,7 +481,7 @@
       "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/DiscoverSkillPack",
       "method": "POST",
       "summary": "Discover skill pack",
-      "description": "Runs prompt-manager skill discovery for decomposed concepts and auto-upserts the returned skill pack into global relevant context.",
+      "description": "Runs prompt-manager skill discovery for decomposed concepts and auto-upserts the returned skill pack into global relevant context, or into one phase's relevant context when phase_id is set.",
       "category": "authoring"
     },
     {

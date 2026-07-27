@@ -27,6 +27,14 @@
       }
     }
   },
+  "generation": {
+    "template": {
+      "id": "landing-page-react-vite",
+      "version": "1.0.0"
+    },
+    "generated_at": "2025-12-06T20:24:47Z",
+    "adopted": true
+  },
   "lifecycle": {
     "develop": {
       "description": "Launch API and production UI bundle",
@@ -184,7 +192,7 @@
   "service": {
     "category": "business_tools",
     "description": "Generated landing page scenario from template 'landing-page-business-suite'",
-    "displayName": "landing-page-business-suite",
+    "displayName": "Silent Founder OS",
     "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
     "homepage": "https://github.com/Vrooli/Vrooli",
     "license": "MIT",
@@ -236,7 +244,7 @@
             "label": "Admin Password",
             "description": "Password for the default admin account. Should be a strong, unique password for production deployments.",
             "required": false,
-            "default_hint": "Minimum 12 characters with letters and numbers (defaults to 'changeme123' if not set)"
+            "default_hint": "Required in production; local development generates an ephemeral credential when not set"
           },
           {
             "secret_id": "SESSION_SECRET",
