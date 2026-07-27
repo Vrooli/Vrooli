@@ -1,0 +1,66 @@
+{
+  "_metadata": {
+    "description": "P2 requirements — expansions deliberately deferred until the core loop has real data. Each exists because the workshop identified it as a genuine option, not as speculative scope; each is cheap to add on the same substrate once the P0 loop is proven.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VROOLIME-P2-001",
+      "title": "Receipt distillation",
+      "criticality": "P2",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "experiment",
+      "description": "Candidate memories distilled from the vrooli-events receipt stream for a completed run, surfaced for operator confirmation rather than written directly. Deliberately not the primary write path: distillation only reaches agent-manager-spawned agents, whereas the deliberate write verb covers every harness. Kept as a P2 because the substrate makes it a cheap experiment and the signal-to-noise question is empirical.",
+      "tags": ["vrooli-events", "experiment", "deferred"],
+      "validation": [
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "A completed run's receipts produce candidate memories in a pending state that are never journaled without confirmation." },
+        { "type": "manual", "status": "planned", "notes": "Operator evaluation of candidate quality against a sample of runs before promoting this beyond an experiment." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P2-002",
+      "title": "Write-path enforcement hooks",
+      "criticality": "P2",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "harness",
+      "description": "Harness hooks that intercept direct writes to a memory file and redirect them through the governed CLI. Hardening only — the prompt block plus the generated projection are the primary mechanism, because hook APIs are runtime-specific and several supported harnesses have no equivalent. Building on hooks first would make adoption depend on a surface most runtimes do not expose.",
+      "tags": ["harness", "hooks", "deferred"],
+      "validation": [
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "A direct write to the projected memory path is intercepted and re-routed to the CLI write path." },
+        { "type": "manual", "status": "planned", "notes": "Per-runtime review of which harnesses expose a usable pre-write hook surface." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P2-003",
+      "title": "Re-summarization drift monitoring",
+      "criticality": "P2",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "compaction",
+      "description": "When re-summarizing a node above a configured depth, re-read a sample of its descendant leaves to detect fact mutation. Deferred by explicit decision: summaries are lossy by design, so dropping facts is intended compression and not a defect. The failure this would catch is narrower — a fact mutated into something false, which is indistinguishable from a drop in a diff and only detectable against the leaves.",
+      "tags": ["compaction", "quality", "deferred"],
+      "validation": [
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "Re-summarization above the configured depth samples descendant leaves and reports assertions present in leaves but negated in the summary." },
+        { "type": "manual", "status": "planned", "notes": "Calibrate against real multi-generation compaction output; do not implement before that data exists." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P2-004",
+      "title": "Memory retrieval eval corpus",
+      "criticality": "P2",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "quality",
+      "description": "A golden retrieval suite registered with search-hub so memory recall quality is measured over time like any other provider — reviewed positive cases, junk negatives for rejection, and stored runs whose freshness and aggregate recall gate certification. Requires a real corpus first: a generated-only corpus cannot certify under the existing provider contract.",
+      "tags": ["search-hub", "eval", "quality", "deferred"],
+      "validation": [
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "The registered suite runs against the live memory provider and stores a run with per-case labels." },
+        { "type": "manual", "status": "planned", "notes": "Author reviewed positive and junk-negative cases from real memory content; generated cases remain candidates and do not count toward acceptance recall." }
+      ]
+    }
+  ]
+}

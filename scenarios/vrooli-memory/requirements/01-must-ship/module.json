@@ -1,0 +1,161 @@
+{
+  "_metadata": {
+    "description": "P0 requirements — the journal, the retrieval contract, facet-routed retention, and the compaction loop. Nothing here is implemented yet: every status is planned, and every validation entry declares intended evidence without asserting a ref to a test that does not exist.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VROOLIME-P0-001",
+      "title": "Append-only journal",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "storage",
+      "description": "The journal is the sole authority. A memory write appends one immutable entry; no code path rewrites or deletes an existing entry. Compaction adds summary nodes above the journal and never removes what it summarized. An entry carries prose body, facet tag, derived facet texts, embeddings, author attribution, receipt correlation, and creation timestamp.",
+      "tags": ["journal", "storage", "invariant"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Appending N entries then reading yields exactly N entries in write order with stable ids." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "No repository method exposes update or delete of a journal entry; a compaction pass leaves leaf count unchanged." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "After a compaction pass reduces the frontier, every original leaf is still individually retrievable by id." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P0-002",
+      "title": "Deliberate write verb",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "write-path",
+      "description": "`memory note` is the single agent-facing write verb. On invocation the API classifies the entry into exactly one facet via ai-gateway, derives its facet texts, embeds each, and appends. Classification failure must not lose the write: the entry is appended with an unclassified facet and queued for reclassification rather than rejected.",
+      "tags": ["cli", "write-path", "ai-gateway"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A note with a stubbed classifier is appended with the returned facet and its derived texts embedded." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "When the classifier errors, the entry is still appended, marked unclassified, and enqueued for retry." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "CLI note round-trips through Connect to a retrievable journal entry." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P0-003",
+      "title": "Full-fidelity semantic recall",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "retrieval",
+      "description": "Recall searches the union of journal leaves and summary nodes in one vector space. Compaction status never excludes a leaf from the candidate set — the invariant that makes compaction a context-budget device rather than a storage device. Summaries are embedded on creation so they are searchable alongside leaves.",
+      "tags": ["retrieval", "invariant", "search"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A leaf that has been absorbed into a summary is still returned for a query matching its text." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A summary node is returned for a query matching the summary text but no individual leaf." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "Recall over a corpus compacted to depth 2 returns hits drawn from all three depths." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P0-004",
+      "title": "Best-node retrieval with descendant collapse",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "retrieval",
+      "description": "Ranking selects the best-scoring node at any depth; a leaf that outscores its ancestor is returned in preference to that ancestor. Once a node is in the result set its descendants are collapsed under it rather than emitted as sibling hits, so one region of the tree cannot flood the results.",
+      "tags": ["retrieval", "ranking"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A query matching a leaf verbatim returns that leaf, not its vaguer ancestor summary." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "When a summary and two of its children all score above threshold, the summary is returned once with children collapsed." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P0-005",
+      "title": "Facet-routed retention policy",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "facets",
+      "description": "Each memory carries exactly one facet from the closed set: standing-rule, environment-fact, gotcha, episode, thread, entity-record. The facet determines retention — standing-rule is pinned and never absorbed; environment-fact and gotcha supersede or merge near-duplicates; episode is the only facet admitted to compaction; thread expires on resolution; entity-record follows a retention window. A facet the policy table does not cover is a hard error, not a default.",
+      "tags": ["facets", "policy", "compaction"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Compaction candidate selection admits episode-facet entries and rejects all five other facets." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "An entry with an unknown facet value is rejected at write rather than silently defaulted." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A thread entry marked resolved is excluded from wake and from compaction candidacy." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P0-006",
+      "title": "Guaranteed pinned recall",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "retrieval",
+      "description": "Every pinned standing-rule memory appears in wake output unconditionally — not ranked, not budget-evicted, not similarity-filtered. This is the property semantic retrieval structurally cannot provide, and the reason standing rules are held out of the compaction forest. If pinned content alone exceeds the budget, wake reports the overflow rather than silently truncating.",
+      "tags": ["wake", "pinning", "invariant", "safety"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "A pinned rule semantically unrelated to every other memory still appears in wake output." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "With a budget smaller than the pinned set, wake emits all pinned entries and reports explicit overflow." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "Pinned entries survive a compaction pass that collapses the rest of the frontier." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P0-007",
+      "title": "Pressure-driven compaction",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "compaction",
+      "description": "Compaction runs when the frontier exceeds its target size — not on a fixed cohesion threshold and not on a timer. Each pass scores candidate clusters over the frontier by cohesion multiplied by slots freed, collapses the single highest scorer via ai-gateway summarization, re-embeds the resulting summary onto the frontier, and repeats until the frontier is under target. Guards: entries inside the recency floor are not candidates, pinned entries are never candidates, and only the episode facet is admitted.",
+      "tags": ["compaction", "clustering", "ai-gateway"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "With the frontier under target, a compaction pass is a no-op." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Given two candidate clusters, the higher cohesion-times-slots-freed score is collapsed first." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "An orphan entry with no near neighbours is not collapsed while any tighter cluster remains." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Entries inside the recency floor are excluded from candidacy regardless of cohesion." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "A newly created summary is embedded and appears as a frontier node eligible for further collapse." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P0-008",
+      "title": "Budgeted ambient recall",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "wake",
+      "description": "`memory wake` emits pinned standing rules plus a budget-bounded cover over the frontier, finest-grained for the most recent material. Output size is a function of the configured budget, not of corpus size — the same budget holds at a hundred memories and at a hundred thousand. Frontier target size and wake budget are independent settings; the frontier may greatly exceed what wake renders.",
+      "tags": ["wake", "budget", "cover"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Wake output stays within the configured line budget across corpus sizes spanning three orders of magnitude." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Cover selection returns finer-grained nodes for recent spans and coarser nodes for old spans." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Raising the frontier target does not change wake output size." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P0-009",
+      "title": "Federated retrieval registration",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "integration",
+      "description": "The scenario owns `.vrooli/search.json` declaring its provider descriptors — natural-language routing description, result mapping, tuning, reindex and config control endpoints — and self-registers with search-hub at boot. Memory becomes reachable from `search-hub query` with no router change, per the registry contract.",
+      "tags": ["search-hub", "integration", "provider"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "The descriptor in .vrooli/search.json validates against .vrooli/schemas/search.schema.json." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "The scenario self-registers at boot and its provider appears in search-hub providers list." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "A federated search-hub query routed to the memory provider returns normalized hits via the declared result mapping." }
+      ]
+    },
+    {
+      "id": "VROOLIME-P0-010",
+      "title": "Harness memory projection",
+      "criticality": "P0",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "integration",
+      "description": "Wake output is written to the harness memory file (MEMORY.md or the runtime's equivalent) as a generated, one-directional projection. The projection is never read back as input, so there is no bidirectional sync and no merge-conflict surface. The file carries a generated-artifact header warning that hand edits are overwritten and directing writers to the CLI.",
+      "tags": ["harness", "projection", "integration"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Projection writes a generated-artifact header followed by the current wake output." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "No read path ingests the projected file as a memory source." },
+        { "type": "test", "phase": "integration", "status": "planned", "notes": "Hand edits to the projected file are discarded on the next projection and the journal is unchanged." }
+      ]
+    }
+  ]
+}
