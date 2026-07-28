@@ -1,29 +1,36 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "last_validated_at": "2026-07-28T17:16:40-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
+      "id": "CONTENTD-P1-001",
+      "title": "Claim re-verification sweep",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "claims",
       "criticality": "P1",
       "description": "Stored checks are re-run on a schedule. When a result changes, the claim moves to stale rather than silently continuing to back a published statement. This is what makes L2 evidence worth more than a citation.",
-      "id": "CONTENTD-P1-001",
-      "prd_ref": "OT-P1-001",
-      "status": "planned",
-      "title": "Claim re-verification sweep",
+      "tags": [
+        "claims",
+        "freshness",
+        "scheduled"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A check whose observed result diverges from expected moves the claim to stale."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A sweep records last-run time even for checks whose result is unchanged."
         },
         {
@@ -32,32 +39,32 @@
           "status": "planned",
           "notes": "A scheduled sweep processes every check-backed claim and is safe to re-run."
         }
-      ],
-      "category": "claims",
-      "tags": [
-        "claims",
-        "freshness",
-        "scheduled"
       ]
     },
     {
+      "id": "CONTENTD-P1-002",
+      "title": "Published-post contamination report",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "ledger",
       "criticality": "P1",
       "description": "The payoff of modelling claims as a shared library: given a stale or refuted claim, list every published post that cites it. This answers which already-shipped posts now contain a false statement.",
-      "id": "CONTENTD-P1-002",
-      "prd_ref": "OT-P1-002",
-      "status": "planned",
-      "title": "Published-post contamination report",
+      "tags": [
+        "ledger",
+        "claims",
+        "reporting"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A stale claim cited by two published posts returns both."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A stale claim cited only by unpublished drafts returns no published posts."
         },
         {
@@ -66,66 +73,66 @@
           "status": "planned",
           "notes": "The report is reachable from the ledger read surface."
         }
-      ],
-      "category": "ledger",
-      "tags": [
-        "ledger",
-        "claims",
-        "reporting"
       ]
     },
     {
+      "id": "CONTENTD-P1-003",
+      "title": "Novelty claim expiry",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "claims",
       "criticality": "P1",
       "description": "A novelty claim is true only relative to a prior-art search performed on a date. It carries a mandatory search date and reverts to unverified once that date exceeds a configured age. This is the only claim kind the passage of time alone makes false.",
-      "id": "CONTENTD-P1-003",
-      "prd_ref": "OT-P1-003",
-      "status": "planned",
-      "title": "Novelty claim expiry",
+      "tags": [
+        "claims",
+        "novelty",
+        "expiry"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A novelty claim without a search date cannot reach verified."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A novelty claim past the configured age reports as expired on read."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Re-recording the search date returns the claim to verified."
         }
-      ],
-      "category": "claims",
-      "tags": [
-        "claims",
-        "novelty",
-        "expiry"
       ]
     },
     {
+      "id": "CONTENTD-P1-004",
+      "title": "Coverage reporting",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "ledger",
       "criticality": "P1",
       "description": "Coverage reports what has and has not been marketed, by campaign, lane, channel, and SKU, including how stale each cell is. It replaces a hand-maintained coverage JSON file.",
-      "id": "CONTENTD-P1-004",
-      "prd_ref": "OT-P1-004",
-      "status": "planned",
-      "title": "Coverage reporting",
+      "tags": [
+        "ledger",
+        "coverage",
+        "reporting"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Coverage aggregates publish records into the declared dimensions."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A dimension with no publish record inside the staleness window is reported as stale."
         },
         {
@@ -134,26 +141,26 @@
           "status": "planned",
           "notes": "Coverage output matches the ledger rows it derives from."
         }
-      ],
-      "category": "ledger",
-      "tags": [
-        "ledger",
-        "coverage",
-        "reporting"
       ]
     },
     {
-      "criticality": "P1",
-      "description": "Before approving a draft aimed at a specific account, the desk asks the scheduler whether that account is eligible for the lane. The seam is deliberately one question and one reason \u2014 no account state, credentials, or warming detail crosses into this scenario.",
       "id": "CONTENTD-P1-005",
-      "prd_ref": "OT-P1-005",
-      "status": "planned",
       "title": "Account eligibility check",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Before approving a draft aimed at a specific account, the desk asks the scheduler whether that account is eligible for the lane. The seam is deliberately one question and one reason — no account state, credentials, or warming detail crosses into this scenario.",
+      "tags": [
+        "scheduler",
+        "accounts",
+        "gate"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An ineligible account blocks approval and surfaces the returned reason."
         },
         {
@@ -162,32 +169,32 @@
           "status": "planned",
           "notes": "A scheduler outage degrades to a recorded unknown rather than a false eligible."
         }
-      ],
-      "category": "integration",
-      "tags": [
-        "scheduler",
-        "accounts",
-        "gate"
       ]
     },
     {
+      "id": "CONTENTD-P1-006",
+      "title": "Publish handoff contract",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "integration",
       "criticality": "P1",
       "description": "An approved draft is handed to the scheduler for release, and the returned URL and platform post id are written back to the ledger. The desk never talks to a platform directly. The gate re-runs at handoff, not only at approval. Approval is a point-in-time judgement over evidence that moves, so a draft approved while a check passed must not release after that check changed. This is the periodic-review idea from the MLR category, reduced to its useful core.",
-      "id": "CONTENTD-P1-006",
-      "prd_ref": "OT-P1-006",
-      "status": "planned",
-      "title": "Publish handoff contract",
+      "tags": [
+        "scheduler",
+        "publishing",
+        "handoff"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A successful handoff writes the returned URL and post id to the publish record."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A failed handoff leaves the draft approved rather than published, with the failure recorded."
         },
         {
@@ -202,32 +209,32 @@
           "status": "planned",
           "notes": "A draft approved before a cited claim went stale is refused at handoff and returns to blocked."
         }
-      ],
-      "category": "integration",
-      "tags": [
-        "scheduler",
-        "publishing",
-        "handoff"
       ]
     },
     {
+      "id": "CONTENTD-P1-007",
+      "title": "Assisted claim extraction",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "claims",
       "criticality": "P1",
       "description": "Assisted extraction proposes claims found in a draft body for operator confirmation. It is a cross-check on author self-reporting, never an authority: proposals are confirmed, not auto-accepted. The metric worth watching is how many claims the extractor finds that the author did not declare.",
-      "id": "CONTENTD-P1-007",
-      "prd_ref": "OT-P1-007",
-      "status": "planned",
-      "title": "Assisted claim extraction",
+      "tags": [
+        "claims",
+        "ai-gateway",
+        "cross-check"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Extraction output is stored as proposals and does not itself satisfy the verification gate."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An extraction failure leaves the draft workable with author-declared claims only."
         },
         {
@@ -236,26 +243,26 @@
           "status": "planned",
           "notes": "Undeclared-claim count is reportable per draft."
         }
-      ],
-      "category": "claims",
-      "tags": [
-        "claims",
-        "ai-gateway",
-        "cross-check"
       ]
     },
     {
+      "id": "CONTENTD-P1-008",
+      "title": "Federated retrieval registration",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "federation",
       "criticality": "P1",
       "description": "Registering drafts and publish history as a search-hub provider makes editorial history reachable from federated query with no router change. The router holds no content.",
-      "id": "CONTENTD-P1-008",
-      "prd_ref": "OT-P1-008",
-      "status": "planned",
-      "title": "Federated retrieval registration",
+      "tags": [
+        "search-hub",
+        "federation",
+        "integration"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The provider descriptor validates against the search descriptor schema."
         },
         {
@@ -264,32 +271,32 @@
           "status": "planned",
           "notes": "Boot self-registration succeeds, and a registration failure leaves local read paths working."
         }
-      ],
-      "category": "federation",
-      "tags": [
-        "search-hub",
-        "federation",
-        "integration"
       ]
     },
     {
-      "criticality": "P1",
       "id": "CONTENTD-P1-009",
-      "prd_ref": "OT-P1-009",
       "title": "Image attachment",
       "status": "planned",
-      "description": "A draft carries images produced through image-tools: a banner at a declared aspect ratio and inline figures with alt text and position. This scenario stores a reference and its metadata and never image bytes (D-018) \u2014 image-tools owns generation, deterministic resize and crop, and style recipes. Identity-consistent and video media are explicitly not covered here and remain with the deferred asset-production scenario.",
+      "prd_ref": "OT-P1-009",
+      "category": "artifacts",
+      "criticality": "P1",
+      "description": "A draft carries images produced through image-tools: a banner at a declared aspect ratio and inline figures with alt text and position. This scenario stores a reference and its metadata and never image bytes (D-018) — image-tools owns generation, deterministic resize and crop, and style recipes. Identity-consistent and video media are explicitly not covered here and remain with the deferred asset-production scenario.",
+      "tags": [
+        "artifacts",
+        "images",
+        "integration"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An attachment persists its asset reference, role, aspect ratio, alt text, and position, and round-trips."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "No attachment path writes image bytes into this scenario's storage."
         },
         {
@@ -304,21 +311,21 @@
           "status": "planned",
           "notes": "An attachment without alt text is surfaced as a review finding rather than silently accepted."
         }
-      ],
-      "category": "artifacts",
-      "tags": [
-        "artifacts",
-        "images",
-        "integration"
       ]
     },
     {
-      "criticality": "P1",
       "id": "CONTENTD-P1-010",
-      "prd_ref": "OT-P1-010",
       "title": "Post-type-shaped authoring surface",
       "status": "planned",
+      "prd_ref": "OT-P1-010",
+      "category": "artifacts",
+      "criticality": "P1",
       "description": "One rich-text box cannot serve a thread and a long-form post. A thread is a sequence with per-post character budgets and a visible break structure; a long-form post is prose with headings, a banner slot, and inline figures. Platform-shaped constraints must be visible while writing rather than discovered at publish, which is the failure this surface exists to prevent.",
+      "tags": [
+        "artifacts",
+        "ui",
+        "posttypes"
+      ],
       "validation": [
         {
           "type": "test",
@@ -335,24 +342,24 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Editor shape is selected from the draft's post type rather than hard-coded."
         }
-      ],
-      "category": "artifacts",
-      "tags": [
-        "artifacts",
-        "ui",
-        "posttypes"
       ]
     },
     {
-      "criticality": "P1",
       "id": "CONTENTD-P1-011",
-      "prd_ref": "OT-P1-011",
       "title": "Agent invocation from the workbench",
       "status": "planned",
+      "prd_ref": "OT-P1-011",
+      "category": "artifacts",
+      "criticality": "P1",
       "description": "The operator commissions a drafting, evidence-hunting, or review run through agent-manager without leaving the desk. Invocation is scoped to those actions rather than a general assistant, because a queue-shaped workflow is served better by named actions than by a chat box. This does not contradict D-003: generation prompts stay in the paired post-type skills, and this is an invocation surface rather than ownership of the prompt. Agent output lands in the editor as editable content with its provenance recorded, and never on the approval path.",
+      "tags": [
+        "artifacts",
+        "agent-manager",
+        "integration"
+      ],
       "validation": [
         {
           "type": "test",
@@ -363,35 +370,35 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A failed or unavailable agent run leaves the draft unchanged and surfaces the failure."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "No agent-invoked path can move a draft to approved."
         }
-      ],
-      "category": "artifacts",
-      "tags": [
-        "artifacts",
-        "agent-manager",
-        "integration"
       ]
     },
     {
-      "criticality": "P1",
       "id": "CONTENTD-P1-012",
-      "prd_ref": "OT-P1-012",
       "title": "Claim coverage over draft text",
       "status": "planned",
+      "prd_ref": "OT-P1-012",
+      "category": "claims",
+      "criticality": "P1",
       "description": "The reviewer sees which spans of the body a cited claim supports, and which assertions carry none. Coverage is the mechanical form of the undeclared-claim problem: author self-reporting is the weakest link in the gate, and an uncovered assertion is exactly what a self-reporting author omits. Making it visible turns a judgement call into something the reviewer can scan.",
+      "tags": [
+        "claims",
+        "ui",
+        "coverage"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Coverage computes supported and unsupported spans for a body with mixed citations."
         },
         {
@@ -406,32 +413,32 @@
           "status": "planned",
           "notes": "Coverage state is conveyed by more than colour alone."
         }
-      ],
-      "category": "claims",
-      "tags": [
-        "claims",
-        "ui",
-        "coverage"
       ]
     },
     {
-      "criticality": "P1",
       "id": "CONTENTD-P1-013",
-      "prd_ref": "OT-P1-013",
       "title": "Contamination remediation",
       "status": "planned",
-      "description": "A contamination report without a response is a dead end: it names published posts that now contain false statements and offers nothing to do about it. A remediation attaches to the contaminated publish record with a kind \u2014 correct in place, publish a correction, retract, or accept and annotate \u2014 and a state, so the loop closes and the ledger records what was done rather than only what went wrong. This is the withdrawal capability from the MLR category, without its distribution engine.",
+      "prd_ref": "OT-P1-013",
+      "category": "ledger",
+      "criticality": "P1",
+      "description": "A contamination report without a response is a dead end: it names published posts that now contain false statements and offers nothing to do about it. A remediation attaches to the contaminated publish record with a kind — correct in place, publish a correction, retract, or accept and annotate — and a state, so the loop closes and the ledger records what was done rather than only what went wrong. This is the withdrawal capability from the MLR category, without its distribution engine.",
+      "tags": [
+        "ledger",
+        "claims",
+        "remediation"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A remediation persists against a publish record with kind and state, and round-trips."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A publish record whose claim is refuted and which has no remediation is reported as open."
         },
         {
@@ -440,12 +447,6 @@
           "status": "planned",
           "notes": "Resolving a remediation clears the record from the open contamination list without deleting history."
         }
-      ],
-      "category": "ledger",
-      "tags": [
-        "ledger",
-        "claims",
-        "remediation"
       ]
     }
   ]

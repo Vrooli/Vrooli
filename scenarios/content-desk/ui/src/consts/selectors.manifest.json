@@ -48,6 +48,10 @@
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
     },
+    "notes.surface": {
+      "testId": "notes-surface",
+      "selector": "[data-testid=\"notes-surface\"]"
+    },
     "notes.card": {
       "testId": "notes-card",
       "selector": "[data-testid=\"notes-card\"]"

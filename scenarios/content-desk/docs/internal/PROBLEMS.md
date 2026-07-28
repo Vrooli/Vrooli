@@ -4,8 +4,8 @@ Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.
 
-This file ships empty in newly generated scenarios. Append entries as
-they appear.
+This ledger records constraints discovered during implementation that need an
+owner or a follow-up; it is intentionally not a generated empty template.
 
 ## What belongs here
 
@@ -129,6 +129,57 @@ server write deadline for it.
 **Refs:** `scenarios/business-health/api/internal/wizard/questions.go`;
 observed in `vrooli scenario logs business-health --step start-api`.
 
+### 2026-07-28 — Scheduler handoff is not yet a safe typed integration
+
+Read-only inspection of `social-media-scheduler` found an internal worker that
+returns `PlatformPostID` and `PostURL` after publishing, and a database lookup
+for an active account by platform. It exposes neither a typed cross-scenario
+handoff contract nor the required lane-eligibility question. Its API is legacy
+Gin/REST and its worker reads account credentials internally, which content-desk
+must never do.
+
+**Impact:** P0 can record a scheduler-returned URL and post id once a seam
+exists; P1 account eligibility remains unavailable rather than guessed.
+
+**Next step:** introduce a scheduler-owned typed handoff/eligibility contract in
+its modernization work. Content-desk consumes only `{eligible, reason}` and
+published `{url, post_id}`, with no account or credential fields.
+
+### 2026-07-28 — Approval identity signal is available through API Core provenance
+
+Every standard API Core server installs `provenance.Middleware`. A verified
+Agent Manager request has `Actor == "agent"`, `VerificationStatus ==
+"verified"`, and a non-empty `RunID`; ordinary requests resolve to
+`Actor == "operator"`, `VerificationStatus == "absent"`. Approval must read
+`provenance.FromContext(ctx).IsVerifiedAgent()` and reject only that verified
+agent case; the stored approval attribution uses the same provenance fields.
+
+**Impact:** no custom identity table, role model, or untrusted header check is
+needed for `CONTENTD-P0-007`.
+
+## Work ladder
+
+- Rung: W0 (unverifiable through Swarm Manager; implementation authority is the active plan)
+- Evidence: the deterministic `swarm-manager goals list --json` name/title/description filter returned no `content-desk` goal; the active plan requires a ledger with claim, review, posttype, campaign, artifact, and publish-history gates, and `PRD.md` P0 targets name those same capabilities.
+- Blocker: no registered Swarm Manager goal exists to independently contradict the contract; no contract contradiction was found against the active plan.
+- Measured: 2026-07-28
+
+### 2026-07-28 — Flow verifier cannot generate a targeted draft-lifecycle artifact
+
+`flow-verifier artifacts generate --flow artifacts.draft-lifecycle.api` first
+validates every repository temporal contract and fails on an unrelated invalid
+`architecture-cartographer` UI contract. Restricting `--root` to
+`scenarios/content-desk` reaches the service but ends in `unexpected EOF`.
+
+**Impact:** the draft lifecycle has its declarative `flow.json`, pure
+production transition function, exhaustive transition matrix, and replay test,
+but its checked Quint/generated artifact cannot yet be produced by the owning
+tool.
+
+**Next step:** repair the unrelated contract or make Flow Verifier validate only
+the selected flow, then regenerate `api/internal/artifacts/flow/generated/`
+and replace the local replay with formal artifact replay.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -138,7 +189,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| _None yet._ |  |  |  |
+| Formal artifact generation | Flow Verifier cannot currently generate the targeted draft-lifecycle artifact because of unrelated repository contract validation and a scoped `unexpected EOF`. | Formal replay remains a follow-up despite the declarative flow, generated matrix, and production transition tests being present. | Repair Flow Verifier scoping or its upstream contract validation, then regenerate the artifact. |
 
 ## Cross-references
 

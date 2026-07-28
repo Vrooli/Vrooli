@@ -7,18 +7,12 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "content-desk",
-  "description": "Generated L0 experience contract for Content Desk. Replace these route identities with product-specific priorities, claims, bindings, states, and journeys as the UI becomes real.",
+  "description": "Content Desk's experience contract for editing evidence-backed drafts and making operator-owned publication decisions.",
   "pages": [
     {
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "Dashboard",
-      "status": "active"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
       "status": "active"
     },
     {
@@ -28,5 +22,12 @@
       "status": "active"
     }
   ],
-  "journeys": []
+  "journeys": [
+    {
+      "id": "resolve-and-approve-draft",
+      "path": "journeys/resolve-and-approve-draft.json",
+      "title": "Resolve evidence and approve a draft",
+      "status": "active"
+    }
+  ]
 }

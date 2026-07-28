@@ -1,7 +1,12 @@
 package domains
 
 import (
-	"content-desk/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"content-desk/cli/domains/artifacts"
+	"content-desk/cli/domains/campaigns"
+	"content-desk/cli/domains/claims"
+	"content-desk/cli/domains/ledger"
+	"content-desk/cli/domains/posttypes"
+	"content-desk/cli/domains/review"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,12 +42,35 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	artifactsGroup, err := artifacts.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, artifactsGroup)
+	campaignsGroup, err := campaigns.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, campaignsGroup)
+	claimsGroup, err := claims.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, claimsGroup)
+	ledgerGroup, err := ledger.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, ledgerGroup)
+	posttypesGroup, err := posttypes.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, posttypesGroup)
+	reviewGroup, err := review.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, reviewGroup)
 	return groups, nil
 }

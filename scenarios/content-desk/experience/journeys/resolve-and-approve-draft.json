@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "resolve-and-approve-draft",
+    "title": "Resolve evidence and approve a draft",
+    "purpose": "Let an operator turn an evidence-blocked draft into an approval-ready publication decision.",
+    "prd_refs": ["OT-P0-005", "OT-P0-011", "OT-P0-014"]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "intent": "Select the draft whose publication readiness needs review."
+    },
+    {
+      "page": "dashboard",
+      "intent": "Attach a source-backed claim to the exact text that needs evidence."
+    },
+    {
+      "page": "dashboard",
+      "intent": "Verify the cited claim and inspect the remaining approval blockers."
+    },
+    {
+      "page": "dashboard",
+      "intent": "Record review and make the operator-owned approval decision."
+    }
+  ]
+}

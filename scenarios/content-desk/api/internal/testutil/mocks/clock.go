@@ -6,6 +6,7 @@ package mocks
 import (
 	"sync"
 	"time"
+
 	"content-desk/internal/clock"
 )
 

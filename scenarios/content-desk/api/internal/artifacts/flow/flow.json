@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "artifacts.draft-lifecycle.api",
+  "domain": "artifacts",
+  "description": "The production draft lifecycle. Approval gates are evaluated by their owning domains before the approve event is submitted.",
+  "model": {
+    "module": "DraftLifecycleFlow",
+    "seed": "2026072801",
+    "maxSteps": 9,
+    "traceCount": 8,
+    "verify": { "invariants": ["TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState"] }
+  },
+  "states": [
+    { "id": "requested", "quint": "Requested", "initial": true },
+    { "id": "drafting", "quint": "Drafting" },
+    { "id": "drafted", "quint": "Drafted" },
+    { "id": "checking", "quint": "Checking" },
+    { "id": "blocked", "quint": "Blocked" },
+    { "id": "reviewed", "quint": "Reviewed" },
+    { "id": "approved", "quint": "Approved" },
+    { "id": "published", "quint": "Published", "terminal": true },
+    { "id": "abandoned", "quint": "Abandoned", "terminal": true }
+  ],
+  "events": [
+    { "id": "begin", "quint": "Begin" }, { "id": "complete", "quint": "Complete" },
+    { "id": "check", "quint": "Check" }, { "id": "block", "quint": "Block" },
+    { "id": "review_pass", "quint": "ReviewPass" }, { "id": "approve", "quint": "Approve" },
+    { "id": "publish", "quint": "Publish" }, { "id": "abandon", "quint": "Abandon" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": true },
+    "terminal": { "to": "self", "wantError": true }
+  },
+  "transitions": [
+    { "from": "requested", "event": "begin", "to": "drafting" },
+    { "from": "drafting", "event": "complete", "to": "drafted" },
+    { "from": "drafted", "event": "check", "to": "checking" },
+    { "from": "checking", "event": "block", "to": "blocked" },
+    { "from": "checking", "event": "review_pass", "to": "reviewed" },
+    { "from": "blocked", "event": "check", "to": "checking" },
+    { "from": "reviewed", "event": "block", "to": "blocked" },
+    { "from": "reviewed", "event": "approve", "to": "approved" },
+    { "from": "approved", "event": "publish", "to": "published" },
+    { "from": "requested", "event": "abandon", "to": "abandoned" },
+    { "from": "drafting", "event": "abandon", "to": "abandoned" },
+    { "from": "drafted", "event": "abandon", "to": "abandoned" },
+    { "from": "checking", "event": "abandon", "to": "abandoned" },
+    { "from": "blocked", "event": "abandon", "to": "abandoned" },
+    { "from": "reviewed", "event": "abandon", "to": "abandoned" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "State and event remain in their declared sets." },
+    { "id": "terminal_closure", "quint": "TerminalClosure", "description": "Published and abandoned drafts cannot transition." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected events preserve draft status." }
+  ],
+  "traces": [
+    {
+      "name": "approved_publish",
+      "initial": "requested",
+      "steps": [
+        { "event": "begin", "want": "drafting", "wantError": false },
+        { "event": "complete", "want": "drafted", "wantError": false },
+        { "event": "check", "want": "checking", "wantError": false },
+        { "event": "review_pass", "want": "reviewed", "wantError": false },
+        { "event": "approve", "want": "approved", "wantError": false },
+        { "event": "publish", "want": "published", "wantError": false }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "DraftStatus",
+      "eventType": "DraftEvent",
+      "constantPrefix": "DraftLifecycle"
+    }
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionDraft",
+      "stateType": "DraftState",
+      "statusField": "Status"
+    }
+  }
+}

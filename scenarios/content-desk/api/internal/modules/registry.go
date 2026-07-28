@@ -22,11 +22,21 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	artifactsH "content-desk/handlers/artifacts"
+	campaignsH "content-desk/handlers/campaigns"
+	claimsH "content-desk/handlers/claims"
 	healthH "content-desk/handlers/health"
-	notesH "content-desk/handlers/notes" // EXAMPLE-DOMAIN:notes
+	ledgerH "content-desk/handlers/ledger"
+	posttypesH "content-desk/handlers/posttypes"
+	reviewH "content-desk/handlers/review"
 	localdb "content-desk/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/notes" // EXAMPLE-DOMAIN:notes
+	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/artifacts"
+	campaignsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns"
+	claimsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/claims"
+	ledgerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/ledger"
+	posttypesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/posttypes"
+	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/review"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +46,12 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, artifactsH.Endpoints...)
+	out = append(out, campaignsH.Endpoints...)
+	out = append(out, claimsH.Endpoints...)
+	out = append(out, ledgerH.Endpoints...)
+	out = append(out, posttypesH.Endpoints...)
+	out = append(out, reviewH.Endpoints...)
 	return out
 }
 
@@ -63,7 +78,12 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_content_desk_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "artifacts", File: artifactsv1.File_content_desk_v1_artifacts_artifacts_proto},
+		{Module: "campaigns", File: campaignsv1.File_content_desk_v1_campaigns_campaigns_proto},
+		{Module: "claims", File: claimsv1.File_content_desk_v1_claims_claims_proto},
+		{Module: "ledger", File: ledgerv1.File_content_desk_v1_ledger_ledger_proto},
+		{Module: "posttypes", File: posttypesv1.File_content_desk_v1_posttypes_posttypes_proto},
+		{Module: "review", File: reviewv1.File_content_desk_v1_review_review_proto},
 	}
 }
 
@@ -77,7 +97,12 @@ func AllProtoFiles() []ProtoFileEntry {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(artifactsH.Schema),
+		apidb.SchemaProviderFunc(campaignsH.Schema),
+		apidb.SchemaProviderFunc(claimsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(ledgerH.Schema),
+		apidb.SchemaProviderFunc(posttypesH.Schema),
+		apidb.SchemaProviderFunc(reviewH.Schema),
 	}
 }

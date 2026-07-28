@@ -104,6 +104,26 @@ for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
 for the per-seam table including each domain's `<domain>.Schema` and
 `database.SystemSchema`.
 
+## Editorial calibration
+
+These are the initial operating values for the production ledger. They are
+configuration, not hidden implementation policy: a later calibration changes
+this table and the corresponding registry input together.
+
+| Lever | Initial value | Observation and review trigger |
+|---|---|---|
+| Claim taxonomy | `quantitative`, `existence`, `status`, `capability`, `novelty` | Derived from the existing marketing canon's distinguishable truth obligations. Reassess after the first twenty operator-reviewed drafts. |
+| Re-runnable check required | `quantitative`, `existence`, `status` | A citation records research but cannot detect changed facts; these kinds make externally checkable assertions. |
+| Capability evidence | Named citation or test | Capability language often describes product intent or qualitative behavior; it still needs durable evidence but not a numerical check. |
+| Novelty freshness | Dated prior-art evidence; expires after 30 days | Novelty is time-sensitive. The expiry job returns it to `asserted` when the observation ages out. |
+| Campaign artifact budget | Explicit per-channel/per-format slots; no global default | No real campaign has completed a cycle yet, so inventing a default cap would be false calibration. Operators declare capacity at campaign creation and the reservation is enforced atomically. |
+
+The observation source is intentionally recorded as "no completed campaign
+cycle" rather than manufactured telemetry. Once publish history exists, record
+the sample period, observed slot utilization, and any taxonomy changes in
+[`../internal/PROGRESS.md`](../internal/PROGRESS.md), then update this table
+before changing the enforcement code.
+
 ## CLI config file
 
 The scenario CLI persists per-user configuration to a JSON file.

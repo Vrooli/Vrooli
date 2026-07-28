@@ -4,16 +4,16 @@
   "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "campaigns",
+      "description": "Manage campaign work context and artifact budget",
       "commands": [
         {
           "name": "list",
-          "description": "List all notes",
+          "description": "List campaigns",
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
+            "service": "CampaignsService",
+            "method": "ListCampaigns"
           },
           "governance": {
             "effect": "read",
@@ -28,22 +28,26 @@
         },
         {
           "name": "create",
-          "description": "Create a note",
+          "description": "Create a proposed campaign with evidence and slots",
           "flags": [
             {
-              "name": "title",
+              "name": "name",
               "required": true,
-              "description": "Note title"
+              "description": "Campaign name"
             },
             {
-              "name": "body",
-              "description": "Note body"
+              "name": "evidence-ref",
+              "description": "Comma-separated evidence references"
+            },
+            {
+              "name": "slot",
+              "description": "Comma-separated channel:format:capacity slots"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
+            "service": "CampaignsService",
+            "method": "CreateCampaign"
           },
           "governance": {
             "effect": "write",
@@ -57,19 +61,125 @@
           }
         },
         {
-          "name": "get",
-          "description": "Get a note by id",
+          "name": "activate",
+          "description": "Activate an evidence-backed campaign",
           "positionals": [
             {
               "name": "id",
               "required": true,
-              "description": "Note id"
+              "description": "Campaign id"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
+            "service": "CampaignsService",
+            "method": "ActivateCampaign"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "artifacts",
+      "description": "Inspect draft lifecycle state",
+      "commands": [
+        {
+          "name": "approve",
+          "description": "Approve a reviewed draft after all gates pass",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Draft id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "ApproveDraft"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a requested draft",
+          "flags": [
+            {
+              "name": "campaign",
+              "required": true,
+              "description": "Campaign id"
+            },
+            {
+              "name": "post-type",
+              "required": true,
+              "description": "Post type id"
+            },
+            {
+              "name": "body",
+              "description": "Initial draft body"
+            },
+            {
+              "name": "channel",
+              "required": true,
+              "description": "Campaign slot channel"
+            },
+            {
+              "name": "format",
+              "required": true,
+              "description": "Campaign slot format"
+            },
+            {
+              "name": "lane",
+              "required": true,
+              "description": "Editorial coverage lane"
+            },
+            {
+              "name": "sku",
+              "required": true,
+              "description": "SKU covered by this draft"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "CreateDraft"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List drafts",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "ListDrafts"
           },
           "governance": {
             "effect": "read",
@@ -83,18 +193,134 @@
           }
         },
         {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
+          "name": "transition",
+          "description": "Apply a constrained draft lifecycle event",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Draft id"
+            }
+          ],
           "flags": [
             {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "name": "event",
+              "required": true,
+              "description": "Lifecycle event"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
+            "service": "ArtifactsService",
+            "method": "TransitionDraft"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "revise",
+          "description": "Save an attributed draft revision",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Draft id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "body",
+              "required": true,
+              "description": "Revised draft body"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "UpdateDraftBody"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "publish",
+          "description": "Publish an approved draft and record the ledger entry",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Draft id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "url",
+              "required": true,
+              "description": "Published URL"
+            },
+            {
+              "name": "platform-post-id",
+              "required": true,
+              "description": "Platform post id"
+            },
+            {
+              "name": "audience",
+              "description": "Audience key"
+            },
+            {
+              "name": "series",
+              "description": "Series id"
+            },
+            {
+              "name": "prior-publish",
+              "description": "Prior ledger record id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "PublishDraft"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "claims",
+      "description": "Manage verifiable claims and evidence",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List claims and verification states",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClaimsService",
+            "method": "ListClaims"
           },
           "governance": {
             "effect": "read",
@@ -105,46 +331,280 @@
           },
           "architecture": {
             "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
           }
+        },
+        {
+          "name": "create",
+          "description": "Create a claim with durable evidence",
+          "flags": [
+            {
+              "name": "statement",
+              "required": true,
+              "description": "Claim statement"
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "quantitative, existence, status, capability, or novelty"
+            },
+            {
+              "name": "evidence-kind",
+              "required": true,
+              "description": "citation or check"
+            },
+            {
+              "name": "reference",
+              "description": "Evidence reference"
+            },
+            {
+              "name": "command",
+              "description": "Re-runnable check command"
+            },
+            {
+              "name": "expected-result",
+              "description": "Expected check output"
+            },
+            {
+              "name": "observed-at",
+              "description": "RFC3339 time for novelty evidence"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClaimsService",
+            "method": "CreateClaim"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "cite",
+          "description": "Attach a claim to an exact draft-body span",
+          "flags": [
+            {
+              "name": "draft",
+              "required": true,
+              "description": "Draft id"
+            },
+            {
+              "name": "claim",
+              "required": true,
+              "description": "Claim id"
+            },
+            {
+              "name": "span-start",
+              "required": true,
+              "description": "Zero-based start offset"
+            },
+            {
+              "name": "span-end",
+              "required": true,
+              "description": "Exclusive end offset"
+            },
+            {
+              "name": "body",
+              "required": true,
+              "description": "Current draft body"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClaimsService",
+            "method": "CiteClaim"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "verify",
+          "description": "Run a claim's re-runnable check",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Claim id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClaimsService",
+            "method": "VerifyClaim"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "sweep",
+          "description": "Verify every check-backed claim",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClaimsService",
+            "method": "SweepClaims"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list-draft",
+          "description": "List claims cited by one draft",
+          "positionals": [{"name":"draft-id","required":true,"description":"Draft id"}],
+          "binding": {"kind":"connect-rpc","service":"ClaimsService","method":"ListDraftClaims"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
         }
+      ]
+    },
+    {
+      "name": "ledger",
+      "description": "Inspect publish history",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List publish records",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LedgerService",
+            "method": "ListPublishRecords"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "contamination",
+          "description": "List published records citing a claim that became stale or refuted",
+          "positionals": [{"name": "claim-id", "required": true, "description": "Claim id"}],
+          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ListContaminatedPublishRecords"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "coverage",
+          "description": "List publish coverage by campaign, lane, channel, and SKU",
+          "flags": [{"name": "stale-after-days", "required": true, "description": "Days without a publish before a cell is stale"}],
+          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ListCoverage"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        }
+      ]
+    },
+    {
+      "name": "posttypes",
+      "description": "Manage post type activation",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List post types",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PosttypesService",
+            "method": "ListPostTypes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {"name":"register","description":"Register or activate a post type","flags":[{"name":"id","required":true,"description":"Post type id"},{"name":"paired-skill","required":true,"description":"Paired craft skill id"},{"name":"skill-exists","description":"Confirm paired skill exists","bool":true},{"name":"doc-v1","description":"Confirm canon document is v1","bool":true},{"name":"responsibilities-declared","description":"Confirm responsibilities are declared","bool":true},{"name":"failure-modes","required":true,"description":"Comma-separated declared craft and policy failure modes"},{"name":"activate","description":"Request activation","bool":true}],"binding":{"kind":"connect-rpc","service":"PosttypesService","method":"RegisterPostType"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}
+      ]
+    },
+    {
+      "name": "review",
+      "description": "Manage re-runnable review outcomes",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List review runs",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "ListReviewRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {"name":"record","description":"Record a craft or policy verdict","flags":[{"name":"draft","required":true,"description":"Draft id"},{"name":"mode","required":true,"description":"Failure mode assessed"},{"name":"passed","description":"Verdict passed","bool":true},{"name":"evidence","description":"Re-runnable evidence"},{"name":"finding","description":"Finding when blocked"}],"binding":{"kind":"connect-rpc","service":"ReviewService","method":"RecordReviewRun"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}
       ]
     }
   ],
   "measures": {
-    "domains": [
+    "omitted": [
       {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
+        "domain": "draft_revisions",
+        "reason": "Revisions are immutable audit evidence for a draft, not an independent operational entity; their history is inspected through the draft workbench rather than a scalar count."
+      },
+      {
+        "domain": "campaigns",
+        "reason": "Campaign reporting is implemented by the Content Desk coverage report, not a scalar measure during this migration."
+      },
+      {
+        "domain": "drafts",
+        "reason": "Draft queue state is an operational workbench surface; a scalar measure would obscure lifecycle status distribution."
+      },
+      {
+        "domain": "claims",
+        "reason": "Claim quality is gate-oriented and reported through verification state, not a scalar count."
+      },
+      {
+        "domain": "review_runs",
+        "reason": "Review outcomes are read per draft in the desk inspector; a scalar count does not represent blocking-versus-passing verdict quality."
       }
-    ]
+    ],
+    "domains": []
   },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
+  "exceptions": [],
   "omitted": []
 }

@@ -2,6 +2,7 @@ package modeltest_test
 
 import (
 	"testing"
+
 	"content-desk/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

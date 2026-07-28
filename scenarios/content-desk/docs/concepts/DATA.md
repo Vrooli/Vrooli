@@ -69,34 +69,6 @@ Each domain's schema file lives beside the code that interprets it. The
 | publish_records, coverage, subject_mentions, narrated_items, remediations, import_keys | ledger | `api/internal/ledger/schema.sql` | ledger reporting; written on publish, import, and remediation |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships the `notes` domain as a worked CRUD slice with a
-binary attachment-upload exception, showing how a real domain owns its
-tables, metadata, and opaque blob bytes. Copy its shape, then remove it.
-
-Its Data Ownership rows:
-
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
-
-Its Schema Map row:
-
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-
-Its Retention And Deletion row:
-
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Migrations And Compatibility
 
 The generated template uses idempotent schema bootstrap. Domain schema
@@ -154,6 +126,28 @@ distinguishable:
 Reporting must never present the second case as gated. Synthesising a
 retrospective draft to fill the column would put a false approval trail in the
 audit surface, which is the opposite of what the ledger is for.
+
+### Import-source inventory (2026-07-28)
+
+Phase 1 inspected the five read-only marketing-crew sources that the ledger
+will import. The inventory is deliberately a measurement, not a corpus-size
+gate: a zero-row publish log is expected and does not weaken import
+correctness.
+
+| Source | Rows | Observed record shape | Ledger interpretation |
+|---|---:|---|---|
+| `publish-log.jsonl` | 0 | No current rows | Future imported publish history. |
+| `campaign-drafts.jsonl` | 4 | `draft_id`, campaign/audience/channel fields, sources, artifact body, hypotheses, creator/time | Imported draft history; never implied to have passed desk gates. |
+| `audience-scans.jsonl` | 13 | `id`, timestamp/by/scope, observation, source refs, interpretation, honesty flags | Research observations for future coverage/context queries. |
+| `published-scenario-mentions.jsonl` | 3 | mention id/time, subject, post URL/id, draft ref, channel/audience, description/excerpt | Subject familiarity and first-mention history. |
+| `published-improvements-log.jsonl` | 0 | No current rows | Future narration history for scenario improvements. |
+
+The import key is `sha256(source identifier + canonical source-relative path +
+normalized JSON value)`. Normalization parses one JSONL line, recursively sorts
+object keys, serializes compact UTF-8 JSON, and preserves array order. That
+makes whitespace and object-key reformatting a no-op while treating a changed
+assertion as a new append-only ledger item; source paths prevent equal payloads
+from different logs colliding.
 
 ## Retention And Deletion
 
