@@ -46,6 +46,25 @@ func TestFlowDefinitionToProtoRejectsUnknownFields(t *testing.T) {
 	}
 }
 
+func TestFlowDefinitionToProtoPreservesSnakeCaseContinueOnError(t *testing.T) {
+	pb, err := FlowDefinitionToProto(database.JSONMap{
+		"nodes": []map[string]any{{
+			"id": "recoverable-click",
+			"action": map[string]any{
+				"type":  "ACTION_TYPE_CLICK",
+				"click": map[string]any{"selector": ".missing"},
+			},
+			"execution_settings": map[string]any{"continue_on_error": true},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("convert definition: %v", err)
+	}
+	if got := pb.GetNodes()[0].GetExecutionSettings().GetContinueOnError(); !got {
+		t.Fatal("snake_case continue_on_error was not preserved at the workflow ingress boundary")
+	}
+}
+
 func TestWorkflowValidationResultToProto(t *testing.T) {
 	now := time.Now()
 	result := &workflowvalidator.Result{

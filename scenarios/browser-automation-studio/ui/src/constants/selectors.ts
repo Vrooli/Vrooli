@@ -377,9 +377,8 @@ const literalSelectors = {
   executions: {
     tabs: {
       executions: "execution-tab-executions",
-      logs: "execution-tab-logs",
       replay: "execution-tab-replay",
-      screenshots: "execution-tab-screenshots",
+      artifacts: "execution-tab-artifacts",
     },
     filters: {
       all: "execution-filter-all",
@@ -517,6 +516,8 @@ const literalSelectors = {
       viewModeToggle: "project-file-tree-view-mode-toggle",
       createFolderButton: "project-file-tree-create-folder",
       createWorkflowButton: "project-file-tree-create-workflow",
+      runButton: "file-tree-run",
+      testButton: "file-tree-test",
     },
     presets: {
       recommendedPreset: "project-preset-recommended",

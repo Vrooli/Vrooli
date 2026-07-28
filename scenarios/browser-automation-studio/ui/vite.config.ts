@@ -258,7 +258,11 @@ export default defineConfig(({ mode }): UserConfig => {
     ],
     coverage: {
       provider: 'v8',
-      enabled: true,
+      // Focused commands validate behavior without being made to satisfy the
+      // scenario-wide coverage gate. `test:coverage` switches to the dedicated
+      // coverage config, which explicitly enables collection and enforces the
+      // merged 85% floor after every selected project has contributed.
+      enabled: COLLECTING_RAW_COVERAGE,
       // Focused projects are merged by the coverage runner. Their raw reports
       // must contain only modules the project actually executes; the normal
       // suite remains scenario-wide and includes every eligible source file.
@@ -428,6 +432,21 @@ export default defineConfig(({ mode }): UserConfig => {
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'export-domain',
           include: ['src/domains/executions/export/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'execution-viewer',
+          include: [
+            'src/domains/executions/InlineExecution*.test.{ts,tsx}',
+            'src/domains/executions/history/**/*.test.{ts,tsx}',
+            'src/domains/executions/hooks/useExecutionEvents.test.{ts,tsx}',
+            'src/domains/executions/viewer/useExecutionHeartbeat.test.{ts,tsx}',
+          ],
           pool: 'threads',
           poolOptions: THREADS_TWO,
         },

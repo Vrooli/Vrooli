@@ -68,10 +68,15 @@ export default tseslint.config(
 
       // CRITICAL: Catches operations on 'any' typed values that will crash at runtime
       // These catch bugs like "v.trim is not a function" when v is not actually a string
+      // CRITICAL: unsafe member access can invoke methods that are absent at runtime.
       "@typescript-eslint/no-unsafe-member-access": "warn",
+      // CRITICAL: unsafe calls can execute non-callable values from untrusted data.
       "@typescript-eslint/no-unsafe-call": "warn",
+      // CRITICAL: unsafe arguments bypass the receiving API's runtime contract.
       "@typescript-eslint/no-unsafe-argument": "warn",
+      // CRITICAL: unsafe assignments hide unvalidated values at the boundary.
       "@typescript-eslint/no-unsafe-assignment": "warn",
+      // CRITICAL: unsafe returns leak unvalidated values to downstream callers.
       "@typescript-eslint/no-unsafe-return": "warn",
 
       // CRITICAL: Detects circular dependencies that produce initialization-order failures.

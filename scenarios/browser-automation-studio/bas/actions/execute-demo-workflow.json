@@ -17,6 +17,12 @@
       "source": "fixture-wait-for-execution",
       "target": "fixture-assert-execution-viewer",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-execute-edge-4",
+      "source": "fixture-assert-execution-viewer",
+      "target": "fixture-wait-for-execution-completion",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ],
   "metadata": {
@@ -110,6 +116,20 @@
         "type": "ACTION_TYPE_ASSERT"
       },
       "id": "fixture-assert-execution-viewer"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for replay-ready execution completion"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/executions.viewer.statusCompleted",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "fixture-wait-for-execution-completion"
     }
   ],
   "settings": {}

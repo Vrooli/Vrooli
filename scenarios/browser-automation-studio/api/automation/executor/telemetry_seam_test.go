@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -22,6 +23,25 @@ func (s *fakeTelemetrySession) Run(_ context.Context, _ contracts.CompiledInstru
 func (s *fakeTelemetrySession) Reset(context.Context) error { return nil }
 func (s *fakeTelemetrySession) Close(context.Context) error { return nil }
 func (s *fakeTelemetrySession) GetStorageState(context.Context) (json.RawMessage, error) {
+	return nil, nil
+}
+
+type retryableFailureSession struct {
+	runs              int
+	remainingFailures int
+}
+
+func (s *retryableFailureSession) Run(_ context.Context, _ contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	s.runs++
+	if s.remainingFailures > 0 {
+		s.remainingFailures--
+		return contracts.StepOutcome{Failure: &contracts.StepFailure{Retryable: true, Message: "transient"}}, errors.New("transient")
+	}
+	return contracts.StepOutcome{Success: true}, nil
+}
+func (s *retryableFailureSession) Reset(context.Context) error { return nil }
+func (s *retryableFailureSession) Close(context.Context) error { return nil }
+func (s *retryableFailureSession) GetStorageState(context.Context) (json.RawMessage, error) {
 	return nil, nil
 }
 
@@ -80,6 +100,32 @@ func TestRunWithRetries_InvokesCollectorAroundStep(t *testing.T) {
 	}
 	if len(c.order) != 2 || c.order[0] != "before" || c.order[1] != "after" {
 		t.Fatalf("expected before then after, got %v", c.order)
+	}
+}
+
+func TestRunWithRetriesHonorsCompiledResilienceConfiguration(t *testing.T) {
+	e := NewSimpleExecutor(nil)
+	sess := &retryableFailureSession{remainingFailures: 1}
+	instruction := contracts.CompiledInstruction{
+		NodeID: "retryable-step",
+		Context: map[string]any{
+			"resilience": map[string]any{
+				"maxAttempts":   2,
+				"delayMs":       0,
+				"backoffFactor": 1.0,
+			},
+		},
+	}
+
+	outcome, err := e.runWithRetries(context.Background(), Request{}, sess, instruction)
+	if err != nil {
+		t.Fatalf("unexpected error after retry: %v", err)
+	}
+	if !outcome.Success {
+		t.Fatalf("expected retry to recover, got outcome %#v", outcome)
+	}
+	if outcome.Attempt != 2 || sess.runs != 2 {
+		t.Fatalf("expected two attempts, got outcome attempt %d and %d driver calls", outcome.Attempt, sess.runs)
 	}
 }
 

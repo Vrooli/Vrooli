@@ -30,6 +30,7 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
   const addLog = useExecutionStore(s => s.addLog);
   const addScreenshot = useExecutionStore(s => s.addScreenshot);
   const recordHeartbeat = useExecutionStore(s => s.recordHeartbeat);
+  const refreshTimeline = useExecutionStore(s => s.refreshTimeline);
 
   // Track current subscription to avoid duplicate subscribe messages
   const subscribedIdRef = useRef<string | null>(null);
@@ -113,6 +114,22 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
       }
     };
   }, [execution?.id, execution?.status, send]);
+
+  // WebSocket events provide the low-latency path, but short workflows can
+  // finish before the subscription handshake completes. Polling only while a
+  // run is active closes that race and keeps the inline viewer authoritative
+  // even when a socket reconnects or an event is missed.
+  useEffect(() => {
+    const executionId = execution?.id;
+    const isActive = execution?.status === 'pending' || execution?.status === 'running';
+    if (!executionId || !isActive) {
+      return;
+    }
+
+    const refresh = () => void refreshTimeline(executionId);
+    const interval = window.setInterval(refresh, 1000);
+    return () => window.clearInterval(interval);
+  }, [execution?.id, execution?.status, refreshTimeline]);
 
   // Process incoming messages for this execution
   useEffect(() => {

@@ -146,7 +146,8 @@
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.setVariable",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": -300,
           "timeout_ms": 10000
         },
         "metadata": {
@@ -161,7 +162,7 @@
         "assert": {
           "failure_message": "SetVariable node should appear (camelCase node type)",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node",
+          "selector": ".react-flow__node.workflow-node--setVariable",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -174,7 +175,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:first-of-type"
+          "selector": ".react-flow__node.workflow-node--setVariable"
         },
         "metadata": {
           "label": "Select SetVariable node"
@@ -188,7 +189,7 @@
         "assert": {
           "failure_message": "Variable name input should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[placeholder*=\"variable\" i], .react-flow__node.selected input[placeholder*=\"name\" i]",
+          "selector": ".react-flow__node.workflow-node--setVariable.selected input[placeholder*=\"variable\" i], .react-flow__node.workflow-node--setVariable.selected input[placeholder*=\"name\" i]",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -201,7 +202,7 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input:first-of-type",
+          "selector": ".react-flow__node.workflow-node--setVariable.selected input:first-of-type",
           "value": "testVar"
         },
         "metadata": {
@@ -216,7 +217,7 @@
         "assert": {
           "failure_message": "Value input should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input:nth-of-type(2), .react-flow__node.selected textarea",
+          "selector": ".react-flow__node.workflow-node--setVariable.selected textarea",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -229,7 +230,7 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input:nth-of-type(2), .react-flow__node.selected textarea /*dup-1*/",
+          "selector": ".react-flow__node.workflow-node--setVariable.selected textarea",
           "value": "test-value-123"
         },
         "metadata": {
@@ -261,7 +262,8 @@
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.useVariable",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
           "timeout_ms": 10000
         },
         "metadata": {
@@ -288,7 +290,7 @@
         "assert": {
           "failure_message": "UseVariable node should appear (camelCase node type)",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node:nth-of-type(2)",
+          "selector": ".react-flow__node.workflow-node--useVariable",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -301,7 +303,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:nth-of-type(2) /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--useVariable /*dup-1*/"
         },
         "metadata": {
           "label": "Select UseVariable node"
@@ -315,7 +317,7 @@
         "assert": {
           "failure_message": "Variable reference input should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input",
+          "selector": ".react-flow__node.workflow-node--useVariable.selected input",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -328,7 +330,7 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input /*dup-1*/",
+          "selector": ".react-flow__node.workflow-node--useVariable.selected input /*dup-1*/",
           "value": "testVar"
         },
         "metadata": {

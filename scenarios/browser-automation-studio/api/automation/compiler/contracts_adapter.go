@@ -79,7 +79,7 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 			Index:       step.Index,
 			NodeID:      step.NodeID,
 			PreloadHTML: "",
-			Context:     map[string]any{},
+			Context:     cloneExecutionContext(step.Context),
 			Metadata:    map[string]string{},
 		}
 
@@ -143,7 +143,7 @@ func toContractsGraph(plan *ExecutionPlan) *contracts.PlanGraph {
 			NodeID:    step.NodeID,
 			Outgoing:  edges,
 			Metadata:  map[string]string{},
-			Context:   map[string]any{},
+			Context:   cloneExecutionContext(step.Context),
 			Preload:   "",
 			SourcePos: map[string]any{},
 		}
@@ -165,4 +165,15 @@ func toContractsGraph(plan *ExecutionPlan) *contracts.PlanGraph {
 	}
 
 	return &contracts.PlanGraph{Steps: steps}
+}
+
+func cloneExecutionContext(context map[string]any) map[string]any {
+	if len(context) == 0 {
+		return nil
+	}
+	cloned := make(map[string]any, len(context))
+	for key, value := range context {
+		cloned[key] = value
+	}
+	return cloned
 }

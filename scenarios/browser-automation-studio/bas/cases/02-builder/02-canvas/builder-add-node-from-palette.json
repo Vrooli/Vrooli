@@ -157,7 +157,8 @@
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.navigate",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
           "timeout_ms": 10000
         },
         "metadata": {

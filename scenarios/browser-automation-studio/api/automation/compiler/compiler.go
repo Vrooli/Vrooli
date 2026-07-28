@@ -40,10 +40,14 @@ type ExecutionStep struct {
 	// Action is the compiled V2 execution contract. It is the sole executable
 	// representation of a node; the compiler never projects it into a generic
 	// type/params map and reconstructs it later.
-	Action         *basactions.ActionDefinition `json:"-"`
-	OutgoingEdges  []EdgeRef                    `json:"outgoing_edges"`
-	SourcePosition *Position                    `json:"source_position,omitempty"`
-	LoopPlan       *ExecutionPlan               `json:"loop_plan,omitempty"`
+	Action *basactions.ActionDefinition `json:"-"`
+	// Context carries node execution policy into the contracts executor. It is
+	// populated from the typed V2 execution settings, never reconstructed from
+	// action parameters.
+	Context        map[string]any `json:"context,omitempty"`
+	OutgoingEdges  []EdgeRef      `json:"outgoing_edges"`
+	SourcePosition *Position      `json:"source_position,omitempty"`
+	LoopPlan       *ExecutionPlan `json:"loop_plan,omitempty"`
 }
 
 // CompileOptions configures compilation behavior for a single workflow.
@@ -267,10 +271,11 @@ type flowFragment struct {
 
 // rawNode mirrors protojson WorkflowNodeV2.
 type rawNode struct {
-	ID           string                       `json:"id"`
-	Position     map[string]any               `json:"position,omitempty"`
-	ExecSettings map[string]any               `json:"execution_settings,omitempty"`
-	TypedAction  *basactions.ActionDefinition `json:"-"`
+	ID                     string                              `json:"id"`
+	Position               map[string]any                      `json:"position,omitempty"`
+	ExecSettings           map[string]any                      `json:"execution_settings,omitempty"`
+	TypedAction            *basactions.ActionDefinition        `json:"-"`
+	TypedExecutionSettings *basworkflows.NodeExecutionSettings `json:"-"`
 }
 
 // attachTypedActions retains the V2 action that entered the compiler beside
@@ -280,13 +285,19 @@ func attachTypedActions(definition *flowDefinition, source *basworkflows.Workflo
 		return
 	}
 	actionsByID := make(map[string]*basactions.ActionDefinition, len(source.Nodes))
+	settingsByID := make(map[string]*basworkflows.NodeExecutionSettings, len(source.Nodes))
 	for _, node := range source.Nodes {
-		if node != nil && node.Action != nil {
+		if node == nil {
+			continue
+		}
+		if node.Action != nil {
 			actionsByID[node.Id] = node.Action
 		}
+		settingsByID[node.Id] = node.ExecutionSettings
 	}
 	for index := range definition.Nodes {
 		definition.Nodes[index].TypedAction = actionsByID[definition.Nodes[index].ID]
+		definition.Nodes[index].TypedExecutionSettings = settingsByID[definition.Nodes[index].ID]
 	}
 }
 
@@ -774,6 +785,9 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 			SourceIndex: p.order[nodeID],
 			NodeID:      node.ID,
 			Action:      action,
+		}
+		if node.TypedExecutionSettings != nil {
+			step.Context = executionSettingsToContext(node.TypedExecutionSettings)
 		}
 
 		if pos := toPosition(node.Position); pos != nil {

@@ -134,7 +134,8 @@
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.navigate",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
           "timeout_ms": 10000
         },
         "metadata": {
@@ -161,7 +162,7 @@
         "assert": {
           "failure_message": "Navigate node should appear on canvas",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node[data-type=\"navigate\"]",
+          "selector": ".react-flow__node.workflow-node--navigate",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -174,7 +175,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node[data-type=\"navigate\"] /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--navigate /*dup-1*/"
         },
         "metadata": {
           "label": "Click Navigate node to select it"
@@ -188,7 +189,7 @@
         "assert": {
           "failure_message": "Navigate node should be selected",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"]",
+          "selector": ".react-flow__node.workflow-node--navigate.selected",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -203,7 +204,7 @@
         "assert": {
           "failure_message": "URL input should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]",
+          "selector": ".react-flow__node.workflow-node--navigate.selected input[type=\"text\"]",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -216,7 +217,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] button@selector/nodeProperties.urlModeButton"
+          "selector": ".react-flow__node.workflow-node--navigate.selected button[data-testid=\"url-mode-button\"]"
         },
         "metadata": {
           "label": "Switch to URL mode"
@@ -232,7 +233,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--navigate.selected input[type=\"text\"] /*dup-1*/"
         },
         "metadata": {
           "label": "Click URL input field"
@@ -267,7 +268,7 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-2*/",
+          "selector": ".react-flow__node.workflow-node--navigate.selected input[type=\"text\"] /*dup-2*/",
           "value": "https://example.com/test-page"
         },
         "metadata": {
@@ -298,7 +299,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "document.querySelector('.react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]')?.value.includes('example.com/test-page') ?? false",
+          "expression": "document.querySelector('.react-flow__node.workflow-node--navigate.selected input[type=\"text\"]')?.value.includes('example.com/test-page') ?? false",
           "store_result": "urlPersisted"
         },
         "metadata": {
@@ -313,7 +314,7 @@
         "assert": {
           "failure_message": "URL should persist after blur",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[value*=\"example.com\"]",
+          "selector": ".react-flow__node.workflow-node--navigate.selected input[value*=\"example.com\"]",
           "timeout_ms": 3000
         },
         "metadata": {

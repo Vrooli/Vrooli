@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	coredb "github.com/vrooli/api-core/database"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
@@ -103,6 +105,21 @@ func (s *WorkflowService) EnsureSeedWorkflow(ctx context.Context) (*database.Wor
 
 	existing, err := s.repo.GetWorkflowByNameInProject(ctx, project.ID, seedWorkflowName, seedWorkflowFolder)
 	if err == nil && existing != nil {
+		if coredb.IsTestMode(ctx) {
+			workflowID := existing.ID.String()
+			if _, err := s.UpdateWorkflow(ctx, &basapi.UpdateWorkflowRequest{
+				WorkflowId:        &workflowID,
+				Name:              seedWorkflowName,
+				FolderPath:        seedWorkflowFolder,
+				FlowDefinition:    seedWorkflowDefinition(),
+				ExpectedVersion:   int32(existing.Version),
+				ChangeDescription: "Reset managed test fixture",
+				Source:            basbase.ChangeSource_CHANGE_SOURCE_IMPORT,
+			}); err != nil {
+				return nil, fmt.Errorf("reset routed seed workflow: %w", err)
+			}
+			return s.repo.GetWorkflow(ctx, existing.ID)
+		}
 		return existing, nil
 	}
 	if err != nil && !errors.Is(err, database.ErrNotFound) {
@@ -137,18 +154,33 @@ func (s *WorkflowService) EnsureSeedWorkflow(ctx context.Context) (*database.Wor
 }
 
 func seedWorkflowDefinition() *basworkflows.WorkflowDefinitionV2 {
+	fullPage := true
 	return &basworkflows.WorkflowDefinitionV2{
 		Metadata: &basworkflows.WorkflowMetadataV2{
 			Labels: map[string]string{"seeded": "true"},
 		},
-		Nodes: []*basworkflows.WorkflowNodeV2{{
-			Id: "seed-navigate-example",
-			Action: &basactions.ActionDefinition{
-				Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
-				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
-					Url: "https://example.com/",
-				}},
+		Nodes: []*basworkflows.WorkflowNodeV2{
+			{
+				Id: "seed-navigate-example",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+					Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+						Url: "https://example.com/",
+					}},
+				},
 			},
+			{
+				Id: "seed-capture-example",
+				Action: &basactions.ActionDefinition{
+					Type:   basactions.ActionType_ACTION_TYPE_SCREENSHOT,
+					Params: &basactions.ActionDefinition_Screenshot{Screenshot: &basactions.ScreenshotParams{FullPage: &fullPage}},
+				},
+			},
+		},
+		Edges: []*basworkflows.WorkflowEdgeV2{{
+			Id:     "seed-navigate-to-capture",
+			Source: "seed-navigate-example",
+			Target: "seed-capture-example",
 		}},
 	}
 }

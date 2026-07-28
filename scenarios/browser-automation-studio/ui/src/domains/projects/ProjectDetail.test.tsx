@@ -262,4 +262,23 @@ describe("ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]",
       );
     });
   });
+
+  it("exposes a stable back-to-project control", async () => {
+    const onBack = vi.fn();
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <ProjectDetail
+        project={project}
+        onBack={onBack}
+        onWorkflowSelect={async () => {}}
+        onCreateWorkflow={() => {}}
+      />,
+    );
+
+    const backButton = await screen.findByTestId(selectors.header.buttons.backToProject);
+    await user.click(backButton);
+
+    expect(onBack).toHaveBeenCalledOnce();
+  });
 });

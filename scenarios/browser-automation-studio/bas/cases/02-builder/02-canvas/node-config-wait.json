@@ -140,7 +140,8 @@
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.wait",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
           "timeout_ms": 10000
         },
         "metadata": {
@@ -167,7 +168,7 @@
         "assert": {
           "failure_message": "Wait node should appear",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node",
+          "selector": ".react-flow__node.workflow-node--wait",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -180,7 +181,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:first-of-type"
+          "selector": ".react-flow__node.workflow-node--wait"
         },
         "metadata": {
           "label": "Select Wait node"
@@ -194,7 +195,7 @@
         "assert": {
           "failure_message": "Wait type dropdown should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected select",
+          "selector": ".react-flow__node.workflow-node--wait.selected select",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -210,7 +211,7 @@
           "label": "Change wait type to 'element'"
         },
         "select_option": {
-          "selector": ".react-flow__node.selected select /*dup-1*/",
+          "selector": ".react-flow__node.workflow-node--wait.selected select /*dup-1*/",
           "value": "element"
         },
         "type": "ACTION_TYPE_SELECT"
@@ -222,7 +223,7 @@
         "assert": {
           "failure_message": "Selector input should appear when wait type is 'element'",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+          "selector": ".react-flow__node.workflow-node--wait.selected input[placeholder*=\"Selector\" i]",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -235,7 +236,7 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-1*/",
+          "selector": ".react-flow__node.workflow-node--wait.selected input[placeholder*=\"Selector\" i] /*dup-1*/",
           "value": "#test-element"
         },
         "metadata": {
@@ -266,7 +267,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:first-of-type /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--wait /*dup-1*/"
         },
         "metadata": {
           "label": "Re-select node"
@@ -284,7 +285,7 @@
           "label": "Switch back to time mode"
         },
         "select_option": {
-          "selector": ".react-flow__node.selected select /*dup-2*/",
+          "selector": ".react-flow__node.workflow-node--wait.selected select /*dup-2*/",
           "value": "time"
         },
         "type": "ACTION_TYPE_SELECT"
@@ -296,7 +297,7 @@
         "assert": {
           "failure_message": "Duration input should appear when wait type is 'time'",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[type=\"number\"]",
+          "selector": ".react-flow__node.workflow-node--wait.selected input[type=\"number\"]",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -309,7 +310,7 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input[type=\"number\"] /*dup-1*/",
+          "selector": ".react-flow__node.workflow-node--wait.selected input[type=\"number\"] /*dup-1*/",
           "value": "3000"
         },
         "metadata": {

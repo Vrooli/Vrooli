@@ -128,7 +128,8 @@
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.dragDrop",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
           "timeout_ms": 10000
         },
         "metadata": {
@@ -155,7 +156,7 @@
         "assert": {
           "failure_message": "DragDrop node should appear - previously failed with 'unsupported node type: dragDrop'",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node",
+          "selector": ".react-flow__node.workflow-node--dragDrop",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -168,7 +169,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:first-of-type"
+          "selector": ".react-flow__node.workflow-node--dragDrop"
         },
         "metadata": {
           "label": "Select DragDrop node"
@@ -182,7 +183,7 @@
         "assert": {
           "failure_message": "Source selector input should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[placeholder*=\"source\" i], .react-flow__node.selected input:first-of-type",
+          "selector": ".react-flow__node.workflow-node--dragDrop.selected input[placeholder*=\"source\" i], .react-flow__node.workflow-node--dragDrop.selected input:first-of-type",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -195,7 +196,7 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input:first-of-type",
+          "selector": ".react-flow__node.workflow-node--dragDrop.selected input:first-of-type",
           "value": ".draggable-item"
         },
         "metadata": {
@@ -210,7 +211,7 @@
         "assert": {
           "failure_message": "Target selector input should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[placeholder*=\"target\" i], .react-flow__node.selected input:nth-of-type(2)",
+          "selector": ".react-flow__node.workflow-node--dragDrop.selected input[placeholder*=\"target\" i], .react-flow__node.workflow-node--dragDrop.selected input:nth-of-type(2)",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -223,7 +224,7 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input[placeholder*=\"target\" i]",
+          "selector": ".react-flow__node.workflow-node--dragDrop.selected input[placeholder*=\"target\" i]",
           "value": ".drop-zone"
         },
         "metadata": {
@@ -254,7 +255,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:first-of-type /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--dragDrop /*dup-1*/"
         },
         "metadata": {
           "label": "Re-select to verify persistence"
@@ -268,7 +269,7 @@
         "assert": {
           "failure_message": "Source selector should persist",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[value=\".draggable-item\"]",
+          "selector": ".react-flow__node.workflow-node--dragDrop.selected input[value=\".draggable-item\"]",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -283,7 +284,7 @@
         "assert": {
           "failure_message": "Target selector should persist",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[value=\".drop-zone\"]",
+          "selector": ".react-flow__node.workflow-node--dragDrop.selected input[value=\".drop-zone\"]",
           "timeout_ms": 3000
         },
         "metadata": {

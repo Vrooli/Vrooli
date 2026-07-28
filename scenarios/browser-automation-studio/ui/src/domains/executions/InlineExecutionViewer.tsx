@@ -21,6 +21,7 @@ import { ExportDialog } from './export/components/ExportDialog';
 import { ExportDialogProvider } from './export/context/ExportDialogProvider';
 import { buildExportDialogContextValue } from './export/context/ExportDialogContext';
 import { useExecutionEvents } from './hooks/useExecutionEvents';
+import { useExecutionHeartbeat } from './viewer/useExecutionHeartbeat';
 import { selectors } from '@constants/selectors';
 
 type ViewerTab = 'replay' | 'artifacts';
@@ -157,6 +158,8 @@ export function InlineExecutionViewer({
   const stopExecution = useExecutionStore((s) => s.stopExecution);
   const autoOpenExport = useExecutionStore((s) => s.autoOpenExport);
   const setAutoOpenExport = useExecutionStore((s) => s.setAutoOpenExport);
+  const executionForViewer = currentExecution ?? defaultExecution;
+  const { heartbeatDescriptor } = useExecutionHeartbeat(executionForViewer);
 
   // Subscribe to WebSocket updates for real-time progress
   useExecutionEvents(
@@ -173,7 +176,7 @@ export function InlineExecutionViewer({
   const { createExport } = useExportStore();
   const replayCustomization = useReplayCustomization({ executionId });
   const exportController = useExecutionExport({
-    execution: currentExecution ?? defaultExecution,
+    execution: executionForViewer,
     replayFrames: currentExecution?.timeline ?? [],
     workflowName,
     replayCustomization,
@@ -232,6 +235,7 @@ export function InlineExecutionViewer({
         isExporting={exportController.isExporting}
         isRerunning={isRerunning}
         isStopping={isStopping}
+        heartbeatLabel={heartbeatDescriptor?.label}
       />
 
       {/* Tab Bar */}
@@ -239,6 +243,7 @@ export function InlineExecutionViewer({
         <button
           type="button"
           onClick={() => setActiveTab('replay')}
+          data-testid={selectors.executions.tabs.replay}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
             activeTab === 'replay'
               ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-500'
@@ -251,6 +256,7 @@ export function InlineExecutionViewer({
         <button
           type="button"
           onClick={() => setActiveTab('artifacts')}
+          data-testid={selectors.executions.tabs.artifacts}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
             activeTab === 'artifacts'
               ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-500'

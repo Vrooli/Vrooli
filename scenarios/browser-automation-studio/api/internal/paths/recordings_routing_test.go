@@ -45,6 +45,14 @@ func TestRecordingsRootProviderRoutesExecutionFilesToLeasedTestRoots(t *testing.
 	if _, err := os.Stat(testResult); err != nil {
 		t.Fatalf("routed result missing: %v", err)
 	}
+	testTimeline := filepath.Join(testData, "recordings", plan.ExecutionID.String(), "timeline.proto.json")
+	if _, err := os.Stat(testTimeline); err != nil {
+		t.Fatalf("routed timeline missing: %v", err)
+	}
+	primaryTimeline := filepath.Join(primary, "recordings", plan.ExecutionID.String(), "timeline.proto.json")
+	if _, err := os.Stat(primaryTimeline); !os.IsNotExist(err) {
+		t.Fatalf("primary timeline exists during test mode: %v", err)
+	}
 	stats := provider.FileRoots().LeaseStats()
 	if stats.TestRootWrites == 0 || stats.PrimaryWritesDuringTestMode != 0 {
 		t.Fatalf("unexpected routed write stats: %+v", stats)

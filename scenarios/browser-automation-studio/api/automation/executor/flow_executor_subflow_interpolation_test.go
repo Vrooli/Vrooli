@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	compiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
@@ -53,6 +54,108 @@ func TestExecuteGraphReturnsNewSessionWhenItsFirstStepFails(t *testing.T) {
 		t.Fatal("failed first step discarded the newly created session")
 	}
 	require.Same(t, session, returned)
+}
+
+func TestExecuteGraphCompletesWhenAFailedStepIsConfiguredToContinue(t *testing.T) {
+	t.Parallel()
+
+	continueOnError := true
+	session := &failingEngineSession{}
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		Graph: &contracts.PlanGraph{Steps: []contracts.PlanStep{{
+			Index:   0,
+			NodeID:  "recoverable-navigate",
+			Context: map[string]any{"continueOnError": continueOnError},
+			Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+			},
+		}}},
+	}
+
+	returned, err := NewSimpleExecutor(nil).executeGraph(
+		context.Background(),
+		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
+		executionContext{navigation: &navigationState{}},
+		&failingAutomationEngine{session: session},
+		engine.SessionSpec{},
+		nil,
+		state.NewFromStore(nil),
+		engine.ReuseModeReuse,
+	)
+	require.NoError(t, err)
+	require.Same(t, session, returned)
+}
+
+func TestExecuteGraphHonorsContinueOnErrorCompiledFromWorkflow(t *testing.T) {
+	t.Parallel()
+
+	continueOnError := true
+	workflow := &basworkflows.WorkflowDefinitionV2{
+		Nodes: []*basworkflows.WorkflowNodeV2{{
+			Id: "recoverable-navigate",
+			Action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+					Url: "https://example.com",
+				}},
+			},
+			ExecutionSettings: &basworkflows.NodeExecutionSettings{ContinueOnError: &continueOnError},
+		}},
+	}
+	plan, _, err := compiler.CompileWorkflowToContracts(context.Background(), uuid.New(), &basapi.WorkflowSummary{
+		Id:             uuid.NewString(),
+		Name:           "recoverable-compiled-flow",
+		FlowDefinition: workflow,
+	})
+	require.NoError(t, err)
+
+	session := &failingEngineSession{}
+	returned, err := NewSimpleExecutor(nil).executeGraph(
+		context.Background(),
+		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
+		executionContext{navigation: &navigationState{}},
+		&failingAutomationEngine{session: session},
+		engine.SessionSpec{},
+		nil,
+		state.NewFromStore(nil),
+		engine.ReuseModeReuse,
+	)
+	require.NoError(t, err)
+	require.Same(t, session, returned)
+}
+
+func TestExecuteGraphAcceptsPersistedSnakeCaseContinueOnError(t *testing.T) {
+	t.Parallel()
+
+	session := &failingEngineSession{}
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		Graph: &contracts.PlanGraph{Steps: []contracts.PlanStep{{
+			Index:   0,
+			NodeID:  "recoverable-persisted-navigate",
+			Context: map[string]any{"continue_on_error": true},
+			Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+			},
+		}}},
+	}
+
+	_, err := NewSimpleExecutor(nil).executeGraph(
+		context.Background(),
+		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
+		executionContext{navigation: &navigationState{}},
+		&failingAutomationEngine{session: session},
+		engine.SessionSpec{},
+		nil,
+		state.NewFromStore(nil),
+		engine.ReuseModeReuse,
+	)
+	require.NoError(t, err)
 }
 
 func TestExecutePlanStep_SubflowInterpolatesArgsBeforeExecution(t *testing.T) {

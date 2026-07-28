@@ -18,6 +18,9 @@ importers:
       '@ghostery/adblocker-playwright':
         specifier: ^2.13.2
         version: 2.13.2(playwright@1.57.0)
+      '@vrooli/proto-types':
+        specifier: file:../../../packages/proto/gen/typescript
+        version: file:../../../packages/proto/gen/typescript
       js-yaml:
         specifier: 4.3.0
         version: 4.3.0
@@ -738,6 +741,10 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
+    resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
+    engines: {node: '>=18.0.0'}
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -2737,6 +2744,10 @@ snapshots:
       eslint-visitor-keys: 3.4.3
 
   '@ungap/structured-clone@1.3.0': {}
+
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
+    dependencies:
+      '@bufbuild/protobuf': 2.10.2
 
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:

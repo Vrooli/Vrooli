@@ -31,6 +31,8 @@ function createDragDropInstruction(params: {
   targetSelector?: string;
   offsetX?: number;
   offsetY?: number;
+  targetOffsetX?: number;
+  targetOffsetY?: number;
   steps?: number;
 }): { type: string; action: ReturnType<typeof create> } {
   return {
@@ -44,6 +46,8 @@ function createDragDropInstruction(params: {
           targetSelector: params.targetSelector,
           offsetX: params.offsetX,
           offsetY: params.offsetY,
+          targetOffsetX: params.targetOffsetX,
+          targetOffsetY: params.targetOffsetY,
           steps: params.steps,
         }),
       },
@@ -140,6 +144,74 @@ describe('GestureHandler', () => {
     expect(mockPage.mouse.down).toHaveBeenCalled();
     expect(mockPage.mouse.up).toHaveBeenCalled();
     expect(result.extracted_data?.target?.position).toEqual({ x: 50, y: 20 });
+  });
+
+  it('uses HTML5 drag events for draggable source and target selectors', async () => {
+    mockPage.evaluate.mockResolvedValue(true);
+    const instruction = {
+      index: 0,
+      nodeId: 'node-html5',
+      ...createDragDropInstruction({ sourceSelector: '#palette-card', targetSelector: '#canvas' }),
+      params: {},
+    };
+
+    const result = await handler.execute(instruction, context);
+
+    expect(result.success).toBe(true);
+    expect(result.extracted_data?.dragDrop?.mode).toBe('html5');
+    expect(mockPage.mouse.down).not.toHaveBeenCalled();
+    expect(mockPage.evaluate).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ sourceX: 30, sourceY: 30, targetX: 30, targetY: 30 }),
+    );
+  });
+
+  it('uses bounded target offsets for canvas-style drops', async () => {
+    const sourceElement = { boundingBox: jest.fn().mockResolvedValue({ x: 10, y: 20, width: 40, height: 20 }) };
+    const canvasElement = { boundingBox: jest.fn().mockResolvedValue({ x: 100, y: 100, width: 400, height: 300 }) };
+    mockPage.waitForSelector = jest.fn()
+      .mockResolvedValueOnce(sourceElement as never)
+      .mockResolvedValueOnce(canvasElement as never);
+    mockPage.evaluate.mockResolvedValue(true);
+    const instruction = {
+      index: 0,
+      nodeId: 'node-target-offset',
+      ...createDragDropInstruction({
+        sourceSelector: '#palette-card',
+        targetSelector: '#canvas',
+        targetOffsetX: 100,
+        targetOffsetY: 50,
+      }),
+      params: {},
+    };
+
+    const result = await handler.execute(instruction, context);
+
+    expect(result.success).toBe(true);
+    expect(result.extracted_data?.dragDrop?.target).toEqual({ x: 400, y: 300 });
+    expect(mockPage.evaluate).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ targetX: 400, targetY: 300 }),
+    );
+  });
+
+  it('rejects target offsets outside the target bounds', async () => {
+    const sourceElement = { boundingBox: jest.fn().mockResolvedValue({ x: 10, y: 20, width: 40, height: 20 }) };
+    const canvasElement = { boundingBox: jest.fn().mockResolvedValue({ x: 100, y: 100, width: 400, height: 300 }) };
+    mockPage.waitForSelector = jest.fn()
+      .mockResolvedValueOnce(sourceElement as never)
+      .mockResolvedValueOnce(canvasElement as never);
+    const instruction = {
+      index: 0,
+      nodeId: 'node-invalid-target-offset',
+      ...createDragDropInstruction({ sourceSelector: '#palette-card', targetSelector: '#canvas', targetOffsetX: 500 }),
+      params: {},
+    };
+
+    const result = await handler.execute(instruction, context);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('INVALID_TARGET_OFFSET');
   });
 
   it('returns an error when drag-drop has no target or offset', async () => {

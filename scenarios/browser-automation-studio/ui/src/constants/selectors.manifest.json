@@ -140,17 +140,13 @@
       "testId": "execution-tab-executions",
       "selector": "[data-testid=\"execution-tab-executions\"]"
     },
-    "executions.tabs.logs": {
-      "testId": "execution-tab-logs",
-      "selector": "[data-testid=\"execution-tab-logs\"]"
-    },
     "executions.tabs.replay": {
       "testId": "execution-tab-replay",
       "selector": "[data-testid=\"execution-tab-replay\"]"
     },
-    "executions.tabs.screenshots": {
-      "testId": "execution-tab-screenshots",
-      "selector": "[data-testid=\"execution-tab-screenshots\"]"
+    "executions.tabs.artifacts": {
+      "testId": "execution-tab-artifacts",
+      "selector": "[data-testid=\"execution-tab-artifacts\"]"
     },
     "executions.filters.all": {
       "testId": "execution-filter-all",

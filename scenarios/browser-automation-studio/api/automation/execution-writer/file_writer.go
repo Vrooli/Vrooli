@@ -344,20 +344,10 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	result.Summary.TotalDurationMs += outcome.DurationMs
 	result.mu.Unlock()
 
-	if !outcome.Success && r.repo != nil {
-		exec, err := r.repo.GetExecution(ctx, plan.ExecutionID)
-		if err == nil && exec != nil {
-			if exec.Status == database.ExecutionStatusRunning || exec.Status == database.ExecutionStatusPending {
-				now := time.Now().UTC()
-				msg := strings.TrimSpace(outcomeFailureMessage(outcome))
-				var errMsg *string
-				if msg != "" {
-					errMsg = &msg
-				}
-				_ = r.repo.UpdateExecutionStatus(ctx, plan.ExecutionID, database.ExecutionStatusFailed, errMsg, &now, now)
-			}
-		}
-	}
+	// A failed step is evidence, not a terminal execution decision. The
+	// executor knows whether the graph routes to recovery or is configured to
+	// continue on error; only it (and the workflow service at completion) may
+	// transition the execution index to a terminal status.
 
 	// Store core outcome payload as artifact (always recorded - essential for debugging)
 	outcomeArtifactID := uuid.New()
@@ -600,7 +590,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	result.TimelineFrame = append(result.TimelineFrame, timelineFrame)
 	result.mu.Unlock()
 
-	if err := r.appendProtoTimelineEntry(plan, outcome, protoArtifacts, timelineScreenshotID, timelineScreenshotURL, timelineScreenshotThumbURL, timelineScreenshotPath, timelineScreenshotSizeBytes, domSnapshotArtifact, consoleArtifact, networkArtifact, timeline); err != nil {
+	if err := r.appendProtoTimelineEntry(ctx, plan, outcome, protoArtifacts, timelineScreenshotID, timelineScreenshotURL, timelineScreenshotThumbURL, timelineScreenshotPath, timelineScreenshotSizeBytes, domSnapshotArtifact, consoleArtifact, networkArtifact, timeline); err != nil {
 		if r.log != nil {
 			r.log.WithError(err).Warn("Failed to write proto timeline file")
 		}
@@ -634,6 +624,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 }
 
 func (r *FileWriter) appendProtoTimelineEntry(
+	ctx context.Context,
 	plan contracts.ExecutionPlan,
 	outcome contracts.StepOutcome,
 	artifacts []*bastimeline.TimelineArtifact,
@@ -795,7 +786,10 @@ func (r *FileWriter) appendProtoTimelineEntry(
 	timeline.pb.Entries = append(timeline.pb.Entries, entry)
 	timeline.mu.Unlock()
 
-	return r.writeProtoTimelineFile(context.Background(), plan.ExecutionID, timeline)
+	// Timeline persistence is part of the same request-scoped execution write as
+	// the result file. Retaining ctx is essential for routed test storage; using
+	// a background context silently split replay evidence across roots.
+	return r.writeProtoTimelineFile(ctx, plan.ExecutionID, timeline)
 }
 
 func artifactDataToProto(a *ArtifactData) *bastimeline.TimelineArtifact {

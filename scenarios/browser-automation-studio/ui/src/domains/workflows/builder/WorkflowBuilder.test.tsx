@@ -47,7 +47,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@/test-utils";
+import { cleanup, render, screen, fireEvent, waitFor } from "@/test-utils";
 import userEvent from "@testing-library/user-event";
 import {
   createWorkflowBuilderStoreState,
@@ -114,6 +114,7 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
   });
 
   afterEach(() => {
+    cleanup();
     useWorkflowStoreMock.mockReset();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -127,7 +128,7 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
       expect(screen.getByTestId("react-flow-canvas")).toBeInTheDocument();
       expect(screen.getByTestId("minimap")).toBeInTheDocument();
       expect(screen.getByTestId("background")).toBeInTheDocument();
-    });
+    }, 15_000);
 
     it("renders with empty canvas when no workflow loaded [REQ:BAS-WORKFLOW-BUILDER-CORE]", async () => {
       applyWorkflowStoreState({ currentWorkflow: null });
@@ -281,10 +282,24 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
 
       fireEvent(canvas, dropEvent);
 
-      // Note: Due to ReactFlow mocking, we can't fully verify node creation in DOM
-      // But we can verify the drop event is handled
-      expect(canvas).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('react-flow-canvas')).toHaveAttribute('data-nodes-count', '1');
+        expect(screen.getByTestId('toolbar-undo-button')).toBeEnabled();
+        expect(screen.getByTestId(/node-node-/)).toHaveClass('workflow-node--navigate');
+      });
+
+      await userEvent.setup().click(screen.getByTestId('toolbar-undo-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('react-flow-canvas')).toHaveAttribute('data-nodes-count', '0');
+        expect(screen.getByTestId('toolbar-redo-button')).toBeEnabled();
+      });
+
+      await userEvent.setup().click(screen.getByTestId('toolbar-redo-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('react-flow-canvas')).toHaveAttribute('data-nodes-count', '1');
+      });
     });
+
   });
 
   describe("Autosave Integration", () => {

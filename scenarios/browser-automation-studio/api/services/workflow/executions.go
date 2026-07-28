@@ -425,11 +425,10 @@ func withTestModeBrowserHeader(profile *sessionprofilepersistence.BrowserProfile
 }
 
 func detachedExecutionContext(parent context.Context) context.Context {
-	base := context.Background()
-	if coredb.IsTestMode(parent) {
-		return coredb.WithTestMode(base)
-	}
-	return base
+	// Preserve the durable execution metadata (including routed test isolation)
+	// while explicitly dropping the request's cancellation and deadline. The
+	// caller owns this context's lifecycle through storeExecutionCancel.
+	return context.WithoutCancel(parent)
 }
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
@@ -443,9 +442,8 @@ func detachedExecutionContext(parent context.Context) context.Context {
 func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
 	defer s.cancelExecutionByID(executionID)
 
-	persistenceCtx := context.Background()
-	if coredb.IsTestMode(ctx) {
-		persistenceCtx = coredb.WithTestMode(persistenceCtx)
+	persistenceCtx := ctx
+	if coredb.IsTestMode(persistenceCtx) {
 		// Development routing installs an empty, lease-owned database. Seed the
 		// minimum scenario fixture inside that pool so browser validations exercise
 		// the same project surface as normal startup without touching primary data.

@@ -18,6 +18,7 @@ interface ExecutionHistoryProps {
 interface ExecutionSummary {
   id: string;
   workflow_id: string;
+  workflowName?: string;
   workflow_name?: string;
   status: "pending" | "running" | "completed" | "failed" | "cancelled";
   started_at: string;
@@ -31,7 +32,7 @@ interface ExecutionSummary {
 const toCardData = (execution: ExecutionSummary): ExecutionCardData => ({
   id: execution.id,
   workflowId: execution.workflow_id,
-  workflowName: execution.workflow_name ?? 'Unknown Workflow',
+  workflowName: execution.workflowName ?? execution.workflow_name ?? 'Unknown Workflow',
   status: execution.status as ExecutionStatus,
   startedAt: new Date(execution.started_at),
   completedAt: execution.completed_at ? new Date(execution.completed_at) : undefined,

@@ -13,6 +13,7 @@ import { ResponsiveDialog } from '@shared/layout';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
 import type { NavigateParams } from '@utils/actionBuilder';
+import { selectors } from '@constants/selectors';
 import BaseNode from './BaseNode';
 
 // bytesToBase64 converts a Uint8Array (e.g. proto `bytes` field) into a
@@ -526,6 +527,7 @@ const NavigateNode: FC<NodeProps> = ({ selected, id }) => {
                 <button
                   key={option.type}
                   type="button"
+                  data-testid={option.type === 'url' ? selectors.nodeProperties.urlModeButton : undefined}
                   onClick={() => handleDestinationChange(option.type)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-semibold tracking-wide transition-colors ${
                     isActive

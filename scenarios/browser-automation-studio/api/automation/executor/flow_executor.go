@@ -50,7 +50,10 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx 
 			return updatedSession, err
 		}
 		session = updatedSession
-		if !outcome.Success {
+		// A graph step that explicitly continues on error still records its
+		// failed outcome for replay and diagnostics, but it must not make the
+		// completed workflow fail after every downstream recovery step passed.
+		if !outcome.Success && !shouldContinueOnError(planStepToInstruction(*current), req.ContinueOnError) {
 			lastFailure = fmt.Errorf("step %d failed: %s", outcome.StepIndex, e.failureMessage(outcome))
 		}
 

@@ -98,9 +98,28 @@ export async function captureScreenshot(
         }
       }
 
-      // Still too large, return undefined
-      logger.warn('Screenshot too large even with viewport-only capture', {
+      // PNGs can exceed a tight transport budget even for a normal viewport.
+      // Preserve replay evidence by falling back to JPEG at the configured
+      // quality. Keep this viewport-scoped: a full-page fallback could change
+      // the frame dimensions and reintroduce the execution-viewer jitter this
+      // capture path deliberately avoids.
+      const compressed = await captureCompressedScreenshot(
+        page,
+        config.telemetry.screenshot.quality,
+        false,
+        config.telemetry.screenshot.maxSizeBytes,
+      );
+      if (compressed) {
+        logger.info('Screenshot captured with JPEG fallback', {
+          pngSize: buffer.length,
+          maxSize: config.telemetry.screenshot.maxSizeBytes,
+        });
+        return compressed;
+      }
+
+      logger.warn('Screenshot too large after JPEG fallback', {
         size: buffer.length,
+        maxSize: config.telemetry.screenshot.maxSizeBytes,
       });
       return undefined;
     }

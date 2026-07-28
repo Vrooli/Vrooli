@@ -29,6 +29,47 @@ func (noopRepo) UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, res
 	return nil
 }
 
+type statusRecordingRepo struct {
+	statusUpdates int
+	execution     *database.ExecutionIndex
+}
+
+func (r *statusRecordingRepo) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	return r.execution, nil
+}
+
+func (r *statusRecordingRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
+	r.statusUpdates++
+	return nil
+}
+
+func (r *statusRecordingRepo) UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error {
+	return nil
+}
+
+func TestRecordStepOutcomeDoesNotSetTerminalExecutionStatus(t *testing.T) {
+	dataDir := t.TempDir()
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	repo := &statusRecordingRepo{execution: &database.ExecutionIndex{ID: plan.ExecutionID, Status: database.ExecutionStatusRunning}}
+	writer := NewFileWriter(repo, storage.NewMemoryStorage(), nil, NewStaticRoot(dataDir))
+
+	_, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+		ExecutionID: plan.ExecutionID,
+		StepIndex:   0,
+		NodeID:      "recoverable-step",
+		StepType:    "click",
+		StartedAt:   time.Now().UTC(),
+		Success:     false,
+		Failure:     &contracts.StepFailure{Message: "expected recoverable failure"},
+	})
+	if err != nil {
+		t.Fatalf("RecordStepOutcome() error = %v", err)
+	}
+	if repo.statusUpdates != 0 {
+		t.Fatalf("RecordStepOutcome() changed terminal status %d times; terminal status belongs to executor/service", repo.statusUpdates)
+	}
+}
+
 func TestRecordExecutionArtifacts(t *testing.T) {
 	dataDir := t.TempDir()
 	artifactPath := filepath.Join(dataDir, "video.webm")

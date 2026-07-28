@@ -1505,6 +1505,19 @@ func retryConfigFromInstruction(instruction contracts.CompiledInstruction) retry
 		Delay:         750 * time.Millisecond,
 		BackoffFactor: 1.5,
 	}
+	resilience, ok := instruction.Context["resilience"].(map[string]any)
+	if !ok {
+		return cfg
+	}
+	if maxAttempts, ok := contextInt(resilience["maxAttempts"]); ok && maxAttempts > 0 {
+		cfg.MaxAttempts = maxAttempts
+	}
+	if delayMs, ok := contextInt(resilience["delayMs"]); ok && delayMs >= 0 {
+		cfg.Delay = time.Duration(delayMs) * time.Millisecond
+	}
+	if backoffFactor, ok := contextFloat(resilience["backoffFactor"]); ok && backoffFactor >= 1 {
+		cfg.BackoffFactor = backoffFactor
+	}
 	if cfg.MaxAttempts < 1 {
 		cfg.MaxAttempts = 1
 	}
@@ -1512,6 +1525,38 @@ func retryConfigFromInstruction(instruction contracts.CompiledInstruction) retry
 		cfg.BackoffFactor = 1
 	}
 	return cfg
+}
+
+func contextInt(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case int32:
+		return int(typed), true
+	case int64:
+		return int(typed), true
+	case float64:
+		return int(typed), float64(int(typed)) == typed
+	default:
+		return 0, false
+	}
+}
+
+func contextFloat(value any) (float64, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return typed, true
+	case float32:
+		return float64(typed), true
+	case int:
+		return float64(typed), true
+	case int32:
+		return float64(typed), true
+	case int64:
+		return float64(typed), true
+	default:
+		return 0, false
+	}
 }
 
 // instructionTimeout returns a step-level timeout derived from instruction params or plan metadata.
@@ -1717,8 +1762,13 @@ func stringToNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
 func shouldContinueOnError(instruction contracts.CompiledInstruction, requestDefault *bool) bool {
 	// First check instruction context (per-node setting)
 	if instruction.Context != nil {
-		if continueOnError, ok := instruction.Context["continueOnError"].(bool); ok {
-			return continueOnError
+		// Compiler-produced plans use camelCase. Persisted JSON imported through
+		// compatibility paths can retain the proto field spelling instead, so
+		// accept both representations at this execution boundary.
+		for _, key := range []string{"continueOnError", "continue_on_error"} {
+			if continueOnError, ok := instruction.Context[key].(bool); ok {
+				return continueOnError
+			}
 		}
 	}
 	// Fall back to request-level default

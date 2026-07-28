@@ -27,7 +27,7 @@ module.exports = {
   // Transform ESM packages that Jest can't parse by default
   // @vrooli/proto-types and @bufbuild/protobuf use ESM syntax
   transformIgnorePatterns: [
-    'node_modules/(?!(@vrooli/proto-types|@bufbuild)/)',
+    'node_modules/(?!((?:\\.pnpm/@vrooli\\+proto-types@[^/]+/node_modules/)?@vrooli/proto-types|@bufbuild)/)',
   ],
   // Configure ts-jest to transform TypeScript files in node_modules
   transform: {

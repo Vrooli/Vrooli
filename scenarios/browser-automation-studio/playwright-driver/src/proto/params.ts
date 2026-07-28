@@ -666,6 +666,8 @@ export function getDragDropParams(action: ActionDefinition): {
   targetSelector?: string;
   offsetX?: number;
   offsetY?: number;
+  targetOffsetX?: number;
+  targetOffsetY?: number;
   steps?: number;
   delayMs?: number;
   timeoutMs?: number;
@@ -677,6 +679,8 @@ export function getDragDropParams(action: ActionDefinition): {
       targetSelector: p.targetSelector,
       offsetX: p.offsetX,
       offsetY: p.offsetY,
+      targetOffsetX: p.targetOffsetX,
+      targetOffsetY: p.targetOffsetY,
       steps: p.steps,
       delayMs: p.delayMs,
       timeoutMs: p.timeoutMs,

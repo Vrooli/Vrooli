@@ -30,12 +30,24 @@
       "target": "click-execution",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e9",
-      "source": "click-execution",
-      "target": "capture-execution-viewer",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
+  {
+    "id": "e9",
+    "source": "click-execution",
+    "target": "wait-for-execution-viewer",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e9a",
+    "source": "wait-for-execution-viewer",
+    "target": "wait-for-export-control",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e9b",
+    "source": "wait-for-export-control",
+    "target": "capture-execution-viewer",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
     {
       "id": "e11",
       "source": "capture-execution-viewer",
@@ -73,8 +85,22 @@
     "version": "1"
   },
   "nodes": [
-    {
-      "action": {
+  {
+    "action": {
+      "metadata": {
+        "label": "Wait for replay artifacts and export control"
+      },
+      "type": "ACTION_TYPE_WAIT",
+      "wait": {
+        "selector": "@selector/executions.actions.exportReplayButton",
+        "state": "WAIT_STATE_VISIBLE",
+        "timeout_ms": 10000
+      }
+    },
+    "id": "wait-for-export-control"
+  },
+  {
+    "action": {
         "metadata": {
           "label": "Return to the seeded project history"
         },
@@ -144,7 +170,7 @@
         "assert": {
           "failure_message": "Should have at least one execution",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "@selector/executions.list.item",
+          "selector": "@selector/executions.list.item[data-workflow-name=\"Demo Smoke Workflow\"]",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -157,10 +183,10 @@
     {
       "action": {
         "click": {
-          "selector": "@selector/executions.actions.viewButton"
+          "selector": "@selector/executions.list.item[data-workflow-name=\"Demo Smoke Workflow\"]"
         },
         "metadata": {
-          "label": "Open execution details"
+          "label": "Select execution details"
         },
         "type": "ACTION_TYPE_CLICK"
       },
@@ -168,10 +194,24 @@
         "resilience": {
           "success_selector": "@selector/executions.viewer.root"
         }
-      },
-      "id": "click-execution"
     },
-    {
+    "id": "click-execution"
+  },
+  {
+    "action": {
+      "metadata": {
+        "label": "Wait for selected execution details to load"
+      },
+      "type": "ACTION_TYPE_WAIT",
+      "wait": {
+        "selector": "@selector/executions.viewer.root",
+        "state": "WAIT_STATE_VISIBLE",
+        "timeout_ms": 10000
+      }
+    },
+    "id": "wait-for-execution-viewer"
+  },
+  {
       "action": {
         "metadata": {
           "label": "Capture execution viewer"

@@ -31,6 +31,8 @@ export interface InlineExecutionHeaderProps {
   isRerunning?: boolean;
   /** Whether a stop request is in flight. */
   isStopping?: boolean;
+  /** Current execution liveness summary, when timeline activity is available. */
+  heartbeatLabel?: string | null;
 }
 
 function getStatusBadge(status: InlineExecutionHeaderProps['status']) {
@@ -86,6 +88,7 @@ export function InlineExecutionHeader({
   isExporting = false,
   isRerunning = false,
   isStopping = false,
+  heartbeatLabel,
 }: InlineExecutionHeaderProps) {
   const canStop = Boolean(onStop) && (status === 'pending' || status === 'running');
 
@@ -97,6 +100,15 @@ export function InlineExecutionHeader({
           {workflowName || 'Execution'}
         </h3>
         {getStatusBadge(status)}
+        {heartbeatLabel && (
+          <span
+            data-testid={selectors.heartbeat.indicator}
+            className="text-xs text-gray-500 dark:text-gray-400"
+            title={heartbeatLabel}
+          >
+            {heartbeatLabel}
+          </span>
+        )}
       </div>
 
       {/* Right: Action buttons */}

@@ -201,7 +201,7 @@
     {
       "action": {
         "click": {
-          "selector": "[data-testid=\"file-tree-create-workflow\"][data-workflow-type=\"action\"]"
+          "selector": "[data-testid=\"project-file-tree-create-workflow\"][data-workflow-type=\"action\"]"
         },
         "metadata": {
           "label": "Click New Action button"
@@ -334,7 +334,7 @@
     {
       "action": {
         "click": {
-          "selector": "[data-testid=\"file-tree-create-workflow\"][data-workflow-type=\"case\"]"
+          "selector": "[data-testid=\"project-file-tree-create-workflow\"][data-workflow-type=\"case\"]"
         },
         "metadata": {
           "label": "Click New Case button"

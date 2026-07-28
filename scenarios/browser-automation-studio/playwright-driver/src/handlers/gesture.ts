@@ -226,12 +226,13 @@ export class GestureHandler extends BaseHandler {
     let targetX: number;
     let targetY: number;
     let targetBoundingBox: { x: number; y: number; width: number; height: number } | null = null;
+    let targetElement: Awaited<ReturnType<typeof page.waitForSelector>> | null = null;
 
     // Determine target position
     if (validated.targetSelector) {
       // Drag to target element with explicit timeout
       // Target only needs to be attached (not necessarily visible) for drag operations
-      const targetElement = await page.waitForSelector(validated.targetSelector, {
+      targetElement = await page.waitForSelector(validated.targetSelector, {
         timeout,
         state: 'attached'
       }).catch((error) => {
@@ -268,8 +269,24 @@ export class GestureHandler extends BaseHandler {
         };
       }
 
-      targetX = targetBoundingBox.x + targetBoundingBox.width / 2;
-      targetY = targetBoundingBox.y + targetBoundingBox.height / 2;
+      targetX = targetBoundingBox.x + targetBoundingBox.width / 2 + (validated.targetOffsetX || 0);
+      targetY = targetBoundingBox.y + targetBoundingBox.height / 2 + (validated.targetOffsetY || 0);
+
+      const targetMinX = targetBoundingBox.x;
+      const targetMaxX = targetBoundingBox.x + targetBoundingBox.width;
+      const targetMinY = targetBoundingBox.y;
+      const targetMaxY = targetBoundingBox.y + targetBoundingBox.height;
+      if (targetX < targetMinX || targetX > targetMaxX || targetY < targetMinY || targetY > targetMaxY) {
+        return {
+          success: false,
+          error: {
+            message: `Target offset resolves outside target bounds: ${validated.targetSelector}`,
+            code: 'INVALID_TARGET_OFFSET',
+            kind: 'user',
+            retryable: false,
+          },
+        };
+      }
     } else if (validated.offsetX !== undefined || validated.offsetY !== undefined) {
       // Drag by offset
       targetX = sourceX + (validated.offsetX || 0);
@@ -284,6 +301,67 @@ export class GestureHandler extends BaseHandler {
           retryable: false,
         },
       };
+    }
+
+    // HTML5 draggable elements (such as workflow palette cards) need a
+    // DataTransfer-backed event sequence. Mouse-only dragging can leave
+    // Chromium in a native drag state and stall the driver request.
+    if (targetElement && validated.targetSelector) {
+      const usedHtml5Drag = await page.evaluate(
+        ({ sourceSelector, targetSelector, sourceX, sourceY, targetX, targetY }) => {
+          const source = document.querySelector<HTMLElement>(sourceSelector);
+          const target = document.querySelector<HTMLElement>(targetSelector);
+          if (!source?.draggable || !target) return false;
+
+          const dataTransfer = new DataTransfer();
+          const sourceEventInit: DragEventInit = {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer,
+            clientX: sourceX,
+            clientY: sourceY,
+          };
+          const targetEventInit: DragEventInit = {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer,
+            clientX: targetX,
+            clientY: targetY,
+          };
+
+          source.dispatchEvent(new DragEvent('dragstart', sourceEventInit));
+          target.dispatchEvent(new DragEvent('dragenter', targetEventInit));
+          target.dispatchEvent(new DragEvent('dragover', targetEventInit));
+          target.dispatchEvent(new DragEvent('drop', targetEventInit));
+          source.dispatchEvent(new DragEvent('dragend', targetEventInit));
+          return true;
+        },
+        {
+          sourceSelector: validated.sourceSelector,
+          targetSelector: validated.targetSelector,
+          sourceX,
+          sourceY,
+          targetX,
+          targetY,
+        },
+      );
+
+      if (usedHtml5Drag) {
+        logger.info('drag-drop: completed with HTML5 data transfer events', {
+          sourceSelector: validated.sourceSelector,
+          targetSelector: validated.targetSelector,
+        });
+        return {
+          success: true,
+          extracted_data: {
+            dragDrop: {
+              source: { x: sourceX, y: sourceY },
+              target: { x: targetX, y: targetY },
+              mode: 'html5',
+            },
+          },
+        };
+      }
     }
 
     // Perform drag-and-drop

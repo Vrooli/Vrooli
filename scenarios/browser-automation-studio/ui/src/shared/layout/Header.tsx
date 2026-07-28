@@ -614,6 +614,7 @@ function Header({
                           label: currentProject.name,
                           onClick: onBackToProject,
                           current: !displayWorkflow,
+                          testId: selectors.header.buttons.backToProject,
                         }]
                       : []),
                     ...(displayWorkflow

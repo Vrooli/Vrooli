@@ -144,10 +144,10 @@
     {
       "action": {
         "click": {
-          "selector": "@selector/executions.actions.viewButton:first-of-type"
+          "selector": "@selector/executions.list.item:first-of-type"
         },
         "metadata": {
-          "label": "Click View button on first execution"
+          "label": "Select the first execution from history"
         },
         "type": "ACTION_TYPE_CLICK"
       },

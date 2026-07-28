@@ -1246,3 +1246,28 @@ func TestCompileWorkflowToContractsUsesCompiledTypedActions(t *testing.T) {
 	require.NotNil(t, plan.Graph.Steps[0].Action)
 	assert.Equal(t, int32(4321), plan.Graph.Steps[0].Action.GetWait().GetDurationMs())
 }
+
+func TestCompileWorkflowToContractsPreservesNodeExecutionSettings(t *testing.T) {
+	continueOnError := true
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"recoverable-contract-flow",
+		[]*basworkflows.WorkflowNodeV2{{
+			Id: "recoverable-click",
+			Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_CLICK,
+				Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: ".missing"}},
+			},
+			ExecutionSettings: &basworkflows.NodeExecutionSettings{ContinueOnError: &continueOnError},
+		}},
+		nil,
+	)
+
+	plan, instructions, err := CompileWorkflowToContracts(context.Background(), uuid.New(), workflow)
+	require.NoError(t, err)
+	require.Len(t, instructions, 1)
+	require.NotNil(t, plan.Graph)
+	require.Len(t, plan.Graph.Steps, 1)
+	assert.Equal(t, true, instructions[0].Context["continueOnError"])
+	assert.Equal(t, true, plan.Graph.Steps[0].Context["continueOnError"])
+}

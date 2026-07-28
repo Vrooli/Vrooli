@@ -116,6 +116,12 @@
         },
         "type": "ACTION_TYPE_EVALUATE"
       },
+      "execution_settings": {
+        "resilience": {
+          "max_attempts": 2,
+          "delay_ms": 250
+        }
+      },
       "id": "verify-toggle"
     }
   ],

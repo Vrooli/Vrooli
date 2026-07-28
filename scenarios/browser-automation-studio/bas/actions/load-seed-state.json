@@ -52,6 +52,12 @@
         },
         "type": "ACTION_TYPE_EVALUATE"
       },
+      "execution_settings": {
+        "resilience": {
+          "max_attempts": 2,
+          "delay_ms": 250
+        }
+      },
       "id": "store-project-name"
     },
     {
@@ -64,6 +70,12 @@
           "label": "Store seed project id"
         },
         "type": "ACTION_TYPE_EVALUATE"
+      },
+      "execution_settings": {
+        "resilience": {
+          "max_attempts": 2,
+          "delay_ms": 250
+        }
       },
       "id": "store-project-id"
     },
@@ -78,6 +90,12 @@
         },
         "type": "ACTION_TYPE_EVALUATE"
       },
+      "execution_settings": {
+        "resilience": {
+          "max_attempts": 2,
+          "delay_ms": 250
+        }
+      },
       "id": "store-project-folder"
     },
     {
@@ -91,6 +109,12 @@
         },
         "type": "ACTION_TYPE_EVALUATE"
       },
+      "execution_settings": {
+        "resilience": {
+          "max_attempts": 2,
+          "delay_ms": 250
+        }
+      },
       "id": "store-workflow-name"
     },
     {
@@ -103,6 +127,12 @@
           "label": "Store seed workflow id"
         },
         "type": "ACTION_TYPE_EVALUATE"
+      },
+      "execution_settings": {
+        "resilience": {
+          "max_attempts": 2,
+          "delay_ms": 250
+        }
       },
       "id": "store-workflow-id"
     }

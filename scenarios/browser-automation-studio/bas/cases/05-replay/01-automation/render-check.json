@@ -1,11 +1,17 @@
 {
   "edges": [
     {
-      "id": "e0",
-      "source": "call-open-project",
-      "target": "assert-execution-complete",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
+    "id": "e0",
+    "source": "call-open-project",
+    "target": "wait-for-terminal-execution",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e0a",
+    "source": "wait-for-terminal-execution",
+    "target": "assert-execution-complete",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
     {
       "id": "e3",
       "source": "assert-execution-complete",
@@ -25,8 +31,22 @@
     "version": "1"
   },
   "nodes": [
-    {
-      "action": {
+  {
+    "action": {
+      "metadata": {
+        "label": "Wait for execution to reach a terminal state"
+      },
+      "type": "ACTION_TYPE_WAIT",
+      "wait": {
+        "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
+        "state": "WAIT_STATE_VISIBLE",
+        "timeout_ms": 45000
+      }
+    },
+    "id": "wait-for-terminal-execution"
+  },
+  {
+    "action": {
         "metadata": {
           "label": "Execute Demo workflow via fixture"
         },

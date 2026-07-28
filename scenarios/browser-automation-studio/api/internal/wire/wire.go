@@ -16,6 +16,7 @@ package wire
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -104,6 +105,10 @@ func DefaultConfig() Config {
 func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub, log *logrus.Logger, cfg Config) (*Dependencies, error) {
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
+	recordingsRootProvider, err := paths.NewRecordingsRootProvider(log)
+	if err != nil {
+		return nil, fmt.Errorf("create routed recordings root provider: %w", err)
+	}
 	// Store screenshots alongside other execution artifacts under recordingsRoot.
 	storageClient := storage.NewScreenshotStorage(log, recordingsRoot)
 	recordingImportSvc := archiveingestion.NewIngestionService(repo, storageClient, hub, log, recordingsRoot)
@@ -117,7 +122,7 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	}
 
 	// Persist execution artifacts under recordingsRoot
-	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, executionwriter.NewStaticRoot(recordingsRoot))
+	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRootProvider)
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink

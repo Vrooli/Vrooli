@@ -54,6 +54,7 @@ function MockReactFlow({
           key={node.id}
           data-testid={`node-${node.id}`}
           data-node-type={node.type}
+          className={node.className}
         >
           {String(node.data?.label ?? node.type ?? '')}
         </div>

@@ -121,7 +121,7 @@
         "assert": {
           "failure_message": "Execution viewer should render with tabs",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "@selector/executions.tabs.logs, @selector/executions.tabs.screenshots",
+          "selector": "@selector/executions.tabs.replay, @selector/executions.tabs.artifacts",
           "timeout_ms": 5000
         },
         "metadata": {

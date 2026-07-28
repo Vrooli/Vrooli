@@ -9,12 +9,6 @@
     {
       "id": "e5",
       "source": "click-palette",
-      "target": "click-canvas",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e6",
-      "source": "click-canvas",
       "target": "wait2",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -81,30 +75,21 @@
     },
     {
       "action": {
-        "click": {
-          "selector": "@selector/nodePalette.cards.navigate"
+        "drag_drop": {
+          "source_selector": "@selector/nodePalette.cards.navigate",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
+          "timeout_ms": 10000
         },
         "metadata": {
-          "label": "Click navigate node"
+          "label": "Drag navigate node onto the canvas"
         },
-        "type": "ACTION_TYPE_CLICK"
+        "type": "ACTION_TYPE_DRAG_DROP"
       },
       "execution_settings": {
         "wait_after_ms": 500
       },
       "id": "click-palette"
-    },
-    {
-      "action": {
-        "click": {
-          "selector": ".react-flow__pane"
-        },
-        "metadata": {
-          "label": "Click canvas to add"
-        },
-        "type": "ACTION_TYPE_CLICK"
-      },
-      "id": "click-canvas"
     },
     {
       "action": {

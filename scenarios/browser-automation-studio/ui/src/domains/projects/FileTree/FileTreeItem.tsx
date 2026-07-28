@@ -22,6 +22,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { selectors } from "@constants/selectors";
 import { fileKindIcon, fileTypeLabelFromPath } from "./fileTreeUtils";
 import type { FileTreeDragPayload, FileTreeNode } from './fileTreeTypes';
 
@@ -352,6 +353,7 @@ export function FileTreeItem({
           {node.kind === "workflow_file" && node.workflowId ? (
             <button
               onClick={handleExecuteFromTree}
+              data-testid={typeLabel === "Case" ? selectors.projects.fileTree.testButton : selectors.projects.fileTree.runButton}
               className="p-1 rounded text-subtle hover:text-surface hover:bg-gray-700 transition-colors"
               title={typeLabel === "Case" ? "Test" : "Run"}
               aria-label={typeLabel === "Case" ? "Test workflow" : "Run workflow"}

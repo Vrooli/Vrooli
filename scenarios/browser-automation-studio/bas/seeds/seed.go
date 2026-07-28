@@ -23,6 +23,7 @@ import (
 
 	apiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	projectsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects/projectsconnect"
 	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -254,16 +255,14 @@ func findProjectByFolderOrName(ctx context.Context, client projectsconnect.Proje
 	return "", fmt.Errorf("project exists but no entry matches folder=%q name=%q", folder, name)
 }
 
-// ensureWorkflow creates the smoke workflow if missing, or returns the
-// existing one. Workflow contents are defined by demoSmokeWorkflowJSON
-// so the enum values round-trip via protojson without ever going
-// through map[string]any (which previously lost ChangeSource/wait enums
-// during snake-case JSON encoding).
+// ensureWorkflow creates the smoke workflow if missing and reconciles its
+// definition when it already exists. A seed is a fixture contract, not merely
+// a convenience record: retaining an obsolete persisted graph makes browser
+// cases exercise stale state and hides regressions in the declared fixture.
 func ensureWorkflow(ctx context.Context, client apiconnect.WorkflowsServiceClient, projectID, name, folder string) (string, error) {
-	flow := &workflowsv1.WorkflowDefinitionV2{}
-	opts := protojson.UnmarshalOptions{DiscardUnknown: false}
-	if err := opts.Unmarshal([]byte(demoSmokeWorkflowJSON), flow); err != nil {
-		return "", fmt.Errorf("decode smoke workflow definition: %w", err)
+	flow, err := demoSmokeWorkflowDefinition()
+	if err != nil {
+		return "", err
 	}
 
 	req := connect.NewRequest(&apiv1.CreateWorkflowRequest{
@@ -285,17 +284,52 @@ func ensureWorkflow(ctx context.Context, client apiconnect.WorkflowsServiceClien
 	if !errors.As(err, &connErr) || connErr.Code() != connect.CodeAlreadyExists {
 		return "", fmt.Errorf("create workflow: %w", err)
 	}
-	return findWorkflowByName(ctx, client, projectID, folder, name)
+
+	existing, err := findWorkflowByName(ctx, client, projectID, folder, name)
+	if err != nil {
+		return "", err
+	}
+	updated, err := client.UpdateWorkflow(ctx, connect.NewRequest(seedWorkflowUpdateRequest(existing, flow, name, folder)))
+	if err != nil {
+		return "", fmt.Errorf("reconcile seeded workflow %q: %w", name, err)
+	}
+	workflow := updated.Msg.GetWorkflow()
+	if workflow == nil || workflow.GetId() == "" {
+		return "", errors.New("UpdateWorkflow returned empty workflow")
+	}
+	return workflow.GetId(), nil
 }
 
-func findWorkflowByName(ctx context.Context, client apiconnect.WorkflowsServiceClient, projectID, folder, name string) (string, error) {
+func demoSmokeWorkflowDefinition() (*workflowsv1.WorkflowDefinitionV2, error) {
+	flow := &workflowsv1.WorkflowDefinitionV2{}
+	opts := protojson.UnmarshalOptions{DiscardUnknown: false}
+	if err := opts.Unmarshal([]byte(demoSmokeWorkflowJSON), flow); err != nil {
+		return nil, fmt.Errorf("decode smoke workflow definition: %w", err)
+	}
+	return flow, nil
+}
+
+func seedWorkflowUpdateRequest(existing *apiv1.WorkflowSummary, flow *workflowsv1.WorkflowDefinitionV2, name, folder string) *apiv1.UpdateWorkflowRequest {
+	return &apiv1.UpdateWorkflowRequest{
+		WorkflowId:        &existing.Id,
+		Name:              name,
+		Description:       "Seeded workflow for BAS integration testing",
+		FolderPath:        folder,
+		FlowDefinition:    flow,
+		ChangeDescription: "Reconciled managed BAS test fixture",
+		Source:            basbase.ChangeSource_CHANGE_SOURCE_IMPORT,
+		ExpectedVersion:   existing.GetVersion(),
+	}
+}
+
+func findWorkflowByName(ctx context.Context, client apiconnect.WorkflowsServiceClient, projectID, folder, name string) (*apiv1.WorkflowSummary, error) {
 	limit := int32(500)
 	resp, err := client.ListWorkflows(ctx, connect.NewRequest(&apiv1.ListWorkflowsRequest{
 		ProjectId: &projectID,
 		Limit:     &limit,
 	}))
 	if err != nil {
-		return "", fmt.Errorf("list workflows: %w", err)
+		return nil, fmt.Errorf("list workflows: %w", err)
 	}
 	for _, wf := range resp.Msg.GetWorkflows() {
 		if wf == nil {
@@ -307,9 +341,9 @@ func findWorkflowByName(ctx context.Context, client apiconnect.WorkflowsServiceC
 		if strings.TrimSpace(wf.GetName()) != name {
 			continue
 		}
-		return wf.GetId(), nil
+		return wf, nil
 	}
-	return "", fmt.Errorf("workflow exists but no entry matches project=%s folder=%q name=%q", projectID, folder, name)
+	return nil, fmt.Errorf("workflow exists but no entry matches project=%s folder=%q name=%q", projectID, folder, name)
 }
 
 func writeSeedState(path string, state seedState) error {
@@ -367,6 +401,16 @@ const demoSmokeWorkflowJSON = `{
         "waitAfterMs": 500
       },
       "position": { "x": 320, "y": 0 }
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "fullPage": true
+        }
+      },
+      "position": { "x": 640, "y": 0 }
     }
   ],
   "edges": [
@@ -374,6 +418,12 @@ const demoSmokeWorkflowJSON = `{
       "id": "33333333-3333-3333-3333-333333333333",
       "source": "11111111-1111-1111-1111-111111111111",
       "target": "22222222-2222-2222-2222-222222222222",
+      "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+    },
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "source": "22222222-2222-2222-2222-222222222222",
+      "target": "33333333-3333-3333-3333-333333333333",
       "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
     }
   ]

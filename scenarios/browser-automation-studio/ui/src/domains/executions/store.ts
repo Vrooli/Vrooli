@@ -40,7 +40,7 @@ import {
   stopExecutionViaApi,
   exportabilityToLegacy,
 } from '@/domains/executions/services/executionApi';
-import { executeWorkflowViaApi } from '@/domains/workflows/services/workflowApi';
+import { executeWorkflowViaApi, getWorkflowViaApi } from '@/domains/workflows/services/workflowApi';
 import { toJson } from '@bufbuild/protobuf';
 import { logger } from '../../utils/logger';
 import { parseProtoStrict } from '../../utils/proto';
@@ -193,6 +193,8 @@ export interface ExecutionPage {
 export interface Execution {
   id: string;
   workflowId: string;
+  /** Workflow name resolved for human-readable execution history. */
+  workflowName?: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   startedAt: Date;
   completedAt?: Date;
@@ -594,6 +596,31 @@ const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
     .filter((screenshot): screenshot is Screenshot => screenshot !== null);
 };
 
+// Timeline frames arrive through the durable execution stream and may become
+// available after the initial screenshots endpoint returns. Derive the same
+// viewer model from those frames so a completed execution cannot remain stuck
+// in an artifact-free state because its first read raced persistence.
+const screenshotsFromTimeline = (frames: TimelineFrame[]): Screenshot[] => frames
+  .map((frame) => {
+    const url = frame.screenshot?.url || frame.screenshot?.thumbnailUrl || '';
+    if (!url) return null;
+    return {
+      id: frame.screenshot?.artifactId || frame.id,
+      timestamp: new Date(),
+      url,
+      stepName: frame.nodeId || frame.stepType || `Step ${frame.stepIndex + 1}`,
+    } satisfies Screenshot;
+  })
+  .filter((screenshot): screenshot is Screenshot => screenshot !== null);
+
+const mergeScreenshots = (existing: Screenshot[], incoming: Screenshot[]): Screenshot[] => {
+  const merged = new Map(existing.map((screenshot) => [screenshot.id, screenshot]));
+  for (const screenshot of incoming) {
+    merged.set(screenshot.id, screenshot);
+  }
+  return Array.from(merged.values());
+};
+
 // Load artifact profile from localStorage
 const loadArtifactProfile = (): ArtifactProfile => {
   try {
@@ -764,7 +791,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   loadExecutions: async (workflowId?: string, projectId?: string) => {
     try {
       const resp = await listExecutionsViaApi({ workflowId, projectId });
-      const normalizedExecutions = resp.executions
+      const parsedExecutions = resp.executions
         .map((msg) => {
           try {
             return parseExecutionProto(executionMsgToJson(msg));
@@ -774,6 +801,30 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           }
         })
         .filter((entry: Execution | null): entry is Execution => entry !== null);
+
+      const workflowNames = new Map<string, string>();
+      await Promise.all(
+        [...new Set(parsedExecutions.map((execution) => execution.workflowId).filter(Boolean))].map(async (id) => {
+          try {
+            const response = await getWorkflowViaApi(id);
+            const name = response.workflow?.name?.trim();
+            if (name) {
+              workflowNames.set(id, name);
+            }
+          } catch (err) {
+            logger.warn('Failed to resolve workflow name for execution history', {
+              component: 'ExecutionStore',
+              action: 'loadExecutions',
+              workflowId: id,
+            }, err);
+          }
+        }),
+      );
+
+      const normalizedExecutions = parsedExecutions.map((execution) => ({
+        ...execution,
+        workflowName: workflowNames.get(execution.workflowId),
+      }));
       set({ executions: normalizedExecutions });
     } catch (error) {
       logger.error('Failed to load executions', { component: 'ExecutionStore', action: 'loadExecutions', workflowId }, error);
@@ -878,6 +929,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           ...state.currentExecution,
           timeline: frames,
           logs: [...(state.currentExecution.logs ?? [])],
+          screenshots: mergeScreenshots(state.currentExecution.screenshots ?? [], screenshotsFromTimeline(frames)),
         };
 
         if (normalizedLogs.length > 0) {
