@@ -359,7 +359,7 @@ func (r *FakeRepository) GetPendingChangeFiles(ctx context.Context, projectRoot 
 	return out, nil
 }
 
-func (r *FakeRepository) GetUnresolvedCommitChanges(ctx context.Context) ([]*types.AppliedChange, error) {
+func (r *FakeRepository) GetUnresolvedCommitChanges(ctx context.Context, limit int) ([]*types.AppliedChange, error) {
 	if r.GetPendingChangeFilesErr != nil {
 		return nil, r.GetPendingChangeFilesErr
 	}
@@ -367,11 +367,55 @@ func (r *FakeRepository) GetUnresolvedCommitChanges(ctx context.Context) ([]*typ
 	defer r.mu.Unlock()
 	changes := make([]*types.AppliedChange, 0, len(r.AppliedChanges))
 	for _, change := range r.AppliedChanges {
-		if change.CommittedAt == nil || change.CommitHash == "EXTERNAL" {
+		if (change.CommittedAt == nil || change.CommitHash == "EXTERNAL") && change.UnresolvableAt == nil {
 			changes = append(changes, change)
+			if len(changes) == limit {
+				break
+			}
 		}
 	}
 	return changes, nil
+}
+
+func (r *FakeRepository) IncrementCommitResolutionAttempts(_ context.Context, id uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, c := range r.AppliedChanges {
+		if c.ID == id {
+			c.ResolutionAttempts++
+			return nil
+		}
+	}
+	return errors.New("applied change not found")
+}
+
+func (r *FakeRepository) MarkCommitUnresolvable(_ context.Context, id uuid.UUID, at time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, c := range r.AppliedChanges {
+		if c.ID == id && c.UnresolvableAt == nil {
+			v := at
+			c.UnresolvableAt = &v
+			return nil
+		}
+	}
+	return nil
+}
+
+func (r *FakeRepository) PurgeUnresolvableCommitChanges(_ context.Context, before time.Time) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	kept := r.AppliedChanges
+	r.AppliedChanges = nil
+	n := 0
+	for _, c := range kept {
+		if c.UnresolvableAt != nil && c.UnresolvableAt.Before(before) && c.CommitHash == "" {
+			n++
+			continue
+		}
+		r.AppliedChanges = append(r.AppliedChanges, c)
+	}
+	return n, nil
 }
 
 func (r *FakeRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {

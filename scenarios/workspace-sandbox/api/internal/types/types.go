@@ -1265,10 +1265,12 @@ type AppliedChange struct {
 	CommitHash        string     `json:"commitHash,omitempty" db:"commit_hash"`
 	CommitMessage     string     `json:"commitMessage,omitempty" db:"commit_message"`
 
-	RunOutcome      string  `json:"runOutcome,omitempty" db:"run_outcome"`
-	ProvenanceState string  `json:"state,omitempty" db:"provenance_state"`
-	ConversationID  string  `json:"conversationId,omitempty" db:"conversation_id"`
-	CostUSD         float64 `json:"costUsd,omitempty" db:"cost_usd"`
+	RunOutcome         string     `json:"runOutcome,omitempty" db:"run_outcome"`
+	ProvenanceState    string     `json:"state,omitempty" db:"provenance_state"`
+	ConversationID     string     `json:"conversationId,omitempty" db:"conversation_id"`
+	CostUSD            float64    `json:"costUsd,omitempty" db:"cost_usd"`
+	ResolutionAttempts int        `json:"resolutionAttempts" db:"resolution_attempts"`
+	UnresolvableAt     *time.Time `json:"unresolvableAt,omitempty" db:"unresolvable_at"`
 }
 
 // PendingChangesSummary summarizes pending changes from a single sandbox.

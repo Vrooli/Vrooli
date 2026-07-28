@@ -214,13 +214,16 @@ func NewServer() (*Server, error) {
 	// deterministic timestamp source.
 	auditEmitter := audit.NewRepoEmitter(repo.LogAuditEvent, clk)
 	svcCfg := sandbox.ServiceConfig{
-		DefaultProjectRoot:      cfg.Driver.ProjectRoot,
-		MaxSandboxes:            cfg.Limits.MaxSandboxes,
-		DefaultTTL:              cfg.Lifecycle.DefaultTTL,
-		DefaultNoLock:           cfg.Policy.DefaultNoLock,
-		AgentManagerURL:         cfg.Integration.AgentManagerURL,
-		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
-		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
+		DefaultProjectRoot:            cfg.Driver.ProjectRoot,
+		MaxSandboxes:                  cfg.Limits.MaxSandboxes,
+		DefaultTTL:                    cfg.Lifecycle.DefaultTTL,
+		DefaultNoLock:                 cfg.Policy.DefaultNoLock,
+		AgentManagerURL:               cfg.Integration.AgentManagerURL,
+		AgentManagerSyncEnabled:       cfg.Integration.AgentManagerSyncEnabled,
+		AgentManagerSyncTimeout:       cfg.Integration.AgentManagerSyncTimeout,
+		CommitResolutionBatchLimit:    cfg.Lifecycle.CommitResolutionBatchLimit,
+		CommitResolutionHorizon:       cfg.Lifecycle.CommitResolutionHorizon,
+		UnresolvedProvenanceRetention: cfg.Lifecycle.UnresolvedProvenanceRetention,
 	}
 	// Metrics collector is constructed here so the Service can record
 	// daemon-reaped events via WithMetrics; handlers reuse the same

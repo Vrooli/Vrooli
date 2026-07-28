@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
-	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/adapters/database"
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"

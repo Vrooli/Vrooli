@@ -81,7 +81,10 @@ type Repository interface {
 	RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error
 	GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
 	GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error)
-	GetUnresolvedCommitChanges(ctx context.Context) ([]*types.AppliedChange, error)
+	GetUnresolvedCommitChanges(ctx context.Context, limit int) ([]*types.AppliedChange, error)
+	IncrementCommitResolutionAttempts(ctx context.Context, id uuid.UUID) error
+	MarkCommitUnresolvable(ctx context.Context, id uuid.UUID, at time.Time) error
+	PurgeUnresolvableCommitChanges(ctx context.Context, before time.Time) (int, error)
 	GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
 	MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error
 	MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error)
@@ -1242,15 +1245,18 @@ func (r *TxSandboxRepository) GetPendingChangeFiles(ctx context.Context, project
 
 // GetUnresolvedCommitChanges returns rows still awaiting a real commit hash,
 // including historical EXTERNAL placeholders that are repair candidates.
-func (r *SandboxRepository) GetUnresolvedCommitChanges(ctx context.Context) ([]*types.AppliedChange, error) {
+func (r *SandboxRepository) GetUnresolvedCommitChanges(ctx context.Context, limit int) ([]*types.AppliedChange, error) {
+	if limit < 1 {
+		return nil, fmt.Errorf("unresolved commit limit must be positive")
+	}
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, sandbox_id, COALESCE(sandbox_owner, ''), COALESCE(sandbox_owner_type, ''),
 		       file_path, project_root, change_type, file_size, applied_at,
 		       COALESCE(agent_manager_run_id, ''), COALESCE(run_outcome, ''),
 		       COALESCE(provenance_state, ''), COALESCE(conversation_id, ''), COALESCE(cost_usd, 0)
 		FROM applied_changes
-		WHERE committed_at IS NULL OR commit_hash = 'EXTERNAL'
-		ORDER BY applied_at ASC`)
+		WHERE (committed_at IS NULL OR commit_hash = 'EXTERNAL') AND unresolvable_at IS NULL
+		ORDER BY applied_at ASC LIMIT ?`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query unresolved commit changes: %w", err)
 	}
@@ -1266,8 +1272,37 @@ func (r *SandboxRepository) GetUnresolvedCommitChanges(ctx context.Context) ([]*
 	return changes, rows.Err()
 }
 
-func (r *TxSandboxRepository) GetUnresolvedCommitChanges(ctx context.Context) ([]*types.AppliedChange, error) {
+func (r *TxSandboxRepository) GetUnresolvedCommitChanges(ctx context.Context, limit int) ([]*types.AppliedChange, error) {
 	return nil, errors.New("GetUnresolvedCommitChanges not implemented for transactions")
+}
+
+func (r *SandboxRepository) IncrementCommitResolutionAttempts(ctx context.Context, id uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE applied_changes SET resolution_attempts = resolution_attempts + 1 WHERE id = ? AND unresolvable_at IS NULL`, id.String())
+	return err
+}
+
+func (r *SandboxRepository) MarkCommitUnresolvable(ctx context.Context, id uuid.UUID, at time.Time) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE applied_changes SET unresolvable_at = ? WHERE id = ? AND unresolvable_at IS NULL`, at.UTC().Format(time.RFC3339Nano), id.String())
+	return err
+}
+
+func (r *SandboxRepository) PurgeUnresolvableCommitChanges(ctx context.Context, before time.Time) (int, error) {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM applied_changes WHERE unresolvable_at IS NOT NULL AND unresolvable_at < ? AND (commit_hash IS NULL OR commit_hash = '' OR commit_hash = 'EXTERNAL')`, before.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return 0, err
+	}
+	n, err := result.RowsAffected()
+	return int(n), err
+}
+
+func (r *TxSandboxRepository) IncrementCommitResolutionAttempts(context.Context, uuid.UUID) error {
+	return errors.New("IncrementCommitResolutionAttempts not implemented for transactions")
+}
+func (r *TxSandboxRepository) MarkCommitUnresolvable(context.Context, uuid.UUID, time.Time) error {
+	return errors.New("MarkCommitUnresolvable not implemented for transactions")
+}
+func (r *TxSandboxRepository) PurgeUnresolvableCommitChanges(context.Context, time.Time) (int, error) {
+	return 0, errors.New("PurgeUnresolvableCommitChanges not implemented for transactions")
 }
 
 func scanAppliedChangePending(rows *sql.Rows) (*types.AppliedChange, error) {

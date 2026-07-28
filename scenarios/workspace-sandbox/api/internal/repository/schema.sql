@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS applied_changes (
     provenance_state      TEXT,
     conversation_id       TEXT,
     cost_usd              REAL,
+    resolution_attempts   INTEGER NOT NULL DEFAULT 0,
+    unresolvable_at       TEXT,
     CHECK (change_type IN ('added', 'modified', 'deleted'))
 );
 

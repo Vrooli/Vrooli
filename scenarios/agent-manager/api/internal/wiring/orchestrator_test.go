@@ -3,8 +3,8 @@ package wiring
 import (
 	"testing"
 
-	"agent-manager/internal/config"
 	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/config"
 	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/sirupsen/logrus"

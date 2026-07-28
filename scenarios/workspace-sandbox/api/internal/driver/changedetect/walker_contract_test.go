@@ -65,6 +65,12 @@ func runStrategy(t *testing.T, strategy changedetect.Strategy, lower, upper stri
 	return changes
 }
 
+type fixedIgnoreMatcher map[string]struct{}
+
+func (m fixedIgnoreMatcher) Ignored(_ context.Context, _ []string) (map[string]struct{}, error) {
+	return m, nil
+}
+
 func mustHave(t *testing.T, changes []*types.FileChange, wantPath string, wantType types.ChangeType) {
 	t.Helper()
 	for _, c := range changes {
@@ -120,23 +126,72 @@ func TestStrategy_ModifiedFiles(t *testing.T) {
 	}
 }
 
-// TestStrategy_HiddenFilesSkipped covers ".gitconfig"-style hidden
-// entries. Copy strategy skips them outright; overlay only skips
-// .overlay/.git/.wh subtrees.
-func TestStrategy_HiddenFilesSkipped(t *testing.T) {
+// TestStrategy_TrackedDotFilesCaptured ensures driver policy never drops
+// tracked configuration merely because its name begins with a dot.
+func TestStrategy_TrackedDotFilesCaptured(t *testing.T) {
 	t.Run("copy", func(t *testing.T) {
 		lower := t.TempDir()
 		upper := t.TempDir()
 		writeFile(t, filepath.Join(upper, ".local"), "x")
 		writeFile(t, filepath.Join(upper, "visible.txt"), "v")
 		changes := runStrategy(t, copyStrategyImpl(), lower, upper)
-		mustNotHave(t, changes, ".local")
+		mustHave(t, changes, ".local", types.ChangeTypeAdded)
 		mustHave(t, changes, "visible.txt", types.ChangeTypeAdded)
 	})
 }
 
-// TestStrategy_GitDirSkipped pins overlay's .git filtering. Copy
-// strategy is asserted by HiddenFilesSkipped above (.git is "." prefix).
+func TestWalk_IgnoreMatcherDropsGitignoredPath(t *testing.T) {
+	lower, upper := t.TempDir(), t.TempDir()
+	writeFile(t, filepath.Join(upper, "ignored", "cache.bin"), "noise")
+	writeFile(t, filepath.Join(upper, ".vrooli", "service.json"), "{}")
+	changes, err := changedetect.Walk(context.Background(), changedetect.WalkOpts{
+		Lower: lower, Upper: upper, SandboxID: uuid.New(),
+		IgnoreMatcher: fixedIgnoreMatcher{"ignored": {}},
+	}, copyStrategyImpl(), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustNotHave(t, changes, filepath.Join("ignored", "cache.bin"))
+	mustHave(t, changes, filepath.Join(".vrooli", "service.json"), types.ChangeTypeAdded)
+}
+
+func TestWalk_CrossStrategyEquivalenceWithSharedIgnorePolicy(t *testing.T) {
+	lower, upper := t.TempDir(), t.TempDir()
+	writeFile(t, filepath.Join(upper, "main.go"), "package main")
+	writeFile(t, filepath.Join(upper, ".vrooli", "service.json"), "{}")
+	writeFile(t, filepath.Join(upper, "ignored", "cache.bin"), "noise")
+	writeFile(t, filepath.Join(upper, ".git", "HEAD"), "ref: refs/heads/main")
+	writeFile(t, filepath.Join(upper, ".overlay", "work", "artifact"), "internal")
+	opts := changedetect.WalkOpts{Lower: lower, Upper: upper, SandboxID: uuid.New(), IgnoreMatcher: fixedIgnoreMatcher{"ignored": {}}}
+	got := make([][]*types.FileChange, 2)
+	var err error
+	got[0], err = changedetect.Walk(context.Background(), opts, overlayStrategyImpl(), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got[1], err = changedetect.Walk(context.Background(), opts, copyStrategyImpl(), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := func(changes []*types.FileChange) []string {
+		out := make([]string, 0, len(changes))
+		for _, c := range changes {
+			out = append(out, c.FilePath)
+		}
+		return out
+	}
+	if diff := strings.Join(paths(got[0]), ",") + "|" + strings.Join(paths(got[1]), ","); strings.Join(paths(got[0]), ",") != strings.Join(paths(got[1]), ",") {
+		t.Fatalf("strategies diverged: %s", diff)
+	}
+	for _, changes := range got {
+		mustHave(t, changes, filepath.Join(".vrooli", "service.json"), types.ChangeTypeAdded)
+		mustNotHave(t, changes, filepath.Join("ignored", "cache.bin"))
+		mustNotHave(t, changes, filepath.Join(".git", "HEAD"))
+		mustNotHave(t, changes, filepath.Join(".overlay", "work", "artifact"))
+	}
+}
+
+// TestStrategy_GitDirSkipped pins walker-owned .git filtering.
 func TestStrategy_GitDirSkipped(t *testing.T) {
 	for _, tc := range strategies() {
 		t.Run(tc.name, func(t *testing.T) {
@@ -338,7 +393,7 @@ func TestWalk_ContextCancellation(t *testing.T) {
 // .overlay subtree and .wh..opq markers.
 func TestStrategy_ShouldSkipOverlayInternals(t *testing.T) {
 	strat := overlayStrategyImpl()
-	for _, p := range []string{".overlay", ".overlay/work", ".git", ".git/HEAD", ".wh..opq", "deep/.wh..opq"} {
+	for _, p := range []string{".overlay", ".overlay/work", ".wh..opq", "deep/.wh..opq"} {
 		if !strat.ShouldSkip(p) {
 			t.Errorf("ShouldSkip(%q) = false, want true", p)
 		}
@@ -353,7 +408,7 @@ func TestStrategy_ShouldSkipOverlayInternals(t *testing.T) {
 // TestStrategy_OverlaySkipDir pins the SkipDir contract for overlay.
 func TestStrategy_OverlaySkipDir(t *testing.T) {
 	strat := overlayStrategyImpl()
-	for _, p := range []string{".overlay", ".overlay/sub", ".git", ".git/objects"} {
+	for _, p := range []string{".overlay", ".overlay/sub"} {
 		if !strat.SkipDir(p) {
 			t.Errorf("SkipDir(%q) = false, want true", p)
 		}
@@ -439,23 +494,20 @@ func TestStrategy_FilesIdenticalNoChange(t *testing.T) {
 	}
 }
 
-// TestStrategy_CopyDeletionsIgnoreHidden pins that the lower-walk
-// deletion pass also skips hidden / overlay-marker entries.
-func TestStrategy_CopyDeletionsIgnoreHidden(t *testing.T) {
+// TestStrategy_CopyDeletionsKeepTrackedDotFiles pins that the lower-walk
+// deletion pass retains dot-prefixed tracked content while ignoring markers.
+func TestStrategy_CopyDeletionsKeepTrackedDotFiles(t *testing.T) {
 	lower := t.TempDir()
 	upper := t.TempDir()
-	// Hidden file in lower that's not in upper — must NOT surface as Deleted.
+	// Dot file in lower that's not in upper is legitimate tracked content.
 	writeFile(t, filepath.Join(lower, ".hidden"), "h")
 	// Whiteout-named file in lower (defensive) — must NOT surface as Deleted.
 	writeFile(t, filepath.Join(lower, ".wh.foo"), "x")
 	// Plus a real visible file that's been removed.
 	writeFile(t, filepath.Join(lower, "real.txt"), "r")
 	changes := runStrategy(t, copyStrategyImpl(), lower, upper)
-	for _, c := range changes {
-		if c.FilePath == ".hidden" || c.FilePath == ".wh.foo" {
-			t.Errorf("hidden/whiteout entry surfaced as deleted: %+v", c)
-		}
-	}
+	mustHave(t, changes, ".hidden", types.ChangeTypeDeleted)
+	mustNotHave(t, changes, ".wh.foo")
 	mustHave(t, changes, "real.txt", types.ChangeTypeDeleted)
 }
 

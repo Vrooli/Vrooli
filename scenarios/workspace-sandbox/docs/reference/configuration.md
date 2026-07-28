@@ -304,11 +304,24 @@ How often the lifecycle reconciler runs.
 - Audience: operators
 
 ### `WORKSPACE_SANDBOX_COMMIT_RECONCILE_INTERVAL` (Duration, default `15m`)
+
 How often Workspace Sandbox checks applied provenance for real hashes after an
 operator commits with plain git. It never creates or modifies commits.
 
 - Range: `>= 1m`
 - Audience: operators
+
+### `WORKSPACE_SANDBOX_COMMIT_RESOLUTION_BATCH_LIMIT` (Integer, default `200`)
+
+Maximum unresolved provenance rows examined in one commit-attribution pass.
+
+### `WORKSPACE_SANDBOX_COMMIT_RESOLUTION_HORIZON` (Duration, default `720h`)
+
+Age after which an untracked unresolved path is stamped unresolvable.
+
+### `WORKSPACE_SANDBOX_UNRESOLVABLE_PROVENANCE_RETENTION` (Duration, default `168h`)
+
+Retention period for rows stamped unresolvable before they are purged.
 
 ### `WORKSPACE_SANDBOX_AUTO_CLEANUP_TERMINAL` (bool, default `true`)
 When `true`, approved/rejected sandboxes are cleaned up after

@@ -274,7 +274,11 @@ func (e *RunExecutor) WithOnRunning(fn func()) *RunExecutor {
 // owns its own logic. The deferred phases.Finalize is the single terminal
 // teardown seam — see the file header for the contract it enforces.
 func (e *RunExecutor) Execute(ctx context.Context) {
-	execCtx, cancel := context.WithTimeout(ctx, e.levers.Execution.DefaultTimeout)
+	timeout := e.levers.Execution.DefaultTimeout
+	if e.run != nil && e.run.ResolvedConfig != nil && e.run.ResolvedConfig.Timeout > 0 {
+		timeout = e.run.ResolvedConfig.Timeout
+	}
+	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	go phases.RunHeartbeatLoop(ctx, e.heartbeatLoopInput())

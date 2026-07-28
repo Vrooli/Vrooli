@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver/changedetect"
 	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/process"
@@ -252,7 +253,7 @@ func (d *OverlayDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) (
 		return nil, fmt.Errorf("sandbox upper directory not set")
 	}
 	return changedetect.Walk(ctx,
-		changedetect.WalkOpts{Lower: s.LowerDir, Upper: s.UpperDir, SandboxID: s.ID},
+		changedetect.WalkOpts{Lower: s.LowerDir, Upper: s.UpperDir, SandboxID: s.ID, IgnoreMatcher: diff.NewGitIgnoreMatcher(s.ProjectRoot, diff.NewExecCommandRunner(d.starter))},
 		&changedetect.OverlayStrategy{FileIDFn: StableFileID},
 		d.clock.Now(),
 	)

@@ -22,13 +22,10 @@ type OverlayStrategy struct {
 	FileIDFn func(sandboxID uuid.UUID, filePath string) uuid.UUID
 }
 
-// ShouldSkip filters out overlayfs internals (`.overlay`), git internal
-// state (`.git/`) and overlayfs opaque markers (`.wh..opq`).
+// ShouldSkip filters only overlayfs-specific internals. Shared gitignore and
+// .git policy belongs to the walker, so both drivers apply it identically.
 func (s *OverlayStrategy) ShouldSkip(rel string) bool {
 	if strings.HasPrefix(rel, ".overlay") {
-		return true
-	}
-	if rel == ".git" || strings.HasPrefix(rel, ".git"+string(filepath.Separator)) {
 		return true
 	}
 	if filepath.Base(rel) == ".wh..opq" {
@@ -37,13 +34,10 @@ func (s *OverlayStrategy) ShouldSkip(rel string) bool {
 	return false
 }
 
-// SkipDir returns true for the .overlay and .git subtrees so the walker
+// SkipDir returns true for the .overlay subtree so the walker
 // doesn't descend into them.
 func (s *OverlayStrategy) SkipDir(rel string) bool {
 	if strings.HasPrefix(rel, ".overlay") {
-		return true
-	}
-	if rel == ".git" || strings.HasPrefix(rel, ".git"+string(filepath.Separator)) {
 		return true
 	}
 	return false

@@ -9,11 +9,17 @@ import (
 	"github.com/vrooli/api-core/metrics"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type Handler struct {
+	// agent-manager serves the validation contract for conformance reporting but
+	// is not a readiness-probed phase provider, so it does not implement
+	// DescribeProvider. Embedding the generated stub reports Unimplemented, which
+	// is exactly the signal that makes consumers fall back to the legacy probe.
+	scenariovalidationv1connect.UnimplementedScenarioValidationServiceHandler
 	service Service
 }
 

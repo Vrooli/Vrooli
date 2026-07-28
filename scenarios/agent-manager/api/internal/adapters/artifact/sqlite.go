@@ -248,5 +248,7 @@ func (c *SQLiteCollector) DeleteBefore(ctx context.Context, cutoff time.Time, li
 	return len(ids), nil
 }
 
-var _ Collector = (*SQLiteCollector)(nil)
-var _ RetentionCollector = (*SQLiteCollector)(nil)
+var (
+	_ Collector          = (*SQLiteCollector)(nil)
+	_ RetentionCollector = (*SQLiteCollector)(nil)
+)

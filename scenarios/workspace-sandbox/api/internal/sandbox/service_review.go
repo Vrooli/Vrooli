@@ -222,16 +222,16 @@ func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndReq
 	}
 
 	return &types.ApprovalResult{
-		Success:    result.Success,
-		Applied:    result.Applied,
-		Failed:     result.Failed,
-		Remaining:  result.Remaining,
-		IsPartial:  result.IsPartial,
-		CommitHash: result.CommitHash,
-		ErrorMsg:   result.ErrorMsg,
-		AppliedAt:  result.AppliedAt,
+		Success:          result.Success,
+		Applied:          result.Applied,
+		Failed:           result.Failed,
+		Remaining:        result.Remaining,
+		IsPartial:        result.IsPartial,
+		CommitHash:       result.CommitHash,
+		ErrorMsg:         result.ErrorMsg,
+		AppliedAt:        result.AppliedAt,
 		AppliedSizeBytes: result.AppliedSizeBytes,
-		DiffPath: result.DiffPath,
+		DiffPath:         result.DiffPath,
 	}, nil
 }
 
@@ -425,14 +425,14 @@ func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, 
 	}
 
 	result := &types.ApprovalResult{
-		Success:    true,
-		Applied:    len(changes),
-		Remaining:  remainingChanges,
-		IsPartial:  isPartial,
-		CommitHash: commitHash,
-		AppliedAt:  now,
+		Success:          true,
+		Applied:          len(changes),
+		Remaining:        remainingChanges,
+		IsPartial:        isPartial,
+		CommitHash:       commitHash,
+		AppliedAt:        now,
 		AppliedSizeBytes: appliedSizeBytes,
-		DiffPath: fmt.Sprintf("/api/v1/sandboxes/%s/diff", sandbox.ID),
+		DiffPath:         fmt.Sprintf("/api/v1/sandboxes/%s/diff", sandbox.ID),
 	}
 	s.notifyAgentManager(ctx, sandbox, "approved", req.Actor, result)
 	return result
@@ -460,6 +460,10 @@ func (s *Service) recordFileProvenance(ctx context.Context, sandbox *types.Sandb
 	if runID == "" {
 		runID = metadataString(sandbox.Metadata, metadataAgentManagerRunID)
 	}
+	provenanceRoot := sandbox.ScopePath
+	if provenanceRoot == "" {
+		provenanceRoot = sandbox.ProjectRoot
+	}
 	appliedChanges := make([]*types.AppliedChange, len(changes))
 	ids := make([]uuid.UUID, len(changes))
 	for i, c := range changes {
@@ -470,7 +474,7 @@ func (s *Service) recordFileProvenance(ctx context.Context, sandbox *types.Sandb
 			SandboxID:         sandbox.ID,
 			SandboxOwner:      sandbox.Owner,
 			SandboxOwnerType:  string(sandbox.OwnerType),
-			FilePath:          filepath.Join(sandbox.ProjectRoot, c.FilePath),
+			FilePath:          filepath.Join(provenanceRoot, c.FilePath),
 			ProjectRoot:       sandbox.ProjectRoot,
 			ChangeType:        string(c.ChangeType),
 			FileSize:          c.FileSize,

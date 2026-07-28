@@ -136,7 +136,10 @@ type LifecycleConfig struct {
 
 	// CommitReconcileInterval is the cadence for resolving manual git commits
 	// back onto applied-change provenance. Default: 15m.
-	CommitReconcileInterval time.Duration
+	CommitReconcileInterval       time.Duration
+	CommitResolutionBatchLimit    int
+	CommitResolutionHorizon       time.Duration
+	UnresolvedProvenanceRetention time.Duration
 
 	// AutoCleanupTerminal controls whether approved/rejected sandboxes
 	// are automatically cleaned up after a delay.
@@ -501,18 +504,21 @@ func Default() Config {
 			MaxListLimit:     1000,
 		},
 		Lifecycle: LifecycleConfig{
-			DefaultTTL:              24 * time.Hour,
-			IdleTimeout:             4 * time.Hour,
-			GCInterval:              15 * time.Minute,
-			CommitReconcileInterval: 15 * time.Minute,
-			AutoCleanupTerminal:     true,
-			TerminalCleanupDelay:    1 * time.Hour,
-			ProcessGracePeriod:      100 * time.Millisecond,
-			ProcessKillWait:         50 * time.Millisecond,
-			AutoHealIdleGrace:       30 * time.Second,
-			AutoHealMaxRetries:      5,
-			AutoHealBaseBackoff:     30 * time.Second,
-			ManualReviewTTL:         7 * 24 * time.Hour, // Decision D1: 7-day TTL from run end
+			DefaultTTL:                    24 * time.Hour,
+			IdleTimeout:                   4 * time.Hour,
+			GCInterval:                    15 * time.Minute,
+			CommitReconcileInterval:       15 * time.Minute,
+			CommitResolutionBatchLimit:    200,
+			CommitResolutionHorizon:       720 * time.Hour,
+			UnresolvedProvenanceRetention: 168 * time.Hour,
+			AutoCleanupTerminal:           true,
+			TerminalCleanupDelay:          1 * time.Hour,
+			ProcessGracePeriod:            100 * time.Millisecond,
+			ProcessKillWait:               50 * time.Millisecond,
+			AutoHealIdleGrace:             30 * time.Second,
+			AutoHealMaxRetries:            5,
+			AutoHealBaseBackoff:           30 * time.Second,
+			ManualReviewTTL:               7 * 24 * time.Hour, // Decision D1: 7-day TTL from run end
 		},
 		Policy: PolicyConfig{
 			DefaultNoLock:            true,
@@ -598,6 +604,13 @@ func LoadFromEnv() (Config, error) {
 	cfg.Lifecycle.IdleTimeout = envDuration("WORKSPACE_SANDBOX_IDLE_TTL", cfg.Lifecycle.IdleTimeout)
 	cfg.Lifecycle.GCInterval = envDuration("WORKSPACE_SANDBOX_GC_INTERVAL", cfg.Lifecycle.GCInterval)
 	cfg.Lifecycle.CommitReconcileInterval = envDuration("WORKSPACE_SANDBOX_COMMIT_RECONCILE_INTERVAL", cfg.Lifecycle.CommitReconcileInterval)
+	cfg.Lifecycle.CommitResolutionHorizon = envDuration("WORKSPACE_SANDBOX_COMMIT_RESOLUTION_HORIZON", cfg.Lifecycle.CommitResolutionHorizon)
+	cfg.Lifecycle.UnresolvedProvenanceRetention = envDuration("WORKSPACE_SANDBOX_UNRESOLVABLE_PROVENANCE_RETENTION", cfg.Lifecycle.UnresolvedProvenanceRetention)
+	if raw := os.Getenv("WORKSPACE_SANDBOX_COMMIT_RESOLUTION_BATCH_LIMIT"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil {
+			cfg.Lifecycle.CommitResolutionBatchLimit = n
+		}
+	}
 	cfg.Lifecycle.AutoCleanupTerminal = envBool("WORKSPACE_SANDBOX_AUTO_CLEANUP_TERMINAL", cfg.Lifecycle.AutoCleanupTerminal)
 	cfg.Lifecycle.TerminalCleanupDelay = envDuration("WORKSPACE_SANDBOX_TERMINAL_CLEANUP_DELAY", cfg.Lifecycle.TerminalCleanupDelay)
 	cfg.Lifecycle.ProcessGracePeriod = envDuration("WORKSPACE_SANDBOX_PROCESS_GRACE_PERIOD", cfg.Lifecycle.ProcessGracePeriod)
@@ -772,6 +785,15 @@ func (c *Config) Validate() error {
 	}
 	if c.Lifecycle.CommitReconcileInterval < time.Minute {
 		errs = append(errs, "lifecycle.commitReconcileInterval must be at least 1 minute")
+	}
+	if c.Lifecycle.CommitResolutionBatchLimit < 1 {
+		errs = append(errs, "lifecycle.commitResolutionBatchLimit must be at least 1")
+	}
+	if c.Lifecycle.CommitResolutionHorizon < time.Hour {
+		errs = append(errs, "lifecycle.commitResolutionHorizon must be at least 1 hour")
+	}
+	if c.Lifecycle.UnresolvedProvenanceRetention < time.Hour {
+		errs = append(errs, "lifecycle.unresolvedProvenanceRetention must be at least 1 hour")
 	}
 	if c.Lifecycle.AutoHealMaxRetries < 1 {
 		errs = append(errs, "lifecycle.autoHealMaxRetries must be at least 1")

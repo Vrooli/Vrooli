@@ -184,22 +184,28 @@ type Service struct {
 
 // ServiceConfig holds service configuration.
 type ServiceConfig struct {
-	DefaultProjectRoot      string
-	MaxSandboxes            int
-	DefaultTTL              time.Duration
-	DefaultNoLock           bool
-	AgentManagerURL         string
-	AgentManagerSyncEnabled bool
-	AgentManagerSyncTimeout time.Duration
+	DefaultProjectRoot            string
+	MaxSandboxes                  int
+	DefaultTTL                    time.Duration
+	DefaultNoLock                 bool
+	AgentManagerURL               string
+	AgentManagerSyncEnabled       bool
+	AgentManagerSyncTimeout       time.Duration
+	CommitResolutionBatchLimit    int
+	CommitResolutionHorizon       time.Duration
+	UnresolvedProvenanceRetention time.Duration
 }
 
 // DefaultServiceConfig returns sensible defaults.
 func DefaultServiceConfig() ServiceConfig {
 	return ServiceConfig{
-		MaxSandboxes:            1000,
-		DefaultTTL:              24 * time.Hour,
-		AgentManagerSyncEnabled: true,
-		AgentManagerSyncTimeout: 5 * time.Second,
+		MaxSandboxes:                  1000,
+		DefaultTTL:                    24 * time.Hour,
+		AgentManagerSyncEnabled:       true,
+		AgentManagerSyncTimeout:       5 * time.Second,
+		CommitResolutionBatchLimit:    200,
+		CommitResolutionHorizon:       720 * time.Hour,
+		UnresolvedProvenanceRetention: 168 * time.Hour,
 	}
 }
 

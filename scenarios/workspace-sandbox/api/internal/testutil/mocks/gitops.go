@@ -33,6 +33,7 @@ type FakeGitOps struct {
 	ConflictResult     *diff.ConflictCheckResult
 	ReconcileResult    *diff.ReconcileResult
 	ResolvedCommitHash string
+	Tracked            bool
 
 	// Per-method error injection
 	GetCommitHashErr    error
@@ -54,6 +55,11 @@ func (m *FakeGitOps) ResolveCommitForPath(ctx context.Context, repoDir, path str
 		return "", m.ResolveCommitErr
 	}
 	return m.ResolvedCommitHash, nil
+}
+
+func (m *FakeGitOps) IsTracked(ctx context.Context, repoDir, path string) (bool, error) {
+	m.record("IsTracked:" + repoDir + ":" + path)
+	return m.Tracked, nil
 }
 
 // NewFakeGitOps returns a FakeGitOps with sane defaults: IsRepo=true,

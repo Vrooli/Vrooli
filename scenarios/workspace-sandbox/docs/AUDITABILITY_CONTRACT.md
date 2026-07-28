@@ -43,6 +43,21 @@ The historical `noLock`-implies-accept-all shortcut in `service.go` is removed b
 
 Git-control-tower auto-promotes a pending provenance record to committed when it detects a commit whose changed files overlap the pending record's file set.
 
+### Capture and closure invariants
+
+Capture uses one shared changed-file walker for every driver. Git internals and
+gitignored, untracked artifacts are excluded before a `FileChange` is created;
+tracked dot-prefixed files remain eligible for both apply and provenance. The
+driver-specific overlay artifacts are separately excluded, and a contract test
+pins equivalent output across overlay and copy drivers.
+
+Commit reconciliation is bounded by `CommitResolutionBatchLimit`. An unresolved
+row is retried while its path may still gain a commit. Once it is older than
+`CommitResolutionHorizon` and Git reports it untracked, it is stamped
+`unresolvable_at` exactly once and no longer selected. Retention deletes only
+those retired, uncommitted rows after `UnresolvedProvenanceRetention`; a row
+with a real commit hash is never eligible for that deletion.
+
 ## Source-of-truth interaction matrix
 
 | Surface | Role |

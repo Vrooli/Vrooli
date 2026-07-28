@@ -18,8 +18,8 @@ import (
 	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/testutil"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )

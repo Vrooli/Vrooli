@@ -515,6 +515,30 @@ func TestService_TurnCheckpoint_RecordsPendingReviewForRejectedChanges(t *testin
 	}
 }
 
+func TestService_RecordFileProvenanceUsesScopePathForScopedChange(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	svc := newTestService(repo, mocks.NewFakeDriver())
+	sandbox := createTestSandbox(uuid.New(), types.StatusActive)
+	sandbox.ScopePath = filepath.Join(sandbox.ProjectRoot, "nested", "scope")
+
+	_, err := svc.recordFileProvenance(context.Background(), sandbox, []*types.FileChange{{
+		ID:         uuid.New(),
+		SandboxID:  sandbox.ID,
+		FilePath:   "changed_test.go",
+		ChangeType: types.ChangeTypeModified,
+	}}, &types.ApprovalRequest{AgentManagerRunID: "run-scoped"}, types.ProvenanceFileStateApplied, "", "")
+	if err != nil {
+		t.Fatalf("recordFileProvenance: %v", err)
+	}
+	if len(repo.AppliedChanges) != 1 {
+		t.Fatalf("provenance rows = %d, want 1", len(repo.AppliedChanges))
+	}
+	want := filepath.Join(sandbox.ScopePath, "changed_test.go")
+	if got := repo.AppliedChanges[0].FilePath; got != want {
+		t.Fatalf("FilePath = %q, want %q", got, want)
+	}
+}
+
 func TestService_TurnCheckpoint_DoesNotDuplicateExistingPendingReview(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()

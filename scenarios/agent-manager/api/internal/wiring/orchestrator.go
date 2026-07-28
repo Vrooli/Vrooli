@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/artifact"
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/adapters/webconsole"
 	agentconfig "agent-manager/internal/config"
-	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"

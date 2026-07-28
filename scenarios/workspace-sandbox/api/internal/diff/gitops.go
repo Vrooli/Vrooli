@@ -70,13 +70,12 @@ type GitOperations interface {
 	// ResolveCommitForPath returns the newest commit touching path at or after
 	// appliedAt. An empty hash means no eligible commit exists.
 	ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error)
+	// IsTracked reports whether a repository-relative path is tracked.
+	IsTracked(ctx context.Context, repoDir, path string) (bool, error)
 }
 
 // ResolveCommitForPath resolves durable provenance without mutating git state.
 func (g *GitOps) ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error) {
-	if !g.IsGitRepo(ctx, repoDir) {
-		return "", nil
-	}
 	result := g.runner.Run(ctx, "", "", "git", "-C", repoDir, "log", "-1", "--format=%H", "--since="+appliedAt.UTC().Format(time.RFC3339Nano), "--", path)
 	if result.Err != nil {
 		return "", result.Err
@@ -94,6 +93,14 @@ func (g *GitOps) ResolveCommitForPath(ctx context.Context, repoDir, path string,
 		}
 	}
 	return hash, nil
+}
+
+func (g *GitOps) IsTracked(ctx context.Context, repoDir, path string) (bool, error) {
+	result := g.runner.Run(ctx, "", "", "git", "-C", repoDir, "ls-files", "--error-unmatch", "--", path)
+	if result.Err != nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 // GitOps is the production implementation of GitOperations.
@@ -346,6 +353,7 @@ type MockGitOps struct {
 
 	ResolvedCommitHash string
 	ResolveCommitError error
+	Tracked            bool
 
 	// Calls records all method calls for verification
 	Calls []string
@@ -354,6 +362,11 @@ type MockGitOps struct {
 func (m *MockGitOps) ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error) {
 	m.Calls = append(m.Calls, "ResolveCommitForPath:"+repoDir+":"+path)
 	return m.ResolvedCommitHash, m.ResolveCommitError
+}
+
+func (m *MockGitOps) IsTracked(ctx context.Context, repoDir, path string) (bool, error) {
+	m.Calls = append(m.Calls, "IsTracked:"+repoDir+":"+path)
+	return m.Tracked, nil
 }
 
 // NewMockGitOps creates a new mock for testing.

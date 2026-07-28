@@ -27,9 +27,9 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"

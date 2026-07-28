@@ -44,7 +44,11 @@ func (r *CommitAttributionReconciler) Run(ctx context.Context) ReconcileReport {
 	}
 	r.lastRun = start
 	result := r.svc.ReconcileCommittedChanges(ctx)
-	return ReconcileReport{ItemsProcessed: result.Scanned, ItemsFailed: result.Failed, Duration: r.svc.clock.Since(start), Details: map[string]any{"repaired": result.Repaired}}
+	purged, err := r.svc.PurgeUnresolvableCommitChanges(ctx)
+	if err != nil {
+		result.Failed++
+	}
+	return ReconcileReport{ItemsProcessed: result.Scanned + purged, ItemsFailed: result.Failed, Duration: r.svc.clock.Since(start), Details: map[string]any{"repaired": result.Repaired, "retired": result.Retired, "purged": purged}}
 }
 
 // Reconciler is the contract every periodic reconciler implements.

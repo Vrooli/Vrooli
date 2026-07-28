@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
+	"strings"
 	"time"
 
 	"workspace-sandbox/internal/clock"
@@ -28,7 +29,7 @@ var SchemaSQL string
 // durable diff snapshots taken at terminal status transitions. Pure
 // additive change — the new table is created via IF NOT EXISTS, no
 // existing tables are altered.
-const ExpectedSchemaVersion = 3
+const ExpectedSchemaVersion = 4
 
 // EnsureSchema applies the embedded schema and records the schema
 // version. It is the single startup entry point for all DDL: legacy
@@ -143,6 +144,19 @@ var migrations = map[int]func(context.Context, *sql.DB) error{
 	1: migrateToV1,
 	2: migrateToV2,
 	3: migrateToV3,
+	4: migrateToV4,
+}
+
+func migrateToV4(ctx context.Context, db *sql.DB) error {
+	for _, statement := range []string{
+		"ALTER TABLE applied_changes ADD COLUMN resolution_attempts INTEGER NOT NULL DEFAULT 0",
+		"ALTER TABLE applied_changes ADD COLUMN unresolvable_at TEXT",
+	} {
+		if _, err := db.ExecContext(ctx, statement); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
+	}
+	return nil
 }
 
 // migrateToV1 marks an empty database as v1. The legacy column

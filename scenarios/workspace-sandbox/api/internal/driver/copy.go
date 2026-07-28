@@ -17,7 +17,9 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver/changedetect"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -55,8 +57,9 @@ var _ Driver = (*CopyDriver)(nil)
 //   - Small to medium scope directories
 //   - When overlayfs is unavailable
 type CopyDriver struct {
-	config Config
-	clock  clock.Clock
+	config  Config
+	clock   clock.Clock
+	starter process.Starter
 }
 
 // NewCopyDriver creates a new copy-based fallback driver. deps.Clock is
@@ -70,7 +73,7 @@ func NewCopyDriver(cfg Config, deps Deps) *CopyDriver {
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
-	return &CopyDriver{config: cfg, clock: deps.Clock}
+	return &CopyDriver{config: cfg, clock: deps.Clock, starter: deps.Starter}
 }
 
 // ID returns the canonical driver ID.
@@ -171,7 +174,7 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 		return nil, fmt.Errorf("sandbox workspace directory not set")
 	}
 	return changedetect.Walk(ctx,
-		changedetect.WalkOpts{Lower: s.LowerDir, Upper: s.UpperDir, SandboxID: s.ID},
+		changedetect.WalkOpts{Lower: s.LowerDir, Upper: s.UpperDir, SandboxID: s.ID, IgnoreMatcher: diff.NewGitIgnoreMatcher(s.ProjectRoot, diff.NewExecCommandRunner(d.starter))},
 		&changedetect.CopyStrategy{FileIDFn: StableFileID},
 		d.clock.Now(),
 	)

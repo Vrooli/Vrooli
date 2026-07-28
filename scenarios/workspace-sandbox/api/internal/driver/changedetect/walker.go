@@ -32,6 +32,17 @@ type WalkOpts struct {
 	Lower     string
 	Upper     string
 	SandboxID uuid.UUID
+	// IgnoreMatcher is shared policy (for example gitignore-aware filtering).
+	// Nil deliberately means capture everything: dropping an agent edit is worse
+	// than retaining a noisy path when git inspection is unavailable.
+	IgnoreMatcher IgnoreMatcher
+}
+
+// IgnoreMatcher returns repository-relative paths that must not be captured.
+// The walker supplies the complete upper-tree path set once, allowing an
+// implementation to batch an external policy lookup deterministically.
+type IgnoreMatcher interface {
+	Ignored(ctx context.Context, paths []string) (map[string]struct{}, error)
 }
 
 // Strategy plugs driver-specific change-detection semantics into the
@@ -79,6 +90,29 @@ func Walk(ctx context.Context, opts WalkOpts, strategy Strategy, now time.Time) 
 
 	var changes []*types.FileChange
 	seen := make(map[string]bool)
+	ignored := map[string]struct{}{".git": {}}
+	if opts.IgnoreMatcher != nil {
+		var paths []string
+		if err := filepath.Walk(opts.Upper, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if path == opts.Upper {
+				return nil
+			}
+			rel, err := filepath.Rel(opts.Upper, path)
+			if err != nil {
+				return err
+			}
+			paths = append(paths, rel)
+			return nil
+		}); err == nil {
+			if matched, err := opts.IgnoreMatcher.Ignored(ctx, paths); err == nil {
+				ignored = matched
+				ignored[".git"] = struct{}{}
+			}
+		}
+	}
 
 	walkErr := filepath.Walk(opts.Upper, func(path string, info fs.FileInfo, err error) error {
 		if cancelErr := ctx.Err(); cancelErr != nil {
@@ -94,8 +128,9 @@ func Walk(ctx context.Context, opts WalkOpts, strategy Strategy, now time.Time) 
 		if relErr != nil {
 			return relErr
 		}
-		if strategy.ShouldSkip(rel) {
-			if info != nil && info.IsDir() && strategy.SkipDir(rel) {
+		_, sharedSkip := ignored[rel]
+		if sharedSkip || strategy.ShouldSkip(rel) {
+			if info != nil && info.IsDir() && (sharedSkip || strategy.SkipDir(rel)) {
 				return filepath.SkipDir
 			}
 			return nil

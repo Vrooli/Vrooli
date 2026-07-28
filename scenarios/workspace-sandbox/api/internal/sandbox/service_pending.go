@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -16,6 +17,7 @@ import (
 type CommitReconciliationReport struct {
 	Scanned  int
 	Repaired int
+	Retired  int
 	Failed   int
 }
 
@@ -24,20 +26,55 @@ type CommitReconciliationReport struct {
 // pending for a later pass.
 func (s *Service) ReconcileCommittedChanges(ctx context.Context) CommitReconciliationReport {
 	report := CommitReconciliationReport{}
-	changes, err := s.repo.GetUnresolvedCommitChanges(ctx)
+	limit := s.config.CommitResolutionBatchLimit
+	if limit < 1 {
+		limit = 200
+	}
+	changes, err := s.repo.GetUnresolvedCommitChanges(ctx, limit)
 	if err != nil {
 		report.Failed = 1
 		return report
 	}
+	repoState := make(map[string]bool)
 	for _, change := range changes {
 		report.Scanned++
 		relPath := relativeToProjectRoot(change.ProjectRoot, change.FilePath)
+		isRepo, known := repoState[change.ProjectRoot]
+		if !known {
+			isRepo = s.gitOps.IsGitRepo(ctx, change.ProjectRoot)
+			repoState[change.ProjectRoot] = isRepo
+		}
+		if !isRepo {
+			continue
+		}
 		hash, err := s.gitOps.ResolveCommitForPath(ctx, change.ProjectRoot, relPath, change.AppliedAt)
 		if err != nil {
 			report.Failed++
 			continue
 		}
 		if hash == "" {
+			if err := s.repo.IncrementCommitResolutionAttempts(ctx, change.ID); err != nil {
+				report.Failed++
+				continue
+			}
+			horizon := s.config.CommitResolutionHorizon
+			if horizon < time.Hour {
+				horizon = 720 * time.Hour
+			}
+			if s.clock.Now().Sub(change.AppliedAt) >= horizon {
+				tracked, trackedErr := s.gitOps.IsTracked(ctx, change.ProjectRoot, relPath)
+				if trackedErr != nil {
+					report.Failed++
+					continue
+				}
+				if !tracked {
+					if err := s.repo.MarkCommitUnresolvable(ctx, change.ID, s.clock.Now()); err != nil {
+						report.Failed++
+						continue
+					}
+					report.Retired++
+				}
+			}
 			continue
 		}
 		if err := s.repo.MarkChangesCommitted(ctx, []uuid.UUID{change.ID}, hash, "Committed externally (reconciled)"); err != nil {
@@ -47,6 +84,14 @@ func (s *Service) ReconcileCommittedChanges(ctx context.Context) CommitReconcili
 		report.Repaired++
 	}
 	return report
+}
+
+func (s *Service) PurgeUnresolvableCommitChanges(ctx context.Context) (int, error) {
+	retention := s.config.UnresolvedProvenanceRetention
+	if retention < time.Hour {
+		retention = 168 * time.Hour
+	}
+	return s.repo.PurgeUnresolvableCommitChanges(ctx, s.clock.Now().Add(-retention))
 }
 
 // CommitReconcileInterval exists as a named policy boundary for callers that

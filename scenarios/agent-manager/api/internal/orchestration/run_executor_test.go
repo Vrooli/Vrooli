@@ -8,17 +8,17 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	cfgpkg "agent-manager/internal/config"
-	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/repository"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/fixtures"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -662,6 +662,36 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	outcome := executor.Outcome()
 	if outcome != domain.RunOutcomeTimeout {
 		t.Errorf("expected outcome 'timeout', got '%s'", outcome)
+	}
+}
+
+func TestRunExecutor_Execute_UsesResolvedRunTimeout(t *testing.T) {
+	f := newInPlaceFixtures(t)
+	f.run.ResolvedConfig = &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode, Timeout: 100 * time.Millisecond}
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 25 * time.Millisecond
+	executor := orchestration.NewRunExecutor(repos.Runs, registry, nil, eventStore, f.run, f.task, f.profile, "test prompt", "").WithLevers(levers).WithRunStateRoot(t.TempDir())
+
+	started := time.Now()
+	executor.Execute(context.Background())
+	if elapsed := time.Since(started); elapsed >= time.Second {
+		t.Fatalf("executor ignored resolved timeout: ran for %s", elapsed)
+	}
+	if got := executor.Outcome(); got != domain.RunOutcomeTimeout {
+		t.Fatalf("outcome = %q, want timeout", got)
 	}
 }
 

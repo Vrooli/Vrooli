@@ -38,11 +38,14 @@ type CopyStrategy struct {
 	FileIDFn func(sandboxID uuid.UUID, filePath string) uuid.UUID
 }
 
-// ShouldSkip drops hidden entries and overlayfs whiteout markers. The
+// ShouldSkip drops overlayfs whiteout markers. The
 // copy driver doesn't itself produce whiteouts, but the helper handles
 // them defensively in case a legacy upper carried any.
 func (s *CopyStrategy) ShouldSkip(rel string) bool {
-	if strings.HasPrefix(rel, ".") {
+	// A copied upper should never contain this directory, but skipping a
+	// carried-over overlay implementation artifact preserves the shared
+	// output contract when drivers are swapped.
+	if strings.HasPrefix(rel, ".overlay") {
 		return true
 	}
 	if isOverlayMarker(rel) {
@@ -51,9 +54,9 @@ func (s *CopyStrategy) ShouldSkip(rel string) bool {
 	return false
 }
 
-// SkipDir prunes the entire .git/.wh subtree from the walk.
+// SkipDir never needs to prune a copy-driver-specific subtree.
 func (s *CopyStrategy) SkipDir(rel string) bool {
-	return strings.HasPrefix(rel, ".")
+	return strings.HasPrefix(rel, ".overlay")
 }
 
 // ClassifyUpper compares an upper entry to its counterpart in lower and
@@ -117,12 +120,6 @@ func (s *CopyStrategy) DetectDeletions(opts WalkOpts, seen map[string]bool, now 
 		rel, relErr := filepath.Rel(opts.Lower, path)
 		if relErr != nil {
 			return relErr
-		}
-		if strings.HasPrefix(rel, ".") {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
 		}
 		if isOverlayMarker(rel) {
 			return nil
