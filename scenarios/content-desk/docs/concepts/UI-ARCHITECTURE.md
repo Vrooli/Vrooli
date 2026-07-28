@@ -86,7 +86,7 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
   `experience/pages/*.json::bindings` once bindings exist.
 
 Run `experience-manager spec validate content-desk --json` after route or
-selector changes. The generated notes page spec is example-domain content and
+selector changes. The generated example page spec is scaffold content and
 is removed by `template-manager detemplate content-desk`.
 
 ## Extending The Manifest

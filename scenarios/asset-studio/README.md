@@ -2,8 +2,8 @@
 
 Structured-data-driven production of marketing images and videos with identity consistency and render provenance
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+Asset Studio is a full-stack Vrooli scenario built for the marketing team's
+identity-safe asset workflow:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
@@ -47,16 +47,13 @@ the standard full-stack Vrooli scenario shape:
   runbooks, observability, security, performance, and durable
   decisions.
 
-## Placeholders vs. Durable Scaffolding
+## Product and Durable Seams
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
-
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- Starter page content such as the dashboard metric placeholders.
-- The bare-minimum settings surface once your scenario needs more than
-  theme and locale.
+The identity workbench is the product surface: author a canonical identity,
+resolve a repeatable specification, produce candidates, select one, record an
+operator conformance verdict, and release a metadata-only asset reference.
+Identity blocks and released assets are durable; render blobs stay behind the
+BlobStore seam and are never returned over the consumer reference RPC.
 
 Treat these as **durable seams** to preserve, even as you rewrite the
 visual layout:
@@ -79,11 +76,7 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
-
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
+`api/internal/module/module.go`.
 
 ## Running The Scenario
 

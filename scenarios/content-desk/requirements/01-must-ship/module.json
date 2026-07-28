@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-07-28T17:18:53-04:00",
+    "last_validated_at": "2026-07-28T17:52:41-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "CONTENTD-P0-001",
       "title": "Campaign record and lifecycle",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "campaigns",
       "criticality": "P0",
@@ -23,12 +23,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/campaigns/repository_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A campaign with all required fields and at least one evidence ref activates; the stored record round-trips."
         },
         {
           "type": "test",
+          "ref": "api/internal/campaigns/repository_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Activating a campaign with zero evidence refs is rejected with a typed error naming the missing input."
@@ -36,7 +38,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "CLI campaign create then activate round-trips through Connect and is listed by campaign list."
         }
       ]
@@ -44,7 +46,7 @@
     {
       "id": "CONTENTD-P0-002",
       "title": "Artifact slot budget",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "campaigns",
       "criticality": "P0",
@@ -57,12 +59,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/campaigns/repository_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Creating drafts up to the slot count succeeds; the next create for that campaign is rejected."
         },
         {
           "type": "test",
+          "ref": "api/internal/campaigns/repository_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Slot occupancy is released when a draft is abandoned and re-consumed by a replacement."
@@ -70,7 +74,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Slot state reported by the campaign read surface matches the drafts actually attached."
         }
       ]
@@ -78,7 +82,7 @@
     {
       "id": "CONTENTD-P0-003",
       "title": "Draft lifecycle enforcement",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "artifacts",
       "criticality": "P0",
@@ -91,18 +95,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/artifacts/workflow_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Every declared state/event pair in the flow contract is exercised against the production transition function."
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/workflow_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "drafted to approved without an intervening verification pass is rejected."
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/workflow_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "No transition leaves the published terminal state."
@@ -110,7 +117,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Formal replay of named traces passes against the generated artifact."
         }
       ]
@@ -118,7 +125,7 @@
     {
       "id": "CONTENTD-P0-004",
       "title": "Shared claim library",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "claims",
       "criticality": "P0",
@@ -131,12 +138,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A claim cited by two drafts is stored once and resolves from both."
         },
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Deleting a draft leaves its cited claims intact and still cited by the remaining drafts."
@@ -144,11 +153,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Claim reuse is visible through the read surface: a claim lists every draft citing it."
         },
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A citation persists its span anchor and round-trips; an anchor outside the body length is rejected."
@@ -171,18 +181,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A citation-backed claim and a check-backed claim are distinguishable by evidence kind on read."
         },
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A check records command, expected result, last run time, and last observed result."
         },
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A quantitative claim carrying only a citation is reported as under-evidenced for its kind."
@@ -192,7 +205,7 @@
     {
       "id": "CONTENTD-P0-006",
       "title": "Verification gate",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "claims",
       "criticality": "P0",
@@ -205,18 +218,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/artifacts/approval_gate_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Approval of a draft with one unverified claim is rejected and the error names that claim."
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/approval_gate_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Approval succeeds once every cited claim reaches verified."
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/approval_gate_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A claim moving from verified to stale returns its citing draft to a blocked state before publication."
@@ -224,7 +240,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The gate holds through the Connect surface, not only in the service layer."
         }
       ]
@@ -232,7 +248,7 @@
     {
       "id": "CONTENTD-P0-007",
       "title": "Operator-only approval",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "artifacts",
       "criticality": "P0",
@@ -245,12 +261,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/artifacts/approval_gate_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "An approval attempt carrying a non-operator actor kind is rejected."
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/approval_gate_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A successful approval writes approver identity and timestamp that survive a read round-trip."
@@ -258,7 +276,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Attribution is populated from the request context rather than a client-supplied field."
         }
       ]
@@ -266,7 +284,7 @@
     {
       "id": "CONTENTD-P0-008",
       "title": "Post-type registry and activation gate",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "posttypes",
       "criticality": "P0",
@@ -279,12 +297,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/posttypes/registry_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Each declared activation criterion is evaluated independently and reported per criterion."
         },
         {
           "type": "test",
+          "ref": "api/internal/posttypes/registry_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A draft whose post type is inactive cannot be approved, and the refusal names the failing criterion."
@@ -292,7 +312,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The registry gate command reports activation state for every registered type."
         }
       ]
@@ -300,7 +320,7 @@
     {
       "id": "CONTENTD-P0-009",
       "title": "Review scoring",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "review",
       "criticality": "P0",
@@ -313,18 +333,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/review/service_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A review run records one verdict per declared failure mode for the draft's type."
         },
         {
           "type": "test",
+          "ref": "api/internal/review/service_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A run with any failed mode leaves the draft blocked rather than reviewed."
         },
         {
           "type": "test",
+          "ref": "api/internal/review/service_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Policy modes are evaluated for persona-voiced drafts and skipped for brand-voiced ones."
@@ -332,7 +355,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Review output is retrievable alongside the draft it scored."
         }
       ]
@@ -340,7 +363,7 @@
     {
       "id": "CONTENTD-P0-010",
       "title": "Publish ledger",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "ledger",
       "criticality": "P0",
@@ -353,12 +376,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/artifacts/repository_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A publish record round-trips with series membership and prior-post reference intact."
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/repository_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Querying a series returns its posts in publication order."
@@ -366,7 +391,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Publishing a draft transitions it to published and writes exactly one ledger row."
         }
       ]
@@ -387,18 +412,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A subject never published to an audience reports as not introduced."
         },
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "After a publish mentioning that subject, the same query reports introduced with the publishing post."
         },
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Familiarity is tracked per audience, so introduction to one audience does not imply another."
@@ -408,7 +436,7 @@
     {
       "id": "CONTENTD-P0-012",
       "title": "Narration ledger",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "category": "ledger",
       "criticality": "P0",
@@ -421,12 +449,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Narrated items recorded against a subject are returned by a later query for that subject."
         },
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A query scoped to a date range returns only what was narrated inside it."
@@ -434,7 +464,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Publishing a draft records its narrated items in one operation with the ledger write."
         }
       ]
@@ -442,7 +472,7 @@
     {
       "id": "CONTENTD-P0-013",
       "title": "Idempotent state import",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "harness",
       "criticality": "P0",
@@ -455,18 +485,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Importing the same source twice creates rows only on the first pass."
         },
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Reordering lines in a source without changing content produces no new rows."
         },
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A per-source read failure skips that source and is reported rather than recorded as a complete sweep."
@@ -474,7 +507,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A backfill over the real team state files produces a non-empty ledger and re-runs clean."
         }
       ]
@@ -495,24 +528,28 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx",
           "phase": "unit",
           "status": "implemented",
           "notes": "The inspector renders claim state and review verdicts for the selected draft."
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx",
           "phase": "unit",
           "status": "implemented",
           "notes": "The approve control is disabled with a stated reason when a claim is unverified, the post type is inactive, or the slot budget is exhausted."
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx",
           "phase": "unit",
           "status": "implemented",
           "notes": "Queue, editor, claim resolution, and approval are reachable by keyboard with visible focus."
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx",
           "phase": "workflow",
           "status": "implemented",
           "notes": "A draft moves from queue selection through claim resolution to approval in the running UI."
@@ -522,7 +559,7 @@
     {
       "id": "CONTENTD-P0-015",
       "title": "Draft authoring and revision",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-015",
       "category": "artifacts",
       "criticality": "P0",
@@ -536,12 +573,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/artifacts/repository_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A revision persists and is retrievable, and its author kind round-trips as operator or agent."
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/repository_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Revising a draft in a terminal status is rejected with a typed error."
@@ -549,13 +588,13 @@
         {
           "type": "test",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The editor renders an existing body, accepts an edit, and persists it without leaving the workbench."
         },
         {
           "type": "test",
           "phase": "accessibility",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The editor is reachable and operable by keyboard alone, with a visible focus state."
         }
       ]

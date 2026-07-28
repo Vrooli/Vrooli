@@ -2,6 +2,7 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { HealthCard } from "../features/health/HealthCard";
+import { IdentityWorkbench } from "../features/studio/IdentityWorkbench";
 import { useTranslation } from "../i18n";
 
 /**
@@ -21,11 +22,8 @@ export function DashboardPage() {
         {t(strings.pages.dashboard.title)}
       </h2>
       <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <HealthCard />
-        <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />
-        <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />
-      </div>
+      <IdentityWorkbench />
+      <div className="grid gap-4 lg:grid-cols-3"><HealthCard /><MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} /><MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} /></div>
     </section>
   );
 }

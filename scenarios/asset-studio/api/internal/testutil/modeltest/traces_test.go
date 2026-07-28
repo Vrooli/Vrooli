@@ -2,6 +2,7 @@ package modeltest_test
 
 import (
 	"testing"
+
 	"asset-studio/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

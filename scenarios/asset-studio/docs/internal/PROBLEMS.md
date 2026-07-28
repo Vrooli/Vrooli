@@ -193,6 +193,17 @@ preserve provenance and verdicts — a removed artifact must still be explicable
 
 ## Architecture Drift
 
+## Work ladder
+
+- Rung: W3
+- Evidence: the approved plan and `OT-P0-001` through `OT-P0-018` agree on the
+  identity-to-released-artifact spine; the requirements registry is structurally
+  present, but the scenario remains a template scaffold and has no implemented
+  product domains.
+- Blocker: P0 implementation and server-owned baseline capture are in progress
+  (Test Genie run `20260728-212652-b99af4dd`).
+- Measured: 2026-07-28
+
 Use this section for deferred findings from `screaming-architecture-audit`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
@@ -201,7 +212,7 @@ a migration handoff with a planned retirement path back into
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
 | Docs vs code | The full concept and internal doc set describes five product domains that do not exist in code. This is expected for a designed-not-implemented scenario, but it is drift until the first slice lands, and a reader must not mistake `ARCHITECTURE.md` for a description of what runs. | Docs report `active`; API, UI, CLI, and contracts report `Scaffold` in the maturity table. | Build the P0 slice. The maturity table in `ARCHITECTURE.md` is the honest record until then. |
-| Example domain | The template `notes` domain and its fenced doc blocks are still present. | Blocks the `example-domain-removed` orientation gate. | `template-manager detemplate asset-studio` once the real domains are green — not before, since it is the only worked vertical-slice reference in the tree. |
+| Example domain | Resolved 2026-07-28: the template `notes` domain, generated contracts, UI route, CLI surface, and BAS examples were removed after the Studio identity-to-release spine became operational. | The detemplating orientation gate is clear. | Keep future domain references scenario-owned and run `template-manager orient asset-studio` after structural changes. |
 
 ## Cross-references
 

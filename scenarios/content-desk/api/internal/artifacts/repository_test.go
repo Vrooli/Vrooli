@@ -162,60 +162,66 @@ func TestCreateReservesCampaignSlotAndAbandonReleasesItOnce(t *testing.T) {
 	}
 }
 
+// [REQ:CONTENTD-P0-015]
 func TestUpdateBodyPersistsAttributedRevisionAndRejectsTerminalDraft(t *testing.T) {
-	ctx := context.Background()
-	repo := newRepository(t)
-	draft, err := repo.Create(ctx, Draft{ID: "revision-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Body: "before", Channel: "x-twitter", Format: "thread"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	updated, err := repo.UpdateBody(ctx, draft.ID, "after")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if updated.Body != "after" {
-		t.Fatalf("body = %q", updated.Body)
-	}
-	var body, actor string
-	if err := repo.(*sqliteRepository).db.QueryRowContext(ctx, `SELECT body, actor_kind FROM draft_revisions WHERE draft_id = ?`, draft.ID).Scan(&body, &actor); err != nil {
-		t.Fatal(err)
-	}
-	if body != "after" || actor != "operator" {
-		t.Fatalf("revision = %q/%q", body, actor)
-	}
-	if _, err := repo.Transition(ctx, draft.ID, DraftAbandon); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := repo.UpdateBody(ctx, draft.ID, "never"); err == nil {
-		t.Fatal("terminal draft was revised")
-	}
+	t.Run("[CONTENTD-P0-015] revision persists attributed authoring", func(t *testing.T) {
+		ctx := context.Background()
+		repo := newRepository(t)
+		draft, err := repo.Create(ctx, Draft{ID: "revision-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Body: "before", Channel: "x-twitter", Format: "thread"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		updated, err := repo.UpdateBody(ctx, draft.ID, "after")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if updated.Body != "after" {
+			t.Fatalf("body = %q", updated.Body)
+		}
+		var body, actor string
+		if err := repo.(*sqliteRepository).db.QueryRowContext(ctx, `SELECT body, actor_kind FROM draft_revisions WHERE draft_id = ?`, draft.ID).Scan(&body, &actor); err != nil {
+			t.Fatal(err)
+		}
+		if body != "after" || actor != "operator" {
+			t.Fatalf("revision = %q/%q", body, actor)
+		}
+		if _, err := repo.Transition(ctx, draft.ID, DraftAbandon); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := repo.UpdateBody(ctx, draft.ID, "never"); err == nil {
+			t.Fatal("terminal draft was revised")
+		}
+	})
 }
 
+// [REQ:CONTENTD-P0-010]
 func TestPublishAtomicallyTransitionsApprovedDraftAndAppendsLedgerRecord(t *testing.T) {
-	ctx := context.Background()
-	repo := newRepository(t)
-	draft, err := repo.Create(ctx, Draft{ID: "publish-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Channel: "x-twitter", Format: "thread"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := repo.Publish(ctx, draft.ID, PublishInput{PublishedURL: "https://example.test/p/1", PlatformPostID: "p-1"}); err == nil {
-		t.Fatal("non-approved draft published")
-	}
-	if _, err := repo.(*sqliteRepository).db.ExecContext(ctx, `UPDATE drafts SET status = 'approved' WHERE id = ?`, draft.ID); err != nil {
-		t.Fatal(err)
-	}
-	published, recordID, err := repo.Publish(ctx, draft.ID, PublishInput{Audience: "operators", PublishedURL: "https://example.test/p/1", PlatformPostID: "p-1", SeriesID: "series-1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if published.Status != DraftPublished || recordID == "" {
-		t.Fatalf("publish = %#v record=%q", published, recordID)
-	}
-	var storedDraft, channel string
-	if err := repo.(*sqliteRepository).db.QueryRowContext(ctx, `SELECT draft_id, channel FROM ledger_publish_records WHERE id = ?`, recordID).Scan(&storedDraft, &channel); err != nil {
-		t.Fatal(err)
-	}
-	if storedDraft != draft.ID || channel != "x-twitter" {
-		t.Fatalf("ledger = %q/%q", storedDraft, channel)
-	}
+	t.Run("[CONTENTD-P0-010] publish appends an immutable ledger record", func(t *testing.T) {
+		ctx := context.Background()
+		repo := newRepository(t)
+		draft, err := repo.Create(ctx, Draft{ID: "publish-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Channel: "x-twitter", Format: "thread"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := repo.Publish(ctx, draft.ID, PublishInput{PublishedURL: "https://example.test/p/1", PlatformPostID: "p-1"}); err == nil {
+			t.Fatal("non-approved draft published")
+		}
+		if _, err := repo.(*sqliteRepository).db.ExecContext(ctx, `UPDATE drafts SET status = 'approved' WHERE id = ?`, draft.ID); err != nil {
+			t.Fatal(err)
+		}
+		published, recordID, err := repo.Publish(ctx, draft.ID, PublishInput{Audience: "operators", PublishedURL: "https://example.test/p/1", PlatformPostID: "p-1", SeriesID: "series-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if published.Status != DraftPublished || recordID == "" {
+			t.Fatalf("publish = %#v record=%q", published, recordID)
+		}
+		var storedDraft, channel string
+		if err := repo.(*sqliteRepository).db.QueryRowContext(ctx, `SELECT draft_id, channel FROM ledger_publish_records WHERE id = ?`, recordID).Scan(&storedDraft, &channel); err != nil {
+			t.Fatal(err)
+		}
+		if storedDraft != draft.ID || channel != "x-twitter" {
+			t.Fatalf("ledger = %q/%q", storedDraft, channel)
+		}
+	})
 }

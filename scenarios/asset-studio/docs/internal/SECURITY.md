@@ -25,16 +25,6 @@ Use this document to answer:
 | Produced artifact bytes | **medium** | assets | Unreleased marketing material. Local-first storage is the correct default; these are the bytes an accidental public deployment would expose. |
 | Conformance verdicts | low | conformance | Operator judgements with attribution. Audit surface for published material. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization
 
 The generated template does not include an auth provider. Add auth only

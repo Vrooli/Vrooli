@@ -52,20 +52,23 @@ func postTypeByID(t *testing.T, types []posttypes.PostType, id string) posttypes
 	return posttypes.PostType{}
 }
 
+// [REQ:CONTENTD-P0-008]
 func TestCanonicalPostTypeSeedsReflectTheCurrentCanon(t *testing.T) {
-	d := db.NewSQLite(t)
-	require.NoError(t, database.EnsureSchemas(context.Background(), d, database.SchemaProviderFunc(localdb.SystemSchema), database.SchemaProviderFunc(posttypes.Schema)))
-	types, err := posttypes.NewRegistry(d).List(context.Background())
-	require.NoError(t, err)
-	require.Len(t, types, 12)
-	active := make(map[string]posttypes.PostType)
-	for _, postType := range types {
-		if postType.Status == posttypes.StatusActive {
-			active[postType.ID] = postType
+	t.Run("[CONTENTD-P0-008] canonical post type registry is seeded", func(t *testing.T) {
+		d := db.NewSQLite(t)
+		require.NoError(t, database.EnsureSchemas(context.Background(), d, database.SchemaProviderFunc(localdb.SystemSchema), database.SchemaProviderFunc(posttypes.Schema)))
+		types, err := posttypes.NewRegistry(d).List(context.Background())
+		require.NoError(t, err)
+		require.Len(t, types, 12)
+		active := make(map[string]posttypes.PostType)
+		for _, postType := range types {
+			if postType.Status == posttypes.StatusActive {
+				active[postType.ID] = postType
+			}
+			require.NotEmpty(t, postType.FailureModes, postType.ID)
 		}
-		require.NotEmpty(t, postType.FailureModes, postType.ID)
-	}
-	require.Len(t, active, 2)
-	require.Contains(t, active, "dev-log")
-	require.Contains(t, active, "scenario-spotlight")
+		require.Len(t, active, 2)
+		require.Contains(t, active, "dev-log")
+		require.Contains(t, active, "scenario-spotlight")
+	})
 }

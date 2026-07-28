@@ -10,7 +10,6 @@
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
       "settings": "設定"
     }
   },
@@ -27,9 +26,6 @@
       "title": "ダッシュボード",
       "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
       "statPlaceholderLabel": "指標"
-    },
-    "notes": {
-      "title": "ノート"
     },
     "settings": {
       "title": "設定",
@@ -50,29 +46,32 @@
   "notifications": {
     "summary": "{{count}} 件の通知"
   },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
-    },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
+  "studio": {
+    "libraryTitle": "Identity library",
+    "libraryDescription": "Versioned declarations are the source of truth for every released artifact.",
+    "libraryEmpty": "No identities yet. Author the first product to begin the release spine.",
+    "version": "{{kind}} · version {{version}}",
+    "authorTitle": "Author product identity",
+    "name": "Name",
+    "form": "Form",
+    "finish": "Finish",
+    "saving": "Saving identity…",
+    "create": "Create product identity",
+    "renderTitle": "Render and release",
+    "selected": "Selected identity: {{name}} v{{version}}. Estimated cost: $0.02 before submission.",
+    "choose": "Choose an identity before composing a render.",
+    "submitting": "Submitting…",
+    "render": "Resolve spec and render two candidates",
+    "candidate": "Candidate {{id}}",
+    "generated": "Generated · disclosure required",
+    "basis": "Conformance basis: prose-only. An operator must explicitly judge this candidate before release.",
+    "release": "Record passing verdict and release",
+    "released": "Released asset {{id}}. Its reference carries generated disclosure and alt text.",
+    "loadError": "Unable to load the identity library",
+    "createError": "Unable to create identity",
+    "renderError": "Unable to create render candidates",
+    "selectError": "Unable to select candidate",
+    "releaseError": "Release is unavailable"
   },
   "errors": {
     "canceled": "Operation canceled.",

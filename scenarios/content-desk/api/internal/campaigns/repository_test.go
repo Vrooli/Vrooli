@@ -20,30 +20,36 @@ func campaignRepo(t *testing.T) campaigns.Repository {
 	return campaigns.NewSQLiteRepository(d)
 }
 
+// [REQ:CONTENTD-P0-001]
 func TestCampaignActivationRequiresEvidence(t *testing.T) {
-	repo := campaignRepo(t)
-	campaign, err := repo.Create(context.Background(), campaigns.Campaign{Name: "Launch"}, nil, nil)
-	require.NoError(t, err)
-	require.ErrorIs(t, repo.Activate(context.Background(), campaign.ID), campaigns.ErrEvidenceRequired)
+	t.Run("[CONTENTD-P0-001] campaign activation requires evidence", func(t *testing.T) {
+		repo := campaignRepo(t)
+		campaign, err := repo.Create(context.Background(), campaigns.Campaign{Name: "Launch"}, nil, nil)
+		require.NoError(t, err)
+		require.ErrorIs(t, repo.Activate(context.Background(), campaign.ID), campaigns.ErrEvidenceRequired)
 
-	active, err := repo.Create(context.Background(), campaigns.Campaign{Name: "Evidence-backed", Status: campaigns.StatusActive}, []string{"research:audience-scan-1"}, nil)
-	require.NoError(t, err)
-	require.Equal(t, campaigns.StatusActive, active.Status)
+		active, err := repo.Create(context.Background(), campaigns.Campaign{Name: "Evidence-backed", Status: campaigns.StatusActive}, []string{"research:audience-scan-1"}, nil)
+		require.NoError(t, err)
+		require.Equal(t, campaigns.StatusActive, active.Status)
+	})
 }
 
+// [REQ:CONTENTD-P0-002]
 func TestSlotBudgetIsHardCapAndReleaseReopensCapacity(t *testing.T) {
-	repo := campaignRepo(t)
-	campaign, err := repo.Create(context.Background(), campaigns.Campaign{Name: "Bounded"}, []string{"research:1"}, []campaigns.Slot{{Channel: "x-twitter", Format: "thread", Capacity: 2}})
-	require.NoError(t, err)
-	require.NoError(t, repo.ReserveSlot(context.Background(), campaign.ID, "x-twitter", "thread"))
-	require.NoError(t, repo.ReserveSlot(context.Background(), campaign.ID, "x-twitter", "thread"))
-	require.ErrorIs(t, repo.ReserveSlot(context.Background(), campaign.ID, "x-twitter", "thread"), campaigns.ErrSlotExhausted)
-	require.NoError(t, repo.ReleaseSlot(context.Background(), campaign.ID, "x-twitter", "thread"))
-	require.NoError(t, repo.ReserveSlot(context.Background(), campaign.ID, "x-twitter", "thread"))
+	t.Run("[CONTENTD-P0-002] artifact slots are a hard cap", func(t *testing.T) {
+		repo := campaignRepo(t)
+		campaign, err := repo.Create(context.Background(), campaigns.Campaign{Name: "Bounded"}, []string{"research:1"}, []campaigns.Slot{{Channel: "x-twitter", Format: "thread", Capacity: 2}})
+		require.NoError(t, err)
+		require.NoError(t, repo.ReserveSlot(context.Background(), campaign.ID, "x-twitter", "thread"))
+		require.NoError(t, repo.ReserveSlot(context.Background(), campaign.ID, "x-twitter", "thread"))
+		require.ErrorIs(t, repo.ReserveSlot(context.Background(), campaign.ID, "x-twitter", "thread"), campaigns.ErrSlotExhausted)
+		require.NoError(t, repo.ReleaseSlot(context.Background(), campaign.ID, "x-twitter", "thread"))
+		require.NoError(t, repo.ReserveSlot(context.Background(), campaign.ID, "x-twitter", "thread"))
 
-	slots, err := repo.Slots(context.Background(), campaign.ID)
-	require.NoError(t, err)
-	require.Equal(t, []campaigns.Slot{{Channel: "x-twitter", Format: "thread", Capacity: 2, Reserved: 2}}, slots)
+		slots, err := repo.Slots(context.Background(), campaign.ID)
+		require.NoError(t, err)
+		require.Equal(t, []campaigns.Slot{{Channel: "x-twitter", Format: "thread", Capacity: 2, Reserved: 2}}, slots)
+	})
 }
 
 func TestActiveCampaignWithoutEvidenceFailsAtCreate(t *testing.T) {

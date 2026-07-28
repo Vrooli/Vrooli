@@ -1,150 +1,57 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "asset-studio",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Asset Studio command metadata. The identity ingress is built through cli-core primitives and generated StudioService Connect clients.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "identities",
+      "description": "Author and inspect reusable visual identities",
       "commands": [
-        {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
-        }
+        {"name":"list","description":"List identity versions","binding":{"kind":"connect-rpc","service":"StudioService","method":"ListIdentities"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"create-product","description":"Create a product identity","flags":[{"name":"name","required":true,"description":"Product identity name"},{"name":"form","required":true,"description":"Physical or UI form"},{"name":"finish","required":true,"description":"Material or visual finish"}],"binding":{"kind":"connect-rpc","service":"StudioService","method":"CreateIdentity"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}},
+        {"name":"import","description":"Import authored rich-media canon","flags":[{"name":"root","required":true,"description":"Path to rich-media catalogue root"}],"binding":{"kind":"connect-rpc","service":"StudioService","method":"ImportCanon"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}
       ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
-  "exceptions": [
+  "exceptions": [],
+  "omitted": [
     {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
+      "service": "StudioService",
+      "method": "ReviseIdentity",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "ResolveSpec",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "CreateRender",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "SelectCandidate",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "JudgeConformance",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "ReleaseAsset",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "GetReleasedAssetReference",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
     }
-  ],
-  "omitted": []
+  ]
 }

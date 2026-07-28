@@ -145,8 +145,17 @@ research pass and would otherwise be filled with guesses.
 **Workaround:** Descriptor validation fails for an identity naming an undescribed
 platform, so this surfaces as a clear error rather than as silent misbehaviour.
 
-**Real fix:** One descriptor per active channel, each with its own provenance. X and
-Reddit are the likely next two — both already have live accounts per `CHANNELS.md`.
+**Second-order consequence:** this is not only a coverage gap — it makes
+`CHANMGR-P0-003` unprovable. "Adding a platform requires no code change" cannot be
+demonstrated against a single descriptor, because the abstraction has never been
+asked to bend. A second *structurally different* platform is therefore part of
+meeting the requirement rather than a later expansion, and the pair must differ in
+shape rather than only in name: X is text-led with no video action kinds and a
+different disclosure posture, which is what makes it the useful second.
+
+**Real fix:** X described alongside TikTok before `CHANMGR-P0-003` is called done,
+each with its own provenance; then one descriptor per remaining active channel.
+Reddit is the likely third — it already has live accounts per `CHANNELS.md`.
 
 **Owner:** unassigned.
 

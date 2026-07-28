@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P1 operational targets.",
-    "last_validated_at": "2026-07-28T17:16:40-04:00",
+    "last_validated_at": "2026-07-28T17:52:41-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "CONTENTD-P1-001",
       "title": "Claim re-verification sweep",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "claims",
       "criticality": "P1",
@@ -23,12 +23,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A check whose observed result diverges from expected moves the claim to stale."
         },
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A sweep records last-run time even for checks whose result is unchanged."
@@ -36,7 +38,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A scheduled sweep processes every check-backed claim and is safe to re-run."
         }
       ]
@@ -44,7 +46,7 @@
     {
       "id": "CONTENTD-P1-002",
       "title": "Published-post contamination report",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "ledger",
       "criticality": "P1",
@@ -57,12 +59,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A stale claim cited by two published posts returns both."
         },
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A stale claim cited only by unpublished drafts returns no published posts."
@@ -70,7 +74,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The report is reachable from the ledger read surface."
         }
       ]
@@ -91,18 +95,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A novelty claim without a search date cannot reach verified."
         },
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A novelty claim past the configured age reports as expired on read."
         },
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Re-recording the search date returns the claim to verified."
@@ -112,7 +119,7 @@
     {
       "id": "CONTENTD-P1-004",
       "title": "Coverage reporting",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "ledger",
       "criticality": "P1",
@@ -125,12 +132,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Coverage aggregates publish records into the declared dimensions."
         },
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A dimension with no publish record inside the staleness window is reported as stale."
@@ -138,7 +147,7 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Coverage output matches the ledger rows it derives from."
         }
       ]

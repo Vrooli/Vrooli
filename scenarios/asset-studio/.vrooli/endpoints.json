@@ -45,209 +45,84 @@
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.asset_studio.v1.notes.NotesService/ListNotes",
+      "id": "studio_list_identities",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/ListIdentities",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.asset_studio.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
+      "summary": "List identities",
+      "description": "",
+      "category": "studio"
     },
     {
-      "id": "notes_create",
-      "path": "/vrooli.asset_studio.v1.notes.NotesService/CreateNote",
+      "id": "studio_create_identity",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/CreateIdentity",
       "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.asset_studio.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
+      "summary": "Create identity",
+      "description": "",
+      "category": "studio"
     },
     {
-      "id": "notes_get",
-      "path": "/vrooli.asset_studio.v1.notes.NotesService/GetNote",
+      "id": "studio_revise_identity",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/ReviseIdentity",
       "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.asset_studio.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
+      "summary": "Revise identity",
+      "description": "",
+      "category": "studio"
     },
     {
-      "id": "notes_count",
-      "path": "/vrooli.asset_studio.v1.notes.NotesService/CountNotes",
+      "id": "studio_resolve_spec",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/ResolveSpec",
       "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.asset_studio.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
+      "summary": "Resolve deterministic spec",
+      "description": "",
+      "category": "studio"
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "studio_create_render",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/CreateRender",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.asset_studio.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.asset_studio.v1.shared.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
-      }
+      "summary": "Create render candidates",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_select_candidate",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/SelectCandidate",
+      "method": "POST",
+      "summary": "Select render candidate",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_judge_conformance",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/JudgeConformance",
+      "method": "POST",
+      "summary": "Record operator conformance verdict",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_release_asset",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/ReleaseAsset",
+      "method": "POST",
+      "summary": "Release an asset",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_get_reference",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/GetReleasedAssetReference",
+      "method": "POST",
+      "summary": "Read released asset reference",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_import_canon",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/ImportCanon",
+      "method": "POST",
+      "summary": "Import canon identities",
+      "description": "",
+      "category": "studio"
     }
   ]
 }

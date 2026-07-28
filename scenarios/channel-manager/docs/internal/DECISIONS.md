@@ -18,7 +18,7 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 
 ## Decision Log
 
-D-000 through D-009 come from the design pass completed 2026-07-28, before any
+D-000 through D-011 come from the design pass completed 2026-07-28, before any
 product code existed. The evidence behind each is recorded with it, because the
 evidence is the durable part. If you are about to relitigate one, check whether the
 evidence still holds first.
@@ -35,10 +35,18 @@ evidence still holds first.
 | D-007 | 2026-07-28 | **Warming can fail terminally. Quarantine cancels everything for that identity.** | The trust-check in the source material has a "under a few hundred views → start fresh" branch, meaning the correct response to a failed warm is to abandon the identity, not to continue. An earlier draft of this design had only graduated and not-yet-graduated, which would have let an identity silently continue a program it had already failed. | Quarantine is a terminal state that cancels every pending queue entry and records the failing measurement (`CHANMGR-P0-011`). A quarantined identity is rebuilt, not resumed — `quarantined → running` is an illegal transition. | If measurement shows accounts recovering from a failed trust-check, which would make quarantine too harsh. |
 | D-008 | 2026-07-28 | **The boundary with `content-desk` is exactly two questions, and eligibility fails closed.** | `content-desk` specified this seam from its own side before this scenario existed: *release this draft* and *is this identity eligible for this lane*, with "no account state, warming detail, or credential" crossing, and eligibility resolving to unknown rather than eligible on failure. | This scenario answers rather than negotiates. Eligibility returns a three-valued result and never defaults to eligible (`CHANMGR-P0-013`); release is idempotent by key with a unique index that *is* the retry guarantee (`CHANMGR-P0-014`). A wider surface would let editorial logic depend on account internals. | Never for the fail-closed rule. Widening the surface requires a decision on both sides. |
 | D-009 | 2026-07-28 | **Browser automation is an operator decision recorded per platform and per action kind, not a default.** | Automating account actions through a browser is against the terms of service of most major platforms, and enforcement is typically account suspension. This is a normal marketing-operations tradeoff to accept deliberately, but discovering it after losing a warmed persona account is expensive and avoidable. | The browser executor is sequenced last among P1 and is disabled for a platform until a decision recording that acceptance exists in this file (`CHANMGR-P1-001`). Everything above it must work manually first. Comment-text generation is deliberately excluded from the descriptor: generating "genuine, specific comments" at scale produces exactly the low-effort pattern warming exists to avoid. | Per platform, whenever the operator decides to accept the exposure. Each acceptance is its own row below. |
-
 | D-010 | 2026-07-28 | **Three capabilities offered by comparable tools are refused permanently, and the refusal is recorded rather than left to judgement.** | A competitive scan across mainstream schedulers (Buffer, Hootsuite, Later, Metricool, Publer, Sprout Social, Postiz, Mixpost) and the multi-account operator category produced four features worth adopting — `CHANMGR-P1-008`, `-009`, `-010`, and `CHANMGR-P2-005`. It also produced three that sit on the wrong side of the line `../business/MONETIZATION.md` draws. Someone reading a competitor feature list in a year will encounter them again, and the reason they were refused is not self-evident from the feature name. | See the table below. Each is refused on its own grounds, not by association. Adding any of them requires reversing this decision explicitly. | **None expected.** These are positioning and integrity boundaries, not capability gaps. |
+| D-011 | 2026-07-28 | **When the cadence ceiling is reached, a release outranks maintenance engagement; maintenance defers rather than drops, and a deferred action that misses its phase window is recorded rather than silently skipped.** | `DOMAINS.md` states that maintenance engagement "competes for the same cadence budget as posting" and nothing said who wins. Left unspecified, the arbitration becomes an arbitrary line inside the scheduler that nobody documented and no test covers — and the failure is silent, because both candidate behaviours look like a working queue. The ranking follows from what each action is for: a release carries approved, time-bounded work from `content-desk`, while maintenance is a standing background obligation with no deadline of its own. | Scheduling is a strict ordering rather than first-come. A deferred maintenance action stays queued with its deferral recorded; if its phase window closes before it runs, the miss is written to the program's observation log (`CHANMGR-P1-006`) rather than dropped, so a program whose maintenance load exceeds its ceiling is visible as evidence instead of quietly under-executing. Constrains `CHANMGR-P0-007`. | If observations show maintenance being starved often enough to affect distribution, which would mean the ceiling is set below what the program actually needs — a program or ceiling problem, not an arbitration one. |
 
-### Refused capabilities
+### D-009 — per-platform automation acceptances
+
+Browser execution stays disabled for a platform until it has a row here.
+
+| Platform | Action kinds accepted | Date | Accepted by | Note |
+|---|---|---|---|---|
+| _(none yet)_ | — | — | — | No platform has an accepted automation decision. All execution is manual. |
+
+### D-010 — refused capabilities
 
 | Capability | Offered by | Why refused |
 |---|---|---|
@@ -56,14 +64,6 @@ Two further notes from the same scan, recorded so they are not rediscovered as g
   this scenario alone. Tags should be authored at draft time in `content-desk` and
   preserved through release here; `CHANMGR-P1-007` returns platform-reported
   performance, which stops at reach and never reaches conversion without them.
-
-### Per-platform automation acceptances
-
-Browser execution stays disabled for a platform until it has a row here.
-
-| Platform | Action kinds accepted | Date | Accepted by | Note |
-|---|---|---|---|---|
-| _(none yet)_ | — | — | — | No platform has an accepted automation decision. All execution is manual. |
 
 ## Superseded Decisions
 

@@ -35,7 +35,8 @@ describe("DashboardPage", () => {
 		mocks.listPublishRecords.mockResolvedValue({ publishRecords: [] });
   });
 
-  it("loads the queue and enables approval only when every displayed gate passes", async () => {
+  // [REQ:CONTENTD-P0-014]
+  it("[CONTENTD-P0-014] loads the queue and enables approval only when every displayed gate passes", async () => {
     mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-1", status: "reviewed", campaignId: "campaign-1", body: "Approved content" }] });
     mocks.listClaims.mockResolvedValue({ claims: [{ id: "claim-1", statement: "Verified statement", verificationStatus: "verified" }] });
     mocks.listDraftClaims.mockResolvedValue({ claims: [{ id: "claim-1", statement: "Verified statement", verificationStatus: "verified" }] });

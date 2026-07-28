@@ -49,21 +49,18 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-07-28 — Retired scenario leaves dangling skill references
+### 2026-07-28 — Retired scenario reference cleanup (resolved)
 
 `campaign-content-studio` was moved out of the repo to
-`/tmp/campaign-content-studio-retired-2026-07-27`. Six skill files plus one
-marketing catalogue document still reference it: its own skill
-(`skill.json`, `SKILL.md`), and cross-references inside the `funnel-builder`,
-`social-media-scheduler`, `video-studio`, and `seo-optimizer` skills, plus
-`docs/marketing/catalogs/rich-media/README.md`.
+`/tmp/campaign-content-studio-retired-2026-07-27`. The obsolete skill was
+retired, its cross-references were corrected, and resource capability lists no
+longer advertise it. The rich-media catalogue now records the retirement as
+history, not as a promotion target.
 
-**Impact:** agents discovering those skills will be pointed at a scenario that
-no longer exists. Not blocking for this scenario's work, but it is live
-misinformation in the skill index.
+**Impact:** resolved; agents are no longer directed to a removed scenario.
 
-**Next step:** retire the `campaign-content-studio` skill and repoint the five
-cross-references, once `content-desk` is real enough to be the referent.
+**Next step:** none. Keep historical references only where they explain the
+replacement decision.
 
 ### 2026-07-28 — `video-studio` skill points at a scenario that was never built
 

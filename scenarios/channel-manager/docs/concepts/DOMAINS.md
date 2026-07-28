@@ -90,7 +90,7 @@ upload exception. Copy its shape for your own domains, then remove it.
   **recorded and checked, never provisioned.** The scenario cannot detect a leak in
   an environment it did not create, which is why the precondition gate is manual
   attestation rather than an automated probe (D-006).
-- Requirements: `CHANMGR-P0-001`, `CHANMGR-P0-002`.
+- Requirements: `CHANMGR-P0-001`, `CHANMGR-P0-002`, `CHANMGR-P1-010`.
 
 ### platforms
 
@@ -107,6 +107,12 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Invariant: **the ceiling always wins.** A warming program that asks for more
   actions than the platform ceiling allows is clamped or rejected at plan
   generation, so a badly written program fails safe rather than at the platform.
+- Invariant: **the descriptor abstraction is not proven by one descriptor.**
+  `CHANMGR-P0-003` claims that adding a platform requires no code change; a claim
+  validated against a single instance is a hypothesis with a JSON file attached.
+  The requirement is met only when at least two *structurally different* platforms
+  are described — one text-led and one video-led, with different action kinds — and
+  neither required a code change. TikTok and X are the intended pair.
 - Requirements: `CHANMGR-P0-003`, `CHANMGR-P1-004`.
 
 ### warming
@@ -150,9 +156,15 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Invariant: release is idempotent by key. A retry returns the original result
   and never creates a second publish record — the contract `content-desk` is
   already written against.
+- Invariant: **scheduling under a reached ceiling is a strict ordering, not
+  first-come.** A release outranks maintenance engagement; maintenance defers
+  rather than drops, and a deferred action whose phase window closes before it runs
+  is recorded as a miss rather than silently skipped (D-011). Both plausible
+  behaviours look like a working queue from the outside, which is why the ordering
+  is declared here rather than settled in the scheduler.
 - Requirements: `CHANMGR-P0-006`, `CHANMGR-P0-007`, `CHANMGR-P0-008`,
   `CHANMGR-P0-013`, `CHANMGR-P0-014`, `CHANMGR-P0-015`, `CHANMGR-P1-001`,
-  `CHANMGR-P1-002`, `CHANMGR-P1-003`, `CHANMGR-P1-005`.
+  `CHANMGR-P1-002`, `CHANMGR-P1-003`, `CHANMGR-P1-005`, `CHANMGR-P1-008`.
 
 ### signals
 
@@ -172,6 +184,11 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Baseline note: a baseline below the configured minimum observation count is
   reported as not-established rather than computed from thin data, which is why
   the first-post gate depends on baseline days.
+- Capture note: **at P0 every observation is entered by hand.** No executor reads
+  metrics back from a platform, so `CHANMGR-P0-016` is satisfied by a CLI verb and a
+  console entry surface, not by a collector. This is not a gap — a pasted number is a
+  real data point, and the baseline is the whole value. Automated capture arrives
+  with the browser executor and platform APIs, and never becomes the only path.
 - Requirements: `CHANMGR-P0-016`, `CHANMGR-P0-017`, `CHANMGR-P1-007`,
   `CHANMGR-P2-002`.
 
@@ -192,6 +209,17 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Requirements: starter scaffold health only.
 - Tests: handler, module, UI feature, and accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
+
+## Cross-Domain Requirements
+
+Two requirements are satisfied by composing several domains rather than by any one
+of them. They are listed here so that no requirement is left without an owner, and
+so that neither is mistaken for a UI detail that can be deferred.
+
+| Requirement | Composed from | Ownership rule |
+|---|---|---|
+| `CHANMGR-P0-019` — operator console | Roster from `identities`, the day's due actions from `queue`, program progress from `warming`, history and flags from `signals`. | No domain owns the console; each domain owns the read model behind its panel. A panel with no query behind it is a domain gap, not a UI gap. At P0 the console is also the **only** write surface for two things: manual action completion with evidence (`CHANMGR-P0-015`) and observation entry (`CHANMGR-P0-016`), so it is load-bearing rather than presentational. |
+| `CHANMGR-P1-009` — per-platform post preview | Limits, media constraints, and disclosure rules from `platforms`; the pending action and its payload from `queue`. | `platforms` owns what the rules are; `queue` owns rendering the pending action against them. Neither owns the preview alone. |
 
 ## Shared Concepts
 

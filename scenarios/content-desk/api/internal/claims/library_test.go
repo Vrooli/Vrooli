@@ -21,26 +21,32 @@ func newLibrary(t *testing.T, runner claims.Runner) claims.Library {
 	return claims.NewLibrary(d, runner)
 }
 
+// [REQ:CONTENTD-P0-005]
 func TestCheckRequiredClaimRejectsCitationOnlyEvidence(t *testing.T) {
-	library := newLibrary(t, &claimsmocks.FakeRunner{})
-	_, err := library.Create(context.Background(), claims.Claim{Statement: "There are 10 users", Kind: claims.KindQuantitative}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "https://example.test"})
-	require.ErrorIs(t, err, claims.ErrCheckRequired)
+	t.Run("[CONTENTD-P0-005] check-required evidence rejects citation only", func(t *testing.T) {
+		library := newLibrary(t, &claimsmocks.FakeRunner{})
+		_, err := library.Create(context.Background(), claims.Claim{Statement: "There are 10 users", Kind: claims.KindQuantitative}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "https://example.test"})
+		require.ErrorIs(t, err, claims.ErrCheckRequired)
+	})
 }
 
+// [REQ:CONTENTD-P0-004]
 func TestSharedClaimCitationsPreserveAnchorsAndReuse(t *testing.T) {
-	library := newLibrary(t, &claimsmocks.FakeRunner{})
-	claim, err := library.Create(context.Background(), claims.Claim{Statement: "Vrooli is open source", Kind: claims.KindCapability}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "README.md"})
-	require.NoError(t, err)
-	body := "Vrooli is open source."
-	require.NoError(t, library.Cite(context.Background(), claims.Citation{DraftID: "draft-a", ClaimID: claim.ID, Start: 0, End: len(body)}, body))
-	require.NoError(t, library.Cite(context.Background(), claims.Citation{DraftID: "draft-b", ClaimID: claim.ID, Start: 0, End: len(body)}, body))
-	require.ErrorIs(t, library.Cite(context.Background(), claims.Citation{DraftID: "draft-c", ClaimID: claim.ID, Start: 0, End: len(body) + 1}, body), claims.ErrInvalidAnchor)
-	drafts, err := library.CitingDrafts(context.Background(), claim.ID)
-	require.NoError(t, err)
-	require.Equal(t, []string{"draft-a", "draft-b"}, drafts)
-	all, err := library.List(context.Background())
-	require.NoError(t, err)
-	require.Len(t, all, 1)
+	t.Run("[CONTENTD-P0-004] claims are reusable with anchored citations", func(t *testing.T) {
+		library := newLibrary(t, &claimsmocks.FakeRunner{})
+		claim, err := library.Create(context.Background(), claims.Claim{Statement: "Vrooli is open source", Kind: claims.KindCapability}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "README.md"})
+		require.NoError(t, err)
+		body := "Vrooli is open source."
+		require.NoError(t, library.Cite(context.Background(), claims.Citation{DraftID: "draft-a", ClaimID: claim.ID, Start: 0, End: len(body)}, body))
+		require.NoError(t, library.Cite(context.Background(), claims.Citation{DraftID: "draft-b", ClaimID: claim.ID, Start: 0, End: len(body)}, body))
+		require.ErrorIs(t, library.Cite(context.Background(), claims.Citation{DraftID: "draft-c", ClaimID: claim.ID, Start: 0, End: len(body) + 1}, body), claims.ErrInvalidAnchor)
+		drafts, err := library.CitingDrafts(context.Background(), claim.ID)
+		require.NoError(t, err)
+		require.Equal(t, []string{"draft-a", "draft-b"}, drafts)
+		all, err := library.List(context.Background())
+		require.NoError(t, err)
+		require.Len(t, all, 1)
+	})
 }
 
 func TestListForDraftReturnsOnlyCitedClaims(t *testing.T) {
@@ -69,30 +75,36 @@ func TestVerificationStoresResultAndMovesClaimState(t *testing.T) {
 	require.Equal(t, claims.StateStale, stale.VerificationStatus)
 }
 
+// [REQ:CONTENTD-P1-001]
 func TestSweepReverifiesEveryCheckBackedClaim(t *testing.T) {
-	fake := &claimsmocks.FakeRunner{Result: claims.CheckResult{ActualResult: "changed", Matches: false}}
-	library := newLibrary(t, fake)
-	for _, statement := range []string{"Metric changed", "Status changed"} {
-		_, err := library.Create(context.Background(), claims.Claim{Statement: statement, Kind: claims.KindQuantitative}, claims.Evidence{Kind: claims.EvidenceKindCheck, Command: "ignored", ExpectedResult: "expected"})
+	t.Run("[CONTENTD-P1-001] sweep reverifies check-backed claims", func(t *testing.T) {
+		fake := &claimsmocks.FakeRunner{Result: claims.CheckResult{ActualResult: "changed", Matches: false}}
+		library := newLibrary(t, fake)
+		for _, statement := range []string{"Metric changed", "Status changed"} {
+			_, err := library.Create(context.Background(), claims.Claim{Statement: statement, Kind: claims.KindQuantitative}, claims.Evidence{Kind: claims.EvidenceKindCheck, Command: "ignored", ExpectedResult: "expected"})
+			require.NoError(t, err)
+		}
+		updated, err := library.Sweep(context.Background())
 		require.NoError(t, err)
-	}
-	updated, err := library.Sweep(context.Background())
-	require.NoError(t, err)
-	require.Len(t, updated, 2)
-	for _, claim := range updated {
-		require.Equal(t, claims.StateStale, claim.VerificationStatus)
-	}
+		require.Len(t, updated, 2)
+		for _, claim := range updated {
+			require.Equal(t, claims.StateStale, claim.VerificationStatus)
+		}
+	})
 }
 
+// [REQ:CONTENTD-P1-003]
 func TestNoveltyEvidenceExpiresToAssertedAfterConfiguredAge(t *testing.T) {
-	library := newLibrary(t, &claimsmocks.FakeRunner{})
-	now := time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC)
-	claim, err := library.Create(context.Background(), claims.Claim{Statement: "First of its kind", Kind: claims.KindNovelty, VerificationStatus: claims.StateVerified}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "prior-art-search", ObservedAt: now.Add(-31 * 24 * time.Hour)})
-	require.NoError(t, err)
-	expired, err := library.ExpireNovelty(context.Background(), now, 30*24*time.Hour)
-	require.NoError(t, err)
-	require.Equal(t, []claims.Claim{{ID: claim.ID, Statement: claim.Statement, Kind: claims.KindNovelty, VerificationStatus: claims.StateAsserted}}, expired)
+	t.Run("[CONTENTD-P1-003] novelty evidence expires", func(t *testing.T) {
+		library := newLibrary(t, &claimsmocks.FakeRunner{})
+		now := time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC)
+		claim, err := library.Create(context.Background(), claims.Claim{Statement: "First of its kind", Kind: claims.KindNovelty, VerificationStatus: claims.StateVerified}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "prior-art-search", ObservedAt: now.Add(-31 * 24 * time.Hour)})
+		require.NoError(t, err)
+		expired, err := library.ExpireNovelty(context.Background(), now, 30*24*time.Hour)
+		require.NoError(t, err)
+		require.Equal(t, []claims.Claim{{ID: claim.ID, Statement: claim.Statement, Kind: claims.KindNovelty, VerificationStatus: claims.StateAsserted}}, expired)
 
-	_, err = library.Create(context.Background(), claims.Claim{Statement: "Undated novelty", Kind: claims.KindNovelty}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "prior-art-search"})
-	require.Error(t, err)
+		_, err = library.Create(context.Background(), claims.Claim{Statement: "Undated novelty", Kind: claims.KindNovelty}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "prior-art-search"})
+		require.Error(t, err)
+	})
 }

@@ -18,28 +18,28 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Campaign record and lifecycle | The system shall persist campaigns with theme, audiences, channels, hypotheses, and status, and shall refuse to activate a campaign that carries no supporting evidence reference
-- [ ] OT-P0-002 | Artifact slot budget | The system shall bound each campaign by a declared artifact slot count and shall refuse to accept a draft beyond that budget
-- [ ] OT-P0-003 | Draft lifecycle enforcement | The system shall persist each draft with an explicit status and shall reject any transition not declared in the lifecycle contract
-- [ ] OT-P0-004 | Shared claim library | The system shall store factual claims as first-class records that many drafts may cite, rather than as annotations owned by a single draft, and shall anchor each citation to the span of draft text it supports
+- [x] OT-P0-001 | Campaign record and lifecycle | The system shall persist campaigns with theme, audiences, channels, hypotheses, and status, and shall refuse to activate a campaign that carries no supporting evidence reference
+- [x] OT-P0-002 | Artifact slot budget | The system shall bound each campaign by a declared artifact slot count and shall refuse to accept a draft beyond that budget
+- [x] OT-P0-003 | Draft lifecycle enforcement | The system shall persist each draft with an explicit status and shall reject any transition not declared in the lifecycle contract
+- [x] OT-P0-004 | Shared claim library | The system shall store factual claims as first-class records that many drafts may cite, rather than as annotations owned by a single draft, and shall anchor each citation to the span of draft text it supports
 - [x] OT-P0-005 | Evidence strength | The system shall record each claim's evidence as either a citation or a re-runnable check with an expected result, and shall distinguish the two
-- [ ] OT-P0-006 | Verification gate | The system shall refuse to move a draft to approved while any claim it cites is unverified
-- [ ] OT-P0-007 | Operator-only approval | The system shall accept approval only from a human operator identity and shall record which actor approved which draft, in what capacity, and when
-- [ ] OT-P0-008 | Post-type registry and activation gate | The system shall hold the post-type registry with activation state and shall refuse approval of any draft whose post type is not active
-- [ ] OT-P0-009 | Review scoring | The system shall record a review run against the post type's declared failure modes with a per-mode verdict and supporting evidence
-- [ ] OT-P0-010 | Publish ledger | The system shall record what shipped — draft, channel, URL, post identifier, series, and prior post — and shall serve that history as a query surface
+- [x] OT-P0-006 | Verification gate | The system shall refuse to move a draft to approved while any claim it cites is unverified
+- [x] OT-P0-007 | Operator-only approval | The system shall accept approval only from a human operator identity and shall record which actor approved which draft, in what capacity, and when
+- [x] OT-P0-008 | Post-type registry and activation gate | The system shall hold the post-type registry with activation state and shall refuse approval of any draft whose post type is not active
+- [x] OT-P0-009 | Review scoring | The system shall record a review run against the post type's declared failure modes with a per-mode verdict and supporting evidence
+- [x] OT-P0-010 | Publish ledger | The system shall record what shipped — draft, channel, URL, post identifier, series, and prior post — and shall serve that history as a query surface
 - [x] OT-P0-011 | Subject familiarity state | The system shall answer whether a named subject has already been introduced to a given audience
-- [ ] OT-P0-012 | Narration ledger | The system shall answer what has already been narrated about a given scenario so that a later draft advances rather than repeats it
-- [ ] OT-P0-013 | Idempotent state import | The system shall import existing marketing team state from its current file storage without duplicating any item on re-run
+- [x] OT-P0-012 | Narration ledger | The system shall answer what has already been narrated about a given scenario so that a later draft advances rather than repeats it
+- [x] OT-P0-013 | Idempotent state import | The system shall import existing marketing team state from its current file storage without duplicating any item on re-run
 - [x] OT-P0-014 | Operator workbench | The system shall provide a UI to work the draft queue, open a draft, resolve claims, read review output, and approve, and shall state the specific cause whenever approval is unavailable
-- [ ] OT-P0-015 | Draft authoring and revision | The system shall let the operator compose and revise a draft's body directly in the workbench, and shall record each revision with whether an operator or an agent produced it
+- [x] OT-P0-015 | Draft authoring and revision | The system shall let the operator compose and revise a draft's body directly in the workbench, and shall record each revision with whether an operator or an agent produced it
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Claim re-verification sweep | The system should re-run stored checks on a schedule and should mark a claim stale when its result changes
-- [ ] OT-P1-002 | Published-post contamination report | The system should list every published post that cites a claim which has become stale or refuted
+- [x] OT-P1-001 | Claim re-verification sweep | The system should re-run stored checks on a schedule and should mark a claim stale when its result changes
+- [x] OT-P1-002 | Published-post contamination report | The system should list every published post that cites a claim which has become stale or refuted
 - [x] OT-P1-003 | Novelty claim expiry | The system should require a search date on novelty claims and should return them to unverified once that date passes a configured age
-- [ ] OT-P1-004 | Coverage reporting | The system should report marketing coverage by campaign, lane, channel, and SKU, including staleness
+- [x] OT-P1-004 | Coverage reporting | The system should report marketing coverage by campaign, lane, channel, and SKU, including staleness
 - [ ] OT-P1-005 | Account eligibility check | The system should consult the scheduler for whether an account is eligible for a lane before a draft targeting that account is approved
 - [ ] OT-P1-006 | Publish handoff contract | The system should hand an approved draft to the scheduler, should re-run the verification gate at handoff and refuse release when evidence changed after approval, and should record the returned URL and post identifier against the ledger
 - [ ] OT-P1-007 | Assisted claim extraction | The system should propose claims extracted from a draft body for operator confirmation, as a cross-check on author self-reporting
