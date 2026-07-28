@@ -1,0 +1,180 @@
+# Problems — Asset Studio
+
+Persistent register of known issues, tech debt, and deferred work
+specific to **this** scenario. Future agents read this file to avoid
+re-discovering the same constraint.
+
+Entries below were recorded during design, before any implementation. They are
+constraints already known to be real — not speculation — and each names what
+would let it be deleted. Append new entries as they appear.
+
+## What belongs here
+
+- **Known bugs** that are real but not yet worth fixing
+- **Tech debt** — workarounds that need a real fix later
+- **Deferred work** — features descoped from a phase, with the reason
+- **Architecture drift** — code/docs/tests that no longer line up with
+  the intended capability map or boundary model
+- **Constraints discovered the hard way** that aren't visible from
+  the code (e.g., "this resource needs warm-up before the first call;
+  see commit X")
+
+## What does NOT belong here
+
+- **Generic template issues** — those go in
+  [`../guides/troubleshooting.md`](../guides/troubleshooting.md)
+- **Open feature requests** — track those in PRD operational targets
+- **Code comments** — if the constraint is local to one file, a
+  comment there is more discoverable
+- **Test failures** — fix them, don't document them
+
+## Entry template
+
+Use this shape so entries are scannable. Append newest at the bottom.
+
+```markdown
+### YYYY-MM-DD — short title
+
+**Symptom:** What goes wrong, observable from outside the system.
+
+**Root cause:** What actually causes it (or "unknown" if not yet diagnosed).
+
+**Workaround:** What to do today to keep moving.
+
+**Real fix:** What needs to happen for this entry to be deleted.
+
+**Owner:** Who should drive the fix (or "unassigned").
+
+**Refs:** Code paths, related issues, prior commits.
+```
+
+## Entries
+
+### 2026-07-28 — the conformance comparison is unvalidated and it is the whole product
+
+**Symptom:** Nobody has rendered the same identity twice through this pipeline,
+so no one knows whether comparing a frame to a reference sheet actually catches
+the drift that matters. Both failure directions are plausible: too weak, and
+visibly wrong frames pass; too strict, and nothing passes and the gate is
+switched off.
+
+**Root cause:** The scenario was designed before any render existed, which was
+the right order for the boundaries and the wrong order for the tolerance.
+
+**Workaround:** `ASSET-P0-011` keeps judgement human. An operator comparing a
+frame to a character sheet is a calibrated instrument even when the automated
+one is not.
+
+**Real fix:** Render one identity repeatedly during the P0 slice and record what
+the operator accepted and rejected. That corpus is the calibration set for
+`ASSET-P1-005`, and it does not exist until the loop runs.
+
+**Owner:** unassigned.
+
+**Refs:** `ASSET-P0-010`, `ASSET-P0-011`, `ASSET-P1-005`, D-006.
+
+### 2026-07-28 — the rich-media catalogue has never been schema-validated
+
+**Symptom:** Import is expected to fail on files that currently look fine.
+Characters, scenes, and products were authored as hand-written JSON against a
+`_template.json` with no validator, so shape drift between entries is likely
+and currently invisible.
+
+**Root cause:** The catalogue is documentation that happens to be JSON. Nothing
+has ever read it programmatically.
+
+**Workaround:** None needed yet — nothing consumes it. Treat the first import
+run as a discovery exercise rather than a migration, and expect to fix sources
+rather than loosen the schema.
+
+**Real fix:** Import surfaces the failures per item (`ASSET-P0-003` aborts an
+item rather than importing it partially), and the sources are corrected in
+canon by decision. Loosening the schema to make import quiet would defeat the
+requirement.
+
+**Owner:** unassigned.
+
+**Refs:** `ASSET-P0-003`, `docs/marketing/catalogs/rich-media/`.
+
+### 2026-07-28 — produced artifacts have nowhere to be published
+
+**Symptom:** Every image and video post type in the marketing catalogue is
+inactive (`v0`, no paired skill), and no persona account exists on any platform.
+An artifact released by this scenario cannot currently reach an audience.
+
+**Root cause:** Three separate gates sit outside this scenario: paired post-type
+skills must be authored, a `channel-strategy-update` decision must activate
+persona accounts with a slate and disclosure protocol, and account warming must
+run.
+
+**Workaround:** None. This is a sequencing fact, not a defect — the scenario is
+still worth building because it is on the critical path to all three, and its
+first artifact can be consumed by `content-desk` without being published.
+
+**Real fix:** Outside this repository directory. Track it where the gates live.
+
+**Owner:** operator (the channel decision is not an agent's to raise while the
+marketing team is paused).
+
+**Refs:** `docs/marketing/strategy/CHANNELS.md`,
+`docs/marketing/catalogs/post-types/`, D-014.
+
+### 2026-07-28 — the `video-studio` skill points at a scenario that does not exist
+
+**Symptom:** `scenarios/prompt-manager/store/skills/packs/core/video-studio/`
+is marked `active` with `scenario: null`. It describes browser recording,
+desktop recording, and FFmpeg compositing — scope that now belongs to
+`ASSET-P1-003` and `ASSET-P1-004`.
+
+**Root cause:** The capability was recognised and never built. The skill was
+authored anyway.
+
+**Workaround:** None. It misleads any agent that discovers it, in the same way
+the retired `campaign-content-studio` skill did.
+
+**Real fix:** When `ASSET-P1-003` lands, either retarget the skill at this
+scenario or retire it. Decide deliberately rather than leaving it dangling —
+that is the same cleanup `content-desk` D-002 left open for its predecessor.
+
+**Owner:** unassigned.
+
+**Refs:** `ASSET-P1-003`, `ASSET-P1-004`, D-009.
+
+### 2026-07-28 — no artifact-pruning policy, and generation volume is unknown
+
+**Symptom:** Asset bytes accumulate with no deletion path. `DATA.md` records
+that deleting a released asset's bytes while retaining its record is
+unspecified.
+
+**Root cause:** Volume cannot be estimated before the loop runs. Video at any
+meaningful frame count is orders of magnitude larger than the still images P0
+produces, so an estimate made now would be wrong in whichever direction video
+lands.
+
+**Workaround:** Local filesystem storage with no quota. Acceptable at P0 volume.
+
+**Real fix:** Decide the pruning policy once real volume exists, and make it
+preserve provenance and verdicts — a removed artifact must still be explicable.
+
+**Owner:** unassigned.
+
+**Refs:** `DATA.md` § Retention And Deletion, `ASSET-P1-002`.
+
+## Architecture Drift
+
+Use this section for deferred findings from `screaming-architecture-audit`.
+Do not create a standalone architecture-audit report unless the work is
+a migration handoff with a planned retirement path back into
+`ARCHITECTURE.md`, `SEAMS.md`, or this file.
+
+| Area | Drift | Maturity Impact | Real Fix |
+|---|---|---|---|
+| Docs vs code | The full concept and internal doc set describes five product domains that do not exist in code. This is expected for a designed-not-implemented scenario, but it is drift until the first slice lands, and a reader must not mistake `ARCHITECTURE.md` for a description of what runs. | Docs report `active`; API, UI, CLI, and contracts report `Scaffold` in the maturity table. | Build the P0 slice. The maturity table in `ARCHITECTURE.md` is the honest record until then. |
+| Example domain | The template `notes` domain and its fenced doc blocks are still present. | Blocks the `example-domain-removed` orientation gate. | `template-manager detemplate asset-studio` once the real domains are green — not before, since it is the only worked vertical-slice reference in the tree. |
+
+## Cross-references
+
+- [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
+- [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
+- [`TESTING.md`](TESTING.md) — test patterns
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues

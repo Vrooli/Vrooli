@@ -1,0 +1,442 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ASSET-P0-001",
+      "title": "Identity registry",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "identities",
+      "criticality": "P0",
+      "description": "Characters, scenes, and products are one record kind with a discriminator, because they share the property that makes them worth modelling: each must look the same every time it is rendered. A record carries a frozen identity block, descriptive traits, and links to reference images. Validation is per kind — a character requires the traits a model needs to reproduce a face and build; a scene requires environment and lighting; a product requires form and finish. The marketing catalogue holds this data today as unvalidated JSON, so schema validation is the first thing this domain adds.",
+      "tags": ["identities", "schema", "registry"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A record of each kind with all required fields round-trips through the repository with its identity block intact."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A record missing a kind-required trait is rejected with a typed error naming the missing field, not silently stored."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "CLI identity create then show round-trips through Connect and appears in identity list filtered by kind."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-002",
+      "title": "Identity immutability and versioning",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "identities",
+      "criticality": "P0",
+      "description": "An identity block that any accepted asset already references cannot be edited in place; a change creates a new version and the old version remains resolvable. Without this the provenance record is a lie — re-rendering from a recorded identity version would silently produce a different-looking character, which is precisely the drift the scenario exists to prevent. Unreferenced drafts of an identity stay freely editable, so the constraint only binds once something depends on it.",
+      "tags": ["identities", "immutability", "provenance", "gate"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Editing an identity block referenced by an accepted asset is rejected; editing an unreferenced one succeeds."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Creating a new version leaves the prior version resolvable by its version identifier."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An asset's recorded identity version continues to resolve to the block it was rendered from after a later version exists."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-003",
+      "title": "Idempotent canon import",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "identities",
+      "criticality": "P0",
+      "description": "Character, scene, and product definitions are imported from the marketing rich-media catalogue, keyed by a content-addressed hash rather than a path offset or a watermark, so a re-run is a no-op for anything unchanged. This follows the same decision made in vrooli-memory and content-desk for the same reason: every source is a file a human or an agent rewrites and reorders, and a positional key re-imports the whole file on the first reflow. Import is one-directional — the scenario never writes back into the catalogue.",
+      "tags": ["identities", "import", "idempotency"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Importing the same source twice creates records once; the second run reports zero new items."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A source file whose content changed imports as a new version rather than duplicating the identity."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A source that fails schema validation aborts that item and reports it, rather than importing a partial record."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Import over the real catalogue directory populates the library and leaves the source files byte-identical."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-004",
+      "title": "Asset spec composition",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "specs",
+      "criticality": "P0",
+      "description": "A spec binds identity records to a prompt template and resolves to the model-facing payload a render will submit. The binding stores identity versions, not identity ids, so the resolved payload is reproducible. Resolution is a pure function of spec plus bound versions plus template — no ambient state — which is what makes regeneration from provenance possible later.",
+      "tags": ["specs", "composition", "determinism"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Resolving the same spec twice produces a byte-identical payload."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A spec binds identity versions; creating a newer identity version does not change an existing spec's resolved payload."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "CLI spec compose then spec show returns the resolved payload with each bound identity named."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-005",
+      "title": "Spec validation",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "specs",
+      "criticality": "P0",
+      "description": "A spec whose template contract has unfilled required fields is refused before submission, with every missing field named. Submitting a partial prompt is the expensive failure: the model returns something plausible, the cost is incurred, and the defect is only visible when a human looks at the frame. Validation is cheap and happens before spend.",
+      "tags": ["specs", "validation", "gate", "cost"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A spec missing required template fields is rejected and the error lists every missing field, not only the first."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A complete spec validates and becomes renderable."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-006",
+      "title": "Render job lifecycle",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "renders",
+      "criticality": "P0",
+      "description": "Each render is a job with an explicit status, and transitions not declared in the lifecycle contract are rejected rather than discouraged. The lifecycle is modelled as a Level 5 formal flow because a long-running external call with retries, partial failure, cancellation, and cost is the archetypal case where untested branches accumulate. Illegal transitions worth enforcing include reaching a terminal state without a recorded outcome, and any transition out of a terminal state.",
+      "tags": ["renders", "lifecycle", "workflow", "flow-verifier"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Every state/event pair in the transition matrix is exercised and illegal transitions are refused."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Formal replay: the generated artifact replays against the production transition function."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A job that fails mid-render records the failure and leaves no partial asset in the library."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A cancelled job stops consuming backend capacity and reports a terminal cancelled state."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-007",
+      "title": "Render provenance",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "renders",
+      "criticality": "P0",
+      "description": "Every produced artifact records the spec version, each bound identity version, the backend, the model, the seed, and the resolved parameters. This is the record that makes an asset auditable and, at P1, regenerable. It is recorded at P0 rather than added later because provenance cannot be backfilled — an artifact produced without it can never acquire it.",
+      "tags": ["renders", "provenance", "audit"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A completed job stores every provenance field; a job missing any of them fails rather than storing a partial record."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Provenance resolves to the exact identity block versions used, even after newer versions exist."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "CLI asset provenance prints the full chain from asset back to source identity records."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-008",
+      "title": "Generation cost accounting",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "renders",
+      "criticality": "P0",
+      "description": "Every render job records an estimated cost before submission and an actual cost after, and spend is reportable by spec, identity, and campaign reference. Generation spend is unbounded in a way editorial work is not — a mis-specified multi-frame video spec can cost real money before a human sees a frame. Cost is P0 rather than an operational nicety because a pipeline that cannot answer what it spent cannot be given a budget later.",
+      "tags": ["renders", "cost", "reporting"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A job records an estimate before submission and an actual after completion; a failed job still records what it consumed."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Spend aggregates correctly by spec and by campaign reference across multiple jobs."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "CLI render cost reports non-zero spend after a completed job through the fake backend."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-009",
+      "title": "Asset library",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "assets",
+      "criticality": "P0",
+      "description": "Produced artifacts are stored behind the BlobStore seam with their metadata, derived variants, dimensions, and alt text, and served by stable identifier. Unlike content-desk, this scenario stores bytes — that is the fork between the two, and it is why the blob seam is present here and deliberately absent there. Derived variants for aspect ratios and formats are produced through image-tools rather than reimplemented.",
+      "tags": ["assets", "storage", "blobstore", "variants"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An asset stores bytes through the blob seam and its metadata in SQLite; retrieval by identifier returns both."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Alt text is required; an asset without it cannot be released."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A derived variant at a second aspect ratio is produced through image-tools and linked to its parent asset."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-010",
+      "title": "Identity conformance gate",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "conformance",
+      "criticality": "P0",
+      "description": "An asset cannot be released while any of its frames carries an unresolved conformance verdict against the identity it claims to depict. This is the gate that makes the scenario worth building: without it, the identity registry is decorative because nothing checks that the render honoured it. It is the visual analogue of content-desk's claim gate, and it fails closed for the same reason — an unchecked frame is not a passing frame.",
+      "tags": ["conformance", "gate", "release"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Release is refused while any frame has no verdict, and the error names the specific frame and identity."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Release is refused when a frame carries a failing verdict; it succeeds when every frame passes."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An asset depicting no identity requires no conformance verdict and can be released."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-011",
+      "title": "Operator-confirmed conformance",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "conformance",
+      "criticality": "P0",
+      "description": "A conformance verdict is accepted only from a human operator identity, and the record stores which actor judged which frame, against which reference, and when. Automated scoring is P1 and arrives as a recommendation, never as a pass — the same shape as approval in content-desk, and for the same reason: this is the judgement the whole gate rests on, so it stays human while the scoring model is unvalidated.",
+      "tags": ["conformance", "operator", "attribution"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A verdict submitted by a non-operator actor is rejected with a typed error."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An accepted verdict records actor, actor kind, reference image, frame, and timestamp."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-012",
+      "title": "Disclosure metadata at birth",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "assets",
+      "criticality": "P0",
+      "description": "Every generatively produced asset is marked AI-generated and carries its disclosure requirement on the asset record from creation. Platform AI labels and FTC disclosure are applied at post time by another system, and that step must not depend on someone remembering what produced the file. Carrying it at birth means the requirement travels with the asset reference into content-desk and onward to the scheduler.",
+      "tags": ["assets", "disclosure", "ai-ugc", "compliance"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An asset produced by a generative backend is marked AI-generated without the caller having to set it."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "The disclosure requirement is present on the asset reference returned to a consuming scenario."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-013",
+      "title": "Credential-claim guard",
+      "status": "planned",
+      "prd_ref": "OT-P0-013",
+      "category": "conformance",
+      "criticality": "P0",
+      "description": "Every persona-depicting record holds an explicit credential-claims field that must be empty, and release is refused when it is not. The AI-UGC canon permits implication via persona traits and bans specific false credential claims; encoding that as a required-empty field makes the ban structural rather than a review note, and makes a violation impossible to introduce silently.",
+      "tags": ["conformance", "ai-ugc", "policy", "gate"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A persona identity with a non-empty credential-claims field blocks release of any asset depicting it."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "The field is required rather than optional, so a record cannot omit it and bypass the check."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-014",
+      "title": "Asset reference surface",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "assets",
+      "criticality": "P0",
+      "description": "Released assets are exposed by stable identifier with their metadata and disclosure state, so a consuming scenario references an asset rather than copying its bytes. This is the seam content-desk uses: it stores a reference, never an image, which keeps exactly one copy of every artifact and one place where disclosure state is true.",
+      "tags": ["assets", "integration", "seam"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An unreleased asset is not resolvable through the reference surface."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A released asset resolves by identifier over Connect with metadata, dimensions, alt text, and disclosure state."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-015",
+      "title": "Operator workbench",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "A UI to browse the identity library, compose and validate a spec, watch the render queue, judge conformance, and release an asset. Whenever release is unavailable the surface states the specific cause — unresolved verdict, non-empty credential claims, missing alt text, missing disclosure. Conformance review puts the rendered frame beside its reference sheet, because that side-by-side comparison is the judgement being made.",
+      "tags": ["ui", "workbench", "accessibility"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "The release control is disabled with a specific, rendered reason for each blocking condition."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Accessibility: queue, composer, and conformance review are keyboard reachable with visible focus and no colour-only status."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Browser case: compose a spec, render through the fake backend, judge conformance, and release."
+        }
+      ]
+    }
+  ]
+}
