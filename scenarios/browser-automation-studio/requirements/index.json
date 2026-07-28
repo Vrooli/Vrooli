@@ -19,8 +19,7 @@
     "04-ai/ai/generation.json",
     "05-replay/replay/core.json",
     "06-nonfunctional/performance/lighthouse.json",
-    "06-nonfunctional/error-handling/graceful-degradation.json",
-    "90-uncovered-targets/module.json"
+    "06-nonfunctional/error-handling/graceful-degradation.json"
   ],
   "meta": {
     "generated": "2025-11-10",

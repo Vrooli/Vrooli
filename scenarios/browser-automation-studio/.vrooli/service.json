@@ -171,7 +171,7 @@
         },
         {
           "name": "start-api",
-        "run": "export VROOLI_TEST_MODE_FORCE_ENABLE=1; if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
+        "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
