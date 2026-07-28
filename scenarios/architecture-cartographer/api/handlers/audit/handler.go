@@ -19,7 +19,6 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
-	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -46,8 +45,11 @@ func NewHandler(deps HandlerDeps) *Handler {
 }
 
 var (
-	_ audit_v1connect.AuditServiceHandler                        = (*Handler)(nil)
-	_ scenariovalidationconnect.ScenarioValidationServiceHandler = (*Handler)(nil)
+	_ audit_v1connect.AuditServiceHandler = (*Handler)(nil)
+	// Handler implements every validation RPC except DescribeProvider, which the
+	// shared assessment.Describer composes in at the mount site. Asserting the
+	// provider-implemented subset keeps that split honest at compile time.
+	_ assessment.ValidationServer = (*Handler)(nil)
 )
 
 func (h *Handler) RunAll(ctx context.Context, req *connect.Request[auditv1.AuditRunAllRequest]) (*connect.Response[auditv1.AuditRunAllResponse], error) {

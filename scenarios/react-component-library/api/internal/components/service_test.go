@@ -413,10 +413,10 @@ func TestService_CreateComponentVersionPreservesOperatorParityReport(t *testing.
 		HarvestedFiles: []string{"MarkdownRenderer.tsx"},
 	}
 	got, err := svc.CreateComponentVersion(context.Background(), components.CreateComponentVersionInput{
-		ComponentID: created.Component.ID,
-		Version:     "1.0.0",
-		FromVersion: created.DraftVersion,
-		Intent:      components.VersionIntentRelease,
+		ComponentID:  created.Component.ID,
+		Version:      "1.0.0",
+		FromVersion:  created.DraftVersion,
+		Intent:       components.VersionIntentRelease,
 		ParityReport: want,
 	})
 	require.NoError(t, err)

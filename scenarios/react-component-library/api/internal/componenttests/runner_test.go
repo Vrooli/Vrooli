@@ -22,6 +22,7 @@ func (a assets) Get(_ context.Context, id string) (components.Component, error) 
 	}
 	return components.Component{}, errors.New("not found")
 }
+
 func (a assets) GetByLibraryID(_ context.Context, id string) (components.Component, error) {
 	if id == a.dependency.LibraryID {
 		return a.dependency, nil
@@ -31,6 +32,7 @@ func (a assets) GetByLibraryID(_ context.Context, id string) (components.Compone
 	}
 	return components.Component{}, errors.New("not found")
 }
+
 func (a assets) GetVersion(_ context.Context, id, version string) (components.ComponentVersion, error) {
 	v, ok := a.versions[id+"@"+version]
 	if !ok {

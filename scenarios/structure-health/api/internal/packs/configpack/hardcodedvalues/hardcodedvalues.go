@@ -196,6 +196,14 @@ func containsValidIPv4(line string) bool {
 	return false
 }
 
+// isSVGPathData identifies inline SVG geometry. Path data is a compact sequence
+// of coordinates, so values such as "4.25 17 2.94" can accidentally form a
+// valid dotted quad even though they are not network configuration.
+func isSVGPathData(line string) bool {
+	lower := strings.ToLower(line)
+	return strings.Contains(lower, "<path") && (strings.Contains(lower, ` d="`) || strings.Contains(lower, ` d='`))
+}
+
 // CheckHardcodedValues detects hardcoded configuration values
 func CheckHardcodedValues(content []byte, filePath string) []Violation {
 	var violations []Violation
@@ -261,6 +269,9 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 			strings.HasPrefix(strings.TrimSpace(line), "//") ||
 			strings.Contains(line, "fmt.") ||
 			strings.Contains(line, "log.") {
+			continue
+		}
+		if isSVGPathData(line) {
 			continue
 		}
 
@@ -425,6 +436,12 @@ var hardcodedValuesLockfileBasenames = map[string]struct{}{
 }
 
 func shouldSkipHardcodedValuesFile(filePath string) bool {
+	// Wizard help is user-facing instructional content. External documentation
+	// links and example endpoints in it are content, not deploy-time settings.
+	if strings.Contains(strings.ToLower(filepath.ToSlash(filePath)), "/help-content/") {
+		return true
+	}
+
 	base := filepath.Base(filePath)
 	if _, ok := hardcodedValuesLockfileBasenames[base]; ok {
 		return true

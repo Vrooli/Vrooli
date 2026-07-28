@@ -21,8 +21,7 @@ Each workflow JSON must include:
 
 Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
 
-```bash
-test-genie registry build
-```
+Run `test-genie registry build` from the scenario directory. This local Test
+Genie registry-builder subcommand regenerates `bas/registry.json`.
 
 This regenerates `bas/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on.

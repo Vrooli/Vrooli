@@ -149,7 +149,7 @@ func isoCollectSeams(absPath string, present map[string]bool) {
 		// The combined registration is the stricter successor to the
 		// database-only seam: it mounts the same RoutingService plus leased
 		// file roots, so it satisfies the DB registration proof as well.
-		if path == "github.com/vrooli/api-core/devrouting" && sel.Sel.Name == "RegisterWithFileRoots" {
+		if path == "github.com/vrooli/api-core/devrouting" && (sel.Sel.Name == "RegisterWithFileRoots" || sel.Sel.Name == "RegisterWithFileRootsService") {
 			present["devrouting.Register"] = true
 		}
 		return true
@@ -293,7 +293,7 @@ func (isoFileRoutedSeams) Analyze(_ context.Context, ac AnalyzerContext) ([]Find
 			case "github.com/vrooli/api-core/filerouting":
 				hasRoots = hasRoots || sel.Sel.Name == "New"
 			case "github.com/vrooli/api-core/devrouting":
-				hasRegistration = hasRegistration || sel.Sel.Name == "RegisterWithFileRoots"
+				hasRegistration = hasRegistration || sel.Sel.Name == "RegisterWithFileRoots" || sel.Sel.Name == "RegisterWithFileRootsService"
 			}
 			return true
 		})

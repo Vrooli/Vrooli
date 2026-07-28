@@ -40,7 +40,7 @@ func (v *Validator) ValidateScenario(ctx context.Context, scenario, explicitPath
 	report.Provenance = prov
 	if !found {
 		report.Findings = append(report.Findings, Finding{
-			Code:        CodeProvenanceMissing,
+			Code: CodeProvenanceMissing,
 			// A scenario can be hand-built or predate template provenance.
 			// Keep that lineage gap visible and fixable, but do not make it a
 			// deployment blocker unless a generated template is actually claimed.

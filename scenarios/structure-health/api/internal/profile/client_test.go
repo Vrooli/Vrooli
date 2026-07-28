@@ -6,12 +6,31 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 type fakeLocator struct{ root string }
 
 func (l fakeLocator) Locate(_ context.Context, scenario, _ string) (string, string, string, error) {
 	return scenario, "scenario", l.root, nil
+}
+
+func TestFromCodeFactsExcludesMissingSurfaces(t *testing.T) {
+	report := &factsv1.CodeFactsReport{
+		Surfaces: []*factsv1.Surface{
+			{Id: "api", Kind: factsv1.SurfaceKind_SURFACE_KIND_API, Status: factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN, Path: "api"},
+			{Id: "runtime", Kind: factsv1.SurfaceKind_SURFACE_KIND_RUNTIME, Status: factsv1.SurfaceStatus_SURFACE_STATUS_MISSING, Path: "runtime"},
+		},
+	}
+
+	facts := fromCodeFacts(report, "demo", "scenario", t.TempDir())
+	if len(facts.Surfaces) != 1 {
+		t.Fatalf("surface count = %d, want 1: %+v", len(facts.Surfaces), facts.Surfaces)
+	}
+	if facts.Surfaces[0].ID != "api" {
+		t.Fatalf("only known API surface should remain: %+v", facts.Surfaces)
+	}
 }
 
 type erroringResolver struct{}

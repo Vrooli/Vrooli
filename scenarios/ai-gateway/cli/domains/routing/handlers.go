@@ -19,7 +19,10 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	// ExecuteRoute is bounded by GatewayRequest.timeout_ms.  Keep the CLI
+	// transport from imposing a shorter, invisible deadline than that explicit
+	// execution contract (notably for local-model cold starts).
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	return &handlers{client: routingconnect.NewRoutingServiceClient(httpClient, baseURL)}
 }
 

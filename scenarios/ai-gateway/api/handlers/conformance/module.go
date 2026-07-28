@@ -21,6 +21,14 @@ func Module(logger *log.Logger, repoRoot string, deps ...Deps) module.Module {
 	if len(deps) > 0 {
 		d = deps[0]
 	}
+	// DescribeProvider answers readiness from this provider's own descriptor,
+	// so a readiness probe no longer costs a full target analysis. A load
+	// failure yields the zero Describer, which reports Unimplemented and makes
+	// consumers fall back to the legacy probe.
+	var describer assessment.Describer
+	if repoRoot != "" {
+		describer, _ = assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", "ai-gateway"))
+	}
 	if d.MaturitySpec == nil && repoRoot != "" {
 		spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "ai-gateway"))
 		if err != nil && logger != nil {
@@ -30,7 +38,7 @@ func Module(logger *log.Logger, repoRoot string, deps ...Deps) module.Module {
 	}
 	handler := NewConnectHandler(d)
 	connectPath, connectHandler := conformanceconnect.NewConformanceServiceHandler(NewConnectHandler(d))
-	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
 	return module.Module{
 		Name: "conformance",
 		Mount: func(r *mux.Router) {

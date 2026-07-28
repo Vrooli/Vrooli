@@ -26,9 +26,33 @@ func TestExampleFormalReplay(t *testing.T) {
 		return s, nil
 	})
 }
-`)
+	`)
 	if err := Check(root, flow); err != nil {
 		t.Fatalf("unexpected lint failure: %v", err)
+	}
+}
+
+func TestGoLintAcceptsScenarioAPIModuleImport(t *testing.T) {
+	root := t.TempDir()
+	flow := testkit.MustCompile(t, testkit.ValidRawContract())
+	writeFile(t, root, "api/go.mod", "module example-memory\n\ngo 1.25.0\n")
+	writeFile(t, root, flow.Layout.BaseDir+"/flow_test.go", `package flow
+
+import (
+	"testing"
+
+	"example-memory/internal/example/flow/generated"
+)
+
+func TestExampleFormalReplay(t *testing.T) {
+	generated.RunReplay(t, func(s generated.Status, e generated.Event) (generated.Status, error) {
+		return s, nil
+	})
+}
+`)
+
+	if err := Check(root, flow); err != nil {
+		t.Fatalf("scenario api/go.mod import should satisfy lint: %v", err)
 	}
 }
 

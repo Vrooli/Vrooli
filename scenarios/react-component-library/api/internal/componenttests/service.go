@@ -10,6 +10,7 @@ type Service struct {
 func NewService(runner Runner, reports Repository) *Service {
 	return &Service{runner: runner, reports: reports}
 }
+
 func (s *Service) Run(ctx context.Context, request Request) (Report, error) {
 	report, err := s.runner.Run(ctx, request)
 	if err != nil {
@@ -28,6 +29,7 @@ func (s *Service) Rerun(ctx context.Context, id string) (Report, error) {
 	}
 	return s.Run(ctx, Request{ComponentID: previous.RootComponentID, Version: previous.RootVersion, IncludeClosure: previous.IncludeClosure})
 }
+
 func (s *Service) List(ctx context.Context, componentID string, limit int) ([]Report, error) {
 	return s.reports.List(ctx, componentID, limit)
 }

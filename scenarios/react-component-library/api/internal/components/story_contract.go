@@ -326,9 +326,11 @@ func validateStoryValue(pointer string, field StoryField, raw json.RawMessage) [
 	return nil
 }
 
-var storyPathSegment = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
-var storyID = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
-var storyHarnessExport = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
+var (
+	storyPathSegment   = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
+	storyID            = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+	storyHarnessExport = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
+)
 
 var javascriptReservedWords = map[string]struct{}{
 	"await": {}, "break": {}, "case": {}, "catch": {}, "class": {}, "const": {}, "continue": {}, "debugger": {}, "default": {}, "delete": {}, "do": {}, "else": {}, "enum": {}, "export": {}, "extends": {}, "false": {}, "finally": {}, "for": {}, "function": {}, "if": {}, "implements": {}, "import": {}, "in": {}, "instanceof": {}, "interface": {}, "let": {}, "new": {}, "null": {}, "package": {}, "private": {}, "protected": {}, "public": {}, "return": {}, "super": {}, "switch": {}, "static": {}, "this": {}, "throw": {}, "true": {}, "try": {}, "typeof": {}, "var": {}, "void": {}, "while": {}, "with": {}, "yield": {},
@@ -355,9 +357,11 @@ func validHarnessExport(value string) bool {
 	_, reserved := javascriptReservedWords[value]
 	return !reserved
 }
+
 func storyDiagnostic(pointer, rule, detail string) StoryDiagnostic {
 	return StoryDiagnostic{Pointer: pointer, Rule: rule, Detail: detail}
 }
+
 func allowedInteraction(kind string) bool {
 	return map[string]bool{"click": true, "type": true, "key": true, "focus": true, "blur": true, "waitFor": true, "settle": true}[kind]
 }
@@ -402,6 +406,7 @@ func validateStoryInteraction(pointer string, assetKind StoryKind, interaction S
 	}
 	return nil
 }
+
 func allowedExpectation(kind string) bool {
 	return map[string]bool{"role": true, "text": true, "attribute": true, "visible": true, "notVisible": true}[kind]
 }

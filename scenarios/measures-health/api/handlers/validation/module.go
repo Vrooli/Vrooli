@@ -28,6 +28,11 @@ var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_prot
 // validation_run history.
 func Module(repoRoot string, recorder RunRecorder, logger *log.Logger) module.Module {
 	v := internal.NewFilesystemValidator(repoRoot)
+	// DescribeProvider answers readiness from this provider's own descriptor,
+	// so a readiness probe no longer costs a full target analysis. A load
+	// failure yields the zero Describer, which reports Unimplemented and makes
+	// consumers fall back to the legacy probe.
+	describer, _ := assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", "measures-health"))
 	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "measures-health"))
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment disabled: %v", err)
@@ -49,7 +54,7 @@ func Module(repoRoot string, recorder RunRecorder, logger *log.Logger) module.Mo
 		MaturitySpec: spec,
 		Environment:  environment,
 	})
-	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
 	nativePath, nativeHandler := validationconnect.NewValidationServiceHandler(handler)
 	return module.Module{
 		Name: "validation",
@@ -101,6 +106,24 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Validate swarm-manager", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"},
 		},
+	},
+	{
+		ID:          "validation_describe_provider",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceDescribeProviderProcedure,
+		Method:      "POST",
+		Summary:     "Describe this provider's identity and contract",
+		Description: "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider":     "string",
+			"phase":        "string",
+			"spec_version": "string",
+			"contract":     "string",
+			"build":        "scenario_validation.v1.ProviderBuild",
+			"capabilities": "scenario_validation.v1.ProviderCapabilities",
+		}},
+		Examples: []module.Example{{Name: "Describe provider", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"}},
 	},
 	{
 		ID:          "validation_preview_fix",

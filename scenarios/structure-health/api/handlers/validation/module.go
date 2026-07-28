@@ -30,6 +30,11 @@ var (
 // ScenarioValidationService (dual-mount), backed by one internal engine.
 func Module(logger *log.Logger, repoRoot string) module.Module {
 	svc := internalvalidation.New()
+	// DescribeProvider answers readiness from this provider's own descriptor,
+	// so a readiness probe no longer costs a full target analysis. A load
+	// failure yields the zero Describer, which reports Unimplemented and makes
+	// consumers fall back to the legacy probe.
+	describer, _ := assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", "structure-health"))
 	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "structure-health"))
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment unavailable: %v", err)
@@ -53,7 +58,7 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		Environment:  environment,
 	})
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(handler)
-	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewSharedHandler(handler))
+	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewSharedHandler(handler), describer))
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {
@@ -134,6 +139,24 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "include_execution": "bool"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "status": "scenario_validation.v1.ValidationStatus", "assessment": "common.v1.MaturityAssessment", "native_detail": "google.protobuf.Any<structure_health.v1.validation.ValidateScenarioResponse>"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
+	},
+	{
+		ID:          "validation_describe_provider",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceDescribeProviderProcedure,
+		Method:      "POST",
+		Summary:     "Describe this provider's identity and contract",
+		Description: "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider":     "string",
+			"phase":        "string",
+			"spec_version": "string",
+			"contract":     "string",
+			"build":        "scenario_validation.v1.ProviderBuild",
+			"capabilities": "scenario_validation.v1.ProviderCapabilities",
+		}},
+		Examples: []module.Example{{Name: "Describe provider", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"}},
 	},
 	{
 		ID:          "scenario_validation_preview_fix",

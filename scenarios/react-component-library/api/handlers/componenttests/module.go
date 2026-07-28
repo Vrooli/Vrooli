@@ -49,6 +49,7 @@ func (h *connectHandler) RunComponentTest(ctx context.Context, req *connect.Requ
 	}
 	return connect.NewResponse(&componenttestsv1.RunComponentTestResponse{Report: toProto(report)}), nil
 }
+
 func (h *connectHandler) RerunComponentTest(ctx context.Context, req *connect.Request[componenttestsv1.RerunComponentTestRequest]) (*connect.Response[componenttestsv1.RerunComponentTestResponse], error) {
 	report, err := h.service.Rerun(ctx, req.Msg.GetReportId())
 	if err != nil {
@@ -56,6 +57,7 @@ func (h *connectHandler) RerunComponentTest(ctx context.Context, req *connect.Re
 	}
 	return connect.NewResponse(&componenttestsv1.RerunComponentTestResponse{Report: toProto(report)}), nil
 }
+
 func (h *connectHandler) GetComponentTestReport(ctx context.Context, req *connect.Request[componenttestsv1.GetComponentTestReportRequest]) (*connect.Response[componenttestsv1.GetComponentTestReportResponse], error) {
 	report, err := h.service.Get(ctx, req.Msg.GetId())
 	if err != nil {
@@ -63,6 +65,7 @@ func (h *connectHandler) GetComponentTestReport(ctx context.Context, req *connec
 	}
 	return connect.NewResponse(&componenttestsv1.GetComponentTestReportResponse{Report: toProto(report)}), nil
 }
+
 func (h *connectHandler) ListComponentTestReports(ctx context.Context, req *connect.Request[componenttestsv1.ListComponentTestReportsRequest]) (*connect.Response[componenttestsv1.ListComponentTestReportsResponse], error) {
 	reports, err := h.service.List(ctx, req.Msg.GetComponentId(), int(req.Msg.GetLimit()))
 	if err != nil {
@@ -74,6 +77,7 @@ func (h *connectHandler) ListComponentTestReports(ctx context.Context, req *conn
 	}
 	return connect.NewResponse(&componenttestsv1.ListComponentTestReportsResponse{Reports: out}), nil
 }
+
 func (h *connectHandler) error(err error) error {
 	var validation domain.ValidationError
 	switch {
@@ -88,6 +92,7 @@ func (h *connectHandler) error(err error) error {
 		return connect.NewError(connect.CodeInternal, err)
 	}
 }
+
 func toProto(report domain.Report) *componenttestsv1.ComponentTestReport {
 	out := &componenttestsv1.ComponentTestReport{Id: report.ID, RootLibraryId: report.RootLibraryID, RootVersion: report.RootVersion, IncludeClosure: report.IncludeClosure, CreatedAt: timestamppb.New(report.CreatedAt), Verdict: string(report.Verdict), Results: make([]*componenttestsv1.ComponentTestResult, 0, len(report.Results)), Artifacts: make([]*componenttestsv1.ComponentTestArtifact, 0, len(report.Artifacts))}
 	for _, result := range report.Results {

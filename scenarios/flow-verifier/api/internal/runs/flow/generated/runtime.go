@@ -27,7 +27,7 @@ const VerificationRunModelPath = "internal/runs/flow/generated/model.qnt"
 const VerificationRunGeneratorPath = "flow-verifier"
 const VerificationRunContractSHA256 = "1ff3039447adc574cee48fe1dc596c413e7c228af2d7b12c6c7beb67cfea7039"
 const VerificationRunModelSHA256 = "11da793c523096d4aa252f440c50f2fba936ece5ce506fbbe2d256c3f1733555"
-const VerificationRunGeneratorSHA256 = "b7362f6363aea370c6932eb535d0ce1300ebe0d7c711e026dc045a0a468c6312"
+const VerificationRunGeneratorSHA256 = "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864"
 
 var verificationRunFormalInvariants = []string{"TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState"}
 var verificationRunFormalGeneratedChecks = []string{"transitionTable"}

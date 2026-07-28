@@ -130,10 +130,20 @@ func TestHardcodedIPRejectsVersionsAndTestFiles(t *testing.T) {
 	if got := CheckHardcodedValues([]byte(`const version = "1.2.3.4"`), "api/version.go"); countByTitle(got, "Hardcoded Ip") != 0 {
 		t.Fatalf("semantic version produced violations: %+v", got)
 	}
+	if got := CheckHardcodedValues([]byte(`<path d="M4.25 17 2.94 12.45" />`), "ui/Icon.tsx"); countByTitle(got, "Hardcoded Ip") != 0 {
+		t.Fatalf("inline SVG path data produced violations: %+v", got)
+	}
 }
 
 func TestHardcodedURLAllowsJSONSchemaIdentifier(t *testing.T) {
 	if got := CheckHardcodedValues([]byte(`"$schema": "https://json-schema.org/draft/2020-12/schema"`), "ui/schema.json"); countByTitle(got, "Hardcoded Url") != 0 {
 		t.Fatalf("schema identifier produced violations: %+v", got)
+	}
+}
+
+func TestHardcodedValuesSkipsInstructionalHelpContent(t *testing.T) {
+	got := CheckHardcodedValues([]byte(`<a href="https://docs.example.net/setup">Setup guide</a>`), "ui/components/storage-wizard/help-content/SetupHelp.tsx")
+	if len(got) != 0 {
+		t.Fatalf("instructional help content produced violations: %+v", got)
 	}
 }

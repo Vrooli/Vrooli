@@ -70,6 +70,7 @@ func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
 	require.Equal(t, http.StatusOK, list.Code, list.Body.String())
 	require.Contains(t, list.Body.String(), `"reports"`)
 }
+
 func call(router *mux.Router, path, body string) *httptest.ResponseRecorder {
 	request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")

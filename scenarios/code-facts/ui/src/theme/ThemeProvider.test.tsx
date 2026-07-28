@@ -20,6 +20,8 @@ describe("ThemeProvider", () => {
   beforeEach(() => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-theme");
+    document.documentElement.style.setProperty("--color-background", "#f8fafc");
+    document.head.innerHTML = '<meta name="theme-color" content="#0f172a" />';
   });
 
   afterEach(() => {
@@ -29,14 +31,33 @@ describe("ThemeProvider", () => {
   it("sets data-theme on the html element for an explicit light choice", () => {
     renderHook(() => useTheme(), { wrapper: wrapper("light") });
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("#f8fafc");
+  });
+
+  it("creates theme-color metadata when an embedding shell did not provide it", () => {
+    document.head.innerHTML = "";
+
+    renderHook(() => useTheme(), { wrapper: wrapper("light") });
+
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("#f8fafc");
+  });
+
+  it("does not replace existing browser chrome metadata when the surface token is unavailable", () => {
+    document.documentElement.style.removeProperty("--color-background");
+
+    renderHook(() => useTheme(), { wrapper: wrapper("light") });
+
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("#0f172a");
   });
 
   it("sets data-theme to dark when the user chooses dark", () => {
     const { result } = renderHook(() => useTheme(), { wrapper: wrapper("light") });
+    document.documentElement.style.setProperty("--color-background", "#020617");
     act(() => result.current.setTheme("dark"));
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
     expect(result.current.choice).toBe("dark");
     expect(result.current.resolved).toBe("dark");
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("#020617");
   });
 
   it("removes data-theme when the user chooses system", () => {

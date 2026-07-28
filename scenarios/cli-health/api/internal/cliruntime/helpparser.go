@@ -134,21 +134,47 @@ var (
 
 // parseHelpEntries extracts the subcommand entries from a help blob. It walks
 // section by section; sections whose header signals "flags/options/etc." are
-// skipped. Category sub-labels (a single token at lower indentation than the
-// commands below it, with no description) are tolerated and ignored.
+// skipped. cli-core renders category sub-labels at a lower indentation than
+// their commands. Those labels may contain multiple words (for example "AI
+// Gateway"), so indentation—not the presence of a description—is the
+// authority for distinguishing them from commands.
 func parseHelpEntries(helpOut []byte) []helpEntry {
 	lines := strings.Split(string(helpOut), "\n")
 	var (
-		out      []helpEntry
-		inAccept bool
-		seen     = make(map[string]struct{})
+		out        []helpEntry
+		inAccept   bool
+		seen       = make(map[string]struct{})
+		candidates []helpEntryCandidate
 	)
+	flush := func() {
+		if len(candidates) == 0 {
+			return
+		}
+		maxIndent := 0
+		for _, candidate := range candidates {
+			if candidate.indent > maxIndent {
+				maxIndent = candidate.indent
+			}
+		}
+		for _, candidate := range candidates {
+			if candidate.indent != maxIndent {
+				continue
+			}
+			if _, duplicate := seen[candidate.name]; duplicate {
+				continue
+			}
+			seen[candidate.name] = struct{}{}
+			out = append(out, helpEntry{Name: candidate.name, Description: candidate.description})
+		}
+		candidates = nil
+	}
 	for _, raw := range lines {
 		line := strings.TrimRight(raw, "\r")
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		if m := sectionHeaderRE.FindStringSubmatch(line); m != nil {
+			flush()
 			inAccept = !isSkipSection(m[1])
 			continue
 		}
@@ -188,13 +214,20 @@ func parseHelpEntries(helpOut []byte) []helpEntry {
 		if isHelpPseudoCommand(name, desc) {
 			continue
 		}
-		if _, dup := seen[name]; dup {
-			continue
-		}
-		seen[name] = struct{}{}
-		out = append(out, helpEntry{Name: name, Description: desc})
+		candidates = append(candidates, helpEntryCandidate{
+			name:        name,
+			description: desc,
+			indent:      len(m[1]),
+		})
 	}
+	flush()
 	return out
+}
+
+type helpEntryCandidate struct {
+	name        string
+	description string
+	indent      int
 }
 
 var commandNameRE = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.-]*$`)

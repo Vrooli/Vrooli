@@ -175,6 +175,12 @@ func fromCodeFacts(report *factsv1.CodeFactsReport, scenarioName, targetKind, ro
 		parseByRoot[filepath.Clean(unit.GetRootPath())] = unit
 	}
 	for _, s := range report.GetSurfaces() {
+		// Code Facts includes absent conventional surface directories in its
+		// inventory. They are useful negative evidence, but are not implemented
+		// surfaces and must not be reconciled as actual scenario capabilities.
+		if s.GetStatus() != factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN {
+			continue
+		}
 		root := s.GetPath()
 		if !filepath.IsAbs(root) && f.RootPath != "" {
 			root = filepath.Join(f.RootPath, root)

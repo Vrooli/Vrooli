@@ -25,8 +25,10 @@ func NewSQLiteRepository(db SQLExecutor) EvidenceRepository {
 	return &sqliteRepository{db: db}
 }
 
-var _ EvidenceRepository = (*sqliteRepository)(nil)
-var _ CaptureTimingRepository = (*sqliteRepository)(nil)
+var (
+	_ EvidenceRepository      = (*sqliteRepository)(nil)
+	_ CaptureTimingRepository = (*sqliteRepository)(nil)
+)
 
 const evidenceTimeFormat = time.RFC3339Nano
 

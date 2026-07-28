@@ -25,15 +25,20 @@ func ScenarioValidationModule(repo catalog.Repository, logger *log.Logger) modul
 		logger.Printf("scenario validation: repo root unavailable: %v", err)
 	}
 	spec := templatevalidation.MaturitySpec()
+	// DescribeProvider answers readiness from this provider's own descriptor,
+	// so a readiness probe no longer costs a full target analysis. A load
+	// failure yields the zero Describer, which reports Unimplemented and makes
+	// consumers fall back to the legacy probe.
+	describer, _ := assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", templatevalidation.Provider))
 	if loaded, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", templatevalidation.Provider)); err == nil {
 		spec = loaded
 	}
-	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewScenarioValidationHandler(ScenarioValidationDeps{
+	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewScenarioValidationHandler(ScenarioValidationDeps{
 		Logger:       logger,
 		Validator:    templatevalidation.NewValidator(repoRoot, repo),
 		Fixers:       templatevalidation.NewFixRegistry(repoRoot),
 		MaturitySpec: spec,
-	}))
+	}), describer))
 	return module.Module{
 		Name: "scenario-validation",
 		Mount: func(r *mux.Router) {

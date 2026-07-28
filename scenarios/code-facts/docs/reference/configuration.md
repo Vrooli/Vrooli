@@ -128,7 +128,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 code-facts configure api_base http://localhost:15001/api/v1
-code-facts configure token <token>
+code-facts configure token "<token>"
 ```
 
 ## API-base resolution precedence

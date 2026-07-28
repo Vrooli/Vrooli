@@ -2,14 +2,15 @@ package dochealth
 
 import (
 	"context"
-	"knowledge-observatory/internal/services/dochealing"
-	"knowledge-observatory/internal/services/dochealth"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"testing"
+
+	"knowledge-observatory/internal/services/dochealing"
+	"knowledge-observatory/internal/services/dochealth"
 
 	"connectrpc.com/connect"
 

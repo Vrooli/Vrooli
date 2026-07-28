@@ -2,10 +2,11 @@ package dochealth
 
 import (
 	"context"
-	"knowledge-observatory/internal/doclogs"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"knowledge-observatory/internal/doclogs"
 )
 
 func TestValidateScenario(t *testing.T) {

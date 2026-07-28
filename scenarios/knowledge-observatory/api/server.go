@@ -80,6 +80,7 @@ type Server struct {
 	graphService         *graph.Service
 	docHealthService     *dochealth.Service
 	docHealthMaturity    *assessment.Spec
+	docHealthDescriber   assessment.Describer
 	docHealthEnvironment *commonv1.CaptureEnvironment
 	docSearchService     *docsearch.Service
 	docExplorerService   *explorer.Service
@@ -187,6 +188,11 @@ func (s *Server) setupServices() {
 			s.docHealthService = service
 		}
 		repoRoot := filepath.Dir(s.config.ScenariosRoot)
+		// DescribeProvider answers readiness from this provider's own descriptor,
+		// so a readiness probe no longer costs a full target analysis. A load
+		// failure yields the zero Describer, which reports Unimplemented and makes
+		// consumers fall back to the legacy probe.
+		s.docHealthDescriber, _ = assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", "knowledge-observatory"))
 		spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "knowledge-observatory"))
 		if err != nil {
 			s.log("doc health maturity assessment unavailable", map[string]interface{}{"error": err.Error()})
@@ -450,7 +456,7 @@ func (s *Server) setupRoutes() {
 		})
 		path, h := knowledgeobservatoryv1connect.NewKnowledgeObservatoryServiceHandler(handler)
 		connectx.RegisterServices(s.router, connectx.ServiceMount{Path: path, Handler: h})
-		validationPath, validationHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+		validationPath, validationHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, s.docHealthDescriber))
 		connectx.RegisterServices(s.router, connectx.ServiceMount{Path: validationPath, Handler: validationHandler})
 	}
 

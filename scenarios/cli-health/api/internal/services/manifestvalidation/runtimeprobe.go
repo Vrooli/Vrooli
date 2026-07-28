@@ -232,9 +232,11 @@ func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifest
 		}
 	}
 	if len(runtimeByGroup) > 0 && len(findings) > 0 {
-		findings = append(findings, Finding{Severity: SeverityError, Code: CodeCLIDiscoveryCoverage, Location: manifestPath,
+		findings = append(findings, Finding{
+			Severity: SeverityError, Code: CodeCLIDiscoveryCoverage, Location: manifestPath,
 			Message:    "manifest command coverage is below the observed runtime CLI surface",
-			Suggestion: "declare every runtime leaf command in cli/manifest.json so discovery indexes the executable CLI contract"})
+			Suggestion: "declare every runtime leaf command in cli/manifest.json so discovery indexes the executable CLI contract",
+		})
 	}
 	return findings
 }
@@ -253,9 +255,11 @@ func omissionContradictionFindings(obs RuntimeObservation, m *cliapp.Manifest, m
 			if !live[path] {
 				continue
 			}
-			findings = append(findings, Finding{Severity: SeverityError, Code: CodeOmissionContradictsCommand, Location: manifestPath + "#/omitted",
+			findings = append(findings, Finding{
+				Severity: SeverityError, Code: CodeOmissionContradictsCommand, Location: manifestPath + "#/omitted",
 				Message:    fmt.Sprintf("omitted RPC %s.%s says live command %q is absent from the CLI surface", omission.Service, omission.Method, path),
-				Suggestion: "replace the omission with the command binding or state a reason that does not contradict the runtime CLI"})
+				Suggestion: "replace the omission with the command binding or state a reason that does not contradict the runtime CLI",
+			})
 		}
 	}
 	return findings

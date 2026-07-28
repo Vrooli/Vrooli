@@ -75,6 +75,19 @@ Commands:
     skill              Manage skills (list|show|read|add)
 `
 
+// landingPageBusinessSuiteHelp mirrors cli-core output with multi-word category
+// labels. Those labels must not become phantom runtime commands.
+const landingPageBusinessSuiteHelp = `landing-page-business-suite CLI
+
+Commands:
+  AI Gateway
+    ai-models          List AI models
+    ai-chat            Run AI chat completion
+
+  Billing & Payments
+    billing-checkout   Create a billing checkout session
+`
+
 const promptManagerSkillHelp = `prompt-manager skill - Manage skills (list|show|read|add|sync)
 
 Usage:
@@ -234,6 +247,30 @@ func TestParseHelpTree_CategoryLabelsIgnored(t *testing.T) {
 	for _, want := range []string{"version", "status", "skill"} {
 		if !names[want] {
 			t.Errorf("missing command %q; got names=%v", want, names)
+		}
+	}
+}
+
+func TestParseHelpTree_MultiWordCategoryLabelsIgnored(t *testing.T) {
+	run, _ := staticRunner(t, map[string]string{
+		"landing-page-business-suite":                  landingPageBusinessSuiteHelp,
+		"landing-page-business-suite ai-models":        "List AI models",
+		"landing-page-business-suite ai-chat":          "Run AI chat completion",
+		"landing-page-business-suite billing-checkout": "Create a billing checkout session",
+	})
+	records := ParseHelpTree(context.Background(), run, "landing-page-business-suite", HelpTreeOptions{Origin: "landing-page-business-suite"})
+	names := make(map[string]bool, len(records))
+	for _, record := range records {
+		names[record.Name] = true
+	}
+	for _, category := range []string{"AI", "Billing"} {
+		if names[category] {
+			t.Errorf("multi-word category label %q leaked as a command record", category)
+		}
+	}
+	for _, command := range []string{"ai-models", "ai-chat", "billing-checkout"} {
+		if !names[command] {
+			t.Errorf("missing command %q; got names=%v", command, names)
 		}
 	}
 }

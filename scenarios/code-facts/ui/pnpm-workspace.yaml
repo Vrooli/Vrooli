@@ -12,3 +12,7 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Keep new packages out of the supply chain until their release age meets the
+# workspace-wide review window.
+minimumReleaseAge: 10080

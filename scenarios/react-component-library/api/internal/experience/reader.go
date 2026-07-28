@@ -27,11 +27,13 @@ type Component struct {
 	Version   string
 }
 
-type State struct{ ID, ExampleName, Description string }
-type Claim struct {
-	ID, Type, Statement, Tier string
-	States                    []string
-}
+type (
+	State struct{ ID, ExampleName, Description string }
+	Claim struct {
+		ID, Type, Statement, Tier string
+		States                    []string
+	}
+)
 type Evidence struct {
 	ClaimID, Verdict, StateID, ExampleName, CaptureRef, CheckedAt, Message, Viewport string
 	ViewportWidth, ViewportHeight                                                    int

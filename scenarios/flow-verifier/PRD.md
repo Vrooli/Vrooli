@@ -21,10 +21,10 @@
 - [ ] OT-P0-005 | Flow Inventory UI | One UI screen renders every discovered flow with its last-run status; supports a "Verify all" action.
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | State-graph visualizer | React Flow render of `model.qnt` for a selected flow.
-- [x] OT-P1-002 | Trace player | UI to step through Quint counterexample traces.
-- [x] OT-P1-003 | Counterexample diff | Side-by-side view of expected vs. actual transitions.
-- [x] OT-P1-004 | Verification timeline | Chart of pass/fail rate per flow over time.
+- [ ] OT-P1-001 | State-graph visualizer | React Flow render of `model.qnt` for a selected flow.
+- [ ] OT-P1-002 | Trace player | UI to step through Quint counterexample traces.
+- [ ] OT-P1-003 | Counterexample diff | Side-by-side view of expected vs. actual transitions.
+- [ ] OT-P1-004 | Verification timeline | Chart of pass/fail rate per flow over time.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Monetization plumbing | Tenant, billing, public landing.

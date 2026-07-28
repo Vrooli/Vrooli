@@ -26,9 +26,19 @@ var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_prot
 // validator is constructed with the real exec/scanner seams rooted at repoRoot.
 func Module(logger *log.Logger, repoRoot string) module.Module {
 	validator := validation.New(validation.Deps{RepoRoot: repoRoot, Logger: logger})
-	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "security-health"))
+	scenarioDir := filepath.Join(repoRoot, "scenarios", "security-health")
+	spec, err := assessment.LoadSpecFromScenario(scenarioDir)
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment disabled: %v", err)
+	}
+	// DescribeProvider answers readiness from this descriptor alone. security-health
+	// has no cheap inspection mode, so before this existed a readiness probe had to
+	// run the full security scan over the target to read two identity strings.
+	// A load failure is non-fatal: the zero Describer reports Unimplemented and
+	// consumers fall back to the legacy probe.
+	describer, describerErr := assessment.LoadDescriber(scenarioDir)
+	if describerErr != nil && logger != nil {
+		logger.Printf("validation: DescribeProvider disabled, readiness will fall back to full validation: %v", describerErr)
 	}
 	// Capture host facts once; they do not change during the process lifetime.
 	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
@@ -40,12 +50,12 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		}
 		environment = nil
 	}
-	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewConnectHandler(Deps{
+	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewConnectHandler(Deps{
 		Logger:       logger,
 		Validator:    validator,
 		MaturitySpec: spec,
 		Environment:  environment,
-	}))
+	}), describer.WithFixes(true)))
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {
@@ -90,6 +100,24 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Validate scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"security-health\"}'"},
 		},
+	},
+	{
+		ID:          "validation_describe_provider",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceDescribeProviderProcedure,
+		Method:      "POST",
+		Summary:     "Describe this provider's identity and contract",
+		Description: "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider":     "string",
+			"phase":        "string",
+			"spec_version": "string",
+			"contract":     "string",
+			"build":        "scenario_validation.v1.ProviderBuild",
+			"capabilities": "scenario_validation.v1.ProviderCapabilities",
+		}},
+		Examples: []module.Example{{Name: "Describe provider", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"}},
 	},
 	{
 		ID:          "validation_preview_fix",

@@ -96,6 +96,66 @@ describe("FactsWorkbench", () => {
     );
   });
 
+  it("uses the surfaces family as a safe fallback when an operator deselects every family", async () => {
+    const user = userEvent.setup();
+    vi.mocked(describeCodeFacts).mockResolvedValueOnce(makeReport());
+    renderWithProviders(<FactsWorkbench />);
+
+    for (const family of [
+      FactFamily.SURFACES,
+      FactFamily.PARSE_UNITS,
+      FactFamily.IMPORTS,
+      FactFamily.SYMBOLS,
+      FactFamily.REFERENCES,
+      FactFamily.CALLS,
+      FactFamily.PROTO_ADOPTION,
+      FactFamily.ENDPOINT_PROOFS,
+    ]) {
+      await user.click(screen.getByTestId(selectors.facts.familyToggle({ family: String(family) })));
+    }
+    await user.click(screen.getByTestId(selectors.facts.analyzeButton));
+
+    await waitFor(() => expect(vi.mocked(describeCodeFacts)).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(describeCodeFacts)).toHaveBeenCalledWith(
+      expect.objectContaining({ include: [FactFamily.SURFACES] }),
+    );
+  });
+
+  it.each([
+    ["module", "/repo/module", TargetKind.MODULE],
+    ["project", "/repo/project", TargetKind.PROJECT],
+  ] as const)("builds a %s target from the operator controls", async (mode, value, kind) => {
+    const user = userEvent.setup();
+    vi.mocked(describeCodeFacts).mockResolvedValueOnce(makeReport());
+    renderWithProviders(<FactsWorkbench />);
+
+    await user.selectOptions(screen.getByTestId(selectors.facts.targetKind), mode);
+    await user.clear(screen.getByTestId(selectors.facts.targetInput));
+    await user.type(screen.getByTestId(selectors.facts.targetInput), value);
+    await user.click(screen.getByTestId(selectors.facts.analyzeButton));
+
+    await waitFor(() => expect(vi.mocked(describeCodeFacts)).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(describeCodeFacts)).toHaveBeenCalledWith(
+      expect.objectContaining({ target: expect.objectContaining({ kind, path: value }) }),
+    );
+  });
+
+  it("renders a complete but empty report without inventing evidence", async () => {
+    const user = userEvent.setup();
+    vi.mocked(describeCodeFacts).mockResolvedValueOnce(create(CodeFactsReportSchema, {}));
+    renderWithProviders(<FactsWorkbench />);
+
+    await user.click(screen.getByTestId(selectors.facts.analyzeButton));
+
+    expect(await screen.findByTestId(selectors.facts.summary)).toHaveTextContent("0");
+    expect(screen.getByTestId(selectors.facts.cachePanel)).toHaveTextContent("miss");
+    expect(screen.getByTestId(selectors.facts.surfacesTable)).toHaveTextContent("facts.noSurfaces");
+    expect(screen.getByTestId(selectors.facts.parseUnitsTable)).toHaveTextContent("facts.noParseUnits");
+    expect(screen.getByTestId(selectors.facts.factsTable)).toHaveTextContent("facts.noFacts");
+    expect(screen.getByTestId(selectors.facts.evidenceTable)).toHaveTextContent("facts.noEvidence");
+    expect(screen.getByTestId(selectors.facts.warningsPanel)).toHaveTextContent("facts.noWarnings");
+  });
+
   it("renders API errors in the console", async () => {
     const user = userEvent.setup();
     vi.mocked(describeCodeFacts).mockRejectedValueOnce(new Error("provider unreachable"));

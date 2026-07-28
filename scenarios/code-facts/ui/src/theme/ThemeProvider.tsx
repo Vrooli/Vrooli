@@ -39,6 +39,23 @@ const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
   } else {
     document.documentElement.setAttribute("data-theme", resolved);
   }
+
+  // Keep browser chrome and the rendered top-level app surface in lockstep.
+  // A static dark theme-color makes a light-mode page look visually broken in
+  // browser and installed-PWA status bars.
+  let themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!themeColor) {
+    themeColor = document.createElement("meta");
+    themeColor.name = "theme-color";
+    document.head.append(themeColor);
+  }
+  // The visual validator samples the rendered app surface, so derive browser
+  // chrome from that same semantic CSS token instead of duplicating palette
+  // values in TypeScript.
+  const renderedAppSurface = window.getComputedStyle(document.documentElement).getPropertyValue("--color-background").trim();
+  if (renderedAppSurface) {
+    themeColor.content = renderedAppSurface;
+  }
 };
 
 interface ThemeProviderProps {

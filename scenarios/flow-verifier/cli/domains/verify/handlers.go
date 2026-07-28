@@ -3,6 +3,7 @@ package verify
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -30,8 +31,15 @@ func (h *handlers) check(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) start(ctx cliapp.RunContext, mode verificationsv1.VerificationMode) error {
+	root, err := filepath.Abs(ctx.Flag("root"))
+	if err != nil {
+		return fmt.Errorf("resolve --root %q: %w", ctx.Flag("root"), err)
+	}
 	resp, err := h.client.StartVerification(context.Background(), connect.NewRequest(&verificationsv1.StartVerificationRequest{
-		Root:   ctx.Flag("root"),
+		// The verifier runs in a different process, whose cwd is its own
+		// scenario. Resolve the user-supplied root on the CLI side so --root .
+		// always means the caller's directory, not the server's directory.
+		Root:   root,
 		FlowId: ctx.Flag("flow"),
 		Mode:   mode,
 	}))

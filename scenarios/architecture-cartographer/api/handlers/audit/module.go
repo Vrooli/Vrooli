@@ -17,6 +17,11 @@ import (
 
 // Module returns the audit domain's contribution to the API router.
 func Module(svc audit.Service, repoRoot string, logger *log.Logger) module.Module {
+	// DescribeProvider answers readiness from this provider's own descriptor,
+	// so a readiness probe no longer costs a full target analysis. A load
+	// failure yields the zero Describer, which reports Unimplemented and makes
+	// consumers fall back to the legacy probe.
+	describer, _ := assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", "architecture-cartographer"))
 	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "architecture-cartographer"))
 	if err != nil && logger != nil {
 		logger.Printf("audit: maturity assessment disabled: %v", err)
@@ -33,7 +38,7 @@ func Module(svc audit.Service, repoRoot string, logger *log.Logger) module.Modul
 	}
 	h := NewHandler(HandlerDeps{Svc: svc, MaturitySpec: spec, Environment: environment})
 	auditPattern, auditHandler := audit_v1connect.NewAuditServiceHandler(h)
-	validationPattern, validationHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(h)
+	validationPattern, validationHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(h, describer))
 	return module.Module{
 		Name: "audit",
 		Mount: func(r *mux.Router) {

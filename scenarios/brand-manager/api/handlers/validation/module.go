@@ -1,8 +1,11 @@
 package validation
 
 import (
+	"path/filepath"
+
 	"brand-manager/internal/module"
 
+	"github.com/vrooli/maturity-go/assessment"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
 	"github.com/gorilla/mux"
@@ -14,7 +17,11 @@ import (
 // files), so it ships no endpoint descriptors for the REST codegen.
 func Module() module.Module {
 	handler := NewHandler()
-	path, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+	// DescribeProvider answers readiness from this provider's own descriptor, so a
+	// readiness probe no longer costs a full target analysis. A load failure yields
+	// the zero Describer, which reports Unimplemented and makes consumers fall back.
+	describer, _ := assessment.LoadDescriber(filepath.Join(handler.repoRoot, "scenarios", "brand-manager"))
+	path, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {

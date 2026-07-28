@@ -2,7 +2,6 @@ package audit
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"

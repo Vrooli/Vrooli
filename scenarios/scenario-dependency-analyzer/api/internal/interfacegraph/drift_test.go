@@ -91,6 +91,29 @@ func TestDriftDetectorIgnoresSharedCommonProtoPackage(t *testing.T) {
 	}
 }
 
+func TestDriftDetectorAcceptsDocumentedRuntimeOnlyDependency(t *testing.T) {
+	root := t.TempDir()
+	writeRuntimeOnlyServiceConfig(t, root, "alpha", "charlie", "The scenario requests bundled-runtime manifests from Deployment Manager through its external CLI/service boundary; it does not import Deployment Manager code.")
+	writeServiceConfig(t, root, "charlie", nil)
+
+	builder := NewBuilder(
+		fakeProtoClient{resp: &ProtoSurfaceResponse{Results: []ProtoSurfaceResult{
+			{Scenario: "alpha", Surface: ProtoSurface{Scenario: "alpha"}},
+			{Scenario: "charlie", Surface: ProtoSurface{Scenario: "charlie"}},
+		}}},
+		fakeImportClient{resp: &ImportFactsResponse{Results: []ImportFactsResult{{Scenario: "alpha"}}}},
+	)
+	detector := NewDriftDetector(builder, filepath.Join(root, "scenarios"))
+
+	report, err := detector.Detect(context.Background(), BuildRequest{Scenarios: []string{"alpha", "charlie"}})
+	if err != nil {
+		t.Fatalf("Detect() error = %v", err)
+	}
+	if len(report.Findings) != 0 {
+		t.Fatalf("findings = %#v, want documented runtime-only dependency to be accepted", report.Findings)
+	}
+}
+
 func writeServiceConfig(t *testing.T, root, scenario string, deps []string) {
 	t.Helper()
 	dir := filepath.Join(root, "scenarios", scenario, ".vrooli")
@@ -107,5 +130,17 @@ func writeServiceConfig(t *testing.T, root, scenario string, deps []string) {
 	content += `}}}`
 	if err := os.WriteFile(filepath.Join(dir, "service.json"), []byte(content), 0o644); err != nil {
 		t.Fatalf("write service config: %v", err)
+	}
+}
+
+func writeRuntimeOnlyServiceConfig(t *testing.T, root, scenario, dependency, rationale string) {
+	t.Helper()
+	dir := filepath.Join(root, "scenarios", scenario, ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir service dir: %v", err)
+	}
+	content := `{"name":"` + scenario + `","dependencies":{"scenarios":{"` + dependency + `":{"enabled":true,"required":true,"runtime_only":true,"runtime_only_rationale":"` + rationale + `"}}}}`
+	if err := os.WriteFile(filepath.Join(dir, "service.json"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write runtime-only service config: %v", err)
 	}
 }

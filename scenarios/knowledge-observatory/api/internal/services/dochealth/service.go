@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"knowledge-observatory/internal/doclogs"
 	"knowledge-observatory/internal/docschema"
 	"knowledge-observatory/internal/doctemplates"
 	"knowledge-observatory/internal/docvalidation"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 var (

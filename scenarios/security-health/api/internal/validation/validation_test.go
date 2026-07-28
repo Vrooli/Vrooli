@@ -278,6 +278,44 @@ func TestPnpmAuditScanner_DevOnlyCriticalDowngraded(t *testing.T) {
 	}
 }
 
+func TestPnpmAuditScanner_RSCOnlyAdvisoryRequiresRSCUsage(t *testing.T) {
+	full := `{"advisories":{"rsc":{"id":1,"module_name":"react-router","severity":"high","title":"RSC-only CSRF","github_advisory_id":"GHSA-qwww-vcr4-c8h2"}}}`
+	prod := full
+	cases := []struct {
+		name    string
+		source  string
+		wantSev Severity
+	}{
+		{
+			name:    "browser router does not enable unstable RSC APIs",
+			source:  `import { BrowserRouter } from "react-router-dom"; const label = "underscores"; export default BrowserRouter;`,
+			wantSev: SeverityWarning,
+		},
+		{
+			name:    "unstable RSC API remains blocking",
+			source:  `import { RSCHydratedRouter } from "react-router-rsc"; export default RSCHydratedRouter;`,
+			wantSev: SeverityError,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, "ui", "src", "App.tsx"), tc.source)
+			sc := newPnpmAuditScanner(argsAwareCommander{full: []byte(full), prod: []byte(prod)})
+			findings, err := sc.Scan(context.Background(), dir, Substrate{PnpmUI: true, PnpmLockDirs: []string{"ui"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(findings) != 1 {
+				t.Fatalf("want 1 finding, got %d", len(findings))
+			}
+			if findings[0].Severity != tc.wantSev {
+				t.Errorf("severity = %v, want %v", findings[0].Severity, tc.wantSev)
+			}
+		})
+	}
+}
+
 func TestService_AbsentScannerIsSkippedNotFailed(t *testing.T) {
 	repoRoot, _ := newScenarioTree(t, "demo")
 	cmd := stubCommander{

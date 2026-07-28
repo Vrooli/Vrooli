@@ -2,6 +2,7 @@ package validation
 
 import (
 	"log"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -12,6 +13,8 @@ import (
 	"experience-manager/internal/checks"
 	"experience-manager/internal/module"
 	"experience-manager/internal/reconcile"
+
+	maturity "github.com/vrooli/maturity-go/assessment"
 
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 	contractconnect "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract/contract_v1connect"
@@ -69,7 +72,12 @@ func Module(logger *log.Logger, repoRoot string, engine *checks.Engine, opts ...
 		RepoRoot:              repoRoot,
 		AttestationRepository: cfg.attestationRepository,
 	})
-	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(core)
+	// DescribeProvider answers readiness from this provider's own descriptor,
+	// so a readiness probe no longer costs a full target analysis. A load
+	// failure yields the zero Describer, which reports Unimplemented and makes
+	// consumers fall back to the legacy probe.
+	describer, _ := maturity.LoadDescriber(filepath.Join(repoRoot, "scenarios", "experience-manager"))
+	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(maturity.Serve(core, describer))
 	contractPath, contractHandler := contractconnect.NewContractServiceHandler(newContractService(core))
 	return module.Module{
 		Name: "validation",

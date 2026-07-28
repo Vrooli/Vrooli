@@ -296,7 +296,7 @@ func TestCreateCommit_WithRealRepo(t *testing.T) {
 	if result.Hash == "" {
 		t.Fatalf("expected commit hash to be set")
 	}
-	if len(result.Hash) < 7 {
-		t.Fatalf("expected short hash (7+ chars), got %q", result.Hash)
+	if len(result.Hash) != 40 {
+		t.Fatalf("expected full 40-character hash, got %q", result.Hash)
 	}
 }

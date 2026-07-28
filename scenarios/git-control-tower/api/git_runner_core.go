@@ -180,7 +180,7 @@ func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message stri
 	}
 
 	// Get the commit hash using rev-parse HEAD
-	hashCmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "rev-parse", "--short", "HEAD")
+	hashCmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "rev-parse", "HEAD")
 	hashOut, err := hashCmd.Output()
 	if err != nil {
 		// Commit succeeded but couldn't get hash - return empty string

@@ -61,11 +61,13 @@ type Resource struct {
 
 // ScenarioDependencySpec captures declared scenario dependencies.
 type ScenarioDependencySpec struct {
-	Enabled      bool   `json:"enabled"`
-	Required     bool   `json:"required"`
-	Version      string `json:"version"`
-	VersionRange string `json:"versionRange"`
-	Description  string `json:"description"`
+	Enabled              bool   `json:"enabled"`
+	Required             bool   `json:"required"`
+	Version              string `json:"version"`
+	VersionRange         string `json:"versionRange"`
+	Description          string `json:"description"`
+	RuntimeOnly          bool   `json:"runtime_only"`
+	RuntimeOnlyRationale string `json:"runtime_only_rationale"`
 }
 
 // ServiceDeployment stores deployment metadata and tier readiness.

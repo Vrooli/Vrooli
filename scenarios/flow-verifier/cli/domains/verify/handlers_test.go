@@ -3,6 +3,7 @@ package verify
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -57,6 +58,9 @@ func TestVerifyRun_PassesGenerateMode(t *testing.T) {
 	require.NoError(t, h.run(ctx))
 	require.Len(t, svc.inputs, 1)
 	require.Equal(t, verificationsv1.VerificationMode_VERIFICATION_MODE_GENERATE, svc.inputs[0].Mode)
+	wantRoot, err := filepath.Abs(".")
+	require.NoError(t, err)
+	require.Equal(t, wantRoot, svc.inputs[0].Root)
 }
 
 func TestVerifyCheck_PassesCheckMode(t *testing.T) {
@@ -68,6 +72,9 @@ func TestVerifyCheck_PassesCheckMode(t *testing.T) {
 
 	require.NoError(t, h.check(ctx))
 	require.Equal(t, verificationsv1.VerificationMode_VERIFICATION_MODE_CHECK, svc.inputs[0].Mode)
+	wantRoot, err := filepath.Abs(".")
+	require.NoError(t, err)
+	require.Equal(t, wantRoot, svc.inputs[0].Root)
 }
 
 func TestVerifyShow_RendersRun(t *testing.T) {

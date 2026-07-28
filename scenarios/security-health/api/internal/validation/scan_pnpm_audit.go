@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // pnpmAuditScanner runs `pnpm audit` against each pnpm-lock.yaml and normalizes
@@ -36,6 +39,8 @@ type pnpmAdvisory struct {
 	CVES               []string `json:"cves"`
 	GithubAdvisoryID   string   `json:"github_advisory_id"`
 }
+
+const reactRouterRSCAdvisoryID = "GHSA-qwww-vcr4-c8h2"
 
 func (p *pnpmAuditScanner) Scan(ctx context.Context, scenarioDir string, sub Substrate) ([]Finding, error) {
 	dirs := sub.PnpmLockDirs
@@ -92,6 +97,10 @@ func (p *pnpmAuditScanner) Scan(ctx context.Context, scenarioDir string, sub Sub
 				sev = SeverityWarning
 				rec = "Dev-only dependency (not in the shipped artifact) — advisory. " + rec
 			}
+			if ruleID == reactRouterRSCAdvisoryID && !usesReactRouterRSC(filepath.Join(scenarioDir, rel)) && sev == SeverityError {
+				sev = SeverityWarning
+				rec = "This advisory affects only applications using React Router's unstable RSC APIs; no first-party RSC usage was found. " + rec
+			}
 			findings = append(findings, Finding{
 				RuleID:      "pnpm-audit." + ruleID,
 				Severity:    sev,
@@ -107,6 +116,62 @@ func (p *pnpmAuditScanner) Scan(ctx context.Context, scenarioDir string, sub Sub
 		return nil, lastErr
 	}
 	return findings, nil
+}
+
+// usesReactRouterRSC conservatively identifies first-party usage of React
+// Router's unstable RSC APIs. The GHSA-qwww-vcr4-c8h2 advisory explicitly
+// limits exposure to that mode, so ordinary BrowserRouter applications must
+// not receive a deployment-blocking finding solely from a transitive package.
+// A source or package declaration mentioning RSC retains the native severity.
+func usesReactRouterRSC(uiDir string) bool {
+	used := false
+	_ = filepath.WalkDir(uiDir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || used {
+			return nil
+		}
+		if entry.IsDir() {
+			switch entry.Name() {
+			case "node_modules", "dist", "build", "coverage", ".git":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		extension := strings.ToLower(filepath.Ext(path))
+		if extension != ".js" && extension != ".jsx" && extension != ".ts" && extension != ".tsx" && extension != ".mjs" && extension != ".cjs" && filepath.Base(path) != "package.json" {
+			return nil
+		}
+		name := strings.ToLower(filepath.Base(path))
+		if strings.Contains(name, ".test.") || strings.Contains(name, ".spec.") {
+			return nil
+		}
+		contents, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		used = hasReactRouterRSCUsage(string(contents))
+		return nil
+	})
+	return used
+}
+
+func hasReactRouterRSCUsage(contents string) bool {
+	contents = strings.ToLower(contents)
+	for _, marker := range []string{
+		"react-router-rsc",
+		"@react-router/rsc",
+		"unstable_rsc",
+		"rschydratedrouter",
+		"rscstaticrouter",
+		"rscrouter",
+		"creatersc",
+		"createcallserver",
+		"serverrouter",
+	} {
+		if strings.Contains(contents, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // prodAdvisoryIDs runs `pnpm audit --prod` and returns the set of advisory id

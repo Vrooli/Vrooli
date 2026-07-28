@@ -62,8 +62,15 @@ func (d *DriftDetector) Detect(ctx context.Context, req BuildRequest) (DriftRepo
 				ActualEvidence: true,
 			})
 		}
-		for dep := range declared {
+		for dep, spec := range cfg.Dependencies.Scenarios {
 			if _, ok := actual[scenario][dep]; ok {
+				continue
+			}
+			// Runtime-only dependencies are intentionally consumed through
+			// lifecycle orchestration or an external service/CLI boundary,
+			// not an import edge. The schema requires an explicit rationale
+			// so this cannot become a blanket drift suppression.
+			if spec.RuntimeOnly && spec.RuntimeOnlyRationale != "" {
 				continue
 			}
 			findings = append(findings, DriftFinding{

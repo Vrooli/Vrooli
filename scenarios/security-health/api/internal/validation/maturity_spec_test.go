@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 

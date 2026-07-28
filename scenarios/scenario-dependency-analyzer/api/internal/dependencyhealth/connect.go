@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -43,7 +44,11 @@ func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, opts 
 		environment:  cfg.Environment,
 	}
 	nativePath, nativeHandler := healthconnect.NewDependencyHealthServiceHandler(handler)
-	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+	// DescribeProvider answers readiness from this provider's own descriptor, so a
+	// readiness probe no longer costs a full target analysis. A load failure yields
+	// the zero Describer, which reports Unimplemented and makes consumers fall back.
+	describer, _ := assessment.LoadDescriber(filepath.Join(scenariosDir(), "scenario-dependency-analyzer"))
+	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
 	router.Any(nativePath+"*path", gin.WrapH(nativeHandler))
 	router.Any(sharedPath+"*path", gin.WrapH(sharedHandler))
 }
@@ -201,6 +206,8 @@ func (h *connectHandler) resolveScenariosDir() string {
 }
 
 var (
-	_ healthconnect.DependencyHealthServiceHandler               = (*connectHandler)(nil)
-	_ scenariovalidationconnect.ScenarioValidationServiceHandler = (*connectHandler)(nil)
+	_ healthconnect.DependencyHealthServiceHandler = (*connectHandler)(nil)
+	// connectHandler implements every validation RPC except DescribeProvider,
+	// which the shared assessment.Describer composes in at the mount site.
+	_ assessment.ValidationServer = (*connectHandler)(nil)
 )

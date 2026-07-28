@@ -105,13 +105,15 @@ UX & branding:
 EOF
 ```
 
-- [ ] Generate and publish the PRD:
+- [ ] Generate and publish the PRD. This supersedes the historical `prd generate`
+      command. Use the interactive wizard to collect the required answers, then
+      preview its output before applying it:
 
 ```bash
-business-health wizard start  # (was: prd generate) code-facts \
-  --context-file /tmp/prd_context_code-facts.md \
-  --publish \
-  --json
+business-health wizard start code-facts
+business-health wizard start code-facts --interactive
+business-health wizard preview code-facts
+business-health wizard apply code-facts --json
 ```
 
 - [ ] Validate the PRD:
@@ -142,30 +144,11 @@ it with PRD-specific modules during this gate, or regenerate the whole
 registry from the PRD and remove the starter import from
 `requirements/index.json`.
 
-- [ ] Optionally write requirement-generation context:
+- [ ] Generate requirements. This supersedes the historical `requirements generate`
+      command; the prior wizard apply already writes the requirements scaffold:
 
 ```bash
-cat > /tmp/requirements_context_code-facts.md <<'EOF'
-Validation approach:
-- Unit:
-- Integration:
-- Business / BAS:
-- Performance:
-
-Technical constraints:
-- ...
-
-Requirement details:
-- ...
-EOF
-```
-
-- [ ] Generate requirements:
-
-```bash
-business-health wizard apply  # (was: requirements generate) code-facts \
-  --context-file /tmp/requirements_context_code-facts.md \
-  --json
+business-health wizard apply code-facts --json
 ```
 
 - [ ] Validate requirements:

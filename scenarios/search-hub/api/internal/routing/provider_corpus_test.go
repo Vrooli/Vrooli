@@ -99,13 +99,13 @@ func TestProviderCorpusIDs(t *testing.T) {
 // would fan out to. (Inherited from the deleted seeds_test.go.)
 func TestProviderCorpusLiveVsGap(t *testing.T) {
 	wantGaps := map[string]bool{
-		"agent-manager.runs":                     true,
-		"architecture-cartographer.domain-map":   true,
-		"code-reference.code":                    true,
-		"command-center.metrics":                 true,
-		"contract-registry.contracts":            true,
-		"git-control-tower.git-provenance":       true,
-		"vrooli-onboarding.config":               true,
+		"agent-manager.runs":                   true,
+		"architecture-cartographer.domain-map": true,
+		"code-reference.code":                  true,
+		"command-center.metrics":               true,
+		"contract-registry.contracts":          true,
+		"git-control-tower.git-provenance":     true,
+		"vrooli-onboarding.config":             true,
 	}
 	for id, d := range loadProviderCorpus(t) {
 		internalregistry.Normalize(d)

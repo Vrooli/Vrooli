@@ -11,8 +11,10 @@ import (
 // validation call so ValidateScenario can open profiling stages without changing
 // its signature (and the Validator interface / its many test mocks). When no
 // collector is present, every stage call is a nil no-op.
-type metricsCtxKey struct{}
-type scenarioPathCtxKey struct{}
+type (
+	metricsCtxKey      struct{}
+	scenarioPathCtxKey struct{}
+)
 
 // WithMetrics attaches a metrics collector to ctx. The connect handler creates
 // the collector, threads it here, and reads the assembled metrics back after the

@@ -10,10 +10,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"knowledge-observatory/internal/services/dochealing"
-	"knowledge-observatory/internal/services/dochealth"
 	"strings"
 	"time"
+
+	"knowledge-observatory/internal/services/dochealing"
+	"knowledge-observatory/internal/services/dochealth"
 
 	"connectrpc.com/connect"
 

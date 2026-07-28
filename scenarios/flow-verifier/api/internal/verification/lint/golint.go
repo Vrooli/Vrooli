@@ -29,14 +29,22 @@ func resolvedSubpackageImportPath(root string, lay layout.Layout) string {
 }
 
 func readGoModule(root string) string {
-	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
-	if err != nil {
-		return ""
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if rest, ok := strings.CutPrefix(line, "module "); ok {
-			return strings.TrimSpace(rest)
+	// A verifier root is a scenario root, while Go scenarios conventionally
+	// keep their module in api/go.mod.  Probe that canonical location first,
+	// then support flows whose root is already the Go module (the verifier's
+	// own in-tree flow uses that shape).  Code generation uses the same order;
+	// keeping lint aligned with it prevents a valid generated replay from being
+	// reported as if no hand-authored test existed.
+	for _, rel := range []string{filepath.Join("api", "go.mod"), "go.mod"} {
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if rest, ok := strings.CutPrefix(line, "module "); ok {
+				return strings.TrimSpace(rest)
+			}
 		}
 	}
 	return ""

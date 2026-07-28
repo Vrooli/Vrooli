@@ -30,10 +30,11 @@ Use `make status` to find the assigned UI and API ports. The UI is the operator 
 The CLI exposes:
 
 ```bash
-code-facts facts describe scenario:code-facts --include surfaces,parse_units,proto_adoption --json
+code-facts facts describe scenario:code-facts --include FACT_FAMILY_ALL --json
 ```
 
-Analyzer-backed facts return typed evidence from normalized provider output.
+Analyzer-backed facts return typed evidence from normalized provider output. The
+all-family query includes surfaces, parse units, and proto-adoption evidence.
 Unavailable providers or unsupported frameworks are reported as `unknown` or
 `unsupported`; they are not treated as proof.
 

@@ -2,12 +2,13 @@ package dochealth
 
 import (
 	"context"
-	"knowledge-observatory/internal/docvalidation"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"knowledge-observatory/internal/docvalidation"
 )
 
 // ScenarioSummary describes documentation status for a scenario.
