@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "prompt-manager",
-  "input_digest": "sha256:0300a82cc96db7a665eb71d29de2d44bf3f7bc18ab1d3efff78864d33a7f1b5c",
+  "input_digest": "sha256:cb9d09e5b65d73b364779be4f3d18d480d565d14ebb1d6a138605884675ecc3b",
   "input_files": [
     "schemas/prompt-manager/v1/graph/graph.proto"
   ],

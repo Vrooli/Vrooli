@@ -2,7 +2,6 @@ import datetime
 
 from buf.validate import validate_pb2 as _validate_pb2
 from browser_automation_studio.v1.timeline import entry_pb2 as _entry_pb2
-from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -75,6 +74,14 @@ ACCESS_POLICY_PROJECT_MEMBERS: AccessPolicy
 ACCESS_POLICY_EXPLICIT_GRANT: AccessPolicy
 ACCESS_POLICY_PROTECTED_STORAGE_ONLY: AccessPolicy
 
+class ArtifactProvenance(_message.Message):
+    __slots__ = ("source", "artifact_type")
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    source: str
+    artifact_type: str
+    def __init__(self, source: _Optional[str] = ..., artifact_type: _Optional[str] = ...) -> None: ...
+
 class ArtifactManifest(_message.Message):
     __slots__ = ("id", "kind", "media_type", "size_bytes", "sha256", "classification", "retention_class", "access_policy", "redacted", "sanitized_derivative_id", "captured_at", "execution_id", "timeline_entry_id", "producer", "provenance")
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -106,8 +113,8 @@ class ArtifactManifest(_message.Message):
     execution_id: str
     timeline_entry_id: str
     producer: str
-    provenance: _struct_pb2.Struct
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[ArtifactKind, str]] = ..., media_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., sha256: _Optional[str] = ..., classification: _Optional[_Union[ContentClassification, str]] = ..., retention_class: _Optional[_Union[RetentionClass, str]] = ..., access_policy: _Optional[_Union[AccessPolicy, str]] = ..., redacted: _Optional[bool] = ..., sanitized_derivative_id: _Optional[str] = ..., captured_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., execution_id: _Optional[str] = ..., timeline_entry_id: _Optional[str] = ..., producer: _Optional[str] = ..., provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    provenance: ArtifactProvenance
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[ArtifactKind, str]] = ..., media_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., sha256: _Optional[str] = ..., classification: _Optional[_Union[ContentClassification, str]] = ..., retention_class: _Optional[_Union[RetentionClass, str]] = ..., access_policy: _Optional[_Union[AccessPolicy, str]] = ..., redacted: _Optional[bool] = ..., sanitized_derivative_id: _Optional[str] = ..., captured_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., execution_id: _Optional[str] = ..., timeline_entry_id: _Optional[str] = ..., producer: _Optional[str] = ..., provenance: _Optional[_Union[ArtifactProvenance, _Mapping]] = ...) -> None: ...
 
 class EvidencePolicy(_message.Message):
     __slots__ = ("max_artifact_size_bytes", "default_retention_class", "default_access_policy", "redact_har", "redact_network", "redacted_header_names", "redacted_query_parameter_names")
@@ -143,6 +150,12 @@ class EvidenceManifest(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     def __init__(self, id: _Optional[str] = ..., execution_id: _Optional[str] = ..., schema_version: _Optional[str] = ..., policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[ArtifactManifest, _Mapping]]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
+class ReplayPresentation(_message.Message):
+    __slots__ = ("theme",)
+    THEME_FIELD_NUMBER: _ClassVar[int]
+    theme: str
+    def __init__(self, theme: _Optional[str] = ...) -> None: ...
+
 class ReplayPackage(_message.Message):
     __slots__ = ("id", "schema_version", "execution_id", "workflow_id", "evidence", "timeline", "presentation", "created_at")
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -159,6 +172,6 @@ class ReplayPackage(_message.Message):
     workflow_id: str
     evidence: EvidenceManifest
     timeline: _containers.RepeatedCompositeFieldContainer[_entry_pb2.TimelineEntry]
-    presentation: _struct_pb2.Struct
+    presentation: ReplayPresentation
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., schema_version: _Optional[str] = ..., execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., evidence: _Optional[_Union[EvidenceManifest, _Mapping]] = ..., timeline: _Optional[_Iterable[_Union[_entry_pb2.TimelineEntry, _Mapping]]] = ..., presentation: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., schema_version: _Optional[str] = ..., execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., evidence: _Optional[_Union[EvidenceManifest, _Mapping]] = ..., timeline: _Optional[_Iterable[_Union[_entry_pb2.TimelineEntry, _Mapping]]] = ..., presentation: _Optional[_Union[ReplayPresentation, _Mapping]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.api;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+import "swarm-manager/v1/domain/transition.proto";
+
+service TransitionService {
+  rpc ListTransitions(ListTransitionsRequest) returns (ListTransitionsResponse);
+  rpc StartTransition(StartTransitionRequest) returns (StartTransitionResponse);
+  rpc ApplyTransition(ApplyTransitionRequest) returns (ApplyTransitionResponse);
+}
+
+message ListTransitionsRequest {}
+
+message ListTransitionsResponse {
+  repeated vrooli.swarm_manager.v1.domain.Transition transitions = 1;
+}
+
+message StartTransitionRequest {
+  string transition_key = 1;
+  string subject_ref = 2;
+}
+
+message StartTransitionResponse {
+  string execution_id = 1;
+  string definition_digest = 2;
+  string entity_version = 3;
+}
+
+message ApplyTransitionRequest {
+  string transition_key = 1;
+  string execution_id = 2;
+}
+
+message ApplyTransitionResponse {
+  string execution_id = 1;
+  string transition_key = 2;
+  string subject_ref = 3;
+  string outcome = 4;
+  string terminal_code = 5;
+  string applied_time = 6;
+}

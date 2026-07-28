@@ -91,3 +91,17 @@ class UpdateStripeSettingsResponse(_message.Message):
     settings: StripeSettings
     snapshot: StripeConfigSnapshot
     def __init__(self, settings: _Optional[_Union[StripeSettings, _Mapping]] = ..., snapshot: _Optional[_Union[StripeConfigSnapshot, _Mapping]] = ...) -> None: ...
+
+class RevealStripeSecretRequest(_message.Message):
+    __slots__ = ("field",)
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    def __init__(self, field: _Optional[str] = ...) -> None: ...
+
+class RevealStripeSecretResponse(_message.Message):
+    __slots__ = ("field", "value")
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    value: str
+    def __init__(self, field: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...

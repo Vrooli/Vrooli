@@ -39,6 +39,15 @@ message SiteBranding {
   optional string robots_txt = 15;
   google.protobuf.Timestamp created_at = 16;
   google.protobuf.Timestamp updated_at = 17;
+  optional string support_chat_url = 18;
+  optional string support_email = 19;
+  optional string smtp_host = 20;
+  optional int32 smtp_port = 21;
+  optional string smtp_username = 22;
+  optional string smtp_password = 23;
+  optional string smtp_from = 24;
+  optional bool coming_soon_enabled = 25;
+  optional string coming_soon_message = 26;
 }
 
 // PublicBranding is the redacted subset safe to expose on the public page.
@@ -50,6 +59,9 @@ message PublicBranding {
   string favicon_url = 5;
   string theme_primary_color = 6;
   string theme_background_color = 7;
+  string support_chat_url = 8;
+  bool coming_soon_enabled = 9;
+  string coming_soon_message = 10;
 }
 
 // GetBrandingRequest fetches the full branding singleton (admin).
@@ -80,6 +92,15 @@ message UpdateBrandingRequest {
   optional string canonical_base_url = 12;
   optional string google_site_verification = 13;
   optional string robots_txt = 14;
+  optional string support_chat_url = 15;
+  optional string support_email = 16;
+  optional string smtp_host = 17;
+  optional int32 smtp_port = 18;
+  optional string smtp_username = 19;
+  optional string smtp_password = 20;
+  optional string smtp_from = 21;
+  optional bool coming_soon_enabled = 22;
+  optional string coming_soon_message = 23;
 }
 
 // ClearBrandingFieldRequest nulls a single nullable branding field. site_name

@@ -131,7 +131,10 @@ const file_landing_page_business_suite_v1_pricing_proto_rawDesc = "" +
 	"bundle_key\x18\x01 \x01(\tR\tbundleKey\x12%\n" +
 	"\x0einclude_hidden\x18\x02 \x01(\bR\rincludeHidden\"m\n" +
 	"\x12GetPricingResponse\x12W\n" +
-	"\apricing\x18\x01 \x01(\v2=.vrooli.landing_page_business_suite.v1.shared.PricingOverviewR\apricingBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
+	"\apricing\x18\x01 \x01(\v2=.vrooli.landing_page_business_suite.v1.shared.PricingOverviewR\apricing2\x85\x01\n" +
+	"\x0ePricingService\x12s\n" +
+	"\n" +
+	"GetPricing\x121.landing_page_business_suite.v1.GetPricingRequest\x1a2.landing_page_business_suite.v1.GetPricingResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
 
 var (
 	file_landing_page_business_suite_v1_pricing_proto_rawDescOnce sync.Once
@@ -153,8 +156,10 @@ var file_landing_page_business_suite_v1_pricing_proto_goTypes = []any{
 }
 var file_landing_page_business_suite_v1_pricing_proto_depIdxs = []int32{
 	2, // 0: landing_page_business_suite.v1.GetPricingResponse.pricing:type_name -> vrooli.landing_page_business_suite.v1.shared.PricingOverview
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
+	0, // 1: landing_page_business_suite.v1.PricingService.GetPricing:input_type -> landing_page_business_suite.v1.GetPricingRequest
+	1, // 2: landing_page_business_suite.v1.PricingService.GetPricing:output_type -> landing_page_business_suite.v1.GetPricingResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -173,7 +178,7 @@ func file_landing_page_business_suite_v1_pricing_proto_init() {
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_landing_page_business_suite_v1_pricing_proto_goTypes,
 		DependencyIndexes: file_landing_page_business_suite_v1_pricing_proto_depIdxs,

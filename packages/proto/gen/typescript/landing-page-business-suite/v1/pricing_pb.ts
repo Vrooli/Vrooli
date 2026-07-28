@@ -2,8 +2,8 @@
 // @generated from file landing-page-business-suite/v1/pricing.proto (package landing_page_business_suite.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { PricingOverview } from "./shared/commerce_pb";
 import { file_landing_page_business_suite_v1_shared_commerce } from "./shared/commerce_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-business-suite/v1/pricing.proto.
  */
 export const file_landing_page_business_suite_v1_pricing: GenFile = /*@__PURE__*/
-  fileDesc("CixsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvcHJpY2luZy5wcm90bxIebGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxIj8KEUdldFByaWNpbmdSZXF1ZXN0EhIKCmJ1bmRsZV9rZXkYASABKAkSFgoOaW5jbHVkZV9oaWRkZW4YAiABKAgiZAoSR2V0UHJpY2luZ1Jlc3BvbnNlEk4KB3ByaWNpbmcYASABKAsyPS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5QcmljaW5nT3ZlcnZpZXdCblpsZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjE7bGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlX3YxYgZwcm90bzM", [file_landing_page_business_suite_v1_shared_commerce]);
+  fileDesc("CixsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvcHJpY2luZy5wcm90bxIebGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxIj8KEUdldFByaWNpbmdSZXF1ZXN0EhIKCmJ1bmRsZV9rZXkYASABKAkSFgoOaW5jbHVkZV9oaWRkZW4YAiABKAgiZAoSR2V0UHJpY2luZ1Jlc3BvbnNlEk4KB3ByaWNpbmcYASABKAsyPS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5QcmljaW5nT3ZlcnZpZXcyhQEKDlByaWNpbmdTZXJ2aWNlEnMKCkdldFByaWNpbmcSMS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0UHJpY2luZ1JlcXVlc3QaMi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0UHJpY2luZ1Jlc3BvbnNlQm5abGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLWJ1c2luZXNzLXN1aXRlL3YxO2xhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZV92MWIGcHJvdG8z", [file_landing_page_business_suite_v1_shared_commerce]);
 
 /**
  * Pricing owns the query surface for a bundle's current public catalog. The
@@ -56,4 +56,19 @@ export type GetPricingResponse = Message<"landing_page_business_suite.v1.GetPric
  */
 export const GetPricingResponseSchema: GenMessage<GetPricingResponse> = /*@__PURE__*/
   messageDesc(file_landing_page_business_suite_v1_pricing, 1);
+
+/**
+ * @generated from service landing_page_business_suite.v1.PricingService
+ */
+export const PricingService: GenService<{
+  /**
+   * @generated from rpc landing_page_business_suite.v1.PricingService.GetPricing
+   */
+  getPricing: {
+    methodKind: "unary";
+    input: typeof GetPricingRequestSchema;
+    output: typeof GetPricingResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_landing_page_business_suite_v1_pricing, 0);
 

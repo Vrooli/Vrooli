@@ -973,7 +973,11 @@ func (x *BillingPortalResponse) GetUrl() string {
 //
 // Opens the billing portal.
 type GetBillingPortalRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional URL to return to after the customer exits Stripe's portal.
+	// Relative paths are not accepted because Stripe requires an absolute URL.
+	// @format url
+	ReturnUrl     string `protobuf:"bytes,1,opt,name=return_url,json=returnUrl,proto3" json:"return_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1008,11 +1012,18 @@ func (*GetBillingPortalRequest) Descriptor() ([]byte, []int) {
 	return file_landing_page_business_suite_v1_billing_proto_rawDescGZIP(), []int{9}
 }
 
+func (x *GetBillingPortalRequest) GetReturnUrl() string {
+	if x != nil {
+		return x.ReturnUrl
+	}
+	return ""
+}
+
 var File_landing_page_business_suite_v1_billing_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_billing_proto_rawDesc = "" +
 	"\n" +
-	",landing-page-business-suite/v1/billing.proto\x12\x1elanding_page_business_suite.v1\x1a\x15common/v1/types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a4landing-page-business-suite/v1/shared/commerce.proto\x1a,landing-page-business-suite/v1/pricing.proto\x1a-landing-page-business-suite/v1/settings.proto\"\x98\a\n" +
+	",landing-page-business-suite/v1/billing.proto\x12\x1elanding_page_business_suite.v1\x1a\x15common/v1/types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a4landing-page-business-suite/v1/shared/commerce.proto\"\x98\a\n" +
 	"\x0fCheckoutSession\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12N\n" +
@@ -1084,8 +1095,10 @@ const file_landing_page_business_suite_v1_billing_proto_rawDesc = "" +
 	"\abalance\x18\x01 \x01(\v2<.vrooli.landing_page_business_suite.v1.shared.CreditsBalanceR\abalance\x12U\n" +
 	"\ftransactions\x18\x02 \x03(\v21.landing_page_business_suite.v1.CreditTransactionR\ftransactions\")\n" +
 	"\x15BillingPortalResponse\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\"\x19\n" +
-	"\x17GetBillingPortalRequest*\x93\x01\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\"8\n" +
+	"\x17GetBillingPortalRequest\x12\x1d\n" +
+	"\n" +
+	"return_url\x18\x01 \x01(\tR\treturnUrl*\x93\x01\n" +
 	"\vSessionKind\x12\x1c\n" +
 	"\x18SESSION_KIND_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19SESSION_KIND_SUBSCRIPTION\x10\x01\x12\x1e\n" +
@@ -1103,15 +1116,11 @@ const file_landing_page_business_suite_v1_billing_proto_rawDesc = "" +
 	"\x1cTRANSACTION_TYPE_CONSUMPTION\x10\x02\x12\x1f\n" +
 	"\x1bTRANSACTION_TYPE_ADJUSTMENT\x10\x03\x12\x1b\n" +
 	"\x17TRANSACTION_TYPE_REFUND\x10\x04\x12\x1a\n" +
-	"\x16TRANSACTION_TYPE_GRANT\x10\x052\xf6\a\n" +
+	"\x16TRANSACTION_TYPE_GRANT\x10\x052\xe2\x04\n" +
 	"\x1aLandingPagePaymentsService\x12\x94\x01\n" +
 	"\x15CreateCheckoutSession\x12<.landing_page_business_suite.v1.CreateCheckoutSessionRequest\x1a=.landing_page_business_suite.v1.CreateCheckoutSessionResponse\x12\x99\x01\n" +
 	"\x12VerifySubscription\x129.landing_page_business_suite.v1.VerifySubscriptionRequest\x1aH.vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse\x12\x8b\x01\n" +
-	"\x12CancelSubscription\x129.landing_page_business_suite.v1.CancelSubscriptionRequest\x1a:.landing_page_business_suite.v1.CancelSubscriptionResponse\x12s\n" +
-	"\n" +
-	"GetPricing\x121.landing_page_business_suite.v1.GetPricingRequest\x1a2.landing_page_business_suite.v1.GetPricingResponse\x12\x88\x01\n" +
-	"\x11GetStripeSettings\x128.landing_page_business_suite.v1.GetStripeSettingsRequest\x1a9.landing_page_business_suite.v1.GetStripeSettingsResponse\x12\x91\x01\n" +
-	"\x14UpdateStripeSettings\x12;.landing_page_business_suite.v1.UpdateStripeSettingsRequest\x1a<.landing_page_business_suite.v1.UpdateStripeSettingsResponse\x12\x82\x01\n" +
+	"\x12CancelSubscription\x129.landing_page_business_suite.v1.CancelSubscriptionRequest\x1a:.landing_page_business_suite.v1.CancelSubscriptionResponse\x12\x82\x01\n" +
 	"\x10GetBillingPortal\x127.landing_page_business_suite.v1.GetBillingPortalRequest\x1a5.landing_page_business_suite.v1.BillingPortalResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
 
 var (
@@ -1149,13 +1158,7 @@ var file_landing_page_business_suite_v1_billing_proto_goTypes = []any{
 	(shared.SubscriptionState)(0),             // 17: vrooli.landing_page_business_suite.v1.shared.SubscriptionState
 	(*shared.CreditsBalance)(nil),             // 18: vrooli.landing_page_business_suite.v1.shared.CreditsBalance
 	(*v1.JsonValue)(nil),                      // 19: common.v1.JsonValue
-	(*GetPricingRequest)(nil),                 // 20: landing_page_business_suite.v1.GetPricingRequest
-	(*GetStripeSettingsRequest)(nil),          // 21: landing_page_business_suite.v1.GetStripeSettingsRequest
-	(*UpdateStripeSettingsRequest)(nil),       // 22: landing_page_business_suite.v1.UpdateStripeSettingsRequest
-	(*shared.VerifySubscriptionResponse)(nil), // 23: vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse
-	(*GetPricingResponse)(nil),                // 24: landing_page_business_suite.v1.GetPricingResponse
-	(*GetStripeSettingsResponse)(nil),         // 25: landing_page_business_suite.v1.GetStripeSettingsResponse
-	(*UpdateStripeSettingsResponse)(nil),      // 26: landing_page_business_suite.v1.UpdateStripeSettingsResponse
+	(*shared.VerifySubscriptionResponse)(nil), // 20: vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse
 }
 var file_landing_page_business_suite_v1_billing_proto_depIdxs = []int32{
 	0,  // 0: landing_page_business_suite.v1.CheckoutSession.session_kind:type_name -> landing_page_business_suite.v1.SessionKind
@@ -1178,19 +1181,13 @@ var file_landing_page_business_suite_v1_billing_proto_depIdxs = []int32{
 	4,  // 17: landing_page_business_suite.v1.LandingPagePaymentsService.CreateCheckoutSession:input_type -> landing_page_business_suite.v1.CreateCheckoutSessionRequest
 	6,  // 18: landing_page_business_suite.v1.LandingPagePaymentsService.VerifySubscription:input_type -> landing_page_business_suite.v1.VerifySubscriptionRequest
 	7,  // 19: landing_page_business_suite.v1.LandingPagePaymentsService.CancelSubscription:input_type -> landing_page_business_suite.v1.CancelSubscriptionRequest
-	20, // 20: landing_page_business_suite.v1.LandingPagePaymentsService.GetPricing:input_type -> landing_page_business_suite.v1.GetPricingRequest
-	21, // 21: landing_page_business_suite.v1.LandingPagePaymentsService.GetStripeSettings:input_type -> landing_page_business_suite.v1.GetStripeSettingsRequest
-	22, // 22: landing_page_business_suite.v1.LandingPagePaymentsService.UpdateStripeSettings:input_type -> landing_page_business_suite.v1.UpdateStripeSettingsRequest
-	12, // 23: landing_page_business_suite.v1.LandingPagePaymentsService.GetBillingPortal:input_type -> landing_page_business_suite.v1.GetBillingPortalRequest
-	5,  // 24: landing_page_business_suite.v1.LandingPagePaymentsService.CreateCheckoutSession:output_type -> landing_page_business_suite.v1.CreateCheckoutSessionResponse
-	23, // 25: landing_page_business_suite.v1.LandingPagePaymentsService.VerifySubscription:output_type -> vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse
-	8,  // 26: landing_page_business_suite.v1.LandingPagePaymentsService.CancelSubscription:output_type -> landing_page_business_suite.v1.CancelSubscriptionResponse
-	24, // 27: landing_page_business_suite.v1.LandingPagePaymentsService.GetPricing:output_type -> landing_page_business_suite.v1.GetPricingResponse
-	25, // 28: landing_page_business_suite.v1.LandingPagePaymentsService.GetStripeSettings:output_type -> landing_page_business_suite.v1.GetStripeSettingsResponse
-	26, // 29: landing_page_business_suite.v1.LandingPagePaymentsService.UpdateStripeSettings:output_type -> landing_page_business_suite.v1.UpdateStripeSettingsResponse
-	11, // 30: landing_page_business_suite.v1.LandingPagePaymentsService.GetBillingPortal:output_type -> landing_page_business_suite.v1.BillingPortalResponse
-	24, // [24:31] is the sub-list for method output_type
-	17, // [17:24] is the sub-list for method input_type
+	12, // 20: landing_page_business_suite.v1.LandingPagePaymentsService.GetBillingPortal:input_type -> landing_page_business_suite.v1.GetBillingPortalRequest
+	5,  // 21: landing_page_business_suite.v1.LandingPagePaymentsService.CreateCheckoutSession:output_type -> landing_page_business_suite.v1.CreateCheckoutSessionResponse
+	20, // 22: landing_page_business_suite.v1.LandingPagePaymentsService.VerifySubscription:output_type -> vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse
+	8,  // 23: landing_page_business_suite.v1.LandingPagePaymentsService.CancelSubscription:output_type -> landing_page_business_suite.v1.CancelSubscriptionResponse
+	11, // 24: landing_page_business_suite.v1.LandingPagePaymentsService.GetBillingPortal:output_type -> landing_page_business_suite.v1.BillingPortalResponse
+	21, // [21:25] is the sub-list for method output_type
+	17, // [17:21] is the sub-list for method input_type
 	17, // [17:17] is the sub-list for extension type_name
 	17, // [17:17] is the sub-list for extension extendee
 	0,  // [0:17] is the sub-list for field type_name
@@ -1201,8 +1198,6 @@ func file_landing_page_business_suite_v1_billing_proto_init() {
 	if File_landing_page_business_suite_v1_billing_proto != nil {
 		return
 	}
-	file_landing_page_business_suite_v1_pricing_proto_init()
-	file_landing_page_business_suite_v1_settings_proto_init()
 	file_landing_page_business_suite_v1_billing_proto_msgTypes[0].OneofWrappers = []any{}
 	file_landing_page_business_suite_v1_billing_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

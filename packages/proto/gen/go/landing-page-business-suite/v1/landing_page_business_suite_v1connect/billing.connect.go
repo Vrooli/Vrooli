@@ -44,15 +44,6 @@ const (
 	// LandingPagePaymentsServiceCancelSubscriptionProcedure is the fully-qualified name of the
 	// LandingPagePaymentsService's CancelSubscription RPC.
 	LandingPagePaymentsServiceCancelSubscriptionProcedure = "/landing_page_business_suite.v1.LandingPagePaymentsService/CancelSubscription"
-	// LandingPagePaymentsServiceGetPricingProcedure is the fully-qualified name of the
-	// LandingPagePaymentsService's GetPricing RPC.
-	LandingPagePaymentsServiceGetPricingProcedure = "/landing_page_business_suite.v1.LandingPagePaymentsService/GetPricing"
-	// LandingPagePaymentsServiceGetStripeSettingsProcedure is the fully-qualified name of the
-	// LandingPagePaymentsService's GetStripeSettings RPC.
-	LandingPagePaymentsServiceGetStripeSettingsProcedure = "/landing_page_business_suite.v1.LandingPagePaymentsService/GetStripeSettings"
-	// LandingPagePaymentsServiceUpdateStripeSettingsProcedure is the fully-qualified name of the
-	// LandingPagePaymentsService's UpdateStripeSettings RPC.
-	LandingPagePaymentsServiceUpdateStripeSettingsProcedure = "/landing_page_business_suite.v1.LandingPagePaymentsService/UpdateStripeSettings"
 	// LandingPagePaymentsServiceGetBillingPortalProcedure is the fully-qualified name of the
 	// LandingPagePaymentsService's GetBillingPortal RPC.
 	LandingPagePaymentsServiceGetBillingPortalProcedure = "/landing_page_business_suite.v1.LandingPagePaymentsService/GetBillingPortal"
@@ -70,15 +61,6 @@ type LandingPagePaymentsServiceClient interface {
 	// Cancels an active subscription for a user.
 	// Cancellation takes effect at end of current billing period.
 	CancelSubscription(context.Context, *connect.Request[v1.CancelSubscriptionRequest]) (*connect.Response[v1.CancelSubscriptionResponse], error)
-	// Returns pricing metadata for a bundle.
-	// Used to render the public pricing page.
-	GetPricing(context.Context, *connect.Request[v1.GetPricingRequest]) (*connect.Response[v1.GetPricingResponse], error)
-	// Returns current Stripe settings and runtime configuration snapshot.
-	// Admin-only endpoint for credential management.
-	GetStripeSettings(context.Context, *connect.Request[v1.GetStripeSettingsRequest]) (*connect.Response[v1.GetStripeSettingsResponse], error)
-	// Updates Stripe settings and returns the refreshed snapshot.
-	// Admin-only endpoint for credential management.
-	UpdateStripeSettings(context.Context, *connect.Request[v1.UpdateStripeSettingsRequest]) (*connect.Response[v1.UpdateStripeSettingsResponse], error)
 	// Returns the hosted billing portal URL for self-service management.
 	GetBillingPortal(context.Context, *connect.Request[v1.GetBillingPortalRequest]) (*connect.Response[v1.BillingPortalResponse], error)
 }
@@ -113,24 +95,6 @@ func NewLandingPagePaymentsServiceClient(httpClient connect.HTTPClient, baseURL 
 			connect.WithSchema(landingPagePaymentsServiceMethods.ByName("CancelSubscription")),
 			connect.WithClientOptions(opts...),
 		),
-		getPricing: connect.NewClient[v1.GetPricingRequest, v1.GetPricingResponse](
-			httpClient,
-			baseURL+LandingPagePaymentsServiceGetPricingProcedure,
-			connect.WithSchema(landingPagePaymentsServiceMethods.ByName("GetPricing")),
-			connect.WithClientOptions(opts...),
-		),
-		getStripeSettings: connect.NewClient[v1.GetStripeSettingsRequest, v1.GetStripeSettingsResponse](
-			httpClient,
-			baseURL+LandingPagePaymentsServiceGetStripeSettingsProcedure,
-			connect.WithSchema(landingPagePaymentsServiceMethods.ByName("GetStripeSettings")),
-			connect.WithClientOptions(opts...),
-		),
-		updateStripeSettings: connect.NewClient[v1.UpdateStripeSettingsRequest, v1.UpdateStripeSettingsResponse](
-			httpClient,
-			baseURL+LandingPagePaymentsServiceUpdateStripeSettingsProcedure,
-			connect.WithSchema(landingPagePaymentsServiceMethods.ByName("UpdateStripeSettings")),
-			connect.WithClientOptions(opts...),
-		),
 		getBillingPortal: connect.NewClient[v1.GetBillingPortalRequest, v1.BillingPortalResponse](
 			httpClient,
 			baseURL+LandingPagePaymentsServiceGetBillingPortalProcedure,
@@ -145,9 +109,6 @@ type landingPagePaymentsServiceClient struct {
 	createCheckoutSession *connect.Client[v1.CreateCheckoutSessionRequest, v1.CreateCheckoutSessionResponse]
 	verifySubscription    *connect.Client[v1.VerifySubscriptionRequest, shared.VerifySubscriptionResponse]
 	cancelSubscription    *connect.Client[v1.CancelSubscriptionRequest, v1.CancelSubscriptionResponse]
-	getPricing            *connect.Client[v1.GetPricingRequest, v1.GetPricingResponse]
-	getStripeSettings     *connect.Client[v1.GetStripeSettingsRequest, v1.GetStripeSettingsResponse]
-	updateStripeSettings  *connect.Client[v1.UpdateStripeSettingsRequest, v1.UpdateStripeSettingsResponse]
 	getBillingPortal      *connect.Client[v1.GetBillingPortalRequest, v1.BillingPortalResponse]
 }
 
@@ -169,23 +130,6 @@ func (c *landingPagePaymentsServiceClient) CancelSubscription(ctx context.Contex
 	return c.cancelSubscription.CallUnary(ctx, req)
 }
 
-// GetPricing calls landing_page_business_suite.v1.LandingPagePaymentsService.GetPricing.
-func (c *landingPagePaymentsServiceClient) GetPricing(ctx context.Context, req *connect.Request[v1.GetPricingRequest]) (*connect.Response[v1.GetPricingResponse], error) {
-	return c.getPricing.CallUnary(ctx, req)
-}
-
-// GetStripeSettings calls
-// landing_page_business_suite.v1.LandingPagePaymentsService.GetStripeSettings.
-func (c *landingPagePaymentsServiceClient) GetStripeSettings(ctx context.Context, req *connect.Request[v1.GetStripeSettingsRequest]) (*connect.Response[v1.GetStripeSettingsResponse], error) {
-	return c.getStripeSettings.CallUnary(ctx, req)
-}
-
-// UpdateStripeSettings calls
-// landing_page_business_suite.v1.LandingPagePaymentsService.UpdateStripeSettings.
-func (c *landingPagePaymentsServiceClient) UpdateStripeSettings(ctx context.Context, req *connect.Request[v1.UpdateStripeSettingsRequest]) (*connect.Response[v1.UpdateStripeSettingsResponse], error) {
-	return c.updateStripeSettings.CallUnary(ctx, req)
-}
-
 // GetBillingPortal calls
 // landing_page_business_suite.v1.LandingPagePaymentsService.GetBillingPortal.
 func (c *landingPagePaymentsServiceClient) GetBillingPortal(ctx context.Context, req *connect.Request[v1.GetBillingPortalRequest]) (*connect.Response[v1.BillingPortalResponse], error) {
@@ -204,15 +148,6 @@ type LandingPagePaymentsServiceHandler interface {
 	// Cancels an active subscription for a user.
 	// Cancellation takes effect at end of current billing period.
 	CancelSubscription(context.Context, *connect.Request[v1.CancelSubscriptionRequest]) (*connect.Response[v1.CancelSubscriptionResponse], error)
-	// Returns pricing metadata for a bundle.
-	// Used to render the public pricing page.
-	GetPricing(context.Context, *connect.Request[v1.GetPricingRequest]) (*connect.Response[v1.GetPricingResponse], error)
-	// Returns current Stripe settings and runtime configuration snapshot.
-	// Admin-only endpoint for credential management.
-	GetStripeSettings(context.Context, *connect.Request[v1.GetStripeSettingsRequest]) (*connect.Response[v1.GetStripeSettingsResponse], error)
-	// Updates Stripe settings and returns the refreshed snapshot.
-	// Admin-only endpoint for credential management.
-	UpdateStripeSettings(context.Context, *connect.Request[v1.UpdateStripeSettingsRequest]) (*connect.Response[v1.UpdateStripeSettingsResponse], error)
 	// Returns the hosted billing portal URL for self-service management.
 	GetBillingPortal(context.Context, *connect.Request[v1.GetBillingPortalRequest]) (*connect.Response[v1.BillingPortalResponse], error)
 }
@@ -242,24 +177,6 @@ func NewLandingPagePaymentsServiceHandler(svc LandingPagePaymentsServiceHandler,
 		connect.WithSchema(landingPagePaymentsServiceMethods.ByName("CancelSubscription")),
 		connect.WithHandlerOptions(opts...),
 	)
-	landingPagePaymentsServiceGetPricingHandler := connect.NewUnaryHandler(
-		LandingPagePaymentsServiceGetPricingProcedure,
-		svc.GetPricing,
-		connect.WithSchema(landingPagePaymentsServiceMethods.ByName("GetPricing")),
-		connect.WithHandlerOptions(opts...),
-	)
-	landingPagePaymentsServiceGetStripeSettingsHandler := connect.NewUnaryHandler(
-		LandingPagePaymentsServiceGetStripeSettingsProcedure,
-		svc.GetStripeSettings,
-		connect.WithSchema(landingPagePaymentsServiceMethods.ByName("GetStripeSettings")),
-		connect.WithHandlerOptions(opts...),
-	)
-	landingPagePaymentsServiceUpdateStripeSettingsHandler := connect.NewUnaryHandler(
-		LandingPagePaymentsServiceUpdateStripeSettingsProcedure,
-		svc.UpdateStripeSettings,
-		connect.WithSchema(landingPagePaymentsServiceMethods.ByName("UpdateStripeSettings")),
-		connect.WithHandlerOptions(opts...),
-	)
 	landingPagePaymentsServiceGetBillingPortalHandler := connect.NewUnaryHandler(
 		LandingPagePaymentsServiceGetBillingPortalProcedure,
 		svc.GetBillingPortal,
@@ -274,12 +191,6 @@ func NewLandingPagePaymentsServiceHandler(svc LandingPagePaymentsServiceHandler,
 			landingPagePaymentsServiceVerifySubscriptionHandler.ServeHTTP(w, r)
 		case LandingPagePaymentsServiceCancelSubscriptionProcedure:
 			landingPagePaymentsServiceCancelSubscriptionHandler.ServeHTTP(w, r)
-		case LandingPagePaymentsServiceGetPricingProcedure:
-			landingPagePaymentsServiceGetPricingHandler.ServeHTTP(w, r)
-		case LandingPagePaymentsServiceGetStripeSettingsProcedure:
-			landingPagePaymentsServiceGetStripeSettingsHandler.ServeHTTP(w, r)
-		case LandingPagePaymentsServiceUpdateStripeSettingsProcedure:
-			landingPagePaymentsServiceUpdateStripeSettingsHandler.ServeHTTP(w, r)
 		case LandingPagePaymentsServiceGetBillingPortalProcedure:
 			landingPagePaymentsServiceGetBillingPortalHandler.ServeHTTP(w, r)
 		default:
@@ -301,18 +212,6 @@ func (UnimplementedLandingPagePaymentsServiceHandler) VerifySubscription(context
 
 func (UnimplementedLandingPagePaymentsServiceHandler) CancelSubscription(context.Context, *connect.Request[v1.CancelSubscriptionRequest]) (*connect.Response[v1.CancelSubscriptionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.LandingPagePaymentsService.CancelSubscription is not implemented"))
-}
-
-func (UnimplementedLandingPagePaymentsServiceHandler) GetPricing(context.Context, *connect.Request[v1.GetPricingRequest]) (*connect.Response[v1.GetPricingResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.LandingPagePaymentsService.GetPricing is not implemented"))
-}
-
-func (UnimplementedLandingPagePaymentsServiceHandler) GetStripeSettings(context.Context, *connect.Request[v1.GetStripeSettingsRequest]) (*connect.Response[v1.GetStripeSettingsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.LandingPagePaymentsService.GetStripeSettings is not implemented"))
-}
-
-func (UnimplementedLandingPagePaymentsServiceHandler) UpdateStripeSettings(context.Context, *connect.Request[v1.UpdateStripeSettingsRequest]) (*connect.Response[v1.UpdateStripeSettingsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.LandingPagePaymentsService.UpdateStripeSettings is not implemented"))
 }
 
 func (UnimplementedLandingPagePaymentsServiceHandler) GetBillingPortal(context.Context, *connect.Request[v1.GetBillingPortalRequest]) (*connect.Response[v1.BillingPortalResponse], error) {

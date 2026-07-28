@@ -11,7 +11,6 @@ import (
 	timeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -260,6 +259,61 @@ func (AccessPolicy) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{3}
 }
 
+// ArtifactProvenance identifies the portable producer context for an artifact.
+// It deliberately excludes filesystem paths, object-store keys, and raw capture
+// payloads so evidence packages remain safe to hand to replay consumers.
+type ArtifactProvenance struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        *string                `protobuf:"bytes,1,opt,name=source,proto3,oneof" json:"source,omitempty"`
+	ArtifactType  *string                `protobuf:"bytes,2,opt,name=artifact_type,json=artifactType,proto3,oneof" json:"artifact_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArtifactProvenance) Reset() {
+	*x = ArtifactProvenance{}
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArtifactProvenance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArtifactProvenance) ProtoMessage() {}
+
+func (x *ArtifactProvenance) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArtifactProvenance.ProtoReflect.Descriptor instead.
+func (*ArtifactProvenance) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ArtifactProvenance) GetSource() string {
+	if x != nil && x.Source != nil {
+		return *x.Source
+	}
+	return ""
+}
+
+func (x *ArtifactProvenance) GetArtifactType() string {
+	if x != nil && x.ArtifactType != nil {
+		return *x.ArtifactType
+	}
+	return ""
+}
+
 // ArtifactManifest describes exactly one captured artifact without exposing a
 // storage implementation detail. SHA-256 is required for every published item.
 type ArtifactManifest struct {
@@ -278,14 +332,14 @@ type ArtifactManifest struct {
 	ExecutionId           string                 `protobuf:"bytes,12,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
 	TimelineEntryId       *string                `protobuf:"bytes,13,opt,name=timeline_entry_id,json=timelineEntryId,proto3,oneof" json:"timeline_entry_id,omitempty"`
 	Producer              string                 `protobuf:"bytes,14,opt,name=producer,proto3" json:"producer,omitempty"`
-	Provenance            *structpb.Struct       `protobuf:"bytes,15,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	Provenance            *ArtifactProvenance    `protobuf:"bytes,15,opt,name=provenance,proto3" json:"provenance,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ArtifactManifest) Reset() {
 	*x = ArtifactManifest{}
-	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[0]
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -297,7 +351,7 @@ func (x *ArtifactManifest) String() string {
 func (*ArtifactManifest) ProtoMessage() {}
 
 func (x *ArtifactManifest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[0]
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -310,7 +364,7 @@ func (x *ArtifactManifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArtifactManifest.ProtoReflect.Descriptor instead.
 func (*ArtifactManifest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{0}
+	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ArtifactManifest) GetId() string {
@@ -411,7 +465,7 @@ func (x *ArtifactManifest) GetProducer() string {
 	return ""
 }
 
-func (x *ArtifactManifest) GetProvenance() *structpb.Struct {
+func (x *ArtifactManifest) GetProvenance() *ArtifactProvenance {
 	if x != nil {
 		return x.Provenance
 	}
@@ -435,7 +489,7 @@ type EvidencePolicy struct {
 
 func (x *EvidencePolicy) Reset() {
 	*x = EvidencePolicy{}
-	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -447,7 +501,7 @@ func (x *EvidencePolicy) String() string {
 func (*EvidencePolicy) ProtoMessage() {}
 
 func (x *EvidencePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,7 +514,7 @@ func (x *EvidencePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidencePolicy.ProtoReflect.Descriptor instead.
 func (*EvidencePolicy) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{1}
+	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *EvidencePolicy) GetMaxArtifactSizeBytes() int64 {
@@ -527,7 +581,7 @@ type EvidenceManifest struct {
 
 func (x *EvidenceManifest) Reset() {
 	*x = EvidenceManifest{}
-	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -539,7 +593,7 @@ func (x *EvidenceManifest) String() string {
 func (*EvidenceManifest) ProtoMessage() {}
 
 func (x *EvidenceManifest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -552,7 +606,7 @@ func (x *EvidenceManifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceManifest.ProtoReflect.Descriptor instead.
 func (*EvidenceManifest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{2}
+	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *EvidenceManifest) GetId() string {
@@ -597,6 +651,52 @@ func (x *EvidenceManifest) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// ReplayPresentation contains renderer-neutral presentation hints. It is a
+// typed, bounded contract rather than an arbitrary metadata bag.
+type ReplayPresentation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Theme         *string                `protobuf:"bytes,1,opt,name=theme,proto3,oneof" json:"theme,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplayPresentation) Reset() {
+	*x = ReplayPresentation{}
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplayPresentation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplayPresentation) ProtoMessage() {}
+
+func (x *ReplayPresentation) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplayPresentation.ProtoReflect.Descriptor instead.
+func (*ReplayPresentation) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ReplayPresentation) GetTheme() string {
+	if x != nil && x.Theme != nil {
+		return *x.Theme
+	}
+	return ""
+}
+
 // ReplayPackage is a versioned, renderer-neutral handoff. Consumers render
 // from timeline + manifest metadata and request artifacts by ID; they never
 // infer BAS filesystem or object-store paths.
@@ -611,7 +711,7 @@ type ReplayPackage struct {
 	// replay consumers schema-safe and removes dynamic Struct conversion at the
 	// evidence boundary.
 	Timeline      []*timeline.TimelineEntry `protobuf:"bytes,6,rep,name=timeline,proto3" json:"timeline,omitempty"`
-	Presentation  *structpb.Struct          `protobuf:"bytes,7,opt,name=presentation,proto3" json:"presentation,omitempty"`
+	Presentation  *ReplayPresentation       `protobuf:"bytes,7,opt,name=presentation,proto3" json:"presentation,omitempty"`
 	CreatedAt     *timestamppb.Timestamp    `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -619,7 +719,7 @@ type ReplayPackage struct {
 
 func (x *ReplayPackage) Reset() {
 	*x = ReplayPackage{}
-	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -631,7 +731,7 @@ func (x *ReplayPackage) String() string {
 func (*ReplayPackage) ProtoMessage() {}
 
 func (x *ReplayPackage) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -644,7 +744,7 @@ func (x *ReplayPackage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayPackage.ProtoReflect.Descriptor instead.
 func (*ReplayPackage) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ReplayPackage) GetId() string {
@@ -689,7 +789,7 @@ func (x *ReplayPackage) GetTimeline() []*timeline.TimelineEntry {
 	return nil
 }
 
-func (x *ReplayPackage) GetPresentation() *structpb.Struct {
+func (x *ReplayPackage) GetPresentation() *ReplayPresentation {
 	if x != nil {
 		return x.Presentation
 	}
@@ -707,7 +807,12 @@ var File_browser_automation_studio_v1_evidence_evidence_proto protoreflect.FileD
 
 const file_browser_automation_studio_v1_evidence_evidence_proto_rawDesc = "" +
 	"\n" +
-	"4browser-automation-studio/v1/evidence/evidence.proto\x12%browser_automation_studio.v1.evidence\x1a\x1bbuf/validate/validate.proto\x1a1browser-automation-studio/v1/timeline/entry.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\a\n" +
+	"4browser-automation-studio/v1/evidence/evidence.proto\x12%browser_automation_studio.v1.evidence\x1a\x1bbuf/validate/validate.proto\x1a1browser-automation-studio/v1/timeline/entry.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
+	"\x12ArtifactProvenance\x12\x1b\n" +
+	"\x06source\x18\x01 \x01(\tH\x00R\x06source\x88\x01\x01\x12(\n" +
+	"\rartifact_type\x18\x02 \x01(\tH\x01R\fartifactType\x88\x01\x01B\t\n" +
+	"\a_sourceB\x10\n" +
+	"\x0e_artifact_type\"\x84\b\n" +
 	"\x10ArtifactManifest\x12\x18\n" +
 	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12S\n" +
 	"\x04kind\x18\x02 \x01(\x0e23.browser_automation_studio.v1.evidence.ArtifactKindB\n" +
@@ -731,9 +836,9 @@ const file_browser_automation_studio_v1_evidence_evidence_proto_rawDesc = "" +
 	"capturedAt\x12+\n" +
 	"\fexecution_id\x18\f \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vexecutionId\x129\n" +
 	"\x11timeline_entry_id\x18\r \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x01R\x0ftimelineEntryId\x88\x01\x01\x12#\n" +
-	"\bproducer\x18\x0e \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bproducer\x127\n" +
+	"\bproducer\x18\x0e \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bproducer\x12Y\n" +
 	"\n" +
-	"provenance\x18\x0f \x01(\v2\x17.google.protobuf.StructR\n" +
+	"provenance\x18\x0f \x01(\v29.browser_automation_studio.v1.evidence.ArtifactProvenanceR\n" +
 	"provenanceB\x1a\n" +
 	"\x18_sanitized_derivative_idB\x14\n" +
 	"\x12_timeline_entry_id\"\xff\x03\n" +
@@ -755,7 +860,10 @@ const file_browser_automation_studio_v1_evidence_evidence_proto_rawDesc = "" +
 	"\x06policy\x18\x04 \x01(\v25.browser_automation_studio.v1.evidence.EvidencePolicyR\x06policy\x12U\n" +
 	"\tartifacts\x18\x05 \x03(\v27.browser_automation_studio.v1.evidence.ArtifactManifestR\tartifacts\x129\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xdc\x03\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"9\n" +
+	"\x12ReplayPresentation\x12\x19\n" +
+	"\x05theme\x18\x01 \x01(\tH\x00R\x05theme\x88\x01\x01B\b\n" +
+	"\x06_theme\"\xfe\x03\n" +
 	"\rReplayPackage\x12\x18\n" +
 	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12.\n" +
 	"\x0eschema_version\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\rschemaVersion\x12+\n" +
@@ -763,8 +871,8 @@ const file_browser_automation_studio_v1_evidence_evidence_proto_rawDesc = "" +
 	"\vworkflow_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\n" +
 	"workflowId\x88\x01\x01\x12S\n" +
 	"\bevidence\x18\x05 \x01(\v27.browser_automation_studio.v1.evidence.EvidenceManifestR\bevidence\x12G\n" +
-	"\btimeline\x18\x06 \x03(\v2+.browser_automation_studio.v1.TimelineEntryR\btimeline\x12;\n" +
-	"\fpresentation\x18\a \x01(\v2\x17.google.protobuf.StructR\fpresentation\x129\n" +
+	"\btimeline\x18\x06 \x03(\v2+.browser_automation_studio.v1.TimelineEntryR\btimeline\x12]\n" +
+	"\fpresentation\x18\a \x01(\v29.browser_automation_studio.v1.evidence.ReplayPresentationR\fpresentation\x129\n" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\x0e\n" +
 	"\f_workflow_id*\xa1\x02\n" +
@@ -811,36 +919,37 @@ func file_browser_automation_studio_v1_evidence_evidence_proto_rawDescGZIP() []b
 }
 
 var file_browser_automation_studio_v1_evidence_evidence_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_browser_automation_studio_v1_evidence_evidence_proto_goTypes = []any{
 	(ArtifactKind)(0),              // 0: browser_automation_studio.v1.evidence.ArtifactKind
 	(ContentClassification)(0),     // 1: browser_automation_studio.v1.evidence.ContentClassification
 	(RetentionClass)(0),            // 2: browser_automation_studio.v1.evidence.RetentionClass
 	(AccessPolicy)(0),              // 3: browser_automation_studio.v1.evidence.AccessPolicy
-	(*ArtifactManifest)(nil),       // 4: browser_automation_studio.v1.evidence.ArtifactManifest
-	(*EvidencePolicy)(nil),         // 5: browser_automation_studio.v1.evidence.EvidencePolicy
-	(*EvidenceManifest)(nil),       // 6: browser_automation_studio.v1.evidence.EvidenceManifest
-	(*ReplayPackage)(nil),          // 7: browser_automation_studio.v1.evidence.ReplayPackage
-	(*timestamppb.Timestamp)(nil),  // 8: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),        // 9: google.protobuf.Struct
-	(*timeline.TimelineEntry)(nil), // 10: browser_automation_studio.v1.TimelineEntry
+	(*ArtifactProvenance)(nil),     // 4: browser_automation_studio.v1.evidence.ArtifactProvenance
+	(*ArtifactManifest)(nil),       // 5: browser_automation_studio.v1.evidence.ArtifactManifest
+	(*EvidencePolicy)(nil),         // 6: browser_automation_studio.v1.evidence.EvidencePolicy
+	(*EvidenceManifest)(nil),       // 7: browser_automation_studio.v1.evidence.EvidenceManifest
+	(*ReplayPresentation)(nil),     // 8: browser_automation_studio.v1.evidence.ReplayPresentation
+	(*ReplayPackage)(nil),          // 9: browser_automation_studio.v1.evidence.ReplayPackage
+	(*timestamppb.Timestamp)(nil),  // 10: google.protobuf.Timestamp
+	(*timeline.TimelineEntry)(nil), // 11: browser_automation_studio.v1.TimelineEntry
 }
 var file_browser_automation_studio_v1_evidence_evidence_proto_depIdxs = []int32{
 	0,  // 0: browser_automation_studio.v1.evidence.ArtifactManifest.kind:type_name -> browser_automation_studio.v1.evidence.ArtifactKind
 	1,  // 1: browser_automation_studio.v1.evidence.ArtifactManifest.classification:type_name -> browser_automation_studio.v1.evidence.ContentClassification
 	2,  // 2: browser_automation_studio.v1.evidence.ArtifactManifest.retention_class:type_name -> browser_automation_studio.v1.evidence.RetentionClass
 	3,  // 3: browser_automation_studio.v1.evidence.ArtifactManifest.access_policy:type_name -> browser_automation_studio.v1.evidence.AccessPolicy
-	8,  // 4: browser_automation_studio.v1.evidence.ArtifactManifest.captured_at:type_name -> google.protobuf.Timestamp
-	9,  // 5: browser_automation_studio.v1.evidence.ArtifactManifest.provenance:type_name -> google.protobuf.Struct
+	10, // 4: browser_automation_studio.v1.evidence.ArtifactManifest.captured_at:type_name -> google.protobuf.Timestamp
+	4,  // 5: browser_automation_studio.v1.evidence.ArtifactManifest.provenance:type_name -> browser_automation_studio.v1.evidence.ArtifactProvenance
 	2,  // 6: browser_automation_studio.v1.evidence.EvidencePolicy.default_retention_class:type_name -> browser_automation_studio.v1.evidence.RetentionClass
 	3,  // 7: browser_automation_studio.v1.evidence.EvidencePolicy.default_access_policy:type_name -> browser_automation_studio.v1.evidence.AccessPolicy
-	5,  // 8: browser_automation_studio.v1.evidence.EvidenceManifest.policy:type_name -> browser_automation_studio.v1.evidence.EvidencePolicy
-	4,  // 9: browser_automation_studio.v1.evidence.EvidenceManifest.artifacts:type_name -> browser_automation_studio.v1.evidence.ArtifactManifest
-	8,  // 10: browser_automation_studio.v1.evidence.EvidenceManifest.created_at:type_name -> google.protobuf.Timestamp
-	6,  // 11: browser_automation_studio.v1.evidence.ReplayPackage.evidence:type_name -> browser_automation_studio.v1.evidence.EvidenceManifest
-	10, // 12: browser_automation_studio.v1.evidence.ReplayPackage.timeline:type_name -> browser_automation_studio.v1.TimelineEntry
-	9,  // 13: browser_automation_studio.v1.evidence.ReplayPackage.presentation:type_name -> google.protobuf.Struct
-	8,  // 14: browser_automation_studio.v1.evidence.ReplayPackage.created_at:type_name -> google.protobuf.Timestamp
+	6,  // 8: browser_automation_studio.v1.evidence.EvidenceManifest.policy:type_name -> browser_automation_studio.v1.evidence.EvidencePolicy
+	5,  // 9: browser_automation_studio.v1.evidence.EvidenceManifest.artifacts:type_name -> browser_automation_studio.v1.evidence.ArtifactManifest
+	10, // 10: browser_automation_studio.v1.evidence.EvidenceManifest.created_at:type_name -> google.protobuf.Timestamp
+	7,  // 11: browser_automation_studio.v1.evidence.ReplayPackage.evidence:type_name -> browser_automation_studio.v1.evidence.EvidenceManifest
+	11, // 12: browser_automation_studio.v1.evidence.ReplayPackage.timeline:type_name -> browser_automation_studio.v1.TimelineEntry
+	8,  // 13: browser_automation_studio.v1.evidence.ReplayPackage.presentation:type_name -> browser_automation_studio.v1.evidence.ReplayPresentation
+	10, // 14: browser_automation_studio.v1.evidence.ReplayPackage.created_at:type_name -> google.protobuf.Timestamp
 	15, // [15:15] is the sub-list for method output_type
 	15, // [15:15] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
@@ -854,14 +963,16 @@ func file_browser_automation_studio_v1_evidence_evidence_proto_init() {
 		return
 	}
 	file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[0].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[3].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[1].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[4].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_evidence_evidence_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_evidence_evidence_proto_rawDesc), len(file_browser_automation_studio_v1_evidence_evidence_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

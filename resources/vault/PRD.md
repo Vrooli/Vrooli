@@ -85,7 +85,7 @@ native-host evidence command.
 
 | Capability | Focused evidence |
 | --- | --- |
-| Verified private lifecycle, restart, and persistence | `TestManagedVaultArtifactIntegration` with a staged signed Vault artifact |
+| Verified private lifecycle, restart, and persistence | `TestManagedVaultArtifactIntegration` and `TestDesktopVaultArtifactIntegration` with a staged signed Vault artifact |
 | Artifact integrity and lifecycle ownership | `TestManagedServiceSupervisorStartsVerifiedArtifactAndStops`, `TestManagedServiceSupervisorRejectsTamperedArtifact`, and `TestManagedServiceArtifactPathUsesInstalledSignedArtifactStore` |
 | Shared app isolation and consent | `TestVaultCredentialIssuerCreatesLeaseBoundScopedToken`, `TestProviderPolicyUsesTargetDefaultsWithoutOverridingExplicitChoice`, and the desktop runtime shared-broker tests |
 | Attach-only safety | `TestManagedServiceDriverRefusesAttachOnlyLifecycle` and `TestManagedServiceDriverValidatesExplicitAttachOnlyEndpointWithoutLifecycle` |

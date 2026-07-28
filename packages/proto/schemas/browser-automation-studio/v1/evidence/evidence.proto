@@ -4,7 +4,6 @@ package browser_automation_studio.v1.evidence;
 
 import "buf/validate/validate.proto";
 import "browser-automation-studio/v1/timeline/entry.proto";
-import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence;evidence";
@@ -52,6 +51,14 @@ enum AccessPolicy {
   ACCESS_POLICY_PROTECTED_STORAGE_ONLY = 4;
 }
 
+// ArtifactProvenance identifies the portable producer context for an artifact.
+// It deliberately excludes filesystem paths, object-store keys, and raw capture
+// payloads so evidence packages remain safe to hand to replay consumers.
+message ArtifactProvenance {
+  optional string source = 1;
+  optional string artifact_type = 2;
+}
+
 // ArtifactManifest describes exactly one captured artifact without exposing a
 // storage implementation detail. SHA-256 is required for every published item.
 message ArtifactManifest {
@@ -84,7 +91,7 @@ message ArtifactManifest {
   string execution_id = 12 [(buf.validate.field).string.uuid = true];
   optional string timeline_entry_id = 13 [(buf.validate.field).string.uuid = true];
   string producer = 14 [(buf.validate.field).string.min_len = 1];
-  google.protobuf.Struct provenance = 15;
+  ArtifactProvenance provenance = 15;
 }
 
 // EvidencePolicy is evaluated before an artifact is exposed beyond protected
@@ -115,6 +122,12 @@ message EvidenceManifest {
   google.protobuf.Timestamp created_at = 6;
 }
 
+// ReplayPresentation contains renderer-neutral presentation hints. It is a
+// typed, bounded contract rather than an arbitrary metadata bag.
+message ReplayPresentation {
+  optional string theme = 1;
+}
+
 // ReplayPackage is a versioned, renderer-neutral handoff. Consumers render
 // from timeline + manifest metadata and request artifacts by ID; they never
 // infer BAS filesystem or object-store paths.
@@ -128,6 +141,6 @@ message ReplayPackage {
   // replay consumers schema-safe and removes dynamic Struct conversion at the
   // evidence boundary.
   repeated browser_automation_studio.v1.TimelineEntry timeline = 6;
-  google.protobuf.Struct presentation = 7;
+  ReplayPresentation presentation = 7;
   google.protobuf.Timestamp created_at = 8;
 }

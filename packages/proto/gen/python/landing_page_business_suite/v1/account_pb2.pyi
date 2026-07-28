@@ -30,17 +30,19 @@ class GetEntitlementsRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetEntitlementsResponse(_message.Message):
-    __slots__ = ("status", "plan_tier", "price_id", "features", "credits", "subscription")
+    __slots__ = ("status", "plan_tier", "price_id", "features", "credits", "subscription", "billing_cycle_start")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     PLAN_TIER_FIELD_NUMBER: _ClassVar[int]
     PRICE_ID_FIELD_NUMBER: _ClassVar[int]
     FEATURES_FIELD_NUMBER: _ClassVar[int]
     CREDITS_FIELD_NUMBER: _ClassVar[int]
     SUBSCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    BILLING_CYCLE_START_FIELD_NUMBER: _ClassVar[int]
     status: str
     plan_tier: str
     price_id: str
     features: _containers.RepeatedScalarFieldContainer[str]
     credits: _commerce_pb2.CreditsBalance
     subscription: _commerce_pb2.SubscriptionStatus
-    def __init__(self, status: _Optional[str] = ..., plan_tier: _Optional[str] = ..., price_id: _Optional[str] = ..., features: _Optional[_Iterable[str]] = ..., credits: _Optional[_Union[_commerce_pb2.CreditsBalance, _Mapping]] = ..., subscription: _Optional[_Union[_commerce_pb2.SubscriptionStatus, _Mapping]] = ...) -> None: ...
+    billing_cycle_start: int
+    def __init__(self, status: _Optional[str] = ..., plan_tier: _Optional[str] = ..., price_id: _Optional[str] = ..., features: _Optional[_Iterable[str]] = ..., credits: _Optional[_Union[_commerce_pb2.CreditsBalance, _Mapping]] = ..., subscription: _Optional[_Union[_commerce_pb2.SubscriptionStatus, _Mapping]] = ..., billing_cycle_start: _Optional[int] = ...) -> None: ...

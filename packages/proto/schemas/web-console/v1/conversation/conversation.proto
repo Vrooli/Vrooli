@@ -30,8 +30,35 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/
 
 service ConversationService {
   rpc Get(GetRequest) returns (GetResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc GetRange(GetRangeRequest) returns (GetResponse);
   rpc UpdateCursor(UpdateCursorRequest) returns (UpdateCursorResponse);
   rpc SummarizeEvent(SummarizeEventRequest) returns (SummarizeEventResponse);
+}
+
+message SearchRequest {
+  string session_id = 1;
+  string query = 2;
+  int32 limit = 3;
+  string role_filter = 4;
+}
+
+message SearchMatch {
+  string event_id = 1;
+  int64 sequence = 2;
+  string excerpt = 3;
+}
+
+message SearchResponse {
+  repeated SearchMatch matches = 1;
+  bool truncated = 2;
+  int64 total_matches = 3;
+}
+
+message GetRangeRequest {
+  string session_id = 1;
+  int64 from_sequence = 2;
+  int64 to_sequence = 3;
 }
 
 // ConversationEvent is one stored entry in a session's transcript. Mirrors the
@@ -63,12 +90,20 @@ message ConversationCursor {
 message GetRequest {
   string session_id = 1;
   int64 since_sequence = 2;
+  // Zero preserves the legacy full-history response.
+  int32 limit = 3;
+  // Zero starts at the newest event; otherwise only earlier events are returned.
+  int64 before_sequence = 4;
 }
 
 message GetResponse {
   string session_id = 1;
   repeated ConversationEvent events = 2;
   ConversationCursor cursor = 3;
+  bool has_more = 4;
+  int64 oldest_sequence = 5;
+  int64 newest_sequence = 6;
+  int64 total_count = 7;
 }
 
 // UpdateCursorRequest applies a partial update to the session's cursor.

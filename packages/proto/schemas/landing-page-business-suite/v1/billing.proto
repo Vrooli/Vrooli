@@ -5,8 +5,6 @@ package landing_page_business_suite.v1;
 import "common/v1/types.proto";
 import "google/protobuf/timestamp.proto";
 import "landing-page-business-suite/v1/shared/commerce.proto";
-import "landing-page-business-suite/v1/pricing.proto";
-import "landing-page-business-suite/v1/settings.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
 
@@ -319,19 +317,22 @@ message BillingPortalResponse {
 // GetBillingPortalRequest asks for the hosted billing portal URL.
 //
 // Opens the billing portal.
-message GetBillingPortalRequest {}
+message GetBillingPortalRequest {
+  // Optional URL to return to after the customer exits Stripe's portal.
+  // Relative paths are not accepted because Stripe requires an absolute URL.
+  // @format url
+  string return_url = 1;
+}
 
 // =============================================================================
 // SERVICE DEFINITION
 // =============================================================================
 
-// LandingPagePaymentsService exposes billing, pricing, and settings operations.
+// LandingPagePaymentsService exposes billing operations.
 //
 // Provides a unified API for:
 //   - Checkout session creation and management
 //   - Subscription verification and cancellation
-//   - Pricing metadata retrieval
-//   - Stripe credential management (admin only)
 service LandingPagePaymentsService {
   // Creates a Stripe checkout session for purchasing a price.
   // Returns a session with a redirect URL for the customer.
@@ -344,18 +345,6 @@ service LandingPagePaymentsService {
   // Cancels an active subscription for a user.
   // Cancellation takes effect at end of current billing period.
   rpc CancelSubscription(CancelSubscriptionRequest) returns (CancelSubscriptionResponse);
-
-  // Returns pricing metadata for a bundle.
-  // Used to render the public pricing page.
-  rpc GetPricing(landing_page_business_suite.v1.GetPricingRequest) returns (landing_page_business_suite.v1.GetPricingResponse);
-
-  // Returns current Stripe settings and runtime configuration snapshot.
-  // Admin-only endpoint for credential management.
-  rpc GetStripeSettings(landing_page_business_suite.v1.GetStripeSettingsRequest) returns (landing_page_business_suite.v1.GetStripeSettingsResponse);
-
-  // Updates Stripe settings and returns the refreshed snapshot.
-  // Admin-only endpoint for credential management.
-  rpc UpdateStripeSettings(landing_page_business_suite.v1.UpdateStripeSettingsRequest) returns (landing_page_business_suite.v1.UpdateStripeSettingsResponse);
 
   // Returns the hosted billing portal URL for self-service management.
   rpc GetBillingPortal(GetBillingPortalRequest) returns (BillingPortalResponse);

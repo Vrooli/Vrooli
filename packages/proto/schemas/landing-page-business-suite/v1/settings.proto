@@ -165,3 +165,22 @@ message UpdateStripeSettingsResponse {
   // Updated runtime configuration snapshot (source will be DATABASE).
   StripeConfigSnapshot snapshot = 2;
 }
+
+// RevealStripeSecretRequest explicitly requests one admin-visible Stripe
+// credential. Ordinary settings reads are always redacted.
+message RevealStripeSecretRequest {
+  string field = 1;
+}
+
+// RevealStripeSecretResponse contains the requested credential value.
+// This response is restricted to authenticated administrators.
+message RevealStripeSecretResponse {
+  string field = 1;
+  string value = 2;
+}
+
+service StripeSettingsService {
+  rpc GetStripeSettings(GetStripeSettingsRequest) returns (GetStripeSettingsResponse);
+  rpc UpdateStripeSettings(UpdateStripeSettingsRequest) returns (UpdateStripeSettingsResponse);
+  rpc RevealStripeSecret(RevealStripeSecretRequest) returns (RevealStripeSecretResponse);
+}

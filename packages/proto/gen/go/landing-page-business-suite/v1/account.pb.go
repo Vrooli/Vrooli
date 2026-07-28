@@ -216,9 +216,11 @@ type GetEntitlementsResponse struct {
 	// Current credit balance for the caller.
 	Credits *shared.CreditsBalance `protobuf:"bytes,5,opt,name=credits,proto3" json:"credits,omitempty"`
 	// Full cached subscription status for richer client rendering.
-	Subscription  *shared.SubscriptionStatus `protobuf:"bytes,6,opt,name=subscription,proto3" json:"subscription,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Subscription *shared.SubscriptionStatus `protobuf:"bytes,6,opt,name=subscription,proto3" json:"subscription,omitempty"`
+	// Billing-cycle day used by bundled clients for usage-period displays.
+	BillingCycleStart int32 `protobuf:"varint,7,opt,name=billing_cycle_start,json=billingCycleStart,proto3" json:"billing_cycle_start,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetEntitlementsResponse) Reset() {
@@ -293,6 +295,13 @@ func (x *GetEntitlementsResponse) GetSubscription() *shared.SubscriptionStatus {
 	return nil
 }
 
+func (x *GetEntitlementsResponse) GetBillingCycleStart() int32 {
+	if x != nil {
+		return x.BillingCycleStart
+	}
+	return 0
+}
+
 var File_landing_page_business_suite_v1_account_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_account_proto_rawDesc = "" +
@@ -304,14 +313,15 @@ const file_landing_page_business_suite_v1_account_proto_rawDesc = "" +
 	"\abalance\x18\x01 \x01(\v2<.vrooli.landing_page_business_suite.v1.shared.CreditsBalanceR\abalance\x122\n" +
 	"\x15display_credits_label\x18\x02 \x01(\tR\x13displayCreditsLabel\x12<\n" +
 	"\x1adisplay_credits_multiplier\x18\x03 \x01(\x01R\x18displayCreditsMultiplier\"\x18\n" +
-	"\x16GetEntitlementsRequest\"\xc3\x02\n" +
+	"\x16GetEntitlementsRequest\"\xf3\x02\n" +
 	"\x17GetEntitlementsResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1b\n" +
 	"\tplan_tier\x18\x02 \x01(\tR\bplanTier\x12\x19\n" +
 	"\bprice_id\x18\x03 \x01(\tR\apriceId\x12\x1a\n" +
 	"\bfeatures\x18\x04 \x03(\tR\bfeatures\x12V\n" +
 	"\acredits\x18\x05 \x01(\v2<.vrooli.landing_page_business_suite.v1.shared.CreditsBalanceR\acredits\x12d\n" +
-	"\fsubscription\x18\x06 \x01(\v2@.vrooli.landing_page_business_suite.v1.shared.SubscriptionStatusR\fsubscription2\xaa\x03\n" +
+	"\fsubscription\x18\x06 \x01(\v2@.vrooli.landing_page_business_suite.v1.shared.SubscriptionStatusR\fsubscription\x12.\n" +
+	"\x13billing_cycle_start\x18\a \x01(\x05R\x11billingCycleStart2\xaa\x03\n" +
 	"\x0eAccountService\x12\x97\x01\n" +
 	"\x11GetMySubscription\x128.landing_page_business_suite.v1.GetMySubscriptionRequest\x1aH.vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse\x12y\n" +
 	"\fGetMyCredits\x123.landing_page_business_suite.v1.GetMyCreditsRequest\x1a4.landing_page_business_suite.v1.GetMyCreditsResponse\x12\x82\x01\n" +

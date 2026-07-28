@@ -17,3 +17,7 @@ message GetPricingRequest {
 message GetPricingResponse {
   vrooli.landing_page_business_suite.v1.shared.PricingOverview pricing = 1;
 }
+
+service PricingService {
+  rpc GetPricing(GetPricingRequest) returns (GetPricingResponse);
+}

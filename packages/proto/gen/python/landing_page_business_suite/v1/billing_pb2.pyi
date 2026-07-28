@@ -3,8 +3,6 @@ import datetime
 from common.v1 import types_pb2 as _types_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from landing_page_business_suite.v1.shared import commerce_pb2 as _commerce_pb2
-from landing_page_business_suite.v1 import pricing_pb2 as _pricing_pb2
-from landing_page_business_suite.v1 import settings_pb2 as _settings_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -187,5 +185,7 @@ class BillingPortalResponse(_message.Message):
     def __init__(self, url: _Optional[str] = ...) -> None: ...
 
 class GetBillingPortalRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("return_url",)
+    RETURN_URL_FIELD_NUMBER: _ClassVar[int]
+    return_url: str
+    def __init__(self, return_url: _Optional[str] = ...) -> None: ...

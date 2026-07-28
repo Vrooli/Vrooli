@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*scenario-to-desktop/v1/shared/common.proto\x12$vrooli.scenario_to_desktop.v1.shared\"d\n\x0fValidationError\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x19\n\x05\x66ield\x18\x03 \x01(\tH\x00R\x05\x66ield\x88\x01\x01\x42\x08\n\x06_field\"f\n\x11ValidationWarning\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x19\n\x05\x66ield\x18\x03 \x01(\tH\x00R\x05\x66ield\x88\x01\x01\x42\x08\n\x06_field*\\\n\x08Platform\x12\x18\n\x14PLATFORM_UNSPECIFIED\x10\x00\x12\x10\n\x0cPLATFORM_WIN\x10\x01\x12\x10\n\x0cPLATFORM_MAC\x10\x02\x12\x12\n\x0ePLATFORM_LINUX\x10\x03*\xf9\x01\n\tStageName\x12\x1a\n\x16STAGE_NAME_UNSPECIFIED\x10\x00\x12\x15\n\x11STAGE_NAME_BUNDLE\x10\x01\x12\x18\n\x14STAGE_NAME_PREFLIGHT\x10\x02\x12\x17\n\x13STAGE_NAME_GENERATE\x10\x03\x12\x14\n\x10STAGE_NAME_BUILD\x10\x04\x12\x19\n\x15STAGE_NAME_SMOKE_TEST\x10\x05\x12\x1b\n\x17STAGE_NAME_DISTRIBUTION\x10\x06\x12\x15\n\x11STAGE_NAME_DEPLOY\x10\x07\x12!\n\x1dSTAGE_NAME_RESOLVE_DEPLOYMENT\x10\x08*\xe1\x01\n\x0bStageStatus\x12\x1c\n\x18STAGE_STATUS_UNSPECIFIED\x10\x00\x12\x18\n\x14STAGE_STATUS_PENDING\x10\x01\x12\x18\n\x14STAGE_STATUS_RUNNING\x10\x02\x12\x1a\n\x16STAGE_STATUS_COMPLETED\x10\x03\x12\x17\n\x13STAGE_STATUS_FAILED\x10\x04\x12\x18\n\x14STAGE_STATUS_SKIPPED\x10\x05\x12\x1a\n\x16STAGE_STATUS_CANCELLED\x10\x06\x12\x15\n\x11STAGE_STATUS_IDLE\x10\x07*\x91\x01\n\x0b\x42uildStatus\x12\x1c\n\x18\x42UILD_STATUS_UNSPECIFIED\x10\x00\x12\x19\n\x15\x42UILD_STATUS_BUILDING\x10\x01\x12\x16\n\x12\x42UILD_STATUS_READY\x10\x02\x12\x18\n\x14\x42UILD_STATUS_PARTIAL\x10\x03\x12\x17\n\x13\x42UILD_STATUS_FAILED\x10\x04*\x9c\x01\n\x0cUploadStatus\x12\x1d\n\x19UPLOAD_STATUS_UNSPECIFIED\x10\x00\x12\x19\n\x15UPLOAD_STATUS_PENDING\x10\x01\x12\x1b\n\x17UPLOAD_STATUS_UPLOADING\x10\x02\x12\x1b\n\x17UPLOAD_STATUS_COMPLETED\x10\x03\x12\x18\n\x14UPLOAD_STATUS_FAILED\x10\x04*i\n\x0e\x44\x65ploymentMode\x12\x1f\n\x1b\x44\x45PLOYMENT_MODE_UNSPECIFIED\x10\x00\x12\x19\n\x15\x44\x45PLOYMENT_MODE_PROXY\x10\x01\x12\x1b\n\x17\x44\x45PLOYMENT_MODE_BUNDLED\x10\x02*>\n\tFramework\x12\x19\n\x15\x46RAMEWORK_UNSPECIFIED\x10\x00\x12\x16\n\x12\x46RAMEWORK_ELECTRON\x10\x01*\x9b\x01\n\x0cTemplateType\x12\x1d\n\x19TEMPLATE_TYPE_UNSPECIFIED\x10\x00\x12\x17\n\x13TEMPLATE_TYPE_BASIC\x10\x01\x12\x1a\n\x16TEMPLATE_TYPE_ADVANCED\x10\x02\x12\x1e\n\x1aTEMPLATE_TYPE_MULTI_WINDOW\x10\x03\x12\x17\n\x13TEMPLATE_TYPE_KIOSK\x10\x04*\xa2\x01\n\x14\x44istributionProvider\x12%\n!DISTRIBUTION_PROVIDER_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x44ISTRIBUTION_PROVIDER_S3\x10\x01\x12\x1c\n\x18\x44ISTRIBUTION_PROVIDER_R2\x10\x02\x12\'\n#DISTRIBUTION_PROVIDER_S3_COMPATIBLE\x10\x03\x42UZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared;sharedb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*scenario-to-desktop/v1/shared/common.proto\x12$vrooli.scenario_to_desktop.v1.shared\"d\n\x0fValidationError\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x19\n\x05\x66ield\x18\x03 \x01(\tH\x00R\x05\x66ield\x88\x01\x01\x42\x08\n\x06_field\"f\n\x11ValidationWarning\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x19\n\x05\x66ield\x18\x03 \x01(\tH\x00R\x05\x66ield\x88\x01\x01\x42\x08\n\x06_field\"\x9d\x03\n\rErrorEnvelope\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x1a\n\x08\x63\x61tegory\x18\x02 \x01(\tR\x08\x63\x61tegory\x12\x1a\n\x08recovery\x18\x03 \x01(\tR\x08recovery\x12#\n\rrecovery_hint\x18\x04 \x01(\tR\x0crecoveryHint\x12Z\n\x07\x64\x65tails\x18\x05 \x03(\x0b\x32@.vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope.DetailsEntryR\x07\x64\x65tails\x12%\n\x0eretry_strategy\x18\x06 \x01(\tR\rretryStrategy\x12\x19\n\x08\x61uto_fix\x18\x07 \x01(\tR\x07\x61utoFix\x12!\n\x0cmanual_steps\x18\x08 \x03(\tR\x0bmanualSteps\x12\x1e\n\ndiagnostic\x18\t \x01(\tR\ndiagnostic\x1a:\n\x0c\x44\x65tailsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01*\\\n\x08Platform\x12\x18\n\x14PLATFORM_UNSPECIFIED\x10\x00\x12\x10\n\x0cPLATFORM_WIN\x10\x01\x12\x10\n\x0cPLATFORM_MAC\x10\x02\x12\x12\n\x0ePLATFORM_LINUX\x10\x03*\xf9\x01\n\tStageName\x12\x1a\n\x16STAGE_NAME_UNSPECIFIED\x10\x00\x12\x15\n\x11STAGE_NAME_BUNDLE\x10\x01\x12\x18\n\x14STAGE_NAME_PREFLIGHT\x10\x02\x12\x17\n\x13STAGE_NAME_GENERATE\x10\x03\x12\x14\n\x10STAGE_NAME_BUILD\x10\x04\x12\x19\n\x15STAGE_NAME_SMOKE_TEST\x10\x05\x12\x1b\n\x17STAGE_NAME_DISTRIBUTION\x10\x06\x12\x15\n\x11STAGE_NAME_DEPLOY\x10\x07\x12!\n\x1dSTAGE_NAME_RESOLVE_DEPLOYMENT\x10\x08*\xe1\x01\n\x0bStageStatus\x12\x1c\n\x18STAGE_STATUS_UNSPECIFIED\x10\x00\x12\x18\n\x14STAGE_STATUS_PENDING\x10\x01\x12\x18\n\x14STAGE_STATUS_RUNNING\x10\x02\x12\x1a\n\x16STAGE_STATUS_COMPLETED\x10\x03\x12\x17\n\x13STAGE_STATUS_FAILED\x10\x04\x12\x18\n\x14STAGE_STATUS_SKIPPED\x10\x05\x12\x1a\n\x16STAGE_STATUS_CANCELLED\x10\x06\x12\x15\n\x11STAGE_STATUS_IDLE\x10\x07*\x91\x01\n\x0b\x42uildStatus\x12\x1c\n\x18\x42UILD_STATUS_UNSPECIFIED\x10\x00\x12\x19\n\x15\x42UILD_STATUS_BUILDING\x10\x01\x12\x16\n\x12\x42UILD_STATUS_READY\x10\x02\x12\x18\n\x14\x42UILD_STATUS_PARTIAL\x10\x03\x12\x17\n\x13\x42UILD_STATUS_FAILED\x10\x04*\x9c\x01\n\x0cUploadStatus\x12\x1d\n\x19UPLOAD_STATUS_UNSPECIFIED\x10\x00\x12\x19\n\x15UPLOAD_STATUS_PENDING\x10\x01\x12\x1b\n\x17UPLOAD_STATUS_UPLOADING\x10\x02\x12\x1b\n\x17UPLOAD_STATUS_COMPLETED\x10\x03\x12\x18\n\x14UPLOAD_STATUS_FAILED\x10\x04*i\n\x0e\x44\x65ploymentMode\x12\x1f\n\x1b\x44\x45PLOYMENT_MODE_UNSPECIFIED\x10\x00\x12\x19\n\x15\x44\x45PLOYMENT_MODE_PROXY\x10\x01\x12\x1b\n\x17\x44\x45PLOYMENT_MODE_BUNDLED\x10\x02*>\n\tFramework\x12\x19\n\x15\x46RAMEWORK_UNSPECIFIED\x10\x00\x12\x16\n\x12\x46RAMEWORK_ELECTRON\x10\x01*\x9b\x01\n\x0cTemplateType\x12\x1d\n\x19TEMPLATE_TYPE_UNSPECIFIED\x10\x00\x12\x17\n\x13TEMPLATE_TYPE_BASIC\x10\x01\x12\x1a\n\x16TEMPLATE_TYPE_ADVANCED\x10\x02\x12\x1e\n\x1aTEMPLATE_TYPE_MULTI_WINDOW\x10\x03\x12\x17\n\x13TEMPLATE_TYPE_KIOSK\x10\x04*\xa2\x01\n\x14\x44istributionProvider\x12%\n!DISTRIBUTION_PROVIDER_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x44ISTRIBUTION_PROVIDER_S3\x10\x01\x12\x1c\n\x18\x44ISTRIBUTION_PROVIDER_R2\x10\x02\x12\'\n#DISTRIBUTION_PROVIDER_S3_COMPATIBLE\x10\x03\x42UZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared;sharedb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,26 +32,32 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'scenario_to_desktop.v1.shar
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared;shared'
-  _globals['_PLATFORM']._serialized_start=290
-  _globals['_PLATFORM']._serialized_end=382
-  _globals['_STAGENAME']._serialized_start=385
-  _globals['_STAGENAME']._serialized_end=634
-  _globals['_STAGESTATUS']._serialized_start=637
-  _globals['_STAGESTATUS']._serialized_end=862
-  _globals['_BUILDSTATUS']._serialized_start=865
-  _globals['_BUILDSTATUS']._serialized_end=1010
-  _globals['_UPLOADSTATUS']._serialized_start=1013
-  _globals['_UPLOADSTATUS']._serialized_end=1169
-  _globals['_DEPLOYMENTMODE']._serialized_start=1171
-  _globals['_DEPLOYMENTMODE']._serialized_end=1276
-  _globals['_FRAMEWORK']._serialized_start=1278
-  _globals['_FRAMEWORK']._serialized_end=1340
-  _globals['_TEMPLATETYPE']._serialized_start=1343
-  _globals['_TEMPLATETYPE']._serialized_end=1498
-  _globals['_DISTRIBUTIONPROVIDER']._serialized_start=1501
-  _globals['_DISTRIBUTIONPROVIDER']._serialized_end=1663
+  _globals['_ERRORENVELOPE_DETAILSENTRY']._loaded_options = None
+  _globals['_ERRORENVELOPE_DETAILSENTRY']._serialized_options = b'8\001'
+  _globals['_PLATFORM']._serialized_start=706
+  _globals['_PLATFORM']._serialized_end=798
+  _globals['_STAGENAME']._serialized_start=801
+  _globals['_STAGENAME']._serialized_end=1050
+  _globals['_STAGESTATUS']._serialized_start=1053
+  _globals['_STAGESTATUS']._serialized_end=1278
+  _globals['_BUILDSTATUS']._serialized_start=1281
+  _globals['_BUILDSTATUS']._serialized_end=1426
+  _globals['_UPLOADSTATUS']._serialized_start=1429
+  _globals['_UPLOADSTATUS']._serialized_end=1585
+  _globals['_DEPLOYMENTMODE']._serialized_start=1587
+  _globals['_DEPLOYMENTMODE']._serialized_end=1692
+  _globals['_FRAMEWORK']._serialized_start=1694
+  _globals['_FRAMEWORK']._serialized_end=1756
+  _globals['_TEMPLATETYPE']._serialized_start=1759
+  _globals['_TEMPLATETYPE']._serialized_end=1914
+  _globals['_DISTRIBUTIONPROVIDER']._serialized_start=1917
+  _globals['_DISTRIBUTIONPROVIDER']._serialized_end=2079
   _globals['_VALIDATIONERROR']._serialized_start=84
   _globals['_VALIDATIONERROR']._serialized_end=184
   _globals['_VALIDATIONWARNING']._serialized_start=186
   _globals['_VALIDATIONWARNING']._serialized_end=288
+  _globals['_ERRORENVELOPE']._serialized_start=291
+  _globals['_ERRORENVELOPE']._serialized_end=704
+  _globals['_ERRORENVELOPE_DETAILSENTRY']._serialized_start=646
+  _globals['_ERRORENVELOPE_DETAILSENTRY']._serialized_end=704
 # @@protoc_insertion_point(module_scope)

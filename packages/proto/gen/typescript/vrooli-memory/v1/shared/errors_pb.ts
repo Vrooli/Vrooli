@@ -2,15 +2,15 @@
 // @generated from file vrooli-memory/v1/shared/errors.proto (package vrooli.vrooli_memory.v1.shared, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file vrooli-memory/v1/shared/errors.proto.
  */
 export const file_vrooli_memory_v1_shared_errors: GenFile = /*@__PURE__*/
-  fileDesc("CiR2cm9vbGktbWVtb3J5L3YxL3NoYXJlZC9lcnJvcnMucHJvdG8SHnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnNoYXJlZCKrAQoNRXJyb3JFbnZlbG9wZRIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSSwoHZGV0YWlscxgDIAMoCzI6LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnNoYXJlZC5FcnJvckVudmVsb3BlLkRldGFpbHNFbnRyeRouCgxEZXRhaWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1tZW1vcnkvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("CiR2cm9vbGktbWVtb3J5L3YxL3NoYXJlZC9lcnJvcnMucHJvdG8SHnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnNoYXJlZCKrAQoNRXJyb3JFbnZlbG9wZRIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSSwoHZGV0YWlscxgDIAMoCzI6LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnNoYXJlZC5FcnJvckVudmVsb3BlLkRldGFpbHNFbnRyeRouCgxEZXRhaWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASrdAgoPRG9tYWluRXJyb3JDb2RlEiEKHURPTUFJTl9FUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASIwofRE9NQUlOX0VSUk9SX0NPREVfSU5WQUxJRF9GQUNFVBABEikKJURPTUFJTl9FUlJPUl9DT0RFX1BJTl9CVURHRVRfRVhDRUVERUQQAhIuCipET01BSU5fRVJST1JfQ09ERV9JTVBPUlRfU09VUkNFX1VOUkVBREFCTEUQAxIrCidET01BSU5fRVJST1JfQ09ERV9JTVBPUlRfRk9STUFUX0NIQU5HRUQQBBIpCiVET01BSU5fRVJST1JfQ09ERV9QUk9KRUNUSU9OX09WRVJGTE9XEAUSKQolRE9NQUlOX0VSUk9SX0NPREVfV09SS19SRUNPUkRfSU5WQUxJRBAGEiQKIERPTUFJTl9FUlJPUl9DT0RFX1RPS0VOX1JFUVVJUkVEEAdCUlpQZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktbWVtb3J5L3YxL3NoYXJlZDtzaGFyZWRfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.shared.ErrorEnvelope
@@ -38,4 +38,58 @@ export type ErrorEnvelope = Message<"vrooli.vrooli_memory.v1.shared.ErrorEnvelop
  */
 export const ErrorEnvelopeSchema: GenMessage<ErrorEnvelope> = /*@__PURE__*/
   messageDesc(file_vrooli_memory_v1_shared_errors, 0);
+
+/**
+ * DomainErrorCode documents the stable application codes returned inside
+ * ErrorEnvelope.code. Connect transport errors retain Connect's code set.
+ *
+ * @generated from enum vrooli.vrooli_memory.v1.shared.DomainErrorCode
+ */
+export enum DomainErrorCode {
+  /**
+   * @generated from enum value: DOMAIN_ERROR_CODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: DOMAIN_ERROR_CODE_INVALID_FACET = 1;
+   */
+  INVALID_FACET = 1,
+
+  /**
+   * @generated from enum value: DOMAIN_ERROR_CODE_PIN_BUDGET_EXCEEDED = 2;
+   */
+  PIN_BUDGET_EXCEEDED = 2,
+
+  /**
+   * @generated from enum value: DOMAIN_ERROR_CODE_IMPORT_SOURCE_UNREADABLE = 3;
+   */
+  IMPORT_SOURCE_UNREADABLE = 3,
+
+  /**
+   * @generated from enum value: DOMAIN_ERROR_CODE_IMPORT_FORMAT_CHANGED = 4;
+   */
+  IMPORT_FORMAT_CHANGED = 4,
+
+  /**
+   * @generated from enum value: DOMAIN_ERROR_CODE_PROJECTION_OVERFLOW = 5;
+   */
+  PROJECTION_OVERFLOW = 5,
+
+  /**
+   * @generated from enum value: DOMAIN_ERROR_CODE_WORK_RECORD_INVALID = 6;
+   */
+  WORK_RECORD_INVALID = 6,
+
+  /**
+   * @generated from enum value: DOMAIN_ERROR_CODE_TOKEN_REQUIRED = 7;
+   */
+  TOKEN_REQUIRED = 7,
+}
+
+/**
+ * Describes the enum vrooli.vrooli_memory.v1.shared.DomainErrorCode.
+ */
+export const DomainErrorCodeSchema: GenEnum<DomainErrorCode> = /*@__PURE__*/
+  enumDesc(file_vrooli_memory_v1_shared_errors, 0);
 

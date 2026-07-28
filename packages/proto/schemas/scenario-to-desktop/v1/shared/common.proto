@@ -285,3 +285,19 @@ message ValidationWarning {
   // Field or component that caused the warning.
   optional string field = 3;
 }
+
+// ErrorEnvelope is the structured diagnostic payload attached to every
+// non-success Connect response. Connect's status code continues to describe
+// transport semantics; this message preserves the remediation information
+// needed by the UI and automated fix loop.
+message ErrorEnvelope {
+  string code = 1;
+  string category = 2;
+  string recovery = 3;
+  string recovery_hint = 4;
+  map<string, string> details = 5;
+  string retry_strategy = 6;
+  string auto_fix = 7;
+  repeated string manual_steps = 8;
+  string diagnostic = 9;
+}

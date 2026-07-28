@@ -30,3 +30,16 @@ message ErrorEnvelope {
   string message = 2;
   map<string, string> details = 3;
 }
+
+// DomainErrorCode documents the stable application codes returned inside
+// ErrorEnvelope.code. Connect transport errors retain Connect's code set.
+enum DomainErrorCode {
+  DOMAIN_ERROR_CODE_UNSPECIFIED = 0;
+  DOMAIN_ERROR_CODE_INVALID_FACET = 1;
+  DOMAIN_ERROR_CODE_PIN_BUDGET_EXCEEDED = 2;
+  DOMAIN_ERROR_CODE_IMPORT_SOURCE_UNREADABLE = 3;
+  DOMAIN_ERROR_CODE_IMPORT_FORMAT_CHANGED = 4;
+  DOMAIN_ERROR_CODE_PROJECTION_OVERFLOW = 5;
+  DOMAIN_ERROR_CODE_WORK_RECORD_INVALID = 6;
+  DOMAIN_ERROR_CODE_TOKEN_REQUIRED = 7;
+}

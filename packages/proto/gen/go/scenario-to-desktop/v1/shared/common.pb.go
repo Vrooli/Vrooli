@@ -748,6 +748,118 @@ func (x *ValidationWarning) GetField() string {
 	return ""
 }
 
+// ErrorEnvelope is the structured diagnostic payload attached to every
+// non-success Connect response. Connect's status code continues to describe
+// transport semantics; this message preserves the remediation information
+// needed by the UI and automated fix loop.
+type ErrorEnvelope struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Category      string                 `protobuf:"bytes,2,opt,name=category,proto3" json:"category,omitempty"`
+	Recovery      string                 `protobuf:"bytes,3,opt,name=recovery,proto3" json:"recovery,omitempty"`
+	RecoveryHint  string                 `protobuf:"bytes,4,opt,name=recovery_hint,json=recoveryHint,proto3" json:"recovery_hint,omitempty"`
+	Details       map[string]string      `protobuf:"bytes,5,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	RetryStrategy string                 `protobuf:"bytes,6,opt,name=retry_strategy,json=retryStrategy,proto3" json:"retry_strategy,omitempty"`
+	AutoFix       string                 `protobuf:"bytes,7,opt,name=auto_fix,json=autoFix,proto3" json:"auto_fix,omitempty"`
+	ManualSteps   []string               `protobuf:"bytes,8,rep,name=manual_steps,json=manualSteps,proto3" json:"manual_steps,omitempty"`
+	Diagnostic    string                 `protobuf:"bytes,9,opt,name=diagnostic,proto3" json:"diagnostic,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorEnvelope) Reset() {
+	*x = ErrorEnvelope{}
+	mi := &file_scenario_to_desktop_v1_shared_common_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorEnvelope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorEnvelope) ProtoMessage() {}
+
+func (x *ErrorEnvelope) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_shared_common_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorEnvelope.ProtoReflect.Descriptor instead.
+func (*ErrorEnvelope) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_shared_common_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ErrorEnvelope) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *ErrorEnvelope) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *ErrorEnvelope) GetRecovery() string {
+	if x != nil {
+		return x.Recovery
+	}
+	return ""
+}
+
+func (x *ErrorEnvelope) GetRecoveryHint() string {
+	if x != nil {
+		return x.RecoveryHint
+	}
+	return ""
+}
+
+func (x *ErrorEnvelope) GetDetails() map[string]string {
+	if x != nil {
+		return x.Details
+	}
+	return nil
+}
+
+func (x *ErrorEnvelope) GetRetryStrategy() string {
+	if x != nil {
+		return x.RetryStrategy
+	}
+	return ""
+}
+
+func (x *ErrorEnvelope) GetAutoFix() string {
+	if x != nil {
+		return x.AutoFix
+	}
+	return ""
+}
+
+func (x *ErrorEnvelope) GetManualSteps() []string {
+	if x != nil {
+		return x.ManualSteps
+	}
+	return nil
+}
+
+func (x *ErrorEnvelope) GetDiagnostic() string {
+	if x != nil {
+		return x.Diagnostic
+	}
+	return ""
+}
+
 var File_scenario_to_desktop_v1_shared_common_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_shared_common_proto_rawDesc = "" +
@@ -762,7 +874,22 @@ const file_scenario_to_desktop_v1_shared_common_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x19\n" +
 	"\x05field\x18\x03 \x01(\tH\x00R\x05field\x88\x01\x01B\b\n" +
-	"\x06_field*\\\n" +
+	"\x06_field\"\x9d\x03\n" +
+	"\rErrorEnvelope\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
+	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x1a\n" +
+	"\brecovery\x18\x03 \x01(\tR\brecovery\x12#\n" +
+	"\rrecovery_hint\x18\x04 \x01(\tR\frecoveryHint\x12Z\n" +
+	"\adetails\x18\x05 \x03(\v2@.vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope.DetailsEntryR\adetails\x12%\n" +
+	"\x0eretry_strategy\x18\x06 \x01(\tR\rretryStrategy\x12\x19\n" +
+	"\bauto_fix\x18\a \x01(\tR\aautoFix\x12!\n" +
+	"\fmanual_steps\x18\b \x03(\tR\vmanualSteps\x12\x1e\n" +
+	"\n" +
+	"diagnostic\x18\t \x01(\tR\n" +
+	"diagnostic\x1a:\n" +
+	"\fDetailsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\\\n" +
 	"\bPlatform\x12\x18\n" +
 	"\x14PLATFORM_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fPLATFORM_WIN\x10\x01\x12\x10\n" +
@@ -831,7 +958,7 @@ func file_scenario_to_desktop_v1_shared_common_proto_rawDescGZIP() []byte {
 }
 
 var file_scenario_to_desktop_v1_shared_common_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_scenario_to_desktop_v1_shared_common_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_scenario_to_desktop_v1_shared_common_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_scenario_to_desktop_v1_shared_common_proto_goTypes = []any{
 	(Platform)(0),             // 0: vrooli.scenario_to_desktop.v1.shared.Platform
 	(StageName)(0),            // 1: vrooli.scenario_to_desktop.v1.shared.StageName
@@ -844,13 +971,16 @@ var file_scenario_to_desktop_v1_shared_common_proto_goTypes = []any{
 	(DistributionProvider)(0), // 8: vrooli.scenario_to_desktop.v1.shared.DistributionProvider
 	(*ValidationError)(nil),   // 9: vrooli.scenario_to_desktop.v1.shared.ValidationError
 	(*ValidationWarning)(nil), // 10: vrooli.scenario_to_desktop.v1.shared.ValidationWarning
+	(*ErrorEnvelope)(nil),     // 11: vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope
+	nil,                       // 12: vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope.DetailsEntry
 }
 var file_scenario_to_desktop_v1_shared_common_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	12, // 0: vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope.details:type_name -> vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope.DetailsEntry
+	1,  // [1:1] is the sub-list for method output_type
+	1,  // [1:1] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_shared_common_proto_init() }
@@ -866,7 +996,7 @@ func file_scenario_to_desktop_v1_shared_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_shared_common_proto_rawDesc), len(file_scenario_to_desktop_v1_shared_common_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

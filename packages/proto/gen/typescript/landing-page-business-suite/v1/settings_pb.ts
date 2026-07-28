@@ -2,8 +2,8 @@
 // @generated from file landing-page-business-suite/v1/settings.proto (package landing_page_business_suite.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-business-suite/v1/settings.proto.
  */
 export const file_landing_page_business_suite_v1_settings: GenFile = /*@__PURE__*/
-  fileDesc("Ci1sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvc2V0dGluZ3MucHJvdG8SHmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MSLGAQoUU3RyaXBlQ29uZmlnU25hcHNob3QSHwoXcHVibGlzaGFibGVfa2V5X3ByZXZpZXcYASABKAkSGwoTcHVibGlzaGFibGVfa2V5X3NldBgCIAEoCBIWCg5zZWNyZXRfa2V5X3NldBgDIAEoCBIaChJ3ZWJob29rX3NlY3JldF9zZXQYBCABKAgSPAoGc291cmNlGAUgASgOMiwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkNvbmZpZ1NvdXJjZSKvAgoOU3RyaXBlU2V0dGluZ3MSFwoPcHVibGlzaGFibGVfa2V5GAEgASgJEhIKCnNlY3JldF9rZXkYAiABKAkSFgoOd2ViaG9va19zZWNyZXQYAyABKAkSGgoNZGFzaGJvYXJkX3VybBgEIAEoCUgAiAEBEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhsKE2Fub21hbHlfd2ViaG9va191cmwYBiABKAkSHwoXYW5vbWFseV93ZWJob29rX2VuYWJsZWQYByABKAgSGwoTYW5vbWFseV9yYXRlX2xpbWl0cxgIIAEoCRIfChdhbm9tYWx5X3dlYmhvb2tfdXJsX3NldBgJIAEoCEIQCg5fZGFzaGJvYXJkX3VybCIaChhHZXRTdHJpcGVTZXR0aW5nc1JlcXVlc3QipQEKGUdldFN0cmlwZVNldHRpbmdzUmVzcG9uc2USQAoIc2V0dGluZ3MYASABKAsyLi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuU3RyaXBlU2V0dGluZ3MSRgoIc25hcHNob3QYAiABKAsyNC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuU3RyaXBlQ29uZmlnU25hcHNob3QiiwMKG1VwZGF0ZVN0cmlwZVNldHRpbmdzUmVxdWVzdBIcCg9wdWJsaXNoYWJsZV9rZXkYASABKAlIAIgBARIXCgpzZWNyZXRfa2V5GAIgASgJSAGIAQESGwoOd2ViaG9va19zZWNyZXQYAyABKAlIAogBARIaCg1kYXNoYm9hcmRfdXJsGAQgASgJSAOIAQESIAoTYW5vbWFseV93ZWJob29rX3VybBgFIAEoCUgEiAEBEiQKF2Fub21hbHlfd2ViaG9va19lbmFibGVkGAYgASgISAWIAQESIAoTYW5vbWFseV9yYXRlX2xpbWl0cxgHIAEoCUgGiAEBQhIKEF9wdWJsaXNoYWJsZV9rZXlCDQoLX3NlY3JldF9rZXlCEQoPX3dlYmhvb2tfc2VjcmV0QhAKDl9kYXNoYm9hcmRfdXJsQhYKFF9hbm9tYWx5X3dlYmhvb2tfdXJsQhoKGF9hbm9tYWx5X3dlYmhvb2tfZW5hYmxlZEIWChRfYW5vbWFseV9yYXRlX2xpbWl0cyKoAQocVXBkYXRlU3RyaXBlU2V0dGluZ3NSZXNwb25zZRJACghzZXR0aW5ncxgBIAEoCzIuLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5TdHJpcGVTZXR0aW5ncxJGCghzbmFwc2hvdBgCIAEoCzI0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5TdHJpcGVDb25maWdTbmFwc2hvdCpgCgxDb25maWdTb3VyY2USHQoZQ09ORklHX1NPVVJDRV9VTlNQRUNJRklFRBAAEhUKEUNPTkZJR19TT1VSQ0VfRU5WEAESGgoWQ09ORklHX1NPVVJDRV9EQVRBQkFTRRACQm5abGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLWJ1c2luZXNzLXN1aXRlL3YxO2xhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZV92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Ci1sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvc2V0dGluZ3MucHJvdG8SHmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MSLGAQoUU3RyaXBlQ29uZmlnU25hcHNob3QSHwoXcHVibGlzaGFibGVfa2V5X3ByZXZpZXcYASABKAkSGwoTcHVibGlzaGFibGVfa2V5X3NldBgCIAEoCBIWCg5zZWNyZXRfa2V5X3NldBgDIAEoCBIaChJ3ZWJob29rX3NlY3JldF9zZXQYBCABKAgSPAoGc291cmNlGAUgASgOMiwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkNvbmZpZ1NvdXJjZSKvAgoOU3RyaXBlU2V0dGluZ3MSFwoPcHVibGlzaGFibGVfa2V5GAEgASgJEhIKCnNlY3JldF9rZXkYAiABKAkSFgoOd2ViaG9va19zZWNyZXQYAyABKAkSGgoNZGFzaGJvYXJkX3VybBgEIAEoCUgAiAEBEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhsKE2Fub21hbHlfd2ViaG9va191cmwYBiABKAkSHwoXYW5vbWFseV93ZWJob29rX2VuYWJsZWQYByABKAgSGwoTYW5vbWFseV9yYXRlX2xpbWl0cxgIIAEoCRIfChdhbm9tYWx5X3dlYmhvb2tfdXJsX3NldBgJIAEoCEIQCg5fZGFzaGJvYXJkX3VybCIaChhHZXRTdHJpcGVTZXR0aW5nc1JlcXVlc3QipQEKGUdldFN0cmlwZVNldHRpbmdzUmVzcG9uc2USQAoIc2V0dGluZ3MYASABKAsyLi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuU3RyaXBlU2V0dGluZ3MSRgoIc25hcHNob3QYAiABKAsyNC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuU3RyaXBlQ29uZmlnU25hcHNob3QiiwMKG1VwZGF0ZVN0cmlwZVNldHRpbmdzUmVxdWVzdBIcCg9wdWJsaXNoYWJsZV9rZXkYASABKAlIAIgBARIXCgpzZWNyZXRfa2V5GAIgASgJSAGIAQESGwoOd2ViaG9va19zZWNyZXQYAyABKAlIAogBARIaCg1kYXNoYm9hcmRfdXJsGAQgASgJSAOIAQESIAoTYW5vbWFseV93ZWJob29rX3VybBgFIAEoCUgEiAEBEiQKF2Fub21hbHlfd2ViaG9va19lbmFibGVkGAYgASgISAWIAQESIAoTYW5vbWFseV9yYXRlX2xpbWl0cxgHIAEoCUgGiAEBQhIKEF9wdWJsaXNoYWJsZV9rZXlCDQoLX3NlY3JldF9rZXlCEQoPX3dlYmhvb2tfc2VjcmV0QhAKDl9kYXNoYm9hcmRfdXJsQhYKFF9hbm9tYWx5X3dlYmhvb2tfdXJsQhoKGF9hbm9tYWx5X3dlYmhvb2tfZW5hYmxlZEIWChRfYW5vbWFseV9yYXRlX2xpbWl0cyKoAQocVXBkYXRlU3RyaXBlU2V0dGluZ3NSZXNwb25zZRJACghzZXR0aW5ncxgBIAEoCzIuLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5TdHJpcGVTZXR0aW5ncxJGCghzbmFwc2hvdBgCIAEoCzI0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5TdHJpcGVDb25maWdTbmFwc2hvdCIqChlSZXZlYWxTdHJpcGVTZWNyZXRSZXF1ZXN0Eg0KBWZpZWxkGAEgASgJIjoKGlJldmVhbFN0cmlwZVNlY3JldFJlc3BvbnNlEg0KBWZpZWxkGAEgASgJEg0KBXZhbHVlGAIgASgJKmAKDENvbmZpZ1NvdXJjZRIdChlDT05GSUdfU09VUkNFX1VOU1BFQ0lGSUVEEAASFQoRQ09ORklHX1NPVVJDRV9FTlYQARIaChZDT05GSUdfU09VUkNFX0RBVEFCQVNFEAIyxAMKFVN0cmlwZVNldHRpbmdzU2VydmljZRKIAQoRR2V0U3RyaXBlU2V0dGluZ3MSOC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0U3RyaXBlU2V0dGluZ3NSZXF1ZXN0GjkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldFN0cmlwZVNldHRpbmdzUmVzcG9uc2USkQEKFFVwZGF0ZVN0cmlwZVNldHRpbmdzEjsubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlVwZGF0ZVN0cmlwZVNldHRpbmdzUmVxdWVzdBo8LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5VcGRhdGVTdHJpcGVTZXR0aW5nc1Jlc3BvbnNlEosBChJSZXZlYWxTdHJpcGVTZWNyZXQSOS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuUmV2ZWFsU3RyaXBlU2VjcmV0UmVxdWVzdBo6LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5SZXZlYWxTdHJpcGVTZWNyZXRSZXNwb25zZUJuWmxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2xhbmRpbmctcGFnZS1idXNpbmVzcy1zdWl0ZS92MTtsYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGVfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * StripeConfigSnapshot exposes a redacted view of runtime Stripe credentials.
@@ -315,6 +315,51 @@ export const UpdateStripeSettingsResponseSchema: GenMessage<UpdateStripeSettings
   messageDesc(file_landing_page_business_suite_v1_settings, 5);
 
 /**
+ * RevealStripeSecretRequest explicitly requests one admin-visible Stripe
+ * credential. Ordinary settings reads are always redacted.
+ *
+ * @generated from message landing_page_business_suite.v1.RevealStripeSecretRequest
+ */
+export type RevealStripeSecretRequest = Message<"landing_page_business_suite.v1.RevealStripeSecretRequest"> & {
+  /**
+   * @generated from field: string field = 1;
+   */
+  field: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.RevealStripeSecretRequest.
+ * Use `create(RevealStripeSecretRequestSchema)` to create a new message.
+ */
+export const RevealStripeSecretRequestSchema: GenMessage<RevealStripeSecretRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_settings, 6);
+
+/**
+ * RevealStripeSecretResponse contains the requested credential value.
+ * This response is restricted to authenticated administrators.
+ *
+ * @generated from message landing_page_business_suite.v1.RevealStripeSecretResponse
+ */
+export type RevealStripeSecretResponse = Message<"landing_page_business_suite.v1.RevealStripeSecretResponse"> & {
+  /**
+   * @generated from field: string field = 1;
+   */
+  field: string;
+
+  /**
+   * @generated from field: string value = 2;
+   */
+  value: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.RevealStripeSecretResponse.
+ * Use `create(RevealStripeSecretResponseSchema)` to create a new message.
+ */
+export const RevealStripeSecretResponseSchema: GenMessage<RevealStripeSecretResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_settings, 7);
+
+/**
  * ConfigSource indicates where active Stripe credentials were loaded from.
  *
  * The API checks both environment variables and database for credentials.
@@ -354,4 +399,35 @@ export enum ConfigSource {
  */
 export const ConfigSourceSchema: GenEnum<ConfigSource> = /*@__PURE__*/
   enumDesc(file_landing_page_business_suite_v1_settings, 0);
+
+/**
+ * @generated from service landing_page_business_suite.v1.StripeSettingsService
+ */
+export const StripeSettingsService: GenService<{
+  /**
+   * @generated from rpc landing_page_business_suite.v1.StripeSettingsService.GetStripeSettings
+   */
+  getStripeSettings: {
+    methodKind: "unary";
+    input: typeof GetStripeSettingsRequestSchema;
+    output: typeof GetStripeSettingsResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.StripeSettingsService.UpdateStripeSettings
+   */
+  updateStripeSettings: {
+    methodKind: "unary";
+    input: typeof UpdateStripeSettingsRequestSchema;
+    output: typeof UpdateStripeSettingsResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.StripeSettingsService.RevealStripeSecret
+   */
+  revealStripeSecret: {
+    methodKind: "unary";
+    input: typeof RevealStripeSecretRequestSchema;
+    output: typeof RevealStripeSecretResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_landing_page_business_suite_v1_settings, 0);
 

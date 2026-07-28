@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "scenario": "signal-inbox",
+  "input_digest": "sha256:8cb7f24e2885c422ab1a6cd3010b9387df8199731f5aef397ed4befe0819fdb0",
+  "input_files": [
+    "schemas/signal-inbox/v1/categories/categories.proto",
+    "schemas/signal-inbox/v1/shared/errors.proto",
+    "schemas/signal-inbox/v1/shared/health.proto",
+    "schemas/signal-inbox/v1/signals/signals.proto",
+    "schemas/signal-inbox/v1/triage/triage.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/signal-inbox/v1/categories/categories.pb.go": "sha256:58ad7013ee3db622d23dc86fae896e790a465a8ef9b9bde474b2291b9ad29c66",
+    "gen/go/signal-inbox/v1/categories/categories_v1connect/categories.connect.go": "sha256:3cd4a6643b50b9632645118f8ea8617ebc7d4850d8ec3134d71c8ef8e4a84630",
+    "gen/go/signal-inbox/v1/shared/errors.pb.go": "sha256:368e8dc3f12730ca9363eb5a09261fff79e3e3122f840ee454cde9f513695651",
+    "gen/go/signal-inbox/v1/shared/health.pb.go": "sha256:8559e0b00889cb196e7eb6d092e68c5320fb8856b928bc4cdd37d4f69da658a0",
+    "gen/go/signal-inbox/v1/signals/signals.pb.go": "sha256:1ec73c8bc7fc3544026292c0e4dd8214a2afae62b14e7bf6904d295c04b234e6",
+    "gen/go/signal-inbox/v1/signals/signals_v1connect/signals.connect.go": "sha256:427cddbfb2296f025d8aa14b6f259783a210e562613159b8e24e70e0a229859f",
+    "gen/go/signal-inbox/v1/triage/triage.pb.go": "sha256:614e7970f671902da012a901638072633c84a339db73f69b584afaa59a5d4035",
+    "gen/go/signal-inbox/v1/triage/triage_v1connect/triage.connect.go": "sha256:a28e9580ce37d6191859552f3dff793e355af14443dac333ebfe494d90916452",
+    "gen/python/signal_inbox/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/signal_inbox/v1/categories/categories_pb2.py": "sha256:6d2d2905d832a26aafc8c119a4a2d18c9172f0927e61ebb7ec530332e120e1c4",
+    "gen/python/signal_inbox/v1/categories/categories_pb2.pyi": "sha256:95843eb7556bd14d6f4c749c3792f96ca2b38b0f4be19a94a6215661085557ab",
+    "gen/python/signal_inbox/v1/categories/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/signal_inbox/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/signal_inbox/v1/shared/errors_pb2.py": "sha256:2261b0cd31cac3615f8f3662e62aa145050c5af6d7d68186aba7ad836622c985",
+    "gen/python/signal_inbox/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/signal_inbox/v1/shared/health_pb2.py": "sha256:27ccb11303cada17e0eac85d1fb43bebd24e94d03d93a5edc56a482a435fd83a",
+    "gen/python/signal_inbox/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/signal_inbox/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/signal_inbox/v1/signals/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/signal_inbox/v1/signals/signals_pb2.py": "sha256:e83ac8907b8bdd3ae047d791bd17d52756f9d892c55923f67a8b9e9bb06a0789",
+    "gen/python/signal_inbox/v1/signals/signals_pb2.pyi": "sha256:4ab255d688386d1758fd0a8d321ed36520ad1358b4f927b5ea2218d190e89bf7",
+    "gen/python/signal_inbox/v1/triage/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/signal_inbox/v1/triage/triage_pb2.py": "sha256:3077bc7eb09e71ee0b13823199ec163913d7f79b017bf0d46203256f7aab1ee2",
+    "gen/python/signal_inbox/v1/triage/triage_pb2.pyi": "sha256:931eb29a174308fb0ec1d2e47cd3c9d502d16a301233bde0967e1f989dfd6e97",
+    "gen/typescript/js/signal-inbox/v1/categories/categories_pb.js": "sha256:38e651f2e901b4ef02bb56e822bc019792e6339763f6767efc0f5c67ca59dfb4",
+    "gen/typescript/js/signal-inbox/v1/shared/errors_pb.js": "sha256:91d2ff49b4e077d389aa29eb0f4ed75f5d9b886f1081dfcdcbbbf2bf0ff2b965",
+    "gen/typescript/js/signal-inbox/v1/shared/health_pb.js": "sha256:f961831d2b2e2331aeac9d7c25ca7cd9cd0776350ff2990ec358dec253f90064",
+    "gen/typescript/js/signal-inbox/v1/signals/signals_pb.js": "sha256:dd43160ac6751b13d1298dfb19ec5ed1989511de3a4fcb0708f4e670f05f1e0d",
+    "gen/typescript/js/signal-inbox/v1/triage/triage_pb.js": "sha256:6abd88f7143bad019cc3d6c04240823f63678f257f71527656a545de6dbbce49",
+    "gen/typescript/signal-inbox/v1/categories/categories_pb.ts": "sha256:a5945635bfea405fb978d33cb38607fd0e1011ae9e3bda4bf521b6e413191605",
+    "gen/typescript/signal-inbox/v1/shared/errors_pb.ts": "sha256:80661856915a0b3ef5bf23a77a82ac7d7644f211700556789d60835d99ef1da9",
+    "gen/typescript/signal-inbox/v1/shared/health_pb.ts": "sha256:3d456adfde31b7dd4d647eff41a8797b2174cda4f0bea4aebbe8e7c1e5b9857f",
+    "gen/typescript/signal-inbox/v1/signals/signals_pb.ts": "sha256:54f30957d0133b45178420538d1e15e0a698ec985d68cf86f366253c9ddd7955",
+    "gen/typescript/signal-inbox/v1/triage/triage_pb.ts": "sha256:428082370f4737bab8523d35499234fd1e2c24183c4e5513543af3ded91907a3"
+  }
+}

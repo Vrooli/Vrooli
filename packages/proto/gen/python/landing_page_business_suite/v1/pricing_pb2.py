@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from landing_page_business_suite.v1.shared import commerce_pb2 as landing__page__business__suite_dot_v1_dot_shared_dot_commerce__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,landing-page-business-suite/v1/pricing.proto\x12\x1elanding_page_business_suite.v1\x1a\x34landing-page-business-suite/v1/shared/commerce.proto\"Y\n\x11GetPricingRequest\x12\x1d\n\nbundle_key\x18\x01 \x01(\tR\tbundleKey\x12%\n\x0einclude_hidden\x18\x02 \x01(\x08R\rincludeHidden\"m\n\x12GetPricingResponse\x12W\n\x07pricing\x18\x01 \x01(\x0b\x32=.vrooli.landing_page_business_suite.v1.shared.PricingOverviewR\x07pricingBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,landing-page-business-suite/v1/pricing.proto\x12\x1elanding_page_business_suite.v1\x1a\x34landing-page-business-suite/v1/shared/commerce.proto\"Y\n\x11GetPricingRequest\x12\x1d\n\nbundle_key\x18\x01 \x01(\tR\tbundleKey\x12%\n\x0einclude_hidden\x18\x02 \x01(\x08R\rincludeHidden\"m\n\x12GetPricingResponse\x12W\n\x07pricing\x18\x01 \x01(\x0b\x32=.vrooli.landing_page_business_suite.v1.shared.PricingOverviewR\x07pricing2\x85\x01\n\x0ePricingService\x12s\n\nGetPricing\x12\x31.landing_page_business_suite.v1.GetPricingRequest\x1a\x32.landing_page_business_suite.v1.GetPricingResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,4 +37,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GETPRICINGREQUEST']._serialized_end=223
   _globals['_GETPRICINGRESPONSE']._serialized_start=225
   _globals['_GETPRICINGRESPONSE']._serialized_end=334
+  _globals['_PRICINGSERVICE']._serialized_start=337
+  _globals['_PRICINGSERVICE']._serialized_end=470
 # @@protoc_insertion_point(module_scope)

@@ -43,6 +43,15 @@ type SiteBranding struct {
 	RobotsTxt              *string                `protobuf:"bytes,15,opt,name=robots_txt,json=robotsTxt,proto3,oneof" json:"robots_txt,omitempty"`
 	CreatedAt              *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt              *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SupportChatUrl         *string                `protobuf:"bytes,18,opt,name=support_chat_url,json=supportChatUrl,proto3,oneof" json:"support_chat_url,omitempty"`
+	SupportEmail           *string                `protobuf:"bytes,19,opt,name=support_email,json=supportEmail,proto3,oneof" json:"support_email,omitempty"`
+	SmtpHost               *string                `protobuf:"bytes,20,opt,name=smtp_host,json=smtpHost,proto3,oneof" json:"smtp_host,omitempty"`
+	SmtpPort               *int32                 `protobuf:"varint,21,opt,name=smtp_port,json=smtpPort,proto3,oneof" json:"smtp_port,omitempty"`
+	SmtpUsername           *string                `protobuf:"bytes,22,opt,name=smtp_username,json=smtpUsername,proto3,oneof" json:"smtp_username,omitempty"`
+	SmtpPassword           *string                `protobuf:"bytes,23,opt,name=smtp_password,json=smtpPassword,proto3,oneof" json:"smtp_password,omitempty"`
+	SmtpFrom               *string                `protobuf:"bytes,24,opt,name=smtp_from,json=smtpFrom,proto3,oneof" json:"smtp_from,omitempty"`
+	ComingSoonEnabled      *bool                  `protobuf:"varint,25,opt,name=coming_soon_enabled,json=comingSoonEnabled,proto3,oneof" json:"coming_soon_enabled,omitempty"`
+	ComingSoonMessage      *string                `protobuf:"bytes,26,opt,name=coming_soon_message,json=comingSoonMessage,proto3,oneof" json:"coming_soon_message,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -196,6 +205,69 @@ func (x *SiteBranding) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *SiteBranding) GetSupportChatUrl() string {
+	if x != nil && x.SupportChatUrl != nil {
+		return *x.SupportChatUrl
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetSupportEmail() string {
+	if x != nil && x.SupportEmail != nil {
+		return *x.SupportEmail
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetSmtpHost() string {
+	if x != nil && x.SmtpHost != nil {
+		return *x.SmtpHost
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetSmtpPort() int32 {
+	if x != nil && x.SmtpPort != nil {
+		return *x.SmtpPort
+	}
+	return 0
+}
+
+func (x *SiteBranding) GetSmtpUsername() string {
+	if x != nil && x.SmtpUsername != nil {
+		return *x.SmtpUsername
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetSmtpPassword() string {
+	if x != nil && x.SmtpPassword != nil {
+		return *x.SmtpPassword
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetSmtpFrom() string {
+	if x != nil && x.SmtpFrom != nil {
+		return *x.SmtpFrom
+	}
+	return ""
+}
+
+func (x *SiteBranding) GetComingSoonEnabled() bool {
+	if x != nil && x.ComingSoonEnabled != nil {
+		return *x.ComingSoonEnabled
+	}
+	return false
+}
+
+func (x *SiteBranding) GetComingSoonMessage() string {
+	if x != nil && x.ComingSoonMessage != nil {
+		return *x.ComingSoonMessage
+	}
+	return ""
+}
+
 // PublicBranding is the redacted subset safe to expose on the public page.
 type PublicBranding struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
@@ -206,6 +278,9 @@ type PublicBranding struct {
 	FaviconUrl           string                 `protobuf:"bytes,5,opt,name=favicon_url,json=faviconUrl,proto3" json:"favicon_url,omitempty"`
 	ThemePrimaryColor    string                 `protobuf:"bytes,6,opt,name=theme_primary_color,json=themePrimaryColor,proto3" json:"theme_primary_color,omitempty"`
 	ThemeBackgroundColor string                 `protobuf:"bytes,7,opt,name=theme_background_color,json=themeBackgroundColor,proto3" json:"theme_background_color,omitempty"`
+	SupportChatUrl       string                 `protobuf:"bytes,8,opt,name=support_chat_url,json=supportChatUrl,proto3" json:"support_chat_url,omitempty"`
+	ComingSoonEnabled    bool                   `protobuf:"varint,9,opt,name=coming_soon_enabled,json=comingSoonEnabled,proto3" json:"coming_soon_enabled,omitempty"`
+	ComingSoonMessage    string                 `protobuf:"bytes,10,opt,name=coming_soon_message,json=comingSoonMessage,proto3" json:"coming_soon_message,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -285,6 +360,27 @@ func (x *PublicBranding) GetThemePrimaryColor() string {
 func (x *PublicBranding) GetThemeBackgroundColor() string {
 	if x != nil {
 		return x.ThemeBackgroundColor
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetSupportChatUrl() string {
+	if x != nil {
+		return x.SupportChatUrl
+	}
+	return ""
+}
+
+func (x *PublicBranding) GetComingSoonEnabled() bool {
+	if x != nil {
+		return x.ComingSoonEnabled
+	}
+	return false
+}
+
+func (x *PublicBranding) GetComingSoonMessage() string {
+	if x != nil {
+		return x.ComingSoonMessage
 	}
 	return ""
 }
@@ -426,6 +522,15 @@ type UpdateBrandingRequest struct {
 	CanonicalBaseUrl       *string                `protobuf:"bytes,12,opt,name=canonical_base_url,json=canonicalBaseUrl,proto3,oneof" json:"canonical_base_url,omitempty"`
 	GoogleSiteVerification *string                `protobuf:"bytes,13,opt,name=google_site_verification,json=googleSiteVerification,proto3,oneof" json:"google_site_verification,omitempty"`
 	RobotsTxt              *string                `protobuf:"bytes,14,opt,name=robots_txt,json=robotsTxt,proto3,oneof" json:"robots_txt,omitempty"`
+	SupportChatUrl         *string                `protobuf:"bytes,15,opt,name=support_chat_url,json=supportChatUrl,proto3,oneof" json:"support_chat_url,omitempty"`
+	SupportEmail           *string                `protobuf:"bytes,16,opt,name=support_email,json=supportEmail,proto3,oneof" json:"support_email,omitempty"`
+	SmtpHost               *string                `protobuf:"bytes,17,opt,name=smtp_host,json=smtpHost,proto3,oneof" json:"smtp_host,omitempty"`
+	SmtpPort               *int32                 `protobuf:"varint,18,opt,name=smtp_port,json=smtpPort,proto3,oneof" json:"smtp_port,omitempty"`
+	SmtpUsername           *string                `protobuf:"bytes,19,opt,name=smtp_username,json=smtpUsername,proto3,oneof" json:"smtp_username,omitempty"`
+	SmtpPassword           *string                `protobuf:"bytes,20,opt,name=smtp_password,json=smtpPassword,proto3,oneof" json:"smtp_password,omitempty"`
+	SmtpFrom               *string                `protobuf:"bytes,21,opt,name=smtp_from,json=smtpFrom,proto3,oneof" json:"smtp_from,omitempty"`
+	ComingSoonEnabled      *bool                  `protobuf:"varint,22,opt,name=coming_soon_enabled,json=comingSoonEnabled,proto3,oneof" json:"coming_soon_enabled,omitempty"`
+	ComingSoonMessage      *string                `protobuf:"bytes,23,opt,name=coming_soon_message,json=comingSoonMessage,proto3,oneof" json:"coming_soon_message,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -558,6 +663,69 @@ func (x *UpdateBrandingRequest) GetRobotsTxt() string {
 	return ""
 }
 
+func (x *UpdateBrandingRequest) GetSupportChatUrl() string {
+	if x != nil && x.SupportChatUrl != nil {
+		return *x.SupportChatUrl
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetSupportEmail() string {
+	if x != nil && x.SupportEmail != nil {
+		return *x.SupportEmail
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetSmtpHost() string {
+	if x != nil && x.SmtpHost != nil {
+		return *x.SmtpHost
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetSmtpPort() int32 {
+	if x != nil && x.SmtpPort != nil {
+		return *x.SmtpPort
+	}
+	return 0
+}
+
+func (x *UpdateBrandingRequest) GetSmtpUsername() string {
+	if x != nil && x.SmtpUsername != nil {
+		return *x.SmtpUsername
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetSmtpPassword() string {
+	if x != nil && x.SmtpPassword != nil {
+		return *x.SmtpPassword
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetSmtpFrom() string {
+	if x != nil && x.SmtpFrom != nil {
+		return *x.SmtpFrom
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetComingSoonEnabled() bool {
+	if x != nil && x.ComingSoonEnabled != nil {
+		return *x.ComingSoonEnabled
+	}
+	return false
+}
+
+func (x *UpdateBrandingRequest) GetComingSoonMessage() string {
+	if x != nil && x.ComingSoonMessage != nil {
+		return *x.ComingSoonMessage
+	}
+	return ""
+}
+
 // ClearBrandingFieldRequest nulls a single nullable branding field. site_name
 // is not clearable; unknown fields are a silent no-op.
 type ClearBrandingFieldRequest struct {
@@ -653,7 +821,7 @@ var File_landing_page_business_suite_v1_branding_proto protoreflect.FileDescript
 
 const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\n" +
-	"-landing-page-business-suite/v1/branding.proto\x12\x1elanding_page_business_suite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\b\n" +
+	"-landing-page-business-suite/v1/branding.proto\x12\x1elanding_page_business_suite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\f\n" +
 	"\fSiteBranding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tsite_name\x18\x02 \x01(\tR\bsiteName\x12\x1d\n" +
@@ -677,7 +845,16 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\n" +
+	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12-\n" +
+	"\x10support_chat_url\x18\x12 \x01(\tH\rR\x0esupportChatUrl\x88\x01\x01\x12(\n" +
+	"\rsupport_email\x18\x13 \x01(\tH\x0eR\fsupportEmail\x88\x01\x01\x12 \n" +
+	"\tsmtp_host\x18\x14 \x01(\tH\x0fR\bsmtpHost\x88\x01\x01\x12 \n" +
+	"\tsmtp_port\x18\x15 \x01(\x05H\x10R\bsmtpPort\x88\x01\x01\x12(\n" +
+	"\rsmtp_username\x18\x16 \x01(\tH\x11R\fsmtpUsername\x88\x01\x01\x12(\n" +
+	"\rsmtp_password\x18\x17 \x01(\tH\x12R\fsmtpPassword\x88\x01\x01\x12 \n" +
+	"\tsmtp_from\x18\x18 \x01(\tH\x13R\bsmtpFrom\x88\x01\x01\x123\n" +
+	"\x13coming_soon_enabled\x18\x19 \x01(\bH\x14R\x11comingSoonEnabled\x88\x01\x01\x123\n" +
+	"\x13coming_soon_message\x18\x1a \x01(\tH\x15R\x11comingSoonMessage\x88\x01\x01B\n" +
 	"\n" +
 	"\b_taglineB\v\n" +
 	"\t_logo_urlB\x10\n" +
@@ -691,7 +868,19 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\x17_theme_background_colorB\x15\n" +
 	"\x13_canonical_base_urlB\x1b\n" +
 	"\x19_google_site_verificationB\r\n" +
-	"\v_robots_txt\"\x8d\x02\n" +
+	"\v_robots_txtB\x13\n" +
+	"\x11_support_chat_urlB\x10\n" +
+	"\x0e_support_emailB\f\n" +
+	"\n" +
+	"_smtp_hostB\f\n" +
+	"\n" +
+	"_smtp_portB\x10\n" +
+	"\x0e_smtp_usernameB\x10\n" +
+	"\x0e_smtp_passwordB\f\n" +
+	"\n" +
+	"_smtp_fromB\x16\n" +
+	"\x14_coming_soon_enabledB\x16\n" +
+	"\x14_coming_soon_message\"\x97\x03\n" +
 	"\x0ePublicBranding\x12\x1b\n" +
 	"\tsite_name\x18\x01 \x01(\tR\bsiteName\x12\x18\n" +
 	"\atagline\x18\x02 \x01(\tR\atagline\x12\x19\n" +
@@ -700,11 +889,15 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\vfavicon_url\x18\x05 \x01(\tR\n" +
 	"faviconUrl\x12.\n" +
 	"\x13theme_primary_color\x18\x06 \x01(\tR\x11themePrimaryColor\x124\n" +
-	"\x16theme_background_color\x18\a \x01(\tR\x14themeBackgroundColor\"\x14\n" +
+	"\x16theme_background_color\x18\a \x01(\tR\x14themeBackgroundColor\x12(\n" +
+	"\x10support_chat_url\x18\b \x01(\tR\x0esupportChatUrl\x12.\n" +
+	"\x13coming_soon_enabled\x18\t \x01(\bR\x11comingSoonEnabled\x12.\n" +
+	"\x13coming_soon_message\x18\n" +
+	" \x01(\tR\x11comingSoonMessage\"\x14\n" +
 	"\x12GetBrandingRequest\"\x1a\n" +
 	"\x18GetPublicBrandingRequest\"d\n" +
 	"\x16PublicBrandingResponse\x12J\n" +
-	"\bbranding\x18\x01 \x01(\v2..landing_page_business_suite.v1.PublicBrandingR\bbranding\"\xb4\a\n" +
+	"\bbranding\x18\x01 \x01(\v2..landing_page_business_suite.v1.PublicBrandingR\bbranding\"\xd6\v\n" +
 	"\x15UpdateBrandingRequest\x12 \n" +
 	"\tsite_name\x18\x01 \x01(\tH\x00R\bsiteName\x88\x01\x01\x12\x1d\n" +
 	"\atagline\x18\x02 \x01(\tH\x01R\atagline\x88\x01\x01\x12\x1e\n" +
@@ -723,7 +916,16 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\x12canonical_base_url\x18\f \x01(\tH\vR\x10canonicalBaseUrl\x88\x01\x01\x12=\n" +
 	"\x18google_site_verification\x18\r \x01(\tH\fR\x16googleSiteVerification\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"robots_txt\x18\x0e \x01(\tH\rR\trobotsTxt\x88\x01\x01B\f\n" +
+	"robots_txt\x18\x0e \x01(\tH\rR\trobotsTxt\x88\x01\x01\x12-\n" +
+	"\x10support_chat_url\x18\x0f \x01(\tH\x0eR\x0esupportChatUrl\x88\x01\x01\x12(\n" +
+	"\rsupport_email\x18\x10 \x01(\tH\x0fR\fsupportEmail\x88\x01\x01\x12 \n" +
+	"\tsmtp_host\x18\x11 \x01(\tH\x10R\bsmtpHost\x88\x01\x01\x12 \n" +
+	"\tsmtp_port\x18\x12 \x01(\x05H\x11R\bsmtpPort\x88\x01\x01\x12(\n" +
+	"\rsmtp_username\x18\x13 \x01(\tH\x12R\fsmtpUsername\x88\x01\x01\x12(\n" +
+	"\rsmtp_password\x18\x14 \x01(\tH\x13R\fsmtpPassword\x88\x01\x01\x12 \n" +
+	"\tsmtp_from\x18\x15 \x01(\tH\x14R\bsmtpFrom\x88\x01\x01\x123\n" +
+	"\x13coming_soon_enabled\x18\x16 \x01(\bH\x15R\x11comingSoonEnabled\x88\x01\x01\x123\n" +
+	"\x13coming_soon_message\x18\x17 \x01(\tH\x16R\x11comingSoonMessage\x88\x01\x01B\f\n" +
 	"\n" +
 	"_site_nameB\n" +
 	"\n" +
@@ -739,7 +941,19 @@ const file_landing_page_business_suite_v1_branding_proto_rawDesc = "" +
 	"\x17_theme_background_colorB\x15\n" +
 	"\x13_canonical_base_urlB\x1b\n" +
 	"\x19_google_site_verificationB\r\n" +
-	"\v_robots_txt\"1\n" +
+	"\v_robots_txtB\x13\n" +
+	"\x11_support_chat_urlB\x10\n" +
+	"\x0e_support_emailB\f\n" +
+	"\n" +
+	"_smtp_hostB\f\n" +
+	"\n" +
+	"_smtp_portB\x10\n" +
+	"\x0e_smtp_usernameB\x10\n" +
+	"\x0e_smtp_passwordB\f\n" +
+	"\n" +
+	"_smtp_fromB\x16\n" +
+	"\x14_coming_soon_enabledB\x16\n" +
+	"\x14_coming_soon_message\"1\n" +
 	"\x19ClearBrandingFieldRequest\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\"\\\n" +
 	"\x10BrandingResponse\x12H\n" +

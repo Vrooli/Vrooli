@@ -21,6 +21,72 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// DomainErrorCode documents the stable application codes returned inside
+// ErrorEnvelope.code. Connect transport errors retain Connect's code set.
+type DomainErrorCode int32
+
+const (
+	DomainErrorCode_DOMAIN_ERROR_CODE_UNSPECIFIED              DomainErrorCode = 0
+	DomainErrorCode_DOMAIN_ERROR_CODE_INVALID_FACET            DomainErrorCode = 1
+	DomainErrorCode_DOMAIN_ERROR_CODE_PIN_BUDGET_EXCEEDED      DomainErrorCode = 2
+	DomainErrorCode_DOMAIN_ERROR_CODE_IMPORT_SOURCE_UNREADABLE DomainErrorCode = 3
+	DomainErrorCode_DOMAIN_ERROR_CODE_IMPORT_FORMAT_CHANGED    DomainErrorCode = 4
+	DomainErrorCode_DOMAIN_ERROR_CODE_PROJECTION_OVERFLOW      DomainErrorCode = 5
+	DomainErrorCode_DOMAIN_ERROR_CODE_WORK_RECORD_INVALID      DomainErrorCode = 6
+	DomainErrorCode_DOMAIN_ERROR_CODE_TOKEN_REQUIRED           DomainErrorCode = 7
+)
+
+// Enum value maps for DomainErrorCode.
+var (
+	DomainErrorCode_name = map[int32]string{
+		0: "DOMAIN_ERROR_CODE_UNSPECIFIED",
+		1: "DOMAIN_ERROR_CODE_INVALID_FACET",
+		2: "DOMAIN_ERROR_CODE_PIN_BUDGET_EXCEEDED",
+		3: "DOMAIN_ERROR_CODE_IMPORT_SOURCE_UNREADABLE",
+		4: "DOMAIN_ERROR_CODE_IMPORT_FORMAT_CHANGED",
+		5: "DOMAIN_ERROR_CODE_PROJECTION_OVERFLOW",
+		6: "DOMAIN_ERROR_CODE_WORK_RECORD_INVALID",
+		7: "DOMAIN_ERROR_CODE_TOKEN_REQUIRED",
+	}
+	DomainErrorCode_value = map[string]int32{
+		"DOMAIN_ERROR_CODE_UNSPECIFIED":              0,
+		"DOMAIN_ERROR_CODE_INVALID_FACET":            1,
+		"DOMAIN_ERROR_CODE_PIN_BUDGET_EXCEEDED":      2,
+		"DOMAIN_ERROR_CODE_IMPORT_SOURCE_UNREADABLE": 3,
+		"DOMAIN_ERROR_CODE_IMPORT_FORMAT_CHANGED":    4,
+		"DOMAIN_ERROR_CODE_PROJECTION_OVERFLOW":      5,
+		"DOMAIN_ERROR_CODE_WORK_RECORD_INVALID":      6,
+		"DOMAIN_ERROR_CODE_TOKEN_REQUIRED":           7,
+	}
+)
+
+func (x DomainErrorCode) Enum() *DomainErrorCode {
+	p := new(DomainErrorCode)
+	*p = x
+	return p
+}
+
+func (x DomainErrorCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DomainErrorCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_vrooli_memory_v1_shared_errors_proto_enumTypes[0].Descriptor()
+}
+
+func (DomainErrorCode) Type() protoreflect.EnumType {
+	return &file_vrooli_memory_v1_shared_errors_proto_enumTypes[0]
+}
+
+func (x DomainErrorCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DomainErrorCode.Descriptor instead.
+func (DomainErrorCode) EnumDescriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_shared_errors_proto_rawDescGZIP(), []int{0}
+}
+
 type ErrorEnvelope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
@@ -92,7 +158,16 @@ const file_vrooli_memory_v1_shared_errors_proto_rawDesc = "" +
 	"\adetails\x18\x03 \x03(\v2:.vrooli.vrooli_memory.v1.shared.ErrorEnvelope.DetailsEntryR\adetails\x1a:\n" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/shared;shared_v1b\x06proto3"
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\xdd\x02\n" +
+	"\x0fDomainErrorCode\x12!\n" +
+	"\x1dDOMAIN_ERROR_CODE_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fDOMAIN_ERROR_CODE_INVALID_FACET\x10\x01\x12)\n" +
+	"%DOMAIN_ERROR_CODE_PIN_BUDGET_EXCEEDED\x10\x02\x12.\n" +
+	"*DOMAIN_ERROR_CODE_IMPORT_SOURCE_UNREADABLE\x10\x03\x12+\n" +
+	"'DOMAIN_ERROR_CODE_IMPORT_FORMAT_CHANGED\x10\x04\x12)\n" +
+	"%DOMAIN_ERROR_CODE_PROJECTION_OVERFLOW\x10\x05\x12)\n" +
+	"%DOMAIN_ERROR_CODE_WORK_RECORD_INVALID\x10\x06\x12$\n" +
+	" DOMAIN_ERROR_CODE_TOKEN_REQUIRED\x10\aBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_vrooli_memory_v1_shared_errors_proto_rawDescOnce sync.Once
@@ -106,13 +181,15 @@ func file_vrooli_memory_v1_shared_errors_proto_rawDescGZIP() []byte {
 	return file_vrooli_memory_v1_shared_errors_proto_rawDescData
 }
 
+var file_vrooli_memory_v1_shared_errors_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_vrooli_memory_v1_shared_errors_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_vrooli_memory_v1_shared_errors_proto_goTypes = []any{
-	(*ErrorEnvelope)(nil), // 0: vrooli.vrooli_memory.v1.shared.ErrorEnvelope
-	nil,                   // 1: vrooli.vrooli_memory.v1.shared.ErrorEnvelope.DetailsEntry
+	(DomainErrorCode)(0),  // 0: vrooli.vrooli_memory.v1.shared.DomainErrorCode
+	(*ErrorEnvelope)(nil), // 1: vrooli.vrooli_memory.v1.shared.ErrorEnvelope
+	nil,                   // 2: vrooli.vrooli_memory.v1.shared.ErrorEnvelope.DetailsEntry
 }
 var file_vrooli_memory_v1_shared_errors_proto_depIdxs = []int32{
-	1, // 0: vrooli.vrooli_memory.v1.shared.ErrorEnvelope.details:type_name -> vrooli.vrooli_memory.v1.shared.ErrorEnvelope.DetailsEntry
+	2, // 0: vrooli.vrooli_memory.v1.shared.ErrorEnvelope.details:type_name -> vrooli.vrooli_memory.v1.shared.ErrorEnvelope.DetailsEntry
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -130,13 +207,14 @@ func file_vrooli_memory_v1_shared_errors_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_memory_v1_shared_errors_proto_rawDesc), len(file_vrooli_memory_v1_shared_errors_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_vrooli_memory_v1_shared_errors_proto_goTypes,
 		DependencyIndexes: file_vrooli_memory_v1_shared_errors_proto_depIdxs,
+		EnumInfos:         file_vrooli_memory_v1_shared_errors_proto_enumTypes,
 		MessageInfos:      file_vrooli_memory_v1_shared_errors_proto_msgTypes,
 	}.Build()
 	File_vrooli_memory_v1_shared_errors_proto = out.File

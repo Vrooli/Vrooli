@@ -8,8 +8,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manag
 // PROMPT-MANAGER GRAPH DOMAIN — health-score read contract
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain graph
 // @stability beta
 //
 // First Connect-RPC contract for prompt-manager, which is otherwise a

@@ -1,6 +1,8 @@
+from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional
 
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -141,3 +143,32 @@ class ValidationWarning(_message.Message):
     message: str
     field: str
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., field: _Optional[str] = ...) -> None: ...
+
+class ErrorEnvelope(_message.Message):
+    __slots__ = ("code", "category", "recovery", "recovery_hint", "details", "retry_strategy", "auto_fix", "manual_steps", "diagnostic")
+    class DetailsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_HINT_FIELD_NUMBER: _ClassVar[int]
+    DETAILS_FIELD_NUMBER: _ClassVar[int]
+    RETRY_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    AUTO_FIX_FIELD_NUMBER: _ClassVar[int]
+    MANUAL_STEPS_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    category: str
+    recovery: str
+    recovery_hint: str
+    details: _containers.ScalarMap[str, str]
+    retry_strategy: str
+    auto_fix: str
+    manual_steps: _containers.RepeatedScalarFieldContainer[str]
+    diagnostic: str
+    def __init__(self, code: _Optional[str] = ..., category: _Optional[str] = ..., recovery: _Optional[str] = ..., recovery_hint: _Optional[str] = ..., details: _Optional[_Mapping[str, str]] = ..., retry_strategy: _Optional[str] = ..., auto_fix: _Optional[str] = ..., manual_steps: _Optional[_Iterable[str]] = ..., diagnostic: _Optional[str] = ...) -> None: ...

@@ -57,6 +57,8 @@ message GetEntitlementsResponse {
   vrooli.landing_page_business_suite.v1.shared.CreditsBalance credits = 5;
   // Full cached subscription status for richer client rendering.
   vrooli.landing_page_business_suite.v1.shared.SubscriptionStatus subscription = 6;
+  // Billing-cycle day used by bundled clients for usage-period displays.
+  int32 billing_cycle_start = 7;
 }
 
 // AccountService exposes per-user subscription, credit, and entitlement views.

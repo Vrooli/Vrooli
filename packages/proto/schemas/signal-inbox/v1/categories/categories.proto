@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package vrooli.signal_inbox.v1.categories;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/categories;categories_v1";
+
+service CategoriesService {
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse);
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+  rpc RenameCategory(RenameCategoryRequest) returns (RenameCategoryResponse);
+  rpc RetireCategory(RetireCategoryRequest) returns (RetireCategoryResponse);
+  rpc GetClassification(GetClassificationRequest) returns (GetClassificationResponse);
+  rpc ConfirmClassification(ConfirmClassificationRequest) returns (ConfirmClassificationResponse);
+}
+
+message Category {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool reserved = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp retired_at = 6;
+}
+
+enum ClassificationState {
+  CLASSIFICATION_STATE_UNSPECIFIED = 0;
+  CLASSIFICATION_STATE_PROPOSED = 1;
+  CLASSIFICATION_STATE_CONFIRMED = 2;
+  CLASSIFICATION_STATE_OVERRIDDEN = 3;
+  CLASSIFICATION_STATE_UNCATEGORIZED = 4;
+}
+
+message Classification {
+  string id = 1;
+  string signal_id = 2;
+  string proposed_category_id = 3;
+  double proposed_confidence = 4;
+  string model = 5;
+  string confirmed_category_id = 6;
+  ClassificationState state = 7;
+  string reason = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message CreateCategoryRequest { string name = 1; string description = 2; }
+message CreateCategoryResponse { Category category = 1; }
+message ListCategoriesRequest { bool include_retired = 1; }
+message ListCategoriesResponse { repeated Category categories = 1; }
+message RenameCategoryRequest { string id = 1; string name = 2; string description = 3; }
+message RenameCategoryResponse { Category category = 1; }
+message RetireCategoryRequest { string id = 1; }
+message RetireCategoryResponse { Category category = 1; }
+message GetClassificationRequest { string signal_id = 1; }
+message GetClassificationResponse { Classification classification = 1; }
+message ConfirmClassificationRequest { string signal_id = 1; string category_id = 2; }
+message ConfirmClassificationResponse { Classification classification = 1; }

@@ -573,6 +573,106 @@ func (x *UpdateStripeSettingsResponse) GetSnapshot() *StripeConfigSnapshot {
 	return nil
 }
 
+// RevealStripeSecretRequest explicitly requests one admin-visible Stripe
+// credential. Ordinary settings reads are always redacted.
+type RevealStripeSecretRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevealStripeSecretRequest) Reset() {
+	*x = RevealStripeSecretRequest{}
+	mi := &file_landing_page_business_suite_v1_settings_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevealStripeSecretRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevealStripeSecretRequest) ProtoMessage() {}
+
+func (x *RevealStripeSecretRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_settings_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevealStripeSecretRequest.ProtoReflect.Descriptor instead.
+func (*RevealStripeSecretRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_settings_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RevealStripeSecretRequest) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+// RevealStripeSecretResponse contains the requested credential value.
+// This response is restricted to authenticated administrators.
+type RevealStripeSecretResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevealStripeSecretResponse) Reset() {
+	*x = RevealStripeSecretResponse{}
+	mi := &file_landing_page_business_suite_v1_settings_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevealStripeSecretResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevealStripeSecretResponse) ProtoMessage() {}
+
+func (x *RevealStripeSecretResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_settings_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevealStripeSecretResponse.ProtoReflect.Descriptor instead.
+func (*RevealStripeSecretResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_settings_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RevealStripeSecretResponse) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *RevealStripeSecretResponse) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
 var File_landing_page_business_suite_v1_settings_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_settings_proto_rawDesc = "" +
@@ -619,11 +719,20 @@ const file_landing_page_business_suite_v1_settings_proto_rawDesc = "" +
 	"\x14_anomaly_rate_limits\"\xbc\x01\n" +
 	"\x1cUpdateStripeSettingsResponse\x12J\n" +
 	"\bsettings\x18\x01 \x01(\v2..landing_page_business_suite.v1.StripeSettingsR\bsettings\x12P\n" +
-	"\bsnapshot\x18\x02 \x01(\v24.landing_page_business_suite.v1.StripeConfigSnapshotR\bsnapshot*`\n" +
+	"\bsnapshot\x18\x02 \x01(\v24.landing_page_business_suite.v1.StripeConfigSnapshotR\bsnapshot\"1\n" +
+	"\x19RevealStripeSecretRequest\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\"H\n" +
+	"\x1aRevealStripeSecretResponse\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value*`\n" +
 	"\fConfigSource\x12\x1d\n" +
 	"\x19CONFIG_SOURCE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CONFIG_SOURCE_ENV\x10\x01\x12\x1a\n" +
-	"\x16CONFIG_SOURCE_DATABASE\x10\x02BnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
+	"\x16CONFIG_SOURCE_DATABASE\x10\x022\xc4\x03\n" +
+	"\x15StripeSettingsService\x12\x88\x01\n" +
+	"\x11GetStripeSettings\x128.landing_page_business_suite.v1.GetStripeSettingsRequest\x1a9.landing_page_business_suite.v1.GetStripeSettingsResponse\x12\x91\x01\n" +
+	"\x14UpdateStripeSettings\x12;.landing_page_business_suite.v1.UpdateStripeSettingsRequest\x1a<.landing_page_business_suite.v1.UpdateStripeSettingsResponse\x12\x8b\x01\n" +
+	"\x12RevealStripeSecret\x129.landing_page_business_suite.v1.RevealStripeSecretRequest\x1a:.landing_page_business_suite.v1.RevealStripeSecretResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
 
 var (
 	file_landing_page_business_suite_v1_settings_proto_rawDescOnce sync.Once
@@ -638,7 +747,7 @@ func file_landing_page_business_suite_v1_settings_proto_rawDescGZIP() []byte {
 }
 
 var file_landing_page_business_suite_v1_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_landing_page_business_suite_v1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_landing_page_business_suite_v1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_landing_page_business_suite_v1_settings_proto_goTypes = []any{
 	(ConfigSource)(0),                    // 0: landing_page_business_suite.v1.ConfigSource
 	(*StripeConfigSnapshot)(nil),         // 1: landing_page_business_suite.v1.StripeConfigSnapshot
@@ -647,17 +756,25 @@ var file_landing_page_business_suite_v1_settings_proto_goTypes = []any{
 	(*GetStripeSettingsResponse)(nil),    // 4: landing_page_business_suite.v1.GetStripeSettingsResponse
 	(*UpdateStripeSettingsRequest)(nil),  // 5: landing_page_business_suite.v1.UpdateStripeSettingsRequest
 	(*UpdateStripeSettingsResponse)(nil), // 6: landing_page_business_suite.v1.UpdateStripeSettingsResponse
-	(*timestamppb.Timestamp)(nil),        // 7: google.protobuf.Timestamp
+	(*RevealStripeSecretRequest)(nil),    // 7: landing_page_business_suite.v1.RevealStripeSecretRequest
+	(*RevealStripeSecretResponse)(nil),   // 8: landing_page_business_suite.v1.RevealStripeSecretResponse
+	(*timestamppb.Timestamp)(nil),        // 9: google.protobuf.Timestamp
 }
 var file_landing_page_business_suite_v1_settings_proto_depIdxs = []int32{
 	0, // 0: landing_page_business_suite.v1.StripeConfigSnapshot.source:type_name -> landing_page_business_suite.v1.ConfigSource
-	7, // 1: landing_page_business_suite.v1.StripeSettings.updated_at:type_name -> google.protobuf.Timestamp
+	9, // 1: landing_page_business_suite.v1.StripeSettings.updated_at:type_name -> google.protobuf.Timestamp
 	2, // 2: landing_page_business_suite.v1.GetStripeSettingsResponse.settings:type_name -> landing_page_business_suite.v1.StripeSettings
 	1, // 3: landing_page_business_suite.v1.GetStripeSettingsResponse.snapshot:type_name -> landing_page_business_suite.v1.StripeConfigSnapshot
 	2, // 4: landing_page_business_suite.v1.UpdateStripeSettingsResponse.settings:type_name -> landing_page_business_suite.v1.StripeSettings
 	1, // 5: landing_page_business_suite.v1.UpdateStripeSettingsResponse.snapshot:type_name -> landing_page_business_suite.v1.StripeConfigSnapshot
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
+	3, // 6: landing_page_business_suite.v1.StripeSettingsService.GetStripeSettings:input_type -> landing_page_business_suite.v1.GetStripeSettingsRequest
+	5, // 7: landing_page_business_suite.v1.StripeSettingsService.UpdateStripeSettings:input_type -> landing_page_business_suite.v1.UpdateStripeSettingsRequest
+	7, // 8: landing_page_business_suite.v1.StripeSettingsService.RevealStripeSecret:input_type -> landing_page_business_suite.v1.RevealStripeSecretRequest
+	4, // 9: landing_page_business_suite.v1.StripeSettingsService.GetStripeSettings:output_type -> landing_page_business_suite.v1.GetStripeSettingsResponse
+	6, // 10: landing_page_business_suite.v1.StripeSettingsService.UpdateStripeSettings:output_type -> landing_page_business_suite.v1.UpdateStripeSettingsResponse
+	8, // 11: landing_page_business_suite.v1.StripeSettingsService.RevealStripeSecret:output_type -> landing_page_business_suite.v1.RevealStripeSecretResponse
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
 	6, // [6:6] is the sub-list for extension type_name
 	6, // [6:6] is the sub-list for extension extendee
 	0, // [0:6] is the sub-list for field type_name
@@ -676,9 +793,9 @@ func file_landing_page_business_suite_v1_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_settings_proto_rawDesc), len(file_landing_page_business_suite_v1_settings_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_landing_page_business_suite_v1_settings_proto_goTypes,
 		DependencyIndexes: file_landing_page_business_suite_v1_settings_proto_depIdxs,
