@@ -3,13 +3,18 @@
 This document records supported delivery tiers, packaging assumptions,
 runtime dependencies, and deployment readiness.
 
-## Status — deferred
+## Status — local now, Tier 2 desktop as the external target
 
-This scenario runs locally through the Vrooli lifecycle and has no deployment
-tier beyond that. It is internal tooling with no external users, so packaging,
-hosting, and release-channel decisions are genuinely undecided rather than
-omitted. Revisit if editorial verification is ever run somewhere other than the
-operator's machine.
+Revised 2026-07-28 (D-017). This scenario runs locally through the Vrooli
+lifecycle today. Its external delivery target is a **Tier 2 desktop
+application** built through `scenario-to-desktop`, which is the fleet's existing
+Electron ramp.
+
+Hosted SaaS is explicitly **not** the target, and that is load-bearing rather
+than a deferral. Local-first delivery removes three problems by construction:
+no tenancy model, no hosted credential surface, and evidence checks that run as
+ordinary local tool use instead of arbitrary remote code execution. A hosted
+product would reopen all three at once.
 
 ## Purpose Of This Document
 
@@ -25,9 +30,9 @@ Use this document to answer:
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
 | Local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, SQLite path | Replace template reference domains before product deployment. |
-| Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver | Run cross-platform readiness before adoption. |
-| Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model | Requires deployment and monetization review. |
-| Enterprise/self-host | deferred | Install docs, backup/restore, support model | Requires operational hardening. |
+| Desktop app (Tier 2) | **target** | `scenario-to-desktop` Electron packaging, bundled runtime, storage resolver, signing configuration | The P0 loop must work locally first. Run cross-platform readiness before packaging. |
+| Managed cloud/SaaS | **rejected for now** | Hosted runtime, tenancy, sandboxed check execution, auth | Not a blocker list — a deliberate non-goal (D-017). Reopening it reopens D-016 and multi-user together. |
+| Enterprise/self-host | deferred | Install docs, backup/restore, support model | Requires operational hardening. No demand signal. |
 
 ## Runtime Requirements
 

@@ -24,6 +24,8 @@ Use this document to answer:
 | search-hub | scenario | no (P1) | ledger | `.vrooli/search.json` descriptor + registration | Local reads keep working; only federated query loses the editorial provider. |
 | prompt-manager | scenario | no | posttypes, review | Read-only: post-type canon, team decisions, paired skills | Registry seeding falls back to the last seeded state; nothing blocks. |
 | vrooli-events | scenario | no | artifacts | api-core receipt publication (automatic) | Run correlation is absent; drafting and approval are unaffected. |
+| image-tools | scenario | no (P2) | artifacts | Connect-RPC: `ai` generation, `ops` resize/crop, `looks` style recipes | Image attachment is unavailable; drafting, verification, and approval are unaffected. Text-only posts never touch it. |
+| agent-manager | scenario | no (P2) | artifacts | Connect-RPC: run a drafting or evidence-hunting agent from the UI | The UI loses commissioning; the CLI path that agents already use is unchanged. Never on the approval path. |
 
 ## Vrooli Resources
 
@@ -57,7 +59,8 @@ trustworthy.
 |---|---|---|
 | Generating draft copy | The paired `x-<type>` skills | Keeps strategic reasoning and executable procedure separate, and lets prompts change without a deploy. |
 | Account identity, warming, cadence, credentials | social-media-scheduler | Marketing canon already routes these there. Warming state and the post queue are coupled; splitting them would put a cross-scenario call on every publish. |
-| Character, scene, and product definitions; rendered media | Operator-curated canon today; a future asset-production scenario | Different clock and different failure mode — visual drift and generation spend, not a false claim. |
+| Image generation and deterministic editing | image-tools | It is already a capability. The desk asks for an image and stores the reference; it never implements generation, resizing, or style recipes (D-018). |
+| Character and scene identity; multi-frame and video media | A future asset-production scenario | Narrowed by D-018, not removed. Single images with no continuity requirement are a call into image-tools; identity consistency across frames is a different problem with a different failure mode — visual drift and generation spend, not a false claim. |
 | Visual identity, palettes, brand assets | brand-manager | Unrelated capability that happens to share the word "brand". |
 | Strategic marketing canon | `docs/marketing/`, decision-gated | Judgement the operator owns. The desk holds state and gates, never strategy. |
 

@@ -162,10 +162,53 @@ constraints:
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
-> ORIENTATION-TODO: scenario-design-adaptation — Replace this marker with a
-> short note explaining why this design language fits the generated scenario's
-> users, density, workflow, and accessibility needs. Keep the token contract
-> intact unless the scenario intentionally adopts another design kit.
+## Why this design language fits Content Desk
+
+The token contract is adopted unchanged. This is a **desktop-class authoring
+and review application** (D-017), used by one person who moves continuously
+between two modes: making things, and deciding whether they may ship.
+
+Both modes are first-class, and an earlier draft of this section got that wrong
+by treating the UI as a review surface with authoring left to agents. In
+practice the same person commissions a draft, rewrites its opening, fixes a
+number, generates a banner image, and then approves it. A tool that is excellent
+at judging and mediocre at writing forces that person back into another editor
+and breaks the ledger the moment they do.
+
+So the interface has two jobs, and neither yields to the other:
+
+- **Make the work good** — a real editor, shaped to the thing being written, not a textarea with a preview.
+- **Make a correct approval fast, and an incorrect one hard.**
+
+That produces six local commitments on top of the shared language:
+
+- **Density over comfort.** The queue, the draft, and the inspector are visible
+  together on desktop, because deciding requires all three. Approval throughput
+  is bounded by operator attention, and every navigation step spends it.
+- **The inspector is permanent, never a modal.** Claims and review verdicts are
+  the reason the scenario exists. Content that must be read before a decision
+  cannot live behind a control the operator has to remember to open.
+- **A disabled control always states its cause.** An unresolved claim, an
+  inactive post type, an exhausted slot budget. The shared language already
+  forbids unexplained dead controls; here it is the primary interaction, because
+  the blocked state *is* the product working correctly.
+- **Evidence is never a bare boolean.** A verified claim shows its evidence and
+  that evidence's strength. A checkmark with nothing behind it would recreate
+  in the UI exactly the unfalsifiable trust this scenario exists to remove.
+- **The editor is shaped by the post type, not generic.** A thread is a sequence
+  of posts with per-post character budgets and a visible break structure. A blog
+  post is prose with headings, a banner slot at its declared aspect ratio, and
+  inline figures with alt text. One rich-text box serving both would serve
+  neither, and platform-shaped constraints must be visible while writing rather
+  than discovered at publish.
+- **Agent output arrives as editable content, never as a locked result.** A
+  commissioned draft lands in the same editor the operator types in, with its
+  provenance recorded and a visible diff against what changed. Minor tweaking is
+  the common case, not an exception path — the operator must be able to fix a
+  word without re-running anything or leaving the surface.
+
+Status semantics, motion rules, responsive transformations, and accessibility
+floors are inherited as binding, with no local deviation.
 
 ## How To Read This Document
 

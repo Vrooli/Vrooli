@@ -40,13 +40,14 @@ such as BlobStore.
 | Campaign | campaigns | SQLite | `api/internal/campaigns/schema.sql` | Retained after close as historical record. | Theme, audiences, channels, hypotheses, linked SKUs, status, evidence refs. |
 | Artifact slot | campaigns | SQLite | `api/internal/campaigns/schema.sql` | Follows its campaign. | Declared channel/format slots and their occupancy. The budget is a hard cap. |
 | Draft | artifacts | SQLite | `api/internal/artifacts/schema.sql` | Retained; abandoned drafts are marked, not deleted. | Body, hook, type, lane, audience, channel, status, approval attribution. |
-| Revision | artifacts | SQLite | `api/internal/artifacts/schema.sql` | Follows its draft. | Prior bodies, so an edit history survives review. |
+| Revision | artifacts | SQLite | `api/internal/artifacts/schema.sql` | Follows its draft. | Prior bodies, so an edit history survives review. Records whether a revision came from the operator or a commissioned agent. |
+| Image attachment | artifacts | SQLite | `api/internal/artifacts/schema.sql` | Follows its draft. | **Reference and metadata only, never bytes** (D-018): an `image-tools` asset id, resolved path, role (`banner` or `inline`), declared aspect ratio, alt text, and position. Bytes live in image-tools. |
 | Claim | claims | SQLite | `api/internal/claims/schema.sql` | **Never deleted.** | Assertion text, kind, verification state, search date for novelty claims. Shared across drafts. |
 | Evidence | claims | SQLite | `api/internal/claims/schema.sql` | Follows its claim. | Either a citation or a re-runnable check with command, expected result, last run, last observed result. |
 | Citation | claims | SQLite | `api/internal/claims/schema.sql` | Follows the draft. | The many-to-many join between drafts and claims. Deleting a draft never deletes a claim. |
 | Post type | posttypes | SQLite | `api/internal/posttypes/schema.sql` | Seeded at boot; reseed overwrites. | Medium, paired-skill ref, required fields, activation criteria, failure-mode set. |
 | Review run | review | SQLite | `api/internal/review/schema.sql` | Retained as history. | Per-failure-mode verdicts with evidence, plus challenge and resolution state. |
-| Publish record | ledger | SQLite | `api/internal/ledger/schema.sql` | **Never deleted.** | Draft, channel, URL, platform post id, series, prior post, published timestamp. |
+| Publish record | ledger | SQLite | `api/internal/ledger/schema.sql` | **Never deleted.** | Draft, channel, URL, platform post id, series, prior post, published timestamp. The draft reference is **nullable by design** — see D-012. |
 | Coverage snapshot | ledger | SQLite | `api/internal/ledger/schema.sql` | Rebuildable. | Derived from publish records; safe to drop and recompute. |
 | Subject mention | ledger | SQLite | `api/internal/ledger/schema.sql` | Follows its publish record. | Which subjects a published post introduced, per audience. |
 | Narrated item | ledger | SQLite | `api/internal/ledger/schema.sql` | Follows its publish record. | What a post said about a subject, so later posts advance rather than repeat. |
@@ -60,7 +61,7 @@ Each domain's schema file lives beside the code that interprets it. The
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
 | campaigns, artifact_slots | campaigns | `api/internal/campaigns/schema.sql` | campaigns repository/service; read by artifacts for slot admission |
-| drafts, revisions, requests | artifacts | `api/internal/artifacts/schema.sql` | artifacts repository/service; read by claims, review, and ledger |
+| drafts, revisions, requests, image_attachments | artifacts | `api/internal/artifacts/schema.sql` | artifacts repository/service; read by claims, review, and ledger |
 | claims, evidence, citations | claims | `api/internal/claims/schema.sql` | claims policy engine; read by artifacts for the approval gate |
 | post_types, activation_criteria, failure_modes | posttypes | `api/internal/posttypes/schema.sql` | posttypes validation; read by artifacts and review |
 | review_runs, verdicts, challenges | review | `api/internal/review/schema.sql` | review service; read by artifacts for the approval gate |
@@ -135,6 +136,23 @@ as a new record rather than updating the old one. Under an append-oriented
 ledger that is correct — the edit is a new assertion. Fuzzy-matching edits back
 onto existing records is a meaningfully harder system whose failure mode is
 silent false merges.
+
+### Imported history has no draft
+
+Every imported publish record predates this scenario, so no draft produced it.
+The `ledger` domain is also built before `artifacts` exists, which would
+otherwise make the import unbuildable. The publish record's draft reference is
+therefore **nullable by design** (D-012), and the two cases stay
+distinguishable:
+
+| Record shape | Meaning |
+|---|---|
+| Draft reference present | The post went through the campaign, claim, and review gates. |
+| Draft reference absent | Imported history. No gate ever ran on it. |
+
+Reporting must never present the second case as gated. Synthesising a
+retrospective draft to fill the column would put a false approval trail in the
+audit surface, which is the opposite of what the ledger is for.
 
 ## Retention And Deletion
 
