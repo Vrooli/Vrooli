@@ -3,7 +3,10 @@ package domains
 import (
 	"github.com/vrooli/cli-core/cliapp"
 	"signal-inbox/cli/domains/categories"
+	"signal-inbox/cli/domains/retrieval"
 	"signal-inbox/cli/domains/signals"
+	"signal-inbox/cli/domains/sources"
+	"signal-inbox/cli/domains/triage"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -44,5 +47,17 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{categoriesGroup, group}, nil
+	triageGroup, err := triage.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	retrievalGroup, err := retrieval.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	sourcesGroup, err := sources.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{categoriesGroup, group, retrievalGroup, sourcesGroup, triageGroup}, nil
 }

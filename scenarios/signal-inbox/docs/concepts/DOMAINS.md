@@ -4,11 +4,8 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`health` is the one real domain the scaffold ships. Add your scenario's
-domains to the inventory below as you build them. The scaffold also ships
-one clearly fenced worked example domain (never product scope) as a
-copyable reference; `template-manager detemplate <scenario>` removes every
-fenced example once your real domains are green.
+Signal Inbox is organized around the six product domains in the inventory
+below. `health` is an operational support surface, not a product boundary.
 
 ## Purpose Of This Document
 
@@ -70,7 +67,7 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| None yet. | Generated scaffold. | Add after PRD-specific requirements identify future capability boundaries. |
+| Consumer routing | Per-consumer ownership, event publication, and saved views are P1/P2 work. | A consuming scenario needs routed signals or durable saved views. |
 
 ## Non-Domains
 

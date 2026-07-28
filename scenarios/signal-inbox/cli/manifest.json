@@ -14,7 +14,8 @@
             {"name": "url", "description": "Source URL"},
             {"name": "text", "description": "Captured text"},
             {"name": "image-payload-ref", "description": "Previously uploaded opaque image payload reference"},
-            {"name": "note", "description": "Capture-time note"}
+            {"name": "note", "description": "Capture-time note"},
+            {"name": "tags", "description": "Comma-separated immutable capture tags"}
           ],
           "binding": {"kind": "connect-rpc", "service": "SignalsService", "method": "CaptureSignal"},
           "architecture": {"primitive": "proto_mutation"},
@@ -92,6 +93,69 @@
           "architecture": {"primitive": "proto_mutation"},
           "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
         }
+      ]
+    },
+    {
+      "name": "triage",
+      "description": "Review dispositions and append signal annotations without changing captured evidence",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Read a signal's disposition and annotation thread",
+          "positionals": [{"name": "signal-id", "required": true, "description": "Signal id"}],
+          "binding": {"kind": "connect-rpc", "service": "TriageService", "method": "GetTriage"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "set-disposition",
+          "description": "Set one signal's lifecycle state without deleting or hiding it from search",
+          "positionals": [{"name": "signal-id", "required": true, "description": "Signal id"}],
+          "flags": [{"name": "state", "required": true, "description": "new, triaged, routed, done, or dropped"}, {"name": "revisit-at", "description": "Optional RFC3339 future review time"}],
+          "binding": {"kind": "connect-rpc", "service": "TriageService", "method": "SetDisposition"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "annotate",
+          "description": "Append an annotation or typed outcome link to a signal",
+          "positionals": [{"name": "signal-id", "required": true, "description": "Signal id"}],
+          "flags": [{"name": "author", "required": true, "description": "operator, agent, or system"}, {"name": "body", "description": "Optional annotation text"}, {"name": "outcome-kind", "description": "scenario, backlog, idea_pipeline, or knowledge_topic"}, {"name": "outcome-target-id", "description": "Target identifier for the outcome link"}],
+          "binding": {"kind": "connect-rpc", "service": "TriageService", "method": "AddAnnotation"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "retrieval",
+      "description": "Search the full corpus or read a budgeted unresolved ambient view",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Search all signals; filters never determine index eligibility",
+          "flags": [{"name": "text", "description": "Natural-language or exact query"}, {"name": "category-id", "description": "Confirmed category filter"}, {"name": "disposition", "description": "Disposition filter"}, {"name": "source-kind", "description": "url, text, or image"}, {"name": "tags", "description": "Comma-separated tags; all supplied tags must match"}, {"name": "captured-after", "description": "Inclusive RFC3339 lower capture-time bound"}, {"name": "captured-before", "description": "Inclusive RFC3339 upper capture-time bound"}, {"name": "page-size", "description": "Maximum rows"}, {"name": "page-after", "description": "Opaque cursor from the preceding search page"}],
+          "binding": {"kind": "connect-rpc", "service": "RetrievalService", "method": "Search"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "ambient",
+          "description": "Read only unresolved signals within a bounded budget",
+          "flags": [{"name": "category-id", "description": "Optional confirmed category scope"}, {"name": "budget", "description": "Maximum unresolved rows"}],
+          "binding": {"kind": "connect-rpc", "service": "RetrievalService", "method": "Ambient"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "sources",
+      "description": "Inspect risk-tiered adapters and import operator-supplied archives",
+      "commands": [
+        {"name": "list", "description": "List adapter tiers and durable state", "binding": {"kind": "connect-rpc", "service": "SourcesService", "method": "ListAdapters"}, "architecture": {"primitive": "proto_list"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "set-enabled", "description": "Explicitly enable or disable one adapter", "positionals": [{"name": "adapter-id", "required": true, "description": "Adapter id"}], "flags": [{"name": "enabled", "required": true, "description": "true or false"}], "binding": {"kind": "connect-rpc", "service": "SourcesService", "method": "SetAdapterEnabled"}, "architecture": {"primitive": "proto_mutation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "import", "description": "Import one operator-supplied tier-zero archive file", "flags": [{"name": "adapter-id", "required": true, "description": "Measured adapter id"}, {"name": "file", "required": true, "description": "Local export file path"}], "binding": {"kind": "connect-rpc", "service": "SourcesService", "method": "ImportArchive"}, "architecture": {"primitive": "proto_mutation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}}
       ]
     }
   ],

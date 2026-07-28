@@ -7,12 +7,18 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "signal-inbox",
-  "description": "Generated L0 experience contract for Signal Inbox. Replace these route identities with product-specific priorities, claims, bindings, states, and journeys as the UI becomes real.",
+  "description": "Signal Inbox experience contract for capture, safe archive import, full-journal retrieval, and ambient triage.",
   "pages": [
     {
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "Dashboard",
+      "status": "active"
+    },
+    {
+      "id": "signals",
+      "path": "pages/signals.json",
+      "title": "Signal inbox",
       "status": "active"
     },
     {
@@ -22,5 +28,12 @@
       "status": "active"
     }
   ],
-  "journeys": []
+  "journeys": [
+    {
+      "id": "capture-search-triage",
+      "path": "journeys/capture-search-triage.json",
+      "title": "Capture, retrieve, and triage a signal",
+      "status": "active"
+    }
+  ]
 }

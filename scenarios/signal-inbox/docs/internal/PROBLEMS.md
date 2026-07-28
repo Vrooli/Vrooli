@@ -4,8 +4,7 @@ Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.
 
-This file ships empty in newly generated scenarios. Append entries as
-they appear.
+Append evidence-backed entries as they appear.
 
 ## What belongs here
 
@@ -48,17 +47,67 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
+### 2026-07-27 — Scenario Auditor cannot rebuild in the current toolchain cache
 
+**Symptom:** `scenario-auditor standards scan signal-inbox --wait` cannot start its
+local API. Its stale CLI attempts an auto-rebuild, which fails before scanning with
+Go standard-library object version mismatches (`go1.21.13` cached objects versus
+the active Go `1.25.12` toolchain).
+
+**Root cause:** Lifecycle startup injects an incompatible local `GOROOT` while
+the selected compiler is Go `1.25.12`; that older tree lacks packages such as
+`math/rand/v2`. Signal Inbox code is not implicated; the scanner is also stopped.
+
+**Workaround:** `env -u GOROOT make endpoints` works for direct scenario-local Go
+commands. Keep using local API/UI/CLI validation and Test Genie evidence; do not claim
+the standards scan passed while lifecycle still restores the incompatible variable.
+
+**Real fix:** Correct lifecycle's Go environment, then rebuild and start
+`scenario-auditor` with the active Go toolchain and address any Signal-Inbox-owned
+findings from a new standards scan.
+
+**Owner:** Scenario Auditor / development-toolchain maintainers.
+
+**Refs:** `scenario-auditor standards scan signal-inbox --wait`, 2026-07-27.
+
+### 2026-07-28 — Proto Health retains a pre-migration shared-type finding
+
+**Symptom:** After moving the reusable `Signal` message and `SourceKind` enum
+from `signal-inbox/v1/signals/signals.proto` to
+`signal-inbox/v1/shared/signals.proto`, regenerating all proto artifacts, and
+passing both API and CLI Go suites, `proto-health --auto-start validate scenario
+signal-inbox --json` still reports the old location
+`signal-inbox/v1/signals/signals.proto#Signal`.
+
+**Root cause:** Proto Health's lifecycle-managed Code Facts analysis is not
+refreshing to the generated schema state. Its running analysis path shares the
+incompatible lifecycle Go environment described above, so the report cannot be
+treated as a current source snapshot.
+
+**Workaround:** Treat the source schema, regenerated artifacts, and passing
+`api`/`cli` suites as the current local evidence; do not mark Proto Health green
+until its lifecycle is rebuilt and it reports the shared location itself.
+
+**Real fix:** Correct lifecycle toolchain injection, restart Proto Health/Code
+Facts, and rerun the provider validation against the current descriptor.
+
+**Owner:** Proto Health / Code Facts maintainers.
+
+**Refs:** `packages/proto/schemas/signal-inbox/v1/shared/signals.proto`,
+`proto-health --auto-start validate scenario signal-inbox --json`, 2026-07-28.
+
+### 2026-07-27 - Resolved: Proto Health descriptor stale after schema migration
+
+The shared Signal migration was correct in source and generated artifacts, but a running Proto Health process retained a pre-migration descriptor image and reported signals.Signal. Restarting Proto Health through vrooli scenario restart proto-health reloaded the descriptor; proto-health validate scenario signal-inbox then passed with shared.Signal clean. Final Test Genie run 20260728-031239-3f8b6b5e passed all 20 phases.
 ## Work ladder
 
-- Rung: W1
-- Evidence: W0 passed on 2026-07-27 after the retained active goal `bookmark-intelligence-hub-rework-and-ideation` was retitled and its description explicitly named `signal-inbox`. Its mandatory claims — manual/tier-0 capture, immutable storage, operator-defined categories and confirmation, corpus-wide retrieval independent of category or disposition, and auto-disable/no-retry adapter safety — agree with `OT-P0-001` through `OT-P0-014`; `D-006`, `D-013`, `D-015`, and `D-016` do not supersede any P0 target.
-- Blocker: W1 has not yet been measured.
+- Rung: W3 / R0
+- Evidence: W0 re-measured on 2026-07-27: goal `bookmark-intelligence-hub-rework-and-ideation` directs manual/tier-0 capture, immutable storage, operator-defined/confirmed categories, corpus-wide retrieval independent of category or disposition, and anomalous-adapter disable/no retry; these agree with `OT-P0-001` through `OT-P0-014` and are not superseded by `D-006`, `D-013`, `D-015`, or `D-016`. W1 passed: `business-health validate scenario signal-inbox` returned `signal-inbox: PASSED` with no findings. W2 passed: `vrooli scenario requirements validate signal-inbox --json` returned `PASSED` with fresh, clean evidence traceability. W3 run `20260728-020815-665818de` failed after 136.1 seconds: the previously actionable triage transport findings are gone, contracts and API phases passed, and the remaining failures are scenario maturity/debt (not requirement evidence), including architecture boundary findings, docs/dependency/workflow checks, and incomplete search-eval evidence.
+- Blocker: R0 remains open. The current comprehensive run is authoritative negative evidence: `proto.domain_mismatch`, REST exception proof, architecture boundary, and broader docs/dependency/workflow maturity findings still need evidence-led repair. Search descriptor validation also reports `SEARCH_EVAL_CORPUS_INADEQUATE` because no real operator corpus has been imported; no requirement status was changed.
 - Measured: 2026-07-27
 
-No implementation exists yet, so there are no observed defects. The table below
-records **open gaps carried out of the design workshop** — things the design
-knowingly does not resolve. They are listed here rather than in
+The table below records **open gaps carried out of the design workshop** and
+observed validation limits. They are listed here rather than in
 [`DECISIONS.md`](DECISIONS.md) because a decision records what was chosen, while
 these record what is still unknown.
 
@@ -74,6 +123,7 @@ these record what is still unknown.
 | No hard-delete path exists | Deletion is deliberately absent (D-006), but material captured in genuine error — a credential in a screenshot, say — currently has no removal path. | Nothing today | If added, it must be an explicit, logged, single-signal operation and never reachable from a filter-driven bulk path. |
 | Blob-store growth is unbounded | Pasted images accumulate with no size budget and no measurement. | Nothing today | Measure after the first real corpus; add a budget only if it turns out to matter. |
 | Phase 1 baseline comparison was not comparable | Git Control Tower validation operation `4c7ea8aa-41e2-435c-9c30-336b913a1da9` returned `signal-inbox:ready:regression` with the only detail `phase did not apply to one or both captured targets`; its two proto-path checks have no typed producer synchronization. The native inference tests, `ai-go/search` suite, and linter passed. | Automated phase-close evidence only; no requirement status was advanced. | Re-run the phase baseline comparison after the first signal-inbox proto/API slice produces a typed target; do not treat the current baseline verdict as behavioral evidence for a requirement. |
+| Search eval positives are intentionally absent | `.vrooli/search.json` now declares the provider contract and a junk negative, but no honest positive signal id exists until operator exports are imported. Search Hub fast validation reports `SEARCH_EVAL_CORPUS_INADEQUATE`. | `SIG-P0-011` certification and final search phase | After the operator imports actual Chrome, X, and Reddit exports, review at least three real queries against their real signal ids and add them as reviewed positives. Do not fabricate fixture or placeholder ids. |
 
 ## Architecture Drift
 
@@ -84,7 +134,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| _None yet._ |  |  |  |
+| Validation infrastructure | Scenario Auditor and Code Facts cannot currently start because lifecycle restores an incompatible Go root. | Architecture and code-fact findings cannot be independently re-measured by their owning services. | Correct the lifecycle Go environment, then rerun the owning scans and repair only the Signal-Inbox findings they produce. |
 
 ## Cross-references
 

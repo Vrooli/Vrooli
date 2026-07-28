@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"time"
-
-	"signal-inbox/internal/signals"
 )
 
 type State string
@@ -69,5 +67,3 @@ func (e ErrInvalidTransition) Error() string {
 type ErrInvalidTriage struct{ Reason string }
 
 func (e ErrInvalidTriage) Error() string { return e.Reason }
-
-var _ = signals.SourceKindURL

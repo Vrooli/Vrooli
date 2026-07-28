@@ -29,6 +29,7 @@ type Signal struct {
 	ContentHash      string
 	NeedsAttention   bool
 	CaptureNote      string
+	Tags             []string
 }
 
 type CaptureInput struct {
@@ -36,6 +37,7 @@ type CaptureInput struct {
 	Text            string
 	ImagePayloadRef string
 	CaptureNote     string
+	Tags            []string
 }
 
 type CaptureResult struct {

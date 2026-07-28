@@ -24,13 +24,21 @@ import (
 
 	categoriesH "signal-inbox/handlers/categories"
 	healthH "signal-inbox/handlers/health"
+	retrievalH "signal-inbox/handlers/retrieval"
 	signalsH "signal-inbox/handlers/signals"
+	sourcesH "signal-inbox/handlers/sources"
+	triageH "signal-inbox/handlers/triage"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/enrichment"
+	"signal-inbox/internal/retrieval"
+	"signal-inbox/internal/sources"
 	"signal-inbox/internal/triage"
 
 	categoriesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/categories"
+	retrievalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/retrieval"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals"
+	sourcesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/sources"
+	triagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/triage"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -41,7 +49,10 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, categoriesH.Endpoints...)
+	out = append(out, retrievalH.Endpoints...)
 	out = append(out, signalsH.Endpoints...)
+	out = append(out, sourcesH.Endpoints...)
+	out = append(out, triageH.Endpoints...)
 	return out
 }
 
@@ -67,7 +78,7 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{{Module: "categories", File: categoriesv1.File_signal_inbox_v1_categories_categories_proto}, {Module: "signals", File: signalsv1.File_signal_inbox_v1_signals_signals_proto}}
+	return []ProtoFileEntry{{Module: "categories", File: categoriesv1.File_signal_inbox_v1_categories_categories_proto}, {Module: "retrieval", File: retrievalv1.File_signal_inbox_v1_retrieval_retrieval_proto}, {Module: "signals", File: signalsv1.File_signal_inbox_v1_signals_signals_proto}, {Module: "sources", File: sourcesv1.File_signal_inbox_v1_sources_sources_proto}, {Module: "triage", File: triagev1.File_signal_inbox_v1_triage_triage_proto}}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -84,6 +95,8 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(categoriesH.Schema),
 		apidb.SchemaProviderFunc(signalsH.Schema),
 		apidb.SchemaProviderFunc(enrichment.Schema),
+		apidb.SchemaProviderFunc(retrieval.Schema),
+		apidb.SchemaProviderFunc(sources.Schema),
 		apidb.SchemaProviderFunc(triage.Schema),
 	}
 }

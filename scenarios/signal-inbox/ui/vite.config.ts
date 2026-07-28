@@ -40,7 +40,8 @@ export default defineConfig(({ mode }): UserConfig => {
 	];
 
   return {
-    base: './',  // Required for tunnel/proxy contexts
+    // INTEROP-CRITICAL: relative assets preserve localhost, tunnel, and proxy mounting.
+    base: './',
     plugins: [react(), stringsCodegen()],
 		resolve: { alias: aliases },
     esbuild: isProfile

@@ -8,5 +8,11 @@
     "routes": ["/"],
     "purpose": "Give the operator the first useful view of Signal Inbox and make the primary next action clear.",
     "prd_refs": ["OT-P0-001"]
-  }
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Scenario health and the dashboard's operational summary are visible."
+    }
+  ]
 }

@@ -44,73 +44,53 @@
       "testId": "health-refresh-count",
       "selector": "[data-testid=\"health-refresh-count\"]"
     },
+    "capture.card": {
+      "testId": "capture-card",
+      "selector": "[data-testid=\"capture-card\"]"
+    },
+    "capture.source": {
+      "testId": "capture-source",
+      "selector": "[data-testid=\"capture-source\"]"
+    },
+    "capture.note": {
+      "testId": "capture-note",
+      "selector": "[data-testid=\"capture-note\"]"
+    },
+    "capture.image": {
+      "testId": "capture-image",
+      "selector": "[data-testid=\"capture-image\"]"
+    },
+    "capture.submit": {
+      "testId": "capture-submit",
+      "selector": "[data-testid=\"capture-submit\"]"
+    },
+    "capture.loading": {
+      "testId": "capture-loading",
+      "selector": "[data-testid=\"capture-loading\"]"
+    },
+    "capture.empty": {
+      "testId": "capture-empty",
+      "selector": "[data-testid=\"capture-empty\"]"
+    },
+    "capture.error": {
+      "testId": "capture-error",
+      "selector": "[data-testid=\"capture-error\"]"
+    },
+    "capture.duplicate": {
+      "testId": "capture-duplicate",
+      "selector": "[data-testid=\"capture-duplicate\"]"
+    },
+    "capture.needsAttention": {
+      "testId": "capture-needs-attention",
+      "selector": "[data-testid=\"capture-needs-attention\"]"
+    },
+    "capture.list": {
+      "testId": "capture-list",
+      "selector": "[data-testid=\"capture-list\"]"
+    },
     "notifications.summary": {
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
-    },
-    "notes.card": {
-      "testId": "notes-card",
-      "selector": "[data-testid=\"notes-card\"]"
-    },
-    "notes.list": {
-      "testId": "notes-list",
-      "selector": "[data-testid=\"notes-list\"]"
-    },
-    "notes.loading": {
-      "testId": "notes-loading",
-      "selector": "[data-testid=\"notes-loading\"]"
-    },
-    "notes.empty": {
-      "testId": "notes-empty",
-      "selector": "[data-testid=\"notes-empty\"]"
-    },
-    "notes.error": {
-      "testId": "notes-error",
-      "selector": "[data-testid=\"notes-error\"]"
-    },
-    "notes.createButton": {
-      "testId": "notes-create-button",
-      "selector": "[data-testid=\"notes-create-button\"]"
-    },
-    "notes.createdAt": {
-      "testId": "notes-created-at",
-      "selector": "[data-testid=\"notes-created-at\"]"
-    },
-    "notes.attachmentCount": {
-      "testId": "notes-attachment-count",
-      "selector": "[data-testid=\"notes-attachment-count\"]"
-    },
-    "notes.attachmentUpload": {
-      "testId": "notes-attachment-upload",
-      "selector": "[data-testid=\"notes-attachment-upload\"]"
-    },
-    "notes.attachmentFile": {
-      "testId": "notes-attachment-file",
-      "selector": "[data-testid=\"notes-attachment-file\"]"
-    },
-    "notes.attachmentButton": {
-      "testId": "notes-attachment-button",
-      "selector": "[data-testid=\"notes-attachment-button\"]"
-    },
-    "notes.attachmentStatus": {
-      "testId": "notes-attachment-status",
-      "selector": "[data-testid=\"notes-attachment-status\"]"
-    },
-    "notes.measure.card": {
-      "testId": "notes-measure-card",
-      "selector": "[data-testid=\"notes-measure-card\"]"
-    },
-    "notes.measure.value": {
-      "testId": "notes-measure-value",
-      "selector": "[data-testid=\"notes-measure-value\"]"
-    },
-    "notes.measure.loading": {
-      "testId": "notes-measure-loading",
-      "selector": "[data-testid=\"notes-measure-loading\"]"
-    },
-    "notes.measure.error": {
-      "testId": "notes-measure-error",
-      "selector": "[data-testid=\"notes-measure-error\"]"
     },
     "layout.shell": {
       "testId": "layout-shell",
@@ -144,9 +124,9 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
-    "pages.notes": {
-      "testId": "page-notes",
-      "selector": "[data-testid=\"page-notes\"]"
+    "pages.signals": {
+      "testId": "page-signals",
+      "selector": "[data-testid=\"page-signals\"]"
     },
     "pages.settings": {
       "testId": "page-settings",
@@ -172,7 +152,7 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "signals",
             "settings"
           ]
         }
@@ -188,7 +168,7 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "signals",
             "settings"
           ]
         }

@@ -1110,6 +1110,9 @@
             "conversation-extraction"
           ],
           "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
           "completion": "optional"
         }
       ]

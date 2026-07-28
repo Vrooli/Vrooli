@@ -129,6 +129,34 @@
       }
     },
     {
+      "id": "retrieval_search",
+      "path": "/vrooli.signal_inbox.v1.retrieval.RetrievalService/Search",
+      "method": "POST",
+      "summary": "Search signals",
+      "description": "Searches the full signal corpus; category and disposition only filter results and never index eligibility.",
+      "category": "retrieval",
+      "request": {
+        "type": "SearchRequest"
+      },
+      "response": {
+        "type": "SearchResponse"
+      }
+    },
+    {
+      "id": "retrieval_ambient",
+      "path": "/vrooli.signal_inbox.v1.retrieval.RetrievalService/Ambient",
+      "method": "POST",
+      "summary": "Read ambient signals",
+      "description": "Returns a budgeted unresolved view without changing corpus search eligibility.",
+      "category": "retrieval",
+      "request": {
+        "type": "AmbientRequest"
+      },
+      "response": {
+        "type": "AmbientResponse"
+      }
+    },
+    {
       "id": "signals_capture",
       "path": "/vrooli.signal_inbox.v1.signals.SignalsService/CaptureSignal",
       "method": "POST",
@@ -204,7 +232,107 @@
       },
       "rest_exception": {
         "reason": "multipart_upload",
-        "note": "multipart file bytes cannot be represented in a Connect request; response remains proto-typed"
+        "note": "multipart file bytes cannot be represented in a Connect request; response remains proto-typed",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.signal_inbox.v1.signals.UploadImageResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.signal_inbox.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "sources_list_adapters",
+      "path": "/vrooli.signal_inbox.v1.sources.SourcesService/ListAdapters",
+      "method": "POST",
+      "summary": "List source adapters",
+      "description": "Lists adapter risk tiers and durable enablement state.",
+      "category": "sources",
+      "request": {
+        "type": "ListAdaptersRequest"
+      },
+      "response": {
+        "type": "ListAdaptersResponse"
+      }
+    },
+    {
+      "id": "sources_set_enabled",
+      "path": "/vrooli.signal_inbox.v1.sources.SourcesService/SetAdapterEnabled",
+      "method": "POST",
+      "summary": "Set adapter enabled",
+      "description": "Explicitly enables or disables one adapter; higher-risk adapters ship disabled.",
+      "category": "sources",
+      "request": {
+        "type": "SetAdapterEnabledRequest"
+      },
+      "response": {
+        "type": "SetAdapterEnabledResponse"
+      }
+    },
+    {
+      "id": "sources_import_archive",
+      "path": "/vrooli.signal_inbox.v1.sources.SourcesService/ImportArchive",
+      "method": "POST",
+      "summary": "Import archive",
+      "description": "Imports an operator-supplied tier-zero archive through the shared journal capture path.",
+      "category": "sources",
+      "request": {
+        "type": "ImportArchiveRequest"
+      },
+      "response": {
+        "type": "ImportArchiveResponse"
+      }
+    },
+    {
+      "id": "triage_get",
+      "path": "/vrooli.signal_inbox.v1.triage.TriageService/GetTriage",
+      "method": "POST",
+      "summary": "Get triage record",
+      "description": "Returns the mutable disposition and append-only annotation thread for a signal.",
+      "category": "triage",
+      "request": {
+        "type": "GetTriageRequest"
+      },
+      "response": {
+        "type": "GetTriageResponse"
+      }
+    },
+    {
+      "id": "triage_set_disposition",
+      "path": "/vrooli.signal_inbox.v1.triage.TriageService/SetDisposition",
+      "method": "POST",
+      "summary": "Set disposition",
+      "description": "Updates the signal's single disposition without changing its journal entry or search eligibility.",
+      "category": "triage",
+      "request": {
+        "type": "SetDispositionRequest"
+      },
+      "response": {
+        "type": "SetDispositionResponse"
+      }
+    },
+    {
+      "id": "triage_add_annotation",
+      "path": "/vrooli.signal_inbox.v1.triage.TriageService/AddAnnotation",
+      "method": "POST",
+      "summary": "Add annotation",
+      "description": "Appends an operator, agent, or system annotation and optional typed outcome link.",
+      "category": "triage",
+      "request": {
+        "type": "AddAnnotationRequest"
+      },
+      "response": {
+        "type": "AddAnnotationResponse"
       }
     }
   ]

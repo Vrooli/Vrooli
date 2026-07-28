@@ -162,10 +162,10 @@ constraints:
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
-> ORIENTATION-TODO: scenario-design-adaptation — Replace this marker with a
-> short note explaining why this design language fits the generated scenario's
-> users, density, workflow, and accessibility needs. Keep the token contract
-> intact unless the scenario intentionally adopts another design kit.
+Signal Inbox uses this operational design language because capture and triage
+are frequent, low-friction actions while retrieval is a dense research task.
+The neutral work surface keeps source text legible; clear status labels ensure
+that disposition and classification never rely on color alone.
 
 ## How To Read This Document
 

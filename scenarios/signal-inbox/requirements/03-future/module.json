@@ -1,6 +1,7 @@
 {
   "_metadata": {
     "description": "P2 requirements — the highest-risk capture path, lower-friction capture surfaces, and the model relaxations that only make sense once real usage has shown they are needed.",
+    "last_validated_at": "2026-07-27T23:11:07-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -9,73 +10,151 @@
     {
       "id": "SIG-P2-001",
       "title": "Authenticated session-replay adapter",
-      "criticality": "P2",
       "status": "planned",
       "prd_ref": "OT-P2-001",
       "category": "ingestion",
+      "criticality": "P2",
       "description": "Capture from platforms with no usable export and no accessible API, by replaying an authenticated browser session through browser-automation-studio. This is the only tier-2 path and it carries the scenario's one unrecoverable risk: a platform that flags the session can remove the operator's account, which no amount of retry logic recovers. It is deliberately last. Every cheaper path — manual capture, operator-supplied export, official API — is expected to have been exhausted before this is enabled, and the tier-2 envelope from SIG-P0-014 applies without exception.",
-      "tags": ["ingestion", "tier-2", "browser-automation-studio", "account-risk"],
+      "tags": [
+        "ingestion",
+        "tier-2",
+        "browser-automation-studio",
+        "account-risk"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "The adapter declares tier 2, ships disabled, and requires an explicit per-adapter enable that is distinct from a global toggle." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Request pacing stays inside the declared envelope and is enforced by the runner rather than by the adapter." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Any challenge, forbidden, or rate-limit response disables the adapter immediately and raises an operator alert." },
-        { "type": "manual", "status": "planned", "notes": "Operator sign-off required before first enable, acknowledging that the risk to the underlying account is not fully mitigable." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The adapter declares tier 2, ships disabled, and requires an explicit per-adapter enable that is distinct from a global toggle."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Request pacing stays inside the declared envelope and is enforced by the runner rather than by the adapter."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Any challenge, forbidden, or rate-limit response disables the adapter immediately and raises an operator alert."
+        },
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Operator sign-off required before first enable, acknowledging that the risk to the underlying account is not fully mitigable."
+        }
       ]
     },
     {
       "id": "SIG-P2-002",
       "title": "Browser-extension capture",
-      "criticality": "P2",
       "status": "planned",
       "prd_ref": "OT-P2-002",
       "category": "capture",
+      "criticality": "P2",
       "description": "A signal is pushed from a browser extension so capture does not require leaving the page. This is a friction reduction over SIG-P0-002 rather than a new capability, and it is worth building only once real usage shows that manual capture friction is what limits how much gets captured.",
-      "tags": ["capture", "extension", "friction"],
+      "tags": [
+        "capture",
+        "extension",
+        "friction"
+      ],
       "validation": [
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "An extension-pushed capture produces a signal identical in shape to a manually captured one." },
-        { "type": "manual", "status": "planned", "notes": "Confirm capture friction is the actual limiter before building; the assumption is untested." }
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "An extension-pushed capture produces a signal identical in shape to a manually captured one."
+        },
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Confirm capture friction is the actual limiter before building; the assumption is untested."
+        }
       ]
     },
     {
       "id": "SIG-P2-003",
       "title": "Cross-category signals",
-      "criticality": "P2",
       "status": "planned",
       "prd_ref": "OT-P2-003",
       "category": "categories",
+      "criticality": "P2",
       "description": "A signal carries more than one authoritative category. Deferred deliberately: the single-primary-category rule exists so that disposition has exactly one owner, and relaxing it requires first defining what handled means when two consumers disagree. Free tags cover most of the practical need until then, so this is blocked on evidence that tags are insufficient rather than on implementation effort.",
-      "tags": ["categories", "model", "deferred"],
+      "tags": [
+        "categories",
+        "model",
+        "deferred"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Disposition ownership resolves deterministically when a signal belongs to categories with different consumers." },
-        { "type": "manual", "status": "planned", "notes": "Establish the multi-consumer disposition rule before implementing; without it this change makes handled-state ambiguous." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Disposition ownership resolves deterministically when a signal belongs to categories with different consumers."
+        },
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Establish the multi-consumer disposition rule before implementing; without it this change makes handled-state ambiguous."
+        }
       ]
     },
     {
       "id": "SIG-P2-004",
       "title": "Retrieval eval corpus",
-      "criticality": "P2",
       "status": "planned",
       "prd_ref": "OT-P2-004",
       "category": "retrieval",
+      "criticality": "P2",
       "description": "A golden retrieval suite registered with search-hub so signal recall is measured over time like any other provider, with reviewed positives, honest hard cases, and junk negatives. Beyond the minimum corpus that SIG-P0-011 requires for certification, a real suite can only be authored against a real corpus, which is why it follows import rather than preceding it.",
-      "tags": ["retrieval", "search-hub", "evals", "quality"],
+      "tags": [
+        "retrieval",
+        "search-hub",
+        "evals",
+        "quality"
+      ],
       "validation": [
-        { "type": "test", "phase": "search", "status": "planned", "notes": "The suite carries reviewed positives, hard cases, and junk negatives, and records a trend sample per run." },
-        { "type": "manual", "status": "planned", "notes": "Author cases against the real corpus; a suite written against fixtures measures the fixtures." }
+        {
+          "type": "test",
+          "phase": "search",
+          "status": "planned",
+          "notes": "The suite carries reviewed positives, hard cases, and junk negatives, and records a trend sample per run."
+        },
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Author cases against the real corpus; a suite written against fixtures measures the fixtures."
+        }
       ]
     },
     {
       "id": "SIG-P2-005",
       "title": "Category suggestion from clustering",
-      "criticality": "P2",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-005",
       "category": "categories",
+      "criticality": "P2",
       "description": "New categories are proposed by clustering signals that repeatedly land in uncategorized, surfacing a coherent cluster as a suggestion. Suggestions terminate in an operator decision and never create a category automatically, because the category set is the operator's model of their own interests and an auto-created category would quietly reshape what every consumer sees.",
-      "tags": ["categories", "clustering", "operator"],
+      "tags": [
+        "categories",
+        "clustering",
+        "operator"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "A coherent cluster of uncategorized signals surfaces as a proposal and never creates a category without confirmation." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Declining a suggestion suppresses it from recurring on the same cluster." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A coherent cluster of uncategorized signals surfaces as a proposal and never creates a category without confirmation."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Declining a suggestion suppresses it from recurring on the same cluster."
+        }
       ]
     }
   ]

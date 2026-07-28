@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS taxonomy (
 
 CREATE TABLE IF NOT EXISTS classification (
   id TEXT PRIMARY KEY,
-  signal_id TEXT NOT NULL REFERENCES signal(id),
+  signal_id TEXT NOT NULL,
   proposed_category_id TEXT NOT NULL REFERENCES category(id),
   proposed_confidence REAL NOT NULL,
   model TEXT NOT NULL DEFAULT '',
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS classification (
 CREATE INDEX IF NOT EXISTS classification_signal_created_idx ON classification(signal_id, created_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS classification_queue (
-  signal_id TEXT PRIMARY KEY REFERENCES signal(id),
+  signal_id TEXT PRIMARY KEY,
   reason TEXT NOT NULL,
   enqueued_at TEXT NOT NULL
 );

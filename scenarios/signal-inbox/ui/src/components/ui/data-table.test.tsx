@@ -80,4 +80,36 @@ describe("DataTable", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.queryByText("Beta")).not.toBeInTheDocument();
   });
+
+  it("supports fallback search, filters, descending sort, and the empty state", async () => {
+    const user = userEvent.setup();
+    const fallbackColumns: Array<DataTableColumn<Row>> = [
+      { id: "name", header: "Name", accessor: (row) => <strong>{row.name}</strong>, className: "name-column" },
+      { id: "count", header: "Count", accessor: (row) => row.count, sortValue: (row) => row.count },
+    ];
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={fallbackColumns}
+        getRowKey={(row, index) => `${row.id}-${index}`}
+        caption="Filtered rows"
+        searchLabel="Find rows"
+        searchPlaceholder="Find a row"
+        emptyMessage="Nothing matched"
+        filterLabel="Row state"
+        filterGroupLabel="Choose row state"
+        sortLabel={(header) => `Order ${header}`}
+        filters={[{ id: "one", label: "Only one", predicate: (row) => row.count === 1 }]}
+        className="table-shell"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Only one" }));
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Order Count" }));
+    await user.type(screen.getByPlaceholderText("Find a row"), "missing");
+    expect(screen.getByText("Nothing matched")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Choose row state" })).toBeInTheDocument();
+  });
 });

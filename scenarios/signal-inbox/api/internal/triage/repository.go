@@ -4,15 +4,22 @@ import (
 	"context"
 	"database/sql"
 	"time"
-
-	"signal-inbox/internal/signals"
 )
 
 const timeFormat = time.RFC3339Nano
 
-type sqliteRepo struct{ db signals.SQLExecutor }
+// SQLExecutor is the narrow database capability this repository needs. Keeping
+// it local prevents the triage domain from importing the signals domain merely
+// to share a test seam.
+type SQLExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
 
-func NewSQLiteRepository(db signals.SQLExecutor) Repository { return &sqliteRepo{db} }
+type sqliteRepo struct{ db SQLExecutor }
+
+func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepo{db} }
 func (r *sqliteRepo) GetDisposition(c context.Context, id string) (Disposition, bool, error) {
 	var d Disposition
 	var revisit, updated string
@@ -50,7 +57,10 @@ func (r *sqliteRepo) AppendAnnotation(c context.Context, a Annotation) (Annotati
 }
 
 func (r *sqliteRepo) ListAnnotations(c context.Context, id string) ([]Annotation, error) {
-	rows, e := r.db.QueryContext(c, "SELECT id,signal_id,author,body,outcome_kind,outcome_target_id,created_at FROM annotation WHERE signal_id=? ORDER BY created_at,id", id)
+	// rowid is the stable tie-breaker when a deterministic clock gives two
+	// append-only annotations the same timestamp. UUID order would rewrite the
+	// visible append sequence at read time.
+	rows, e := r.db.QueryContext(c, "SELECT id,signal_id,author,body,outcome_kind,outcome_target_id,created_at FROM annotation WHERE signal_id=? ORDER BY created_at,rowid", id)
 	if e != nil {
 		return nil, e
 	}

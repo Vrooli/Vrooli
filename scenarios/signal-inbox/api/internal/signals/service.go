@@ -116,7 +116,7 @@ func newSignal(in CaptureInput, capturedAt time.Time) (Signal, error) {
 		return Signal{}, ErrInvalidSignal{Field: "source", Reason: "supply exactly one of url, text, or image payload reference"}
 	}
 
-	s := Signal{CapturedAt: capturedAt.UTC(), CaptureNote: strings.TrimSpace(in.CaptureNote)}
+	s := Signal{CapturedAt: capturedAt.UTC(), CaptureNote: strings.TrimSpace(in.CaptureNote), Tags: normalizeTags(in.Tags)}
 	switch {
 	case strings.TrimSpace(in.URL) != "":
 		identity, err := NormalizeSourceIdentity(in.URL)
@@ -135,6 +135,23 @@ func newSignal(in CaptureInput, capturedAt time.Time) (Signal, error) {
 		s.ContentHash = hash("image:\x00" + ref)
 	}
 	return s, nil
+}
+
+func normalizeTags(tags []string) []string {
+	seen := make(map[string]struct{}, len(tags))
+	result := make([]string, 0, len(tags))
+	for _, raw := range tags {
+		tag := strings.ToLower(strings.TrimSpace(raw))
+		if tag == "" {
+			continue
+		}
+		if _, exists := seen[tag]; exists {
+			continue
+		}
+		seen[tag] = struct{}{}
+		result = append(result, tag)
+	}
+	return result
 }
 
 func hash(value string) string {

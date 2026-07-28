@@ -3,8 +3,8 @@ import {
   SignalsService,
   UploadImageResponseSchema,
   type CaptureSignalRequest,
-  type Signal,
 } from "../../../../../packages/proto/gen/typescript/signal-inbox/v1/signals/signals_pb";
+import type { Signal } from "../../../../../packages/proto/gen/typescript/signal-inbox/v1/shared/signals_pb";
 
 import { transport } from "./client";
 import { decodeApiError, fromJson, PROTO_READ_OPTIONS, uploadFile } from "./client";

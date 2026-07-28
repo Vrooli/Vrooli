@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/shared"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals"
 	internal "signal-inbox/internal/signals"
 )
@@ -28,7 +29,7 @@ func NewConnectHandler(deps Deps) *connectHandler {
 }
 
 func (h *connectHandler) CaptureSignal(ctx context.Context, req *connect.Request[signalsv1.CaptureSignalRequest]) (*connect.Response[signalsv1.CaptureSignalResponse], error) {
-	in := internal.CaptureInput{CaptureNote: req.Msg.CaptureNote}
+	in := internal.CaptureInput{CaptureNote: req.Msg.CaptureNote, Tags: req.Msg.Tags}
 	switch source := req.Msg.Source.(type) {
 	case *signalsv1.CaptureSignalRequest_Url:
 		in.URL = source.Url
@@ -57,27 +58,27 @@ func (h *connectHandler) ListSignals(ctx context.Context, req *connect.Request[s
 	if err != nil {
 		return nil, toConnectError(err)
 	}
-	resp := &signalsv1.ListSignalsResponse{Signals: make([]*signalsv1.Signal, 0, len(signals))}
+	resp := &signalsv1.ListSignalsResponse{Signals: make([]*sharedv1.Signal, 0, len(signals))}
 	for _, signal := range signals {
 		resp.Signals = append(resp.Signals, domainToProto(signal))
 	}
 	return connect.NewResponse(resp), nil
 }
 
-func domainToProto(signal internal.Signal) *signalsv1.Signal {
-	return &signalsv1.Signal{Id: signal.ID, SourceKind: sourceKindToProto(signal.SourceKind), SourceIdentity: signal.SourceIdentity, SourceUrl: signal.SourceURL, CapturedAt: timestamppb.New(signal.CapturedAt), RawPayloadRef: signal.RawPayloadRef, ExtractedContent: signal.ExtractedContent, ContentHash: signal.ContentHash, NeedsAttention: signal.NeedsAttention, CaptureNote: signal.CaptureNote}
+func domainToProto(signal internal.Signal) *sharedv1.Signal {
+	return &sharedv1.Signal{Id: signal.ID, SourceKind: sourceKindToProto(signal.SourceKind), SourceIdentity: signal.SourceIdentity, SourceUrl: signal.SourceURL, CapturedAt: timestamppb.New(signal.CapturedAt), RawPayloadRef: signal.RawPayloadRef, ExtractedContent: signal.ExtractedContent, ContentHash: signal.ContentHash, NeedsAttention: signal.NeedsAttention, CaptureNote: signal.CaptureNote, Tags: signal.Tags}
 }
 
-func sourceKindToProto(kind internal.SourceKind) signalsv1.SourceKind {
+func sourceKindToProto(kind internal.SourceKind) sharedv1.SourceKind {
 	switch kind {
 	case internal.SourceKindURL:
-		return signalsv1.SourceKind_SOURCE_KIND_URL
+		return sharedv1.SourceKind_SOURCE_KIND_URL
 	case internal.SourceKindText:
-		return signalsv1.SourceKind_SOURCE_KIND_TEXT
+		return sharedv1.SourceKind_SOURCE_KIND_TEXT
 	case internal.SourceKindImage:
-		return signalsv1.SourceKind_SOURCE_KIND_IMAGE
+		return sharedv1.SourceKind_SOURCE_KIND_IMAGE
 	default:
-		return signalsv1.SourceKind_SOURCE_KIND_UNSPECIFIED
+		return sharedv1.SourceKind_SOURCE_KIND_UNSPECIFIED
 	}
 }
 

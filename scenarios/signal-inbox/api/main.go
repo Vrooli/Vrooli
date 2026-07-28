@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,7 +14,11 @@ import (
 	"signal-inbox/internal/clock"
 	"signal-inbox/internal/inference"
 	"signal-inbox/internal/modules"
+	"signal-inbox/internal/retrieval"
+	"signal-inbox/internal/searchregistry"
 	"signal-inbox/internal/server"
+	"signal-inbox/internal/sources"
+	"signal-inbox/internal/triage"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -28,7 +33,10 @@ import (
 
 	categoriesH "signal-inbox/handlers/categories"
 	healthH "signal-inbox/handlers/health"
+	retrievalH "signal-inbox/handlers/retrieval"
 	signalsH "signal-inbox/handlers/signals"
+	sourcesH "signal-inbox/handlers/sources"
+	triageH "signal-inbox/handlers/triage"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -138,11 +146,13 @@ func main() {
 	}
 	var inferenceClient inference.Client
 	if gatewayURL, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "ai-gateway"); resolveErr != nil {
-		log.Printf("ai-gateway unavailable; capture will record uncategorized signals: %v", resolveErr)
+		slog.Warn("ai-gateway unavailable; capture will record uncategorized signals", "error", resolveErr)
 	} else {
 		inferenceClient = inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL))
 	}
 	categoryService := categories.NewService(categories.NewSQLiteRepository(db), clock.System{}, inferenceClient)
+	triageService := triage.NewService(triage.NewSQLiteRepository(db), clock.System{})
+	retrievalService := retrieval.NewService(retrieval.NewSQLiteRepository(db), clock.System{}, retrieval.NewQdrantSemanticSearch(inferenceClient))
 	if _, err := categoryService.Bootstrap(context.Background()); err != nil {
 		log.Fatalf("seed reserved category: %v", err)
 	}
@@ -151,12 +161,23 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	signalsRuntime, err := signalsH.NewRuntimeWithRoutedRoots(db, clock.System{}, fileRoots, categoryService)
+	if err != nil {
+		log.Fatalf("signals runtime: %v", err)
+	}
+	sourcesService, err := sources.NewService(sources.NewSQLiteRepository(db), signalsRuntime.Service, clock.System{}, sources.ChromeBookmarksAdapter{})
+	if err != nil {
+		log.Fatalf("sources runtime: %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "signal-inbox-api", "1.0.0"),
 		categoriesH.Module(categoryService),
-		signalsH.Module(db, clock.System{}, log.Default(), categoryService),
+		signalsH.ModuleWithRuntime(signalsRuntime, log.Default()),
+		sourcesH.Module(sourcesService),
+		retrievalH.Module(retrievalService),
+		triageH.Module(triageService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -166,6 +187,11 @@ func main() {
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 
 	rootMux.Handle("/", srv.Handler())
+
+	// Search Hub is an optional federation layer. Register after this scenario's
+	// own routes exist, in the background, so an unavailable hub never delays or
+	// fails Signal Inbox startup. The lifecycle launches this binary from api/.
+	go searchregistry.Register(context.Background(), filepath.Join("..", ".vrooli", "search.json"), log.Default())
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the

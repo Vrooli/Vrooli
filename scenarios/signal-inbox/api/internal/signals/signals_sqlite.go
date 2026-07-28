@@ -62,6 +62,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			return CaptureResult{}, fmt.Errorf("append capture annotation: %w", err)
 		}
 	}
+	for _, tag := range signal.Tags {
+		if _, err := r.db.ExecContext(ctx, `INSERT INTO signal_tag (signal_id, tag) VALUES (?, ?)`, signal.ID, tag); err != nil {
+			return CaptureResult{}, fmt.Errorf("append signal tag: %w", err)
+		}
+	}
 	return CaptureResult{Signal: signal}, nil
 }
 
@@ -100,7 +105,8 @@ func (r *sqliteRepository) List(ctx context.Context, limit int) ([]Signal, error
 const signalSelect = `
 SELECT s.id, s.source_kind, s.source_identity, s.source_url, s.raw_payload_ref,
        s.extracted_content, s.content_hash, s.needs_attention, s.captured_at,
-       COALESCE((SELECT a.body FROM signal_annotations a WHERE a.signal_id = s.id AND a.kind = 'capture_note' ORDER BY a.created_at ASC LIMIT 1), '')
+       COALESCE((SELECT a.body FROM signal_annotations a WHERE a.signal_id = s.id AND a.kind = 'capture_note' ORDER BY a.created_at ASC LIMIT 1), ''),
+       COALESCE((SELECT group_concat(tag, char(31)) FROM signal_tag t WHERE t.signal_id = s.id), '')
 FROM signal s`
 
 type scanner interface{ Scan(...any) error }
@@ -108,7 +114,8 @@ type scanner interface{ Scan(...any) error }
 func scanSignal(row scanner) (Signal, error) {
 	var signal Signal
 	var capturedAt string
-	if err := row.Scan(&signal.ID, &signal.SourceKind, &signal.SourceIdentity, &signal.SourceURL, &signal.RawPayloadRef, &signal.ExtractedContent, &signal.ContentHash, &signal.NeedsAttention, &capturedAt, &signal.CaptureNote); err != nil {
+	var tags string
+	if err := row.Scan(&signal.ID, &signal.SourceKind, &signal.SourceIdentity, &signal.SourceURL, &signal.RawPayloadRef, &signal.ExtractedContent, &signal.ContentHash, &signal.NeedsAttention, &capturedAt, &signal.CaptureNote, &tags); err != nil {
 		return Signal{}, err
 	}
 	parsed, err := time.Parse(signalTimeFormat, capturedAt)
@@ -116,6 +123,9 @@ func scanSignal(row scanner) (Signal, error) {
 		return Signal{}, fmt.Errorf("parse captured_at: %w", err)
 	}
 	signal.CapturedAt = parsed
+	if tags != "" {
+		signal.Tags = strings.Split(tags, "\x1f")
+	}
 	return signal, nil
 }
 

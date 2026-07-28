@@ -1,0 +1,23 @@
+package sources
+
+import (
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+	sourcesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/sources/sources_v1connect"
+	"signal-inbox/internal/module"
+	internal "signal-inbox/internal/sources"
+)
+
+func Module(service *internal.Service) module.Module {
+	path, handler := sourcesconnect.NewSourcesServiceHandler(NewConnectHandler(service))
+	return module.Module{Name: "sources", Mount: func(router *mux.Router) {
+		connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
+	}, Endpoints: Endpoints}
+}
+func Schema() string { return internal.Schema() }
+
+var Endpoints = []module.EndpointDescriptor{
+	{ID: "sources_list_adapters", Path: sourcesconnect.SourcesServiceListAdaptersProcedure, Method: "POST", Summary: "List source adapters", Description: "Lists adapter risk tiers and durable enablement state.", Category: "sources", Request: &module.Schema{Type: "ListAdaptersRequest"}, Response: &module.Schema{Type: "ListAdaptersResponse"}},
+	{ID: "sources_set_enabled", Path: sourcesconnect.SourcesServiceSetAdapterEnabledProcedure, Method: "POST", Summary: "Set adapter enabled", Description: "Explicitly enables or disables one adapter; higher-risk adapters ship disabled.", Category: "sources", Request: &module.Schema{Type: "SetAdapterEnabledRequest"}, Response: &module.Schema{Type: "SetAdapterEnabledResponse"}},
+	{ID: "sources_import_archive", Path: sourcesconnect.SourcesServiceImportArchiveProcedure, Method: "POST", Summary: "Import archive", Description: "Imports an operator-supplied tier-zero archive through the shared journal capture path.", Category: "sources", Request: &module.Schema{Type: "ImportArchiveRequest"}, Response: &module.Schema{Type: "ImportArchiveResponse"}},
+}

@@ -12,6 +12,13 @@ CREATE TABLE IF NOT EXISTS signal (
 CREATE UNIQUE INDEX IF NOT EXISTS signal_content_hash_unique ON signal(content_hash);
 CREATE INDEX IF NOT EXISTS signal_captured_at_idx ON signal(captured_at DESC, id DESC);
 
+CREATE TABLE IF NOT EXISTS signal_tag (
+  signal_id TEXT NOT NULL REFERENCES signal(id),
+  tag TEXT NOT NULL,
+  PRIMARY KEY (signal_id, tag)
+);
+CREATE INDEX IF NOT EXISTS signal_tag_tag_idx ON signal_tag(tag, signal_id);
+
 CREATE TABLE IF NOT EXISTS signal_media (
   signal_id TEXT NOT NULL REFERENCES signal(id),
   payload_ref TEXT NOT NULL,

@@ -194,7 +194,34 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "scenarios": {
+      "ai-gateway": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Provides embeddings for semantic Signal Inbox retrieval.",
+        "degraded_behavior": "Semantic retrieval falls back to full-journal FTS when ai-gateway is unavailable."
+      },
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Routes the Signal Inbox federated-search provider registered from its runtime descriptor.",
+        "degraded_behavior": "Direct Signal Inbox capture and retrieval continue; only cross-corpus federation is unavailable until registration succeeds."
+      }
+    },
+    "resources": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Rebuildable local vector projection for semantic Signal Inbox retrieval.",
+        "degraded_behavior": "Semantic retrieval falls back to full-journal FTS when Qdrant or ai-gateway embeddings are unavailable."
+      }
+    }
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/signal-inbox.db"
   }

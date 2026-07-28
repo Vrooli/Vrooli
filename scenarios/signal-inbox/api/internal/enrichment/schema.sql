@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS signal_enrichment (
   id TEXT PRIMARY KEY,
-  signal_id TEXT NOT NULL REFERENCES signal(id),
+  signal_id TEXT NOT NULL,
   extracted_content TEXT NOT NULL DEFAULT '',
   content_units INTEGER NOT NULL,
   needs_attention INTEGER NOT NULL DEFAULT 0,

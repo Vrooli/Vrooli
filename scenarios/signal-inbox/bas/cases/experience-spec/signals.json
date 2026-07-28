@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "name": "experience-notes-spec-smoke",
-    "description": "Generated observer smoke for active experience page notes.",
+    "name": "experience-signals-spec-smoke",
+    "description": "Observer smoke for the active Signal Inbox experience page.",
     "requirement": "OT-P0-001",
     "version": "1",
     "labels": {
       "reset": "none",
-      "spec_entry_id": "notes",
-      "surface": "experience-notes"
+      "spec_entry_id": "signals",
+      "surface": "experience-signals"
     },
     "execution_mode": "observer"
   },
@@ -17,29 +17,29 @@
   },
   "nodes": [
     {
-      "id": "navigate-notes",
+      "id": "navigate-signals",
       "action": {
         "type": "ACTION_TYPE_NAVIGATE",
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "signal-inbox",
-          "scenario_path": "/notes",
+          "scenario_path": "/signals",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Open Notes" }
+        "metadata": { "label": "Open Signal Inbox" }
       }
     },
     {
-      "id": "wait-notes-page",
+      "id": "wait-signals-page",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/pages.notes",
+          "selector": "@selector/pages.signals",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Notes page visible" }
+        "metadata": { "label": "Signal Inbox visible" }
       }
     }
   ]
