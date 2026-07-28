@@ -33,7 +33,7 @@ Get-FileHash .\Vrooli-Ascension-Setup.exe -Algorithm SHA256
 
 | Component | Requirement |
 |-----------|-------------|
-| OS | Windows 10+, macOS 11+, or Linux (glibc 2.28+) |
+| OS | Windows num[threshold]:10+, macOS num[threshold]:11+, or Linux (glibc 2.28+) |
 | RAM | 4 GB |
 | Disk Space | 500 MB (plus space for recordings) |
 | Display | 1280x720 minimum |
@@ -82,7 +82,7 @@ sudo dpkg -i vrooli-ascension_*.deb
 
 ### Interface Overview
 
-The main window has three areas:
+The main window has num[sot]:three areas:
 
 - **Browser pane:** A full Chromium browser where you work normally
 - **Timeline panel:** Real-time capture of all browser actions
@@ -147,7 +147,7 @@ One of Vrooli Ascension's key features is retroactive editing—you can modify c
 
 ### Removing Actions
 
-1. Select one or more actions in the timeline
+1. Select num[decision]:one or more actions in the timeline
 2. Press Delete or click "Remove" in the toolbar
 3. Confirm removal
 

@@ -9,7 +9,7 @@ export default defineConfig(({ mode }): UserConfig => {
     base: './',  // Required for tunnel/proxy contexts
     resolve: {
       alias: {
-        "@proto-lpbs": path.resolve(__dirname, "../../../packages/proto/gen/typescript/landing-page-business-suite/v1"),
+        "@vrooli/proto-types/landing-page-business-suite": path.resolve(__dirname, "../../../packages/proto/gen/typescript/landing-page-business-suite/v1"),
         ...(isProfile
           ? {
               "react-dom/client": "react-dom/profiling",

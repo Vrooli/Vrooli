@@ -20,10 +20,10 @@ This document records the **operating assumptions** the landing-page-business-su
 
 ## Identity model
 
-- **Two distinct identity surfaces, deliberately separate**:
+- **num[decision]:two distinct identity surfaces, deliberately separate**:
   - **Admin** — single seeded admin row (`admin_users.id = 1`) with bcrypted password + cookie session (`admin_sessions`). Admin auth is the *operator* identity; it does not unlock end-user features.
   - **End user** — magic-link → JWT model backed by `users` + `auth_tokens` + `user_sessions`. End-user identity is the *customer* identity; it gates `/api/v1/me/*`, `/api/v1/auth/*`, `/api/v1/ai/*`, billing portal, and downloads.
-- These two surfaces never share a session or a cookie. A request authenticated as admin is **not** also authenticated as the user with the same email.
+- These num[decision]:two surfaces never share a session or a cookie. A request authenticated as admin is **not** also authenticated as the user with the same email.
 
 ## Pricing & credits
 

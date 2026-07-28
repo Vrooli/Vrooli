@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
+	adminhttp "landing-page-business-suite-api/handlers/admin"
 )
 
 func TestHandleAdminLogin_Success(t *testing.T) {
@@ -42,7 +43,7 @@ func TestHandleAdminLogin_Success(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogin(rr, req)
+	adminhttp.Login(server.adminSessionDependencies()).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
@@ -73,7 +74,7 @@ func TestHandleAdminLogin_InvalidBody(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogin(rr, req)
+	adminhttp.Login(server.adminSessionDependencies()).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", rr.Code)
@@ -105,7 +106,7 @@ func TestHandleAdminLogin_InvalidCredentials(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogin(rr, req)
+	adminhttp.Login(server.adminSessionDependencies()).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusUnauthorized {
 		t.Errorf("Expected status 401, got %d", rr.Code)
@@ -127,7 +128,7 @@ func TestHandleAdminLogin_UserNotFound(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogin(rr, req)
+	adminhttp.Login(server.adminSessionDependencies()).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusUnauthorized {
 		t.Errorf("Expected status 401, got %d", rr.Code)
@@ -162,7 +163,7 @@ func TestHandleAdminLogout_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/logout", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogout(rr, req)
+	adminhttp.Logout(server.adminSessionDependencies()).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusNoContent {
 		t.Errorf("Expected status 204, got %d", rr.Code)
@@ -190,7 +191,7 @@ func TestHandleAdminLogout_NoSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/logout", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogout(rr, req)
+	adminhttp.Logout(server.adminSessionDependencies()).ServeHTTP(rr, req)
 
 	// Should still return success even without session
 	if rr.Code != http.StatusNoContent {
@@ -226,7 +227,7 @@ func TestHandleAdminSession_ValidSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/session", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminSession(rr, req)
+	adminhttp.Session(server.adminSessionDependencies()).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
@@ -253,7 +254,7 @@ func TestHandleAdminSession_NoSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/session", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminSession(rr, req)
+	adminhttp.Session(server.adminSessionDependencies()).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusUnauthorized {
 		t.Errorf("Expected status 401, got %d", rr.Code)
@@ -288,7 +289,7 @@ func TestHandleAdminSession_ExpiredSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/session", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminSession(rr, req)
+	adminhttp.Session(server.adminSessionDependencies()).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusUnauthorized {
 		t.Errorf("Expected status 401, got %d", rr.Code)
@@ -462,39 +463,6 @@ func TestValidateAdminPasswordUpdate_SameAsOld(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "different from the current") {
 		t.Errorf("Expected error about same password, got: %v", err)
-	}
-}
-
-func TestBuildLoginResponse(t *testing.T) {
-	tests := []struct {
-		name          string
-		email         string
-		authenticated bool
-		sessionID     string
-		wantEmail     string
-		wantSessionID string
-	}{
-		{"authenticated with email", "test@example.com", true, "session-abc", "test@example.com", "session-abc"},
-		{"authenticated no email", "", true, "session-abc", "", ""},
-		{"not authenticated", "ignored@example.com", false, "session-abc", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp := buildLoginResponse(tt.email, tt.authenticated, tt.sessionID)
-			if resp.Authenticated != tt.authenticated {
-				t.Errorf("Expected authenticated=%v, got %v", tt.authenticated, resp.Authenticated)
-			}
-			if resp.Email != tt.wantEmail {
-				t.Errorf("Expected email='%s', got '%s'", tt.wantEmail, resp.Email)
-			}
-			if resp.SessionID != tt.wantSessionID {
-				t.Errorf("Expected session_id='%s', got '%s'", tt.wantSessionID, resp.SessionID)
-			}
-			if !resp.ResetEnabled {
-				t.Error("Expected ResetEnabled=true")
-			}
-		})
 	}
 }
 

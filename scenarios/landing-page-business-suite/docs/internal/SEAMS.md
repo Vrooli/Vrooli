@@ -25,7 +25,7 @@ This document reflects the current code; claims here have been verified against 
 |---|---|---|---|---|
 | metricshttp.EventTracker | `api/handlers/metrics/waitlist.go` | `*metrics.Service` wired in `api/metrics_handlers.go` | `api/handlers/metrics/mocks.FakeEventTracker` | Exercise event-ingestion transport without a database. |
 | metricshttp.AnalyticsReader | `api/handlers/metrics/waitlist.go` | `*metrics.Service` wired in `api/metrics_handlers.go` | `api/handlers/metrics/mocks.FakeAnalyticsReader` | Exercise summary and variant transport without a database. |
-| metricshttp.FeedbackNotifier | `api/handlers/metrics/feedback.go` | `feedbackEmailNotifier` wired in `api/feedback_handlers.go` | `api/handlers/metrics/mocks.FakeFeedbackNotifier` | Keep feedback HTTP creation separate from branding/email delivery. |
+| feedback.Notifier | `api/handlers/feedback/feedback.go` | `feedbackEmailNotifier` wired in `api/feedback_handlers.go` | `api/handlers/metrics/mocks.FakeFeedbackNotifier` | Keep feedback HTTP creation separate from branding/email delivery. |
 | clock.Clock | `api/internal/clock/clock.go` | `clock.System` | `api/internal/testutil/mocks.FakeClock` | Keep domain time-dependent IDs deterministic in tests. |
 | envx.Reader | `api/internal/envx/env.go` | `envx.System` | `api/internal/testutil/mocks.FakeEnvironment` | Isolate process configuration from business and startup logic. |
 | logx.Logger | `api/internal/logx/log.go` | `logx.System` | `api/internal/testutil/mocks.FakeLogger` | Keep structured logging substitutable in tests and composition. |
@@ -100,9 +100,9 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 
 - **Payment anomaly dispatch seam** (`payment_anomaly_service.go`, `anomaly_alert_dispatcher.go`)
   - `PaymentAnomalyService.Log(ctx, anomaly)` is the sole entrypoint for recording payment-pipeline anomalies into `payment_anomaly_log`. Callers outside this file should prefer the package-level helper `LogPaymentAnomaly(ctx, srv, anomaly)`.
-  - `PaymentAnomalyService.WaitForDispatch(ctx, rowID)` polls the row's `dispatch_status` column at 25 ms intervals until it transitions out of `pending` or ctx cancels. Used by integration tests for deterministic async synchronization and available to admin tooling for manual-insert confirmation (no test-only code path).
-  - `PaymentAnomalyService.RefreshConfig(ctx)` re-reads the three `payment_settings` columns (`anomaly_webhook_url`, `anomaly_webhook_enabled`, `anomaly_rate_limits`) and atomically swaps the in-memory snapshot via `atomic.Pointer[anomalyConfig]`. `handleUpdateStripeSettings` calls `RefreshConfig` after every successful save so the next dispatch uses the new config without restart.
-  - `AnomalyAlertDispatcher.Dispatch` is the outbound HTTP seam: 3 attempts × 5 s per-attempt timeout with 1 s/2 s/4 s backoff, retries on 5xx + transport errors, does not retry on 4xx. Test seam: `AnomalyAlertDispatcher.UseHTTPClient(httpDoer)` and `UseBackoff(...)` swap the client/backoffs for deterministic tests.
+  - `PaymentAnomalyService.WaitForDispatch(ctx, rowID)` polls the row's `dispatch_status` column at num[threshold]:25 ms intervals until it transitions out of `pending` or ctx cancels. Used by integration tests for deterministic async synchronization and available to admin tooling for manual-insert confirmation (no test-only code path).
+  - `PaymentAnomalyService.RefreshConfig(ctx)` re-reads the num[sot]:three `payment_settings` columns (`anomaly_webhook_url`, `anomaly_webhook_enabled`, `anomaly_rate_limits`) and atomically swaps the in-memory snapshot via `atomic.Pointer[anomalyConfig]`. `handleUpdateStripeSettings` calls `RefreshConfig` after every successful save so the next dispatch uses the new config without restart.
+  - `AnomalyAlertDispatcher.Dispatch` is the outbound HTTP seam: num[threshold]:3 attempts × 5 s per-attempt timeout with 1 s/2 s/4 s backoff, retries on 5xx + transport errors, does not retry on 4xx. Test seam: `AnomalyAlertDispatcher.UseHTTPClient(httpDoer)` and `UseBackoff(...)` swap the client/backoffs for deterministic tests.
   - Rate limiter: in-process token bucket per `anomaly_type`, guarded by `sync.Mutex`, with defaults of `burst=5` + `refill=1/60s`. Per-type overrides are read from `payment_settings.anomaly_rate_limits` JSONB. Known constraint: the bucket is **in-process** and therefore single-instance; multi-replica deployments would need a postgres-backed limiter, but LPBS runs as one instance today.
   - Dispatch lifecycle: `Log(...)` returns after the row is committed and fires `go s.dispatcher.Dispatch(s.shutdownCtx, payload)` on an unbounded goroutine. Each goroutine exits within ~7 s worst-case (3 attempts × 5 s + 1 s/2 s backoffs); the per-type rate limiter caps spawn rate. HTTP requests use `http.NewRequestWithContext(shutdownCtx, ...)` so in-flight POSTs abort on server shutdown.
   - Historical note: the legacy `intro_anomaly_log` table is not part of the runtime schema. Any retained local rows require the documented one-shot operator migration before deploying this declarative schema.
@@ -118,10 +118,11 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   table or provide SQL. Coverage now includes monetization, customer/session,
   authentication/key, credit/usage, administration, content/download,
   analytics, remote-profile, feedback, and waitlist substrates. Each of the
-  26 persisted entities detected by Measures Health has a dedicated aggregate.
+  Each persisted entity detected by Measures Health has a dedicated aggregate.
 - **Typed and registry consumers:** each measure is available through the
   generated `MeasuresService` Connect RPC and the `packages/measures-go`
-  registry (`/measures/declarations` and `/measures/execute`). Both paths share
+  registry (`/api/v1/measures/declarations` and
+  `/api/v1/measures/execute`). Both paths share
   the same aggregate function and deterministic UTC `TimeWindow` resolution;
   registry results include the resolved SQL/window provenance.
 - **Access policy:** commercial aggregates are wrapped with
@@ -144,7 +145,7 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   Validation and storage happen in the service; event, aggregate, waitlist, and
   feedback-management handlers only translate HTTP. Feedback persistence is
   routed through `metrics.FeedbackStore`; branding/email notification remains
-  isolated behind `metricshttp.FeedbackNotifier`.
+  isolated behind `feedback.Notifier`.
 
 - **Content & variants** (`content_service.go`, `variant_service.go`)  
   UI content and A/B variants are isolated behind services so new presentations do not touch SQL.

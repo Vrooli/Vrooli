@@ -140,98 +140,20 @@ func variantReadDependencies(cs ConfigStoreReader, pathPrefix string) varianthtt
 // Used by the public landing page for URL-based variant selection
 // Transforms VariantSnapshot to flat VariantResponse format for UI compatibility
 func handlePublicVariantBySlug(cs ConfigStoreReader) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed.", "")
-			return
-		}
-
-		slug := r.URL.Path[len("/api/v1/public/variants/"):]
-		if slug == "" {
-			writeJSONError(w, http.StatusBadRequest, "Variant slug is required.", ApiErrorTypeValidation)
-			return
-		}
-
-		snapshot, err := cs.GetVariant(slug)
-		if err != nil {
-			logStructuredError("public_variant_fetch_failed", map[string]interface{}{
-				"slug":  slug,
-				"error": err.Error(),
-			})
-			writeJSONError(w, http.StatusNotFound, "Variant not found.", ApiErrorTypeNotFound)
-			return
-		}
-
-		// Transform to flat format expected by UI
-		variant := snapshotToVariantResponse(snapshot)
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(variant); err != nil {
-			logStructuredError("public_variant_encode_failed", map[string]interface{}{"error": err.Error()})
-		}
-	}
+	return varianthttp.PublicGet(variantReadDependencies(cs, "/api/v1/public/variants/"))
 }
 
 // handleVariantBySlug handles GET /api/v1/variants/{slug} (OT-P0-014: AB-URL)
 // Transforms VariantSnapshot to flat VariantResponse format for UI compatibility
 func handleVariantBySlug(cs ConfigStoreReader) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed.", "")
-			return
-		}
-
-		slug := r.URL.Path[len("/api/v1/variants/"):]
-		if slug == "" || slug == "select" {
-			writeJSONError(w, http.StatusBadRequest, "Variant slug is required.", ApiErrorTypeValidation)
-			return
-		}
-
-		snapshot, err := cs.GetVariant(slug)
-		if err != nil {
-			logStructuredError("variant_fetch_failed", map[string]interface{}{
-				"slug":  slug,
-				"error": err.Error(),
-			})
-			writeJSONError(w, http.StatusNotFound, "Variant not found.", ApiErrorTypeNotFound)
-			return
-		}
-
-		// Transform to flat format expected by UI
-		variant := snapshotToVariantResponse(snapshot)
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(variant); err != nil {
-			logStructuredError("variant_encode_failed", map[string]interface{}{"error": err.Error()})
-		}
-	}
+	return varianthttp.AdminGet(variantReadDependencies(cs, "/api/v1/variants/"))
 }
 
 // handleVariantsList handles GET /api/v1/variants (OT-P0-017: AB-CRUD)
 // Returns all variants from ConfigStore (loaded from JSON files)
 // Transforms VariantSnapshot to flat VariantResponse format for UI compatibility
 func handleVariantsList(cs ConfigStoreReader) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed", "")
-			return
-		}
-
-		snapshots := cs.ListVariants()
-
-		// Transform to flat format expected by UI
-		variants := make([]VariantResponse, 0, len(snapshots))
-		for _, snapshot := range snapshots {
-			variants = append(variants, snapshotToVariantResponse(snapshot))
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
-			"variants": variants,
-		}); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Failed to encode response", ApiErrorTypeServerError)
-		}
-	}
+	return varianthttp.List(variantReadDependencies(cs, ""))
 }
 
 // handleVariantUpdate handles PATCH /api/v1/variants/{slug} (OT-P0-017: AB-CRUD)

@@ -1,14 +1,20 @@
-import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
+import { createClient } from '@connectrpc/connect';
 import {
-  GetPricingResponseSchema,
+  PricingService,
   type GetPricingResponse,
-} from '@proto-lpbs/pricing_pb';
-import { BillingInterval, IntroPricingType, PlanKind } from '@proto-lpbs/shared/commerce_pb';
-import { apiCall } from './common';
+} from '@vrooli/proto-types/landing-page-business-suite/pricing_pb';
+import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
+import { apiCall, CONNECT_API_BASE } from './common';
+import { createScenarioConnectTransport } from '@vrooli/api-base';
 import type { LandingConfigResponse, PlanOption, PricingOverview } from './types';
 import { normalizeTimestampOrNow } from '../lib/protobuf-utils';
 import { PlanOptionSchema, PricingOverviewSchema } from './schemas';
 import { parseOrNull, safeParse } from './safeParse';
+
+const pricingClient = createClient(
+  PricingService,
+  createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }),
+);
 
 export function getLandingConfig(variantSlug?: string) {
   const params = new URLSearchParams();
@@ -20,10 +26,7 @@ export function getLandingConfig(variantSlug?: string) {
 }
 
 export function getPlans() {
-  return apiCall('/plans').then((resp) => {
-    const message = fromJson(GetPricingResponseSchema as DescMessage, resp as JsonValue, {
-      ignoreUnknownFields: true,
-    }) as GetPricingResponse;
+  return pricingClient.getPricing({}).then((message: GetPricingResponse) => {
     const toObjectMap = (input?: Record<string, { toJson?: () => unknown }>) => {
       if (!input) return undefined;
       return Object.fromEntries(

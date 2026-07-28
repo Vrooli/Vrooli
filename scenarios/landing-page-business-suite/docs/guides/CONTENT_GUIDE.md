@@ -127,7 +127,7 @@ Accept credit cards with zero additional configuration.
 **Tips:**
 - Lead with the benefit, not the feature name
 - Use action verbs ("Launch", "Track", "Automate")
-- Include numbers when possible ("5x faster", "in 3 clicks")
+- Include numbers when possible ("5x faster", "in num[target]:3 clicks")
 
 ### Pricing Section
 
@@ -198,7 +198,7 @@ FAQs handle objections and reduce support burden.
 **Answer Structure:**
 - Start with the direct answer
 - Then explain if needed
-- Keep under 50 words per answer
+- Keep under num[target]:50 words per answer
 
 **Example:**
 
@@ -440,7 +440,7 @@ Support: "60-day trial * Free returns"
 Before publishing, verify:
 
 ### Hero
-- [ ] Headline states clear benefit (under 10 words)
+- [ ] Headline states clear benefit (under num[target]:10 words)
 - [ ] Subheadline adds context (15-25 words)
 - [ ] CTA is action-oriented (2-4 words)
 - [ ] All text visible above the fold

@@ -1,4 +1,5 @@
 import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
+import { createClient } from '@connectrpc/connect';
 import { z } from 'zod';
 import {
   ConfigSource,
@@ -8,8 +9,10 @@ import {
   type UpdateStripeSettingsResponse,
   type StripeConfigSnapshot,
   type StripeSettings,
-} from '@proto-lpbs/settings_pb';
-import { apiCall } from './common';
+} from '@vrooli/proto-types/landing-page-business-suite/settings_pb';
+import { LandingPagePaymentsService, SessionKind, type CreateCheckoutSessionResponse } from '@vrooli/proto-types/landing-page-business-suite/billing_pb';
+import { apiCall, CONNECT_API_BASE } from './common';
+import { createScenarioConnectTransport } from '@vrooli/api-base';
 import type { BillingPortalResponse, BundleCatalogEntry, CheckoutSession, PlanOption } from './types';
 import { normalizeTimestamp } from '../lib/protobuf-utils';
 import { parseOrNull } from './safeParse';
@@ -30,6 +33,25 @@ import {
 import { PlanOptionSchema } from './schemas/landing.schema';
 
 type BundleCatalogResponseParsed = z.infer<typeof BundleCatalogResponseSchema>;
+
+const paymentsClient = createClient(
+  LandingPagePaymentsService,
+  createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }),
+);
+
+function normalizeCheckoutSession(session: CreateCheckoutSessionResponse['session']): CheckoutSession | null {
+  if (!session) return null;
+  return {
+    session_id: session.sessionId,
+    url: session.url,
+    ...(session.customerEmail ? { customer_email: session.customerEmail } : {}),
+    ...(session.stripePriceId ? { stripe_price_id: session.stripePriceId } : {}),
+    ...(session.amountCents ? { amount_cents: Number(session.amountCents) } : {}),
+    ...(session.currency ? { currency: session.currency } : {}),
+    ...(session.successUrl ? { success_url: session.successUrl } : {}),
+    ...(session.cancelUrl ? { cancel_url: session.cancelUrl } : {}),
+  };
+}
 
 const normalizeBundleCatalog = (response: BundleCatalogResponseParsed): BundleCatalogResponse => ({
   bundles: response.bundles.map((entry) => ({
@@ -187,11 +209,10 @@ export function createCheckoutSession(payload: {
     body.customer_email = payload.customer_email;
   }
 
-  return apiCall<{ session: CheckoutSession }>('/billing/create-checkout-session', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  }).then((resp) => {
-    const validated = parseOrNull(CheckoutSessionSchema, resp.session, 'CheckoutSession');
+  return paymentsClient.createCheckoutSession({
+    priceId: body.price_id ?? '', customerEmail: body.customer_email ?? '', successUrl: body.success_url ?? '', cancelUrl: body.cancel_url ?? '', sessionKind: SessionKind.SUBSCRIPTION,
+  }).then((resp: CreateCheckoutSessionResponse) => {
+    const validated = parseOrNull(CheckoutSessionSchema, normalizeCheckoutSession(resp.session), 'CheckoutSession');
     if (!validated) {
       throw new Error('Invalid checkout session response');
     }
@@ -200,16 +221,10 @@ export function createCheckoutSession(payload: {
 }
 
 export function createCreditsCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string }) {
-  return apiCall<{ session: CheckoutSession }>('/billing/create-credits-checkout-session', {
-    method: 'POST',
-    body: JSON.stringify({
-      price_id: payload.price_id,
-      customer_email: payload.customer_email,
-      success_url: payload.success_url,
-      cancel_url: payload.cancel_url,
-    }),
-  }).then((resp) => {
-    const validated = parseOrNull(CheckoutSessionSchema, resp.session, 'CheckoutSession');
+  return paymentsClient.createCheckoutSession({
+    priceId: payload.price_id, customerEmail: payload.customer_email, successUrl: payload.success_url ?? '', cancelUrl: payload.cancel_url ?? '', sessionKind: SessionKind.CREDITS_TOPUP,
+  }).then((resp: CreateCheckoutSessionResponse) => {
+    const validated = parseOrNull(CheckoutSessionSchema, normalizeCheckoutSession(resp.session), 'CheckoutSession');
     if (!validated) {
       throw new Error('Invalid credits checkout session response');
     }
@@ -218,12 +233,9 @@ export function createCreditsCheckoutSession(payload: { price_id: string; custom
 }
 
 export function createBillingPortalSession(returnUrl?: string, userEmail?: string) {
-  const params = new URLSearchParams();
-  if (returnUrl) params.set('return_url', returnUrl);
-  if (userEmail) params.set('user', userEmail);
-  const suffix = params.toString() ? `?${params.toString()}` : '';
-  return apiCall<BillingPortalResponse>(`/billing/portal-url${suffix}`).then((resp) => {
-    const validated = parseOrNull(BillingPortalResponseSchema, resp, 'BillingPortalResponse');
+	void userEmail;
+	return paymentsClient.getBillingPortal({ returnUrl: returnUrl ?? '' }).then((resp) => {
+		const validated = parseOrNull(BillingPortalResponseSchema, { url: resp.url }, 'BillingPortalResponse');
     if (!validated) {
       throw new Error('Invalid billing portal response');
     }

@@ -134,7 +134,7 @@ ui/src/
 
 ### Backend (Go API + CLI)
 
-The scenario ships **three runtime surfaces** that share the same database and config:
+The scenario ships **num[sot]:three runtime surfaces** that share the same database and config:
 
 | Surface | Path | Purpose |
 |---------|------|---------|

@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/sessions"
 	apisecrets "github.com/vrooli/api-core/secrets"
 	"golang.org/x/crypto/bcrypt"
+	adminhttp "landing-page-business-suite-api/handlers/admin"
 	"landing-page-business-suite-api/internal/envx"
 )
 
@@ -164,132 +165,24 @@ func validateProductionCredentials() error {
 	return nil
 }
 
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
+// LoginRequest and LoginResponse remain package aliases for remote-profile
+// transport compatibility. HTTP ownership lives in handlers/admin.
+type (
+	LoginRequest  = adminhttp.LoginRequest
+	LoginResponse = adminhttp.SessionResponse
+)
 
-type LoginResponse struct {
-	Email         string `json:"email,omitempty"`
-	Authenticated bool   `json:"authenticated"`
-	ResetEnabled  bool   `json:"reset_enabled"`
-	SessionID     string `json:"session_id,omitempty"`
-}
-
-func buildLoginResponse(email string, authenticated bool, sessionID string) LoginResponse {
-	resp := LoginResponse{
-		Authenticated: authenticated,
-		ResetEnabled:  true, // Always enabled - UI handles confirmation
-	}
-	if authenticated && email != "" {
-		resp.Email = email
-		resp.SessionID = strings.TrimSpace(sessionID)
-	}
-	return resp
-}
-
-// handleAdminLogin authenticates admin users and creates a session
-// Implements OT-P0-008 (ADMIN-AUTH)
-func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
-	var req LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
-		return
-	}
-
-	passwordHash, err := s.adminAuth().PasswordHash(r.Context(), req.Email)
-
-	if err == sql.ErrNoRows {
-		logStructured("login_invalid_email", map[string]interface{}{
-			"level": "warn",
-			"email": req.Email,
-		})
-		writeJSONError(w, http.StatusUnauthorized, "Invalid credentials", ApiErrorTypeUnauthorized)
-		return
-	} else if err != nil {
-		logStructuredError("login_db_error", map[string]interface{}{
-			"error": err.Error(),
-		})
-		writeJSONError(w, http.StatusInternalServerError, "Unable to verify credentials. Please try again.", ApiErrorTypeServerError)
-		return
-	}
-
-	// Verify password using bcrypt
-	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password)); err != nil {
-		logStructured("login_invalid_password", map[string]interface{}{
-			"level": "warn",
-			"email": req.Email,
-		})
-		writeJSONError(w, http.StatusUnauthorized, "Invalid credentials", ApiErrorTypeUnauthorized)
-		return
-	}
-
-	// Update last login timestamp
-	if err := s.adminAuth().UpdateLastLogin(r.Context(), req.Email); err != nil {
-		logStructuredError("last_login_update_failed", map[string]interface{}{
-			"error": err.Error(),
-			"email": req.Email,
-		})
-		// Continue - this is not critical to login
-	}
-
-	// Generate server-side session ID
-	serverSessionID, err := generateSessionID()
-	if err != nil {
-		logStructuredError("session_id_generation_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
-		writeJSONError(w, http.StatusInternalServerError, "Failed to create session. Please try again.", ApiErrorTypeServerError)
-		return
-	}
-
-	// Store server-side session with expiration
-	expiresAt := time.Now().Add(7 * 24 * time.Hour)
-	clientIP := getClientIP(r)
-	userAgent := r.UserAgent()
-
-	if err := s.adminAuth().CreateSession(r.Context(), serverSessionID, req.Email, expiresAt, clientIP, userAgent); err != nil {
-		logStructuredError("admin_session_create_failed", map[string]interface{}{
-			"error": err.Error(),
-			"email": req.Email,
-		})
-		writeJSONError(w, http.StatusInternalServerError, "Failed to create session. Please try again.", ApiErrorTypeServerError)
-		return
-	}
-
-	// Create cookie session
-	session, _ := s.sessionManager.GetSession(r, "admin_session")
-	session.Values["email"] = req.Email
-	session.Values["session_id"] = serverSessionID
-	session.Options.HttpOnly = true
-	session.Options.Secure = isSecureCookiesEnabled()
-	session.Options.MaxAge = 86400 * 7 // 7 days
-	session.Options.Path = "/"
-	session.Options.SameSite = http.SameSiteLaxMode
-	if err := s.sessionManager.SaveSession(r, w, session); err != nil {
-		logStructuredError("session_save_error", map[string]interface{}{
-			"error": err.Error(),
-		})
-		// Clean up server-side session if cookie save fails
-		cleanupErr := s.adminAuth().DeleteSession(r.Context(), serverSessionID)
-		logOnError(cleanupErr, "session_cleanup_after_save_failure", map[string]interface{}{
-			"session_id": serverSessionID,
-		})
-		writeJSONError(w, http.StatusInternalServerError, "Failed to create session. Please try again.", ApiErrorTypeServerError)
-		return
-	}
-
-	logStructured("admin_login_success", map[string]interface{}{
-		"level": "info",
-		"email": req.Email,
-	})
-
-	// Return user data
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(buildLoginResponse(req.Email, true, serverSessionID)); err != nil {
-		logStructuredError("login_response_encode_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
+func (s *Server) adminSessionDependencies() adminhttp.Dependencies {
+	return adminhttp.Dependencies{
+		Auth:          s.adminAuth(),
+		Sessions:      s.sessionManager,
+		GenerateID:    generateSessionID,
+		Now:           time.Now,
+		ClientIP:      getClientIP,
+		SecureCookies: isSecureCookiesEnabled,
+		WriteError:    writeJSONError,
+		Log:           logStructured,
+		LogError:      logStructuredError,
 	}
 }
 
@@ -301,98 +194,6 @@ func (s *Server) adminAuth() *AdminAuthService {
 		return NewAdminAuthService(s.routedDB)
 	}
 	return NewAdminAuthService(s.db)
-}
-
-// handleAdminLogout destroys the admin session
-func (s *Server) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
-	session, _ := s.sessionManager.GetSession(r, "admin_session")
-	email := session.Values["email"]
-	serverSessionID, _ := session.Values["session_id"].(string)
-
-	// Invalidate server-side session
-	if serverSessionID != "" {
-		if err := s.adminAuth().DeleteSession(r.Context(), serverSessionID); err != nil {
-			logStructuredError("admin_session_delete_failed", map[string]interface{}{
-				"error":      err.Error(),
-				"session_id": serverSessionID,
-			})
-		}
-	}
-
-	// Clear cookie session
-	session.Options.MaxAge = -1
-	if err := s.sessionManager.SaveSession(r, w, session); err != nil {
-		logStructuredError("admin_session_save_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
-	}
-
-	logStructured("admin_logout", map[string]interface{}{
-		"level": "info",
-		"email": email,
-	})
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// handleAdminSession checks if the current session is valid
-func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
-	session, _ := s.sessionManager.GetSession(r, "admin_session")
-	email, ok := session.Values["email"].(string)
-	if !ok || email == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		if err := json.NewEncoder(w).Encode(buildLoginResponse("", false, "")); err != nil {
-			logStructuredError("session_response_encode_failed", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
-		return
-	}
-
-	// Validate server-side session
-	serverSessionID, _ := session.Values["session_id"].(string)
-	if serverSessionID != "" {
-		expiresAt, err := s.adminAuth().SessionExpiry(r.Context(), serverSessionID, email)
-
-		if err == sql.ErrNoRows || (err == nil && time.Now().After(expiresAt)) {
-			// Session not found or expired - clear cookie
-			session.Options.MaxAge = -1
-			if saveErr := s.sessionManager.SaveSession(r, w, session); saveErr != nil {
-				logStructuredError("session_save_failed_on_expiry", map[string]interface{}{
-					"error": saveErr.Error(),
-				})
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			if err := json.NewEncoder(w).Encode(buildLoginResponse("", false, "")); err != nil {
-				logStructuredError("session_response_encode_failed", map[string]interface{}{
-					"error": err.Error(),
-				})
-			}
-			return
-		} else if err != nil {
-			logStructuredError("session_lookup_failed", map[string]interface{}{
-				"error": err.Error(),
-			})
-			// Fall through to allow session on DB error (graceful degradation)
-		} else {
-			// Update last activity
-			if err := s.adminAuth().TouchSession(r.Context(), serverSessionID); err != nil {
-				logStructuredError("session_activity_update_failed", map[string]interface{}{
-					"error":      err.Error(),
-					"session_id": serverSessionID,
-				})
-			}
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(buildLoginResponse(email, true, serverSessionID)); err != nil {
-		logStructuredError("session_response_encode_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
-	}
 }
 
 // requireAdminOrService accepts either admin session cookie OR service bearer token.

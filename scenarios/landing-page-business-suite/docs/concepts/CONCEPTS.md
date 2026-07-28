@@ -36,7 +36,7 @@ Variant content (copy, sections, header, SEO, axes) ships as files in `config/va
 
 ### Variant Dimensions (Axes)
 
-Each variant is defined along three axes:
+Each variant is defined along num[sot]:three axes:
 
 ```
 +-----------------------------------------------------------------------+
@@ -67,7 +67,7 @@ Each variant is defined along three axes:
 ### Creating Effective Variants
 
 1. **Start with Control**: The default variant based on your best hypothesis
-2. **Change one axis**: Create variants that differ in one dimension
+2. **Change num[decision]:one axis**: Create variants that differ in one dimension
 3. **Measure impact**: Compare conversion rates after sufficient traffic
 
 Example test plan:

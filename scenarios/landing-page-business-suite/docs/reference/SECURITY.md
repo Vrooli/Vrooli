@@ -146,6 +146,27 @@ Production startup also requires `ADMIN_DEFAULT_PASSWORD` to be supplied by the
 deployment secret store. Development uses an ephemeral password hash when it is
 absent, so a known built-in admin credential can never authenticate a request.
 
+### Dependency advisory posture
+
+The API's dependency graph is reviewed with Security Health and a reachability
+scan (`govulncheck ./...`) after governed upgrades. As of 2026-07-27,
+`govulncheck` reports zero invoked vulnerabilities.
+
+num[decision]:two module-level notices remain intentionally documented rather than hidden:
+
+- `golang.org/x/crypto/openpgp` is marked unmaintained by upstream even at the
+  current `x/crypto` release. This API does not import or invoke `openpgp`; the
+  notice is non-reachable and has no patched version to upgrade to.
+- `github.com/docker/docker` is brought in only by the test-only
+  `testcontainers-go` dependency. The newest public Go module release is
+  `v28.5.2+incompatible`; several advisory records request an unavailable
+  `v29.3.1` line. The API uses the latest published compatible version, and the
+  testcontainers dependency must be reevaluated when Docker publishes a Go
+  module release that resolves those advisories.
+
+Do not add `replace` directives, edit `go.sum`, or suppress these records by
+hand. All dependency changes must go through Scenario Dependency Analyzer.
+
 ### Session Lifecycle
 
 ```

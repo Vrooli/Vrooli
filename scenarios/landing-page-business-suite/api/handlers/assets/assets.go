@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-const MaxUploadSize = 10 * 1024 * 1024
+const (
+	MaxUploadSize      = 10 * 1024 * 1024
+	maxMultipartMemory = 1 * 1024 * 1024
+)
 
 type UploadInput struct {
 	File       multipart.File
@@ -48,7 +51,9 @@ type Dependencies struct {
 func Upload(deps Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, MaxUploadSize)
-		if err := r.ParseMultipartForm(MaxUploadSize); err != nil {
+		// #nosec G120 -- MaxBytesReader above caps the full request at MaxUploadSize;
+		// ParseMultipartForm keeps at most maxMultipartMemory in memory and spills the rest to disk.
+		if err := r.ParseMultipartForm(maxMultipartMemory); err != nil {
 			deps.WriteError(w, http.StatusBadRequest, "File too large or invalid form data", "validation")
 			return
 		}

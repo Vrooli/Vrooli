@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as billing from './billing';
 import { apiCall } from './common';
 
-vi.mock('./common', () => ({ apiCall: vi.fn() }));
+const paymentsClient = vi.hoisted(() => ({ createCheckoutSession: vi.fn(), getBillingPortal: vi.fn() }));
+vi.mock('@connectrpc/connect', () => ({ createClient: vi.fn(() => paymentsClient) }));
+vi.mock('./common', () => ({ apiCall: vi.fn(), CONNECT_API_BASE: 'http://api.example.test' }));
 const mockApiCall = vi.mocked(apiCall);
 
 describe('billing API transport', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockApiCall.mockResolvedValue({} as never);
+    paymentsClient.createCheckoutSession.mockResolvedValue({} as never);
+    paymentsClient.getBillingPortal.mockResolvedValue({} as never);
   });
 
   it('uses settings, catalog, price, and checkout endpoints and rejects malformed required responses', async () => {
@@ -27,9 +31,8 @@ describe('billing API transport', () => {
     expect(mockApiCall).toHaveBeenCalledWith('/admin/bundles');
     expect(mockApiCall).toHaveBeenCalledWith('/admin/bundles/starter%20plan/prices/price%2F1', expect.objectContaining({ method: 'PATCH' }));
     expect(mockApiCall).toHaveBeenCalledWith('/admin/stripe/verify-price?key=lookup+key');
-    expect(mockApiCall).toHaveBeenCalledWith('/billing/create-checkout-session', expect.objectContaining({ method: 'POST' }));
-    expect(mockApiCall).toHaveBeenCalledWith('/billing/create-credits-checkout-session', expect.objectContaining({ method: 'POST' }));
-    expect(mockApiCall).toHaveBeenCalledWith('/billing/portal-url?return_url=https%3A%2F%2Fexample.com%2Freturn&user=customer%40example.com');
+    expect(paymentsClient.createCheckoutSession).toHaveBeenCalledTimes(2);
+    expect(paymentsClient.getBillingPortal).toHaveBeenCalledWith({ returnUrl: 'https://example.com/return' });
   });
 
   it('uses Stripe plan import and lifecycle endpoints while failing closed for invalid payloads', async () => {
@@ -68,12 +71,14 @@ describe('billing API transport', () => {
 
   it('returns validated checkout and portal sessions while omitting optional customer and query fields', async () => {
     const checkout = { session_id: 'cs_123', url: 'https://checkout.stripe.example/session' };
-    mockApiCall
-      .mockResolvedValueOnce({ session: checkout } as never)
-      .mockResolvedValueOnce({ session: checkout } as never)
-      .mockResolvedValueOnce({ session: checkout } as never)
-      .mockResolvedValueOnce({ url: 'https://billing.stripe.example/portal' } as never)
-      .mockResolvedValueOnce({ url: 'https://billing.stripe.example/portal' } as never);
+    const connectCheckout = { sessionId: 'cs_123', url: checkout.url, customerEmail: '', stripePriceId: '', amountCents: 0n, currency: '', successUrl: '', cancelUrl: '' };
+    paymentsClient.createCheckoutSession
+      .mockResolvedValueOnce({ session: connectCheckout })
+      .mockResolvedValueOnce({ session: connectCheckout })
+      .mockResolvedValueOnce({ session: connectCheckout });
+    paymentsClient.getBillingPortal
+      .mockResolvedValueOnce({ url: 'https://billing.stripe.example/portal' })
+      .mockResolvedValueOnce({ url: 'https://billing.stripe.example/portal' });
 
     await expect(billing.createCheckoutSession({ price_id: 'price_1' })).resolves.toEqual(checkout);
     await expect(billing.createCheckoutSession({ price_id: 'price_2', customer_email: 'customer@example.com', success_url: 'https://app.example/success', cancel_url: 'https://app.example/cancel' })).resolves.toEqual(checkout);
@@ -81,16 +86,23 @@ describe('billing API transport', () => {
     await expect(billing.createBillingPortalSession()).resolves.toEqual({ url: 'https://billing.stripe.example/portal' });
     await expect(billing.createBillingPortalSession('https://app.example/return')).resolves.toEqual({ url: 'https://billing.stripe.example/portal' });
 
-    expect(mockApiCall).toHaveBeenCalledWith('/billing/create-checkout-session', {
-      method: 'POST',
-      body: JSON.stringify({ price_id: 'price_1', success_url: undefined, cancel_url: undefined }),
+    expect(paymentsClient.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ priceId: 'price_1' }));
+    expect(paymentsClient.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ priceId: 'price_credits' }));
+    expect(paymentsClient.getBillingPortal).toHaveBeenCalledWith({ returnUrl: '' });
+    expect(paymentsClient.getBillingPortal).toHaveBeenCalledWith({ returnUrl: 'https://app.example/return' });
+  });
+
+  it('preserves populated generated checkout fields in the legacy UI shape', async () => {
+    paymentsClient.createCheckoutSession.mockResolvedValue({
+      session: {
+        sessionId: 'cs_full', url: 'https://checkout.stripe.example/full', customerEmail: 'buyer@example.test', stripePriceId: 'price_full',
+        amountCents: 4900n, currency: 'usd', successUrl: 'https://app.example/success', cancelUrl: 'https://app.example/cancel',
+      },
     });
-    expect(mockApiCall).toHaveBeenCalledWith('/billing/create-checkout-session', {
-      method: 'POST',
-      body: JSON.stringify({ price_id: 'price_2', success_url: 'https://app.example/success', cancel_url: 'https://app.example/cancel', customer_email: 'customer@example.com' }),
+    await expect(billing.createCheckoutSession({ price_id: 'price_full' })).resolves.toEqual({
+      session_id: 'cs_full', url: 'https://checkout.stripe.example/full', customer_email: 'buyer@example.test', stripe_price_id: 'price_full',
+      amount_cents: 4900, currency: 'usd', success_url: 'https://app.example/success', cancel_url: 'https://app.example/cancel',
     });
-    expect(mockApiCall).toHaveBeenCalledWith('/billing/portal-url');
-    expect(mockApiCall).toHaveBeenCalledWith('/billing/portal-url?return_url=https%3A%2F%2Fapp.example%2Freturn');
   });
 
   it('normalizes Stripe setting snapshots from every supported config source', async () => {

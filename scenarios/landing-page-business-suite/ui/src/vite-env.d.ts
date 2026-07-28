@@ -8,7 +8,9 @@ declare global {
 
 type ProtoSchema<_T> = unknown;
 
-declare module '@proto-lpbs/billing_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/billing_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
   export enum SubscriptionState {
     UNSPECIFIED = 0,
     ACTIVE = 1,
@@ -32,9 +34,52 @@ declare module '@proto-lpbs/billing_pb' {
   }
 
   export const VerifySubscriptionResponseSchema: ProtoSchema<VerifySubscriptionResponse>;
+
+  export enum SessionKind {
+    UNSPECIFIED = 0,
+    SUBSCRIPTION = 1,
+    CREDITS_TOPUP = 2,
+    SUPPORTER_CONTRIBUTION = 3,
+  }
+  export interface CheckoutSession { sessionId: string; url: string; sessionKind: SessionKind; status: number; publishableKey: string; customerEmail: string; stripePriceId: string; amountCents: bigint; currency: string; successUrl: string; cancelUrl: string; }
+  export interface CreateCheckoutSessionRequest extends Message<'landing_page_business_suite.v1.CreateCheckoutSessionRequest'> { priceId: string; customerEmail: string; successUrl: string; cancelUrl: string; sessionKind: SessionKind; }
+  export interface CreateCheckoutSessionResponse extends Message<'landing_page_business_suite.v1.CreateCheckoutSessionResponse'> { session?: CheckoutSession; }
+  export interface GetBillingPortalRequest extends Message<'landing_page_business_suite.v1.GetBillingPortalRequest'> { returnUrl: string; }
+  export interface BillingPortalResponse extends Message<'landing_page_business_suite.v1.BillingPortalResponse'> { url: string; }
+  export const CreateCheckoutSessionRequestSchema: GenMessage<CreateCheckoutSessionRequest>;
+  export const CreateCheckoutSessionResponseSchema: GenMessage<CreateCheckoutSessionResponse>;
+  export const GetBillingPortalRequestSchema: GenMessage<GetBillingPortalRequest>;
+  export const BillingPortalResponseSchema: GenMessage<BillingPortalResponse>;
+  export const LandingPagePaymentsService: GenService<{
+    createCheckoutSession: { methodKind: 'unary'; input: typeof CreateCheckoutSessionRequestSchema; output: typeof CreateCheckoutSessionResponseSchema };
+    getBillingPortal: { methodKind: 'unary'; input: typeof GetBillingPortalRequestSchema; output: typeof BillingPortalResponseSchema };
+  }>;
 }
 
-declare module '@proto-lpbs/shared/commerce_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/branding_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+  export interface GetBrandingRequest extends Message<'landing_page_business_suite.v1.GetBrandingRequest'> {}
+  export interface GetPublicBrandingRequest extends Message<'landing_page_business_suite.v1.GetPublicBrandingRequest'> {}
+  export interface ClearBrandingFieldRequest extends Message<'landing_page_business_suite.v1.ClearBrandingFieldRequest'> { field: string; }
+  export interface UpdateBrandingRequest extends Message<'landing_page_business_suite.v1.UpdateBrandingRequest'> { [key: string]: unknown; }
+  export interface BrandingResponse extends Message<'landing_page_business_suite.v1.BrandingResponse'> { branding?: { toJson(): unknown; }; }
+  export interface PublicBrandingResponse extends Message<'landing_page_business_suite.v1.PublicBrandingResponse'> { branding?: { toJson(): unknown; }; }
+  export const GetBrandingRequestSchema: GenMessage<GetBrandingRequest>;
+  export const GetPublicBrandingRequestSchema: GenMessage<GetPublicBrandingRequest>;
+  export const ClearBrandingFieldRequestSchema: GenMessage<ClearBrandingFieldRequest>;
+  export const UpdateBrandingRequestSchema: GenMessage<UpdateBrandingRequest>;
+  export const BrandingResponseSchema: GenMessage<BrandingResponse>;
+  export const PublicBrandingResponseSchema: GenMessage<PublicBrandingResponse>;
+  export const BrandingService: GenService<{
+    getBranding: { methodKind: 'unary'; input: typeof GetBrandingRequestSchema; output: typeof BrandingResponseSchema };
+    updateBranding: { methodKind: 'unary'; input: typeof UpdateBrandingRequestSchema; output: typeof BrandingResponseSchema };
+    clearBrandingField: { methodKind: 'unary'; input: typeof ClearBrandingFieldRequestSchema; output: typeof BrandingResponseSchema };
+    getPublicBranding: { methodKind: 'unary'; input: typeof GetPublicBrandingRequestSchema; output: typeof PublicBrandingResponseSchema };
+  }>;
+}
+
+declare module '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb' {
   export enum SubscriptionState {
     UNSPECIFIED = 0,
     ACTIVE = 1,
@@ -81,7 +126,7 @@ declare module '@proto-lpbs/shared/commerce_pb' {
   export const VerifySubscriptionResponseSchema: ProtoSchema<VerifySubscriptionResponse>;
 }
 
-declare module '@proto-lpbs/settings_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/settings_pb' {
   export enum ConfigSource {
     UNSPECIFIED = 0,
     ENV = 1,
@@ -115,7 +160,10 @@ declare module '@proto-lpbs/settings_pb' {
   export const UpdateStripeSettingsResponseSchema: ProtoSchema<UpdateStripeSettingsResponse>;
 }
 
-declare module '@proto-lpbs/pricing_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/pricing_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+
   export enum BillingInterval {
     UNSPECIFIED = 0,
     MONTH = 1,
@@ -178,9 +226,48 @@ declare module '@proto-lpbs/pricing_pb' {
     updatedAt?: { toJsonString?: () => string } | string | { seconds?: number; nanos?: number };
   }
 
-  export interface GetPricingResponse {
+  export interface GetPricingRequest extends Message<'landing_page_business_suite.v1.GetPricingRequest'> {
+    bundleKey: string;
+    includeHidden: boolean;
+  }
+
+  export const GetPricingRequestSchema: GenMessage<GetPricingRequest>;
+
+  export interface GetPricingResponse extends Message<'landing_page_business_suite.v1.GetPricingResponse'> {
     pricing?: PricingPayload;
   }
 
-  export const GetPricingResponseSchema: ProtoSchema<GetPricingResponse>;
+  export const GetPricingResponseSchema: GenMessage<GetPricingResponse>;
+  export const PricingService: GenService<{
+    getPricing: {
+      methodKind: 'unary';
+      input: typeof GetPricingRequestSchema;
+      output: typeof GetPricingResponseSchema;
+    };
+  }>;
+}
+
+declare module '@vrooli/proto-types/landing-page-business-suite/account_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+
+  export interface GetMySubscriptionRequest extends Message<'landing_page_business_suite.v1.GetMySubscriptionRequest'> {}
+  export interface GetMyCreditsRequest extends Message<'landing_page_business_suite.v1.GetMyCreditsRequest'> {}
+  export interface GetEntitlementsRequest extends Message<'landing_page_business_suite.v1.GetEntitlementsRequest'> {}
+  export interface SubscriptionStatus { state?: number; subscriptionId?: string; userIdentity?: string; planTier?: string; stripePriceId?: string; bundleKey?: string; cachedAt?: { toJsonString?: () => string }; }
+  export interface CreditsBalance { customerEmail?: string; balanceCredits?: number; bundleKey?: string; }
+  export interface GetMySubscriptionResponse extends Message<'vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse'> { status?: SubscriptionStatus; }
+  export interface GetMyCreditsResponse extends Message<'landing_page_business_suite.v1.GetMyCreditsResponse'> { balance?: CreditsBalance; displayCreditsLabel: string; displayCreditsMultiplier: number; }
+  export interface GetEntitlementsResponse extends Message<'landing_page_business_suite.v1.GetEntitlementsResponse'> { status: string; planTier: string; priceId: string; features: string[]; credits?: CreditsBalance; subscription?: SubscriptionStatus; billingCycleStart: number; }
+  export const GetMySubscriptionRequestSchema: GenMessage<GetMySubscriptionRequest>;
+  export const GetMyCreditsRequestSchema: GenMessage<GetMyCreditsRequest>;
+  export const GetEntitlementsRequestSchema: GenMessage<GetEntitlementsRequest>;
+  export const GetMySubscriptionResponseSchema: GenMessage<GetMySubscriptionResponse>;
+  export const GetMyCreditsResponseSchema: GenMessage<GetMyCreditsResponse>;
+  export const GetEntitlementsResponseSchema: GenMessage<GetEntitlementsResponse>;
+  export const AccountService: GenService<{
+    getMySubscription: { methodKind: 'unary'; input: typeof GetMySubscriptionRequestSchema; output: typeof GetMySubscriptionResponseSchema };
+    getMyCredits: { methodKind: 'unary'; input: typeof GetMyCreditsRequestSchema; output: typeof GetMyCreditsResponseSchema };
+    getEntitlements: { methodKind: 'unary'; input: typeof GetEntitlementsRequestSchema; output: typeof GetEntitlementsResponseSchema };
+  }>;
 }

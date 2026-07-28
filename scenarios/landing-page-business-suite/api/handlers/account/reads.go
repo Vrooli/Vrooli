@@ -1,13 +1,17 @@
-// Package account owns HTTP transport for authenticated account read models.
+// Package account owns authenticated account-read Connect transport.
 package account
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
-	"google.golang.org/protobuf/encoding/protojson"
 	accountdomain "landing-page-business-suite-api/internal/account"
 )
 
@@ -17,69 +21,62 @@ type Reader interface {
 	GetEntitlementsContext(context.Context, string) (*accountdomain.EntitlementPayload, error)
 }
 
-type Dependencies struct {
-	UserEmail  func(context.Context) string
-	WriteJSON  func(http.ResponseWriter, interface{})
-	WriteError func(http.ResponseWriter, int, string, string)
-	LogError   func(string, map[string]interface{})
+type Handler struct {
+	reader    Reader
+	userEmail func(context.Context) string
 }
 
-func Subscription(dependencies Dependencies, reader Reader) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := dependencies.UserEmail(r.Context())
-		if user == "" {
-			dependencies.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
-			return
-		}
-		status, err := reader.GetSubscriptionContext(r.Context(), user)
-		if err != nil {
-			dependencies.LogError("subscription_fetch_failed", map[string]interface{}{"user": user, "error": err.Error()})
-			dependencies.WriteError(w, http.StatusInternalServerError, "Failed to retrieve subscription status. Please try again.", "server_error")
-			return
-		}
-		dependencies.WriteJSON(w, &shared.VerifySubscriptionResponse{Status: status})
-	}
+func NewHandler(reader Reader, userEmail func(context.Context) string) *Handler {
+	return &Handler{reader: reader, userEmail: userEmail}
 }
 
-func Credits(dependencies Dependencies, reader Reader) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := dependencies.UserEmail(r.Context())
-		if user == "" {
-			dependencies.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
-			return
-		}
-		credits, err := reader.GetCreditsContext(r.Context(), user)
-		if err != nil {
-			dependencies.LogError("credits_fetch_failed", map[string]interface{}{"user": user, "error": err.Error()})
-			dependencies.WriteError(w, http.StatusInternalServerError, "Failed to retrieve credit balance. Please try again.", "server_error")
-			return
-		}
-		balance := map[string]interface{}{}
-		if credits.Balance != nil {
-			data, marshalErr := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(credits.Balance)
-			if marshalErr == nil {
-				if unmarshalErr := json.Unmarshal(data, &balance); unmarshalErr != nil {
-					dependencies.LogError("credits_balance_unmarshal_failed", map[string]interface{}{"user": user, "error": unmarshalErr.Error()})
-				}
-			}
-		}
-		dependencies.WriteJSON(w, map[string]interface{}{"balance": balance, "display_credits_label": credits.DisplayCreditsLabel, "display_credits_multiplier": credits.DisplayCreditsMultiplier})
+func (h *Handler) user(ctx context.Context) (string, error) {
+	user := h.userEmail(ctx)
+	if user == "" {
+		return "", connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("authentication required"))
 	}
+	return user, nil
 }
 
-func Entitlements(dependencies Dependencies, reader Reader) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := dependencies.UserEmail(r.Context())
-		if user == "" {
-			dependencies.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
-			return
-		}
-		payload, err := reader.GetEntitlementsContext(r.Context(), user)
-		if err != nil {
-			dependencies.LogError("entitlements_fetch_failed", map[string]interface{}{"user": user, "error": err.Error()})
-			dependencies.WriteError(w, http.StatusInternalServerError, "Failed to retrieve entitlements. Please try again.", "server_error")
-			return
-		}
-		dependencies.WriteJSON(w, payload)
+func (h *Handler) GetMySubscription(ctx context.Context, _ *connect.Request[lpbsv1.GetMySubscriptionRequest]) (*connect.Response[shared.VerifySubscriptionResponse], error) {
+	user, err := h.user(ctx)
+	if err != nil {
+		return nil, err
 	}
+	status, err := h.reader.GetSubscriptionContext(ctx, user)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get subscription: %w", err))
+	}
+	return connect.NewResponse(&shared.VerifySubscriptionResponse{Status: status}), nil
+}
+
+func (h *Handler) GetMyCredits(ctx context.Context, _ *connect.Request[lpbsv1.GetMyCreditsRequest]) (*connect.Response[lpbsv1.GetMyCreditsResponse], error) {
+	user, err := h.user(ctx)
+	if err != nil {
+		return nil, err
+	}
+	credits, err := h.reader.GetCreditsContext(ctx, user)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get credits: %w", err))
+	}
+	return connect.NewResponse(&lpbsv1.GetMyCreditsResponse{Balance: credits.Balance, DisplayCreditsLabel: credits.DisplayCreditsLabel, DisplayCreditsMultiplier: credits.DisplayCreditsMultiplier}), nil
+}
+
+func (h *Handler) GetEntitlements(ctx context.Context, _ *connect.Request[lpbsv1.GetEntitlementsRequest]) (*connect.Response[lpbsv1.GetEntitlementsResponse], error) {
+	user, err := h.user(ctx)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := h.reader.GetEntitlementsContext(ctx, user)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get entitlements: %w", err))
+	}
+	return connect.NewResponse(&lpbsv1.GetEntitlementsResponse{Status: payload.Status, PlanTier: payload.PlanTier, PriceId: payload.PriceID, Features: payload.Features, Credits: payload.Credits, Subscription: payload.Subscription, BillingCycleStart: int32(payload.BillingCycleStart)}), nil
+}
+
+// RegisterRoutes mounts all generated AccountService procedures behind the
+// existing user-auth middleware. Identity remains server-derived from claims.
+func RegisterRoutes(router *mux.Router, reader Reader, userEmail func(context.Context) string, requireUserAuth func(http.HandlerFunc) http.HandlerFunc) {
+	path, handler := lpbsconnect.NewAccountServiceHandler(NewHandler(reader, userEmail))
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: requireUserAuth(handler.ServeHTTP)})
 }

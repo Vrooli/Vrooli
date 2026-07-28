@@ -2219,18 +2219,18 @@
       "method": "GetBillingPortal",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },
-    {
-      "service": "LandingPagePaymentsService",
+  {
+    "service": "PricingService",
       "method": "GetPricing",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },
-    {
-      "service": "LandingPagePaymentsService",
+  {
+    "service": "StripeSettingsService",
       "method": "GetStripeSettings",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },
     {
-      "service": "LandingPagePaymentsService",
+      "service": "StripeSettingsService",
       "method": "UpdateStripeSettings",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },

@@ -2,9 +2,15 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/vrooli/api-core/health"
+	accounthttp "landing-page-business-suite-api/handlers/account"
+	adminhttp "landing-page-business-suite-api/handlers/admin"
+	billinghttp "landing-page-business-suite-api/handlers/billing"
 	measureshandler "landing-page-business-suite-api/handlers/measures"
+	pricinghandler "landing-page-business-suite-api/handlers/pricing"
+	variantspacehttp "landing-page-business-suite-api/handlers/variant_space"
 )
 
 func (s *Server) setupRoutes() {
@@ -65,9 +71,9 @@ func registerHealthRoutes(s *Server) {
 }
 
 func registerLandingRoutes(s *Server) {
-	// Landing config + plans
+	// Landing configuration remains an HTTP query until its generated contract is cut over.
 	s.router.HandleFunc("/api/v1/landing-config", handleLandingConfig(s.landingConfigService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/plans", handlePlans(s.planService)).Methods("GET")
+	pricinghandler.RegisterRoutes(s.router, s.planService.GetPricingOverview)
 	s.router.HandleFunc("/api/v1/variant-space", handleVariantSpaceRoute(s.variantSpace)).Methods("GET")
 
 	// Customization command for landing updates
@@ -86,38 +92,31 @@ func registerAuthRoutes(s *Server) {
 }
 
 func registerAccountRoutes(s *Server) {
-	// Account endpoints (all require user auth)
-	s.router.HandleFunc("/api/v1/me/subscription", s.requireUserAuth(handleMeSubscription(s.accountService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/me/credits", s.requireUserAuth(handleMeCredits(s.accountService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/entitlements", s.requireUserAuth(handleEntitlements(s.accountService))).Methods("GET")
+	accounthttp.RegisterRoutes(s.router, s.accountService, getUserEmail, s.requireUserAuth)
 	s.router.HandleFunc("/api/v1/downloads", s.requireUserAuth(handleDownloads(s.downloadAuthorizer, s.downloadHosting, s.planService))).Methods("GET")
 }
 
 func registerBillingRoutes(s *Server) {
-	// Billing APIs (checkout sessions are public, portal requires auth)
-	s.router.HandleFunc("/api/v1/billing/create-checkout-session", handleBillingCreateCheckoutSession(s.stripeService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/billing/create-credits-checkout-session", handleBillingCreateCreditsSession(s.stripeService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/billing/portal-url", s.requireUserAuth(handleBillingPortalURL(s.stripeService))).Methods("GET")
+	// Generated Connect payment procedures preserve the public checkout,
+	// authenticated portal, and admin cancellation boundaries.
+	billinghttp.RegisterConnectRoutes(s.router, billingConnectDependencies(s.stripeService), s.requireUserAuth, s.requireAdmin)
 
-	// Stripe Payment endpoints (OT-P0-025 through OT-P0-030)
-	s.router.HandleFunc("/api/v1/checkout/create", handleCheckoutCreate(s.stripeService)).Methods("POST")
+	// Stripe webhook remains Stripe's signed HTTP callback, not a browser RPC.
 	s.router.HandleFunc("/api/v1/webhooks/stripe", handleStripeWebhook(s.stripeService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/subscription/verify", handleSubscriptionVerify(s.stripeService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/subscription/cancel", s.requireAdmin(handleSubscriptionCancel(s.stripeService))).Methods("POST")
 }
 
 func registerAdminCoreRoutes(s *Server) {
 	// Admin authentication endpoints (OT-P0-008)
-	s.router.HandleFunc("/api/v1/admin/login", s.handleAdminLogin).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/logout", s.requireAdmin(s.handleAdminLogout)).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/session", s.handleAdminSession).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/login", adminhttp.Login(s.adminSessionDependencies())).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/logout", s.requireAdmin(adminhttp.Logout(s.adminSessionDependencies()))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/session", adminhttp.Session(s.adminSessionDependencies())).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(s.handleAdminProfile)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(s.handleAdminProfileUpdate)).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleGetStripeSettings(s.paymentSettings, s.stripeService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleUpdateStripeSettings(s.paymentSettings, s.stripeService, s.paymentAnomaly))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe/reveal", s.requireAdmin(handleRevealStripeSecret(s.stripeService, s.paymentSettings))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/stripe/verify-price", s.requireAdmin(handleAdminVerifyStripePrice(s.stripeService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/reset-demo-data", s.requireAdmin(s.handleAdminResetDemoData)).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/reset-demo-data", s.requireAdmin(adminhttp.ResetDemoData(adminhttp.ResetDependencies{Reset: s.resetDemoData, Now: time.Now, LogError: logStructuredError}))).Methods("POST")
 }
 
 func registerRemoteProfileRoutes(s *Server) {
@@ -198,11 +197,7 @@ func registerVariantRoutes(s *Server) {
 }
 
 func registerContentRoutes(s *Server) {
-	// Branding endpoints (admin-only for site-wide branding)
-	s.router.HandleFunc("/api/v1/admin/branding", s.requireAdmin(handleGetBranding(s.configStore))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/branding", s.requireAdmin(handleUpdateBranding(s.configStore))).Methods("PUT")
-	s.router.HandleFunc("/api/v1/admin/branding/clear-field", s.requireAdmin(handleClearBrandingField(s.configStore))).Methods("POST")
-	s.router.HandleFunc("/api/v1/branding", handleGetPublicBranding(s.configStore)).Methods("GET")
+	registerBrandingConnectRoutes(s.router, s.configStore, s.requireAdmin)
 
 	// Asset upload endpoints (admin-only for file uploads)
 	s.router.HandleFunc("/api/v1/admin/assets", s.requireAdmin(handleAssetsList(s.assetsService))).Methods("GET")
@@ -303,16 +298,5 @@ func registerAdminUserRoutes(s *Server) {
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		if _, err := w.Write(space.JSONBytes()); err != nil {
-			logStructuredError("variant_space_write_failed", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
-	}
+	return variantspacehttp.Get(variantspacehttp.Dependencies{JSON: space.JSONBytes, Log: logStructuredError})
 }

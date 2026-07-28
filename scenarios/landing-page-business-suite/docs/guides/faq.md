@@ -44,7 +44,7 @@ http://localhost:3000/?variant=holiday-special
 ### How long should I run an A/B test?
 
 Until you have statistical significance. Rule of thumb:
-- Minimum 100 conversions per variant
+- Minimum num[target]:100 conversions per variant
 - At least 2 weeks (to account for weekly patterns)
 - Use an [A/B test calculator](https://vwo.com/tools/ab-test-duration-calculator/) for precise duration
 
@@ -115,7 +115,7 @@ Not currently. Single admin user per landing page. Multi-user support is not yet
 
 Log into the admin portal and open **Profile** ( `/admin/profile` ):
 - Enter your current password, set a new email, and save.
-- Enter your current password plus a new 12+ character password (letters and numbers), then save.
+- Enter your current password plus a new num[threshold]:12+ character password (letters and numbers), then save.
 
 This updates the active session immediately and removes the default credentials.
 

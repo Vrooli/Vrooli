@@ -1,6 +1,8 @@
-import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
-import { SubscriptionState, VerifySubscriptionResponseSchema, type VerifySubscriptionResponse } from '@proto-lpbs/shared/commerce_pb';
-import { apiCall } from './common';
+import { createClient } from '@connectrpc/connect';
+import { AccountService, type GetEntitlementsResponse, type GetMyCreditsResponse, type GetMySubscriptionResponse } from '@vrooli/proto-types/landing-page-business-suite/account_pb';
+import { SubscriptionState } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
+import { createScenarioConnectTransport } from '@vrooli/api-base';
+import { CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';
 import {
   SubscriptionInfoSchema,
@@ -9,11 +11,10 @@ import {
 } from './schemas/billing.schema';
 import type { CreditInfo, EntitlementPayload, SubscriptionInfo } from './types';
 
+const accountClient = createClient(AccountService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
+
 export function getSubscriptionInfo() {
-  return apiCall('/me/subscription').then((resp) => {
-    const message = fromJson(VerifySubscriptionResponseSchema as DescMessage, resp as JsonValue, {
-      ignoreUnknownFields: true,
-    }) as VerifySubscriptionResponse;
+  return accountClient.getMySubscription({}).then((message: GetMySubscriptionResponse) => {
     const status = message.status;
     const mapState = (state?: SubscriptionState) => {
       switch (state) {
@@ -47,26 +48,15 @@ export function getSubscriptionInfo() {
   });
 }
 
-type CreditsEnvelope = {
-  balance?: {
-    customer_email?: string;
-    balance_credits?: number;
-    bundle_key?: string;
-    updated_at?: string;
-  };
-  display_credits_label?: string;
-  display_credits_multiplier?: number;
-};
-
 export function getCreditInfo() {
-  return apiCall<CreditsEnvelope>('/me/credits').then((resp) => {
+  return accountClient.getMyCredits({}).then((resp: GetMyCreditsResponse) => {
     const balance = resp.balance ?? {};
     const credits: CreditInfo = {
-      customer_email: balance.customer_email ?? '',
-      balance_credits: balance.balance_credits ?? 0,
+      customer_email: balance.customerEmail ?? '',
+      balance_credits: balance.balanceCredits ?? 0,
       bonus_credits: 0,
-      display_credits_label: resp.display_credits_label ?? 'credits',
-      display_credits_multiplier: resp.display_credits_multiplier ?? 1,
+      display_credits_label: resp.displayCreditsLabel ?? 'credits',
+      display_credits_multiplier: resp.displayCreditsMultiplier ?? 1,
     };
     const validated = parseOrNull(CreditInfoSchema, credits, 'CreditInfo');
     if (!validated) {
@@ -76,14 +66,17 @@ export function getCreditInfo() {
   });
 }
 
-export function getEntitlements(userEmail?: string) {
-  const params = new URLSearchParams();
-  if (userEmail?.trim()) {
-    params.set('user', userEmail.trim());
-  }
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return apiCall<EntitlementPayload>(`/entitlements${query}`).then((resp) => {
-    const validated = parseOrNull(EntitlementPayloadSchema, resp, 'EntitlementPayload');
+export function getEntitlements() {
+  return accountClient.getEntitlements({}).then((resp: GetEntitlementsResponse) => {
+    const validated = parseOrNull(EntitlementPayloadSchema, {
+      status: resp.status,
+      plan_tier: resp.planTier,
+      price_id: resp.priceId,
+      features: resp.features,
+      credits: resp.credits,
+      subscription: resp.subscription,
+      billing_cycle_start: resp.billingCycleStart,
+    }, 'EntitlementPayload');
     if (!validated) {
       throw new Error('Invalid entitlement payload response from API');
     }

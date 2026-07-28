@@ -469,6 +469,13 @@ func TestNewOpenRouterClient_CustomHTTPClient(t *testing.T) {
 	}
 }
 
+func TestNewOpenRouterClient_CustomAttribution(t *testing.T) {
+	client := NewOpenRouterClient(OpenRouterClientOptions{APIKey: "test-key", BaseURL: "https://proxy.example.test/", Referer: "https://app.example.test", Title: "Example Gateway"}).(*httpOpenRouterClient)
+	if client.baseURL != "https://proxy.example.test" || client.referer != "https://app.example.test" || client.title != "Example Gateway" {
+		t.Fatalf("client = %#v", client)
+	}
+}
+
 // ============================================================================
 // setHeaders Tests
 // ============================================================================

@@ -2,10 +2,14 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getLandingConfig, getPlans } from './landing';
 import { ApiError } from './common';
 import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
-import { BillingInterval, IntroPricingType, PlanKind } from '@proto-lpbs/shared/commerce_pb';
+import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
 
-vi.mock('@bufbuild/protobuf', () => ({
-  fromJson: <T,>(_schema: unknown, data: T): T => data,
+const pricingClient = vi.hoisted(() => ({
+  getPricing: vi.fn(),
+}));
+
+vi.mock('@connectrpc/connect', () => ({
+  createClient: vi.fn(() => pricingClient),
 }));
 
 describe('landing API', () => {
@@ -15,6 +19,13 @@ describe('landing API', () => {
     vi.clearAllMocks();
     fetchMock = createFetchMock();
     installFetchMock(fetchMock);
+    pricingClient.getPricing.mockImplementation(async () => {
+      const response = await fetchMock('/landing_page_business_suite.v1.PricingService/GetPricing');
+      if (!response || typeof response.json !== 'function') {
+        throw new Error('expected Connect pricing response');
+      }
+      return response.json();
+    });
   });
 
   afterEach(() => {
@@ -118,6 +129,7 @@ describe('landing API', () => {
 
       const result = await getPlans();
 
+      expect(pricingClient.getPricing).toHaveBeenCalledWith({});
       expect(result.bundle.bundle_key).toBe('main');
       expect(result.bundle.name).toBe('Main Bundle');
       expect(result.monthly).toHaveLength(1);

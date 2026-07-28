@@ -337,24 +337,6 @@ func (s *Server) Cleanup() error {
 	return nil
 }
 
-func (s *Server) handleAdminResetDemoData(w http.ResponseWriter, r *http.Request) {
-	if err := s.resetDemoData(r.Context()); err != nil {
-		logStructuredError("admin_reset_failed", map[string]interface{}{"error": err.Error()})
-		http.Error(w, "failed to reset demo data", http.StatusInternalServerError)
-		return
-	}
-
-	response := map[string]interface{}{
-		"reset":     true,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 func (s *Server) resetDemoData(ctx context.Context) error {
 	// Only reset database tables for runtime data (not config, which is in JSON files)
 	// NOTE: bundle_prices and bundle_products removed - pricing now stored in .vrooli/plans.json

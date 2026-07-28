@@ -1,28 +1,20 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	bundlehttp "landing-page-business-suite-api/handlers/bundles"
 )
 
 type bundleCatalogResponse struct {
 	Bundles []bundleCatalogEntryResponse `json:"bundles"`
 }
 
-type updateBundlePriceRequest struct {
-	StripePriceID  *string   `json:"stripe_price_id"`
-	PlanName       *string   `json:"plan_name"`
-	DisplayWeight  *int      `json:"display_weight"`
-	DisplayEnabled *bool     `json:"display_enabled"`
-	Subtitle       *string   `json:"subtitle"`
-	Badge          *string   `json:"badge"`
-	CtaLabel       *string   `json:"cta_label"`
-	Highlight      *bool     `json:"highlight"`
-	Features       *[]string `json:"features"`
-}
+type updateBundlePriceRequest = bundlehttp.UpdatePriceRequest
 
 type bundleCatalogEntryResponse struct {
 	Bundle bundleProductResponse `json:"bundle"`
@@ -183,62 +175,39 @@ func optionalString(value string) *string {
 }
 
 func handleAdminBundleCatalog(planService *PlanService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		bundles, err := planService.ListBundleCatalog(r.Context())
-		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Failed to load bundle catalog", ApiErrorTypeServerError)
-			return
-		}
-
-		response, err := buildBundleCatalogResponse(bundles)
-		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Failed to encode bundle catalog", ApiErrorTypeServerError)
-			return
-		}
-
-		writeJSONSuccessData(w, response)
-	}
+	return bundlehttp.Catalog(bundleHandlerDependencies(planService, nil))
 }
 
 func handleAdminUpdateBundlePrice(planService *PlanService, stripe *StripeService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		bundleKey, ok := getPathParam(r, "bundle_key")
-		if !ok || bundleKey == "" {
-			writeJSONError(w, http.StatusBadRequest, "Bundle key is required", ApiErrorTypeValidation)
-			return
-		}
-		if bundleKey != planService.BundleKey() {
-			writeJSONError(w, http.StatusBadRequest, "Bundle key does not match active bundle", ApiErrorTypeValidation)
-			return
-		}
-		priceID, ok := getPathParam(r, "price_id")
-		if !ok || priceID == "" {
-			writeJSONError(w, http.StatusBadRequest, "Price id is required", ApiErrorTypeValidation)
-			return
-		}
+	return bundlehttp.UpdatePrice(bundleHandlerDependencies(planService, stripe))
+}
 
-		var req updateBundlePriceRequest
-		if !decodeJSONBody(w, r, &req) {
-			return
-		}
-
-		input := UpdateBundlePriceInput(req)
-
-		var fetcher StripePriceFetcher
-		if stripe != nil {
-			fetcher = stripe.FetchStripePriceDetails
-		}
-		updated, err := planService.UpdateBundlePriceWithStripe(r.Context(), bundleKey, priceID, input, fetcher)
-		if err != nil {
-			if status, errType, message, ok := classifyStripeError(err); ok {
-				writeJSONError(w, status, message, errType)
-				return
+func bundleHandlerDependencies(planService *PlanService, stripe *StripeService) bundlehttp.Dependencies {
+	return bundlehttp.Dependencies{
+		Catalog: func(ctx context.Context) (any, error) {
+			bundles, err := planService.ListBundleCatalog(ctx)
+			if err != nil {
+				return nil, err
 			}
-			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
-			return
-		}
-
-		writeJSONSuccessData(w, planOptionResponseFromProto(updated))
+			return buildBundleCatalogResponse(bundles)
+		},
+		ActiveKey: planService.BundleKey,
+		Update: func(ctx context.Context, bundleKey, priceID string, request bundlehttp.UpdatePriceRequest) (any, error) {
+			var fetcher StripePriceFetcher
+			if stripe != nil {
+				fetcher = stripe.FetchStripePriceDetails
+			}
+			updated, err := planService.UpdateBundlePriceWithStripe(ctx, bundleKey, priceID, UpdateBundlePriceInput(request), fetcher)
+			if err != nil {
+				return nil, err
+			}
+			return planOptionResponseFromProto(updated), nil
+		},
+		Path:          getPathParam,
+		DecodeJSON:    decodeJSONBody,
+		WriteError:    writeJSONError,
+		WriteSuccess:  writeJSONSuccessData,
+		ClassifyError: classifyStripeError,
 	}
 }
 

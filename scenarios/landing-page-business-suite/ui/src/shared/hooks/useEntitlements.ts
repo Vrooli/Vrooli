@@ -54,7 +54,7 @@ export function useEntitlements() {
     setError(null);
 
     try {
-      const payload = await getEntitlements(trimmed);
+      const payload = await getEntitlements();
       setEntitlements(payload);
     } catch (err) {
       setEntitlements(null);

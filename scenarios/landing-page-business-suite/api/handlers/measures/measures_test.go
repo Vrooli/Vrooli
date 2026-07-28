@@ -3,10 +3,13 @@ package measures
 import (
 	"context"
 	"database/sql"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	measurelib "github.com/vrooli/measures-go"
 
@@ -146,6 +149,29 @@ func TestOperationsAndContentMeasuresUseTheirAuthoritativeTables(t *testing.T) {
 		if err != nil || result.Value != "1" {
 			t.Errorf("Execute(%s) = %+v, %v; want count 1", measure, result, err)
 		}
+	}
+}
+
+func TestRegisterRoutesServesRegistryOnlyFromVersionedAPIPath(t *testing.T) {
+	db := newMeasureTestDB(t)
+	router := mux.NewRouter()
+	if err := RegisterRoutes(router, db, func() time.Time { return time.Now().UTC() }, func(next http.HandlerFunc) http.HandlerFunc { return next }); err != nil {
+		t.Fatalf("RegisterRoutes() error = %v", err)
+	}
+
+	versioned := httptest.NewRecorder()
+	router.ServeHTTP(versioned, httptest.NewRequest(http.MethodGet, "/api/v1/measures/declarations", nil))
+	if versioned.Code != http.StatusOK {
+		t.Fatalf("versioned declarations status = %d, want %d", versioned.Code, http.StatusOK)
+	}
+	if contentType := versioned.Header().Get("Content-Type"); contentType != "application/json" {
+		t.Errorf("versioned declarations Content-Type = %q, want application/json", contentType)
+	}
+
+	legacy := httptest.NewRecorder()
+	router.ServeHTTP(legacy, httptest.NewRequest(http.MethodGet, "/measures/declarations", nil))
+	if legacy.Code != http.StatusNotFound {
+		t.Errorf("legacy declarations status = %d, want %d", legacy.Code, http.StatusNotFound)
 	}
 }
 

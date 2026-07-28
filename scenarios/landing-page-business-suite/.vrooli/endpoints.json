@@ -1,927 +1,1358 @@
 {
-  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "$schema": "../../test-genie/schemas/endpoints.schema.json",
   "version": "1.0.0",
   "endpoints": [
     {
-      "id": "health",
-      "path": "/health",
-      "method": "GET",
-      "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
-      "category": "system",
-      "response": {
-        "type": "object",
-        "properties": {
-          "status": "string",
-          "readiness": "boolean",
-          "dependencies": "object"
-        }
-      },
-      "examples": [
-        {
-          "name": "Check health",
-          "curl": "curl http://localhost:${API_PORT}/health"
-        }
-      ],
-      "cli_mapping": {
-        "command": "template-manager status"
-      }
-    },
-    {
-      "id": "template-list",
-      "path": "/api/v1/templates",
-      "method": "GET",
-      "summary": "List available landing page templates",
-      "description": "Returns all available landing page templates with metadata",
-      "category": "templates",
-      "response": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "id": "string",
-            "name": "string",
-            "description": "string",
-            "version": "string",
-            "metadata": "object"
-          }
-        }
-      },
-      "examples": [
-        {
-          "name": "List templates",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/templates"
-        }
-      ],
-      "cli_mapping": {
-        "command": "template-manager registry list --kind scenario"
-      }
-    },
-    {
-      "id": "template-show",
-      "path": "/api/v1/templates/{id}",
-      "method": "GET",
-      "summary": "Show template details",
-      "description": "Returns detailed metadata for a specific template",
-      "category": "templates",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "Template ID (e.g., saas-landing-page)"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "string",
-          "name": "string",
-          "description": "string",
-          "sections": "array",
-          "metrics_hooks": "array",
-          "customization_schema": "object"
-        }
-      },
-      "examples": [
-        {
-          "name": "Show template",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/templates/saas-landing-page"
-        }
-      ],
-      "cli_mapping": {
-        "command": "template-manager registry show <id>"
-      }
-    },
-    {
-      "id": "generate",
-      "path": "/api/v1/generate",
-      "method": "POST",
-      "summary": "Generate a new landing page scenario",
-      "description": "Creates a new landing page scenario from a template",
-      "category": "generation",
-      "request": {
-        "type": "object",
-        "required": ["template_id", "name", "slug"],
-        "properties": {
-          "template_id": "string",
-          "name": "string",
-          "slug": "string",
-          "options": "object"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "scenario_id": "string",
-          "path": "string",
-          "status": "string",
-          "next_steps": "array"
-        }
-      },
-      "examples": [
-        {
-          "name": "Generate landing page",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/generate -H 'Content-Type: application/json' -d '{\"template_id\":\"saas-landing-page\",\"name\":\"vrooli-pro\",\"slug\":\"vrooli-pro\"}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "template-manager lifecycle generate <template> --id <slug> --display-name <name> --description <description>"
-      }
-    },
-    {
-      "id": "customize",
-      "path": "/api/v1/customize",
-      "method": "POST",
-      "summary": "Trigger agent customization",
-      "description": "Spawns an agent to customize a landing page based on brief and assets",
-      "category": "customization",
-      "request": {
-        "type": "object",
-        "required": ["scenario_id", "brief"],
-        "properties": {
-          "scenario_id": "string",
-          "brief": "string",
-          "assets": "array",
-          "preview": "boolean"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "job_id": "string",
-          "status": "string",
-          "agent_id": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Customize landing page",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/customize -H 'Content-Type: application/json' -d '{\"scenario_id\":\"vrooli-pro\",\"brief\":\"Productivity bundle for developers\",\"preview\":true}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "template-manager guidance next <scenario>"
-      }
-    },
-    {
-      "id": "admin-login",
-      "path": "/api/v1/admin/login",
-      "method": "POST",
-      "summary": "Admin login",
-      "description": "Authenticate admin user with email and password (bcrypt verification)",
-      "category": "authentication",
-      "request": {
-        "type": "object",
-        "required": ["email", "password"],
-        "properties": {
-          "email": "string",
-          "password": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "email": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Admin login",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/admin/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@localhost\",\"password\":\"changeme\"}' -c cookies.txt"
-        }
-      ]
-    },
-    {
-      "id": "admin-logout",
-      "path": "/api/v1/admin/logout",
-      "method": "POST",
-      "summary": "Admin logout",
-      "description": "Destroy admin session",
-      "category": "authentication",
-      "response": {
-        "type": "null"
-      },
-      "examples": [
-        {
-          "name": "Admin logout",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/admin/logout -b cookies.txt"
-        }
-      ]
-    },
-    {
-      "id": "admin-session",
-      "path": "/api/v1/admin/session",
-      "method": "GET",
-      "summary": "Check admin session",
-      "description": "Verify if current session is valid and return user data",
-      "category": "authentication",
-      "response": {
-        "type": "object",
-        "properties": {
-          "email": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Check session",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/admin/session -b cookies.txt"
-        }
-      ]
-    },
-    {
-      "id": "variant-select",
-      "path": "/api/v1/variants/select",
-      "method": "GET",
-      "summary": "Select A/B variant (weight-based)",
-      "description": "Returns a variant selected by weight distribution (OT-P0-016: AB-API)",
-      "category": "ab-testing",
-      "response": {
-        "type": "object",
-        "properties": {
-          "variant_id": "integer",
-          "variant_slug": "string",
-          "name": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Get variant",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/variants/select"
-        }
-      ]
-    },
-    {
-      "id": "variant-by-slug",
-      "path": "/api/v1/variants/{slug}",
-      "method": "GET",
-      "summary": "Get variant by slug",
-      "description": "Returns variant details for URL-based selection (OT-P0-014: AB-URL)",
-      "category": "ab-testing",
-      "parameters": [
-        {
-          "name": "slug",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "Variant slug (e.g., control, variant-a)"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "integer",
-          "slug": "string",
-          "name": "string",
-          "weight": "integer",
-          "status": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Get control variant",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/variants/control"
-        }
-      ]
-    },
-    {
-      "id": "variant-list",
-      "path": "/api/v1/variants",
-      "method": "GET",
-      "summary": "List all variants",
-      "description": "Returns all variants, optionally filtered by status (OT-P0-017: AB-CRUD)",
-      "category": "ab-testing",
-      "parameters": [
-        {
-          "name": "status",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "Filter by status: active, archived, deleted"
-        }
-      ],
-      "response": {
-        "type": "array",
-        "items": {
-          "type": "object"
-        }
-      },
-      "examples": [
-        {
-          "name": "List active variants",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/variants?status=active"
-        }
-      ]
-    },
-    {
-      "id": "variant-create",
-      "path": "/api/v1/variants",
-      "method": "POST",
-      "summary": "Create variant",
-      "description": "Create a new A/B testing variant (OT-P0-017: AB-CRUD)",
-      "category": "ab-testing",
-      "request": {
-        "type": "object",
-        "required": ["slug", "name"],
-        "properties": {
-          "slug": "string",
-          "name": "string",
-          "description": "string",
-          "weight": "integer"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "integer",
-          "slug": "string",
-          "name": "string",
-          "weight": "integer",
-          "status": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Create variant",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/variants -H 'Content-Type: application/json' -d '{\"slug\":\"variant-b\",\"name\":\"Variant B\",\"weight\":30}'"
-        }
-      ]
-    },
-    {
-      "id": "variant-update",
-      "path": "/api/v1/variants/{slug}",
-      "method": "PATCH",
-      "summary": "Update variant",
-      "description": "Update variant weight, name, or description (OT-P0-017: AB-CRUD)",
-      "category": "ab-testing",
-      "parameters": [
-        {
-          "name": "slug",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ],
-      "request": {
-        "type": "object",
-        "properties": {
-          "name": "string",
-          "description": "string",
-          "weight": "integer"
-        }
-      },
-      "response": {
-        "type": "object"
-      },
-      "examples": [
-        {
-          "name": "Update variant weight",
-          "curl": "curl -X PATCH http://localhost:${API_PORT}/api/v1/variants/variant-a -H 'Content-Type: application/json' -d '{\"weight\":70}'"
-        }
-      ]
-    },
-    {
-      "id": "variant-archive",
-      "path": "/api/v1/variants/{slug}/archive",
-      "method": "POST",
-      "summary": "Archive variant",
-      "description": "Archive variant (keeps for analytics, excludes from selection) (OT-P0-018: AB-ARCHIVE)",
-      "category": "ab-testing",
-      "parameters": [
-        {
-          "name": "slug",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "message": "string",
-          "slug": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Archive variant",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/variants/variant-a/archive"
-        }
-      ]
-    },
-    {
-      "id": "variant-delete",
-      "path": "/api/v1/variants/{slug}",
-      "method": "DELETE",
-      "summary": "Delete variant",
-      "description": "Soft-delete variant (OT-P0-017: AB-CRUD)",
-      "category": "ab-testing",
-      "parameters": [
-        {
-          "name": "slug",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "message": "string",
-          "slug": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Delete variant",
-          "curl": "curl -X DELETE http://localhost:${API_PORT}/api/v1/variants/variant-b"
-        }
-      ]
-    },
-    {
-      "id": "metrics-track",
-      "path": "/api/v1/metrics/track",
-      "method": "POST",
-      "summary": "Track analytics event",
-      "description": "Records an analytics event with variant_id (OT-P0-019: METRIC-TAG, OT-P0-021: METRIC-EVENTS, OT-P0-022: METRIC-IDEMPOTENT)",
-      "category": "metrics",
-      "request": {
-        "type": "object",
-        "required": ["event_type", "variant_id", "session_id"],
-        "properties": {
-          "event_type": "string",
-          "variant_id": "integer",
-          "event_data": "object",
-          "session_id": "string",
-          "visitor_id": "string",
-          "event_id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "success": "boolean",
-          "message": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Track page view",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/metrics/track -H 'Content-Type: application/json' -d '{\"event_type\":\"page_view\",\"variant_id\":1,\"session_id\":\"abc123\"}'"
-        },
-        {
-          "name": "Track CTA click",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/metrics/track -H 'Content-Type: application/json' -d '{\"event_type\":\"click\",\"variant_id\":1,\"session_id\":\"abc123\",\"event_data\":{\"element_id\":\"hero-cta\",\"element_type\":\"cta\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "metrics-summary",
-      "path": "/api/v1/metrics/summary",
-      "method": "GET",
-      "summary": "Get analytics summary",
-      "description": "Returns total visitors, conversion rates per variant, and top CTAs (OT-P0-023: METRIC-SUMMARY)",
-      "category": "metrics",
-      "parameters": [
-        {
-          "name": "start_date",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "Start date (YYYY-MM-DD, default: 7 days ago)"
-        },
-        {
-          "name": "end_date",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "End date (YYYY-MM-DD, default: today)"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "total_visitors": "integer",
-          "variant_stats": "array",
-          "top_cta": "string",
-          "top_cta_ctr": "number"
-        }
-      },
-      "examples": [
-        {
-          "name": "Get summary (last 7 days)",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/metrics/summary"
-        },
-        {
-          "name": "Get summary with date range",
-          "curl": "curl 'http://localhost:${API_PORT}/api/v1/metrics/summary?start_date=2025-01-01&end_date=2025-01-31'"
-        }
-      ]
-    },
-    {
-      "id": "metrics-variant-stats",
-      "path": "/api/v1/metrics/variants",
-      "method": "GET",
-      "summary": "Get variant performance stats",
-      "description": "Returns detailed stats (views, clicks, conversions) per variant with filtering (OT-P0-020: METRIC-FILTER, OT-P0-024: METRIC-DETAIL)",
-      "category": "metrics",
-      "parameters": [
-        {
-          "name": "start_date",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "Start date (YYYY-MM-DD, default: 7 days ago)"
-        },
-        {
-          "name": "end_date",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "End date (YYYY-MM-DD, default: today)"
-        },
-        {
-          "name": "variant",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "Filter by variant slug"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "start_date": "string",
-          "end_date": "string",
-          "stats": "array"
-        }
-      },
-      "examples": [
-        {
-          "name": "Get all variant stats",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/metrics/variants"
-        },
-        {
-          "name": "Get control variant stats",
-          "curl": "curl 'http://localhost:${API_PORT}/api/v1/metrics/variants?variant=control'"
-        }
-      ]
-    },
-    {
-      "id": "checkout-create",
-      "path": "/api/v1/checkout/create",
-      "method": "POST",
-      "summary": "Create Stripe checkout session",
-      "description": "Creates a Stripe checkout session for subscription payment (OT-P0-025: STRIPE-CONFIG, OT-P0-026: STRIPE-ROUTES)",
-      "category": "payments",
-      "request": {
-        "type": "object",
-        "required": ["price_id", "customer_email"],
-        "properties": {
-          "price_id": "string",
-          "customer_email": "string",
-          "success_url": "string",
-          "cancel_url": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "string",
-          "url": "string",
-          "customer": "string",
-          "amount_total": "integer",
-          "currency": "string",
-          "status": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Create checkout session",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/checkout/create -H 'Content-Type: application/json' -d '{\"price_id\":\"price_123\",\"customer_email\":\"user@example.com\",\"success_url\":\"/success\",\"cancel_url\":\"/cancel\"}'"
-        }
-      ]
-    },
-    {
-      "id": "webhook-stripe",
-      "path": "/api/v1/webhooks/stripe",
-      "method": "POST",
-      "summary": "Stripe webhook handler",
-      "description": "Processes Stripe webhook events with signature verification (OT-P0-026: STRIPE-ROUTES, OT-P0-027: STRIPE-SIG)",
-      "category": "payments",
-      "request": {
-        "type": "object",
-        "description": "Stripe webhook event payload"
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "status": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Process webhook (requires Stripe signature)",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/webhooks/stripe -H 'Content-Type: application/json' -H 'Stripe-Signature: t=...,v1=...' -d '{\"type\":\"checkout.session.completed\",\"data\":{}}'"
-        }
-      ]
-    },
-    {
-      "id": "subscription-verify",
-      "path": "/api/v1/subscription/verify",
-      "method": "GET",
-      "summary": "Verify subscription status",
-      "description": "Checks subscription status for a user with caching (OT-P0-028: SUB-VERIFY, OT-P0-029: SUB-CACHE)",
-      "category": "payments",
-      "parameters": [
-        {
-          "name": "user",
-          "in": "query",
-          "required": true,
-          "type": "string",
-          "description": "User identifier (email or customer ID)"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "status": "string",
-          "cached_at": "string",
-          "cache_age_ms": "integer",
-          "canceled_at": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Verify subscription",
-          "curl": "curl 'http://localhost:${API_PORT}/api/v1/subscription/verify?user=user@example.com'"
-        }
-      ]
-    },
-    {
-      "id": "subscription-cancel",
-      "path": "/api/v1/subscription/cancel",
-      "method": "POST",
-      "summary": "Cancel subscription",
-      "description": "Cancels an active subscription (OT-P0-030: SUB-CANCEL)",
-      "category": "payments",
-      "request": {
-        "type": "object",
-        "required": ["user_identity"],
-        "properties": {
-          "user_identity": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "subscription_id": "string",
-          "status": "string",
-          "canceled_at": "string",
-          "message": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Cancel subscription",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/subscription/cancel -H 'Content-Type: application/json' -d '{\"user_identity\":\"user@example.com\"}'"
-        }
-      ]
-    },
-    {
-      "id": "sections-list",
-      "path": "/api/v1/variants/{variant_id}/sections",
-      "method": "GET",
-      "summary": "List content sections for a variant",
-      "description": "Returns all content sections (hero, features, pricing, etc.) for a variant (OT-P0-012: CUSTOM-SPLIT)",
-      "category": "customization",
-      "parameters": [
-        {
-          "name": "variant_id",
-          "in": "path",
-          "required": true,
-          "type": "integer",
-          "description": "Variant ID"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "sections": "array"
-        }
-      },
-      "examples": [
-        {
-          "name": "Get sections for variant",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/variants/1/sections"
-        }
-      ]
-    },
-    {
-      "id": "section-get",
-      "path": "/api/v1/sections/{id}",
-      "method": "GET",
-      "summary": "Get a specific content section",
-      "description": "Returns content section details (OT-P0-012: CUSTOM-SPLIT)",
-      "category": "customization",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "integer",
-          "description": "Section ID"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "integer",
-          "variant_id": "integer",
-          "section_type": "string",
-          "content": "object",
-          "order": "integer",
-          "enabled": "boolean"
-        }
-      },
-      "examples": [
-        {
-          "name": "Get section",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/sections/1"
-        }
-      ]
-    },
-    {
-      "id": "section-update",
-      "path": "/api/v1/sections/{id}",
-      "method": "PATCH",
-      "summary": "Update content section",
-      "description": "Updates section content for live preview (OT-P0-013: CUSTOM-LIVE)",
-      "category": "customization",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "integer",
-          "description": "Section ID"
-        }
-      ],
-      "request": {
-        "type": "object",
-        "required": ["content"],
-        "properties": {
-          "content": "object"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "success": "boolean",
-          "message": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Update hero section",
-          "curl": "curl -X PATCH http://localhost:${API_PORT}/api/v1/sections/1 -H 'Content-Type: application/json' -d '{\"content\":{\"headline\":\"New Headline\",\"subheadline\":\"Updated copy\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "section-create",
-      "path": "/api/v1/sections",
-      "method": "POST",
-      "summary": "Create content section",
-      "description": "Creates a new content section for a variant",
-      "category": "customization",
-      "request": {
-        "type": "object",
-        "required": ["variant_id", "section_type", "content"],
-        "properties": {
-          "variant_id": "integer",
-          "section_type": "string",
-          "content": "object",
-          "order": "integer",
-          "enabled": "boolean"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "integer",
-          "variant_id": "integer",
-          "section_type": "string",
-          "content": "object"
-        }
-      },
-      "examples": [
-        {
-          "name": "Create CTA section",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/sections -H 'Content-Type: application/json' -d '{\"variant_id\":1,\"section_type\":\"cta\",\"content\":{\"headline\":\"Ready to start?\"},\"order\":5}'"
-        }
-      ]
-    },
-    {
-      "id": "feedback-create",
-      "path": "/api/v1/feedback",
-      "method": "POST",
-      "summary": "Submit public feedback",
-      "description": "Creates a feedback request for the landing-page business suite.",
-      "category": "support",
-      "response": {
-        "type": "object",
-        "properties": {
-          "success": "boolean",
-          "id": "integer"
-        }
-      }
-    },
-    {
-      "id": "feedback-create-legacy",
+      "id": "post-api-feedback",
       "path": "/api/feedback",
       "method": "POST",
-      "summary": "Legacy public feedback endpoint",
-      "description": "Compatibility alias for embedded landing pages; new clients use /api/v1/feedback.",
-      "category": "support",
-      "rest_exception": {
-        "reason": "legacy_embedded_client_compatibility",
-        "proto_payloads": {
-          "request": {
-            "proto_full_name": "landing_page_business_suite.v1.FeedbackCreateRequest",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "response": {
-            "proto_full_name": "landing_page_business_suite.v1.FeedbackCreateResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "landing_page_business_suite.v1.FeedbackError",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
-      }
+      "summary": "POST /api/feedback",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "feedback"
     },
     {
-      "id": "section-delete",
-      "path": "/api/v1/sections/{id}",
+      "id": "delete-api-v1-admin-api-keys",
+      "path": "/api/v1/admin/api-keys",
       "method": "DELETE",
-      "summary": "Delete content section",
-      "description": "Deletes a content section from a variant",
-      "category": "customization",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "integer",
-          "description": "Section ID"
-        }
-      ],
-      "response": {
-        "type": "object",
-        "properties": {
-          "success": "boolean",
-          "message": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Delete section",
-          "curl": "curl -X DELETE http://localhost:${API_PORT}/api/v1/sections/3"
-        }
-      ]
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
+      "summary": "DELETE /api/v1/admin/api-keys",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
     },
     {
-      "name": "template list",
-      "description": "List available landing page templates",
-      "endpoint_id": "template-list"
+      "id": "get-api-v1-admin-api-keys",
+      "path": "/api/v1/admin/api-keys",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/api-keys",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
     },
     {
-      "name": "template show",
-      "description": "Show detailed template metadata",
-      "endpoint_id": "template-show"
+      "id": "post-api-v1-admin-api-keys",
+      "path": "/api/v1/admin/api-keys",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/api-keys",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
     },
     {
-      "name": "generate",
-      "description": "Generate a new landing page scenario from template",
-      "endpoint_id": "generate"
+      "id": "post-api-v1-admin-api-keys-test",
+      "path": "/api/v1/admin/api-keys/test",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/api-keys/test",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
     },
     {
-      "name": "customize",
-      "description": "Trigger agent customization of a landing page",
-      "endpoint_id": "customize"
+      "id": "post-api-v1-admin-api-keys-toggle",
+      "path": "/api/v1/admin/api-keys/toggle",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/api-keys/toggle",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-apps-app-limits",
+      "path": "/api/v1/admin/apps/{app}/limits",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/apps/{app}/limits",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-assets",
+      "path": "/api/v1/admin/assets",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/assets",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-assets-upload",
+      "path": "/api/v1/admin/assets/upload",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/assets/upload",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-assets-id",
+      "path": "/api/v1/admin/assets/{id}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/assets/{id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-assets-id",
+      "path": "/api/v1/admin/assets/{id}",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/assets/{id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-bundles",
+      "path": "/api/v1/admin/bundles",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/bundles",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-bundles-bundle-key-prices",
+      "path": "/api/v1/admin/bundles/{bundle_key}/prices",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/bundles/{bundle_key}/prices",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-bundles-bundle-key-prices-price-id",
+      "path": "/api/v1/admin/bundles/{bundle_key}/prices/{price_id}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/bundles/{bundle_key}/prices/{price_id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "patch-api-v1-admin-bundles-bundle-key-prices-price-id",
+      "path": "/api/v1/admin/bundles/{bundle_key}/prices/{price_id}",
+      "method": "PATCH",
+      "summary": "PATCH /api/v1/admin/bundles/{bundle_key}/prices/{price_id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-coupon-mappings",
+      "path": "/api/v1/admin/coupon-mappings",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/coupon-mappings",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-coupons",
+      "path": "/api/v1/admin/coupons",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/coupons",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-coupons",
+      "path": "/api/v1/admin/coupons",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/coupons",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-coupons-usage",
+      "path": "/api/v1/admin/coupons/usage",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/coupons/usage",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-coupons-coupon-id",
+      "path": "/api/v1/admin/coupons/{coupon_id}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/coupons/{coupon_id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-coupons-coupon-id",
+      "path": "/api/v1/admin/coupons/{coupon_id}",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/coupons/{coupon_id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "patch-api-v1-admin-coupons-coupon-id",
+      "path": "/api/v1/admin/coupons/{coupon_id}",
+      "method": "PATCH",
+      "summary": "PATCH /api/v1/admin/coupons/{coupon_id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-docs-content",
+      "path": "/api/v1/admin/docs/content",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/docs/content",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-docs-tree",
+      "path": "/api/v1/admin/docs/tree",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/docs/tree",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-download-apps",
+      "path": "/api/v1/admin/download-apps",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/download-apps",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-download-apps",
+      "path": "/api/v1/admin/download-apps",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/download-apps",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-download-apps-app-key",
+      "path": "/api/v1/admin/download-apps/{app_key}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/download-apps/{app_key}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "put-api-v1-admin-download-apps-app-key",
+      "path": "/api/v1/admin/download-apps/{app_key}",
+      "method": "PUT",
+      "summary": "PUT /api/v1/admin/download-apps/{app_key}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-download-artifacts",
+      "path": "/api/v1/admin/download-artifacts",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/download-artifacts",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-download-artifacts-by-app",
+      "path": "/api/v1/admin/download-artifacts/by-app",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/download-artifacts/by-app",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-download-artifacts-commit",
+      "path": "/api/v1/admin/download-artifacts/commit",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/download-artifacts/commit",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-download-artifacts-presign-upload",
+      "path": "/api/v1/admin/download-artifacts/presign-upload",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/download-artifacts/presign-upload",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-download-artifacts-artifact-id-presign-get",
+      "path": "/api/v1/admin/download-artifacts/{artifact_id}/presign-get",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/download-artifacts/{artifact_id}/presign-get",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-download-assets-apply",
+      "path": "/api/v1/admin/download-assets/apply",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/download-assets/apply",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-download-assets-set-current",
+      "path": "/api/v1/admin/download-assets/set-current",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/download-assets/set-current",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-download-storage",
+      "path": "/api/v1/admin/download-storage",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/download-storage",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "put-api-v1-admin-download-storage",
+      "path": "/api/v1/admin/download-storage",
+      "method": "PUT",
+      "summary": "PUT /api/v1/admin/download-storage",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-download-storage-test",
+      "path": "/api/v1/admin/download-storage/test",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/download-storage/test",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-feedback",
+      "path": "/api/v1/admin/feedback",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/feedback",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-feedback-bulk-delete",
+      "path": "/api/v1/admin/feedback/bulk-delete",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/feedback/bulk-delete",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-feedback-id",
+      "path": "/api/v1/admin/feedback/{id}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/feedback/{id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-feedback-id",
+      "path": "/api/v1/admin/feedback/{id}",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/feedback/{id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "patch-api-v1-admin-feedback-id-status",
+      "path": "/api/v1/admin/feedback/{id}/status",
+      "method": "PATCH",
+      "summary": "PATCH /api/v1/admin/feedback/{id}/status",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-limits",
+      "path": "/api/v1/admin/limits",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/limits",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-limits",
+      "path": "/api/v1/admin/limits",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/limits",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-login",
+      "path": "/api/v1/admin/login",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/login",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-logout",
+      "path": "/api/v1/admin/logout",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/logout",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-plans-price-id-coupon",
+      "path": "/api/v1/admin/plans/{price_id}/coupon",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/plans/{price_id}/coupon",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "put-api-v1-admin-plans-price-id-coupon",
+      "path": "/api/v1/admin/plans/{price_id}/coupon",
+      "method": "PUT",
+      "summary": "PUT /api/v1/admin/plans/{price_id}/coupon",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-profile",
+      "path": "/api/v1/admin/profile",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/profile",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "put-api-v1-admin-profile",
+      "path": "/api/v1/admin/profile",
+      "method": "PUT",
+      "summary": "PUT /api/v1/admin/profile",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-remote-profile-sessions",
+      "path": "/api/v1/admin/remote-profile-sessions",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/remote-profile-sessions",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-remote-profile-sessions-session-id",
+      "path": "/api/v1/admin/remote-profile-sessions/{session_id}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/remote-profile-sessions/{session_id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-remote-profiles",
+      "path": "/api/v1/admin/remote-profiles",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/remote-profiles",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-remote-profiles",
+      "path": "/api/v1/admin/remote-profiles",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/remote-profiles",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-remote-profiles-id",
+      "path": "/api/v1/admin/remote-profiles/{id}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/remote-profiles/{id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "put-api-v1-admin-remote-profiles-id",
+      "path": "/api/v1/admin/remote-profiles/{id}",
+      "method": "PUT",
+      "summary": "PUT /api/v1/admin/remote-profiles/{id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-remote-profiles-id-login",
+      "path": "/api/v1/admin/remote-profiles/{id}/login",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/remote-profiles/{id}/login",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-remote-profiles-id-logout",
+      "path": "/api/v1/admin/remote-profiles/{id}/logout",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/remote-profiles/{id}/logout",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-remote-profiles-id-proxy",
+      "path": "/api/v1/admin/remote-profiles/{id}/proxy",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/remote-profiles/{id}/proxy",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-remote-profiles-id-remote-revoke",
+      "path": "/api/v1/admin/remote-profiles/{id}/remote-revoke",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/remote-profiles/{id}/remote-revoke",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-remote-profiles-id-session-links",
+      "path": "/api/v1/admin/remote-profiles/{id}/session-links",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/remote-profiles/{id}/session-links",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-remote-profiles-id-test",
+      "path": "/api/v1/admin/remote-profiles/{id}/test",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/remote-profiles/{id}/test",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-reset-demo-data",
+      "path": "/api/v1/admin/reset-demo-data",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/reset-demo-data",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-session",
+      "path": "/api/v1/admin/session",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/session",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-settings-stripe",
+      "path": "/api/v1/admin/settings/stripe",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/settings/stripe",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "put-api-v1-admin-settings-stripe",
+      "path": "/api/v1/admin/settings/stripe",
+      "method": "PUT",
+      "summary": "PUT /api/v1/admin/settings/stripe",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-settings-stripe-reveal",
+      "path": "/api/v1/admin/settings/stripe/reveal",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/settings/stripe/reveal",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-stripe-coupons-preview",
+      "path": "/api/v1/admin/stripe/coupons-preview",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/stripe/coupons-preview",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-stripe-import",
+      "path": "/api/v1/admin/stripe/import",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/stripe/import",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-stripe-import-preview",
+      "path": "/api/v1/admin/stripe/import-preview",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/stripe/import-preview",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-stripe-verify-price",
+      "path": "/api/v1/admin/stripe/verify-price",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/stripe/verify-price",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-tiers-limits",
+      "path": "/api/v1/admin/tiers/limits",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/tiers/limits",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-tiers-tier-limits",
+      "path": "/api/v1/admin/tiers/{tier}/limits",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/tiers/{tier}/limits",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "put-api-v1-admin-tiers-tier-limits",
+      "path": "/api/v1/admin/tiers/{tier}/limits",
+      "method": "PUT",
+      "summary": "PUT /api/v1/admin/tiers/{tier}/limits",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-usage",
+      "path": "/api/v1/admin/usage",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/usage",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-users",
+      "path": "/api/v1/admin/users",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/users",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-users-id",
+      "path": "/api/v1/admin/users/{id}",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/users/{id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-users-id-sessions",
+      "path": "/api/v1/admin/users/{id}/sessions",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/users/{id}/sessions",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-users-id-sessions-revoke-all",
+      "path": "/api/v1/admin/users/{id}/sessions/revoke-all",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/users/{id}/sessions/revoke-all",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-users-id-sessions-sid",
+      "path": "/api/v1/admin/users/{id}/sessions/{sid}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/users/{id}/sessions/{sid}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-admin-variants-sync",
+      "path": "/api/v1/admin/variants/sync",
+      "method": "POST",
+      "summary": "POST /api/v1/admin/variants/sync",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-variants-slug-export",
+      "path": "/api/v1/admin/variants/{slug}/export",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/variants/{slug}/export",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "put-api-v1-admin-variants-slug-import",
+      "path": "/api/v1/admin/variants/{slug}/import",
+      "method": "PUT",
+      "summary": "PUT /api/v1/admin/variants/{slug}/import",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "put-api-v1-admin-variants-slug-seo",
+      "path": "/api/v1/admin/variants/{slug}/seo",
+      "method": "PUT",
+      "summary": "PUT /api/v1/admin/variants/{slug}/seo",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-waitlist",
+      "path": "/api/v1/admin/waitlist",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/waitlist",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "get-api-v1-admin-waitlist-export",
+      "path": "/api/v1/admin/waitlist/export",
+      "method": "GET",
+      "summary": "GET /api/v1/admin/waitlist/export",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "delete-api-v1-admin-waitlist-id",
+      "path": "/api/v1/admin/waitlist/{id}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/admin/waitlist/{id}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "admin"
+    },
+    {
+      "id": "post-api-v1-ai-chat",
+      "path": "/api/v1/ai/chat",
+      "method": "POST",
+      "summary": "POST /api/v1/ai/chat",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "ai"
+    },
+    {
+      "id": "get-api-v1-ai-health",
+      "path": "/api/v1/ai/health",
+      "method": "GET",
+      "summary": "GET /api/v1/ai/health",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "ai"
+    },
+    {
+      "id": "get-api-v1-ai-models",
+      "path": "/api/v1/ai/models",
+      "method": "GET",
+      "summary": "GET /api/v1/ai/models",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "ai"
+    },
+    {
+      "id": "post-api-v1-ai-stream",
+      "path": "/api/v1/ai/stream",
+      "method": "POST",
+      "summary": "POST /api/v1/ai/stream",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "ai"
+    },
+    {
+      "id": "get-api-v1-ai-usage",
+      "path": "/api/v1/ai/usage",
+      "method": "GET",
+      "summary": "GET /api/v1/ai/usage",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "ai"
+    },
+    {
+      "id": "post-api-v1-auth-logout",
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/logout",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
+      "id": "post-api-v1-auth-magic-link",
+      "path": "/api/v1/auth/magic-link",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/magic-link",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
+      "id": "get-api-v1-auth-me",
+      "path": "/api/v1/auth/me",
+      "method": "GET",
+      "summary": "GET /api/v1/auth/me",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
+      "id": "post-api-v1-auth-refresh",
+      "path": "/api/v1/auth/refresh",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/refresh",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
+      "id": "get-api-v1-auth-verify",
+      "path": "/api/v1/auth/verify",
+      "method": "GET",
+      "summary": "GET /api/v1/auth/verify",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
+      "id": "post-api-v1-customize",
+      "path": "/api/v1/customize",
+      "method": "POST",
+      "summary": "POST /api/v1/customize",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-api-v1-deploy-readiness",
+      "path": "/api/v1/deploy-readiness",
+      "method": "POST",
+      "summary": "POST /api/v1/deploy-readiness",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "get-api-v1-downloads",
+      "path": "/api/v1/downloads",
+      "method": "GET",
+      "summary": "GET /api/v1/downloads",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "downloads"
+    },
+    {
+      "id": "post-api-v1-feedback",
+      "path": "/api/v1/feedback",
+      "method": "POST",
+      "summary": "POST /api/v1/feedback",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "feedback"
+    },
+    {
+      "id": "get-api-v1-health",
+      "path": "/api/v1/health",
+      "method": "GET",
+      "summary": "GET /api/v1/health",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "get-api-v1-landing-config",
+      "path": "/api/v1/landing-config",
+      "method": "GET",
+      "summary": "GET /api/v1/landing-config",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "get-api-v1-metrics-summary",
+      "path": "/api/v1/metrics/summary",
+      "method": "GET",
+      "summary": "GET /api/v1/metrics/summary",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "metrics"
+    },
+    {
+      "id": "post-api-v1-metrics-track",
+      "path": "/api/v1/metrics/track",
+      "method": "POST",
+      "summary": "POST /api/v1/metrics/track",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "metrics"
+    },
+    {
+      "id": "get-api-v1-metrics-variants",
+      "path": "/api/v1/metrics/variants",
+      "method": "GET",
+      "summary": "GET /api/v1/metrics/variants",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "metrics"
+    },
+    {
+      "id": "get-api-v1-public-variants-slug",
+      "path": "/api/v1/public/variants/{slug}",
+      "method": "GET",
+      "summary": "GET /api/v1/public/variants/{slug}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "variants"
+    },
+    {
+      "id": "get-api-v1-public-variants-variant-slug-sections",
+      "path": "/api/v1/public/variants/{variant_slug}/sections",
+      "method": "GET",
+      "summary": "GET /api/v1/public/variants/{variant_slug}/sections",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "variants"
+    },
+    {
+      "id": "get-api-v1-seo-slug",
+      "path": "/api/v1/seo/{slug}",
+      "method": "GET",
+      "summary": "GET /api/v1/seo/{slug}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "seo"
+    },
+    {
+      "id": "get-api-v1-uploads-path",
+      "path": "/api/v1/uploads/{path:.*}",
+      "method": "GET",
+      "summary": "GET /api/v1/uploads/{path:.*}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "head-api-v1-uploads-path",
+      "path": "/api/v1/uploads/{path:.*}",
+      "method": "HEAD",
+      "summary": "HEAD /api/v1/uploads/{path:.*}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "get-api-v1-usage-check",
+      "path": "/api/v1/usage/check",
+      "method": "GET",
+      "summary": "GET /api/v1/usage/check",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "usage"
+    },
+    {
+      "id": "get-api-v1-usage-health",
+      "path": "/api/v1/usage/health",
+      "method": "GET",
+      "summary": "GET /api/v1/usage/health",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "usage"
+    },
+    {
+      "id": "post-api-v1-usage-report",
+      "path": "/api/v1/usage/report",
+      "method": "POST",
+      "summary": "POST /api/v1/usage/report",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "usage"
+    },
+    {
+      "id": "get-api-v1-usage-summary",
+      "path": "/api/v1/usage/summary",
+      "method": "GET",
+      "summary": "GET /api/v1/usage/summary",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "usage"
+    },
+    {
+      "id": "get-api-v1-variant-space",
+      "path": "/api/v1/variant-space",
+      "method": "GET",
+      "summary": "GET /api/v1/variant-space",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "get-api-v1-variants",
+      "path": "/api/v1/variants",
+      "method": "GET",
+      "summary": "GET /api/v1/variants",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "variants"
+    },
+    {
+      "id": "get-api-v1-variants-select",
+      "path": "/api/v1/variants/select",
+      "method": "GET",
+      "summary": "GET /api/v1/variants/select",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "variants"
+    },
+    {
+      "id": "delete-api-v1-variants-slug",
+      "path": "/api/v1/variants/{slug}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/variants/{slug}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "variants"
+    },
+    {
+      "id": "get-api-v1-variants-slug",
+      "path": "/api/v1/variants/{slug}",
+      "method": "GET",
+      "summary": "GET /api/v1/variants/{slug}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "variants"
+    },
+    {
+      "id": "patch-api-v1-variants-slug",
+      "path": "/api/v1/variants/{slug}",
+      "method": "PATCH",
+      "summary": "PATCH /api/v1/variants/{slug}",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "variants"
+    },
+    {
+      "id": "get-api-v1-variants-variant-slug-sections",
+      "path": "/api/v1/variants/{variant_slug}/sections",
+      "method": "GET",
+      "summary": "GET /api/v1/variants/{variant_slug}/sections",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "variants"
+    },
+    {
+      "id": "post-api-v1-waitlist",
+      "path": "/api/v1/waitlist",
+      "method": "POST",
+      "summary": "POST /api/v1/waitlist",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "waitlist"
+    },
+    {
+      "id": "post-api-v1-webhooks-stripe",
+      "path": "/api/v1/webhooks/stripe",
+      "method": "POST",
+      "summary": "POST /api/v1/webhooks/stripe",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "get-health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "GET /health",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-accountservice-getentitlements",
+      "path": "/landing_page_business_suite.v1.AccountService/GetEntitlements",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AccountService/GetEntitlements",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-accountservice-getmycredits",
+      "path": "/landing_page_business_suite.v1.AccountService/GetMyCredits",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AccountService/GetMyCredits",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-accountservice-getmysubscription",
+      "path": "/landing_page_business_suite.v1.AccountService/GetMySubscription",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AccountService/GetMySubscription",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-brandingservice-clearbrandingfield",
+      "path": "/landing_page_business_suite.v1.BrandingService/ClearBrandingField",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.BrandingService/ClearBrandingField",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-brandingservice-getbranding",
+      "path": "/landing_page_business_suite.v1.BrandingService/GetBranding",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.BrandingService/GetBranding",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-brandingservice-getpublicbranding",
+      "path": "/landing_page_business_suite.v1.BrandingService/GetPublicBranding",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.BrandingService/GetPublicBranding",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-brandingservice-updatebranding",
+      "path": "/landing_page_business_suite.v1.BrandingService/UpdateBranding",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.BrandingService/UpdateBranding",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-landingpagepaymentsservice-cancelsubscription",
+      "path": "/landing_page_business_suite.v1.LandingPagePaymentsService/CancelSubscription",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.LandingPagePaymentsService/CancelSubscription",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-landingpagepaymentsservice-createcheckoutsession",
+      "path": "/landing_page_business_suite.v1.LandingPagePaymentsService/CreateCheckoutSession",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.LandingPagePaymentsService/CreateCheckoutSession",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-landingpagepaymentsservice-getbillingportal",
+      "path": "/landing_page_business_suite.v1.LandingPagePaymentsService/GetBillingPortal",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.LandingPagePaymentsService/GetBillingPortal",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-landingpagepaymentsservice-verifysubscription",
+      "path": "/landing_page_business_suite.v1.LandingPagePaymentsService/VerifySubscription",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.LandingPagePaymentsService/VerifySubscription",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countapikeyscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountAPIKeysCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountAPIKeysCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countadminsessionscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountAdminSessionsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountAdminSessionsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countadminuserscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountAdminUsersCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountAdminUsersCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countassetscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountAssetsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountAssetsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countauthtokenscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountAuthTokensCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountAuthTokensCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countbundlepricescreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountBundlePricesCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountBundlePricesCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countbundleproductscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountBundleProductsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountBundleProductsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countcheckoutsessionscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountCheckoutSessionsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountCheckoutSessionsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countcreditreservationscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountCreditReservationsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountCreditReservationsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countcredittransactionscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountCreditTransactionsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountCreditTransactionsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countdownloadappscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountDownloadAppsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountDownloadAppsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countdownloadartifactscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountDownloadArtifactsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountDownloadArtifactsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countdownloadassetscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountDownloadAssetsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountDownloadAssetsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countdownloadstoragesettingscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountDownloadStorageSettingsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountDownloadStorageSettingsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countfeedbackrequestscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountFeedbackRequestsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountFeedbackRequestsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countintrocouponusagecreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountIntroCouponUsageCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountIntroCouponUsageCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countmetricseventscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountMetricsEventsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountMetricsEventsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countpaymentanomaliescreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountPaymentAnomaliesCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountPaymentAnomaliesCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countremoteprofilescreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountRemoteProfilesCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountRemoteProfilesCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countsubscriptionschedulescreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountSubscriptionSchedulesCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountSubscriptionSchedulesCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countsubscriptiontierlimitscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountSubscriptionTierLimitsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountSubscriptionTierLimitsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countsubscriptionscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountSubscriptionsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountSubscriptionsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countusagerecordscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountUsageRecordsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountUsageRecordsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countusersessionscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountUserSessionsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountUserSessionsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countuserscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountUsersCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountUsersCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-measuresservice-countwaitlistemailscreated",
+      "path": "/landing_page_business_suite.v1.MeasuresService/CountWaitlistEmailsCreated",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MeasuresService/CountWaitlistEmailsCreated",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-pricingservice-getpricing",
+      "path": "/landing_page_business_suite.v1.PricingService/GetPricing",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.PricingService/GetPricing",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-stripesettingsservice-getstripesettings",
+      "path": "/landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-stripesettingsservice-revealstripesecret",
+      "path": "/landing_page_business_suite.v1.StripeSettingsService/RevealStripeSecret",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.StripeSettingsService/RevealStripeSecret",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-stripesettingsservice-updatestripesettings",
+      "path": "/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "get-robots-txt",
+      "path": "/robots.txt",
+      "method": "GET",
+      "summary": "GET /robots.txt",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "get-sitemap-xml",
+      "path": "/sitemap.xml",
+      "method": "GET",
+      "summary": "GET /sitemap.xml",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
     }
   ]
 }

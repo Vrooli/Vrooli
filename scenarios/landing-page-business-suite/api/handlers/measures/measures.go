@@ -413,6 +413,6 @@ func RegisterRoutes(router *mux.Router, db measurestore.Counter, now func() time
 	}
 	path, connectHandler := lpbsconnect.NewMeasuresServiceHandler(NewHandlerWithRepository(repository, now))
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: middleware(connectHandler.ServeHTTP)})
-	router.PathPrefix("/measures/").Handler(middleware(http.StripPrefix("/measures", registry.Handler()).ServeHTTP))
+	router.PathPrefix("/api/v1/measures/").Handler(middleware(http.StripPrefix("/api/v1/measures", registry.Handler()).ServeHTTP))
 	return nil
 }

@@ -10,10 +10,8 @@ import (
 	"github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	accounthttp "landing-page-business-suite-api/handlers/account"
 	confighttp "landing-page-business-suite-api/handlers/config"
 	downloadhttp "landing-page-business-suite-api/handlers/download"
-	pricinghttp "landing-page-business-suite-api/handlers/pricing"
 )
 
 type managedDownloadResolutionError struct {
@@ -26,33 +24,8 @@ func (e *managedDownloadResolutionError) Unwrap() error { return e.err }
 
 const landingConfigTestModeDelay = 3 * time.Second
 
-var accountReadDependencies = accounthttp.Dependencies{
-	UserEmail: getUserEmail,
-	WriteJSON: writeJSON,
-	WriteError: func(w http.ResponseWriter, status int, message, kind string) {
-		writeJSONError(w, status, message, kind)
-	},
-	LogError: logStructuredError,
-}
-
 func handleLandingConfig(service *LandingConfigService) http.HandlerFunc {
 	return confighttp.Landing(confighttp.Dependencies{Get: func(ctx context.Context, variant string) (any, error) { return service.GetLandingConfig(ctx, variant) }, TestMode: database.IsTestMode, Sleep: time.Sleep, Delay: landingConfigTestModeDelay, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logStructuredError})
-}
-
-func handlePlans(service *PlanService) http.HandlerFunc {
-	return pricinghttp.Get(pricinghttp.Dependencies{Overview: service.GetPricingOverview, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logStructuredError})
-}
-
-func handleMeSubscription(accountService *AccountService) http.HandlerFunc {
-	return accounthttp.Subscription(accountReadDependencies, accountService)
-}
-
-func handleMeCredits(accountService *AccountService) http.HandlerFunc {
-	return accounthttp.Credits(accountReadDependencies, accountService)
-}
-
-func handleEntitlements(accountService *AccountService) http.HandlerFunc {
-	return accounthttp.Entitlements(accountReadDependencies, accountService)
 }
 
 func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {

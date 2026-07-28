@@ -61,6 +61,8 @@ type OpenRouterUsage struct {
 type httpOpenRouterClient struct {
 	apiKey     string
 	baseURL    string
+	referer    string
+	title      string
 	httpClient *http.Client
 	log        func(event string, fields map[string]interface{})
 }
@@ -69,6 +71,8 @@ type httpOpenRouterClient struct {
 type OpenRouterClientOptions struct {
 	APIKey     string
 	BaseURL    string        // Default: "https://openrouter.ai"
+	Referer    string        // Default: "https://vrooli.com"
+	Title      string        // Default: "Vrooli AI Gateway"
 	Timeout    time.Duration // Default: 120s
 	HTTPClient *http.Client  // Optional: use custom HTTP client
 	Logger     func(event string, fields map[string]interface{})
@@ -80,6 +84,7 @@ func NewOpenRouterClient(opts OpenRouterClientOptions) OpenRouterClient {
 	if baseURL == "" {
 		baseURL = "https://openrouter.ai"
 	}
+	baseURL = strings.TrimRight(baseURL, "/")
 
 	httpClient := opts.HTTPClient
 	if httpClient == nil {
@@ -100,6 +105,8 @@ func NewOpenRouterClient(opts OpenRouterClientOptions) OpenRouterClient {
 		baseURL:    baseURL,
 		httpClient: httpClient,
 		log:        logger,
+		referer:    defaultString(opts.Referer, "https://vrooli.com"),
+		title:      defaultString(opts.Title, "Vrooli AI Gateway"),
 	}
 }
 
@@ -322,8 +329,15 @@ func (c *httpOpenRouterClient) VerifyAPIKey(ctx context.Context) error {
 func (c *httpOpenRouterClient) setHeaders(req *http.Request) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	req.Header.Set("HTTP-Referer", "https://vrooli.com")
-	req.Header.Set("X-Title", "Vrooli AI Gateway")
+	req.Header.Set("HTTP-Referer", c.referer)
+	req.Header.Set("X-Title", c.title)
+}
+
+func defaultString(value, fallback string) string {
+	if value = strings.TrimSpace(value); value != "" {
+		return value
+	}
+	return fallback
 }
 
 // MockOpenRouterClient is a test double for OpenRouterClient.

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/envx"
 )
 
 // UsageServicer provides credit management for AI gateway.
@@ -546,8 +547,11 @@ func (s *AIGatewayService) getOpenRouterClient(ctx context.Context) (OpenRouterC
 	}
 
 	return NewOpenRouterClient(OpenRouterClientOptions{
-		APIKey: apiKey,
-		Logger: s.log,
+		APIKey:  apiKey,
+		BaseURL: envx.Get("OPENROUTER_BASE_URL"),
+		Referer: envx.Get("OPENROUTER_REFERER"),
+		Title:   envx.Get("OPENROUTER_TITLE"),
+		Logger:  s.log,
 	}), nil
 }
 

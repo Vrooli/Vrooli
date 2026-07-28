@@ -11,7 +11,7 @@ This file tracks known issues and technical debt that need attention.
 **Status:** Resolved  
 **Updated:** 2026-07-27
 
-All 26 persisted entities detected by Measures Health now have a typed,
+All num[sot]:26 persisted entities detected by Measures Health now have a typed,
 time-windowed `MeasuresService` RPC and a shared registry aggregate over
 authoritative Postgres state. The registry and Connect routes remain
 admin-or-service protected. Measures Health's behavioral/indexing assessment
@@ -116,7 +116,7 @@ The tests now derive their HMAC secret from the injected `StripeTestConfig`.
 migration tests pass, as does `GOWORK=off go test ./... -count=1 -timeout 10m`
 from `api/`.
 
-**Remaining follow-up:** Triage the 17 skipped API tests and the assertion-free
+**Remaining follow-up:** Triage the num[sot]:17 skipped API tests and the assertion-free
 `TestMain` separately; these are test-debt advisories, not evidence that the
 Stripe workflow remains broken.
 
@@ -126,9 +126,9 @@ Stripe workflow remains broken.
 **Status:** Open
 **Reported:** 2026-01-16 (scenario-completeness-scoring)
 
-The completeness scoring tool reports 5 test files validating 4+ requirements each, which hurts the score by -10 points:
-- `coverage/manual-validations/log.jsonl` (validates 14 requirements)
-- Plus 4 more test files
+The completeness scoring tool reports num[sot]:5 test files validating num[sot]:4+ requirements each, which hurts the score by -10 points:
+- `coverage/manual-validations/log.jsonl` (validates num[sot]:14 requirements)
+- Plus num[sot]:4 more test files
 
 **Action Required:** Break monolithic test files into focused tests for each requirement.
 
@@ -250,3 +250,15 @@ domain` because its scenario matcher recognizes the legacy flat
 path with this scenario. This is validator evidence debt, not an instruction to
 restore a non-canonical flat schema. Revisit after proto-health's domain-path
 matcher supports canonical nested source paths.
+
+## Work ladder
+
+- Rung: W0
+- Evidence: active swarm goal `landing-page-api-domain-subpackages` directs the
+  API decomposition to `api/domain/<name>/`, while the active modernization
+  plan's Outcome and Phase 7 direct `api/internal/<domain>/` plus
+  `api/handlers/<domain>/`; the current implementation follows the latter.
+- Blocker: the two governing artifacts specify incompatible package layouts;
+  a decision is required before treating either layout as the settled
+  architectural contract.
+- Measured: 2026-07-27

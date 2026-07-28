@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-27T14:19:55-04:00"
+    "last_validated_at": "2026-07-27T20:41:43-04:00"
   },
   "requirements": [
     {
@@ -134,7 +134,7 @@
       "title": "Plan listing \u0026 checkout orchestration",
       "status": "complete",
       "prd_ref": "OT-P0-032",
-      "description": "Parse Stripe product/price metadata (tiers, intro pricing, billing_interval, plan_rank, bundle_key) and expose GET /api/v1/plans plus POST /api/v1/billing/create-checkout-session|create-credits-checkout-session and GET /api/v1/billing/portal-url that respect $1 intro month rules, weights, and deterministic slugs.",
+      "description": "Parse Stripe product/price metadata (tiers, intro pricing, billing_interval, plan_rank, bundle_key) and expose PricingService.GetPricing plus POST /api/v1/billing/create-checkout-session|create-credits-checkout-session and GET /api/v1/billing/portal-url that respect $1 intro month rules, weights, and deterministic slugs.",
       "validation": [
         {
           "type": "test",
@@ -157,7 +157,7 @@
       "title": "Credits + pricing display",
       "status": "complete",
       "prd_ref": "OT-P0-033",
-      "description": "Expose GET /api/v1/me/subscription and GET /api/v1/me/credits that convert internal credits_per_usd to display_credits_multiplier/label, include included credits + bonuses per plan, and surface upgrade CTAs for logged-in visitors.",
+      "description": "Expose AccountService.GetMySubscription and AccountService.GetMyCredits that convert internal credits_per_usd to display_credits_multiplier/label, include included credits + bonuses per plan, and surface upgrade CTAs for logged-in visitors.",
       "validation": [
         {
           "type": "test",
@@ -180,7 +180,7 @@
       "title": "Bundled app entitlement API",
       "status": "complete",
       "prd_ref": "OT-P0-033",
-      "description": "Provide GET /api/v1/entitlements returning plan tier, feature flags, and credit metrics for bundled apps. Responses must cache briefly (≤60s) and support offline degradation with short-lived storage for the bundled clients.",
+      "description": "Provide AccountService.GetEntitlements returning plan tier, feature flags, billing-cycle metadata, and credit metrics for bundled apps. Responses must cache briefly (≤60s) and support offline degradation with short-lived storage for the bundled clients.",
       "validation": [
         {
           "type": "test",

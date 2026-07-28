@@ -1,7 +1,14 @@
-import { resolveApiBase, buildApiUrl } from '@vrooli/api-base';
+import { DEFAULT_API_SUFFIX, resolveApiBase, buildApiUrl } from '@vrooli/api-base';
 import { isRecord, safeParseJson } from '../lib/utils';
 
 export const API_BASE = resolveApiBase({ appendSuffix: true });
+
+// Connect RPC endpoints are mounted at the scenario origin, while the legacy
+// JSON endpoints continue to use the versioned REST suffix. Resolve once so
+// the two transports cannot drift in proxy, desktop, or remote deployments.
+export const CONNECT_API_BASE = API_BASE.endsWith(DEFAULT_API_SUFFIX)
+  ? API_BASE.slice(0, -DEFAULT_API_SUFFIX.length)
+  : API_BASE;
 
 /**
  * API error types for graceful degradation and user-friendly messages.

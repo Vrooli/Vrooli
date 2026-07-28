@@ -34,8 +34,8 @@
 - [x] OT-P0-006 | Structured agent input | Agent receives structured brief (text + assets + goals) and writes changes via template-defined APIs/files only (no factory-side mutation)
 - [x] OT-P0-007 | Security by obscurity | Admin portal not linked from any public page or sitemap
 - [x] OT-P0-008 | Authentication | Admin portal protected by email/password with bcrypt/argon2 password hashing
-- [x] OT-P0-009 | Admin home modes | Admin home displays exactly two modes: "Analytics / Metrics" and "Customization"
-- [x] OT-P0-010 | Navigation efficiency | Navigate to any customization card in ≤ 3 clicks from admin home
+- [x] OT-P0-009 | Admin home modes | Admin home displays exactly num[decision]:two modes: "Analytics / Metrics" and "Customization"
+- [x] OT-P0-010 | Navigation efficiency | Navigate to any customization card in ≤ num[threshold]:3 clicks from admin home
 - [x] OT-P0-011 | Breadcrumb navigation | All admin pages show breadcrumb indicating current location (e.g., Admin / Customization / Hero / Variant A)
 
 #### Customization UX
@@ -273,5 +273,5 @@ The following references, decisions, and evolution notes support the implementat
 
 **Business Impact**
 - Revenue generated via Stripe integrations (target: $5K+ MRR by month 6)
-- Number of A/B tests run (target: 50+ tests across all landing pages)
+- Number of A/B tests run (target: num[target]:50+ tests across all landing pages)
 - Time saved vs. manual landing page creation (target: 95% reduction, weeks → hours)

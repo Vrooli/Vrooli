@@ -189,7 +189,7 @@ Use test card `4242 4242 4242 4242` with any future date and CVC.
 1. Go to **Customization** (`/admin/customization`)
 2. Click **Create New Variant**
 3. Name it (e.g., "Holiday Special")
-4. Set weight to 50 (splits traffic evenly with Control)
+4. Set weight to num[target]:50 (splits traffic evenly with Control)
 
 ### 2. Customize the Variant
 

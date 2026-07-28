@@ -16,8 +16,8 @@ type Dependencies struct {
 	LogError       func(string, map[string]interface{})
 }
 
-// Notifier delivers feedback notifications after persistence. Production is
-// wired by the root composition package; tests use a small fake.
+// seam: Notifier delivers feedback notifications after persistence. Production
+// is wired by the root composition package; tests use a small fake.
 type Notifier interface {
 	Notify(*metrics.FeedbackRequest)
 }

@@ -243,8 +243,8 @@ The reservation system prevents the more serious issue: concurrent requests from
 
 ## Rate Limiting
 
-- **60 requests per minute** per user
-- **120 requests per minute** per IP address (defense in depth)
+- **num[threshold]:60 requests per minute** per user
+- **num[threshold]:120 requests per minute** per IP address (defense in depth)
 - Applies to both `/chat` and `/stream` endpoints
 - Returns `429 Too Many Requests` when exceeded
 
