@@ -49,6 +49,7 @@ type NextActionProjection struct {
 	Reason        string           `json:"reason,omitempty"`
 	Blockers      []BlockingReason `json:"blockers,omitempty"`
 	Target        string           `json:"target,omitempty"`
+	TransitionKey string           `json:"transition_key,omitempty"`
 	FollowUp      *FollowUp        `json:"follow_up,omitempty"`
 }
 
@@ -221,7 +222,27 @@ func hasCanonicalExecutionPlan(item BacklogItem) bool {
 }
 
 func nextAction(id NextActionID, compact, expanded string, enabled bool, reason string, blockers []BlockingReason, target string) NextActionProjection {
-	return NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: enabled, Reason: reason, Blockers: blockers, Target: target}
+	return NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: enabled, Reason: reason, Blockers: blockers, Target: target, TransitionKey: TransitionKeyForNextAction(id)}
+}
+
+// TransitionKeyForNextAction is the one server-owned bridge from a next-action
+// decision to a declared transition. Clients consume TransitionKey from the
+// projection and never duplicate this capability mapping.
+func TransitionKeyForNextAction(id NextActionID) string {
+	switch id {
+	case NextActionAuthorPlan:
+		return "plan.author"
+	case NextActionRepairPlan:
+		return "plan.repair"
+	case NextActionDispatchFollowup:
+		return "follow_up.dispatch"
+	case NextActionPlanGoal:
+		return "goal.plan"
+	case NextActionCloseOut:
+		return "goal.close_out"
+	default:
+		return ""
+	}
 }
 
 func hasBlockerCode(blockers []BlockingReason, code string) bool {

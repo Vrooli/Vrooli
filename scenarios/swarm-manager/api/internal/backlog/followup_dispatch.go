@@ -1,6 +1,7 @@
 package backlog
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -58,29 +59,36 @@ func (h *Handler) DispatchFollowUp(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	item, instruction, err := h.DispatchPendingFollowUp(r.Context(), kind, name)
+	if err != nil {
+		apierr.MapError(w, "[backlog] dispatch-follow-up", err)
+		return
+	}
+	if err := httputil.JSON(w, map[string]any{"item": item, "dispatched": true, "disposition": instruction.Disposition}); err != nil {
+		apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.Internal("failed to encode response"))
+	}
+}
+
+// DispatchPendingFollowUp is the domain mutation for follow_up.dispatch.
+func (h *Handler) DispatchPendingFollowUp(ctx context.Context, kind BacklogKind, name string) (BacklogItem, FollowUp, error) {
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
-		apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.NotFound("backlog item not found"))
-		return
+		return BacklogItem{}, FollowUp{}, apierr.NotFound("backlog item not found")
 	}
 	if item.Status != StatusNeedsFollowup || item.PendingFollowUp == nil {
-		apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.BadRequest("item has no pending follow-up instruction"))
-		return
+		return BacklogItem{}, FollowUp{}, apierr.BadRequest("item has no pending follow-up instruction")
 	}
 	if err := validateFollowUp(item.PendingFollowUp); err != nil {
-		apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.BadRequest("invalid pending follow-up: %s", err))
-		return
+		return BacklogItem{}, FollowUp{}, apierr.BadRequest("invalid pending follow-up: %s", err)
 	}
 	instruction := *item.PendingFollowUp
 	switch instruction.Disposition {
 	case FollowUpRun:
 		if h.followUpDispatcher == nil {
-			apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.Unavailable("execution follow-up is not available"))
-			return
+			return BacklogItem{}, FollowUp{}, apierr.Unavailable("execution follow-up is not available")
 		}
-		if err := h.followUpDispatcher.DispatchFollowUp(r.Context(), kind, name, instruction.Steering); err != nil {
-			apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.BadRequest("could not start follow-up: %s", err))
-			return
+		if err := h.followUpDispatcher.DispatchFollowUp(ctx, kind, name, instruction.Steering); err != nil {
+			return BacklogItem{}, FollowUp{}, apierr.BadRequest("could not start follow-up: %s", err)
 		}
 		item.Status = StatusQueued
 	case FollowUpReplan:
@@ -88,30 +96,25 @@ func (h *Handler) DispatchFollowUp(w http.ResponseWriter, r *http.Request) {
 		item.PlanAcceptance = nil
 		item.Note = appendNote(item.Note, "Follow-up replan: "+strings.TrimSpace(instruction.Steering))
 	case FollowUpNewItems:
-		if err := h.createFollowUpItems(r, item, instruction.Items); err != nil {
-			apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.BadRequest("could not create follow-up items: %s", err))
-			return
+		if err := h.createFollowUpItems(ctx, item, instruction.Items); err != nil {
+			return BacklogItem{}, FollowUp{}, apierr.BadRequest("could not create follow-up items: %s", err)
 		}
 		item.Status = StatusCompleted
 	default:
-		apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.BadRequest("unknown follow-up disposition"))
-		return
+		return BacklogItem{}, FollowUp{}, apierr.BadRequest("unknown follow-up disposition")
 	}
 	item.PendingFollowUp = nil
 	item.Updated = time.Now().UTC().Format(time.RFC3339)
 	if err := h.store.SaveItem(item); err != nil {
-		apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.Internal("failed to persist dispatched follow-up"))
-		return
+		return BacklogItem{}, FollowUp{}, apierr.Internal("failed to persist dispatched follow-up")
 	}
 	if h.eventLogger != nil {
 		h.eventLogger.EmitBacklogStatusChanged(string(kind)+"/"+name, string(StatusNeedsFollowup), string(item.Status))
 	}
-	if err := httputil.JSON(w, map[string]any{"item": item, "dispatched": true, "disposition": instruction.Disposition}); err != nil {
-		apierr.MapError(w, "[backlog] dispatch-follow-up", apierr.Internal("failed to encode response"))
-	}
+	return item, instruction, nil
 }
 
-func (h *Handler) createFollowUpItems(r *http.Request, parent BacklogItem, specs []followup.ItemSpec) error {
+func (h *Handler) createFollowUpItems(ctx context.Context, parent BacklogItem, specs []followup.ItemSpec) error {
 	if h.lifecycleService == nil {
 		return fmt.Errorf("backlog lifecycle is not available")
 	}
@@ -128,7 +131,7 @@ func (h *Handler) createFollowUpItems(r *http.Request, parent BacklogItem, specs
 			priority = 5
 		}
 		child := BacklogItem{Name: strings.TrimSpace(spec.Name), Title: strings.TrimSpace(spec.Title), Description: strings.TrimSpace(spec.Description), Kind: kind, Status: StatusBacklog, Priority: priority, DependsOn: spec.DependsOn, Milestone: parent.Milestone, Note: "Follow-up from " + string(parent.Kind) + "/" + parent.Name + ": " + strings.TrimSpace(parent.PendingFollowUp.Steering)}
-		if err := h.lifecycleService.Create(child, CreationContext{Context: r.Context(), Source: SourceProposal, DecidedBy: "operator-follow-up", Entrypoint: "review.follow_up"}); err != nil {
+		if err := h.lifecycleService.Create(child, CreationContext{Context: ctx, Source: SourceProposal, DecidedBy: "operator-follow-up", Entrypoint: "review.follow_up"}); err != nil {
 			return err
 		}
 	}

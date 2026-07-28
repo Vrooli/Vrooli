@@ -37,6 +37,12 @@ export interface MarkdownRendererProps {
   "data-testid"?: string;
 }
 
+function reactNodeText(value: ReactNode): string {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "bigint") return String(value);
+  if (Array.isArray(value)) return value.map(reactNodeText).join("");
+  return "";
+}
+
 class MarkdownErrorBoundary extends Component<{ content: string; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
@@ -56,7 +62,7 @@ const markdownTokens: CSSProperties & Record<`--${string}`, string> = {
 export function MarkdownRenderer({ content, className, inline = false, resolveInlineToken, looksLikeFileReference, onLinkClick, onFileReferenceClick, onMermaidOpen, "data-testid": testId }: MarkdownRendererProps) {
   const components = useMemo(() => ({
     code: ({ children, className: codeClass }: { children?: ReactNode; className?: string }) => {
-      const text = String(children ?? "").replace(/\n$/, "");
+      const text = reactNodeText(children).replace(/\n$/, "");
       const language = codeClass?.replace(/^language-/, "");
       if (language === "mermaid") return <MermaidDiagram code={text} onMermaidOpen={onMermaidOpen} />;
       if (language) return <CodeBlock code={text} language={language} />;

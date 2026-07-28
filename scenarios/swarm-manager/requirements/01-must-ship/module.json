@@ -253,10 +253,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/goals/handler_workflow_test.go",
+          "ref": "api/internal/goals/transition_adapter_test.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "TestGoalWorkflowApplyFilesTypedProposalExactlyOnce files a typed goal-plan proposal (create_milestone mutation) into the proposal-recorder inbox seam; TestGoalWorkflowLaunchPinsGoalSnapshot launches the declared swarm-manager/goal-plan workflow. 'Clarify goal intent' is the workflow's internal job and is not separately asserted (audit 2026-07-23)."
+          "notes": "TestGoalTransitionAdapterProjectsSharedJournalAndRecordsReceipt starts the declared goal.plan transition, projects its typed proposal receipt exactly once, and retains the shared journal for recovery. 'Clarify goal intent' is the workflow's internal job and is not separately asserted."
         }
       ]
     },
@@ -281,7 +281,7 @@
       "status": "planned",
       "prd_ref": "OT-P0-014",
       "criticality": "P0",
-      "description": "The system shall run all agentic work through declared agent-manager workflows whose prompts are canon-conformant contract skills with typed result schemas",
+      "description": "The system shall run all agentic work through declared agent-manager workflows whose prompts are canon-conformant contract skills with typed result schemas, dispatched through the registered transition catalog",
       "validation": [
         {
           "type": "test",
@@ -303,6 +303,20 @@
           "phase": "unit",
           "status": "failing",
           "notes": "TestNoDirectAgentSpawnInDomainPackages: AST guardrail that domain packages never spawn agents directly, so all agentic work routes through declared workflows."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/archtest/transition_runner_boundary_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestWorkflowTransportIsOwnedByTransitionRunner prevents domain packages from bypassing the shared transition runner with direct workflow transport calls."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/transitioncatalog/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestTransitionServiceDispatchesGenericStartAndApply and TestTransitionServiceDispatchesDeterministicTransition prove the catalog service dispatches workflow and deterministic transitions."
         }
       ]
     }

@@ -7,7 +7,7 @@ export interface NextActionFeedEntry {
   entity_kind: "backlog_item" | "goal";
   entity_ref: string;
   entity_title: string;
-  action: { id: NextActionID; compact_label: string; expanded_label: string; enabled: boolean; reason?: string; target?: string; blockers?: Array<{ code: string; message: string }>; follow_up?: { steering: string; disposition: "follow_up_run" | "replan" | "new_items"; items?: Array<{ name: string; title: string }> } };
+  action: { id: NextActionID; compact_label: string; expanded_label: string; enabled: boolean; reason?: string; target?: string; transition_key?: string; blockers?: Array<{ code: string; message: string }>; follow_up?: { steering: string; disposition: "follow_up_run" | "replan" | "new_items"; items?: Array<{ name: string; title: string }> } };
   tier: number;
   goal_priority?: number;
   backlog_rank?: number;

@@ -29,7 +29,11 @@ vi.mock("@vrooli/audio-capture-browser", () => ({
   MemoryTurnJournalStore: class MemoryTurnJournalStore { readonly kind = "memory"; },
   newSessionIdentity: (() => { let next = 0; return () => `session-${++next}`; })(),
   rememberUnfinishedSession: vi.fn(),
-  dispatchStreamMessage: (raw: string, handlers: Record<string, (...args: any[]) => void>) => {
+  dispatchStreamMessage: (raw: string, handlers: {
+    onStatus?: (code: string, text: string, processedSequence?: bigint) => void;
+    onFinal?: (text: string) => void;
+    onError?: (code: string, text: string) => void;
+  }) => {
     const message = JSON.parse(raw) as { type: string; code?: string; text?: string; processedSequence?: number };
     if (message.type === "status") handlers.onStatus?.(message.code ?? "stream_status", message.text ?? "Streaming transcription status updated.", message.processedSequence === undefined ? undefined : BigInt(message.processedSequence));
     else if (message.type === "final") handlers.onFinal?.(message.text?.trim() ?? "");

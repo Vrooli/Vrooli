@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"swarm-manager/internal/transitionrun"
+
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/handoff"
 	"swarm-manager/internal/planclient"
@@ -29,7 +31,6 @@ func (s *stubPolicyProvider) LoadPolicy() (Policy, error) {
 
 type stubAgentService struct {
 	spawnCalls int
-	spawnErr   error
 }
 
 type stubPhasedPlanWorkflow struct {
@@ -209,11 +210,12 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
 	})
 	workflow := &stubPhasedPlanWorkflow{}
 	service.SetPhasedPlanWorkflow(workflow)
@@ -619,18 +621,6 @@ func mustLoadBacklogItem(t *testing.T, path string) map[string]any {
 	return value
 }
 
-type stubInspector struct {
-	state agentmanager.RunState
-	err   error
-}
-
-func (s *stubInspector) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
-	if s.err != nil {
-		return agentmanager.RunState{}, s.err
-	}
-	return s.state, nil
-}
-
 type stubStopper struct {
 	stopCalls int
 	err       error
@@ -656,11 +646,12 @@ func TestCancel_StartingExecution(t *testing.T) {
 	stopper := &stubStopper{}
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
 	})
 	service.stopper = stopper
 	workflow := &stubPhasedPlanWorkflow{}
@@ -689,8 +680,8 @@ func TestCancel_StartingExecution(t *testing.T) {
 	if canceled.Status != StatusCanceled {
 		t.Fatalf("expected canceled, got %s", canceled.Status)
 	}
-	if canceled.AgentWorkflowApplyState != workflowApplyComplete {
-		t.Fatalf("workflow cancellation must close the consumer apply boundary, got %q", canceled.AgentWorkflowApplyState)
+	if state := transitionApplyStateFor(t, service, canceled.AgentWorkflowExecutionID); state != transitionrun.ApplyStateComplete {
+		t.Fatalf("workflow cancellation must close the consumer apply boundary, got %q", state)
 	}
 	if stopper.stopCalls != 0 {
 		t.Fatalf("workflow-owned cancellation must not stop a child run directly, got %d", stopper.stopCalls)
@@ -710,11 +701,12 @@ func TestStart_EmptyWorkflowExecutionIDFailsCleanly(t *testing.T) {
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "p"},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "p"},
+		TransitionRegistry: testTransitionRegistry(t),
 	})
 	workflow := &stubPhasedPlanWorkflow{start: agentmanager.WorkflowStart{DefinitionDigest: "sha256:def"}}
 	service.SetPhasedPlanWorkflow(workflow)
@@ -759,11 +751,12 @@ func TestCancel_NeedsReviewExecution(t *testing.T) {
 	stopper := &stubStopper{}
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
 	})
 	service.stopper = stopper
 	workflow := &stubPhasedPlanWorkflow{}

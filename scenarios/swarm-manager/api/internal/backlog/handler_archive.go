@@ -37,7 +37,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 // deleteItem removes one item and its dependent references. A missing item is
 // intentionally a successful no-op, matching DELETE's idempotent REST contract.
 func (h *Handler) deleteItem(kind BacklogKind, name string) (bool, *apierr.DomainError) {
-
 	existing, err := h.store.LoadItem(kind, name)
 	if errors.Is(err, ErrNotFound) {
 		return false, nil

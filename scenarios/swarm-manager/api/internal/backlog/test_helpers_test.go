@@ -74,24 +74,7 @@ func createReadyTestItem(t *testing.T, rootDir string, kind BacklogKind, item Ba
 }
 
 type mockAgentService struct {
-	lastReq  any
-	result   agentmanager.RunResult
-	err      error
-	spawnedC chan struct{}
-}
-
-// workflowStartFake remains a test fixture for creation tests. Plan Workshop
-// reviews are operator-started, so the fixture is deliberately not wired into
-// the handler anymore.
-type workflowStartFake struct {
-	runID string
-	err   error
-}
-
-func setupTestHandlerWithRunner(t *testing.T, runID string) (*Handler, string, *workflowStartFake, struct{}) {
-	t.Helper()
-	h, rootDir := setupTestHandler(t)
-	return h, rootDir, &workflowStartFake{runID: runID}, struct{}{}
+	result agentmanager.RunResult
 }
 
 type backlogListResponse struct {
@@ -104,27 +87,6 @@ type backlogItemResponse struct {
 
 type backlogFilesResponse struct {
 	Files []BacklogFile `json:"files"`
-}
-
-type backlogFileResponse struct {
-	File BacklogFile `json:"file"`
-}
-
-type queueBlockingReason struct {
-	Message   string `json:"message"`
-	Forceable bool   `json:"forceable"`
-}
-
-type backlogQueueResponse struct {
-	Item            BacklogItem           `json:"item"`
-	DryRun          bool                  `json:"dry_run"`
-	Queued          bool                  `json:"queued"`
-	BlockingReasons []queueBlockingReason `json:"blocking_reasons"`
-}
-
-type processPreflightEnvelope struct {
-	Item      BacklogItem    `json:"item"`
-	Preflight map[string]any `json:"preflight"`
 }
 
 func strPtr(value string) *string { return &value }

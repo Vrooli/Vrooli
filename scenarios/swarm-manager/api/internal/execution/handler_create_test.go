@@ -28,10 +28,11 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "request-fail-idea")
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: &testutil.AgentSpawner{Enabled: true},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       &testutil.AgentSpawner{Enabled: true},
+		TransitionRegistry: testTransitionRegistry(t),
 	})
 	service.SetPhasedPlanWorkflow(&stubPhasedPlanWorkflow{startErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed)})
 	handler := NewHandlerFromService(service)

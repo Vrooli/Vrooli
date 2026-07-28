@@ -20,10 +20,11 @@ func (s *Service) declaredExecutionStrategies() []transitions.ExecutionStrategy 
 	if definition, ok := s.transitionRegistry.Get("plan.execute"); ok && len(definition.Strategies) > 0 {
 		return append([]transitions.ExecutionStrategy(nil), definition.Strategies...)
 	}
-	// Unit-level consumers that do not load the scenario registry retain the
-	// sole shipped strategy; production always reads the declaration above.
+	// Consumers without a registry can validate the strategy identifier, but
+	// cannot select a workflow. Production always reads that locator from the
+	// declaration above.
 	return []transitions.ExecutionStrategy{{
-		ID: defaultExecutionStrategy, WorkflowKey: "swarm-manager/phased-plan-drain",
+		ID:          defaultExecutionStrategy,
 		DisplayName: "Phased plan drain", Description: "Executes an accepted plan one verified phase at a time.",
 		WhenToUse: "Use for accepted plans that need durable phase progress.", CostBand: "Governed execution cost.",
 	}}
@@ -283,6 +284,14 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		UpdatedAt:      now,
 	}
 
+	// Persist before starting: the runner's registered input builder reprojects
+	// the archive context from the durable record, so the record has to exist on
+	// disk before the start and again at the apply-time rebuild.
+	records = append(records, record)
+	if err := s.store.Save(records); err != nil {
+		return Record{}, err
+	}
+
 	// The declared workflow owns the spec-sync agent work. Swarm retains the
 	// archive capability and applies a matching typed terminal result explicitly.
 	res, snapshot, err := s.startSpecSyncWorkflow(ctx, record)
@@ -302,7 +311,12 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	record.Status = StatusStarting
 	record.UpdatedAt = nowRFC3339()
 
-	records = append(records, record)
+	for i := range records {
+		if records[i].ExecutionID == record.ExecutionID {
+			records[i] = record
+			break
+		}
+	}
 	if err := s.store.Save(records); err != nil {
 		return Record{}, err
 	}

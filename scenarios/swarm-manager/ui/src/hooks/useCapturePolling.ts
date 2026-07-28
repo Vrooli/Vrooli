@@ -24,15 +24,17 @@ export function useCapturePolling(): void {
     return classifying.some((capture) =>
       Boolean(capture.workflowExecutionId) || Date.now() - new Date(capture.created).getTime() <= 60_000,
     );
-  }, [captures]);
+  }, [classifying]);
 
   useStorePolling({
     enabled: shouldPoll,
     intervalMs: POLL_INTERVAL_MS,
     pollFn: () => {
-      void Promise.all(classifying
-        .filter((capture) => capture.workflowExecutionId)
-        .map((capture) => captureService.applyClassification(capture.id, capture.workflowExecutionId!).catch(() => undefined)));
+      void Promise.all(classifying.flatMap((capture) => {
+        const workflowExecutionId = capture.workflowExecutionId;
+        if (!workflowExecutionId) return [];
+        return [captureService.applyClassification(capture.id, workflowExecutionId).catch(() => undefined)];
+      }));
       void fetchCaptures({ force: true });
     },
   });

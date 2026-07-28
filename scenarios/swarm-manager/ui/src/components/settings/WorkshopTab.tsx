@@ -1,9 +1,7 @@
 import { Card } from "../ui/card";
 import { selectors } from "../../consts/selectors";
 
-export interface WorkshopTabProps {}
-
-export function WorkshopTab(_: WorkshopTabProps) {
+export function WorkshopTab() {
   return (
     <div className="space-y-6">
       <Card data-testid={selectors.settings.workshopSettings}>

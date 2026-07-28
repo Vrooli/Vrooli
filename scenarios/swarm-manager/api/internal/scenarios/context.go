@@ -245,12 +245,3 @@ func sortFixes(fixes []ScenarioFix) {
 		return fixes[i].Name < fixes[j].Name
 	})
 }
-
-func stringsContains(xs []string, target string) bool {
-	for _, x := range xs {
-		if x == target {
-			return true
-		}
-	}
-	return false
-}

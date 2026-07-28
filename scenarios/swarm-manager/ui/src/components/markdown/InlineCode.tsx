@@ -22,8 +22,14 @@ export interface InlineCodeProps {
   copyLabel?: string;
 }
 
+function reactNodeText(value: ReactNode): string {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "bigint") return String(value);
+  if (Array.isArray(value)) return value.map(reactNodeText).join("");
+  return "";
+}
+
 export function InlineCode({ children, resolveInlineToken, looksLikeFileReference, onLinkClick, onFileReferenceClick, copyLabel = "Copy code" }: InlineCodeProps) {
-  const text = String(children ?? "");
+  const text = reactNodeText(children);
   const resolution = resolveInlineToken?.(text);
   const isFile = !resolution && looksLikeFileReference?.(text);
   const { copied, copy } = useCodeCopy();

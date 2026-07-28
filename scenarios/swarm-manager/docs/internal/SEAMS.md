@@ -9,10 +9,12 @@ prompt rendering, workflow state, branching, retries, waits, budgets, and the
 append-only execution journal.
 
 The only Swarm-to-Agent-Manager programmatic boundary is
-`internal/agentmanager.WorkflowService`. Workflow choice is declared in
+`internal/transitionrunner`, which owns the `internal/agentmanager.WorkflowService`
+transport. Workflow choice is declared in
 [the transition registry](../../.vrooli/swarm-transitions/registry.json); the
 registry selects `session`, `workflow`, or `deterministic` behavior and
-cannot contain prompts or execution mechanics.
+cannot contain prompts or execution mechanics. Its declared workflow and
+deterministic apply actions are verified as a complete dispatch table at boot.
 
 ## Human sessions
 
@@ -25,9 +27,11 @@ session kinds remain readable but cannot be started.
 ## Workflow application
 
 Each workflow start records its correlation, input digest, workflow revision,
-and terminal outcome. Domain adapters validate the current item, milestone,
-plan, and evidence frontiers before applying a result. Duplicate terminal
-delivery is idempotent; stale results are recorded without mutating the domain.
+and terminal outcome in the shared `transitionrun` journal. Domain adapters
+provide the immutable input and typed apply operation; the runner validates the
+current item, milestone, plan, and evidence frontiers before applying a result.
+Duplicate terminal delivery is idempotent; stale results are recorded without
+mutating the domain. The shared sweeper resumes results claimed before a crash.
 
 ## Integration truth
 

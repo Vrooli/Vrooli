@@ -57,9 +57,11 @@ type PlanRefStore interface {
 // computeFn computes one measure's scalar value over [from, to) and returns the
 // value plus the executed-query provenance string. Shared by the serve registry
 // and the Connect RPC so a measure and its RPC report identical numbers.
-type computeFn func(ctx context.Context, c Counter, from, to time.Time) (int64, string, error)
-type rateComputeFn func(ctx context.Context, c Counter, from, to time.Time) (float64, int64, string, error)
-type durationComputeFn func(ctx context.Context, c Counter, from, to time.Time) (durationSummary, string, error)
+type (
+	computeFn         func(ctx context.Context, c Counter, from, to time.Time) (int64, string, error)
+	rateComputeFn     func(ctx context.Context, c Counter, from, to time.Time) (float64, int64, string, error)
+	durationComputeFn func(ctx context.Context, c Counter, from, to time.Time) (durationSummary, string, error)
+)
 
 // durationSummary preserves the three values that the former stats response
 // exposed for duration measures. The registry publishes Average as its scalar

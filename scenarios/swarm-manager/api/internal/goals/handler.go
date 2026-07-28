@@ -10,17 +10,15 @@ import (
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/transitions"
+	"swarm-manager/internal/transitionrunner"
 
 	"github.com/gorilla/mux"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Handler exposes HTTP endpoints for goal operations.
 type Handler struct {
 	service          *Service
-	workflow         WorkflowInvoker
-	registry         transitions.Registry
+	transitionRunner *transitionrunner.Runner
 	proposalRecorder WorkflowProposalRecorder
 	// goalProposalOps is the proposal vocabulary rendered into goal workflow
 	// prompts. It is injected (rather than read from the proposals package,
@@ -42,29 +40,8 @@ func (h *Handler) supportedOps() []any {
 	return out
 }
 
-type (
-	WorkflowInvocation struct {
-		Owner, WorkflowKey, IdempotencyKey, FirstRunNodeID                                           string
-		Input                                                                                        *structpb.Value
-		ActivityOwnerType, ActivityOwnerKind, ActivityOwnerName, ActivityOwnerTitle, ActivityPurpose string
-	}
-	WorkflowStart      struct{ ExecutionID, RunID, DefinitionDigest string }
-	WorkflowCompletion struct {
-		ExecutionID, DefinitionDigest string
-		Succeeded                     bool
-		Input, Output                 *structpb.Value
-	}
-	WorkflowInvoker interface {
-		StartWorkflow(context.Context, WorkflowInvocation) (WorkflowStart, error)
-		CollectWorkflow(context.Context, string) (WorkflowCompletion, error)
-	}
-	WorkflowProposalRecorder interface {
-		RecordGoalWorkflowProposals(context.Context, GoalWorkflowProposal) (GoalWorkflowProposalReceipt, error)
-	}
-)
-
-func (h *Handler) SetWorkflow(invoker WorkflowInvoker, registry transitions.Registry) {
-	h.workflow, h.registry = invoker, registry
+type WorkflowProposalRecorder interface {
+	RecordGoalWorkflowProposals(context.Context, GoalWorkflowProposal) (GoalWorkflowProposalReceipt, error)
 }
 
 func (h *Handler) SetWorkflowProposalRecorder(recorder WorkflowProposalRecorder) {
@@ -87,6 +64,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/goals/{name}/targets", h.RemoveTargets).Methods("DELETE")
 	r.HandleFunc("/api/v1/goals/{name}/archive-item", h.Archive).Methods("PATCH")
 	r.HandleFunc("/api/v1/goals/{name}/close-out", h.CloseOut).Methods("POST")
+	// Deprecated transition aliases: use TransitionService.StartTransition/ApplyTransition.
 	r.HandleFunc("/api/v1/goals/{name}/plan-run", h.StartPlan).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/discover-run", h.StartDiscover).Methods("POST")
 	r.HandleFunc("/api/v1/goals/{name}/milestones", h.CreateMilestone).Methods("POST")
@@ -118,13 +96,8 @@ func (h *Handler) StartMilestoneReview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) startWorkflow(w http.ResponseWriter, r *http.Request, transition, node string) {
-	if h.workflow == nil {
-		apierr.MapError(w, "[goals] workflow", apierr.Unavailable("goal workflow service is unavailable"))
-		return
-	}
-	locator, err := h.registry.ResolveWorkflow(transition)
-	if err != nil {
-		apierr.MapError(w, "[goals] workflow", apierr.Conflict("%s", err))
+	if h.transitionRunner == nil {
+		apierr.MapError(w, "[goals] workflow", apierr.Unavailable("transition runner is not configured"))
 		return
 	}
 	goal, err := h.service.Get(nameVar(r))
@@ -132,7 +105,7 @@ func (h *Handler) startWorkflow(w http.ResponseWriter, r *http.Request, transiti
 		mapServiceError(w, "[goals] workflow", err)
 		return
 	}
-	entity := map[string]any{"kind": "goal", "name": goal.Goal.Name, "version": goal.Goal.Updated}
+	subjectRef := goal.Goal.Name
 	if transition == "milestone.review" {
 		name := strings.TrimSpace(mux.Vars(r)["milestone"])
 		found := false
@@ -146,36 +119,18 @@ func (h *Handler) startWorkflow(w http.ResponseWriter, r *http.Request, transiti
 			apierr.MapError(w, "[goals] workflow", apierr.NotFound("milestone not found"))
 			return
 		}
-		entity = map[string]any{"kind": "milestone", "name": name, "goalName": goal.Goal.Name, "version": goal.Goal.Updated}
+		subjectRef = goal.Goal.Name + "/" + name
 	}
-	snapshot, err := workflowSnapshot(goal)
-	if err != nil {
-		apierr.MapError(w, "[goals] workflow", apierr.Internal("encode goal snapshot"))
-		return
+	activity := &transitionrunner.Activity{OwnerType: "scenario", OwnerKind: "goal", OwnerName: goal.Goal.Name, Purpose: "process"}
+	if transition == "milestone.review" {
+		activity = &transitionrunner.Activity{OwnerType: "milestone", OwnerKind: "goal", OwnerName: subjectRef, Purpose: "milestone_review"}
 	}
-	input, err := structpb.NewValue(map[string]any{"entity": entity, "snapshot": snapshot, "supported_ops": h.supportedOps()})
-	if err != nil {
-		apierr.MapError(w, "[goals] workflow", apierr.BadRequest("build workflow input"))
-		return
-	}
-	activityType, activityKind, activityName, activityPurpose := "scenario", "goal", goal.Goal.Name, "process"
-	if milestone := strings.TrimSpace(mux.Vars(r)["milestone"]); milestone != "" {
-		activityType, activityKind, activityName, activityPurpose = "milestone", "goal", goal.Goal.Name+"/"+milestone, "milestone_review"
-	}
-	start, err := h.workflow.StartWorkflow(r.Context(), WorkflowInvocation{
-		Owner: locator.Owner, WorkflowKey: locator.Key, Input: input,
-		IdempotencyKey: transition + "/" + goal.Goal.Name + "/" + goal.Goal.Updated, FirstRunNodeID: node,
-		ActivityOwnerType: activityType, ActivityOwnerKind: activityKind, ActivityOwnerName: activityName, ActivityPurpose: activityPurpose,
-	})
+	start, err := h.transitionRunner.StartWith(r.Context(), transition, subjectRef, transitionrunner.PreparedInput{FirstRunNodeID: node, Activity: activity})
 	if err != nil {
 		apierr.MapError(w, "[goals] workflow", apierr.BadGateway("start workflow: %s", err))
 		return
 	}
-	if err := h.writeWorkflowPending(goal.Goal.Name, workflowPending{ExecutionID: start.ExecutionID, DefinitionDigest: start.DefinitionDigest, Transition: transition, GoalVersion: goal.Goal.Updated, Milestone: strings.TrimSpace(mux.Vars(r)["milestone"])}); err != nil {
-		apierr.MapError(w, "[goals] workflow", apierr.Internal("persist workflow correlation"))
-		return
-	}
-	writeJSON(w, "[goals] workflow", map[string]any{"execution_id": start.ExecutionID, "run_id": start.RunID, "definition_digest": start.DefinitionDigest})
+	writeJSON(w, "[goals] workflow", map[string]any{"execution_id": start.ExecutionID, "definition_digest": start.DefinitionDigest})
 }
 
 // ListPendingWorkflowRuns reports terminal goal workflow results that have not
@@ -193,12 +148,13 @@ func (h *Handler) ListPendingWorkflowRuns(w http.ResponseWriter, _ *http.Request
 // ApplyWorkflow validates and projects a terminal workflow result into the
 // session-backed operator proposal store. It never mutates the goal graph.
 func (h *Handler) ApplyWorkflow(w http.ResponseWriter, r *http.Request) {
-	result, err := h.applyWorkflow(r.Context(), nameVar(r), strings.TrimSpace(mux.Vars(r)["execution_id"]))
+	goalName, executionID := nameVar(r), strings.TrimSpace(mux.Vars(r)["execution_id"])
+	applied, err := h.ApplyWorkflowResult(r.Context(), goalName, executionID)
 	if err != nil {
 		apierr.MapError(w, "[goals] apply workflow", apierr.Conflict("%s", err))
 		return
 	}
-	writeJSON(w, "[goals] apply workflow", result)
+	writeJSON(w, "[goals] apply workflow", applied)
 }
 
 func workflowSnapshot(goal *GoalWithScope) (map[string]any, error) {
@@ -286,6 +242,9 @@ func (h *Handler) CloseOut(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, "[goals] close-out", goal)
 }
+
+// CloseOutGoal is the domain mutation for goal.close_out.
+func (h *Handler) CloseOutGoal(name string) (*Goal, error) { return h.service.CloseOut(name) }
 
 type targetsRequest struct {
 	Targets []string `json:"targets"`

@@ -78,7 +78,7 @@ func (s *Server) getBacklogWorkFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, item := range activities {
-		entries = append(entries, workFeedEntry{ID: "activity/" + item.ActivityID, Kind: "workflow", Title: workTitle(item.Metadata["workflow_key"], string(item.Purpose)), Outcome: string(item.Status), Actor: item.RequestedBy, StartedAt: firstTime(item.StartedAt, item.RequestedAt), EndedAt: item.FinishedAt, Correlation: compactCorrelation(map[string]string{"activity_id": item.ActivityID, "run_id": item.RunID, "workflow_execution_id": item.Metadata["workflow_execution_id"]}), DetailRef: "/api/v1/agent-activities/" + item.ActivityID, DetailAPIRef: "/api/v1/agent-activities/" + item.ActivityID})
+		entries = append(entries, workFeedEntry{ID: "activity/" + item.ActivityID, Kind: "workflow", Title: workTitle(string(item.Purpose)), Outcome: string(item.Status), Actor: item.RequestedBy, StartedAt: firstTime(item.StartedAt, item.RequestedAt), EndedAt: item.FinishedAt, Correlation: compactCorrelation(map[string]string{"activity_id": item.ActivityID, "run_id": item.RunID, "workflow_execution_id": item.Metadata["workflow_execution_id"]}), DetailRef: "/api/v1/agent-activities/" + item.ActivityID, DetailAPIRef: "/api/v1/agent-activities/" + item.ActivityID})
 	}
 	rounds, err := s.reviewSvc.ListRounds(kind, name)
 	if err != nil {
@@ -137,8 +137,8 @@ func firstTime(values ...string) string {
 	return ""
 }
 
-func workTitle(key, fallback string) string {
-	if key == "swarm-manager/phased-plan-drain" {
+func workTitle(fallback string) string {
+	if fallback == "process" {
 		return "Executing plan"
 	}
 	if fallback == "review" {

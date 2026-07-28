@@ -314,7 +314,6 @@
     "maxWaitSeconds": 60
   },
   "metadata": {
-    "consumerMutationOwner": "swarm-manager",
-    "transition": "work.review"
+    "consumerMutationOwner": "swarm-manager"
   }
 }

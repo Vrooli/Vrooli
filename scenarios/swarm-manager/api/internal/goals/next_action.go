@@ -57,5 +57,5 @@ func ResolveNextAction(goal Goal, input NextActionInput) (backlog.NextActionProj
 }
 
 func goalAction(id backlog.NextActionID, compact, expanded, reason, target string) backlog.NextActionProjection {
-	return backlog.NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: true, Reason: reason, Target: target}
+	return backlog.NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: true, Reason: reason, Target: target, TransitionKey: backlog.TransitionKeyForNextAction(id)}
 }

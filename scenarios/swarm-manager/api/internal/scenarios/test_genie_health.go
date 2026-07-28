@@ -2,15 +2,15 @@ package scenarios
 
 import (
 	"context"
+	"net/http"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
-	"net/http"
-	"time"
 )
 
 // TestGenieHealthClient is deliberately limited to canonical persisted

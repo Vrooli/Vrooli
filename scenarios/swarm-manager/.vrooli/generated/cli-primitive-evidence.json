@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "swarm-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "ed21ef5c49db2a06ddf637895aedde788fa8db1d68c4d096864d10ed27f9beba",
+  "manifest_hash": "943acc238ed1c3f1ed037f03d9360b6e22abc120818b0f7ba0c4d07da53b3fcb",
   "commands": [
     {
       "path": "agent-manager metrics-sandbox-adoption",
@@ -907,6 +907,27 @@
       "group": "stats",
       "command": "throughput",
       "binding": "."
+    },
+    {
+      "path": "transitions apply",
+      "group": "transitions",
+      "command": "apply",
+      "binding": "TransitionService.ApplyTransition",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "transitions list",
+      "group": "transitions",
+      "command": "list",
+      "binding": "TransitionService.ListTransitions",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "transitions start",
+      "group": "transitions",
+      "command": "start",
+      "binding": "TransitionService.StartTransition",
+      "observed_primitive": "proto_mutation"
     }
   ]
 }

@@ -8,8 +8,6 @@ import (
 	"swarm-manager/internal/idgen"
 )
 
-const sessionArtifactMigrationKey = "agent-session-artifacts/v1"
-
 func (s *Service) AttachArtifact(ctx context.Context, artifact Artifact) (Artifact, error) {
 	artifacts, err := s.AttachArtifacts(ctx, []Artifact{artifact})
 	if err != nil {

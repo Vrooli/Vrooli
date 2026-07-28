@@ -63,8 +63,9 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		// the backlog item (ownerKeyFor), and a fixup shares the parent's
 		// kind/name, so it transparently sees the same EngagementStore set. The
 		// fixup's own pre-merge hold expands the set if it touches new scenarios.
-		CreatedAt: now,
-		UpdatedAt: now,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		OperatorNote: buildFinalizationFeedback(record.Finalization),
 	}
 
 	records, loadErr := s.store.Load()
@@ -73,8 +74,15 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		return
 	}
 	records = append(records, fixupRecord)
+	// Persist before starting. The runner's input builder reads the durable
+	// record, so an unsaved fixup would build an empty snapshot here and a
+	// different one at apply time.
+	if saveErr := s.store.Save(records); saveErr != nil {
+		slog.Error("failed to persist fixup record before start", "err", saveErr)
+		return
+	}
 
-	res, snapshot, startErr := s.startWorkWorkflow(ctx, item, fixupRecord, *record, "fixup", buildFinalizationFeedback(record.Finalization))
+	res, snapshot, startErr := s.startWorkWorkflow(ctx, fixupRecord, "fixup")
 	if startErr != nil || strings.TrimSpace(res.ExecutionID) == "" {
 		failureReason := "fixup workflow returned no execution id"
 		if startErr != nil {
@@ -181,9 +189,9 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		return Record{}, apierr.BadRequest("cannot follow up execution in %q state", parent.Status)
 	}
 
-	// Load backlog item for context.
-	item, loadErr := s.loadBacklogItemByRecord(parent)
-	if loadErr != nil {
+	// Confirm the backlog item still resolves before creating a record for it.
+	// The snapshot itself is built by the runner's registered input builder.
+	if _, loadErr := s.loadBacklogItemByRecord(parent); loadErr != nil {
 		return Record{}, fmt.Errorf("cannot follow up: %w", loadErr)
 	}
 
@@ -207,14 +215,23 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		FollowUpSourceReviewRef:  strings.TrimSpace(req.SourceReviewRef),
 		CreatedAt:                now,
 		UpdatedAt:                now,
+		OperatorNote:             req.Context,
 	}
 	if req.FollowUpType == "fixup" {
 		followUpRecord.FixupAttempt = parent.FixupAttempt + 1
 	}
 
+	// Persist before starting. The runner's input builder reads the durable
+	// record, so the operator note has to be on disk before the snapshot is
+	// built — and before the apply-time rebuild has to reproduce it.
+	records = append(records, followUpRecord)
+	if err := s.store.Save(records); err != nil {
+		return Record{}, fmt.Errorf("failed to save follow-up record: %w", err)
+	}
+
 	// The declared workflow owns the prompt, run lifecycle, and structured
 	// result. This adapter supplies only an immutable domain snapshot.
-	res, snapshot, startErr := s.startWorkWorkflow(ctx, item, followUpRecord, *parent, runType, req.Context)
+	res, snapshot, startErr := s.startWorkWorkflow(ctx, followUpRecord, runType)
 	if startErr != nil {
 		return Record{}, wrapAgentError(startErr)
 	}
@@ -231,7 +248,12 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	followUpRecord.Status = StatusStarting
 	followUpRecord.StartedAt = now
 
-	records = append(records, followUpRecord)
+	for i := range records {
+		if records[i].ExecutionID == followUpRecord.ExecutionID {
+			records[i] = followUpRecord
+			break
+		}
+	}
 	if err := s.store.Save(records); err != nil {
 		return Record{}, fmt.Errorf("failed to save follow-up record: %w", err)
 	}

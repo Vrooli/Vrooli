@@ -7,7 +7,10 @@
 // archive or follow up on a completed backlog item.
 package review
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 // EvidenceType enumerates the kinds of evidence a review agent can produce.
 type EvidenceType string
@@ -53,6 +56,11 @@ type Round struct {
 	// Disposition is the review's bounded recommendation for the common Plan
 	// Workshop loop. It is not a terminal decision and never mutates work.
 	Disposition *Disposition `json:"disposition,omitempty"`
+	// AgentWorkflowSnapshot is the immutable review request this round was
+	// started from. It is persisted because the transition runner rebuilds the
+	// input at apply time to detect mid-run edits, and the GCT results and
+	// baseline diffs it contains cannot be re-derived cheaply or identically.
+	AgentWorkflowSnapshot json.RawMessage `json:"agent_workflow_snapshot,omitempty"`
 	// RunID is the agent-manager run ID for the review agent session.
 	RunID string `json:"run_id,omitempty"`
 	// CurrentRunStatus is the live agent-manager status for an in-flight review run.

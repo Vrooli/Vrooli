@@ -100,14 +100,6 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 	}
 	records = append(records, retryRecord)
 	return s.startPlanOperationLocked(ctx, records, len(records)-1, retryRecord, item)
-
-	records = append(records, retryRecord)
-	if err := s.store.Save(records); err != nil {
-		return Record{}, fmt.Errorf("failed to save retry record: %w", err)
-	}
-
-	s.dispatchStatusUpdate(retryRecord)
-	return retryRecord, nil
 }
 
 // isInFlightStatus reports whether a record is in a non-terminal state for

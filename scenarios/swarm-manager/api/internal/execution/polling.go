@@ -21,11 +21,6 @@ func isInspectableStatus(status Status) bool {
 	return status == StatusStarting || status == StatusRunning || status == StatusNeedsReview
 }
 
-// isTerminalStatus reports whether a status is a final run outcome.
-func isTerminalStatus(status Status) bool {
-	return status == StatusCompleted || status == StatusFailed || status == StatusCanceled
-}
-
 // ProcessActiveExecutions advances agent-manager-backed executions, drains
 // pending items when capacity opens, and drives post-run finalization work.
 func (s *Service) ProcessActiveExecutions(ctx context.Context) error {

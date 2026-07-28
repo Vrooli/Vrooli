@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,8 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
 	"swarm-manager/internal/transitions"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -20,7 +23,6 @@ import (
 // capturingSpawner supplies agent availability and run inspection for workflow tests.
 type capturingSpawner struct {
 	enabled  bool
-	captured any
 	runState agentmanager.RunState
 	stateErr error
 }
@@ -36,11 +38,15 @@ type fakeReviewWorkflow struct {
 	invocation agentmanager.Invocation
 	completion agentmanager.InvocationCompletion
 	collects   int
+	start      agentmanager.WorkflowStart
 }
 
 func (f *fakeReviewWorkflow) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
 	f.calls++
 	f.invocation = invocation
+	if f.start.ExecutionID != "" {
+		return f.start, nil
+	}
 	return agentmanager.WorkflowStart{ExecutionID: "review-workflow", RunID: "test-run-id", DefinitionDigest: "sha256:review"}, nil
 }
 
@@ -50,10 +56,6 @@ func (f *fakeReviewWorkflow) CollectWorkflow(context.Context, string) (agentmana
 }
 
 func newTestService(spawner *capturingSpawner, promptResult string) *Service {
-	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
-	if err != nil {
-		panic(err)
-	}
 	svc := &Service{
 		dataRoot:      "/tmp/test-backlog",
 		inspector:     spawner,
@@ -69,12 +71,24 @@ func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 		// Disable the abandoned-round age backstop by default so tests that use
 		// fixed placeholder timestamps aren't force-failed by it. Tests that
 		// exercise the backstop set roundMaxAge + clock explicitly.
-		roundMaxAge:        100 * 365 * 24 * time.Hour,
-		activeRounds:       make(map[string]activeRound),
-		workflow:           &fakeReviewWorkflow{},
-		transitionRegistry: registry,
+		roundMaxAge:  100 * 365 * 24 * time.Hour,
+		activeRounds: make(map[string]activeRound),
 	}
+	setTestReviewRunner(nil, svc, &fakeReviewWorkflow{})
 	return svc
+}
+
+func setTestReviewRunner(t *testing.T, svc *Service, workflow *fakeReviewWorkflow) {
+	if t != nil {
+		t.Helper()
+	}
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		panic(err)
+	}
+	runner := transitionrunner.New(registry, workflow, transitionrun.NewFileStore(filepath.Join(os.TempDir(), "review-transition-tests", fmt.Sprintf("%d", time.Now().UnixNano()))), nil)
+	svc.RegisterTransitionAdapter(runner)
+	svc.SetTransitionRunner(runner)
 }
 
 // TestRefreshGatheringRounds_InvokesOnRoundTerminal verifies that when a
@@ -139,7 +153,7 @@ func TestStartReview_StartsDeclaredWorkflowAndWritesRound(t *testing.T) {
 	itemDir := setupItemDir(t, "task")
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
 	workflow := &fakeReviewWorkflow{}
-	svc.workflow = workflow
+	setTestReviewRunner(t, svc, workflow)
 
 	err := svc.startReview(context.Background(), startReviewParams{
 		ExecutionID: "exec-123",
@@ -174,7 +188,7 @@ func TestStartReview_StartsDeclaredWorkflowAndWritesRound(t *testing.T) {
 func TestStartReview_RequiresWorkflow(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "instructions")
-	svc.workflow = nil
+	svc.transitionRunner = nil
 	itemDir := setupItemDir(t, "task")
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
 
@@ -184,7 +198,7 @@ func TestStartReview_RequiresWorkflow(t *testing.T) {
 		BacklogName: "test-item",
 		ItemDir:     itemDir,
 	})
-	if err == nil || !strings.Contains(err.Error(), "independent review workflow service is not available") {
+	if err == nil || !strings.Contains(err.Error(), "transition runner is not configured") {
 		t.Fatalf("expected workflow-unavailable error, got %v", err)
 	}
 }
@@ -196,14 +210,24 @@ func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"handoff": map[string]any{"verdict": "ready", "agent_assessment": "verified", "evidence": []any{}, "improvement_suggestions": []any{}, "regression_introduced": false, "notes": []any{}, "summary": "ready", "disposition": map[string]any{"kind": "archive", "rationale": "Evidence is sufficient", "confidence": "high"}}}})
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "accepted", "handoff": map[string]any{"verdict": "ready", "agent_assessment": "verified", "evidence": []any{}, "improvement_suggestions": []any{}, "regression_introduced": false, "notes": []any{}, "summary": "ready", "disposition": map[string]any{"kind": "archive", "rationale": "Evidence is sufficient", "confidence": "high"}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	workflow := &fakeReviewWorkflow{completion: agentmanager.InvocationCompletion{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}}
+	workflow := &fakeReviewWorkflow{start: agentmanager.WorkflowStart{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def"}, completion: agentmanager.InvocationCompletion{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}}
 	svc := newTestService(&capturingSpawner{enabled: true}, "")
-	svc.workflow = workflow
+	setTestReviewRunner(t, svc, workflow)
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	// Persist the round with its request snapshot first, then start through the
+	// registered builder — the same order production uses, so the version the
+	// correlation pins is the version the apply-time rebuild recomputes.
+	requestSnapshot := []byte(`{"ExecutionID":"exec-1","BacklogKind":"task","BacklogName":"item"}`)
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowSnapshot: requestSnapshot}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.transitionRunner.StartWith(context.Background(), "work.review", reviewSubject("task", "item", 1), transitionrunner.PreparedInput{}); err != nil {
+		t.Fatal(err)
+	}
 	observed := 0
 	svc.SetRoundTerminalObserver(func(_ context.Context, kind, name string, round Round) {
 		observed++
@@ -211,7 +235,7 @@ func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 			t.Fatalf("unexpected terminal projection: %s/%s %#v", kind, name, round)
 		}
 	})
-	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowExecutionID: "workflow-1", AgentWorkflowDefinition: "sha256:def", AgentWorkflowVersion: "sha256:snapshot"}); err != nil {
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowSnapshot: requestSnapshot, AgentWorkflowExecutionID: "workflow-1", AgentWorkflowDefinition: "sha256:def", AgentWorkflowVersion: snapshotVersion(requestSnapshot)}); err != nil {
 		t.Fatal(err)
 	}
 	first, replay, err := svc.ApplyWorkflowRound(context.Background(), "task", "item", 1)
@@ -222,7 +246,7 @@ func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 		t.Fatalf("terminal observer calls = %d, want 1", observed)
 	}
 	second, replay, err := svc.ApplyWorkflowRound(context.Background(), "task", "item", 1)
-	if err != nil || !replay || second.AgentWorkflowApplyState != reviewWorkflowApplyComplete || workflow.collects != 1 {
+	if err != nil || !replay || second.Status != RoundStatusComplete || workflow.collects != 1 {
 		t.Fatalf("replay = %#v replay=%v collects=%d err=%v", second, replay, workflow.collects, err)
 	}
 }
@@ -233,24 +257,40 @@ func TestApplyEvidenceRequestWorkflow_ExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"summary": "Evidence gathered", "evidence": []any{map[string]any{"id": "evidence-1", "type": "log", "title": "Test log", "description": "The requested evidence."}}}})
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "fulfilled", "summary": "Evidence gathered", "evidence": []any{map[string]any{"id": "evidence-1", "type": "log", "title": "Test log", "description": "The requested evidence."}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	workflow := &fakeReviewWorkflow{completion: agentmanager.InvocationCompletion{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}}
+	workflow := &fakeReviewWorkflow{start: agentmanager.WorkflowStart{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def"}, completion: agentmanager.InvocationCompletion{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}}
 	svc := newTestService(&capturingSpawner{enabled: true}, "")
-	svc.workflow = workflow
+	setTestReviewRunner(t, svc, workflow)
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
-	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, RequestThreads: []RequestThread{{ID: "thread-1", Status: "pending", AgentWorkflowExecutionID: "workflow-1", AgentWorkflowDefinition: "sha256:def", AgentWorkflowVersion: "sha256:snapshot"}}}); err != nil {
+	// Save the thread before starting so the registered builder can reproject it,
+	// then reuse that same projection for the stored version.
+	thread := RequestThread{ID: "thread-1", Status: "pending", Messages: []RequestMessage{{Role: "user", Content: "please gather", Timestamp: time.Now().UTC().Format(time.RFC3339)}}}
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, RequestThreads: []RequestThread{thread}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.transitionRunner.StartWith(context.Background(), "review.evidence_request", reviewThreadSubject("task", "item", 1, "thread-1"), transitionrunner.PreparedInput{}); err != nil {
+		t.Fatal(err)
+	}
+	rebuilt, err := svc.buildEvidenceRequestInput(context.Background(), reviewThreadSubject("task", "item", 1, "thread-1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	thread.AgentWorkflowExecutionID, thread.AgentWorkflowDefinition, thread.AgentWorkflowVersion = "workflow-1", "sha256:def", rebuilt.EntityVersion
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, RequestThreads: []RequestThread{thread}}); err != nil {
 		t.Fatal(err)
 	}
 
 	first, replay, err := svc.ApplyEvidenceRequestWorkflow(context.Background(), "task", "item", 1, "thread-1")
-	if err != nil || replay || len(first.Evidence) != 1 || first.RequestThreads[0].Status != "fulfilled" || len(first.RequestThreads[0].Messages) != 1 {
+	// Two messages: the operator request the thread was created with, and the
+	// agent reply the apply appended.
+	if err != nil || replay || len(first.Evidence) != 1 || first.RequestThreads[0].Status != "fulfilled" || len(first.RequestThreads[0].Messages) != 2 {
 		t.Fatalf("first apply = %#v replay=%v err=%v", first, replay, err)
 	}
 	second, replay, err := svc.ApplyEvidenceRequestWorkflow(context.Background(), "task", "item", 1, "thread-1")
-	if err != nil || !replay || second.RequestThreads[0].AgentWorkflowApplyState != reviewWorkflowApplyComplete || workflow.collects != 1 {
+	if err != nil || !replay || second.RequestThreads[0].Status != "fulfilled" || workflow.collects != 1 {
 		t.Fatalf("replay = %#v replay=%v collects=%d err=%v", second, replay, workflow.collects, err)
 	}
 }
@@ -567,7 +607,7 @@ func TestStartReview_DoesNotTrackRunnerOwnedRound(t *testing.T) {
 	svc := newTestService(spawner, "instructions")
 	itemDir := setupItemDir(t, "task")
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
-	svc.workflow = &fakeReviewWorkflow{}
+	setTestReviewRunner(t, svc, &fakeReviewWorkflow{})
 
 	err := svc.startReview(context.Background(), startReviewParams{
 		ExecutionID: "exec-track",
@@ -671,7 +711,7 @@ func TestTriggerReviewAgent_RoutesToDeclaredWorkflow(t *testing.T) {
 	itemDir := setupItemDir(t, "research")
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
 	workflow := &fakeReviewWorkflow{}
-	svc.workflow = workflow
+	setTestReviewRunner(t, svc, workflow)
 	svc.loadExecutionContext = func(_ context.Context, executionID string) (*ExecutionContext, error) {
 		if executionID != "exec-rebuild" {
 			t.Fatalf("unexpected execution id: %s", executionID)

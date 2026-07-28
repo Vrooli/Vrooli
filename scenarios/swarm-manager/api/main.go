@@ -49,7 +49,6 @@ import (
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/planimport"
-	"swarm-manager/internal/planrepair"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/proposals"
@@ -62,6 +61,9 @@ import (
 	"swarm-manager/internal/sessioncontext"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/stats"
+	"swarm-manager/internal/transitioncatalog"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
 	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/handlers"
@@ -79,54 +81,55 @@ import (
 )
 
 type Server struct {
-	router               *mux.Router
-	agentSvc             *agentmanager.AgentService
-	agentActivitySvc     *agentactivity.Service
-	agentSessionSvc      *agentsessions.Service
-	agentSessionStore    agentsessions.Store
-	planWorkshopWorkflow *agentmanager.WorkflowService
-	settingsStore        *settings.Store
-	integrationStatus    *integrationstatus.Provider
-	backlogHandler       *backlog.Handler
-	nextActions          *nextActionProjectionCache
-	capturesHandler      *captures.Handler
-	recordsService       *records.Service
-	recordsHandler       *records.Handler
-	recordsStore         records.Store
-	scenariosHandler     *scenarios.Handler
-	milestoneAssigner    backlog.ItemAttacher
-	goalService          *goals.Service
-	goalsHandler         *goals.Handler
-	overviewSvc          *overview.Service
-	executionSvc         *execution.Service
-	executionHandler     *execution.Handler
-	reviewSvc            *review.Service
-	reviewHandler        *review.Handler
-	executionStopChan    chan struct{}
-	reviewStopChan       chan struct{}
-	graphBroker          *graph.Broker
-	graphDispatch        *graph.Dispatch
-	graphProjection      *graph.ProjectionService
-	queueHandler         *queue.Handler
-	scenarioRoot         string
-	dataRoot             string
-	cacheRoot            string
-	promptClient         promptmanager.Client
-	eventDB              *database.RoutedDB
-	emitter              *eventlog.Emitter
-	statsEngine          *stats.Engine
-	eventRepo            *eventlog.SQLiteRepository
-	aiSearchSvc          *aisearch.Service
-	aiSearchReconciler   *aisearch.Reconciler
-	aiSearchSyncLoop     *aisearch.SyncLoop
-	aiSearchStopChan     chan struct{}
-	reviewSweeperStop    chan struct{}
-	autoFilerSweeper     *autofiler.Sweeper
-	autoFilerStopChan    chan struct{}
-	goalWorkflowSweeper  *goals.WorkflowSweeper
-	goalWorkflowStop     chan struct{}
-	audioToolsResolver   audiotools.URLResolver
-	opsAggregator        *operations.Aggregator
+	router              *mux.Router
+	agentSvc            *agentmanager.AgentService
+	agentActivitySvc    *agentactivity.Service
+	agentSessionSvc     *agentsessions.Service
+	agentSessionStore   agentsessions.Store
+	transitionRegistry  transitions.Registry
+	transitionRunner    *transitionrunner.Runner
+	transitionSweeper   *transitionrunner.Sweeper
+	transitionSweepStop chan struct{}
+	settingsStore       *settings.Store
+	integrationStatus   *integrationstatus.Provider
+	backlogHandler      *backlog.Handler
+	nextActions         *nextActionProjectionCache
+	capturesHandler     *captures.Handler
+	recordsService      *records.Service
+	recordsHandler      *records.Handler
+	recordsStore        records.Store
+	scenariosHandler    *scenarios.Handler
+	milestoneAssigner   backlog.ItemAttacher
+	goalService         *goals.Service
+	goalsHandler        *goals.Handler
+	overviewSvc         *overview.Service
+	executionSvc        *execution.Service
+	executionHandler    *execution.Handler
+	reviewSvc           *review.Service
+	reviewHandler       *review.Handler
+	executionStopChan   chan struct{}
+	reviewStopChan      chan struct{}
+	graphBroker         *graph.Broker
+	graphDispatch       *graph.Dispatch
+	graphProjection     *graph.ProjectionService
+	queueHandler        *queue.Handler
+	scenarioRoot        string
+	dataRoot            string
+	cacheRoot           string
+	promptClient        promptmanager.Client
+	eventDB             *database.RoutedDB
+	emitter             *eventlog.Emitter
+	statsEngine         *stats.Engine
+	eventRepo           *eventlog.SQLiteRepository
+	aiSearchSvc         *aisearch.Service
+	aiSearchReconciler  *aisearch.Reconciler
+	aiSearchSyncLoop    *aisearch.SyncLoop
+	aiSearchStopChan    chan struct{}
+	reviewSweeperStop   chan struct{}
+	autoFilerSweeper    *autofiler.Sweeper
+	autoFilerStopChan   chan struct{}
+	audioToolsResolver  audiotools.URLResolver
+	opsAggregator       *operations.Aggregator
 
 	// Audio ports — all backed by audio-tools. Mirrors web-console's
 	// audio integration: the UI talks same-origin to swarm-manager's own
@@ -192,19 +195,19 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	})
 
 	srv := &Server{
-		router:             mux.NewRouter(),
-		agentSvc:           agentSvc,
-		executionStopChan:  make(chan struct{}),
-		reviewStopChan:     make(chan struct{}),
-		aiSearchStopChan:   make(chan struct{}),
-		reviewSweeperStop:  make(chan struct{}),
-		autoFilerStopChan:  make(chan struct{}),
-		goalWorkflowStop:   make(chan struct{}),
-		scenarioRoot:       scenarioRoot,
-		dataRoot:           dataRoot,
-		cacheRoot:          cacheRoot,
-		promptClient:       promptClient,
-		audioToolsResolver: resolveAudioToolsResolver(),
+		router:              mux.NewRouter(),
+		agentSvc:            agentSvc,
+		executionStopChan:   make(chan struct{}),
+		reviewStopChan:      make(chan struct{}),
+		aiSearchStopChan:    make(chan struct{}),
+		reviewSweeperStop:   make(chan struct{}),
+		autoFilerStopChan:   make(chan struct{}),
+		transitionSweepStop: make(chan struct{}),
+		scenarioRoot:        scenarioRoot,
+		dataRoot:            dataRoot,
+		cacheRoot:           cacheRoot,
+		promptClient:        promptClient,
+		audioToolsResolver:  resolveAudioToolsResolver(),
 	}
 
 	// Wire audioports against an audio-tools client. Mirrors web-console:
@@ -252,6 +255,7 @@ func (s *Server) setupRoutes() {
 	s.router.Use(identity.Middleware(identity.CLIUtilVerifier{}))
 	scenarioRoot := s.scenarioRoot
 	scenariosDir := filepath.Dir(scenarioRoot)
+	s.transitionRegistry = loadTransitionRegistry(scenarioRoot)
 
 	// --- Infrastructure ---
 	s.registerHealthRoutes()
@@ -269,7 +273,6 @@ func (s *Server) setupRoutes() {
 	backlogHandler := s.registerBacklogRoutes(s.dataRoot, scenarioRoot)
 	decisionProvider := sessionDecisionProvider{sessions: s.agentSessionSvc}
 	backlogHandler.SetDecisionCountProvider(decisionProvider)
-	s.registerPlanWorkshopRoutes(s.dataRoot)
 	goalService := s.registerGoalsRoutes(s.dataRoot, backlogHandler)
 	feed := nextActionFeed{backlog: backlogHandler, goals: goalService, decisions: decisionProvider}
 	// One projection serves both the inbox feed and the Plan board. It is
@@ -287,6 +290,17 @@ func (s *Server) setupRoutes() {
 	}
 	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.wireWorkflowStartGuards(backlogHandler, execSvc)
+	s.configureTransitionRunner()
+	s.registerPlanWorkshopRoutes(s.dataRoot)
+	if err := s.transitionRunner.VerifyDispatchTable(); err != nil {
+		panic(fmt.Errorf("verify transition dispatch table: %w", err))
+	}
+	if err := transitions.VerifyApplyActions(s.transitionRegistry, mergeApplyActions(s.deterministicApplyActions(), s.sessionApplyActions()), transitions.KindDeterministic, transitions.KindSession); err != nil {
+		panic(fmt.Errorf("verify non-workflow transition dispatch table: %w", err))
+	}
+	applyActions, inputBuilders := s.transitionRunner.Counts()
+	slog.Info("transition dispatch table verified", "workflow_apply_actions", applyActions, "deterministic_apply_actions", len(s.deterministicApplyActions()), "input_builders", inputBuilders)
+	transitioncatalog.RegisterRoutes(s.router, s.transitionRegistry, s.transitionRunner, s)
 	s.registerWorkFeedRoutes()
 	s.registerQueueRoutes(scenarioRoot)
 
@@ -442,15 +456,7 @@ func (s *Server) registerProfilingRoutes() {
 
 func (s *Server) registerBacklogRoutes(dataRoot, scenarioRoot string) *backlog.Handler {
 	backlogHandler := backlog.NewHandlerWithClients(dataRoot, scenarioRoot, s.requireTrackedAgentService(), nil)
-	if path, err := runtimepaths.StatePath("plan-repairs.json"); err == nil {
-		backlogHandler.SetPlanRepair(planrepair.NewService(planrepair.NewStore(path), agentmanager.NewWorkflowService()))
-	} else {
-		panic(err)
-	}
 	backlogHandler.SetAgentSessionArtifactRecorder(s.agentSessionSvc)
-	if s.agentActivitySvc != nil {
-		backlogHandler.SetWorkflowActivityRecorder(s.agentActivitySvc)
-	}
 	s.agentSessionSvc.SetBacklogBatchApplier(backlogHandler)
 	backlogHandler.RegisterRoutes(s.router)
 	s.backlogHandler = backlogHandler
@@ -713,7 +719,7 @@ func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler) *overvi
 }
 
 func (s *Server) registerCapturesRoutes(cacheRoot string, backlogHandler *backlog.Handler) {
-	capturesHandler := captures.NewHandler(cacheRoot)
+	capturesHandler := captures.NewHandler(cacheRoot, s.dataRoot, s.transitionRegistry)
 	capturesHandler.SetBacklogCreator(captures.NewBacklogItemCreatorAdapter(backlogHandler.Store()))
 	capturesHandler.RegisterRoutes(s.router)
 	s.capturesHandler = capturesHandler
@@ -778,16 +784,7 @@ func (s *Server) registerIntegrationStatusRoutes() {
 }
 
 func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, executionService *execution.Service) {
-	registry, err := transitions.LoadDir(filepath.Join(s.scenarioRoot, ".vrooli", "swarm-transitions"))
-	if err != nil {
-		// Unit fixtures use a minimal temporary scenario root and intentionally
-		// omit declaration assets. Real scenario roots carry this directory and
-		// fail closed for malformed registry contents below.
-		if errors.Is(err, os.ErrNotExist) {
-			return
-		}
-		panic(fmt.Errorf("load workflow transition registry: %w", err))
-	}
+	registry := s.transitionRegistry
 	s.integrationStatus.SetTransitionRegistry(registry)
 	backlogHandler.SetTransitionRegistry(registry)
 	guard := func(ctx context.Context, workflowKey string) error {
@@ -800,36 +797,69 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 		return fmt.Errorf("workflow start %q is not registered by swarm-transition/v1", workflowKey)
 	}
 	if s.goalsHandler != nil {
-		workflow := agentmanager.NewWorkflowService()
-		workflow.SetStartGuard(guard)
-		workflow.SetWorkflowActivityRecorder(s.agentActivitySvc)
-		s.goalsHandler.SetWorkflow(goalWorkflowAdapter{invoker: workflow}, registry)
-		s.goalsHandler.SetWorkflowProposalRecorder(goalWorkflowProposalRecorder{sessions: s.agentSessionSvc})
-		// The apply hop needs an owner. Without one, every terminal goal
-		// workflow result stays on disk unapplied — which is exactly what had
-		// been happening. Constructed here, after both dependencies are set,
-		// because a sweeper missing either would be a silent no-op.
-		s.goalWorkflowSweeper = goals.NewWorkflowSweeper(s.goalsHandler)
+		s.goalsHandler.SetWorkflowProposalRecorder(goalTransitionProposalRecorder{sessions: s.agentSessionSvc})
 	}
-	if executionService != nil {
-		executionService.SetTransitionRegistry(registry)
-	}
-	backlogHandler.SetWorkflowStartGuard(guard)
 	if s.capturesHandler != nil {
-		s.capturesHandler.SetTransitionRegistry(registry)
 		s.capturesHandler.SetWorkflowStartGuard(guard)
 		s.capturesHandler.SetWorkflowActivityRecorder(s.agentActivitySvc)
 	}
 	if executionService != nil {
 		executionService.SetWorkflowStartGuard(guard)
 	}
+}
+
+// configureTransitionRunner composes the durable transition runtime once. As
+// subjects migrate, they contribute only their input and apply functions here;
+// the filesystem journal remains independent of disposable subject caches.
+func (s *Server) configureTransitionRunner() {
+	workflow := agentmanager.NewWorkflowService()
+	workflow.SetStartGuard(func(ctx context.Context, workflowKey string) error {
+		for _, definition := range s.transitionRegistry.Definitions() {
+			if definition.Kind == transitions.KindWorkflow && definition.Workflow != nil && definition.Workflow.Key == workflowKey {
+				return s.integrationStatus.Preflight(ctx, definition)
+			}
+		}
+		return fmt.Errorf("workflow start %q is not registered by swarm-transition/v1", workflowKey)
+	})
+	workflow.SetWorkflowActivityRecorder(s.agentActivitySvc)
+	runner := transitionrunner.New(
+		s.transitionRegistry,
+		workflow,
+		transitionrun.NewFileStore(filepath.Join(s.dataRoot, "transition-runs")),
+		nil,
+	)
+	if s.capturesHandler != nil {
+		s.capturesHandler.RegisterTransitionAdapter(runner)
+		s.capturesHandler.SetTransitionRunner(runner)
+	}
+	if s.backlogHandler != nil {
+		s.backlogHandler.RegisterTransitionAdapter(runner)
+		s.backlogHandler.SetTransitionRunner(runner)
+	}
+	if s.goalsHandler != nil {
+		s.goalsHandler.RegisterTransitionAdapter(runner)
+		s.goalsHandler.SetTransitionRunner(runner)
+	}
 	if s.reviewSvc != nil {
-		s.reviewSvc.SetTransitionRegistry(registry)
-		s.reviewSvc.SetWorkflowStartGuard(guard)
+		s.reviewSvc.RegisterTransitionAdapter(runner)
+		s.reviewSvc.SetTransitionRunner(runner)
 	}
-	if s.planWorkshopWorkflow != nil {
-		s.planWorkshopWorkflow.SetStartGuard(guard)
+	if s.executionSvc != nil {
+		s.executionSvc.RegisterTransitionAdapter(runner)
+		s.executionSvc.SetTransitionRunner(runner)
 	}
+	s.transitionRunner = runner
+	s.transitionSweeper = transitionrunner.NewSweeper(runner)
+	applyActions, inputBuilders := runner.Counts()
+	slog.Info("transition runner adapters registered", "apply_actions", applyActions, "input_builders", inputBuilders)
+}
+
+func loadTransitionRegistry(scenarioRoot string) transitions.Registry {
+	registry, err := transitions.LoadDir(filepath.Join(scenarioRoot, ".vrooli", "swarm-transitions"))
+	if err != nil {
+		panic(fmt.Errorf("load workflow transition registry: %w", err))
+	}
+	return registry
 }
 
 func (s *Server) registerAgentActivityRoutes(_ string) {
@@ -973,18 +1003,18 @@ func main() {
 		}()
 	}
 
-	if srv.goalWorkflowSweeper != nil {
+	if srv.transitionSweeper != nil {
 		go func() {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			go func() {
-				<-srv.goalWorkflowStop
+				<-srv.transitionSweepStop
 				cancel()
 			}()
-			// Sweep once at boot so results that completed while the process
-			// was down land immediately instead of waiting a full interval.
-			srv.goalWorkflowSweeper.RunOnceLogged(ctx)
-			srv.goalWorkflowSweeper.Start(ctx)
+			// The durable journal survives restarts, so recover completed work
+			// immediately before settling into periodic reconciliation.
+			srv.transitionSweeper.RunOnceLogged(ctx)
+			srv.transitionSweeper.Start(ctx)
 		}()
 	}
 
@@ -1026,7 +1056,7 @@ func main() {
 	close(srv.aiSearchStopChan)
 	close(srv.reviewSweeperStop)
 	close(srv.autoFilerStopChan)
-	close(srv.goalWorkflowStop)
+	close(srv.transitionSweepStop)
 }
 
 // startAISearchBackground kicks off two background tasks for aisearch:

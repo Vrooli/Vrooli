@@ -232,8 +232,6 @@ func ResolveSpecSyncSkill() (Entry, bool) {
 
 func catalogEntries() []Entry {
 	entries := make([]Entry, 0, len(staticEntries))
-	for _, entry := range staticEntries {
-		entries = append(entries, entry)
-	}
+	entries = append(entries, staticEntries...)
 	return entries
 }

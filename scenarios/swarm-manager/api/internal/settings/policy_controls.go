@@ -13,6 +13,7 @@ type (
 		MaxFixupAttempts int
 	}
 )
+
 type ReviewControls struct {
 	AgentEnabled          bool
 	CodeQualityMinScore   float64

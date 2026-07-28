@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"swarm-manager/internal/transitionrun"
+
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/transitions"
@@ -316,6 +318,7 @@ func TestFollowUp_RejectsRunningState(t *testing.T) {
 func TestApplyWorkWorkflow_ExactlyOnce(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "work-apply", map[string]any{"name": "work-apply", "title": "Work Apply", "description": "desc", "status": "completed", "priority": 3, "tags": []string{}})
+	mustWriteDeliverableFile(t, root, "idea", "work-apply")
 	parent := Record{ExecutionID: "parent-work", BacklogKind: "idea", BacklogName: "work-apply", Status: StatusCompleted, Mode: ModeYOLO}
 	svc, workflow := followUpTestService(t, root, []Record{parent}, &stubAgentService{})
 	started, err := svc.FollowUp(context.Background(), FollowUpRequest{ExecutionID: parent.ExecutionID, FollowUpType: "followup"})
@@ -329,9 +332,9 @@ func TestApplyWorkWorkflow_ExactlyOnce(t *testing.T) {
 	workflow.completion = agentmanager.InvocationCompletion{ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition, Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: workflow.invocation.Input, Output: output}
 	first, err := svc.ApplyWorkWorkflow(context.Background(), started.ExecutionID)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("apply work workflow: %T %[1]v", err)
 	}
-	if first.Idempotent || first.Record.Status != StatusNeedsReview || first.Record.AgentWorkflowApplyState != workflowApplyComplete {
+	if first.Idempotent || first.Record.Status != StatusNeedsReview || transitionApplyStateFor(t, svc, first.Record.AgentWorkflowExecutionID) != transitionrun.ApplyStateComplete {
 		t.Fatalf("unexpected first apply: %#v", first)
 	}
 	second, err := svc.ApplyWorkWorkflow(context.Background(), started.ExecutionID)

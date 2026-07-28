@@ -1,0 +1,114 @@
+package goals
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"swarm-manager/internal/storage"
+	"swarm-manager/internal/transitionrunner"
+
+	"google.golang.org/protobuf/types/known/structpb"
+)
+
+// SetTransitionRunner installs the shared lifecycle owner. Goal adapters keep
+// only immutable snapshot construction and proposal projection.
+func (h *Handler) SetTransitionRunner(runner *transitionrunner.Runner) { h.transitionRunner = runner }
+
+// RegisterTransitionAdapter contributes the three declared goal transitions.
+func (h *Handler) RegisterTransitionAdapter(registrar transitionrunner.Registrar) {
+	registrar.RegisterInput("goal.plan", h.buildGoalInput)
+	registrar.RegisterInput("goal.discover", h.buildGoalInput)
+	registrar.RegisterInput("milestone.review", h.buildMilestoneInput)
+	registrar.RegisterApply("apply_goal_proposal", h.applyGoalProposal)
+	registrar.RegisterApply("apply_milestone_review", h.applyMilestoneReview)
+}
+
+func (h *Handler) buildGoalInput(_ context.Context, subjectRef string) (transitionrunner.Snapshot, error) {
+	goal, err := h.service.Get(strings.TrimSpace(subjectRef))
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
+	}
+	snapshot, err := workflowSnapshot(goal)
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
+	}
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "goal", "name": goal.Goal.Name, "version": goal.Goal.Updated}, "snapshot": snapshot, "supported_ops": h.supportedOps()})
+	return transitionrunner.Snapshot{Input: input, EntityVersion: goal.Goal.Updated}, err
+}
+
+func (h *Handler) buildMilestoneInput(ctx context.Context, subjectRef string) (transitionrunner.Snapshot, error) {
+	parts := strings.SplitN(strings.TrimSpace(subjectRef), "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return transitionrunner.Snapshot{}, fmt.Errorf("invalid milestone subject reference %q", subjectRef)
+	}
+	goal, err := h.service.Get(parts[0])
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
+	}
+	found := false
+	for _, milestone := range goal.Goal.Milestones {
+		if milestone.Name == parts[1] {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return transitionrunner.Snapshot{}, fmt.Errorf("milestone not found")
+	}
+	snapshot, err := workflowSnapshot(goal)
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
+	}
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "milestone", "name": parts[1], "goalName": goal.Goal.Name, "version": goal.Goal.Updated}, "snapshot": snapshot, "supported_ops": h.supportedOps()})
+	return transitionrunner.Snapshot{Input: input, EntityVersion: goal.Goal.Updated}, err
+}
+
+func (h *Handler) applyGoalProposal(ctx context.Context, subjectRef string, outcome transitionrunner.Outcome) error {
+	return h.applyGoalOutcome(ctx, strings.TrimSpace(subjectRef), "", outcome)
+}
+
+func (h *Handler) applyMilestoneReview(ctx context.Context, subjectRef string, outcome transitionrunner.Outcome) error {
+	parts := strings.SplitN(strings.TrimSpace(subjectRef), "/", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid milestone subject reference %q", subjectRef)
+	}
+	return h.applyGoalOutcome(ctx, parts[0], parts[1], outcome)
+}
+
+func (h *Handler) applyGoalOutcome(ctx context.Context, goalName, milestone string, outcome transitionrunner.Outcome) error {
+	if h.proposalRecorder == nil {
+		return fmt.Errorf("goal workflow proposal recorder is not configured")
+	}
+	goal, err := h.service.Get(goalName)
+	if err != nil {
+		return err
+	}
+	if goal.Goal.Updated != outcome.EntityVersion {
+		return fmt.Errorf("goal changed after workflow start; re-run against the current snapshot")
+	}
+	value := &structpb.Value{}
+	if err := value.UnmarshalJSON([]byte(`{"result":` + string(outcome.Result) + `}`)); err != nil {
+		return err
+	}
+	result, err := decodeWorkflowResult(value, outcome.TransitionKey)
+	if err != nil {
+		return err
+	}
+	var existing goalTransitionReceipt
+	if found, err := storage.ReadJSON(h.transitionReceiptPath(goalName, outcome.ExecutionID), &existing); err != nil {
+		return err
+	} else if found {
+		return nil
+	}
+	if milestone != "" && result.Outcome == "delivered" {
+		if _, err := h.service.MarkMilestoneDelivered(goalName, milestone); err != nil {
+			return err
+		}
+	}
+	receipt, err := h.proposalRecorder.RecordGoalWorkflowProposals(ctx, GoalWorkflowProposal{GoalName: goalName, GoalVersion: outcome.EntityVersion, Title: outcome.TransitionKey + " for " + goal.Goal.Title, Summary: result.Summary, ExecutionID: outcome.ExecutionID, WorkflowKey: outcome.TransitionKey, Payloads: result.Payloads})
+	if err != nil {
+		return err
+	}
+	return storage.WriteJSONAtomic(h.transitionReceiptPath(goalName, outcome.ExecutionID), newGoalTransitionReceipt(outcome.ExecutionID, receipt))
+}

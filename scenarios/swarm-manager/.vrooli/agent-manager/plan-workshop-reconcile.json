@@ -200,7 +200,6 @@
     "maxWaitSeconds": 60
   },
   "metadata": {
-    "consumerMutationOwner": "swarm-manager",
-    "transition": "plan.workshop.reconcile"
+    "consumerMutationOwner": "swarm-manager"
   }
 }

@@ -10,10 +10,10 @@ import (
 	"testing"
 )
 
-// TestPlanExecutionStartsOnlyThroughDeclaredWorkflow guards the programmatic
-// boundary: execution may construct its immutable domain snapshot, but starts
-// it only through Agent Manager's generic declared-workflow seam.
-func TestPlanExecutionStartsOnlyThroughPhasedPlanWorkflow(t *testing.T) {
+// TestPlanExecutionStartsOnlyThroughTransitionRunner guards the programmatic
+// boundary: execution may construct its immutable domain snapshot, but the
+// shared runner alone owns workflow transport and correlation lifecycle.
+func TestPlanExecutionStartsOnlyThroughTransitionRunner(t *testing.T) {
 	path := filepath.Join("..", "execution", "service_control.go")
 	source, err := os.ReadFile(path)
 	if err != nil {
@@ -35,8 +35,14 @@ func TestPlanExecutionStartsOnlyThroughPhasedPlanWorkflow(t *testing.T) {
 	if body == "" {
 		t.Fatal("startPlanOperationLocked not found")
 	}
-	if !strings.Contains(body, `resolveWorkflow("plan.execute")`) || !strings.Contains(body, ".StartWorkflow(") || !strings.Contains(body, "WorkflowKey: workflow.Key") {
-		t.Fatal("plan execution no longer resolves and starts the declared phased-plan workflow through the generic seam")
+	// StartWith, not StartPrepared: plan execution must build its snapshot through
+	// the registered input builder so the same projection is used at start and at
+	// the apply-time rebuild that detects mid-run plan edits.
+	if !strings.Contains(body, `StartWith(ctx, "plan.execute"`) || strings.Contains(body, ".StartWorkflow(") {
+		t.Fatal("plan execution must start through the shared transition runner's registered input builder")
+	}
+	if strings.Contains(body, "StartPrepared(") {
+		t.Fatal("plan execution must not pass a pre-built input; that path bypasses the registered builder")
 	}
 	for _, forbidden := range []string{".StartOperation(", ".CreateRun(", ".ContinueRun(", "SpawnBacklog(", "SpawnResearch("} {
 		if strings.Contains(body, forbidden) {

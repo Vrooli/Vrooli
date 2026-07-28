@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"swarm-manager/internal/promptmanager"
@@ -72,6 +73,31 @@ func TestNewServerHealthRoutes(t *testing.T) {
 			t.Fatalf("expected %s to return 200, got %d", path, rec.Code)
 		}
 	}
+}
+
+func TestNewServerComposesMigratedAdaptersOnSharedTransitionRunner(t *testing.T) {
+	srv := newTestServer(t)
+	if srv.transitionRunner == nil || srv.capturesHandler == nil {
+		t.Fatal("transition runner and capture handler must be composed")
+	}
+	applies, inputs := srv.transitionRunner.Counts()
+	if applies != 12 || inputs != 14 {
+		t.Fatalf("shared transition runner registrations = applies:%d inputs:%d, want applies:12 inputs:14", applies, inputs)
+	}
+}
+
+func TestLoadTransitionRegistryFailsLoudlyWhenDeclarationsAreMissing(t *testing.T) {
+	root := t.TempDir()
+	defer func() {
+		panicValue := recover()
+		if panicValue == nil {
+			t.Fatal("loadTransitionRegistry did not fail for a missing registry")
+		}
+		if !strings.Contains(panicValue.(error).Error(), "load workflow transition registry") {
+			t.Fatalf("panic = %v", panicValue)
+		}
+	}()
+	_ = loadTransitionRegistry(root)
 }
 
 func TestLoggingMiddlewarePassesThrough(t *testing.T) {

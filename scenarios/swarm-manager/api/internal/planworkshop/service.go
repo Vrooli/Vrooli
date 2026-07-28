@@ -37,18 +37,20 @@ type (
 )
 
 type Service struct {
-	store                 *Store
-	load                  SubjectLoader
-	now                   func() time.Time
-	start                 ReconciliationStarter
-	startReview           ReviewStarter
-	collectReview         ReviewCollector
-	recordProposals       ProposalRecorder
-	applyDirect           DirectProposalApplier
-	collectReconciliation ReconciliationCollector
-	createCandidate       CandidateCreator
-	applyCandidate        CandidateApplier
-	discardCandidate      CandidateDiscarder
+	store                         *Store
+	load                          SubjectLoader
+	now                           func() time.Time
+	start                         ReconciliationStarter
+	startReview                   ReviewStarter
+	collectReview                 ReviewCollector
+	recordProposals               ProposalRecorder
+	applyDirect                   DirectProposalApplier
+	collectReconciliation         ReconciliationCollector
+	applyReviewTransition         func(context.Context, Session, WorkflowProvenance) error
+	applyReconciliationTransition func(context.Context, Session, Response, WorkflowProvenance) error
+	createCandidate               CandidateCreator
+	applyCandidate                CandidateApplier
+	discardCandidate              CandidateDiscarder
 }
 
 func NewService(store *Store, loader SubjectLoader) *Service {
@@ -66,6 +68,13 @@ func (s *Service) SetReconciliationCollector(collector ReconciliationCollector) 
 func (s *Service) SetCandidateCreator(creator CandidateCreator)       { s.createCandidate = creator }
 func (s *Service) SetCandidateApplier(applier CandidateApplier)       { s.applyCandidate = applier }
 func (s *Service) SetCandidateDiscarder(discarder CandidateDiscarder) { s.discardCandidate = discarder }
+func (s *Service) SetReviewTransitionApplier(applier func(context.Context, Session, WorkflowProvenance) error) {
+	s.applyReviewTransition = applier
+}
+
+func (s *Service) SetReconciliationTransitionApplier(applier func(context.Context, Session, Response, WorkflowProvenance) error) {
+	s.applyReconciliationTransition = applier
+}
 
 func WorkshopID(subject Subject) string {
 	sum := sha256.Sum256([]byte(string(subject.Kind) + ":" + subject.Ref))
@@ -238,6 +247,16 @@ func (s *Service) ApplyReview(ctx context.Context, id string) (Session, ReviewRu
 	if session.Review.State != ReviewRunning {
 		return Session{}, ReviewRun{}, fmt.Errorf("plan workshop review is %s", session.Review.State)
 	}
+	if s.applyReviewTransition != nil {
+		if err := s.applyReviewTransition(ctx, session, session.Review.Workflow); err != nil {
+			return Session{}, ReviewRun{}, err
+		}
+		updated, err := s.store.Load(id)
+		if err != nil || updated.Review == nil {
+			return Session{}, ReviewRun{}, err
+		}
+		return updated, *updated.Review, nil
+	}
 	if s.collectReview == nil || s.recordProposals == nil {
 		return Session{}, ReviewRun{}, fmt.Errorf("plan workshop review application is not configured")
 	}
@@ -257,6 +276,37 @@ func (s *Service) ApplyReview(ctx context.Context, id string) (Session, ReviewRu
 	result, err := s.collectReview(ctx, session, session.Review.Workflow)
 	if err != nil {
 		return Session{}, ReviewRun{}, err
+	}
+	return s.ApplyReviewResult(ctx, id, result)
+}
+
+// ApplyReviewResult projects a validated terminal result into the workshop.
+// It is used by the shared transition runner; callers never receive authority
+// to mutate a plan or backlog object from workflow output.
+func (s *Service) ApplyReviewResult(ctx context.Context, id string, result ReviewResult) (Session, ReviewRun, error) {
+	session, err := s.store.Load(id)
+	if err != nil {
+		return Session{}, ReviewRun{}, err
+	}
+	if session.Review == nil {
+		return Session{}, ReviewRun{}, fmt.Errorf("plan workshop review has not started")
+	}
+	if session.Review.State == ReviewApplied || session.Review.State == ReviewStale {
+		return session, *session.Review, nil
+	}
+	if session.Review.State != ReviewRunning {
+		return Session{}, ReviewRun{}, fmt.Errorf("plan workshop review is %s", session.Review.State)
+	}
+	version, _, hash, err := s.load(session.Subject)
+	if err != nil {
+		return Session{}, ReviewRun{}, err
+	}
+	if version != session.SubjectVersion || hash != session.PlanContentHash {
+		session.Review.State, session.Review.Error, session.UpdatedAt = ReviewStale, "subject or canonical plan changed while review was running", s.now().UTC().Format(time.RFC3339Nano)
+		if err := s.store.Save(session); err != nil {
+			return Session{}, ReviewRun{}, err
+		}
+		return session, *session.Review, nil
 	}
 	if err := result.Validate(); err != nil {
 		return Session{}, ReviewRun{}, err
@@ -483,6 +533,21 @@ func (s *Service) ApplyReconciliation(ctx context.Context, id, responseID string
 	if resolution.State != ResolutionReconciliation || resolution.Workflow == nil {
 		return Session{}, Resolution{}, fmt.Errorf("workshop reconciliation is %s", resolution.State)
 	}
+	if s.applyReconciliationTransition != nil {
+		if err := s.applyReconciliationTransition(ctx, session, *response, *resolution.Workflow); err != nil {
+			return Session{}, Resolution{}, err
+		}
+		updated, err := s.store.Load(id)
+		if err != nil {
+			return Session{}, Resolution{}, err
+		}
+		for _, item := range updated.Resolutions {
+			if item.ResponseID == responseID {
+				return updated, item, nil
+			}
+		}
+		return Session{}, Resolution{}, fmt.Errorf("workshop resolution %q disappeared after transition apply", responseID)
+	}
 	if s.collectReconciliation == nil || s.createCandidate == nil {
 		return Session{}, Resolution{}, fmt.Errorf("plan workshop reconciliation application is not configured")
 	}
@@ -498,6 +563,50 @@ func (s *Service) ApplyReconciliation(ctx context.Context, id, responseID string
 	result, err := s.collectReconciliation(ctx, session, *response, *resolution.Workflow)
 	if err != nil {
 		return Session{}, Resolution{}, err
+	}
+	return s.ApplyReconciliationResult(ctx, id, responseID, result)
+}
+
+// ApplyReconciliationResult projects a terminal reconciliation result into a
+// candidate or attention resolution. Candidate application remains explicit.
+func (s *Service) ApplyReconciliationResult(ctx context.Context, id, responseID string, result ReconciliationResult) (Session, Resolution, error) {
+	session, err := s.store.Load(id)
+	if err != nil {
+		return Session{}, Resolution{}, err
+	}
+	var response *Response
+	for index := range session.Responses {
+		if session.Responses[index].ID == responseID {
+			response = &session.Responses[index]
+			break
+		}
+	}
+	if response == nil {
+		return Session{}, Resolution{}, fmt.Errorf("workshop response %q is missing", responseID)
+	}
+	var resolution *Resolution
+	for index := range session.Resolutions {
+		if session.Resolutions[index].ResponseID == responseID {
+			resolution = &session.Resolutions[index]
+			break
+		}
+	}
+	if resolution == nil {
+		return Session{}, Resolution{}, fmt.Errorf("workshop resolution %q is missing", responseID)
+	}
+	if resolution.State == ResolutionCandidateReady || resolution.State == ResolutionNeedsAttention || resolution.State == ResolutionStale {
+		return session, *resolution, nil
+	}
+	if resolution.State != ResolutionReconciliation || resolution.Workflow == nil {
+		return Session{}, Resolution{}, fmt.Errorf("workshop reconciliation is %s", resolution.State)
+	}
+	version, _, hash, err := s.load(session.Subject)
+	if err != nil {
+		return Session{}, Resolution{}, err
+	}
+	if version != session.SubjectVersion || hash != session.PlanContentHash {
+		resolution.State, resolution.Error = ResolutionStale, "subject or canonical plan changed while reconciliation was running"
+		return s.replaceResolution(session, *resolution)
 	}
 	if err := result.Validate(); err != nil {
 		return Session{}, Resolution{}, err

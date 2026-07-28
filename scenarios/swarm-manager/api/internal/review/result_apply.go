@@ -88,18 +88,6 @@ func isReviewSuccessOutcome(outcome string) bool {
 	return outcome == "accepted" || outcome == "changes-requested" || outcome == "inconclusive"
 }
 
-func validDisposition(disposition *Disposition) bool {
-	if disposition == nil || strings.TrimSpace(disposition.Rationale) == "" {
-		return false
-	}
-	switch disposition.Kind {
-	case "plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention":
-	default:
-		return false
-	}
-	return disposition.Confidence == "high" || disposition.Confidence == "medium" || disposition.Confidence == "low"
-}
-
 func reviewAbstainReason(outcome string) string {
 	if outcome == "failed" {
 		return "review round failed"

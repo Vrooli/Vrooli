@@ -233,3 +233,11 @@ func TestResolveNextActionPrioritizesOpenDecisions(t *testing.T) {
 		t.Fatalf("action = %#v", action)
 	}
 }
+
+func TestDeclaredNextActionTransitionKeys(t *testing.T) {
+	for action, want := range map[NextActionID]string{NextActionAuthorPlan: "plan.author", NextActionRepairPlan: "plan.repair", NextActionDispatchFollowup: "follow_up.dispatch"} {
+		if got := TransitionKeyForNextAction(action); got != want {
+			t.Fatalf("%s transition = %q, want %q", action, got, want)
+		}
+	}
+}

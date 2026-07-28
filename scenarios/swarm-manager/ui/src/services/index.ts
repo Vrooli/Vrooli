@@ -59,6 +59,10 @@ export type {
 export { executionService, createExecutionService } from "./execution-service";
 export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } from "./execution-service";
 
+// Registry-declared transitions
+export { transitionService, createTransitionService } from "./transition-service";
+export type { ITransitionService } from "./transition-service";
+
 // Goals
 export { goalsService, createGoalsService } from "./goals-service";
 export type { IGoalsService } from "./goals-service";

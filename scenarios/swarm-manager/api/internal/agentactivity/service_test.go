@@ -82,27 +82,6 @@ func newTestService(t *testing.T, raw *stubAgentService) *Service {
 	})
 }
 
-// stubLanePolicy implements LanePolicy for tests.
-type stubLanePolicy struct {
-	limits map[Lane]int
-}
-
-func (s *stubLanePolicy) LimitFor(lane Lane) int {
-	if s == nil {
-		return 0
-	}
-	return s.limits[lane]
-}
-
-func newTestServiceWithLanePolicy(t *testing.T, raw *stubAgentService, policy LanePolicy) *Service {
-	t.Helper()
-	return NewService(ServiceConfig{
-		StorePath:    filepath.Join(t.TempDir(), "agent-activities.json"),
-		AgentService: raw,
-		LanePolicy:   policy,
-	})
-}
-
 func TestRecordWorkflowStartPersistsOneCorrelationOnlyActivity(t *testing.T) {
 	svc := newTestService(t, &stubAgentService{enabled: true})
 	activity := agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: "execute", OwnerName: "item-a", Purpose: "process", WorkflowKey: "swarm-manager/phased-plan-drain"}

@@ -4,6 +4,33 @@
   "description": "Single source of truth for the complete Swarm Manager CLI surface. Commands remain local until their typed Connect-RPC migration is complete.",
   "groups": [
     {
+      "name": "transitions",
+      "description": "Declared agent transition catalog",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List declared transition capabilities",
+          "binding": {"kind": "connect-rpc", "service": "TransitionService", "method": "ListTransitions"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "start",
+          "description": "Start a declared transition (--transition KEY --subject SUBJECT --subject-ref REF) [--json]",
+          "binding": {"kind": "connect-rpc", "service": "TransitionService", "method": "StartTransition"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "apply",
+          "description": "Apply a completed declared transition (--transition KEY --execution-id ID) [--json]",
+          "binding": {"kind": "connect-rpc", "service": "TransitionService", "method": "ApplyTransition"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
       "name": "backlog",
       "description": "Backlog item management",
       "commands": [
@@ -1167,7 +1194,7 @@
         },
         {
           "name": "plan-run",
-          "description": "Start goal planning (--name NAME) [--json]",
+          "description": "Deprecated transition alias; use transitions start. Start goal planning (--name NAME) [--json]",
           "binding": {
             "kind": "local"
           },
@@ -1181,7 +1208,7 @@
         },
         {
           "name": "discover-run",
-          "description": "Start goal discovery (--name NAME) [--json]",
+          "description": "Deprecated transition alias; use transitions start. Start goal discovery (--name NAME) [--json]",
           "binding": {
             "kind": "local"
           },
@@ -1337,7 +1364,7 @@
         },
         {
           "name": "review-run",
-          "description": "Start milestone review (--goal NAME --milestone NAME)",
+          "description": "Deprecated transition alias; use transitions start. Start milestone review (--goal NAME --milestone NAME)",
           "binding": {
             "kind": "local"
           },
@@ -1489,7 +1516,7 @@
         },
         {
           "name": "classify",
-          "description": "Trigger classification for a capture (--id ID) [--json]",
+          "description": "Deprecated transition alias; use transitions start. Trigger classification for a capture (--id ID) [--json]",
           "binding": {
             "kind": "local"
           },

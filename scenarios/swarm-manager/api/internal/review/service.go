@@ -2,22 +2,14 @@ package review
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"log/slog"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
-	"swarm-manager/internal/transitions"
-
-	"google.golang.org/protobuf/types/known/structpb"
+	"swarm-manager/internal/transitionrunner"
 )
 
 // RunInspector retrieves the current state of an agent run.
@@ -80,8 +72,6 @@ type ServiceConfig struct {
 	// Used to flip the backlog item's status to review_pending.
 	OnRoundTerminal       RoundTerminalHandler
 	RoundTerminalObserver RoundTerminalObserver
-	Workflow              agentmanager.WorkflowInvoker
-	TransitionRegistry    transitions.Registry
 	// RoundMaxAge bounds how long a round may sit in `gathering` before the
 	// poller treats its run as abandoned and finalizes it as failed (which
 	// fires OnRoundTerminal so the item leaves in_review). Zero uses
@@ -99,8 +89,7 @@ const DefaultRoundMaxAge = 30 * time.Minute
 // Service provides review evidence management for completed executions.
 type Service struct {
 	dataRoot              string
-	workflow              agentmanager.WorkflowInvoker
-	transitionRegistry    transitions.Registry
+	transitionRunner      *transitionrunner.Runner
 	inspector             RunInspector
 	promptClient          promptmanager.Client
 	eventLogger           EventLogger
@@ -116,6 +105,11 @@ type Service struct {
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
 }
+
+// SetTransitionRunner installs the shared lifecycle owner for declared review
+// workflows. The review package retains only snapshot construction and result
+// projection into the operator-facing round ledger.
+func (s *Service) SetTransitionRunner(runner *transitionrunner.Runner) { s.transitionRunner = runner }
 
 // NewService creates a new review service.
 func NewService(cfg ServiceConfig) *Service {
@@ -137,19 +131,9 @@ func NewService(cfg ServiceConfig) *Service {
 		planContentResolver:   cfg.PlanContentResolver,
 		onRoundTerminal:       cfg.OnRoundTerminal,
 		roundTerminalObserver: cfg.RoundTerminalObserver,
-		workflow:              cfg.Workflow,
-		transitionRegistry:    cfg.TransitionRegistry,
 		roundMaxAge:           roundMaxAge,
 		clock:                 time.Now,
 		activeRounds:          make(map[string]activeRound),
-	}
-	if svc.workflow == nil {
-		svc.workflow = agentmanager.NewWorkflowService()
-	}
-	if len(svc.transitionRegistry.Definitions()) == 0 {
-		if registry, err := transitions.LoadDir(filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "swarm-transitions")); err == nil {
-			svc.transitionRegistry = registry
-		}
 	}
 	return svc
 }
@@ -172,26 +156,6 @@ func (s *Service) notifyRoundTerminal(ctx context.Context, kind, name string, ro
 // SetEventLogger injects an optional event logger for analytics.
 func (s *Service) SetEventLogger(e EventLogger) {
 	s.eventLogger = e
-}
-
-// SetWorkflowStartGuard applies server-owned transition and integration policy
-// to the default generic workflow adapter; test fakes remain policy-free.
-func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
-	if workflow, ok := s.workflow.(*agentmanager.WorkflowService); ok {
-		workflow.SetStartGuard(guard)
-	}
-}
-
-// SetWorkflowActivityRecorder records independent-review workflow launches in
-// the shared activity ledger at the StartWorkflow chokepoint.
-func (s *Service) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActivityRecorder) {
-	if workflow, ok := s.workflow.(*agentmanager.WorkflowService); ok {
-		workflow.SetWorkflowActivityRecorder(recorder)
-	}
-}
-
-func (s *Service) SetTransitionRegistry(registry transitions.Registry) {
-	s.transitionRegistry = registry
 }
 
 // StartReviewForExecution is called by the execution service during finalization
@@ -227,81 +191,11 @@ type startReviewParams struct {
 // workflow with an immutable execution snapshot. Swarm retains only the local
 // review ledger and terminal operator-gate application.
 func (s *Service) startReview(ctx context.Context, params startReviewParams) error {
-	if s.workflow == nil {
-		return fmt.Errorf("independent review workflow service is not available")
+	if s.transitionRunner == nil {
+		return fmt.Errorf("transition runner is not configured")
 	}
-	roundNum, err := NextRoundNumber(params.ItemDir)
-	if err != nil {
-		return fmt.Errorf("determine next round: %w", err)
-	}
-
-	// Create the round file in gathering state before the async start.
-	round := Round{
-		RoundNum:    roundNum,
-		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
-		ExecutionID: params.ExecutionID,
-		Status:      RoundStatusGathering,
-		Evidence:    []EvidenceItem{},
-	}
-	if err := SaveRound(params.ItemDir, round); err != nil {
-		return fmt.Errorf("save review round: %w", err)
-	}
-
-	encoded, err := json.Marshal(params)
-	if err != nil {
-		return fmt.Errorf("encode independent review snapshot: %w", err)
-	}
-	digest := sha256.Sum256(encoded)
-	version := "sha256:" + hex.EncodeToString(digest[:])
-	var snapshot map[string]any
-	if err := json.Unmarshal(encoded, &snapshot); err != nil {
-		return fmt.Errorf("decode independent review snapshot: %w", err)
-	}
-	input, err := structpb.NewValue(map[string]any{
-		"entity":   map[string]any{"kind": params.BacklogKind, "name": params.BacklogName, "executionId": params.ExecutionID, "version": version},
-		"snapshot": snapshot,
-	})
-	if err != nil {
-		return fmt.Errorf("build independent review input: %w", err)
-	}
-	workflow, err := s.transitionRegistry.ResolveWorkflow("work.review")
-	if err != nil {
-		return fmt.Errorf("resolve review workflow: %w", err)
-	}
-	res, err := s.workflow.StartWorkflow(ctx, agentmanager.Invocation{
-		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
-		IdempotencyKey: fmt.Sprintf("review-%s-r%d", params.ExecutionID, roundNum), FirstRunNodeID: "review",
-		Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: params.BacklogKind, OwnerName: params.BacklogName, OwnerTitle: params.ItemTitle, Purpose: "review"},
-	})
-	if err != nil {
-		return fmt.Errorf("start independent review workflow: %w", err)
-	}
-
-	// Persist the pinned workflow provenance before exposing the gathering round.
-	round.RunID = res.RunID
-	round.AgentWorkflowExecutionID = res.ExecutionID
-	round.AgentWorkflowDefinition = res.DefinitionDigest
-	round.AgentWorkflowVersion = version
-	if err := SaveRound(params.ItemDir, round); err != nil {
-		return fmt.Errorf("save review round run association: %w", err)
-	}
-
-	if s.eventLogger != nil {
-		s.eventLogger.EmitReviewStarted(params.ExecutionID, roundNum)
-	}
-
-	slog.Info("review round started", "round", roundNum, "execution_id", params.ExecutionID,
-		"run_id", res.RunID, "workflow_execution", res.ExecutionID)
-	return nil
+	return s.startReviewTransition(ctx, params)
 }
-
-// Operation + target identifiers the review reroute pins. The operation version
-// pins the exact contract version the system binding pins.
-const (
-	opReviewRound         = "review-round"
-	opEvidenceRequest     = "evidence-request"
-	targetKindBacklogItem = "backlog-item"
-)
 
 // TriggerReviewAgent manually triggers a review agent for an execution.
 // Used when the user wants to re-run or initiate evidence gathering.

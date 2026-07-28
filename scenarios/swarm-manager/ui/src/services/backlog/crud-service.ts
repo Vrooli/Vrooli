@@ -22,12 +22,16 @@ import type { BacklogNextAction, BacklogUpdatePatch } from "./types";
 
 const MAX_NEXT_ACTION_BATCH_SIZE = 100;
 
+function stringField(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 function mapNextAction(raw: Record<string, unknown>): BacklogNextAction {
 	const followUp = raw.follow_up ?? raw.followUp;
   return {
     id: String(raw.id) as BacklogNextAction["id"],
-    compactLabel: String(raw.compact_label ?? raw.compactLabel ?? ""),
-    expandedLabel: String(raw.expanded_label ?? raw.expandedLabel ?? ""),
+    compactLabel: stringField(raw.compact_label ?? raw.compactLabel),
+    expandedLabel: stringField(raw.expanded_label ?? raw.expandedLabel),
     enabled: raw.enabled === true,
     reason: typeof raw.reason === "string" ? raw.reason : undefined,
     blockers: Array.isArray(raw.blockers) ? raw.blockers as BacklogNextAction["blockers"] : [],

@@ -197,9 +197,6 @@ func (s *ConnectService) ApplyGoalWorkflow(ctx context.Context, req *connect.Req
 	}
 	applied, err := s.handler.ApplyWorkflowResult(ctx, req.Msg.GetGoalName(), req.Msg.GetExecutionId())
 	if err != nil {
-		if errors.Is(err, ErrWorkflowNotReady) {
-			return nil, connect.NewError(connect.CodeUnavailable, err)
-		}
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	return connect.NewResponse(&apipb.ApplyGoalWorkflowResponse{

@@ -175,7 +175,6 @@
     "maxWaitSeconds": 60
   },
   "metadata": {
-    "consumerMutationOwner": "swarm-manager",
-    "transition": "scenario.spec_sync"
+    "consumerMutationOwner": "swarm-manager"
   }
 }

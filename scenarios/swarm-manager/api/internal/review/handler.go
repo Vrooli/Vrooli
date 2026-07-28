@@ -28,6 +28,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review", h.ListRounds).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/captures/{filepath:.*}", h.GetCapture).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/verify/{evidence_id}", h.VerifyEvidence).Methods("POST")
+	// Deprecated transition aliases: use TransitionService.ApplyTransition.
+	// Deprecated transition aliases: use TransitionService.StartTransition/ApplyTransition.
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/workflow/apply", h.ApplyWorkflowRound).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/request", h.RequestMoreEvidence).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/request/{thread_id}/workflow/apply", h.ApplyEvidenceRequestWorkflow).Methods("POST")

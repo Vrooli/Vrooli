@@ -51,6 +51,7 @@ import {
 } from "../stores";
 import { BACKLOG_LENSES } from "../components/detail/lens-options";
 import { backlogService } from "../services/backlog-service";
+import { transitionService } from "../services/transition-service";
 import { autoFilerService } from "../services/auto-filer-service";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
@@ -143,7 +144,7 @@ export function BacklogDetailsPage() {
   const planAuthorMutation = useMutation({
     mutationFn: () => {
       if (!backlogKind || !name) throw new Error("Backlog item is required to author a plan.");
-      return backlogService.startPlanAuthor(backlogKind, name);
+      return transitionService.start("plan.author", `${backlogKind}/${name}`);
     },
     onSuccess: () => {
       setActiveTab("activity");
@@ -158,7 +159,10 @@ export function BacklogDetailsPage() {
   });
   const { data: workFeed = [], isLoading: isLoadingWorkFeed, error: workFeedError } = useQuery({
     queryKey: ["work-feed", backlogKind, name],
-    queryFn: async () => (await defaultApiClient.get<{ items: WorkFeedEntry[] }>(API_ENDPOINTS.backlogWorkFeed(backlogKind!, name!))).items,
+    queryFn: async () => {
+      if (!backlogKind || !name) return [];
+      return (await defaultApiClient.get<{ items: WorkFeedEntry[] }>(API_ENDPOINTS.backlogWorkFeed(backlogKind, name))).items;
+    },
     enabled: activeTab === "activity" && Boolean(backlogKind && name),
     refetchInterval: agentRunIsBlocking ? 6_000 : 20_000,
   });

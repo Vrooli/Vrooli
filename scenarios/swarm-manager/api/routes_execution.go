@@ -57,6 +57,7 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 		BaselineClient:           execution.NewConnectBaselineClient(nil),
 		BaselineEngagementRunner: &execution.GCTBaselineEngagementRunner{ProjectRoot: repoRootFromScenarioRoot(scenarioRoot)},
 		PlanRenderer:             planclient.NewConnectClient(nil, nil),
+		TransitionRegistry:       s.transitionRegistry,
 		Finalization:             finalizationCfg,
 	}
 	s.executionSvc = execution.NewService(cfg)
@@ -284,9 +285,6 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 		}
 	}
 	s.reviewSvc = review.NewService(cfg)
-	if s.agentActivitySvc != nil {
-		s.reviewSvc.SetWorkflowActivityRecorder(s.agentActivitySvc)
-	}
 	s.reviewHandler = review.NewHandler(s.reviewSvc)
 	s.reviewHandler.RegisterRoutes(s.router)
 

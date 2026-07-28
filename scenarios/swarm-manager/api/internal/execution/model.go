@@ -105,6 +105,12 @@ type Record struct {
 	PromptTrace       *PromptTrace    `json:"prompt_trace,omitempty"`
 	ArchiveContext    *ArchiveContext `json:"archive_context,omitempty"`
 	ParentExecutionID string          `json:"parent_execution_id,omitempty"`
+	// OperatorNote is the free-text steering an operator supplied when this
+	// follow-up or correction was created. It is persisted rather than passed
+	// through the start call because the transition runner rebuilds the input
+	// snapshot at apply time to detect mid-run edits; a note that lived only in
+	// the originating request could never be reproduced by that rebuild.
+	OperatorNote string `json:"operator_note,omitempty"`
 	// FollowUpSourceProposalID and FollowUpSourceReviewRef preserve the
 	// proposal/review relationship for a routed correction. Together with the
 	// parent execution they are the durable deduplication key for automatic or
@@ -123,17 +129,16 @@ type Record struct {
 	// spawn through slice B).
 	OpWorkflowID  string `json:"op_workflow_id,omitempty"`
 	OpExecutionID string `json:"op_execution_id,omitempty"`
-	// AgentWorkflow* fields correlate the selected plan-execution hard cut to
-	// Agent Manager's durable workflow. ApplyState is a local, crash-recoverable
-	// journal: "claimed" means the authorized terminal result is persisted and
-	// its idempotent backlog transition still needs finishing; "complete" means
-	// that transition has been applied exactly once from this consumer's view.
+	// AgentWorkflow* fields are this record's read-only projection of the
+	// workflow it is correlated to, for status display and history. They are not
+	// a journal: apply state lives solely on the shared transitionrun.Correlation
+	// keyed by AgentWorkflowExecutionID. Keeping a second copy here meant two
+	// sources of truth for whether a terminal result had been consumed.
 	AgentWorkflowExecutionID   string                      `json:"agent_workflow_execution_id,omitempty"`
 	AgentWorkflowKey           string                      `json:"agent_workflow_key,omitempty"`
 	AgentWorkflowDefinition    string                      `json:"agent_workflow_definition_digest,omitempty"`
 	AgentWorkflowFrontier      string                      `json:"agent_workflow_frontier_digest,omitempty"`
 	AgentWorkflowEntityVersion string                      `json:"agent_workflow_entity_version,omitempty"`
-	AgentWorkflowApplyState    string                      `json:"agent_workflow_apply_state,omitempty"`
 	AgentWorkflowOutcome       string                      `json:"agent_workflow_outcome,omitempty"`
 	AgentWorkflowTerminalCode  string                      `json:"agent_workflow_terminal_code,omitempty"`
 	AgentWorkflowBudgetName    string                      `json:"agent_workflow_budget_name,omitempty"`

@@ -9,21 +9,18 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/planworkshop"
 	"swarm-manager/internal/review"
-	"swarm-manager/internal/transitions"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -66,307 +63,251 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 			return "", "", "", fmt.Errorf("unsupported workshop subject")
 		}
 	})
-	// Reconciliation is an internal continuation of one accepted response. The
-	// workflow receives an immutable session snapshot and has no route back to
-	// live Swarm or Plan Manager mutation APIs.
-	if registry, err := transitions.LoadDir(filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "swarm-transitions")); err == nil {
-		workflow := agentmanager.NewWorkflowService()
-		if s.agentActivitySvc != nil {
-			workflow.SetWorkflowActivityRecorder(s.agentActivitySvc)
+	runner := s.transitionRunner
+	if runner == nil {
+		panic("transition runner must be configured before plan workshop routes")
+	}
+	runner.RegisterInput("plan.workshop.review", func(ctx context.Context, subjectRef string) (transitionrunner.Snapshot, error) {
+		session, err := service.Get(subjectRef)
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
 		}
-		s.planWorkshopWorkflow = workflow
-		service.SetReconciliationStarter(func(ctx context.Context, session planworkshop.Session, response planworkshop.Response) (planworkshop.WorkflowProvenance, error) {
-			locator, err := registry.ResolveWorkflow("plan.workshop.reconcile")
-			if err != nil {
-				return planworkshop.WorkflowProvenance{}, err
+		planSnapshot, err := planWorkshopCanonicalPlanSnapshot(ctx, plans, session.PlanID)
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
+		}
+		input, err := structpb.NewValue(map[string]any{"subject": session.Subject, "snapshot": map[string]any{"workshopId": session.ID, "subjectVersion": session.SubjectVersion, "planId": session.PlanID, "planContentHash": session.PlanContentHash, "plan": planSnapshot}})
+		return transitionrunner.Snapshot{Input: input, EntityVersion: session.SubjectVersion}, err
+	})
+	runner.RegisterInput("plan.workshop.reconcile", func(ctx context.Context, subjectRef string) (transitionrunner.Snapshot, error) {
+		parts := strings.SplitN(subjectRef, "/", 2)
+		if len(parts) != 2 {
+			return transitionrunner.Snapshot{}, fmt.Errorf("invalid workshop reconciliation subject %q", subjectRef)
+		}
+		session, err := service.Get(parts[0])
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
+		}
+		var response planworkshop.Response
+		found := false
+		for _, item := range session.Responses {
+			if item.ID == parts[1] {
+				response, found = item, true
+				break
 			}
-			parts := strings.SplitN(session.Subject.Ref, "/", 2)
-			if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
-				return planworkshop.WorkflowProvenance{}, fmt.Errorf("backlog workshop subject ref must be kind/name")
+		}
+		if !found {
+			return transitionrunner.Snapshot{}, fmt.Errorf("workshop response %q not found", parts[1])
+		}
+		accepted, err := planWorkshopAcceptedProposalPayloads(s.agentSessionStore, response.Accepted)
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
+		}
+		planSnapshot, err := planWorkshopCanonicalPlanSnapshot(ctx, plans, session.PlanID)
+		if err != nil {
+			return transitionrunner.Snapshot{}, err
+		}
+		input, err := structpb.NewValue(map[string]any{"subject": session.Subject, "snapshot": map[string]any{"workshopId": session.ID, "subjectVersion": session.SubjectVersion, "planId": session.PlanID, "planContentHash": session.PlanContentHash, "plan": planSnapshot, "packet": session.Packet}, "response": response, "accepted_proposals": accepted})
+		return transitionrunner.Snapshot{Input: input, EntityVersion: session.SubjectVersion}, err
+	})
+	runner.RegisterApply("record_plan_workshop_packet", func(ctx context.Context, subjectRef string, outcome transitionrunner.Outcome) error {
+		var result planworkshop.ReviewResult
+		if err := json.Unmarshal(outcome.Result, &result); err != nil {
+			return err
+		}
+		_, _, err := service.ApplyReviewResult(ctx, subjectRef, result)
+		return err
+	})
+	runner.RegisterApply("record_plan_workshop_candidate", func(ctx context.Context, subjectRef string, outcome transitionrunner.Outcome) error {
+		parts := strings.SplitN(subjectRef, "/", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid workshop reconciliation subject %q", subjectRef)
+		}
+		var result planworkshop.ReconciliationResult
+		if err := json.Unmarshal(outcome.Result, &result); err != nil {
+			return err
+		}
+		_, _, err := service.ApplyReconciliationResult(ctx, parts[0], parts[1], result)
+		return err
+	})
+	service.SetReviewTransitionApplier(func(ctx context.Context, _ planworkshop.Session, provenance planworkshop.WorkflowProvenance) error {
+		_, err := runner.ApplyExecution(ctx, provenance.ExecutionID)
+		return err
+	})
+	service.SetReconciliationTransitionApplier(func(ctx context.Context, _ planworkshop.Session, _ planworkshop.Response, provenance planworkshop.WorkflowProvenance) error {
+		_, err := runner.ApplyExecution(ctx, provenance.ExecutionID)
+		return err
+	})
+	service.SetReconciliationStarter(func(ctx context.Context, session planworkshop.Session, response planworkshop.Response) (planworkshop.WorkflowProvenance, error) {
+		started, err := runner.Start(ctx, "plan.workshop.reconcile", session.ID+"/"+response.ID)
+		if err != nil {
+			return planworkshop.WorkflowProvenance{}, err
+		}
+		return planWorkshopWorkflowProvenance(started), nil
+	})
+	service.SetReviewStarter(func(ctx context.Context, session planworkshop.Session) (planworkshop.WorkflowProvenance, error) {
+		started, err := runner.Start(ctx, "plan.workshop.review", session.ID)
+		if err != nil {
+			return planworkshop.WorkflowProvenance{}, err
+		}
+		return planWorkshopWorkflowProvenance(started), nil
+	})
+	service.SetCandidateCreator(func(ctx context.Context, workshop planworkshop.Session, response planworkshop.Response, provenance planworkshop.WorkflowProvenance, raw json.RawMessage) (planworkshop.CandidateReference, error) {
+		candidatePlan := &sharedv1.Plan{}
+		if err := protojson.Unmarshal(raw, candidatePlan); err != nil {
+			return planworkshop.CandidateReference{}, fmt.Errorf("decode whole-plan reconciliation candidate: %w", err)
+		}
+		candidatePlan.Id = ""
+		candidate, err := plans.CreateCandidateRevision(ctx, planclient.CandidateRevisionInput{PlanID: workshop.PlanID, ExpectedBaseContentHash: workshop.PlanContentHash, ProposalProvenance: "swarm-manager:plan-workshop/" + workshop.ID + "/" + response.ID + "/" + provenance.ExecutionID, CandidatePlan: candidatePlan})
+		if err != nil {
+			return planworkshop.CandidateReference{}, err
+		}
+		if candidate == nil || strings.TrimSpace(candidate.GetId()) == "" {
+			return planworkshop.CandidateReference{}, fmt.Errorf("plan manager omitted the reconciliation candidate id")
+		}
+		preview, err := plans.PreviewCandidateRevision(ctx, candidate.GetId())
+		if err != nil {
+			return planworkshop.CandidateReference{}, err
+		}
+		findings := make([]string, 0, len(preview.GetDiagnostics()))
+		diagnostics := make([]planworkshop.CandidateDiagnostic, 0, len(preview.GetDiagnostics()))
+		for _, diagnostic := range preview.GetDiagnostics() {
+			if diagnostic == nil {
+				continue
 			}
-			accepted, err := planWorkshopAcceptedProposalPayloads(s.agentSessionStore, response.Accepted)
-			if err != nil {
-				return planworkshop.WorkflowProvenance{}, err
+			diagnostics = append(diagnostics, planworkshop.CandidateDiagnostic{Severity: diagnostic.GetSeverity(), Code: diagnostic.GetCode(), Location: diagnostic.GetLocation(), Message: diagnostic.GetMessage(), Guidance: diagnostic.GetGuidance()})
+			if strings.TrimSpace(diagnostic.GetMessage()) != "" {
+				findings = append(findings, diagnostic.GetMessage())
 			}
-			planSnapshot, err := planWorkshopCanonicalPlanSnapshot(ctx, plans, session.PlanID)
-			if err != nil {
-				return planworkshop.WorkflowProvenance{}, err
+		}
+		changes := make([]planworkshop.CandidateFieldChange, 0, len(preview.GetDiff().GetChanges()))
+		for _, change := range preview.GetDiff().GetChanges() {
+			if change != nil {
+				changes = append(changes, planworkshop.CandidateFieldChange{Field: change.GetField(), BeforeJSON: change.GetBeforeJson(), AfterJSON: change.GetAfterJson()})
 			}
-			input, err := structpb.NewValue(map[string]any{
-				"subject": session.Subject,
-				"snapshot": map[string]any{
-					"workshopId": session.ID, "subjectVersion": session.SubjectVersion,
-					"planId": session.PlanID, "planContentHash": session.PlanContentHash, "plan": planSnapshot,
-					"packet": session.Packet,
-				},
-				"response":           response,
-				"accepted_proposals": accepted,
-			})
-			if err != nil {
-				return planworkshop.WorkflowProvenance{}, fmt.Errorf("encode reconciliation snapshot: %w", err)
+		}
+		impact := preview.GetImpact()
+		return planworkshop.CandidateReference{ID: candidate.GetId(), PlanID: workshop.PlanID, ExpectedBaseContentHash: workshop.PlanContentHash, QualityStatus: preview.GetQualityStatus(), QualityFindings: findings, Diff: changes, Diagnostics: diagnostics, Impact: planworkshop.CandidateImpact{BeforeGrade: impact.GetBeforeGrade(), AfterGrade: impact.GetAfterGrade(), AddedIssueCodes: impact.GetAddedIssueCodes(), ClearedIssueCodes: impact.GetClearedIssueCodes(), ExecutionGradeRegression: impact.GetExecutionGradeRegression()}}, nil
+	})
+	service.SetCandidateApplier(func(ctx context.Context, workshop planworkshop.Session, candidate planworkshop.CandidateReference, acknowledgeQualityImpact bool) error {
+		result, err := plans.ApplyCandidateRevision(ctx, candidate.ID, candidate.ExpectedBaseContentHash, acknowledgeQualityImpact)
+		if err != nil {
+			return err
+		}
+		if result.GetPlan() == nil || result.GetPlan().GetId() != workshop.PlanID {
+			return fmt.Errorf("candidate does not apply to this workshop's canonical plan")
+		}
+		if workshop.Subject.Kind != planworkshop.SubjectBacklog {
+			return nil
+		}
+		parts := strings.SplitN(workshop.Subject.Ref, "/", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("backlog workshop subject ref must be kind/name")
+		}
+		kind, err := backlog.ParseBacklogKind(parts[0])
+		if err != nil {
+			return err
+		}
+		item, err := s.backlogHandler.Store().LoadItem(kind, parts[1])
+		if err != nil {
+			return err
+		}
+		if item.PlanRef == nil || item.PlanRef.PlanID != workshop.PlanID {
+			return fmt.Errorf("backlog item no longer owns this canonical plan")
+		}
+		item.PlanAcceptance = nil
+		item.Updated = time.Now().UTC().Format(time.RFC3339)
+		return s.backlogHandler.Store().SaveItem(item)
+	})
+	service.SetCandidateDiscarder(func(ctx context.Context, _ planworkshop.Session, candidate planworkshop.CandidateReference, reason string) error {
+		if strings.TrimSpace(reason) == "" {
+			reason = "ignored by operator in Plan Workshop"
+		}
+		_, err := plans.DiscardCandidateRevision(ctx, candidate.ID, reason)
+		return err
+	})
+	service.SetProposalRecorder(func(ctx context.Context, workshop planworkshop.Session, provenance planworkshop.WorkflowProvenance, drafts []planworkshop.ProposalDraft) (string, []planworkshop.ProposalRef, error) {
+		if s.agentSessionStore == nil {
+			return "", nil, fmt.Errorf("Agent Session proposal store is not configured")
+		}
+		sessionID := planWorkshopAgentSessionID(workshop.ID, provenance.ExecutionID)
+		target := planWorkshopProposalTarget(workshop.Subject)
+		_, err := s.agentSessionStore.LoadSession(sessionID)
+		if err != nil {
+			if !errors.Is(err, agentsessions.ErrNotFound) {
+				return "", nil, err
 			}
-			started, err := workflow.StartWorkflow(ctx, agentmanager.Invocation{
-				Owner: locator.Owner, WorkflowKey: locator.Key, Input: input,
-				IdempotencyKey: "plan-workshop/" + session.ID + "/" + response.ID,
-				FirstRunNodeID: "reconcile",
-				Activity:       &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: parts[0], OwnerName: parts[1], Purpose: "workshop"},
-			})
-			if err != nil {
-				return planworkshop.WorkflowProvenance{}, err
+			now := time.Now().UTC().Format(time.RFC3339Nano)
+			stored := agentsessions.Session{ID: sessionID, Title: "Plan Workshop review for " + workshop.Subject.Ref, Kind: agentsessions.KindSwarmOperations, Status: agentsessions.StatusProposalReady, SkillID: agentsessions.SkillProposals, RunID: provenance.RunID, CreatedAt: now, UpdatedAt: now, ProposalTarget: &target}
+			if err := s.agentSessionStore.CreateSession(stored); err != nil {
+				return "", nil, err
 			}
-			return planworkshop.WorkflowProvenance{Transition: "plan.workshop.reconcile", ExecutionID: started.ExecutionID, DefinitionDigest: started.DefinitionDigest, RunID: started.RunID, StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}, nil
-		})
-		service.SetReviewStarter(func(ctx context.Context, session planworkshop.Session) (planworkshop.WorkflowProvenance, error) {
-			locator, err := registry.ResolveWorkflow("plan.workshop.review")
-			if err != nil {
-				return planworkshop.WorkflowProvenance{}, err
+		}
+		refs := make([]planworkshop.ProposalRef, 0, len(drafts))
+		createdAt := time.Now().UTC().Format(time.RFC3339Nano)
+		for index, draft := range drafts {
+			proposalID := planWorkshopProposalID(provenance.ExecutionID, index)
+			proposal := agentsessions.Proposal{
+				ID: proposalID, Kind: agentsessions.ProposalMutationList, Status: agentsessions.ProposalStatusReady,
+				Summary: strings.TrimSpace(draft.Summary), PayloadJSON: string(draft.Payload), Target: &target,
+				CreatedAt: createdAt, UpdatedAt: createdAt,
+				Attribution: &agentsessions.Attribution{Type: agentsessions.AttributionAgent, RunID: provenance.RunID, SessionID: sessionID, SessionKind: agentsessions.KindSwarmOperations, Source: "plan-workshop/" + workshop.ID},
 			}
-			planSnapshot, err := planWorkshopCanonicalPlanSnapshot(ctx, plans, session.PlanID)
-			if err != nil {
-				return planworkshop.WorkflowProvenance{}, err
+			if err := s.agentSessionStore.SaveProposal(sessionID, proposal); err != nil {
+				return "", nil, err
 			}
-			input, err := structpb.NewValue(map[string]any{
-				"subject": session.Subject,
-				"snapshot": map[string]any{
-					"workshopId": session.ID, "subjectVersion": session.SubjectVersion,
-					"planId": session.PlanID, "planContentHash": session.PlanContentHash, "plan": planSnapshot,
-				},
-			})
-			if err != nil {
-				return planworkshop.WorkflowProvenance{}, fmt.Errorf("encode review snapshot: %w", err)
+			refs = append(refs, planworkshop.ProposalRef{SessionID: sessionID, ProposalID: proposalID, ApplyMode: draft.ApplyMode})
+		}
+		return sessionID, refs, nil
+	})
+	service.SetDirectProposalApplier(func(ctx context.Context, ref planworkshop.ProposalRef, actor string) error {
+		if s.agentSessionSvc == nil || s.agentSessionStore == nil {
+			return fmt.Errorf("Agent Session mutation proposal service is not configured")
+		}
+		session, err := s.agentSessionStore.LoadSession(ref.SessionID)
+		if err != nil {
+			return err
+		}
+		for _, proposal := range session.Proposals {
+			if proposal.ID != ref.ProposalID {
+				continue
 			}
-			parts := strings.SplitN(session.Subject.Ref, "/", 2)
-			if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
-				return planworkshop.WorkflowProvenance{}, fmt.Errorf("backlog workshop subject ref must be kind/name")
-			}
-			started, err := workflow.StartWorkflow(ctx, agentmanager.Invocation{
-				Owner: locator.Owner, WorkflowKey: locator.Key, Input: input,
-				IdempotencyKey: "plan-workshop/review/" + session.ID + "/" + session.SubjectVersion, FirstRunNodeID: "review",
-				Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: parts[0], OwnerName: parts[1], Purpose: "workshop"},
-			})
-			if err != nil {
-				return planworkshop.WorkflowProvenance{}, err
-			}
-			return planworkshop.WorkflowProvenance{Transition: "plan.workshop.review", ExecutionID: started.ExecutionID, DefinitionDigest: started.DefinitionDigest, RunID: started.RunID, StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}, nil
-		})
-		service.SetReviewCollector(func(ctx context.Context, session planworkshop.Session, provenance planworkshop.WorkflowProvenance) (planworkshop.ReviewResult, error) {
-			completion, err := workflow.CollectWorkflow(ctx, provenance.ExecutionID)
-			if err != nil {
-				return planworkshop.ReviewResult{}, err
-			}
-			if completion.ExecutionID != provenance.ExecutionID || completion.DefinitionDigest != provenance.DefinitionDigest || completion.Status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
-				return planworkshop.ReviewResult{}, fmt.Errorf("review workflow terminal snapshot is not applicable")
-			}
-			if !planWorkshopReviewInputMatches(completion.Input, session) {
-				return planworkshop.ReviewResult{}, fmt.Errorf("review workflow snapshot does not match the Plan Workshop")
-			}
-			if completion.Output == nil {
-				return planworkshop.ReviewResult{}, fmt.Errorf("review workflow output is missing")
-			}
-			output, ok := completion.Output.AsInterface().(map[string]any)
-			if !ok {
-				return planworkshop.ReviewResult{}, fmt.Errorf("review workflow output is invalid")
-			}
-			raw, ok := output["result"]
-			if !ok {
-				return planworkshop.ReviewResult{}, fmt.Errorf("review workflow result is missing")
-			}
-			data, err := json.Marshal(raw)
-			if err != nil {
-				return planworkshop.ReviewResult{}, err
-			}
-			var result planworkshop.ReviewResult
-			if err := json.Unmarshal(data, &result); err != nil {
-				return planworkshop.ReviewResult{}, fmt.Errorf("decode typed review result: %w", err)
-			}
-			return result, nil
-		})
-		service.SetReconciliationCollector(func(ctx context.Context, session planworkshop.Session, response planworkshop.Response, provenance planworkshop.WorkflowProvenance) (planworkshop.ReconciliationResult, error) {
-			completion, err := workflow.CollectWorkflow(ctx, provenance.ExecutionID)
-			if err != nil {
-				return planworkshop.ReconciliationResult{}, err
-			}
-			if completion.ExecutionID != provenance.ExecutionID || completion.DefinitionDigest != provenance.DefinitionDigest || completion.Status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED || completion.Output == nil {
-				return planworkshop.ReconciliationResult{}, fmt.Errorf("reconciliation workflow terminal snapshot is not applicable")
-			}
-			if !planWorkshopReconciliationInputMatches(completion.Input, session, response) {
-				return planworkshop.ReconciliationResult{}, fmt.Errorf("reconciliation workflow snapshot does not match the Plan Workshop response")
-			}
-			output, ok := completion.Output.AsInterface().(map[string]any)
-			if !ok {
-				return planworkshop.ReconciliationResult{}, fmt.Errorf("reconciliation workflow output is invalid")
-			}
-			raw, ok := output["result"]
-			if !ok {
-				return planworkshop.ReconciliationResult{}, fmt.Errorf("reconciliation workflow result is missing")
-			}
-			data, err := json.Marshal(raw)
-			if err != nil {
-				return planworkshop.ReconciliationResult{}, err
-			}
-			var result planworkshop.ReconciliationResult
-			if err := json.Unmarshal(data, &result); err != nil {
-				return planworkshop.ReconciliationResult{}, fmt.Errorf("decode typed reconciliation result: %w", err)
-			}
-			return result, nil
-		})
-		service.SetCandidateCreator(func(ctx context.Context, workshop planworkshop.Session, response planworkshop.Response, provenance planworkshop.WorkflowProvenance, raw json.RawMessage) (planworkshop.CandidateReference, error) {
-			candidatePlan := &sharedv1.Plan{}
-			if err := protojson.Unmarshal(raw, candidatePlan); err != nil {
-				return planworkshop.CandidateReference{}, fmt.Errorf("decode whole-plan reconciliation candidate: %w", err)
-			}
-			candidatePlan.Id = ""
-			candidate, err := plans.CreateCandidateRevision(ctx, planclient.CandidateRevisionInput{PlanID: workshop.PlanID, ExpectedBaseContentHash: workshop.PlanContentHash, ProposalProvenance: "swarm-manager:plan-workshop/" + workshop.ID + "/" + response.ID + "/" + provenance.ExecutionID, CandidatePlan: candidatePlan})
-			if err != nil {
-				return planworkshop.CandidateReference{}, err
-			}
-			if candidate == nil || strings.TrimSpace(candidate.GetId()) == "" {
-				return planworkshop.CandidateReference{}, fmt.Errorf("plan manager omitted the reconciliation candidate id")
-			}
-			preview, err := plans.PreviewCandidateRevision(ctx, candidate.GetId())
-			if err != nil {
-				return planworkshop.CandidateReference{}, err
-			}
-			findings := make([]string, 0, len(preview.GetDiagnostics()))
-			diagnostics := make([]planworkshop.CandidateDiagnostic, 0, len(preview.GetDiagnostics()))
-			for _, diagnostic := range preview.GetDiagnostics() {
-				if diagnostic == nil {
-					continue
-				}
-				diagnostics = append(diagnostics, planworkshop.CandidateDiagnostic{Severity: diagnostic.GetSeverity(), Code: diagnostic.GetCode(), Location: diagnostic.GetLocation(), Message: diagnostic.GetMessage(), Guidance: diagnostic.GetGuidance()})
-				if strings.TrimSpace(diagnostic.GetMessage()) != "" {
-					findings = append(findings, diagnostic.GetMessage())
-				}
-			}
-			changes := make([]planworkshop.CandidateFieldChange, 0, len(preview.GetDiff().GetChanges()))
-			for _, change := range preview.GetDiff().GetChanges() {
-				if change != nil {
-					changes = append(changes, planworkshop.CandidateFieldChange{Field: change.GetField(), BeforeJSON: change.GetBeforeJson(), AfterJSON: change.GetAfterJson()})
-				}
-			}
-			impact := preview.GetImpact()
-			return planworkshop.CandidateReference{ID: candidate.GetId(), PlanID: workshop.PlanID, ExpectedBaseContentHash: workshop.PlanContentHash, QualityStatus: preview.GetQualityStatus(), QualityFindings: findings, Diff: changes, Diagnostics: diagnostics, Impact: planworkshop.CandidateImpact{BeforeGrade: impact.GetBeforeGrade(), AfterGrade: impact.GetAfterGrade(), AddedIssueCodes: impact.GetAddedIssueCodes(), ClearedIssueCodes: impact.GetClearedIssueCodes(), ExecutionGradeRegression: impact.GetExecutionGradeRegression()}}, nil
-		})
-		service.SetCandidateApplier(func(ctx context.Context, workshop planworkshop.Session, candidate planworkshop.CandidateReference, acknowledgeQualityImpact bool) error {
-			result, err := plans.ApplyCandidateRevision(ctx, candidate.ID, candidate.ExpectedBaseContentHash, acknowledgeQualityImpact)
-			if err != nil {
-				return err
-			}
-			if result.GetPlan() == nil || result.GetPlan().GetId() != workshop.PlanID {
-				return fmt.Errorf("candidate does not apply to this workshop's canonical plan")
-			}
-			if workshop.Subject.Kind != planworkshop.SubjectBacklog {
+			if proposal.Status == agentsessions.ProposalStatusApplied {
 				return nil
 			}
-			parts := strings.SplitN(workshop.Subject.Ref, "/", 2)
-			if len(parts) != 2 {
-				return fmt.Errorf("backlog workshop subject ref must be kind/name")
+			if followUp, ok := decodeFollowUpProposal(proposal.PayloadJSON); ok {
+				if s.executionSvc == nil {
+					return fmt.Errorf("execution service is not configured for follow-up proposal")
+				}
+				if err := followUp.Validate(); err != nil {
+					return err
+				}
+				followUpType := "followup"
+				if followUp.Route == "work.correct" {
+					followUpType = "fixup"
+				}
+				if _, err := s.executionSvc.FollowUp(ctx, execution.FollowUpRequest{
+					ExecutionID:      followUp.SourceExecutionID,
+					FollowUpType:     followUpType,
+					Context:          followUp.Rationale,
+					SourceProposalID: ref.ProposalID,
+					SourceReviewRef:  followUp.SourceReviewRef,
+				}); err != nil {
+					return err
+				}
+				proposal.Status = agentsessions.ProposalStatusApplied
+				proposal.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+				proposal.Decisions = append(proposal.Decisions, agentsessions.ProposalDecision{Kind: "apply", Note: "accepted in Plan Workshop by " + strings.TrimSpace(actor), DecidedAt: proposal.UpdatedAt})
+				return s.agentSessionStore.SaveProposal(ref.SessionID, proposal)
 			}
-			kind, err := backlog.ParseBacklogKind(parts[0])
-			if err != nil {
-				return err
+			if proposal.Kind != agentsessions.ProposalMutationList {
+				return fmt.Errorf("direct Plan Workshop proposal is not a mutation list")
 			}
-			item, err := s.backlogHandler.Store().LoadItem(kind, parts[1])
-			if err != nil {
-				return err
-			}
-			if item.PlanRef == nil || item.PlanRef.PlanID != workshop.PlanID {
-				return fmt.Errorf("backlog item no longer owns this canonical plan")
-			}
-			item.PlanAcceptance = nil
-			item.Updated = time.Now().UTC().Format(time.RFC3339)
-			return s.backlogHandler.Store().SaveItem(item)
-		})
-		service.SetCandidateDiscarder(func(ctx context.Context, _ planworkshop.Session, candidate planworkshop.CandidateReference, reason string) error {
-			if strings.TrimSpace(reason) == "" {
-				reason = "ignored by operator in Plan Workshop"
-			}
-			_, err := plans.DiscardCandidateRevision(ctx, candidate.ID, reason)
+			_, err := s.agentSessionSvc.DecideMutationListProposal(ctx, ref.SessionID, ref.ProposalID, nil, "accepted in Plan Workshop by "+strings.TrimSpace(actor))
 			return err
-		})
-		service.SetProposalRecorder(func(ctx context.Context, workshop planworkshop.Session, provenance planworkshop.WorkflowProvenance, drafts []planworkshop.ProposalDraft) (string, []planworkshop.ProposalRef, error) {
-			if s.agentSessionStore == nil {
-				return "", nil, fmt.Errorf("Agent Session proposal store is not configured")
-			}
-			sessionID := planWorkshopAgentSessionID(workshop.ID, provenance.ExecutionID)
-			target := planWorkshopProposalTarget(workshop.Subject)
-			_, err := s.agentSessionStore.LoadSession(sessionID)
-			if err != nil {
-				if !errors.Is(err, agentsessions.ErrNotFound) {
-					return "", nil, err
-				}
-				now := time.Now().UTC().Format(time.RFC3339Nano)
-				stored := agentsessions.Session{ID: sessionID, Title: "Plan Workshop review for " + workshop.Subject.Ref, Kind: agentsessions.KindSwarmOperations, Status: agentsessions.StatusProposalReady, SkillID: agentsessions.SkillProposals, RunID: provenance.RunID, CreatedAt: now, UpdatedAt: now, ProposalTarget: &target}
-				if err := s.agentSessionStore.CreateSession(stored); err != nil {
-					return "", nil, err
-				}
-			}
-			refs := make([]planworkshop.ProposalRef, 0, len(drafts))
-			createdAt := time.Now().UTC().Format(time.RFC3339Nano)
-			for index, draft := range drafts {
-				proposalID := planWorkshopProposalID(provenance.ExecutionID, index)
-				proposal := agentsessions.Proposal{
-					ID: proposalID, Kind: agentsessions.ProposalMutationList, Status: agentsessions.ProposalStatusReady,
-					Summary: strings.TrimSpace(draft.Summary), PayloadJSON: string(draft.Payload), Target: &target,
-					CreatedAt: createdAt, UpdatedAt: createdAt,
-					Attribution: &agentsessions.Attribution{Type: agentsessions.AttributionAgent, RunID: provenance.RunID, SessionID: sessionID, SessionKind: agentsessions.KindSwarmOperations, Source: "plan-workshop/" + workshop.ID},
-				}
-				if err := s.agentSessionStore.SaveProposal(sessionID, proposal); err != nil {
-					return "", nil, err
-				}
-				refs = append(refs, planworkshop.ProposalRef{SessionID: sessionID, ProposalID: proposalID, ApplyMode: draft.ApplyMode})
-			}
-			return sessionID, refs, nil
-		})
-		service.SetDirectProposalApplier(func(ctx context.Context, ref planworkshop.ProposalRef, actor string) error {
-			if s.agentSessionSvc == nil || s.agentSessionStore == nil {
-				return fmt.Errorf("Agent Session mutation proposal service is not configured")
-			}
-			session, err := s.agentSessionStore.LoadSession(ref.SessionID)
-			if err != nil {
-				return err
-			}
-			for _, proposal := range session.Proposals {
-				if proposal.ID != ref.ProposalID {
-					continue
-				}
-				if proposal.Status == agentsessions.ProposalStatusApplied {
-					return nil
-				}
-				if followUp, ok := decodeFollowUpProposal(proposal.PayloadJSON); ok {
-					if s.executionSvc == nil {
-						return fmt.Errorf("execution service is not configured for follow-up proposal")
-					}
-					if err := followUp.Validate(); err != nil {
-						return err
-					}
-					followUpType := "followup"
-					if followUp.Route == "work.correct" {
-						followUpType = "fixup"
-					}
-					if _, err := s.executionSvc.FollowUp(ctx, execution.FollowUpRequest{
-						ExecutionID:      followUp.SourceExecutionID,
-						FollowUpType:     followUpType,
-						Context:          followUp.Rationale,
-						SourceProposalID: ref.ProposalID,
-						SourceReviewRef:  followUp.SourceReviewRef,
-					}); err != nil {
-						return err
-					}
-					proposal.Status = agentsessions.ProposalStatusApplied
-					proposal.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
-					proposal.Decisions = append(proposal.Decisions, agentsessions.ProposalDecision{Kind: "apply", Note: "accepted in Plan Workshop by " + strings.TrimSpace(actor), DecidedAt: proposal.UpdatedAt})
-					return s.agentSessionStore.SaveProposal(ref.SessionID, proposal)
-				}
-				if proposal.Kind != agentsessions.ProposalMutationList {
-					return fmt.Errorf("direct Plan Workshop proposal is not a mutation list")
-				}
-				_, err := s.agentSessionSvc.DecideMutationListProposal(ctx, ref.SessionID, ref.ProposalID, nil, "accepted in Plan Workshop by "+strings.TrimSpace(actor))
-				return err
-			}
-			return fmt.Errorf("direct Plan Workshop proposal is missing from its Agent Session")
-		})
-	}
+		}
+		return fmt.Errorf("direct Plan Workshop proposal is missing from its Agent Session")
+	})
 	attachReviewFinding := func(ctx context.Context, kind, name string, round review.Round) {
 		subjectKind := planworkshop.SubjectBacklog
 		subjectRef := kind + "/" + name
@@ -528,29 +469,18 @@ func automaticFollowUpAllowed(proposal planworkshop.FollowUpProposal) bool {
 	return proposal.Target == "current_work" && proposal.Confidence == "high"
 }
 
-func planWorkshopReviewInputMatches(input *structpb.Value, session planworkshop.Session) bool {
-	if input == nil {
-		return false
+func planWorkshopWorkflowProvenance(correlation transitionrun.Correlation) planworkshop.WorkflowProvenance {
+	runID := ""
+	if len(correlation.Attempts) > 0 {
+		runID = correlation.Attempts[0].RunID
 	}
-	payload, ok := input.AsInterface().(map[string]any)
-	if !ok {
-		return false
+	return planworkshop.WorkflowProvenance{
+		Transition:       correlation.TransitionKey,
+		ExecutionID:      correlation.ExecutionID,
+		DefinitionDigest: correlation.DefinitionDigest,
+		RunID:            runID,
+		StartedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	subject, ok := payload["subject"].(map[string]any)
-	if !ok || subject["kind"] != string(session.Subject.Kind) || subject["ref"] != session.Subject.Ref {
-		return false
-	}
-	snapshot, ok := payload["snapshot"].(map[string]any)
-	return ok && snapshot["workshopId"] == session.ID && snapshot["subjectVersion"] == session.SubjectVersion && snapshot["planContentHash"] == session.PlanContentHash
-}
-
-func planWorkshopReconciliationInputMatches(input *structpb.Value, session planworkshop.Session, response planworkshop.Response) bool {
-	if !planWorkshopReviewInputMatches(input, session) {
-		return false
-	}
-	payload, _ := input.AsInterface().(map[string]any)
-	stored, ok := payload["response"].(map[string]any)
-	return ok && stored["id"] == response.ID && stored["subject_version"] == response.SubjectVersion && stored["idempotency_key"] == response.IdempotencyKey
 }
 
 func planWorkshopAcceptedProposalPayloads(store agentsessions.Store, refs []planworkshop.ProposalRef) ([]map[string]any, error) {

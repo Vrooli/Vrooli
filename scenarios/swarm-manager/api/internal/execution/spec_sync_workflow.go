@@ -4,21 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/transitionrunner"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
 )
-
-type specSyncWorkflowResult struct {
-	Result struct {
-		Outcome string `json:"outcome"`
-		Summary string `json:"summary"`
-	} `json:"result"`
-}
 
 type specSyncWorkflowSnapshot struct {
 	EntityVersion string
@@ -59,117 +51,81 @@ func buildSpecSyncWorkflowSnapshot(record Record) (specSyncWorkflowSnapshot, err
 }
 
 func (s *Service) startSpecSyncWorkflow(ctx context.Context, record Record) (agentmanager.WorkflowStart, specSyncWorkflowSnapshot, error) {
-	if s.specSyncWorkflow == nil {
+	if s.transitionRunner == nil {
 		return agentmanager.WorkflowStart{}, specSyncWorkflowSnapshot{}, agentmanager.ErrNotAvailable
 	}
-	snapshot, err := buildSpecSyncWorkflowSnapshot(record)
+	started, err := s.transitionRunner.StartWith(ctx, "scenario.spec_sync", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: "sync", Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "spec_sync"}})
 	if err != nil {
 		return agentmanager.WorkflowStart{}, specSyncWorkflowSnapshot{}, err
 	}
-	workflow, err := s.resolveWorkflow("scenario.spec_sync")
-	if err != nil {
-		return agentmanager.WorkflowStart{}, specSyncWorkflowSnapshot{}, err
+	snapshot := specSyncWorkflowSnapshot{EntityVersion: started.EntityVersion, WorkflowKey: started.WorkflowKey}
+	start := agentmanager.WorkflowStart{ExecutionID: started.ExecutionID, DefinitionDigest: started.DefinitionDigest}
+	if len(started.Attempts) > 0 {
+		start.RunID = started.Attempts[0].RunID
 	}
-	snapshot.WorkflowKey = workflow.Key
-	start, err := s.specSyncWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
-		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: snapshot.Input,
-		IdempotencyKey: "scenario-spec-sync/" + record.ExecutionID + "/" + snapshot.EntityVersion, FirstRunNodeID: "sync",
-		Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "spec_sync"},
-	})
-	return start, snapshot, err
+	return start, snapshot, nil
 }
 
 func (s *Service) ApplySpecSyncWorkflow(ctx context.Context, executionID string) (PhasedPlanApplyResult, error) {
+	if s.transitionRunner == nil {
+		return PhasedPlanApplyResult{}, agentmanager.ErrNotAvailable
+	}
+	workflowExecutionID, err := s.transitionExecutionID(ctx, executionID)
+	if err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
+	before, err := s.transitionRunner.GetCorrelation(workflowExecutionID)
+	if err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
+	correlation, err := s.transitionRunner.ApplyExecution(ctx, workflowExecutionID)
+	if err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
+	if correlation.TransitionKey != "scenario.spec_sync" {
+		return PhasedPlanApplyResult{}, apierr.BadRequest("execution is not owned by a scenario spec-sync workflow")
+	}
+	record, err := s.Get(ctx, executionID)
+	if err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
+	return PhasedPlanApplyResult{Record: record, Idempotent: before.ApplyState == "complete"}, nil
+}
+
+func (s *Service) applySpecSyncTransition(ctx context.Context, executionID string, outcome transitionrunner.Outcome) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	records, idx, err := s.loadRecordLocked(executionID)
 	if err != nil {
-		return PhasedPlanApplyResult{}, err
+		return err
 	}
 	record := records[idx]
-	if record.AgentWorkflowKey != "swarm-manager/scenario-spec-sync" {
-		return PhasedPlanApplyResult{}, apierr.BadRequest("execution is not owned by a scenario spec-sync workflow")
+	if outcome.TransitionKey != "scenario.spec_sync" {
+		return fmt.Errorf("execution %q is not a scenario spec-sync transition", executionID)
 	}
-	if record.AgentWorkflowApplyState == workflowApplyComplete {
-		return PhasedPlanApplyResult{Record: record, Idempotent: true}, nil
-	}
-	if record.AgentWorkflowApplyState != workflowApplyClaimed {
-		completion, collectErr := s.specSyncWorkflow.CollectWorkflow(ctx, record.AgentWorkflowExecutionID)
-		if collectErr != nil {
-			return PhasedPlanApplyResult{}, wrapAgentError(collectErr)
-		}
-		if err := validateSpecSyncCompletion(record, completion); err != nil {
-			return PhasedPlanApplyResult{}, err
-		}
-		if completion.Output == nil {
-			return PhasedPlanApplyResult{}, apierr.BadGateway("spec-sync workflow returned no typed result")
-		}
-		raw, err := json.Marshal(completion.Output.AsInterface())
-		if err != nil {
-			return PhasedPlanApplyResult{}, apierr.BadGateway("spec-sync workflow returned an unreadable typed result")
-		}
-		outcome, err := parseSpecSyncWorkflowOutcome(completion.Status, raw)
-		if err != nil {
-			return PhasedPlanApplyResult{}, err
-		}
-		record.AgentWorkflowTerminalCode, record.AgentWorkflowBudgetName = completion.TerminalCode, completion.BudgetName
-		record.AgentWorkflowResult, record.AgentWorkflowOutcome = raw, outcome
-		record.AgentWorkflowApplyState, record.UpdatedAt = workflowApplyClaimed, nowRFC3339()
-		records[idx] = record
-		if err := s.store.Save(records); err != nil {
-			return PhasedPlanApplyResult{}, err
-		}
+	record.AgentWorkflowTerminalCode, record.AgentWorkflowBudgetName = outcome.TerminalCode, outcome.BudgetName
+	record.AgentWorkflowResult, record.AgentWorkflowOutcome = append([]byte(nil), outcome.Result...), outcome.Name
+	if outcome.Name == "synced" {
+		record.AgentWorkflowOutcome = "complete"
 	}
 	previous := record.Status
 	record.FinishedAt = nowRFC3339()
 	if record.AgentWorkflowOutcome == "complete" {
 		record.Status = StatusCompleted
 		s.handleSpecSyncComplete(ctx, &record)
-	} else if record.AgentWorkflowOutcome == "cancelled" {
+	} else if outcome.Name == "cancelled" {
 		record.Status = StatusCanceled
 	} else {
 		record.Status = StatusFailed
-		record.FailureReason = firstNonEmpty(record.AgentWorkflowTerminalCode, record.AgentWorkflowOutcome, "spec-sync workflow failed")
+		record.FailureReason = firstNonEmpty(outcome.TerminalCode, outcome.Name, "spec-sync workflow failed")
 	}
 	s.logExecutionEvent(record, previous)
-	record.AgentWorkflowApplyState, record.AgentWorkflowAppliedAt = workflowApplyComplete, nowRFC3339()
-	record.UpdatedAt = record.AgentWorkflowAppliedAt
+	record.AgentWorkflowAppliedAt = nowRFC3339()
+	record.UpdatedAt = nowRFC3339()
 	records[idx] = record
 	if err := s.store.Save(records); err != nil {
-		return PhasedPlanApplyResult{}, err
+		return err
 	}
 	s.dispatchStatusUpdate(record)
-	return PhasedPlanApplyResult{Record: record}, nil
-}
-
-func validateSpecSyncCompletion(record Record, completion agentmanager.InvocationCompletion) error {
-	if completion.ExecutionID != record.AgentWorkflowExecutionID || completion.DefinitionDigest != record.AgentWorkflowDefinition || completion.Input == nil {
-		return apierr.Conflict("workflow result does not match the authorized scenario spec-sync")
-	}
-	input, ok := completion.Input.AsInterface().(map[string]any)
-	if !ok {
-		return apierr.Conflict("workflow input is not a valid scenario spec-sync snapshot")
-	}
-	entity, ok := input["entity"].(map[string]any)
-	if !ok || entity["kind"] != "scenario" || entity["name"] != record.BacklogName || entity["executionId"] != record.ExecutionID || entity["version"] != record.AgentWorkflowEntityVersion {
-		return apierr.Conflict("workflow result does not match the authorized scenario spec-sync snapshot")
-	}
 	return nil
-}
-
-func parseSpecSyncWorkflowOutcome(status domainpb.WorkflowExecutionStatus, raw []byte) (string, error) {
-	if status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
-		if status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED {
-			return "cancelled", nil
-		}
-		return "failed", nil
-	}
-	var result specSyncWorkflowResult
-	if json.Unmarshal(raw, &result) != nil || strings.TrimSpace(result.Result.Summary) == "" {
-		return "", apierr.BadGateway("spec-sync workflow succeeded without a typed result")
-	}
-	if result.Result.Outcome != "complete" && result.Result.Outcome != "needs_attention" {
-		return "", apierr.BadGateway("spec-sync workflow returned an invalid outcome")
-	}
-	return result.Result.Outcome, nil
 }

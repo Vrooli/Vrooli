@@ -6,65 +6,8 @@
 package agentmanager
 
 import (
-	"context"
-	"net/http"
-	"net/http/httptest"
 	"testing"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
-	"google.golang.org/protobuf/encoding/protojson"
 )
-
-// captureCreateRunSurface stands up a fake agent-manager that captures the
-// CreateRunRequest body sent by the spawn helper.
-func captureCreateRunSurface(t *testing.T) (*httptest.Server, *capturedCreateRun) {
-	t.Helper()
-	cap := &capturedCreateRun{}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/profiles/reconcile-scenario", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"scenario":"swarm-manager","results":[{"profileKey":"swarm-manager/default","profileId":"00000000-0000-0000-0000-000000000099","status":"PROFILE_RECONCILE_STATUS_CREATED"}],"created":1}`))
-	})
-	mux.HandleFunc("/api/v1/tasks", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"task":{"id":"task-1","title":"t","scopePath":"."}}`))
-	})
-	mux.HandleFunc("/api/v1/runs", func(w http.ResponseWriter, r *http.Request) {
-		body := make([]byte, r.ContentLength)
-		_, _ = r.Body.Read(body)
-		var req apipb.CreateRunRequest
-		if err := protojson.Unmarshal(body, &req); err != nil {
-			t.Errorf("decode CreateRunRequest: %v", err)
-		}
-		cap.req = &req
-		_, _ = w.Write([]byte(`{"run":{"id":"run-1","taskId":"task-1","status":"RUN_STATUS_PENDING"}}`))
-	})
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	return srv, cap
-}
-
-type capturedCreateRun struct {
-	req *apipb.CreateRunRequest
-}
-
-func newSpawnTestService(t *testing.T, baseURL string) *AgentService {
-	t.Helper()
-	// The lifecycle always injects the scenario identity into a running
-	// swarm-manager process; mirror that identity so the session spawn follows
-	// the same profile reconciliation path as production.
-	t.Setenv("VROOLI_SCENARIO", "swarm-manager")
-	svc := NewAgentService(AgentServiceConfig{
-		ProfileName: "swarm-manager",
-		ProfileKey:  "swarm-manager/default",
-		Enabled:     true,
-	})
-	svc.client = NewHTTPClientWithResolver(func(_ context.Context) (string, error) {
-		return baseURL, nil
-	}, nil)
-	return svc
-}
 
 // Two consecutive spawns should produce two distinct ConversationIds; each
 // top-level spawn from swarm-manager is conceptually a fresh conversation.

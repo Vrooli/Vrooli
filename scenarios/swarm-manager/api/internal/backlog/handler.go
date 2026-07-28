@@ -17,15 +17,14 @@ import (
 	"net/http"
 	"strings"
 
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/planclient"
-	"swarm-manager/internal/planrepair"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
+	"swarm-manager/internal/transitionrunner"
 	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/mux"
@@ -117,8 +116,7 @@ type Handler struct {
 	itemTerminalHandler  ItemTerminalHandler
 	recordCreator        RecordCreator
 	reviewRoundInspector ReviewRoundInspector
-	planAuthorWorkflow   agentmanager.WorkflowInvoker
-	planRepair           *planrepair.Service
+	transitionRunner     *transitionrunner.Runner
 	transitionRegistry   transitions.Registry
 	lifecycleService     *Service
 	decisionCount        DecisionCountProvider
@@ -165,15 +163,6 @@ func (h *Handler) SetExecutionActivityChecker(checker ExecutionActivityChecker) 
 // behavior.
 func (h *Handler) SetLifecycleService(service *Service) { h.lifecycleService = service }
 
-// SetPlanRepair installs the declared workflow adapter and its durable Swarm
-// authority ledger. The handler retains domain binding; it never owns runs.
-func (h *Handler) SetPlanRepair(service *planrepair.Service) {
-	h.planRepair = service
-	if service != nil {
-		service.SetTransitionRegistry(h.transitionRegistry)
-	}
-}
-
 // EventLogger records state-change events for analytics.
 type EventLogger interface {
 	EmitBacklogCreated(entityID, kind, status string, priority int, milestone, effort string)
@@ -201,12 +190,11 @@ func NewHandler(dataRoot, repoRoot string) *Handler {
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	return &Handler{
-		dataRoot:           dataRoot,
-		repoRoot:           repoRoot,
-		store:              NewFileStore(dataRoot),
-		promptClient:       promptmanager.NewHTTPClient(),
-		planClient:         planclient.NewConnectClient(nil, nil),
-		planAuthorWorkflow: agentmanager.NewWorkflowService(),
+		dataRoot:     dataRoot,
+		repoRoot:     repoRoot,
+		store:        NewFileStore(dataRoot),
+		promptClient: promptmanager.NewHTTPClient(),
+		planClient:   planclient.NewConnectClient(nil, nil),
 	}
 }
 
@@ -217,12 +205,11 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerA
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	h := &Handler{
-		dataRoot:           dataRoot,
-		repoRoot:           repoRoot,
-		store:              NewFileStore(dataRoot),
-		promptClient:       promptClient,
-		planClient:         planclient.NewConnectClient(nil, nil),
-		planAuthorWorkflow: agentmanager.NewWorkflowService(),
+		dataRoot:     dataRoot,
+		repoRoot:     repoRoot,
+		store:        NewFileStore(dataRoot),
+		promptClient: promptClient,
+		planClient:   planclient.NewConnectClient(nil, nil),
 	}
 	// The injected agent service is consumed only as the active-agent guard source
 	// (a narrow, read-only capability). Its Agent Manager spawn methods are never
@@ -237,22 +224,10 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerA
 	return h
 }
 
-// SetPlanAuthorWorkflow injects the generic declared-workflow seam for plan
-// authoring. Swarm retains only snapshot and validated plan-ref binding.
-func (h *Handler) SetPlanAuthorWorkflow(service agentmanager.WorkflowInvoker) {
-	h.planAuthorWorkflow = service
-}
-
-// SetWorkflowActivityRecorder wires the shared launch ledger into every
-// backlog-owned declared workflow. Recording remains inside StartWorkflow so
-// callers cannot accidentally create a separate activity path.
-func (h *Handler) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActivityRecorder) {
-	if workflow, ok := h.planAuthorWorkflow.(*agentmanager.WorkflowService); ok {
-		workflow.SetWorkflowActivityRecorder(recorder)
-	}
-	if h.planRepair != nil {
-		h.planRepair.SetWorkflowActivityRecorder(recorder)
-	}
+// SetTransitionRunner installs the server-owned declared-transition runtime.
+// Backlog contributes only subject snapshots and terminal mutations.
+func (h *Handler) SetTransitionRunner(runner *transitionrunner.Runner) {
+	h.transitionRunner = runner
 }
 
 // SetTransitionRegistry installs the immutable scenario declaration catalog.
@@ -260,28 +235,6 @@ func (h *Handler) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActi
 // Agent Manager workflow that implements it.
 func (h *Handler) SetTransitionRegistry(registry transitions.Registry) {
 	h.transitionRegistry = registry
-	if h.planRepair != nil {
-		h.planRepair.SetTransitionRegistry(registry)
-	}
-}
-
-func (h *Handler) resolveWorkflow(transitionKey string) (transitions.Locator, error) {
-	workflow, err := h.transitionRegistry.ResolveWorkflow(transitionKey)
-	if err != nil {
-		return transitions.Locator{}, fmt.Errorf("resolve %s workflow: %w", transitionKey, err)
-	}
-	return workflow, nil
-}
-
-// SetWorkflowStartGuard applies the server-owned transition policy to the
-// default workflow adapter. Test fakes intentionally remain policy-free.
-func (h *Handler) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
-	if workflow, ok := h.planAuthorWorkflow.(*agentmanager.WorkflowService); ok {
-		workflow.SetStartGuard(guard)
-	}
-	if h.planRepair != nil {
-		h.planRepair.SetStartGuard(guard)
-	}
 }
 
 // SetPlanClient injects the canonical plan-manager client used for linked-plan
@@ -447,6 +400,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-render", h.RenderLinkedPlan).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-accept", h.AcceptPlan).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-accept", h.UnacceptPlan).Methods("DELETE")
+	// Deprecated transition aliases: use TransitionService.StartTransition/ApplyTransition.
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair", h.StartPlanRepair).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair/{repairID}/apply", h.ApplyPlanRepair).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-candidates/{candidateID}/apply", h.ApplyPlanCandidate).Methods("POST")

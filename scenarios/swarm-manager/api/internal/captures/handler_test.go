@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/mux"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -40,7 +41,11 @@ func (s *classificationWorkflowStub) CollectWorkflow(_ context.Context, _ string
 func setupTestHandler(t *testing.T) (*Handler, string) {
 	t.Helper()
 	rootDir := t.TempDir()
-	h := NewHandler(rootDir)
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatalf("load transition registry: %v", err)
+	}
+	h := NewHandler(rootDir, rootDir, registry)
 	return h, rootDir
 }
 
@@ -567,29 +572,31 @@ func TestClassify_StartsDeclaredWorkflowWithVersionedCapture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.WorkflowExecutionID != "execution-1" || stored.WorkflowEntityVersion == "" {
-		t.Fatalf("workflow state not persisted: %#v", stored)
+	if stored.Status != "classifying" {
+		t.Fatalf("capture state = %q, want classifying", stored.Status)
 	}
 }
 
 func TestApplyClassification_OnlyAppliesMatchingTerminalSnapshot(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
-	version := "snapshot-1"
-	input, err := structpb.NewValue(map[string]any{"capture": map[string]any{"id": "cap-apply", "version": version}})
-	if err != nil {
-		t.Fatal(err)
-	}
 	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "suggested", "items": []any{map[string]any{"kind": "idea", "title": "Backups", "description": "add backups", "priority": 2, "tags": []any{"ops"}, "confidence": 0.9}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	h.SetClassificationWorkflow(&classificationWorkflowStub{completion: agentmanager.InvocationCompletion{ExecutionID: "execution-apply", DefinitionDigest: "sha256:capture", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}})
-	cap := &capture{ID: "cap-apply", Text: "add backups", Attachments: []string{}, Created: time.Now().UTC().Format(time.RFC3339), Status: "classifying", WorkflowExecutionID: "execution-apply", WorkflowDefinitionDigest: "sha256:capture", WorkflowEntityVersion: version}
+	stub := &classificationWorkflowStub{start: agentmanager.WorkflowStart{ExecutionID: "execution-apply", DefinitionDigest: "sha256:capture"}, completion: agentmanager.InvocationCompletion{ExecutionID: "execution-apply", DefinitionDigest: "sha256:capture", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Output: output}}
+	h.SetClassificationWorkflow(stub)
+	cap := &capture{ID: "cap-apply", Text: "add backups", Attachments: []string{}, Created: time.Now().UTC().Format(time.RFC3339), Status: "classifying"}
 	if err := os.MkdirAll(filepath.Join(rootDir, "captures", cap.ID), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.writeCapture(cap); err != nil {
 		t.Fatal(err)
+	}
+	startReq := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/cap-apply/classify", nil), map[string]string{"id": cap.ID})
+	startRecorder := httptest.NewRecorder()
+	h.Classify(startRecorder, startReq)
+	if startRecorder.Code != http.StatusOK {
+		t.Fatalf("start classification: %d %s", startRecorder.Code, startRecorder.Body.String())
 	}
 	req := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/cap-apply/classify/execution-apply/apply", nil), map[string]string{"id": cap.ID, "executionID": "execution-apply"})
 	w := httptest.NewRecorder()
@@ -608,5 +615,84 @@ func TestApplyClassification_OnlyAppliesMatchingTerminalSnapshot(t *testing.T) {
 	h.ApplyClassification(second, req)
 	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"already_applied":true`) {
 		t.Fatalf("expected idempotent apply response, got %d: %s", second.Code, second.Body.String())
+	}
+}
+
+func TestApplyClassificationRejectsCaptureChangedAfterStart(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "suggested", "items": []any{map[string]any{"kind": "idea", "title": "Backups", "description": "add backups", "priority": 2, "tags": []any{"ops"}, "confidence": 0.9}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stub := &classificationWorkflowStub{start: agentmanager.WorkflowStart{ExecutionID: "execution-stale", DefinitionDigest: "sha256:capture"}, completion: agentmanager.InvocationCompletion{ExecutionID: "execution-stale", DefinitionDigest: "sha256:capture", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Output: output}}
+	h.SetClassificationWorkflow(stub)
+	cap := &capture{ID: "cap-stale", Text: "add backups", Created: time.Now().UTC().Format(time.RFC3339), Status: "failed"}
+	if err := os.MkdirAll(filepath.Join(rootDir, "captures", cap.ID), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.writeCapture(cap); err != nil {
+		t.Fatal(err)
+	}
+	start := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/cap-stale/classify", nil), map[string]string{"id": cap.ID})
+	h.Classify(httptest.NewRecorder(), start)
+	cap.Text = "the capture changed while classification ran"
+	if err := h.writeCapture(cap); err != nil {
+		t.Fatal(err)
+	}
+	apply := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/cap-stale/classify/execution-stale/apply", nil), map[string]string{"id": cap.ID, "executionID": "execution-stale"})
+	recorder := httptest.NewRecorder()
+	h.ApplyClassification(recorder, apply)
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("apply changed capture = %d: %s", recorder.Code, recorder.Body.String())
+	}
+	stored, err := h.loadCapture(cap.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Text != cap.Text || stored.Classification != nil {
+		t.Fatalf("stale completion mutated capture: %#v", stored)
+	}
+}
+
+func TestApplyClassificationRecoversAfterHandlerRestart(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "discarded", "reason": "not actionable"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stub := &classificationWorkflowStub{start: agentmanager.WorkflowStart{ExecutionID: "execution-recover", DefinitionDigest: "sha256:capture"}, completion: agentmanager.InvocationCompletion{ExecutionID: "execution-recover", DefinitionDigest: "sha256:capture", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Output: output}}
+	h.SetClassificationWorkflow(stub)
+	cap := &capture{ID: "cap-recover", Text: "discard this", Created: time.Now().UTC().Format(time.RFC3339), Status: "failed"}
+	if err := os.MkdirAll(filepath.Join(rootDir, "captures", cap.ID), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.writeCapture(cap); err != nil {
+		t.Fatal(err)
+	}
+	start := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/cap-recover/classify", nil), map[string]string{"id": cap.ID})
+	if recorder := httptest.NewRecorder(); func() *httptest.ResponseRecorder { h.Classify(recorder, start); return recorder }().Code != http.StatusOK {
+		t.Fatalf("start classification = %d", recorder.Code)
+	}
+
+	// A new handler models a process restart. It reads the correlation from the
+	// shared on-disk journal rather than any handler-local state.
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := NewHandler(rootDir, rootDir, registry)
+	restarted.SetClassificationWorkflow(stub)
+	apply := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/cap-recover/classify/execution-recover/apply", nil), map[string]string{"id": cap.ID, "executionID": "execution-recover"})
+	recorder := httptest.NewRecorder()
+	restarted.ApplyClassification(recorder, apply)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("recovered apply = %d: %s", recorder.Code, recorder.Body.String())
+	}
+	stored, err := restarted.loadCapture(cap.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != "classified" || stored.Classification == nil {
+		t.Fatalf("recovered capture = %#v", stored)
 	}
 }

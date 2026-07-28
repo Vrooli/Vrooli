@@ -150,7 +150,7 @@ export function useDecisionStreamLogic({
   // Completion
   // ---------------------------------------------------------------------------
 
-  const handleCompletion = useCallback(async (answeredOverride?: Set<string>) => {
+  const handleCompletion = useCallback((answeredOverride?: Set<string>) => {
     setPhase("completing");
     const effectiveAnswered = answeredOverride ?? answeredQuestionKeys;
 
@@ -199,7 +199,7 @@ export function useDecisionStreamLogic({
     }
     const remainingAfterAdvance = activeQuestions.filter((ciq) => !nextAnswered.has(decisionQuestionKey(ciq)));
     if (remainingAfterAdvance.length === 0 || isAllDone()) {
-      void handleCompletion(nextAnswered);
+      handleCompletion(nextAnswered);
       return;
     }
     if (!a && safeIndex < total - 1) {

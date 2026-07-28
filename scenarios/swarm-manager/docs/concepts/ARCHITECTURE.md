@@ -40,6 +40,19 @@ records and event projections remain read-only for audit and migration history.
 
 ## Mental Model
 
+### Transition dispatch
+
+The transition registry is the runtime catalog for every declared agent
+capability. `internal/transitionrunner` is the only Swarm component permitted
+to select a declared workflow, invoke Agent Manager, collect a terminal result,
+or persist the shared `claimed`/`complete` correlation journal. Subject domains
+contribute only immutable input builders and typed apply functions. Startup
+verifies that every workflow and deterministic `applyAction` resolves to a
+registered function; an incomplete dispatch table fails closed. The Connect
+`TransitionService` and the CLI/UI catalog clients are the generic discovery
+and execution surfaces. Session transitions remain catalog-visible but stay on
+the Agent Session path.
+
 Swarm Manager is the **operator command center for autonomous change work**. A backlog item moves through one arc — create → workshop one evolving plan → explicit operator acceptance → strategy-selected execution → evidence-backed review → operator decision → follow-up proposals — and Goals sit above the items as intent statements with milestones and acceptance criteria. The narrative version of both arcs lives in [OPERATOR-JOURNEYS.md](./OPERATOR-JOURNEYS.md); the authority model lives in [TARGET-OPERATING-MODEL.md](./TARGET-OPERATING-MODEL.md).
 
 The primary operator surface is the **Plan board** at `/plan`; the **Graph workspace** at `/graph` is the secondary, topology-first navigation surface (see "Operator Surfaces" below).

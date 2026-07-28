@@ -23,6 +23,7 @@ import (
 	"swarm-manager/cli/domains/sessions"
 	"swarm-manager/cli/domains/settings"
 	"swarm-manager/cli/domains/stats"
+	"swarm-manager/cli/domains/transitions"
 	"swarm-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -57,5 +58,6 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		measures.Register(),
 		search.Register(deps),
 		autofiler.Register(),
+		transitions.Register(deps),
 	}
 }

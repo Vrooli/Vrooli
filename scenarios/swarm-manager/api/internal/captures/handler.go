@@ -23,7 +23,8 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
 	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/mux"
@@ -47,31 +48,63 @@ type EventLogger interface {
 // `<cacheRoot>/captures/<id>/`.
 type Handler struct {
 	cacheRoot              string
+	transitionRoot         string
 	classificationWorkflow agentmanager.WorkflowInvoker
 	transitionRegistry     transitions.Registry
+	transitionRunner       *transitionrunner.Runner
 	classificationMu       sync.Mutex
 	backlogCreator         BacklogItemCreator
 	eventDispatcher        dispatch.Invalidator
 	eventLogger            EventLogger
 }
 
-// NewHandler creates a new captures handler.
-func NewHandler(cacheRoot string) *Handler {
-	h := &Handler{cacheRoot: cacheRoot, classificationWorkflow: agentmanager.NewWorkflowService()}
-	if registry, err := transitions.LoadDir(filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "swarm-transitions")); err == nil {
-		h.transitionRegistry = registry
+// NewHandler creates a new captures handler. transitionRoot is where the
+// correlation journal lives; it is deliberately separate from cacheRoot because
+// captures themselves are disposable cache content while a pending transition
+// result is durable state that must survive a cache eviction.
+//
+// The runner built here is a standalone fallback for tests. Production
+// composition replaces it through SetTransitionRunner so every subject shares
+// one runner and one journal.
+func NewHandler(cacheRoot, transitionRoot string, registry transitions.Registry) *Handler {
+	h := &Handler{
+		cacheRoot:              cacheRoot,
+		transitionRoot:         transitionRoot,
+		classificationWorkflow: agentmanager.NewWorkflowService(),
+		transitionRegistry:     registry,
 	}
+	h.configureTransitionRunner()
 	return h
 }
 
 // SetClassificationWorkflow injects the Agent Manager workflow transport.
 func (h *Handler) SetClassificationWorkflow(workflow agentmanager.WorkflowInvoker) {
 	h.classificationWorkflow = workflow
+	h.configureTransitionRunner()
 }
 
-// SetTransitionRegistry installs scenario declarations for workflow starts.
-func (h *Handler) SetTransitionRegistry(registry transitions.Registry) {
-	h.transitionRegistry = registry
+func (h *Handler) configureTransitionRunner() {
+	if h.classificationWorkflow == nil {
+		h.transitionRunner = nil
+		return
+	}
+	h.transitionRunner = transitionrunner.New(h.transitionRegistry, h.classificationWorkflow, transitionrun.NewFileStore(filepath.Join(h.transitionRoot, "transition-runs")), nil)
+	h.transitionRunner.RegisterInput("capture.classify", h.buildClassificationInput)
+	h.transitionRunner.RegisterApply("apply_capture_classification", h.applyClassificationOutcome)
+}
+
+// RegisterTransitionAdapter contributes capture's two domain functions to a
+// server-owned runner. Composition owns the runner and its durable store;
+// captures only owns its immutable snapshot and mutation implementation.
+func (h *Handler) RegisterTransitionAdapter(registrar transitionrunner.Registrar) {
+	registrar.RegisterInput("capture.classify", h.buildClassificationInput)
+	registrar.RegisterApply("apply_capture_classification", h.applyClassificationOutcome)
+}
+
+// SetTransitionRunner replaces the handler-local test runner with the shared
+// server-owned runner used in production.
+func (h *Handler) SetTransitionRunner(runner *transitionrunner.Runner) {
+	h.transitionRunner = runner
 }
 
 // SetWorkflowStartGuard applies transition-registry preflight policy at the
@@ -126,6 +159,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures/{id}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{id}", h.Update).Methods("PATCH")
 	r.HandleFunc("/api/v1/captures/{id}", h.Delete).Methods("DELETE")
+	// Deprecated transition aliases: use TransitionService.StartTransition/ApplyTransition.
 	r.HandleFunc("/api/v1/captures/{id}/classify", h.Classify).Methods("POST")
 	r.HandleFunc("/api/v1/captures/{id}/classify/{executionID}/apply", h.ApplyClassification).Methods("POST")
 	r.HandleFunc("/api/v1/captures/{id}/create-item", h.CreateItem).Methods("POST")

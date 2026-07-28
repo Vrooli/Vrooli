@@ -45,6 +45,7 @@ import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { goalsService } from "../services/goals-service";
+import { transitionService } from "../services/transition-service";
 import { nextActionService } from "../services/next-action-service";
 import { createGoalFileServiceAdapter } from "../services/goals-file-service-adapter";
 import { GOALS_QUERY_KEY } from "../surfaces/plan/hooks/useGoals";
@@ -336,9 +337,9 @@ export function GoalDetailsPage() {
       navigate("/plan", { replace: true });
     },
   });
-  const planMutation = useMutation({ mutationFn: () => goalsService.startPlan(decodedName), onSuccess: invalidateGoal });
-  const closeOutMutation = useMutation({ mutationFn: () => goalsService.closeOut(decodedName), onSuccess: invalidateGoal });
-  const discoverMutation = useMutation({ mutationFn: () => goalsService.startDiscover(decodedName), onSuccess: invalidateGoal });
+  const planMutation = useMutation({ mutationFn: () => transitionService.start("goal.plan", decodedName), onSuccess: invalidateGoal });
+  const closeOutMutation = useMutation({ mutationFn: () => transitionService.start("goal.close_out", decodedName), onSuccess: invalidateGoal });
+  const discoverMutation = useMutation({ mutationFn: () => transitionService.start("goal.discover", decodedName), onSuccess: invalidateGoal });
   const saveMilestoneMutation = useMutation({
     mutationFn: (milestone: GoalMilestone) => milestoneEditor ? goalsService.updateMilestone(decodedName, milestone) : goalsService.createMilestone(decodedName, milestone),
     onSuccess: () => { invalidateGoal(); setMilestoneEditor(null); setMilestoneDraft(null); },

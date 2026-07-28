@@ -241,20 +241,6 @@ func (h *Handler) attachCatalogHealth(ctx context.Context, scenarios []Scenario)
 	wg.Wait()
 }
 
-// attachRemediationState joins only Swarm-owned work state onto a provider
-// snapshot. It never changes provider evidence or infers a health verdict.
-func (h *Handler) attachRemediationState(snapshot *ScenarioHealthSnapshot, scenario string) {
-	if snapshot == nil || h.backlogLister == nil {
-		return
-	}
-	items, err := h.backlogLister.LoadAll([]backlog.BacklogKind{backlog.KindFix})
-	if err != nil {
-		slog.Warn("failed to load remediation reconciliation state", "error", err)
-		return
-	}
-	h.attachRemediationItems(snapshot, scenario, items)
-}
-
 func (h *Handler) attachRemediationItems(snapshot *ScenarioHealthSnapshot, scenario string, items []backlog.BacklogItem) {
 	if snapshot == nil {
 		return

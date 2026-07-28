@@ -21,7 +21,7 @@ import { Drawer } from "../../../components/ui/drawer";
 import { Input } from "../../../components/ui/input";
 import { Popover } from "../../../components/ui/popover";
 import { aggregateCrossItemQuestions } from "../../../lib/command-post-utils";
-import { backlogService, goalsService } from "../../../services";
+import { backlogService, goalsService, integrationStatusService, transitionService } from "../../../services";
 import { defaultApiClient } from "../../../lib/api-client";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { proposalSessionService } from "../../../services/proposal-session-service";
@@ -483,25 +483,46 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, 
 
   const isGoalPlan = entry.entity_kind === "goal" && entry.action.id === "plan_goal";
   const goalMilestone = entry.action.target?.startsWith("milestone_review:") ? entry.action.target.slice("milestone_review:".length) : "";
-  const direct = ["retry", "archive", "accept_suggestion", "dispatch_followup", "accept_plan", "author_plan", "repair_plan", "close_out"].includes(entry.action.id);
+  const direct = Boolean(entry.action.transition_key) || ["retry", "archive", "accept_suggestion", "accept_plan"].includes(entry.action.id);
+  const transitionKey = entry.action.transition_key ?? (goalMilestone ? "milestone.review" : undefined);
+  const transitionQuery = useQuery({
+    queryKey: ["transition-catalog"],
+    queryFn: () => transitionService.list(),
+    staleTime: 60_000,
+    enabled: Boolean(transitionKey),
+  });
+  const integrationQuery = useQuery({
+    queryKey: ["integration-status"],
+    queryFn: () => integrationStatusService.get(),
+    staleTime: 15_000,
+    enabled: Boolean(transitionKey),
+  });
+  const transition = transitionQuery.data?.find((candidate) => candidate.key === transitionKey);
+  const unavailableRequirements = (transition?.requires ?? []).flatMap((required) => {
+    const integration = integrationQuery.data?.integrations.find((candidate) => candidate.id === required);
+    return integration && integration.availability !== "available" ? [integration] : [];
+  });
+  const transitionUnavailableReason = unavailableRequirements.length > 0
+    ? unavailableRequirements.map((integration) => integration.diagnostic || `${integration.id} is ${integration.availability}`).join("; ")
+    : undefined;
 
   const run = async () => {
     setPending(true);
     setError(null);
     try {
-      if (entry.entity_kind === "goal" && entry.action.id === "close_out") {
-        await goalsService.closeOut(entry.entity_ref);
+      const transitionKey = entry.action.transition_key;
+      if (transitionKey && entry.entity_kind === "goal") {
+        await transitionService.start(transitionKey, entry.entity_ref);
       } else if (backlogRef.length === 2) {
         const [kind, name] = backlogRef as [BacklogKind, string];
-        switch (entry.action.id) {
+        if (transitionKey) {
+          await transitionService.start(transitionKey, `${kind}/${name}`);
+        } else switch (entry.action.id) {
           case "run": setRunTarget({ kind, name, title: entry.entity_title }); return;
           case "retry": await backlogService.retry(kind, name, "Retried from decision stream"); break;
           case "archive": await backlogService.archiveItem(kind, name); break;
           case "accept_suggestion": await backlogService.update(kind, name, { status: "backlog" }); break;
-          case "dispatch_followup": await backlogService.dispatchFollowUp(kind, name); break;
           case "accept_plan": await defaultApiClient.post(API_ENDPOINTS.backlogPlanAccept(kind, name), {}); break;
-          case "author_plan": await defaultApiClient.post(API_ENDPOINTS.backlogPlanAuthor(kind, name), {}); break;
-          case "repair_plan": await defaultApiClient.post(API_ENDPOINTS.backlogPlanRepair(kind, name), {}); break;
           default: onOpen(); return;
         }
       } else {
@@ -520,7 +541,7 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, 
     setPending(true);
     setError(null);
     try {
-      await goalsService.startPlan(entry.entity_ref);
+      await transitionService.start(entry.action.transition_key ?? "", entry.entity_ref);
       onChanged();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to start goal planning.");
@@ -533,7 +554,7 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, 
     setPending(true);
     setError(null);
     try {
-      await goalsService.startMilestoneReview(entry.entity_ref, goalMilestone);
+      await transitionService.start("milestone.review", `${entry.entity_ref}/${goalMilestone}`);
       onChanged();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to start milestone review.");
@@ -602,6 +623,7 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, 
       </div>
 
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+      {transitionUnavailableReason ? <p className="text-sm text-amber-300">Transition unavailable: {transitionUnavailableReason}</p> : null}
 
       <div className="flex flex-wrap justify-end gap-2">
         <button
@@ -618,7 +640,7 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, 
         </button>
         <button
           type="button"
-          disabled={pending}
+          disabled={pending || Boolean(transitionUnavailableReason)}
           onClick={() => {
             if (isGoalPlan) void completeGoalPlan();
             else if (goalMilestone) void startMilestoneReview();

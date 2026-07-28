@@ -18,6 +18,8 @@ import (
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
 	"swarm-manager/internal/transitions"
 )
 
@@ -148,6 +150,7 @@ type Service struct {
 	workWorkflow             agentmanager.WorkflowInvoker
 	specSyncWorkflow         agentmanager.WorkflowInvoker
 	transitionRegistry       transitions.Registry
+	transitionRunner         *transitionrunner.Runner
 	engagementStore          *EngagementStore
 	differ                   RunDiffer
 	stopper                  RunStopper
@@ -196,16 +199,6 @@ func NewService(cfg ServiceConfig) *Service {
 	if repoRoot == "" {
 		repoRoot = pathutil.ResolveScenarioRoot("swarm-manager")
 	}
-	if len(cfg.TransitionRegistry.Definitions()) == 0 {
-		// Direct service users (including focused package tests) still resolve
-		// the scenario declaration rather than reintroducing workflow-key
-		// defaults. Server bootstrap replaces this with its already-validated
-		// registry instance.
-		if registry, err := transitions.LoadDir(filepath.Join(repoRoot, ".vrooli", "swarm-transitions")); err == nil {
-			cfg.TransitionRegistry = registry
-		}
-	}
-
 	pc := cfg.PromptClient
 	if pc == nil {
 		pc = promptmanager.NewHTTPClient()
@@ -278,15 +271,23 @@ func NewService(cfg ServiceConfig) *Service {
 	if approver, ok := cfg.AgentService.(RunApprover); ok {
 		service.approver = approver
 	}
+	service.configureLocalTransitionRunner()
 	return service
 }
 
-// SetTransitionRegistry installs the immutable, scenario-owned transition
-// declarations used to resolve Agent Manager workflow locators at runtime.
-func (s *Service) SetTransitionRegistry(registry transitions.Registry) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.transitionRegistry = registry
+func (s *Service) configureLocalTransitionRunner() {
+	if len(s.transitionRegistry.Definitions()) == 0 {
+		return
+	}
+	routes := map[string]agentmanager.WorkflowInvoker{}
+	for transitionKey, invoker := range map[string]agentmanager.WorkflowInvoker{"plan.execute": s.phasedPlanWorkflow, "work.correct": s.workWorkflow, "work.follow_up": s.workWorkflow, "scenario.spec_sync": s.specSyncWorkflow} {
+		if locator, err := s.transitionRegistry.ResolveWorkflow(transitionKey); err == nil {
+			routes[locator.Key] = invoker
+		}
+	}
+	runner := transitionrunner.New(s.transitionRegistry, transitionrunner.NewWorkflowRouter(s.phasedPlanWorkflow, routes), transitionrun.NewFileStore(filepath.Join(s.dataRoot, "transition-runs")), nil)
+	s.RegisterTransitionAdapter(runner)
+	s.transitionRunner = runner
 }
 
 func defaultCircuitBreakerPath(storePath string) string {

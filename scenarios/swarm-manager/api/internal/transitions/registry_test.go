@@ -47,6 +47,21 @@ func TestDeclaredRegistryCoversEveryTargetTransition(t *testing.T) {
 	}
 }
 
+func TestTransitionCatalogDocumentMatchesRegistryProjection(t *testing.T) {
+	registry, err := LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatalf("LoadDir declared registry: %v", err)
+	}
+	path := filepath.Join("..", "..", "..", "docs", "reference", "transition-catalog.md")
+	actual, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(actual), RenderCatalogMarkdown(registry); got != want {
+		t.Fatalf("%s differs from the declared registry; regenerate it with:\n\tgo run ./cmd/gen-transition-catalog", path)
+	}
+}
+
 func TestResolveWorkflowSelectsDeclaredLocator(t *testing.T) {
 	registry, err := LoadFS(fstest.MapFS{"registry/work.json": {Data: []byte(`[
 {"schemaVersion":"swarm-transition/v1","key":"work.follow_up","subject":"backlog-item","kind":"workflow","workflow":{"owner":"swarm-manager","key":"swarm-manager/custom-follow-up"},"inputContract":"work-follow-up-input/v1","terminalOutcomes":["completed"],"applyAction":"apply_follow_up"}
@@ -180,5 +195,19 @@ func TestValidateKinds(t *testing.T) {
 	base.Kind = KindSession
 	if err := Validate(base); err == nil {
 		t.Fatal("Validate accepted workflow locator for a session")
+	}
+}
+
+func TestVerifyApplyActionsRequiresEverySelectedDispatcher(t *testing.T) {
+	registry, err := LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = VerifyApplyActions(registry, map[string]struct{}{"apply_proposal": {}}, KindDeterministic)
+	if err == nil || !strings.Contains(err.Error(), "dispatch_follow_up") || !strings.Contains(err.Error(), "mark_goal_achieved") {
+		t.Fatalf("VerifyApplyActions error = %v", err)
+	}
+	if err := VerifyApplyActions(registry, map[string]struct{}{"apply_proposal": {}, "dispatch_follow_up": {}, "mark_goal_achieved": {}}, KindDeterministic); err != nil {
+		t.Fatal(err)
 	}
 }

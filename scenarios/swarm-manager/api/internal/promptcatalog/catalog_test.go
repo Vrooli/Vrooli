@@ -44,18 +44,6 @@ func TestGoalContextCatalogEntry(t *testing.T) {
 	}
 }
 
-func sameStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func TestVariableKeysForSkill(t *testing.T) {
 	keys := VariableKeysForSkill("swarm-manager-classify-capture")
 	if len(keys) != 2 {

@@ -193,10 +193,6 @@ func goalEntry(listed goals.GoalWithScope, items map[string]backlog.BacklogItem,
 	return entry, true
 }
 
-func feedAction(id backlog.NextActionID, compact, expanded, reason, target string) backlog.NextActionProjection {
-	return backlog.NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: true, Reason: reason, Target: target}
-}
-
 func isInboxAction(action backlog.NextActionProjection) bool {
 	return action.Enabled && action.ID != backlog.NextActionNone && action.ID != backlog.NextActionViewExecution
 }

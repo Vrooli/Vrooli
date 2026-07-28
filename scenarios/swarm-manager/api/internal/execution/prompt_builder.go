@@ -1,8 +1,6 @@
 package execution
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -154,39 +152,10 @@ func appendScenarioFeedback(b *strings.Builder, scenario ScenarioFinalization) {
 	}
 }
 
-func deliverableForKind(kind string) string {
-	return ""
-}
-
 func deliverablePromptTag(kind string) string {
 	return "implementation-plan"
 }
 
 func missingDeliverableReason(kind, deliverablePath string) string {
 	return "no implementation plan_ref exists — author a plan through plan.author before queueing"
-}
-
-func promptRevision(prompt string) string {
-	sum := sha256.Sum256([]byte(prompt))
-	return "sha256:" + hex.EncodeToString(sum[:8])
-}
-
-func (s *Service) buildIdeaHandoffPackage(item backlogItem, itemDir string, preflight ProcessPreflight, deliverablePath string) (*handoff.Package, error) {
-	if strings.TrimSpace(item.Kind) != "idea" {
-		return nil, nil
-	}
-	targetScenarioID, _ := resolveTargetScenario(item)
-	return handoff.BuildIdeaPackage(handoff.BuildRequest{
-		BacklogKind:             item.Kind,
-		BacklogName:             item.Name,
-		BacklogTitle:            item.Title,
-		BacklogDescription:      item.Description,
-		ItemFolder:              itemDir,
-		DeliverablePath:         deliverablePath,
-		TargetScenario:          targetScenarioID,
-		Operation:               preflight.SuggestedOperation,
-		SuggestedSteerProfileID: preflight.SuggestedSteerProfileID,
-		AcceptanceAllow:         item.AcceptanceAllow,
-		AcceptanceDeny:          item.AcceptanceDeny,
-	})
 }

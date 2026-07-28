@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"swarm-manager/internal/transitionrun"
+
 	"swarm-manager/internal/agentmanager"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -27,7 +29,7 @@ func TestScenarioSpecSyncWorkflow_QueuesAndAppliesExactlyOnce(t *testing.T) {
 	}
 	workflow := &stubConclusionWorkflow{start: agentmanager.WorkflowStart{ExecutionID: "spec-sync-1", RunID: "run-spec", DefinitionDigest: "sha256:spec"}}
 	archiver := &stubSpecSyncArchiver{}
-	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, "runs.json"), AgentService: &stubAgentService{}, SpecSyncWorkflow: workflow, Archiver: archiver})
+	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, "runs.json"), AgentService: &stubAgentService{}, SpecSyncWorkflow: workflow, Archiver: archiver, TransitionRegistry: testTransitionRegistry(t)})
 	started, err := service.QueueSpecSyncArchive(context.Background(), ArchiveContext{ScenarioName: "scenario-to-archive", ScenarioPath: scenarioPath})
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +37,7 @@ func TestScenarioSpecSyncWorkflow_QueuesAndAppliesExactlyOnce(t *testing.T) {
 	if started.AgentWorkflowKey != "swarm-manager/scenario-spec-sync" || started.OpExecutionID != "" {
 		t.Fatalf("expected workflow-backed spec sync, got %#v", started)
 	}
-	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "complete", "summary": "synced"}})
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "synced", "summary": "synced"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +46,7 @@ func TestScenarioSpecSyncWorkflow_QueuesAndAppliesExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.Idempotent || first.Record.Status != StatusCompleted || first.Record.AgentWorkflowApplyState != workflowApplyComplete {
+	if first.Idempotent || first.Record.Status != StatusCompleted || transitionApplyStateFor(t, service, first.Record.AgentWorkflowExecutionID) != transitionrun.ApplyStateComplete {
 		t.Fatalf("unexpected first apply: %#v", first)
 	}
 	if archiver.calls != 1 {

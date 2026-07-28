@@ -272,7 +272,7 @@
     ],
     "inputContract": "work-follow-up-input/v1",
     "terminalOutcomes": [
-      "completed",
+      "complete",
       "proposed",
       "needs_attention",
       "abstained",

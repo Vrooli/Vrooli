@@ -1,6 +1,7 @@
 package captures
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -8,15 +9,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
 
 	"github.com/gorilla/mux"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -44,8 +45,6 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cap.Status, cap.FailureReason, cap.Classification = "classifying", "", nil
-	cap.WorkflowExecutionID, cap.WorkflowDefinitionDigest = "", ""
-	cap.WorkflowEntityVersion = captureVersion(cap)
 	if err := h.writeCapture(cap); err != nil {
 		apierr.MapError(w, "[captures] classify", apierr.Internal("failed to update capture"))
 		return
@@ -55,7 +54,11 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	start, err := h.startClassificationWorkflow(r, cap)
+	if h.transitionRunner == nil {
+		apierr.MapError(w, "[captures] classify", apierr.Unavailable("agent-manager is not available — try again once it's running"))
+		return
+	}
+	correlation, err := h.transitionRunner.Start(r.Context(), "capture.classify", cap.ID)
 	if err != nil {
 		cap.Status, cap.FailureReason = "failed", classifyFailureReason(err)
 		_ = h.writeCapture(cap)
@@ -66,36 +69,25 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[captures] classify", apierr.Internal("failed to start classification workflow"))
 		return
 	}
-	cap.WorkflowExecutionID, cap.WorkflowDefinitionDigest = start.ExecutionID, start.DefinitionDigest
-	if err := h.writeCapture(cap); err != nil {
-		apierr.MapError(w, "[captures] classify", apierr.Internal("failed to persist classification workflow"))
-		return
-	}
 	h.invalidateTopologyGraph()
-	_ = httputil.JSON(w, map[string]any{"capture": cap, "workflow_execution_id": start.ExecutionID, "workflow_definition_digest": start.DefinitionDigest, "created": time.Now().UTC().Format(time.RFC3339)})
+	_ = httputil.JSON(w, map[string]any{"capture": cap, "workflow_execution_id": correlation.ExecutionID, "workflow_definition_digest": correlation.DefinitionDigest, "created": time.Now().UTC().Format(time.RFC3339)})
 }
 
-func (h *Handler) startClassificationWorkflow(r *http.Request, cap *capture) (agentmanager.WorkflowStart, error) {
-	if h.classificationWorkflow == nil {
-		return agentmanager.WorkflowStart{}, agentmanager.ErrNotAvailable
+func (h *Handler) buildClassificationInput(_ context.Context, id string) (transitionrunner.Snapshot, error) {
+	cap, err := h.loadCapture(id)
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
 	}
 	attachments := make([]any, len(cap.Attachments))
 	for i, attachment := range cap.Attachments {
 		attachments[i] = attachment
 	}
-	input, err := structpb.NewValue(map[string]any{"capture": map[string]any{"id": cap.ID, "text": cap.Text, "attachments": attachments, "version": cap.WorkflowEntityVersion}})
+	version := captureVersion(cap)
+	input, err := structpb.NewValue(map[string]any{"capture": map[string]any{"id": cap.ID, "text": cap.Text, "attachments": attachments, "version": version}})
 	if err != nil {
-		return agentmanager.WorkflowStart{}, fmt.Errorf("classification input: %w", err)
+		return transitionrunner.Snapshot{}, fmt.Errorf("classification input: %w", err)
 	}
-	workflow, err := h.transitionRegistry.ResolveWorkflow("capture.classify")
-	if err != nil {
-		return agentmanager.WorkflowStart{}, fmt.Errorf("resolve capture classification workflow: %w", err)
-	}
-	return h.classificationWorkflow.StartWorkflow(r.Context(), agentmanager.Invocation{
-		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
-		IdempotencyKey: "capture-classify/" + cap.ID + "/" + cap.WorkflowEntityVersion, FirstRunNodeID: "classify",
-		Activity: &agentmanager.WorkflowActivity{OwnerType: "capture", OwnerKind: "capture", OwnerName: cap.ID, OwnerTitle: cap.Text, Purpose: "classify"},
-	})
+	return transitionrunner.Snapshot{Input: input, EntityVersion: version}, nil
 }
 
 // ApplyClassification validates a terminal workflow snapshot and makes its
@@ -114,10 +106,6 @@ func (h *Handler) ApplyClassification(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[captures] apply classification", apierr.Internal("failed to load capture"))
 		return
 	}
-	if cap.WorkflowExecutionID == "" || cap.WorkflowExecutionID != executionID {
-		apierr.MapError(w, "[captures] apply classification", apierr.Conflict("classification workflow does not match capture"))
-		return
-	}
 	// A completed projection is the durable idempotency marker. The original
 	// terminal result stays inspectable in Agent Manager; Swarm does not apply it
 	// again merely because delivery was retried after a restart.
@@ -125,31 +113,47 @@ func (h *Handler) ApplyClassification(w http.ResponseWriter, r *http.Request) {
 		_ = httputil.JSON(w, map[string]any{"capture": cap, "already_applied": true})
 		return
 	}
-	if h.classificationWorkflow == nil {
+	if h.transitionRunner == nil {
 		apierr.MapError(w, "[captures] apply classification", apierr.Unavailable("agent-manager is not available"))
 		return
 	}
-	completion, err := h.classificationWorkflow.CollectWorkflow(r.Context(), executionID)
+	correlation, err := h.transitionRunner.Apply(r.Context(), "capture.classify", executionID)
 	if err != nil {
 		if errors.Is(err, agentmanager.ErrWorkflowNotReady) {
 			apierr.MapError(w, "[captures] apply classification", apierr.Conflict("classification workflow is not terminal"))
 			return
 		}
+		var changed *transitionrun.EntityVersionChangedError
+		if errors.As(err, &changed) {
+			apierr.MapError(w, "[captures] apply classification", apierr.Conflict("capture changed after classification started"))
+			return
+		}
 		apierr.MapError(w, "[captures] apply classification", apierr.Internal("failed to collect classification workflow"))
 		return
 	}
-	if completion.DefinitionDigest != cap.WorkflowDefinitionDigest || completion.Status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
-		apierr.MapError(w, "[captures] apply classification", apierr.Conflict("classification workflow terminal snapshot is not applicable"))
+	if correlation.SubjectRef != id {
+		apierr.MapError(w, "[captures] apply classification", apierr.Conflict("classification workflow does not match capture"))
 		return
 	}
-	if err := validateClassificationInput(completion.Input, cap); err != nil {
-		apierr.MapError(w, "[captures] apply classification", apierr.Conflict("%s", err))
-		return
-	}
-	result, err := parseClassificationResult(completion.Output)
+	cap, err = h.loadCapture(id)
 	if err != nil {
-		apierr.MapError(w, "[captures] apply classification", apierr.Conflict("classification workflow emitted an invalid result"))
+		apierr.MapError(w, "[captures] apply classification", apierr.Internal("failed to load applied capture"))
 		return
+	}
+	_ = httputil.JSON(w, map[string]any{"capture": cap, "outcome": correlation.Outcome})
+}
+
+func (h *Handler) applyClassificationOutcome(_ context.Context, id string, outcome transitionrunner.Outcome) error {
+	cap, err := h.loadCapture(id)
+	if err != nil {
+		return err
+	}
+	var result classificationResult
+	if err := json.Unmarshal(outcome.Result, &result); err != nil {
+		return fmt.Errorf("decode classification result: %w", err)
+	}
+	if result.Outcome != outcome.Name {
+		return fmt.Errorf("classification outcome does not match result")
 	}
 	cap.FailureReason = ""
 	switch result.Outcome {
@@ -158,74 +162,24 @@ func (h *Handler) ApplyClassification(w http.ResponseWriter, r *http.Request) {
 		cap.Classification = &classification{Items: result.Items, ClassifiedAt: time.Now().UTC().Format(time.RFC3339)}
 		data, _ := json.MarshalIndent(cap.Classification, "", "  ")
 		if err := os.WriteFile(h.classificationPath(id), data, 0o600); err != nil {
-			apierr.MapError(w, "[captures] apply classification", apierr.Internal("failed to persist classification"))
-			return
+			return err
 		}
 	case "discarded", "abstained":
 		cap.Status, cap.Classification = "classified", &classification{Items: []classificationItem{}, ClassifiedAt: time.Now().UTC().Format(time.RFC3339)}
 	default:
-		apierr.MapError(w, "[captures] apply classification", apierr.Conflict("classification workflow emitted an unknown outcome"))
-		return
+		return fmt.Errorf("classification workflow emitted an unknown outcome")
 	}
 	if err := h.writeCapture(cap); err != nil {
-		apierr.MapError(w, "[captures] apply classification", apierr.Internal("failed to update capture"))
-		return
+		return err
 	}
 	h.invalidateTopologyGraph()
-	_ = httputil.JSON(w, map[string]any{"capture": cap, "outcome": result.Outcome, "reason": result.Reason})
+	return nil
 }
 
 type classificationResult struct {
 	Outcome string               `json:"outcome"`
 	Items   []classificationItem `json:"items"`
 	Reason  string               `json:"reason"`
-}
-
-func parseClassificationResult(output *structpb.Value) (classificationResult, error) {
-	if output == nil {
-		return classificationResult{}, errors.New("missing output")
-	}
-	payload, ok := output.AsInterface().(map[string]any)
-	if !ok {
-		return classificationResult{}, errors.New("output must be an object")
-	}
-	raw, ok := payload["result"]
-	if !ok {
-		return classificationResult{}, errors.New("missing result")
-	}
-	data, err := json.Marshal(raw)
-	if err != nil {
-		return classificationResult{}, err
-	}
-	var result classificationResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		return classificationResult{}, err
-	}
-	if result.Outcome == "suggested" && len(result.Items) == 0 {
-		return classificationResult{}, errors.New("suggested outcome requires items")
-	}
-	if (result.Outcome == "discarded" || result.Outcome == "abstained") && strings.TrimSpace(result.Reason) == "" {
-		return classificationResult{}, errors.New("terminal outcome requires reason")
-	}
-	return result, nil
-}
-
-func validateClassificationInput(input *structpb.Value, cap *capture) error {
-	if input == nil {
-		return errors.New("classification workflow omitted input")
-	}
-	payload, ok := input.AsInterface().(map[string]any)
-	if !ok {
-		return errors.New("classification workflow input is invalid")
-	}
-	raw, ok := payload["capture"].(map[string]any)
-	if !ok {
-		return errors.New("classification workflow input omitted capture")
-	}
-	if raw["id"] != cap.ID || raw["version"] != cap.WorkflowEntityVersion {
-		return errors.New("capture changed since classification workflow started")
-	}
-	return nil
 }
 
 func captureVersion(cap *capture) string {

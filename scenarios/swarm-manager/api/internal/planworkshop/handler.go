@@ -13,6 +13,7 @@ func NewHandler(service *Service) *Handler { return &Handler{service: service} }
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/plan-workshops", h.Open).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/plan-workshops/{id}", h.Get).Methods(http.MethodGet)
+	// Deprecated transition aliases: use TransitionService.StartTransition/ApplyTransition.
 	r.HandleFunc("/api/v1/plan-workshops/{id}/review", h.StartReview).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/plan-workshops/{id}/review/apply", h.ApplyReview).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/plan-workshops/{id}/responses", h.SubmitResponse).Methods(http.MethodPost)

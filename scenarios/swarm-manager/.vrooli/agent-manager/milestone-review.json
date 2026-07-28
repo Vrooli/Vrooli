@@ -1,6 +1,205 @@
 {
-  "schemaVersion":"agent-workflow/v1","owner":"swarm-manager","key":"swarm-manager/milestone-review","version":"1.1.0","description":"Judge a completed milestone against its definition of done and return review proposals.",
-  "inputSchema":{"type":"object","properties":{"entity":{"type":"object","properties":{"kind":{"const":"milestone"},"name":{"type":"string"},"goalName":{"type":"string"},"version":{"type":"string"}},"required":["kind","name","goalName","version"],"additionalProperties":false},"snapshot":{"type":"object","additionalProperties":true},"supported_ops":{"type":"array","items":{"type":"string"}}},"required":["entity","snapshot","supported_ops"],"additionalProperties":false},
-  "outputSchema":{"type":"object","properties":{"result":{"type":"object","properties":{"verdict":{"type":"string","enum":["delivered","partial","failed","needs_attention"]},"assessment":{"type":"string","minLength":1,"maxLength":16384},"proposals":{"type":"array"}},"required":["verdict","assessment","proposals"],"additionalProperties":false}},"required":["result"],"additionalProperties":false},
-  "entryNode":"review","nodes":[{"id":"review","kind":"run","run":{"profileKey":"swarm-manager/deep-work","resultSpec":{"version":"result-spec/v1","kind":"json_schema","extractionMode":"deterministic_only","schema":{"type":"object","properties":{"verdict":{"type":"string","enum":["delivered","partial","failed","needs_attention"]},"assessment":{"type":"string","minLength":1,"maxLength":16384},"proposals":{"type":"array"}},"required":["verdict","assessment","proposals"],"additionalProperties":false}},"bindings":[{"name":"entity","source":"workflow_input","selector":"$.entity","limit":1,"maxBytes":2048,"renderAs":"json","missingPolicy":"error"},{"name":"snapshot","source":"workflow_input","selector":"$.snapshot","limit":1,"maxBytes":65536,"renderAs":"json","missingPolicy":"error"},{"name":"supported_ops","source":"workflow_input","selector":"$.supported_ops","limit":1,"maxBytes":2048,"renderAs":"json","missingPolicy":"error"}],"maxTurns":18,"timeoutSeconds":1800,"promptRef":{"skillId":"swarm-manager-workflow-milestone-review"}}},{"id":"done","kind":"end","end":{"status":"succeeded","bindings":[{"name":"result","source":"structured_result","selector":"node=review;$.value","limit":1,"maxBytes":65536,"renderAs":"json","missingPolicy":"error"}]}}],"edges":[{"from":"review","to":"done"}],"budgets":{"wallTimeSeconds":3600,"maxTurns":18,"maxTokens":900000,"maxCostUsd":6,"maxNodeAttempts":3,"maxChildren":1,"maxConcurrency":1,"maxRecursion":1,"maxRetries":2,"maxWaitSeconds":60},"metadata":{"consumerMutationOwner":"swarm-manager","transition":"milestone.review"}
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/milestone-review",
+  "version": "1.1.0",
+  "description": "Judge a completed milestone against its definition of done and return review proposals.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "entity": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "milestone"
+          },
+          "name": {
+            "type": "string"
+          },
+          "goalName": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "goalName",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "supported_ops": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "entity",
+      "snapshot",
+      "supported_ops"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "delivered",
+              "partial",
+              "failed",
+              "needs_attention"
+            ]
+          },
+          "assessment": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "proposals": {
+            "type": "array"
+          }
+        },
+        "required": [
+          "verdict",
+          "assessment",
+          "proposals"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "entryNode": "review",
+  "nodes": [
+    {
+      "id": "review",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/deep-work",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "verdict": {
+                "type": "string",
+                "enum": [
+                  "delivered",
+                  "partial",
+                  "failed",
+                  "needs_attention"
+                ]
+              },
+              "assessment": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "proposals": {
+                "type": "array"
+              }
+            },
+            "required": [
+              "verdict",
+              "assessment",
+              "proposals"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "entity",
+            "source": "workflow_input",
+            "selector": "$.entity",
+            "limit": 1,
+            "maxBytes": 2048,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "supported_ops",
+            "source": "workflow_input",
+            "selector": "$.supported_ops",
+            "limit": 1,
+            "maxBytes": 2048,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 18,
+        "timeoutSeconds": 1800,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-milestone-review"
+        }
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {
+            "name": "result",
+            "source": "structured_result",
+            "selector": "node=review;$.value",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "review",
+      "to": "done"
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 3600,
+    "maxTurns": 18,
+    "maxTokens": 900000,
+    "maxCostUsd": 6,
+    "maxNodeAttempts": 3,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 2,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager"
+  }
 }

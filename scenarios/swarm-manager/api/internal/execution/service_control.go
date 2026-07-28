@@ -10,6 +10,7 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/transitionrunner"
 )
 
 // Start starts a pending/failed execution now.
@@ -82,8 +83,11 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 // workflow aggregate and its pinned digests; no operation wrapper or direct
 // Run creation/continuation participates in this path.
 func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record, idx int, record Record, item backlogItem) (Record, error) {
-	if s.phasedPlanWorkflow == nil {
-		return Record{}, apierr.Unavailable("phased-plan workflow service is not available")
+	// Availability is the runner's, not a per-subject workflow client's. The
+	// field this used to check was never set by composition, so plan execution
+	// reported "not available" on every start.
+	if s.transitionRunner == nil {
+		return Record{}, apierr.Unavailable("transition runner is not configured")
 	}
 	// Plan Manager stays the sole plan authority: resolve the live context from
 	// the item's canonical execution_spec plan_ref before hashing the frontier.
@@ -106,18 +110,6 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 			record.PlanManagerExecutionID = resumed.GetExecution().GetId()
 		}
 	}
-	rendered, err := resolveRenderedPlanContent(ctx, item, s.planRenderer)
-	if err != nil {
-		return Record{}, apierr.BadRequest("%s", err.Error())
-	}
-	snapshot, err := buildPhasedPlanSnapshot(item, record, planHandle, rendered)
-	if err != nil {
-		return Record{}, apierr.Internal("prepare phased-plan workflow snapshot: %s", err.Error())
-	}
-	input, err := snapshot.input()
-	if err != nil {
-		return Record{}, apierr.Internal("encode phased-plan workflow snapshot: %s", err.Error())
-	}
 	workflow, err := s.resolveWorkflow("plan.execute")
 	if err != nil {
 		return Record{}, wrapAgentError(err)
@@ -125,13 +117,21 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if !s.strategyMatchesWorkflow(record.ExecutionStrategy, workflow.Key) {
 		return Record{}, apierr.BadRequest("execution strategy %q does not match declared plan workflow", record.ExecutionStrategy)
 	}
-	res, err := s.phasedPlanWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
-		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
-		IdempotencyKey: "execution-plan-drain/" + record.ExecutionID + "/" + snapshot.FrontierDigest, FirstRunNodeID: "slice",
-		Activity: &agentmanager.WorkflowActivity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"},
-	})
+	// Persist the resolved Plan Manager execution before starting: the runner's
+	// input builder reprojects the frontier from the durable record, so
+	// PlanExecutionID has to be readable there and at apply time.
+	records[idx] = record
+	if err := s.store.Save(records); err != nil {
+		return Record{}, apierr.Internal("persist plan-execution record before start: %s", err.Error())
+	}
+	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: "slice", Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
+	}
+	snapshot := phasedPlanSnapshot{EntityVersion: started.EntityVersion, FrontierDigest: started.FrontierDigest}
+	res := agentmanager.WorkflowStart{ExecutionID: started.ExecutionID, DefinitionDigest: started.DefinitionDigest}
+	if len(started.Attempts) > 0 {
+		res.RunID = started.Attempts[0].RunID
 	}
 	if strings.TrimSpace(res.ExecutionID) == "" {
 		return Record{}, apierr.BadGateway("phased-plan workflow started but returned no execution id")
@@ -225,45 +225,26 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		return record, nil
 	case StatusStarting, StatusRunning, StatusNeedsReview:
 		if strings.TrimSpace(record.AgentWorkflowExecutionID) != "" {
-			if record.AgentWorkflowKey == "swarm-manager/work-follow-up" || record.AgentWorkflowKey == "swarm-manager/work-correct" {
-				canceler, ok := s.workWorkflow.(interface {
-					CancelWorkflow(context.Context, string, string, string) error
-				})
-				if !ok {
-					return Record{}, apierr.BadRequest("cancel is not supported by current work workflow service")
-				}
-				if err := canceler.CancelWorkflow(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
-					return Record{}, wrapAgentError(err)
-				}
-			} else if record.AgentWorkflowKey == "swarm-manager/scenario-spec-sync" {
-				canceler, ok := s.specSyncWorkflow.(interface {
-					CancelWorkflow(context.Context, string, string, string) error
-				})
-				if !ok {
-					return Record{}, apierr.BadRequest("cancel is not supported by current scenario spec-sync workflow service")
-				}
-				if err := canceler.CancelWorkflow(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
-					return Record{}, wrapAgentError(err)
-				}
-			} else {
-				if s.phasedPlanWorkflow == nil {
-					return Record{}, apierr.BadRequest("cancel is not supported by current workflow service")
-				}
-				canceler, ok := s.phasedPlanWorkflow.(interface {
-					CancelWorkflow(context.Context, string, string, string) error
-				})
-				if !ok {
-					return Record{}, apierr.BadRequest("cancel is not supported by current workflow service")
-				}
-				if err := canceler.CancelWorkflow(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
-					return Record{}, wrapAgentError(err)
-				}
+			// One cancel path for every transition. The previous per-transition
+			// branches each reached for a workflow client that composition never
+			// set, so cancelling any in-flight execution reported "cancel is not
+			// supported" regardless of which transition owned it.
+			if s.transitionRunner == nil {
+				return Record{}, apierr.Unavailable("transition runner is not configured")
+			}
+			if err := s.transitionRunner.Cancel(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
+				return Record{}, wrapAgentError(err)
+			}
+			// Close the correlation too. Cancellation ends the engagement with no
+			// terminal result to apply, so leaving it claimed would keep the
+			// sweeper retrying a cancelled execution indefinitely.
+			if err := s.transitionRunner.CloseUnapplied(record.AgentWorkflowExecutionID, "cancelled"); err != nil {
+				return Record{}, err
 			}
 			record.Status = StatusCanceled
 			record.AgentWorkflowOutcome = "cancelled"
 			record.UpdatedAt = nowRFC3339()
 			record.FinishedAt = record.UpdatedAt
-			record.AgentWorkflowApplyState = workflowApplyComplete
 			record.AgentWorkflowAppliedAt = record.UpdatedAt
 			records[idx] = record
 			if err := s.store.Save(records); err != nil {

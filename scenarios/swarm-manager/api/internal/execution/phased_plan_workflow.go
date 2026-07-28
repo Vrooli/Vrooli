@@ -10,15 +10,11 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/transitionrunner"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
 	"google.golang.org/protobuf/types/known/structpb"
-)
-
-const (
-	workflowApplyClaimed  = "claimed"
-	workflowApplyComplete = "complete"
 )
 
 type phasedPlanResult struct {
@@ -69,33 +65,45 @@ type PhasedPlanApplyResult struct {
 	Idempotent bool   `json:"idempotent"`
 }
 
-// SetPhasedPlanWorkflow installs the generic declared-workflow seam. The
-// execution domain owns its immutable snapshot and terminal application; the
-// Agent Manager transport owns no plan-shaped command/result API.
+// SetPhasedPlanWorkflow installs a workflow transport and builds a local
+// runner from it.
+//
+// TEST-ONLY SEAM. Production composition never calls this: it constructs one
+// shared runner and injects it through SetTransitionRunner. Do not add a
+// production caller, and do not gate behavior on the field it sets — code that
+// did exactly that reported "phased-plan workflow service is not available" for
+// every real plan execution, because nothing ever set it.
 func (s *Service) SetPhasedPlanWorkflow(workflow agentmanager.WorkflowInvoker) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.phasedPlanWorkflow = workflow
+	s.configureLocalTransitionRunner()
 }
 
-// SetWorkWorkflow installs the generic declared-workflow seam for bounded
-// follow-up and correction work. The domain adapter owns snapshots and apply;
-// the workflow owns the agent invocation and typed extraction.
+// SetWorkWorkflow installs a workflow transport for bounded follow-up and
+// correction work.
+//
+// TEST-ONLY SEAM. See SetPhasedPlanWorkflow.
 func (s *Service) SetWorkWorkflow(workflow agentmanager.WorkflowInvoker) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.workWorkflow = workflow
+	s.configureLocalTransitionRunner()
 }
 
-// SetSpecSyncWorkflow installs the declaration-backed scenario spec-sync seam.
+// SetSpecSyncWorkflow installs a workflow transport for scenario spec-sync.
+//
+// TEST-ONLY SEAM. See SetPhasedPlanWorkflow.
 func (s *Service) SetSpecSyncWorkflow(workflow agentmanager.WorkflowInvoker) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.specSyncWorkflow = workflow
+	s.configureLocalTransitionRunner()
 }
 
-// SetWorkflowStartGuard applies server-owned transition policy to the default
-// generic workflow adapter without coupling execution to registry internals.
+// SetWorkflowStartGuard applies transition policy to a locally-installed
+// transport. In production the guard is attached to the shared runner's
+// transport at composition, so this is a no-op there.
 func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
 	if workflow, ok := s.phasedPlanWorkflow.(*agentmanager.WorkflowService); ok {
 		workflow.SetStartGuard(guard)
@@ -166,7 +174,10 @@ func (s *Service) ApprovePhasedPlanWorkflow(ctx context.Context, executionID, ac
 	if strings.TrimSpace(record.AgentWorkflowExecutionID) == "" {
 		return Record{}, apierr.BadRequest("execution is not owned by a phased-plan workflow")
 	}
-	if record.AgentWorkflowApplyState == workflowApplyComplete || isWorkflowConsumerTerminal(record.Status) {
+	// Apply state lives on the shared correlation, not on this record. Keeping a
+	// second copy here meant two sources of truth for whether a terminal result
+	// had already been consumed.
+	if s.transitionApplyComplete(record.AgentWorkflowExecutionID) || isWorkflowConsumerTerminal(record.Status) {
 		return Record{}, apierr.Conflict("execution workflow is already terminal")
 	}
 	if strings.TrimSpace(record.AgentWorkflowApprovalAt) == "" {
@@ -178,18 +189,22 @@ func (s *Service) ApprovePhasedPlanWorkflow(ctx context.Context, executionID, ac
 			return Record{}, err
 		}
 	}
-	signaler, ok := s.phasedPlanWorkflow.(interface {
-		SignalWorkflow(context.Context, string, string, *structpb.Value, string) error
-	})
-	if !ok {
-		return Record{}, apierr.BadRequest("approval is not supported by current workflow service")
-	}
 	payload, err := structpb.NewValue(map[string]any{"executionId": record.ExecutionID, "actor": record.AgentWorkflowApprovalBy})
 	if err != nil {
 		return Record{}, apierr.Internal("encode workflow approval: %s", err.Error())
 	}
-	if err := signaler.SignalWorkflow(ctx, record.AgentWorkflowExecutionID, "slice_approved", payload, "approve-"+record.ExecutionID); err != nil {
-		return Record{}, wrapAgentError(err)
+	var signalErr error
+	if s.transitionRunner != nil {
+		signalErr = s.transitionRunner.Signal(ctx, record.AgentWorkflowExecutionID, "slice_approved", payload, "approve-"+record.ExecutionID)
+	} else if signaler, ok := s.phasedPlanWorkflow.(interface {
+		SignalWorkflow(context.Context, string, string, *structpb.Value, string) error
+	}); ok {
+		signalErr = signaler.SignalWorkflow(ctx, record.AgentWorkflowExecutionID, "slice_approved", payload, "approve-"+record.ExecutionID)
+	} else {
+		return Record{}, apierr.BadRequest("approval is not supported by current workflow service")
+	}
+	if signalErr != nil {
+		return Record{}, wrapAgentError(signalErr)
 	}
 	return record, nil
 }
@@ -198,74 +213,62 @@ func (s *Service) ApprovePhasedPlanWorkflow(ctx context.Context, executionID, ac
 // A persisted claim is sufficient to resume after a process crash without
 // collecting mutable external state again.
 func (s *Service) ApplyPhasedPlanWorkflow(ctx context.Context, executionID string) (PhasedPlanApplyResult, error) {
+	if s.transitionRunner == nil {
+		return PhasedPlanApplyResult{}, agentmanager.ErrNotAvailable
+	}
+	workflowExecutionID, err := s.transitionExecutionID(ctx, executionID)
+	if err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
+	before, err := s.transitionRunner.GetCorrelation(workflowExecutionID)
+	if err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
+	if _, err := s.transitionRunner.ApplyExecution(ctx, workflowExecutionID); err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
+	record, err := s.Get(ctx, executionID)
+	if err != nil {
+		return PhasedPlanApplyResult{}, err
+	}
+	return PhasedPlanApplyResult{Record: record, Idempotent: before.ApplyState == "complete"}, nil
+}
+
+func (s *Service) applyPlanExecuteTransition(ctx context.Context, executionID string, outcome transitionrunner.Outcome) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	records, idx, err := s.loadRecordLocked(executionID)
 	if err != nil {
-		return PhasedPlanApplyResult{}, err
+		return err
 	}
 	record := records[idx]
-	if strings.TrimSpace(record.AgentWorkflowExecutionID) == "" {
-		return PhasedPlanApplyResult{}, apierr.BadRequest("execution is not owned by a phased-plan workflow")
+	if outcome.TransitionKey != "plan.execute" {
+		return fmt.Errorf("execution %q is not a plan execution transition", executionID)
 	}
-	if record.AgentWorkflowApplyState == workflowApplyComplete {
-		return PhasedPlanApplyResult{Record: record, Idempotent: true}, nil
+	result, err := parsePhasedPlanOutcome(domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, outcome.Result)
+	if err != nil {
+		return err
 	}
-	if record.AgentWorkflowApplyState != workflowApplyClaimed {
-		completion, collectErr := s.phasedPlanWorkflow.CollectWorkflow(ctx, record.AgentWorkflowExecutionID)
-		if collectErr != nil {
-			return PhasedPlanApplyResult{}, wrapAgentError(collectErr)
-		}
-		if err := s.validatePhasedPlanCompletion(ctx, record, completion); err != nil {
-			return PhasedPlanApplyResult{}, err
-		}
-		record.AgentWorkflowDefinition = completion.DefinitionDigest
-		record.AgentWorkflowTerminalCode = completion.TerminalCode
-		record.AgentWorkflowBudgetName = completion.BudgetName
-		resultRaw, parseErr := phasedPlanResultFromCompletion(completion)
-		if parseErr != nil {
-			return PhasedPlanApplyResult{}, parseErr
-		}
-		record.AgentWorkflowResult = append(json.RawMessage(nil), resultRaw...)
-		record.AgentWorkflowAttempts = make([]WorkflowAttemptProvenance, 0, len(completion.Attempts))
-		for _, attempt := range completion.Attempts {
-			if attempt == nil {
-				continue
-			}
-			record.AgentWorkflowAttempts = append(record.AgentWorkflowAttempts, WorkflowAttemptProvenance{
-				NodeID: attempt.NodeId, Ordinal: attempt.Ordinal, Strategy: attempt.Strategy,
-				RunID: attempt.RunId, ConversationID: attempt.ConversationId,
-				SourceAttemptID: attempt.SourceAttemptId, ProfileIdentity: attempt.ProfileIdentity,
-			})
-		}
-		result, parseErr := parsePhasedPlanOutcome(completion.Status, resultRaw)
-		if parseErr != nil {
-			return PhasedPlanApplyResult{}, parseErr
-		}
-		record.AgentWorkflowOutcome = result.Outcome
-		record.AgentWorkflowApplyState = workflowApplyClaimed
-		record.UpdatedAt = nowRFC3339()
-		records[idx] = record
-		if err := s.store.Save(records); err != nil {
-			return PhasedPlanApplyResult{}, err
-		}
+	record.AgentWorkflowTerminalCode, record.AgentWorkflowBudgetName = outcome.TerminalCode, outcome.BudgetName
+	record.AgentWorkflowResult, record.AgentWorkflowOutcome = append(json.RawMessage(nil), outcome.Result...), result.Outcome
+	record.AgentWorkflowAttempts = make([]WorkflowAttemptProvenance, 0, len(outcome.Attempts))
+	for _, attempt := range outcome.Attempts {
+		record.AgentWorkflowAttempts = append(record.AgentWorkflowAttempts, WorkflowAttemptProvenance{NodeID: attempt.NodeID, Ordinal: attempt.Ordinal, Strategy: attempt.Strategy, RunID: attempt.RunID, ConversationID: attempt.ConversationID, SourceAttemptID: attempt.SourceAttemptID, ProfileIdentity: attempt.ProfileIdentity})
 	}
 	if err := s.reconcilePlanManagerCompletion(ctx, &record); err != nil {
-		return PhasedPlanApplyResult{}, err
+		return err
 	}
-
 	if err := s.finishPhasedPlanClaim(&record); err != nil {
-		return PhasedPlanApplyResult{}, err
+		return err
 	}
-	record.AgentWorkflowApplyState = workflowApplyComplete
 	record.AgentWorkflowAppliedAt = nowRFC3339()
-	record.UpdatedAt = record.AgentWorkflowAppliedAt
+	record.UpdatedAt = nowRFC3339()
 	records[idx] = record
 	if err := s.store.Save(records); err != nil {
-		return PhasedPlanApplyResult{}, err
+		return err
 	}
 	s.dispatchStatusUpdate(record)
-	return PhasedPlanApplyResult{Record: record}, nil
+	return nil
 }
 
 // reconcilePlanManagerCompletion makes Plan Manager the final authority for a
@@ -306,64 +309,6 @@ func (s *Service) reconcilePlanManagerCompletion(ctx context.Context, record *Re
 	return nil
 }
 
-func (s *Service) validatePhasedPlanCompletion(ctx context.Context, record Record, completion agentmanager.InvocationCompletion) error {
-	if completion.ExecutionID != record.AgentWorkflowExecutionID || completion.DefinitionDigest != record.AgentWorkflowDefinition || completion.Input == nil {
-		return apierr.Conflict("workflow result does not match the authorized execution frontier")
-	}
-	input, ok := completion.Input.AsInterface().(map[string]any)
-	if !ok {
-		return apierr.Conflict("workflow input is not a valid execution snapshot")
-	}
-	consumer, consumerOK := input["consumer"].(map[string]any)
-	plan, planOK := input["plan"].(map[string]any)
-	if !consumerOK || !planOK || stringValue(consumer["executionId"]) != record.ExecutionID ||
-		stringValue(consumer["entityKind"]) != record.BacklogKind || stringValue(consumer["entityName"]) != record.BacklogName ||
-		stringValue(consumer["entityVersion"]) != record.AgentWorkflowEntityVersion || stringValue(plan["frontierDigest"]) != record.AgentWorkflowFrontier {
-		return apierr.Conflict("workflow result does not match the authorized execution frontier")
-	}
-	item, err := s.loadBacklogItemByRecord(&record)
-	if err != nil {
-		return err
-	}
-	handle, err := executionPlanHandle(item)
-	if err != nil {
-		return apierr.Conflict("execution plan frontier is no longer available")
-	}
-	rendered, err := resolveRenderedPlanContent(ctx, item, s.planRenderer)
-	if err != nil {
-		return apierr.Conflict("execution plan frontier can no longer be rendered")
-	}
-	snapshot, err := buildPhasedPlanSnapshot(item, record, handle, rendered)
-	if err != nil || snapshot.FrontierDigest != record.AgentWorkflowFrontier || snapshot.EntityVersion != record.AgentWorkflowEntityVersion {
-		return apierr.Conflict("execution plan frontier changed while the workflow was running")
-	}
-	return nil
-}
-
-func phasedPlanResultFromCompletion(completion agentmanager.InvocationCompletion) (json.RawMessage, error) {
-	if completion.Output == nil {
-		return nil, nil
-	}
-	output, ok := completion.Output.AsInterface().(map[string]any)
-	if !ok {
-		return nil, apierr.BadGateway("workflow output is not an object")
-	}
-	result, ok := output["result"]
-	if !ok {
-		return nil, apierr.BadGateway("workflow output omitted result")
-	}
-	raw, err := json.Marshal(result)
-	if err != nil {
-		return nil, apierr.BadGateway("workflow result is not serializable")
-	}
-	return raw, nil
-}
-
-func stringValue(value any) string {
-	text, _ := value.(string)
-	return text
-}
-
 func parsePhasedPlanOutcome(status domainpb.WorkflowExecutionStatus, raw json.RawMessage) (phasedPlanResult, error) {
 	if status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
 		var result phasedPlanResult
@@ -388,7 +333,10 @@ func parsePhasedPlanOutcome(status domainpb.WorkflowExecutionStatus, raw json.Ra
 		return phasedPlanResult{}, apierr.BadGateway("workflow succeeded without a valid typed result")
 	}
 	switch result.Outcome {
-	case "complete", "blocked", "abstained":
+	case "complete", "completed", "blocked", "needs_review", "needs_attention", "abstained", "failed", "budget_exhausted", "cancelled":
+		if result.Outcome == "completed" {
+			result.Outcome = "complete"
+		}
 		return result, nil
 	default:
 		return phasedPlanResult{}, apierr.BadGateway("workflow returned unsupported terminal outcome %q", result.Outcome)
@@ -413,7 +361,7 @@ func (s *Service) finishPhasedPlanClaim(record *Record) error {
 		if err := s.updateBacklogStatus(item, restoreBacklogStatus(*record)); err != nil {
 			return err
 		}
-	case "blocked", "abstained":
+	case "blocked", "needs_review", "needs_attention", "abstained":
 		record.Status = StatusNeedsReview
 		record.FailureReason = firstNonEmpty(result.Blocker.Summary, result.Reason, result.Summary, "workflow "+record.AgentWorkflowOutcome)
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
