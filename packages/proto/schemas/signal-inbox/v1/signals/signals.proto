@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package vrooli.signal_inbox.v1.signals;
 
-import "google/protobuf/timestamp.proto";
+import "signal-inbox/v1/shared/signals.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals;signals_v1";
 
@@ -14,26 +14,6 @@ service SignalsService {
   rpc ListSignals(ListSignalsRequest) returns (ListSignalsResponse);
 }
 
-enum SourceKind {
-  SOURCE_KIND_UNSPECIFIED = 0;
-  SOURCE_KIND_URL = 1;
-  SOURCE_KIND_TEXT = 2;
-  SOURCE_KIND_IMAGE = 3;
-}
-
-message Signal {
-  string id = 1;
-  SourceKind source_kind = 2;
-  string source_identity = 3;
-  string source_url = 4;
-  google.protobuf.Timestamp captured_at = 5;
-  string raw_payload_ref = 6;
-  string extracted_content = 7;
-  string content_hash = 8;
-  bool needs_attention = 9;
-  string capture_note = 10;
-}
-
 // Exactly one source payload is supplied. The service infers SourceKind from
 // the populated variant; callers never declare it.
 message CaptureSignalRequest {
@@ -43,10 +23,11 @@ message CaptureSignalRequest {
     string image_payload_ref = 3;
   }
   string capture_note = 4;
+  repeated string tags = 5;
 }
 
 message CaptureSignalResponse {
-  Signal signal = 1;
+  vrooli.signal_inbox.v1.shared.Signal signal = 1;
   // True means the content hash was already present and no journal row was
   // appended by this request.
   bool duplicate = 2;
@@ -69,7 +50,7 @@ message GetSignalRequest {
 }
 
 message GetSignalResponse {
-  Signal signal = 1;
+  vrooli.signal_inbox.v1.shared.Signal signal = 1;
 }
 
 message ListSignalsRequest {
@@ -77,5 +58,5 @@ message ListSignalsRequest {
 }
 
 message ListSignalsResponse {
-  repeated Signal signals = 1;
+  repeated vrooli.signal_inbox.v1.shared.Signal signals = 1;
 }

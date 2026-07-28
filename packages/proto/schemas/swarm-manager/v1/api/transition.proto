@@ -20,13 +20,25 @@ message ListTransitionsResponse {
 
 message StartTransitionRequest {
   string transition_key = 1;
-  string subject_ref = 2;
+  SubjectReference subject_ref = 2;
+  map<string, string> operator_inputs = 3;
+}
+
+// SubjectReference keeps the registry subject discriminator adjacent to the
+// opaque locator understood by the owning domain adapter. The service checks
+// subject against the declared transition before invoking the runner.
+message SubjectReference {
+  string subject = 1;
+  string value = 2;
 }
 
 message StartTransitionResponse {
   string execution_id = 1;
   string definition_digest = 2;
   string entity_version = 3;
+  string apply_state = 4;
+  string outcome = 5;
+  string terminal_code = 6;
 }
 
 message ApplyTransitionRequest {
@@ -41,4 +53,7 @@ message ApplyTransitionResponse {
   string outcome = 4;
   string terminal_code = 5;
   string applied_time = 6;
+  string definition_digest = 7;
+  string entity_version = 8;
+  string apply_state = 9;
 }

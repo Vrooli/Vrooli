@@ -2,79 +2,17 @@
 // @generated from file signal-inbox/v1/signals/signals.proto (package vrooli.signal_inbox.v1.signals, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Signal } from "../shared/signals_pb";
+import { file_signal_inbox_v1_shared_signals } from "../shared/signals_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file signal-inbox/v1/signals/signals.proto.
  */
 export const file_signal_inbox_v1_signals_signals: GenFile = /*@__PURE__*/
-  fileDesc("CiVzaWduYWwtaW5ib3gvdjEvc2lnbmFscy9zaWduYWxzLnByb3RvEh52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMirAIKBlNpZ25hbBIKCgJpZBgBIAEoCRI/Cgtzb3VyY2Vfa2luZBgCIAEoDjIqLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5Tb3VyY2VLaW5kEhcKD3NvdXJjZV9pZGVudGl0eRgDIAEoCRISCgpzb3VyY2VfdXJsGAQgASgJEi8KC2NhcHR1cmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9yYXdfcGF5bG9hZF9yZWYYBiABKAkSGQoRZXh0cmFjdGVkX2NvbnRlbnQYByABKAkSFAoMY29udGVudF9oYXNoGAggASgJEhcKD25lZWRzX2F0dGVudGlvbhgJIAEoCBIUCgxjYXB0dXJlX25vdGUYCiABKAkicgoUQ2FwdHVyZVNpZ25hbFJlcXVlc3QSDQoDdXJsGAEgASgJSAASDgoEdGV4dBgCIAEoCUgAEhsKEWltYWdlX3BheWxvYWRfcmVmGAMgASgJSAASFAoMY2FwdHVyZV9ub3RlGAQgASgJQggKBnNvdXJjZSJiChVDYXB0dXJlU2lnbmFsUmVzcG9uc2USNgoGc2lnbmFsGAEgASgLMiYudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLlNpZ25hbBIRCglkdXBsaWNhdGUYAiABKAgiTAoLSW1hZ2VVcGxvYWQSEwoLcGF5bG9hZF9yZWYYASABKAkSFAoMY29udGVudF90eXBlGAIgASgJEhIKCnNpemVfYnl0ZXMYAyABKAMiUQoTVXBsb2FkSW1hZ2VSZXNwb25zZRI6CgVpbWFnZRgBIAEoCzIrLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5JbWFnZVVwbG9hZCIeChBHZXRTaWduYWxSZXF1ZXN0EgoKAmlkGAEgASgJIksKEUdldFNpZ25hbFJlc3BvbnNlEjYKBnNpZ25hbBgBIAEoCzImLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5TaWduYWwiJwoSTGlzdFNpZ25hbHNSZXF1ZXN0EhEKCXBhZ2Vfc2l6ZRgBIAEoDSJOChNMaXN0U2lnbmFsc1Jlc3BvbnNlEjcKB3NpZ25hbHMYASADKAsyJi52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuU2lnbmFsKmsKClNvdXJjZUtpbmQSGwoXU09VUkNFX0tJTkRfVU5TUEVDSUZJRUQQABITCg9TT1VSQ0VfS0lORF9VUkwQARIUChBTT1VSQ0VfS0lORF9URVhUEAISFQoRU09VUkNFX0tJTkRfSU1BR0UQAzL4AgoOU2lnbmFsc1NlcnZpY2USfAoNQ2FwdHVyZVNpZ25hbBI0LnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5DYXB0dXJlU2lnbmFsUmVxdWVzdBo1LnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5DYXB0dXJlU2lnbmFsUmVzcG9uc2UScAoJR2V0U2lnbmFsEjAudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkdldFNpZ25hbFJlcXVlc3QaMS52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuR2V0U2lnbmFsUmVzcG9uc2USdgoLTGlzdFNpZ25hbHMSMi52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXF1ZXN0GjMudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkxpc3RTaWduYWxzUmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zaWduYWwtaW5ib3gvdjEvc2lnbmFscztzaWduYWxzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
-
-/**
- * @generated from message vrooli.signal_inbox.v1.signals.Signal
- */
-export type Signal = Message<"vrooli.signal_inbox.v1.signals.Signal"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: vrooli.signal_inbox.v1.signals.SourceKind source_kind = 2;
-   */
-  sourceKind: SourceKind;
-
-  /**
-   * @generated from field: string source_identity = 3;
-   */
-  sourceIdentity: string;
-
-  /**
-   * @generated from field: string source_url = 4;
-   */
-  sourceUrl: string;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp captured_at = 5;
-   */
-  capturedAt?: Timestamp | undefined;
-
-  /**
-   * @generated from field: string raw_payload_ref = 6;
-   */
-  rawPayloadRef: string;
-
-  /**
-   * @generated from field: string extracted_content = 7;
-   */
-  extractedContent: string;
-
-  /**
-   * @generated from field: string content_hash = 8;
-   */
-  contentHash: string;
-
-  /**
-   * @generated from field: bool needs_attention = 9;
-   */
-  needsAttention: boolean;
-
-  /**
-   * @generated from field: string capture_note = 10;
-   */
-  captureNote: string;
-};
-
-/**
- * Describes the message vrooli.signal_inbox.v1.signals.Signal.
- * Use `create(SignalSchema)` to create a new message.
- */
-export const SignalSchema: GenMessage<Signal> = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 0);
+  fileDesc("CiVzaWduYWwtaW5ib3gvdjEvc2lnbmFscy9zaWduYWxzLnByb3RvEh52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMigAEKFENhcHR1cmVTaWduYWxSZXF1ZXN0Eg0KA3VybBgBIAEoCUgAEg4KBHRleHQYAiABKAlIABIbChFpbWFnZV9wYXlsb2FkX3JlZhgDIAEoCUgAEhQKDGNhcHR1cmVfbm90ZRgEIAEoCRIMCgR0YWdzGAUgAygJQggKBnNvdXJjZSJhChVDYXB0dXJlU2lnbmFsUmVzcG9uc2USNQoGc2lnbmFsGAEgASgLMiUudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaGFyZWQuU2lnbmFsEhEKCWR1cGxpY2F0ZRgCIAEoCCJMCgtJbWFnZVVwbG9hZBITCgtwYXlsb2FkX3JlZhgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAyJRChNVcGxvYWRJbWFnZVJlc3BvbnNlEjoKBWltYWdlGAEgASgLMisudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkltYWdlVXBsb2FkIh4KEEdldFNpZ25hbFJlcXVlc3QSCgoCaWQYASABKAkiSgoRR2V0U2lnbmFsUmVzcG9uc2USNQoGc2lnbmFsGAEgASgLMiUudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaGFyZWQuU2lnbmFsIicKEkxpc3RTaWduYWxzUmVxdWVzdBIRCglwYWdlX3NpemUYASABKA0iTQoTTGlzdFNpZ25hbHNSZXNwb25zZRI2CgdzaWduYWxzGAEgAygLMiUudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaGFyZWQuU2lnbmFsMvgCCg5TaWduYWxzU2VydmljZRJ8Cg1DYXB0dXJlU2lnbmFsEjQudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkNhcHR1cmVTaWduYWxSZXF1ZXN0GjUudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkNhcHR1cmVTaWduYWxSZXNwb25zZRJwCglHZXRTaWduYWwSMC52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuR2V0U2lnbmFsUmVxdWVzdBoxLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5HZXRTaWduYWxSZXNwb25zZRJ2CgtMaXN0U2lnbmFscxIyLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5MaXN0U2lnbmFsc1JlcXVlc3QaMy52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NpZ25hbC1pbmJveC92MS9zaWduYWxzO3NpZ25hbHNfdjFiBnByb3RvMw", [file_signal_inbox_v1_shared_signals]);
 
 /**
  * Exactly one source payload is supplied. The service infers SourceKind from
@@ -110,6 +48,11 @@ export type CaptureSignalRequest = Message<"vrooli.signal_inbox.v1.signals.Captu
    * @generated from field: string capture_note = 4;
    */
   captureNote: string;
+
+  /**
+   * @generated from field: repeated string tags = 5;
+   */
+  tags: string[];
 };
 
 /**
@@ -117,14 +60,14 @@ export type CaptureSignalRequest = Message<"vrooli.signal_inbox.v1.signals.Captu
  * Use `create(CaptureSignalRequestSchema)` to create a new message.
  */
 export const CaptureSignalRequestSchema: GenMessage<CaptureSignalRequest> = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 1);
+  messageDesc(file_signal_inbox_v1_signals_signals, 0);
 
 /**
  * @generated from message vrooli.signal_inbox.v1.signals.CaptureSignalResponse
  */
 export type CaptureSignalResponse = Message<"vrooli.signal_inbox.v1.signals.CaptureSignalResponse"> & {
   /**
-   * @generated from field: vrooli.signal_inbox.v1.signals.Signal signal = 1;
+   * @generated from field: vrooli.signal_inbox.v1.shared.Signal signal = 1;
    */
   signal?: Signal | undefined;
 
@@ -142,7 +85,7 @@ export type CaptureSignalResponse = Message<"vrooli.signal_inbox.v1.signals.Capt
  * Use `create(CaptureSignalResponseSchema)` to create a new message.
  */
 export const CaptureSignalResponseSchema: GenMessage<CaptureSignalResponse> = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 2);
+  messageDesc(file_signal_inbox_v1_signals_signals, 1);
 
 /**
  * ImageUpload is the proto-typed metadata response for the multipart REST
@@ -172,7 +115,7 @@ export type ImageUpload = Message<"vrooli.signal_inbox.v1.signals.ImageUpload"> 
  * Use `create(ImageUploadSchema)` to create a new message.
  */
 export const ImageUploadSchema: GenMessage<ImageUpload> = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 3);
+  messageDesc(file_signal_inbox_v1_signals_signals, 2);
 
 /**
  * @generated from message vrooli.signal_inbox.v1.signals.UploadImageResponse
@@ -189,7 +132,7 @@ export type UploadImageResponse = Message<"vrooli.signal_inbox.v1.signals.Upload
  * Use `create(UploadImageResponseSchema)` to create a new message.
  */
 export const UploadImageResponseSchema: GenMessage<UploadImageResponse> = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 4);
+  messageDesc(file_signal_inbox_v1_signals_signals, 3);
 
 /**
  * @generated from message vrooli.signal_inbox.v1.signals.GetSignalRequest
@@ -206,14 +149,14 @@ export type GetSignalRequest = Message<"vrooli.signal_inbox.v1.signals.GetSignal
  * Use `create(GetSignalRequestSchema)` to create a new message.
  */
 export const GetSignalRequestSchema: GenMessage<GetSignalRequest> = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 5);
+  messageDesc(file_signal_inbox_v1_signals_signals, 4);
 
 /**
  * @generated from message vrooli.signal_inbox.v1.signals.GetSignalResponse
  */
 export type GetSignalResponse = Message<"vrooli.signal_inbox.v1.signals.GetSignalResponse"> & {
   /**
-   * @generated from field: vrooli.signal_inbox.v1.signals.Signal signal = 1;
+   * @generated from field: vrooli.signal_inbox.v1.shared.Signal signal = 1;
    */
   signal?: Signal | undefined;
 };
@@ -223,7 +166,7 @@ export type GetSignalResponse = Message<"vrooli.signal_inbox.v1.signals.GetSigna
  * Use `create(GetSignalResponseSchema)` to create a new message.
  */
 export const GetSignalResponseSchema: GenMessage<GetSignalResponse> = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 6);
+  messageDesc(file_signal_inbox_v1_signals_signals, 5);
 
 /**
  * @generated from message vrooli.signal_inbox.v1.signals.ListSignalsRequest
@@ -240,14 +183,14 @@ export type ListSignalsRequest = Message<"vrooli.signal_inbox.v1.signals.ListSig
  * Use `create(ListSignalsRequestSchema)` to create a new message.
  */
 export const ListSignalsRequestSchema: GenMessage<ListSignalsRequest> = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 7);
+  messageDesc(file_signal_inbox_v1_signals_signals, 6);
 
 /**
  * @generated from message vrooli.signal_inbox.v1.signals.ListSignalsResponse
  */
 export type ListSignalsResponse = Message<"vrooli.signal_inbox.v1.signals.ListSignalsResponse"> & {
   /**
-   * @generated from field: repeated vrooli.signal_inbox.v1.signals.Signal signals = 1;
+   * @generated from field: repeated vrooli.signal_inbox.v1.shared.Signal signals = 1;
    */
   signals: Signal[];
 };
@@ -257,38 +200,7 @@ export type ListSignalsResponse = Message<"vrooli.signal_inbox.v1.signals.ListSi
  * Use `create(ListSignalsResponseSchema)` to create a new message.
  */
 export const ListSignalsResponseSchema: GenMessage<ListSignalsResponse> = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 8);
-
-/**
- * @generated from enum vrooli.signal_inbox.v1.signals.SourceKind
- */
-export enum SourceKind {
-  /**
-   * @generated from enum value: SOURCE_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: SOURCE_KIND_URL = 1;
-   */
-  URL = 1,
-
-  /**
-   * @generated from enum value: SOURCE_KIND_TEXT = 2;
-   */
-  TEXT = 2,
-
-  /**
-   * @generated from enum value: SOURCE_KIND_IMAGE = 3;
-   */
-  IMAGE = 3,
-}
-
-/**
- * Describes the enum vrooli.signal_inbox.v1.signals.SourceKind.
- */
-export const SourceKindSchema: GenEnum<SourceKind> = /*@__PURE__*/
-  enumDesc(file_signal_inbox_v1_signals_signals, 0);
+  messageDesc(file_signal_inbox_v1_signals_signals, 7);
 
 /**
  * SignalsService owns the immutable journal. A signal is appended once and is

@@ -17,7 +17,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-business-suite/v1/config.proto.
  */
 export const file_landing_page_business_suite_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("CitsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvY29uZmlnLnByb3RvEh5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEi0AEKFUxhbmRpbmdWYXJpYW50U3VtbWFyeRIKCgJpZBgBIAEoAxIMCgRzbHVnGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSTQoEYXhlcxgFIAMoCzI/LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MYW5kaW5nVmFyaWFudFN1bW1hcnkuQXhlc0VudHJ5GisKCUF4ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBInAKDkxhbmRpbmdTZWN0aW9uEhQKDHNlY3Rpb25fdHlwZRgBIAEoCRIoCgdjb250ZW50GAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBINCgVvcmRlchgDIAEoBRIPCgdlbmFibGVkGAQgASgIIrwCCg9MYW5kaW5nQnJhbmRpbmcSEQoJc2l0ZV9uYW1lGAEgASgJEhQKB3RhZ2xpbmUYAiABKAlIAIgBARIVCghsb2dvX3VybBgDIAEoCUgBiAEBEhoKDWxvZ29faWNvbl91cmwYBCABKAlIAogBARIYCgtmYXZpY29uX3VybBgFIAEoCUgDiAEBEiAKE3RoZW1lX3ByaW1hcnlfY29sb3IYBiABKAlIBIgBARIjChZ0aGVtZV9iYWNrZ3JvdW5kX2NvbG9yGAcgASgJSAWIAQFCCgoIX3RhZ2xpbmVCCwoJX2xvZ29fdXJsQhAKDl9sb2dvX2ljb25fdXJsQg4KDF9mYXZpY29uX3VybEIWChRfdGhlbWVfcHJpbWFyeV9jb2xvckIZChdfdGhlbWVfYmFja2dyb3VuZF9jb2xvciIvChdHZXRMYW5kaW5nQ29uZmlnUmVxdWVzdBIUCgx2YXJpYW50X3NsdWcYASABKAki+QMKFUxhbmRpbmdDb25maWdSZXNwb25zZRJGCgd2YXJpYW50GAEgASgLMjUubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkxhbmRpbmdWYXJpYW50U3VtbWFyeRJACghzZWN0aW9ucxgCIAMoCzIuLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MYW5kaW5nU2VjdGlvbhJOCgdwcmljaW5nGAMgASgLMj0udnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuUHJpY2luZ092ZXJ2aWV3EkwKCWRvd25sb2FkcxgEIAMoCzI5LnZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkLkRvd25sb2FkQXBwElEKBmhlYWRlchgFIAEoCzJBLnZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkLkxhbmRpbmdIZWFkZXJDb25maWcSRgoIYnJhbmRpbmcYBiABKAsyLy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGFuZGluZ0JyYW5kaW5nSACIAQESEAoIZmFsbGJhY2sYByABKAhCCwoJX2JyYW5kaW5nMpsBChRMYW5kaW5nQ29uZmlnU2VydmljZRKCAQoQR2V0TGFuZGluZ0NvbmZpZxI3LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRMYW5kaW5nQ29uZmlnUmVxdWVzdBo1LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MYW5kaW5nQ29uZmlnUmVzcG9uc2VCblpsZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjE7bGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_landing_page_business_suite_v1_shared_commerce, file_landing_page_business_suite_v1_shared_downloads, file_landing_page_business_suite_v1_shared_presentation]);
+  fileDesc("CitsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvY29uZmlnLnByb3RvEh5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEi0AEKFUxhbmRpbmdWYXJpYW50U3VtbWFyeRIKCgJpZBgBIAEoAxIMCgRzbHVnGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSTQoEYXhlcxgFIAMoCzI/LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MYW5kaW5nVmFyaWFudFN1bW1hcnkuQXhlc0VudHJ5GisKCUF4ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBInAKDkxhbmRpbmdTZWN0aW9uEhQKDHNlY3Rpb25fdHlwZRgBIAEoCRIoCgdjb250ZW50GAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBINCgVvcmRlchgDIAEoBRIPCgdlbmFibGVkGAQgASgIIpIECg9MYW5kaW5nQnJhbmRpbmcSEQoJc2l0ZV9uYW1lGAEgASgJEhQKB3RhZ2xpbmUYAiABKAlIAIgBARIVCghsb2dvX3VybBgDIAEoCUgBiAEBEhoKDWxvZ29faWNvbl91cmwYBCABKAlIAogBARIYCgtmYXZpY29uX3VybBgFIAEoCUgDiAEBEiAKE3RoZW1lX3ByaW1hcnlfY29sb3IYBiABKAlIBIgBARIjChZ0aGVtZV9iYWNrZ3JvdW5kX2NvbG9yGAcgASgJSAWIAQESHQoQc3VwcG9ydF9jaGF0X3VybBgIIAEoCUgGiAEBEhoKDXN1cHBvcnRfZW1haWwYCSABKAlIB4gBARIgChNjb21pbmdfc29vbl9lbmFibGVkGAogASgISAiIAQESIAoTY29taW5nX3Nvb25fbWVzc2FnZRgLIAEoCUgJiAEBQgoKCF90YWdsaW5lQgsKCV9sb2dvX3VybEIQCg5fbG9nb19pY29uX3VybEIOCgxfZmF2aWNvbl91cmxCFgoUX3RoZW1lX3ByaW1hcnlfY29sb3JCGQoXX3RoZW1lX2JhY2tncm91bmRfY29sb3JCEwoRX3N1cHBvcnRfY2hhdF91cmxCEAoOX3N1cHBvcnRfZW1haWxCFgoUX2NvbWluZ19zb29uX2VuYWJsZWRCFgoUX2NvbWluZ19zb29uX21lc3NhZ2UixQMKCkludHJvT2ZmZXISCgoCaWQYASABKAkSEQoEbmFtZRgCIAEoCUgAiAEBEhcKCmFtb3VudF9vZmYYAyABKANIAYgBARIYCgtwZXJjZW50X29mZhgEIAEoAUgCiAEBEhUKCGN1cnJlbmN5GAUgASgJSAOIAQESEAoIZHVyYXRpb24YBiABKAkSHwoSZHVyYXRpb25faW5fbW9udGhzGAcgASgFSASIAQESHAoPbWF4X3JlZGVtcHRpb25zGAggASgFSAWIAQESFgoJcmVkZWVtX2J5GAkgASgDSAaIAQESFgoOdGltZXNfcmVkZWVtZWQYCiABKAUSDQoFdmFsaWQYCyABKAgSDwoHY3JlYXRlZBgMIAEoAxIXCg9pc19pbnRyb19jb3Vwb24YDSABKAgSFwoKaW50cm9fdGllchgOIAEoCUgHiAEBQgcKBV9uYW1lQg0KC19hbW91bnRfb2ZmQg4KDF9wZXJjZW50X29mZkILCglfY3VycmVuY3lCFQoTX2R1cmF0aW9uX2luX21vbnRoc0ISChBfbWF4X3JlZGVtcHRpb25zQgwKCl9yZWRlZW1fYnlCDQoLX2ludHJvX3RpZXIiLwoXR2V0TGFuZGluZ0NvbmZpZ1JlcXVlc3QSFAoMdmFyaWFudF9zbHVnGAEgASgJItYFChVMYW5kaW5nQ29uZmlnUmVzcG9uc2USRgoHdmFyaWFudBgBIAEoCzI1LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MYW5kaW5nVmFyaWFudFN1bW1hcnkSQAoIc2VjdGlvbnMYAiADKAsyLi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGFuZGluZ1NlY3Rpb24STgoHcHJpY2luZxgDIAEoCzI9LnZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkLlByaWNpbmdPdmVydmlldxJMCglkb3dubG9hZHMYBCADKAsyOS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5Eb3dubG9hZEFwcBJRCgZoZWFkZXIYBSABKAsyQS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5MYW5kaW5nSGVhZGVyQ29uZmlnEkYKCGJyYW5kaW5nGAYgASgLMi8ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkxhbmRpbmdCcmFuZGluZ0gAiAEBEhAKCGZhbGxiYWNrGAcgASgIEmIKD2NvdXBvbl9tYXBwaW5ncxgIIAMoCzJJLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MYW5kaW5nQ29uZmlnUmVzcG9uc2UuQ291cG9uTWFwcGluZ3NFbnRyeRJACgxpbnRyb19vZmZlcnMYCSADKAsyKi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuSW50cm9PZmZlcho1ChNDb3Vwb25NYXBwaW5nc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCCwoJX2JyYW5kaW5nMpsBChRMYW5kaW5nQ29uZmlnU2VydmljZRKCAQoQR2V0TGFuZGluZ0NvbmZpZxI3LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRMYW5kaW5nQ29uZmlnUmVxdWVzdBo1LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MYW5kaW5nQ29uZmlnUmVzcG9uc2VCblpsZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjE7bGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_landing_page_business_suite_v1_shared_commerce, file_landing_page_business_suite_v1_shared_downloads, file_landing_page_business_suite_v1_shared_presentation]);
 
 /**
  * LandingVariantSummary is the compact variant identity for the landing payload.
@@ -132,6 +132,26 @@ export type LandingBranding = Message<"landing_page_business_suite.v1.LandingBra
    * @generated from field: optional string theme_background_color = 7;
    */
   themeBackgroundColor?: string | undefined;
+
+  /**
+   * @generated from field: optional string support_chat_url = 8;
+   */
+  supportChatUrl?: string | undefined;
+
+  /**
+   * @generated from field: optional string support_email = 9;
+   */
+  supportEmail?: string | undefined;
+
+  /**
+   * @generated from field: optional bool coming_soon_enabled = 10;
+   */
+  comingSoonEnabled?: boolean | undefined;
+
+  /**
+   * @generated from field: optional string coming_soon_message = 11;
+   */
+  comingSoonMessage?: string | undefined;
 };
 
 /**
@@ -140,6 +160,93 @@ export type LandingBranding = Message<"landing_page_business_suite.v1.LandingBra
  */
 export const LandingBrandingSchema: GenMessage<LandingBranding> = /*@__PURE__*/
   messageDesc(file_landing_page_business_suite_v1_config, 2);
+
+/**
+ * IntroOffer is the public, checkout-safe coupon data used to render
+ * introductory pricing on the landing page. It deliberately excludes Stripe
+ * dashboard metadata and credentials while retaining every field the existing
+ * public landing payload exposes.
+ *
+ * @generated from message landing_page_business_suite.v1.IntroOffer
+ */
+export type IntroOffer = Message<"landing_page_business_suite.v1.IntroOffer"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: optional string name = 2;
+   */
+  name?: string | undefined;
+
+  /**
+   * @generated from field: optional int64 amount_off = 3;
+   */
+  amountOff?: bigint | undefined;
+
+  /**
+   * @generated from field: optional double percent_off = 4;
+   */
+  percentOff?: number | undefined;
+
+  /**
+   * @generated from field: optional string currency = 5;
+   */
+  currency?: string | undefined;
+
+  /**
+   * @generated from field: string duration = 6;
+   */
+  duration: string;
+
+  /**
+   * @generated from field: optional int32 duration_in_months = 7;
+   */
+  durationInMonths?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 max_redemptions = 8;
+   */
+  maxRedemptions?: number | undefined;
+
+  /**
+   * @generated from field: optional int64 redeem_by = 9;
+   */
+  redeemBy?: bigint | undefined;
+
+  /**
+   * @generated from field: int32 times_redeemed = 10;
+   */
+  timesRedeemed: number;
+
+  /**
+   * @generated from field: bool valid = 11;
+   */
+  valid: boolean;
+
+  /**
+   * @generated from field: int64 created = 12;
+   */
+  created: bigint;
+
+  /**
+   * @generated from field: bool is_intro_coupon = 13;
+   */
+  isIntroCoupon: boolean;
+
+  /**
+   * @generated from field: optional string intro_tier = 14;
+   */
+  introTier?: string | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.IntroOffer.
+ * Use `create(IntroOfferSchema)` to create a new message.
+ */
+export const IntroOfferSchema: GenMessage<IntroOffer> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_config, 3);
 
 /**
  * GetLandingConfigRequest requests the aggregated landing payload. An empty
@@ -159,7 +266,7 @@ export type GetLandingConfigRequest = Message<"landing_page_business_suite.v1.Ge
  * Use `create(GetLandingConfigRequestSchema)` to create a new message.
  */
 export const GetLandingConfigRequestSchema: GenMessage<GetLandingConfigRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_config, 3);
+  messageDesc(file_landing_page_business_suite_v1_config, 4);
 
 /**
  * LandingConfigResponse is the aggregated public landing payload.
@@ -203,6 +310,20 @@ export type LandingConfigResponse = Message<"landing_page_business_suite.v1.Land
    * @generated from field: bool fallback = 7;
    */
   fallback: boolean;
+
+  /**
+   * Maps a price ID to its currently applicable introductory coupon ID.
+   *
+   * @generated from field: map<string, string> coupon_mappings = 8;
+   */
+  couponMappings: { [key: string]: string };
+
+  /**
+   * Public coupon details referenced by coupon_mappings.
+   *
+   * @generated from field: repeated landing_page_business_suite.v1.IntroOffer intro_offers = 9;
+   */
+  introOffers: IntroOffer[];
 };
 
 /**
@@ -210,7 +331,7 @@ export type LandingConfigResponse = Message<"landing_page_business_suite.v1.Land
  * Use `create(LandingConfigResponseSchema)` to create a new message.
  */
 export const LandingConfigResponseSchema: GenMessage<LandingConfigResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_config, 4);
+  messageDesc(file_landing_page_business_suite_v1_config, 5);
 
 /**
  * LandingConfigService serves the aggregated public landing payload.

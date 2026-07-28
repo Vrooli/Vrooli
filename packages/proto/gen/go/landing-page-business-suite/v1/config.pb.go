@@ -179,6 +179,10 @@ type LandingBranding struct {
 	FaviconUrl           *string                `protobuf:"bytes,5,opt,name=favicon_url,json=faviconUrl,proto3,oneof" json:"favicon_url,omitempty"`
 	ThemePrimaryColor    *string                `protobuf:"bytes,6,opt,name=theme_primary_color,json=themePrimaryColor,proto3,oneof" json:"theme_primary_color,omitempty"`
 	ThemeBackgroundColor *string                `protobuf:"bytes,7,opt,name=theme_background_color,json=themeBackgroundColor,proto3,oneof" json:"theme_background_color,omitempty"`
+	SupportChatUrl       *string                `protobuf:"bytes,8,opt,name=support_chat_url,json=supportChatUrl,proto3,oneof" json:"support_chat_url,omitempty"`
+	SupportEmail         *string                `protobuf:"bytes,9,opt,name=support_email,json=supportEmail,proto3,oneof" json:"support_email,omitempty"`
+	ComingSoonEnabled    *bool                  `protobuf:"varint,10,opt,name=coming_soon_enabled,json=comingSoonEnabled,proto3,oneof" json:"coming_soon_enabled,omitempty"`
+	ComingSoonMessage    *string                `protobuf:"bytes,11,opt,name=coming_soon_message,json=comingSoonMessage,proto3,oneof" json:"coming_soon_message,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -262,6 +266,186 @@ func (x *LandingBranding) GetThemeBackgroundColor() string {
 	return ""
 }
 
+func (x *LandingBranding) GetSupportChatUrl() string {
+	if x != nil && x.SupportChatUrl != nil {
+		return *x.SupportChatUrl
+	}
+	return ""
+}
+
+func (x *LandingBranding) GetSupportEmail() string {
+	if x != nil && x.SupportEmail != nil {
+		return *x.SupportEmail
+	}
+	return ""
+}
+
+func (x *LandingBranding) GetComingSoonEnabled() bool {
+	if x != nil && x.ComingSoonEnabled != nil {
+		return *x.ComingSoonEnabled
+	}
+	return false
+}
+
+func (x *LandingBranding) GetComingSoonMessage() string {
+	if x != nil && x.ComingSoonMessage != nil {
+		return *x.ComingSoonMessage
+	}
+	return ""
+}
+
+// IntroOffer is the public, checkout-safe coupon data used to render
+// introductory pricing on the landing page. It deliberately excludes Stripe
+// dashboard metadata and credentials while retaining every field the existing
+// public landing payload exposes.
+type IntroOffer struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name             *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	AmountOff        *int64                 `protobuf:"varint,3,opt,name=amount_off,json=amountOff,proto3,oneof" json:"amount_off,omitempty"`
+	PercentOff       *float64               `protobuf:"fixed64,4,opt,name=percent_off,json=percentOff,proto3,oneof" json:"percent_off,omitempty"`
+	Currency         *string                `protobuf:"bytes,5,opt,name=currency,proto3,oneof" json:"currency,omitempty"`
+	Duration         string                 `protobuf:"bytes,6,opt,name=duration,proto3" json:"duration,omitempty"`
+	DurationInMonths *int32                 `protobuf:"varint,7,opt,name=duration_in_months,json=durationInMonths,proto3,oneof" json:"duration_in_months,omitempty"`
+	MaxRedemptions   *int32                 `protobuf:"varint,8,opt,name=max_redemptions,json=maxRedemptions,proto3,oneof" json:"max_redemptions,omitempty"`
+	RedeemBy         *int64                 `protobuf:"varint,9,opt,name=redeem_by,json=redeemBy,proto3,oneof" json:"redeem_by,omitempty"`
+	TimesRedeemed    int32                  `protobuf:"varint,10,opt,name=times_redeemed,json=timesRedeemed,proto3" json:"times_redeemed,omitempty"`
+	Valid            bool                   `protobuf:"varint,11,opt,name=valid,proto3" json:"valid,omitempty"`
+	Created          int64                  `protobuf:"varint,12,opt,name=created,proto3" json:"created,omitempty"`
+	IsIntroCoupon    bool                   `protobuf:"varint,13,opt,name=is_intro_coupon,json=isIntroCoupon,proto3" json:"is_intro_coupon,omitempty"`
+	IntroTier        *string                `protobuf:"bytes,14,opt,name=intro_tier,json=introTier,proto3,oneof" json:"intro_tier,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *IntroOffer) Reset() {
+	*x = IntroOffer{}
+	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IntroOffer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IntroOffer) ProtoMessage() {}
+
+func (x *IntroOffer) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IntroOffer.ProtoReflect.Descriptor instead.
+func (*IntroOffer) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_config_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *IntroOffer) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *IntroOffer) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *IntroOffer) GetAmountOff() int64 {
+	if x != nil && x.AmountOff != nil {
+		return *x.AmountOff
+	}
+	return 0
+}
+
+func (x *IntroOffer) GetPercentOff() float64 {
+	if x != nil && x.PercentOff != nil {
+		return *x.PercentOff
+	}
+	return 0
+}
+
+func (x *IntroOffer) GetCurrency() string {
+	if x != nil && x.Currency != nil {
+		return *x.Currency
+	}
+	return ""
+}
+
+func (x *IntroOffer) GetDuration() string {
+	if x != nil {
+		return x.Duration
+	}
+	return ""
+}
+
+func (x *IntroOffer) GetDurationInMonths() int32 {
+	if x != nil && x.DurationInMonths != nil {
+		return *x.DurationInMonths
+	}
+	return 0
+}
+
+func (x *IntroOffer) GetMaxRedemptions() int32 {
+	if x != nil && x.MaxRedemptions != nil {
+		return *x.MaxRedemptions
+	}
+	return 0
+}
+
+func (x *IntroOffer) GetRedeemBy() int64 {
+	if x != nil && x.RedeemBy != nil {
+		return *x.RedeemBy
+	}
+	return 0
+}
+
+func (x *IntroOffer) GetTimesRedeemed() int32 {
+	if x != nil {
+		return x.TimesRedeemed
+	}
+	return 0
+}
+
+func (x *IntroOffer) GetValid() bool {
+	if x != nil {
+		return x.Valid
+	}
+	return false
+}
+
+func (x *IntroOffer) GetCreated() int64 {
+	if x != nil {
+		return x.Created
+	}
+	return 0
+}
+
+func (x *IntroOffer) GetIsIntroCoupon() bool {
+	if x != nil {
+		return x.IsIntroCoupon
+	}
+	return false
+}
+
+func (x *IntroOffer) GetIntroTier() string {
+	if x != nil && x.IntroTier != nil {
+		return *x.IntroTier
+	}
+	return ""
+}
+
 // GetLandingConfigRequest requests the aggregated landing payload. An empty
 // variant_slug triggers weighted-random selection.
 type GetLandingConfigRequest struct {
@@ -273,7 +457,7 @@ type GetLandingConfigRequest struct {
 
 func (x *GetLandingConfigRequest) Reset() {
 	*x = GetLandingConfigRequest{}
-	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[3]
+	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -285,7 +469,7 @@ func (x *GetLandingConfigRequest) String() string {
 func (*GetLandingConfigRequest) ProtoMessage() {}
 
 func (x *GetLandingConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[3]
+	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -298,7 +482,7 @@ func (x *GetLandingConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLandingConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetLandingConfigRequest) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_config_proto_rawDescGZIP(), []int{3}
+	return file_landing_page_business_suite_v1_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetLandingConfigRequest) GetVariantSlug() string {
@@ -318,14 +502,18 @@ type LandingConfigResponse struct {
 	Header    *shared.LandingHeaderConfig `protobuf:"bytes,5,opt,name=header,proto3" json:"header,omitempty"`
 	Branding  *LandingBranding            `protobuf:"bytes,6,opt,name=branding,proto3,oneof" json:"branding,omitempty"`
 	// True when the baked fallback payload was returned.
-	Fallback      bool `protobuf:"varint,7,opt,name=fallback,proto3" json:"fallback,omitempty"`
+	Fallback bool `protobuf:"varint,7,opt,name=fallback,proto3" json:"fallback,omitempty"`
+	// Maps a price ID to its currently applicable introductory coupon ID.
+	CouponMappings map[string]string `protobuf:"bytes,8,rep,name=coupon_mappings,json=couponMappings,proto3" json:"coupon_mappings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Public coupon details referenced by coupon_mappings.
+	IntroOffers   []*IntroOffer `protobuf:"bytes,9,rep,name=intro_offers,json=introOffers,proto3" json:"intro_offers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LandingConfigResponse) Reset() {
 	*x = LandingConfigResponse{}
-	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[4]
+	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -337,7 +525,7 @@ func (x *LandingConfigResponse) String() string {
 func (*LandingConfigResponse) ProtoMessage() {}
 
 func (x *LandingConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[4]
+	mi := &file_landing_page_business_suite_v1_config_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -350,7 +538,7 @@ func (x *LandingConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LandingConfigResponse.ProtoReflect.Descriptor instead.
 func (*LandingConfigResponse) Descriptor() ([]byte, []int) {
-	return file_landing_page_business_suite_v1_config_proto_rawDescGZIP(), []int{4}
+	return file_landing_page_business_suite_v1_config_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *LandingConfigResponse) GetVariant() *LandingVariantSummary {
@@ -402,6 +590,20 @@ func (x *LandingConfigResponse) GetFallback() bool {
 	return false
 }
 
+func (x *LandingConfigResponse) GetCouponMappings() map[string]string {
+	if x != nil {
+		return x.CouponMappings
+	}
+	return nil
+}
+
+func (x *LandingConfigResponse) GetIntroOffers() []*IntroOffer {
+	if x != nil {
+		return x.IntroOffers
+	}
+	return nil
+}
+
 var File_landing_page_business_suite_v1_config_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_config_proto_rawDesc = "" +
@@ -420,7 +622,7 @@ const file_landing_page_business_suite_v1_config_proto_rawDesc = "" +
 	"\fsection_type\x18\x01 \x01(\tR\vsectionType\x121\n" +
 	"\acontent\x18\x02 \x01(\v2\x17.google.protobuf.StructR\acontent\x12\x14\n" +
 	"\x05order\x18\x03 \x01(\x05R\x05order\x12\x18\n" +
-	"\aenabled\x18\x04 \x01(\bR\aenabled\"\x9a\x03\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\"\xb4\x05\n" +
 	"\x0fLandingBranding\x12\x1b\n" +
 	"\tsite_name\x18\x01 \x01(\tR\bsiteName\x12\x1d\n" +
 	"\atagline\x18\x02 \x01(\tH\x00R\atagline\x88\x01\x01\x12\x1e\n" +
@@ -429,16 +631,54 @@ const file_landing_page_business_suite_v1_config_proto_rawDesc = "" +
 	"\vfavicon_url\x18\x05 \x01(\tH\x03R\n" +
 	"faviconUrl\x88\x01\x01\x123\n" +
 	"\x13theme_primary_color\x18\x06 \x01(\tH\x04R\x11themePrimaryColor\x88\x01\x01\x129\n" +
-	"\x16theme_background_color\x18\a \x01(\tH\x05R\x14themeBackgroundColor\x88\x01\x01B\n" +
+	"\x16theme_background_color\x18\a \x01(\tH\x05R\x14themeBackgroundColor\x88\x01\x01\x12-\n" +
+	"\x10support_chat_url\x18\b \x01(\tH\x06R\x0esupportChatUrl\x88\x01\x01\x12(\n" +
+	"\rsupport_email\x18\t \x01(\tH\aR\fsupportEmail\x88\x01\x01\x123\n" +
+	"\x13coming_soon_enabled\x18\n" +
+	" \x01(\bH\bR\x11comingSoonEnabled\x88\x01\x01\x123\n" +
+	"\x13coming_soon_message\x18\v \x01(\tH\tR\x11comingSoonMessage\x88\x01\x01B\n" +
 	"\n" +
 	"\b_taglineB\v\n" +
 	"\t_logo_urlB\x10\n" +
 	"\x0e_logo_icon_urlB\x0e\n" +
 	"\f_favicon_urlB\x16\n" +
 	"\x14_theme_primary_colorB\x19\n" +
-	"\x17_theme_background_color\"<\n" +
+	"\x17_theme_background_colorB\x13\n" +
+	"\x11_support_chat_urlB\x10\n" +
+	"\x0e_support_emailB\x16\n" +
+	"\x14_coming_soon_enabledB\x16\n" +
+	"\x14_coming_soon_message\"\xdf\x04\n" +
+	"\n" +
+	"IntroOffer\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"amount_off\x18\x03 \x01(\x03H\x01R\tamountOff\x88\x01\x01\x12$\n" +
+	"\vpercent_off\x18\x04 \x01(\x01H\x02R\n" +
+	"percentOff\x88\x01\x01\x12\x1f\n" +
+	"\bcurrency\x18\x05 \x01(\tH\x03R\bcurrency\x88\x01\x01\x12\x1a\n" +
+	"\bduration\x18\x06 \x01(\tR\bduration\x121\n" +
+	"\x12duration_in_months\x18\a \x01(\x05H\x04R\x10durationInMonths\x88\x01\x01\x12,\n" +
+	"\x0fmax_redemptions\x18\b \x01(\x05H\x05R\x0emaxRedemptions\x88\x01\x01\x12 \n" +
+	"\tredeem_by\x18\t \x01(\x03H\x06R\bredeemBy\x88\x01\x01\x12%\n" +
+	"\x0etimes_redeemed\x18\n" +
+	" \x01(\x05R\rtimesRedeemed\x12\x14\n" +
+	"\x05valid\x18\v \x01(\bR\x05valid\x12\x18\n" +
+	"\acreated\x18\f \x01(\x03R\acreated\x12&\n" +
+	"\x0fis_intro_coupon\x18\r \x01(\bR\risIntroCoupon\x12\"\n" +
+	"\n" +
+	"intro_tier\x18\x0e \x01(\tH\aR\tintroTier\x88\x01\x01B\a\n" +
+	"\x05_nameB\r\n" +
+	"\v_amount_offB\x0e\n" +
+	"\f_percent_offB\v\n" +
+	"\t_currencyB\x15\n" +
+	"\x13_duration_in_monthsB\x12\n" +
+	"\x10_max_redemptionsB\f\n" +
+	"\n" +
+	"_redeem_byB\r\n" +
+	"\v_intro_tier\"<\n" +
 	"\x17GetLandingConfigRequest\x12!\n" +
-	"\fvariant_slug\x18\x01 \x01(\tR\vvariantSlug\"\xbc\x04\n" +
+	"\fvariant_slug\x18\x01 \x01(\tR\vvariantSlug\"\xc2\x06\n" +
 	"\x15LandingConfigResponse\x12O\n" +
 	"\avariant\x18\x01 \x01(\v25.landing_page_business_suite.v1.LandingVariantSummaryR\avariant\x12J\n" +
 	"\bsections\x18\x02 \x03(\v2..landing_page_business_suite.v1.LandingSectionR\bsections\x12W\n" +
@@ -446,7 +686,12 @@ const file_landing_page_business_suite_v1_config_proto_rawDesc = "" +
 	"\tdownloads\x18\x04 \x03(\v29.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\tdownloads\x12Y\n" +
 	"\x06header\x18\x05 \x01(\v2A.vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfigR\x06header\x12P\n" +
 	"\bbranding\x18\x06 \x01(\v2/.landing_page_business_suite.v1.LandingBrandingH\x00R\bbranding\x88\x01\x01\x12\x1a\n" +
-	"\bfallback\x18\a \x01(\bR\bfallbackB\v\n" +
+	"\bfallback\x18\a \x01(\bR\bfallback\x12r\n" +
+	"\x0fcoupon_mappings\x18\b \x03(\v2I.landing_page_business_suite.v1.LandingConfigResponse.CouponMappingsEntryR\x0ecouponMappings\x12M\n" +
+	"\fintro_offers\x18\t \x03(\v2*.landing_page_business_suite.v1.IntroOfferR\vintroOffers\x1aA\n" +
+	"\x13CouponMappingsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\v\n" +
 	"\t_branding2\x9b\x01\n" +
 	"\x14LandingConfigService\x12\x82\x01\n" +
 	"\x10GetLandingConfig\x127.landing_page_business_suite.v1.GetLandingConfigRequest\x1a5.landing_page_business_suite.v1.LandingConfigResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
@@ -463,35 +708,39 @@ func file_landing_page_business_suite_v1_config_proto_rawDescGZIP() []byte {
 	return file_landing_page_business_suite_v1_config_proto_rawDescData
 }
 
-var file_landing_page_business_suite_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_landing_page_business_suite_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_landing_page_business_suite_v1_config_proto_goTypes = []any{
 	(*LandingVariantSummary)(nil),      // 0: landing_page_business_suite.v1.LandingVariantSummary
 	(*LandingSection)(nil),             // 1: landing_page_business_suite.v1.LandingSection
 	(*LandingBranding)(nil),            // 2: landing_page_business_suite.v1.LandingBranding
-	(*GetLandingConfigRequest)(nil),    // 3: landing_page_business_suite.v1.GetLandingConfigRequest
-	(*LandingConfigResponse)(nil),      // 4: landing_page_business_suite.v1.LandingConfigResponse
-	nil,                                // 5: landing_page_business_suite.v1.LandingVariantSummary.AxesEntry
-	(*structpb.Struct)(nil),            // 6: google.protobuf.Struct
-	(*shared.PricingOverview)(nil),     // 7: vrooli.landing_page_business_suite.v1.shared.PricingOverview
-	(*shared.DownloadApp)(nil),         // 8: vrooli.landing_page_business_suite.v1.shared.DownloadApp
-	(*shared.LandingHeaderConfig)(nil), // 9: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	(*IntroOffer)(nil),                 // 3: landing_page_business_suite.v1.IntroOffer
+	(*GetLandingConfigRequest)(nil),    // 4: landing_page_business_suite.v1.GetLandingConfigRequest
+	(*LandingConfigResponse)(nil),      // 5: landing_page_business_suite.v1.LandingConfigResponse
+	nil,                                // 6: landing_page_business_suite.v1.LandingVariantSummary.AxesEntry
+	nil,                                // 7: landing_page_business_suite.v1.LandingConfigResponse.CouponMappingsEntry
+	(*structpb.Struct)(nil),            // 8: google.protobuf.Struct
+	(*shared.PricingOverview)(nil),     // 9: vrooli.landing_page_business_suite.v1.shared.PricingOverview
+	(*shared.DownloadApp)(nil),         // 10: vrooli.landing_page_business_suite.v1.shared.DownloadApp
+	(*shared.LandingHeaderConfig)(nil), // 11: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
 }
 var file_landing_page_business_suite_v1_config_proto_depIdxs = []int32{
-	5, // 0: landing_page_business_suite.v1.LandingVariantSummary.axes:type_name -> landing_page_business_suite.v1.LandingVariantSummary.AxesEntry
-	6, // 1: landing_page_business_suite.v1.LandingSection.content:type_name -> google.protobuf.Struct
-	0, // 2: landing_page_business_suite.v1.LandingConfigResponse.variant:type_name -> landing_page_business_suite.v1.LandingVariantSummary
-	1, // 3: landing_page_business_suite.v1.LandingConfigResponse.sections:type_name -> landing_page_business_suite.v1.LandingSection
-	7, // 4: landing_page_business_suite.v1.LandingConfigResponse.pricing:type_name -> vrooli.landing_page_business_suite.v1.shared.PricingOverview
-	8, // 5: landing_page_business_suite.v1.LandingConfigResponse.downloads:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
-	9, // 6: landing_page_business_suite.v1.LandingConfigResponse.header:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
-	2, // 7: landing_page_business_suite.v1.LandingConfigResponse.branding:type_name -> landing_page_business_suite.v1.LandingBranding
-	3, // 8: landing_page_business_suite.v1.LandingConfigService.GetLandingConfig:input_type -> landing_page_business_suite.v1.GetLandingConfigRequest
-	4, // 9: landing_page_business_suite.v1.LandingConfigService.GetLandingConfig:output_type -> landing_page_business_suite.v1.LandingConfigResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	6,  // 0: landing_page_business_suite.v1.LandingVariantSummary.axes:type_name -> landing_page_business_suite.v1.LandingVariantSummary.AxesEntry
+	8,  // 1: landing_page_business_suite.v1.LandingSection.content:type_name -> google.protobuf.Struct
+	0,  // 2: landing_page_business_suite.v1.LandingConfigResponse.variant:type_name -> landing_page_business_suite.v1.LandingVariantSummary
+	1,  // 3: landing_page_business_suite.v1.LandingConfigResponse.sections:type_name -> landing_page_business_suite.v1.LandingSection
+	9,  // 4: landing_page_business_suite.v1.LandingConfigResponse.pricing:type_name -> vrooli.landing_page_business_suite.v1.shared.PricingOverview
+	10, // 5: landing_page_business_suite.v1.LandingConfigResponse.downloads:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
+	11, // 6: landing_page_business_suite.v1.LandingConfigResponse.header:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	2,  // 7: landing_page_business_suite.v1.LandingConfigResponse.branding:type_name -> landing_page_business_suite.v1.LandingBranding
+	7,  // 8: landing_page_business_suite.v1.LandingConfigResponse.coupon_mappings:type_name -> landing_page_business_suite.v1.LandingConfigResponse.CouponMappingsEntry
+	3,  // 9: landing_page_business_suite.v1.LandingConfigResponse.intro_offers:type_name -> landing_page_business_suite.v1.IntroOffer
+	4,  // 10: landing_page_business_suite.v1.LandingConfigService.GetLandingConfig:input_type -> landing_page_business_suite.v1.GetLandingConfigRequest
+	5,  // 11: landing_page_business_suite.v1.LandingConfigService.GetLandingConfig:output_type -> landing_page_business_suite.v1.LandingConfigResponse
+	11, // [11:12] is the sub-list for method output_type
+	10, // [10:11] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_config_proto_init() }
@@ -500,14 +749,15 @@ func file_landing_page_business_suite_v1_config_proto_init() {
 		return
 	}
 	file_landing_page_business_suite_v1_config_proto_msgTypes[2].OneofWrappers = []any{}
-	file_landing_page_business_suite_v1_config_proto_msgTypes[4].OneofWrappers = []any{}
+	file_landing_page_business_suite_v1_config_proto_msgTypes[3].OneofWrappers = []any{}
+	file_landing_page_business_suite_v1_config_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_config_proto_rawDesc), len(file_landing_page_business_suite_v1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

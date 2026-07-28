@@ -28,6 +28,9 @@ type RecallHit struct {
 	Text          string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
 	Score         float64                `protobuf:"fixed64,4,opt,name=score,proto3" json:"score,omitempty"`
 	Depth         int32                  `protobuf:"varint,5,opt,name=depth,proto3" json:"depth,omitempty"`
+	NodeId        string                 `protobuf:"bytes,6,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Summary       bool                   `protobuf:"varint,7,opt,name=summary,proto3" json:"summary,omitempty"`
+	Span          int32                  `protobuf:"varint,8,opt,name=span,proto3" json:"span,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -93,6 +96,27 @@ func (x *RecallHit) GetScore() float64 {
 func (x *RecallHit) GetDepth() int32 {
 	if x != nil {
 		return x.Depth
+	}
+	return 0
+}
+
+func (x *RecallHit) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *RecallHit) GetSummary() bool {
+	if x != nil {
+		return x.Summary
+	}
+	return false
+}
+
+func (x *RecallHit) GetSpan() int32 {
+	if x != nil {
+		return x.Span
 	}
 	return 0
 }
@@ -240,6 +264,7 @@ func (x *WakeRequest) GetTokenBudget() int32 {
 type WakeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hits          []*RecallHit           `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
+	Overflow      bool                   `protobuf:"varint,2,opt,name=overflow,proto3" json:"overflow,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -279,6 +304,13 @@ func (x *WakeResponse) GetHits() []*RecallHit {
 		return x.Hits
 	}
 	return nil
+}
+
+func (x *WakeResponse) GetOverflow() bool {
+	if x != nil {
+		return x.Overflow
+	}
+	return false
 }
 
 type ZoomRequest struct {
@@ -461,22 +493,26 @@ var File_vrooli_memory_v1_recall_recall_proto protoreflect.FileDescriptor
 
 const file_vrooli_memory_v1_recall_recall_proto_rawDesc = "" +
 	"\n" +
-	"$vrooli-memory/v1/recall/recall.proto\x12\x1evrooli.vrooli_memory.v1.recall\"\x81\x01\n" +
+	"$vrooli-memory/v1/recall/recall.proto\x12\x1evrooli.vrooli_memory.v1.recall\"\xc8\x01\n" +
 	"\tRecallHit\x12\x19\n" +
 	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x19\n" +
 	"\bfacet_id\x18\x02 \x01(\tR\afacetId\x12\x12\n" +
 	"\x04text\x18\x03 \x01(\tR\x04text\x12\x14\n" +
 	"\x05score\x18\x04 \x01(\x01R\x05score\x12\x14\n" +
-	"\x05depth\x18\x05 \x01(\x05R\x05depth\";\n" +
+	"\x05depth\x18\x05 \x01(\x05R\x05depth\x12\x17\n" +
+	"\anode_id\x18\x06 \x01(\tR\x06nodeId\x12\x18\n" +
+	"\asummary\x18\a \x01(\bR\asummary\x12\x12\n" +
+	"\x04span\x18\b \x01(\x05R\x04span\";\n" +
 	"\rRecallRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"O\n" +
 	"\x0eRecallResponse\x12=\n" +
 	"\x04hits\x18\x01 \x03(\v2).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\"0\n" +
 	"\vWakeRequest\x12!\n" +
-	"\ftoken_budget\x18\x01 \x01(\x05R\vtokenBudget\"M\n" +
+	"\ftoken_budget\x18\x01 \x01(\x05R\vtokenBudget\"i\n" +
 	"\fWakeResponse\x12=\n" +
-	"\x04hits\x18\x01 \x03(\v2).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\"&\n" +
+	"\x04hits\x18\x01 \x03(\v2).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\x12\x1a\n" +
+	"\boverflow\x18\x02 \x01(\bR\boverflow\"&\n" +
 	"\vZoomRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"]\n" +
 	"\fZoomResponse\x12M\n" +

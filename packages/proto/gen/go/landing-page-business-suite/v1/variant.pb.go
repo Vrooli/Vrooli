@@ -997,6 +997,50 @@ func (x *ImportVariantSnapshotRequest) GetSnapshot() *VariantSnapshot {
 	return nil
 }
 
+type ImportVariantSnapshotResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Snapshot      *VariantSnapshot       `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportVariantSnapshotResponse) Reset() {
+	*x = ImportVariantSnapshotResponse{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportVariantSnapshotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportVariantSnapshotResponse) ProtoMessage() {}
+
+func (x *ImportVariantSnapshotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportVariantSnapshotResponse.ProtoReflect.Descriptor instead.
+func (*ImportVariantSnapshotResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ImportVariantSnapshotResponse) GetSnapshot() *VariantSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
 var File_landing_page_business_suite_v1_variant_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_variant_proto_rawDesc = "" +
@@ -1086,7 +1130,10 @@ const file_landing_page_business_suite_v1_variant_proto_rawDesc = "" +
 	"\bsnapshot\x18\x01 \x01(\v2/.landing_page_business_suite.v1.VariantSnapshotR\bsnapshot\"\x7f\n" +
 	"\x1cImportVariantSnapshotRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12K\n" +
-	"\bsnapshot\x18\x02 \x01(\v2/.landing_page_business_suite.v1.VariantSnapshotR\bsnapshot2\xfb\t\n" +
+	"\bsnapshot\x18\x02 \x01(\v2/.landing_page_business_suite.v1.VariantSnapshotR\bsnapshot\"l\n" +
+	"\x1dImportVariantSnapshotResponse\x12K\n" +
+	"\bsnapshot\x18\x01 \x01(\v2/.landing_page_business_suite.v1.VariantSnapshotR\bsnapshot2\x89\n" +
+	"\n" +
 	"\x0eVariantService\x12v\n" +
 	"\rSelectVariant\x124.landing_page_business_suite.v1.SelectVariantRequest\x1a/.landing_page_business_suite.v1.VariantResponse\x12|\n" +
 	"\x10GetPublicVariant\x127.landing_page_business_suite.v1.GetPublicVariantRequest\x1a/.landing_page_business_suite.v1.VariantResponse\x12p\n" +
@@ -1097,8 +1144,8 @@ const file_landing_page_business_suite_v1_variant_proto_rawDesc = "" +
 	"\rUpdateVariant\x124.landing_page_business_suite.v1.UpdateVariantRequest\x1a/.landing_page_business_suite.v1.VariantResponse\x12x\n" +
 	"\x0eArchiveVariant\x125.landing_page_business_suite.v1.ArchiveVariantRequest\x1a/.landing_page_business_suite.v1.VariantResponse\x12|\n" +
 	"\rDeleteVariant\x124.landing_page_business_suite.v1.DeleteVariantRequest\x1a5.landing_page_business_suite.v1.DeleteVariantResponse\x12\x94\x01\n" +
-	"\x15ExportVariantSnapshot\x12<.landing_page_business_suite.v1.ExportVariantSnapshotRequest\x1a=.landing_page_business_suite.v1.ExportVariantSnapshotResponse\x12\x86\x01\n" +
-	"\x15ImportVariantSnapshot\x12<.landing_page_business_suite.v1.ImportVariantSnapshotRequest\x1a/.landing_page_business_suite.v1.VariantResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
+	"\x15ExportVariantSnapshot\x12<.landing_page_business_suite.v1.ExportVariantSnapshotRequest\x1a=.landing_page_business_suite.v1.ExportVariantSnapshotResponse\x12\x94\x01\n" +
+	"\x15ImportVariantSnapshot\x12<.landing_page_business_suite.v1.ImportVariantSnapshotRequest\x1a=.landing_page_business_suite.v1.ImportVariantSnapshotResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
 
 var (
 	file_landing_page_business_suite_v1_variant_proto_rawDescOnce sync.Once
@@ -1112,7 +1159,7 @@ func file_landing_page_business_suite_v1_variant_proto_rawDescGZIP() []byte {
 	return file_landing_page_business_suite_v1_variant_proto_rawDescData
 }
 
-var file_landing_page_business_suite_v1_variant_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_landing_page_business_suite_v1_variant_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_landing_page_business_suite_v1_variant_proto_goTypes = []any{
 	(*Variant)(nil),                       // 0: landing_page_business_suite.v1.Variant
 	(*AxesSelection)(nil),                 // 1: landing_page_business_suite.v1.AxesSelection
@@ -1131,59 +1178,61 @@ var file_landing_page_business_suite_v1_variant_proto_goTypes = []any{
 	(*ExportVariantSnapshotRequest)(nil),  // 14: landing_page_business_suite.v1.ExportVariantSnapshotRequest
 	(*ExportVariantSnapshotResponse)(nil), // 15: landing_page_business_suite.v1.ExportVariantSnapshotResponse
 	(*ImportVariantSnapshotRequest)(nil),  // 16: landing_page_business_suite.v1.ImportVariantSnapshotRequest
-	nil,                                   // 17: landing_page_business_suite.v1.Variant.AxesEntry
-	nil,                                   // 18: landing_page_business_suite.v1.AxesSelection.ValuesEntry
-	nil,                                   // 19: landing_page_business_suite.v1.VariantSnapshot.AxesEntry
-	nil,                                   // 20: landing_page_business_suite.v1.CreateVariantRequest.AxesEntry
-	(*timestamppb.Timestamp)(nil),         // 21: google.protobuf.Timestamp
-	(*shared.LandingHeaderConfig)(nil),    // 22: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
-	(*shared.VariantSEOConfig)(nil),       // 23: vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
-	(*shared.ContentSection)(nil),         // 24: vrooli.landing_page_business_suite.v1.shared.ContentSection
+	(*ImportVariantSnapshotResponse)(nil), // 17: landing_page_business_suite.v1.ImportVariantSnapshotResponse
+	nil,                                   // 18: landing_page_business_suite.v1.Variant.AxesEntry
+	nil,                                   // 19: landing_page_business_suite.v1.AxesSelection.ValuesEntry
+	nil,                                   // 20: landing_page_business_suite.v1.VariantSnapshot.AxesEntry
+	nil,                                   // 21: landing_page_business_suite.v1.CreateVariantRequest.AxesEntry
+	(*timestamppb.Timestamp)(nil),         // 22: google.protobuf.Timestamp
+	(*shared.LandingHeaderConfig)(nil),    // 23: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	(*shared.VariantSEOConfig)(nil),       // 24: vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
+	(*shared.ContentSection)(nil),         // 25: vrooli.landing_page_business_suite.v1.shared.ContentSection
 }
 var file_landing_page_business_suite_v1_variant_proto_depIdxs = []int32{
-	21, // 0: landing_page_business_suite.v1.Variant.created_at:type_name -> google.protobuf.Timestamp
-	21, // 1: landing_page_business_suite.v1.Variant.updated_at:type_name -> google.protobuf.Timestamp
-	21, // 2: landing_page_business_suite.v1.Variant.archived_at:type_name -> google.protobuf.Timestamp
-	17, // 3: landing_page_business_suite.v1.Variant.axes:type_name -> landing_page_business_suite.v1.Variant.AxesEntry
-	22, // 4: landing_page_business_suite.v1.Variant.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
-	23, // 5: landing_page_business_suite.v1.Variant.seo_config:type_name -> vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
-	18, // 6: landing_page_business_suite.v1.AxesSelection.values:type_name -> landing_page_business_suite.v1.AxesSelection.ValuesEntry
-	19, // 7: landing_page_business_suite.v1.VariantSnapshot.axes:type_name -> landing_page_business_suite.v1.VariantSnapshot.AxesEntry
-	22, // 8: landing_page_business_suite.v1.VariantSnapshot.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
-	23, // 9: landing_page_business_suite.v1.VariantSnapshot.seo_config:type_name -> vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
-	24, // 10: landing_page_business_suite.v1.VariantSnapshot.sections:type_name -> vrooli.landing_page_business_suite.v1.shared.ContentSection
+	22, // 0: landing_page_business_suite.v1.Variant.created_at:type_name -> google.protobuf.Timestamp
+	22, // 1: landing_page_business_suite.v1.Variant.updated_at:type_name -> google.protobuf.Timestamp
+	22, // 2: landing_page_business_suite.v1.Variant.archived_at:type_name -> google.protobuf.Timestamp
+	18, // 3: landing_page_business_suite.v1.Variant.axes:type_name -> landing_page_business_suite.v1.Variant.AxesEntry
+	23, // 4: landing_page_business_suite.v1.Variant.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	24, // 5: landing_page_business_suite.v1.Variant.seo_config:type_name -> vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
+	19, // 6: landing_page_business_suite.v1.AxesSelection.values:type_name -> landing_page_business_suite.v1.AxesSelection.ValuesEntry
+	20, // 7: landing_page_business_suite.v1.VariantSnapshot.axes:type_name -> landing_page_business_suite.v1.VariantSnapshot.AxesEntry
+	23, // 8: landing_page_business_suite.v1.VariantSnapshot.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	24, // 9: landing_page_business_suite.v1.VariantSnapshot.seo_config:type_name -> vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
+	25, // 10: landing_page_business_suite.v1.VariantSnapshot.sections:type_name -> vrooli.landing_page_business_suite.v1.shared.ContentSection
 	0,  // 11: landing_page_business_suite.v1.VariantResponse.variant:type_name -> landing_page_business_suite.v1.Variant
 	0,  // 12: landing_page_business_suite.v1.ListVariantsResponse.variants:type_name -> landing_page_business_suite.v1.Variant
-	20, // 13: landing_page_business_suite.v1.CreateVariantRequest.axes:type_name -> landing_page_business_suite.v1.CreateVariantRequest.AxesEntry
+	21, // 13: landing_page_business_suite.v1.CreateVariantRequest.axes:type_name -> landing_page_business_suite.v1.CreateVariantRequest.AxesEntry
 	1,  // 14: landing_page_business_suite.v1.UpdateVariantRequest.axes:type_name -> landing_page_business_suite.v1.AxesSelection
-	22, // 15: landing_page_business_suite.v1.UpdateVariantRequest.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	23, // 15: landing_page_business_suite.v1.UpdateVariantRequest.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
 	2,  // 16: landing_page_business_suite.v1.ExportVariantSnapshotResponse.snapshot:type_name -> landing_page_business_suite.v1.VariantSnapshot
 	2,  // 17: landing_page_business_suite.v1.ImportVariantSnapshotRequest.snapshot:type_name -> landing_page_business_suite.v1.VariantSnapshot
-	3,  // 18: landing_page_business_suite.v1.VariantService.SelectVariant:input_type -> landing_page_business_suite.v1.SelectVariantRequest
-	4,  // 19: landing_page_business_suite.v1.VariantService.GetPublicVariant:input_type -> landing_page_business_suite.v1.GetPublicVariantRequest
-	5,  // 20: landing_page_business_suite.v1.VariantService.GetVariant:input_type -> landing_page_business_suite.v1.GetVariantRequest
-	7,  // 21: landing_page_business_suite.v1.VariantService.ListVariants:input_type -> landing_page_business_suite.v1.ListVariantsRequest
-	9,  // 22: landing_page_business_suite.v1.VariantService.CreateVariant:input_type -> landing_page_business_suite.v1.CreateVariantRequest
-	10, // 23: landing_page_business_suite.v1.VariantService.UpdateVariant:input_type -> landing_page_business_suite.v1.UpdateVariantRequest
-	11, // 24: landing_page_business_suite.v1.VariantService.ArchiveVariant:input_type -> landing_page_business_suite.v1.ArchiveVariantRequest
-	12, // 25: landing_page_business_suite.v1.VariantService.DeleteVariant:input_type -> landing_page_business_suite.v1.DeleteVariantRequest
-	14, // 26: landing_page_business_suite.v1.VariantService.ExportVariantSnapshot:input_type -> landing_page_business_suite.v1.ExportVariantSnapshotRequest
-	16, // 27: landing_page_business_suite.v1.VariantService.ImportVariantSnapshot:input_type -> landing_page_business_suite.v1.ImportVariantSnapshotRequest
-	6,  // 28: landing_page_business_suite.v1.VariantService.SelectVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	6,  // 29: landing_page_business_suite.v1.VariantService.GetPublicVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	6,  // 30: landing_page_business_suite.v1.VariantService.GetVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	8,  // 31: landing_page_business_suite.v1.VariantService.ListVariants:output_type -> landing_page_business_suite.v1.ListVariantsResponse
-	6,  // 32: landing_page_business_suite.v1.VariantService.CreateVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	6,  // 33: landing_page_business_suite.v1.VariantService.UpdateVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	6,  // 34: landing_page_business_suite.v1.VariantService.ArchiveVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	13, // 35: landing_page_business_suite.v1.VariantService.DeleteVariant:output_type -> landing_page_business_suite.v1.DeleteVariantResponse
-	15, // 36: landing_page_business_suite.v1.VariantService.ExportVariantSnapshot:output_type -> landing_page_business_suite.v1.ExportVariantSnapshotResponse
-	6,  // 37: landing_page_business_suite.v1.VariantService.ImportVariantSnapshot:output_type -> landing_page_business_suite.v1.VariantResponse
-	28, // [28:38] is the sub-list for method output_type
-	18, // [18:28] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	2,  // 18: landing_page_business_suite.v1.ImportVariantSnapshotResponse.snapshot:type_name -> landing_page_business_suite.v1.VariantSnapshot
+	3,  // 19: landing_page_business_suite.v1.VariantService.SelectVariant:input_type -> landing_page_business_suite.v1.SelectVariantRequest
+	4,  // 20: landing_page_business_suite.v1.VariantService.GetPublicVariant:input_type -> landing_page_business_suite.v1.GetPublicVariantRequest
+	5,  // 21: landing_page_business_suite.v1.VariantService.GetVariant:input_type -> landing_page_business_suite.v1.GetVariantRequest
+	7,  // 22: landing_page_business_suite.v1.VariantService.ListVariants:input_type -> landing_page_business_suite.v1.ListVariantsRequest
+	9,  // 23: landing_page_business_suite.v1.VariantService.CreateVariant:input_type -> landing_page_business_suite.v1.CreateVariantRequest
+	10, // 24: landing_page_business_suite.v1.VariantService.UpdateVariant:input_type -> landing_page_business_suite.v1.UpdateVariantRequest
+	11, // 25: landing_page_business_suite.v1.VariantService.ArchiveVariant:input_type -> landing_page_business_suite.v1.ArchiveVariantRequest
+	12, // 26: landing_page_business_suite.v1.VariantService.DeleteVariant:input_type -> landing_page_business_suite.v1.DeleteVariantRequest
+	14, // 27: landing_page_business_suite.v1.VariantService.ExportVariantSnapshot:input_type -> landing_page_business_suite.v1.ExportVariantSnapshotRequest
+	16, // 28: landing_page_business_suite.v1.VariantService.ImportVariantSnapshot:input_type -> landing_page_business_suite.v1.ImportVariantSnapshotRequest
+	6,  // 29: landing_page_business_suite.v1.VariantService.SelectVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	6,  // 30: landing_page_business_suite.v1.VariantService.GetPublicVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	6,  // 31: landing_page_business_suite.v1.VariantService.GetVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	8,  // 32: landing_page_business_suite.v1.VariantService.ListVariants:output_type -> landing_page_business_suite.v1.ListVariantsResponse
+	6,  // 33: landing_page_business_suite.v1.VariantService.CreateVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	6,  // 34: landing_page_business_suite.v1.VariantService.UpdateVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	6,  // 35: landing_page_business_suite.v1.VariantService.ArchiveVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	13, // 36: landing_page_business_suite.v1.VariantService.DeleteVariant:output_type -> landing_page_business_suite.v1.DeleteVariantResponse
+	15, // 37: landing_page_business_suite.v1.VariantService.ExportVariantSnapshot:output_type -> landing_page_business_suite.v1.ExportVariantSnapshotResponse
+	17, // 38: landing_page_business_suite.v1.VariantService.ImportVariantSnapshot:output_type -> landing_page_business_suite.v1.ImportVariantSnapshotResponse
+	29, // [29:39] is the sub-list for method output_type
+	19, // [19:29] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_variant_proto_init() }
@@ -1200,7 +1249,7 @@ func file_landing_page_business_suite_v1_variant_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_variant_proto_rawDesc), len(file_landing_page_business_suite_v1_variant_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   21,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

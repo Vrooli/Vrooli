@@ -7,9 +7,9 @@
 package signals_v1
 
 import (
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -22,174 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type SourceKind int32
-
-const (
-	SourceKind_SOURCE_KIND_UNSPECIFIED SourceKind = 0
-	SourceKind_SOURCE_KIND_URL         SourceKind = 1
-	SourceKind_SOURCE_KIND_TEXT        SourceKind = 2
-	SourceKind_SOURCE_KIND_IMAGE       SourceKind = 3
-)
-
-// Enum value maps for SourceKind.
-var (
-	SourceKind_name = map[int32]string{
-		0: "SOURCE_KIND_UNSPECIFIED",
-		1: "SOURCE_KIND_URL",
-		2: "SOURCE_KIND_TEXT",
-		3: "SOURCE_KIND_IMAGE",
-	}
-	SourceKind_value = map[string]int32{
-		"SOURCE_KIND_UNSPECIFIED": 0,
-		"SOURCE_KIND_URL":         1,
-		"SOURCE_KIND_TEXT":        2,
-		"SOURCE_KIND_IMAGE":       3,
-	}
-)
-
-func (x SourceKind) Enum() *SourceKind {
-	p := new(SourceKind)
-	*p = x
-	return p
-}
-
-func (x SourceKind) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (SourceKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_signal_inbox_v1_signals_signals_proto_enumTypes[0].Descriptor()
-}
-
-func (SourceKind) Type() protoreflect.EnumType {
-	return &file_signal_inbox_v1_signals_signals_proto_enumTypes[0]
-}
-
-func (x SourceKind) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use SourceKind.Descriptor instead.
-func (SourceKind) EnumDescriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{0}
-}
-
-type Signal struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SourceKind       SourceKind             `protobuf:"varint,2,opt,name=source_kind,json=sourceKind,proto3,enum=vrooli.signal_inbox.v1.signals.SourceKind" json:"source_kind,omitempty"`
-	SourceIdentity   string                 `protobuf:"bytes,3,opt,name=source_identity,json=sourceIdentity,proto3" json:"source_identity,omitempty"`
-	SourceUrl        string                 `protobuf:"bytes,4,opt,name=source_url,json=sourceUrl,proto3" json:"source_url,omitempty"`
-	CapturedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=captured_at,json=capturedAt,proto3" json:"captured_at,omitempty"`
-	RawPayloadRef    string                 `protobuf:"bytes,6,opt,name=raw_payload_ref,json=rawPayloadRef,proto3" json:"raw_payload_ref,omitempty"`
-	ExtractedContent string                 `protobuf:"bytes,7,opt,name=extracted_content,json=extractedContent,proto3" json:"extracted_content,omitempty"`
-	ContentHash      string                 `protobuf:"bytes,8,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
-	NeedsAttention   bool                   `protobuf:"varint,9,opt,name=needs_attention,json=needsAttention,proto3" json:"needs_attention,omitempty"`
-	CaptureNote      string                 `protobuf:"bytes,10,opt,name=capture_note,json=captureNote,proto3" json:"capture_note,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *Signal) Reset() {
-	*x = Signal{}
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Signal) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Signal) ProtoMessage() {}
-
-func (x *Signal) ProtoReflect() protoreflect.Message {
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Signal.ProtoReflect.Descriptor instead.
-func (*Signal) Descriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *Signal) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *Signal) GetSourceKind() SourceKind {
-	if x != nil {
-		return x.SourceKind
-	}
-	return SourceKind_SOURCE_KIND_UNSPECIFIED
-}
-
-func (x *Signal) GetSourceIdentity() string {
-	if x != nil {
-		return x.SourceIdentity
-	}
-	return ""
-}
-
-func (x *Signal) GetSourceUrl() string {
-	if x != nil {
-		return x.SourceUrl
-	}
-	return ""
-}
-
-func (x *Signal) GetCapturedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CapturedAt
-	}
-	return nil
-}
-
-func (x *Signal) GetRawPayloadRef() string {
-	if x != nil {
-		return x.RawPayloadRef
-	}
-	return ""
-}
-
-func (x *Signal) GetExtractedContent() string {
-	if x != nil {
-		return x.ExtractedContent
-	}
-	return ""
-}
-
-func (x *Signal) GetContentHash() string {
-	if x != nil {
-		return x.ContentHash
-	}
-	return ""
-}
-
-func (x *Signal) GetNeedsAttention() bool {
-	if x != nil {
-		return x.NeedsAttention
-	}
-	return false
-}
-
-func (x *Signal) GetCaptureNote() string {
-	if x != nil {
-		return x.CaptureNote
-	}
-	return ""
-}
-
 // Exactly one source payload is supplied. The service infers SourceKind from
 // the populated variant; callers never declare it.
 type CaptureSignalRequest struct {
@@ -201,13 +33,14 @@ type CaptureSignalRequest struct {
 	//	*CaptureSignalRequest_ImagePayloadRef
 	Source        isCaptureSignalRequest_Source `protobuf_oneof:"source"`
 	CaptureNote   string                        `protobuf:"bytes,4,opt,name=capture_note,json=captureNote,proto3" json:"capture_note,omitempty"`
+	Tags          []string                      `protobuf:"bytes,5,rep,name=tags,proto3" json:"tags,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CaptureSignalRequest) Reset() {
 	*x = CaptureSignalRequest{}
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[1]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -219,7 +52,7 @@ func (x *CaptureSignalRequest) String() string {
 func (*CaptureSignalRequest) ProtoMessage() {}
 
 func (x *CaptureSignalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[1]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -232,7 +65,7 @@ func (x *CaptureSignalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureSignalRequest.ProtoReflect.Descriptor instead.
 func (*CaptureSignalRequest) Descriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{1}
+	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *CaptureSignalRequest) GetSource() isCaptureSignalRequest_Source {
@@ -276,6 +109,13 @@ func (x *CaptureSignalRequest) GetCaptureNote() string {
 	return ""
 }
 
+func (x *CaptureSignalRequest) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
 type isCaptureSignalRequest_Source interface {
 	isCaptureSignalRequest_Source()
 }
@@ -300,7 +140,7 @@ func (*CaptureSignalRequest_ImagePayloadRef) isCaptureSignalRequest_Source() {}
 
 type CaptureSignalResponse struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
-	Signal *Signal                `protobuf:"bytes,1,opt,name=signal,proto3" json:"signal,omitempty"`
+	Signal *shared.Signal         `protobuf:"bytes,1,opt,name=signal,proto3" json:"signal,omitempty"`
 	// True means the content hash was already present and no journal row was
 	// appended by this request.
 	Duplicate     bool `protobuf:"varint,2,opt,name=duplicate,proto3" json:"duplicate,omitempty"`
@@ -310,7 +150,7 @@ type CaptureSignalResponse struct {
 
 func (x *CaptureSignalResponse) Reset() {
 	*x = CaptureSignalResponse{}
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[2]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -322,7 +162,7 @@ func (x *CaptureSignalResponse) String() string {
 func (*CaptureSignalResponse) ProtoMessage() {}
 
 func (x *CaptureSignalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[2]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -335,10 +175,10 @@ func (x *CaptureSignalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureSignalResponse.ProtoReflect.Descriptor instead.
 func (*CaptureSignalResponse) Descriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{2}
+	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *CaptureSignalResponse) GetSignal() *Signal {
+func (x *CaptureSignalResponse) GetSignal() *shared.Signal {
 	if x != nil {
 		return x.Signal
 	}
@@ -365,7 +205,7 @@ type ImageUpload struct {
 
 func (x *ImageUpload) Reset() {
 	*x = ImageUpload{}
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[3]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -377,7 +217,7 @@ func (x *ImageUpload) String() string {
 func (*ImageUpload) ProtoMessage() {}
 
 func (x *ImageUpload) ProtoReflect() protoreflect.Message {
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[3]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -390,7 +230,7 @@ func (x *ImageUpload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImageUpload.ProtoReflect.Descriptor instead.
 func (*ImageUpload) Descriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{3}
+	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ImageUpload) GetPayloadRef() string {
@@ -423,7 +263,7 @@ type UploadImageResponse struct {
 
 func (x *UploadImageResponse) Reset() {
 	*x = UploadImageResponse{}
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[4]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -435,7 +275,7 @@ func (x *UploadImageResponse) String() string {
 func (*UploadImageResponse) ProtoMessage() {}
 
 func (x *UploadImageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[4]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -448,7 +288,7 @@ func (x *UploadImageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadImageResponse.ProtoReflect.Descriptor instead.
 func (*UploadImageResponse) Descriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{4}
+	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UploadImageResponse) GetImage() *ImageUpload {
@@ -467,7 +307,7 @@ type GetSignalRequest struct {
 
 func (x *GetSignalRequest) Reset() {
 	*x = GetSignalRequest{}
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[5]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -479,7 +319,7 @@ func (x *GetSignalRequest) String() string {
 func (*GetSignalRequest) ProtoMessage() {}
 
 func (x *GetSignalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[5]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -492,7 +332,7 @@ func (x *GetSignalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSignalRequest.ProtoReflect.Descriptor instead.
 func (*GetSignalRequest) Descriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{5}
+	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetSignalRequest) GetId() string {
@@ -504,14 +344,14 @@ func (x *GetSignalRequest) GetId() string {
 
 type GetSignalResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Signal        *Signal                `protobuf:"bytes,1,opt,name=signal,proto3" json:"signal,omitempty"`
+	Signal        *shared.Signal         `protobuf:"bytes,1,opt,name=signal,proto3" json:"signal,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetSignalResponse) Reset() {
 	*x = GetSignalResponse{}
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[6]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -523,7 +363,7 @@ func (x *GetSignalResponse) String() string {
 func (*GetSignalResponse) ProtoMessage() {}
 
 func (x *GetSignalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[6]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -536,10 +376,10 @@ func (x *GetSignalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSignalResponse.ProtoReflect.Descriptor instead.
 func (*GetSignalResponse) Descriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{6}
+	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *GetSignalResponse) GetSignal() *Signal {
+func (x *GetSignalResponse) GetSignal() *shared.Signal {
 	if x != nil {
 		return x.Signal
 	}
@@ -555,7 +395,7 @@ type ListSignalsRequest struct {
 
 func (x *ListSignalsRequest) Reset() {
 	*x = ListSignalsRequest{}
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[7]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -567,7 +407,7 @@ func (x *ListSignalsRequest) String() string {
 func (*ListSignalsRequest) ProtoMessage() {}
 
 func (x *ListSignalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[7]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -580,7 +420,7 @@ func (x *ListSignalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSignalsRequest.ProtoReflect.Descriptor instead.
 func (*ListSignalsRequest) Descriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{7}
+	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListSignalsRequest) GetPageSize() uint32 {
@@ -592,14 +432,14 @@ func (x *ListSignalsRequest) GetPageSize() uint32 {
 
 type ListSignalsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Signals       []*Signal              `protobuf:"bytes,1,rep,name=signals,proto3" json:"signals,omitempty"`
+	Signals       []*shared.Signal       `protobuf:"bytes,1,rep,name=signals,proto3" json:"signals,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListSignalsResponse) Reset() {
 	*x = ListSignalsResponse{}
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[8]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +451,7 @@ func (x *ListSignalsResponse) String() string {
 func (*ListSignalsResponse) ProtoMessage() {}
 
 func (x *ListSignalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[8]
+	mi := &file_signal_inbox_v1_signals_signals_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,10 +464,10 @@ func (x *ListSignalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSignalsResponse.ProtoReflect.Descriptor instead.
 func (*ListSignalsResponse) Descriptor() ([]byte, []int) {
-	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{8}
+	return file_signal_inbox_v1_signals_signals_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ListSignalsResponse) GetSignals() []*Signal {
+func (x *ListSignalsResponse) GetSignals() []*shared.Signal {
 	if x != nil {
 		return x.Signals
 	}
@@ -638,30 +478,16 @@ var File_signal_inbox_v1_signals_signals_proto protoreflect.FileDescriptor
 
 const file_signal_inbox_v1_signals_signals_proto_rawDesc = "" +
 	"\n" +
-	"%signal-inbox/v1/signals/signals.proto\x12\x1evrooli.signal_inbox.v1.signals\x1a\x1fgoogle/protobuf/timestamp.proto\"\xae\x03\n" +
-	"\x06Signal\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12K\n" +
-	"\vsource_kind\x18\x02 \x01(\x0e2*.vrooli.signal_inbox.v1.signals.SourceKindR\n" +
-	"sourceKind\x12'\n" +
-	"\x0fsource_identity\x18\x03 \x01(\tR\x0esourceIdentity\x12\x1d\n" +
-	"\n" +
-	"source_url\x18\x04 \x01(\tR\tsourceUrl\x12;\n" +
-	"\vcaptured_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"capturedAt\x12&\n" +
-	"\x0fraw_payload_ref\x18\x06 \x01(\tR\rrawPayloadRef\x12+\n" +
-	"\x11extracted_content\x18\a \x01(\tR\x10extractedContent\x12!\n" +
-	"\fcontent_hash\x18\b \x01(\tR\vcontentHash\x12'\n" +
-	"\x0fneeds_attention\x18\t \x01(\bR\x0eneedsAttention\x12!\n" +
-	"\fcapture_note\x18\n" +
-	" \x01(\tR\vcaptureNote\"\x9b\x01\n" +
+	"%signal-inbox/v1/signals/signals.proto\x12\x1evrooli.signal_inbox.v1.signals\x1a$signal-inbox/v1/shared/signals.proto\"\xaf\x01\n" +
 	"\x14CaptureSignalRequest\x12\x12\n" +
 	"\x03url\x18\x01 \x01(\tH\x00R\x03url\x12\x14\n" +
 	"\x04text\x18\x02 \x01(\tH\x00R\x04text\x12,\n" +
 	"\x11image_payload_ref\x18\x03 \x01(\tH\x00R\x0fimagePayloadRef\x12!\n" +
-	"\fcapture_note\x18\x04 \x01(\tR\vcaptureNoteB\b\n" +
-	"\x06source\"u\n" +
-	"\x15CaptureSignalResponse\x12>\n" +
-	"\x06signal\x18\x01 \x01(\v2&.vrooli.signal_inbox.v1.signals.SignalR\x06signal\x12\x1c\n" +
+	"\fcapture_note\x18\x04 \x01(\tR\vcaptureNote\x12\x12\n" +
+	"\x04tags\x18\x05 \x03(\tR\x04tagsB\b\n" +
+	"\x06source\"t\n" +
+	"\x15CaptureSignalResponse\x12=\n" +
+	"\x06signal\x18\x01 \x01(\v2%.vrooli.signal_inbox.v1.shared.SignalR\x06signal\x12\x1c\n" +
 	"\tduplicate\x18\x02 \x01(\bR\tduplicate\"p\n" +
 	"\vImageUpload\x12\x1f\n" +
 	"\vpayload_ref\x18\x01 \x01(\tR\n" +
@@ -672,19 +498,13 @@ const file_signal_inbox_v1_signals_signals_proto_rawDesc = "" +
 	"\x13UploadImageResponse\x12A\n" +
 	"\x05image\x18\x01 \x01(\v2+.vrooli.signal_inbox.v1.signals.ImageUploadR\x05image\"\"\n" +
 	"\x10GetSignalRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"S\n" +
-	"\x11GetSignalResponse\x12>\n" +
-	"\x06signal\x18\x01 \x01(\v2&.vrooli.signal_inbox.v1.signals.SignalR\x06signal\"1\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"R\n" +
+	"\x11GetSignalResponse\x12=\n" +
+	"\x06signal\x18\x01 \x01(\v2%.vrooli.signal_inbox.v1.shared.SignalR\x06signal\"1\n" +
 	"\x12ListSignalsRequest\x12\x1b\n" +
-	"\tpage_size\x18\x01 \x01(\rR\bpageSize\"W\n" +
-	"\x13ListSignalsResponse\x12@\n" +
-	"\asignals\x18\x01 \x03(\v2&.vrooli.signal_inbox.v1.signals.SignalR\asignals*k\n" +
-	"\n" +
-	"SourceKind\x12\x1b\n" +
-	"\x17SOURCE_KIND_UNSPECIFIED\x10\x00\x12\x13\n" +
-	"\x0fSOURCE_KIND_URL\x10\x01\x12\x14\n" +
-	"\x10SOURCE_KIND_TEXT\x10\x02\x12\x15\n" +
-	"\x11SOURCE_KIND_IMAGE\x10\x032\xf8\x02\n" +
+	"\tpage_size\x18\x01 \x01(\rR\bpageSize\"V\n" +
+	"\x13ListSignalsResponse\x12?\n" +
+	"\asignals\x18\x01 \x03(\v2%.vrooli.signal_inbox.v1.shared.SignalR\asignals2\xf8\x02\n" +
 	"\x0eSignalsService\x12|\n" +
 	"\rCaptureSignal\x124.vrooli.signal_inbox.v1.signals.CaptureSignalRequest\x1a5.vrooli.signal_inbox.v1.signals.CaptureSignalResponse\x12p\n" +
 	"\tGetSignal\x120.vrooli.signal_inbox.v1.signals.GetSignalRequest\x1a1.vrooli.signal_inbox.v1.signals.GetSignalResponse\x12v\n" +
@@ -702,39 +522,34 @@ func file_signal_inbox_v1_signals_signals_proto_rawDescGZIP() []byte {
 	return file_signal_inbox_v1_signals_signals_proto_rawDescData
 }
 
-var file_signal_inbox_v1_signals_signals_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_signal_inbox_v1_signals_signals_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_signal_inbox_v1_signals_signals_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_signal_inbox_v1_signals_signals_proto_goTypes = []any{
-	(SourceKind)(0),               // 0: vrooli.signal_inbox.v1.signals.SourceKind
-	(*Signal)(nil),                // 1: vrooli.signal_inbox.v1.signals.Signal
-	(*CaptureSignalRequest)(nil),  // 2: vrooli.signal_inbox.v1.signals.CaptureSignalRequest
-	(*CaptureSignalResponse)(nil), // 3: vrooli.signal_inbox.v1.signals.CaptureSignalResponse
-	(*ImageUpload)(nil),           // 4: vrooli.signal_inbox.v1.signals.ImageUpload
-	(*UploadImageResponse)(nil),   // 5: vrooli.signal_inbox.v1.signals.UploadImageResponse
-	(*GetSignalRequest)(nil),      // 6: vrooli.signal_inbox.v1.signals.GetSignalRequest
-	(*GetSignalResponse)(nil),     // 7: vrooli.signal_inbox.v1.signals.GetSignalResponse
-	(*ListSignalsRequest)(nil),    // 8: vrooli.signal_inbox.v1.signals.ListSignalsRequest
-	(*ListSignalsResponse)(nil),   // 9: vrooli.signal_inbox.v1.signals.ListSignalsResponse
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*CaptureSignalRequest)(nil),  // 0: vrooli.signal_inbox.v1.signals.CaptureSignalRequest
+	(*CaptureSignalResponse)(nil), // 1: vrooli.signal_inbox.v1.signals.CaptureSignalResponse
+	(*ImageUpload)(nil),           // 2: vrooli.signal_inbox.v1.signals.ImageUpload
+	(*UploadImageResponse)(nil),   // 3: vrooli.signal_inbox.v1.signals.UploadImageResponse
+	(*GetSignalRequest)(nil),      // 4: vrooli.signal_inbox.v1.signals.GetSignalRequest
+	(*GetSignalResponse)(nil),     // 5: vrooli.signal_inbox.v1.signals.GetSignalResponse
+	(*ListSignalsRequest)(nil),    // 6: vrooli.signal_inbox.v1.signals.ListSignalsRequest
+	(*ListSignalsResponse)(nil),   // 7: vrooli.signal_inbox.v1.signals.ListSignalsResponse
+	(*shared.Signal)(nil),         // 8: vrooli.signal_inbox.v1.shared.Signal
 }
 var file_signal_inbox_v1_signals_signals_proto_depIdxs = []int32{
-	0,  // 0: vrooli.signal_inbox.v1.signals.Signal.source_kind:type_name -> vrooli.signal_inbox.v1.signals.SourceKind
-	10, // 1: vrooli.signal_inbox.v1.signals.Signal.captured_at:type_name -> google.protobuf.Timestamp
-	1,  // 2: vrooli.signal_inbox.v1.signals.CaptureSignalResponse.signal:type_name -> vrooli.signal_inbox.v1.signals.Signal
-	4,  // 3: vrooli.signal_inbox.v1.signals.UploadImageResponse.image:type_name -> vrooli.signal_inbox.v1.signals.ImageUpload
-	1,  // 4: vrooli.signal_inbox.v1.signals.GetSignalResponse.signal:type_name -> vrooli.signal_inbox.v1.signals.Signal
-	1,  // 5: vrooli.signal_inbox.v1.signals.ListSignalsResponse.signals:type_name -> vrooli.signal_inbox.v1.signals.Signal
-	2,  // 6: vrooli.signal_inbox.v1.signals.SignalsService.CaptureSignal:input_type -> vrooli.signal_inbox.v1.signals.CaptureSignalRequest
-	6,  // 7: vrooli.signal_inbox.v1.signals.SignalsService.GetSignal:input_type -> vrooli.signal_inbox.v1.signals.GetSignalRequest
-	8,  // 8: vrooli.signal_inbox.v1.signals.SignalsService.ListSignals:input_type -> vrooli.signal_inbox.v1.signals.ListSignalsRequest
-	3,  // 9: vrooli.signal_inbox.v1.signals.SignalsService.CaptureSignal:output_type -> vrooli.signal_inbox.v1.signals.CaptureSignalResponse
-	7,  // 10: vrooli.signal_inbox.v1.signals.SignalsService.GetSignal:output_type -> vrooli.signal_inbox.v1.signals.GetSignalResponse
-	9,  // 11: vrooli.signal_inbox.v1.signals.SignalsService.ListSignals:output_type -> vrooli.signal_inbox.v1.signals.ListSignalsResponse
-	9,  // [9:12] is the sub-list for method output_type
-	6,  // [6:9] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	8, // 0: vrooli.signal_inbox.v1.signals.CaptureSignalResponse.signal:type_name -> vrooli.signal_inbox.v1.shared.Signal
+	2, // 1: vrooli.signal_inbox.v1.signals.UploadImageResponse.image:type_name -> vrooli.signal_inbox.v1.signals.ImageUpload
+	8, // 2: vrooli.signal_inbox.v1.signals.GetSignalResponse.signal:type_name -> vrooli.signal_inbox.v1.shared.Signal
+	8, // 3: vrooli.signal_inbox.v1.signals.ListSignalsResponse.signals:type_name -> vrooli.signal_inbox.v1.shared.Signal
+	0, // 4: vrooli.signal_inbox.v1.signals.SignalsService.CaptureSignal:input_type -> vrooli.signal_inbox.v1.signals.CaptureSignalRequest
+	4, // 5: vrooli.signal_inbox.v1.signals.SignalsService.GetSignal:input_type -> vrooli.signal_inbox.v1.signals.GetSignalRequest
+	6, // 6: vrooli.signal_inbox.v1.signals.SignalsService.ListSignals:input_type -> vrooli.signal_inbox.v1.signals.ListSignalsRequest
+	1, // 7: vrooli.signal_inbox.v1.signals.SignalsService.CaptureSignal:output_type -> vrooli.signal_inbox.v1.signals.CaptureSignalResponse
+	5, // 8: vrooli.signal_inbox.v1.signals.SignalsService.GetSignal:output_type -> vrooli.signal_inbox.v1.signals.GetSignalResponse
+	7, // 9: vrooli.signal_inbox.v1.signals.SignalsService.ListSignals:output_type -> vrooli.signal_inbox.v1.signals.ListSignalsResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_signal_inbox_v1_signals_signals_proto_init() }
@@ -742,7 +557,7 @@ func file_signal_inbox_v1_signals_signals_proto_init() {
 	if File_signal_inbox_v1_signals_signals_proto != nil {
 		return
 	}
-	file_signal_inbox_v1_signals_signals_proto_msgTypes[1].OneofWrappers = []any{
+	file_signal_inbox_v1_signals_signals_proto_msgTypes[0].OneofWrappers = []any{
 		(*CaptureSignalRequest_Url)(nil),
 		(*CaptureSignalRequest_Text)(nil),
 		(*CaptureSignalRequest_ImagePayloadRef)(nil),
@@ -752,14 +567,13 @@ func file_signal_inbox_v1_signals_signals_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_signal_inbox_v1_signals_signals_proto_rawDesc), len(file_signal_inbox_v1_signals_signals_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   9,
+			NumEnums:      0,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_signal_inbox_v1_signals_signals_proto_goTypes,
 		DependencyIndexes: file_signal_inbox_v1_signals_signals_proto_depIdxs,
-		EnumInfos:         file_signal_inbox_v1_signals_signals_proto_enumTypes,
 		MessageInfos:      file_signal_inbox_v1_signals_signals_proto_msgTypes,
 	}.Build()
 	File_signal_inbox_v1_signals_signals_proto = out.File

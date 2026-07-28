@@ -76,7 +76,7 @@ type VariantServiceClient interface {
 	ArchiveVariant(context.Context, *connect.Request[v1.ArchiveVariantRequest]) (*connect.Response[v1.VariantResponse], error)
 	DeleteVariant(context.Context, *connect.Request[v1.DeleteVariantRequest]) (*connect.Response[v1.DeleteVariantResponse], error)
 	ExportVariantSnapshot(context.Context, *connect.Request[v1.ExportVariantSnapshotRequest]) (*connect.Response[v1.ExportVariantSnapshotResponse], error)
-	ImportVariantSnapshot(context.Context, *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.VariantResponse], error)
+	ImportVariantSnapshot(context.Context, *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.ImportVariantSnapshotResponse], error)
 }
 
 // NewVariantServiceClient constructs a client for the landing_page_business_suite.v1.VariantService
@@ -144,7 +144,7 @@ func NewVariantServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(variantServiceMethods.ByName("ExportVariantSnapshot")),
 			connect.WithClientOptions(opts...),
 		),
-		importVariantSnapshot: connect.NewClient[v1.ImportVariantSnapshotRequest, v1.VariantResponse](
+		importVariantSnapshot: connect.NewClient[v1.ImportVariantSnapshotRequest, v1.ImportVariantSnapshotResponse](
 			httpClient,
 			baseURL+VariantServiceImportVariantSnapshotProcedure,
 			connect.WithSchema(variantServiceMethods.ByName("ImportVariantSnapshot")),
@@ -164,7 +164,7 @@ type variantServiceClient struct {
 	archiveVariant        *connect.Client[v1.ArchiveVariantRequest, v1.VariantResponse]
 	deleteVariant         *connect.Client[v1.DeleteVariantRequest, v1.DeleteVariantResponse]
 	exportVariantSnapshot *connect.Client[v1.ExportVariantSnapshotRequest, v1.ExportVariantSnapshotResponse]
-	importVariantSnapshot *connect.Client[v1.ImportVariantSnapshotRequest, v1.VariantResponse]
+	importVariantSnapshot *connect.Client[v1.ImportVariantSnapshotRequest, v1.ImportVariantSnapshotResponse]
 }
 
 // SelectVariant calls landing_page_business_suite.v1.VariantService.SelectVariant.
@@ -213,7 +213,7 @@ func (c *variantServiceClient) ExportVariantSnapshot(ctx context.Context, req *c
 }
 
 // ImportVariantSnapshot calls landing_page_business_suite.v1.VariantService.ImportVariantSnapshot.
-func (c *variantServiceClient) ImportVariantSnapshot(ctx context.Context, req *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.VariantResponse], error) {
+func (c *variantServiceClient) ImportVariantSnapshot(ctx context.Context, req *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.ImportVariantSnapshotResponse], error) {
 	return c.importVariantSnapshot.CallUnary(ctx, req)
 }
 
@@ -229,7 +229,7 @@ type VariantServiceHandler interface {
 	ArchiveVariant(context.Context, *connect.Request[v1.ArchiveVariantRequest]) (*connect.Response[v1.VariantResponse], error)
 	DeleteVariant(context.Context, *connect.Request[v1.DeleteVariantRequest]) (*connect.Response[v1.DeleteVariantResponse], error)
 	ExportVariantSnapshot(context.Context, *connect.Request[v1.ExportVariantSnapshotRequest]) (*connect.Response[v1.ExportVariantSnapshotResponse], error)
-	ImportVariantSnapshot(context.Context, *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.VariantResponse], error)
+	ImportVariantSnapshot(context.Context, *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.ImportVariantSnapshotResponse], error)
 }
 
 // NewVariantServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -366,6 +366,6 @@ func (UnimplementedVariantServiceHandler) ExportVariantSnapshot(context.Context,
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.VariantService.ExportVariantSnapshot is not implemented"))
 }
 
-func (UnimplementedVariantServiceHandler) ImportVariantSnapshot(context.Context, *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.VariantResponse], error) {
+func (UnimplementedVariantServiceHandler) ImportVariantSnapshot(context.Context, *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.ImportVariantSnapshotResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.VariantService.ImportVariantSnapshot is not implemented"))
 }

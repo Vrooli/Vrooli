@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package vrooli.signal_inbox.v1.retrieval;
+
+import "google/protobuf/timestamp.proto";
+import "signal-inbox/v1/shared/signals.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/retrieval;retrieval_v1";
+
+service RetrievalService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc Ambient(AmbientRequest) returns (AmbientResponse);
+}
+
+message SearchFilter {
+  string text = 1;
+  string category_id = 2;
+  string disposition = 3;
+  string source_kind = 4;
+  google.protobuf.Timestamp captured_after = 5;
+  google.protobuf.Timestamp captured_before = 6;
+  uint32 page_size = 7;
+  repeated string tags = 8;
+  string page_after = 9;
+}
+
+message RetrievedSignal {
+  vrooli.signal_inbox.v1.shared.Signal signal = 1;
+  string category_id = 2;
+  string disposition = 3;
+  double score = 4;
+}
+
+message SearchRequest { SearchFilter filter = 1; }
+message SearchResponse { repeated RetrievedSignal results = 1; string next_page_after = 2; }
+message AmbientRequest { string category_id = 1; uint32 budget = 2; }
+message AmbientResponse { repeated RetrievedSignal results = 1; }

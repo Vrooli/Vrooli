@@ -7,18 +7,24 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class RecallHit(_message.Message):
-    __slots__ = ("entry_id", "facet_id", "text", "score", "depth")
+    __slots__ = ("entry_id", "facet_id", "text", "score", "depth", "node_id", "summary", "span")
     ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
     FACET_ID_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     SCORE_FIELD_NUMBER: _ClassVar[int]
     DEPTH_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    SPAN_FIELD_NUMBER: _ClassVar[int]
     entry_id: str
     facet_id: str
     text: str
     score: float
     depth: int
-    def __init__(self, entry_id: _Optional[str] = ..., facet_id: _Optional[str] = ..., text: _Optional[str] = ..., score: _Optional[float] = ..., depth: _Optional[int] = ...) -> None: ...
+    node_id: str
+    summary: bool
+    span: int
+    def __init__(self, entry_id: _Optional[str] = ..., facet_id: _Optional[str] = ..., text: _Optional[str] = ..., score: _Optional[float] = ..., depth: _Optional[int] = ..., node_id: _Optional[str] = ..., summary: _Optional[bool] = ..., span: _Optional[int] = ...) -> None: ...
 
 class RecallRequest(_message.Message):
     __slots__ = ("query", "limit")
@@ -41,10 +47,12 @@ class WakeRequest(_message.Message):
     def __init__(self, token_budget: _Optional[int] = ...) -> None: ...
 
 class WakeResponse(_message.Message):
-    __slots__ = ("hits",)
+    __slots__ = ("hits", "overflow")
     HITS_FIELD_NUMBER: _ClassVar[int]
+    OVERFLOW_FIELD_NUMBER: _ClassVar[int]
     hits: _containers.RepeatedCompositeFieldContainer[RecallHit]
-    def __init__(self, hits: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ...) -> None: ...
+    overflow: bool
+    def __init__(self, hits: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ..., overflow: _Optional[bool] = ...) -> None: ...
 
 class ZoomRequest(_message.Message):
     __slots__ = ("node_id",)

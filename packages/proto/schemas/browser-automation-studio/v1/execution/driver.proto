@@ -376,6 +376,35 @@ message StepOutcome {
 // COMPILED INSTRUCTION (Driver Input)
 // =============================================================================
 
+// ScreenshotCapturePolicy decides whether a step's screenshot is taken.
+//
+// Capturing a full-viewport PNG on every step is the dominant cost of a
+// validation suite and most of those images are never looked at: a variable
+// assignment or a wait produces no evidence. The API decides intent per step;
+// the driver only applies the rule it is handed.
+enum ScreenshotCapturePolicy {
+  // Unset. The driver keeps its process-level default (capture always), so an
+  // API that does not send a policy behaves exactly as before.
+  SCREENSHOT_CAPTURE_POLICY_UNSPECIFIED = 0;
+  // Always capture. Replay, demo, and product executions rely on this to build
+  // a complete storyboard.
+  SCREENSHOT_CAPTURE_POLICY_ALWAYS = 1;
+  // Capture only if the step failed. Resolved by the driver after the handler
+  // runs, since success is not knowable in advance. This is the frame someone
+  // debugging the run actually needs.
+  SCREENSHOT_CAPTURE_POLICY_ON_FAILURE = 2;
+  // Never capture. Reserved for runs that want execution status only.
+  SCREENSHOT_CAPTURE_POLICY_NEVER = 3;
+}
+
+// StepTelemetryDirective carries per-step collection intent from the API to the
+// driver. Absent means "use driver defaults", which keeps older API builds and
+// newer drivers compatible in both directions.
+message StepTelemetryDirective {
+  // Whether this step's screenshot should be captured.
+  ScreenshotCapturePolicy screenshot = 1;
+}
+
 // CompiledInstruction is sent TO the driver to execute a single action.
 // This is the normalized format after workflow compilation.
 //
@@ -400,6 +429,9 @@ message CompiledInstruction {
   // Every execution instruction carries this canonical action contract.
   // @see action.proto for ActionDefinition and all *Params types
   optional ActionDefinition action = 10;
+
+  // Per-step telemetry collection intent. Absent means driver defaults.
+  optional StepTelemetryDirective telemetry = 11;
 }
 
 // =============================================================================

@@ -49,6 +49,31 @@ message LandingBranding {
   optional string favicon_url = 5;
   optional string theme_primary_color = 6;
   optional string theme_background_color = 7;
+  optional string support_chat_url = 8;
+  optional string support_email = 9;
+  optional bool coming_soon_enabled = 10;
+  optional string coming_soon_message = 11;
+}
+
+// IntroOffer is the public, checkout-safe coupon data used to render
+// introductory pricing on the landing page. It deliberately excludes Stripe
+// dashboard metadata and credentials while retaining every field the existing
+// public landing payload exposes.
+message IntroOffer {
+  string id = 1;
+  optional string name = 2;
+  optional int64 amount_off = 3;
+  optional double percent_off = 4;
+  optional string currency = 5;
+  string duration = 6;
+  optional int32 duration_in_months = 7;
+  optional int32 max_redemptions = 8;
+  optional int64 redeem_by = 9;
+  int32 times_redeemed = 10;
+  bool valid = 11;
+  int64 created = 12;
+  bool is_intro_coupon = 13;
+  optional string intro_tier = 14;
 }
 
 // GetLandingConfigRequest requests the aggregated landing payload. An empty
@@ -67,6 +92,10 @@ message LandingConfigResponse {
   optional LandingBranding branding = 6;
   // True when the baked fallback payload was returned.
   bool fallback = 7;
+  // Maps a price ID to its currently applicable introductory coupon ID.
+  map<string, string> coupon_mappings = 8;
+  // Public coupon details referenced by coupon_mappings.
+  repeated IntroOffer intro_offers = 9;
 }
 
 // LandingConfigService serves the aggregated public landing payload.

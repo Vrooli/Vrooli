@@ -12,20 +12,24 @@ class RuntimeRequest(_message.Message):
     def __init__(self, runtime: _Optional[str] = ...) -> None: ...
 
 class RunImportRequest(_message.Message):
-    __slots__ = ("runtime",)
+    __slots__ = ("runtime", "dry_run")
     RUNTIME_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     runtime: str
-    def __init__(self, runtime: _Optional[str] = ...) -> None: ...
+    dry_run: bool
+    def __init__(self, runtime: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class RunImportResponse(_message.Message):
-    __slots__ = ("imported_count", "run", "joined_existing_run")
+    __slots__ = ("imported_count", "run", "joined_existing_run", "dry_run")
     IMPORTED_COUNT_FIELD_NUMBER: _ClassVar[int]
     RUN_FIELD_NUMBER: _ClassVar[int]
     JOINED_EXISTING_RUN_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     imported_count: int
     run: ImportRun
     joined_existing_run: bool
-    def __init__(self, imported_count: _Optional[int] = ..., run: _Optional[_Union[ImportRun, _Mapping]] = ..., joined_existing_run: _Optional[bool] = ...) -> None: ...
+    dry_run: bool
+    def __init__(self, imported_count: _Optional[int] = ..., run: _Optional[_Union[ImportRun, _Mapping]] = ..., joined_existing_run: _Optional[bool] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class GetImportStatusRequest(_message.Message):
     __slots__ = ("run_id", "runtime")

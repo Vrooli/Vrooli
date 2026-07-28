@@ -40,6 +40,9 @@ const (
 	// ScenarioValidationServiceValidateScenarioProcedure is the fully-qualified name of the
 	// ScenarioValidationService's ValidateScenario RPC.
 	ScenarioValidationServiceValidateScenarioProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario"
+	// ScenarioValidationServiceDescribeProviderProcedure is the fully-qualified name of the
+	// ScenarioValidationService's DescribeProvider RPC.
+	ScenarioValidationServiceDescribeProviderProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider"
 	// ScenarioValidationServicePreviewFixProcedure is the fully-qualified name of the
 	// ScenarioValidationService's PreviewFix RPC.
 	ScenarioValidationServicePreviewFixProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix"
@@ -64,6 +67,21 @@ const (
 // vrooli.scenario_validation.v1.ScenarioValidationService service.
 type ScenarioValidationServiceClient interface {
 	ValidateScenario(context.Context, *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error)
+	// DescribeProvider reports the provider's own identity and contract facts
+	// without inspecting any target. Readiness consumers ask three questions —
+	// is this provider live, does it speak the current contract, and is it who
+	// its descriptor claims — none of whose answers can depend on a target
+	// scenario. Answering them through ValidateScenario forced a full target
+	// analysis for two strings; this RPC exists so that cannot happen.
+	//
+	// The request is deliberately empty. That is load-bearing: with no target
+	// fields there is no way for an implementation to drift back into doing
+	// target work here.
+	//
+	// Providers that have not adopted it leave it unimplemented; consumers treat
+	// an Unimplemented response as "fall back to the legacy ValidateScenario
+	// readiness probe", so adoption is incremental.
+	DescribeProvider(context.Context, *connect.Request[v1.DescribeProviderRequest]) (*connect.Response[v1.DescribeProviderResponse], error)
 	// PreviewFix reports the deterministic remediations the provider could apply
 	// for the requested scenario without writing anything (dry-run). Providers
 	// that ship no fixers leave this unimplemented; consumers treat an
@@ -93,6 +111,12 @@ func NewScenarioValidationServiceClient(httpClient connect.HTTPClient, baseURL s
 			connect.WithSchema(scenarioValidationServiceMethods.ByName("ValidateScenario")),
 			connect.WithClientOptions(opts...),
 		),
+		describeProvider: connect.NewClient[v1.DescribeProviderRequest, v1.DescribeProviderResponse](
+			httpClient,
+			baseURL+ScenarioValidationServiceDescribeProviderProcedure,
+			connect.WithSchema(scenarioValidationServiceMethods.ByName("DescribeProvider")),
+			connect.WithClientOptions(opts...),
+		),
 		previewFix: connect.NewClient[v1.FixRequest, v1.FixResponse](
 			httpClient,
 			baseURL+ScenarioValidationServicePreviewFixProcedure,
@@ -111,6 +135,7 @@ func NewScenarioValidationServiceClient(httpClient connect.HTTPClient, baseURL s
 // scenarioValidationServiceClient implements ScenarioValidationServiceClient.
 type scenarioValidationServiceClient struct {
 	validateScenario *connect.Client[v1.ValidateScenarioRequest, v1.ValidateScenarioResponse]
+	describeProvider *connect.Client[v1.DescribeProviderRequest, v1.DescribeProviderResponse]
 	previewFix       *connect.Client[v1.FixRequest, v1.FixResponse]
 	applyFix         *connect.Client[v1.FixRequest, v1.FixResponse]
 }
@@ -118,6 +143,11 @@ type scenarioValidationServiceClient struct {
 // ValidateScenario calls vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario.
 func (c *scenarioValidationServiceClient) ValidateScenario(ctx context.Context, req *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error) {
 	return c.validateScenario.CallUnary(ctx, req)
+}
+
+// DescribeProvider calls vrooli.scenario_validation.v1.ScenarioValidationService.DescribeProvider.
+func (c *scenarioValidationServiceClient) DescribeProvider(ctx context.Context, req *connect.Request[v1.DescribeProviderRequest]) (*connect.Response[v1.DescribeProviderResponse], error) {
+	return c.describeProvider.CallUnary(ctx, req)
 }
 
 // PreviewFix calls vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix.
@@ -134,6 +164,21 @@ func (c *scenarioValidationServiceClient) ApplyFix(ctx context.Context, req *con
 // vrooli.scenario_validation.v1.ScenarioValidationService service.
 type ScenarioValidationServiceHandler interface {
 	ValidateScenario(context.Context, *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error)
+	// DescribeProvider reports the provider's own identity and contract facts
+	// without inspecting any target. Readiness consumers ask three questions —
+	// is this provider live, does it speak the current contract, and is it who
+	// its descriptor claims — none of whose answers can depend on a target
+	// scenario. Answering them through ValidateScenario forced a full target
+	// analysis for two strings; this RPC exists so that cannot happen.
+	//
+	// The request is deliberately empty. That is load-bearing: with no target
+	// fields there is no way for an implementation to drift back into doing
+	// target work here.
+	//
+	// Providers that have not adopted it leave it unimplemented; consumers treat
+	// an Unimplemented response as "fall back to the legacy ValidateScenario
+	// readiness probe", so adoption is incremental.
+	DescribeProvider(context.Context, *connect.Request[v1.DescribeProviderRequest]) (*connect.Response[v1.DescribeProviderResponse], error)
 	// PreviewFix reports the deterministic remediations the provider could apply
 	// for the requested scenario without writing anything (dry-run). Providers
 	// that ship no fixers leave this unimplemented; consumers treat an
@@ -158,6 +203,12 @@ func NewScenarioValidationServiceHandler(svc ScenarioValidationServiceHandler, o
 		connect.WithSchema(scenarioValidationServiceMethods.ByName("ValidateScenario")),
 		connect.WithHandlerOptions(opts...),
 	)
+	scenarioValidationServiceDescribeProviderHandler := connect.NewUnaryHandler(
+		ScenarioValidationServiceDescribeProviderProcedure,
+		svc.DescribeProvider,
+		connect.WithSchema(scenarioValidationServiceMethods.ByName("DescribeProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
 	scenarioValidationServicePreviewFixHandler := connect.NewUnaryHandler(
 		ScenarioValidationServicePreviewFixProcedure,
 		svc.PreviewFix,
@@ -174,6 +225,8 @@ func NewScenarioValidationServiceHandler(svc ScenarioValidationServiceHandler, o
 		switch r.URL.Path {
 		case ScenarioValidationServiceValidateScenarioProcedure:
 			scenarioValidationServiceValidateScenarioHandler.ServeHTTP(w, r)
+		case ScenarioValidationServiceDescribeProviderProcedure:
+			scenarioValidationServiceDescribeProviderHandler.ServeHTTP(w, r)
 		case ScenarioValidationServicePreviewFixProcedure:
 			scenarioValidationServicePreviewFixHandler.ServeHTTP(w, r)
 		case ScenarioValidationServiceApplyFixProcedure:
@@ -189,6 +242,10 @@ type UnimplementedScenarioValidationServiceHandler struct{}
 
 func (UnimplementedScenarioValidationServiceHandler) ValidateScenario(context.Context, *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario is not implemented"))
+}
+
+func (UnimplementedScenarioValidationServiceHandler) DescribeProvider(context.Context, *connect.Request[v1.DescribeProviderRequest]) (*connect.Response[v1.DescribeProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.ScenarioValidationService.DescribeProvider is not implemented"))
 }
 
 func (UnimplementedScenarioValidationServiceHandler) PreviewFix(context.Context, *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error) {

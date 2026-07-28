@@ -31,6 +31,13 @@ class FailureSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FAILURE_SOURCE_ENGINE: _ClassVar[FailureSource]
     FAILURE_SOURCE_EXECUTOR: _ClassVar[FailureSource]
     FAILURE_SOURCE_RECORDER: _ClassVar[FailureSource]
+
+class ScreenshotCapturePolicy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SCREENSHOT_CAPTURE_POLICY_UNSPECIFIED: _ClassVar[ScreenshotCapturePolicy]
+    SCREENSHOT_CAPTURE_POLICY_ALWAYS: _ClassVar[ScreenshotCapturePolicy]
+    SCREENSHOT_CAPTURE_POLICY_ON_FAILURE: _ClassVar[ScreenshotCapturePolicy]
+    SCREENSHOT_CAPTURE_POLICY_NEVER: _ClassVar[ScreenshotCapturePolicy]
 FAILURE_KIND_UNSPECIFIED: FailureKind
 FAILURE_KIND_ENGINE: FailureKind
 FAILURE_KIND_INFRA: FailureKind
@@ -42,6 +49,10 @@ FAILURE_SOURCE_UNSPECIFIED: FailureSource
 FAILURE_SOURCE_ENGINE: FailureSource
 FAILURE_SOURCE_EXECUTOR: FailureSource
 FAILURE_SOURCE_RECORDER: FailureSource
+SCREENSHOT_CAPTURE_POLICY_UNSPECIFIED: ScreenshotCapturePolicy
+SCREENSHOT_CAPTURE_POLICY_ALWAYS: ScreenshotCapturePolicy
+SCREENSHOT_CAPTURE_POLICY_ON_FAILURE: ScreenshotCapturePolicy
+SCREENSHOT_CAPTURE_POLICY_NEVER: ScreenshotCapturePolicy
 
 class StepFailure(_message.Message):
     __slots__ = ("kind", "code", "message", "fatal", "retryable", "occurred_at", "details", "source")
@@ -311,8 +322,14 @@ class StepOutcome(_message.Message):
     selector_match_count: int
     def __init__(self, schema_version: _Optional[str] = ..., payload_version: _Optional[str] = ..., execution_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., step_index: _Optional[int] = ..., attempt: _Optional[int] = ..., node_id: _Optional[str] = ..., step_type: _Optional[str] = ..., instruction: _Optional[str] = ..., success: _Optional[bool] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., final_url: _Optional[str] = ..., screenshot: _Optional[_Union[DriverScreenshot, _Mapping]] = ..., dom_snapshot: _Optional[_Union[DOMSnapshot, _Mapping]] = ..., console_logs: _Optional[_Iterable[_Union[DriverConsoleLogEntry, _Mapping]]] = ..., network_events: _Optional[_Iterable[_Union[DriverNetworkEvent, _Mapping]]] = ..., extracted_data: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., assertion: _Optional[_Union[AssertionOutcome, _Mapping]] = ..., condition: _Optional[_Union[ConditionOutcome, _Mapping]] = ..., probe_result: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., focused_element: _Optional[_Union[_entry_pb2.ElementFocus, _Mapping]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., cursor_trail: _Optional[_Iterable[_Union[CursorPosition, _Mapping]]] = ..., notes: _Optional[_Mapping[str, str]] = ..., failure: _Optional[_Union[StepFailure, _Mapping]] = ..., element_snapshot: _Optional[_Union[_selectors_pb2.ElementMeta, _Mapping]] = ..., used_selector: _Optional[str] = ..., selector_confidence: _Optional[float] = ..., selector_match_count: _Optional[int] = ...) -> None: ...
 
+class StepTelemetryDirective(_message.Message):
+    __slots__ = ("screenshot",)
+    SCREENSHOT_FIELD_NUMBER: _ClassVar[int]
+    screenshot: ScreenshotCapturePolicy
+    def __init__(self, screenshot: _Optional[_Union[ScreenshotCapturePolicy, str]] = ...) -> None: ...
+
 class CompiledInstruction(_message.Message):
-    __slots__ = ("index", "node_id", "preload_html", "context", "metadata", "action")
+    __slots__ = ("index", "node_id", "preload_html", "context", "metadata", "action", "telemetry")
     class ContextEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -333,13 +350,15 @@ class CompiledInstruction(_message.Message):
     CONTEXT_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
+    TELEMETRY_FIELD_NUMBER: _ClassVar[int]
     index: int
     node_id: str
     preload_html: str
     context: _containers.MessageMap[str, _types_pb2.JsonValue]
     metadata: _containers.ScalarMap[str, str]
     action: _action_pb2.ActionDefinition
-    def __init__(self, index: _Optional[int] = ..., node_id: _Optional[str] = ..., preload_html: _Optional[str] = ..., context: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., metadata: _Optional[_Mapping[str, str]] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ...) -> None: ...
+    telemetry: StepTelemetryDirective
+    def __init__(self, index: _Optional[int] = ..., node_id: _Optional[str] = ..., preload_html: _Optional[str] = ..., context: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., metadata: _Optional[_Mapping[str, str]] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ..., telemetry: _Optional[_Union[StepTelemetryDirective, _Mapping]] = ...) -> None: ...
 
 class PlanEdge(_message.Message):
     __slots__ = ("id", "target", "condition", "source_port", "target_port")

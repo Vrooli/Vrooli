@@ -45,6 +45,10 @@ func (s *service) Record(ctx context.Context, draftID string, verdicts []Verdict
 	if err := s.validateDeclaredModes(ctx, draftID, verdicts); err != nil {
 		return Run{}, err
 	}
+	priorRunIDs, err := s.unsupersededRunIDs(ctx, draftID)
+	if err != nil {
+		return Run{}, err
+	}
 	run := Run{ID: uuid.NewString(), DraftID: draftID, Outcome: OutcomePassed, Verdicts: verdicts}
 	for _, v := range verdicts {
 		if !v.Passed {
@@ -59,7 +63,29 @@ func (s *service) Record(ctx context.Context, draftID string, verdicts []Verdict
 			return Run{}, err
 		}
 	}
+	for _, priorRunID := range priorRunIDs {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO review_supersessions (superseded_run_id, superseding_run_id) VALUES (?, ?)`, priorRunID, run.ID); err != nil {
+			return Run{}, err
+		}
+	}
 	return run, nil
+}
+
+func (s *service) unsupersededRunIDs(ctx context.Context, draftID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id FROM review_runs WHERE draft_id = ? AND id NOT IN (SELECT superseded_run_id FROM review_supersessions)`, draftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 func (s *service) validateDeclaredModes(ctx context.Context, draftID string, verdicts []Verdict) error {
@@ -67,7 +93,7 @@ func (s *service) validateDeclaredModes(ctx context.Context, draftID string, ver
 	if err := s.db.QueryRowContext(ctx, `SELECT post_type_id FROM drafts WHERE id = ?`, draftID).Scan(&postTypeID); err != nil {
 		return fmt.Errorf("load draft post type: %w", err)
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT failure_mode FROM post_type_failure_modes WHERE post_type_id = ? ORDER BY failure_mode`, postTypeID)
+	rows, err := s.db.QueryContext(ctx, `SELECT failure_mode FROM post_type_failure_modes WHERE post_type_id = ? UNION SELECT mode FROM review_policy_failure_modes ORDER BY 1`, postTypeID)
 	if err != nil {
 		return err
 	}

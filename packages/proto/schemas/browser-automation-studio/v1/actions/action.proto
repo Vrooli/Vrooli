@@ -959,6 +959,14 @@ message DragDropParams {
     gte: 0
     lte: 60000
   }];
+  // Horizontal offset from the target center. This keeps a semantic target
+  // selector while letting canvas workflows choose a non-overlapping drop point.
+  // @unit pixels
+  optional int32 target_offset_x = 8;
+  // Vertical offset from the target center. This keeps a semantic target
+  // selector while letting canvas workflows choose a non-overlapping drop point.
+  // @unit pixels
+  optional int32 target_offset_y = 9;
 }
 
 // GestureParams configures touch gesture actions.

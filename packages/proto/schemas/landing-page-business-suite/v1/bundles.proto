@@ -48,6 +48,14 @@ message UpdateBundlePriceRequest {
   optional string cta_label = 8;
   optional bool highlight = 9;
   repeated string features = 10;
+  // Changes the Stripe price identity after it has been verified against the
+  // active bundle. Presence is required because an omitted value preserves the
+  // current Stripe price.
+  optional string stripe_price_id = 11;
+  // Distinguishes an omitted features update from an explicit empty list,
+  // which clears the display features. Proto repeated fields do not otherwise
+  // retain that presence information.
+  optional bool features_present = 12;
 }
 
 // UpdateBundlePriceResponse returns the resulting price row.

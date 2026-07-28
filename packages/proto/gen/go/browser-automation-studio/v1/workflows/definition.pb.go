@@ -525,6 +525,14 @@ type NodeExecutionSettings struct {
 	// Maximum time for this step in milliseconds (default: 30000).
 	TimeoutMs *int32 `protobuf:"varint,1,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
 	// Wait time after step completes before proceeding in milliseconds.
+	//
+	// NOT IMPLEMENTED. No executor or driver has ever applied this value, so a
+	// workflow declaring it gets no settle time at all. Do not add new uses: wait
+	// on a real condition (an ACTION_TYPE_WAIT with a selector) instead, which is
+	// both correct and faster than a fixed sleep. Retained rather than reserved
+	// because assets outside browser-automation-studio still set it.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflows/definition.proto.
 	WaitAfterMs *int32 `protobuf:"varint,2,opt,name=wait_after_ms,json=waitAfterMs,proto3,oneof" json:"wait_after_ms,omitempty"`
 	// Continue workflow if this step fails.
 	ContinueOnError *bool `protobuf:"varint,3,opt,name=continue_on_error,json=continueOnError,proto3,oneof" json:"continue_on_error,omitempty"`
@@ -571,6 +579,7 @@ func (x *NodeExecutionSettings) GetTimeoutMs() int32 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflows/definition.proto.
 func (x *NodeExecutionSettings) GetWaitAfterMs() int32 {
 	if x != nil && x.WaitAfterMs != nil {
 		return *x.WaitAfterMs
@@ -874,11 +883,11 @@ const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" 
 	"\bposition\x18\x03 \x01(\v2*.browser_automation_studio.v1.NodePositionH\x00R\bposition\x88\x01\x01\x12g\n" +
 	"\x12execution_settings\x18\x04 \x01(\v23.browser_automation_studio.v1.NodeExecutionSettingsH\x01R\x11executionSettings\x88\x01\x01B\v\n" +
 	"\t_positionB\x15\n" +
-	"\x13_execution_settings\"\xb0\x02\n" +
+	"\x13_execution_settings\"\xb4\x02\n" +
 	"\x15NodeExecutionSettings\x12\"\n" +
 	"\n" +
-	"timeout_ms\x18\x01 \x01(\x05H\x00R\ttimeoutMs\x88\x01\x01\x12'\n" +
-	"\rwait_after_ms\x18\x02 \x01(\x05H\x01R\vwaitAfterMs\x88\x01\x01\x12/\n" +
+	"timeout_ms\x18\x01 \x01(\x05H\x00R\ttimeoutMs\x88\x01\x01\x12+\n" +
+	"\rwait_after_ms\x18\x02 \x01(\x05B\x02\x18\x01H\x01R\vwaitAfterMs\x88\x01\x01\x12/\n" +
 	"\x11continue_on_error\x18\x03 \x01(\bH\x02R\x0fcontinueOnError\x88\x01\x01\x12S\n" +
 	"\n" +
 	"resilience\x18\x04 \x01(\v2..browser_automation_studio.v1.ResilienceConfigH\x03R\n" +

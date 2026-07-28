@@ -20,7 +20,7 @@ class DownloadStorefront(_message.Message):
     def __init__(self, store: _Optional[str] = ..., label: _Optional[str] = ..., url: _Optional[str] = ..., badge: _Optional[str] = ...) -> None: ...
 
 class DownloadAsset(_message.Message):
-    __slots__ = ("id", "bundle_key", "app_key", "platform", "artifact_url", "release_version", "release_notes", "checksum", "requires_entitlement", "metadata")
+    __slots__ = ("id", "bundle_key", "app_key", "platform", "artifact_url", "release_version", "release_notes", "checksum", "requires_entitlement", "metadata", "artifact_source", "artifact_id", "variant_key", "artifact_filename", "artifact_size_bytes", "artifact_count")
     ID_FIELD_NUMBER: _ClassVar[int]
     BUNDLE_KEY_FIELD_NUMBER: _ClassVar[int]
     APP_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -31,6 +31,12 @@ class DownloadAsset(_message.Message):
     CHECKSUM_FIELD_NUMBER: _ClassVar[int]
     REQUIRES_ENTITLEMENT_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
+    VARIANT_KEY_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_FILENAME_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_COUNT_FIELD_NUMBER: _ClassVar[int]
     id: int
     bundle_key: str
     app_key: str
@@ -41,10 +47,16 @@ class DownloadAsset(_message.Message):
     checksum: str
     requires_entitlement: bool
     metadata: _struct_pb2.Struct
-    def __init__(self, id: _Optional[int] = ..., bundle_key: _Optional[str] = ..., app_key: _Optional[str] = ..., platform: _Optional[str] = ..., artifact_url: _Optional[str] = ..., release_version: _Optional[str] = ..., release_notes: _Optional[str] = ..., checksum: _Optional[str] = ..., requires_entitlement: _Optional[bool] = ..., metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    artifact_source: str
+    artifact_id: int
+    variant_key: str
+    artifact_filename: str
+    artifact_size_bytes: int
+    artifact_count: int
+    def __init__(self, id: _Optional[int] = ..., bundle_key: _Optional[str] = ..., app_key: _Optional[str] = ..., platform: _Optional[str] = ..., artifact_url: _Optional[str] = ..., release_version: _Optional[str] = ..., release_notes: _Optional[str] = ..., checksum: _Optional[str] = ..., requires_entitlement: _Optional[bool] = ..., metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., artifact_source: _Optional[str] = ..., artifact_id: _Optional[int] = ..., variant_key: _Optional[str] = ..., artifact_filename: _Optional[str] = ..., artifact_size_bytes: _Optional[int] = ..., artifact_count: _Optional[int] = ...) -> None: ...
 
 class DownloadApp(_message.Message):
-    __slots__ = ("bundle_key", "app_key", "name", "tagline", "description", "install_overview", "install_steps", "storefronts", "metadata", "display_order", "platforms")
+    __slots__ = ("bundle_key", "app_key", "name", "tagline", "description", "install_overview", "install_steps", "storefronts", "metadata", "display_order", "platforms", "id", "icon_url", "screenshot_url", "update_api_key", "update_policy")
     BUNDLE_KEY_FIELD_NUMBER: _ClassVar[int]
     APP_KEY_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -56,6 +68,11 @@ class DownloadApp(_message.Message):
     METADATA_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_ORDER_FIELD_NUMBER: _ClassVar[int]
     PLATFORMS_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    ICON_URL_FIELD_NUMBER: _ClassVar[int]
+    SCREENSHOT_URL_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_API_KEY_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_POLICY_FIELD_NUMBER: _ClassVar[int]
     bundle_key: str
     app_key: str
     name: str
@@ -67,4 +84,9 @@ class DownloadApp(_message.Message):
     metadata: _struct_pb2.Struct
     display_order: int
     platforms: _containers.RepeatedCompositeFieldContainer[DownloadAsset]
-    def __init__(self, bundle_key: _Optional[str] = ..., app_key: _Optional[str] = ..., name: _Optional[str] = ..., tagline: _Optional[str] = ..., description: _Optional[str] = ..., install_overview: _Optional[str] = ..., install_steps: _Optional[_Iterable[str]] = ..., storefronts: _Optional[_Iterable[_Union[DownloadStorefront, _Mapping]]] = ..., metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., display_order: _Optional[int] = ..., platforms: _Optional[_Iterable[_Union[DownloadAsset, _Mapping]]] = ...) -> None: ...
+    id: int
+    icon_url: str
+    screenshot_url: str
+    update_api_key: str
+    update_policy: _struct_pb2.Struct
+    def __init__(self, bundle_key: _Optional[str] = ..., app_key: _Optional[str] = ..., name: _Optional[str] = ..., tagline: _Optional[str] = ..., description: _Optional[str] = ..., install_overview: _Optional[str] = ..., install_steps: _Optional[_Iterable[str]] = ..., storefronts: _Optional[_Iterable[_Union[DownloadStorefront, _Mapping]]] = ..., metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., display_order: _Optional[int] = ..., platforms: _Optional[_Iterable[_Union[DownloadAsset, _Mapping]]] = ..., id: _Optional[int] = ..., icon_url: _Optional[str] = ..., screenshot_url: _Optional[str] = ..., update_api_key: _Optional[str] = ..., update_policy: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...

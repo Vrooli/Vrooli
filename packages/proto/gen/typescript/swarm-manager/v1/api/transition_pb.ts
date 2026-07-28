@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/transition.proto.
  */
 export const file_swarm_manager_v1_api_transition: GenFile = /*@__PURE__*/
-  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2FwaS90cmFuc2l0aW9uLnByb3RvEht2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkiGAoWTGlzdFRyYW5zaXRpb25zUmVxdWVzdCJaChdMaXN0VHJhbnNpdGlvbnNSZXNwb25zZRI/Cgt0cmFuc2l0aW9ucxgBIAMoCzIqLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5UcmFuc2l0aW9uIkUKFlN0YXJ0VHJhbnNpdGlvblJlcXVlc3QSFgoOdHJhbnNpdGlvbl9rZXkYASABKAkSEwoLc3ViamVjdF9yZWYYAiABKAkiYgoXU3RhcnRUcmFuc2l0aW9uUmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEhkKEWRlZmluaXRpb25fZGlnZXN0GAIgASgJEhYKDmVudGl0eV92ZXJzaW9uGAMgASgJIkYKFkFwcGx5VHJhbnNpdGlvblJlcXVlc3QSFgoOdHJhbnNpdGlvbl9rZXkYASABKAkSFAoMZXhlY3V0aW9uX2lkGAIgASgJIpoBChdBcHBseVRyYW5zaXRpb25SZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSFgoOdHJhbnNpdGlvbl9rZXkYAiABKAkSEwoLc3ViamVjdF9yZWYYAyABKAkSDwoHb3V0Y29tZRgEIAEoCRIVCg10ZXJtaW5hbF9jb2RlGAUgASgJEhQKDGFwcGxpZWRfdGltZRgGIAEoCTKNAwoRVHJhbnNpdGlvblNlcnZpY2USfAoPTGlzdFRyYW5zaXRpb25zEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLkxpc3RUcmFuc2l0aW9uc1JlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuTGlzdFRyYW5zaXRpb25zUmVzcG9uc2USfAoPU3RhcnRUcmFuc2l0aW9uEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlN0YXJ0VHJhbnNpdGlvblJlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU3RhcnRUcmFuc2l0aW9uUmVzcG9uc2USfAoPQXBwbHlUcmFuc2l0aW9uEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLkFwcGx5VHJhbnNpdGlvblJlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuQXBwbHlUcmFuc2l0aW9uUmVzcG9uc2VCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_swarm_manager_v1_domain_transition]);
+  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2FwaS90cmFuc2l0aW9uLnByb3RvEht2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkiGAoWTGlzdFRyYW5zaXRpb25zUmVxdWVzdCJaChdMaXN0VHJhbnNpdGlvbnNSZXNwb25zZRI/Cgt0cmFuc2l0aW9ucxgBIAMoCzIqLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5UcmFuc2l0aW9uIo0CChZTdGFydFRyYW5zaXRpb25SZXF1ZXN0EhYKDnRyYW5zaXRpb25fa2V5GAEgASgJEkIKC3N1YmplY3RfcmVmGAIgASgLMi0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlN1YmplY3RSZWZlcmVuY2USYAoPb3BlcmF0b3JfaW5wdXRzGAMgAygLMkcudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlN0YXJ0VHJhbnNpdGlvblJlcXVlc3QuT3BlcmF0b3JJbnB1dHNFbnRyeRo1ChNPcGVyYXRvcklucHV0c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiMgoQU3ViamVjdFJlZmVyZW5jZRIPCgdzdWJqZWN0GAEgASgJEg0KBXZhbHVlGAIgASgJIp8BChdTdGFydFRyYW5zaXRpb25SZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSGQoRZGVmaW5pdGlvbl9kaWdlc3QYAiABKAkSFgoOZW50aXR5X3ZlcnNpb24YAyABKAkSEwoLYXBwbHlfc3RhdGUYBCABKAkSDwoHb3V0Y29tZRgFIAEoCRIVCg10ZXJtaW5hbF9jb2RlGAYgASgJIkYKFkFwcGx5VHJhbnNpdGlvblJlcXVlc3QSFgoOdHJhbnNpdGlvbl9rZXkYASABKAkSFAoMZXhlY3V0aW9uX2lkGAIgASgJIuIBChdBcHBseVRyYW5zaXRpb25SZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSFgoOdHJhbnNpdGlvbl9rZXkYAiABKAkSEwoLc3ViamVjdF9yZWYYAyABKAkSDwoHb3V0Y29tZRgEIAEoCRIVCg10ZXJtaW5hbF9jb2RlGAUgASgJEhQKDGFwcGxpZWRfdGltZRgGIAEoCRIZChFkZWZpbml0aW9uX2RpZ2VzdBgHIAEoCRIWCg5lbnRpdHlfdmVyc2lvbhgIIAEoCRITCgthcHBseV9zdGF0ZRgJIAEoCTKNAwoRVHJhbnNpdGlvblNlcnZpY2USfAoPTGlzdFRyYW5zaXRpb25zEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLkxpc3RUcmFuc2l0aW9uc1JlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuTGlzdFRyYW5zaXRpb25zUmVzcG9uc2USfAoPU3RhcnRUcmFuc2l0aW9uEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLlN0YXJ0VHJhbnNpdGlvblJlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuU3RhcnRUcmFuc2l0aW9uUmVzcG9uc2USfAoPQXBwbHlUcmFuc2l0aW9uEjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLkFwcGx5VHJhbnNpdGlvblJlcXVlc3QaNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuQXBwbHlUcmFuc2l0aW9uUmVzcG9uc2VCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_swarm_manager_v1_domain_transition]);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.ListTransitionsRequest
@@ -54,9 +54,14 @@ export type StartTransitionRequest = Message<"vrooli.swarm_manager.v1.api.StartT
   transitionKey: string;
 
   /**
-   * @generated from field: string subject_ref = 2;
+   * @generated from field: vrooli.swarm_manager.v1.api.SubjectReference subject_ref = 2;
    */
-  subjectRef: string;
+  subjectRef?: SubjectReference | undefined;
+
+  /**
+   * @generated from field: map<string, string> operator_inputs = 3;
+   */
+  operatorInputs: { [key: string]: string };
 };
 
 /**
@@ -65,6 +70,32 @@ export type StartTransitionRequest = Message<"vrooli.swarm_manager.v1.api.StartT
  */
 export const StartTransitionRequestSchema: GenMessage<StartTransitionRequest> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_api_transition, 2);
+
+/**
+ * SubjectReference keeps the registry subject discriminator adjacent to the
+ * opaque locator understood by the owning domain adapter. The service checks
+ * subject against the declared transition before invoking the runner.
+ *
+ * @generated from message vrooli.swarm_manager.v1.api.SubjectReference
+ */
+export type SubjectReference = Message<"vrooli.swarm_manager.v1.api.SubjectReference"> & {
+  /**
+   * @generated from field: string subject = 1;
+   */
+  subject: string;
+
+  /**
+   * @generated from field: string value = 2;
+   */
+  value: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.SubjectReference.
+ * Use `create(SubjectReferenceSchema)` to create a new message.
+ */
+export const SubjectReferenceSchema: GenMessage<SubjectReference> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_transition, 3);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.StartTransitionResponse
@@ -84,6 +115,21 @@ export type StartTransitionResponse = Message<"vrooli.swarm_manager.v1.api.Start
    * @generated from field: string entity_version = 3;
    */
   entityVersion: string;
+
+  /**
+   * @generated from field: string apply_state = 4;
+   */
+  applyState: string;
+
+  /**
+   * @generated from field: string outcome = 5;
+   */
+  outcome: string;
+
+  /**
+   * @generated from field: string terminal_code = 6;
+   */
+  terminalCode: string;
 };
 
 /**
@@ -91,7 +137,7 @@ export type StartTransitionResponse = Message<"vrooli.swarm_manager.v1.api.Start
  * Use `create(StartTransitionResponseSchema)` to create a new message.
  */
 export const StartTransitionResponseSchema: GenMessage<StartTransitionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 3);
+  messageDesc(file_swarm_manager_v1_api_transition, 4);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.ApplyTransitionRequest
@@ -113,7 +159,7 @@ export type ApplyTransitionRequest = Message<"vrooli.swarm_manager.v1.api.ApplyT
  * Use `create(ApplyTransitionRequestSchema)` to create a new message.
  */
 export const ApplyTransitionRequestSchema: GenMessage<ApplyTransitionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 4);
+  messageDesc(file_swarm_manager_v1_api_transition, 5);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.api.ApplyTransitionResponse
@@ -148,6 +194,21 @@ export type ApplyTransitionResponse = Message<"vrooli.swarm_manager.v1.api.Apply
    * @generated from field: string applied_time = 6;
    */
   appliedTime: string;
+
+  /**
+   * @generated from field: string definition_digest = 7;
+   */
+  definitionDigest: string;
+
+  /**
+   * @generated from field: string entity_version = 8;
+   */
+  entityVersion: string;
+
+  /**
+   * @generated from field: string apply_state = 9;
+   */
+  applyState: string;
 };
 
 /**
@@ -155,7 +216,7 @@ export type ApplyTransitionResponse = Message<"vrooli.swarm_manager.v1.api.Apply
  * Use `create(ApplyTransitionResponseSchema)` to create a new message.
  */
 export const ApplyTransitionResponseSchema: GenMessage<ApplyTransitionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_transition, 5);
+  messageDesc(file_swarm_manager_v1_api_transition, 6);
 
 /**
  * @generated from service vrooli.swarm_manager.v1.api.TransitionService

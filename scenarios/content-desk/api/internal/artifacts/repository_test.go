@@ -31,6 +31,9 @@ func newRepository(t *testing.T) Repository {
 	if _, err = db.ExecContext(context.Background(), internalledger.Schema()); err != nil {
 		t.Fatal(err)
 	}
+	if _, err = db.ExecContext(context.Background(), internalposttypes.Schema()); err != nil {
+		t.Fatal(err)
+	}
 	for _, campaignID := range []string{"campaign-1", "campaign", "slot-campaign"} {
 		if _, err = db.ExecContext(context.Background(), `INSERT INTO campaign_slots (campaign_id, channel, format, capacity, reserved) VALUES (?, 'x-twitter', 'thread', 2, 0)`, campaignID); err != nil {
 			t.Fatal(err)
@@ -42,7 +45,7 @@ func newRepository(t *testing.T) Repository {
 func TestRepositoryPersistsConstrainedLifecycle(t *testing.T) {
 	ctx := context.Background()
 	repo := newRepository(t)
-	draft, err := repo.Create(ctx, Draft{ID: "draft-1", CampaignID: "campaign-1", PostTypeID: "post-1", Body: "Hello", Channel: "x-twitter", Format: "thread"})
+	draft, err := repo.Create(ctx, Draft{ID: "draft-1", CampaignID: "campaign-1", PostTypeID: "dev-log", Body: "Hello", Channel: "x-twitter", Format: "thread"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,16 +76,24 @@ func TestRepositoryPersistsConstrainedLifecycle(t *testing.T) {
 	}
 }
 
+func TestCreateRejectsUnregisteredPostType(t *testing.T) {
+	repo := newRepository(t)
+	_, err := repo.Create(context.Background(), Draft{ID: "unknown-type", CampaignID: "campaign-1", PostTypeID: "not-in-canon", Channel: "x-twitter", Format: "thread"})
+	if err == nil || err.Error() != `post type "not-in-canon" is not registered` {
+		t.Fatalf("create error = %v", err)
+	}
+}
+
 func TestApprovalPersistsOnlyAfterEveryStoredGatePasses(t *testing.T) {
 	ctx := context.Background()
 	repo := newRepository(t)
 	db := repo.(*sqliteRepository).db
-	for _, schema := range []string{internalclaims.Schema(), internalposttypes.Schema(), internalreview.Schema()} {
+	for _, schema := range []string{internalclaims.Schema(), internalreview.Schema()} {
 		if _, err := db.ExecContext(ctx, schema); err != nil {
 			t.Fatal(err)
 		}
 	}
-	draft, err := repo.Create(ctx, Draft{ID: "approval-draft", CampaignID: "campaign", PostTypeID: "posttype", Body: "body", Channel: "x-twitter", Format: "thread"})
+	draft, err := repo.Create(ctx, Draft{ID: "approval-draft", CampaignID: "campaign", PostTypeID: "single-image-ad", Body: "body", Channel: "x-twitter", Format: "thread"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +106,7 @@ func TestApprovalPersistsOnlyAfterEveryStoredGatePasses(t *testing.T) {
 	if _, err := repo.Approve(ctx, draft.ID); err == nil {
 		t.Fatal("approval without post type and review succeeded")
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO post_types (id, status) VALUES (?, 'active')`, "posttype"); err != nil {
+	if _, err := db.ExecContext(ctx, `UPDATE post_types SET status = 'active' WHERE id = ?`, "single-image-ad"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO review_runs (id, draft_id, outcome, created_at) VALUES (?, ?, 'passed', ?)`, uuid.NewString(), draft.ID, "2026-07-28T00:00:00Z"); err != nil {
@@ -121,7 +132,7 @@ func TestCreateReservesCampaignSlotAndAbandonReleasesItOnce(t *testing.T) {
 	ctx := context.Background()
 	repo := newRepository(t)
 	create := func(id string) (Draft, error) {
-		return repo.Create(ctx, Draft{ID: id, CampaignID: "slot-campaign", PostTypeID: "post", Channel: "x-twitter", Format: "thread"})
+		return repo.Create(ctx, Draft{ID: id, CampaignID: "slot-campaign", PostTypeID: "dev-log", Channel: "x-twitter", Format: "thread"})
 	}
 	first, err := create("slot-draft-1")
 	if err != nil {
@@ -154,7 +165,7 @@ func TestCreateReservesCampaignSlotAndAbandonReleasesItOnce(t *testing.T) {
 func TestUpdateBodyPersistsAttributedRevisionAndRejectsTerminalDraft(t *testing.T) {
 	ctx := context.Background()
 	repo := newRepository(t)
-	draft, err := repo.Create(ctx, Draft{ID: "revision-draft", CampaignID: "campaign-1", PostTypeID: "post", Body: "before", Channel: "x-twitter", Format: "thread"})
+	draft, err := repo.Create(ctx, Draft{ID: "revision-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Body: "before", Channel: "x-twitter", Format: "thread"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +194,7 @@ func TestUpdateBodyPersistsAttributedRevisionAndRejectsTerminalDraft(t *testing.
 func TestPublishAtomicallyTransitionsApprovedDraftAndAppendsLedgerRecord(t *testing.T) {
 	ctx := context.Background()
 	repo := newRepository(t)
-	draft, err := repo.Create(ctx, Draft{ID: "publish-draft", CampaignID: "campaign-1", PostTypeID: "post", Channel: "x-twitter", Format: "thread"})
+	draft, err := repo.Create(ctx, Draft{ID: "publish-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Channel: "x-twitter", Format: "thread"})
 	if err != nil {
 		t.Fatal(err)
 	}

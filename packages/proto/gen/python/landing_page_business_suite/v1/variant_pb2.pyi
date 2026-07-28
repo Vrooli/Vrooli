@@ -196,3 +196,9 @@ class ImportVariantSnapshotRequest(_message.Message):
     slug: str
     snapshot: VariantSnapshot
     def __init__(self, slug: _Optional[str] = ..., snapshot: _Optional[_Union[VariantSnapshot, _Mapping]] = ...) -> None: ...
+
+class ImportVariantSnapshotResponse(_message.Message):
+    __slots__ = ("snapshot",)
+    SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    snapshot: VariantSnapshot
+    def __init__(self, snapshot: _Optional[_Union[VariantSnapshot, _Mapping]] = ...) -> None: ...

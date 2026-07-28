@@ -41,6 +41,12 @@ const (
 	// JournalServiceListEntriesProcedure is the fully-qualified name of the JournalService's
 	// ListEntries RPC.
 	JournalServiceListEntriesProcedure = "/vrooli.vrooli_memory.v1.journal.JournalService/ListEntries"
+	// JournalServiceProcessClassificationRetriesProcedure is the fully-qualified name of the
+	// JournalService's ProcessClassificationRetries RPC.
+	JournalServiceProcessClassificationRetriesProcedure = "/vrooli.vrooli_memory.v1.journal.JournalService/ProcessClassificationRetries"
+	// JournalServiceProcessEmbeddingRetriesProcedure is the fully-qualified name of the
+	// JournalService's ProcessEmbeddingRetries RPC.
+	JournalServiceProcessEmbeddingRetriesProcedure = "/vrooli.vrooli_memory.v1.journal.JournalService/ProcessEmbeddingRetries"
 )
 
 // JournalServiceClient is a client for the vrooli.vrooli_memory.v1.journal.JournalService service.
@@ -48,6 +54,8 @@ type JournalServiceClient interface {
 	AppendEntry(context.Context, *connect.Request[journal.AppendEntryRequest]) (*connect.Response[journal.AppendEntryResponse], error)
 	GetEntry(context.Context, *connect.Request[journal.GetEntryRequest]) (*connect.Response[journal.GetEntryResponse], error)
 	ListEntries(context.Context, *connect.Request[journal.ListEntriesRequest]) (*connect.Response[journal.ListEntriesResponse], error)
+	ProcessClassificationRetries(context.Context, *connect.Request[journal.ProcessClassificationRetriesRequest]) (*connect.Response[journal.ProcessClassificationRetriesResponse], error)
+	ProcessEmbeddingRetries(context.Context, *connect.Request[journal.ProcessEmbeddingRetriesRequest]) (*connect.Response[journal.ProcessEmbeddingRetriesResponse], error)
 }
 
 // NewJournalServiceClient constructs a client for the
@@ -80,14 +88,28 @@ func NewJournalServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(journalServiceMethods.ByName("ListEntries")),
 			connect.WithClientOptions(opts...),
 		),
+		processClassificationRetries: connect.NewClient[journal.ProcessClassificationRetriesRequest, journal.ProcessClassificationRetriesResponse](
+			httpClient,
+			baseURL+JournalServiceProcessClassificationRetriesProcedure,
+			connect.WithSchema(journalServiceMethods.ByName("ProcessClassificationRetries")),
+			connect.WithClientOptions(opts...),
+		),
+		processEmbeddingRetries: connect.NewClient[journal.ProcessEmbeddingRetriesRequest, journal.ProcessEmbeddingRetriesResponse](
+			httpClient,
+			baseURL+JournalServiceProcessEmbeddingRetriesProcedure,
+			connect.WithSchema(journalServiceMethods.ByName("ProcessEmbeddingRetries")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // journalServiceClient implements JournalServiceClient.
 type journalServiceClient struct {
-	appendEntry *connect.Client[journal.AppendEntryRequest, journal.AppendEntryResponse]
-	getEntry    *connect.Client[journal.GetEntryRequest, journal.GetEntryResponse]
-	listEntries *connect.Client[journal.ListEntriesRequest, journal.ListEntriesResponse]
+	appendEntry                  *connect.Client[journal.AppendEntryRequest, journal.AppendEntryResponse]
+	getEntry                     *connect.Client[journal.GetEntryRequest, journal.GetEntryResponse]
+	listEntries                  *connect.Client[journal.ListEntriesRequest, journal.ListEntriesResponse]
+	processClassificationRetries *connect.Client[journal.ProcessClassificationRetriesRequest, journal.ProcessClassificationRetriesResponse]
+	processEmbeddingRetries      *connect.Client[journal.ProcessEmbeddingRetriesRequest, journal.ProcessEmbeddingRetriesResponse]
 }
 
 // AppendEntry calls vrooli.vrooli_memory.v1.journal.JournalService.AppendEntry.
@@ -105,12 +127,26 @@ func (c *journalServiceClient) ListEntries(ctx context.Context, req *connect.Req
 	return c.listEntries.CallUnary(ctx, req)
 }
 
+// ProcessClassificationRetries calls
+// vrooli.vrooli_memory.v1.journal.JournalService.ProcessClassificationRetries.
+func (c *journalServiceClient) ProcessClassificationRetries(ctx context.Context, req *connect.Request[journal.ProcessClassificationRetriesRequest]) (*connect.Response[journal.ProcessClassificationRetriesResponse], error) {
+	return c.processClassificationRetries.CallUnary(ctx, req)
+}
+
+// ProcessEmbeddingRetries calls
+// vrooli.vrooli_memory.v1.journal.JournalService.ProcessEmbeddingRetries.
+func (c *journalServiceClient) ProcessEmbeddingRetries(ctx context.Context, req *connect.Request[journal.ProcessEmbeddingRetriesRequest]) (*connect.Response[journal.ProcessEmbeddingRetriesResponse], error) {
+	return c.processEmbeddingRetries.CallUnary(ctx, req)
+}
+
 // JournalServiceHandler is an implementation of the vrooli.vrooli_memory.v1.journal.JournalService
 // service.
 type JournalServiceHandler interface {
 	AppendEntry(context.Context, *connect.Request[journal.AppendEntryRequest]) (*connect.Response[journal.AppendEntryResponse], error)
 	GetEntry(context.Context, *connect.Request[journal.GetEntryRequest]) (*connect.Response[journal.GetEntryResponse], error)
 	ListEntries(context.Context, *connect.Request[journal.ListEntriesRequest]) (*connect.Response[journal.ListEntriesResponse], error)
+	ProcessClassificationRetries(context.Context, *connect.Request[journal.ProcessClassificationRetriesRequest]) (*connect.Response[journal.ProcessClassificationRetriesResponse], error)
+	ProcessEmbeddingRetries(context.Context, *connect.Request[journal.ProcessEmbeddingRetriesRequest]) (*connect.Response[journal.ProcessEmbeddingRetriesResponse], error)
 }
 
 // NewJournalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -138,6 +174,18 @@ func NewJournalServiceHandler(svc JournalServiceHandler, opts ...connect.Handler
 		connect.WithSchema(journalServiceMethods.ByName("ListEntries")),
 		connect.WithHandlerOptions(opts...),
 	)
+	journalServiceProcessClassificationRetriesHandler := connect.NewUnaryHandler(
+		JournalServiceProcessClassificationRetriesProcedure,
+		svc.ProcessClassificationRetries,
+		connect.WithSchema(journalServiceMethods.ByName("ProcessClassificationRetries")),
+		connect.WithHandlerOptions(opts...),
+	)
+	journalServiceProcessEmbeddingRetriesHandler := connect.NewUnaryHandler(
+		JournalServiceProcessEmbeddingRetriesProcedure,
+		svc.ProcessEmbeddingRetries,
+		connect.WithSchema(journalServiceMethods.ByName("ProcessEmbeddingRetries")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_memory.v1.journal.JournalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case JournalServiceAppendEntryProcedure:
@@ -146,6 +194,10 @@ func NewJournalServiceHandler(svc JournalServiceHandler, opts ...connect.Handler
 			journalServiceGetEntryHandler.ServeHTTP(w, r)
 		case JournalServiceListEntriesProcedure:
 			journalServiceListEntriesHandler.ServeHTTP(w, r)
+		case JournalServiceProcessClassificationRetriesProcedure:
+			journalServiceProcessClassificationRetriesHandler.ServeHTTP(w, r)
+		case JournalServiceProcessEmbeddingRetriesProcedure:
+			journalServiceProcessEmbeddingRetriesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -165,4 +217,12 @@ func (UnimplementedJournalServiceHandler) GetEntry(context.Context, *connect.Req
 
 func (UnimplementedJournalServiceHandler) ListEntries(context.Context, *connect.Request[journal.ListEntriesRequest]) (*connect.Response[journal.ListEntriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.journal.JournalService.ListEntries is not implemented"))
+}
+
+func (UnimplementedJournalServiceHandler) ProcessClassificationRetries(context.Context, *connect.Request[journal.ProcessClassificationRetriesRequest]) (*connect.Response[journal.ProcessClassificationRetriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.journal.JournalService.ProcessClassificationRetries is not implemented"))
+}
+
+func (UnimplementedJournalServiceHandler) ProcessEmbeddingRetries(context.Context, *connect.Request[journal.ProcessEmbeddingRetriesRequest]) (*connect.Response[journal.ProcessEmbeddingRetriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.journal.JournalService.ProcessEmbeddingRetries is not implemented"))
 }

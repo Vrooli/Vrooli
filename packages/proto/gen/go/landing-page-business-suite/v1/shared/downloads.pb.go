@@ -104,6 +104,12 @@ type DownloadAsset struct {
 	Checksum            string                 `protobuf:"bytes,8,opt,name=checksum,proto3" json:"checksum,omitempty"`
 	RequiresEntitlement bool                   `protobuf:"varint,9,opt,name=requires_entitlement,json=requiresEntitlement,proto3" json:"requires_entitlement,omitempty"`
 	Metadata            *structpb.Struct       `protobuf:"bytes,10,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	ArtifactSource      string                 `protobuf:"bytes,11,opt,name=artifact_source,json=artifactSource,proto3" json:"artifact_source,omitempty"`
+	ArtifactId          *int64                 `protobuf:"varint,12,opt,name=artifact_id,json=artifactId,proto3,oneof" json:"artifact_id,omitempty"`
+	VariantKey          string                 `protobuf:"bytes,13,opt,name=variant_key,json=variantKey,proto3" json:"variant_key,omitempty"`
+	ArtifactFilename    string                 `protobuf:"bytes,14,opt,name=artifact_filename,json=artifactFilename,proto3" json:"artifact_filename,omitempty"`
+	ArtifactSizeBytes   int64                  `protobuf:"varint,15,opt,name=artifact_size_bytes,json=artifactSizeBytes,proto3" json:"artifact_size_bytes,omitempty"`
+	ArtifactCount       int32                  `protobuf:"varint,16,opt,name=artifact_count,json=artifactCount,proto3" json:"artifact_count,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -208,6 +214,48 @@ func (x *DownloadAsset) GetMetadata() *structpb.Struct {
 	return nil
 }
 
+func (x *DownloadAsset) GetArtifactSource() string {
+	if x != nil {
+		return x.ArtifactSource
+	}
+	return ""
+}
+
+func (x *DownloadAsset) GetArtifactId() int64 {
+	if x != nil && x.ArtifactId != nil {
+		return *x.ArtifactId
+	}
+	return 0
+}
+
+func (x *DownloadAsset) GetVariantKey() string {
+	if x != nil {
+		return x.VariantKey
+	}
+	return ""
+}
+
+func (x *DownloadAsset) GetArtifactFilename() string {
+	if x != nil {
+		return x.ArtifactFilename
+	}
+	return ""
+}
+
+func (x *DownloadAsset) GetArtifactSizeBytes() int64 {
+	if x != nil {
+		return x.ArtifactSizeBytes
+	}
+	return 0
+}
+
+func (x *DownloadAsset) GetArtifactCount() int32 {
+	if x != nil {
+		return x.ArtifactCount
+	}
+	return 0
+}
+
 type DownloadApp struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	BundleKey       string                 `protobuf:"bytes,1,opt,name=bundle_key,json=bundleKey,proto3" json:"bundle_key,omitempty"`
@@ -221,6 +269,11 @@ type DownloadApp struct {
 	Metadata        *structpb.Struct       `protobuf:"bytes,9,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	DisplayOrder    int32                  `protobuf:"varint,10,opt,name=display_order,json=displayOrder,proto3" json:"display_order,omitempty"`
 	Platforms       []*DownloadAsset       `protobuf:"bytes,11,rep,name=platforms,proto3" json:"platforms,omitempty"`
+	Id              int64                  `protobuf:"varint,12,opt,name=id,proto3" json:"id,omitempty"`
+	IconUrl         string                 `protobuf:"bytes,13,opt,name=icon_url,json=iconUrl,proto3" json:"icon_url,omitempty"`
+	ScreenshotUrl   string                 `protobuf:"bytes,14,opt,name=screenshot_url,json=screenshotUrl,proto3" json:"screenshot_url,omitempty"`
+	UpdateApiKey    string                 `protobuf:"bytes,15,opt,name=update_api_key,json=updateApiKey,proto3" json:"update_api_key,omitempty"`
+	UpdatePolicy    *structpb.Struct       `protobuf:"bytes,16,opt,name=update_policy,json=updatePolicy,proto3" json:"update_policy,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -332,6 +385,41 @@ func (x *DownloadApp) GetPlatforms() []*DownloadAsset {
 	return nil
 }
 
+func (x *DownloadApp) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DownloadApp) GetIconUrl() string {
+	if x != nil {
+		return x.IconUrl
+	}
+	return ""
+}
+
+func (x *DownloadApp) GetScreenshotUrl() string {
+	if x != nil {
+		return x.ScreenshotUrl
+	}
+	return ""
+}
+
+func (x *DownloadApp) GetUpdateApiKey() string {
+	if x != nil {
+		return x.UpdateApiKey
+	}
+	return ""
+}
+
+func (x *DownloadApp) GetUpdatePolicy() *structpb.Struct {
+	if x != nil {
+		return x.UpdatePolicy
+	}
+	return nil
+}
+
 var File_landing_page_business_suite_v1_shared_downloads_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_shared_downloads_proto_rawDesc = "" +
@@ -341,7 +429,7 @@ const file_landing_page_business_suite_v1_shared_downloads_proto_rawDesc = "" +
 	"\x05store\x18\x01 \x01(\tR\x05store\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x10\n" +
 	"\x03url\x18\x03 \x01(\tR\x03url\x12\x14\n" +
-	"\x05badge\x18\x04 \x01(\tR\x05badge\"\xe8\x02\n" +
+	"\x05badge\x18\x04 \x01(\tR\x05badge\"\xec\x04\n" +
 	"\rDownloadAsset\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
@@ -354,7 +442,16 @@ const file_landing_page_business_suite_v1_shared_downloads_proto_rawDesc = "" +
 	"\bchecksum\x18\b \x01(\tR\bchecksum\x121\n" +
 	"\x14requires_entitlement\x18\t \x01(\bR\x13requiresEntitlement\x123\n" +
 	"\bmetadata\x18\n" +
-	" \x01(\v2\x17.google.protobuf.StructR\bmetadata\"\xfe\x03\n" +
+	" \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12'\n" +
+	"\x0fartifact_source\x18\v \x01(\tR\x0eartifactSource\x12$\n" +
+	"\vartifact_id\x18\f \x01(\x03H\x00R\n" +
+	"artifactId\x88\x01\x01\x12\x1f\n" +
+	"\vvariant_key\x18\r \x01(\tR\n" +
+	"variantKey\x12+\n" +
+	"\x11artifact_filename\x18\x0e \x01(\tR\x10artifactFilename\x12.\n" +
+	"\x13artifact_size_bytes\x18\x0f \x01(\x03R\x11artifactSizeBytes\x12%\n" +
+	"\x0eartifact_count\x18\x10 \x01(\x05R\rartifactCountB\x0e\n" +
+	"\f_artifact_id\"\xb4\x05\n" +
 	"\vDownloadApp\x12\x1d\n" +
 	"\n" +
 	"bundle_key\x18\x01 \x01(\tR\tbundleKey\x12\x17\n" +
@@ -368,7 +465,12 @@ const file_landing_page_business_suite_v1_shared_downloads_proto_rawDesc = "" +
 	"\bmetadata\x18\t \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12#\n" +
 	"\rdisplay_order\x18\n" +
 	" \x01(\x05R\fdisplayOrder\x12Y\n" +
-	"\tplatforms\x18\v \x03(\v2;.vrooli.landing_page_business_suite.v1.shared.DownloadAssetR\tplatformsB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared;shared_v1b\x06proto3"
+	"\tplatforms\x18\v \x03(\v2;.vrooli.landing_page_business_suite.v1.shared.DownloadAssetR\tplatforms\x12\x0e\n" +
+	"\x02id\x18\f \x01(\x03R\x02id\x12\x19\n" +
+	"\bicon_url\x18\r \x01(\tR\aiconUrl\x12%\n" +
+	"\x0escreenshot_url\x18\x0e \x01(\tR\rscreenshotUrl\x12$\n" +
+	"\x0eupdate_api_key\x18\x0f \x01(\tR\fupdateApiKey\x12<\n" +
+	"\rupdate_policy\x18\x10 \x01(\v2\x17.google.protobuf.StructR\fupdatePolicyB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_landing_page_business_suite_v1_shared_downloads_proto_rawDescOnce sync.Once
@@ -394,11 +496,12 @@ var file_landing_page_business_suite_v1_shared_downloads_proto_depIdxs = []int32
 	0, // 1: vrooli.landing_page_business_suite.v1.shared.DownloadApp.storefronts:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadStorefront
 	3, // 2: vrooli.landing_page_business_suite.v1.shared.DownloadApp.metadata:type_name -> google.protobuf.Struct
 	1, // 3: vrooli.landing_page_business_suite.v1.shared.DownloadApp.platforms:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadAsset
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	3, // 4: vrooli.landing_page_business_suite.v1.shared.DownloadApp.update_policy:type_name -> google.protobuf.Struct
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_shared_downloads_proto_init() }
@@ -406,6 +509,7 @@ func file_landing_page_business_suite_v1_shared_downloads_proto_init() {
 	if File_landing_page_business_suite_v1_shared_downloads_proto != nil {
 		return
 	}
+	file_landing_page_business_suite_v1_shared_downloads_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

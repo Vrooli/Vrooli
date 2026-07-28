@@ -3640,7 +3640,15 @@ type DragDropParams struct {
 	// Timeout in milliseconds (default: 5000).
 	// @unit milliseconds
 	// @constraint >= 0, <= 60000
-	TimeoutMs     *int32 `protobuf:"varint,7,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	TimeoutMs *int32 `protobuf:"varint,7,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	// Horizontal offset from the target center. This keeps a semantic target
+	// selector while letting canvas workflows choose a non-overlapping drop point.
+	// @unit pixels
+	TargetOffsetX *int32 `protobuf:"varint,8,opt,name=target_offset_x,json=targetOffsetX,proto3,oneof" json:"target_offset_x,omitempty"`
+	// Vertical offset from the target center. This keeps a semantic target
+	// selector while letting canvas workflows choose a non-overlapping drop point.
+	// @unit pixels
+	TargetOffsetY *int32 `protobuf:"varint,9,opt,name=target_offset_y,json=targetOffsetY,proto3,oneof" json:"target_offset_y,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3720,6 +3728,20 @@ func (x *DragDropParams) GetDelayMs() int32 {
 func (x *DragDropParams) GetTimeoutMs() int32 {
 	if x != nil && x.TimeoutMs != nil {
 		return *x.TimeoutMs
+	}
+	return 0
+}
+
+func (x *DragDropParams) GetTargetOffsetX() int32 {
+	if x != nil && x.TargetOffsetX != nil {
+		return *x.TargetOffsetX
+	}
+	return 0
+}
+
+func (x *DragDropParams) GetTargetOffsetY() int32 {
+	if x != nil && x.TargetOffsetY != nil {
+		return *x.TargetOffsetY
 	}
 	return 0
 }
@@ -5381,7 +5403,7 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\x0eShortcutParams\x12#\n" +
 	"\bshortcut\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bshortcut\x12\x1f\n" +
 	"\bselector\x18\x02 \x01(\tH\x00R\bselector\x88\x01\x01B\v\n" +
-	"\t_selector\"\x82\x03\n" +
+	"\t_selector\"\x84\x04\n" +
 	"\x0eDragDropParams\x120\n" +
 	"\x0fsource_selector\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0esourceSelector\x12,\n" +
 	"\x0ftarget_selector\x18\x02 \x01(\tH\x00R\x0etargetSelector\x88\x01\x01\x12\x1e\n" +
@@ -5390,13 +5412,17 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\x05steps\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x03R\x05steps\x88\x01\x01\x12'\n" +
 	"\bdelay_ms\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x04R\adelayMs\x88\x01\x01\x12/\n" +
 	"\n" +
-	"timeout_ms\x18\a \x01(\x05B\v\xbaH\b\x1a\x06\x18\xe0\xd4\x03(\x00H\x05R\ttimeoutMs\x88\x01\x01B\x12\n" +
+	"timeout_ms\x18\a \x01(\x05B\v\xbaH\b\x1a\x06\x18\xe0\xd4\x03(\x00H\x05R\ttimeoutMs\x88\x01\x01\x12+\n" +
+	"\x0ftarget_offset_x\x18\b \x01(\x05H\x06R\rtargetOffsetX\x88\x01\x01\x12+\n" +
+	"\x0ftarget_offset_y\x18\t \x01(\x05H\aR\rtargetOffsetY\x88\x01\x01B\x12\n" +
 	"\x10_target_selectorB\v\n" +
 	"\t_offset_xB\v\n" +
 	"\t_offset_yB\b\n" +
 	"\x06_stepsB\v\n" +
 	"\t_delay_msB\r\n" +
-	"\v_timeout_ms\"\xf3\x05\n" +
+	"\v_timeout_msB\x12\n" +
+	"\x10_target_offset_xB\x12\n" +
+	"\x10_target_offset_y\"\xf3\x05\n" +
 	"\rGestureParams\x12V\n" +
 	"\fgesture_type\x18\x01 \x01(\x0e2).browser_automation_studio.v1.GestureTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vgestureType\x12\x1f\n" +
 	"\bselector\x18\x02 \x01(\tH\x00R\bselector\x88\x01\x01\x12O\n" +

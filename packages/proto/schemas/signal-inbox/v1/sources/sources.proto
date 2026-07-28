@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package vrooli.signal_inbox.v1.sources;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/sources;sources_v1";
+
+service SourcesService {
+  rpc ListAdapters(ListAdaptersRequest) returns (ListAdaptersResponse);
+  rpc SetAdapterEnabled(SetAdapterEnabledRequest) returns (SetAdapterEnabledResponse);
+  rpc ImportArchive(ImportArchiveRequest) returns (ImportArchiveResponse);
+}
+
+message AdapterState {
+  string adapter_id = 1;
+  string kind = 2;
+  uint32 risk_tier = 3;
+  bool enabled = 4;
+  google.protobuf.Timestamp last_run_at = 5;
+  string last_error = 6;
+  string disabled_reason = 7;
+}
+message ImportResult { string run_id = 1; string adapter_id = 2; uint32 created = 3; uint32 duplicated = 4; uint32 failed = 5; }
+message ListAdaptersRequest {}
+message ListAdaptersResponse { repeated AdapterState adapters = 1; }
+message SetAdapterEnabledRequest { string adapter_id = 1; bool enabled = 2; }
+message SetAdapterEnabledResponse { AdapterState adapter = 1; }
+message ImportArchiveRequest { string adapter_id = 1; bytes content = 2; }
+message ImportArchiveResponse { ImportResult result = 1; }

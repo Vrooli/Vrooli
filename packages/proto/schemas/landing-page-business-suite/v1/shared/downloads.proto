@@ -26,6 +26,12 @@ message DownloadAsset {
   string checksum = 8;
   bool requires_entitlement = 9;
   google.protobuf.Struct metadata = 10;
+  string artifact_source = 11;
+  optional int64 artifact_id = 12;
+  string variant_key = 13;
+  string artifact_filename = 14;
+  int64 artifact_size_bytes = 15;
+  int32 artifact_count = 16;
 }
 
 message DownloadApp {
@@ -40,4 +46,9 @@ message DownloadApp {
   google.protobuf.Struct metadata = 9;
   int32 display_order = 10;
   repeated DownloadAsset platforms = 11;
+  int64 id = 12;
+  string icon_url = 13;
+  string screenshot_url = 14;
+  string update_api_key = 15;
+  google.protobuf.Struct update_policy = 16;
 }

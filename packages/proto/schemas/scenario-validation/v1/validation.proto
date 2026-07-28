@@ -27,6 +27,22 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-val
 service ScenarioValidationService {
   rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
 
+  // DescribeProvider reports the provider's own identity and contract facts
+  // without inspecting any target. Readiness consumers ask three questions —
+  // is this provider live, does it speak the current contract, and is it who
+  // its descriptor claims — none of whose answers can depend on a target
+  // scenario. Answering them through ValidateScenario forced a full target
+  // analysis for two strings; this RPC exists so that cannot happen.
+  //
+  // The request is deliberately empty. That is load-bearing: with no target
+  // fields there is no way for an implementation to drift back into doing
+  // target work here.
+  //
+  // Providers that have not adopted it leave it unimplemented; consumers treat
+  // an Unimplemented response as "fall back to the legacy ValidateScenario
+  // readiness probe", so adoption is incremental.
+  rpc DescribeProvider(DescribeProviderRequest) returns (DescribeProviderResponse);
+
   // PreviewFix reports the deterministic remediations the provider could apply
   // for the requested scenario without writing anything (dry-run). Providers
   // that ship no fixers leave this unimplemented; consumers treat an
@@ -48,6 +64,61 @@ service DurableValidationRunService {
   rpc GetValidationRun(GetValidationRunRequest) returns (GetValidationRunResponse);
   rpc WaitValidationRun(WaitValidationRunRequest) returns (WaitValidationRunResponse);
   rpc AbortValidationRun(AbortValidationRunRequest) returns (AbortValidationRunResponse);
+}
+
+// DescribeProviderRequest is intentionally empty: provider identity and
+// contract facts are properties of the provider process, never of a target.
+// Do not add target-selection fields here — route those through
+// ValidateScenario instead.
+message DescribeProviderRequest {}
+
+message DescribeProviderResponse {
+  // Provider scenario slug this process serves, e.g. "security-health".
+  string provider = 1;
+  // Test Genie phase this provider backs, e.g. "security".
+  string phase = 2;
+  // Version of the provider's maturity spec (the assessment ladder), taken
+  // from the maturity block in its .vrooli/test-genie.json descriptor.
+  string spec_version = 3;
+  // Shared validation contract this binary speaks, e.g. "scenario-validation/v1".
+  string contract = 4;
+  // Build provenance, so freshness gates can detect a stale provider binary
+  // without running its analysis.
+  ProviderBuild build = 5;
+  // What this provider can actually do, so consumers can detect drift between
+  // a descriptor's declarations and the running binary's behavior.
+  ProviderCapabilities capabilities = 6;
+}
+
+// ProviderBuild carries whatever build provenance the provider can determine.
+// Every field is best-effort: a provider that cannot determine a value leaves
+// it unset rather than inventing one, and consumers must treat unset as
+// "unknown", never as "stale".
+message ProviderBuild {
+  // Version control revision the binary was built from, when known.
+  string revision = 1;
+  // Build timestamp, when known.
+  google.protobuf.Timestamp built_at = 2;
+  // Modification time of the running binary, observed once at process start.
+  google.protobuf.Timestamp binary_modified_at = 3;
+  // Freshness-manifest digest this process read at startup. A consumer that
+  // finds a different digest on disk knows the binary was rebuilt but never
+  // restarted, so the running process is serving superseded code. Empty when
+  // the provider has no manifest; consumers must treat empty as "unknown"
+  // rather than "stale", so a missing stamp can never trigger a restart.
+  string freshness_digest = 4;
+}
+
+message ProviderCapabilities {
+  // True when include_execution=true does measurably more work than false.
+  // Providers whose only mode is inspection report false, which tells a
+  // consumer that a ValidateScenario-based readiness probe would cost a full
+  // analysis — the drift that made this RPC necessary.
+  bool supports_execution = 1;
+  // Delivery mode this provider implements: "inline" or "durable-run".
+  string delivery_mode = 2;
+  // True when the provider implements PreviewFix/ApplyFix.
+  bool supports_fixes = 3;
 }
 
 message ValidateScenarioRequest {

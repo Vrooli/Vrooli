@@ -173,8 +173,16 @@ type UpdateBundlePriceRequest struct {
 	CtaLabel       *string                `protobuf:"bytes,8,opt,name=cta_label,json=ctaLabel,proto3,oneof" json:"cta_label,omitempty"`
 	Highlight      *bool                  `protobuf:"varint,9,opt,name=highlight,proto3,oneof" json:"highlight,omitempty"`
 	Features       []string               `protobuf:"bytes,10,rep,name=features,proto3" json:"features,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Changes the Stripe price identity after it has been verified against the
+	// active bundle. Presence is required because an omitted value preserves the
+	// current Stripe price.
+	StripePriceId *string `protobuf:"bytes,11,opt,name=stripe_price_id,json=stripePriceId,proto3,oneof" json:"stripe_price_id,omitempty"`
+	// Distinguishes an omitted features update from an explicit empty list,
+	// which clears the display features. Proto repeated fields do not otherwise
+	// retain that presence information.
+	FeaturesPresent *bool `protobuf:"varint,12,opt,name=features_present,json=featuresPresent,proto3,oneof" json:"features_present,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateBundlePriceRequest) Reset() {
@@ -277,6 +285,20 @@ func (x *UpdateBundlePriceRequest) GetFeatures() []string {
 	return nil
 }
 
+func (x *UpdateBundlePriceRequest) GetStripePriceId() string {
+	if x != nil && x.StripePriceId != nil {
+		return *x.StripePriceId
+	}
+	return ""
+}
+
+func (x *UpdateBundlePriceRequest) GetFeaturesPresent() bool {
+	if x != nil && x.FeaturesPresent != nil {
+		return *x.FeaturesPresent
+	}
+	return false
+}
+
 // UpdateBundlePriceResponse returns the resulting price row.
 type UpdateBundlePriceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -332,7 +354,7 @@ const file_landing_page_business_suite_v1_bundles_proto_rawDesc = "" +
 	"\x06prices\x18\x02 \x03(\v28.vrooli.landing_page_business_suite.v1.shared.PlanOptionR\x06prices\"\x1a\n" +
 	"\x18ListBundleCatalogRequest\"i\n" +
 	"\x19ListBundleCatalogResponse\x12L\n" +
-	"\abundles\x18\x01 \x03(\v22.landing_page_business_suite.v1.BundleCatalogEntryR\abundles\"\xd5\x03\n" +
+	"\abundles\x18\x01 \x03(\v22.landing_page_business_suite.v1.BundleCatalogEntryR\abundles\"\xdb\x04\n" +
 	"\x18UpdateBundlePriceRequest\x12\x1d\n" +
 	"\n" +
 	"bundle_key\x18\x01 \x01(\tR\tbundleKey\x12\x19\n" +
@@ -345,7 +367,9 @@ const file_landing_page_business_suite_v1_bundles_proto_rawDesc = "" +
 	"\tcta_label\x18\b \x01(\tH\x05R\bctaLabel\x88\x01\x01\x12!\n" +
 	"\thighlight\x18\t \x01(\bH\x06R\thighlight\x88\x01\x01\x12\x1a\n" +
 	"\bfeatures\x18\n" +
-	" \x03(\tR\bfeaturesB\f\n" +
+	" \x03(\tR\bfeatures\x12+\n" +
+	"\x0fstripe_price_id\x18\v \x01(\tH\aR\rstripePriceId\x88\x01\x01\x12.\n" +
+	"\x10features_present\x18\f \x01(\bH\bR\x0ffeaturesPresent\x88\x01\x01B\f\n" +
 	"\n" +
 	"_plan_nameB\x11\n" +
 	"\x0f_display_weightB\x12\n" +
@@ -355,7 +379,9 @@ const file_landing_page_business_suite_v1_bundles_proto_rawDesc = "" +
 	"\n" +
 	"_cta_labelB\f\n" +
 	"\n" +
-	"_highlight\"k\n" +
+	"_highlightB\x12\n" +
+	"\x10_stripe_price_idB\x13\n" +
+	"\x11_features_present\"k\n" +
 	"\x19UpdateBundlePriceResponse\x12N\n" +
 	"\x05price\x18\x01 \x01(\v28.vrooli.landing_page_business_suite.v1.shared.PlanOptionR\x05price2\xaa\x02\n" +
 	"\x12BundleAdminService\x12\x88\x01\n" +

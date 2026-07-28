@@ -700,7 +700,7 @@ class ShortcutParams(_message.Message):
     def __init__(self, shortcut: _Optional[str] = ..., selector: _Optional[str] = ...) -> None: ...
 
 class DragDropParams(_message.Message):
-    __slots__ = ("source_selector", "target_selector", "offset_x", "offset_y", "steps", "delay_ms", "timeout_ms")
+    __slots__ = ("source_selector", "target_selector", "offset_x", "offset_y", "steps", "delay_ms", "timeout_ms", "target_offset_x", "target_offset_y")
     SOURCE_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     TARGET_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     OFFSET_X_FIELD_NUMBER: _ClassVar[int]
@@ -708,6 +708,8 @@ class DragDropParams(_message.Message):
     STEPS_FIELD_NUMBER: _ClassVar[int]
     DELAY_MS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    TARGET_OFFSET_X_FIELD_NUMBER: _ClassVar[int]
+    TARGET_OFFSET_Y_FIELD_NUMBER: _ClassVar[int]
     source_selector: str
     target_selector: str
     offset_x: int
@@ -715,7 +717,9 @@ class DragDropParams(_message.Message):
     steps: int
     delay_ms: int
     timeout_ms: int
-    def __init__(self, source_selector: _Optional[str] = ..., target_selector: _Optional[str] = ..., offset_x: _Optional[int] = ..., offset_y: _Optional[int] = ..., steps: _Optional[int] = ..., delay_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+    target_offset_x: int
+    target_offset_y: int
+    def __init__(self, source_selector: _Optional[str] = ..., target_selector: _Optional[str] = ..., offset_x: _Optional[int] = ..., offset_y: _Optional[int] = ..., steps: _Optional[int] = ..., delay_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., target_offset_x: _Optional[int] = ..., target_offset_y: _Optional[int] = ...) -> None: ...
 
 class GestureParams(_message.Message):
     __slots__ = ("gesture_type", "selector", "direction", "distance", "scale", "duration_ms", "steps", "step_delay_ms", "trace_label", "idle_after_ms", "wheel_delta_y", "ctrl_key")

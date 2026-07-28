@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package vrooli.content_desk.v1.campaigns;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns;campaigns_v1";
+
+// CampaignsService owns campaign work context and the enforced artifact budget.
+service CampaignsService {
+  rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
+  rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
+  rpc ActivateCampaign(ActivateCampaignRequest) returns (ActivateCampaignResponse);
+}
+
+message Campaign {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+}
+
+message ListCampaignsRequest {}
+
+message ListCampaignsResponse {
+  repeated Campaign campaigns = 1;
+}
+
+message CampaignSlot {
+  string channel = 1;
+  string format = 2;
+  int32 capacity = 3;
+}
+
+message CreateCampaignRequest {
+  string name = 1;
+  repeated string evidence_refs = 2;
+  repeated CampaignSlot slots = 3;
+}
+message CreateCampaignResponse { Campaign campaign = 1; }
+message ActivateCampaignRequest { string id = 1; }
+message ActivateCampaignResponse { Campaign campaign = 1; }

@@ -16,7 +16,167 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-validation/v1/validation.proto.
  */
 export const file_scenario_validation_v1_validation: GenFile = /*@__PURE__*/
-  fileDesc("CidzY2VuYXJpby12YWxpZGF0aW9uL3YxL3ZhbGlkYXRpb24ucHJvdG8SHXZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxIlQKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YAyABKAgi+wEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRI/CgZzdGF0dXMYAiABKA4yLy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uU3RhdHVzEjEKCmFzc2Vzc21lbnQYAyABKAsyHS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50EisKDW5hdGl2ZV9kZXRhaWwYBCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55EiwKB21ldHJpY3MYBSABKAsyGy5jb21tb24udjEuRXhlY3V0aW9uTWV0cmljcyJ9ChJWYWxpZGF0aW9uUnVuRXJyb3ISQwoEY29kZRgBIAEoDjI1LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW5FcnJvckNvZGUSDwoHbWVzc2FnZRgCIAEoCRIRCglyZXRyeWFibGUYAyABKAgivgUKDVZhbGlkYXRpb25SdW4SDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBHBhdGgYAyABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAQgASgJEhUKDXBhcmVudF9ydW5faWQYBSABKAkSQAoFc3RhdGUYBiABKA4yMS52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uUnVuU3RhdGUSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKc3RhcnRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI2ChNlc3RpbWF0ZWRfcmVtYWluaW5nGAogASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEloKGXByZWxpbWluYXJ5X3N0YXRpY19yZXN1bHQYCyABKAsyNy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USUAoPdGVybWluYWxfcmVzdWx0GAwgASgLMjcudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGVTY2VuYXJpb1Jlc3BvbnNlEkAKBWVycm9yGA0gASgLMjEudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGlvblJ1bkVycm9yEjEKE2FydGlmYWN0X3JlZmVyZW5jZXMYDiADKAsyFC5nb29nbGUucHJvdG9idWYuQW55Eh4KFmNhbmNlbGxhdGlvbl9yZXF1ZXN0ZWQYDyABKAgiawoZU3RhcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgDIAEoCRIVCg1wYXJlbnRfcnVuX2lkGAQgASgJIlcKGlN0YXJ0VmFsaWRhdGlvblJ1blJlc3BvbnNlEjkKA3J1bhgBIAEoCzIsLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW4iKQoXR2V0VmFsaWRhdGlvblJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJIlUKGEdldFZhbGlkYXRpb25SdW5SZXNwb25zZRI5CgNydW4YASABKAsyLC52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uUnVuIlYKGFdhaXRWYWxpZGF0aW9uUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkSKgoHdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiJWChlXYWl0VmFsaWRhdGlvblJ1blJlc3BvbnNlEjkKA3J1bhgBIAEoCzIsLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW4iOwoZQWJvcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkSDgoGcmVhc29uGAIgASgJIlcKGkFib3J0VmFsaWRhdGlvblJ1blJlc3BvbnNlEjkKA3J1bhgBIAEoCzIsLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW4iPgoKRml4UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhAKCHJ1bGVfaWRzGAMgAygJIncKDEZpeENhbmRpZGF0ZRIPCgdydWxlX2lkGAEgASgJEhEKCWZpbGVfcGF0aBgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZiZWZvcmUYBCABKAkSDQoFYWZ0ZXIYBSABKAkSDwoHYXBwbGllZBgGIAEoCCKDAQoLRml4UmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSDwoHYXBwbGllZBgCIAEoCBI/CgpjYW5kaWRhdGVzGAMgAygLMisudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuRml4Q2FuZGlkYXRlEhAKCG1lc3NhZ2VzGAQgAygJKs0BChBWYWxpZGF0aW9uU3RhdHVzEiEKHVZBTElEQVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYVkFMSURBVElPTl9TVEFUVVNfUEFTU0VEEAESHAoYVkFMSURBVElPTl9TVEFUVVNfRkFJTEVEEAISHgoaVkFMSURBVElPTl9TVEFUVVNfREVHUkFERUQQAxIbChdWQUxJREFUSU9OX1NUQVRVU19FUlJPUhAEEh0KGVZBTElEQVRJT05fU1RBVFVTX1NLSVBQRUQQBSqPAgoSVmFsaWRhdGlvblJ1blN0YXRlEiQKIFZBTElEQVRJT05fUlVOX1NUQVRFX1VOU1BFQ0lGSUVEEAASHwobVkFMSURBVElPTl9SVU5fU1RBVEVfUVVFVUVEEAESIAocVkFMSURBVElPTl9SVU5fU1RBVEVfUlVOTklORxACEiIKHlZBTElEQVRJT05fUlVOX1NUQVRFX1NVQ0NFRURFRBADEh8KG1ZBTElEQVRJT05fUlVOX1NUQVRFX0ZBSUxFRBAEEiEKHVZBTElEQVRJT05fUlVOX1NUQVRFX0NBTkNFTEVEEAUSKAokVkFMSURBVElPTl9SVU5fU1RBVEVfUkVDT1ZFUllfRkFJTEVEEAYqiwMKFlZhbGlkYXRpb25SdW5FcnJvckNvZGUSKQolVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEjAKLFZBTElEQVRJT05fUlVOX0VSUk9SX0NPREVfSU5WQUxJRF9UUkFOU0lUSU9OEAESJwojVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9OT1RfRk9VTkQQAhIyCi5WQUxJREFUSU9OX1JVTl9FUlJPUl9DT0RFX0lERU1QT1RFTkNZX0NPTkZMSUNUEAMSLAooVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9BQk9SVF9SRUpFQ1RFRBAEEi4KKlZBTElEQVRJT05fUlVOX0VSUk9SX0NPREVfRVhFQ1VUSU9OX0ZBSUxFRBAFEi0KKVZBTElEQVRJT05fUlVOX0VSUk9SX0NPREVfUkVDT1ZFUllfRkFJTEVEEAYSKgomVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9XQUlUX1RJTUVPVVQQBzLpAgoZU2NlbmFyaW9WYWxpZGF0aW9uU2VydmljZRKDAQoQVmFsaWRhdGVTY2VuYXJpbxI2LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0GjcudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGVTY2VuYXJpb1Jlc3BvbnNlEmMKClByZXZpZXdGaXgSKS52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXF1ZXN0GioudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuRml4UmVzcG9uc2USYQoIQXBwbHlGaXgSKS52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXF1ZXN0GioudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuRml4UmVzcG9uc2UyxAQKG0R1cmFibGVWYWxpZGF0aW9uUnVuU2VydmljZRKJAQoSU3RhcnRWYWxpZGF0aW9uUnVuEjgudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuU3RhcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlN0YXJ0VmFsaWRhdGlvblJ1blJlc3BvbnNlEoMBChBHZXRWYWxpZGF0aW9uUnVuEjYudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuR2V0VmFsaWRhdGlvblJ1blJlcXVlc3QaNy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5HZXRWYWxpZGF0aW9uUnVuUmVzcG9uc2UShgEKEVdhaXRWYWxpZGF0aW9uUnVuEjcudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuV2FpdFZhbGlkYXRpb25SdW5SZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuV2FpdFZhbGlkYXRpb25SdW5SZXNwb25zZRKJAQoSQWJvcnRWYWxpZGF0aW9uUnVuEjgudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuQWJvcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLkFib3J0VmFsaWRhdGlvblJ1blJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2NlbmFyaW8tdmFsaWRhdGlvbi92MTtzY2VuYXJpb3ZhbGlkYXRpb252MWIGcHJvdG8z", [file_common_v1_maturity, file_common_v1_metrics, file_google_protobuf_any, file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("CidzY2VuYXJpby12YWxpZGF0aW9uL3YxL3ZhbGlkYXRpb24ucHJvdG8SHXZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxIhkKF0Rlc2NyaWJlUHJvdmlkZXJSZXF1ZXN0IusBChhEZXNjcmliZVByb3ZpZGVyUmVzcG9uc2USEAoIcHJvdmlkZXIYASABKAkSDQoFcGhhc2UYAiABKAkSFAoMc3BlY192ZXJzaW9uGAMgASgJEhAKCGNvbnRyYWN0GAQgASgJEjsKBWJ1aWxkGAUgASgLMiwudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuUHJvdmlkZXJCdWlsZBJJCgxjYXBhYmlsaXRpZXMYBiABKAsyMy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5Qcm92aWRlckNhcGFiaWxpdGllcyKhAQoNUHJvdmlkZXJCdWlsZBIQCghyZXZpc2lvbhgBIAEoCRIsCghidWlsdF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNgoSYmluYXJ5X21vZGlmaWVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBmcmVzaG5lc3NfZGlnZXN0GAQgASgJImEKFFByb3ZpZGVyQ2FwYWJpbGl0aWVzEhoKEnN1cHBvcnRzX2V4ZWN1dGlvbhgBIAEoCBIVCg1kZWxpdmVyeV9tb2RlGAIgASgJEhYKDnN1cHBvcnRzX2ZpeGVzGAMgASgIIlQKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YAyABKAgi+wEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRI/CgZzdGF0dXMYAiABKA4yLy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uU3RhdHVzEjEKCmFzc2Vzc21lbnQYAyABKAsyHS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50EisKDW5hdGl2ZV9kZXRhaWwYBCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55EiwKB21ldHJpY3MYBSABKAsyGy5jb21tb24udjEuRXhlY3V0aW9uTWV0cmljcyJ9ChJWYWxpZGF0aW9uUnVuRXJyb3ISQwoEY29kZRgBIAEoDjI1LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW5FcnJvckNvZGUSDwoHbWVzc2FnZRgCIAEoCRIRCglyZXRyeWFibGUYAyABKAgivgUKDVZhbGlkYXRpb25SdW4SDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBHBhdGgYAyABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAQgASgJEhUKDXBhcmVudF9ydW5faWQYBSABKAkSQAoFc3RhdGUYBiABKA4yMS52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uUnVuU3RhdGUSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKc3RhcnRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI2ChNlc3RpbWF0ZWRfcmVtYWluaW5nGAogASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEloKGXByZWxpbWluYXJ5X3N0YXRpY19yZXN1bHQYCyABKAsyNy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USUAoPdGVybWluYWxfcmVzdWx0GAwgASgLMjcudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGVTY2VuYXJpb1Jlc3BvbnNlEkAKBWVycm9yGA0gASgLMjEudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGlvblJ1bkVycm9yEjEKE2FydGlmYWN0X3JlZmVyZW5jZXMYDiADKAsyFC5nb29nbGUucHJvdG9idWYuQW55Eh4KFmNhbmNlbGxhdGlvbl9yZXF1ZXN0ZWQYDyABKAgiawoZU3RhcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgDIAEoCRIVCg1wYXJlbnRfcnVuX2lkGAQgASgJIlcKGlN0YXJ0VmFsaWRhdGlvblJ1blJlc3BvbnNlEjkKA3J1bhgBIAEoCzIsLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW4iKQoXR2V0VmFsaWRhdGlvblJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJIlUKGEdldFZhbGlkYXRpb25SdW5SZXNwb25zZRI5CgNydW4YASABKAsyLC52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uUnVuIlYKGFdhaXRWYWxpZGF0aW9uUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkSKgoHdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiJWChlXYWl0VmFsaWRhdGlvblJ1blJlc3BvbnNlEjkKA3J1bhgBIAEoCzIsLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW4iOwoZQWJvcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkSDgoGcmVhc29uGAIgASgJIlcKGkFib3J0VmFsaWRhdGlvblJ1blJlc3BvbnNlEjkKA3J1bhgBIAEoCzIsLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW4iPgoKRml4UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhAKCHJ1bGVfaWRzGAMgAygJIncKDEZpeENhbmRpZGF0ZRIPCgdydWxlX2lkGAEgASgJEhEKCWZpbGVfcGF0aBgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZiZWZvcmUYBCABKAkSDQoFYWZ0ZXIYBSABKAkSDwoHYXBwbGllZBgGIAEoCCKDAQoLRml4UmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSDwoHYXBwbGllZBgCIAEoCBI/CgpjYW5kaWRhdGVzGAMgAygLMisudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuRml4Q2FuZGlkYXRlEhAKCG1lc3NhZ2VzGAQgAygJKs0BChBWYWxpZGF0aW9uU3RhdHVzEiEKHVZBTElEQVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYVkFMSURBVElPTl9TVEFUVVNfUEFTU0VEEAESHAoYVkFMSURBVElPTl9TVEFUVVNfRkFJTEVEEAISHgoaVkFMSURBVElPTl9TVEFUVVNfREVHUkFERUQQAxIbChdWQUxJREFUSU9OX1NUQVRVU19FUlJPUhAEEh0KGVZBTElEQVRJT05fU1RBVFVTX1NLSVBQRUQQBSqPAgoSVmFsaWRhdGlvblJ1blN0YXRlEiQKIFZBTElEQVRJT05fUlVOX1NUQVRFX1VOU1BFQ0lGSUVEEAASHwobVkFMSURBVElPTl9SVU5fU1RBVEVfUVVFVUVEEAESIAocVkFMSURBVElPTl9SVU5fU1RBVEVfUlVOTklORxACEiIKHlZBTElEQVRJT05fUlVOX1NUQVRFX1NVQ0NFRURFRBADEh8KG1ZBTElEQVRJT05fUlVOX1NUQVRFX0ZBSUxFRBAEEiEKHVZBTElEQVRJT05fUlVOX1NUQVRFX0NBTkNFTEVEEAUSKAokVkFMSURBVElPTl9SVU5fU1RBVEVfUkVDT1ZFUllfRkFJTEVEEAYqiwMKFlZhbGlkYXRpb25SdW5FcnJvckNvZGUSKQolVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEjAKLFZBTElEQVRJT05fUlVOX0VSUk9SX0NPREVfSU5WQUxJRF9UUkFOU0lUSU9OEAESJwojVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9OT1RfRk9VTkQQAhIyCi5WQUxJREFUSU9OX1JVTl9FUlJPUl9DT0RFX0lERU1QT1RFTkNZX0NPTkZMSUNUEAMSLAooVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9BQk9SVF9SRUpFQ1RFRBAEEi4KKlZBTElEQVRJT05fUlVOX0VSUk9SX0NPREVfRVhFQ1VUSU9OX0ZBSUxFRBAFEi0KKVZBTElEQVRJT05fUlVOX0VSUk9SX0NPREVfUkVDT1ZFUllfRkFJTEVEEAYSKgomVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9XQUlUX1RJTUVPVVQQBzLvAwoZU2NlbmFyaW9WYWxpZGF0aW9uU2VydmljZRKDAQoQVmFsaWRhdGVTY2VuYXJpbxI2LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0GjcudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGVTY2VuYXJpb1Jlc3BvbnNlEoMBChBEZXNjcmliZVByb3ZpZGVyEjYudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuRGVzY3JpYmVQcm92aWRlclJlcXVlc3QaNy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5EZXNjcmliZVByb3ZpZGVyUmVzcG9uc2USYwoKUHJldmlld0ZpeBIpLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLkZpeFJlcXVlc3QaKi52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXNwb25zZRJhCghBcHBseUZpeBIpLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLkZpeFJlcXVlc3QaKi52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXNwb25zZTLEBAobRHVyYWJsZVZhbGlkYXRpb25SdW5TZXJ2aWNlEokBChJTdGFydFZhbGlkYXRpb25SdW4SOC52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5TdGFydFZhbGlkYXRpb25SdW5SZXF1ZXN0GjkudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuU3RhcnRWYWxpZGF0aW9uUnVuUmVzcG9uc2USgwEKEEdldFZhbGlkYXRpb25SdW4SNi52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5HZXRWYWxpZGF0aW9uUnVuUmVxdWVzdBo3LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLkdldFZhbGlkYXRpb25SdW5SZXNwb25zZRKGAQoRV2FpdFZhbGlkYXRpb25SdW4SNy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5XYWl0VmFsaWRhdGlvblJ1blJlcXVlc3QaOC52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5XYWl0VmFsaWRhdGlvblJ1blJlc3BvbnNlEokBChJBYm9ydFZhbGlkYXRpb25SdW4SOC52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5BYm9ydFZhbGlkYXRpb25SdW5SZXF1ZXN0GjkudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuQWJvcnRWYWxpZGF0aW9uUnVuUmVzcG9uc2VCXFpaZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby12YWxpZGF0aW9uL3YxO3NjZW5hcmlvdmFsaWRhdGlvbnYxYgZwcm90bzM", [file_common_v1_maturity, file_common_v1_metrics, file_google_protobuf_any, file_google_protobuf_duration, file_google_protobuf_timestamp]);
+
+/**
+ * DescribeProviderRequest is intentionally empty: provider identity and
+ * contract facts are properties of the provider process, never of a target.
+ * Do not add target-selection fields here — route those through
+ * ValidateScenario instead.
+ *
+ * @generated from message vrooli.scenario_validation.v1.DescribeProviderRequest
+ */
+export type DescribeProviderRequest = Message<"vrooli.scenario_validation.v1.DescribeProviderRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.DescribeProviderRequest.
+ * Use `create(DescribeProviderRequestSchema)` to create a new message.
+ */
+export const DescribeProviderRequestSchema: GenMessage<DescribeProviderRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 0);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.DescribeProviderResponse
+ */
+export type DescribeProviderResponse = Message<"vrooli.scenario_validation.v1.DescribeProviderResponse"> & {
+  /**
+   * Provider scenario slug this process serves, e.g. "security-health".
+   *
+   * @generated from field: string provider = 1;
+   */
+  provider: string;
+
+  /**
+   * Test Genie phase this provider backs, e.g. "security".
+   *
+   * @generated from field: string phase = 2;
+   */
+  phase: string;
+
+  /**
+   * Version of the provider's maturity spec (the assessment ladder), taken
+   * from the maturity block in its .vrooli/test-genie.json descriptor.
+   *
+   * @generated from field: string spec_version = 3;
+   */
+  specVersion: string;
+
+  /**
+   * Shared validation contract this binary speaks, e.g. "scenario-validation/v1".
+   *
+   * @generated from field: string contract = 4;
+   */
+  contract: string;
+
+  /**
+   * Build provenance, so freshness gates can detect a stale provider binary
+   * without running its analysis.
+   *
+   * @generated from field: vrooli.scenario_validation.v1.ProviderBuild build = 5;
+   */
+  build?: ProviderBuild | undefined;
+
+  /**
+   * What this provider can actually do, so consumers can detect drift between
+   * a descriptor's declarations and the running binary's behavior.
+   *
+   * @generated from field: vrooli.scenario_validation.v1.ProviderCapabilities capabilities = 6;
+   */
+  capabilities?: ProviderCapabilities | undefined;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.DescribeProviderResponse.
+ * Use `create(DescribeProviderResponseSchema)` to create a new message.
+ */
+export const DescribeProviderResponseSchema: GenMessage<DescribeProviderResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 1);
+
+/**
+ * ProviderBuild carries whatever build provenance the provider can determine.
+ * Every field is best-effort: a provider that cannot determine a value leaves
+ * it unset rather than inventing one, and consumers must treat unset as
+ * "unknown", never as "stale".
+ *
+ * @generated from message vrooli.scenario_validation.v1.ProviderBuild
+ */
+export type ProviderBuild = Message<"vrooli.scenario_validation.v1.ProviderBuild"> & {
+  /**
+   * Version control revision the binary was built from, when known.
+   *
+   * @generated from field: string revision = 1;
+   */
+  revision: string;
+
+  /**
+   * Build timestamp, when known.
+   *
+   * @generated from field: google.protobuf.Timestamp built_at = 2;
+   */
+  builtAt?: Timestamp | undefined;
+
+  /**
+   * Modification time of the running binary, observed once at process start.
+   *
+   * @generated from field: google.protobuf.Timestamp binary_modified_at = 3;
+   */
+  binaryModifiedAt?: Timestamp | undefined;
+
+  /**
+   * Freshness-manifest digest this process read at startup. A consumer that
+   * finds a different digest on disk knows the binary was rebuilt but never
+   * restarted, so the running process is serving superseded code. Empty when
+   * the provider has no manifest; consumers must treat empty as "unknown"
+   * rather than "stale", so a missing stamp can never trigger a restart.
+   *
+   * @generated from field: string freshness_digest = 4;
+   */
+  freshnessDigest: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.ProviderBuild.
+ * Use `create(ProviderBuildSchema)` to create a new message.
+ */
+export const ProviderBuildSchema: GenMessage<ProviderBuild> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 2);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.ProviderCapabilities
+ */
+export type ProviderCapabilities = Message<"vrooli.scenario_validation.v1.ProviderCapabilities"> & {
+  /**
+   * True when include_execution=true does measurably more work than false.
+   * Providers whose only mode is inspection report false, which tells a
+   * consumer that a ValidateScenario-based readiness probe would cost a full
+   * analysis — the drift that made this RPC necessary.
+   *
+   * @generated from field: bool supports_execution = 1;
+   */
+  supportsExecution: boolean;
+
+  /**
+   * Delivery mode this provider implements: "inline" or "durable-run".
+   *
+   * @generated from field: string delivery_mode = 2;
+   */
+  deliveryMode: string;
+
+  /**
+   * True when the provider implements PreviewFix/ApplyFix.
+   *
+   * @generated from field: bool supports_fixes = 3;
+   */
+  supportsFixes: boolean;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.ProviderCapabilities.
+ * Use `create(ProviderCapabilitiesSchema)` to create a new message.
+ */
+export const ProviderCapabilitiesSchema: GenMessage<ProviderCapabilities> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 3);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.ValidateScenarioRequest
@@ -54,7 +214,7 @@ export type ValidateScenarioRequest = Message<"vrooli.scenario_validation.v1.Val
  * Use `create(ValidateScenarioRequestSchema)` to create a new message.
  */
 export const ValidateScenarioRequestSchema: GenMessage<ValidateScenarioRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 0);
+  messageDesc(file_scenario_validation_v1_validation, 4);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.ValidateScenarioResponse
@@ -100,7 +260,7 @@ export type ValidateScenarioResponse = Message<"vrooli.scenario_validation.v1.Va
  * Use `create(ValidateScenarioResponseSchema)` to create a new message.
  */
 export const ValidateScenarioResponseSchema: GenMessage<ValidateScenarioResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 1);
+  messageDesc(file_scenario_validation_v1_validation, 5);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.ValidationRunError
@@ -127,7 +287,7 @@ export type ValidationRunError = Message<"vrooli.scenario_validation.v1.Validati
  * Use `create(ValidationRunErrorSchema)` to create a new message.
  */
 export const ValidationRunErrorSchema: GenMessage<ValidationRunError> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 2);
+  messageDesc(file_scenario_validation_v1_validation, 6);
 
 /**
  * ValidationRun is the durable, reattachable provider-owned record. Terminal
@@ -218,7 +378,7 @@ export type ValidationRun = Message<"vrooli.scenario_validation.v1.ValidationRun
  * Use `create(ValidationRunSchema)` to create a new message.
  */
 export const ValidationRunSchema: GenMessage<ValidationRun> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 3);
+  messageDesc(file_scenario_validation_v1_validation, 7);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.StartValidationRunRequest
@@ -256,7 +416,7 @@ export type StartValidationRunRequest = Message<"vrooli.scenario_validation.v1.S
  * Use `create(StartValidationRunRequestSchema)` to create a new message.
  */
 export const StartValidationRunRequestSchema: GenMessage<StartValidationRunRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 4);
+  messageDesc(file_scenario_validation_v1_validation, 8);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.StartValidationRunResponse
@@ -273,7 +433,7 @@ export type StartValidationRunResponse = Message<"vrooli.scenario_validation.v1.
  * Use `create(StartValidationRunResponseSchema)` to create a new message.
  */
 export const StartValidationRunResponseSchema: GenMessage<StartValidationRunResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 5);
+  messageDesc(file_scenario_validation_v1_validation, 9);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.GetValidationRunRequest
@@ -290,7 +450,7 @@ export type GetValidationRunRequest = Message<"vrooli.scenario_validation.v1.Get
  * Use `create(GetValidationRunRequestSchema)` to create a new message.
  */
 export const GetValidationRunRequestSchema: GenMessage<GetValidationRunRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 6);
+  messageDesc(file_scenario_validation_v1_validation, 10);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.GetValidationRunResponse
@@ -307,7 +467,7 @@ export type GetValidationRunResponse = Message<"vrooli.scenario_validation.v1.Ge
  * Use `create(GetValidationRunResponseSchema)` to create a new message.
  */
 export const GetValidationRunResponseSchema: GenMessage<GetValidationRunResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 7);
+  messageDesc(file_scenario_validation_v1_validation, 11);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.WaitValidationRunRequest
@@ -332,7 +492,7 @@ export type WaitValidationRunRequest = Message<"vrooli.scenario_validation.v1.Wa
  * Use `create(WaitValidationRunRequestSchema)` to create a new message.
  */
 export const WaitValidationRunRequestSchema: GenMessage<WaitValidationRunRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 8);
+  messageDesc(file_scenario_validation_v1_validation, 12);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.WaitValidationRunResponse
@@ -349,7 +509,7 @@ export type WaitValidationRunResponse = Message<"vrooli.scenario_validation.v1.W
  * Use `create(WaitValidationRunResponseSchema)` to create a new message.
  */
 export const WaitValidationRunResponseSchema: GenMessage<WaitValidationRunResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 9);
+  messageDesc(file_scenario_validation_v1_validation, 13);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.AbortValidationRunRequest
@@ -371,7 +531,7 @@ export type AbortValidationRunRequest = Message<"vrooli.scenario_validation.v1.A
  * Use `create(AbortValidationRunRequestSchema)` to create a new message.
  */
 export const AbortValidationRunRequestSchema: GenMessage<AbortValidationRunRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 10);
+  messageDesc(file_scenario_validation_v1_validation, 14);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.AbortValidationRunResponse
@@ -388,7 +548,7 @@ export type AbortValidationRunResponse = Message<"vrooli.scenario_validation.v1.
  * Use `create(AbortValidationRunResponseSchema)` to create a new message.
  */
 export const AbortValidationRunResponseSchema: GenMessage<AbortValidationRunResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 11);
+  messageDesc(file_scenario_validation_v1_validation, 15);
 
 /**
  * FixRequest selects the deterministic remediations to preview or apply for a
@@ -426,7 +586,7 @@ export type FixRequest = Message<"vrooli.scenario_validation.v1.FixRequest"> & {
  * Use `create(FixRequestSchema)` to create a new message.
  */
 export const FixRequestSchema: GenMessage<FixRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 12);
+  messageDesc(file_scenario_validation_v1_validation, 16);
 
 /**
  * FixCandidate is a single proposed (dry-run) or applied file edit. It mirrors
@@ -484,7 +644,7 @@ export type FixCandidate = Message<"vrooli.scenario_validation.v1.FixCandidate">
  * Use `create(FixCandidateSchema)` to create a new message.
  */
 export const FixCandidateSchema: GenMessage<FixCandidate> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 13);
+  messageDesc(file_scenario_validation_v1_validation, 17);
 
 /**
  * FixResponse reports the candidates a provider previewed or applied.
@@ -526,7 +686,7 @@ export type FixResponse = Message<"vrooli.scenario_validation.v1.FixResponse"> &
  * Use `create(FixResponseSchema)` to create a new message.
  */
 export const FixResponseSchema: GenMessage<FixResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 14);
+  messageDesc(file_scenario_validation_v1_validation, 18);
 
 /**
  * @generated from enum vrooli.scenario_validation.v1.ValidationStatus
@@ -684,6 +844,29 @@ export const ScenarioValidationService: GenService<{
     methodKind: "unary";
     input: typeof ValidateScenarioRequestSchema;
     output: typeof ValidateScenarioResponseSchema;
+  },
+  /**
+   * DescribeProvider reports the provider's own identity and contract facts
+   * without inspecting any target. Readiness consumers ask three questions —
+   * is this provider live, does it speak the current contract, and is it who
+   * its descriptor claims — none of whose answers can depend on a target
+   * scenario. Answering them through ValidateScenario forced a full target
+   * analysis for two strings; this RPC exists so that cannot happen.
+   *
+   * The request is deliberately empty. That is load-bearing: with no target
+   * fields there is no way for an implementation to drift back into doing
+   * target work here.
+   *
+   * Providers that have not adopted it leave it unimplemented; consumers treat
+   * an Unimplemented response as "fall back to the legacy ValidateScenario
+   * readiness probe", so adoption is incremental.
+   *
+   * @generated from rpc vrooli.scenario_validation.v1.ScenarioValidationService.DescribeProvider
+   */
+  describeProvider: {
+    methodKind: "unary";
+    input: typeof DescribeProviderRequestSchema;
+    output: typeof DescribeProviderResponseSchema;
   },
   /**
    * PreviewFix reports the deterministic remediations the provider could apply

@@ -26,7 +26,7 @@ class ListBundleCatalogResponse(_message.Message):
     def __init__(self, bundles: _Optional[_Iterable[_Union[BundleCatalogEntry, _Mapping]]] = ...) -> None: ...
 
 class UpdateBundlePriceRequest(_message.Message):
-    __slots__ = ("bundle_key", "price_id", "plan_name", "display_weight", "display_enabled", "subtitle", "badge", "cta_label", "highlight", "features")
+    __slots__ = ("bundle_key", "price_id", "plan_name", "display_weight", "display_enabled", "subtitle", "badge", "cta_label", "highlight", "features", "stripe_price_id", "features_present")
     BUNDLE_KEY_FIELD_NUMBER: _ClassVar[int]
     PRICE_ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -37,6 +37,8 @@ class UpdateBundlePriceRequest(_message.Message):
     CTA_LABEL_FIELD_NUMBER: _ClassVar[int]
     HIGHLIGHT_FIELD_NUMBER: _ClassVar[int]
     FEATURES_FIELD_NUMBER: _ClassVar[int]
+    STRIPE_PRICE_ID_FIELD_NUMBER: _ClassVar[int]
+    FEATURES_PRESENT_FIELD_NUMBER: _ClassVar[int]
     bundle_key: str
     price_id: str
     plan_name: str
@@ -47,7 +49,9 @@ class UpdateBundlePriceRequest(_message.Message):
     cta_label: str
     highlight: bool
     features: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, bundle_key: _Optional[str] = ..., price_id: _Optional[str] = ..., plan_name: _Optional[str] = ..., display_weight: _Optional[int] = ..., display_enabled: _Optional[bool] = ..., subtitle: _Optional[str] = ..., badge: _Optional[str] = ..., cta_label: _Optional[str] = ..., highlight: _Optional[bool] = ..., features: _Optional[_Iterable[str]] = ...) -> None: ...
+    stripe_price_id: str
+    features_present: bool
+    def __init__(self, bundle_key: _Optional[str] = ..., price_id: _Optional[str] = ..., plan_name: _Optional[str] = ..., display_weight: _Optional[int] = ..., display_enabled: _Optional[bool] = ..., subtitle: _Optional[str] = ..., badge: _Optional[str] = ..., cta_label: _Optional[str] = ..., highlight: _Optional[bool] = ..., features: _Optional[_Iterable[str]] = ..., stripe_price_id: _Optional[str] = ..., features_present: _Optional[bool] = ...) -> None: ...
 
 class UpdateBundlePriceResponse(_message.Message):
     __slots__ = ("price",)

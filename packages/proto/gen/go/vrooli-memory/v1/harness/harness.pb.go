@@ -68,6 +68,7 @@ func (x *RuntimeRequest) GetRuntime() string {
 type RunImportRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"`
+	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -109,11 +110,19 @@ func (x *RunImportRequest) GetRuntime() string {
 	return ""
 }
 
+func (x *RunImportRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
 type RunImportResponse struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	ImportedCount     int32                  `protobuf:"varint,1,opt,name=imported_count,json=importedCount,proto3" json:"imported_count,omitempty"`
 	Run               *ImportRun             `protobuf:"bytes,2,opt,name=run,proto3" json:"run,omitempty"`
 	JoinedExistingRun bool                   `protobuf:"varint,3,opt,name=joined_existing_run,json=joinedExistingRun,proto3" json:"joined_existing_run,omitempty"`
+	DryRun            bool                   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -165,6 +174,13 @@ func (x *RunImportResponse) GetRun() *ImportRun {
 func (x *RunImportResponse) GetJoinedExistingRun() bool {
 	if x != nil {
 		return x.JoinedExistingRun
+	}
+	return false
+}
+
+func (x *RunImportResponse) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
 	}
 	return false
 }
@@ -699,13 +715,15 @@ const file_vrooli_memory_v1_harness_harness_proto_rawDesc = "" +
 	"\n" +
 	"&vrooli-memory/v1/harness/harness.proto\x12\x1fvrooli.vrooli_memory.v1.harness\"*\n" +
 	"\x0eRuntimeRequest\x12\x18\n" +
-	"\aruntime\x18\x01 \x01(\tR\aruntime\",\n" +
+	"\aruntime\x18\x01 \x01(\tR\aruntime\"E\n" +
 	"\x10RunImportRequest\x12\x18\n" +
-	"\aruntime\x18\x01 \x01(\tR\aruntime\"\xa8\x01\n" +
+	"\aruntime\x18\x01 \x01(\tR\aruntime\x12\x17\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\xc1\x01\n" +
 	"\x11RunImportResponse\x12%\n" +
 	"\x0eimported_count\x18\x01 \x01(\x05R\rimportedCount\x12<\n" +
 	"\x03run\x18\x02 \x01(\v2*.vrooli.vrooli_memory.v1.harness.ImportRunR\x03run\x12.\n" +
-	"\x13joined_existing_run\x18\x03 \x01(\bR\x11joinedExistingRun\"I\n" +
+	"\x13joined_existing_run\x18\x03 \x01(\bR\x11joinedExistingRun\x12\x17\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"I\n" +
 	"\x16GetImportStatusRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x18\n" +
 	"\aruntime\x18\x02 \x01(\tR\aruntime\"W\n" +

@@ -153,7 +153,13 @@ message NodeExecutionSettings {
   // Maximum time for this step in milliseconds (default: 30000).
   optional int32 timeout_ms = 1;
   // Wait time after step completes before proceeding in milliseconds.
-  optional int32 wait_after_ms = 2;
+  //
+  // NOT IMPLEMENTED. No executor or driver has ever applied this value, so a
+  // workflow declaring it gets no settle time at all. Do not add new uses: wait
+  // on a real condition (an ACTION_TYPE_WAIT with a selector) instead, which is
+  // both correct and faster than a fixed sleep. Retained rather than reserved
+  // because assets outside browser-automation-studio still set it.
+  optional int32 wait_after_ms = 2 [deprecated = true];
   // Continue workflow if this step fails.
   optional bool continue_on_error = 3;
   // Retry/resilience configuration.

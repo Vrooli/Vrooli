@@ -202,6 +202,13 @@ func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, erro
 		return Draft{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	var postTypeExists int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_types WHERE id = ?`, draft.PostTypeID).Scan(&postTypeExists); err != nil {
+		return Draft{}, fmt.Errorf("validate post type: %w", err)
+	}
+	if postTypeExists != 1 {
+		return Draft{}, fmt.Errorf("post type %q is not registered", draft.PostTypeID)
+	}
 	reserved, err := tx.ExecContext(ctx, `UPDATE campaign_slots SET reserved = reserved + 1 WHERE campaign_id = ? AND channel = ? AND format = ? AND reserved < capacity`, draft.CampaignID, draft.Channel, draft.Format)
 	if err != nil {
 		return Draft{}, fmt.Errorf("reserve campaign slot: %w", err)

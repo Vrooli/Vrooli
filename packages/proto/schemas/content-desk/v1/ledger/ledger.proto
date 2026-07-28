@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package vrooli.content_desk.v1.ledger;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/ledger;ledger_v1";
+
+// LedgerService owns append-oriented publish history and its read surface.
+service LedgerService {
+  rpc ListPublishRecords(ListPublishRecordsRequest) returns (ListPublishRecordsResponse);
+  rpc ListContaminatedPublishRecords(ListContaminatedPublishRecordsRequest) returns (ListContaminatedPublishRecordsResponse);
+  rpc ListCoverage(ListCoverageRequest) returns (ListCoverageResponse);
+}
+
+message PublishRecord {
+  string id = 1;
+  string draft_id = 2;
+  string published_url = 3;
+  string platform_post_id = 4;
+}
+
+message ListPublishRecordsRequest {}
+
+message ListPublishRecordsResponse {
+  repeated PublishRecord publish_records = 1;
+}
+
+message ListContaminatedPublishRecordsRequest { string claim_id = 1; }
+message ListContaminatedPublishRecordsResponse { repeated PublishRecord publish_records = 1; }
+
+message CoverageCell {
+  string campaign_id = 1;
+  string lane = 2;
+  string channel = 3;
+  string sku = 4;
+  int32 publish_count = 5;
+  string last_published_at = 6;
+  bool stale = 7;
+}
+message ListCoverageRequest { int32 stale_after_days = 1; }
+message ListCoverageResponse { repeated CoverageCell cells = 1; }

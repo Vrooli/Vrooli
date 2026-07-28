@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-memory/v1/journal/journal.proto.
  */
 export const file_vrooli_memory_v1_journal_journal: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktbWVtb3J5L3YxL2pvdXJuYWwvam91cm5hbC5wcm90bxIfdnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbCI+CglGYWNldFRleHQSDAoEa2luZBgBIAEoCRIMCgR0ZXh0GAIgASgJEhUKDWVtYmVkZGluZ19yZWYYAyABKAkiSwoLQXR0cmlidXRpb24SEAoIYWN0b3JfaWQYASABKAkSEgoKYWN0b3Jfa2luZBgCIAEoCRIWCg5zb3VyY2VfcnVudGltZRgDIAEoCSJQCgtDb3JyZWxhdGlvbhIOCgZydW5faWQYASABKAkSHQoVd29ya2Zsb3dfZXhlY3V0aW9uX2lkGAIgASgJEhIKCmFjdG9yX2tpbmQYAyABKAkiUQoQSW1wb3J0UHJvdmVuYW5jZRIPCgdydW50aW1lGAEgASgJEhYKDnNvdXJjZV9sb2NhdG9yGAIgASgJEhQKDGNvbnRlbnRfaGFzaBgDIAEoCSK5AwoFRW50cnkSCgoCaWQYASABKAkSDAoEYm9keRgCIAEoCRIQCghmYWNldF9pZBgDIAEoCRJBCgthdHRyaWJ1dGlvbhgEIAEoCzIsLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuQXR0cmlidXRpb24SQQoLY29ycmVsYXRpb24YBSABKAsyLC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkNvcnJlbGF0aW9uEkwKEWltcG9ydF9wcm92ZW5hbmNlGAYgASgLMjEudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5JbXBvcnRQcm92ZW5hbmNlEj8KC2ZhY2V0X3RleHRzGAcgAygLMioudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5GYWNldFRleHQSLgoKY3JlYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMQoNc3VwZXJzZWRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEa2luZBgKIAEoCSKWAgoSQXBwZW5kRW50cnlSZXF1ZXN0EgwKBGJvZHkYASABKAkSEAoIZmFjZXRfaWQYAiABKAkSDAoEa2luZBgDIAEoCRJBCgthdHRyaWJ1dGlvbhgEIAEoCzIsLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuQXR0cmlidXRpb24SQQoLY29ycmVsYXRpb24YBSABKAsyLC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkNvcnJlbGF0aW9uEkwKEWltcG9ydF9wcm92ZW5hbmNlGAYgASgLMjEudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5JbXBvcnRQcm92ZW5hbmNlIkwKE0FwcGVuZEVudHJ5UmVzcG9uc2USNQoFZW50cnkYASABKAsyJi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkVudHJ5Ih0KD0dldEVudHJ5UmVxdWVzdBIKCgJpZBgBIAEoCSJJChBHZXRFbnRyeVJlc3BvbnNlEjUKBWVudHJ5GAEgASgLMiYudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5FbnRyeSJFChJMaXN0RW50cmllc1JlcXVlc3QSEAoIZmFjZXRfaWQYASABKAkSDQoFbGltaXQYAiABKAUSDgoGY3Vyc29yGAMgASgJImMKE0xpc3RFbnRyaWVzUmVzcG9uc2USNwoHZW50cmllcxgBIAMoCzImLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuRW50cnkSEwoLbmV4dF9jdXJzb3IYAiABKAky9QIKDkpvdXJuYWxTZXJ2aWNlEngKC0FwcGVuZEVudHJ5EjMudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5BcHBlbmRFbnRyeVJlcXVlc3QaNC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkFwcGVuZEVudHJ5UmVzcG9uc2USbwoIR2V0RW50cnkSMC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkdldEVudHJ5UmVxdWVzdBoxLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuR2V0RW50cnlSZXNwb25zZRJ4CgtMaXN0RW50cmllcxIzLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuTGlzdEVudHJpZXNSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5MaXN0RW50cmllc1Jlc3BvbnNlQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLW1lbW9yeS92MS9qb3VybmFsO2pvdXJuYWxfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CiZ2cm9vbGktbWVtb3J5L3YxL2pvdXJuYWwvam91cm5hbC5wcm90bxIfdnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbCI+CglGYWNldFRleHQSDAoEa2luZBgBIAEoCRIMCgR0ZXh0GAIgASgJEhUKDWVtYmVkZGluZ19yZWYYAyABKAkiSwoLQXR0cmlidXRpb24SEAoIYWN0b3JfaWQYASABKAkSEgoKYWN0b3Jfa2luZBgCIAEoCRIWCg5zb3VyY2VfcnVudGltZRgDIAEoCSJQCgtDb3JyZWxhdGlvbhIOCgZydW5faWQYASABKAkSHQoVd29ya2Zsb3dfZXhlY3V0aW9uX2lkGAIgASgJEhIKCmFjdG9yX2tpbmQYAyABKAkiUQoQSW1wb3J0UHJvdmVuYW5jZRIPCgdydW50aW1lGAEgASgJEhYKDnNvdXJjZV9sb2NhdG9yGAIgASgJEhQKDGNvbnRlbnRfaGFzaBgDIAEoCSK5AwoFRW50cnkSCgoCaWQYASABKAkSDAoEYm9keRgCIAEoCRIQCghmYWNldF9pZBgDIAEoCRJBCgthdHRyaWJ1dGlvbhgEIAEoCzIsLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuQXR0cmlidXRpb24SQQoLY29ycmVsYXRpb24YBSABKAsyLC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkNvcnJlbGF0aW9uEkwKEWltcG9ydF9wcm92ZW5hbmNlGAYgASgLMjEudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5JbXBvcnRQcm92ZW5hbmNlEj8KC2ZhY2V0X3RleHRzGAcgAygLMioudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5GYWNldFRleHQSLgoKY3JlYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMQoNc3VwZXJzZWRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEa2luZBgKIAEoCSKWAgoSQXBwZW5kRW50cnlSZXF1ZXN0EgwKBGJvZHkYASABKAkSEAoIZmFjZXRfaWQYAiABKAkSDAoEa2luZBgDIAEoCRJBCgthdHRyaWJ1dGlvbhgEIAEoCzIsLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuQXR0cmlidXRpb24SQQoLY29ycmVsYXRpb24YBSABKAsyLC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkNvcnJlbGF0aW9uEkwKEWltcG9ydF9wcm92ZW5hbmNlGAYgASgLMjEudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5JbXBvcnRQcm92ZW5hbmNlIkwKE0FwcGVuZEVudHJ5UmVzcG9uc2USNQoFZW50cnkYASABKAsyJi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkVudHJ5Ih0KD0dldEVudHJ5UmVxdWVzdBIKCgJpZBgBIAEoCSJJChBHZXRFbnRyeVJlc3BvbnNlEjUKBWVudHJ5GAEgASgLMiYudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5FbnRyeSJFChJMaXN0RW50cmllc1JlcXVlc3QSEAoIZmFjZXRfaWQYASABKAkSDQoFbGltaXQYAiABKAUSDgoGY3Vyc29yGAMgASgJImMKE0xpc3RFbnRyaWVzUmVzcG9uc2USNwoHZW50cmllcxgBIAMoCzImLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuRW50cnkSEwoLbmV4dF9jdXJzb3IYAiABKAkiNAojUHJvY2Vzc0NsYXNzaWZpY2F0aW9uUmV0cmllc1JlcXVlc3QSDQoFbGltaXQYASABKAUiZQokUHJvY2Vzc0NsYXNzaWZpY2F0aW9uUmV0cmllc1Jlc3BvbnNlEhEKCXByb2Nlc3NlZBgBIAEoBRIQCghkZWZlcnJlZBgCIAEoBRIYChBhbHJlYWR5X3Jlc29sdmVkGAMgASgFIi8KHlByb2Nlc3NFbWJlZGRpbmdSZXRyaWVzUmVxdWVzdBINCgVsaW1pdBgBIAEoBSJgCh9Qcm9jZXNzRW1iZWRkaW5nUmV0cmllc1Jlc3BvbnNlEhEKCXByb2Nlc3NlZBgBIAEoBRIQCghkZWZlcnJlZBgCIAEoBRIYChBhbHJlYWR5X3Jlc29sdmVkGAMgASgFMsIFCg5Kb3VybmFsU2VydmljZRJ4CgtBcHBlbmRFbnRyeRIzLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuQXBwZW5kRW50cnlSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5BcHBlbmRFbnRyeVJlc3BvbnNlEm8KCEdldEVudHJ5EjAudnJvb2xpLnZyb29saV9tZW1vcnkudjEuam91cm5hbC5HZXRFbnRyeVJlcXVlc3QaMS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkdldEVudHJ5UmVzcG9uc2USeAoLTGlzdEVudHJpZXMSMy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLkxpc3RFbnRyaWVzUmVxdWVzdBo0LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuTGlzdEVudHJpZXNSZXNwb25zZRKrAQocUHJvY2Vzc0NsYXNzaWZpY2F0aW9uUmV0cmllcxJELnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuUHJvY2Vzc0NsYXNzaWZpY2F0aW9uUmV0cmllc1JlcXVlc3QaRS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLlByb2Nlc3NDbGFzc2lmaWNhdGlvblJldHJpZXNSZXNwb25zZRKcAQoXUHJvY2Vzc0VtYmVkZGluZ1JldHJpZXMSPy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5qb3VybmFsLlByb2Nlc3NFbWJlZGRpbmdSZXRyaWVzUmVxdWVzdBpALnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmpvdXJuYWwuUHJvY2Vzc0VtYmVkZGluZ1JldHJpZXNSZXNwb25zZUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1tZW1vcnkvdjEvam91cm5hbDtqb3VybmFsX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.journal.FacetText
@@ -327,6 +327,94 @@ export const ListEntriesResponseSchema: GenMessage<ListEntriesResponse> = /*@__P
   messageDesc(file_vrooli_memory_v1_journal_journal, 10);
 
 /**
+ * @generated from message vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesRequest
+ */
+export type ProcessClassificationRetriesRequest = Message<"vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesRequest"> & {
+  /**
+   * @generated from field: int32 limit = 1;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesRequest.
+ * Use `create(ProcessClassificationRetriesRequestSchema)` to create a new message.
+ */
+export const ProcessClassificationRetriesRequestSchema: GenMessage<ProcessClassificationRetriesRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_journal_journal, 11);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesResponse
+ */
+export type ProcessClassificationRetriesResponse = Message<"vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesResponse"> & {
+  /**
+   * @generated from field: int32 processed = 1;
+   */
+  processed: number;
+
+  /**
+   * @generated from field: int32 deferred = 2;
+   */
+  deferred: number;
+
+  /**
+   * @generated from field: int32 already_resolved = 3;
+   */
+  alreadyResolved: number;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesResponse.
+ * Use `create(ProcessClassificationRetriesResponseSchema)` to create a new message.
+ */
+export const ProcessClassificationRetriesResponseSchema: GenMessage<ProcessClassificationRetriesResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_journal_journal, 12);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesRequest
+ */
+export type ProcessEmbeddingRetriesRequest = Message<"vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesRequest"> & {
+  /**
+   * @generated from field: int32 limit = 1;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesRequest.
+ * Use `create(ProcessEmbeddingRetriesRequestSchema)` to create a new message.
+ */
+export const ProcessEmbeddingRetriesRequestSchema: GenMessage<ProcessEmbeddingRetriesRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_journal_journal, 13);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesResponse
+ */
+export type ProcessEmbeddingRetriesResponse = Message<"vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesResponse"> & {
+  /**
+   * @generated from field: int32 processed = 1;
+   */
+  processed: number;
+
+  /**
+   * @generated from field: int32 deferred = 2;
+   */
+  deferred: number;
+
+  /**
+   * @generated from field: int32 already_resolved = 3;
+   */
+  alreadyResolved: number;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesResponse.
+ * Use `create(ProcessEmbeddingRetriesResponseSchema)` to create a new message.
+ */
+export const ProcessEmbeddingRetriesResponseSchema: GenMessage<ProcessEmbeddingRetriesResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_journal_journal, 14);
+
+/**
  * @generated from service vrooli.vrooli_memory.v1.journal.JournalService
  */
 export const JournalService: GenService<{
@@ -353,6 +441,22 @@ export const JournalService: GenService<{
     methodKind: "unary";
     input: typeof ListEntriesRequestSchema;
     output: typeof ListEntriesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_memory.v1.journal.JournalService.ProcessClassificationRetries
+   */
+  processClassificationRetries: {
+    methodKind: "unary";
+    input: typeof ProcessClassificationRetriesRequestSchema;
+    output: typeof ProcessClassificationRetriesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_memory.v1.journal.JournalService.ProcessEmbeddingRetries
+   */
+  processEmbeddingRetries: {
+    methodKind: "unary";
+    input: typeof ProcessEmbeddingRetriesRequestSchema;
+    output: typeof ProcessEmbeddingRetriesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_memory_v1_journal_journal, 0);

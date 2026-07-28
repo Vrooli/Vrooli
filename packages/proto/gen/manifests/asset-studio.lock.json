@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "asset-studio",
+  "input_digest": "sha256:4f6e660ba77083c8652822b344c1e9182d1c1480526ecf006557953331bfaf01",
+  "input_files": [
+    "schemas/asset-studio/v1/notes/attachments.proto",
+    "schemas/asset-studio/v1/notes/notes.proto",
+    "schemas/asset-studio/v1/shared/errors.proto",
+    "schemas/asset-studio/v1/shared/health.proto",
+    "schemas/measures/v1/measures.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/asset-studio/v1/notes/attachments.pb.go": "sha256:8a65b1a91776cd54f09d199f52d9568df1b9b8b9d5dbdcb6b4da6a4f75532a91",
+    "gen/go/asset-studio/v1/notes/notes.pb.go": "sha256:647cbb12b26f65715d2db36fa84e9f0528a2c52dd06987124212cfdd90efbe42",
+    "gen/go/asset-studio/v1/notes/notes_v1connect/notes.connect.go": "sha256:6b118738a33eb93cd5f0055753c0f2cb2ce2604e9768be1048f1d6d87abe2327",
+    "gen/go/asset-studio/v1/shared/errors.pb.go": "sha256:0eaf4e6dc48ad6185c1168296a74755ac33fd95ec0eda4506471743c7a71d74d",
+    "gen/go/asset-studio/v1/shared/health.pb.go": "sha256:1bf86d1b173758ac86eedcb1bf71dfe386c02131e32116d42e2136decdbba836",
+    "gen/python/asset_studio/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/asset_studio/v1/notes/attachments_pb2.py": "sha256:69355bf6484cd3e4407916cd57168bb9d756b1bcdf224413cf6f81f2e437d65c",
+    "gen/python/asset_studio/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/asset_studio/v1/notes/notes_pb2.py": "sha256:df89883537928110510649973ba001146e3c77f60df272113cee76ca7ce7cdbd",
+    "gen/python/asset_studio/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/asset_studio/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/asset_studio/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/asset_studio/v1/shared/errors_pb2.py": "sha256:80cc97e7750645978b1fc29094e22c045ac9decab66d8d646da4de07169dcebe",
+    "gen/python/asset_studio/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/asset_studio/v1/shared/health_pb2.py": "sha256:f6b3580abb4500dfd9e45d6a077c9a493669327880a1400b1cf2494bfd7d8917",
+    "gen/python/asset_studio/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/asset_studio/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/asset-studio/v1/notes/attachments_pb.ts": "sha256:7c15a4aae76ee27fc5beacb2fbb258e66d6fca639a1d3ccb2a73eb56d5dedcc3",
+    "gen/typescript/asset-studio/v1/notes/notes_pb.ts": "sha256:4b2943b0739031a19b3e7973c6c8d586551e47edcf3133be19a0c68647317624",
+    "gen/typescript/asset-studio/v1/shared/errors_pb.ts": "sha256:8234edc3df4314860b2fc178b80f2793dffe1f99499d03db5f805ed9f27f880d",
+    "gen/typescript/asset-studio/v1/shared/health_pb.ts": "sha256:c153eaa443f56474f36bb73a1fd86969330f0df220b293dd5e48cb42dca19f17",
+    "gen/typescript/js/asset-studio/v1/notes/attachments_pb.js": "sha256:a5bbc6460ebd939e69729eb7837ba679b562d98f7cff30124be73b8b8f469c5b",
+    "gen/typescript/js/asset-studio/v1/notes/notes_pb.js": "sha256:67ceb8238bd5903439f0e732ea8785d35f836c6da8f740946b4e4e876a3102d6",
+    "gen/typescript/js/asset-studio/v1/shared/errors_pb.js": "sha256:1a3c8a3252a264172779cccf6463450575cfcda624279b9654b3e5e906ae2dd6",
+    "gen/typescript/js/asset-studio/v1/shared/health_pb.js": "sha256:5a4cf07ec1c73a315074b4863342b1d736f08c30ad0777f593742099c1f8d074"
+  }
+}

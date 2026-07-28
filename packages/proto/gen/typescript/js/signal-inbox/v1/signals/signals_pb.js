@@ -2,89 +2,70 @@
 // @generated from file signal-inbox/v1/signals/signals.proto (package vrooli.signal_inbox.v1.signals, syntax proto3)
 /* eslint-disable */
 
-import { enumDesc, fileDesc, messageDesc, serviceDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_signal_inbox_v1_shared_signals } from "../shared/signals_pb.js";
 
 /**
  * Describes the file signal-inbox/v1/signals/signals.proto.
  */
 export const file_signal_inbox_v1_signals_signals = /*@__PURE__*/
-  fileDesc("CiVzaWduYWwtaW5ib3gvdjEvc2lnbmFscy9zaWduYWxzLnByb3RvEh52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMirAIKBlNpZ25hbBIKCgJpZBgBIAEoCRI/Cgtzb3VyY2Vfa2luZBgCIAEoDjIqLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5Tb3VyY2VLaW5kEhcKD3NvdXJjZV9pZGVudGl0eRgDIAEoCRISCgpzb3VyY2VfdXJsGAQgASgJEi8KC2NhcHR1cmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9yYXdfcGF5bG9hZF9yZWYYBiABKAkSGQoRZXh0cmFjdGVkX2NvbnRlbnQYByABKAkSFAoMY29udGVudF9oYXNoGAggASgJEhcKD25lZWRzX2F0dGVudGlvbhgJIAEoCBIUCgxjYXB0dXJlX25vdGUYCiABKAkicgoUQ2FwdHVyZVNpZ25hbFJlcXVlc3QSDQoDdXJsGAEgASgJSAASDgoEdGV4dBgCIAEoCUgAEhsKEWltYWdlX3BheWxvYWRfcmVmGAMgASgJSAASFAoMY2FwdHVyZV9ub3RlGAQgASgJQggKBnNvdXJjZSJiChVDYXB0dXJlU2lnbmFsUmVzcG9uc2USNgoGc2lnbmFsGAEgASgLMiYudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLlNpZ25hbBIRCglkdXBsaWNhdGUYAiABKAgiTAoLSW1hZ2VVcGxvYWQSEwoLcGF5bG9hZF9yZWYYASABKAkSFAoMY29udGVudF90eXBlGAIgASgJEhIKCnNpemVfYnl0ZXMYAyABKAMiUQoTVXBsb2FkSW1hZ2VSZXNwb25zZRI6CgVpbWFnZRgBIAEoCzIrLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5JbWFnZVVwbG9hZCIeChBHZXRTaWduYWxSZXF1ZXN0EgoKAmlkGAEgASgJIksKEUdldFNpZ25hbFJlc3BvbnNlEjYKBnNpZ25hbBgBIAEoCzImLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5TaWduYWwiJwoSTGlzdFNpZ25hbHNSZXF1ZXN0EhEKCXBhZ2Vfc2l6ZRgBIAEoDSJOChNMaXN0U2lnbmFsc1Jlc3BvbnNlEjcKB3NpZ25hbHMYASADKAsyJi52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuU2lnbmFsKmsKClNvdXJjZUtpbmQSGwoXU09VUkNFX0tJTkRfVU5TUEVDSUZJRUQQABITCg9TT1VSQ0VfS0lORF9VUkwQARIUChBTT1VSQ0VfS0lORF9URVhUEAISFQoRU09VUkNFX0tJTkRfSU1BR0UQAzL4AgoOU2lnbmFsc1NlcnZpY2USfAoNQ2FwdHVyZVNpZ25hbBI0LnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5DYXB0dXJlU2lnbmFsUmVxdWVzdBo1LnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5DYXB0dXJlU2lnbmFsUmVzcG9uc2UScAoJR2V0U2lnbmFsEjAudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkdldFNpZ25hbFJlcXVlc3QaMS52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuR2V0U2lnbmFsUmVzcG9uc2USdgoLTGlzdFNpZ25hbHMSMi52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXF1ZXN0GjMudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkxpc3RTaWduYWxzUmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zaWduYWwtaW5ib3gvdjEvc2lnbmFscztzaWduYWxzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
-
-/**
- * Describes the message vrooli.signal_inbox.v1.signals.Signal.
- * Use `create(SignalSchema)` to create a new message.
- */
-export const SignalSchema = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 0);
+  fileDesc("CiVzaWduYWwtaW5ib3gvdjEvc2lnbmFscy9zaWduYWxzLnByb3RvEh52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMigAEKFENhcHR1cmVTaWduYWxSZXF1ZXN0Eg0KA3VybBgBIAEoCUgAEg4KBHRleHQYAiABKAlIABIbChFpbWFnZV9wYXlsb2FkX3JlZhgDIAEoCUgAEhQKDGNhcHR1cmVfbm90ZRgEIAEoCRIMCgR0YWdzGAUgAygJQggKBnNvdXJjZSJhChVDYXB0dXJlU2lnbmFsUmVzcG9uc2USNQoGc2lnbmFsGAEgASgLMiUudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaGFyZWQuU2lnbmFsEhEKCWR1cGxpY2F0ZRgCIAEoCCJMCgtJbWFnZVVwbG9hZBITCgtwYXlsb2FkX3JlZhgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAyJRChNVcGxvYWRJbWFnZVJlc3BvbnNlEjoKBWltYWdlGAEgASgLMisudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkltYWdlVXBsb2FkIh4KEEdldFNpZ25hbFJlcXVlc3QSCgoCaWQYASABKAkiSgoRR2V0U2lnbmFsUmVzcG9uc2USNQoGc2lnbmFsGAEgASgLMiUudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaGFyZWQuU2lnbmFsIicKEkxpc3RTaWduYWxzUmVxdWVzdBIRCglwYWdlX3NpemUYASABKA0iTQoTTGlzdFNpZ25hbHNSZXNwb25zZRI2CgdzaWduYWxzGAEgAygLMiUudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaGFyZWQuU2lnbmFsMvgCCg5TaWduYWxzU2VydmljZRJ8Cg1DYXB0dXJlU2lnbmFsEjQudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkNhcHR1cmVTaWduYWxSZXF1ZXN0GjUudnJvb2xpLnNpZ25hbF9pbmJveC52MS5zaWduYWxzLkNhcHR1cmVTaWduYWxSZXNwb25zZRJwCglHZXRTaWduYWwSMC52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuR2V0U2lnbmFsUmVxdWVzdBoxLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5HZXRTaWduYWxSZXNwb25zZRJ2CgtMaXN0U2lnbmFscxIyLnZyb29saS5zaWduYWxfaW5ib3gudjEuc2lnbmFscy5MaXN0U2lnbmFsc1JlcXVlc3QaMy52cm9vbGkuc2lnbmFsX2luYm94LnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NpZ25hbC1pbmJveC92MS9zaWduYWxzO3NpZ25hbHNfdjFiBnByb3RvMw", [file_signal_inbox_v1_shared_signals]);
 
 /**
  * Describes the message vrooli.signal_inbox.v1.signals.CaptureSignalRequest.
  * Use `create(CaptureSignalRequestSchema)` to create a new message.
  */
 export const CaptureSignalRequestSchema = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 1);
+  messageDesc(file_signal_inbox_v1_signals_signals, 0);
 
 /**
  * Describes the message vrooli.signal_inbox.v1.signals.CaptureSignalResponse.
  * Use `create(CaptureSignalResponseSchema)` to create a new message.
  */
 export const CaptureSignalResponseSchema = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 2);
+  messageDesc(file_signal_inbox_v1_signals_signals, 1);
 
 /**
  * Describes the message vrooli.signal_inbox.v1.signals.ImageUpload.
  * Use `create(ImageUploadSchema)` to create a new message.
  */
 export const ImageUploadSchema = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 3);
+  messageDesc(file_signal_inbox_v1_signals_signals, 2);
 
 /**
  * Describes the message vrooli.signal_inbox.v1.signals.UploadImageResponse.
  * Use `create(UploadImageResponseSchema)` to create a new message.
  */
 export const UploadImageResponseSchema = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 4);
+  messageDesc(file_signal_inbox_v1_signals_signals, 3);
 
 /**
  * Describes the message vrooli.signal_inbox.v1.signals.GetSignalRequest.
  * Use `create(GetSignalRequestSchema)` to create a new message.
  */
 export const GetSignalRequestSchema = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 5);
+  messageDesc(file_signal_inbox_v1_signals_signals, 4);
 
 /**
  * Describes the message vrooli.signal_inbox.v1.signals.GetSignalResponse.
  * Use `create(GetSignalResponseSchema)` to create a new message.
  */
 export const GetSignalResponseSchema = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 6);
+  messageDesc(file_signal_inbox_v1_signals_signals, 5);
 
 /**
  * Describes the message vrooli.signal_inbox.v1.signals.ListSignalsRequest.
  * Use `create(ListSignalsRequestSchema)` to create a new message.
  */
 export const ListSignalsRequestSchema = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 7);
+  messageDesc(file_signal_inbox_v1_signals_signals, 6);
 
 /**
  * Describes the message vrooli.signal_inbox.v1.signals.ListSignalsResponse.
  * Use `create(ListSignalsResponseSchema)` to create a new message.
  */
 export const ListSignalsResponseSchema = /*@__PURE__*/
-  messageDesc(file_signal_inbox_v1_signals_signals, 8);
-
-/**
- * Describes the enum vrooli.signal_inbox.v1.signals.SourceKind.
- */
-export const SourceKindSchema = /*@__PURE__*/
-  enumDesc(file_signal_inbox_v1_signals_signals, 0);
-
-/**
- * @generated from enum vrooli.signal_inbox.v1.signals.SourceKind
- */
-export const SourceKind = /*@__PURE__*/
-  tsEnum(SourceKindSchema);
+  messageDesc(file_signal_inbox_v1_signals_signals, 7);
 
 /**
  * SignalsService owns the immutable journal. A signal is appended once and is

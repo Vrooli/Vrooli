@@ -11,7 +11,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-business-suite/v1/shared/downloads.proto.
  */
 export const file_landing_page_business_suite_v1_shared_downloads: GenFile = /*@__PURE__*/
-  fileDesc("CjVsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvc2hhcmVkL2Rvd25sb2Fkcy5wcm90bxIsdnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQiTgoSRG93bmxvYWRTdG9yZWZyb250Eg0KBXN0b3JlGAEgASgJEg0KBWxhYmVsGAIgASgJEgsKA3VybBgDIAEoCRINCgViYWRnZRgEIAEoCSLzAQoNRG93bmxvYWRBc3NldBIKCgJpZBgBIAEoAxISCgpidW5kbGVfa2V5GAIgASgJEg8KB2FwcF9rZXkYAyABKAkSEAoIcGxhdGZvcm0YBCABKAkSFAoMYXJ0aWZhY3RfdXJsGAUgASgJEhcKD3JlbGVhc2VfdmVyc2lvbhgGIAEoCRIVCg1yZWxlYXNlX25vdGVzGAcgASgJEhAKCGNoZWNrc3VtGAggASgJEhwKFHJlcXVpcmVzX2VudGl0bGVtZW50GAkgASgIEikKCG1ldGFkYXRhGAogASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCKAAwoLRG93bmxvYWRBcHASEgoKYnVuZGxlX2tleRgBIAEoCRIPCgdhcHBfa2V5GAIgASgJEgwKBG5hbWUYAyABKAkSDwoHdGFnbGluZRgEIAEoCRITCgtkZXNjcmlwdGlvbhgFIAEoCRIYChBpbnN0YWxsX292ZXJ2aWV3GAYgASgJEhUKDWluc3RhbGxfc3RlcHMYByADKAkSVQoLc3RvcmVmcm9udHMYCCADKAsyQC52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5Eb3dubG9hZFN0b3JlZnJvbnQSKQoIbWV0YWRhdGEYCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhUKDWRpc3BsYXlfb3JkZXIYCiABKAUSTgoJcGxhdGZvcm1zGAsgAygLMjsudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuRG93bmxvYWRBc3NldEJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2xhbmRpbmctcGFnZS1idXNpbmVzcy1zdWl0ZS92MS9zaGFyZWQ7c2hhcmVkX3YxYgZwcm90bzM", [file_google_protobuf_struct]);
+  fileDesc("CjVsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvc2hhcmVkL2Rvd25sb2Fkcy5wcm90bxIsdnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQiTgoSRG93bmxvYWRTdG9yZWZyb250Eg0KBXN0b3JlGAEgASgJEg0KBWxhYmVsGAIgASgJEgsKA3VybBgDIAEoCRINCgViYWRnZRgEIAEoCSKbAwoNRG93bmxvYWRBc3NldBIKCgJpZBgBIAEoAxISCgpidW5kbGVfa2V5GAIgASgJEg8KB2FwcF9rZXkYAyABKAkSEAoIcGxhdGZvcm0YBCABKAkSFAoMYXJ0aWZhY3RfdXJsGAUgASgJEhcKD3JlbGVhc2VfdmVyc2lvbhgGIAEoCRIVCg1yZWxlYXNlX25vdGVzGAcgASgJEhAKCGNoZWNrc3VtGAggASgJEhwKFHJlcXVpcmVzX2VudGl0bGVtZW50GAkgASgIEikKCG1ldGFkYXRhGAogASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIXCg9hcnRpZmFjdF9zb3VyY2UYCyABKAkSGAoLYXJ0aWZhY3RfaWQYDCABKANIAIgBARITCgt2YXJpYW50X2tleRgNIAEoCRIZChFhcnRpZmFjdF9maWxlbmFtZRgOIAEoCRIbChNhcnRpZmFjdF9zaXplX2J5dGVzGA8gASgDEhYKDmFydGlmYWN0X2NvdW50GBAgASgFQg4KDF9hcnRpZmFjdF9pZCL+AwoLRG93bmxvYWRBcHASEgoKYnVuZGxlX2tleRgBIAEoCRIPCgdhcHBfa2V5GAIgASgJEgwKBG5hbWUYAyABKAkSDwoHdGFnbGluZRgEIAEoCRITCgtkZXNjcmlwdGlvbhgFIAEoCRIYChBpbnN0YWxsX292ZXJ2aWV3GAYgASgJEhUKDWluc3RhbGxfc3RlcHMYByADKAkSVQoLc3RvcmVmcm9udHMYCCADKAsyQC52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5Eb3dubG9hZFN0b3JlZnJvbnQSKQoIbWV0YWRhdGEYCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhUKDWRpc3BsYXlfb3JkZXIYCiABKAUSTgoJcGxhdGZvcm1zGAsgAygLMjsudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuRG93bmxvYWRBc3NldBIKCgJpZBgMIAEoAxIQCghpY29uX3VybBgNIAEoCRIWCg5zY3JlZW5zaG90X3VybBgOIAEoCRIWCg51cGRhdGVfYXBpX2tleRgPIAEoCRIuCg11cGRhdGVfcG9saWN5GBAgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2xhbmRpbmctcGFnZS1idXNpbmVzcy1zdWl0ZS92MS9zaGFyZWQ7c2hhcmVkX3YxYgZwcm90bzM", [file_google_protobuf_struct]);
 
 /**
  * Download catalog value objects are shared by the download service and the
@@ -101,6 +101,36 @@ export type DownloadAsset = Message<"vrooli.landing_page_business_suite.v1.share
    * @generated from field: google.protobuf.Struct metadata = 10;
    */
   metadata?: JsonObject | undefined;
+
+  /**
+   * @generated from field: string artifact_source = 11;
+   */
+  artifactSource: string;
+
+  /**
+   * @generated from field: optional int64 artifact_id = 12;
+   */
+  artifactId?: bigint | undefined;
+
+  /**
+   * @generated from field: string variant_key = 13;
+   */
+  variantKey: string;
+
+  /**
+   * @generated from field: string artifact_filename = 14;
+   */
+  artifactFilename: string;
+
+  /**
+   * @generated from field: int64 artifact_size_bytes = 15;
+   */
+  artifactSizeBytes: bigint;
+
+  /**
+   * @generated from field: int32 artifact_count = 16;
+   */
+  artifactCount: number;
 };
 
 /**
@@ -168,6 +198,31 @@ export type DownloadApp = Message<"vrooli.landing_page_business_suite.v1.shared.
    * @generated from field: repeated vrooli.landing_page_business_suite.v1.shared.DownloadAsset platforms = 11;
    */
   platforms: DownloadAsset[];
+
+  /**
+   * @generated from field: int64 id = 12;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string icon_url = 13;
+   */
+  iconUrl: string;
+
+  /**
+   * @generated from field: string screenshot_url = 14;
+   */
+  screenshotUrl: string;
+
+  /**
+   * @generated from field: string update_api_key = 15;
+   */
+  updateApiKey: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct update_policy = 16;
+   */
+  updatePolicy?: JsonObject | undefined;
 };
 
 /**

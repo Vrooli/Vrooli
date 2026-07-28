@@ -3,7 +3,7 @@ package vrooli.vrooli_memory.v1.harness;
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness;harness_v1";
 service HarnessService { rpc RunImport(RunImportRequest) returns (RunImportResponse); rpc GetImportStatus(GetImportStatusRequest) returns (GetImportStatusResponse); rpc RefreshProjection(RefreshProjectionRequest) returns (RefreshProjectionResponse); rpc InstallPromptBlock(InstallPromptBlockRequest) returns (InstallPromptBlockResponse); rpc CaptureWrite(CaptureWriteRequest) returns (CaptureWriteResponse); }
 message RuntimeRequest { string runtime = 1; }
-message RunImportRequest { string runtime = 1; } message RunImportResponse { int32 imported_count = 1; ImportRun run = 2; bool joined_existing_run = 3; }
+message RunImportRequest { string runtime = 1; bool dry_run = 2; } message RunImportResponse { int32 imported_count = 1; ImportRun run = 2; bool joined_existing_run = 3; bool dry_run = 4; }
 message GetImportStatusRequest { string run_id = 1; string runtime = 2; } message GetImportStatusResponse { ImportRun run = 1; }
 message ImportRun { string id = 1; string runtime = 2; string source_root = 3; string status = 4; int32 total_sources = 5; int32 processed_sources = 6; int32 imported_count = 7; int32 existing_count = 8; int32 failed_count = 9; string current_path = 10; string error_message = 11; string started_at = 12; string completed_at = 13; string updated_at = 14; }
 message RefreshProjectionRequest { string runtime = 1; } message RefreshProjectionResponse { string path = 1; int64 size_bytes = 2; }

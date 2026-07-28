@@ -22,10 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from signal_inbox.v1.shared import signals_pb2 as signal__inbox_dot_v1_dot_shared_dot_signals__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%signal-inbox/v1/signals/signals.proto\x12\x1evrooli.signal_inbox.v1.signals\x1a\x1fgoogle/protobuf/timestamp.proto\"\xae\x03\n\x06Signal\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12K\n\x0bsource_kind\x18\x02 \x01(\x0e\x32*.vrooli.signal_inbox.v1.signals.SourceKindR\nsourceKind\x12\'\n\x0fsource_identity\x18\x03 \x01(\tR\x0esourceIdentity\x12\x1d\n\nsource_url\x18\x04 \x01(\tR\tsourceUrl\x12;\n\x0b\x63\x61ptured_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ncapturedAt\x12&\n\x0fraw_payload_ref\x18\x06 \x01(\tR\rrawPayloadRef\x12+\n\x11\x65xtracted_content\x18\x07 \x01(\tR\x10\x65xtractedContent\x12!\n\x0c\x63ontent_hash\x18\x08 \x01(\tR\x0b\x63ontentHash\x12\'\n\x0fneeds_attention\x18\t \x01(\x08R\x0eneedsAttention\x12!\n\x0c\x63\x61pture_note\x18\n \x01(\tR\x0b\x63\x61ptureNote\"\x9b\x01\n\x14\x43\x61ptureSignalRequest\x12\x12\n\x03url\x18\x01 \x01(\tH\x00R\x03url\x12\x14\n\x04text\x18\x02 \x01(\tH\x00R\x04text\x12,\n\x11image_payload_ref\x18\x03 \x01(\tH\x00R\x0fimagePayloadRef\x12!\n\x0c\x63\x61pture_note\x18\x04 \x01(\tR\x0b\x63\x61ptureNoteB\x08\n\x06source\"u\n\x15\x43\x61ptureSignalResponse\x12>\n\x06signal\x18\x01 \x01(\x0b\x32&.vrooli.signal_inbox.v1.signals.SignalR\x06signal\x12\x1c\n\tduplicate\x18\x02 \x01(\x08R\tduplicate\"p\n\x0bImageUpload\x12\x1f\n\x0bpayload_ref\x18\x01 \x01(\tR\npayloadRef\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType\x12\x1d\n\nsize_bytes\x18\x03 \x01(\x03R\tsizeBytes\"X\n\x13UploadImageResponse\x12\x41\n\x05image\x18\x01 \x01(\x0b\x32+.vrooli.signal_inbox.v1.signals.ImageUploadR\x05image\"\"\n\x10GetSignalRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"S\n\x11GetSignalResponse\x12>\n\x06signal\x18\x01 \x01(\x0b\x32&.vrooli.signal_inbox.v1.signals.SignalR\x06signal\"1\n\x12ListSignalsRequest\x12\x1b\n\tpage_size\x18\x01 \x01(\rR\x08pageSize\"W\n\x13ListSignalsResponse\x12@\n\x07signals\x18\x01 \x03(\x0b\x32&.vrooli.signal_inbox.v1.signals.SignalR\x07signals*k\n\nSourceKind\x12\x1b\n\x17SOURCE_KIND_UNSPECIFIED\x10\x00\x12\x13\n\x0fSOURCE_KIND_URL\x10\x01\x12\x14\n\x10SOURCE_KIND_TEXT\x10\x02\x12\x15\n\x11SOURCE_KIND_IMAGE\x10\x03\x32\xf8\x02\n\x0eSignalsService\x12|\n\rCaptureSignal\x12\x34.vrooli.signal_inbox.v1.signals.CaptureSignalRequest\x1a\x35.vrooli.signal_inbox.v1.signals.CaptureSignalResponse\x12p\n\tGetSignal\x12\x30.vrooli.signal_inbox.v1.signals.GetSignalRequest\x1a\x31.vrooli.signal_inbox.v1.signals.GetSignalResponse\x12v\n\x0bListSignals\x12\x32.vrooli.signal_inbox.v1.signals.ListSignalsRequest\x1a\x33.vrooli.signal_inbox.v1.signals.ListSignalsResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals;signals_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%signal-inbox/v1/signals/signals.proto\x12\x1evrooli.signal_inbox.v1.signals\x1a$signal-inbox/v1/shared/signals.proto\"\xaf\x01\n\x14\x43\x61ptureSignalRequest\x12\x12\n\x03url\x18\x01 \x01(\tH\x00R\x03url\x12\x14\n\x04text\x18\x02 \x01(\tH\x00R\x04text\x12,\n\x11image_payload_ref\x18\x03 \x01(\tH\x00R\x0fimagePayloadRef\x12!\n\x0c\x63\x61pture_note\x18\x04 \x01(\tR\x0b\x63\x61ptureNote\x12\x12\n\x04tags\x18\x05 \x03(\tR\x04tagsB\x08\n\x06source\"t\n\x15\x43\x61ptureSignalResponse\x12=\n\x06signal\x18\x01 \x01(\x0b\x32%.vrooli.signal_inbox.v1.shared.SignalR\x06signal\x12\x1c\n\tduplicate\x18\x02 \x01(\x08R\tduplicate\"p\n\x0bImageUpload\x12\x1f\n\x0bpayload_ref\x18\x01 \x01(\tR\npayloadRef\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType\x12\x1d\n\nsize_bytes\x18\x03 \x01(\x03R\tsizeBytes\"X\n\x13UploadImageResponse\x12\x41\n\x05image\x18\x01 \x01(\x0b\x32+.vrooli.signal_inbox.v1.signals.ImageUploadR\x05image\"\"\n\x10GetSignalRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"R\n\x11GetSignalResponse\x12=\n\x06signal\x18\x01 \x01(\x0b\x32%.vrooli.signal_inbox.v1.shared.SignalR\x06signal\"1\n\x12ListSignalsRequest\x12\x1b\n\tpage_size\x18\x01 \x01(\rR\x08pageSize\"V\n\x13ListSignalsResponse\x12?\n\x07signals\x18\x01 \x03(\x0b\x32%.vrooli.signal_inbox.v1.shared.SignalR\x07signals2\xf8\x02\n\x0eSignalsService\x12|\n\rCaptureSignal\x12\x34.vrooli.signal_inbox.v1.signals.CaptureSignalRequest\x1a\x35.vrooli.signal_inbox.v1.signals.CaptureSignalResponse\x12p\n\tGetSignal\x12\x30.vrooli.signal_inbox.v1.signals.GetSignalRequest\x1a\x31.vrooli.signal_inbox.v1.signals.GetSignalResponse\x12v\n\x0bListSignals\x12\x32.vrooli.signal_inbox.v1.signals.ListSignalsRequest\x1a\x33.vrooli.signal_inbox.v1.signals.ListSignalsResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals;signals_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,26 +33,22 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'signal_inbox.v1.signals.sig
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZQgithub.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals;signals_v1'
-  _globals['_SOURCEKIND']._serialized_start=1281
-  _globals['_SOURCEKIND']._serialized_end=1388
-  _globals['_SIGNAL']._serialized_start=107
-  _globals['_SIGNAL']._serialized_end=537
-  _globals['_CAPTURESIGNALREQUEST']._serialized_start=540
-  _globals['_CAPTURESIGNALREQUEST']._serialized_end=695
-  _globals['_CAPTURESIGNALRESPONSE']._serialized_start=697
-  _globals['_CAPTURESIGNALRESPONSE']._serialized_end=814
-  _globals['_IMAGEUPLOAD']._serialized_start=816
-  _globals['_IMAGEUPLOAD']._serialized_end=928
-  _globals['_UPLOADIMAGERESPONSE']._serialized_start=930
-  _globals['_UPLOADIMAGERESPONSE']._serialized_end=1018
-  _globals['_GETSIGNALREQUEST']._serialized_start=1020
-  _globals['_GETSIGNALREQUEST']._serialized_end=1054
-  _globals['_GETSIGNALRESPONSE']._serialized_start=1056
-  _globals['_GETSIGNALRESPONSE']._serialized_end=1139
-  _globals['_LISTSIGNALSREQUEST']._serialized_start=1141
-  _globals['_LISTSIGNALSREQUEST']._serialized_end=1190
-  _globals['_LISTSIGNALSRESPONSE']._serialized_start=1192
-  _globals['_LISTSIGNALSRESPONSE']._serialized_end=1279
-  _globals['_SIGNALSSERVICE']._serialized_start=1391
-  _globals['_SIGNALSSERVICE']._serialized_end=1767
+  _globals['_CAPTURESIGNALREQUEST']._serialized_start=112
+  _globals['_CAPTURESIGNALREQUEST']._serialized_end=287
+  _globals['_CAPTURESIGNALRESPONSE']._serialized_start=289
+  _globals['_CAPTURESIGNALRESPONSE']._serialized_end=405
+  _globals['_IMAGEUPLOAD']._serialized_start=407
+  _globals['_IMAGEUPLOAD']._serialized_end=519
+  _globals['_UPLOADIMAGERESPONSE']._serialized_start=521
+  _globals['_UPLOADIMAGERESPONSE']._serialized_end=609
+  _globals['_GETSIGNALREQUEST']._serialized_start=611
+  _globals['_GETSIGNALREQUEST']._serialized_end=645
+  _globals['_GETSIGNALRESPONSE']._serialized_start=647
+  _globals['_GETSIGNALRESPONSE']._serialized_end=729
+  _globals['_LISTSIGNALSREQUEST']._serialized_start=731
+  _globals['_LISTSIGNALSREQUEST']._serialized_end=780
+  _globals['_LISTSIGNALSRESPONSE']._serialized_start=782
+  _globals['_LISTSIGNALSRESPONSE']._serialized_end=868
+  _globals['_SIGNALSSERVICE']._serialized_start=871
+  _globals['_SIGNALSSERVICE']._serialized_end=1247
 # @@protoc_insertion_point(module_scope)

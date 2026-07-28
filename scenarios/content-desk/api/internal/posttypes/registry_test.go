@@ -34,10 +34,38 @@ func TestPostTypeFailureModesRoundTripAndRejectDuplicates(t *testing.T) {
 	require.NoError(t, r.Upsert(context.Background(), posttypes.PostType{ID: "dev-log", Status: posttypes.StatusV0, FailureModes: []string{"credential_claim", "disclosure"}}))
 	types, err := r.List(context.Background())
 	require.NoError(t, err)
-	require.Len(t, types, 1)
-	require.Equal(t, []string{"credential_claim", "disclosure"}, types[0].FailureModes)
+	require.Equal(t, []string{"credential_claim", "disclosure"}, postTypeByID(t, types, "dev-log").FailureModes)
 	require.ErrorContains(t, r.Upsert(context.Background(), posttypes.PostType{ID: "dev-log", Status: posttypes.StatusV0, FailureModes: []string{"disclosure", "disclosure"}}), "duplicate failure mode")
 	types, err = r.List(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, []string{"credential_claim", "disclosure"}, types[0].FailureModes, "invalid registration must not erase the existing declaration")
+	require.Equal(t, []string{"credential_claim", "disclosure"}, postTypeByID(t, types, "dev-log").FailureModes, "invalid registration must not erase the existing declaration")
+}
+
+func postTypeByID(t *testing.T, types []posttypes.PostType, id string) posttypes.PostType {
+	t.Helper()
+	for _, postType := range types {
+		if postType.ID == id {
+			return postType
+		}
+	}
+	t.Fatalf("post type %q not found", id)
+	return posttypes.PostType{}
+}
+
+func TestCanonicalPostTypeSeedsReflectTheCurrentCanon(t *testing.T) {
+	d := db.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), d, database.SchemaProviderFunc(localdb.SystemSchema), database.SchemaProviderFunc(posttypes.Schema)))
+	types, err := posttypes.NewRegistry(d).List(context.Background())
+	require.NoError(t, err)
+	require.Len(t, types, 12)
+	active := make(map[string]posttypes.PostType)
+	for _, postType := range types {
+		if postType.Status == posttypes.StatusActive {
+			active[postType.ID] = postType
+		}
+		require.NotEmpty(t, postType.FailureModes, postType.ID)
+	}
+	require.Len(t, active, 2)
+	require.Contains(t, active, "dev-log")
+	require.Contains(t, active, "scenario-spotlight")
 }

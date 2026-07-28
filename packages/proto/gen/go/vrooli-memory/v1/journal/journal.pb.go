@@ -706,6 +706,214 @@ func (x *ListEntriesResponse) GetNextCursor() string {
 	return ""
 }
 
+type ProcessClassificationRetriesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProcessClassificationRetriesRequest) Reset() {
+	*x = ProcessClassificationRetriesRequest{}
+	mi := &file_vrooli_memory_v1_journal_journal_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessClassificationRetriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessClassificationRetriesRequest) ProtoMessage() {}
+
+func (x *ProcessClassificationRetriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_journal_journal_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessClassificationRetriesRequest.ProtoReflect.Descriptor instead.
+func (*ProcessClassificationRetriesRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_journal_journal_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ProcessClassificationRetriesRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ProcessClassificationRetriesResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Processed       int32                  `protobuf:"varint,1,opt,name=processed,proto3" json:"processed,omitempty"`
+	Deferred        int32                  `protobuf:"varint,2,opt,name=deferred,proto3" json:"deferred,omitempty"`
+	AlreadyResolved int32                  `protobuf:"varint,3,opt,name=already_resolved,json=alreadyResolved,proto3" json:"already_resolved,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ProcessClassificationRetriesResponse) Reset() {
+	*x = ProcessClassificationRetriesResponse{}
+	mi := &file_vrooli_memory_v1_journal_journal_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessClassificationRetriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessClassificationRetriesResponse) ProtoMessage() {}
+
+func (x *ProcessClassificationRetriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_journal_journal_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessClassificationRetriesResponse.ProtoReflect.Descriptor instead.
+func (*ProcessClassificationRetriesResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_journal_journal_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ProcessClassificationRetriesResponse) GetProcessed() int32 {
+	if x != nil {
+		return x.Processed
+	}
+	return 0
+}
+
+func (x *ProcessClassificationRetriesResponse) GetDeferred() int32 {
+	if x != nil {
+		return x.Deferred
+	}
+	return 0
+}
+
+func (x *ProcessClassificationRetriesResponse) GetAlreadyResolved() int32 {
+	if x != nil {
+		return x.AlreadyResolved
+	}
+	return 0
+}
+
+type ProcessEmbeddingRetriesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProcessEmbeddingRetriesRequest) Reset() {
+	*x = ProcessEmbeddingRetriesRequest{}
+	mi := &file_vrooli_memory_v1_journal_journal_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessEmbeddingRetriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessEmbeddingRetriesRequest) ProtoMessage() {}
+
+func (x *ProcessEmbeddingRetriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_journal_journal_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessEmbeddingRetriesRequest.ProtoReflect.Descriptor instead.
+func (*ProcessEmbeddingRetriesRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_journal_journal_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ProcessEmbeddingRetriesRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ProcessEmbeddingRetriesResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Processed       int32                  `protobuf:"varint,1,opt,name=processed,proto3" json:"processed,omitempty"`
+	Deferred        int32                  `protobuf:"varint,2,opt,name=deferred,proto3" json:"deferred,omitempty"`
+	AlreadyResolved int32                  `protobuf:"varint,3,opt,name=already_resolved,json=alreadyResolved,proto3" json:"already_resolved,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ProcessEmbeddingRetriesResponse) Reset() {
+	*x = ProcessEmbeddingRetriesResponse{}
+	mi := &file_vrooli_memory_v1_journal_journal_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessEmbeddingRetriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessEmbeddingRetriesResponse) ProtoMessage() {}
+
+func (x *ProcessEmbeddingRetriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_journal_journal_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessEmbeddingRetriesResponse.ProtoReflect.Descriptor instead.
+func (*ProcessEmbeddingRetriesResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_journal_journal_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ProcessEmbeddingRetriesResponse) GetProcessed() int32 {
+	if x != nil {
+		return x.Processed
+	}
+	return 0
+}
+
+func (x *ProcessEmbeddingRetriesResponse) GetDeferred() int32 {
+	if x != nil {
+		return x.Deferred
+	}
+	return 0
+}
+
+func (x *ProcessEmbeddingRetriesResponse) GetAlreadyResolved() int32 {
+	if x != nil {
+		return x.AlreadyResolved
+	}
+	return 0
+}
+
 var File_vrooli_memory_v1_journal_journal_proto protoreflect.FileDescriptor
 
 const file_vrooli_memory_v1_journal_journal_proto_rawDesc = "" +
@@ -763,11 +971,25 @@ const file_vrooli_memory_v1_journal_journal_proto_rawDesc = "" +
 	"\x13ListEntriesResponse\x12@\n" +
 	"\aentries\x18\x01 \x03(\v2&.vrooli.vrooli_memory.v1.journal.EntryR\aentries\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor2\xf5\x02\n" +
+	"nextCursor\";\n" +
+	"#ProcessClassificationRetriesRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\"\x8b\x01\n" +
+	"$ProcessClassificationRetriesResponse\x12\x1c\n" +
+	"\tprocessed\x18\x01 \x01(\x05R\tprocessed\x12\x1a\n" +
+	"\bdeferred\x18\x02 \x01(\x05R\bdeferred\x12)\n" +
+	"\x10already_resolved\x18\x03 \x01(\x05R\x0falreadyResolved\"6\n" +
+	"\x1eProcessEmbeddingRetriesRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\"\x86\x01\n" +
+	"\x1fProcessEmbeddingRetriesResponse\x12\x1c\n" +
+	"\tprocessed\x18\x01 \x01(\x05R\tprocessed\x12\x1a\n" +
+	"\bdeferred\x18\x02 \x01(\x05R\bdeferred\x12)\n" +
+	"\x10already_resolved\x18\x03 \x01(\x05R\x0falreadyResolved2\xc2\x05\n" +
 	"\x0eJournalService\x12x\n" +
 	"\vAppendEntry\x123.vrooli.vrooli_memory.v1.journal.AppendEntryRequest\x1a4.vrooli.vrooli_memory.v1.journal.AppendEntryResponse\x12o\n" +
 	"\bGetEntry\x120.vrooli.vrooli_memory.v1.journal.GetEntryRequest\x1a1.vrooli.vrooli_memory.v1.journal.GetEntryResponse\x12x\n" +
-	"\vListEntries\x123.vrooli.vrooli_memory.v1.journal.ListEntriesRequest\x1a4.vrooli.vrooli_memory.v1.journal.ListEntriesResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal;journal_v1b\x06proto3"
+	"\vListEntries\x123.vrooli.vrooli_memory.v1.journal.ListEntriesRequest\x1a4.vrooli.vrooli_memory.v1.journal.ListEntriesResponse\x12\xab\x01\n" +
+	"\x1cProcessClassificationRetries\x12D.vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesRequest\x1aE.vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesResponse\x12\x9c\x01\n" +
+	"\x17ProcessEmbeddingRetries\x12?.vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesRequest\x1a@.vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal;journal_v1b\x06proto3"
 
 var (
 	file_vrooli_memory_v1_journal_journal_proto_rawDescOnce sync.Once
@@ -781,28 +1003,32 @@ func file_vrooli_memory_v1_journal_journal_proto_rawDescGZIP() []byte {
 	return file_vrooli_memory_v1_journal_journal_proto_rawDescData
 }
 
-var file_vrooli_memory_v1_journal_journal_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_vrooli_memory_v1_journal_journal_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_vrooli_memory_v1_journal_journal_proto_goTypes = []any{
-	(*FacetText)(nil),             // 0: vrooli.vrooli_memory.v1.journal.FacetText
-	(*Attribution)(nil),           // 1: vrooli.vrooli_memory.v1.journal.Attribution
-	(*Correlation)(nil),           // 2: vrooli.vrooli_memory.v1.journal.Correlation
-	(*ImportProvenance)(nil),      // 3: vrooli.vrooli_memory.v1.journal.ImportProvenance
-	(*Entry)(nil),                 // 4: vrooli.vrooli_memory.v1.journal.Entry
-	(*AppendEntryRequest)(nil),    // 5: vrooli.vrooli_memory.v1.journal.AppendEntryRequest
-	(*AppendEntryResponse)(nil),   // 6: vrooli.vrooli_memory.v1.journal.AppendEntryResponse
-	(*GetEntryRequest)(nil),       // 7: vrooli.vrooli_memory.v1.journal.GetEntryRequest
-	(*GetEntryResponse)(nil),      // 8: vrooli.vrooli_memory.v1.journal.GetEntryResponse
-	(*ListEntriesRequest)(nil),    // 9: vrooli.vrooli_memory.v1.journal.ListEntriesRequest
-	(*ListEntriesResponse)(nil),   // 10: vrooli.vrooli_memory.v1.journal.ListEntriesResponse
-	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	(*FacetText)(nil),                            // 0: vrooli.vrooli_memory.v1.journal.FacetText
+	(*Attribution)(nil),                          // 1: vrooli.vrooli_memory.v1.journal.Attribution
+	(*Correlation)(nil),                          // 2: vrooli.vrooli_memory.v1.journal.Correlation
+	(*ImportProvenance)(nil),                     // 3: vrooli.vrooli_memory.v1.journal.ImportProvenance
+	(*Entry)(nil),                                // 4: vrooli.vrooli_memory.v1.journal.Entry
+	(*AppendEntryRequest)(nil),                   // 5: vrooli.vrooli_memory.v1.journal.AppendEntryRequest
+	(*AppendEntryResponse)(nil),                  // 6: vrooli.vrooli_memory.v1.journal.AppendEntryResponse
+	(*GetEntryRequest)(nil),                      // 7: vrooli.vrooli_memory.v1.journal.GetEntryRequest
+	(*GetEntryResponse)(nil),                     // 8: vrooli.vrooli_memory.v1.journal.GetEntryResponse
+	(*ListEntriesRequest)(nil),                   // 9: vrooli.vrooli_memory.v1.journal.ListEntriesRequest
+	(*ListEntriesResponse)(nil),                  // 10: vrooli.vrooli_memory.v1.journal.ListEntriesResponse
+	(*ProcessClassificationRetriesRequest)(nil),  // 11: vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesRequest
+	(*ProcessClassificationRetriesResponse)(nil), // 12: vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesResponse
+	(*ProcessEmbeddingRetriesRequest)(nil),       // 13: vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesRequest
+	(*ProcessEmbeddingRetriesResponse)(nil),      // 14: vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesResponse
+	(*timestamppb.Timestamp)(nil),                // 15: google.protobuf.Timestamp
 }
 var file_vrooli_memory_v1_journal_journal_proto_depIdxs = []int32{
 	1,  // 0: vrooli.vrooli_memory.v1.journal.Entry.attribution:type_name -> vrooli.vrooli_memory.v1.journal.Attribution
 	2,  // 1: vrooli.vrooli_memory.v1.journal.Entry.correlation:type_name -> vrooli.vrooli_memory.v1.journal.Correlation
 	3,  // 2: vrooli.vrooli_memory.v1.journal.Entry.import_provenance:type_name -> vrooli.vrooli_memory.v1.journal.ImportProvenance
 	0,  // 3: vrooli.vrooli_memory.v1.journal.Entry.facet_texts:type_name -> vrooli.vrooli_memory.v1.journal.FacetText
-	11, // 4: vrooli.vrooli_memory.v1.journal.Entry.created_at:type_name -> google.protobuf.Timestamp
-	11, // 5: vrooli.vrooli_memory.v1.journal.Entry.superseded_at:type_name -> google.protobuf.Timestamp
+	15, // 4: vrooli.vrooli_memory.v1.journal.Entry.created_at:type_name -> google.protobuf.Timestamp
+	15, // 5: vrooli.vrooli_memory.v1.journal.Entry.superseded_at:type_name -> google.protobuf.Timestamp
 	1,  // 6: vrooli.vrooli_memory.v1.journal.AppendEntryRequest.attribution:type_name -> vrooli.vrooli_memory.v1.journal.Attribution
 	2,  // 7: vrooli.vrooli_memory.v1.journal.AppendEntryRequest.correlation:type_name -> vrooli.vrooli_memory.v1.journal.Correlation
 	3,  // 8: vrooli.vrooli_memory.v1.journal.AppendEntryRequest.import_provenance:type_name -> vrooli.vrooli_memory.v1.journal.ImportProvenance
@@ -812,11 +1038,15 @@ var file_vrooli_memory_v1_journal_journal_proto_depIdxs = []int32{
 	5,  // 12: vrooli.vrooli_memory.v1.journal.JournalService.AppendEntry:input_type -> vrooli.vrooli_memory.v1.journal.AppendEntryRequest
 	7,  // 13: vrooli.vrooli_memory.v1.journal.JournalService.GetEntry:input_type -> vrooli.vrooli_memory.v1.journal.GetEntryRequest
 	9,  // 14: vrooli.vrooli_memory.v1.journal.JournalService.ListEntries:input_type -> vrooli.vrooli_memory.v1.journal.ListEntriesRequest
-	6,  // 15: vrooli.vrooli_memory.v1.journal.JournalService.AppendEntry:output_type -> vrooli.vrooli_memory.v1.journal.AppendEntryResponse
-	8,  // 16: vrooli.vrooli_memory.v1.journal.JournalService.GetEntry:output_type -> vrooli.vrooli_memory.v1.journal.GetEntryResponse
-	10, // 17: vrooli.vrooli_memory.v1.journal.JournalService.ListEntries:output_type -> vrooli.vrooli_memory.v1.journal.ListEntriesResponse
-	15, // [15:18] is the sub-list for method output_type
-	12, // [12:15] is the sub-list for method input_type
+	11, // 15: vrooli.vrooli_memory.v1.journal.JournalService.ProcessClassificationRetries:input_type -> vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesRequest
+	13, // 16: vrooli.vrooli_memory.v1.journal.JournalService.ProcessEmbeddingRetries:input_type -> vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesRequest
+	6,  // 17: vrooli.vrooli_memory.v1.journal.JournalService.AppendEntry:output_type -> vrooli.vrooli_memory.v1.journal.AppendEntryResponse
+	8,  // 18: vrooli.vrooli_memory.v1.journal.JournalService.GetEntry:output_type -> vrooli.vrooli_memory.v1.journal.GetEntryResponse
+	10, // 19: vrooli.vrooli_memory.v1.journal.JournalService.ListEntries:output_type -> vrooli.vrooli_memory.v1.journal.ListEntriesResponse
+	12, // 20: vrooli.vrooli_memory.v1.journal.JournalService.ProcessClassificationRetries:output_type -> vrooli.vrooli_memory.v1.journal.ProcessClassificationRetriesResponse
+	14, // 21: vrooli.vrooli_memory.v1.journal.JournalService.ProcessEmbeddingRetries:output_type -> vrooli.vrooli_memory.v1.journal.ProcessEmbeddingRetriesResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
 	12, // [12:12] is the sub-list for extension extendee
 	0,  // [0:12] is the sub-list for field type_name
@@ -833,7 +1063,7 @@ func file_vrooli_memory_v1_journal_journal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_memory_v1_journal_journal_proto_rawDesc), len(file_vrooli_memory_v1_journal_journal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

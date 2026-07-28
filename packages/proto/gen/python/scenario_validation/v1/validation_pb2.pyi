@@ -65,6 +65,48 @@ VALIDATION_RUN_ERROR_CODE_EXECUTION_FAILED: ValidationRunErrorCode
 VALIDATION_RUN_ERROR_CODE_RECOVERY_FAILED: ValidationRunErrorCode
 VALIDATION_RUN_ERROR_CODE_WAIT_TIMEOUT: ValidationRunErrorCode
 
+class DescribeProviderRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class DescribeProviderResponse(_message.Message):
+    __slots__ = ("provider", "phase", "spec_version", "contract", "build", "capabilities")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    SPEC_VERSION_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_FIELD_NUMBER: _ClassVar[int]
+    BUILD_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    phase: str
+    spec_version: str
+    contract: str
+    build: ProviderBuild
+    capabilities: ProviderCapabilities
+    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., spec_version: _Optional[str] = ..., contract: _Optional[str] = ..., build: _Optional[_Union[ProviderBuild, _Mapping]] = ..., capabilities: _Optional[_Union[ProviderCapabilities, _Mapping]] = ...) -> None: ...
+
+class ProviderBuild(_message.Message):
+    __slots__ = ("revision", "built_at", "binary_modified_at", "freshness_digest")
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    BUILT_AT_FIELD_NUMBER: _ClassVar[int]
+    BINARY_MODIFIED_AT_FIELD_NUMBER: _ClassVar[int]
+    FRESHNESS_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    revision: str
+    built_at: _timestamp_pb2.Timestamp
+    binary_modified_at: _timestamp_pb2.Timestamp
+    freshness_digest: str
+    def __init__(self, revision: _Optional[str] = ..., built_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., binary_modified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., freshness_digest: _Optional[str] = ...) -> None: ...
+
+class ProviderCapabilities(_message.Message):
+    __slots__ = ("supports_execution", "delivery_mode", "supports_fixes")
+    SUPPORTS_EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    DELIVERY_MODE_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_FIXES_FIELD_NUMBER: _ClassVar[int]
+    supports_execution: bool
+    delivery_mode: str
+    supports_fixes: bool
+    def __init__(self, supports_execution: _Optional[bool] = ..., delivery_mode: _Optional[str] = ..., supports_fixes: _Optional[bool] = ...) -> None: ...
+
 class ValidateScenarioRequest(_message.Message):
     __slots__ = ("scenario", "path", "include_execution")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]

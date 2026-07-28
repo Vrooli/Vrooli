@@ -124,3 +124,35 @@ class ListEntriesResponse(_message.Message):
     entries: _containers.RepeatedCompositeFieldContainer[Entry]
     next_cursor: str
     def __init__(self, entries: _Optional[_Iterable[_Union[Entry, _Mapping]]] = ..., next_cursor: _Optional[str] = ...) -> None: ...
+
+class ProcessClassificationRetriesRequest(_message.Message):
+    __slots__ = ("limit",)
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    limit: int
+    def __init__(self, limit: _Optional[int] = ...) -> None: ...
+
+class ProcessClassificationRetriesResponse(_message.Message):
+    __slots__ = ("processed", "deferred", "already_resolved")
+    PROCESSED_FIELD_NUMBER: _ClassVar[int]
+    DEFERRED_FIELD_NUMBER: _ClassVar[int]
+    ALREADY_RESOLVED_FIELD_NUMBER: _ClassVar[int]
+    processed: int
+    deferred: int
+    already_resolved: int
+    def __init__(self, processed: _Optional[int] = ..., deferred: _Optional[int] = ..., already_resolved: _Optional[int] = ...) -> None: ...
+
+class ProcessEmbeddingRetriesRequest(_message.Message):
+    __slots__ = ("limit",)
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    limit: int
+    def __init__(self, limit: _Optional[int] = ...) -> None: ...
+
+class ProcessEmbeddingRetriesResponse(_message.Message):
+    __slots__ = ("processed", "deferred", "already_resolved")
+    PROCESSED_FIELD_NUMBER: _ClassVar[int]
+    DEFERRED_FIELD_NUMBER: _ClassVar[int]
+    ALREADY_RESOLVED_FIELD_NUMBER: _ClassVar[int]
+    processed: int
+    deferred: int
+    already_resolved: int
+    def __init__(self, processed: _Optional[int] = ..., deferred: _Optional[int] = ..., already_resolved: _Optional[int] = ...) -> None: ...

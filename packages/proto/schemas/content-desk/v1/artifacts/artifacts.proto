@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package vrooli.content_desk.v1.artifacts;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/artifacts;artifacts_v1";
+
+// ArtifactsService owns drafts and their constrained lifecycle.
+service ArtifactsService {
+  rpc ListDrafts(ListDraftsRequest) returns (ListDraftsResponse);
+  rpc CreateDraft(CreateDraftRequest) returns (CreateDraftResponse);
+  rpc UpdateDraftBody(UpdateDraftBodyRequest) returns (UpdateDraftBodyResponse);
+  rpc PublishDraft(PublishDraftRequest) returns (PublishDraftResponse);
+  rpc TransitionDraft(TransitionDraftRequest) returns (TransitionDraftResponse);
+  rpc ApproveDraft(ApproveDraftRequest) returns (ApproveDraftResponse);
+}
+
+message Draft {
+  string id = 1;
+  string campaign_id = 2;
+  string status = 3;
+  string post_type_id = 4;
+  string body = 5;
+  string channel = 6;
+  string format = 7;
+  string lane = 8;
+  string sku = 9;
+}
+
+message ListDraftsRequest {}
+
+message ListDraftsResponse {
+  repeated Draft drafts = 1;
+}
+
+message CreateDraftRequest {
+  string campaign_id = 1;
+  string post_type_id = 2;
+  string body = 3;
+  string channel = 4;
+  string format = 5;
+  string lane = 6;
+  string sku = 7;
+}
+
+message CreateDraftResponse { Draft draft = 1; }
+
+message UpdateDraftBodyRequest {
+  string id = 1;
+  string body = 2;
+}
+message UpdateDraftBodyResponse { Draft draft = 1; }
+
+message PublishDraftRequest {
+  string id = 1;
+  string audience = 2;
+  string published_url = 3;
+  string platform_post_id = 4;
+  string series_id = 5;
+  string prior_publish_id = 6;
+}
+message PublishDraftResponse {
+  Draft draft = 1;
+  string publish_record_id = 2;
+}
+
+message TransitionDraftRequest {
+  string id = 1;
+  string event = 2;
+}
+
+message TransitionDraftResponse { Draft draft = 1; }
+
+message ApproveDraftRequest { string id = 1; }
+message ApproveDraftResponse { Draft draft = 1; }
