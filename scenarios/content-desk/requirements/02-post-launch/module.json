@@ -1,0 +1,270 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Stored checks are re-run on a schedule. When a result changes, the claim moves to stale rather than silently continuing to back a published statement. This is what makes L2 evidence worth more than a citation.",
+      "id": "CONTENTD-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Claim re-verification sweep",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A check whose observed result diverges from expected moves the claim to stale."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A sweep records last-run time even for checks whose result is unchanged."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A scheduled sweep processes every check-backed claim and is safe to re-run."
+        }
+      ],
+      "category": "claims",
+      "tags": [
+        "claims",
+        "freshness",
+        "scheduled"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The payoff of modelling claims as a shared library: given a stale or refuted claim, list every published post that cites it. This answers which already-shipped posts now contain a false statement.",
+      "id": "CONTENTD-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Published-post contamination report",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A stale claim cited by two published posts returns both."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A stale claim cited only by unpublished drafts returns no published posts."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "The report is reachable from the ledger read surface."
+        }
+      ],
+      "category": "ledger",
+      "tags": [
+        "ledger",
+        "claims",
+        "reporting"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A novelty claim is true only relative to a prior-art search performed on a date. It carries a mandatory search date and reverts to unverified once that date exceeds a configured age. This is the only claim kind the passage of time alone makes false.",
+      "id": "CONTENTD-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Novelty claim expiry",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A novelty claim without a search date cannot reach verified."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A novelty claim past the configured age reports as expired on read."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Re-recording the search date returns the claim to verified."
+        }
+      ],
+      "category": "claims",
+      "tags": [
+        "claims",
+        "novelty",
+        "expiry"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Coverage reports what has and has not been marketed, by campaign, lane, channel, and SKU, including how stale each cell is. It replaces a hand-maintained coverage JSON file.",
+      "id": "CONTENTD-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Coverage reporting",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Coverage aggregates publish records into the declared dimensions."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A dimension with no publish record inside the staleness window is reported as stale."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Coverage output matches the ledger rows it derives from."
+        }
+      ],
+      "category": "ledger",
+      "tags": [
+        "ledger",
+        "coverage",
+        "reporting"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Before approving a draft aimed at a specific account, the desk asks the scheduler whether that account is eligible for the lane. The seam is deliberately one question and one reason — no account state, credentials, or warming detail crosses into this scenario.",
+      "id": "CONTENTD-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Account eligibility check",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An ineligible account blocks approval and surfaces the returned reason."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A scheduler outage degrades to a recorded unknown rather than a false eligible."
+        }
+      ],
+      "category": "integration",
+      "tags": [
+        "scheduler",
+        "accounts",
+        "gate"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "An approved draft is handed to the scheduler for release, and the returned URL and platform post id are written back to the ledger. The desk never talks to a platform directly.",
+      "id": "CONTENTD-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Publish handoff contract",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A successful handoff writes the returned URL and post id to the publish record."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A failed handoff leaves the draft approved rather than published, with the failure recorded."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "The handoff is idempotent: a retried release does not create a second ledger row."
+        }
+      ],
+      "category": "integration",
+      "tags": [
+        "scheduler",
+        "publishing",
+        "handoff"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Assisted extraction proposes claims found in a draft body for operator confirmation. It is a cross-check on author self-reporting, never an authority: proposals are confirmed, not auto-accepted. The metric worth watching is how many claims the extractor finds that the author did not declare.",
+      "id": "CONTENTD-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Assisted claim extraction",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Extraction output is stored as proposals and does not itself satisfy the verification gate."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An extraction failure leaves the draft workable with author-declared claims only."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Undeclared-claim count is reportable per draft."
+        }
+      ],
+      "category": "claims",
+      "tags": [
+        "claims",
+        "ai-gateway",
+        "cross-check"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Registering drafts and publish history as a search-hub provider makes editorial history reachable from federated query with no router change. The router holds no content.",
+      "id": "CONTENTD-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "Federated retrieval registration",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "The provider descriptor validates against the search descriptor schema."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Boot self-registration succeeds, and a registration failure leaves local read paths working."
+        }
+      ],
+      "category": "federation",
+      "tags": [
+        "search-hub",
+        "federation",
+        "integration"
+      ]
+    }
+  ]
+}

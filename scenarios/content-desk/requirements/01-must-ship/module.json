@@ -1,0 +1,516 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "A campaign is the work context a producer draws from: theme, audience keys, channel mix, acquisition and retention hypotheses, linked SKUs, and status. Activation is gated on evidence — a campaign with no supporting research reference cannot leave proposed. This is the structural replacement for 'prevent campaign sprawl when signal is weak' being stated as a wish.",
+      "id": "CONTENTD-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Campaign record and lifecycle",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A campaign with all required fields and at least one evidence ref activates; the stored record round-trips."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Activating a campaign with zero evidence refs is rejected with a typed error naming the missing input."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "CLI campaign create then activate round-trips through Connect and is listed by campaign list."
+        }
+      ],
+      "category": "campaigns",
+      "tags": [
+        "campaigns",
+        "lifecycle",
+        "gate"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Each campaign declares its artifact slots by channel and format. Drafts consume slots. A draft request beyond the declared budget is refused rather than queued. The budget is the forcing function that keeps in-flight work bounded by design, which also bounds the operator review load.",
+      "id": "CONTENTD-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Artifact slot budget",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Creating drafts up to the slot count succeeds; the next create for that campaign is rejected."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Slot occupancy is released when a draft is abandoned and re-consumed by a replacement."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Slot state reported by the campaign read surface matches the drafts actually attached."
+        }
+      ],
+      "category": "campaigns",
+      "tags": [
+        "campaigns",
+        "budget",
+        "gate"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The draft lifecycle is the spine of the scenario and is modelled as a declarative flow contract. Illegal transitions are the product: a draft may not reach approved without passing verification, may not leave published, and may not skip review. The transition table is generated from the contract rather than hand-maintained.",
+      "id": "CONTENTD-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Draft lifecycle enforcement",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Every declared state/event pair in the flow contract is exercised against the production transition function."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "drafted to approved without an intervening verification pass is rejected."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "No transition leaves the published terminal state."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Formal replay of named traces passes against the generated artifact."
+        }
+      ],
+      "category": "artifacts",
+      "tags": [
+        "artifacts",
+        "workflow",
+        "invariant"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "A claim is an assertion that would mislead a reader if false. Claims are first-class records with their own lifecycle, cited by many drafts through a join rather than owned by one. Verify once, cite many. This is what later makes it possible to ask which published posts now carry a false statement.",
+      "id": "CONTENTD-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Shared claim library",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A claim cited by two drafts is stored once and resolves from both."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Deleting a draft leaves its cited claims intact and still cited by the remaining drafts."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Claim reuse is visible through the read surface: a claim lists every draft citing it."
+        }
+      ],
+      "category": "claims",
+      "tags": [
+        "claims",
+        "storage",
+        "reuse"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Evidence has strength. A citation is a path, URL, or receipt id and proves only that someone looked. A check is a stored command plus its expected result and is re-runnable. The two are stored distinctly so the gate can require the stronger form where it is cheap — quantitative, existence, and status claims.",
+      "id": "CONTENTD-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Evidence strength",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A citation-backed claim and a check-backed claim are distinguishable by evidence kind on read."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A check records command, expected result, last run time, and last observed result."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A quantitative claim carrying only a citation is reported as under-evidenced for its kind."
+        }
+      ],
+      "category": "claims",
+      "tags": [
+        "claims",
+        "evidence",
+        "policy"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The central invariant. A draft citing any claim not in the verified state cannot transition to approved, and the refusal names which claims are blocking. Everything else in this scenario is bookkeeping; this is the behaviour that makes the honesty doctrine mechanical.",
+      "id": "CONTENTD-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Verification gate",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Approval of a draft with one unverified claim is rejected and the error names that claim."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Approval succeeds once every cited claim reaches verified."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A claim moving from verified to stale returns its citing draft to a blocked state before publication."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "The gate holds through the Connect surface, not only in the service layer."
+        }
+      ],
+      "category": "claims",
+      "tags": [
+        "claims",
+        "gate",
+        "invariant"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Approval is the last human check before a public claim and is never delegated to an agent. The API accepts approval only from an operator identity and records approver, draft, and timestamp as durable attribution.",
+      "id": "CONTENTD-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "Operator-only approval",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An approval attempt carrying a non-operator actor kind is rejected."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A successful approval writes approver identity and timestamp that survive a read round-trip."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Attribution is populated from the request context rather than a client-supplied field."
+        }
+      ],
+      "category": "artifacts",
+      "tags": [
+        "artifacts",
+        "authorization",
+        "audit"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The post-type registry holds each type's medium, activation state, paired-skill reference, required fields, and declared failure modes. Activation criteria become executable rather than a rule stated in a README, and an inactive type blocks approval of any draft using it.",
+      "id": "CONTENTD-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "Post-type registry and activation gate",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Each declared activation criterion is evaluated independently and reported per criterion."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A draft whose post type is inactive cannot be approved, and the refusal names the failing criterion."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "The registry gate command reports activation state for every registered type."
+        }
+      ],
+      "category": "posttypes",
+      "tags": [
+        "posttypes",
+        "registry",
+        "gate"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "A review run scores a draft against the failure modes its post type declares, recording a verdict and supporting evidence per mode. This covers both craft failure modes and the AI-UGC policy guardrails — no credential claims by a persona, no real-person likeness, no fabricated customer testimonial, disclosure present where required.",
+      "id": "CONTENTD-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Review scoring",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A review run records one verdict per declared failure mode for the draft's type."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A run with any failed mode leaves the draft blocked rather than reviewed."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Policy modes are evaluated for persona-voiced drafts and skipped for brand-voiced ones."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Review output is retrievable alongside the draft it scored."
+        }
+      ],
+      "category": "review",
+      "tags": [
+        "review",
+        "scoring",
+        "policy"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The publish record is what shipped: draft, channel, URL, platform post id, series membership, and the prior post in that series. It is the read surface future drafts depend on for inter-post linkage, and the input the learning loop has never had.",
+      "id": "CONTENTD-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Publish ledger",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A publish record round-trips with series membership and prior-post reference intact."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Querying a series returns its posts in publication order."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Publishing a draft transitions it to published and writes exactly one ledger row."
+        }
+      ],
+      "category": "ledger",
+      "tags": [
+        "ledger",
+        "publishing",
+        "query"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Subject familiarity answers whether a named subject — a scenario, agent, or concept — has already been introduced to a given audience, so a draft introduces it on first mention and stops re-introducing it afterwards.",
+      "id": "CONTENTD-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "Subject familiarity state",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A subject never published to an audience reports as not introduced."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "After a publish mentioning that subject, the same query reports introduced with the publishing post."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Familiarity is tracked per audience, so introduction to one audience does not imply another."
+        }
+      ],
+      "category": "ledger",
+      "tags": [
+        "ledger",
+        "audience",
+        "query"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The narration ledger records what has already been said about a given scenario so a later post advances the story instead of repeating it. This is the mechanism behind the dev-log discipline of showing only changes that matter and not narrating every commit.",
+      "id": "CONTENTD-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Narration ledger",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Narrated items recorded against a subject are returned by a later query for that subject."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A query scoped to a date range returns only what was narrated inside it."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Publishing a draft records its narrated items in one operation with the ledger write."
+        }
+      ],
+      "category": "ledger",
+      "tags": [
+        "ledger",
+        "narrative",
+        "query"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Import is a permanent capability, not a one-shot migration: it performs the initial backfill from the marketing team's existing file-backed state and remains the drift-recovery path. Idempotency is by content-addressed key with a unique index, never by line offset or watermark, because those sources are rewritten and reordered by hand and the first reflow would re-import an entire file as new.",
+      "id": "CONTENTD-P0-013",
+      "prd_ref": "OT-P0-013",
+      "status": "planned",
+      "title": "Idempotent state import",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Importing the same source twice creates rows only on the first pass."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Reordering lines in a source without changing content produces no new rows."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A per-source read failure skips that source and is reported rather than recorded as a complete sweep."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A backfill over the real team state files produces a non-empty ledger and re-runs clean."
+        }
+      ],
+      "category": "harness",
+      "tags": [
+        "import",
+        "idempotency",
+        "migration"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The operator workbench is a three-pane desk: queue, draft editor, and a permanently docked inspector holding claims and review verdicts. Approval must be fast, because operator attention is the binding constraint once agents are freer. A disabled approve control always states its reason inline.",
+      "id": "CONTENTD-P0-014",
+      "prd_ref": "OT-P0-014",
+      "status": "planned",
+      "title": "Operator workbench",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "The inspector renders claim state and review verdicts for the selected draft."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "The approve control is disabled with a stated reason when a claim is unverified, the post type is inactive, or the slot budget is exhausted."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Queue, editor, claim resolution, and approval are reachable by keyboard with visible focus."
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "planned",
+          "notes": "A draft moves from queue selection through claim resolution to approval in the running UI."
+        }
+      ],
+      "category": "ui",
+      "tags": [
+        "ui",
+        "workbench",
+        "accessibility"
+      ]
+    }
+  ]
+}

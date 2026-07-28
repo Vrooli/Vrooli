@@ -1,0 +1,97 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Per-post engagement telemetry, once social accounts and measurement sources exist. Deferred because it cannot be built or validated before there are live accounts producing measurable posts.",
+      "id": "CONTENTD-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Publish performance ingestion",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Deferred: requires live accounts and a measurement source before evidence is meaningful."
+        }
+      ],
+      "category": "ledger",
+      "tags": [
+        "telemetry",
+        "deferred"
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Deriving channel-specific variants from one approved draft, so a single verified claim set serves several platform shapes without re-verification.",
+      "id": "CONTENTD-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Per-channel variant derivation",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Deferred: a derived variant inherits the parent's verified claim set without re-verification."
+        }
+      ],
+      "category": "artifacts",
+      "tags": [
+        "variants",
+        "channels",
+        "deferred"
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Linking drafts to rendered image and video assets produced by a future asset-production scenario, with provenance back to the structured character, scene, and product definitions.",
+      "id": "CONTENTD-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Rich-media asset linkage",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Deferred: requires an asset-production scenario to exist before the seam is real."
+        }
+      ],
+      "category": "integration",
+      "tags": [
+        "assets",
+        "rich-media",
+        "deferred"
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Proposing hook-library promotions from measured post outcomes rather than editorial taste. Depends on telemetry, so it inherits that deferral.",
+      "id": "CONTENTD-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Outcome-driven hook promotion",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Deferred: depends on publish-performance data that does not yet exist."
+        }
+      ],
+      "category": "review",
+      "tags": [
+        "hooks",
+        "learning",
+        "deferred"
+      ]
+    }
+  ]
+}
