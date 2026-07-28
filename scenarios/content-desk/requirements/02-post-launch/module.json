@@ -144,7 +144,7 @@
     },
     {
       "criticality": "P1",
-      "description": "Before approving a draft aimed at a specific account, the desk asks the scheduler whether that account is eligible for the lane. The seam is deliberately one question and one reason — no account state, credentials, or warming detail crosses into this scenario.",
+      "description": "Before approving a draft aimed at a specific account, the desk asks the scheduler whether that account is eligible for the lane. The seam is deliberately one question and one reason \u2014 no account state, credentials, or warming detail crosses into this scenario.",
       "id": "CONTENTD-P1-005",
       "prd_ref": "OT-P1-005",
       "status": "planned",
@@ -172,7 +172,7 @@
     },
     {
       "criticality": "P1",
-      "description": "An approved draft is handed to the scheduler for release, and the returned URL and platform post id are written back to the ledger. The desk never talks to a platform directly.",
+      "description": "An approved draft is handed to the scheduler for release, and the returned URL and platform post id are written back to the ledger. The desk never talks to a platform directly. The gate re-runs at handoff, not only at approval. Approval is a point-in-time judgement over evidence that moves, so a draft approved while a check passed must not release after that check changed. This is the periodic-review idea from the MLR category, reduced to its useful core.",
       "id": "CONTENTD-P1-006",
       "prd_ref": "OT-P1-006",
       "status": "planned",
@@ -195,6 +195,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "The handoff is idempotent: a retried release does not create a second ledger row."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A draft approved before a cited claim went stale is refused at handoff and returns to blocked."
         }
       ],
       "category": "integration",
@@ -264,6 +270,182 @@
         "search-hub",
         "federation",
         "integration"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "id": "CONTENTD-P1-009",
+      "prd_ref": "OT-P1-009",
+      "title": "Image attachment",
+      "status": "planned",
+      "description": "A draft carries images produced through image-tools: a banner at a declared aspect ratio and inline figures with alt text and position. This scenario stores a reference and its metadata and never image bytes (D-018) \u2014 image-tools owns generation, deterministic resize and crop, and style recipes. Identity-consistent and video media are explicitly not covered here and remain with the deferred asset-production scenario.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "An attachment persists its asset reference, role, aspect ratio, alt text, and position, and round-trips."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "No attachment path writes image bytes into this scenario's storage."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A generate-then-attach round trip against a faked image-tools seam produces a resolvable reference."
+        },
+        {
+          "type": "test",
+          "phase": "accessibility",
+          "status": "planned",
+          "notes": "An attachment without alt text is surfaced as a review finding rather than silently accepted."
+        }
+      ],
+      "category": "artifacts",
+      "tags": [
+        "artifacts",
+        "images",
+        "integration"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "id": "CONTENTD-P1-010",
+      "prd_ref": "OT-P1-010",
+      "title": "Post-type-shaped authoring surface",
+      "status": "planned",
+      "description": "One rich-text box cannot serve a thread and a long-form post. A thread is a sequence with per-post character budgets and a visible break structure; a long-form post is prose with headings, a banner slot, and inline figures. Platform-shaped constraints must be visible while writing rather than discovered at publish, which is the failure this surface exists to prevent.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "notes": "A thread-type draft renders per-post segments and shows a character budget that updates as text is entered."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "notes": "A long-form draft renders heading structure, a banner slot, and inline figure positions."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Editor shape is selected from the draft's post type rather than hard-coded."
+        }
+      ],
+      "category": "artifacts",
+      "tags": [
+        "artifacts",
+        "ui",
+        "posttypes"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "id": "CONTENTD-P1-011",
+      "prd_ref": "OT-P1-011",
+      "title": "Agent invocation from the workbench",
+      "status": "planned",
+      "description": "The operator commissions a drafting, evidence-hunting, or review run through agent-manager without leaving the desk. Invocation is scoped to those actions rather than a general assistant, because a queue-shaped workflow is served better by named actions than by a chat box. This does not contradict D-003: generation prompts stay in the paired post-type skills, and this is an invocation surface rather than ownership of the prompt. Agent output lands in the editor as editable content with its provenance recorded, and never on the approval path.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A commissioned run against a faked agent-manager seam returns content that persists as a revision with agent author kind."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A failed or unavailable agent run leaves the draft unchanged and surfaces the failure."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "No agent-invoked path can move a draft to approved."
+        }
+      ],
+      "category": "artifacts",
+      "tags": [
+        "artifacts",
+        "agent-manager",
+        "integration"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "id": "CONTENTD-P1-012",
+      "prd_ref": "OT-P1-012",
+      "title": "Claim coverage over draft text",
+      "status": "planned",
+      "description": "The reviewer sees which spans of the body a cited claim supports, and which assertions carry none. Coverage is the mechanical form of the undeclared-claim problem: author self-reporting is the weakest link in the gate, and an uncovered assertion is exactly what a self-reporting author omits. Making it visible turns a judgement call into something the reviewer can scan.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Coverage computes supported and unsupported spans for a body with mixed citations."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "notes": "The editor renders covered spans distinctly and lists uncovered assertions."
+        },
+        {
+          "type": "test",
+          "phase": "accessibility",
+          "status": "planned",
+          "notes": "Coverage state is conveyed by more than colour alone."
+        }
+      ],
+      "category": "claims",
+      "tags": [
+        "claims",
+        "ui",
+        "coverage"
+      ]
+    },
+    {
+      "criticality": "P1",
+      "id": "CONTENTD-P1-013",
+      "prd_ref": "OT-P1-013",
+      "title": "Contamination remediation",
+      "status": "planned",
+      "description": "A contamination report without a response is a dead end: it names published posts that now contain false statements and offers nothing to do about it. A remediation attaches to the contaminated publish record with a kind \u2014 correct in place, publish a correction, retract, or accept and annotate \u2014 and a state, so the loop closes and the ledger records what was done rather than only what went wrong. This is the withdrawal capability from the MLR category, without its distribution engine.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A remediation persists against a publish record with kind and state, and round-trips."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A publish record whose claim is refuted and which has no remediation is reported as open."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Resolving a remediation clears the record from the open contamination list without deleting history."
+        }
+      ],
+      "category": "ledger",
+      "tags": [
+        "ledger",
+        "claims",
+        "remediation"
       ]
     }
   ]

@@ -90,19 +90,44 @@ met real input.
 by hand before implementing the gate. This is deliberately sequenced ahead of
 implementation in the PRD launch plan.
 
-### 2026-07-28 — business-health API degrades under repeated wizard calls
+### 2026-07-28 — business-health wizard is unusable for this scenario
 
-During charter authoring, `StartSession` and `SubmitAnswers` slowed from
-sub-second to 36–39 seconds, causing client-side EOF errors that looked like
-failures while the server was in fact completing the work. A scenario restart
-cleared it. The API process had been up since 2026-07-18.
+**Corrected 2026-07-28.** An earlier version of this entry blamed degradation
+over process uptime and claimed a restart cleared it. That diagnosis is wrong
+and following it wastes a restart.
 
-**Impact:** not a `content-desk` defect, but it cost a confusing debugging
-cycle and would mislead the next agent to author a charter.
+**Symptom:** every `business-health wizard` subcommand for `content-desk` fails
+with `Error: ... unavailable: unexpected EOF`. This includes `start`, `answer`,
+and `preview`, because each one resumes the session first.
 
-**Next step:** file to scenario-qa against `business-health` if it recurs;
-capture is the restart, and the symptom to recognise is slowness rather than
-error.
+**Root cause (partial):** `WizardService/StartSession` for this scenario takes
+**67–72 seconds** server-side and returns **status 200** — the server completes
+the work every time. The connection is already gone when it does. Raising the
+client deadline through `VROOLI_HTTP_TIMEOUT` and `BUSINESS_HEALTH_HTTP_TIMEOUT`
+does **not** help, which places the cut server-side rather than in the CLI —
+most likely an HTTP write deadline shorter than the handler's runtime.
+
+**Not** uptime degradation: this reproduces on a process started seconds
+earlier. The restart in the previous entry coincided with, but did not cause,
+the brief window in which `preview` succeeded.
+
+**Workaround:** none through the CLI. `preview` succeeded twice while a session
+was warm and then stopped, so it is not reliable. Contract edits must either
+wait for a fix or be made directly against `PRD.md` and `requirements/`, with
+`vrooli scenario requirements validate content-desk --json` as the conformance
+gate — that command uses `ContractService`, completes in ~3 ms, and is
+unaffected.
+
+**Impact:** not a `content-desk` defect, but it blocks the sanctioned path for
+changing this scenario's operational targets.
+
+**Real fix:** `business-health` — either make `StartSession` fast or extend the
+server write deadline for it.
+
+**Owner:** unassigned; file to scenario-qa against `business-health`.
+
+**Refs:** `scenarios/business-health/api/internal/wizard/questions.go`;
+observed in `vrooli scenario logs business-health --step start-api`.
 
 ## Architecture Drift
 

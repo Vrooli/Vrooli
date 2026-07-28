@@ -44,7 +44,8 @@ such as BlobStore.
 | Image attachment | artifacts | SQLite | `api/internal/artifacts/schema.sql` | Follows its draft. | **Reference and metadata only, never bytes** (D-018): an `image-tools` asset id, resolved path, role (`banner` or `inline`), declared aspect ratio, alt text, and position. Bytes live in image-tools. |
 | Claim | claims | SQLite | `api/internal/claims/schema.sql` | **Never deleted.** | Assertion text, kind, verification state, search date for novelty claims. Shared across drafts. |
 | Evidence | claims | SQLite | `api/internal/claims/schema.sql` | Follows its claim. | Either a citation or a re-runnable check with command, expected result, last run, last observed result. |
-| Citation | claims | SQLite | `api/internal/claims/schema.sql` | Follows the draft. | The many-to-many join between drafts and claims. Deleting a draft never deletes a claim. |
+| Citation | claims | SQLite | `api/internal/claims/schema.sql` | Follows the draft. | The many-to-many join between drafts and claims, carrying the **span of draft body the claim supports**. The anchor is P0 because it cannot be backfilled later — nobody can reconstruct which sentence an old citation was for. |
+| Remediation | ledger | SQLite | `api/internal/ledger/schema.sql` | **Never deleted.** | The response to a contaminated publish record: kind (correct in place, publish a correction, retract, accept and annotate) and state. Closes the loop the contamination report opens. |
 | Post type | posttypes | SQLite | `api/internal/posttypes/schema.sql` | Seeded at boot; reseed overwrites. | Medium, paired-skill ref, required fields, activation criteria, failure-mode set. |
 | Review run | review | SQLite | `api/internal/review/schema.sql` | Retained as history. | Per-failure-mode verdicts with evidence, plus challenge and resolution state. |
 | Publish record | ledger | SQLite | `api/internal/ledger/schema.sql` | **Never deleted.** | Draft, channel, URL, platform post id, series, prior post, published timestamp. The draft reference is **nullable by design** — see D-012. |
@@ -65,7 +66,7 @@ Each domain's schema file lives beside the code that interprets it. The
 | claims, evidence, citations | claims | `api/internal/claims/schema.sql` | claims policy engine; read by artifacts for the approval gate |
 | post_types, activation_criteria, failure_modes | posttypes | `api/internal/posttypes/schema.sql` | posttypes validation; read by artifacts and review |
 | review_runs, verdicts, challenges | review | `api/internal/review/schema.sql` | review service; read by artifacts for the approval gate |
-| publish_records, coverage, subject_mentions, narrated_items, import_keys | ledger | `api/internal/ledger/schema.sql` | ledger reporting; written on publish and import |
+| publish_records, coverage, subject_mentions, narrated_items, remediations, import_keys | ledger | `api/internal/ledger/schema.sql` | ledger reporting; written on publish, import, and remediation |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
@@ -159,7 +160,7 @@ audit surface, which is the opposite of what the ledger is for.
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
 | Claim, evidence | None. | Permanent. | None — a claim outlives every draft citing it, which is what makes reuse and contamination reporting possible. |
-| Publish record, subject mention, narrated item | None. | Permanent. | None — publish history is the audit surface. |
+| Publish record, subject mention, narrated item, remediation | None. | Permanent. | None — publish history and what was done about it are both the audit surface. |
 | Draft, revision | None. Abandonment is a status, not a delete. | Permanent. | None. |
 | Campaign, artifact slot | None. Closing is a status. | Permanent. | None. |
 | Review run, verdict | None. | Permanent, with history. | None. |

@@ -51,11 +51,11 @@
     },
     {
       "criticality": "P2",
-      "description": "Linking drafts to rendered image and video assets produced by a future asset-production scenario, with provenance back to the structured character, scene, and product definitions.",
+      "description": "Character-consistent and video assets produced by a future asset-production scenario are linked to a draft. Single-image attachment is not this: it moved to P1 through image-tools (D-018). What remains here is the hard problem \u2014 identity blocks, drift across frames, and generation spend \u2014 which needs persona accounts that do not exist and post types that are all inactive.",
       "id": "CONTENTD-P2-003",
       "prd_ref": "OT-P2-003",
       "status": "planned",
-      "title": "Rich-media asset linkage",
+      "title": "Identity-consistent media linkage",
       "validation": [
         {
           "type": "test",
@@ -91,6 +91,49 @@
         "hooks",
         "learning",
         "deferred"
+      ]
+    },
+    {
+      "criticality": "P2",
+      "id": "CONTENTD-P2-005",
+      "prd_ref": "OT-P2-005",
+      "title": "Conversational draft iteration",
+      "status": "planned",
+      "description": "Revision is genuinely conversational in a way that workflow actions are not \u2014 tighten this hook, cut the third point. Applied in place inside the open editor rather than as a separate chat surface, so the draft stays the object of attention.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "An instruction against an open draft produces a new revision with a visible diff and agent author kind."
+        }
+      ],
+      "category": "artifacts",
+      "tags": [
+        "artifacts",
+        "ui",
+        "agent-manager"
+      ]
+    },
+    {
+      "criticality": "P2",
+      "id": "CONTENTD-P2-006",
+      "prd_ref": "OT-P2-006",
+      "title": "Desktop packaging",
+      "status": "planned",
+      "description": "Tier 2 desktop delivery through scenario-to-desktop is the external target, not hosted deployment (D-017). Local-first removes tenancy, a hosted credential surface, and sandboxed check execution by construction; a hosted product would reopen all three at once.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A desktop build starts, reaches the workbench, and reads local storage through the resolver."
+        }
+      ],
+      "category": "deployment",
+      "tags": [
+        "deployment",
+        "desktop"
       ]
     }
   ]

@@ -8,7 +8,7 @@
   "requirements": [
     {
       "criticality": "P0",
-      "description": "A campaign is the work context a producer draws from: theme, audience keys, channel mix, acquisition and retention hypotheses, linked SKUs, and status. Activation is gated on evidence — a campaign with no supporting research reference cannot leave proposed. This is the structural replacement for 'prevent campaign sprawl when signal is weak' being stated as a wish.",
+      "description": "A campaign is the work context a producer draws from: theme, audience keys, channel mix, acquisition and retention hypotheses, linked SKUs, and status. Activation is gated on evidence \u2014 a campaign with no supporting research reference cannot leave proposed. This is the structural replacement for 'prevent campaign sprawl when signal is weak' being stated as a wish.",
       "id": "CONTENTD-P0-001",
       "prd_ref": "OT-P0-001",
       "status": "planned",
@@ -116,7 +116,7 @@
     },
     {
       "criticality": "P0",
-      "description": "A claim is an assertion that would mislead a reader if false. Claims are first-class records with their own lifecycle, cited by many drafts through a join rather than owned by one. Verify once, cite many. This is what later makes it possible to ask which published posts now carry a false statement.",
+      "description": "A claim is an assertion that would mislead a reader if false. Claims are first-class records with their own lifecycle, cited by many drafts through a join rather than owned by one. Verify once, cite many. This is what later makes it possible to ask which published posts now carry a false statement. Each citation anchors to the span of draft body it supports. The anchor is P0 because adding it later cannot be backfilled \u2014 nobody can reconstruct which sentence an old citation was for \u2014 while the coverage view built on it is P1.",
       "id": "CONTENTD-P0-004",
       "prd_ref": "OT-P0-004",
       "status": "planned",
@@ -139,6 +139,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Claim reuse is visible through the read surface: a claim lists every draft citing it."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A citation persists its span anchor and round-trips; an anchor outside the body length is rejected."
         }
       ],
       "category": "claims",
@@ -150,7 +156,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Evidence has strength. A citation is a path, URL, or receipt id and proves only that someone looked. A check is a stored command plus its expected result and is re-runnable. The two are stored distinctly so the gate can require the stronger form where it is cheap — quantitative, existence, and status claims.",
+      "description": "Evidence has strength. A citation is a path, URL, or receipt id and proves only that someone looked. A check is a stored command plus its expected result and is re-runnable. The two are stored distinctly so the gate can require the stronger form where it is cheap \u2014 quantitative, existence, and status claims.",
       "id": "CONTENTD-P0-005",
       "prd_ref": "OT-P0-005",
       "status": "planned",
@@ -224,7 +230,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Approval is the last human check before a public claim and is never delegated to an agent. The API accepts approval only from an operator identity and records approver, draft, and timestamp as durable attribution.",
+      "description": "Approval is the last human check before a public claim and is never delegated to an agent. The API accepts approval only from an operator identity and records approver, draft, and timestamp as durable attribution. Approval records the acting identity and the capacity it acted in, per D-015; a single-operator install is the case where one actor holds every capacity.",
       "id": "CONTENTD-P0-007",
       "prd_ref": "OT-P0-007",
       "status": "planned",
@@ -292,7 +298,7 @@
     },
     {
       "criticality": "P0",
-      "description": "A review run scores a draft against the failure modes its post type declares, recording a verdict and supporting evidence per mode. This covers both craft failure modes and the AI-UGC policy guardrails — no credential claims by a persona, no real-person likeness, no fabricated customer testimonial, disclosure present where required.",
+      "description": "A review run scores a draft against the failure modes its post type declares, recording a verdict and supporting evidence per mode. This covers both craft failure modes and the AI-UGC policy guardrails \u2014 no credential claims by a persona, no real-person likeness, no fabricated customer testimonial, disclosure present where required.",
       "id": "CONTENTD-P0-009",
       "prd_ref": "OT-P0-009",
       "status": "planned",
@@ -366,7 +372,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Subject familiarity answers whether a named subject — a scenario, agent, or concept — has already been introduced to a given audience, so a draft introduces it on first mention and stops re-introducing it afterwards.",
+      "description": "Subject familiarity answers whether a named subject \u2014 a scenario, agent, or concept \u2014 has already been introduced to a given audience, so a draft introduces it on first mention and stops re-introducing it afterwards.",
       "id": "CONTENTD-P0-011",
       "prd_ref": "OT-P0-011",
       "status": "planned",
@@ -474,7 +480,7 @@
     },
     {
       "criticality": "P0",
-      "description": "The operator workbench is a three-pane desk: queue, draft editor, and a permanently docked inspector holding claims and review verdicts. Approval must be fast, because operator attention is the binding constraint once agents are freer. A disabled approve control always states its reason inline.",
+      "description": "The operator workbench is a three-pane desk: queue, draft editor, and a permanently docked inspector holding claims and review verdicts. Approval must be fast, because operator attention is the binding constraint once agents are freer. A disabled approve control always states its reason inline. A disabled approval control always names its specific cause \u2014 an unresolved claim, an inactive post type, or an exhausted slot budget.",
       "id": "CONTENTD-P0-014",
       "prd_ref": "OT-P0-014",
       "status": "planned",
@@ -510,6 +516,47 @@
         "ui",
         "workbench",
         "accessibility"
+      ]
+    },
+    {
+      "criticality": "P0",
+      "id": "CONTENTD-P0-015",
+      "prd_ref": "OT-P0-015",
+      "title": "Draft authoring and revision",
+      "status": "planned",
+      "description": "The operator composes and revises a draft body inside the workbench rather than in an external editor. This is co-equal with review, not secondary to it: a solo operator who must leave the surface to fix a word breaks the ledger the moment they do. Every revision records whether an operator or a commissioned agent produced it, so agent output is always editable content with visible provenance and never a locked result.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "A revision persists and is retrievable, and its author kind round-trips as operator or agent."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Revising a draft in a terminal status is rejected with a typed error."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "notes": "The editor renders an existing body, accepts an edit, and persists it without leaving the workbench."
+        },
+        {
+          "type": "test",
+          "phase": "accessibility",
+          "status": "planned",
+          "notes": "The editor is reachable and operable by keyboard alone, with a visible focus state."
+        }
+      ],
+      "category": "artifacts",
+      "tags": [
+        "artifacts",
+        "authoring",
+        "ui",
+        "provenance"
       ]
     }
   ]
