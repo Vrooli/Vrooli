@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Device } from "@vrooli/proto-types/device-sync-hub/v1/devices/devices_pb";
+import { TrustState } from "@vrooli/proto-types/device-sync-hub/v1/devices/devices_pb";
 
 import {
   clearSession,
@@ -26,6 +27,8 @@ export interface SessionContextValue {
   session: SessionState;
   /** True once this browser holds a device token (it has joined the trust group). */
   isPaired: boolean;
+  /** True when this browser has requested access but is not trusted yet. */
+  isPendingApproval: boolean;
   /** True once an owner JWT is present (device-management RPCs are reachable). */
   isOwner: boolean;
   /** Owner email for display, when known (login captures it; token-paste may not). */
@@ -80,7 +83,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
-      isPaired: Boolean(session.deviceToken),
+      // A request-pairing response deliberately includes an inert token.  It is
+      // not a session and must never unlock transfer UI before owner approval.
+      isPaired: Boolean(
+        session.deviceToken && session.device?.trustState === TrustState.TRUSTED,
+      ),
+      isPendingApproval: Boolean(
+        session.deviceToken && session.device?.trustState === TrustState.PENDING,
+      ),
       isOwner: Boolean(session.ownerToken),
       ownerEmail: session.ownerEmail,
       setDeviceCredentials,

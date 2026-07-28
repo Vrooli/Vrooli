@@ -12,8 +12,9 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import App from "./App";
-import { seedSession } from "./test-utils";
+import { makeDevice, seedSession } from "./test-utils";
 import { selectors } from "./consts/selectors";
+import { TrustState } from "@vrooli/proto-types/device-sync-hub/v1/devices/devices_pb";
 
 // App provides theme/session/realtime but (like production) relies on the
 // QueryClient mounted above it in main.tsx. Supply one here so the realtime
@@ -43,5 +44,19 @@ describe("App auth gate", () => {
     renderApp();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.pages.transfer)).toBeInTheDocument();
+  });
+
+  it("keeps a pending device in onboarding instead of attempting trusted transfers", () => {
+    seedSession({
+      deviceToken: "pending-device-token",
+      device: makeDevice({ trustState: TrustState.PENDING }),
+      ownerToken: "owner-jwt",
+    });
+
+    renderApp();
+
+    expect(screen.getByTestId(selectors.onboarding.screen)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.join.waiting)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.pages.transfer)).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 package sources
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"errors"
@@ -125,4 +126,64 @@ func TestChromeImportPreservesMeasuredFolderPathAsTags(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	require.Equal(t, []string{"Bookmarks bar", "Research"}, entries[0].Tags)
+}
+
+func TestRedditSavedArchiveImportsOnlySavedMaterialAndIsIdempotent(t *testing.T) {
+	t.Log("[REQ:SIG-P0-008]")
+	service, _, _ := testService(t, RedditSavedArchiveAdapter{})
+	export := redditArchive(t, map[string]string{
+		"saved_posts.csv":    "id,permalink\npost-1,https://www.reddit.com/r/example/comments/post-1/saved/\n",
+		"saved_comments.csv": "id,permalink\ncomment-1,https://www.reddit.com/r/example/comments/post-2/saved/comment-1/\n",
+		"comments.csv":       "id,permalink,body\nprivate,https://www.reddit.com/r/example/comments/private/,operator-authored\n",
+	})
+	first, err := service.Import(context.Background(), RedditSavedArchiveAdapterID, bytes.NewReader(export))
+	require.NoError(t, err)
+	require.Equal(t, 2, first.Created)
+	second, err := service.Import(context.Background(), RedditSavedArchiveAdapterID, bytes.NewReader(export))
+	require.NoError(t, err)
+	require.Zero(t, second.Created)
+	require.Equal(t, 2, second.Duplicated)
+
+	entries, err := (RedditSavedArchiveAdapter{}).Parse(context.Background(), bytes.NewReader(export))
+	require.NoError(t, err)
+	require.Equal(t, []string{"reddit", "saved"}, entries[0].Tags)
+}
+
+func TestRedditSavedArchiveRejectsWrongShape(t *testing.T) {
+	_, err := (RedditSavedArchiveAdapter{}).Parse(context.Background(), bytes.NewReader(redditArchive(t, map[string]string{"posts.csv": "id,permalink\npost,https://example.test/\n"})))
+	require.ErrorContains(t, err, "saved_posts.csv and saved_comments.csv are absent")
+}
+
+func TestRedditSavedArchiveBoundsCompressedAndExpandedInput(t *testing.T) {
+	archive := redditArchive(t, map[string]string{
+		"saved_posts.csv": "id,permalink\npost-1,https://www.reddit.com/r/example/comments/post-1/saved/\n",
+	})
+
+	_, err := parseRedditSavedArchive(bytes.NewReader(archive), redditArchiveLimits{maxArchiveBytes: int64(len(archive) - 1), maxSavedCSVBytes: 1_024, maxSavedEntries: 10})
+	require.ErrorContains(t, err, "archive exceeds")
+
+	_, err = parseRedditSavedArchive(bytes.NewReader(archive), redditArchiveLimits{maxArchiveBytes: 1_024, maxSavedCSVBytes: 8, maxSavedEntries: 10})
+	require.ErrorContains(t, err, "saved CSV exceeds")
+}
+
+func TestRedditSavedArchiveBoundsCaptureCount(t *testing.T) {
+	archive := redditArchive(t, map[string]string{
+		"saved_posts.csv": "id,permalink\npost-1,https://www.reddit.com/r/example/comments/post-1/saved/\npost-2,https://www.reddit.com/r/example/comments/post-2/saved/\n",
+	})
+	_, err := parseRedditSavedArchive(bytes.NewReader(archive), redditArchiveLimits{maxArchiveBytes: 1_024, maxSavedCSVBytes: 1_024, maxSavedEntries: 1})
+	require.ErrorContains(t, err, "saved entry count exceeds")
+}
+
+func redditArchive(t *testing.T, files map[string]string) []byte {
+	t.Helper()
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	for name, body := range files {
+		file, err := writer.Create(name)
+		require.NoError(t, err)
+		_, err = file.Write([]byte(body))
+		require.NoError(t, err)
+	}
+	require.NoError(t, writer.Close())
+	return buffer.Bytes()
 }

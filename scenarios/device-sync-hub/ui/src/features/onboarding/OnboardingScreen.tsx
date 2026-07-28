@@ -24,8 +24,10 @@ type OnboardingMode = "choose" | "setup" | "join";
  */
 export function OnboardingScreen() {
   const { t } = useTranslation();
-  const { isOwner } = useSession();
-  const [mode, setMode] = useState<OnboardingMode>(isOwner ? "setup" : "choose");
+  const { isOwner, isPendingApproval } = useSession();
+  const [mode, setMode] = useState<OnboardingMode>(
+    isPendingApproval ? "join" : isOwner ? "setup" : "choose",
+  );
 
   return (
     <div

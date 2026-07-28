@@ -165,7 +165,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("signals runtime: %v", err)
 	}
-	sourcesService, err := sources.NewService(sources.NewSQLiteRepository(db), signalsRuntime.Service, clock.System{}, sources.ChromeBookmarksAdapter{})
+	sourcesService, err := sources.NewService(sources.NewSQLiteRepository(db), signalsRuntime.Service, clock.System{}, sources.ChromeBookmarksAdapter{}, sources.RedditSavedArchiveAdapter{})
 	if err != nil {
 		log.Fatalf("sources runtime: %v", err)
 	}

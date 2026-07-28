@@ -53,13 +53,15 @@
     "request": "Request approval",
     "waitingTitle": "Waiting for approval",
     "waitingIntro": "Your request was sent. Approve it from a device that's already trusted, then this screen continues automatically.",
+    "waitingOwnerAction": "Signed in as the owner? You can approve this request on this device.",
+    "approveThisDevice": "Approve this device",
     "missingCode": "Enter a pairing code first.",
     "missingName": "Name this device first."
   },
   "transfer": {
     "receive": {
       "heading": "Receive",
-      "description": "Items shared with this device.",
+      "description": "Hub relay storage for the permitted trusted devices. Each item stays here until its retention expires.",
       "loading": "Loading items…",
       "empty": "Nothing here yet. Send something from another device.",
       "searchLabel": "Search items",
@@ -78,7 +80,11 @@
       "copy": "Copy",
       "copied": "Copied",
       "remove": "Remove",
-      "expiresLabel": "Expires {{when}}"
+      "expiresLabel": "Expires {{when}}",
+      "relayStored": "Stored on this Hub",
+      "audienceAll": "Available to all your trusted devices",
+      "audienceDirect": "Available to one trusted device",
+      "retentionDetail": "{{retention}}: the Hub removes this relay copy at the expiry shown."
     },
     "retention": {
       "live": "Live",

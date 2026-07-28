@@ -30,6 +30,7 @@ vi.mock("../../api/transfer", async (importOriginal) => {
 
 import { ReceivePanel } from "./ReceivePanel";
 import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
 
 type ItemInit = MessageInitShape<typeof ItemSchema>;
 
@@ -83,6 +84,16 @@ describe("ReceivePanel", () => {
     // File item → download button; text item → copy button.
     expect(screen.getByTestId(selectors.receive.download({ id: "item-file" }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.receive.copy({ id: "item-text" }))).toBeInTheDocument();
+  });
+
+  it("explains that a broadcast item is retained on the Hub for every trusted device", async () => {
+    listItems.mockResolvedValue({ items: [fileItem()] });
+    renderWithProviders(<ReceivePanel />);
+
+    const item = await screen.findByTestId(selectors.receive.item({ id: "item-file" }));
+    const deliveryInfo = within(item).getByTestId(selectors.receive.deliveryInfo({ id: "item-file" }));
+    expect(within(deliveryInfo).getByText(strings.transfer.receive.relayStored)).toBeInTheDocument();
+    expect(within(deliveryInfo).getByText(strings.transfer.receive.audienceAll)).toBeInTheDocument();
   });
 
   it("triggers the device-token download when Download is clicked", async () => {

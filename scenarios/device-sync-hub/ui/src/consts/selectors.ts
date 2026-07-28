@@ -312,6 +312,7 @@ const literalSelectors = {
     redeemButton: "join-redeem-button",
     requestButton: "join-request-button",
     waiting: "join-waiting",
+    approveThisDevice: "join-approve-this-device",
     error: "join-error",
   },
   receive: {
@@ -435,6 +436,11 @@ const dynamicSelectorDefinitions = {
     }),
   },
   receive: {
+    deliveryInfo: defineDynamicSelector({
+      description: "Hub relay storage and audience explanation for a received item",
+      testIdPattern: "receive-delivery-info-${id}",
+      params: { id: { type: "string" } },
+    }),
     item: defineDynamicSelector({
       description: "A received item card/row by item id",
       testIdPattern: "receive-item-${id}",

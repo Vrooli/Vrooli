@@ -23,7 +23,7 @@ import { useSession } from "../session/SessionProvider";
  */
 export function JoinHubForm({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
-  const { setDeviceCredentials } = useSession();
+  const { isOwner, isPendingApproval, session, setDeviceCredentials } = useSession();
   const [code, setCode] = useState("");
   const [deviceName, setDeviceName] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
@@ -49,6 +49,20 @@ export function JoinHubForm({ onBack }: { onBack: () => void }) {
     },
   });
 
+  const approveMutation = useMutation({
+    mutationFn: () => {
+      if (!session.device?.id) {
+        throw new Error("pending pairing request has no device id");
+      }
+      return devicesClient.approvePairing({ deviceId: session.device.id });
+    },
+    onSuccess: (resp) => {
+      if (session.deviceToken) {
+        setDeviceCredentials(session.deviceToken, resp.device ?? session.device);
+      }
+    },
+  });
+
   const handleRedeem = () => {
     setLocalError(null);
     if (!code.trim()) {
@@ -67,7 +81,8 @@ export function JoinHubForm({ onBack }: { onBack: () => void }) {
     requestMutation.mutate();
   };
 
-  const mutationError = redeemMutation.error ?? requestMutation.error;
+  const mutationError = redeemMutation.error ?? requestMutation.error ?? approveMutation.error;
+  const waitingForApproval = requested || isPendingApproval;
 
   return (
     <section
@@ -80,13 +95,26 @@ export function JoinHubForm({ onBack }: { onBack: () => void }) {
       </h1>
       <p className="mt-1 text-sm text-app-muted-foreground">{t(strings.join.intro)}</p>
 
-      {requested ? (
+      {waitingForApproval ? (
         <div
           data-testid={selectors.join.waiting}
           className="mt-6 rounded-panel border border-app-border bg-app-surface-muted p-4"
         >
           <h2 className="text-sm font-semibold">{t(strings.join.waitingTitle)}</h2>
           <p className="mt-1 text-sm text-app-muted-foreground">{t(strings.join.waitingIntro)}</p>
+          {isOwner && session.device?.id && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <p className="text-xs text-app-muted-foreground">{t(strings.join.waitingOwnerAction)}</p>
+              <Button
+                data-testid={selectors.join.approveThisDevice}
+                size="sm"
+                onClick={() => approveMutation.mutate()}
+                disabled={approveMutation.isPending}
+              >
+                {t(strings.join.approveThisDevice)}
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="mt-6 flex flex-col gap-4">

@@ -3,16 +3,18 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
-import { makeDevice } from "../../test-utils/session";
+import { makeDevice, seedSession } from "../../test-utils/session";
+import { TrustState } from "@vrooli/proto-types/device-sync-hub/v1/devices/devices_pb";
 
-const { redeemPairingCode, requestPairing } = vi.hoisted(() => ({
+const { redeemPairingCode, requestPairing, approvePairing } = vi.hoisted(() => ({
   redeemPairingCode: vi.fn(),
   requestPairing: vi.fn(),
+  approvePairing: vi.fn(),
 }));
 
 vi.mock("../../api/devices", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/devices")>();
-  return { ...actual, devicesClient: { redeemPairingCode, requestPairing } };
+  return { ...actual, devicesClient: { redeemPairingCode, requestPairing, approvePairing } };
 });
 
 import { JoinHubForm } from "./JoinHubForm";
@@ -64,6 +66,23 @@ describe("JoinHubForm", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.join.waiting)).toBeInTheDocument();
+    });
+  });
+
+  it("lets a signed-in owner approve this browser's pending pairing request", async () => {
+    const user = userEvent.setup();
+    const pending = makeDevice({ id: "dev-pending", trustState: TrustState.PENDING });
+    seedSession({ deviceToken: "dt-pending", device: pending, ownerToken: "owner-jwt" });
+    approvePairing.mockResolvedValueOnce({
+      device: makeDevice({ id: "dev-pending", trustState: TrustState.TRUSTED }),
+    });
+    renderWithProviders(<JoinHubForm onBack={vi.fn()} />);
+
+    await user.click(screen.getByTestId(selectors.join.approveThisDevice));
+
+    await waitFor(() => {
+      expect(approvePairing).toHaveBeenCalledWith({ deviceId: "dev-pending" });
+      expect(loadSession().device?.trustState).toBe(TrustState.TRUSTED);
     });
   });
 

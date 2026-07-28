@@ -51,6 +51,14 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 _None yet._
 
+## UX Issues
+
+- Resolved 2026-07-28: received-item cards showed filename, retention, expiry,
+  and actions without explaining that each item is a server-relayed copy or
+  which trusted devices may retrieve it. `ReceivePanel` now names Hub storage,
+  broadcast versus directed availability, and expiry-driven retention on every
+  card.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

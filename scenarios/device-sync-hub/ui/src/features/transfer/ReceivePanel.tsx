@@ -218,6 +218,26 @@ export function ReceivePanel() {
                           })}
                         </p>
                       )}
+                      <div
+                        data-testid={selectors.receive.deliveryInfo({ id: item.id })}
+                        className="mt-2 flex flex-col gap-0.5 text-xs text-app-muted-foreground"
+                      >
+                        <p>{t(strings.transfer.receive.relayStored)}</p>
+                        <p>
+                          {t(
+                            item.targetDeviceId
+                              ? strings.transfer.receive.audienceDirect
+                              : strings.transfer.receive.audienceAll,
+                          )}
+                        </p>
+                        {item.expiresAt && (
+                          <p>
+                            {t(strings.transfer.receive.retentionDetail, {
+                              retention: t(RETENTION_LABEL[item.retention]),
+                            })}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 

@@ -93,15 +93,37 @@ the tier-0 ingestion path (D-017) and the source of the first real corpus.
 | Path | Format | Owner | Status |
 |---|---|---|---|
 | X archive import | Platform archive (zip containing JS/JSON payloads) | sources | Planned — `SIG-P0-008` |
-| Reddit export import | Platform GDPR export (CSV) | sources | Planned — `SIG-P0-008` |
-| Browser bookmarks import | Netscape bookmark HTML | sources | Planned — `SIG-P0-008` |
+| Reddit export import | Platform GDPR ZIP containing CSV datasets | sources | Measured adapter exists; broader `SIG-P0-008` evidence remains planned |
+| Browser bookmarks import | Netscape bookmark HTML | sources | Measured adapter exists; broader `SIG-P0-008` evidence remains planned |
 | Corpus export | JSONL of signals with annotations and dispositions | signals | Planned — operator escape hatch; a capture substrate the operator cannot get data out of is a trap |
 
 All imports are **idempotent by content hash**: re-running an import over
 unchanged source data creates no duplicates, which is what makes repeated import
 a safe routine operation rather than a destructive one. Import formats are owned
 by the platforms and change without notice, so each adapter validates shape
-before writing and fails the run rather than importing partial garbage.
+before writing and fails the run rather than importing partial garbage. Archive
+adapters also bound compressed input, relevant-file expansion, and captured-entry
+counts before accumulating signals; an operator-selected ZIP is still untrusted
+input and must not be able to exhaust the scenario process.
+
+The measured Reddit GDPR export is a ZIP containing many CSV datasets. The
+current tier-0 adapter deliberately reads only `saved_posts.csv` and
+`saved_comments.csv`, whose `permalink` column yields an explicit saved URL.
+It does not ingest authored activity, chats, votes, account/profile data, ad
+preferences, IP logs, payment data, subreddit subscriptions, or any other
+dataset merely because it is present in the export. A saved item is an
+immutable capture candidate, not an assertion that it is relevant, valuable,
+or classifiable; categorization and disposition remain ambient-only views over
+the full stored corpus.
+
+Future operator-authorized automation may request a date-bounded Reddit export
+instead of repeatedly requesting all account history. It must persist the
+requested window and advance its successful-import checkpoint only after the
+corresponding archive has imported without failure. The next request must
+overlap the prior window and rely on content-hash idempotency, rather than
+treating a timestamp as a lossless cursor. That work is not a P0 adapter and
+remains subject to a current terms/permission review before any network request
+is enabled.
 
 ## Retention And Deletion
 
