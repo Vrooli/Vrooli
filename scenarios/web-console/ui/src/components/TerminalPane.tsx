@@ -28,7 +28,7 @@ import type { ConversationEvent } from "../api/conversation";
 import type { TTSPlaybackState } from "../audio-integration";
 import { DeviceFrame } from "./terminal/DeviceFrame";
 import { archetypeForGrid } from "../lib/deviceArchetype";
-import { chromeTier, fitDeviceGrid, fitGrid, screenAperture, surplusRatio } from "../lib/followerViewport";
+import { chromeTier, fitDeviceGrid, fitDeviceGridWithControls, fitGrid, screenAperture, surplusRatio } from "../lib/followerViewport";
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
@@ -232,7 +232,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const activePane = useWorkspaceStore((s) => s.activePane);
     const displayMode = useWorkspaceStore((s) => s.displayMode);
     const adaptiveChrome = useWorkspaceStore((s) => s.adaptiveChrome);
-    const { persistCursor } = useConversationSession(sessionId);
+    const { persistCursor } = useConversationSession(sessionId, { hydrate: false });
     const conversationSession = useConversationStore((state) => state.sessions[sessionId]);
     const conversationEvents = conversationSession?.events ?? EMPTY_CONVERSATION_EVENTS;
     const conversationCursor = conversationSession?.cursor ?? EMPTY_CONVERSATION_CURSOR;
@@ -288,9 +288,16 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         ? (screen.clientWidth / currentTerminal.cols) / (screen.clientHeight / currentTerminal.rows)
         : 0.5;
       const fitted = fitGrid(size.cols, size.rows, paneSize.width, paneSize.height, measuredAspect);
-      const tier = chromeTier(surplusRatio(fitted, paneSize.width, paneSize.height), fitted.scale);
+      let tier = chromeTier(surplusRatio(fitted, paneSize.width, paneSize.height), fitted.scale);
       const archetype = archetypeForGrid(size.cols, size.rows, measuredAspect);
-      const device = fitDeviceGrid(size.cols, size.rows, paneSize.width, paneSize.height, measuredAspect, screenAperture(archetype, tier));
+      let device = fitDeviceGridWithControls(size.cols, size.rows, paneSize.width, paneSize.height, measuredAspect, archetype, tier);
+      // When the virtual keyboard leaves too little visual viewport for a
+      // recognizable device, switch to the compact in-terminal control strip.
+      // It remains reachable rather than falling below the clipped pane.
+      if (tier !== "strip" && device.frame.height < 140) {
+        tier = "strip";
+        device = fitDeviceGrid(size.cols, size.rows, paneSize.width, paneSize.height, measuredAspect, screenAperture(archetype, tier));
+      }
       return { rect: device.frame, screenRect: device.screen, tier, archetype, cols: size.cols, rows: size.rows };
     }, [serverSize, isFollower, paneSize, terminal]);
 
@@ -653,6 +660,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 		element.style.height = `${naturalHeight}px`;
       element.style.transformOrigin = "top left";
       element.style.transform = screenRect.scale < 1 ? `scale(${screenRect.scale})` : "";
+		// The device frame already animates its bounds. Apply the same brief
+		// motion to the terminal host so keyboard and lease-size changes read as
+		// one coherent presentation instead of a frame moving around a jump-cut.
+		element.style.transition = "left 240ms ease, top 240ms ease, width 240ms ease, height 240ms ease, transform 240ms ease";
 		// Fit at the unscaled desktop-sized host first, then restore the exact
 		// authoritative grid. Previously xterm fitted to the phone width and
 		// was scaled a second time, producing the narrow, broken tmux view.
@@ -669,6 +680,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 		element.style.height = "";
         element.style.transformOrigin = "";
         element.style.transform = "";
+        element.style.transition = "";
       };
     }, [terminal, followerFrame]);
 
@@ -731,7 +743,13 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         if (rafId !== null) return; // Already scheduled
         rafId = requestAnimationFrame(() => {
           rafId = null;
-          scrollAwareFit();
+		  // A follower's xterm is a scaled rendering of the lease owner's grid.
+		  // Fitting it to the local visual viewport changes its columns, which
+		  // both corrupts the preview during mobile keyboard changes and replaces
+		  // this device's declared takeover size. The follower layout effect owns
+		  // its geometry instead.
+		  if (isFollower) return;
+		  scrollAwareFit();
 		  const last = lastSentSizeRef.current;
 		  const authoritative = getServerSize();
 		  if ((!authoritative || authoritative.cols !== terminal.cols || authoritative.rows !== terminal.rows) && (!last || last.cols !== terminal.cols || last.rows !== terminal.rows)) {
@@ -747,7 +765,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         resizeObserver.disconnect();
         if (rafId !== null) cancelAnimationFrame(rafId);
       };
-	}, [terminal, sendResize, scrollAwareFit, getServerSize]);
+	}, [terminal, sendResize, scrollAwareFit, getServerSize, isFollower]);
 
     return (
       <div

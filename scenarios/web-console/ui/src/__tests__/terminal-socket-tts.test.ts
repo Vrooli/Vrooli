@@ -71,4 +71,23 @@ describe("useTerminalSession — conversation acks", () => {
       .filter((msg) => msg.type === "conversation_event_ack");
     expect(acks).toHaveLength(0);
   });
+
+  it("declares this device's grid before an explicit take-over", () => {
+    const { result } = renderHook(() =>
+      useTerminalSession({
+        sessionId: "sess-takeover",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => result.current.takeLease());
+
+    const sent = fakeWs.sent.map((raw) => JSON.parse(raw) as { type: string; cols?: number; rows?: number });
+    expect(sent.slice(-2)).toEqual([
+      { type: "resize", cols: terminal.cols, rows: terminal.rows },
+      { type: "take_lease" },
+    ]);
+  });
 });

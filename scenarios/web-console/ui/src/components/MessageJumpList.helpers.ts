@@ -133,6 +133,29 @@ export const DEFAULT_NAVIGATOR_STATE: NavigatorState = {
 
 export type ContentBadge = "code" | "fileReference" | "long";
 
+export interface DerivedEvent {
+  preview: string;
+  previewLower: string;
+  badges: ContentBadge[];
+  metaLower: string;
+}
+
+const derivedEvents = new WeakMap<ConversationEvent, DerivedEvent>();
+
+export function getDerived(event: ConversationEvent): DerivedEvent {
+  const cached = derivedEvents.get(event);
+  if (cached) return cached;
+  const preview = normalizePreview(event.text);
+  const derived = {
+    preview,
+    previewLower: preview.toLowerCase(),
+    badges: detectBadges(event),
+    metaLower: metaTokens(event),
+  };
+  derivedEvents.set(event, derived);
+  return derived;
+}
+
 /**
  * Messages whose normalized preview is at least this many characters are
  * considered "long" landmarks worth filtering to in dense sessions.
@@ -330,14 +353,12 @@ export function buildResults(
     if (!matchesRole(event, state.role)) continue;
     if (!matchesStatus(event, state.status)) continue;
 
-    const badges = detectBadges(event);
+    const { badges, preview, previewLower, metaLower } = getDerived(event);
     if (!matchesContent(badges, state.content)) continue;
-
-    const preview = normalizePreview(event.text);
 
     let score = 0;
     if (query) {
-      const haystack = `${preview.toLowerCase()} ${metaTokens(event)}`;
+      const haystack = `${previewLower} ${metaLower}`;
       score = countOccurrences(haystack, query);
       if (score === 0) continue; // query present but no match anywhere
     }

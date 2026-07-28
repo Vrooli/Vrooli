@@ -1,11 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+
+const FALLBACK_VIEWPORT_HEIGHT = 900;
+const SIZE_QUANTUM = 2;
 
 interface UseVirtualListOptions {
   count: number;
   estimateSize: (index: number) => number;
+  /**
+   * Stable identity for an item.  Supplying this is essential for lists that
+   * prepend pages: an index is no longer the same row after a prepend, while
+   * the measured height still belongs to the original item.
+   */
+  getItemKey?: (index: number) => string | number;
   overscan?: number;
   scrollElementRef: React.RefObject<HTMLElement | null>;
   enabled?: boolean;
+  anchorOnResize?: boolean;
 }
 
 interface VirtualItem {
@@ -36,15 +46,22 @@ function binarySearch(starts: number[], value: number): number {
 export function useVirtualList({
   count,
   estimateSize,
+  getItemKey,
   overscan = 6,
   scrollElementRef,
   enabled = true,
+  anchorOnResize = true,
 }: UseVirtualListOptions) {
   const [viewportHeight, setViewportHeight] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
-  const [measuredSizes, setMeasuredSizes] = useState<Record<number, number>>({});
+  const [sizeVersion, setSizeVersion] = useState(0);
   const itemNodesRef = useRef(new Map<number, HTMLElement>());
   const itemObserversRef = useRef(new Map<number, ResizeObserver>());
+  const measuredSizesRef = useRef(new Map<string | number, number>());
+  const dirtyFromRef = useRef<number | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const pendingAboveDeltaRef = useRef(0);
+  const geometryRef = useRef({ sizes: [] as number[], starts: [] as number[], totalSize: 0, count: -1, estimateSize: null as UseVirtualListOptions["estimateSize"] | null });
 
   const updateViewport = useCallback(() => {
     const el = scrollElementRef.current;
@@ -53,11 +70,17 @@ export function useVirtualList({
     setScrollTop(el.scrollTop);
   }, [scrollElementRef]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = scrollElementRef.current;
     if (!el) return;
 
     updateViewport();
+  }, [scrollElementRef, updateViewport]);
+
+  useEffect(() => {
+    const el = scrollElementRef.current;
+    if (!el) return;
+
     const onScroll = () => {
       setScrollTop(el.scrollTop);
     };
@@ -88,23 +111,33 @@ export function useVirtualList({
       for (const observer of observers.values()) observer.disconnect();
       observers.clear();
       nodes.clear();
+      if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
     };
   }, []);
 
   const measurements = useMemo(() => {
-    const sizes = new Array<number>(count);
-    const starts = new Array<number>(count);
-    let totalSize = 0;
-
-    for (let index = 0; index < count; index += 1) {
-      starts[index] = totalSize;
-      const size = measuredSizes[index] ?? estimateSize(index);
-      sizes[index] = size;
-      totalSize += size;
+    const geometry = geometryRef.current;
+    const rebuild = geometry.count !== count || geometry.estimateSize !== estimateSize;
+    const dirtyFrom = rebuild ? 0 : dirtyFromRef.current;
+    if (rebuild) {
+      geometry.sizes = new Array<number>(count);
+      geometry.starts = new Array<number>(count);
+      geometry.count = count;
+      geometry.estimateSize = estimateSize;
     }
-
-    return { sizes, starts, totalSize };
-  }, [count, estimateSize, measuredSizes]);
+    if (dirtyFrom != null) {
+      let total = dirtyFrom === 0 ? 0 : (geometry.starts[dirtyFrom - 1] ?? 0) + (geometry.sizes[dirtyFrom - 1] ?? estimateSize(dirtyFrom - 1));
+      for (let index = dirtyFrom; index < count; index += 1) {
+        geometry.starts[index] = total;
+        const size = measuredSizesRef.current.get(getItemKey?.(index) ?? index) ?? estimateSize(index);
+        geometry.sizes[index] = size;
+        total += size;
+      }
+      geometry.totalSize = total;
+      dirtyFromRef.current = null;
+    }
+    return geometry;
+  }, [count, estimateSize, sizeVersion]);
 
   const registerItem = useCallback((index: number, node: HTMLElement | null) => {
     const currentNode = itemNodesRef.current.get(index);
@@ -122,8 +155,29 @@ export function useVirtualList({
     itemNodesRef.current.set(index, node);
 
     const measure = () => {
-      const height = Math.ceil(node.getBoundingClientRect().height) || estimateSize(index);
-      setMeasuredSizes((prev) => (prev[index] === height ? prev : { ...prev, [index]: height }));
+      const key = getItemKey?.(index) ?? index;
+      const rawHeight = node.getBoundingClientRect().height || estimateSize(index);
+      const height = Math.ceil(rawHeight / SIZE_QUANTUM) * SIZE_QUANTUM;
+      const geometry = geometryRef.current;
+      const previous = measuredSizesRef.current.get(key) ?? geometry.sizes[index] ?? estimateSize(index);
+      if (previous === height) return;
+      measuredSizesRef.current.set(key, height);
+      dirtyFromRef.current = dirtyFromRef.current == null ? index : Math.min(dirtyFromRef.current, index);
+      const element = scrollElementRef.current;
+      if (anchorOnResize && element && (geometry.starts[index] ?? 0) < element.scrollTop) {
+        pendingAboveDeltaRef.current += height - previous;
+      }
+      if (frameRef.current != null) return;
+      frameRef.current = requestAnimationFrame(() => {
+        frameRef.current = null;
+        const aboveDelta = pendingAboveDeltaRef.current;
+        pendingAboveDeltaRef.current = 0;
+        if (aboveDelta !== 0 && scrollElementRef.current) {
+          scrollElementRef.current.scrollTop += aboveDelta;
+          setScrollTop(scrollElementRef.current.scrollTop);
+        }
+        setSizeVersion((version) => version + 1);
+      });
     };
 
     measure();
@@ -133,12 +187,12 @@ export function useVirtualList({
       observer.observe(node);
       itemObserversRef.current.set(index, observer);
     }
-  }, [estimateSize]);
+  }, [anchorOnResize, estimateSize, getItemKey, scrollElementRef]);
 
   const virtualItems = useMemo(() => {
     if (count === 0) return [] as VirtualItem[];
 
-    if (!enabled || viewportHeight <= 0) {
+    if (!enabled) {
       return measurements.sizes.map((size, index) => ({
         index,
         size,
@@ -146,10 +200,11 @@ export function useVirtualList({
       }));
     }
 
+    const effectiveViewportHeight = viewportHeight || FALLBACK_VIEWPORT_HEIGHT;
     const rawStart = binarySearch(measurements.starts, Math.max(0, scrollTop));
     const rawEnd = binarySearch(
       measurements.starts,
-      Math.max(0, scrollTop + viewportHeight),
+      Math.max(0, scrollTop + effectiveViewportHeight),
     );
 
     const startIndex = Math.max(0, rawStart - overscan);

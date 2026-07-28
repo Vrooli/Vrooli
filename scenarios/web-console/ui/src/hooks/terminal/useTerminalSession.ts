@@ -138,6 +138,10 @@ export function useTerminalSession({
   // cleanly.
   const inSnapshotRef = useRef(true);
 	const serverSizeRef = useRef<{ cols: number; rows: number } | null>(null);
+	// This is deliberately separate from serverSizeRef. A follower renders the
+	// leader's grid, but must retain its own most recently declared grid so an
+	// explicit Take over can resize the PTY for the device that requested it.
+	const declaredSizeRef = useRef<{ cols: number; rows: number } | null>(null);
 	const leaseRequestInFlightRef = useRef(false);
 	const [serverSize, setServerSize] = useState<{ cols: number; rows: number } | null>(null);
 	const [holdsLease, setHoldsLease] = useState(true);
@@ -211,6 +215,7 @@ export function useTerminalSession({
       //     "scroll up shows last page repeated" symptom.
       t.reset();
       t.clear();
+      declaredSizeRef.current = { cols: t.cols, rows: t.rows };
       transportRef.current?.sendJson({ type: "resize", cols: t.cols, rows: t.rows });
       if (wasReconnect) {
         t.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
@@ -242,8 +247,15 @@ export function useTerminalSession({
 
   const requestLease = useCallback((explicit = false) => {
 		if (!explicit && leaseRequestInFlightRef.current) return;
-		leaseRequestInFlightRef.current = true;
-    transport.sendJson({ type: "take_lease" });
+		// Frames on one WebSocket are ordered. Refresh our declaration first so
+		// AcquireLease applies this device's grid even when it has only ever
+		// rendered as a follower.
+		const declared = declaredSizeRef.current;
+		if (declared) transport.sendJson({ type: "resize", cols: declared.cols, rows: declared.rows });
+    const sent = transport.sendJson({ type: "take_lease" });
+		// Do not leave a follower stuck waiting when the tap happened during a
+		// mobile reconnect and there was no open socket to carry the request.
+		leaseRequestInFlightRef.current = sent;
   }, [transport]);
 
   // The visible Take over control is an explicit operator action. It must be
@@ -431,6 +443,8 @@ export function useTerminalSession({
 
   const sendResize = useCallback(
     (cols: number, rows: number) => {
+			if (cols <= 0 || rows <= 0) return;
+			declaredSizeRef.current = { cols, rows };
       transport.sendJson({ type: "resize", cols, rows });
     },
     [transport],

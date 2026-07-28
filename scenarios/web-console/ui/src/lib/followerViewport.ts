@@ -5,6 +5,14 @@ export type FollowerRect = { x: number; y: number; width: number; height: number
 export type ChromeTier = "full" | "hairline" | "strip";
 export type ScreenAperture = { x: number; y: number; width: number; height: number };
 
+/** Height kept free for the follower label and Take over control. */
+export function deviceControlsLane(archetype: "phone" | "tablet" | "laptop" | "monitor" | "ultrawide", tier: ChromeTier): number {
+  if (tier === "strip") return 0;
+  // Monitor-like silhouettes draw their stand outside their rectangular
+  // bounds, so their caption needs more than a normal one-line gap.
+  return archetype === "laptop" || archetype === "monitor" || archetype === "ultrawide" ? 64 : 44;
+}
+
 export function fitGrid(gridCols: number, gridRows: number, paneWidth: number, paneHeight: number, cellAspect: number): FollowerRect {
   const gridAspect = (gridCols * cellAspect) / gridRows;
   let width = Math.min(paneWidth, paneHeight * gridAspect);
@@ -38,6 +46,14 @@ export function fitDeviceGrid(gridCols: number, gridRows: number, paneWidth: num
   const scale = calculated >= MIN_LEGIBLE_FONT_PX ? 1 : calculated / MIN_LEGIBLE_FONT_PX;
   const frame = { x: (paneWidth - width) / 2, y: (paneHeight - height) / 2, width, height, fontSize, scale };
   return { frame, screen: { x: frame.x + width * aperture.x, y: frame.y + height * aperture.y, width: screenWidth, height: screenHeight, fontSize, scale } };
+}
+
+// Fit the presentation into the area above its controls, rather than fitting
+// the frame to the whole pane and hoping the controls fit after it. This is
+// particularly important for a tall phone viewed in a short desktop pane.
+export function fitDeviceGridWithControls(gridCols: number, gridRows: number, paneWidth: number, paneHeight: number, cellAspect: number, archetype: "phone" | "tablet" | "laptop" | "monitor" | "ultrawide", tier: ChromeTier): { frame: FollowerRect; screen: FollowerRect } {
+  const availableHeight = Math.max(1, paneHeight - deviceControlsLane(archetype, tier));
+  return fitDeviceGrid(gridCols, gridRows, paneWidth, availableHeight, cellAspect, screenAperture(archetype, tier));
 }
 
 export function surplusRatio(rect: Pick<FollowerRect, "width" | "height">, paneWidth: number, paneHeight: number): number {

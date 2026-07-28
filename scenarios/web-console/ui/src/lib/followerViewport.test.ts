@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chromeTier, fitDeviceGrid, fitGrid, MIN_LEGIBLE_FONT_PX, screenAperture, surplusRatio } from "./followerViewport";
+import { chromeTier, deviceControlsLane, fitDeviceGrid, fitDeviceGridWithControls, fitGrid, MIN_LEGIBLE_FONT_PX, screenAperture, surplusRatio } from "./followerViewport";
 
 describe("fitGrid", () => {
   it.each([
@@ -31,5 +31,11 @@ describe("fitDeviceGrid", () => {
     expect(screen.x + screen.width).toBeLessThan(frame.x + frame.width);
     expect(screen.y + screen.height).toBeLessThan(frame.y + frame.height);
     expect(screen.width / screen.height).toBeCloseTo((236 * 0.5) / 75, 4);
+  });
+
+  it("reserves a visible control lane for a tall phone in a short pane", () => {
+    const paneHeight = 360;
+    const layout = fitDeviceGridWithControls(45, 90, 1200, paneHeight, 0.5, "phone", "hairline");
+    expect(layout.frame.y + layout.frame.height + deviceControlsLane("phone", "hairline")).toBeLessThanOrEqual(paneHeight);
   });
 });

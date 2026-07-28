@@ -18,9 +18,16 @@ import (
 // implementation lives in package main (adapts ConversationStore and the TTS
 // summarizer to satisfy this interface).
 type Service interface {
-	Get(sessionID string, sinceSequence int64) (SessionState, error)
+	Get(sessionID string, sinceSequence int64, limit int, beforeSequence int64) (SessionState, error)
+	Search(sessionID, query string, limit int) ([]SearchMatch, bool, int64, error)
+	GetRange(sessionID string, from, to int64) (SessionState, error)
 	UpdateCursor(sessionID string, patch CursorPatch) (Cursor, error)
 	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
+}
+type SearchMatch struct {
+	EventID  string
+	Sequence int64
+	Excerpt  string
 }
 
 // Event mirrors the legacy JSON shape of one stored conversation entry.
@@ -48,9 +55,13 @@ type Cursor struct {
 
 // SessionState bundles a session's events and current cursor.
 type SessionState struct {
-	SessionID string
-	Events    []Event
-	Cursor    Cursor
+	SessionID      string
+	Events         []Event
+	Cursor         Cursor
+	HasMore        bool
+	OldestSequence int64
+	NewestSequence int64
+	TotalCount     int64
 }
 
 // CursorPatch carries cursor field overrides; each Has* flag indicates whether

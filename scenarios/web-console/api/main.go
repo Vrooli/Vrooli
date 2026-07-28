@@ -123,6 +123,7 @@ func applyColumnMigrations(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,
+		`CREATE INDEX IF NOT EXISTS idx_conversation_events_session_sequence ON conversation_events(session_id, sequence)`,
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {

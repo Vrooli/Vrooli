@@ -228,6 +228,54 @@ func TestTerminalWS_ReconnectDoesNotStealSize(t *testing.T) {
 	follower.Close()
 }
 
+// [REQ:P0-002d] An explicit takeover applies the requesting device's
+// declaration and immediately reports the new lease to that same socket.
+func TestTerminalWS_TakeLeaseUpdatesRequestingClient(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessionID := createTestSession(t, ts, srv)
+	url := wsURL(ts, "/api/v1/sessions/"+sessionID+"/ws")
+	leader, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer leader.Close()
+	skipHistoryEnd(t, leader)
+	if err := leader.WriteJSON(TerminalMessage{Type: MsgTypeResize, Cols: 160, Rows: 50}); err != nil {
+		t.Fatal(err)
+	}
+	follower, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer follower.Close()
+	skipHistoryEnd(t, follower)
+	// These consecutive frames are intentional: browsers send their current
+	// declaration before an explicit take-over request.
+	if err := follower.WriteJSON(TerminalMessage{Type: MsgTypeResize, Cols: 45, Rows: 30}); err != nil {
+		t.Fatal(err)
+	}
+	if err := follower.WriteJSON(TerminalMessage{Type: MsgTypeTakeLease}); err != nil {
+		t.Fatal(err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		_ = follower.SetReadDeadline(deadline)
+		var msg TerminalMessage
+		if err := follower.ReadJSON(&msg); err != nil {
+			t.Fatalf("read takeover size_info: %v", err)
+		}
+		if msg.Type == MsgTypeSizeInfo && msg.Cols == 45 && msg.Rows == 30 && msg.HoldsLease {
+			break
+		}
+	}
+	if session, ok := srv.sessions.Get(sessionID); !ok {
+		t.Fatal("session missing")
+	} else if cols, rows := session.EffectiveSize(); cols != 45 || rows != 30 {
+		t.Fatalf("takeover size = %dx%d, want 45x30", cols, rows)
+	}
+}
+
 // [REQ:P0-002b] WebSocket I/O Streaming - successful WS upgrade and ping/pong
 func TestHandleTerminalWS_PingPong(t *testing.T) {
 	ts, srv := setupWSServer(t)

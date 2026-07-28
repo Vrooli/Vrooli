@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,11 +17,21 @@ type ConversationRepository interface {
 	AppendEvent(event ConversationEvent) (ConversationEvent, error)
 	GetEvent(sessionID, eventID string) (ConversationEvent, bool, error)
 	ListSession(sessionID string) (ConversationSessionState, error)
+	ListSessionPage(sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error)
+	CountSessionEvents(sessionID string) (int64, error)
+	SearchSession(sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error)
+	ListSessionRange(sessionID string, from, to int64) ([]ConversationEvent, error)
 	UpdateSpeechParagraphs(sessionID, eventID string, paragraphs []string) error
 	UpdateCursor(sessionID string, patch conversationCursorPatch) (ConversationCursor, error)
 	RecordPlaybackStage(sessionID, eventID, stage string) error
 	DeleteSession(sessionID string) error
 	CopySession(oldID, newID string) error
+}
+
+type ConversationSearchMatch struct {
+	EventID  string
+	Sequence int64
+	Excerpt  string
 }
 
 type SQLConversationRepository struct {
@@ -169,6 +180,125 @@ func (r *SQLConversationRepository) ListSession(sessionID string) (ConversationS
 	}
 
 	return state, nil
+}
+
+// ListSessionPage returns one bounded, ascending page ending before
+// beforeSequence (or the newest events when beforeSequence is zero).
+func (r *SQLConversationRepository) ListSessionPage(sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error) {
+	if limit <= 0 {
+		state, err := r.ListSession(sessionID)
+		return state, false, err
+	}
+	state := ConversationSessionState{SessionID: sessionID, Events: []ConversationEvent{}}
+	if err := r.db.QueryRow(`SELECT last_seen_sequence, last_listened_sequence FROM conversation_sessions WHERE session_id = ?`, sessionID).Scan(&state.Cursor.LastSeenSequence, &state.Cursor.LastListenedSequence); err != nil {
+		if err == sql.ErrNoRows {
+			return state, false, nil
+		}
+		return ConversationSessionState{}, false, fmt.Errorf("load cursor: %w", err)
+	}
+	query := `SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence, delivery_state, tts_state, consumption_state FROM conversation_events WHERE session_id = ?`
+	args := []any{sessionID}
+	if beforeSequence > 0 {
+		query += ` AND sequence < ?`
+		args = append(args, beforeSequence)
+	}
+	query += ` ORDER BY sequence DESC LIMIT ?`
+	args = append(args, limit+1)
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return ConversationSessionState{}, false, fmt.Errorf("query event page: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		event, scanErr := scanConversationEvent(rows)
+		if scanErr != nil {
+			return ConversationSessionState{}, false, scanErr
+		}
+		state.Events = append(state.Events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return ConversationSessionState{}, false, fmt.Errorf("iterate event page: %w", err)
+	}
+	hasMore := len(state.Events) > limit
+	if hasMore {
+		state.Events = state.Events[:limit]
+	}
+	for left, right := 0, len(state.Events)-1; left < right; left, right = left+1, right-1 {
+		state.Events[left], state.Events[right] = state.Events[right], state.Events[left]
+	}
+	return state, hasMore, nil
+}
+
+func (r *SQLConversationRepository) CountSessionEvents(sessionID string) (int64, error) {
+	var count int64
+	if err := r.db.QueryRow(`SELECT COUNT(*) FROM conversation_events WHERE session_id = ?`, sessionID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count session events: %w", err)
+	}
+	return count, nil
+}
+
+func (r *SQLConversationRepository) SearchSession(sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+	escaped := strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(query)
+	pattern := "%" + escaped + "%"
+	var total int64
+	if err := r.db.QueryRow(`SELECT COUNT(*) FROM conversation_events WHERE session_id = ? AND text LIKE ? ESCAPE '\'`, sessionID, pattern).Scan(&total); err != nil {
+		return nil, false, 0, err
+	}
+	rows, err := r.db.Query(`SELECT id, sequence, text FROM conversation_events WHERE session_id = ? AND text LIKE ? ESCAPE '\' ORDER BY sequence LIMIT ?`, sessionID, pattern, limit+1)
+	if err != nil {
+		return nil, false, 0, err
+	}
+	defer rows.Close()
+	matches := []ConversationSearchMatch{}
+	for rows.Next() {
+		var id, text string
+		var sequence int64
+		if err := rows.Scan(&id, &sequence, &text); err != nil {
+			return nil, false, 0, err
+		}
+		matches = append(matches, ConversationSearchMatch{EventID: id, Sequence: sequence, Excerpt: conversationExcerpt(text, query)})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, 0, err
+	}
+	truncated := len(matches) > limit
+	if truncated {
+		matches = matches[:limit]
+	}
+	return matches, truncated, total, nil
+}
+
+func conversationExcerpt(text, query string) string {
+	start := strings.Index(strings.ToLower(text), strings.ToLower(query))
+	if start < 0 {
+		start = 0
+	}
+	from := max(0, start-60)
+	to := min(len(text), from+160)
+	return text[from:to]
+}
+
+func (r *SQLConversationRepository) ListSessionRange(sessionID string, from, to int64) ([]ConversationEvent, error) {
+	rows, err := r.db.Query(`SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence, delivery_state, tts_state, consumption_state FROM conversation_events WHERE session_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence LIMIT 5001`, sessionID, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	events := []ConversationEvent{}
+	for rows.Next() {
+		event, err := scanConversationEvent(rows)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	if len(events) > 5000 {
+		return nil, fmt.Errorf("conversation range exceeds 5000 events")
+	}
+	return events, rows.Err()
 }
 
 func (r *SQLConversationRepository) UpdateSpeechParagraphs(sessionID, eventID string, paragraphs []string) error {
@@ -484,6 +614,80 @@ func (r *InMemoryConversationRepository) ListSession(sessionID string) (Conversa
 		Events:    events,
 		Cursor:    session.cursor,
 	}, nil
+}
+
+func (r *InMemoryConversationRepository) ListSessionPage(sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error) {
+	state, err := r.ListSession(sessionID)
+	if err != nil || limit <= 0 {
+		return state, false, err
+	}
+	end := len(state.Events)
+	if beforeSequence > 0 {
+		end = 0
+		for index, event := range state.Events {
+			if event.Sequence >= beforeSequence {
+				end = index
+				break
+			}
+			end = index + 1
+		}
+	}
+	start := end - limit
+	if start < 0 {
+		start = 0
+	}
+	hasMore := start > 0
+	state.Events = append([]ConversationEvent(nil), state.Events[start:end]...)
+	return state, hasMore, nil
+}
+
+func (r *InMemoryConversationRepository) CountSessionEvents(sessionID string) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	session := r.sessions[sessionID]
+	if session == nil {
+		return 0, nil
+	}
+	return int64(len(session.events)), nil
+}
+
+func (r *InMemoryConversationRepository) SearchSession(sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
+	state, err := r.ListSession(sessionID)
+	if err != nil {
+		return nil, false, 0, err
+	}
+	if limit <= 0 {
+		limit = 500
+	}
+	matches := []ConversationSearchMatch{}
+	for _, event := range state.Events {
+		if strings.Contains(strings.ToLower(event.Text), strings.ToLower(query)) {
+			matches = append(matches, ConversationSearchMatch{EventID: event.ID, Sequence: event.Sequence, Excerpt: conversationExcerpt(event.Text, query)})
+		}
+	}
+	total := int64(len(matches))
+	truncated := len(matches) > limit
+	if truncated {
+		matches = matches[:limit]
+	}
+	return matches, truncated, total, nil
+}
+
+func (r *InMemoryConversationRepository) ListSessionRange(sessionID string, from, to int64) ([]ConversationEvent, error) {
+	state, err := r.ListSession(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	events := []ConversationEvent{}
+	for _, event := range state.Events {
+		if event.Sequence >= from && event.Sequence <= to {
+			events = append(events, event)
+			if len(events) > 5000 {
+				return nil, fmt.Errorf("conversation range exceeds 5000 events")
+			}
+		}
+	}
+	return events, nil
 }
 
 func (r *InMemoryConversationRepository) UpdateSpeechParagraphs(sessionID, eventID string, paragraphs []string) error {

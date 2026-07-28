@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
@@ -17,11 +17,11 @@ import {
   Volume2,
 } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents } from "../stores/useConversationStore";
-import { refreshConversationSession } from "../hooks/useConversationSession";
+import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
-import { type ConversationEvent } from "../api/conversation";
+import { getConversationRange, searchConversation, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
 import { useFilePreviewController } from "./file-preview/useFilePreviewController";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
@@ -29,6 +29,7 @@ import { looksLikeFileReference } from "../lib/fileReferences";
 import { MarkdownRenderer } from "./markdown";
 import { useVirtualList } from "../hooks/useVirtualList";
 import MessageJumpList, { type MessageExportSelection } from "./MessageJumpList";
+import { getDerived } from "./MessageJumpList.helpers";
 import MessageExportDrawer from "./MessageExportDrawer";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
@@ -76,6 +77,11 @@ const COLLAPSE_THRESHOLD_PX = 400;
 interface ScrollSnapshot {
   atBottom: boolean;
   topEventId: string | null;
+}
+
+interface PrependScrollAnchor {
+  eventId: string;
+  offsetFromViewportTop: number;
 }
 
 const scrollSnapshotKey = (sessionId: string) => `wc.messagesScroll.${sessionId}`;
@@ -502,6 +508,7 @@ export default function MessagesPane({
 }: MessagesPaneProps) {
   const { t } = useTranslation();
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
+  const totalCount = useConversationStore((state) => state.sessions[sessionId]?.totalCount ?? events.length);
   const isMobile = useMediaQuery("(max-width: 767px)");
 
   // Stable subset of playbackState for the per-message audio popover. Keeping
@@ -534,6 +541,9 @@ export default function MessagesPane({
   // arrows keep working while (and after) the navigator is open.
   const [searchQuery, setSearchQuery] = useState("");
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
+  const [serverSearchMatches, setServerSearchMatches] = useState<ConversationSearchMatch[]>([]);
+  const [serverSearchReady, setServerSearchReady] = useState(false);
+  const [searchTruncated, setSearchTruncated] = useState(false);
 
   // --- Navigator panel ---
   const [navOpen, setNavOpen] = useState(false);
@@ -564,6 +574,7 @@ export default function MessagesPane({
   // --- Export selection (session-scoped source of truth shared by the
   // navigator's selection mode and the export drawer) ---
   const [exportSelectedIds, setExportSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [exportEventsById, setExportEventsById] = useState<ReadonlyMap<string, ConversationEvent>>(new Map());
   const [exportDrawerOpen, setExportDrawerOpen] = useState(false);
 
   // --- File preview ---
@@ -583,14 +594,45 @@ export default function MessagesPane({
   // user manually scrolls.
   const pinToEventIdRef = useRef<string | null>(null);
   const programmaticScrollRef = useRef(false);
+  const pinSettleCountRef = useRef(0);
+  const pinTargetRef = useRef<string | null>(null);
+  const programmaticTimeoutRef = useRef<number | null>(null);
   const restoreAppliedRef = useRef(false);
+  // Pagination inserts older rows before the visible window. Keep a DOM
+  // anchor through that insertion so loading another page feels like normal
+  // continuous upward scrolling rather than a jump or a captured wheel.
+  const prependScrollAnchorRef = useRef<PrependScrollAnchor | null>(null);
 
   const runProgrammaticScroll = useCallback((scroll: () => void) => {
     programmaticScrollRef.current = true;
+    if (programmaticTimeoutRef.current != null) window.clearTimeout(programmaticTimeoutRef.current);
     scroll();
-    requestAnimationFrame(() => {
+    const el = scrollContainerRef.current;
+    if (el && "onscrollend" in el) {
+      el.addEventListener("scrollend", () => {
+        programmaticScrollRef.current = false;
+      }, { once: true });
+    }
+    let previous = el?.scrollTop ?? 0;
+    let settledFrames = 0;
+    const settle = () => {
+      const current = el?.scrollTop ?? 0;
+      settledFrames = current === previous ? settledFrames + 1 : 0;
+      previous = current;
+      if (settledFrames >= 2) {
+        programmaticScrollRef.current = false;
+        return;
+      }
+      requestAnimationFrame(settle);
+    };
+    requestAnimationFrame(settle);
+    programmaticTimeoutRef.current = window.setTimeout(() => {
       programmaticScrollRef.current = false;
-    });
+    }, 1200);
+  }, []);
+
+  useEffect(() => () => {
+    if (programmaticTimeoutRef.current != null) window.clearTimeout(programmaticTimeoutRef.current);
   }, []);
 
   // --- Refresh: on mount, on browser tab focus, and via manual button ---
@@ -638,12 +680,28 @@ export default function MessagesPane({
         pinToBottomRef.current = false;
         pinToEventIdRef.current = null;
       }
+      if (el.scrollTop <= el.clientHeight * 2 && !prependScrollAnchorRef.current) {
+        const containerTop = el.getBoundingClientRect().top;
+        const anchor = [...el.querySelectorAll<HTMLElement>("[data-event-id]")]
+          .find((row) => row.getBoundingClientRect().bottom > containerTop);
+        if (anchor?.dataset.eventId) {
+          prependScrollAnchorRef.current = {
+            eventId: anchor.dataset.eventId,
+            offsetFromViewportTop: anchor.getBoundingClientRect().top - containerTop,
+          };
+        }
+        void loadOlderConversationPage(sessionId).then((loaded) => {
+          // A failed/no-op request never causes a render where the layout
+          // effect can consume this anchor.
+          if (!loaded) prependScrollAnchorRef.current = null;
+        });
+      }
     };
 
     updateNearBottom();
     el.addEventListener("scroll", updateNearBottom, { passive: true });
     return () => el.removeEventListener("scroll", updateNearBottom);
-  }, []);
+  }, [sessionId]);
 
   // Release the bottom-pin or event-pin as soon as the user scrolls away from
   // it. We do this from a wheel/touchstart listener so synthetic re-scrolls
@@ -657,10 +715,12 @@ export default function MessagesPane({
     };
     el.addEventListener("wheel", release, { passive: true });
     el.addEventListener("touchstart", release, { passive: true });
+    el.addEventListener("pointerdown", release, { passive: true });
     el.addEventListener("keydown", release);
     return () => {
       el.removeEventListener("wheel", release);
       el.removeEventListener("touchstart", release);
+      el.removeEventListener("pointerdown", release);
       el.removeEventListener("keydown", release);
     };
   }, []);
@@ -698,12 +758,48 @@ export default function MessagesPane({
     setNewMessageCount(0);
   }, [runProgrammaticScroll]);
 
-  // Search match IDs
+  // Search the entire session, rather than only the currently loaded window.
+  // Highlighting still uses the returned ids against the bounded local window.
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query) {
+      setServerSearchMatches([]);
+      setServerSearchReady(false);
+      setSearchTruncated(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void searchConversation(sessionId, query).then((response) => {
+        if (!cancelled) {
+          setServerSearchMatches(response.matches);
+          setSearchTruncated(response.truncated);
+          setServerSearchReady(true);
+        }
+      }).catch(() => {
+        if (!cancelled) {
+          setServerSearchMatches([]);
+          setSearchTruncated(false);
+          setServerSearchReady(false);
+        }
+      });
+    }, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery, sessionId]);
+
   const searchMatchIds = useMemo(() => {
     if (!searchQuery) return [];
-    const q = searchQuery.toLowerCase();
-    return events.filter((e) => e.text.toLowerCase().includes(q)).map((e) => e.id);
-  }, [events, searchQuery]);
+    if (serverSearchReady) return serverSearchMatches.map((match) => match.eventId);
+    const query = searchQuery.toLowerCase();
+    return events.filter((event) => getDerived(event).previewLower.includes(query)).map((event) => event.id);
+  }, [events, searchQuery, serverSearchMatches, serverSearchReady]);
+  const searchMatchById = useMemo(
+    () => new Map(serverSearchMatches.map((match) => [match.eventId, match])),
+    [serverSearchMatches],
+  );
   const searchMatchSet = useMemo(() => new Set(searchMatchIds), [searchMatchIds]);
   const eventIds = useMemo(() => events.map((event) => event.id), [events]);
   const eventIndexById = useMemo(
@@ -741,21 +837,47 @@ export default function MessagesPane({
     const lineEstimate = Math.ceil(event.text.length / 90);
     return Math.max(110, Math.min(520, 72 + lineEstimate * 22));
   }, [events]);
+  const getMessageKey = useCallback((index: number) => events[index]?.id ?? index, [events]);
   const { registerItem, totalSize, virtualItems, scrollToIndex } = useVirtualList({
     count: events.length,
     estimateSize: estimateMessageHeight,
+    getItemKey: getMessageKey,
     overscan: 8,
     scrollElementRef: scrollContainerRef,
     enabled: events.length > 40,
   });
 
-  const scrollToEvent = useCallback((eventId: string) => {
+  // useLayoutEffect runs after React has placed the prepended page but before
+  // the browser paints it.  The former anchor is temporarily outside the
+  // virtual window at this point, so use its new virtual index rather than a
+  // DOM lookup. Subsequent row measurement adjustments are anchored by the
+  // virtualizer itself.
+  useLayoutEffect(() => {
+    const anchor = prependScrollAnchorRef.current;
+    const el = scrollContainerRef.current;
+    if (!anchor || !el) return;
+    const index = events.findIndex((event) => event.id === anchor.eventId);
+    if (index < 0) return;
+    scrollToIndex(index, "auto", "start");
+    el.scrollTop -= anchor.offsetFromViewportTop;
+    prependScrollAnchorRef.current = null;
+  }, [events, scrollToIndex]);
+
+  const scrollToEvent = useCallback(async (eventId: string) => {
     const index = eventIndexById.get(eventId);
-    if (index == null) return;
+    if (index == null) {
+      const match = searchMatchById.get(eventId);
+      if (!match || !await loadConversationPageContaining(sessionId, match.sequence)) return;
+      requestAnimationFrame(() => {
+        const loadedIndex = useConversationStore.getState().sessions[sessionId]?.events.findIndex((event) => event.id === eventId) ?? -1;
+        if (loadedIndex >= 0) runProgrammaticScroll(() => scrollToIndex(loadedIndex, "auto", "center"));
+      });
+      return;
+    }
     pinToBottomRef.current = false;
     pinToEventIdRef.current = null;
     runProgrammaticScroll(() => scrollToIndex(index, "smooth", "center"));
-  }, [eventIndexById, runProgrammaticScroll, scrollToIndex]);
+  }, [eventIndexById, runProgrammaticScroll, scrollToIndex, searchMatchById, sessionId]);
 
   // Restore scroll position on mount: read the snapshot saved when the pane
   // last unmounted and pin to the appropriate target. The pin is held until
@@ -795,6 +917,16 @@ export default function MessagesPane({
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
+    const target = pinToBottomRef.current ? "bottom" : pinToEventIdRef.current;
+    if (!target) return;
+    pinSettleCountRef.current = pinTargetRef.current === target ? pinSettleCountRef.current + 1 : 0;
+    pinTargetRef.current = target;
+    if (pinSettleCountRef.current >= 8) {
+      pinToBottomRef.current = false;
+      pinToEventIdRef.current = null;
+      pinTargetRef.current = null;
+      return;
+    }
     if (pinToBottomRef.current) {
       runProgrammaticScroll(() => el.scrollTo({ top: el.scrollHeight }));
     } else if (pinToEventIdRef.current) {
@@ -858,19 +990,28 @@ export default function MessagesPane({
           else next.add(eventId);
           return next;
         }),
-      onSelectAll: () => setExportSelectedIds(new Set(eventIds)),
+      onSelectAll: () => {
+        setExportSelectedIds(new Set(eventIds));
+        void getConversationRange(sessionId, 1, totalCount).then((response) => {
+          setExportSelectedIds(new Set(response.events.map((event) => event.id)));
+          setExportEventsById(new Map(response.events.map((event) => [event.id, event])));
+        }).catch(() => undefined);
+      },
       onSelectVisible: (visibleIds) => setExportSelectedIds(new Set(visibleIds)),
       onClear: () => setExportSelectedIds(new Set()),
       onContinue: () => setExportDrawerOpen(true),
     }),
-    [exportSelectedIds, eventIds],
+    [exportSelectedIds, eventIds, sessionId, totalCount],
   );
 
   // Selected events in conversation order for the drawer/formatter.
-  const exportEvents = useMemo(
-    () => events.filter((event) => exportSelectedIds.has(event.id)),
-    [events, exportSelectedIds],
-  );
+  const exportEvents = useMemo(() => {
+    const loadedById = new Map(events.map((event) => [event.id, event]));
+    return [...exportSelectedIds]
+      .map((id) => exportEventsById.get(id) ?? loadedById.get(id))
+      .filter((event): event is ConversationEvent => event !== undefined)
+      .sort((left, right) => left.sequence - right.sequence);
+  }, [events, exportEventsById, exportSelectedIds]);
 
   const focusAndScroll = useCallback((eventId: string) => {
     setFocusedEventId(eventId);
@@ -898,7 +1039,7 @@ export default function MessagesPane({
   // --- Current message position for jump trigger ---
   const focusedEventIndex = focusedEventId ? (eventIndexById.get(focusedEventId) ?? -1) : -1;
   const jumpLabel = focusedEventIndex >= 0
-    ? `${focusedEventIndex + 1} / ${events.length}`
+    ? `${focusedEventIndex + 1} / ${totalCount}`
     : `${events.length}`;
 
   const toggleExpanded = useCallback((eventId: string) => {
@@ -1014,6 +1155,8 @@ export default function MessagesPane({
           initialFocus={navInitialFocus}
           query={searchQuery}
           onQueryChange={handleNavQueryChange}
+          searchMatchCount={searchQuery ? serverSearchMatches.length : undefined}
+          searchTruncated={searchTruncated}
           exportSelection={exportSelection}
         />
       )}

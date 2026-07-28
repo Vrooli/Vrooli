@@ -63,6 +63,15 @@ import SessionRecoveryBanner from "./SessionRecoveryBanner";
 import TopSafeArea from "./TopSafeArea";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { TTSPlaybackState } from "../audio-integration";
+
+const FALLBACK_TTS_PLAYBACK: Omit<TTSPlaybackState, "isMuted"> = {
+  currentTime: 0,
+  duration: null,
+  isPaused: false,
+  playbackRate: 1,
+  volume: 1,
+  capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
+};
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
 import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
@@ -720,19 +729,10 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   // no duration, playbackRate 1, volume 1) and exposes all capabilities
   // so every control is visible — the real provider values replace it
   // within the first poll tick.
-  const FALLBACK_TTS_PLAYBACK: TTSPlaybackState = {
-    currentTime: 0,
-    duration: null,
-    isPaused: false,
-    playbackRate: 1,
-    volume: 1,
-    // Match the user's "start muted on load" preference until the first poll
-    // tick reports the real per-session mute state, so the bar shows the
-    // muted icon immediately on first speak rather than briefly flashing
-    // unmuted.
+  const fallbackTtsPlayback = useMemo<TTSPlaybackState>(() => ({
+    ...FALLBACK_TTS_PLAYBACK,
     isMuted: workspace.startMutedOnLoad,
-    capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
-  };
+  }), [workspace.startMutedOnLoad]);
   const [ttsPlayback, setTtsPlayback] = useState<TTSPlaybackState | null>(null);
   useEffect(() => {
     if (!isTtsSpeaking || !workspace.activePane) {
@@ -1272,7 +1272,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         onToggleSummarized={togglePanePlaybackVersion}
         onChangeLevel={changePaneSummarizeLevel}
         selectedVersionForEvent={getSelectedPlaybackVersion}
-        playbackState={ttsPlayback ?? FALLBACK_TTS_PLAYBACK}
+        playbackState={ttsPlayback ?? fallbackTtsPlayback}
         onSetPlaybackRate={handleTtsSetPlaybackRate}
         onSetVolume={handleTtsSetVolume}
         onSetMuted={handleTtsSetMuted}
@@ -1593,7 +1593,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
                   onToggleSummarized={togglePanePlaybackVersion}
                   onChangeLevel={changePaneSummarizeLevel}
                   selectedVersionForEvent={getSelectedPlaybackVersion}
-                  playbackState={ttsPlayback ?? FALLBACK_TTS_PLAYBACK}
+                  playbackState={ttsPlayback ?? fallbackTtsPlayback}
                   onSetPlaybackRate={handleTtsSetPlaybackRate}
                   onSetVolume={handleTtsSetVolume}
                   onSetMuted={handleTtsSetMuted}
@@ -1666,8 +1666,8 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
          * polling effect). */}
         {(() => {
           const pb = isTtsSpeaking
-            ? (ttsPlayback ?? FALLBACK_TTS_PLAYBACK)
-            : { ...(ttsPlayback ?? FALLBACK_TTS_PLAYBACK), isPaused: true };
+            ? (ttsPlayback ?? fallbackTtsPlayback)
+            : { ...(ttsPlayback ?? fallbackTtsPlayback), isPaused: true };
           const context = ttsPlaybackController.buildBarContext(
             workspace.activePane,
             workspace.autoTtsEnabled,

@@ -12,6 +12,7 @@ import { AlignLeft, CheckSquare, ClipboardCopy, Code, FileText, Pause, Play, Sea
 import { useTranslation } from "react-i18next";
 import type { ConversationEvent } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useVirtualList } from "../hooks/useVirtualList";
 import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
@@ -72,6 +73,9 @@ interface MessageJumpListProps {
   /** Controlled search query — lifted by MessagesPane so dimming/nav persist. */
   query?: string;
   onQueryChange?: (query: string) => void;
+  /** Whole-session server search metadata; local events remain the rendered window. */
+  searchMatchCount?: number;
+  searchTruncated?: boolean;
   /** Desktop anchor: when set, the panel positions itself against this
    *  element via the shared anchored-floating math (above, end-aligned). */
   desktopAnchorRef?: RefObject<HTMLElement | null>;
@@ -472,6 +476,8 @@ export default function MessageJumpList({
   initialFocus,
   query,
   onQueryChange,
+  searchMatchCount,
+  searchTruncated = false,
   desktopAnchorRef,
   currentTime = 0,
   duration = null,
@@ -494,7 +500,6 @@ export default function MessageJumpList({
     desktopPanelRef,
     ABOVE_ANCHOR_PLACEMENTS,
   );
-  const itemRefs = useRef(new Map<string, HTMLElement>());
 
   const isControlledQuery = onQueryChange !== undefined;
   const [internalQuery, setInternalQuery] = useState(query ?? "");
@@ -527,6 +532,23 @@ export default function MessageJumpList({
 
   const results = useMemo(() => buildResults(events, navState), [events, navState]);
   const groups = useMemo(() => groupResults(results, groupMode), [results, groupMode]);
+  const navigatorRows = useMemo(() => groups.flatMap((group) => {
+    const rows: Array<{ type: "header"; id: string; label: "user" | "assistant" } | { type: "event"; result: NavigatorResult }> = [];
+    if (group.roleLabel) rows.push({ type: "header", id: group.id, label: group.roleLabel });
+    if (group.leadUser) rows.push({ type: "event", result: group.leadUser });
+    for (const result of group.items) rows.push({ type: "event", result });
+    return rows;
+  }), [groups]);
+  const navigatorIndexByEventId = useMemo(() => new Map(
+    navigatorRows.flatMap((row, index) => row.type === "event" ? [[row.result.event.id, index] as const] : []),
+  ), [navigatorRows]);
+  const { registerItem: registerNavigatorItem, totalSize: navigatorTotalSize, virtualItems: navigatorVirtualItems, scrollToIndex: scrollNavigatorToIndex } = useVirtualList({
+    count: navigatorRows.length,
+    estimateSize: (index) => navigatorRows[index]?.type === "header" ? 26 : 64,
+    overscan: 6,
+    scrollElementRef: listRef,
+    enabled: navigatorRows.length > 40,
+  });
   const sources = useMemo(() => availableSources(events), [events]);
   const reason = useMemo(() => noResultReason(events.length, navState), [events.length, navState]);
 
@@ -558,27 +580,13 @@ export default function MessageJumpList({
     return events[idx + 1]?.id ?? null;
   }, [events, focusedEventId, hasQueuedNext]);
 
-  const registerItemRef = useCallback(
-    (eventId: string) => (node: HTMLElement | null) => {
-      if (node) itemRefs.current.set(eventId, node);
-      else itemRefs.current.delete(eventId);
-    },
-    [],
-  );
-
   // Scroll the active row into view by adjusting ONLY the navigator's own
   // scroll container — never scrollIntoView, which can scroll the host
   // document/window in iframe/proxy embeddings (spatial-navigation hazard).
   const scrollToEvent = useCallback((eventId: string, smooth: boolean) => {
-    const container = listRef.current;
-    const node = itemRefs.current.get(eventId);
-    if (!container || !node) return;
-    const containerRect = container.getBoundingClientRect();
-    const nodeRect = node.getBoundingClientRect();
-    const centered =
-      nodeRect.top - containerRect.top - container.clientHeight / 2 + nodeRect.height / 2;
-    container.scrollTo({ top: container.scrollTop + centered, behavior: smooth ? "smooth" : "auto" });
-  }, []);
+    const index = navigatorIndexByEventId.get(eventId);
+    if (index != null) scrollNavigatorToIndex(index, smooth ? "smooth" : "auto", "center");
+  }, [navigatorIndexByEventId, scrollNavigatorToIndex]);
 
   // Scroll focused event into view when it changes (not on every render).
   const lastScrolledId = useRef<string | null>(null);
@@ -728,8 +736,8 @@ export default function MessageJumpList({
       ? t(strings.messageJumpList.titlePlayback)
       : t(strings.messageJumpList.titleJump);
 
-  const renderRow = (result: NavigatorResult) => (
-    <div key={result.event.id} ref={registerItemRef(result.event.id)}>
+  const renderRow = (result: NavigatorResult, index: number) => (
+    <div key={result.event.id} ref={(node) => registerNavigatorItem(index, node)}>
       <NavRow
         result={result}
         isFocused={!exportActive && result.event.id === focusedEventId}
@@ -949,20 +957,28 @@ export default function MessageJumpList({
           tabIndex={-1}
           className="flex-1 space-y-1 overflow-y-auto px-2 pb-[max(0.5rem,var(--wc-safe-bottom,0px))] pt-1 outline-none"
         >
-          {groups.map((group) => (
-            <div key={group.id} className="space-y-1">
-              {group.roleLabel && (
-                <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-wc-text-faint">
-                  {group.roleLabel === "user" ? t(strings.messageJumpList.roleYou) : t(strings.messageJumpList.roleAssistant)}
+          <div style={{ height: navigatorTotalSize, position: "relative" }}>
+            {navigatorVirtualItems.map((item) => {
+              const row = navigatorRows[item.index];
+              if (!row) return null;
+              return (
+                <div key={row.type === "header" ? row.id : row.result.event.id} style={{ position: "absolute", top: item.start, left: 0, right: 0 }}>
+                  {row.type === "header" ? (
+                    <div ref={(node) => registerNavigatorItem(item.index, node)} className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-wc-text-faint">
+                      {row.label === "user" ? t(strings.messageJumpList.roleYou) : t(strings.messageJumpList.roleAssistant)}
+                    </div>
+                  ) : renderRow(row.result, item.index)}
                 </div>
-              )}
-              {group.leadUser && renderRow(group.leadUser)}
-              <div className={cn(groupMode === "turn" && "ms-4 space-y-1")}>
-                {group.items.map((result) => renderRow(result))}
-              </div>
-            </div>
-          ))}
+              );
+            })}
+          </div>
           <div data-testid="msg-jump-safe-spacer" aria-hidden="true" style={{ height: "var(--wc-safe-bottom, 0px)" }} />
+        </div>
+      )}
+
+      {q && searchMatchCount !== undefined && (
+        <div data-testid="msg-nav-server-search-count" className="shrink-0 border-t border-wc-default/60 px-3 py-1 text-[10px] text-wc-text-faint">
+          {searchMatchCount} {searchTruncated ? "+" : ""} {t(strings.messageJumpList.noSearchResults)}
         </div>
       )}
 

@@ -48,15 +48,39 @@ func (h *connectHandler) Get(_ context.Context, req *connect.Request[conversatio
 	if sessionID == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
 	}
-	state, err := h.deps.Service.Get(sessionID, req.Msg.GetSinceSequence())
+	state, err := h.deps.Service.Get(sessionID, req.Msg.GetSinceSequence(), int(req.Msg.GetLimit()), req.Msg.GetBeforeSequence())
 	if err != nil {
 		return nil, h.classify(err, "conversation.Get")
 	}
 	return connect.NewResponse(&conversationv1.GetResponse{
-		SessionId: state.SessionID,
-		Events:    eventsToProto(state.Events),
-		Cursor:    cursorToProto(state.Cursor),
+		SessionId:      state.SessionID,
+		Events:         eventsToProto(state.Events),
+		Cursor:         cursorToProto(state.Cursor),
+		HasMore:        state.HasMore,
+		OldestSequence: state.OldestSequence,
+		NewestSequence: state.NewestSequence,
+		TotalCount:     state.TotalCount,
 	}), nil
+}
+
+func (h *connectHandler) Search(_ context.Context, req *connect.Request[conversationv1.SearchRequest]) (*connect.Response[conversationv1.SearchResponse], error) {
+	matches, truncated, total, err := h.deps.Service.Search(strings.TrimSpace(req.Msg.GetSessionId()), req.Msg.GetQuery(), int(req.Msg.GetLimit()))
+	if err != nil {
+		return nil, h.classify(err, "conversation.Search")
+	}
+	out := make([]*conversationv1.SearchMatch, 0, len(matches))
+	for _, match := range matches {
+		out = append(out, &conversationv1.SearchMatch{EventId: match.EventID, Sequence: match.Sequence, Excerpt: match.Excerpt})
+	}
+	return connect.NewResponse(&conversationv1.SearchResponse{Matches: out, Truncated: truncated, TotalMatches: total}), nil
+}
+
+func (h *connectHandler) GetRange(_ context.Context, req *connect.Request[conversationv1.GetRangeRequest]) (*connect.Response[conversationv1.GetResponse], error) {
+	state, err := h.deps.Service.GetRange(strings.TrimSpace(req.Msg.GetSessionId()), req.Msg.GetFromSequence(), req.Msg.GetToSequence())
+	if err != nil {
+		return nil, h.classify(err, "conversation.GetRange")
+	}
+	return connect.NewResponse(&conversationv1.GetResponse{SessionId: state.SessionID, Events: eventsToProto(state.Events), Cursor: cursorToProto(state.Cursor)}), nil
 }
 
 func (h *connectHandler) UpdateCursor(_ context.Context, req *connect.Request[conversationv1.UpdateCursorRequest]) (*connect.Response[conversationv1.UpdateCursorResponse], error) {

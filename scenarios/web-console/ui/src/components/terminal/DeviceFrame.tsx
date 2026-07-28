@@ -26,6 +26,13 @@ export function DeviceFrame({ archetype, chromeTier, rect, leaderDevice, gridCol
     height: rect.height,
     transition: "left 240ms ease, top 240ms ease, width 240ms ease, height 240ms ease",
   };
+  // The desktop silhouettes intentionally extend their stand below the
+  // rectangular display bounds. Keep the controls clear of that geometry so
+  // they remain a caption, rather than looking like part of the monitor.
+  const hasDesktopStand = chromeTier === "hairline" && (archetype === "laptop" || archetype === "monitor" || archetype === "ultrawide");
+  const controlsClass = chromeTier === "strip"
+    ? "pointer-events-auto absolute left-0 top-0 flex h-7 w-full items-center justify-between gap-2 px-2 text-xs"
+    : `pointer-events-auto absolute left-1/2 ${hasDesktopStand ? "top-[calc(100%+1.75rem)]" : "top-[calc(100%+0.5rem)]"} flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded px-2 py-1 text-xs`;
 
   return <div className="pointer-events-none absolute z-wc-chrome-raised" style={style} data-testid={`device-frame-${chromeTier}`}>
     <svg aria-hidden="true" className="absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -39,7 +46,7 @@ export function DeviceFrame({ archetype, chromeTier, rect, leaderDevice, gridCol
       </>}
       {chromeTier === "strip" && <path d="M0 1H100" stroke="var(--wc-device-frame-line)" vectorEffect="non-scaling-stroke" />}
     </svg>
-    <div className={chromeTier === "strip" ? "pointer-events-auto absolute left-0 top-0 flex h-7 w-full items-center justify-between gap-2 px-2 text-xs" : "pointer-events-auto absolute left-1/2 top-[calc(100%+0.5rem)] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded px-2 py-1 text-xs"} style={{ background: "var(--wc-device-frame-surface)", color: "var(--wc-device-frame-text)", border: chromeTier === "strip" ? undefined : "1px solid var(--wc-device-frame-line)" }}>
+    <div className={controlsClass} style={{ background: "var(--wc-device-frame-surface)", color: "var(--wc-device-frame-text)", border: chromeTier === "strip" ? undefined : "1px solid var(--wc-device-frame-line)" }}>
       <span>{label}</span>
       <button type="button" onClick={onTakeOver} className="rounded px-2 py-1" style={{ border: "1px solid var(--wc-device-frame-line)" }}>{takeOver}</button>
     </div>

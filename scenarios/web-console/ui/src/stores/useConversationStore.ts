@@ -7,6 +7,14 @@ type SessionConversationState = {
   events: ConversationEvent[];
   cursor: ConversationCursor;
   hydrated: boolean;
+  knownEventIds?: ReadonlySet<string>;
+  unreadCount?: number;
+  maxSequence?: number;
+  hasSequenceGap?: boolean;
+  refetchSinceSequence?: number;
+  windowOldestSequence?: number;
+  hasOlder?: boolean;
+  totalCount?: number;
 };
 
 interface ConversationStoreState {
@@ -15,7 +23,9 @@ interface ConversationStoreState {
 }
 
 interface ConversationStoreActions {
-  hydrateSession: (sessionId: string, events: ConversationEvent[], cursor: ConversationCursor) => void;
+  hydrateSession: (sessionId: string, events: ConversationEvent[], cursor: ConversationCursor, page?: { oldestSequence: number; hasOlder: boolean; totalCount: number }) => void;
+  setSessionWindow: (sessionId: string, events: ConversationEvent[], cursor: ConversationCursor, page: { oldestSequence: number; hasOlder: boolean; totalCount: number }) => void;
+  prependEvents: (sessionId: string, events: ConversationEvent[], page: { oldestSequence: number; hasOlder: boolean; totalCount: number }) => void;
   appendEvent: (event: ConversationEvent) => void;
   /**
    * Merge a batch of events into a session, skipping any whose id already
@@ -41,11 +51,31 @@ const defaultCursor = (): ConversationCursor => ({
 // unrelated store update.
 const EMPTY_EVENTS: readonly ConversationEvent[] = Object.freeze([]);
 
+function sessionMetadata(events: ConversationEvent[], cursor: ConversationCursor) {
+  const knownEventIds = new Set(events.map((event) => event.id));
+  let maxSequence = 0;
+  let previous = 0;
+  let hasSequenceGap = false;
+  let refetchSinceSequence = 0;
+  let unreadCount = 0;
+  for (const event of events) {
+    maxSequence = Math.max(maxSequence, event.sequence);
+    if (previous > 0 && event.sequence !== previous + 1) {
+      hasSequenceGap = true;
+      if (refetchSinceSequence === 0) refetchSinceSequence = previous;
+    }
+    previous = event.sequence;
+    if (event.role === "assistant" && event.sequence > cursor.lastSeenSequence) unreadCount += 1;
+  }
+  if ((events[0]?.sequence ?? 1) > 1) refetchSinceSequence = 0;
+  return { knownEventIds, unreadCount, maxSequence, hasSequenceGap: hasSequenceGap || (events[0]?.sequence ?? 1) > 1, refetchSinceSequence };
+}
+
 export const useConversationStore = create<ConversationStoreState & ConversationStoreActions>((set) => ({
   sessions: {},
   viewModes: {},
 
-  hydrateSession: (sessionId, events, cursor) => set((state) => {
+  hydrateSession: (sessionId, events, cursor, page) => set((state) => {
     // Merge with anything appendEvent already added while the GET was in
     // flight — naively replacing would drop live WS events that arrived
     // after the request but before the response, leaving a permanent
@@ -56,7 +86,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
       return {
         sessions: {
           ...state.sessions,
-          [sessionId]: { events, cursor, hydrated: true },
+          [sessionId]: { events, cursor, hydrated: true, ...sessionMetadata(events, cursor), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount },
         },
       };
     }
@@ -68,22 +98,53 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     return {
       sessions: {
         ...state.sessions,
-        [sessionId]: { events: merged, cursor, hydrated: true },
+        [sessionId]: { events: merged, cursor, hydrated: true, ...sessionMetadata(merged, cursor), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount },
       },
     };
   }),
 
+  setSessionWindow: (sessionId, events, cursor, page) => set((state) => ({
+    sessions: {
+      ...state.sessions,
+      [sessionId]: {
+        events,
+        cursor,
+        hydrated: true,
+        ...sessionMetadata(events, cursor),
+        windowOldestSequence: page.oldestSequence,
+        hasOlder: page.hasOlder,
+        totalCount: page.totalCount,
+      },
+    },
+  })),
+
+  prependEvents: (sessionId, incoming, page) => set((state) => {
+    const existing = state.sessions[sessionId] ?? { events: [], cursor: defaultCursor(), hydrated: true };
+    const known = existing.knownEventIds ?? new Set(existing.events.map((event) => event.id));
+    const added = incoming.filter((event) => !known.has(event.id));
+    const events = added.length > 0 ? [...added, ...existing.events].sort((a, b) => a.sequence - b.sequence) : existing.events;
+    return { sessions: { ...state.sessions, [sessionId]: { ...existing, events, ...sessionMetadata(events, existing.cursor), windowOldestSequence: page.oldestSequence, hasOlder: page.hasOlder, totalCount: page.totalCount } } };
+  }),
+
   appendEvent: (event) => set((state) => {
     const existing = state.sessions[event.sessionId] ?? { events: [], cursor: defaultCursor(), hydrated: true };
-    if (existing.events.some((candidate) => candidate.id === event.id)) {
+    const knownEventIds = existing.knownEventIds ?? new Set(existing.events.map((candidate) => candidate.id));
+    if (knownEventIds.has(event.id)) {
       return state;
     }
+    const nextKnownEventIds = new Set(knownEventIds).add(event.id);
+    const hasSequenceGap = (existing.hasSequenceGap ?? false) || ((existing.maxSequence ?? 0) > 0 && event.sequence !== (existing.maxSequence ?? 0) + 1);
+    const unreadCount = (existing.unreadCount ?? getSessionUnreadCount(state, event.sessionId)) + (event.role === "assistant" && event.sequence > existing.cursor.lastSeenSequence ? 1 : 0);
     return {
       sessions: {
         ...state.sessions,
         [event.sessionId]: {
           ...existing,
           events: [...existing.events, event],
+          knownEventIds: nextKnownEventIds,
+          unreadCount,
+          maxSequence: Math.max(existing.maxSequence ?? 0, event.sequence),
+          hasSequenceGap,
         },
       },
     };
@@ -101,7 +162,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
         },
       };
     }
-    const seen = new Set(existing.events.map((e) => e.id));
+    const seen = existing.knownEventIds ?? new Set(existing.events.map((e) => e.id));
     const added = incoming.filter((e) => !seen.has(e.id));
     const merged = added.length > 0
       ? [...existing.events, ...added].sort((a, b) => a.sequence - b.sequence)
@@ -113,6 +174,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
           events: merged,
           cursor: cursor ?? existing.cursor,
           hydrated: true,
+          ...sessionMetadata(merged, cursor ?? existing.cursor),
         },
       },
     };
@@ -149,6 +211,10 @@ export const useConversationStore = create<ConversationStoreState & Conversation
             lastSeenSequence: cursor.lastSeenSequence ?? existing.cursor.lastSeenSequence,
             lastListenedSequence: cursor.lastListenedSequence ?? existing.cursor.lastListenedSequence,
           },
+          ...sessionMetadata(existing.events, {
+            lastSeenSequence: cursor.lastSeenSequence ?? existing.cursor.lastSeenSequence,
+            lastListenedSequence: cursor.lastListenedSequence ?? existing.cursor.lastListenedSequence,
+          }),
         },
       },
     };
@@ -181,7 +247,7 @@ export function getSessionConversationCursor(state: ConversationStoreState, sess
 export function getSessionUnreadCount(state: ConversationStoreState, sessionId: string): number {
   const session = state.sessions[sessionId];
   if (!session) return 0;
-  return session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
+  return session.unreadCount ?? session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
 }
 
 export function getSessionUnlistenedEvents(state: ConversationStoreState, sessionId: string): ConversationEvent[] {
@@ -203,8 +269,12 @@ export function getSessionViewMode(state: ConversationStoreState, sessionId: str
  *   - no gap → max sequence (current tail-only behaviour)
  */
 export function getSessionRefetchSinceSequence(state: ConversationStoreState, sessionId: string): number {
-  const events = state.sessions[sessionId]?.events;
+  const session = state.sessions[sessionId];
+  const events = session?.events;
   if (!events || events.length === 0) return 0;
+  if (session?.maxSequence != null && session.hasSequenceGap != null) {
+    return session.hasSequenceGap ? (session.refetchSinceSequence ?? 0) : session.maxSequence;
+  }
   const sorted = [...events].sort((a, b) => a.sequence - b.sequence);
   const first = sorted[0];
   if (!first || first.sequence > 1) return 0;

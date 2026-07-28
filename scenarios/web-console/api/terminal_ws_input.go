@@ -110,6 +110,18 @@ func (s *Server) dispatchInputMessage(
 		if err := sess.AcquireLease(client, session.LeaseReasonExplicit); err != nil {
 			return inputDispatchResult{CloseReason: err.Error()}
 		}
+		// Do not make the requester wait for the independent output-forwarder
+		// goroutine to drain its size notification. A mobile tap needs an
+		// immediate, ordered acknowledgement that it now owns the lease; the
+		// broadcast remains responsible for updating every other viewer.
+		cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(client)
+		writeMu.Lock()
+		_ = conn.WriteJSON(TerminalMessage{
+			Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows),
+			Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease,
+			ViewerCount: viewerCount,
+		})
+		writeMu.Unlock()
 	case MsgTypePing:
 		writeMu.Lock()
 		_ = conn.WriteJSON(TerminalMessage{Type: MsgTypePong})

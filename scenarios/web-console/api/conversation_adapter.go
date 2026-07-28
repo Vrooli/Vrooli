@@ -21,11 +21,15 @@ func newConversationAdapter(s *Server) *conversationAdapter {
 	return &conversationAdapter{srv: s}
 }
 
-func (a *conversationAdapter) Get(sessionID string, sinceSequence int64) (conversationH.SessionState, error) {
+func (a *conversationAdapter) Get(sessionID string, sinceSequence int64, limit int, beforeSequence int64) (conversationH.SessionState, error) {
 	if _, ok := a.srv.sessions.Get(sessionID); !ok {
 		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
 	state := a.srv.conversations.ListSession(sessionID)
+	hasMore := false
+	if limit > 0 {
+		state, hasMore = a.srv.conversations.ListSessionPage(sessionID, limit, beforeSequence)
+	}
 	events := state.Events
 	if sinceSequence > 0 {
 		filtered := make([]ConversationEvent, 0, len(events))
@@ -36,14 +40,48 @@ func (a *conversationAdapter) Get(sessionID string, sinceSequence int64) (conver
 		}
 		events = filtered
 	}
-	return conversationH.SessionState{
+	result := conversationH.SessionState{
 		SessionID: state.SessionID,
 		Events:    transportEvents(events),
 		Cursor: conversationH.Cursor{
 			LastSeenSequence:     state.Cursor.LastSeenSequence,
 			LastListenedSequence: state.Cursor.LastListenedSequence,
 		},
-	}, nil
+		HasMore:    hasMore,
+		TotalCount: a.srv.conversations.CountSessionEvents(sessionID),
+	}
+	if len(events) > 0 {
+		result.OldestSequence = events[0].Sequence
+		result.NewestSequence = events[len(events)-1].Sequence
+	}
+	return result, nil
+}
+
+func (a *conversationAdapter) Search(sessionID, query string, limit int) ([]conversationH.SearchMatch, bool, int64, error) {
+	if _, ok := a.srv.sessions.Get(sessionID); !ok {
+		return nil, false, 0, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
+	}
+	matches, truncated, total, err := a.srv.conversations.SearchSession(sessionID, query, limit)
+	if err != nil {
+		return nil, false, 0, err
+	}
+	out := make([]conversationH.SearchMatch, 0, len(matches))
+	for _, match := range matches {
+		out = append(out, conversationH.SearchMatch{EventID: match.EventID, Sequence: match.Sequence, Excerpt: match.Excerpt})
+	}
+	return out, truncated, total, nil
+}
+
+func (a *conversationAdapter) GetRange(sessionID string, from, to int64) (conversationH.SessionState, error) {
+	if _, ok := a.srv.sessions.Get(sessionID); !ok {
+		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
+	}
+	events, err := a.srv.conversations.ListSessionRange(sessionID, from, to)
+	if err != nil {
+		return conversationH.SessionState{}, err
+	}
+	state := a.srv.conversations.ListSession(sessionID)
+	return conversationH.SessionState{SessionID: sessionID, Events: transportEvents(events), Cursor: conversationH.Cursor{LastSeenSequence: state.Cursor.LastSeenSequence, LastListenedSequence: state.Cursor.LastListenedSequence}}, nil
 }
 
 func (a *conversationAdapter) UpdateCursor(sessionID string, patch conversationH.CursorPatch) (conversationH.Cursor, error) {

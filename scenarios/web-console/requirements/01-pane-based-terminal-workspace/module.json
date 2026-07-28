@@ -136,6 +136,30 @@
           "type": "test"
         }
       ]
+    },
+    {
+      "category": "ui",
+      "description": "Messages open reliably for multi-thousand-event sessions with a bounded first render; scrolling is anchored and stable; whole-history search, jump, and export preserve access to events outside the loaded page while durable terminal sessions remain intact across a Web Console restart.",
+      "id": "REQ-P0-001d",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Bounded, Stable Conversation Messages",
+      "validation": [
+        {
+          "notes": "Virtualizer first render is bounded for a 2,500-event fixture and page refresh coverage verifies tail-only and older-page behavior.",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/useVirtualList.test.tsx; ui/src/hooks/__tests__/refreshConversationSession.test.ts",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Repository coverage verifies 2,500-event backward paging, oldest-history search, literal LIKE wildcard escaping, and legacy complete-history reads.",
+          "phase": "unit",
+          "ref": "api/conversation_pagination_test.go",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
     }
   ],
   "title": "Pane-Based Terminal Workspace"

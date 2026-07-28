@@ -40,6 +40,14 @@ Web Console is designed for personal server use — a single operator running th
 - Refreshing page or reconnecting should restore session context.
 - Missed output while disconnected must be replayed and visible.
 
+### Conversation Messages
+
+- Messages use a bounded 500-event window. Opening a Messages pane reads the newest page; approaching the top loads the preceding page without shifting the visible content.
+- `ConversationService.Get` accepts `limit` and `before_sequence`; callers that omit both retain the legacy complete-history response.
+- Whole-history search is server-side and debounced in the UI. SQLite uses a bounded, literal-escaped `LIKE` query and returns sequence-addressable excerpts; revisit FTS5 only when a session exceeds roughly 50 MB or measured search latency exceeds 150 ms.
+- Message jump loads the page containing an off-window search result. Export Select All uses the server range endpoint, capped at 5,000 events, so it does not silently omit older history.
+- Virtualized message and navigator lists keep first paint bounded even for multi-thousand-event sessions. Inactive Messages panes unmount while terminal panes remain warm.
+
 ### AI Input
 - Command-generation UI should be available from main shell workspace.
 - Provider policy:

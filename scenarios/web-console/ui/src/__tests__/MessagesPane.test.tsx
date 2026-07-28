@@ -6,9 +6,15 @@ import { useConversationStore } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../api/conversation";
 import type { TTSPlaybackState } from "../audio-integration";
+import { makeConversationEvents } from "./fixtures/conversationFixture";
+
+const { mockLoadOlderConversationPage } = vi.hoisted(() => ({
+  mockLoadOlderConversationPage: vi.fn().mockResolvedValue(false),
+}));
 
 vi.mock("../hooks/useConversationSession", () => ({
   refreshConversationSession: vi.fn().mockResolvedValue(undefined),
+  loadOlderConversationPage: mockLoadOlderConversationPage,
 }));
 
 const { mockResolveFilePreview, mockGetFilePreviewText } = vi.hoisted(() => ({
@@ -136,6 +142,7 @@ const defaultProps = {
 describe("MessagesPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLoadOlderConversationPage.mockResolvedValue(false);
     useConversationStore.setState({ sessions: {}, viewModes: {} });
     globalThis.fetch = vi.fn() as typeof fetch;
     // Mock IntersectionObserver for auto-scroll sentinel
@@ -166,6 +173,13 @@ describe("MessagesPane", () => {
   }
 
   // --- Core rendering ---
+
+  it("renders a bounded first window for 2500 conversation events", () => {
+    seedEvents(makeConversationEvents(2500, 42));
+    render(<MessagesPane {...defaultProps} />);
+
+    expect(screen.getAllByTestId(/^msg-card-/).length).toBeLessThanOrEqual(60);
+  });
 
   it("renders play and audio icons on each assistant message", () => {
     seedEvents([
@@ -979,6 +993,56 @@ describe("MessagesPane", () => {
         expect(scrollToMock).not.toHaveBeenCalledWith(expect.objectContaining({ top: 7000 }));
       } finally {
         window.requestAnimationFrame = originalRaf;
+      }
+    });
+
+    it("keeps the visible message fixed while an older page is prepended", async () => {
+      let scrollTop = 50;
+      let prepended = false;
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get() { return 20_000; } });
+      Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get() { return 500; } });
+      Object.defineProperty(HTMLElement.prototype, "scrollTop", {
+        configurable: true,
+        get() { return scrollTop; },
+        set(value: number) { scrollTop = value; },
+      });
+      Element.prototype.scrollTo = ((options?: ScrollToOptions | number) => {
+        if (typeof options === "object" && options?.top != null) scrollTop = options.top;
+      }) as Element["scrollTo"];
+      const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+        const id = (this as HTMLElement).dataset?.eventId;
+        if (id) {
+          const sequence = Number(id.slice(1));
+          const top = (prepended ? sequence * 10 : (sequence - 101) * 10);
+          return { top, bottom: top + 8, left: 0, right: 0, width: 0, height: 8, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+        }
+        return { top: 0, bottom: 500, left: 0, right: 0, width: 0, height: 500, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+      };
+
+      try {
+        const current = Array.from({ length: 100 }, (_, index) => makeEvent({ id: `e${index + 101}`, sequence: index + 101 }));
+        seedEvents(current);
+        render(<MessagesPane {...defaultProps} />);
+        scrollTop = 50;
+        mockLoadOlderConversationPage.mockImplementation(async () => {
+          prepended = true;
+          seedEvents([
+            ...Array.from({ length: 100 }, (_, index) => makeEvent({ id: `e${index + 1}`, sequence: index + 1 })),
+            ...current,
+          ]);
+          return true;
+        });
+
+        const container = document.querySelector(".relative.min-h-0.flex-1.overflow-auto") as Element;
+        await act(async () => fireEvent.scroll(container));
+
+        // e101 was 0px from the viewport top before prepend. It is moved to
+        // its new virtual index rather than leaving the user at the top of
+        // the newly inserted page.
+        expect(scrollTop).toBeGreaterThan(10_000);
+      } finally {
+        Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
       }
     });
   });

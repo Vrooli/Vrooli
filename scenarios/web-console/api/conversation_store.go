@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"web-console/internal/audioports"
 	"web-console/terminal"
 )
@@ -370,6 +371,30 @@ func (s *ConversationStore) ListSession(sessionID string) ConversationSessionSta
 		}
 	}
 	return state
+}
+
+func (s *ConversationStore) ListSessionPage(sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool) {
+	state, hasMore, err := s.repository.ListSessionPage(sessionID, limit, beforeSequence)
+	if err != nil {
+		return ConversationSessionState{SessionID: sessionID, Events: []ConversationEvent{}}, false
+	}
+	return state, hasMore
+}
+
+func (s *ConversationStore) CountSessionEvents(sessionID string) int64 {
+	count, err := s.repository.CountSessionEvents(sessionID)
+	if err != nil {
+		return 0
+	}
+	return count
+}
+
+func (s *ConversationStore) SearchSession(sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
+	return s.repository.SearchSession(sessionID, query, limit)
+}
+
+func (s *ConversationStore) ListSessionRange(sessionID string, from, to int64) ([]ConversationEvent, error) {
+	return s.repository.ListSessionRange(sessionID, from, to)
 }
 
 // HasConversationAfter reports whether tracking recorded an event after the
