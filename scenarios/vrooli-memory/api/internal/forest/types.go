@@ -5,6 +5,7 @@ import "time"
 type (
 	Summary struct {
 		ID, Body, FacetID string
+		Vector            []float64
 		Depth, Generation int
 		CreatedAt         time.Time
 	}

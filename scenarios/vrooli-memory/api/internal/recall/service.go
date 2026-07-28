@@ -117,6 +117,13 @@ func collapse(hits []Hit, limit int) []Hit {
 				ancestor = i
 				break
 			}
+			// A more relevant descendant may have been selected before its
+			// ancestor. Keep that best node and suppress the ancestor: returning
+			// both would violate the antichain contract for recall results.
+			if isDescendant(existing.Node, hit.Node.ID, hits) {
+				ancestor = i
+				break
+			}
 		}
 		if ancestor >= 0 {
 			selected[ancestor].Descendants = append(selected[ancestor].Descendants, hit.Node)

@@ -16,6 +16,7 @@ import (
 	"vrooli-memory/internal/inference"
 	"vrooli-memory/internal/journal"
 	"vrooli-memory/internal/modules"
+	internalrecall "vrooli-memory/internal/recall"
 	"vrooli-memory/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -142,6 +143,9 @@ func main() {
 	if err := journal.EnsureMigrations(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("journal schema migration failed: %v", err)
 	}
+	if err := forest.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("forest schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
@@ -160,6 +164,10 @@ func main() {
 		log.Fatalf("resolve ai-gateway endpoint: %v", err)
 	}
 	gatewayClient := inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL))
+	recallConfig, err := internalrecall.ConfigFromEnv(os.LookupEnv)
+	if err != nil {
+		log.Fatalf("recall configuration failed: %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
@@ -168,7 +176,7 @@ func main() {
 		journalH.Module(db, gatewayClient, facetService, log.Default()),
 		facetsH.Module(db, log.Default()),
 		forest.Module(),
-		recallH.Module(db, gatewayClient, log.Default()),
+		recallH.Module(db, gatewayClient, recallConfig, log.Default()),
 		federation.Module(),
 		harnessH.Module(db, gatewayClient, log.Default()),
 	)

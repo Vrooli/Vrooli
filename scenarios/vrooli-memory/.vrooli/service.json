@@ -116,7 +116,7 @@
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o vrooli-memory-api .",
+          "run": "cd api \u0026\u0026 env -u GOROOT GOWORK=off go mod download \u0026\u0026 env -u GOROOT GOWORK=off go build -o vrooli-memory-api .",
           "description": "Build Go API server"
         },
         {
@@ -194,7 +194,38 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "ai-gateway": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Classifies journal entries, derives facet texts, embeds recall nodes, and summarizes compaction candidates through the governed inference gateway.",
+        "degraded_behavior": "Journal append persists the memory unclassified and queues enrichment; compaction pauses until inference is available."
+      },
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Registers Vrooli Memory as a federated semantic-search provider.",
+        "degraded_behavior": "Local recall remains available; only federated cross-corpus discovery is unavailable until registration succeeds."
+      },
+      "vrooli-events": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Provides automatic runtime receipt correlation through api-core when available.",
+        "degraded_behavior": "Memories remain durable without run correlation."
+      },
+      "swarm-manager": {
+        "enabled": false,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Reserved for the one-time historical work-record migration; it is not needed by normal memory operation."
+      }
+    }
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/vrooli-memory.db"
   }

@@ -36,7 +36,7 @@ func (h *connectHandler) Wake(ctx context.Context, req *connect.Request[recallv1
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&recallv1.WakeResponse{Hits: hitsProto(wake.Hits)}), nil
+	return connect.NewResponse(&recallv1.WakeResponse{Hits: hitsProto(wake.Hits), Overflow: wake.Overflow}), nil
 }
 
 func (h *connectHandler) Zoom(ctx context.Context, req *connect.Request[recallv1.ZoomRequest]) (*connect.Response[recallv1.ZoomResponse], error) {
@@ -58,7 +58,7 @@ func (h *connectHandler) ListSiblingEvents(context.Context, *connect.Request[rec
 func hitsProto(hits []internalrecall.Hit) []*recallv1.RecallHit {
 	out := make([]*recallv1.RecallHit, 0, len(hits))
 	for _, h := range hits {
-		out = append(out, &recallv1.RecallHit{EntryId: h.Node.EntryID, FacetId: h.Node.FacetID, Text: h.Node.Text, Score: h.Score, Depth: int32(h.Node.Depth)})
+		out = append(out, &recallv1.RecallHit{EntryId: h.Node.EntryID, FacetId: h.Node.FacetID, Text: h.Node.Text, Score: h.Score, Depth: int32(h.Node.Depth), NodeId: h.Node.ID, Summary: h.Node.Summary, Span: int32(h.Node.Span)})
 	}
 	return out
 }

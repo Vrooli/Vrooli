@@ -20,6 +20,7 @@ func TestRecallKeepsAbsorbedLeafAndCollapsesDescendants(t *testing.T) {
 	svc := NewService(source{{ID: "summary", Text: "weak summary", Vector: []float64{.1, 1}, Depth: 1}, {ID: "leaf", ParentID: "summary", EntryID: "leaf", Text: "exact leaf", Vector: []float64{1, 0}, CreatedAt: now}}, embedder{[]float64{1, 0}}, Config{})
 	hits, err := svc.Recall(context.Background(), "exact", 10)
 	require.NoError(t, err)
+	require.Len(t, hits, 1)
 	require.Equal(t, "leaf", hits[0].Node.ID)
 }
 

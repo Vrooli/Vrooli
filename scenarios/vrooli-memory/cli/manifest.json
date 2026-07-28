@@ -141,6 +141,22 @@
           "binding": {"kind": "connect-rpc", "service": "JournalService", "method": "AppendEntry"},
           "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
           "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "retry-classifications",
+          "description": "Replay queued classification failures through append-only facet assignments",
+          "flags": [{"name": "limit", "description": "Maximum queue items (up to 500)"}],
+          "binding": {"kind": "connect-rpc", "service": "JournalService", "method": "ProcessClassificationRetries"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "retry-embeddings",
+          "description": "Replay queued embedding failures",
+          "flags": [{"name": "limit", "description": "Maximum queue items (up to 500)"}],
+          "binding": {"kind": "connect-rpc", "service": "JournalService", "method": "ProcessEmbeddingRetries"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
         }
       ]
     },
@@ -151,7 +167,7 @@
         {
           "name": "import",
           "description": "Start an observable, replay-safe harness import",
-          "flags": [{"name": "runtime", "description": "Harness runtime", "default": "claude-code"}],
+          "flags": [{"name": "runtime", "description": "Harness runtime", "default": "claude-code"}, {"name": "dry-run", "description": "Read and validate sources without writing journal entries"}],
           "binding": {"kind": "connect-rpc", "service": "HarnessService", "method": "RunImport"},
           "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
           "architecture": {"primitive": "proto_mutation"}
@@ -200,6 +216,41 @@
     ]
   },
   "exceptions": [
+    {
+      "command": "note",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound journal note command; preserves the agent-facing write contract without requiring group topology."
+    },
+    {
+      "command": "retry-classifications",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound journal retry command so durable enrichment recovery is directly operable."
+    },
+    {
+      "command": "retry-embeddings",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound journal retry command so durable enrichment recovery is directly operable."
+    },
+    {
+      "command": "import",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound harness import command; import is a primary migration workflow."
+    },
+    {
+      "command": "import-status",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound harness status command; exposes durable import progress without group topology."
+    },
+    {
+      "command": "recall",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound recall command; semantic recall is the primary agent read workflow."
+    },
+    {
+      "command": "wake",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound recall wake command; ambient projection is intentionally topology-free."
+    },
     {
       "command": "notes attach",
       "class": "upload",

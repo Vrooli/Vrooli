@@ -105,7 +105,7 @@ export const attachmentUploadFormalExpectation = {
   modelPath: "ui/src/features/notes/flow/generated/model.qnt",
   modelSha256: "47a97f004212ca9f41097bf070dd8baf5f39de646aca2816d5fb16768e67a973",
   generatorPath: "flow-verifier",
-  generatorSha256: "b7362f6363aea370c6932eb535d0ce1300ebe0d7c711e026dc045a0a468c6312",
+  generatorSha256: "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
   invariants: ["TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "StaleCompletionIsIgnored"],
   generatedChecks: ["transitionTable"],
 } as const;

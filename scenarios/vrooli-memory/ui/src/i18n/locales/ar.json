@@ -11,6 +11,8 @@
     "nav": {
       "dashboard": "لوحة التحكم",
       "notes": "الملاحظات",
+      "journal": "السجل",
+      "recall": "الاستدعاء",
       "settings": "الإعدادات"
     }
   },
@@ -31,6 +33,8 @@
     "notes": {
       "title": "الملاحظات"
     },
+    "journal": {"title": "السجل"},
+    "recall": {"title": "الاستدعاء"},
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
@@ -53,6 +57,8 @@
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
   },
+  "journal": {"title": "الخط الزمني للسجل", "loading": "جارٍ تحميل السجل…", "retry": "إعادة المحاولة", "empty": "لا توجد ذكريات بعد", "unknownTime": "وقت غير معروف"},
+  "recall": {"title": "استدعاء الذاكرة", "queryLabel": "استعلام الذاكرة", "queryPlaceholder": "ابحث في الذاكرة المشتركة", "submit": "استدعاء", "loading": "جارٍ البحث في الذاكرة…", "empty": "لا توجد ذكريات مطابقة", "score": "النتيجة {{score}}", "summary": "ملخص لـ {{count}} ذكريات"},
   "notes": {
     "title": "الملاحظات",
     "loading": "جارٍ تحميل الملاحظات…",

@@ -4,7 +4,7 @@
 
 | Flow ID | Domain | Risk | Model Status | Source of Truth | Tests | Remaining Gaps |
 |---|---|---|---|---|---|---|
-| `journal-write` | journal | high: permanent append and degraded inference | Level 5 artifacts/replay generated | `path:api/internal/journal/flow/flow.json` | `path:api/internal/journal/flow/flow_test.go` | Flow-verifier check has an absolute-root lint propagation defect; generated replay and Go test pass. |
+| `journal-write` | journal | high: permanent append and degraded inference | Level 5 checked model, generated artifacts, and replay | `path:api/internal/journal/flow/flow.json` | `path:api/internal/journal/flow/flow_test.go`, `path:api/internal/journal/service_test.go` | None for the write flow. |
 | `harness-import` | harness | high: background work, retries, interruption | Level 2 explicit persisted state | `path:api/internal/harness/runs.go` | `path:api/internal/harness/import_test.go` | Add formal transition spec once the verifier root defect is repaired. |
 
 ## Checkpoint Flows
@@ -20,4 +20,4 @@ Interrupted runs remain inspectable. Re-running import is safe because each sour
 ## Audit Notes
 
 - 2026-07-27: The journal contract uses two terminal outcomes: `appended` for a fully enriched write and `queued` for a persisted unclassified entry plus retry work. This avoids representing immutable append as a mutable state.
-- 2026-07-27: A relative flow-verifier root scans the verifier project rather than this scenario; absolute-root generation succeeds, but check-time lint then drops the discovered test directory. Evidence is recorded in the Plan Manager ledger.
+- 2026-07-28: Flow Verifier now resolves the client scenario root correctly. `flow-verifier verify run --root . --flow journal-write`, `verify check`, generated replay, and the journal persistence/retry invariant all pass.

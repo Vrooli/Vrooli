@@ -31,6 +31,8 @@ ports as outbound source ports. See the project-level port allocation reference
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/vrooli-memory.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `VROOLI_MEMORY_FRONTIER_TARGET` | `100` | Target number of unpinned frontier nodes before compaction considers a reduction. This is a compaction-pressure control, not a prompt-size limit. Must be a positive integer. |
+| `VROOLI_MEMORY_WAKE_BUDGET` | `40` | Maximum wake-context line budget for non-pinned frontier content. Pinned content is always retained and sets `overflow=true` when it alone exceeds this value. Must be a positive integer. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

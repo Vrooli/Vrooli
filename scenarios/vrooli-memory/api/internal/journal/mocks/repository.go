@@ -9,14 +9,17 @@ import (
 
 // Repository is a controllable append-only repository double for journal tests.
 type Repository struct {
-	AppendOut journal.Entry
-	AppendErr error
-	GetOut    journal.Entry
-	GetErr    error
-	ListOut   []journal.Entry
-	ListErr   error
-	Appends   []journal.Entry
-	Retries   [][]string
+	AppendOut    journal.Entry
+	AppendErr    error
+	GetOut       journal.Entry
+	GetErr       error
+	ListOut      []journal.Entry
+	ListErr      error
+	Appends      []journal.Entry
+	Retries      [][]string
+	RetryItems   []journal.RetryItem
+	Acknowledged []string
+	Pruned       int
 }
 
 func (r *Repository) Append(_ context.Context, entry journal.Entry, retries []string) (journal.Entry, error) {
@@ -56,6 +59,45 @@ func (r *Repository) FindByImportKey(_ context.Context, key string) (journal.Ent
 		}
 	}
 	return journal.Entry{}, false, nil
+}
+
+func (r *Repository) RepairImportProvenance(_ context.Context, id string, importInfo journal.ImportProvenance) error {
+	for i := range r.Appends {
+		if r.Appends[i].ID == id {
+			if r.Appends[i].Import.Harness == "" {
+				r.Appends[i].Import = importInfo
+			}
+		}
+	}
+	return nil
+}
+
+func (r *Repository) ClassificationRetries(context.Context, int) ([]journal.RetryItem, error) {
+	return append([]journal.RetryItem(nil), r.RetryItems...), nil
+}
+
+func (r *Repository) AcknowledgeRetry(_ context.Context, id string) error {
+	r.Acknowledged = append(r.Acknowledged, id)
+	return nil
+}
+
+func (r *Repository) PruneResolvedClassificationRetries(context.Context) (int, error) {
+	return r.Pruned, nil
+}
+
+func (r *Repository) EmbeddingRetries(context.Context, int) ([]journal.RetryItem, error) {
+	return append([]journal.RetryItem(nil), r.RetryItems...), nil
+}
+
+func (r *Repository) StoreFacetEmbedding(context.Context, string, []float64) error { return nil }
+
+func (r *Repository) AcknowledgeEmbeddingRetries(_ context.Context, id string) error {
+	r.Acknowledged = append(r.Acknowledged, id)
+	return nil
+}
+
+func (r *Repository) PruneResolvedEmbeddingRetries(context.Context) (int, error) {
+	return r.Pruned, nil
 }
 
 var _ journal.Repository = (*Repository)(nil)

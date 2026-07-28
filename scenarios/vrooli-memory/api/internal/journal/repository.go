@@ -9,4 +9,16 @@ type Repository interface {
 	Get(context.Context, string) (Entry, error)
 	List(context.Context, int) ([]Entry, error)
 	FindByImportKey(context.Context, string) (Entry, bool, error)
+	// RepairImportProvenance fills only missing provenance on an already
+	// content-addressed imported entry. It never changes memory content.
+	RepairImportProvenance(context.Context, string, ImportProvenance) error
+	// ClassificationRetries returns queued classification work without exposing
+	// any mutation surface for immutable journal entries.
+	ClassificationRetries(context.Context, int) ([]RetryItem, error)
+	AcknowledgeRetry(context.Context, string) error
+	PruneResolvedClassificationRetries(context.Context) (int, error)
+	EmbeddingRetries(context.Context, int) ([]RetryItem, error)
+	StoreFacetEmbedding(context.Context, string, []float64) error
+	AcknowledgeEmbeddingRetries(context.Context, string) error
+	PruneResolvedEmbeddingRetries(context.Context) (int, error)
 }

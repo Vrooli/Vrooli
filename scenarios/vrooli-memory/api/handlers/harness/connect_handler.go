@@ -23,6 +23,13 @@ func NewConnectHandler(i *internalharness.Importer, l *log.Logger) *connectHandl
 }
 
 func (h *connectHandler) RunImport(ctx context.Context, req *connect.Request[harnessv1.RunImportRequest]) (*connect.Response[harnessv1.RunImportResponse], error) {
+	if req.Msg.GetDryRun() {
+		result, err := h.importer.Import(ctx, req.Msg.GetRuntime(), true)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		return connect.NewResponse(&harnessv1.RunImportResponse{ImportedCount: int32(result.Seen), DryRun: true}), nil
+	}
 	run, joined, err := h.importer.Start(ctx, req.Msg.GetRuntime())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)

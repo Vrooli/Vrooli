@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	localdb "vrooli-memory/internal/database"
+	"vrooli-memory/internal/facets"
 	"vrooli-memory/internal/testutil/db"
 	"vrooli-memory/internal/testutil/mocks"
 )
@@ -47,6 +48,10 @@ func TestClassifierFailureStillAppendsUnclassifiedEntry(t *testing.T) {
 	stored, err := repo.Get(context.Background(), entry.ID)
 	require.NoError(t, err)
 	require.Equal(t, UnclassifiedFacet, stored.FacetID)
+	var queuedEntryID, reason string
+	require.NoError(t, repo.db.QueryRowContext(context.Background(), `SELECT entry_id, reason FROM journal_retry_queue`).Scan(&queuedEntryID, &reason))
+	require.Equal(t, entry.ID, queuedEntryID)
+	require.Equal(t, "classify", reason)
 }
 
 func TestRepositoryExposesNoMutationMethods(t *testing.T) {
@@ -56,4 +61,48 @@ func TestRepositoryExposesNoMutationMethods(t *testing.T) {
 		require.NotContains(t, name, "Update")
 		require.NotContains(t, name, "Delete")
 	}
+}
+
+func TestProcessClassificationRetriesAppendsFacetAssignmentAndAcknowledgesQueue(t *testing.T) {
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(Schema), apidb.SchemaProviderFunc(facets.Schema)))
+	repo := NewSQLiteRepository(d)
+	fr := facets.NewSQLiteRepository(d)
+	require.NoError(t, fr.Seed(context.Background()))
+	failing := &mocks.FakeInference{ClassifyErr: errors.New("unavailable"), EmbedOut: []float64{1}}
+	entry, err := NewService(repo, failing, facets.NewService(fr)).Append(context.Background(), Entry{Body: "keep this rule", Kind: "memory"})
+	require.NoError(t, err)
+	require.Equal(t, UnclassifiedFacet, entry.FacetID)
+
+	result, err := NewService(repo, &mocks.FakeInference{ClassifyOut: "standing-rule"}, facets.NewService(fr)).ProcessClassificationRetries(context.Background(), 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Processed)
+	assignments, err := fr.Assignments(context.Background(), entry.ID)
+	require.NoError(t, err)
+	require.Len(t, assignments, 1)
+	require.Equal(t, "standing-rule", assignments[0].FacetID)
+	var queued int
+	require.NoError(t, d.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM journal_retry_queue`).Scan(&queued))
+	require.Zero(t, queued)
+	stored, err := repo.Get(context.Background(), entry.ID)
+	require.NoError(t, err)
+	require.Equal(t, UnclassifiedFacet, stored.FacetID, "entry rows remain immutable; facet history owns retry correction")
+}
+
+func TestProcessEmbeddingRetriesRestoresAllFacetVectorsAndAcknowledgesQueue(t *testing.T) {
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(Schema)))
+	repo := NewSQLiteRepository(d)
+	failing := &mocks.FakeInference{ClassifyOut: "episode", EmbedErr: errors.New("unavailable")}
+	entry, err := NewService(repo, failing).Append(context.Background(), Entry{Body: "recover vectors", Kind: "memory"})
+	require.NoError(t, err)
+	require.Len(t, entry.FacetTexts, 3)
+	result, err := NewService(repo, &mocks.FakeInference{EmbedOut: []float64{0.1, 0.2}}).ProcessEmbeddingRetries(context.Background(), 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Processed)
+	var vectors, queued int
+	require.NoError(t, d.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM embeddings`).Scan(&vectors))
+	require.Equal(t, 3, vectors)
+	require.NoError(t, d.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM journal_retry_queue WHERE reason='embed'`).Scan(&queued))
+	require.Zero(t, queued)
 }

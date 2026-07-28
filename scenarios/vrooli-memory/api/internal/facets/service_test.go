@@ -10,6 +10,7 @@ import (
 
 	localdb "vrooli-memory/internal/database"
 	"vrooli-memory/internal/journal"
+	"vrooli-memory/internal/testutil/mocks"
 )
 
 func newService(t *testing.T) (*Service, *journal.SQLiteRepository) {
@@ -35,6 +36,15 @@ func TestUnknownFacetIsHardError(t *testing.T) {
 	s, _ := newService(t)
 	require.ErrorAs(t, s.Validate(context.Background(), "invented"), new(ErrUnknownFacet))
 	require.NoError(t, s.Validate(context.Background(), UnclassifiedFacet))
+}
+
+func TestJournalWriteRejectsUnknownExplicitFacet(t *testing.T) {
+	s, j := newService(t)
+	_, err := journal.NewService(j, &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, s).
+		Append(context.Background(), journal.Entry{Body: "do not silently route this", FacetID: "invented"})
+	var unknown ErrUnknownFacet
+	require.ErrorAs(t, err, &unknown)
+	require.Equal(t, "invented", unknown.ID)
 }
 
 func TestOnlyEpisodeIsCompactionEligibleAndPinExemptsIt(t *testing.T) {
@@ -74,4 +84,18 @@ func TestRefacetRetainsHistory(t *testing.T) {
 	require.Len(t, history, 2)
 	require.Equal(t, "episode", history[0].FacetID)
 	require.Equal(t, "standing-rule", history[1].FacetID)
+}
+
+func TestSupersessionLeavesOriginalEntryRetrievable(t *testing.T) {
+	s, j := newService(t)
+	ctx := context.Background()
+	original, err := j.Append(ctx, journal.Entry{Body: "old rule", FacetID: "standing-rule"}, nil)
+	require.NoError(t, err)
+	replacement, err := j.Append(ctx, journal.Entry{Body: "new rule", FacetID: "standing-rule"}, nil)
+	require.NoError(t, err)
+	require.NoError(t, s.MarkSuperseded(ctx, original.ID, replacement.ID))
+
+	stored, err := j.Get(ctx, original.ID)
+	require.NoError(t, err)
+	require.Equal(t, original.Body, stored.Body)
 }

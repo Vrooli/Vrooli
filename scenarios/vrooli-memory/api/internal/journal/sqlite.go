@@ -103,6 +103,112 @@ func (r *SQLiteRepository) FindByImportKey(ctx context.Context, key string) (Ent
 	return e, err == nil, err
 }
 
+func (r *SQLiteRepository) RepairImportProvenance(ctx context.Context, id string, info ImportProvenance) error {
+	// This narrowly repairs legacy rows created before provenance columns were
+	// populated. Existing non-empty values remain immutable evidence.
+	_, err := r.db.ExecContext(ctx, `UPDATE entries SET source_harness=CASE WHEN source_harness='' THEN ? ELSE source_harness END, source_path=CASE WHEN source_path='' THEN ? ELSE source_path END, imported_at=CASE WHEN imported_at='' THEN created_at ELSE imported_at END WHERE id=?`, info.Harness, info.Path, id)
+	return err
+}
+
+func (r *SQLiteRepository) ClassificationRetries(ctx context.Context, limit int) ([]RetryItem, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT q.id,e.id,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at
+FROM journal_retry_queue q JOIN entries e ON e.id=q.entry_id
+WHERE q.reason='classify' AND NOT EXISTS (SELECT 1 FROM facet_assignments a WHERE a.entry_id=e.id)
+ORDER BY q.created_at,q.id LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []RetryItem
+	for rows.Next() {
+		var item RetryItem
+		var created string
+		var importKey, importedAt sql.NullString
+		if err := rows.Scan(&item.ID, &item.Entry.ID, &item.Entry.Body, &item.Entry.FacetID, &item.Entry.Kind, &item.Entry.Attribution.ActorID, &item.Entry.Attribution.ActorKind, &item.Entry.Attribution.SourceRuntime, &item.Entry.Correlation.RunID, &item.Entry.Correlation.WorkflowExecutionID, &importKey, &item.Entry.Import.Harness, &item.Entry.Import.Path, &importedAt, &created); err != nil {
+			return nil, err
+		}
+		item.Reason = "classify"
+		item.Entry.ImportKey = importKey.String
+		if importedAt.Valid && importedAt.String != "" {
+			item.Entry.Import.ImportedAt, _ = time.Parse(time.RFC3339Nano, importedAt.String)
+		}
+		item.Entry.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (r *SQLiteRepository) AcknowledgeRetry(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM journal_retry_queue WHERE id=?`, id)
+	return err
+}
+
+func (r *SQLiteRepository) PruneResolvedClassificationRetries(ctx context.Context) (int, error) {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM journal_retry_queue WHERE reason='classify' AND EXISTS (SELECT 1 FROM facet_assignments a WHERE a.entry_id=journal_retry_queue.entry_id)`)
+	if err != nil {
+		return 0, err
+	}
+	n, err := result.RowsAffected()
+	return int(n), err
+}
+
+func (r *SQLiteRepository) EmbeddingRetries(ctx context.Context, limit int) ([]RetryItem, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT q.entry_id FROM journal_retry_queue q WHERE q.reason='embed' AND EXISTS (SELECT 1 FROM facet_texts ft WHERE ft.entry_id=q.entry_id AND NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.facet_text_id=ft.id)) ORDER BY q.entry_id LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var entryIDs []string
+	for rows.Next() {
+		var entryID string
+		if err := rows.Scan(&entryID); err != nil {
+			return nil, err
+		}
+		entryIDs = append(entryIDs, entryID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	items := make([]RetryItem, 0, len(entryIDs))
+	for _, entryID := range entryIDs {
+		entry, err := r.Get(ctx, entryID)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, RetryItem{Reason: "embed", Entry: entry})
+	}
+	return items, nil
+}
+
+func (r *SQLiteRepository) StoreFacetEmbedding(ctx context.Context, facetTextID string, vector []float64) error {
+	payload, err := json.Marshal(vector)
+	if err != nil {
+		return fmt.Errorf("encode retry embedding: %w", err)
+	}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO embeddings(id,facet_text_id,vector_json,created_at) SELECT ?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE facet_text_id=?)`, uuid.NewString(), facetTextID, string(payload), time.Now().UTC().Format(time.RFC3339Nano), facetTextID)
+	return err
+}
+
+func (r *SQLiteRepository) AcknowledgeEmbeddingRetries(ctx context.Context, entryID string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM journal_retry_queue WHERE entry_id=? AND reason='embed'`, entryID)
+	return err
+}
+
+func (r *SQLiteRepository) PruneResolvedEmbeddingRetries(ctx context.Context) (int, error) {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM journal_retry_queue WHERE reason='embed' AND NOT EXISTS (SELECT 1 FROM facet_texts ft WHERE ft.entry_id=journal_retry_queue.entry_id AND NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.facet_text_id=ft.id))`)
+	if err != nil {
+		return 0, err
+	}
+	n, err := result.RowsAffected()
+	return int(n), err
+}
+
 func (r *SQLiteRepository) list(ctx context.Context, where string, limit int, args ...any) ([]Entry, error) {
 	if limit <= 0 {
 		return nil, nil

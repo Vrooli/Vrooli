@@ -2,9 +2,13 @@ package inference
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 )
@@ -36,7 +40,7 @@ func (f *fakeInference) Classify(context.Context, string) (string, error)  { ret
 func (f *fakeInference) Summarize(context.Context, string) (string, error) { return "", nil }
 
 func TestGatewayClientEmbedPrefixesClusteringText(t *testing.T) {
-	client := NewGatewayClient(fakeRouting{response: `{"embedding":[0.1,0.2]}`})
+	client := NewGatewayClient(fakeRouting{response: `{"embedding":[0.1,0.2]}`, wantRole: EmbeddingRole, wantInput: clusteringPrefix + "memory", wantTimeout: EmbeddingTimeout})
 	got, err := client.Embed(context.Background(), "memory", EmbeddingClustering)
 	if err != nil {
 		t.Fatal(err)
@@ -46,10 +50,62 @@ func TestGatewayClientEmbedPrefixesClusteringText(t *testing.T) {
 	}
 }
 
-type fakeRouting struct{ response string }
+func TestGatewayClientUsesGenerationTimeoutAndDecodesClassification(t *testing.T) {
+	client := NewGatewayClient(fakeRouting{response: `{"response":"taxonomy"}`, wantRole: ClassificationRole, wantInput: classificationPrompt("memory"), wantTimeout: GenerationTimeout, wantMaxOutputTokens: ClassificationMaxOutputTokens})
+	got, err := client.Classify(context.Background(), "memory")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "taxonomy" {
+		t.Fatalf("classification = %q", got)
+	}
+}
+
+func TestGeneratedTextPreservesPlainTextForNonResourceFakes(t *testing.T) {
+	got, err := generatedText("plain summary")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "plain summary" {
+		t.Fatalf("generated text = %q", got)
+	}
+}
+
+func TestClassificationExcerptPreservesHeadAndTailWithinBound(t *testing.T) {
+	input := strings.Repeat("a", classificationInputRunes/2+1) + "TAIL" + strings.Repeat("z", classificationInputRunes/2+1)
+	got := classificationExcerpt(input)
+	require.Contains(t, got, "[... classification excerpt omitted ...]")
+	require.True(t, strings.HasPrefix(got, "a"))
+	require.True(t, strings.HasSuffix(got, "z"))
+	require.NotContains(t, got, "TAIL")
+}
+
+func TestEmbeddingExcerptPreservesHeadAndTailWithinBound(t *testing.T) {
+	input := strings.Repeat("a", embeddingInputRunes/2+1) + "TAIL" + strings.Repeat("z", embeddingInputRunes/2+1)
+	got := embeddingExcerpt(input)
+	require.Contains(t, got, "[... embedding excerpt omitted ...]")
+	require.True(t, strings.HasPrefix(got, "a"))
+	require.True(t, strings.HasSuffix(got, "z"))
+	require.NotContains(t, got, "TAIL")
+}
+
+func TestEmbeddingInputKeepsProviderPayloadWithinSafeBound(t *testing.T) {
+	input := strings.Repeat("a", embeddingInputRunes+1000)
+	payload := embeddingInput(EmbeddingDocument, input)
+
+	require.LessOrEqual(t, utf8.RuneCountInString(payload), embeddingInputRunes+utf8.RuneCountInString(documentPrefix)+utf8.RuneCountInString("\n[... embedding excerpt omitted ...]\n"))
+}
+
+type fakeRouting struct {
+	response            string
+	wantRole            string
+	wantInput           string
+	wantTimeout         time.Duration
+	wantMaxOutputTokens int
+}
 
 func (f fakeRouting) ExecuteRoute(_ context.Context, req *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {
-	if req.Msg.GetRequest().GetRole() != EmbeddingRole || req.Msg.GetInputText() != clusteringPrefix+"memory" {
+	if req.Msg.GetRequest().GetRole() != f.wantRole || req.Msg.GetInputText() != f.wantInput || req.Msg.GetRequest().GetTimeoutMs() != int32(f.wantTimeout/time.Millisecond) || req.Msg.GetRequest().GetMaxOutputTokens() != int32(f.wantMaxOutputTokens) {
 		panic("wrong gateway request")
 	}
 	return connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, OutputText: f.response}), nil

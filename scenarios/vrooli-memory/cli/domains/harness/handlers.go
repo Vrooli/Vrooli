@@ -25,7 +25,7 @@ func runtime(ctx cliapp.OperationContext) string {
 	return "claude-code"
 }
 func (h *handlers) importCall(ctx cliapp.OperationContext) (*harnessv1.RunImportResponse, error) {
-	resp, err := h.client.RunImport(context.Background(), connect.NewRequest(&harnessv1.RunImportRequest{Runtime: runtime(ctx)}))
+	resp, err := h.client.RunImport(context.Background(), connect.NewRequest(&harnessv1.RunImportRequest{Runtime: runtime(ctx), DryRun: ctx.BoolFlag("dry-run")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("start memory import", err, nil)
 	}
@@ -39,6 +39,9 @@ func (h *handlers) statusCall(ctx cliapp.OperationContext) (*harnessv1.GetImport
 	return resp.Msg, nil
 }
 func (h *handlers) importReport(_ cliapp.OperationContext, msg *harnessv1.RunImportResponse) cliapp.MutationReport {
+	if msg.DryRun {
+		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Dry run validated %d importable memory source(s); no journal entries were written.", msg.ImportedCount)}}
+	}
 	if msg.Run == nil {
 		return cliapp.MutationReport{Result: []string{"Import request accepted."}}
 	}
@@ -48,6 +51,7 @@ func (h *handlers) importReport(_ cliapp.OperationContext, msg *harnessv1.RunImp
 	}
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("%s import run %s (%d sources).", joined, msg.Run.Id, msg.Run.TotalSources)}, NextCommand: []string{fmt.Sprintf("`import-status --run-id %s` — view durable progress", msg.Run.Id)}}
 }
+
 func (h *handlers) statusReport(_ cliapp.OperationContext, msg *harnessv1.GetImportStatusResponse) cliapp.ListReport {
 	if msg.Run == nil {
 		return cliapp.ListReport{Summary: []string{"No import run found."}}

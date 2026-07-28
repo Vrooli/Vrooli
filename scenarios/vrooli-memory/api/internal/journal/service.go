@@ -77,3 +77,87 @@ func (s *Service) List(ctx context.Context, limit int) ([]Entry, error) {
 func (s *Service) FindByImportKey(ctx context.Context, key string) (Entry, bool, error) {
 	return s.repo.FindByImportKey(ctx, key)
 }
+
+func (s *Service) RepairImportProvenance(ctx context.Context, id string, importInfo ImportProvenance) error {
+	return s.repo.RepairImportProvenance(ctx, id, importInfo)
+}
+
+// ProcessClassificationRetries replays failed inference through an append-only
+// facet assignment. It never changes an immutable entries row; successful
+// retry work is acknowledged only after its assignment is persisted.
+func (s *Service) ProcessClassificationRetries(ctx context.Context, limit int) (RetryResult, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	resolved, err := s.repo.PruneResolvedClassificationRetries(ctx)
+	if err != nil {
+		return RetryResult{}, err
+	}
+	result := RetryResult{AlreadyResolved: resolved}
+	items, err := s.repo.ClassificationRetries(ctx, limit)
+	if err != nil {
+		return result, err
+	}
+	for _, item := range items {
+		facet, err := s.inference.Classify(ctx, item.Entry.Body)
+		if err != nil || strings.TrimSpace(facet) == "" {
+			result.Deferred++
+			continue
+		}
+		facet = strings.TrimSpace(facet)
+		if s.facets == nil || s.facets.Validate(ctx, facet) != nil || s.facets.Assign(ctx, item.Entry.ID, facet) != nil {
+			result.Deferred++
+			continue
+		}
+		if err := s.repo.AcknowledgeRetry(ctx, item.ID); err != nil {
+			return result, err
+		}
+		result.Processed++
+	}
+	return result, nil
+}
+
+// ProcessEmbeddingRetries fills only missing derived vectors, then removes the
+// operational retry records. Journal prose and facet-text rows stay immutable.
+func (s *Service) ProcessEmbeddingRetries(ctx context.Context, limit int) (RetryResult, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	resolved, err := s.repo.PruneResolvedEmbeddingRetries(ctx)
+	if err != nil {
+		return RetryResult{}, err
+	}
+	result := RetryResult{AlreadyResolved: resolved}
+	items, err := s.repo.EmbeddingRetries(ctx, limit)
+	if err != nil {
+		return result, err
+	}
+	for _, item := range items {
+		complete := true
+		for _, facetText := range item.Entry.FacetTexts {
+			vector, err := s.inference.Embed(ctx, facetText.Text, inference.EmbeddingClustering)
+			if err != nil {
+				complete = false
+				break
+			}
+			if err := s.repo.StoreFacetEmbedding(ctx, facetText.ID, vector); err != nil {
+				return result, err
+			}
+		}
+		if !complete {
+			result.Deferred++
+			continue
+		}
+		if err := s.repo.AcknowledgeEmbeddingRetries(ctx, item.Entry.ID); err != nil {
+			return result, err
+		}
+		result.Processed++
+	}
+	return result, nil
+}

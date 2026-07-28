@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	aisearch "github.com/vrooli/ai-go/search"
@@ -19,9 +20,29 @@ const (
 	EmbeddingRole      = "embedding.default"
 	ClassificationRole = "classify.routing"
 	SummaryRole        = "summarize.default"
-	clusteringPrefix   = "clustering: "
-	documentPrefix     = "search_document: "
-	queryPrefix        = "search_query: "
+	// Text generation routinely takes longer than a small embedding request on
+	// local models.  Leaving this at the gateway's short provider default turns
+	// normal cold-start latency into breaker failures.
+	GenerationTimeout = 60 * time.Second
+	EmbeddingTimeout  = 15 * time.Second
+	// Classification is a label-selection operation, not free-form generation.
+	// Bounding its output keeps the queue moving and prevents a concise request
+	// from monopolizing a local model context window.
+	ClassificationMaxOutputTokens = 32
+	SummaryMaxOutputTokens        = 256
+	clusteringPrefix              = "clustering: "
+	documentPrefix                = "search_document: "
+	queryPrefix                   = "search_query: "
+	classificationPromptPrefix    = "Classify the memory into exactly one allowed facet ID. Return only the ID, no punctuation or explanation. Allowed facet IDs: standing-rule, environment-fact, gotcha, episode, thread, entity-record.\nMemory: "
+	// Facet assignment is a six-way coarse classification, so a compact
+	// head-and-tail excerpt is sufficient and keeps corpus replay within the
+	// gateway's bounded request window.
+	classificationInputRunes = 4000
+	// The local embedding provider rejects 6k-character payloads once its own
+	// prompt overhead is included. Keep this below the measured 5k ceiling with
+	// a deliberate safety margin so a queued import cannot repeatedly trip the
+	// provider breaker.
+	embeddingInputRunes = 4000
 )
 
 type EmbeddingTask string
@@ -49,7 +70,7 @@ func NewGatewayClient(routing routingconnect.RoutingServiceClient) *GatewayClien
 }
 
 func (c *GatewayClient) Embed(ctx context.Context, text string, task EmbeddingTask) ([]float64, error) {
-	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, EmbeddingRole, embeddingInput(task, text))
+	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, EmbeddingRole, embeddingInput(task, text), EmbeddingTimeout, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -66,18 +87,26 @@ func (c *GatewayClient) Embed(ctx context.Context, text string, task EmbeddingTa
 }
 
 func (c *GatewayClient) Classify(ctx context.Context, prompt string) (string, error) {
-	return c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, ClassificationRole, prompt)
+	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, ClassificationRole, classificationPrompt(prompt), GenerationTimeout, ClassificationMaxOutputTokens)
+	if err != nil {
+		return "", err
+	}
+	return generatedText(output)
 }
 
 func (c *GatewayClient) Summarize(ctx context.Context, prompt string) (string, error) {
-	return c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, SummaryRole, prompt)
+	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, SummaryRole, prompt, GenerationTimeout, SummaryMaxOutputTokens)
+	if err != nil {
+		return "", err
+	}
+	return generatedText(output)
 }
 
-func (c *GatewayClient) execute(ctx context.Context, kind sharedv1.RequestKind, role, input string) (string, error) {
+func (c *GatewayClient) execute(ctx context.Context, kind sharedv1.RequestKind, role, input string, timeout time.Duration, maxOutputTokens int) (string, error) {
 	if c == nil || c.routing == nil {
 		return "", errors.New("ai-gateway routing client is not configured")
 	}
-	resp, err := c.routing.ExecuteRoute(ctx, connect.NewRequest(&routingv1.ExecuteRouteRequest{Request: &sharedv1.GatewayRequest{Kind: kind, Role: role, Profile: sharedv1.Profile_PROFILE_LOCAL_FIRST, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, Scenario: "vrooli-memory"}, InputText: input}))
+	resp, err := c.routing.ExecuteRoute(ctx, connect.NewRequest(&routingv1.ExecuteRouteRequest{Request: &sharedv1.GatewayRequest{Kind: kind, Role: role, Profile: sharedv1.Profile_PROFILE_LOCAL_FIRST, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, Scenario: "vrooli-memory", TimeoutMs: int32(timeout / time.Millisecond), MaxOutputTokens: int32(maxOutputTokens)}, InputText: input}))
 	if err != nil {
 		return "", fmt.Errorf("execute ai-gateway route %s: %w", role, err)
 	}
@@ -91,6 +120,7 @@ func (c *GatewayClient) execute(ctx context.Context, kind sharedv1.RequestKind, 
 }
 
 func embeddingInput(task EmbeddingTask, text string) string {
+	text = embeddingExcerpt(text)
 	switch task {
 	case EmbeddingClustering:
 		return clusteringPrefix + text
@@ -99,6 +129,43 @@ func embeddingInput(task EmbeddingTask, text string) string {
 	default:
 		return documentPrefix + text
 	}
+}
+
+func embeddingExcerpt(text string) string {
+	trimmed := strings.TrimSpace(text)
+	runes := []rune(trimmed)
+	if len(runes) <= embeddingInputRunes {
+		return trimmed
+	}
+	half := embeddingInputRunes / 2
+	return string(runes[:half]) + "\n[... embedding excerpt omitted ...]\n" + string(runes[len(runes)-half:])
+}
+
+func classificationPrompt(memory string) string {
+	return classificationPromptPrefix + classificationExcerpt(memory)
+}
+
+func classificationExcerpt(memory string) string {
+	trimmed := strings.TrimSpace(memory)
+	runes := []rune(trimmed)
+	if len(runes) <= classificationInputRunes {
+		return trimmed
+	}
+	half := classificationInputRunes / 2
+	return string(runes[:half]) + "\n[... classification excerpt omitted ...]\n" + string(runes[len(runes)-half:])
+}
+
+// generatedText decodes the resource gateway's stable JSON envelope.  Keeping
+// this at the scenario inference seam prevents provider-shaped JSON from
+// leaking into persisted facet IDs or summary nodes.
+func generatedText(output string) (string, error) {
+	var response struct {
+		Response string `json:"response"`
+	}
+	if err := json.Unmarshal([]byte(output), &response); err == nil {
+		return strings.TrimSpace(response.Response), nil
+	}
+	return strings.TrimSpace(output), nil
 }
 
 func routeIssues(issues []*sharedv1.ValidationIssue) string {

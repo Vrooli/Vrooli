@@ -14,6 +14,13 @@ type (
 		FacetTexts                         []FacetText
 		CreatedAt                          time.Time
 	}
+	RetryItem struct {
+		ID, Reason string
+		Entry      Entry
+	}
+	RetryResult struct {
+		Processed, Deferred, AlreadyResolved int
+	}
 	Attribution      struct{ ActorID, ActorKind, SourceRuntime string }
 	ImportProvenance struct {
 		Harness, Path string

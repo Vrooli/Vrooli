@@ -330,6 +330,8 @@ const literalSelectors = {
       error: "notes-measure-error",
     },
   },
+  journal: { surface: "journal-surface", list: "journal-list", loading: "journal-loading", empty: "journal-empty", error: "journal-error" },
+  recall: { surface: "recall-surface", list: "recall-list", loading: "recall-loading", empty: "recall-empty", error: "recall-error" },
   // EXAMPLE-DOMAIN:notes END
   layout: {
     shell: "layout-shell",
@@ -345,6 +347,8 @@ const literalSelectors = {
   pages: {
     dashboard: "page-dashboard",
     notes: "page-notes", // EXAMPLE-DOMAIN:notes
+    journal: "page-journal",
+    recall: "page-recall",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -364,6 +368,8 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "notes", // EXAMPLE-DOMAIN:notes
+            "journal",
+            "recall",
             "settings",
           ] as const,
         },
@@ -378,6 +384,8 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "notes", // EXAMPLE-DOMAIN:notes
+            "journal",
+            "recall",
             "settings",
           ] as const,
         },

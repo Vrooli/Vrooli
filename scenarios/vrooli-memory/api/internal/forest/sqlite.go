@@ -3,6 +3,7 @@ package forest
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -22,12 +23,16 @@ func (r *SQLiteRepository) CreateSummary(ctx context.Context, s Summary, edges [
 	if s.Generation == 0 {
 		s.Generation = 1
 	}
+	vector, err := json.Marshal(s.Vector)
+	if err != nil {
+		return Summary{}, fmt.Errorf("encode summary vector: %w", err)
+	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Summary{}, err
 	}
-	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, `INSERT INTO summaries (id,body,facet_id,depth,generation,created_at) VALUES (?,?,?,?,?,?)`, s.ID, s.Body, s.FacetID, s.Depth, s.Generation, s.CreatedAt.Format(time.RFC3339Nano)); err != nil {
+	defer func() { _ = tx.Rollback() }()
+	if _, err = tx.ExecContext(ctx, `INSERT INTO summaries (id,body,facet_id,vector_json,depth,generation,created_at) VALUES (?,?,?,?,?,?,?)`, s.ID, s.Body, s.FacetID, string(vector), s.Depth, s.Generation, s.CreatedAt.Format(time.RFC3339Nano)); err != nil {
 		return Summary{}, err
 	}
 	for _, e := range edges {
@@ -43,8 +48,9 @@ func (r *SQLiteRepository) CreateSummary(ctx context.Context, s Summary, edges [
 	}
 	return s, nil
 }
+
 func (r *SQLiteRepository) Frontier(ctx context.Context) ([]Summary, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT s.id,s.body,s.facet_id,s.depth,s.generation,s.created_at FROM summaries s LEFT JOIN tree_edges e ON e.child_id=s.id AND e.child_kind='summary' WHERE e.parent_id IS NULL ORDER BY s.created_at,s.id`)
+	rows, err := r.db.QueryContext(ctx, `SELECT s.id,s.body,s.facet_id,s.vector_json,s.depth,s.generation,s.created_at FROM summaries s LEFT JOIN tree_edges e ON e.child_id=s.id AND e.child_kind='summary' WHERE e.parent_id IS NULL ORDER BY s.created_at,s.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -52,21 +58,25 @@ func (r *SQLiteRepository) Frontier(ctx context.Context) ([]Summary, error) {
 	var out []Summary
 	for rows.Next() {
 		var s Summary
-		var created string
-		if err := rows.Scan(&s.ID, &s.Body, &s.FacetID, &s.Depth, &s.Generation, &created); err != nil {
+		var created, vector string
+		if err := rows.Scan(&s.ID, &s.Body, &s.FacetID, &vector, &s.Depth, &s.Generation, &created); err != nil {
 			return nil, err
+		}
+		if err := json.Unmarshal([]byte(vector), &s.Vector); err != nil {
+			return nil, fmt.Errorf("decode summary vector: %w", err)
 		}
 		s.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 		out = append(out, s)
 	}
 	return out, rows.Err()
 }
+
 func (r *SQLiteRepository) Rebuild(ctx context.Context) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err = tx.ExecContext(ctx, `DELETE FROM tree_edges`); err != nil {
 		return err
 	}

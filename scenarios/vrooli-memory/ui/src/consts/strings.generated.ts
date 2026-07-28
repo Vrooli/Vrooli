@@ -23,6 +23,8 @@ export const strings = {
     nav: {
       dashboard: "layout.nav.dashboard",
       notes: "layout.nav.notes",
+      journal: "layout.nav.journal",
+      recall: "layout.nav.recall",
       settings: "layout.nav.settings",
     },
   },
@@ -42,6 +44,12 @@ export const strings = {
     },
     notes: {
       title: "pages.notes.title",
+    },
+    journal: {
+      title: "pages.journal.title",
+    },
+    recall: {
+      title: "pages.recall.title",
     },
     settings: {
       title: "pages.settings.title",
@@ -64,6 +72,16 @@ export const strings = {
     summary: "notifications.summary",
     summary_zero: "notifications.summary_zero",
     summary_one: "notifications.summary_one",
+  },
+  recall: {
+    title: "recall.title",
+    queryLabel: "recall.queryLabel",
+    queryPlaceholder: "recall.queryPlaceholder",
+    submit: "recall.submit",
+    loading: "recall.loading",
+    empty: "recall.empty",
+    score: "recall.score",
+    summary: "recall.summary",
   },
   notes: {
     title: "notes.title",
@@ -110,6 +128,13 @@ export const strings = {
   },
   locale: {
     switcherLabel: "locale.switcherLabel",
+  },
+  journal: {
+    title: "journal.title",
+    loading: "journal.loading",
+    retry: "journal.retry",
+    empty: "journal.empty",
+    unknownTime: "journal.unknownTime",
   },
   errorBoundary: {
     title: "errorBoundary.title",

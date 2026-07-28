@@ -16,7 +16,10 @@ import (
 // registrations here. For greenfield scenarios, domain packages are the
 // default architecture; do not treat flat command files as the long-term plan.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	return []cliapp.CommandGroup{{Title: "Memory", Commands: append([]cliapp.Command{journal.Command(core)}, recall.Commands(core)...)}}
+	commands := append([]cliapp.Command{}, journal.Commands(core)...)
+	commands = append(commands, recall.Commands(core)...)
+	commands = append(commands, harness.Commands(core)...)
+	return []cliapp.CommandGroup{{Title: "Memory", Commands: commands}}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.

@@ -5,9 +5,9 @@ import "time"
 type Node struct {
 	ID, ParentID, EntryID, FacetID, Text string
 	Vector                               []float64
-	Depth                                int
+	Depth, Span                          int
 	CreatedAt                            time.Time
-	Pinned, Frontier                     bool
+	Pinned, Frontier, Summary            bool
 }
 
 type (

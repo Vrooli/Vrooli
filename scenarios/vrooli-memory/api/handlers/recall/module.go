@@ -14,8 +14,8 @@ import (
 	internalrecall "vrooli-memory/internal/recall"
 )
 
-func Module(db *database.RoutedDB, client inference.Client, logger *log.Logger) module.Module {
-	svc := internalrecall.NewService(internalrecall.NewSQLiteSource(db.Primary()), inference.Embedder{Client: client}, internalrecall.Config{FrontierTarget: 100, WakeBudget: 40})
+func Module(db *database.RoutedDB, client inference.Client, config internalrecall.Config, logger *log.Logger) module.Module {
+	svc := internalrecall.NewService(internalrecall.NewSQLiteSource(db.Primary()), inference.Embedder{Client: client}, config)
 	path, h := recallconnect.NewRecallServiceHandler(NewConnectHandler(svc, logger))
 	return module.Module{Name: "recall", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}
 }

@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS summaries (
   id TEXT PRIMARY KEY,
   body TEXT NOT NULL,
   facet_id TEXT NOT NULL,
+  vector_json TEXT NOT NULL DEFAULT '[]',
   depth INTEGER NOT NULL,
   generation INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL
