@@ -37,11 +37,7 @@ Run the scenario-owned suite through Test Genie:
 vrooli scenario test scenario-to-desktop
 ```
 
-The run is server-owned. Reattach once with the run ID it returns:
-
-```bash
-test-genie runs wait --json scenario-to-desktop <run-id>
-```
+The run is server-owned. Use the exact single wait command printed with its run ID; it is the authoritative completion protocol for that run.
 
 Do not poll the run. For focused local checks, use the surface-specific commands documented in [Testing](docs/internal/TEST-GENIE-BASELINE-20260726.md).
 

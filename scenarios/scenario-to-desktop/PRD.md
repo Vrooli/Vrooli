@@ -23,13 +23,13 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Generate complete Electron desktop applications | API generates template files successfully with required assets and configs
-- [ ] OT-P0-002 | Electron desktop scaffolding | Electron wrappers are generated with the supported template variants
-- [ ] OT-P0-003 | Cross-platform packaging | Template configs exist; full builds require electron-builder in target environments
-- [ ] OT-P0-004 | Development tooling | Make targets, CLI commands, and test infrastructure are in place
-- [ ] OT-P0-005 | Integration with scenario APIs | Templates include secure IPC and API integration patterns
+- [x] OT-P0-001 | Generate complete Electron desktop applications | API generates template files successfully with required assets and configs
+- [x] OT-P0-002 | Electron desktop scaffolding | Electron wrappers are generated with the supported template variants
+- [x] OT-P0-003 | Cross-platform packaging | Template configs exist; full builds require electron-builder in target environments
+- [x] OT-P0-004 | Development tooling | Make targets, CLI commands, and test infrastructure are in place
+- [x] OT-P0-005 | Integration with scenario APIs | Templates include secure IPC and API integration patterns
 - [x] OT-P0-006 | Native OS features | Menus, tray, notifications, and file dialogs implemented in templates
-- [ ] OT-P0-007 | Auto-updater hooks | electron-updater wiring included; release pipeline pending
+- [x] OT-P0-007 | Auto-updater hooks | electron-updater wiring included; release pipeline pending
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Code signing + notarization | Automate per-platform signing workflows

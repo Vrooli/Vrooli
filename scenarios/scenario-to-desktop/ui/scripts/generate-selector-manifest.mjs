@@ -19,7 +19,6 @@ try {
       "node",
       "--target",
       "es2022",
-      "--skipLibCheck",
       "--outDir",
       temporaryDirectory,
     ],

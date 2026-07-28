@@ -58,6 +58,7 @@ type requirementNode struct {
 	PRDRef              string            `json:"prd_ref"`
 	OperationalTargetID string            `json:"operational_target_id"`
 	Validation          []json.RawMessage `json:"validation"`
+	DeliveryScope       string            `json:"delivery_scope"`
 	Children            childList         `json:"children"`
 }
 
@@ -109,6 +110,7 @@ type flatReq struct {
 	prdRef          string
 	otID            string
 	validationCount int
+	deliveryScope   string
 	childIDs        []string
 }
 
@@ -210,6 +212,7 @@ func flatten(n *requirementNode, out *[]flatReq) {
 		prdRef:          n.PRDRef,
 		otID:            n.OperationalTargetID,
 		validationCount: len(n.Validation),
+		deliveryScope:   normalizeDeliveryScope(n.DeliveryScope),
 		childIDs:        append([]string(nil), n.Children.IDs...),
 	}
 	for j := range n.Children.Nodes {
@@ -226,6 +229,17 @@ func flatten(n *requirementNode, out *[]flatReq) {
 		flatten(&n.Children.Nodes[j], out)
 	}
 }
+
+// delivery scope is deliberately opt-in. Older registries have no field and
+// must retain their committed-delivery behavior.
+func normalizeDeliveryScope(scope string) string {
+	if strings.EqualFold(strings.TrimSpace(scope), "roadmap") {
+		return "roadmap"
+	}
+	return "committed"
+}
+
+func (r flatReq) roadmap() bool { return r.deliveryScope == "roadmap" }
 
 // syncMetadata is the requirements-sync artifact. Current writers
 // (coverage/requirements-sync/latest.json) emit operational_targets with
@@ -248,6 +262,7 @@ type syncTarget struct {
 	Status         string      `json:"status"`
 	Counts         *syncCounts `json:"counts"`
 	CompletionRate float64     `json:"completion_rate"`
+	RequirementIDs []string    `json:"requirement_ids"`
 }
 
 type syncCounts struct {
@@ -285,7 +300,7 @@ func summarizeRequirements(reqs []flatReq, sync *syncMetadata) RequirementsSigna
 	sig := RequirementsSignals{Collected: true}
 
 	for _, r := range reqs {
-		if r.grouping() {
+		if r.grouping() || r.roadmap() {
 			continue
 		}
 		sig.Total++
@@ -332,6 +347,9 @@ func statusPasses(status string) bool {
 func summarizeTargets(reqs []flatReq, sync *syncMetadata) (total, passing int) {
 	if sync != nil && len(sync.OperationalTargets) > 0 {
 		for _, t := range sync.OperationalTargets {
+			if !targetHasCommittedRequirement(t, reqs) {
+				continue
+			}
 			total++
 			if targetPassesSync(t) {
 				passing++
@@ -343,7 +361,7 @@ func summarizeTargets(reqs []flatReq, sync *syncMetadata) (total, passing int) {
 	type tally struct{ pass, total int }
 	groups := map[string]*tally{}
 	for _, r := range reqs {
-		if r.grouping() {
+		if r.grouping() || r.roadmap() {
 			continue
 		}
 		key := r.otID
@@ -371,6 +389,28 @@ func summarizeTargets(reqs []flatReq, sync *syncMetadata) (total, passing int) {
 		}
 	}
 	return total, passing
+}
+
+func targetHasCommittedRequirement(target syncTarget, reqs []flatReq) bool {
+	byID := make(map[string]flatReq, len(reqs))
+	for _, req := range reqs {
+		byID[req.id] = req
+	}
+	foundRequirement := false
+	for _, id := range target.RequirementIDs {
+		req, ok := byID[id]
+		if !ok {
+			continue
+		}
+		foundRequirement = true
+		if !req.grouping() && !req.roadmap() {
+			return true
+		}
+	}
+	// Older sync artifacts did not consistently carry requirement IDs. Keep
+	// their historical scoring behavior; only exclude a target when its known
+	// linked requirements are explicitly all roadmap work.
+	return !foundRequirement
 }
 
 func targetPassesSync(t syncTarget) bool {

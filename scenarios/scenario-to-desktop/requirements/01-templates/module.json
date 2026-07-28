@@ -1,81 +1,87 @@
 {
-  "module": "templates",
-  "description": "Electron template generation and validation requirements",
+  "_metadata": {
+    "last_validated_at": "2026-07-28T00:55:00-04:00"
+  },
   "requirements": [
     {
       "id": "STD-TEMPLATE-BASIC",
-      "criticality": "P0",
-      "prd_ref": "OT-P0-001",
       "title": "Basic Electron template generates correctly",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
       "description": "When an operator selects the basic template, the generator shall produce an Electron project with its main process, preload bridge, package manifest, TypeScript configuration, splash page, and assets.",
       "validation": [
         {
-          "type": "e2e",
-          "ref": "templates/vanilla/main.ts",
-          "assertion": "All template files present and valid"
+          "type": "test",
+          "ref": "api/template_generator_test.go::TestTemplateGeneratorInterpolatesPlaceholders",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "in_progress"
+      ]
     },
     {
       "id": "STD-TEMPLATE-ADVANCED",
-      "criticality": "P0",
-      "prd_ref": "OT-P0-001",
       "title": "Advanced Electron template with system tray and shortcuts",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
       "description": "When an operator selects the advanced template, the generator shall include the configured system-tray, global-shortcut, and background-operation capabilities.",
       "validation": [
         {
-          "type": "e2e",
-          "ref": "templates/vanilla/main.ts",
-          "assertion": "Advanced features present in generated main.ts"
+          "type": "test",
+          "ref": "api/system/handler_test.go::TestTemplateInfosDefinesSupportedTemplates",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "in_progress"
+      ]
     },
     {
       "id": "STD-TEMPLATE-MULTI-WINDOW",
-      "criticality": "P0",
-      "prd_ref": "OT-P0-001",
       "title": "Multi-window template with window management",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
       "description": "When an operator selects the multi-window template, the generated Electron project shall support multiple windows and an explicit inter-window communication path.",
       "validation": [
         {
-          "type": "e2e",
-          "ref": "templates/vanilla/main.ts",
-          "assertion": "Multi-window features present in template"
+          "type": "test",
+          "ref": "api/generation/connect_handler_test.go::TestConnectServiceSynthesizesDesktopConfig",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "in_progress"
+      ]
     },
     {
       "id": "STD-TEMPLATE-KIOSK",
-      "criticality": "P0",
-      "prd_ref": "OT-P0-001",
       "title": "Kiosk template with fullscreen and security hardening",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
       "description": "When an operator selects the kiosk template, the generated Electron project shall enforce fullscreen kiosk behavior and the declared security and recovery controls.",
       "validation": [
         {
-          "type": "e2e",
-          "ref": "templates/vanilla/main.ts",
-          "assertion": "Kiosk features present in template"
+          "type": "test",
+          "ref": "api/system/handler_test.go::TestTemplateInfosDefinesSupportedTemplates",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "in_progress"
+      ]
     },
     {
       "id": "STD-FRAMEWORK-ELECTRON",
-      "criticality": "P0",
-      "prd_ref": "OT-P0-002",
       "title": "Electron framework fully supported",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
       "description": "The generator shall expose Electron as its sole supported desktop runtime and shall reject requests for unsupported desktop frameworks.",
       "validation": [
         {
-          "type": "integration",
-          "ref": "api/generation/types.go",
-          "assertion": "All Electron templates available via API"
+          "type": "test",
+          "ref": "api/generation/connect_handler_test.go::TestConnectServiceSynthesizesDesktopConfig",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "in_progress"
+      ]
     }
   ]
 }

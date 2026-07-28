@@ -70,6 +70,22 @@ func TestResolveAddsPnpmWorkspaceRootForSurfaceWorkspace(t *testing.T) {
 	}
 }
 
+func TestResolvePreservesExistingJSDevDependencyClassification(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{
+		"package.json":   `{"devDependencies":{"vite":"^5.4.0"}}`,
+		"pnpm-lock.yaml": "",
+	})
+
+	r, err := Resolve(repoRoot, "demo", "ui", "npm", "vite", "6.4.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Command() != "pnpm add -D vite@6.4.3" {
+		t.Fatalf("command = %q, want pnpm dev-dependency upgrade", r.Command())
+	}
+}
+
 func TestExecInstallerRunsInSurfaceRoot(t *testing.T) {
 	dir := t.TempDir()
 	binDir := filepath.Join(dir, "bin")

@@ -154,6 +154,29 @@ func TestRequirementsSyncMetadataOverridesRegistry(t *testing.T) {
 	}
 }
 
+func TestRequirementsExcludeExplicitRoadmapFromDeliveryScore(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "requirements/01-a/module.json", `{"requirements":[
+		{"id":"REQ-COMMITTED","prd_ref":"OT-P0-001","status":"complete","validation":[{"type":"test"}]},
+		{"id":"REQ-ROADMAP","prd_ref":"OT-P2-001","status":"planned","delivery_scope":"roadmap","validation":[{"type":"manual"}]}
+	]}`)
+	writeFile(t, root, "coverage/requirements-sync/latest.json", `{"operational_targets":[
+		{"id":"OT-P0-001","status":"complete","requirement_ids":["REQ-COMMITTED"],"completion_rate":100},
+		{"id":"OT-P2-001","status":"pending","requirement_ids":["REQ-ROADMAP"],"completion_rate":0}
+	]}`)
+
+	sig, err := collectRequirements(t, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sig.Total != 1 || sig.Passing != 1 || sig.WithValidation != 1 {
+		t.Fatalf("committed requirements = total:%d passing:%d validation:%d, want 1/1/1", sig.Total, sig.Passing, sig.WithValidation)
+	}
+	if sig.TargetsTotal != 1 || sig.TargetsPassing != 1 {
+		t.Fatalf("committed targets = %d/%d, want 1/1", sig.TargetsPassing, sig.TargetsTotal)
+	}
+}
+
 func TestRequirementsSyncPathOrderAndUnusableCandidates(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "requirements/01-a/module.json",

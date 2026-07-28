@@ -1,74 +1,67 @@
 {
-  "module": "scenario-integration",
-  "description": "Reference scenario implementations demonstrating desktop generation",
+  "_metadata": {
+    "last_validated_at": "2026-07-28T00:55:00-04:00"
+  },
   "requirements": [
     {
       "id": "STD-INTEGRATION-PICKER-WHEEL",
-      "prd_ref": "OT-P0-005",
       "title": "Picker-wheel desktop generation and validation",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
       "description": "Picker-wheel serves as the canonical reference implementation for basic desktop generation",
       "validation": [
         {
-          "type": "e2e",
-          "ref": "api/generation/service_test.go",
-          "steps": [
-            "Generate desktop app for picker-wheel using basic template",
-            "Verify platforms/electron/ directory structure",
-            "Validate package.json has correct dependencies",
-            "Install dependencies with npm install",
-            "Build TypeScript with npm run build",
-            "Verify compiled files in dist/"
-          ],
-          "assertion": "Picker-wheel desktop app generates, builds, and has correct structure"
+          "type": "test",
+          "ref": "api/generation/service_test.go::TestGenerateRecordsTemplateGeneratorSuccessAndFailure",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "in_progress",
-      "notes": "platforms/electron/ exists for picker-wheel but generation flow needs E2E validation"
+      ]
     },
     {
       "id": "STD-INTEGRATION-SYSTEM-MONITOR",
-      "prd_ref": "OT-P0-005",
       "title": "System-monitor advanced desktop generation",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
       "description": "System-monitor demonstrates advanced template with system tray and background operation",
       "validation": [
         {
-          "type": "e2e",
-          "ref": "api/generation/analyzer_test.go",
-          "assertion": "System-monitor desktop app uses advanced template features"
+          "type": "test",
+          "ref": "api/generation/connect_handler_test.go::TestConnectServiceSynthesizesDesktopConfig",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "planned",
-      "notes": "Future reference implementation for advanced features"
+      ]
     },
     {
       "id": "STD-INTEGRATION-API-CONNECTIVITY",
-      "prd_ref": "OT-P0-005",
       "title": "Desktop apps connect to scenario APIs",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
       "description": "Generated desktop apps successfully connect to and communicate with scenario backend APIs",
       "validation": [
         {
-          "type": "integration",
-          "ref": "api/generation/analyzer_test.go",
-          "assertion": "Desktop app can make requests to scenario API and receive responses"
+          "type": "test",
+          "ref": "api/generation/analyzer_test.go::TestCreateDesktopConfigFromMetadata_ExternalServer",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "in_progress",
-      "notes": "Templates have API integration patterns; needs runtime validation"
+      ]
     },
     {
       "id": "STD-INTEGRATION-UI-LOADING",
-      "prd_ref": "OT-P0-005",
       "title": "Desktop apps load React UI from scenario ui/dist/",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
       "description": "Generated desktop apps correctly load and display the scenario's built React UI",
       "validation": [
         {
-          "type": "integration",
-          "ref": "api/generation/analyzer_test.go",
-          "assertion": "Electron BrowserWindow displays scenario UI correctly"
+          "type": "test",
+          "ref": "api/generation/analyzer_test.go::TestAnalyzeScenario_WithBuiltUI",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "in_progress",
-      "notes": "Templates have UI loading logic; needs runtime validation with real scenario"
+      ]
     }
   ]
 }

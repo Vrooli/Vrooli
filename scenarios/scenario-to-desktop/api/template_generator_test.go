@@ -11,6 +11,9 @@ import (
 )
 
 func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {
+	// [REQ:STD-TEMPLATE-BASIC] [REQ:STD-E2E-GENERATION]
+	// [REQ:STD-NATIVE-MENUS] [REQ:STD-NATIVE-NOTIFICATIONS]
+	// [REQ:SCENARIO-P0-007]
 	cleanup := setupTestLogger()
 	defer cleanup()
 
@@ -72,6 +75,9 @@ func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {
 	}
 	if !strings.Contains(mainContent, `SCENARIO_NAME: "test-scenario"`) {
 		t.Fatalf("scenario name placeholder missing from generated file")
+	}
+	if !strings.Contains(mainContent, "autoUpdater") {
+		t.Fatal("generated main.ts does not include electron-updater wiring")
 	}
 }
 

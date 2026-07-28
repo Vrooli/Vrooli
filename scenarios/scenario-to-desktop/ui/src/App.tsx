@@ -25,6 +25,7 @@ import {
 import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/scenario-inventory/RecordsManager";
 import { selectors } from "./consts/selectors";
+import { StatusBadge } from "./components/ui/status-badge";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -291,18 +292,18 @@ function AppContent() {
           <div className="mx-auto max-w-7xl px-3 md:px-6 py-3">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex items-center gap-2">
-                  {uiBuildStatus.status === "failed" ? (
-                    <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
-                  ) : uiBuildStatus.status === "ready" ? (
-                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  ) : (
-                    <div className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse" />
-                  )}
-                  <span className="text-sm font-medium text-slate-200 truncate">
-                    {selectedScenarioName || "Build"}
-                  </span>
-                </div>
+                <StatusBadge
+                  aria-live="polite"
+                  tone={
+                    uiBuildStatus.status === "failed"
+                      ? "danger"
+                      : uiBuildStatus.status === "ready"
+                        ? "success"
+                        : "info"
+                  }
+                >
+                  {selectedScenarioName || "Build"}: {uiBuildStatus.status}
+                </StatusBadge>
                 <span className="text-xs text-slate-400 hidden sm:inline">
                   {uiBuildStatus.status === "failed"
                     ? "Build failed - spawn an agent to investigate"

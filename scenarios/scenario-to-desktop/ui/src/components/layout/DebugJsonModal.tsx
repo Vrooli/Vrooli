@@ -1,7 +1,7 @@
 /**
  * Debug modal showing full pipeline store state as JSON.
  *
- * Uses a snapshot approach to avoid React Error #185: "Cannot update
+ * Uses a snapshot approach to avoid React error 185: "Cannot update
  * component while rendering a different component". The store is polled
  * every 2s, so subscribing during render causes race conditions.
  */
@@ -69,7 +69,7 @@ function DebugJsonModalContent({
   copied,
   setCopied,
 }: DebugJsonModalContentProps) {
-  // Snapshot state on mount to avoid render-during-render issues (React Error #185).
+  // Snapshot state on mount to avoid render-during-render issues (React error 185).
   // The store polls every 2s, so subscribing would cause re-renders during render.
   // Use useState with lazy initializer to capture state once on mount.
   const [storeState, setStoreState] = useState(getStoreSnapshot);

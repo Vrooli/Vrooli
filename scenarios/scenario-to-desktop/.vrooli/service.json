@@ -298,6 +298,10 @@
       "range": "20000-24999"
     }
   },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
   "service": {
     "category": "automation",
     "description": "Transform Vrooli scenarios into professional Electron desktop applications",

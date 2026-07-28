@@ -8,6 +8,7 @@ package installgateway
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -102,18 +103,33 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 	case "npm", "node", "js", "ts", "typescript":
 		manager = jsManager(surfaceRoot)
 		manifest = filepath.Join(surfaceRoot, "package.json")
+		devDependency, err := existingJSDevDependency(manifest, packageName)
+		if err != nil {
+			return "", "", nil, err
+		}
 		spec := packageName
 		if v := strings.TrimSpace(version); v != "" {
 			spec = packageName + "@" + v
 		}
 		switch manager {
 		case "npm":
-			argv = []string{"npm", "install", spec}
+			argv = []string{"npm", "install"}
+			if devDependency {
+				argv = append(argv, "--save-dev")
+			}
+			argv = append(argv, spec)
 		case "yarn":
-			argv = []string{"yarn", "add", spec}
+			argv = []string{"yarn", "add"}
+			if devDependency {
+				argv = append(argv, "--dev")
+			}
+			argv = append(argv, spec)
 		default:
 			manager = "pnpm"
 			argv = []string{"pnpm", "add"}
+			if devDependency {
+				argv = append(argv, "-D")
+			}
 			// Many scenario surfaces are intentionally standalone pnpm
 			// workspaces. ExecInstaller runs from the surface root, so this flag
 			// confirms the surface workspace root rather than the repo root.
@@ -148,6 +164,28 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 		return "", "", nil, fmt.Errorf("unsupported ecosystem %q (want npm, go, or pip)", ecosystem)
 	}
 	return manager, manifest, argv, nil
+}
+
+// existingJSDevDependency preserves the manifest's dependency classification
+// when upgrading an already declared package. Tooling such as Vite and Vitest
+// must not silently become runtime dependencies merely because their upgrade
+// passed through the governed installer.
+func existingJSDevDependency(manifestPath, packageName string) (bool, error) {
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("read package manifest: %w", err)
+	}
+	var manifest struct {
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return false, fmt.Errorf("parse package manifest: %w", err)
+	}
+	_, isDevDependency := manifest.DevDependencies[packageName]
+	return isDevDependency, nil
 }
 
 // jsManager picks the JS package manager from the surface lockfiles, defaulting
