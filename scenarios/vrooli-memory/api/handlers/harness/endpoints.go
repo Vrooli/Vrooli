@@ -1,0 +1,8 @@
+package harness
+
+import (
+	harnessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness/harness_v1connect"
+	"vrooli-memory/internal/module"
+)
+
+var Endpoints = []module.EndpointDescriptor{{ID: "harness_import", Path: harnessconnect.HarnessServiceRunImportProcedure, Method: "POST", Summary: "Start harness memory import", Category: "harness"}, {ID: "harness_import_status", Path: harnessconnect.HarnessServiceGetImportStatusProcedure, Method: "POST", Summary: "Read durable import status", Category: "harness"}, {ID: "harness_project", Path: harnessconnect.HarnessServiceRefreshProjectionProcedure, Method: "POST", Summary: "Refresh memory projection", Category: "harness"}, {ID: "harness_prompt", Path: harnessconnect.HarnessServiceInstallPromptBlockProcedure, Method: "POST", Summary: "Install memory prompt block", Category: "harness"}, {ID: "harness_capture", Path: harnessconnect.HarnessServiceCaptureWriteProcedure, Method: "POST", Summary: "Capture native memory write", Category: "harness"}}

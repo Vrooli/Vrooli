@@ -11,6 +11,12 @@ to it whenever you introduce a new interface that production wires once
 and tests substitute. Remove from it only when the seam is genuinely
 gone — not when "we don't fake it yet."
 
+## Inference
+
+| Contract | Production wiring | Test fake |
+| --- | --- | --- |
+| `internal/inference.Client` provides `Embed`, `Classify`, and `Summarize`. | `GatewayClient` sends every call through ai-gateway `RoutingService.ExecuteRoute`. It uses `embedding.default`, `classify.routing`, and `summarize.default`. | `internal/testutil/mocks.FakeInference` controls vectors, text responses, failures, and recorded embedding tasks. |
+
 ## Wire contracts live in proto, not seams
 
 Before adding a new seam, ask: is this a *boundary* (a place where

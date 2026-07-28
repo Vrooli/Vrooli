@@ -45,6 +45,126 @@
       }
     },
     {
+      "id": "facets_list",
+      "path": "/vrooli.vrooli_memory.v1.facets.FacetsService/ListFacets",
+      "method": "POST",
+      "summary": "List seeded facets",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_assign",
+      "path": "/vrooli.vrooli_memory.v1.facets.FacetsService/AssignFacet",
+      "method": "POST",
+      "summary": "Append a facet assignment",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_set_pin",
+      "path": "/vrooli.vrooli_memory.v1.facets.FacetsService/SetPin",
+      "method": "POST",
+      "summary": "Set operator pin state",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_list_pin_proposals",
+      "path": "/vrooli.vrooli_memory.v1.facets.FacetsService/ListPinProposals",
+      "method": "POST",
+      "summary": "List pin proposals",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_resolve_pin_proposal",
+      "path": "/vrooli.vrooli_memory.v1.facets.FacetsService/ResolvePinProposal",
+      "method": "POST",
+      "summary": "Resolve pin proposal",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_mark_superseded",
+      "path": "/vrooli.vrooli_memory.v1.facets.FacetsService/MarkSuperseded",
+      "method": "POST",
+      "summary": "Append supersession mark",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "recall_query",
+      "path": "/vrooli.vrooli_memory.v1.recall.RecallService/Recall",
+      "method": "POST",
+      "summary": "Recall semantic memory",
+      "description": "",
+      "category": "recall"
+    },
+    {
+      "id": "recall_wake",
+      "path": "/vrooli.vrooli_memory.v1.recall.RecallService/Wake",
+      "method": "POST",
+      "summary": "Render bounded wake context",
+      "description": "",
+      "category": "recall"
+    },
+    {
+      "id": "recall_zoom",
+      "path": "/vrooli.vrooli_memory.v1.recall.RecallService/Zoom",
+      "method": "POST",
+      "summary": "Zoom into a memory node",
+      "description": "",
+      "category": "recall"
+    },
+    {
+      "id": "recall_siblings",
+      "path": "/vrooli.vrooli_memory.v1.recall.RecallService/ListSiblingEvents",
+      "method": "POST",
+      "summary": "List sibling events",
+      "description": "",
+      "category": "recall"
+    },
+    {
+      "id": "harness_import",
+      "path": "/vrooli.vrooli_memory.v1.harness.HarnessService/RunImport",
+      "method": "POST",
+      "summary": "Start harness memory import",
+      "description": "",
+      "category": "harness"
+    },
+    {
+      "id": "harness_import_status",
+      "path": "/vrooli.vrooli_memory.v1.harness.HarnessService/GetImportStatus",
+      "method": "POST",
+      "summary": "Read durable import status",
+      "description": "",
+      "category": "harness"
+    },
+    {
+      "id": "harness_project",
+      "path": "/vrooli.vrooli_memory.v1.harness.HarnessService/RefreshProjection",
+      "method": "POST",
+      "summary": "Refresh memory projection",
+      "description": "",
+      "category": "harness"
+    },
+    {
+      "id": "harness_prompt",
+      "path": "/vrooli.vrooli_memory.v1.harness.HarnessService/InstallPromptBlock",
+      "method": "POST",
+      "summary": "Install memory prompt block",
+      "description": "",
+      "category": "harness"
+    },
+    {
+      "id": "harness_capture",
+      "path": "/vrooli.vrooli_memory.v1.harness.HarnessService/CaptureWrite",
+      "method": "POST",
+      "summary": "Capture native memory write",
+      "description": "",
+      "category": "harness"
+    },
+    {
       "id": "notes_list",
       "path": "/vrooli.vrooli_memory.v1.notes.NotesService/ListNotes",
       "method": "POST",
@@ -248,6 +368,84 @@
           }
         }
       }
+    },
+    {
+      "id": "journal_append",
+      "path": "/vrooli.vrooli_memory.v1.journal.JournalService/AppendEntry",
+      "method": "POST",
+      "summary": "Append an immutable memory entry",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "AppendEntryRequest"
+      },
+      "response": {
+        "type": "AppendEntryResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing body"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ]
+    },
+    {
+      "id": "journal_get",
+      "path": "/vrooli.vrooli_memory.v1.journal.JournalService/GetEntry",
+      "method": "POST",
+      "summary": "Get an immutable memory entry",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "GetEntryRequest"
+      },
+      "response": {
+        "type": "GetEntryResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Entry does not exist"
+        }
+      ]
+    },
+    {
+      "id": "journal_list",
+      "path": "/vrooli.vrooli_memory.v1.journal.JournalService/ListEntries",
+      "method": "POST",
+      "summary": "List immutable memory entries",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "ListEntriesRequest"
+      },
+      "response": {
+        "type": "ListEntriesResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid limit"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ]
     }
   ]
 }

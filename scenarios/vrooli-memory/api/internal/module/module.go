@@ -30,6 +30,12 @@ type Module struct {
 	Endpoints []EndpointDescriptor
 }
 
+// Empty reserves a mounted domain seam before a phase supplies its handlers.
+// It is intentionally routeless; later phases replace it with real endpoints.
+func Empty(name string) Module {
+	return Module{Name: name, Mount: func(*mux.Router) {}}
+}
+
 // Canonical endpoint-descriptor types, re-exported from api-core/endpoints.
 type (
 	EndpointDescriptor = endpoints.EndpointDescriptor

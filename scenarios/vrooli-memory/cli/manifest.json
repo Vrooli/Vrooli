@@ -128,6 +128,66 @@
           }
         }
       ]
+    },
+    {
+      "name": "journal",
+      "description": "Write durable shared memories",
+      "commands": [
+        {
+          "name": "note",
+          "description": "Append an immutable memory entry",
+          "positionals": [{"name": "body", "required": true, "description": "Memory prose"}],
+          "flags": [{"name": "kind", "description": "Entry kind"}],
+          "binding": {"kind": "connect-rpc", "service": "JournalService", "method": "AppendEntry"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        }
+      ]
+    },
+    {
+      "name": "harness",
+      "description": "Import and inspect coding-agent memory",
+      "commands": [
+        {
+          "name": "import",
+          "description": "Start an observable, replay-safe harness import",
+          "flags": [{"name": "runtime", "description": "Harness runtime", "default": "claude-code"}],
+          "binding": {"kind": "connect-rpc", "service": "HarnessService", "method": "RunImport"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "import-status",
+          "description": "Show persisted import progress or final result",
+          "flags": [{"name": "run-id", "description": "Specific import run ID"}, {"name": "runtime", "description": "Harness runtime", "default": "claude-code"}],
+          "binding": {"kind": "connect-rpc", "service": "HarnessService", "method": "GetImportStatus"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        }
+      ]
+    },
+    {
+      "name": "recall",
+      "description": "Retrieve shared memories",
+      "commands": [
+        {
+          "name": "recall",
+          "description": "Semantically recall memories",
+          "positionals": [{"name": "query", "required": true, "description": "Semantic query"}],
+          "flags": [{"name": "limit", "description": "Maximum hits"}],
+          "binding": {"kind": "connect-rpc", "service": "RecallService", "method": "Recall"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "wake",
+          "description": "Render bounded ambient memory",
+          "flags": [{"name": "budget", "description": "Line budget"}],
+          "binding": {"kind": "connect-rpc", "service": "RecallService", "method": "Wake"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        }
+      ]
     }
   ],
   "measures": {
@@ -146,5 +206,101 @@
       "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
     }
   ],
-  "omitted": []
+  "omitted": [
+    {
+      "service": "JournalService",
+      "method": "GetEntry",
+      "reason": "Entry inspection is an API capability until the recall and zoom CLI surface is introduced."
+    },
+    {
+      "service": "JournalService",
+      "method": "ListEntries",
+      "reason": "Timeline browsing is introduced with the agent and operator surfaces, not as a raw journal command."
+    },
+    {
+      "service": "FacetsService",
+      "method": "ListFacets",
+      "reason": "The operator facet command group is introduced with the agent surface phase."
+    },
+    {
+      "service": "FacetsService",
+      "method": "AssignFacet",
+      "reason": "Operator re-faceting is exposed after the write and recall command surface exists."
+    },
+    {
+      "service": "FacetsService",
+      "method": "SetPin",
+      "reason": "Pin curation is intentionally deferred to the operator surface phase."
+    },
+    {
+      "service": "FacetsService",
+      "method": "ListPinProposals",
+      "reason": "Pin proposal review belongs to the later operator surface."
+    },
+    {
+      "service": "FacetsService",
+      "method": "ResolvePinProposal",
+      "reason": "Pin proposal review belongs to the later operator surface."
+    },
+    {
+      "service": "FacetsService",
+      "method": "MarkSuperseded",
+      "reason": "Supersession is an API capability until the operator correction surface is delivered."
+    },
+    {
+      "service": "ForestService",
+      "method": "RunCompactionPass",
+      "reason": "Compaction has no safe operator surface until the forest domain is implemented."
+    },
+    {
+      "service": "ForestService",
+      "method": "GetFrontier",
+      "reason": "Frontier inspection is deferred to the operator tree surface."
+    },
+    {
+      "service": "ForestService",
+      "method": "GetNode",
+      "reason": "Node inspection is deferred to the operator tree surface."
+    },
+    {
+      "service": "ForestService",
+      "method": "RebuildForest",
+      "reason": "Rebuild is an API maintenance operation until compaction is implemented."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "Reindex",
+      "reason": "Federation is not yet implemented and reindex remains API-only."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "WriteConfig",
+      "reason": "Search configuration is not exposed to agents until federation governance is implemented."
+    },
+    {
+      "service": "RecallService",
+      "method": "Zoom",
+      "reason": "Tree exploration is introduced with the operator surface phase."
+    },
+    {
+      "service": "RecallService",
+      "method": "ListSiblingEvents",
+      "reason": "Sibling-event inspection is introduced with the operator surface phase."
+    },
+    {
+      "service": "HarnessService",
+      "method": "RefreshProjection",
+      "reason": "Projection is implemented after import to preserve the corpus source."
+    },
+    {
+      "service": "HarnessService",
+      "method": "InstallPromptBlock",
+      "reason": "Prompt-block installation is implemented with native capture integration."
+    },
+    {
+      "service": "HarnessService",
+      "method": "CaptureWrite",
+      "reason": "Native write capture is implemented after projection and hooks are ready."
+    }
+  ]
 }

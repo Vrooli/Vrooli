@@ -2,6 +2,7 @@ package flow
 
 import (
 	"testing"
+
 	"vrooli-memory/internal/notes/flow/generated"
 	"vrooli-memory/internal/testutil/modeltest"
 )

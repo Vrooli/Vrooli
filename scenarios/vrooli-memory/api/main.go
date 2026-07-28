@@ -8,21 +8,33 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
 	"vrooli-memory/internal/clock"
+	"vrooli-memory/internal/facets"
+	"vrooli-memory/internal/federation"
+	"vrooli-memory/internal/forest"
+	"vrooli-memory/internal/inference"
+	"vrooli-memory/internal/journal"
 	"vrooli-memory/internal/modules"
 	"vrooli-memory/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
 	_ "modernc.org/sqlite"
 
+	facetsH "vrooli-memory/handlers/facets"
+	harnessH "vrooli-memory/handlers/harness"
 	healthH "vrooli-memory/handlers/health"
+	journalH "vrooli-memory/handlers/journal"
 	notesH "vrooli-memory/handlers/notes" // EXAMPLE-DOMAIN:notes
+	recallH "vrooli-memory/handlers/recall"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -92,17 +104,6 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-// fileRootPath is the template's mandatory file-store seam. Domain stores
-// compose their relative paths from it rather than retaining startup root
-// strings, so X-Vrooli-Test-Mode is honored independently per request.
-func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
-	root, err := roots.Pick(ctx, class)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, rel), nil
-}
-
 func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
@@ -138,8 +139,15 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	if err := journal.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("journal schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
+	}
+	facetService := facets.NewService(facets.NewSQLiteRepository(db.Primary()))
+	if err := facetService.Seed(context.Background()); err != nil {
+		log.Fatalf("seed facet definitions: %v", err)
 	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
@@ -147,10 +155,22 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
+	gatewayURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "ai-gateway")
+	if err != nil {
+		log.Fatalf("resolve ai-gateway endpoint: %v", err)
+	}
+	gatewayClient := inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL))
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "vrooli-memory-api", "1.0.0"),
 		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		journalH.Module(db, gatewayClient, facetService, log.Default()),
+		facetsH.Module(db, log.Default()),
+		forest.Module(),
+		recallH.Module(db, gatewayClient, log.Default()),
+		federation.Module(),
+		harnessH.Module(db, gatewayClient, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

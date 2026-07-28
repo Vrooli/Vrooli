@@ -1,7 +1,10 @@
 package domains
 
 import (
+	"vrooli-memory/cli/domains/harness"
+	"vrooli-memory/cli/domains/journal"
 	"vrooli-memory/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"vrooli-memory/cli/domains/recall"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -13,8 +16,7 @@ import (
 // registrations here. For greenfield scenarios, domain packages are the
 // default architecture; do not treat flat command files as the long-term plan.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	_ = core
-	return nil
+	return []cliapp.CommandGroup{{Title: "Memory", Commands: append([]cliapp.Command{journal.Command(core)}, recall.Commands(core)...)}}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.
@@ -44,5 +46,18 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	}
 	groups = append(groups, notesGroup)
 	// EXAMPLE-DOMAIN:notes END
+	journalGroup, err := journal.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	harnessGroup, err := harness.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	recallGroup, err := recall.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, journalGroup, harnessGroup, recallGroup)
 	return groups, nil
 }

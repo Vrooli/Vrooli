@@ -42,20 +42,20 @@ harness gets the generated projection written to the file it already loads.
 **Writes are not**, because each runtime stores memory differently. This matrix
 is the contract the import adapters and the capture strategy are built from.
 
-Verified 2026-07-27. Claude Code rows are from direct filesystem inspection;
-the rest are from vendor documentation (linked in
-[`../../../../docs/`](../../README.md) research notes) and are marked where
-unconfirmed.
+Measured 2026-07-27 by inspecting the installed runtime, its local manual, and
+the resource-owned integration source. A runtime is never treated as supported
+from a sibling runtime's behavior. “Store diff” is the safe capture floor when
+the runtime has no documented hook that identifies a native-memory write.
 
-| Harness | Memory location | Storage shape | Native write tool | Hook API | Resource |
-|---|---|---|---|---|---|
-| Claude Code | `~/.claude/projects/<slug>/memory/*.md` + `MEMORY.md` index | **file-per-fact** | yes | `PreToolUse` / `PostToolUse` — **already used** by `resources/claude-code/cli/internal/permissions/pretooluse-bash-deny.sh` | `resources/claude-code` |
-| Gemini CLI | `~/.gemini/GEMINI.md`, section `## Gemini Added Memories` | **append-under-section** | `save_memory`, `/memory add` | unknown | `resources/gemini` |
-| Codex | `~/.codex/AGENTS.md`, `AGENTS.override.md`, project `AGENTS.md` walked from repo root | **single blob** | none dedicated | unknown | `resources/codex` |
-| opencode | `~/.config/opencode/AGENTS.md`, project `AGENTS.md` | **single blob** | **none native** — community plugins only | unknown | `resources/opencode` |
-| grok | unknown | unknown | unknown | ships `pretooluse-bash-deny.sh`, so a Claude-Code-compatible surface is *inferred, not verified* | `resources/grok` |
-| antigravity | unknown | unknown | unknown | permissions layer present, no hook script | `resources/antigravity` |
-| Cursor | `state.vscdb` SQLite, `ItemTable` key `aicontext.personalContext`; project `.cursor/rules/` | **SQLite BLOB** | yes | n/a (IDE, not CLI) | **none — not a Vrooli resource** |
+| Harness | Memory location | Storage shape | Native write tool | Hook API | Capture channel | Evidence |
+|---|---|---|---|---|---|---|
+| Claude Code | `~/.claude/projects/<slug>/memory/MEMORY.md` and fact files | file-per-fact plus index | native memory tool | `PreToolUse` and `PostToolUse` | hook, then diff recovery | Live Vrooli index: 19,492 bytes. Installed changelog confirms an over-limit index write returns an explicit error, not silent truncation. |
+| Gemini CLI | `~/.gemini/GEMINI.md`, `## Gemini Added Memories` | append-under-section | `save_memory`, `/memory add` | no hook command or hook surface appeared in the installed CLI help or resource | store diff | Live file exists. |
+| Codex | global `~/.codex/AGENTS.md`/`AGENTS.override.md`, project `AGENTS.md`; internal memories also exist at `~/.codex/memories/` | instruction file is a single blob; internal memory is runtime-owned | no dedicated durable-memory write command | `PreToolUse` lifecycle hook | store diff | Current official manual: `AGENTS.md` injection defaults to 32,768 bytes and hooks support `PreToolUse`. The limit clips injected context; it does not rewrite the source file. |
+| opencode | `~/.config/opencode/AGENTS.md` and project `AGENTS.md` | single blob | none native | no hook surface in installed CLI help; resource states no hook backstop | store diff | Resource config defaults `instructions` to `AGENTS.md`. |
+| grok | `~/.grok/memory/MEMORY.md` and `<workspace>/MEMORY.md` | Markdown files plus SQLite FTS5/vec0 index | `/remember`, `/flush`, and natural-language remember | `PreToolUse` and `PostToolUse` | hook, then diff recovery | Installed Grok memory and hooks manuals describe both paths. The directory is absent while experimental memory is disabled. |
+| antigravity | `~/.gemini/antigravity/brain/` | per-task Markdown and metadata files; conversation protobufs | none exposed | no user-writable hook contract | store diff | Live `brain/` contains task and plan Markdown; resource documentation records compiled-in hooks only. |
+| Cursor | `state.vscdb` SQLite, `ItemTable` key `aicontext.personalContext`; project `.cursor/rules/` | SQLite BLOB | yes | n/a (IDE, not CLI) | out of scope | No Vrooli resource exists, so this plan does not support it. |
 
 ### What the shapes imply
 
@@ -84,35 +84,30 @@ The generated projection must stay under whatever size each harness tolerates,
 or the runtime edits the projection itself — producing writes this scenario
 caused and must then chase.
 
-| Harness | Documented limit | Notes |
-|---|---|---|
-| Codex | **32 KiB** default for `AGENTS.md`, configurable | The binding constraint. |
-| Claude Code | none documented | Current `MEMORY.md` measures 18,245 bytes — already over half the Codex cap. |
+| Harness | Measured ceiling | At-ceiling behavior | Projection rule |
+|---|---|---|---|
+| Codex | 32,768 bytes by default for `AGENTS.md` injection; configurable | Codex clips instruction bytes supplied to the first turn. It does not alter the file. | Emit pins first. Keep the projection at or below 32 KiB unless the active Codex configuration proves a higher limit. |
+| Claude Code | No numeric limit exposed by the installed runtime; live Vrooli index is 19,492 bytes | Installed changelog: an index write over the runtime read limit returns an explicit error. | Treat projection overflow as an error. Do not truncate or rewrite native memory. |
+| Gemini CLI | No documented projection limit found in the installed CLI | Not measured; no native file mutation was performed. | Bound output to the scenario default and report overflow. |
+| opencode | No documented projection limit found in the installed CLI | Not measured; no native file mutation was performed. | Bound output to the scenario default and report overflow. |
+| grok | No documented projection limit found in the installed local manual | Not measured; experimental memory is disabled on this host. | Bound output to the scenario default and report overflow. |
+| antigravity | No documented projection-file contract | Not applicable: the runtime owns its `brain/` files. | Do not project into `brain/`; use only an approved prompt/instruction surface when one is established. |
 
-**The failure mode at the cap is unverified and may be worse than assumed.** If
-a harness *silently truncates* rather than prompting for a trim, a pinned
-standing rule can drop out of context with no signal — the failure
-[`REPLACEMENT.md`](REPLACEMENT.md) identifies as this scenario's
-highest-consequence error. Determining actual at-cap behaviour per harness is
-empirical work, not a documentation task, and is tracked by `VMEM-P0-010`.
+No live harness memory file was modified for this measurement. The scratch-file
+tests originally proposed for Codex and Claude would not prove their runtime
+limits: Codex limits context injection rather than writes, and Claude's numeric
+read limit is not externally configurable. The documented runtime behavior is
+therefore the authoritative evidence used by projection code.
 
 ### Known gaps in this matrix
 
 Recorded rather than guessed:
 
-- **grok and antigravity** memory locations are unknown. Grok's hook script is
-  suggestive of a Claude-Code-compatible surface but is not evidence.
-- **Gemini, Codex, and opencode hook APIs** are unverified. This determines
-  whether each is capture-by-hook or capture-by-diff.
-- **`~/.codex/memories/`** was referenced by one source but not confirmed to
-  exist alongside `AGENTS.md`.
 - **Cursor is named across product docs but has no `resources/cursor`.** Until a
   resource exists, Cursor is out of operational scope; the SQLite row above is
   research, not an integration.
-- **opencode has no native memory feature at all.** It reads `AGENTS.md`;
-  memory is supplied by community plugins. "Unify opencode's memory" therefore
-  means projection-only until a plugin is in play — a materially different
-  proposition than for the other runtimes.
+- **OpenCode has no native memory feature.** It remains projection-only until a
+  plugin supplies a governed native-memory contract.
 
 ## Scenario Dependencies
 

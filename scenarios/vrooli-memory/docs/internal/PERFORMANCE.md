@@ -24,7 +24,7 @@ Use this document to answer:
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet. | n/a | n/a | 2026-07-27 |
+| 395-source Claude Code reconciliation | 393 unchanged sources skipped before inference; 2 new entries appended | Live `harness import` + `import-status` run `9823e3d0-97e3-4199-ac25-fa5ef6f1d1d2` | 2026-07-27 |
 
 ## Scenario-Specific Budgets (designed, not yet measured)
 
@@ -36,6 +36,7 @@ so a future agent can tell a real regression from a wrong budget.
 |---|---|---|---|
 | `wake` | Bounded output, independent of corpus size | This is the whole point of the budget model — output size is a function of the configured line budget, not of how much has been remembered. A `wake` whose cost grows with corpus size means `cover()` selection is walking the journal instead of the frontier. | `VMEM-P0-008` |
 | `note` (write) | Perceptibly immediate to the calling agent | The write path makes inference calls (classify, derive, embed). If those are synchronous and slow, agents stop writing and the whole scenario fails on adoption. Consider appending first and enriching asynchronously if the budget cannot be met. | `VMEM-P0-002` |
+| unchanged harness import | No inference calls | The importer checks the content-addressed import key before classification and three embeddings. Reconciliation cost is a local indexed lookup per source, not a full re-enrichment. | `VMEM-P0-011` |
 | `recall` | Comparable to other search-hub providers | Memory is one federated provider among many; a slow provider degrades every cross-corpus query it participates in. The provider descriptor declares a latency budget like any other. | `VMEM-P0-003`, `VMEM-P0-009` |
 | Compaction pass | Off the request path entirely | It is a scheduled background sweep by decision (D-007 / ARCHITECTURE deviations). No user-facing operation should ever block on summarization. | `VMEM-P0-007` |
 
@@ -55,6 +56,7 @@ so a future agent can tell a real regression from a wrong budget.
   increase in both write-time inference and index size. The count is currently a
   guess (see `PROBLEMS.md`) and should be settled against measured clustering
   quality rather than raised speculatively.
+- **Import is asynchronous and single-flight per runtime.** A caller receives a durable run ID immediately and observes counters through `GetImportStatus`. This prevents client timeout from being mistaken for failure and prevents duplicate concurrent scans.
 - **Re-summarization is repeated work.** A node collapsed, then later absorbed
   into a higher summary, is summarized more than once. Generation count is
   tracked on summary nodes so this cost is visible.

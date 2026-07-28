@@ -16,7 +16,9 @@ import (
 // caller-side wiring for free (the call goes through unchanged).
 func TestCommandGroups(t *testing.T) {
 	got := CommandGroups(&cliapp.ScenarioApp{})
-	require.Nil(t, got, "CommandGroups should return nil until a domain registers a flat group")
+	require.Len(t, got, 1)
+	require.Equal(t, "Memory", got[0].Title)
+	require.Len(t, got[0].Commands, 3)
 }
 
 // TestSubcommandGroups proves the aggregator returns whatever domains
