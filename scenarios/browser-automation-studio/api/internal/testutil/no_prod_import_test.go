@@ -3,6 +3,7 @@ package testutil_test
 import (
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -97,6 +98,12 @@ func TestNoLegacyTestutilImports(t *testing.T) {
 	t.Errorf("new tests should use internal/testutil/... instead of the legacy top-level testutil package")
 	for _, violation := range violations {
 		t.Errorf("  %s", violation)
+	}
+}
+
+func TestLegacyTopLevelTestutilPackageIsRemoved(t *testing.T) {
+	if _, err := os.Stat(filepath.Join("..", "..", "testutil")); !os.IsNotExist(err) {
+		t.Fatalf("legacy top-level testutil directory must remain removed; stat error = %v", err)
 	}
 }
 

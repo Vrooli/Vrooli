@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics/contracts"
 
 	_ "modernc.org/sqlite"
@@ -44,13 +44,8 @@ func newRepoTestDB(t *testing.T) (*sqlx.DB, uuid.UUID, uuid.UUID, uuid.UUID) {
 	if err != nil {
 		t.Fatalf("resolve scenario root: %v", err)
 	}
-	schemaPath := filepath.Join(scenarioRoot, "initialization", "storage", "sqlite", "schema.sql")
-	schemaBytes, err := os.ReadFile(schemaPath)
-	if err != nil {
-		t.Fatalf("read schema: %v", err)
-	}
-	if _, err := db.Exec(string(schemaBytes)); err != nil {
-		t.Fatalf("exec schema: %v", err)
+	if err := database.ApplySchemaRegistry(context.Background(), db, scenarioRoot); err != nil {
+		t.Fatalf("apply schema registry: %v", err)
 	}
 
 	projectID := uuid.New()

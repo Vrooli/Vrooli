@@ -1,0 +1,116 @@
+{
+  "edges": [
+    {
+      "id": "fixture-execute-edge-1",
+      "source": "fixture-open-workflow",
+      "target": "fixture-execute-workflow",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-execute-edge-2",
+      "source": "fixture-execute-workflow",
+      "target": "fixture-wait-for-execution",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-execute-edge-3",
+      "source": "fixture-wait-for-execution",
+      "target": "fixture-assert-execution-viewer",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Opens the deterministic demo workflow and starts an execution for execution-surface validation",
+    "execution_mode": "mutating",
+    "labels": {
+      "fixture_id": "execute-demo-workflow",
+      "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "seed_keys": "projectId,projectName,projectFolder,workflowId,workflowName",
+      "seed_required": "true"
+    },
+    "name": "execute-demo-workflow"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded demo workflow"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": {
+              "string_value": "${@params/projectFolder}"
+            },
+            "projectId": {
+              "string_value": "${@params/projectId}"
+            },
+            "projectName": {
+              "string_value": "${@params/projectName}"
+            },
+            "workflowId": {
+              "string_value": "${@params/workflowId}"
+            },
+            "workflowName": {
+              "string_value": "${@params/workflowName}"
+            }
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "fixture-open-workflow"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.execute"
+        },
+        "metadata": {
+          "label": "Execute seeded workflow"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/executions.viewer.root",
+          "success_timeout_ms": 15000
+        },
+        "timeout_ms": 15000
+      },
+      "id": "fixture-execute-workflow"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for execution viewer"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/executions.viewer.root",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "fixture-wait-for-execution"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "The execution viewer should open after executing the seeded workflow",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.root",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Verify execution viewer"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "fixture-assert-execution-viewer"
+    }
+  ],
+  "settings": {}
+}

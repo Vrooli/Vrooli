@@ -106,7 +106,6 @@ type Handler struct {
 	sessionProfileService *sessionprofile.Service
 	log                   *logrus.Logger
 	upgrader              websocket.Upgrader
-	wsAllowAll            bool
 	wsAllowedOrigins      []string
 
 	// Performance monitoring
@@ -181,11 +180,13 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 type DepsOptions struct {
 	UXMetricsRepo           uxmetrics.Repository
 	EntitlementService      *entitlement.Service
-	CreditService           credits.CreditService             // Unified credit tracking
-	AIClientFactory         *ai.AIClientFactory               // Per-request AI client creation
-	NavigatorRegistry       *vision.NavigatorRegistry         // Vision navigator selection
-	PlaywrightNavigator     *vision.PlaywrightVisionNavigator // Direct reference to playwright navigator
-	UnifiedRecordingService *unifiedrecording.Service         // Timeline persistence for recorded actions
+	CreditService           credits.CreditService                 // Unified credit tracking
+	AIClientFactory         *ai.AIClientFactory                   // Per-request AI client creation
+	NavigatorRegistry       *vision.NavigatorRegistry             // Vision navigator selection
+	PlaywrightNavigator     *vision.PlaywrightVisionNavigator     // Direct reference to playwright navigator
+	UnifiedRecordingService *unifiedrecording.Service             // Timeline persistence for recorded actions
+	RecordingsRoot          executionwriter.RootProvider          // Request-aware execution artifact storage
+	ProjectRoot             func(context.Context) (string, error) // Request-aware project filesystem storage
 }
 
 // InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
@@ -214,7 +215,11 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}
 	// Persist execution artifacts under recordingsRoot so file-truth execution data is durable and discoverable.
-	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRoot)
+	artifactRoot := opts.RecordingsRoot
+	if artifactRoot == nil {
+		artifactRoot = executionwriter.NewStaticRoot(recordingsRoot)
+	}
+	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, artifactRoot)
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink
@@ -240,6 +245,7 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		ArtifactRecorder:      autoRecorder,
 		EventSinkFactory:      eventSinkFactory,
 		ExecutionDataRoot:     recordingsRoot,
+		ProjectRoot:           opts.ProjectRoot,
 		AIClient:              aiClient,
 		SessionProfileService: sessionProfileSvc,
 	})
@@ -247,8 +253,8 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 	// Ensure the demo project exists so file-first operations have a stable project root.
 	if workflowSvc != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if _, err := workflowSvc.EnsureSeedProject(ctx); err != nil && log != nil {
-			log.WithError(err).Warn("Failed to ensure seed project")
+		if _, err := workflowSvc.EnsureSeedWorkflow(ctx); err != nil && log != nil {
+			log.WithError(err).Warn("Failed to ensure demo workflow fixture")
 		}
 		cancel()
 	}
@@ -291,14 +297,14 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 
 // NewHandler creates a new handler instance with default dependencies.
 // For testing or custom wiring, use NewHandlerWithDeps instead.
-func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string) *Handler {
+func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, allowedOrigins []string) *Handler {
 	deps := InitDefaultDeps(repo, wsHub, log)
-	return NewHandlerWithDeps(repo, wsHub, log, allowAllOrigins, allowedOrigins, deps)
+	return NewHandlerWithDeps(repo, wsHub, log, allowedOrigins, deps)
 }
 
 // NewHandlerWithDeps creates a handler with explicitly provided dependencies.
 // This enables testing with mock dependencies and custom configurations.
-func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string, deps HandlerDeps) *Handler {
+func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger, allowedOrigins []string, deps HandlerDeps) *Handler {
 	allowedCopy := append([]string(nil), allowedOrigins...)
 
 	// Initialize performance registry from config
@@ -329,7 +335,6 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		replayRenderer:        deps.ReplayRenderer,
 		sessionProfileService: deps.SessionProfileService,
 		log:                   log,
-		wsAllowAll:            allowAllOrigins,
 		wsAllowedOrigins:      allowedCopy,
 		upgrader:              websocket.Upgrader{},
 		perfRegistry:          perfRegistry,
@@ -374,9 +379,6 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 func (h *Handler) isOriginAllowed(r *http.Request) bool {
 	if h == nil {
 		return false
-	}
-	if h.wsAllowAll {
-		return true
 	}
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {

@@ -3,12 +3,24 @@
     {
       "id": "e1",
       "source": "nav",
-      "target": "proj",
+      "target": "open-projects",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "proj",
+      "target": "open-card-view",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1a",
+      "source": "open-projects",
+      "target": "proj",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2a",
+      "source": "open-card-view",
       "target": "wait-workflows",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -51,13 +63,34 @@
   ],
   "metadata": {
     "description": "Validates execute button runs current workflow with feedback",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Header Execute Workflow",
+    "version": "1"
   },
   "nodes": [
+    {
+      "action": {
+        "click": { "selector": "@selector/dashboard.tabs.projects" },
+        "metadata": { "label": "Open Projects dashboard tab" },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": { "wait_after_ms": 500 },
+      "id": "open-projects"
+    },
+    {
+      "action": {
+        "click": { "selector": "@selector/workflows.cardViewToggle" },
+        "metadata": { "label": "Switch workflows to card view" },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": { "wait_after_ms": 500 },
+      "id": "open-card-view"
+    },
     {
       "action": {
         "metadata": {
@@ -79,13 +112,17 @@
     },
     {
       "action": {
-        "click": {
-          "selector": "@selector/projects.card:first-of-type"
-        },
         "metadata": {
-          "label": "Open project"
+          "label": "Open deterministic Demo project"
         },
-        "type": "ACTION_TYPE_CLICK"
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
       },
       "id": "proj"
     },
@@ -171,7 +208,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
+          "expression": "(() =\u003e { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
           "store_result": "hasExecutionFeedback"
         },
         "metadata": {

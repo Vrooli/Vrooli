@@ -19,6 +19,42 @@ import (
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
+func TestExecuteGraphReturnsNewSessionWhenItsFirstStepFails(t *testing.T) {
+	t.Parallel()
+
+	session := &failingEngineSession{}
+	executor := NewSimpleExecutor(nil)
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		Graph: &contracts.PlanGraph{Steps: []contracts.PlanStep{{
+			Index:  0,
+			NodeID: "failing-navigate",
+			Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+			},
+		}}},
+	}
+	returned, err := executor.executeGraph(
+		context.Background(),
+		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
+		executionContext{navigation: &navigationState{}},
+		&failingAutomationEngine{session: session},
+		engine.SessionSpec{},
+		nil,
+		state.NewFromStore(nil),
+		engine.ReuseModeReuse,
+	)
+	if err == nil {
+		t.Fatal("expected first graph step to fail")
+	}
+	if returned == nil {
+		t.Fatal("failed first step discarded the newly created session")
+	}
+	require.Same(t, session, returned)
+}
+
 func TestExecutePlanStep_SubflowInterpolatesArgsBeforeExecution(t *testing.T) {
 	t.Parallel()
 
@@ -129,6 +165,20 @@ type stubAutomationEngine struct {
 	session *stubEngineSession
 }
 
+type failingAutomationEngine struct {
+	session *failingEngineSession
+}
+
+func (e *failingAutomationEngine) Name() string { return "failing" }
+
+func (e *failingAutomationEngine) Capabilities(context.Context) (contracts.EngineCapabilities, error) {
+	return contracts.EngineCapabilities{}, nil
+}
+
+func (e *failingAutomationEngine) StartSession(context.Context, engine.SessionSpec) (engine.EngineSession, error) {
+	return e.session, nil
+}
+
 func (s *stubAutomationEngine) Name() string { return "stub" }
 
 func (s *stubAutomationEngine) Capabilities(context.Context) (contracts.EngineCapabilities, error) {
@@ -144,6 +194,20 @@ func (s *stubAutomationEngine) StartSession(context.Context, engine.SessionSpec)
 
 type stubEngineSession struct {
 	lastInputValue string
+}
+
+type failingEngineSession struct{}
+
+func (*failingEngineSession) Run(context.Context, contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	return contracts.StepOutcome{}, assert.AnError
+}
+
+func (*failingEngineSession) Reset(context.Context) error { return nil }
+
+func (*failingEngineSession) Close(context.Context) error { return nil }
+
+func (*failingEngineSession) GetStorageState(context.Context) (json.RawMessage, error) {
+	return nil, nil
 }
 
 func (s *stubEngineSession) Run(_ context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {

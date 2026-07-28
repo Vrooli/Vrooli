@@ -66,7 +66,9 @@ function successWithElementContext(elementContext: ElementContext): HandlerResul
  */
 export class InteractionHandler extends BaseHandler {
   getSupportedTypes(): string[] {
-    return ['click', 'hover', 'type', 'focus', 'blur'];
+    // `input` is the canonical wire name emitted by typed BAS actions while
+    // `type` remains the ergonomic authoring alias. Both reach handleType.
+    return ['click', 'hover', 'type', 'input', 'focus', 'blur'];
   }
 
   async execute(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
@@ -75,7 +77,9 @@ export class InteractionHandler extends BaseHandler {
 		switch (actionType.toLowerCase()) {
         case 'click': return await this.handleClick(instruction, context);
         case 'hover': return await this.handleHover(instruction, context);
-        case 'type': return await this.handleType(instruction, context);
+        case 'type':
+        case 'input':
+          return await this.handleType(instruction, context);
         case 'focus': return await this.handleFocus(instruction, context);
         case 'blur': return await this.handleBlur(instruction, context);
         default:

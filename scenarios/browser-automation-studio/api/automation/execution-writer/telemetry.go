@@ -28,10 +28,10 @@ func (r *FileWriter) RecordTelemetry(ctx context.Context, plan contracts.Executi
 			timeline.mu.Lock()
 			timeline.pb.Logs = append(timeline.pb.Logs, entry)
 			timeline.mu.Unlock()
-			_ = r.writeProtoTimelineFile(plan.ExecutionID, timeline)
+			_ = r.writeProtoTimelineFile(ctx, plan.ExecutionID, timeline)
 		}
 	}
-	return r.writeResultFile(plan.ExecutionID, result, timeline)
+	return r.writeResultFile(ctx, plan.ExecutionID, result, timeline)
 }
 
 func telemetryToTimelineLog(t TelemetryData) *bastimeline.TimelineLog {

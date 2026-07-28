@@ -1086,9 +1086,10 @@ func readSelectorManifest(manifestRoot string) (map[string]interface{}, string, 
 	return manifest, manifestPath, nil
 }
 
-// resolveSelectors resolves @selector/ references in all selector-shaped fields of
-// the typed action. Reflection keeps this resilient when a new action message adds
-// a selector without reopening a generic params-map compatibility path.
+// resolveSelectors resolves @selector/ references in selector-bearing typed action
+// fields. Expressions are included because evaluate actions may safely embed a
+// symbolic selector inside document.querySelector* calls; leaving such a token
+// literal reaches the browser as invalid CSS.
 func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 	if step == nil || step.Action == nil {
 		return nil
@@ -1199,7 +1200,7 @@ func resolveMessageSelectors(message protoreflect.Message, manifest map[string]i
 
 func isSelectorField(field protoreflect.FieldDescriptor) bool {
 	name := string(field.Name())
-	return name == "selector" || strings.HasSuffix(name, "_selector")
+	return name == "selector" || strings.HasSuffix(name, "_selector") || name == "expression"
 }
 
 // resolveSelectorReference resolves a single @selector/ reference to an actual CSS selector
@@ -1218,10 +1219,30 @@ func resolveSelectorReference(selectorRef string, manifest map[string]interface{
 		path = path[:idx]
 	}
 
-	// Split base path from optional selector suffix (e.g. :not(...), [attr=...])
+	// Split a dynamic selector invocation from an optional CSS suffix. Dynamic
+	// registry entries are deliberately parameterized (for example
+	// projects.cardById(id="${@params/projectId}")), so treating the whole call
+	// as a manifest key makes valid reusable BAS subflows uncompilable.
 	basePath := path
 	suffix := ""
-	if idx := strings.IndexAny(basePath, ":["); idx != -1 {
+	arguments := map[string]string(nil)
+	callIdx := strings.Index(basePath, "(")
+	cssIdx := strings.IndexAny(basePath, ":[")
+	if callIdx != -1 && (cssIdx == -1 || callIdx < cssIdx) {
+		idx := callIdx
+		closeIdx := strings.LastIndex(basePath, ")")
+		if closeIdx <= idx {
+			return ""
+		}
+		parsed, ok := parseSelectorArguments(basePath[idx+1 : closeIdx])
+		if !ok {
+			return ""
+		}
+		arguments = parsed
+		suffix = basePath[closeIdx+1:]
+		basePath = basePath[:idx]
+	} else if cssIdx != -1 {
+		idx := cssIdx
 		suffix = basePath[idx:]
 		basePath = basePath[:idx]
 	}
@@ -1244,16 +1265,96 @@ func resolveSelectorReference(selectorRef string, manifest map[string]interface{
 	if dynamicSelectors, ok := manifest["dynamicSelectors"].(map[string]interface{}); ok {
 		if entry, ok := dynamicSelectors[basePath].(map[string]interface{}); ok {
 			params, hasParams := entry["params"].([]interface{})
-			if hasParams && len(params) > 0 {
+			if hasParams && len(params) > 0 && arguments == nil {
 				return ""
 			}
 			if selector, ok := entry["selectorPattern"].(string); ok {
+				for _, rawParam := range params {
+					param, ok := rawParam.(map[string]interface{})
+					if !ok {
+						return ""
+					}
+					name, ok := param["name"].(string)
+					if !ok {
+						return ""
+					}
+					value, ok := arguments[name]
+					if !ok {
+						return ""
+					}
+					selector = strings.ReplaceAll(selector, "${"+name+"}", value)
+				}
 				return selector + suffix
 			}
 		}
 	}
 
 	return ""
+}
+
+// parseSelectorArguments accepts the intentionally small named-argument
+// grammar used by selector registry references: name=value pairs separated by
+// commas, with values optionally quoted. Quoted values may contain commas and
+// preserve workflow placeholders such as ${@params/projectId} verbatim for the
+// normal execution-parameter interpolation phase.
+func parseSelectorArguments(input string) (map[string]string, bool) {
+	args := make(map[string]string)
+	for len(strings.TrimSpace(input)) > 0 {
+		input = strings.TrimSpace(input)
+		eq := strings.IndexByte(input, '=')
+		if eq <= 0 {
+			return nil, false
+		}
+		name := strings.TrimSpace(input[:eq])
+		if name == "" {
+			return nil, false
+		}
+		input = strings.TrimSpace(input[eq+1:])
+		value := ""
+		if len(input) > 0 && (input[0] == '\'' || input[0] == '"') {
+			quote := input[0]
+			end := 1
+			for end < len(input) && input[end] != quote {
+				if input[end] == '\\' {
+					end++
+				}
+				end++
+			}
+			if end >= len(input) {
+				return nil, false
+			}
+			quoted := input[:end+1]
+			if quote == '"' {
+				unquoted, err := strconv.Unquote(quoted)
+				if err != nil {
+					return nil, false
+				}
+				value = unquoted
+			} else {
+				value = quoted[1 : len(quoted)-1]
+			}
+			input = strings.TrimSpace(input[end+1:])
+		} else {
+			end := strings.IndexByte(input, ',')
+			if end == -1 {
+				value, input = strings.TrimSpace(input), ""
+			} else {
+				value, input = strings.TrimSpace(input[:end]), input[end:]
+			}
+		}
+		if value == "" || args[name] != "" {
+			return nil, false
+		}
+		args[name] = value
+		if input == "" {
+			break
+		}
+		if input[0] != ',' {
+			return nil, false
+		}
+		input = input[1:]
+	}
+	return args, true
 }
 
 // resolveSelectorTokens replaces any @selector/ references embedded in a selector string.
@@ -1269,13 +1370,45 @@ func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, 
 		}
 		idx += searchStart // Adjust to absolute position
 		end := idx + len("@selector/")
+		parenDepth := 0
+		var quote byte
 		for end < len(resolved) {
 			ch := resolved[end]
-			if ch == ' ' || ch == ',' {
+			if quote != 0 {
+				if ch == '\\' && end+1 < len(resolved) {
+					end += 2
+					continue
+				}
+				if ch == quote {
+					quote = 0
+				}
+				end++
+				continue
+			}
+			switch ch {
+			case '\'', '"':
+				if parenDepth == 0 {
+					goto tokenComplete
+				}
+				quote = ch
+			case '(':
+				parenDepth++
+			case ')':
+				if parenDepth == 0 {
+					goto tokenComplete
+				}
+				parenDepth--
+			case ' ', ',':
+				if parenDepth == 0 {
+					goto tokenComplete
+				}
+			}
+			if parenDepth == 0 && (ch == ';' || ch == '!') {
 				break
 			}
 			end++
 		}
+	tokenComplete:
 		token := resolved[idx:end]
 		replacement := resolveSelectorReference(token, manifest)
 		if replacement == "" {

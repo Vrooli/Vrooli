@@ -28,12 +28,8 @@ import (
 
 const recordModeTimeout = 30 * time.Second
 
-func getPlaywrightDriverURL() string {
-	url := os.Getenv(driver.PlaywrightDriverEnv)
-	if url == "" {
-		return driver.DefaultDriverURL
-	}
-	return url
+func getPlaywrightDriverURL() (string, error) {
+	return driver.ResolveEndpoint(os.Getenv(driver.PlaywrightDriverEnv))
 }
 
 // CreateRecordingSession handles POST /api/v1/recordings/live/session
@@ -347,9 +343,14 @@ func (h *Handler) GetRecordingDebug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	driverURL := getPlaywrightDriverURL()
+	driverURL, err := getPlaywrightDriverURL()
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "resolve_playwright_driver"}))
+		return
+	}
 	targetURL := fmt.Sprintf("%s/session/%s/record/debug", driverURL, sessionID)
 
+	// #nosec G704 -- driverURL is validated by driver.ResolveEndpoint; sessionID is path data only.
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, targetURL, nil)
 	if err != nil {
 		http.Error(w, "Failed to create request", http.StatusInternalServerError)
@@ -357,6 +358,7 @@ func (h *Handler) GetRecordingDebug(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
+	// #nosec G704 -- request target is restricted to the validated Playwright driver endpoint.
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(w, "Failed to reach playwright-driver", http.StatusBadGateway)
@@ -1215,7 +1217,11 @@ func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // Tighter timeout for input
 		defer cancel()
 
-		driverURL := fmt.Sprintf("%s/session/%s/record/input", getPlaywrightDriverURL(), sessionID)
+		driverBaseURL, err := getPlaywrightDriverURL()
+		if err != nil {
+			return fmt.Errorf("resolve Playwright driver: %w", err)
+		}
+		driverURL := fmt.Sprintf("%s/session/%s/record/input", driverBaseURL, sessionID)
 
 		jsonBody, err := json.Marshal(input)
 		if err != nil {

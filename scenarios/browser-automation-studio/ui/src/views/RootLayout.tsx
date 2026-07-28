@@ -15,14 +15,14 @@ import { Toaster } from 'react-hot-toast';
 import { ModalProvider, useModals } from '@shared/modals';
 import { GuidedTour, useGuidedTour } from '@shared/onboarding';
 import { DocsModal } from '@/domains/docs';
-import { ProjectModal } from '@/domains/projects';
+import ProjectModal from '@/domains/projects/ProjectModal';
 
 // Hooks
 import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
 import { useEntitlementInit } from '@hooks/useEntitlement';
 import { useScheduleNotifications } from '@hooks/useScheduleNotifications';
 import { useScenarioStore } from '@stores/scenarioStore';
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
 
 // Shared UI
 import { LoadingSpinner } from '@shared/ui';
@@ -119,10 +119,10 @@ function RootLayoutContent() {
   });
 
   return (
-    <div className="h-screen flex flex-col bg-flow-bg">
+    <div className="h-full flex flex-col bg-flow-bg">
       <Suspense
         fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
+          <div className="h-full flex items-center justify-center bg-flow-bg">
             <LoadingSpinner variant="branded" size={32} message="Loading..." />
           </div>
         }

@@ -28,10 +28,19 @@ const UI_SERVICE_NAME = 'browser-automation-studio';
 const UI_VERSION = process.env.npm_package_version || '1.0.0';
 const MAX_VITEST_THREADS = Math.max(1, Number(process.env.VITEST_MAX_THREADS ?? '2'));
 const MIN_VITEST_THREADS = Math.max(1, Math.min(MAX_VITEST_THREADS, Number(process.env.VITEST_MIN_THREADS ?? '1')));
+const COLLECTING_RAW_COVERAGE = process.env.BAS_COLLECT_RAW_COVERAGE === '1';
 const PROJECT_BASE_TEST_CONFIG = {
   environment: 'jsdom',
-  setupFiles: './src/test-utils/setupTests.ts',
+  setupFiles: ['./src/test-setup.ts'],
   globals: true,
+  // The scenario runner merges raw maps from every focused project, then
+  // enforces the configured 85% floor once over the complete suite.
+  coverage: COLLECTING_RAW_COVERAGE
+    ? {
+      all: false,
+      thresholds: { lines: 0, functions: 0, branches: 0, statements: 0 },
+    }
+    : undefined,
 };
 
 const THREADS_TWO = {
@@ -225,7 +234,7 @@ export default defineConfig(({ mode }): UserConfig => {
     : undefined,
   test: {
     environment: 'jsdom',
-    setupFiles: './src/test-utils/setupTests.ts',
+    setupFiles: ['./src/test-setup.ts'],
     globals: true,
     include: [],
     exclude: ['node_modules/**'],
@@ -250,23 +259,33 @@ export default defineConfig(({ mode }): UserConfig => {
     coverage: {
       provider: 'v8',
       enabled: true,
+      // Focused projects are merged by the coverage runner. Their raw reports
+      // must contain only modules the project actually executes; the normal
+      // suite remains scenario-wide and includes every eligible source file.
+      all: !COLLECTING_RAW_COVERAGE,
       reporter: ['text', 'json', 'html', 'json-summary'],
       reportsDirectory: './coverage',
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
+        'src/**/*.test.{ts,tsx}',
         'src/**/*.test.{ts,tsx,mjs}',
+        'src/**/*.spec.{ts,tsx}',
         'src/**/*.spec.{ts,tsx,mjs}',
-        'src/test-utils/**',
         'src/**/*.d.ts',
         'src/main.tsx',
         'src/bootstrap.tsx',
-        'src/export/**',
+        'src/test-setup.ts',
+        'src/test-utils/**',
+        'src/consts/strings.generated.ts',
+        'src/i18n/locales/**',
+        'src/**/generated/**',
       ],
+      reportOnFailure: true,
       thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0,
+        lines: 85,
+        functions: 85,
+        branches: 85,
+        statements: 85,
       },
     },
     environmentOptions: {
@@ -310,6 +329,8 @@ export default defineConfig(({ mode }): UserConfig => {
           include: [
             'src/domains/projects/ProjectModal.test.tsx',
             'src/domains/projects/ProjectDetail.test.tsx',
+            'src/domains/ai/AIPromptModal.test.tsx',
+            'src/domains/workflows/WorkflowCreationDialog.test.tsx',
             'src/shared/layout/ResponsiveDialog.test.tsx',
             'src/domains/workflows/components/VariableSuggestionList.test.tsx',
             'src/domains/executions/viewer/ExecutionViewer.test.tsx',
@@ -447,6 +468,18 @@ export default defineConfig(({ mode }): UserConfig => {
         target: `http://${API_HOST}:${API_PORT}`,
         changeOrigin: true,
         secure: false,
+        // Routed BAS validation marks the browser context with this header.
+        // Preserve it explicitly across Vite's development proxy so in-page
+        // Connect requests use the same leased database/filesystem as the
+        // initiating execution rather than silently falling back to primary.
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const testMode = req.headers['x-vrooli-test-mode']
+            if (testMode === '1') {
+              proxyReq.setHeader('X-Vrooli-Test-Mode', testMode)
+            }
+          })
+        },
       },
       // WebSocket is served by the main API server on the same port
       '/ws': {

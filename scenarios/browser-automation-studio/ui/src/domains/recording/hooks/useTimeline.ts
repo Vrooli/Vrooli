@@ -15,7 +15,7 @@ import type {
 } from '../api/schemas';
 import type { Page } from './usePages';
 import { useSessionStore } from '../stores';
-import { fromJson } from '@bufbuild/protobuf';
+import { fromJson, type JsonValue } from '@bufbuild/protobuf';
 import { TimelineEntrySchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 import { timelineEntryToRecordedAction } from '../types/timeline-unified';
 
@@ -254,7 +254,7 @@ export function useTimeline({
       try {
         const raw = (msg as unknown as { entry?: unknown }).entry;
         if (!raw) return;
-        const recorded = timelineEntryToRecordedAction(fromJson(TimelineEntrySchema, raw as any));
+        const recorded = timelineEntryToRecordedAction(fromJson(TimelineEntrySchema, raw as JsonValue));
         if (!recorded) return;
         const entry: TimelineEntry = {
           id: recorded.id,

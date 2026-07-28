@@ -2,6 +2,24 @@
 
 Visual browser automation workflow builder with AI-powered generation and debugging.
 
+> **Current authority (2026-07-26):** Use `make start|test|logs|stop` or the `vrooli scenario` lifecycle commands. The historical component-by-component commands later in this file are retained for context only and must not be used to launch API or driver binaries directly.
+
+## What You Get
+
+Create visual browser workflows, execute typed V2 actions through the managed Playwright driver, and retain replayable execution evidence for end-to-end validation. See [the documentation map](#documentation-map) for the authoritative engineering and operations material.
+
+## Documentation Map
+
+- [Start here](docs/START-HERE.md)
+- [Architecture](docs/concepts/ARCHITECTURE.md) and [domain map](docs/concepts/DOMAINS.md)
+- [V2 workflow status](docs/concepts/V2-WORKFLOW-STATUS.md)
+- [Operations runbook](docs/operations/RUNBOOK.md)
+- [Commercial-readiness constraints](docs/business/MONETIZATION.md)
+
+## Customize Safely
+
+Add browser capabilities through typed proto contracts, API compilation, driver handlers, UI authoring, and behavioral tests. Do not add parallel legacy instruction fields, direct process launches, or ungoverned dependencies.
+
 ## 🎯 Overview
 
 Vrooli Ascension transforms browser automation from code-based scripts to visual, self-healing workflows. It provides a drag-and-drop interface for creating browser automation workflows, real-time execution monitoring with screenshots, and AI assistance for both generation and debugging.
@@ -14,7 +32,7 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 ### Database storage (SQLite)
 - Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The DB file is resolved through `api-core/storage` with `ProfileAuto` — typically `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` on Linux.
 - Override the path with `BAS_SQLITE_PATH=/abs/path.db` or `DATABASE_URL=file:/abs/path.db`. WAL, busy-timeout, and cache pragmas are applied in-process.
-- Schema lives in `initialization/storage/sqlite/schema.sql` and is applied idempotently on first startup.
+- Schema lives in `initialization/storage/sqlite/schemas/` and is applied idempotently on first startup.
 - **Migrating from a previous postgres-backed install**: persistent data is not retained — start fresh. The postgres backend has been removed and there is no migration tool.
 
 ### Screenshot storage

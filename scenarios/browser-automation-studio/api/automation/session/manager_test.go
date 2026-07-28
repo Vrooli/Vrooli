@@ -287,6 +287,41 @@ func TestManager_Close_RemovesSession(t *testing.T) {
 	}
 }
 
+func TestManager_DirectSessionCloseDeregistersSession(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"session_id":      "direct-close-session",
+			"actual_viewport": map[string]any{"width": 1280, "height": 720, "source": "requested"},
+		})
+	})
+	mux.HandleFunc("/session/direct-close-session/close", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+	m := NewManagerWithClient(client)
+	sess, err := m.Create(context.Background(), Spec{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Mode: ModeExecution})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := sess.Close(context.Background()); err != nil {
+		t.Fatalf("direct session close: %v", err)
+	}
+	if got := m.ActiveCount(); got != 0 {
+		t.Fatalf("active sessions after direct close = %d, want 0", got)
+	}
+}
+
 func TestManager_CloseAll(t *testing.T) {
 	t.Parallel()
 

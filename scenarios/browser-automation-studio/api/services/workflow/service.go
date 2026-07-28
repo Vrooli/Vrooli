@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -63,6 +64,7 @@ type WorkflowService struct {
 	planCompiler          autoexec.PlanCompiler
 	eventSinkFactory      func() autoevents.Sink
 	executionDataRoot     string
+	projectRoot           func(context.Context) (string, error)
 	sessionProfileService *sessionprofile.Service
 	syncLocks             sync.Map
 	filePathCache         sync.Map
@@ -127,6 +129,9 @@ type WorkflowServiceOptions struct {
 	// ExecutionDataRoot controls where execution artifacts and proto snapshots are persisted.
 	// When empty, defaults to "/tmp/bas-executions" for backward compatibility with earlier recorder defaults.
 	ExecutionDataRoot string
+	// ProjectRoot resolves the base directory for project-backed workflow files.
+	// It is request-aware so routed validation can lease an isolated filesystem.
+	ProjectRoot func(context.Context) (string, error)
 	// SessionProfileService provides access to session profiles for authenticated execution.
 	// When set, workflows can use session_profile_id to inject storage state (cookies, localStorage).
 	SessionProfileService *sessionprofile.Service
@@ -158,6 +163,7 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterfa
 		planCompiler:          opts.PlanCompiler,
 		eventSinkFactory:      eventSinkFactory,
 		executionDataRoot:     strings.TrimSpace(opts.ExecutionDataRoot),
+		projectRoot:           opts.ProjectRoot,
 		sessionProfileService: opts.SessionProfileService,
 	}
 

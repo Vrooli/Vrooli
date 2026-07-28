@@ -155,7 +155,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	s.startExecutionRunnerWithOptions(ctx, wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
 		// Mirror executions.go: poll the repo for completion so synchronous

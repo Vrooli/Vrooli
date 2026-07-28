@@ -8,20 +8,33 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics/contracts"
 )
 
 // Repository implements uxmetrics.Repository using SQLite.
 type Repository struct {
-	db *sqlx.DB
+	db sqlExecutor
 }
 
 // NewRepository creates a new SQLite-backed repository.
-func NewRepository(db *sqlx.DB) *Repository {
+func NewRepository(db sqlExecutor) *Repository {
 	return &Repository{db: db}
 }
+
+// sqlExecutor is deliberately small so the domain can use the routed database
+// seam in production and a regular *sql.DB in focused tests.
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+var (
+	_ sqlExecutor = (*sql.DB)(nil)
+	_ sqlExecutor = (*coredb.RoutedDB)(nil)
+)
 
 // SaveInteractionTrace persists a single interaction trace.
 func (r *Repository) SaveInteractionTrace(ctx context.Context, trace *contracts.InteractionTrace) error {

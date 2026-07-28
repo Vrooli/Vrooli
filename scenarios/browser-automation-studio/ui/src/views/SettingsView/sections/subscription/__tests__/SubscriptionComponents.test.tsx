@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test-utils';
 
 // Mock the entitlement store
 const mockEntitlementStore = {

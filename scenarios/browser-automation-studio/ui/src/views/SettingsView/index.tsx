@@ -50,7 +50,7 @@ export default function SettingsView() {
     <div data-testid={selectors.app.shell.ready}>
       <Suspense
         fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
+          <div className="h-full flex items-center justify-center bg-flow-bg">
             <LoadingSpinner variant="default" size={24} message="Loading settings..." />
           </div>
         }

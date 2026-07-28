@@ -17,12 +17,11 @@ import { useWorkflowStore } from '@stores/workflowStore';
 import { useExecutionExport } from './viewer/useExecutionExport';
 import { useReplayCustomization } from './viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports';
-import {
-  ExportDialog,
-  ExportDialogProvider,
-  buildExportDialogContextValue,
-} from '@/domains/executions/export';
+import { ExportDialog } from './export/components/ExportDialog';
+import { ExportDialogProvider } from './export/context/ExportDialogProvider';
+import { buildExportDialogContextValue } from './export/context/ExportDialogContext';
 import { useExecutionEvents } from './hooks/useExecutionEvents';
+import { selectors } from '@constants/selectors';
 
 type ViewerTab = 'replay' | 'artifacts';
 
@@ -151,9 +150,11 @@ export function InlineExecutionViewer({
   const [logFilter, setLogFilter] = useState<'all' | 'error' | 'warning' | 'info' | 'success'>('all');
   const [artifactSubType, setArtifactSubType] = useState<ArtifactSubType>('screenshots');
   const [isRerunning, setIsRerunning] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
 
   // Get execution from store
   const currentExecution = useExecutionStore((s) => s.currentExecution);
+  const stopExecution = useExecutionStore((s) => s.stopExecution);
   const autoOpenExport = useExecutionStore((s) => s.autoOpenExport);
   const setAutoOpenExport = useExecutionStore((s) => s.setAutoOpenExport);
 
@@ -190,6 +191,16 @@ export function InlineExecutionViewer({
     }
   }, [onRerun]);
 
+  const handleStop = useCallback(async () => {
+    if (!currentExecution || isStopping) return;
+    setIsStopping(true);
+    try {
+      await stopExecution(currentExecution.id);
+    } finally {
+      setIsStopping(false);
+    }
+  }, [currentExecution, isStopping, stopExecution]);
+
   // Extract artifacts data
   const timeline = useMemo(() => currentExecution?.timeline ?? [], [currentExecution?.timeline]);
   const consoleLogs = useMemo(() => extractConsoleLogs(timeline), [timeline]);
@@ -207,18 +218,20 @@ export function InlineExecutionViewer({
   }, [autoOpenExport, canExport, exportController, setAutoOpenExport]);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+    <div data-testid={selectors.executions.viewer.root} className="flex flex-col h-full bg-white dark:bg-gray-900">
       {/* Header */}
       <InlineExecutionHeader
         workflowName={workflowName}
         status={currentExecution?.status}
         onRerun={onRerun ? handleRerun : undefined}
         onExport={canExport ? exportController.openExportDialog : undefined}
+        onStop={handleStop}
         onClose={onClose}
         canRerun={!!onRerun}
         canExport={canExport}
         isExporting={exportController.isExporting}
         isRerunning={isRerunning}
+        isStopping={isStopping}
       />
 
       {/* Tab Bar */}

@@ -37,7 +37,7 @@ vi.mock('../api/projects', () => ({
   },
 }));
 
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
 
 const ts = (iso: string) => {
   const date = new Date(iso);

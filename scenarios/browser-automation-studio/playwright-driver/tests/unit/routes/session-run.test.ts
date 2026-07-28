@@ -1,4 +1,4 @@
-import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, createTestConfig, createTypedInstruction } from '../../helpers';
 import { handleSessionRun } from '../../../src/routes/session-run';
 import type { SessionManager } from '../../../src/session';
 import type { HandlerRegistry } from '../../../src/handlers';
@@ -210,7 +210,7 @@ describe('handleSessionRun', () => {
     mockGetIdempotencyCache.mockReturnValue(idempotencyCache as never);
     mockValidateInstruction.mockReturnValue({
       valid: true,
-      instruction: { type: 'click', index: 1, nodeId: 'node-1' },
+      instruction: createTypedInstruction('click', {}, { index: 1, nodeId: 'node-1' }),
     } as never);
     mockCreateInstructionKey.mockReturnValue(instructionKey);
 

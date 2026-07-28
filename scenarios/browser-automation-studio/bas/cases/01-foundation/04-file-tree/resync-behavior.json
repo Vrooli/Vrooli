@@ -21,12 +21,12 @@
     {
       "id": "e3",
       "source": "capture-initial-tree-state",
-      "target": "click-new-menu",
+      "target": "open-more-menu",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
-      "source": "click-new-menu",
+      "source": "open-more-menu",
       "target": "assert-resync-button-visible",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -81,11 +81,16 @@
   ],
   "metadata": {
     "description": "Tests the resync-from-disk functionality: verifies that the resync operation rebuilds the file index and is accessible via the UI menu",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requirements_json": "[\"BAS-WORKFLOW-PERSIST-CRUD\"]",
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Resync Behavior",
+    "version": "1"
   },
   "nodes": [
     {
@@ -133,7 +138,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; return { initialFolderCount: folders, initialFileCount: files }; })()",
+          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; return { initialFolderCount: folders, initialFileCount: files }; })()",
           "store_result": "initialTreeState"
         },
         "metadata": {
@@ -146,24 +151,24 @@
     {
       "action": {
         "click": {
-          "selector": "@selector/workflows.newButton"
+          "selector": "@selector/projects.moreMenuButton"
         },
         "metadata": {
-          "label": "Open New file menu to access resync"
+          "label": "Open More menu to access resync"
         },
         "type": "ACTION_TYPE_CLICK"
       },
       "execution_settings": {
         "wait_after_ms": 300
       },
-      "id": "click-new-menu"
+      "id": "open-more-menu"
     },
     {
       "action": {
         "assert": {
           "failure_message": "Resync from Disk button should be visible in the New menu",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "button:has-text('Resync From Disk')",
+          "selector": "@selector/projects.resyncFilesButton",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -176,7 +181,7 @@
     {
       "action": {
         "click": {
-          "selector": "button:has-text('Resync From Disk')"
+          "selector": "@selector/projects.resyncFilesButton"
         },
         "metadata": {
           "label": "Click Resync from Disk"
@@ -264,7 +269,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; const treeRoot = document.querySelector('[data-testid=\"project-file-tree\"]'); return { postResyncFolderCount: folders, postResyncFileCount: files, treeRootExists: !!treeRoot }; })()",
+          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; const treeRoot = document.querySelector('[data-testid=\"project-file-tree\"]'); return { postResyncFolderCount: folders, postResyncFileCount: files, treeRootExists: !!treeRoot }; })()",
           "store_result": "postResyncTreeState"
         },
         "metadata": {
@@ -277,7 +282,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const errorToasts = document.querySelectorAll('[data-sonner-toast][data-type=\"error\"]'); return { hasErrors: errorToasts.length > 0, errorCount: errorToasts.length }; })()",
+          "expression": "(() =\u003e { const errorToasts = document.querySelectorAll('[data-sonner-toast][data-type=\"error\"]'); return { hasErrors: errorToasts.length \u003e 0, errorCount: errorToasts.length }; })()",
           "store_result": "errorCheck"
         },
         "metadata": {

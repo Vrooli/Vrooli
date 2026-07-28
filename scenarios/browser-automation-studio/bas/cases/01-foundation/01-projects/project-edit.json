@@ -9,6 +9,12 @@
     {
       "id": "e5a",
       "source": "get-original-name",
+      "target": "open-project-options",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-project-options-to-edit",
+      "source": "open-project-options",
       "target": "click-edit-button",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -33,12 +39,6 @@
     {
       "id": "e9",
       "source": "update-name",
-      "target": "expand-advanced-options",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e9b",
-      "source": "expand-advanced-options",
       "target": "update-description",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -57,11 +57,15 @@
   ],
   "metadata": {
     "description": "Validates project editing functionality including name and description updates",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Project Edit",
+    "version": "1"
   },
   "nodes": [
     {
@@ -92,6 +96,18 @@
         "type": "ACTION_TYPE_EVALUATE"
       },
       "id": "get-original-name"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.moreMenuButton"
+        },
+        "metadata": {
+          "label": "Open project options menu"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "open-project-options"
     },
     {
       "action": {
@@ -149,21 +165,6 @@
         "wait_after_ms": 300
       },
       "id": "update-name"
-    },
-    {
-      "action": {
-        "click": {
-          "selector": "@selector/dialogs.project.advancedOptionsToggle"
-        },
-        "metadata": {
-          "label": "Expand advanced options"
-        },
-        "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
-      "id": "expand-advanced-options"
     },
     {
       "action": {

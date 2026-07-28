@@ -81,11 +81,16 @@
   ],
   "metadata": {
     "description": "Tests creating a new project with the 'Recommended' preset and verifies the expected folder structure is created",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requirements_json": "[\"BAS-WORKFLOW-PERSIST-CRUD\"]",
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Project Preset Creation",
+    "version": "1"
   },
   "nodes": [
     {
@@ -235,7 +240,7 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "h1",
+          "selector": "@selector/projects.fileTree.viewModeToggle",
           "timeout_ms": 10000
         }
       },
@@ -277,7 +282,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const folderNames = Array.from(folders).map(f => f.textContent || ''); const hasActions = folderNames.some(n => n.includes('actions')); const hasFlows = folderNames.some(n => n.includes('flows')); const hasCases = folderNames.some(n => n.includes('cases')); return { hasActions, hasFlows, hasCases, folderCount: folders.length, folderNames }; })()",
+          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const folderNames = Array.from(folders).map(f =\u003e f.textContent || ''); const hasActions = folderNames.some(n =\u003e n.includes('actions')); const hasFlows = folderNames.some(n =\u003e n.includes('flows')); const hasCases = folderNames.some(n =\u003e n.includes('cases')); return { hasActions, hasFlows, hasCases, folderCount: folders.length, folderNames }; })()",
           "store_result": "presetFolderCheck"
         },
         "metadata": {

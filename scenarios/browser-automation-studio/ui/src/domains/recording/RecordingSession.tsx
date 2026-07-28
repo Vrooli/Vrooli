@@ -31,7 +31,7 @@ import { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
 import { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
 import type { ReplayPreviewResponse } from './types/types';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
-import { SessionManager } from '@/views/SettingsView/sections/sessions';
+import { SessionManager } from '@/views/SettingsView/sections/sessions/SessionManager/SessionManager';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode, type InsertActionData } from './hooks/useRecordMode';
@@ -57,16 +57,16 @@ import { mergeActionsWithAISteps } from './types/timeline-unified';
 import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
-import { useExecutionStore, useStartWorkflow, useExecutionEvents } from '@/domains/executions';
+import { useExecutionStore } from '@/domains/executions/store';
+import { useStartWorkflow } from '@/domains/executions/hooks/useStartWorkflow';
+import { useExecutionEvents } from '@/domains/executions/hooks/useExecutionEvents';
 import { useSessionStore } from './stores/sessionStore';
 import { useExecutionExport } from '@/domains/executions/viewer/useExecutionExport';
 import { useReplayCustomization } from '@/domains/executions/viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports';
-import {
-  ExportDialog,
-  ExportDialogProvider,
-  buildExportDialogContextValue,
-} from '@/domains/executions/export';
+import { ExportDialog } from '@/domains/executions/export/components/ExportDialog';
+import { ExportDialogProvider } from '@/domains/executions/export/context/ExportDialogProvider';
+import { buildExportDialogContextValue } from '@/domains/executions/export/context/ExportDialogContext';
 import { ExportSuccessPanel } from '@/domains/exports/ExportSuccessPanel';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';

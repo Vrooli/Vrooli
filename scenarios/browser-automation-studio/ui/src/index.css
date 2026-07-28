@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 @layer base {
   /* Dark theme (default) - RGB values for Tailwind opacity support */
   :root,

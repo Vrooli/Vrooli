@@ -5,7 +5,7 @@
 // reveal/open. Binary file streaming (GET /projects/{id}/files/*) is
 // intentionally NOT a Connect RPC and remains a RESTException (see
 // docs/internal/REST_EXCEPTIONS.md).
-package project_files //nolint:revive // domain name matches REST path + proto package
+package project_files //nolint:revive // Package name mirrors the public project_files proto and REST domain.
 
 import (
 	"context"

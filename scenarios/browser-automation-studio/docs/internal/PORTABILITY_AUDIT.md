@@ -66,7 +66,7 @@ These are out of scope for the postgres-removal audit but the next obvious cross
 
 ## Issues Found
 1. **`resolveScenarioRoot` is monorepo-aware only** (`api/database/connection.go:222-238`, `api/main.go:740`). Both branches assume `repocontract.FindRepoRootFromPath` / `FindRepoRootFromEnvOrCWD` will land in the Vrooli monorepo. A bundled Electron build won't have that layout. Adding a `VROOLI_DESKTOP_MODE` / `BUNDLE_ROOT` branch (per skill §2.2) is a prerequisite for Tier 2.
-2. **Schema file is loaded by relative path** (`initialization/storage/sqlite/schema.sql` joined to scenario root). For a desktop bundle, either embed the schema with `//go:embed` or ship the `initialization/` tree alongside the binary.
+2. **Schema file is loaded by relative path** (`initialization/storage/sqlite/schemas/` joined to scenario root). For a desktop bundle, either embed the schema with `//go:embed` or ship the `initialization/` tree alongside the binary.
 3. **No cross-compilation CI step.** `CGO_ENABLED=0 go build` works on Linux today but no Windows/macOS matrix exists to catch regressions.
 4. **`offline_capable` missing from `service.json` `capabilities`.** Should be declared with limitations note ("AI features require OpenRouter network egress").
 
@@ -74,7 +74,7 @@ These are out of scope for the postgres-removal audit but the next obvious cross
 In rough priority order:
 
 1. **Bundle-aware scenario-root resolver.** Add `if os.Getenv("VROOLI_DESKTOP_MODE") == "true" { return os.Getenv("BUNDLE_ROOT"), nil }` short-circuit at the top of `resolveScenarioRoot()` in `api/database/connection.go` and `api/main.go`. Files: `api/database/connection.go`, `api/main.go:740`.
-2. **Embed the schema file.** Replace the `os.ReadFile(schemaPath)` in `initSchema()` with a `//go:embed initialization/storage/sqlite/schema.sql` byte slice — eliminates the relative-path concern entirely. File: `api/database/connection.go:194`.
+2. **Embed the schema file.** Replace the `os.ReadFile(schemaPath)` in `initSchema()` with a `//go:embed initialization/storage/sqlite/schemas/` byte slice — eliminates the relative-path concern entirely. File: `api/database/connection.go:194`.
 3. **Bundle Playwright driver into Electron** and wire its lifecycle from main.ts. Already supported at runtime via `ENGINE=playwright` + `PLAYWRIGHT_DRIVER_URL`; `service.json` lists this as 5 effort-days. Files: `playwright-driver/`, the desktop wrapper (lives outside this scenario, in `scenario-to-desktop`).
 4. **MinIO → filesystem-store swap.** `service.json` lists this as 2 effort-days. The `api/storage/interface.go` seam is already in place; need a `FilesystemScreenshotStorage` implementation that writes under `paths.ResolveRecordingsRoot()`.
 5. **Cross-compilation CI matrix** — `linux/amd64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, all with `CGO_ENABLED=0`.

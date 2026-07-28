@@ -3,12 +3,6 @@
     {
       "id": "call-open-project-to-start-execution",
       "source": "call-open-project",
-      "target": "start-execution",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e5",
-      "source": "start-execution",
       "target": "verify-execution-view",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -81,40 +75,31 @@
   ],
   "metadata": {
     "description": "Validates real-time telemetry display including screenshots, console, and network events",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Execution Telemetry Display",
+    "version": "1"
   },
   "nodes": [
     {
       "action": {
         "metadata": {
-          "label": "Open Demo project via fixture"
+          "label": "Execute Demo workflow via fixture"
         },
         "subflow": {
           "args": {
             "projectFolder": "${@params/projectFolder}",
             "projectName": "${@params/projectName}"
           },
-          "workflow_path": "actions/open-demo-project.json"
+          "workflow_path": "actions/execute-demo-workflow.json"
         },
         "type": "ACTION_TYPE_SUBFLOW"
       },
       "id": "call-open-project"
-    },
-    {
-      "action": {
-        "click": {
-          "selector": "@selector/workflowBuilder.executeButton"
-        },
-        "metadata": {
-          "label": "Start execution to observe telemetry"
-        },
-        "type": "ACTION_TYPE_CLICK"
-      },
-      "id": "start-execution"
     },
     {
       "action": {
@@ -177,7 +162,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"console\"]')).some(el => el.textContent?.includes('Console'))",
+          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"console\"]')).some(el =\u003e el.textContent?.includes('Console'))",
           "store_result": "hasConsoleTab"
         },
         "metadata": {
@@ -193,7 +178,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"network\"]')).some(el => el.textContent?.includes('Network'))",
+          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"network\"]')).some(el =\u003e el.textContent?.includes('Network'))",
           "store_result": "hasNetworkTab"
         },
         "metadata": {
@@ -233,7 +218,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "document.querySelectorAll('[class*=\"telemetry\"], [class*=\"event\"], [class*=\"log\"]').length > 0",
+          "expression": "document.querySelectorAll('[class*=\"telemetry\"], [class*=\"event\"], [class*=\"log\"]').length \u003e 0",
           "store_result": "hasTelemetryData"
         },
         "metadata": {

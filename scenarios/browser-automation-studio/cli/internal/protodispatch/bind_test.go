@@ -99,7 +99,7 @@ func TestBind_JSONFile_NormalizesSchemaWorkflowDefinition(t *testing.T) {
 	flowJSON := []byte(`{
         "metadata": {"execution_mode": "observer"},
         "settings": {"executionViewport": {"width": 390, "height": 844}},
-        "nodes": [{"id":"open","type":"navigate","data":{"destinationType":"scenario","scenario":"git-control-tower","scenarioPath":"/","waitUntil":"networkidle"}},{"id":"visible","type":"assert","data":{"selector":"[data-testid=mobile-nav]","assertMode":"visible"}}],
+        "nodes": [{"id":"open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destinationType":"scenario","scenario":"git-control-tower","scenarioPath":"/","waitUntil":"networkidle"}}},{"id":"visible","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"[data-testid=mobile-nav]","assertMode":"visible"}}}],
         "edges": []
     }`)
 	dir := t.TempDir()

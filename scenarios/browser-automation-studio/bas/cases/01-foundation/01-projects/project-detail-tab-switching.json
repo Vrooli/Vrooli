@@ -63,11 +63,14 @@
   ],
   "metadata": {
     "description": "Validates switching between Workflows and Executions tabs in Project Detail view",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Project Detail Tab Switching",
+    "version": "1"
   },
   "nodes": [
     {
@@ -135,7 +138,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const workflows = document.querySelectorAll('@selector/workflows.card'); return workflows.length > 0 || document.querySelector('@selector/workflowBuilder.search.input') !== null; })()",
+          "expression": "(() =\u003e { const workflows = document.querySelectorAll('@selector/workflows.card'); return workflows.length \u003e 0 || document.querySelector('@selector/workflowBuilder.search.input') !== null; })()",
           "store_result": "workflowContentVisible"
         },
         "metadata": {
@@ -196,7 +199,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { return document.querySelector('@selector/executions.list.root, @selector/executions.filters.all, @selector/executions.list.refreshButton') !== null; })()",
+          "expression": "(() =\u003e { return document.querySelector('@selector/executions.list.root, @selector/executions.filters.all, @selector/executions.list.refreshButton') !== null; })()",
           "store_result": "executionContentVisible"
         },
         "metadata": {

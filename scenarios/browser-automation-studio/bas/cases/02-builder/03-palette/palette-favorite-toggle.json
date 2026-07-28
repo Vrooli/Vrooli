@@ -33,11 +33,14 @@
   ],
   "metadata": {
     "description": "Validates toggling node favorites in the palette",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Palette Favorite Toggle",
+    "version": "1"
   },
   "nodes": [
     {

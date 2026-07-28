@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { lazy, Suspense, useEffect, useCallback } from "react";
 import { Plus, WifiOff } from "lucide-react";
 import { logger } from "@utils/logger";
 import { getConfig } from "@/config";
@@ -14,10 +14,14 @@ import ProjectModal from "./ProjectModal";
 // New decomposed components
 import { ProjectDetailHeader } from "./ProjectDetailHeader";
 import { ProjectDetailTabs } from "./ProjectDetailTabs";
-import { ExecutionPanel } from "./ExecutionPanel";
 import { WorkflowCardGrid } from "./WorkflowCardGrid";
 import { ProjectFileTree } from "./ProjectFileTree";
 import { useProjectDetailStore } from "./hooks/useProjectDetailStore";
+
+const ExecutionPanel = lazy(async () => {
+  const module = await import("./ExecutionPanel");
+  return { default: module.ExecutionPanel };
+});
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -252,7 +256,9 @@ function ProjectDetail({
         {/* Content Area */}
         <div className={`flex-1 overflow-hidden min-h-0 ${activeTab === "executions" ? "relative" : ""}`}>
           {activeTab === "executions" ? (
-            <ExecutionPanel />
+            <Suspense fallback={null}>
+              <ExecutionPanel />
+            </Suspense>
           ) : viewMode === "tree" ? (
             <ProjectFileTree
               project={project}

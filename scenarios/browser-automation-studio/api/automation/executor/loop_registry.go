@@ -117,6 +117,7 @@ func (h *repeatHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loo
 			activeSession, lctx.Step.Loop, lctx.State, lctx.ReuseMode,
 		)
 		if err != nil {
+			result.session = nextSession
 			return result, err
 		}
 		activeSession = nextSession
@@ -166,6 +167,7 @@ func (h *forEachHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (lo
 			activeSession, lctx.Step.Loop, lctx.State, lctx.ReuseMode,
 		)
 		if err != nil {
+			result.session = nextSession
 			return result, err
 		}
 		activeSession = nextSession
@@ -203,6 +205,7 @@ func (h *whileHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loop
 			activeSession, lctx.Step.Loop, lctx.State, lctx.ReuseMode,
 		)
 		if err != nil {
+			result.session = nextSession
 			return result, err
 		}
 		activeSession = nextSession

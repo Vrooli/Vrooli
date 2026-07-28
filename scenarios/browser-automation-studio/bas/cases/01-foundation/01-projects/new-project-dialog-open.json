@@ -41,11 +41,14 @@
   ],
   "metadata": {
     "description": "Opens the dashboard and verifies that the New Project modal becomes visible.",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "New Project Dialog Open",
+    "version": "1"
   },
   "nodes": [
     {

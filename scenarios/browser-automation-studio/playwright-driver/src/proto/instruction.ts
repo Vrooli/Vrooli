@@ -88,5 +88,9 @@ export function toHandlerInstruction(proto: CompiledInstruction): HandlerInstruc
  * Get the handler dispatch key from the typed action.
  */
 export function getActionType(instruction: HandlerInstruction): string {
+	if (!instruction.action || instruction.action.type === ActionType.UNSPECIFIED) {
+		return 'unknown';
+	}
+
 	return actionTypeToString(instruction.action.type);
 }

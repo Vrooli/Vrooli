@@ -9,8 +9,7 @@ import (
 	"github.com/google/uuid"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -27,13 +26,26 @@ type ArtifactInput struct {
 	SizeBytes                             int64
 	CapturedAt                            time.Time
 	TimelineEntryID                       string
-	Provenance                            map[string]any
+	Provenance                            ArtifactProvenanceInput
+}
+
+// ArtifactProvenanceInput is the typed, portable provenance supplied by the
+// writer. It cannot carry storage locations or arbitrary raw capture data.
+type ArtifactProvenanceInput struct {
+	Source       string
+	ArtifactType string
+}
+
+// ReplayPresentationInput contains the bounded renderer hints accepted by a
+// replay package.
+type ReplayPresentationInput struct {
+	Theme string
 }
 
 // BuildReplayPackage makes the renderer-neutral handoff consumed by preview
 // and export code. It rejects incomplete identifiers and unknown artifact kinds
 // rather than emitting a package that later consumers must guess how to read.
-func BuildReplayPackage(executionID, workflowID string, policy *basevidence.EvidencePolicy, artifacts []ArtifactInput, timeline []*bastimeline.TimelineEntry, presentation map[string]any, now time.Time) (*basevidence.ReplayPackage, error) {
+func BuildReplayPackage(executionID, workflowID string, policy *basevidence.EvidencePolicy, artifacts []ArtifactInput, timeline []*bastimeline.TimelineEntry, presentation ReplayPresentationInput, now time.Time) (*basevidence.ReplayPackage, error) {
 	if _, err := uuid.Parse(strings.TrimSpace(executionID)); err != nil {
 		return nil, fmt.Errorf("invalid execution ID: %w", err)
 	}
@@ -64,38 +76,32 @@ func BuildReplayPackage(executionID, workflowID string, policy *basevidence.Evid
 		if strings.TrimSpace(input.TimelineEntryID) != "" {
 			artifact.TimelineEntryId = &input.TimelineEntryID
 		}
-		if len(input.Provenance) > 0 {
-			value, err := structpb.NewStruct(input.Provenance)
-			if err != nil {
-				return nil, fmt.Errorf("artifact provenance: %w", err)
+		if input.Provenance.Source != "" || input.Provenance.ArtifactType != "" {
+			artifact.Provenance = &basevidence.ArtifactProvenance{
+				Source:       optionalString(input.Provenance.Source),
+				ArtifactType: optionalString(input.Provenance.ArtifactType),
 			}
-			artifact.Provenance = value
 		}
 		manifest.Artifacts = append(manifest.Artifacts, artifact)
 	}
 	sort.Slice(manifest.Artifacts, func(i, j int) bool { return manifest.Artifacts[i].Id < manifest.Artifacts[j].Id })
-	presentationStruct, err := structpb.NewStruct(presentation)
-	if err != nil {
-		return nil, fmt.Errorf("presentation: %w", err)
-	}
-	timelineValues := make([]*structpb.Struct, 0, len(timeline))
+	timelineValues := make([]*bastimeline.TimelineEntry, 0, len(timeline))
 	for _, entry := range timeline {
 		if entry == nil {
 			continue
 		}
-		raw, err := protojson.Marshal(entry)
-		if err != nil {
-			return nil, fmt.Errorf("marshal replay timeline entry: %w", err)
-		}
-		value := &structpb.Struct{}
-		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, value); err != nil {
-			return nil, fmt.Errorf("convert replay timeline entry: %w", err)
-		}
-		timelineValues = append(timelineValues, value)
+		timelineValues = append(timelineValues, proto.Clone(entry).(*bastimeline.TimelineEntry))
 	}
-	pack := &basevidence.ReplayPackage{Id: uuid.NewString(), SchemaVersion: ReplaySchemaVersion, ExecutionId: executionID, Evidence: manifest, Timeline: timelineValues, Presentation: presentationStruct, CreatedAt: timestamppb.New(now)}
+	pack := &basevidence.ReplayPackage{Id: uuid.NewString(), SchemaVersion: ReplaySchemaVersion, ExecutionId: executionID, Evidence: manifest, Timeline: timelineValues, Presentation: &basevidence.ReplayPresentation{Theme: optionalString(presentation.Theme)}, CreatedAt: timestamppb.New(now)}
 	if strings.TrimSpace(workflowID) != "" {
 		pack.WorkflowId = &workflowID
 	}
 	return pack, nil
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }

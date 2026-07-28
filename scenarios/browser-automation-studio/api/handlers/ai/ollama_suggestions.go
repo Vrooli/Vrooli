@@ -61,7 +61,7 @@ func (g *ollamaSuggestionGenerator) generateAISuggestions(ctx context.Context, e
 	prompt := g.buildElementAnalysisPrompt(elements, pageContext)
 
 	// Query Ollama via the client interface
-	response, err := g.client.Query(ctx, g.role, prompt)
+	suggestionsPayload, err := g.client.Query(ctx, g.role, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call ollama: %w", err)
 	}
@@ -71,10 +71,10 @@ func (g *ollamaSuggestionGenerator) generateAISuggestions(ctx context.Context, e
 		Suggestions []AISuggestion `json:"suggestions"`
 	}
 
-	if err := json.Unmarshal([]byte(response), &ollamaResponse); err != nil {
+	if err := json.Unmarshal([]byte(suggestionsPayload), &ollamaResponse); err != nil {
 		// If JSON parsing fails, try to extract from the raw response
 		g.log.WithError(err).Warn("Failed to parse Ollama JSON response, trying fallback parsing")
-		return g.parseOllamaFallback(response)
+		return g.parseOllamaFallback(suggestionsPayload)
 	}
 
 	return ollamaResponse.Suggestions, nil

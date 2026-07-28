@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, renderHook } from '@testing-library/react';
+import { render, screen, act, renderHook } from '@/test-utils';
 import { fetchEmptyResponse, installFetchMock, type FetchMock } from '@/test-utils';
 import { ViewportProvider } from './ViewportProvider';
 import { useViewport, useViewportOptional } from './viewportHooks';

@@ -38,31 +38,59 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 		}
 		// A result file is consumed by API/UI/CLI clients. It must never expose a
 		// local capture path, particularly for protected HAR material.
-		descriptor, err := evidence.DescribeFile(kind, item.ContentType, path, evidence.DefaultPolicy())
-		if err != nil {
-			if r.log != nil {
-				r.log.WithError(err).WithField("path", path).Warn("Failed to describe external artifact")
-			}
-			continue
-		}
 		payload := map[string]any{"size_bytes": info.Size()}
 		for key, value := range item.Payload {
-			if strings.EqualFold(key, "path") || strings.EqualFold(key, "storage_path") {
+			if strings.EqualFold(key, "path") || strings.EqualFold(key, "source_path") || strings.EqualFold(key, "storage_path") {
 				continue
 			}
 			payload[key] = value
 		}
-		if descriptor.Kind.String() == "ARTIFACT_KIND_HAR" {
+		kindEnum := evidence.KindFor(kind)
+		var descriptor evidence.Descriptor
+		if kindEnum.String() == "ARTIFACT_KIND_HAR" {
 			// Raw HAR stays at its protected capture location. Only a sanitized
-			// derivative can enter the replay/result boundary.
-			if info.Size() > 0 && info.Size() <= maxEmbeddedExternalArtifactBytes {
-				if raw, readErr := os.ReadFile(path); readErr == nil {
-					if sanitized, sanitizeErr := evidence.SanitizeHAR(raw, evidence.DefaultPolicy()); sanitizeErr == nil {
-						payload["sanitized_base64"], payload["inline"] = base64.StdEncoding.EncodeToString(sanitized), true
+			// derivative can enter the replay/result boundary, and its digest is
+			// derived from exactly those published bytes (never the raw capture).
+			raw, readErr := os.ReadFile(path)
+			if readErr != nil {
+				if r.log != nil {
+					r.log.WithError(readErr).WithField("path", path).Warn("Failed to read HAR artifact")
+				}
+				continue
+			}
+			sanitized, sanitizeErr := evidence.SanitizeHAR(raw, evidence.DefaultPolicy())
+			if sanitizeErr != nil {
+				if r.log != nil {
+					r.log.WithError(sanitizeErr).WithField("path", path).Warn("Failed to sanitize HAR artifact")
+				}
+				continue
+			}
+			descriptor = evidence.Describe(kind, item.ContentType, sanitized, evidence.DefaultPolicy())
+			payload["size_bytes"] = len(sanitized)
+			if len(sanitized) <= maxEmbeddedExternalArtifactBytes {
+				payload["sanitized_base64"], payload["inline"] = base64.StdEncoding.EncodeToString(sanitized), true
+			}
+			if r.storage != nil {
+				objectName := plan.ExecutionID.String() + "/artifacts/har/" + uuid.NewString() + ".sanitized.har"
+				if stored, storeErr := r.storage.StoreArtifact(ctx, objectName, sanitized, "application/json"); storeErr != nil {
+					if r.log != nil {
+						r.log.WithError(storeErr).Warn("Failed to store sanitized HAR artifact")
 					}
+				} else if stored != nil {
+					payload["sanitized_available"] = true
 				}
 			}
-		} else if !isNonInlineArtifactType(kind) && info.Size() > 0 && info.Size() <= maxEmbeddedExternalArtifactBytes {
+		} else {
+			var describeErr error
+			descriptor, describeErr = evidence.DescribeFile(kind, item.ContentType, path, evidence.DefaultPolicy())
+			if describeErr != nil {
+				if r.log != nil {
+					r.log.WithError(describeErr).WithField("path", path).Warn("Failed to describe external artifact")
+				}
+				continue
+			}
+		}
+		if kindEnum.String() != "ARTIFACT_KIND_HAR" && !isNonInlineArtifactType(kind) && info.Size() > 0 && info.Size() <= maxEmbeddedExternalArtifactBytes {
 			if data, err := os.ReadFile(path); err == nil {
 				payload["base64"], payload["inline"] = base64.StdEncoding.EncodeToString(data), true
 			}
@@ -96,7 +124,7 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 		result.Artifacts = append(result.Artifacts, ArtifactData{ArtifactID: uuid.New().String(), ArtifactType: kind, Label: label, Payload: payload, StorageURL: storageURL, ContentType: contentType, SizeBytes: sizeBytes, SHA256: descriptor.SHA256, Classification: descriptor.Classification.String(), RetentionClass: descriptor.Retention.String(), AccessPolicy: descriptor.Access.String(), Redacted: descriptor.Redacted})
 		result.mu.Unlock()
 	}
-	return r.writeResultFile(plan.ExecutionID, result, timeline)
+	return r.writeResultFile(ctx, plan.ExecutionID, result, timeline)
 }
 
 func isVideoArtifactType(kind string) bool {

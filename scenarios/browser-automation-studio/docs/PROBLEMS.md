@@ -357,3 +357,19 @@ export DISPLAY=:99
 ### Action Items
 - Document whether MinIO and OpenRouter are required for core functionality
 - If required, add to setup instructions; if optional, document graceful degradation
+
+## Workflow Health Execution Evidence Gap (2026-07-27)
+
+Workflow Health run `2d7cec0e-ff8a-448a-ae85-7642eb15adac` completed with
+25/57 cases passing and 32 failing. The execution and replay cases timed out
+waiting for `execution-viewer`. Driver logs identified the root cause: the UI
+issued `POST /api/v1/workflows/{id}/execute`, a removed REST route that returned
+404, instead of the typed Connect `WorkflowsService.ExecuteWorkflow` contract.
+The execution store now uses the generated Connect client.
+
+The failed-run artifact format still retains only `latest.json` and
+`timeline.json`; it does not retain a browser screenshot, console log, or
+network trace. Preserve richer browser evidence for future Workflow Health
+failures when its artifact contract is extended. The exact historical run
+artifacts are under
+`coverage/workflow-health/runs/2d7cec0e-ff8a-448a-ae85-7642eb15adac/`.

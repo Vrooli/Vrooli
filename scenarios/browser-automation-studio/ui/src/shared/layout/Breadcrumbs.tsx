@@ -4,6 +4,8 @@ import { Fragment, ReactNode } from "react";
 export interface BreadcrumbItem {
   /** Label to display */
   label: string;
+  /** Stable automation hook for this breadcrumb item. */
+  testId?: string;
   /** Click handler - if not provided, item is not clickable */
   onClick?: () => void;
   /** Optional icon to show before label */
@@ -73,6 +75,7 @@ export function Breadcrumbs({
                   <button
                     type="button"
                     onClick={item.onClick}
+                    data-testid={item.testId}
                     className="flex items-center gap-1.5 px-1.5 py-0.5 text-gray-400 hover:text-surface hover:bg-gray-700/50 rounded transition-colors"
                   >
                     {isFirst && showHomeIcon && !item.icon && (
@@ -85,6 +88,7 @@ export function Breadcrumbs({
                   </button>
                 ) : (
                   <span
+                    data-testid={item.testId}
                     className={`flex items-center gap-1.5 px-1.5 py-0.5 ${
                       isCurrent
                         ? "text-surface font-medium"

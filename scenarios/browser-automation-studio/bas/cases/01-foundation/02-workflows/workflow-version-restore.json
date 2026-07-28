@@ -27,6 +27,12 @@
     {
       "id": "e3",
       "source": "click-project",
+      "target": "open-workflow-card-view",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3a",
+      "source": "open-workflow-card-view",
       "target": "ensure-workflows-exist",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -69,11 +75,15 @@
   ],
   "metadata": {
     "description": "Validates workflow version history listing and restore functionality through the UI",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Workflow Version Restore",
+    "version": "1"
   },
   "nodes": [
     {
@@ -152,6 +162,21 @@
         }
       },
       "id": "click-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.cardViewToggle"
+        },
+        "metadata": {
+          "label": "Switch workflows to card view"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "open-workflow-card-view"
     },
     {
       "action": {

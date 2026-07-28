@@ -37,7 +37,7 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 	}
 
 	memStore := storage.NewMemoryStorage()
-	writer := NewFileWriter(noopRepo{}, memStore, nil, dataDir)
+	writer := NewFileWriter(noopRepo{}, memStore, nil, NewStaticRoot(dataDir))
 	plan := contracts.ExecutionPlan{
 		ExecutionID: uuid.New(),
 		WorkflowID:  uuid.New(),
@@ -57,7 +57,10 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 		t.Fatalf("record artifacts: %v", err)
 	}
 
-	resultPath := writer.resultFilePath(plan.ExecutionID)
+	resultPath, err := writer.resultFilePath(context.Background(), plan.ExecutionID)
+	if err != nil {
+		t.Fatalf("result file path: %v", err)
+	}
 	data, err := os.ReadFile(resultPath)
 	if err != nil {
 		t.Fatalf("read result: %v", err)

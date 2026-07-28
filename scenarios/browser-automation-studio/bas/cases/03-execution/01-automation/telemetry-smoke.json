@@ -33,11 +33,14 @@
   ],
   "metadata": {
     "description": "Validates that workflow execution produces telemetry artifacts (screenshots, logs, progress updates)",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Telemetry Smoke",
+    "version": "1"
   },
   "nodes": [
     {

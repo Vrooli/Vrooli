@@ -177,6 +177,11 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "describe_export"}))
 		return
 	}
+	if preview == nil {
+		h.log.WithField("execution_id", executionID).Error("Execution export service returned an empty preview")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "describe_export", "error": "empty export preview"}))
+		return
+	}
 
 	replayConfig, configErr := h.loadReplayConfig(previewCtx)
 	if configErr != nil && h.log != nil {
@@ -190,11 +195,13 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 				applyReplayConfigToSpec(preview.Package, replayConfig)
 				export.Apply(preview.Package, replayOverrides)
 				export.Apply(preview.Package, body.Overrides)
-				if pbPreview, err := protoconv.ExecutionExportPreviewToProto(preview); err == nil {
-					h.respondProto(w, http.StatusOK, pbPreview)
-				} else {
-					h.respondSuccess(w, http.StatusOK, preview)
+				pbPreview, conversionErr := protoconv.ExecutionExportPreviewToProto(preview)
+				if conversionErr != nil {
+					h.log.WithError(conversionErr).WithField("execution_id", executionID).Error("Failed to encode execution export preview")
+					h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "encode_export_preview"}))
+					return
 				}
+				h.respondProto(w, http.StatusOK, pbPreview)
 			} else {
 				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": "export package unavailable"}))
 			}
@@ -370,12 +377,11 @@ func (h *Handler) handleAsyncBinaryExport(w http.ResponseWriter, r *http.Request
 	})
 
 	// Start background rendering
-	go h.renderExportInBackground(exportRecord, executionID, format, body, outputDir, renderSource)
+	go h.renderExportInBackground(context.WithoutCancel(r.Context()), exportRecord, executionID, format, body, outputDir, renderSource)
 }
 
 // renderExportInBackground performs the actual export rendering and broadcasts progress via WebSocket.
-func (h *Handler) renderExportInBackground(exportRecord *database.ExportIndex, executionID uuid.UUID, format string, body export.Request, outputDir string, renderSource string) {
-	ctx := context.Background()
+func (h *Handler) renderExportInBackground(ctx context.Context, exportRecord *database.ExportIndex, executionID uuid.UUID, format string, body export.Request, outputDir string, renderSource string) {
 	exportID := exportRecord.ID.String()
 	execIDStr := executionID.String()
 

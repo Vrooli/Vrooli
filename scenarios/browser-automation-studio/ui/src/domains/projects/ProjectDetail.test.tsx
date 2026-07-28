@@ -60,7 +60,7 @@ vi.mock("@stores/workflowStore", () => ({
   ),
 }));
 
-vi.mock("@/domains/executions", () => {
+vi.mock("@/domains/executions/store", () => {
   const mockUseExecutionStore = vi.fn(
     (selector?: (state: typeof executionStoreState) => unknown) => {
       return typeof selector === "function"
@@ -73,8 +73,12 @@ vi.mock("@/domains/executions", () => {
   return {
     __esModule: true,
     useExecutionStore: mockUseExecutionStore,
-    ExecutionHistory: () => null,
-    ExecutionViewer: () => null,
+  };
+});
+
+vi.mock("@/domains/executions/hooks/useStartWorkflow", () => {
+  return {
+    __esModule: true,
     useStartWorkflow: () => ({
       startWorkflow: async ({ workflowId }: { workflowId: string }) => {
         await executionStoreState.startExecution(workflowId);
@@ -113,12 +117,12 @@ vi.mock("react-hot-toast", () => ({
   default: toastMock,
 }));
 
-vi.mock("./ExecutionViewer", () => ({
+vi.mock("@/domains/executions/InlineExecutionViewer", () => ({
   __esModule: true,
   default: () => <div data-testid={selectors.executions.mock.viewer} />,
 }));
 
-vi.mock("./ExecutionHistory", () => ({
+vi.mock("@/domains/executions/history/ExecutionHistory", () => ({
   __esModule: true,
   default: () => <div data-testid={selectors.executions.mock.history} />,
 }));

@@ -151,7 +151,10 @@ func (h *Handler) fetchObservabilityJSON(
 	body io.Reader,
 	timeout time.Duration,
 ) (map[string]any, error) {
-	driverURL := getPlaywrightDriverURL()
+	driverURL, err := getPlaywrightDriverURL()
+	if err != nil {
+		return nil, &ObservabilityProxyError{Wrapped: err}
+	}
 	target := driverURL + path
 	if len(query) > 0 {
 		target += "?" + query.Encode()

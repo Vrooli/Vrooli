@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
@@ -41,7 +42,7 @@ type LPBSReporter interface {
 //
 // See SEAMS.md for full documentation of testing boundaries.
 type Service struct {
-	db                  *sql.DB
+	db                  sqlExecutor
 	log                 *logrus.Logger
 	entitlementSvc      *entitlement.Service // Legacy: concrete service for backward compat
 	entitlementProvider EntitlementProvider  // Preferred: injectable interface for testing
@@ -89,7 +90,7 @@ type usageCache struct {
 //	    LPBSReporter: &mockLPBSReporter{},
 //	})
 type ServiceOptions struct {
-	DB             *sql.DB
+	DB             sqlExecutor
 	Logger         *logrus.Logger
 	EntitlementSvc *entitlement.Service // Legacy: concrete entitlement service
 	// Note: Operation costs are intentionally NOT configurable here.
@@ -110,6 +111,20 @@ type ServiceOptions struct {
 	// If nil, the default HTTP-based reporter will be used.
 	LPBSReporter LPBSReporter
 }
+
+// sqlExecutor keeps the credit domain independent of a concrete SQL pool and
+// lets request contexts select the leased Test Genie database in production.
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+var (
+	_ sqlExecutor = (*sql.DB)(nil)
+	_ sqlExecutor = (*coredb.RoutedDB)(nil)
+)
 
 // NewService creates a new CreditService.
 //

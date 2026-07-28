@@ -7,7 +7,7 @@ import type {
   ReplayCursorClickAnimation,
   ReplayDeviceFrameTheme,
   ReplayPresentationSettings,
-} from '@/domains/replay-style';
+} from '@/domains/replay-style/model';
 import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
 import {
   REPLAY_CHROME_OPTIONS,
@@ -16,13 +16,15 @@ import {
   REPLAY_CURSOR_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
-  REPLAY_STYLE_DEFAULTS,
-  readReplayStyleFromStorage,
+} from '@/domains/replay-style/catalog';
+import { REPLAY_STYLE_DEFAULTS } from '@/domains/replay-style/model';
+import { readReplayStyleFromStorage } from '@/domains/replay-style/adapters/storage';
+import {
   MAX_BROWSER_SCALE,
   MIN_BROWSER_SCALE,
   MAX_CURSOR_SCALE,
   MIN_CURSOR_SCALE,
-} from '@/domains/replay-style';
+} from '@/domains/replay-style/constants';
 import type { ExportRenderSource } from '@/domains/executions/export';
 
 const STORAGE_PREFIX = 'browserAutomation.settings.';

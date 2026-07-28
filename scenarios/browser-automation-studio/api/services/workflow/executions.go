@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
@@ -68,7 +69,7 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 		UpdatedAt:   autocontracts.TimeToTimestamp(now),
 	})
 
-	s.startExecutionRunner(getResp.Workflow, exec.ID, parameters)
+	s.startExecutionRunner(ctx, getResp.Workflow, exec.ID, parameters)
 	return exec, nil
 }
 
@@ -197,7 +198,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -382,21 +383,53 @@ func navigateWaitEventToString(e basactions.NavigateWaitEvent) string {
 	}
 }
 
-func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
+func (s *WorkflowService) startExecutionRunner(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
 	// Normalize legacy flat parameters into the namespaced model.
 	// All legacy parameters go to @store/ namespace for backward compatibility.
 	// Use default artifact config (full profile) and no projectRoot (legacy callers don't use subflows).
-	s.startExecutionRunnerWithNamespaces(workflow, executionID, parameters, nil, nil, nil, "")
+	s.startExecutionRunnerWithNamespaces(parent, workflow, executionID, parameters, nil, nil, nil, "")
 }
 
-func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
-	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", false, nil, "", nil)
+func (s *WorkflowService) startExecutionRunnerWithNamespaces(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
+	s.startExecutionRunnerWithOptions(parent, workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", false, nil, "", nil)
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
-	ctx, cancel := context.WithCancel(context.Background())
+func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
+	if coredb.IsTestMode(parent) {
+		browserProfile = withTestModeBrowserHeader(browserProfile)
+	}
+	// Async work must outlive the request, but its routed-isolation marker is a
+	// correctness boundary. Rebuild a background context with that one durable
+	// execution attribute instead of retaining the request cancellation chain.
+	ctx, cancel := context.WithCancel(detachedExecutionContext(parent))
 	s.storeExecutionCancel(executionID, cancel)
 	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+}
+
+// withTestModeBrowserHeader clones the optional browser profile before adding
+// the header that makes in-page API calls participate in the same routed test
+// lease as the initiating ExecuteAdhoc request. Browser UI fetches are a
+// separate HTTP hop, so retaining the marker only on the server context is not
+// sufficient isolation.
+func withTestModeBrowserHeader(profile *sessionprofilepersistence.BrowserProfile) *sessionprofilepersistence.BrowserProfile {
+	if profile == nil {
+		return &sessionprofilepersistence.BrowserProfile{ExtraHeaders: map[string]string{"X-Vrooli-Test-Mode": "1"}}
+	}
+	cloned := *profile
+	cloned.ExtraHeaders = make(map[string]string, len(profile.ExtraHeaders)+1)
+	for key, value := range profile.ExtraHeaders {
+		cloned.ExtraHeaders[key] = value
+	}
+	cloned.ExtraHeaders["X-Vrooli-Test-Mode"] = "1"
+	return &cloned
+}
+
+func detachedExecutionContext(parent context.Context) context.Context {
+	base := context.Background()
+	if coredb.IsTestMode(parent) {
+		return coredb.WithTestMode(base)
+	}
+	return base
 }
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
@@ -411,6 +444,15 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()
+	if coredb.IsTestMode(ctx) {
+		persistenceCtx = coredb.WithTestMode(persistenceCtx)
+		// Development routing installs an empty, lease-owned database. Seed the
+		// minimum scenario fixture inside that pool so browser validations exercise
+		// the same project surface as normal startup without touching primary data.
+		if _, err := s.EnsureSeedWorkflow(persistenceCtx); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("execution_id", executionID).Warn("Failed to prepare routed test fixture")
+		}
+	}
 	execIndex, err := s.repo.GetExecution(persistenceCtx, executionID)
 	if err != nil {
 		return

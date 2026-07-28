@@ -1,4 +1,4 @@
-package project_files //nolint:revive
+package project_files //nolint:revive // Package name mirrors the public project_files proto and REST domain.
 
 import (
 	"os"

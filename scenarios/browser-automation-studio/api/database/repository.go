@@ -290,16 +290,18 @@ func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUI
 //     "2006-01-02 15:04:05.999999999-07:00".
 //   - SQLite's CURRENT_TIMESTAMP default ("2006-01-02 15:04:05"),
 //     produced when a NULL value falls through to the column DEFAULT.
-//   - RFC3339Nano, for rows repaired in place via the one-shot script
-//     at /tmp/browser-automation-studio/migrate-fix-execution-timestamps.sh
-//     (those rows were Go time.Time.String() pre-fix; the repair
-//     rewrote them to RFC3339Nano).
+//   - RFC3339Nano.
+//   - Go's historical time.Time.String() representation
+//     ("2006-01-02 15:04:05.999999999 -0700 MST"). Parsing that durable
+//     legacy form at the read boundary prevents one old execution from
+//     making the entire project catalog unavailable.
 //
 // Aggregate columns (MAX(started_at), MIN(...)) strip the declared
 // SQL type so the driver's auto-conversion can't fire; callers must
 // scan as string and use this helper.
 func parseTimestamp(raw string) (time.Time, error) {
 	for _, layout := range []string{
+		"2006-01-02 15:04:05.999999999 -0700 MST",
 		"2006-01-02 15:04:05.999999999-07:00",
 		"2006-01-02 15:04:05",
 		time.RFC3339Nano,

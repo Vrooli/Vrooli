@@ -784,6 +784,10 @@ func (c *Client) RunInstruction(ctx context.Context, sessionID string, instructi
 }
 
 func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[string]any, error) {
+	if instruction.Action == nil {
+		return nil, fmt.Errorf("instruction %s has no typed action", instruction.NodeID)
+	}
+
 	payload := make(map[string]any)
 	wire := map[string]any{
 		"index":   instruction.Index,
@@ -804,17 +808,15 @@ func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[str
 		wire["metadata"] = instruction.Metadata
 	}
 
-	if instruction.Action != nil {
-		actionJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Action)
-		if err != nil {
-			return nil, fmt.Errorf("encode action: %w", err)
-		}
-		var action map[string]any
-		if err := json.Unmarshal(actionJSON, &action); err != nil {
-			return nil, fmt.Errorf("decode action: %w", err)
-		}
-		wire["action"] = action
+	actionJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Action)
+	if err != nil {
+		return nil, fmt.Errorf("encode action: %w", err)
 	}
+	var action map[string]any
+	if err := json.Unmarshal(actionJSON, &action); err != nil {
+		return nil, fmt.Errorf("decode action: %w", err)
+	}
+	wire["action"] = action
 
 	payload["instruction"] = wire
 	return payload, nil

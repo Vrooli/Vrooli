@@ -509,6 +509,8 @@ const literalSelectors = {
     card: "project-card",
     cardTitle: "project-card-title",
     editButton: "project-edit-button",
+    moreMenuButton: "project-more-menu-button",
+    resyncFilesButton: "project-resync-files-button",
     fileTree: {
       root: "project-file-tree-root",
       container: "project-file-tree",
@@ -613,6 +615,12 @@ const literalSelectors = {
   workflows: {
     tab: "workflows-tab",
     card: "workflow-card",
+    cardViewToggle: "workflow-card-view-toggle",
+    creation: {
+      dialog: "workflow-creation-dialog",
+      aiAssisted: "workflow-creation-ai-assisted",
+      visualBuilder: "workflow-creation-visual-builder",
+    },
     newButton: "new-workflow-button",
     newButtonFab: "new-workflow-button-fab",
   },

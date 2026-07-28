@@ -189,7 +189,7 @@ func marshalToFlowDefinition(defMap map[string]any) (*basworkflows.WorkflowDefin
 	if err != nil {
 		return nil, err
 	}
-	raw, err = workflowingress.NormalizeWorkflowDefinitionV2Bytes(raw)
+	raw, err = workflowingress.NormalizeExternalWorkflowDefinitionBytes(raw)
 	if err != nil {
 		return nil, err
 	}

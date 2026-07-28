@@ -117,7 +117,7 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	}
 
 	// Persist execution artifacts under recordingsRoot
-	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRoot)
+	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, executionwriter.NewStaticRoot(recordingsRoot))
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink
@@ -142,8 +142,8 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	// Ensure the demo project exists
 	if workflowSvc != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if _, err := workflowSvc.EnsureSeedProject(ctx); err != nil && log != nil {
-			log.WithError(err).Warn("Failed to ensure seed project")
+		if _, err := workflowSvc.EnsureSeedWorkflow(ctx); err != nil && log != nil {
+			log.WithError(err).Warn("Failed to ensure demo workflow fixture")
 		}
 		cancel()
 	}
@@ -160,7 +160,7 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	var unifiedRecordingSvc *unifiedrecording.Service
 	if db != nil {
 		// Access underlying *sql.DB from *sqlx.DB embedded in database.DB
-		unifiedRecordingRepo = unifiedpersistence.NewSQLiteRepository(db.DB.DB, log)
+		unifiedRecordingRepo = unifiedpersistence.NewSQLiteRepository(db.Routed, log)
 		unifiedRecordingSvc = unifiedrecording.NewService(
 			unifiedRecordingRepo,
 			hub,

@@ -45,11 +45,15 @@
   ],
   "metadata": {
     "description": "Validates undo button reverts the last canvas change",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Toolbar Undo",
+    "version": "1"
   },
   "nodes": [
     {

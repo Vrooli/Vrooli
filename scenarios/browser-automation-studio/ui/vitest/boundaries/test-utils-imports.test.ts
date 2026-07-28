@@ -47,7 +47,9 @@ function* walkSourceFiles(root: string): Generator<string> {
 
 function isProductionSource(filePath: string): boolean {
   const normalized = path.relative(srcRoot, filePath).replaceAll(path.sep, '/');
-  return !/(\.test|\.spec)\.(ts|tsx)$/.test(normalized) && !normalized.endsWith('.d.ts');
+  return !/(\.test|\.spec)\.(ts|tsx)$/.test(normalized) &&
+    normalized !== 'test-setup.ts' &&
+    !normalized.endsWith('.d.ts');
 }
 
 function importSpecifiers(source: string): string[] {

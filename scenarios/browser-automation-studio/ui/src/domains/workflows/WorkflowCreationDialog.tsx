@@ -10,8 +10,9 @@ import {
   Loader,
   Upload,
 } from "lucide-react";
-import { useProjectStore, type Project, buildProjectFolderPath } from "@/domains/projects";
+import { useProjectStore, type Project, buildProjectFolderPath } from "@/domains/projects/store";
 import { ResponsiveDialog } from "@shared/layout";
+import { selectors } from "@constants/selectors";
 
 export type WorkflowCreationType = "record" | "ai" | "visual" | "import";
 
@@ -133,6 +134,7 @@ function WorkflowTypeSelector({ onSelect }: WorkflowTypeSelectorProps) {
         <button
           type="button"
           onClick={() => onSelect("ai")}
+          data-testid={selectors.workflows.creation.aiAssisted}
           className="flex items-start gap-4 w-full p-4 rounded-xl border-2 border-gray-700 bg-gray-800/50 hover:border-purple-500/60 hover:bg-gray-800 transition-all text-left group"
         >
           <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-500/20 text-purple-400 group-hover:bg-purple-500/30 transition-colors flex-shrink-0">
@@ -150,6 +152,7 @@ function WorkflowTypeSelector({ onSelect }: WorkflowTypeSelectorProps) {
         <button
           type="button"
           onClick={() => onSelect("visual")}
+          data-testid={selectors.workflows.creation.visualBuilder}
           className="flex items-start gap-4 w-full p-4 rounded-xl border-2 border-gray-700 bg-gray-800/50 hover:border-blue-500/60 hover:bg-gray-800 transition-all text-left group"
         >
           <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400 group-hover:bg-blue-500/30 transition-colors flex-shrink-0">
@@ -267,6 +270,7 @@ export function WorkflowCreationDialog({
       isOpen={isOpen}
       onDismiss={onClose}
       ariaLabelledBy={titleId}
+      data-testid={selectors.workflows.creation.dialog}
       size="default"
       overlayClassName="bg-black/70 backdrop-blur-sm"
       className="bg-gray-900 border border-gray-700/50 shadow-2xl rounded-2xl overflow-hidden"

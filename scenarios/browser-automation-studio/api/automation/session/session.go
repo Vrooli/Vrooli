@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"sync"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -20,6 +21,11 @@ type Session struct {
 	mu             sync.RWMutex
 	closed         bool
 	closeArtifacts *driver.CloseSessionResponse
+	// onTerminal is owned by Manager. It removes this session from the
+	// manager's live index only after a close or lease release succeeds.
+	// Executors hold Session directly, so cleanup cannot rely on callers going
+	// back through Manager.Close.
+	onTerminal func()
 
 	// Multi-page tracking for recording sessions
 	pages *PageTracker
@@ -291,12 +297,13 @@ func (s *Session) Release(ctx context.Context) error {
 	s.closed = true
 	s.mu.Unlock()
 
-	if err := s.client.ReleaseSessionLease(ctx, s.id, s.executionID, s.leaseID); err != nil {
+	if err := s.client.ReleaseSessionLease(ctx, s.id, s.executionID, s.leaseID); err != nil && !isAbsentSessionError(err) {
 		s.mu.Lock()
 		s.closed = false
 		s.mu.Unlock()
 		return err
 	}
+	s.notifyTerminal()
 	return nil
 }
 
@@ -313,6 +320,14 @@ func (s *Session) CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionR
 
 	artifacts, err := s.client.CloseSessionWithLease(ctx, s.id, s.executionID, s.leaseID)
 	if err != nil {
+		if isAbsentSessionError(err) {
+			// A 404 is terminal for this leased resource: the driver has already
+			// removed it, so retaining local ownership would leak a manager permit
+			// and permanently block future executions. Treat close as idempotent;
+			// there are simply no teardown artifacts to return.
+			s.notifyTerminal()
+			return nil, nil
+		}
 		// Rollback on failure - session is still open on driver
 		s.mu.Lock()
 		s.closed = false
@@ -322,7 +337,19 @@ func (s *Session) CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionR
 	s.mu.Lock()
 	s.closeArtifacts = artifacts
 	s.mu.Unlock()
+	s.notifyTerminal()
 	return artifacts, nil
+}
+
+func isAbsentSessionError(err error) bool {
+	var driverErr *driver.Error
+	return errors.As(err, &driverErr) && driverErr.Status == http.StatusNotFound
+}
+
+func (s *Session) notifyTerminal() {
+	if s.onTerminal != nil {
+		s.onTerminal()
+	}
 }
 
 // --- Accessors ---

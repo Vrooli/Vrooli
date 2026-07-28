@@ -46,7 +46,7 @@ export const exportabilityToLegacy = (e: ProtoExecutionExportability): Execution
 /** Convert a typed Execution proto message into the JSON shape consumed by
  * the existing `parseExecutionProto` parser in the store. */
 export const executionMsgToJson = (msg: ProtoExecution): Record<string, unknown> =>
-  toJson(ExecutionSchema, msg) as Record<string, unknown>;
+  toJson(ExecutionSchema, msg, { useProtoFieldName: true }) as Record<string, unknown>;
 
 /** Convert a typed Execution proto message into the legacy `ExecutionItem`
  * shape consumed by dashboardStore.normalizeRecentExecution. */

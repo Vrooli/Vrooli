@@ -137,6 +137,9 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 		actualViewport: resp.ActualViewport,
 		recording:      spec.Recording,
 	}
+	session.onTerminal = func() {
+		m.forget(session.id, session)
+	}
 
 	m.mu.Lock()
 	m.sessions[session.id] = session
@@ -304,12 +307,9 @@ func (m *Manager) Get(sessionID string) (*Session, bool) {
 
 // Close closes a session by ID.
 func (m *Manager) Close(ctx context.Context, sessionID string) error {
-	m.mu.Lock()
+	m.mu.RLock()
 	session, ok := m.sessions[sessionID]
-	if ok {
-		delete(m.sessions, sessionID)
-	}
-	m.mu.Unlock()
+	m.mu.RUnlock()
 
 	if !ok {
 		return nil
@@ -320,18 +320,27 @@ func (m *Manager) Close(ctx context.Context, sessionID string) error {
 
 // CloseAll closes all active sessions.
 func (m *Manager) CloseAll(ctx context.Context) {
-	m.mu.Lock()
+	m.mu.RLock()
 	sessions := make([]*Session, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		sessions = append(sessions, s)
 	}
-	m.sessions = make(map[string]*Session)
-	m.mu.Unlock()
+	m.mu.RUnlock()
 
 	for _, s := range sessions {
 		if err := s.Close(ctx); err != nil {
 			m.log.WithError(err).WithField("session_id", s.id).Warn("Failed to close session")
 		}
+	}
+}
+
+// forget removes a terminal session while protecting against a future
+// replacement that happens to reuse the same driver-generated id.
+func (m *Manager) forget(sessionID string, expected *Session) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if current, ok := m.sessions[sessionID]; ok && current == expected {
+		delete(m.sessions, sessionID)
 	}
 }
 

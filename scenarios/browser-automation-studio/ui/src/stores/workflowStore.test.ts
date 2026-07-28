@@ -11,6 +11,7 @@ import {
   WorkflowVersionListSchema,
   WorkflowVersionSchema,
 } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
+import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import { useWorkflowStore } from '@stores/workflowStore';
 import type { Node, Edge } from 'reactflow';
 import { fetchJsonResponse, installFetchMock, type FetchMock } from '@/test-utils';
@@ -105,6 +106,16 @@ const makeSummary = (fields: WorkflowSummaryInit) =>
     version: fields.version ?? 1,
     flowDefinition: fields.flowDefinition as unknown as Parameters<typeof create>[1],
   } as Parameters<typeof create>[1]);
+
+const navigateAction = (url: string) => ({
+  type: ActionType.NAVIGATE,
+  params: { case: 'navigate' as const, value: { url } },
+});
+
+const clickAction = (selector: string) => ({
+  type: ActionType.CLICK,
+  params: { case: 'click' as const, value: { selector } },
+});
 
 describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
   let fetchMock: FetchMock;
@@ -201,7 +212,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         updated_at: '2025-01-01T00:00:00Z',
         flow_definition: {
           nodes: [
-            { id: 'node-1', type: 'navigate', position: { x: 100, y: 100 }, data: { url: 'https://example.com' } },
+            { id: 'node-1', position: { x: 100, y: 100 }, action: navigateAction('https://example.com') },
           ],
           edges: [],
         },
@@ -294,7 +305,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       useWorkflowStore.setState({
         currentWorkflow: initialWorkflow,
         nodes: [
-          { id: 'node-1', type: 'click', position: { x: 100, y: 100 }, data: { selector: '.btn' } },
+          { id: 'node-1', position: { x: 100, y: 100 }, action: { type: 'ACTION_TYPE_CLICK', click: { selector: '.btn' } } },
         ] as Node[],
         edges: [],
         isDirty: true,
@@ -795,7 +806,11 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         created_at: '2025-01-03T00:00:00Z',
         updated_at: '2025-01-03T00:00:00Z',
         flow_definition: {
-          nodes: [{ id: 'n1' }, { id: 'n2' }, { id: 'n3' }],
+          nodes: [
+            { id: 'n1', action: navigateAction('https://example.com/login') },
+            { id: 'n2', action: clickAction('#submit') },
+            { id: 'n3', action: clickAction('#confirm') },
+          ],
           edges: [{ id: 'e1', source: 'n1', target: 'n2' }, { id: 'e2', source: 'n2', target: 'n3' }],
         },
       };
@@ -843,7 +858,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         flow_definition: {},
         flowDefinition: {},
         nodes: [
-          { id: 'n1', type: 'navigate', position: { x: 0, y: 0 }, data: { url: 'https://app.com' } },
+          { id: 'n1', position: { x: 0, y: 0 }, action: { type: 'ACTION_TYPE_NAVIGATE', navigate: { url: 'https://app.com' } } },
         ] as Node[],
         edges: [] as Edge[],
         tags: [],
@@ -863,7 +878,10 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-02T00:00:00Z',
         flow_definition: {
-          nodes: [{ id: 'n1' }, { id: 'n2' }],
+          nodes: [
+            { id: 'n1', action: navigateAction('https://app.com') },
+            { id: 'n2', action: clickAction('#email') },
+          ],
           edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
         },
       };

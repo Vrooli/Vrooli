@@ -12,3 +12,4 @@
 # playwright drivers, and platforms/electron all install in place.
 packages:
   - .
+minimumReleaseAge: 10080

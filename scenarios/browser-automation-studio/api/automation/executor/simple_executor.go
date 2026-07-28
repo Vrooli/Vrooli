@@ -1113,7 +1113,10 @@ func requiresNavigationStepType(stepType string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(stepType))
 	normalized = strings.ReplaceAll(normalized, "_", "")
 	switch normalized {
-	case "", "navigate", "setvariable", "subflow", "loop", "conditional":
+	// Evaluate can seed or transform execution state without accessing the
+	// browser (for example the reusable load-seed-state fixture). Requiring a
+	// page navigation for it makes those deterministic setup flows impossible.
+	case "", "navigate", "setvariable", "evaluate", "subflow", "loop", "conditional":
 		return false
 	default:
 		return true

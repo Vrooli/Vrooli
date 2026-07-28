@@ -21,11 +21,14 @@
   ],
   "metadata": {
     "description": "Validates that execution heartbeat monitoring detects stalls and displays appropriate warnings",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Heartbeat Stall",
+    "version": "1"
   },
   "nodes": [
     {

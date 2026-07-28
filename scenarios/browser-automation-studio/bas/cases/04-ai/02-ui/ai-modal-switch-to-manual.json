@@ -9,12 +9,24 @@
     {
       "id": "e3",
       "source": "click-project",
+      "target": "open-card-view",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3a",
+      "source": "open-card-view",
       "target": "click-new-workflow",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-new-workflow",
+      "target": "select-ai-assisted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6a",
+      "source": "select-ai-assisted",
       "target": "assert-ai-modal-visible",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -51,13 +63,34 @@
   ],
   "metadata": {
     "description": "Validates the 'Switch to Manual Builder' button in AI modal creates an empty workflow and loads the builder",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Ai Modal Switch To Manual",
+    "version": "1"
   },
   "nodes": [
+    {
+      "action": {
+        "click": { "selector": "@selector/workflows.creation.aiAssisted" },
+        "metadata": { "label": "Choose AI-assisted workflow creation" },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": { "wait_after_ms": 500 },
+      "id": "select-ai-assisted"
+    },
+    {
+      "action": {
+        "click": { "selector": "@selector/workflows.cardViewToggle" },
+        "metadata": { "label": "Switch workflows to card view" },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": { "wait_after_ms": 500 },
+      "id": "open-card-view"
+    },
     {
       "action": {
         "metadata": {
@@ -79,16 +112,17 @@
     },
     {
       "action": {
-        "click": {
-          "selector": "@selector/projects.card:first-of-type"
-        },
         "metadata": {
-          "label": "Open first project"
+          "label": "Open deterministic Demo project"
         },
-        "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
       },
       "id": "click-project"
     },

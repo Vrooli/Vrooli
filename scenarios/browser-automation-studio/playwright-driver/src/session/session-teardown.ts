@@ -5,12 +5,12 @@ import type { SessionState } from '../types';
 import { removeRecordingBuffer } from '../recording';
 import { logger, metrics, scopedLog, LogContext } from '../utils';
 
-const message = (error: unknown) => error instanceof Error ? error.message : String(error);
+const message = (error: unknown): string => error instanceof Error ? error.message : String(error);
 
 export async function teardownSessionResources(session: SessionState): Promise<string[]> {
   const videoPaths: string[] = [];
   const startedAt = Date.now();
-  const warn = (event: string, error: unknown, operation?: string, context: typeof LogContext[keyof typeof LogContext] = LogContext.CLEANUP) => {
+  const warn = (event: string, error: unknown, operation?: string, context: typeof LogContext[keyof typeof LogContext] = LogContext.CLEANUP): void => {
     logger.warn(scopedLog(context, event), { sessionId: session.id, error: message(error) });
     if (operation) metrics.cleanupFailures.inc({ operation });
   };

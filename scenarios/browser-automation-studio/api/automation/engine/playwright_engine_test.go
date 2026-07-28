@@ -724,8 +724,8 @@ func TestPlaywrightSession_Close_ErrorCases(t *testing.T) {
 					}, nil
 				}
 				return &http.Response{
-					StatusCode: http.StatusNotFound,
-					Body:       io.NopCloser(strings.NewReader("Session not found")),
+					StatusCode: http.StatusInternalServerError,
+					Body:       io.NopCloser(strings.NewReader("close service unavailable")),
 				}, nil
 			},
 		}
@@ -739,7 +739,7 @@ func TestPlaywrightSession_Close_ErrorCases(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error when close fails")
 		}
-		if !strings.Contains(err.Error(), "Session not found") {
+		if !strings.Contains(err.Error(), "close service unavailable") {
 			t.Errorf("expected close error to include response body, got: %v", err)
 		}
 	})

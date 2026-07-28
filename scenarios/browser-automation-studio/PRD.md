@@ -1,5 +1,59 @@
 # Product Requirements Document (PRD)
 
+> **Current authority (2026-07-26):** This opening section is the active product and readiness contract. The older implementation narrative below is retained only as historical context and includes superseded Browserless-era statements. It must not be used to infer current runtime behavior.
+
+## 🎯 Overview
+
+- **Purpose**: Provide Vrooli's permanent visual browser-workflow capability: author typed workflows, execute them through the managed Playwright driver, retain trustworthy evidence, and render replay material for validation and future demos.
+- **Primary users / verticals**: Vrooli scenario builders, validation operators, and future commercial users who need repeatable browser automation with inspectable evidence.
+- **Deployment surfaces**: React UI for authoring and replay, Go API and CLI for automation, Test Genie-driven validation, and reusable browser-driven scenario workflows.
+- **Value promise**: Make browser automation reliable enough to validate scenarios today and support honest, evidence-backed demonstrations and future deployed offerings.
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+
+- [ ] OT-P0-001 | Typed and supervised execution | Run V2 typed workflows only through the managed Playwright driver with lifecycle supervision.
+- [ ] OT-P0-002 | Trustworthy validation evidence | Persist replay evidence with integrity metadata and validate scenario behavior through Test Genie.
+- [ ] OT-P0-003 | Maintainable product architecture | Keep UI, API, storage, driver, and proto boundaries documented, testable, and governed.
+
+### 🟠 P1 – Should have post-launch
+
+- [ ] OT-P1-001 | Deployable tenant controls | Add authentication, authorization, tenant isolation, retention/deletion controls, capacity limits, and service-level objectives before public multi-tenant deployment.
+- [ ] OT-P1-002 | Marketing-ready demo production | Produce repeatable evidence-backed demo videos from validated scenario workflows.
+
+### 🟢 P2 – Future / expansion
+
+- [ ] OT-P2-001 | Commercial automation product | Offer Browser Automation Studio as a deployed, monetizable automation product after the P1 operational controls are proven.
+
+## 🧱 Tech Direction Snapshot
+
+- **Preferred stacks / frameworks**: React + TypeScript UI, Go API, and the managed Node Playwright driver; proto is the sole cross-language execution contract.
+- **Data + storage expectations**: Routed scenario storage and durable replay/evidence metadata, with isolated test fixtures and explicit retention policy before hosted deployment.
+- **Integration strategy**: Supervise local driver processes through Vrooli lifecycle commands and govern every dependency through Scenario Dependency Analyzer.
+- **Non-goals / guardrails**: Do not claim public multi-tenant deployment, video rendering, or commercial controls as shipped until their operational requirements are implemented and validated.
+
+## 🤝 Dependencies & Launch Plan
+
+Use Vrooli lifecycle commands to supervise the driver and Scenario Dependency Analyzer for every third-party dependency change. Any public launch must first complete the controls listed in [Monetization](docs/business/MONETIZATION.md) and [Operations](docs/operations/RUNBOOK.md).
+
+## 🎨 UX & Branding
+
+The experience should make browser automation inspectable: authors see workflows, operators see execution state and evidence, and viewers can replay a trustworthy outcome. Visual polish must never obscure failed steps, degraded evidence, or capability limits.
+
+Accessibility expectation: keyboard-operable controls, visible focus, reduced-motion support, and WCAG 2.1 AA contrast are required for every user-facing surface.
+
+## Requirement Traceability
+
+| Requirement | Authority | Validation |
+| --- | --- | --- |
+| Typed workflow execution | `docs/concepts/V2-WORKFLOW-STATUS.md` | API/driver/UI suites |
+| Evidence integrity | `docs/concepts/DATA.md` | replay and export tests |
+| Safe operations | `docs/operations/RUNBOOK.md` | Test Genie scenario run |
+| Commercial readiness | `docs/business/MONETIZATION.md` | deployment readiness review |
+
+---
+
 ## 🎯 Capability Definition
 
 ### Core Capability

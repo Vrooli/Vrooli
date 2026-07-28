@@ -27,11 +27,14 @@
   ],
   "metadata": {
     "description": "Validates fit view centers and sizes canvas to show all nodes",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Toolbar Fit View",
+    "version": "1"
   },
   "nodes": [
     {

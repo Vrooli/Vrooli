@@ -20,7 +20,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { useDashboardStore, type RecentWorkflow, type FavoriteWorkflow } from '@stores/dashboardStore';
-import { useExecutionStore } from '@/domains/executions';
+import { useExecutionStore } from '@/domains/executions/store';
 import { useAICapability } from '@stores/aiCapabilityStore';
 import { formatDistanceToNow } from 'date-fns';
 import { TemplatesGallery } from './widgets/TemplatesGallery';

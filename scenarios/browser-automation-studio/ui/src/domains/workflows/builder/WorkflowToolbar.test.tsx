@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test-utils';
 import userEvent from '@testing-library/user-event';
 import { ReactFlowProvider } from 'reactflow';
 import WorkflowToolbar from './WorkflowToolbar';

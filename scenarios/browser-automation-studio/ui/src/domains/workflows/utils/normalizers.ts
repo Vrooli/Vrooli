@@ -29,7 +29,7 @@ export const normalizeNodes = (nodes: unknown[] | undefined | null): NodeWithAct
     const data = nodeData?.data && typeof nodeData.data === 'object' ? nodeData.data : {};
 
     // Get existing action if present
-    let action = nodeData?.action && typeof nodeData.action === 'object'
+    const action = nodeData?.action && typeof nodeData.action === 'object'
       ? (nodeData.action as ActionDefinition)
       : undefined;
 

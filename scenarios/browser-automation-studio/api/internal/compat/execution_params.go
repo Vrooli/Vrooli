@@ -6,6 +6,7 @@ package compat
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
@@ -42,6 +43,9 @@ func NormalizeExecuteAdhocRequest(body []byte) ([]byte, error) {
 
 	// 2. Normalize workflow definition fields for proto compatibility
 	if flowDef, ok := raw["flow_definition"].(map[string]any); ok && flowDef != nil {
+		if err := RejectLegacyWorkflowNodes(flowDef); err != nil {
+			return nil, err
+		}
 		NormalizeWorkflowDefinitionV2(flowDef)
 	}
 
@@ -154,12 +158,58 @@ func NormalizeWorkflowDefinitionV2Bytes(body []byte) ([]byte, error) {
 	if err := json.Unmarshal(body, &doc); err != nil {
 		return nil, err
 	}
+	if err := RejectLegacyWorkflowNodes(doc); err != nil {
+		return nil, err
+	}
 	NormalizeWorkflowDefinitionV2(doc)
 	normalized, ok := normalizeProtoJSONKeys(doc).(map[string]any)
 	if !ok {
 		return json.Marshal(doc)
 	}
 	return json.Marshal(normalized)
+}
+
+// NormalizeExternalWorkflowDefinitionBytes is the sole import boundary that
+// upgrades an explicitly external legacy workflow document before it is stored
+// as a V2 definition. Execution ingress must use NormalizeWorkflowDefinitionV2Bytes.
+func NormalizeExternalWorkflowDefinitionBytes(body []byte) ([]byte, error) {
+	if len(strings.TrimSpace(string(body))) == 0 {
+		return body, nil
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return nil, err
+	}
+	normalizeLegacyWorkflowNodes(doc)
+	NormalizeWorkflowDefinitionV2(doc)
+	normalized, ok := normalizeProtoJSONKeys(doc).(map[string]any)
+	if !ok {
+		return json.Marshal(doc)
+	}
+	return json.Marshal(normalized)
+}
+
+// RejectLegacyWorkflowNodes makes the V2-only workflow boundary explicit.
+// Action-bearing nodes must use the typed action oneof; the historical
+// node.type + node.data representation is never upgraded during execution.
+func RejectLegacyWorkflowNodes(doc map[string]any) error {
+	nodes, ok := doc["nodes"].([]any)
+	if !ok {
+		return nil
+	}
+	for index, rawNode := range nodes {
+		node, ok := rawNode.(map[string]any)
+		if !ok || node == nil {
+			continue
+		}
+		if _, hasAction := node["action"]; hasAction {
+			continue
+		}
+		if _, hasType := node["type"]; hasType {
+			return fmt.Errorf("workflow node %d uses legacy type/data shape; provide action instead", index)
+		}
+	}
+	return nil
 }
 
 // NormalizeWorkflowDefinitionV2 applies V2 compatibility transformations to a workflow definition.
@@ -205,9 +255,6 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 			continue
 		}
 
-		// Transform V1 nodes to V2 format
-		normalizeNodeV1ToV2(node)
-
 		// Handle subflow args wrapping for V2 nodes
 		action, ok := node["action"].(map[string]any)
 		if !ok || action == nil {
@@ -228,6 +275,19 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 			normalized[k] = typeconv.WrapJsonValue(v)
 		}
 		subflow["args"] = normalized
+	}
+}
+
+func normalizeLegacyWorkflowNodes(doc map[string]any) {
+	nodes, ok := doc["nodes"].([]any)
+	if !ok {
+		return
+	}
+	for _, rawNode := range nodes {
+		node, ok := rawNode.(map[string]any)
+		if ok && node != nil {
+			normalizeNodeV1ToV2(node)
+		}
 	}
 }
 

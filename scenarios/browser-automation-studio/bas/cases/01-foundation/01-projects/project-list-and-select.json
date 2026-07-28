@@ -45,11 +45,14 @@
   ],
   "metadata": {
     "description": "Validates that projects are listed correctly and can be selected to navigate to project detail view",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Project List And Select",
+    "version": "1"
   },
   "nodes": [
     {
@@ -146,13 +149,13 @@
     {
       "action": {
         "assert": {
-          "failure_message": "Project detail heading should render after selecting a project",
+          "failure_message": "Project breadcrumb should render after selecting a project",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "h1, [role=\"heading\"]",
+          "selector": "@selector/breadcrumbs.project",
           "timeout_ms": 5000
         },
         "metadata": {
-          "label": "Project detail heading appears"
+          "label": "Project breadcrumb appears"
         },
         "type": "ACTION_TYPE_ASSERT"
       },

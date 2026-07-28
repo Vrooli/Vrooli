@@ -7,8 +7,39 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/database"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
+
+func TestDetachedExecutionContextPreservesTestModeWithoutRequestCancellation(t *testing.T) {
+	parent, cancel := context.WithCancel(coredb.WithTestMode(context.Background()))
+	cancel()
+
+	ctx := detachedExecutionContext(parent)
+	if !coredb.IsTestMode(ctx) {
+		t.Fatal("detached execution context lost routed test-mode marker")
+	}
+	if err := ctx.Err(); err != nil {
+		t.Fatalf("detached execution context inherited request cancellation: %v", err)
+	}
+}
+
+func TestWithTestModeBrowserHeaderPreservesCallerProfile(t *testing.T) {
+	t.Parallel()
+
+	original := &sessionprofilepersistence.BrowserProfile{ExtraHeaders: map[string]string{"X-Existing": "value"}}
+	profile := withTestModeBrowserHeader(original)
+	if profile.ExtraHeaders["X-Vrooli-Test-Mode"] != "1" {
+		t.Fatalf("test-mode header = %q, want 1", profile.ExtraHeaders["X-Vrooli-Test-Mode"])
+	}
+	if profile.ExtraHeaders["X-Existing"] != "value" {
+		t.Fatalf("existing header = %q, want value", profile.ExtraHeaders["X-Existing"])
+	}
+	if _, ok := original.ExtraHeaders["X-Vrooli-Test-Mode"]; ok {
+		t.Fatal("test-mode helper mutated caller profile")
+	}
+}
 
 type executionProjectCatalogStub struct {
 	workflow *database.WorkflowIndex

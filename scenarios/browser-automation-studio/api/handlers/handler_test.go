@@ -20,21 +20,8 @@ func TestIsOriginAllowed_NilHandler(t *testing.T) {
 	}
 }
 
-func TestIsOriginAllowed_AllowAll(t *testing.T) {
-	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = true
-
-	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
-	req.Header.Set("Origin", "http://any-origin.com")
-
-	if !handler.isOriginAllowed(req) {
-		t.Error("expected isOriginAllowed to return true when wsAllowAll is true")
-	}
-}
-
 func TestIsOriginAllowed_EmptyOrigin(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -47,7 +34,6 @@ func TestIsOriginAllowed_EmptyOrigin(t *testing.T) {
 
 func TestIsOriginAllowed_MatchingOrigin(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com", "http://also-allowed.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -60,7 +46,6 @@ func TestIsOriginAllowed_MatchingOrigin(t *testing.T) {
 
 func TestIsOriginAllowed_CaseInsensitiveMatch(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://ALLOWED.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -73,7 +58,6 @@ func TestIsOriginAllowed_CaseInsensitiveMatch(t *testing.T) {
 
 func TestIsOriginAllowed_NonMatchingOrigin(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -86,7 +70,6 @@ func TestIsOriginAllowed_NonMatchingOrigin(t *testing.T) {
 
 func TestIsOriginAllowed_WhitespaceOrigin(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)

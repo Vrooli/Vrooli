@@ -241,7 +241,7 @@ func parseDimensionsPreset(s string) (capturev1.DimensionsPreset, error) {
 func parseWaitFor(s string) (*capturev1.WaitFor, error) {
 	s = strings.TrimSpace(s)
 	// Numeric → timeout_ms.
-	if n, err := strconv.Atoi(s); err == nil {
+	if n, err := strconv.ParseInt(s, 10, 32); err == nil {
 		return &capturev1.WaitFor{Spec: &capturev1.WaitFor_TimeoutMs{TimeoutMs: int32(n)}}, nil
 	}
 	if strings.EqualFold(s, "networkidle") {

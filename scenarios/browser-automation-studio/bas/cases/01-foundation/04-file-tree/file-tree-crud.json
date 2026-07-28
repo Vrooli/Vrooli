@@ -63,11 +63,16 @@
   ],
   "metadata": {
     "description": "Validates file tree CRUD operations: switch to tree view, create folder, create workflow file, rename, and delete",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requirements_json": "[\"BAS-WORKFLOW-PERSIST-CRUD\"]",
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "File Tree Crud",
+    "version": "1"
   },
   "nodes": [
     {
@@ -202,7 +207,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); return folders.length > 0 || files.length > 0 || document.querySelector('[data-testid=\"project-file-tree\"]') !== null; })()",
+          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); return folders.length \u003e 0 || files.length \u003e 0 || document.querySelector('[data-testid=\"project-file-tree\"]') !== null; })()",
           "store_result": "treeHasContent"
         },
         "metadata": {

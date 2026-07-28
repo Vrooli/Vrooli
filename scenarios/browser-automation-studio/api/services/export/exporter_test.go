@@ -8,7 +8,7 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
-	"google.golang.org/protobuf/types/known/structpb"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
@@ -175,11 +175,7 @@ func TestTimelineFromReplayPackageUsesTypedTimelineEntries(t *testing.T) {
 	exec := &database.ExecutionIndex{ID: executionID, WorkflowID: workflowID, Status: database.ExecutionStatusCompleted, StartedAt: time.Now()}
 	step := int32(4)
 	nodeID := "package-node"
-	value, err := structpb.NewStruct(map[string]any{"stepIndex": step, "nodeId": nodeID})
-	if err != nil {
-		t.Fatal(err)
-	}
-	timeline, err := timelineFromReplayPackage(exec, &basevidence.ReplayPackage{Timeline: []*structpb.Struct{value}})
+	timeline, err := timelineFromReplayPackage(exec, &basevidence.ReplayPackage{Timeline: []*bastimeline.TimelineEntry{{StepIndex: &step, NodeId: &nodeID}}})
 	if err != nil {
 		t.Fatal(err)
 	}

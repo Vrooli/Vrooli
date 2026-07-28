@@ -72,7 +72,7 @@ export default function ErrorBoundary() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-full bg-gray-900 flex items-center justify-center p-4">
       <div className="max-w-lg w-full bg-gray-800 rounded-lg shadow-xl overflow-hidden">
         {/* Header */}
         <div className="bg-red-500/20 px-6 py-4 border-b border-red-500/30">

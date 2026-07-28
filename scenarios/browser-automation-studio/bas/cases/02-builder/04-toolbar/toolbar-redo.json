@@ -51,11 +51,15 @@
   ],
   "metadata": {
     "description": "Validates redo button re-applies undone changes",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Toolbar Redo",
+    "version": "1"
   },
   "nodes": [
     {

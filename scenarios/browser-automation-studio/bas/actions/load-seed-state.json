@@ -1,85 +1,4 @@
 {
-  "metadata": {
-    "name": "load-seed-state",
-    "description": "Loads dynamic BAS seed info and stores it for downstream fixtures",
-    "labels": {
-      "fixture_id": "load-seed-state",
-      "seed_required": "true",
-      "seed_keys": "projectId,projectName,projectFolder,workflowId,workflowName",
-      "reset": "none",
-      "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
-      "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier returned by the API\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Human-readable project name\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Workflow folder path\"},{\"name\":\"workflowId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowId\",\"description\":\"Seed workflow identifier\"},{\"name\":\"workflowName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowName\",\"description\":\"Seed workflow label\"}]"
-    },
-    "execution_mode": "observer"
-  },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "store-project-name",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "\"${@params/projectName}\"",
-          "store_result": "seed.projectName"
-        },
-        "metadata": {
-          "label": "Store seed project name"
-        }
-      }
-    },
-    {
-      "id": "store-project-id",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "\"${@params/projectId}\"",
-          "store_result": "seed.projectId"
-        },
-        "metadata": {
-          "label": "Store seed project id"
-        }
-      }
-    },
-    {
-      "id": "store-project-folder",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "\"${@params/projectFolder}\"",
-          "store_result": "seed.projectFolder"
-        },
-        "metadata": {
-          "label": "Store seed project folder"
-        }
-      }
-    },
-    {
-      "id": "store-workflow-name",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "\"${@params/workflowName}\"",
-          "store_result": "seed.workflowName"
-        },
-        "metadata": {
-          "label": "Store seed workflow name"
-        }
-      }
-    },
-    {
-      "id": "store-workflow-id",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "\"${@params/workflowId}\"",
-          "store_result": "seed.workflowId"
-        },
-        "metadata": {
-          "label": "Store seed workflow id"
-        }
-      }
-    }
-  ],
   "edges": [
     {
       "id": "edge-project-id",
@@ -105,5 +24,88 @@
       "target": "store-workflow-id",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Loads dynamic BAS seed info and stores it for downstream fixtures",
+    "execution_mode": "mutating",
+    "labels": {
+      "fixture_id": "load-seed-state",
+      "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier returned by the API\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Human-readable project name\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Workflow folder path\"},{\"name\":\"workflowId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowId\",\"description\":\"Seed workflow identifier\"},{\"name\":\"workflowName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowName\",\"description\":\"Seed workflow label\"}]",
+      "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "seed_keys": "projectId,projectName,projectFolder,workflowId,workflowName",
+      "seed_required": "true"
+    },
+    "name": "load-seed-state"
+  },
+  "nodes": [
+    {
+      "action": {
+        "evaluate": {
+          "expression": "\"${@params/projectName}\"",
+          "store_result": "seed.projectName"
+        },
+        "metadata": {
+          "label": "Store seed project name"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "store-project-name"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "\"${@params/projectId}\"",
+          "store_result": "seed.projectId"
+        },
+        "metadata": {
+          "label": "Store seed project id"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "store-project-id"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "\"${@params/projectFolder}\"",
+          "store_result": "seed.projectFolder"
+        },
+        "metadata": {
+          "label": "Store seed project folder"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "store-project-folder"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "\"${@params/workflowName}\"",
+          "store_result": "seed.workflowName"
+        },
+        "metadata": {
+          "label": "Store seed workflow name"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "store-workflow-name"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "\"${@params/workflowId}\"",
+          "store_result": "seed.workflowId"
+        },
+        "metadata": {
+          "label": "Store seed workflow id"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "store-workflow-id"
+    }
+  ],
+  "settings": {}
 }

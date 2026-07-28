@@ -27,6 +27,12 @@
     {
       "id": "e3",
       "source": "click-project",
+      "target": "open-workflow-card-view",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3a",
+      "source": "open-workflow-card-view",
       "target": "ensure-on-workflows-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -63,11 +69,14 @@
   ],
   "metadata": {
     "description": "Validates that workflows can be selected from project detail list and loaded into the builder",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Workflow Select From List",
+    "version": "1"
   },
   "nodes": [
     {
@@ -146,6 +155,21 @@
         }
       },
       "id": "click-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.cardViewToggle"
+        },
+        "metadata": {
+          "label": "Switch workflows to card view"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "open-workflow-card-view"
     },
     {
       "action": {

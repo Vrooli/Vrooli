@@ -10,9 +10,11 @@
  * which bridges the shared WebSocketContext to this store.
  */
 
-import { fromJson } from '@bufbuild/protobuf';
+import { create as createProto, fromJson } from '@bufbuild/protobuf';
 import {
   ExecutionSchema,
+  ExecutionParametersSchema,
+  ExecuteWorkflowOptionsSchema,
   GetScreenshotsResponseSchema,
   type GetScreenshotsResponse as ProtoGetScreenshotsResponse,
 } from '@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb';
@@ -26,10 +28,9 @@ import type {
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 import type { TelemetryArtifact as ProtoTelemetryArtifact } from '@vrooli/proto-types/browser-automation-studio/v1/domain/telemetry_pb';
 import type { JsonValue as ProtoJsonValue } from '@vrooli/proto-types/common/v1/types_pb';
-import { ExecuteWorkflowResponseSchema } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 import { AssertionMode } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
+import { NavigateWaitEvent } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import { create } from 'zustand';
-import { getConfig } from '../../config';
 import {
   executionMsgToJson,
   getExecutionScreenshotsViaApi,
@@ -39,6 +40,7 @@ import {
   stopExecutionViaApi,
   exportabilityToLegacy,
 } from '@/domains/executions/services/executionApi';
+import { executeWorkflowViaApi } from '@/domains/workflows/services/workflowApi';
 import { toJson } from '@bufbuild/protobuf';
 import { logger } from '../../utils/logger';
 import { parseProtoStrict } from '../../utils/proto';
@@ -72,46 +74,6 @@ const toNumber = (value?: number | bigint | null): number | undefined => {
   return typeof value === 'bigint' ? Number(value) : value;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const parseJson = async (response: Response): Promise<unknown> => {
-  try {
-    const data: unknown = await response.json();
-    return data;
-  } catch {
-    return null;
-  }
-};
-
-const extractErrorMessage = (value: unknown): string | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const message = value.message;
-  if (typeof message === 'string') {
-    return message;
-  }
-  const errorValue = value.error;
-  if (typeof errorValue === 'string') {
-    return errorValue;
-  }
-  if (errorValue != null) {
-    try {
-      return JSON.stringify(errorValue);
-    } catch {
-      return String(errorValue);
-    }
-  }
-  const details = value.details;
-  if (details && typeof details === 'object') {
-    const detailError = (details as Record<string, unknown>).error;
-    if (typeof detailError === 'string') {
-      return detailError;
-    }
-  }
-  return null;
-};
 
 /**
  * Unwrap a proto JsonValue to a plain JavaScript value.
@@ -318,12 +280,12 @@ export interface ExecutionSettingsOverrides {
  */
 function toProtoNavigationWaitUntil(
   value: 'domcontentloaded' | 'networkidle' | 'load' | undefined
-): string | undefined {
+): NavigateWaitEvent | undefined {
   if (!value) return undefined;
-  const mapping: Record<string, string> = {
-    domcontentloaded: 'NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED',
-    networkidle: 'NAVIGATE_WAIT_EVENT_NETWORKIDLE',
-    load: 'NAVIGATE_WAIT_EVENT_LOAD',
+  const mapping: Record<string, NavigateWaitEvent> = {
+    domcontentloaded: NavigateWaitEvent.DOMCONTENTLOADED,
+    networkidle: NavigateWaitEvent.NETWORKIDLE,
+    load: NavigateWaitEvent.LOAD,
   };
   return mapping[value];
 }
@@ -398,9 +360,6 @@ interface ExecutionStore {
   /** Set flag to auto-open export dialog on next execution load */
   setAutoOpenExport: (value: boolean) => void;
 }
-
-const parseExecuteWorkflowResponse = (raw: unknown) =>
-  parseProtoStrict(ExecuteWorkflowResponseSchema, raw) as ReturnType<typeof fromJson<typeof ExecuteWorkflowResponseSchema>>;
 
 const parseExecutionProto = (raw: unknown): Execution => {
   const proto = parseProtoStrict(ExecutionSchema, raw) as ReturnType<typeof fromJson<typeof ExecutionSchema>>;
@@ -710,88 +669,54 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       set({ viewerWorkflowId: workflowId });
       const state = get();
 
-      const config = await getConfig();
-
       // Build artifact config for the request
       // Use provided config, fall back to store's profile, or default to 'full'
       const artifactConfig = options?.artifactConfig ?? { profile: state.artifactProfile };
       const requiresVideo = options?.requiresVideo ?? resolveRequiresVideoPreference();
-
-      const executeURL = new URL(`${config.API_URL}/workflows/${workflowId}/execute`);
-      if (requiresVideo) {
-        executeURL.searchParams.set('requires_video', 'true');
-      }
 
       // Add frame streaming parameters for live execution preview
       // Frame streaming is enabled by default for all executions to support live preview
       // It can be explicitly disabled by setting enabled: false
       const frameStreaming = options?.frameStreaming;
       const frameStreamingEnabled = frameStreaming?.enabled !== false; // Enable by default
-      if (frameStreamingEnabled) {
-        executeURL.searchParams.set('frame_streaming', 'true');
-        if (frameStreaming?.quality) {
-          executeURL.searchParams.set('frame_streaming_quality', String(frameStreaming.quality));
-        }
-        if (frameStreaming?.fps) {
-          executeURL.searchParams.set('frame_streaming_fps', String(frameStreaming.fps));
-        }
-      }
-
       // Build execution overrides for the request
       const overrides = options?.executionOverrides;
 
-      const response = await fetch(executeURL.toString(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          wait_for_completion: false,
-          parameters: {
+      const protoPayload = await executeWorkflowViaApi({
+        workflowId,
+        waitForCompletion: false,
+        parameters: createProto(ExecutionParametersSchema, {
             // Include start_url if provided (for workflows without navigate step)
-            ...(options?.startUrl && { start_url: options.startUrl }),
+            ...(options?.startUrl && { startUrl: options.startUrl }),
             // Session profile ID for authenticated execution (injects cookies/localStorage from profile)
-            ...(options?.sessionProfileId && { session_profile_id: options.sessionProfileId }),
+            ...(options?.sessionProfileId && { sessionProfileId: options.sessionProfileId }),
             // Include execution setting overrides
-            ...(overrides?.viewport_width && { viewport_width: overrides.viewport_width }),
-            ...(overrides?.viewport_height && { viewport_height: overrides.viewport_height }),
-            ...(overrides?.timeout_ms && { timeout_ms: overrides.timeout_ms }),
-            ...(overrides?.navigation_wait_until && { navigation_wait_until: toProtoNavigationWaitUntil(overrides.navigation_wait_until) }),
-            ...(overrides?.continue_on_error != null && { continue_on_error: overrides.continue_on_error }),
-            artifact_config: {
+            ...(overrides?.viewport_width && { viewportWidth: overrides.viewport_width }),
+            ...(overrides?.viewport_height && { viewportHeight: overrides.viewport_height }),
+            ...(overrides?.timeout_ms && { timeoutMs: overrides.timeout_ms }),
+            ...(overrides?.navigation_wait_until && { navigationWaitUntil: toProtoNavigationWaitUntil(overrides.navigation_wait_until) }),
+            ...(overrides?.continue_on_error != null && { continueOnError: overrides.continue_on_error }),
+            artifactConfig: {
               profile: artifactConfig.profile ?? 'full',
               ...(artifactConfig.profile === 'custom' && {
-                collect_screenshots: artifactConfig.collectScreenshots,
-                collect_dom_snapshots: artifactConfig.collectDomSnapshots,
-                collect_console_logs: artifactConfig.collectConsoleLogs,
-                collect_network_events: artifactConfig.collectNetworkEvents,
-                collect_extracted_data: artifactConfig.collectExtractedData,
-                collect_assertions: artifactConfig.collectAssertions,
-                collect_cursor_trails: artifactConfig.collectCursorTrails,
-                collect_telemetry: artifactConfig.collectTelemetry,
+                collectScreenshots: artifactConfig.collectScreenshots,
+                collectDomSnapshots: artifactConfig.collectDomSnapshots,
+                collectConsoleLogs: artifactConfig.collectConsoleLogs,
+                collectNetworkEvents: artifactConfig.collectNetworkEvents,
+                collectExtractedData: artifactConfig.collectExtractedData,
+                collectAssertions: artifactConfig.collectAssertions,
+                collectCursorTrails: artifactConfig.collectCursorTrails,
+                collectTelemetry: artifactConfig.collectTelemetry,
               }),
             },
-          },
+        }),
+        options: createProto(ExecuteWorkflowOptionsSchema, {
+          requiresVideo,
+          frameStreaming: frameStreamingEnabled,
+          ...(frameStreaming?.quality && { frameStreamingQuality: frameStreaming.quality }),
+          ...(frameStreaming?.fps && { frameStreamingFps: frameStreaming.fps }),
         }),
       });
-
-      if (!response.ok) {
-        // Try to extract error message from response body
-        let errorMessage = `Failed to start execution: ${response.status}`;
-        try {
-          const errorData = await parseJson(response);
-          const parsedMessage = extractErrorMessage(errorData);
-          if (parsedMessage) {
-            errorMessage = parsedMessage;
-          }
-        } catch {
-          // Response wasn't JSON, use default message
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data: unknown = await response.json();
-      const protoPayload = parseExecuteWorkflowResponse(data);
 
       const execution: Execution = {
         id: protoPayload.executionId || '',

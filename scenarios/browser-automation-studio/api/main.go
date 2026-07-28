@@ -13,7 +13,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
@@ -40,6 +42,7 @@ import (
 	uxmetricsconnect "github.com/vrooli/browser-automation-studio/handlers/uxmetrics"
 	visionnavconnect "github.com/vrooli/browser-automation-studio/handlers/vision_navigation"
 	workflowsconnect "github.com/vrooli/browser-automation-studio/handlers/workflows"
+	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/performance"
 	"github.com/vrooli/browser-automation-studio/services/ai"
@@ -121,6 +124,10 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to connect to database")
 	}
+	recordingsRoot, err := paths.NewRecordingsRootProvider(log)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to initialize routed recordings storage")
+	}
 
 	// Initialize repository
 	repo := database.NewRepository(db, log)
@@ -143,7 +150,7 @@ func main() {
 
 	// Initialize unified recording service for timeline persistence
 	// This service manages all recorded actions and page events across the application
-	unifiedRecordingRepo := unifiedpersistence.NewSQLiteRepository(db.RawDB(), log)
+	unifiedRecordingRepo := unifiedpersistence.NewSQLiteRepository(db.Routed, log)
 	unifiedRecordingSvc := unifiedrecording.NewService(
 		unifiedRecordingRepo, hub, log, unifiedrecording.ServiceConfig{},
 	)
@@ -170,7 +177,7 @@ func main() {
 
 	// Initialize unified credits service (always enabled for tracking)
 	creditService := credits.NewService(credits.ServiceOptions{
-		DB:             db.RawDB(),
+		DB:             db.Routed,
 		Logger:         log,
 		EntitlementSvc: entitlementSvc,
 		// LPBS integration for centralized usage reporting
@@ -207,7 +214,7 @@ func main() {
 	}).Info("✅ AI provider chain initialized")
 
 	// Initialize UX metrics repository (used by both handler wiring and API endpoints)
-	uxRepo := uxrepository.NewRepository(db.DB)
+	uxRepo := uxrepository.NewRepository(db.Routed)
 
 	// Initialize navigator registry for vision navigation
 	navigatorRegistry := vision.NewNavigatorRegistry()
@@ -239,8 +246,10 @@ func main() {
 		NavigatorRegistry:       navigatorRegistry,
 		PlaywrightNavigator:     playwrightNav,
 		UnifiedRecordingService: unifiedRecordingSvc,
+		RecordingsRoot:          recordingsRoot,
+		ProjectRoot:             recordingsRoot.ProjectsRoot,
 	})
-	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins, deps)
+	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowedOrigins, deps)
 
 	// Initialize project import usecase handler (needs deps.CatalogService for workflow sync)
 	workflowSyncAdapter := adapters.NewWorkflowSyncAdapter(deps.CatalogService)
@@ -318,6 +327,7 @@ func main() {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(globalRequestTimeout))
+	r.Use(middleware.SecurityHeaders)
 
 	// CORS middleware - secure by default, configurable via environment
 	r.Use(middleware.CorsMiddleware(log))
@@ -331,6 +341,11 @@ func main() {
 	// Correlation ID middleware - generates and propagates correlation IDs for request tracing
 	correlationMiddleware := middleware.NewCorrelationMiddleware(log)
 	r.Use(correlationMiddleware.InjectCorrelationID)
+
+	// Development-only control surface for Test Genie. A lease installs an
+	// isolated pool into db.Routed; the outer test-mode middleware marks only
+	// explicitly opted-in requests so routed domain repositories select it.
+	devrouting.RegisterWithFileRoots(r, db.Routed, recordingsRoot.FileRoots())
 
 	// === Connect-RPC services (side-by-side with chi REST routes) ===
 	// Each new Connect service appends one line to connectMounts. The
@@ -457,9 +472,9 @@ func main() {
 
 	// Routes
 	// Health endpoint using api-core/health for standardized response format
-	playwrightURL := os.Getenv(driver.PlaywrightDriverEnv)
-	if playwrightURL == "" {
-		playwrightURL = driver.DefaultDriverURL
+	playwrightURL, err := driver.ResolveEndpoint(os.Getenv(driver.PlaywrightDriverEnv))
+	if err != nil {
+		log.WithError(err).Fatal("Invalid Playwright driver endpoint")
 	}
 
 	healthHandler := health.New().
@@ -726,22 +741,15 @@ func main() {
 		apiHost = "localhost"
 	}
 
-	var corsPolicy string
-	if corsCfg.AllowAll {
-		corsPolicy = "allow_all"
-	} else {
-		corsPolicy = strings.Join(corsCfg.AllowedOrigins, ",")
-	}
-
 	log.WithFields(logrus.Fields{
 		"api_host":    apiHost,
-		"cors_policy": corsPolicy,
+		"cors_policy": strings.Join(corsCfg.AllowedOrigins, ","),
 	}).Info("🚀 Vrooli Ascension API starting")
 
 	// Start server with graceful shutdown
 	// WriteTimeout is extended to allow long-running automation requests
 	if err := server.Run(server.Config{
-		Handler:      r,
+		Handler:      apihttp.TestModeMiddleware(r),
 		WriteTimeout: globalRequestTimeout + 30*time.Second,
 		Cleanup: func(ctx context.Context) error {
 			if stopSessionReconciler != nil {
@@ -789,16 +797,19 @@ func performStartupHealthCheck(log *logrus.Logger) error {
 	var errors []string
 
 	// Check 1: Playwright driver health
-	playwrightURL := os.Getenv(driver.PlaywrightDriverEnv)
-	if playwrightURL == "" {
-		playwrightURL = driver.DefaultDriverURL
+	playwrightURL, endpointErr := driver.ResolveEndpoint(os.Getenv(driver.PlaywrightDriverEnv))
+	if endpointErr != nil {
+		errors = append(errors, fmt.Sprintf("playwright driver endpoint: %v", endpointErr))
+		return fmt.Errorf("startup health check failed: %s", strings.Join(errors, "; "))
 	}
 
+	// #nosec G704 -- endpoint is validated by driver.ResolveEndpoint before request creation.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playwrightURL+"/health", nil)
 	if err != nil {
 		errors = append(errors, fmt.Sprintf("playwright driver: failed to create request: %v", err))
 	} else {
 		client := &http.Client{Timeout: 5 * time.Second}
+		// #nosec G704 -- request target is restricted to the validated Playwright driver endpoint.
 		resp, err := client.Do(req)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("playwright driver at %s: %v (ensure playwright-driver is running)", playwrightURL, err))

@@ -27,35 +27,45 @@
     {
       "id": "e3",
       "source": "click-project",
-      "target": "click-new-workflow",
+      "target": "open-workflows-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
+      "source": "open-workflows-tab",
+      "target": "select-card-view",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4a",
+      "source": "select-card-view",
+      "target": "click-new-workflow",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4b",
       "source": "click-new-workflow",
-      "target": "check-if-ai-modal",
+      "target": "select-visual-builder",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
-      "source": "check-if-ai-modal",
-      "target": "switch-to-manual",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e6",
-      "source": "switch-to-manual",
+      "source": "select-visual-builder",
       "target": "assert-builder-visible",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ],
   "metadata": {
     "description": "Validates workflow creation via AI modal and loading into the workflow builder",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Workflow Create And Load",
+    "version": "1"
   },
   "nodes": [
     {
@@ -85,6 +95,30 @@
         "type": "ACTION_TYPE_SUBFLOW"
       },
       "id": "dismiss-tutorial"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.tab"
+        },
+        "metadata": {
+          "label": "Open the project's Workflows tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "open-workflows-tab"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.cardViewToggle"
+        },
+        "metadata": {
+          "label": "Switch workflows to card view"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "select-card-view"
     },
     {
       "action": {
@@ -149,31 +183,15 @@
     },
     {
       "action": {
-        "evaluate": {
-          "expression": "!!document.querySelector('@selector/ai.modal.root, @selector/dialogs.base.content, @selector/dialogs.responsive.overlay')",
-          "store_result": "aiModalVisible"
-        },
-        "metadata": {
-          "label": "Check if AI modal appeared"
-        },
-        "type": "ACTION_TYPE_EVALUATE"
-      },
-      "id": "check-if-ai-modal"
-    },
-    {
-      "action": {
         "click": {
-          "selector": "@selector/ai.modal.switchToManualButton"
+          "selector": "@selector/workflows.creation.visualBuilder"
         },
         "metadata": {
-          "label": "Switch to manual builder"
+          "label": "Create a visual-builder workflow"
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "continue_on_error": false
-      },
-      "id": "switch-to-manual"
+      "id": "select-visual-builder"
     },
     {
       "action": {

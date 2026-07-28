@@ -19,6 +19,7 @@ FULL_PROJECTS=(
   workflow-palette
   workflow-builder
   utils
+  api-clients
   record-mode
   session-manager
   subscription
@@ -64,11 +65,24 @@ for project in "${PROJECTS[@]}"; do
   if [ "$project" = "boundaries" ] && ! has_coverage_arg; then
     EXTRA_ARGS=(--coverage=false)
   fi
-  pnpm exec vitest run --project "$project" "${EXTRA_ARGS[@]}" "${ARGS[@]}"
-  if [ -f coverage/vitest-requirements.json ]; then
+  if has_coverage_arg; then
+    EXTRA_ARGS+=(--config vitest.coverage.config.ts --coverage.reportsDirectory "coverage/raw/${project}")
+  fi
+  if has_coverage_arg; then
+    BAS_COLLECT_RAW_COVERAGE=1 BAS_COVERAGE_REPORTS_DIRECTORY="coverage/raw/${project}" pnpm exec vitest run --project "$project" "${EXTRA_ARGS[@]}" "${ARGS[@]}"
+  else
+    pnpm exec vitest run --project "$project" "${EXTRA_ARGS[@]}" "${ARGS[@]}"
+  fi
+  if [ -f "coverage/raw/${project}/vitest-requirements.json" ]; then
+    mv "coverage/raw/${project}/vitest-requirements.json" "coverage/vitest-requirements-${project}.json"
+  elif [ -f coverage/vitest-requirements.json ]; then
     mv coverage/vitest-requirements.json "coverage/vitest-requirements-${project}.json"
   fi
 done
+
+if has_coverage_arg; then
+  node ./scripts/merge-v8-coverage.mjs
+fi
 
 node <<'NODE'
 const fs = require('fs');

@@ -63,11 +63,14 @@
   ],
   "metadata": {
     "description": "Validates real-time execution progress tracking in the UI",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Execution Progress Tracking",
+    "version": "1"
   },
   "nodes": [
     {

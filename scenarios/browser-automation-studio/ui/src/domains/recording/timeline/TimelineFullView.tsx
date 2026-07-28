@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
 import { getConfig } from '@/config';
 import type { RecordedAction, RecordingSessionProfile, ReplayPreviewResponse, SelectorValidation } from '../types/types';
 

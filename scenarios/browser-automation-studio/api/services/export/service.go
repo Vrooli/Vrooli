@@ -22,7 +22,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/storage"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
-	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // ExportFormatType identifies the export format.
@@ -51,17 +51,9 @@ type ExportRequest struct {
 
 func timelineFromReplayPackage(execution *database.ExecutionIndex, pack *basevidence.ReplayPackage) (*ExecutionTimeline, error) {
 	frames := make([]TimelineFrame, 0, len(pack.Timeline))
-	for index, value := range pack.Timeline {
+	for _, value := range pack.Timeline {
 		if value != nil {
-			raw, err := protojson.Marshal(value)
-			if err != nil {
-				return nil, fmt.Errorf("marshal replay timeline entry %d: %w", index, err)
-			}
-			entry := &bastimeline.TimelineEntry{}
-			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, entry); err != nil {
-				return nil, fmt.Errorf("parse replay timeline entry %d: %w", index, err)
-			}
-			frames = append(frames, timelineEntryToFrame(entry))
+			frames = append(frames, timelineEntryToFrame(proto.Clone(value).(*bastimeline.TimelineEntry)))
 		}
 	}
 	sort.Slice(frames, func(i, j int) bool {

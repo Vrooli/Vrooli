@@ -12,6 +12,7 @@ import {
   Folder,
 } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { selectors } from '@/constants/selectors';
 
 /** Safely check if a Date is valid */
 const isValidDate = (date: Date): boolean => {
@@ -309,6 +310,7 @@ export const ExecutionCard: React.FC<ExecutionCardProps> = React.memo(({
               }}
               className="p-1.5 text-gray-400 hover:text-surface hover:bg-gray-700 rounded-md transition-colors"
               title="View details"
+              data-testid={selectors.executions.actions.viewButton}
             >
               <Eye size={14} />
             </button>

@@ -373,7 +373,7 @@ const ReplayExportPage = () => {
     };
     document.body.style.backgroundColor = DEFAULT_BODY_BACKGROUND;
     document.body.style.margin = "0";
-    document.body.style.minHeight = "100vh";
+    document.body.style.minHeight = "100%";
     document.body.style.display = "flex";
     document.body.style.justifyContent = "center";
     document.body.style.alignItems = "center";
@@ -1026,7 +1026,7 @@ const ReplayExportPage = () => {
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-flow-bg p-8 text-flow-text">
+      <div className="flex min-h-full w-full items-center justify-center bg-flow-bg p-8 text-flow-text">
         <div className="max-w-md rounded-2xl border border-flow-border bg-flow-node/80 p-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
           <h1 className="text-lg font-semibold text-flow-text">Replay export unavailable</h1>
           <p className="mt-3 text-sm text-flow-text-secondary">{loadError}</p>

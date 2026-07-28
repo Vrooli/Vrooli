@@ -2,9 +2,10 @@ package database
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"database/sql"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/constants"
@@ -23,7 +25,12 @@ import (
 // DB wraps sqlx.DB with additional functionality
 type DB struct {
 	*sqlx.DB
-	log *logrus.Logger
+	// Routed is the request-context-aware persistence seam used by domains that
+	// participate in Test Genie lease isolation. The embedded sqlx handle remains
+	// temporarily for repository code that has not yet completed its sqlx-to-
+	// domain-repository migration.
+	Routed *coredb.RoutedDB
+	log    *logrus.Logger
 }
 
 // Note: As of Go 1.20, the global random generator is automatically seeded.
@@ -31,7 +38,7 @@ type DB struct {
 
 // NewConnection creates a new database connection with exponential backoff
 func NewConnection(log *logrus.Logger) (*DB, error) {
-	var db *sqlx.DB
+	var routed *coredb.RoutedDB
 	var err error
 
 	// Load configuration from control surface
@@ -44,12 +51,12 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	jitterFactor := cfg.Database.RetryJitterFactor
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		db, err = connectSQLite(log)
+		routed, err = connectRoutedSQLite(log)
 
 		if err == nil {
 			// Test the connection
 			ctx, cancel := context.WithTimeout(context.Background(), constants.DatabaseQueryTimeout)
-			err = db.PingContext(ctx)
+			err = routed.PingContext(ctx)
 			cancel()
 
 			if err == nil {
@@ -63,7 +70,15 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		if delay > maxDelay {
 			delay = maxDelay
 		}
-		jitter := time.Duration(float64(delay) * jitterFactor * rand.Float64())
+		jitterMax := int64(float64(delay) * jitterFactor)
+		jitter := time.Duration(0)
+		if jitterMax > 0 {
+			value, randomErr := cryptorand.Int(cryptorand.Reader, big.NewInt(jitterMax+1))
+			if randomErr != nil {
+				return nil, fmt.Errorf("generate retry jitter: %w", randomErr)
+			}
+			jitter = time.Duration(value.Int64())
+		}
 		actualDelay := delay + jitter
 
 		log.WithFields(logrus.Fields{
@@ -80,31 +95,61 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, err)
 	}
 
-	// SQLite supports a single writer; pool of one avoids busy-locks under contention.
-	db.SetMaxOpenConns(1)
+	if routed == nil {
+		return nil, fmt.Errorf("database connection did not initialize a routed pool")
+	}
+
+	// Keep the existing sqlx repository surface on top of the routed primary
+	// pool while domain-owned consumers migrate to DB.Routed. The one-writer
+	// SQLite policy is configured in connectRoutedSQLite.
+	db := sqlx.NewDb(routed.Primary(), "sqlite")
 	db.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
 
 	dbWrapper := &DB{
-		DB:  db,
-		log: log,
+		DB:     db,
+		Routed: routed,
+		log:    log,
 	}
 
 	// Initialize database schema
-	if err := dbWrapper.initSchema(); err != nil {
+	if err := dbWrapper.EnsureSchemas(); err != nil {
 		log.WithError(err).Error("Failed to initialize database schema")
 		return nil, fmt.Errorf("failed to initialize database schema: %w", err)
 	}
+	// A leased Test Genie pool must receive the same schema before requests are
+	// allowed to route to it. The initializer runs before installation becomes
+	// visible, so no request can observe an uninitialized test database.
+	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		testDB := &DB{DB: sqlx.NewDb(pool, "sqlite"), log: log}
+		return testDB.EnsureSchemas()
+	})
 
 	return dbWrapper, nil
 }
 
-func connectSQLite(log *logrus.Logger) (*sqlx.DB, error) {
+func connectRoutedSQLite(log *logrus.Logger) (*coredb.RoutedDB, error) {
 	dsn, err := sqliteDSN(log)
 	if err != nil {
 		return nil, err
 	}
+	return coredb.Open(context.Background(), coredb.Config{
+		Driver:       coredb.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+}
 
-	return sqlx.Connect("sqlite", dsn)
+// connectSQLite is retained for focused database tests that exercise the
+// sqlx-specific compatibility helpers. Production startup uses
+// connectRoutedSQLite so request-scoped test routing remains the sole runtime
+// connection path.
+func connectSQLite(log *logrus.Logger) (*sqlx.DB, error) {
+	routed, err := connectRoutedSQLite(log)
+	if err != nil {
+		return nil, err
+	}
+	return sqlx.NewDb(routed.Primary(), "sqlite"), nil
 }
 
 func sqliteDSN(log *logrus.Logger) (string, error) {
@@ -172,7 +217,11 @@ func (db *DB) HealthCheck() error {
 
 // WithTransaction executes a function within a database transaction
 func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
-	tx, err := db.Beginx()
+	// sqlx does not expose a safe constructor for wrapping a transaction
+	// selected by RoutedDB. This compatibility helper is not used by the
+	// request-facing repository; migrate its remaining callers before routing
+	// transaction-based domain work through this method.
+	tx, err := db.DB.BeginTxx(context.Background(), nil)
 	if err != nil {
 		return err
 	}
@@ -204,25 +253,23 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 }
 
 // initSchema initializes the database schema
-func (db *DB) initSchema() error {
+// EnsureSchemas creates or updates the schema for this database pool. It is
+// used for both the primary pool and each leased Test Genie pool before that
+// pool is made available to request routing.
+func (db *DB) EnsureSchemas() error {
 	scenarioRoot, err := resolveScenarioRoot()
 	if err != nil {
 		return fmt.Errorf("resolve browser-automation-studio scenario root: %w", err)
 	}
-	schemaPath := filepath.Join(scenarioRoot, "initialization", "storage", "sqlite", "schema.sql")
-
-	schemaBytes, err := os.ReadFile(schemaPath)
-	if err != nil {
-		db.log.WithError(err).WithField("path", schemaPath).Error("Failed to read schema file")
-		return fmt.Errorf("failed to read schema file at %s: %w", schemaPath, err)
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), constants.DatabaseMigrationTimeout)
 	defer cancel()
 
-	if _, err := db.ExecContext(ctx, string(schemaBytes)); err != nil {
-		db.log.WithError(err).Error("Failed to execute schema initialization")
-		return err
+	providers, err := SchemaProviders(scenarioRoot)
+	if err != nil {
+		return fmt.Errorf("load domain schema registry: %w", err)
+	}
+	if err := coredb.EnsureSchemas(ctx, db.DB, providers...); err != nil {
+		return fmt.Errorf("initialize domain schema registry: %w", err)
 	}
 
 	if err := db.ensureSchemaCompatibility(ctx); err != nil {

@@ -264,21 +264,21 @@ Example format:
 ]`, url, intent, domData)
 
 	// Query Ollama via the client interface
-	responseText, err := a.ollamaClient.Query(ctx, a.role, prompt)
+	ollamaPayload, err := a.ollamaClient.Query(ctx, a.role, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call ollama API: %w", err)
 	}
 
 	// Log the raw Ollama response for debugging
 	previewLen := 200
-	if len(responseText) < previewLen {
-		previewLen = len(responseText)
+	if len(ollamaPayload) < previewLen {
+		previewLen = len(ollamaPayload)
 	}
 	if a.log != nil {
 		a.log.WithFields(logrus.Fields{
 			"role":             a.role,
-			"response_length":  len(responseText),
-			"response_preview": responseText[:previewLen],
+			"response_length":  len(ollamaPayload),
+			"response_preview": ollamaPayload[:previewLen],
 		}).Info("Received Ollama response")
 	}
 
@@ -286,29 +286,29 @@ Example format:
 	var suggestions []ElementInfo
 
 	// First try direct parsing
-	if err := json.Unmarshal([]byte(responseText), &suggestions); err != nil {
+	if err := json.Unmarshal([]byte(ollamaPayload), &suggestions); err != nil {
 		// Clean up common issues in the response
 		// Remove any escape sequences
-		responseText = strings.ReplaceAll(responseText, "\\r", "")
-		responseText = strings.ReplaceAll(responseText, "\\n", "\n")
-		responseText = strings.ReplaceAll(responseText, "\\\"", "\"")
-		responseText = strings.ReplaceAll(responseText, "\\\\", "\\")
+		ollamaPayload = strings.ReplaceAll(ollamaPayload, "\\r", "")
+		ollamaPayload = strings.ReplaceAll(ollamaPayload, "\\n", "\n")
+		ollamaPayload = strings.ReplaceAll(ollamaPayload, "\\\"", "\"")
+		ollamaPayload = strings.ReplaceAll(ollamaPayload, "\\\\", "\\")
 
 		// Try to find and extract just the JSON array
-		startIdx := strings.Index(responseText, "[")
-		endIdx := strings.LastIndex(responseText, "]")
+		startIdx := strings.Index(ollamaPayload, "[")
+		endIdx := strings.LastIndex(ollamaPayload, "]")
 
 		if startIdx != -1 && endIdx != -1 && endIdx > startIdx {
-			jsonStr := responseText[startIdx : endIdx+1]
+			jsonStr := ollamaPayload[startIdx : endIdx+1]
 
 			// Clean up the extracted JSON
 			jsonStr = strings.TrimSpace(jsonStr)
 
 			// Try parsing the cleaned JSON
 			if err := json.Unmarshal([]byte(jsonStr), &suggestions); err != nil {
-				origPreview := responseText
-				if len(responseText) > 300 {
-					origPreview = responseText[:300]
+				origPreview := ollamaPayload
+				if len(ollamaPayload) > 300 {
+					origPreview = ollamaPayload[:300]
 				}
 				cleanedPreview := jsonStr
 				if len(jsonStr) > 300 {
@@ -340,12 +340,12 @@ Example format:
 			}
 		} else {
 			if a.log != nil {
-				a.log.WithField("response", responseText).Error("No valid JSON found in AI response")
+				a.log.WithField("response", ollamaPayload).Error("No valid JSON found in AI response")
 			}
 			// Return debug info about what we received
-			respPreview := responseText
-			if len(responseText) > 100 {
-				respPreview = responseText[:100]
+			respPreview := ollamaPayload
+			if len(ollamaPayload) > 100 {
+				respPreview = ollamaPayload[:100]
 			}
 			return []ElementInfo{{
 				Text:       "No JSON found in response",

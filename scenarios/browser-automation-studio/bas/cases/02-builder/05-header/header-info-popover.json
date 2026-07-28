@@ -3,7 +3,7 @@
     {
       "id": "e1",
       "source": "navigate-dashboard",
-      "target": "wait-for-dashboard",
+      "target": "open-projects",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -15,6 +15,18 @@
     {
       "id": "e3",
       "source": "click-project",
+      "target": "open-card-view",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1a",
+      "source": "open-projects",
+      "target": "wait-for-dashboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3a",
+      "source": "open-card-view",
       "target": "click-workflow",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -45,13 +57,26 @@
   ],
   "metadata": {
     "description": "Validates that the info popover displays workflow metadata correctly",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Header Info Popover",
+    "version": "1"
   },
   "nodes": [
+    {
+      "action": { "click": { "selector": "@selector/dashboard.tabs.projects" }, "metadata": { "label": "Open Projects dashboard tab" }, "type": "ACTION_TYPE_CLICK" },
+      "execution_settings": { "wait_after_ms": 500 },
+      "id": "open-projects"
+    },
+    {
+      "action": { "click": { "selector": "@selector/workflows.cardViewToggle" }, "metadata": { "label": "Switch workflows to card view" }, "type": "ACTION_TYPE_CLICK" },
+      "execution_settings": { "wait_after_ms": 500 },
+      "id": "open-card-view"
+    },
     {
       "action": {
         "metadata": {
@@ -86,19 +111,17 @@
     },
     {
       "action": {
-        "click": {
-          "selector": "@selector/projects.card:first-of-type"
-        },
         "metadata": {
-          "label": "Open first project"
+          "label": "Open deterministic Demo project"
         },
-        "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "resilience": {
-          "success_selector": "@selector/workflows.card",
-          "success_timeout_ms": 10000
-        }
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
       },
       "id": "click-project"
     },

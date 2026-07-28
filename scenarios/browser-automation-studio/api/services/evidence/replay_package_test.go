@@ -12,7 +12,7 @@ import (
 func TestBuildReplayPackageIsStorageIndependentAndProtectsHar(t *testing.T) {
 	// enforces invariant: replayArtifactHasIntegrityDigest
 	executionID, workflowID, artifactID := uuid.NewString(), uuid.NewString(), uuid.NewString()
-	pack, err := BuildReplayPackage(executionID, workflowID, DefaultPolicy(), []ArtifactInput{{ID: artifactID, Kind: "har", MediaType: "application/json", SHA256: strings.Repeat("a", 64), Producer: "playwright-driver", Provenance: map[string]any{"source": "capture"}}}, nil, map[string]any{"theme": "dark"}, time.Unix(0, 0))
+	pack, err := BuildReplayPackage(executionID, workflowID, DefaultPolicy(), []ArtifactInput{{ID: artifactID, Kind: "har", MediaType: "application/json", SHA256: strings.Repeat("a", 64), Producer: "playwright-driver", Provenance: ArtifactProvenanceInput{Source: "capture"}}}, nil, ReplayPresentationInput{Theme: "dark"}, time.Unix(0, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,5 +25,8 @@ func TestBuildReplayPackageIsStorageIndependentAndProtectsHar(t *testing.T) {
 	}
 	if strings.Contains(pack.String(), "/tmp/") || strings.Contains(pack.String(), "storage_object") {
 		t.Fatalf("replay package contains storage detail: %s", pack)
+	}
+	if pack.GetPresentation().GetTheme() != "dark" || pack.GetEvidence().GetArtifacts()[0].GetProvenance().GetSource() != "capture" {
+		t.Fatalf("typed replay metadata was not preserved: %#v", pack)
 	}
 }

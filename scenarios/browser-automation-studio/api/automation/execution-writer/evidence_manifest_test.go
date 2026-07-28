@@ -19,12 +19,16 @@ func TestRecordExecutionArtifactsWritesStorageIndependentEvidenceManifest(t *tes
 	if err := os.WriteFile(path, []byte("trace"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	writer := NewFileWriter(nil, nil, nil, dir)
+	writer := NewFileWriter(nil, nil, nil, NewStaticRoot(dir))
 	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
 	if err := writer.RecordExecutionArtifacts(context.Background(), plan, []ExternalArtifact{{ArtifactType: "trace", Path: path, ContentType: "application/zip"}}); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile(writer.evidenceManifestFilePath(plan.ExecutionID))
+	manifestPath, err := writer.evidenceManifestFilePath(context.Background(), plan.ExecutionID)
+	if err != nil {
+		t.Fatalf("evidence manifest path: %v", err)
+	}
+	raw, err := os.ReadFile(manifestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,5 +38,15 @@ func TestRecordExecutionArtifactsWritesStorageIndependentEvidenceManifest(t *tes
 	}
 	if pack.GetEvidence().GetArtifacts()[0].GetSha256() == "" || strings.Contains(string(raw), path) {
 		t.Fatalf("unsafe or incomplete evidence manifest: %s", raw)
+	}
+}
+
+func TestWriteEvidenceManifestRejectsArtifactWithoutByteDigest(t *testing.T) {
+	writer := NewFileWriter(nil, nil, nil, NewStaticRoot(t.TempDir()))
+	executionID := uuid.New()
+	result := &ExecutionResultData{ExecutionID: executionID.String(), Artifacts: []ArtifactData{{ArtifactID: uuid.NewString(), ArtifactType: "console", Payload: map[string]any{"text": "missing digest"}}}}
+	err := writer.writeEvidenceManifest(context.Background(), executionID, result, nil)
+	if err == nil || !strings.Contains(err.Error(), "no byte-derived SHA-256") {
+		t.Fatalf("expected missing digest error, got %v", err)
 	}
 }

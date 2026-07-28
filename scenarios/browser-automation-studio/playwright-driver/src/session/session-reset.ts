@@ -2,7 +2,7 @@ import type { SessionState } from '../types';
 import { cleanupSession } from '../infra';
 import { logger, metrics, scopedLog, LogContext } from '../utils';
 
-const message = (error: unknown) => error instanceof Error ? error.message : String(error);
+const message = (error: unknown): string => error instanceof Error ? error.message : String(error);
 
 /** Reset mutable browser state while retaining the session and its lease. */
 export async function resetSessionState(session: SessionState): Promise<void> {

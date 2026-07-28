@@ -223,7 +223,7 @@ type Repository interface {
 - `DATABASE_URL=file:/abs/path.db` is honored as a fallback override
 
 **Status:** Good
-- `NewConnection` opens a single SQLite file (driver: `modernc.org/sqlite`, pure Go) and applies the canonical schema from `initialization/storage/sqlite/schema.sql` idempotently
+- `NewConnection` opens a single SQLite file (driver: `modernc.org/sqlite`, pure Go) and applies the canonical schema from `initialization/storage/sqlite/schemas/` idempotently
 - The SQLite file path is resolved through `api-core/storage` (`ProfileAuto`), keeping mutable runtime data outside the deploy tree on every OS
 - `setupTestDB` in `repository_test.go` opens a temp SQLite file and runs the same schema bootstrap — production and test paths share schema
 
@@ -1918,3 +1918,9 @@ Evidence owns the storage-independent contract for browser-captured material:
 **Tests:** `services/evidence/*_test.go`, `automation/execution-writer/external_artifacts_test.go`, `services/workflow/execution_results_test.go`, and `handlers/recordings_test.go` cover policy assignment, secret redaction, path non-disclosure, storage-independent replay construction, and raw-HAR route rejection.
 
 **Status:** Strong.
+
+---
+
+## Measures Ownership Boundary
+
+Selector candidates and step telemetry are embedded evidence owned by workflows and executions. BAS does not expose standalone historical measures for either substrate: selector quality is evaluated by workflow/execution validation, and telemetry is consumed through its owning replay or execution artifact. The `session_checkpoints` table is bounded crash-recovery state, removed by completion and retention cleanup; current resumability is the relevant operational concern, not a historical trend. These three substrates are declared as explicit `measures.omitted` entries in `cli/manifest.json` so Measures Health does not imply they are unowned analytics domains.

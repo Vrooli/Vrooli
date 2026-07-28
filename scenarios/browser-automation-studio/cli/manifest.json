@@ -1832,6 +1832,23 @@
       ]
     }
   ],
+  "measures": {
+    "domains": [],
+    "omitted": [
+      {
+        "domain": "selectors",
+        "reason": "Selector candidates are embedded workflow/action evidence, not independently retained business entities; selector quality is evaluated as part of execution and workflow validation rather than through a standalone historical count."
+      },
+      {
+        "domain": "telemetry",
+        "reason": "Step telemetry is immutable execution evidence consumed with its owning execution/replay artifact. It has no independent historical analytical question beyond execution-level outcomes."
+      },
+      {
+        "domain": "session_checkpoints",
+        "reason": "Recovery checkpoints are bounded, per-session crash-recovery state and are removed on completion or retention cleanup. Their operational value is current resumability, not a historical analytical series."
+      }
+    ]
+  },
   "omitted": [
     { "service": "RecordingsService", "method": "GetStorageState", "reason": "UI-owned storage inspector; no CLI command is currently exposed." },
     { "service": "RecordingsService", "method": "ClearAllStorage", "reason": "UI-owned destructive storage control; no CLI command is currently exposed." },

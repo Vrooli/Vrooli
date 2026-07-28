@@ -36,7 +36,7 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 		DB:  sqlDB,
 		log: log,
 	}
-	if err := wrapped.initSchema(); err != nil {
+	if err := wrapped.EnsureSchemas(); err != nil {
 		_ = sqlDB.Close()
 		t.Fatalf("init schema: %v", err)
 	}
@@ -460,6 +460,41 @@ func TestGetProjectsStats_RoundTripsLastExecution(t *testing.T) {
 	}
 	if !got.LastExecution.Equal(latest) {
 		t.Errorf("last_execution: got %s, want %s", got.LastExecution.Format(time.RFC3339Nano), latest.Format(time.RFC3339Nano))
+	}
+}
+
+func TestGetProjectsStatsAcceptsLegacyGoTimeString(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
+	project := &ProjectIndex{ID: uuid.New(), Name: "Legacy Timestamp Project", FolderPath: "/stats/legacy"}
+	if err := repo.CreateProject(ctx, project); err != nil {
+		t.Fatalf("CreateProject: %v", err)
+	}
+	workflow := &WorkflowIndex{ID: uuid.New(), ProjectID: &project.ID, Name: "Legacy Timestamp Workflow", FolderPath: "/stats", Version: 1}
+	if err := repo.CreateWorkflow(ctx, workflow); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+
+	// Simulate rows persisted by the historical time.Time.String() writer.
+	const rawStartedAt = "2026-07-27 20:42:27.339810567 +0000 UTC"
+	if _, err := db.ExecContext(ctx, `INSERT INTO executions (id, workflow_id, status, started_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`, uuid.New(), workflow.ID, ExecutionStatusCompleted, rawStartedAt, rawStartedAt, rawStartedAt); err != nil {
+		t.Fatalf("insert legacy execution: %v", err)
+	}
+
+	stats, err := repo.GetProjectsStats(ctx, []uuid.UUID{project.ID})
+	if err != nil {
+		t.Fatalf("GetProjectsStats: %v", err)
+	}
+	got := stats[project.ID]
+	if got == nil || got.LastExecution == nil {
+		t.Fatalf("LastExecution = %#v, want parsed legacy timestamp", got)
+	}
+	want := time.Date(2026, 7, 27, 20, 42, 27, 339810567, time.UTC)
+	if !got.LastExecution.Equal(want) {
+		t.Errorf("LastExecution = %s, want %s", got.LastExecution.Format(time.RFC3339Nano), want.Format(time.RFC3339Nano))
 	}
 }
 

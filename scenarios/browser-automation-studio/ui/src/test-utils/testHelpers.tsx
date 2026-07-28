@@ -1,2 +1,2 @@
-export * from './render';
+export * from './renderWithProviders';
 export * from './stores';

@@ -1,8 +1,14 @@
 {
   "edges": [
     {
-      "id": "call-open-project-to-navigate-to-executions",
+      "id": "call-open-project-to-return-to-project",
       "source": "call-open-project",
+      "target": "return-to-project",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "return-to-project-to-navigate-to-executions",
+      "source": "return-to-project",
       "target": "navigate-to-executions",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -57,17 +63,20 @@
   ],
   "metadata": {
     "description": "Validates execution result export functionality",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Execution Result Export",
+    "version": "1"
   },
   "nodes": [
     {
       "action": {
         "metadata": {
-          "label": "Open Demo project via fixture"
+          "label": "Return to the seeded project history"
         },
         "subflow": {
           "args": {
@@ -75,6 +84,25 @@
             "projectName": "${@params/projectName}"
           },
           "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "return-to-project"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Create a deterministic execution via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectId": "${@params/projectId}",
+            "projectName": "${@params/projectName}",
+            "workflowId": "${@params/workflowId}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/execute-demo-workflow.json"
         },
         "type": "ACTION_TYPE_SUBFLOW"
       },

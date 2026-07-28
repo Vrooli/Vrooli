@@ -1,41 +1,4 @@
 {
-  "metadata": {
-    "name": "dismiss-tutorial",
-    "description": "Dismisses the onboarding tutorial if present (idempotent - succeeds whether tour is showing or not)",
-    "labels": {
-      "fixture_id": "dismiss-tutorial",
-      "reset": "none"
-    },
-    "execution_mode": "observer"
-  },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "dismiss-via-escape",
-      "action": {
-        "type": "ACTION_TYPE_KEYBOARD",
-        "keyboard": {
-          "key": "Escape",
-          "action": "KEY_ACTION_PRESS"
-        },
-        "metadata": {
-          "label": "Press Escape to dismiss tutorial"
-        }
-      }
-    },
-    {
-      "id": "wait-for-dismiss",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 300
-        },
-        "metadata": {
-          "label": "Wait for tutorial to dismiss"
-        }
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
@@ -43,5 +6,44 @@
       "target": "wait-for-dismiss",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Dismisses the onboarding tutorial if present (idempotent - succeeds whether tour is showing or not)",
+    "execution_mode": "mutating",
+    "labels": {
+      "fixture_id": "dismiss-tutorial",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
+    },
+    "name": "dismiss-tutorial"
+  },
+  "nodes": [
+    {
+      "action": {
+        "keyboard": {
+          "action": "KEY_ACTION_PRESS",
+          "key": "Escape"
+        },
+        "metadata": {
+          "label": "Press Escape to dismiss tutorial"
+        },
+        "type": "ACTION_TYPE_KEYBOARD"
+      },
+      "id": "dismiss-via-escape"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for tutorial to dismiss"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 300
+        }
+      },
+      "id": "wait-for-dismiss"
+    }
+  ],
+  "settings": {}
 }

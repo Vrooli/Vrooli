@@ -129,10 +129,10 @@ export default function RecordModeView() {
   );
 
   return (
-    <div data-testid={selectors.app.shell.ready} className="h-screen">
+    <div data-testid={selectors.app.shell.ready} className="h-full">
       <Suspense
         fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
+          <div className="h-full flex items-center justify-center bg-flow-bg">
             <LoadingSpinner variant="branded" size={24} message="Loading record mode..." />
           </div>
         }

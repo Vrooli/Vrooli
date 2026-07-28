@@ -11,7 +11,10 @@ import (
 func TestFlowDefinitionToProto(t *testing.T) {
 	def := database.JSONMap{
 		"nodes": []map[string]any{
-			{"id": "n1", "type": "navigate"},
+			{"id": "n1", "action": map[string]any{
+				"type":     "ACTION_TYPE_NAVIGATE",
+				"navigate": map[string]any{"url": "https://example.com"},
+			}},
 		},
 		"edges":    []map[string]any{},
 		"metadata": map[string]any{"name": "Test"},

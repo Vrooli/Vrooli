@@ -1,3 +1,7 @@
+# Historical Problem Log (Superseded)
+
+This is retained as historical investigation context only. It is not an operational source of truth; browserless references and resolved status claims here must not guide new work. See [Architecture](../concepts/ARCHITECTURE.md), [V2 workflow status](../concepts/V2-WORKFLOW-STATUS.md), and [Operations](../operations/RUNBOOK.md).
+
 # Vrooli Ascension - Known Issues
 
 This document tracks known problems, limitations, and areas requiring investigation.

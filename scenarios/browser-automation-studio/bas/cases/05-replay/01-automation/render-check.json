@@ -3,12 +3,6 @@
     {
       "id": "e0",
       "source": "call-open-project",
-      "target": "click-execute",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e2",
-      "source": "click-execute",
       "target": "assert-execution-complete",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -21,46 +15,31 @@
   ],
   "metadata": {
     "description": "Validates that execution replay artifacts are persisted and can be accessed for rendering",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Render Check",
+    "version": "1"
   },
   "nodes": [
     {
       "action": {
         "metadata": {
-          "label": "Open Demo project via fixture"
+          "label": "Execute Demo workflow via fixture"
         },
         "subflow": {
           "args": {
             "projectFolder": "${@params/projectFolder}",
             "projectName": "${@params/projectName}"
           },
-          "workflow_path": "actions/open-demo-project.json"
+          "workflow_path": "actions/execute-demo-workflow.json"
         },
         "type": "ACTION_TYPE_SUBFLOW"
       },
       "id": "call-open-project"
-    },
-    {
-      "action": {
-        "click": {
-          "selector": "@selector/workflowBuilder.executeButton"
-        },
-        "metadata": {
-          "label": "Execute workflow"
-        },
-        "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "resilience": {
-          "success_selector": "@selector/executions.viewer.status",
-          "success_timeout_ms": 15000
-        }
-      },
-      "id": "click-execute"
     },
     {
       "action": {

@@ -1,25 +1,51 @@
 import js from "@eslint/js";
+import importPlugin from "eslint-plugin-import";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "coverage", "vite.config.ts", "vite.config.ts.timestamp-*"] },
+  { ignores: ["dist", "node_modules", "coverage", "vite.config.ts", "vitest.coverage.config.ts", "vite.config.ts.timestamp-*"] },
   // Main source files - with type-aware linting
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
-    ignores: ["**/*.test.{ts,tsx}", "**/__tests__/**", "src/test-utils/**"],
+    ignores: ["**/*.test.{ts,tsx}", "**/__tests__/**", "src/test-setup.ts", "src/test-utils/**"],
     languageOptions: {
       parserOptions: {
         project: "./tsconfig.json",  // Enable type-aware linting
       },
     },
     plugins: {
+      import: importPlugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
     },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          alwaysTryTypes: true,
+          project: "./tsconfig.json",
+        },
+      },
+    },
     rules: {
+	  // Test helpers and feature mocks are test-only infrastructure. Production
+	  // modules must depend on product interfaces, never test substitutions.
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: [
+            "**/test-utils",
+            "**/test-utils/*",
+            "@/test-utils",
+            "@/test-utils/*",
+            "**/features/*/mocks",
+            "**/features/*/mocks/*",
+            "@/features/*/mocks",
+            "@/features/*/mocks/*",
+          ],
+        }],
+      }],
       // ════════════════════════════════════════════════════════════════════════
       // SAFETY-CRITICAL RULES - DO NOT REMOVE, DISABLE, OR WEAKEN
       //
@@ -47,6 +73,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-argument": "warn",
       "@typescript-eslint/no-unsafe-assignment": "warn",
       "@typescript-eslint/no-unsafe-return": "warn",
+
+      // CRITICAL: Detects circular dependencies that produce initialization-order failures.
+      "import/no-cycle": "error",
 
       // Prevents explicit 'any' which disables all type checking for that value
       "@typescript-eslint/no-explicit-any": "error",

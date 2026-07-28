@@ -47,6 +47,44 @@ func TestCloseWithArtifacts(t *testing.T) {
 	}
 }
 
+func TestCloseWithArtifacts_TreatsAbsentDriverSessionAsTerminal(t *testing.T) {
+	handler := http.NewServeMux()
+	handler.HandleFunc("/session/sess-absent/close", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		http.Error(w, `{"error":"session not found"}`, http.StatusNotFound)
+	})
+
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
+	if err != nil {
+		t.Fatalf("client: %v", err)
+	}
+
+	terminalCalls := 0
+	sess := &Session{
+		id:         "sess-absent",
+		mode:       ModeExecution,
+		client:     client,
+		onTerminal: func() { terminalCalls++ },
+	}
+
+	artifacts, err := sess.CloseWithArtifacts(context.Background())
+	if err != nil {
+		t.Fatalf("close absent session: %v", err)
+	}
+	if artifacts != nil {
+		t.Fatalf("expected no artifacts for already-absent session, got %#v", artifacts)
+	}
+	if terminalCalls != 1 {
+		t.Fatalf("expected one terminal callback, got %d", terminalCalls)
+	}
+	if !sess.isClosed() {
+		t.Fatal("expected absent session to remain terminal")
+	}
+}
+
 // =============================================================================
 // Mode Guard Tests
 // =============================================================================

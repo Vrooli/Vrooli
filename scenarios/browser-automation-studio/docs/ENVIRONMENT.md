@@ -18,7 +18,7 @@ One canonical reference for configuring the browser-automation-studio scenario (
 
 ## Database Configuration
 
-Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The schema in `initialization/storage/sqlite/schema.sql` is applied idempotently at startup.
+Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The schema in `initialization/storage/sqlite/schemas/` is applied idempotently at startup.
 
 | Variable | Description | Default |
 |----------|-------------|---------|

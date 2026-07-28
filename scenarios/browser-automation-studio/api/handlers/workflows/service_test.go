@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/apihttp"
+	coredb "github.com/vrooli/api-core/database"
 
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/credits"
@@ -115,6 +117,7 @@ type fakeExecutor struct {
 	lastExecOpts  *workflowservice.ExecuteOptions
 	lastAdhocReq  *basexecution.ExecuteAdhocRequest
 	lastAdhocOpts *workflowservice.ExecuteOptions
+	lastAdhocCtx  context.Context
 }
 
 func (f *fakeExecutor) ExecuteWorkflowAPIWithOptions(_ context.Context, req *basapi.ExecuteWorkflowRequest, opts *workflowservice.ExecuteOptions) (*basapi.ExecuteWorkflowResponse, error) {
@@ -123,7 +126,8 @@ func (f *fakeExecutor) ExecuteWorkflowAPIWithOptions(_ context.Context, req *bas
 	return f.execResp, f.execErr
 }
 
-func (f *fakeExecutor) ExecuteAdhocWorkflowAPIWithOptions(_ context.Context, req *basexecution.ExecuteAdhocRequest, opts *workflowservice.ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
+func (f *fakeExecutor) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *workflowservice.ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
+	f.lastAdhocCtx = ctx
 	f.lastAdhocReq = req
 	f.lastAdhocOpts = opts
 	return f.adhocResp, f.adhocErr
@@ -538,6 +542,25 @@ func TestExecuteAdhocWorkflow_OK(t *testing.T) {
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "adhoc-1", resp.Msg.GetExecutionId())
+}
+
+func TestExecuteAdhocWorkflow_PreservesTestModeContextFromConnectHeader(t *testing.T) {
+	t.Setenv(apihttp.TestModeForceEnableEnv, "1")
+	exec := &fakeExecutor{adhocResp: &basexecution.ExecuteAdhocResponse{ExecutionId: "adhoc-test-mode"}}
+	deps := Deps{Catalog: &fakeCatalog{}, Executor: exec, Validator: &fakeValidator{}, Logger: logrus.New()}
+	mount := Module(deps)
+	mux := http.NewServeMux()
+	mux.Handle(mount.Path, mount.Handler)
+	srv := httptest.NewServer(apihttp.TestModeMiddleware(mux))
+	defer srv.Close()
+
+	client := apiconnect.NewWorkflowsServiceClient(srv.Client(), srv.URL)
+	request := connect.NewRequest(&basexecution.ExecuteAdhocRequest{FlowDefinition: &basworkflows.WorkflowDefinitionV2{}})
+	request.Header().Set(apihttp.TestModeHeader, apihttp.TestModeValue)
+	_, err := client.ExecuteAdhocWorkflow(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, exec.lastAdhocCtx)
+	require.True(t, coredb.IsTestMode(exec.lastAdhocCtx))
 }
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,6 @@ package executionwriter
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	corestorage "github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -39,7 +39,7 @@ type FileWriter struct {
 	repo    ExecutionIndexRepository
 	storage storage.StorageInterface
 	log     *logrus.Logger
-	dataDir string // Base directory for execution result files
+	root    RootProvider // Request-aware base directory for execution result files
 
 	// Mutex for concurrent file writes
 	mu sync.Mutex
@@ -144,15 +144,12 @@ type ExecutionSummary struct {
 // NewFileWriter constructs an ExecutionWriter that writes to files and updates the DB index.
 // By default, uses the "full" artifact profile (all artifacts collected).
 // Call SetArtifactConfig() to customize artifact collection before starting execution.
-func NewFileWriter(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger, dataDir string) *FileWriter {
-	if dataDir == "" {
-		dataDir = "/tmp/bas-executions"
-	}
+func NewFileWriter(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger, root RootProvider) *FileWriter {
 	return &FileWriter{
 		repo:           repo,
 		storage:        storage,
 		log:            log,
-		dataDir:        dataDir,
+		root:           root,
 		artifactConfig: config.DefaultArtifactSettings(),
 	}
 }
@@ -186,16 +183,30 @@ func (r *FileWriter) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionR
 }
 
 // resultFilePath returns the path where execution results should be stored.
-func (r *FileWriter) resultFilePath(executionID uuid.UUID) string {
-	return filepath.Join(r.dataDir, executionID.String(), resultFileName)
+func (r *FileWriter) resultFilePath(ctx context.Context, executionID uuid.UUID) (string, error) {
+	if r == nil || r.root == nil {
+		return "", fmt.Errorf("execution artifact root is unavailable")
+	}
+	root, err := r.root.Root(ctx)
+	if err != nil {
+		return "", fmt.Errorf("resolve execution artifact root: %w", err)
+	}
+	return filepath.Join(root, executionID.String(), resultFileName), nil
 }
 
-func (r *FileWriter) readmeFilePath(executionID uuid.UUID) string {
-	return filepath.Join(r.dataDir, executionID.String(), readmeFileName)
+func (r *FileWriter) readmeFilePath(ctx context.Context, executionID uuid.UUID) (string, error) {
+	if r == nil || r.root == nil {
+		return "", fmt.Errorf("execution artifact root is unavailable")
+	}
+	root, err := r.root.Root(ctx)
+	if err != nil {
+		return "", fmt.Errorf("resolve execution artifact root: %w", err)
+	}
+	return filepath.Join(root, executionID.String(), readmeFileName), nil
 }
 
 // writeResultFile persists the execution result data to disk.
-func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionResultData, timeline *executionTimelineData) error {
+func (r *FileWriter) writeResultFile(ctx context.Context, executionID uuid.UUID, result *ExecutionResultData, timeline *executionTimelineData) error {
 	if result != nil {
 		result.mu.Lock()
 		result.Summary.LastUpdated = time.Now().UTC()
@@ -207,14 +218,17 @@ func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionRes
 		return err
 	}
 
-	filePath := r.resultFilePath(executionID)
+	filePath, err := r.resultFilePath(ctx, executionID)
+	if err != nil {
+		return err
+	}
 	dir := filepath.Dir(filePath)
 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create result directory: %w", err)
 	}
 
-	if err := r.writeReadmeFile(executionID); err != nil {
+	if err := r.writeReadmeFile(ctx, executionID); err != nil {
 		return err
 	}
 
@@ -223,18 +237,22 @@ func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionRes
 		return fmt.Errorf("marshal result data: %w", err)
 	}
 
-	if err := os.WriteFile(filePath, data, 0o644); err != nil {
+	if err := corestorage.WriteFileAtomic(filePath, data, 0o644); err != nil {
 		return fmt.Errorf("write result file: %w", err)
 	}
-	if err := r.writeEvidenceManifest(executionID, result, timeline); err != nil {
+	r.root.RecordWrite(ctx)
+	if err := r.writeEvidenceManifest(ctx, executionID, result, timeline); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *FileWriter) writeReadmeFile(executionID uuid.UUID) error {
-	path := r.readmeFilePath(executionID)
+func (r *FileWriter) writeReadmeFile(ctx context.Context, executionID uuid.UUID) error {
+	path, err := r.readmeFilePath(ctx, executionID)
+	if err != nil {
+		return err
+	}
 	if info, err := os.Stat(path); err == nil && !info.IsDir() {
 		return nil
 	}
@@ -259,9 +277,10 @@ This folder contains artifacts captured during a single workflow execution.
 If an artifact type is missing, it was not requested or the engine failed to produce it.
 `)
 
-	if err := os.WriteFile(path, content, 0o644); err != nil {
+	if err := corestorage.WriteFileAtomic(path, content, 0o644); err != nil {
 		return fmt.Errorf("write readme file: %w", err)
 	}
+	r.root.RecordWrite(ctx)
 	return nil
 }
 
@@ -379,6 +398,9 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 					"location":  log.Location,
 				},
 			}
+			if err := setPayloadDigest(&artifact); err != nil {
+				return RecordResult{}, fmt.Errorf("digest console artifact: %w", err)
+			}
 			result.mu.Lock()
 			result.Artifacts = append(result.Artifacts, artifact)
 			result.mu.Unlock()
@@ -422,6 +444,9 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 					"failure":      event.Failure,
 					"timestamp":    event.Timestamp.Format(time.RFC3339Nano),
 				},
+			}
+			if err := setPayloadDigest(&artifact); err != nil {
+				return RecordResult{}, fmt.Errorf("digest network artifact: %w", err)
 			}
 			result.mu.Lock()
 			result.Artifacts = append(result.Artifacts, artifact)
@@ -480,17 +505,6 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
-	// Engine-provided metadata (video/trace/HAR paths) - always collected if present
-	if outcome.Notes != nil {
-		for _, key := range []string{"video_path", "trace_path", "har_path"} {
-			if path := strings.TrimSpace(outcome.Notes[key]); path != "" {
-				if id := r.persistExternalFile(result, stepID.String(), outcome.StepIndex, strings.TrimSuffix(key, "_path")+"_meta", path); id != nil {
-					artifactIDs = append(artifactIDs, *id)
-				}
-			}
-		}
-	}
-
 	var timelineScreenshotURL string
 	var timelineScreenshotThumbURL string
 	var timelineScreenshotID *uuid.UUID
@@ -505,11 +519,14 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		}
 		if screenshotInfo != nil {
 			id := uuid.New()
+			digest := sha256.Sum256(outcome.Screenshot.Data)
 			artifact := ArtifactData{
 				ArtifactID:   id.String(),
 				StepID:       stepID.String(),
 				StepIndex:    &outcome.StepIndex,
 				ArtifactType: "screenshot",
+				ContentType:  outcome.Screenshot.MediaType,
+				SHA256:       hex.EncodeToString(digest[:]),
 				StorageURL:   screenshotInfo.URL,
 				ThumbnailURL: screenshotInfo.ThumbnailURL,
 				SizeBytes:    &screenshotInfo.SizeBytes,
@@ -589,7 +606,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		}
 	}
 	// Write result to file
-	if err := r.writeResultFile(plan.ExecutionID, result, timeline); err != nil {
+	if err := r.writeResultFile(ctx, plan.ExecutionID, result, timeline); err != nil {
 		if r.log != nil {
 			r.log.WithError(err).Warn("Failed to write execution result file")
 		}
@@ -597,7 +614,10 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 
 	// Update database index with result path
 	if r.repo != nil {
-		resultPath := r.resultFilePath(plan.ExecutionID)
+		resultPath, pathErr := r.resultFilePath(ctx, plan.ExecutionID)
+		if pathErr != nil {
+			return RecordResult{}, pathErr
+		}
 		if err := r.updateExecutionIndex(ctx, plan.ExecutionID, resultPath); err != nil {
 			if r.log != nil {
 				r.log.WithError(err).Warn("Failed to update execution index")
@@ -775,7 +795,7 @@ func (r *FileWriter) appendProtoTimelineEntry(
 	timeline.pb.Entries = append(timeline.pb.Entries, entry)
 	timeline.mu.Unlock()
 
-	return r.writeProtoTimelineFile(plan.ExecutionID, timeline)
+	return r.writeProtoTimelineFile(context.Background(), plan.ExecutionID, timeline)
 }
 
 func artifactDataToProto(a *ArtifactData) *bastimeline.TimelineArtifact {
@@ -839,46 +859,6 @@ func artifactTypeToProto(kind string) basbase.ArtifactType {
 	default:
 		return basbase.ArtifactType_ARTIFACT_TYPE_CUSTOM
 	}
-}
-
-// persistExternalFile stores metadata for engine-provided files (trace/video/HAR).
-func (r *FileWriter) persistExternalFile(result *ExecutionResultData, stepID string, stepIndex int, artifactType, filePath string) *uuid.UUID {
-	info, err := os.Stat(filePath)
-	if err != nil {
-		if r.log != nil {
-			r.log.WithError(err).WithField("path", filePath).Debug("external file not readable")
-		}
-		return nil
-	}
-
-	payload := map[string]any{
-		"path":       filePath,
-		"size_bytes": info.Size(),
-	}
-
-	const maxEmbeddedExternalBytes = 5 * 1024 * 1024
-	if info.Size() > 0 && info.Size() <= maxEmbeddedExternalBytes {
-		if data, readErr := os.ReadFile(filePath); readErr == nil {
-			payload["base64"] = base64.StdEncoding.EncodeToString(data)
-			payload["inline"] = true
-		}
-	}
-
-	id := uuid.New()
-	artifact := ArtifactData{
-		ArtifactID:   id.String(),
-		StepID:       stepID,
-		StepIndex:    &stepIndex,
-		ArtifactType: artifactType,
-		Label:        artifactType,
-		Payload:      payload,
-	}
-
-	result.mu.Lock()
-	result.Artifacts = append(result.Artifacts, artifact)
-	result.mu.Unlock()
-
-	return &id
 }
 
 func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) *bastimeline.TimelineEntry {
@@ -1046,7 +1026,7 @@ func (r *FileWriter) MarkCrash(ctx context.Context, executionID uuid.UUID, failu
 	result.Summary.FailedSteps++
 	result.mu.Unlock()
 
-	if err := r.writeResultFile(executionID, result, timeline); err != nil {
+	if err := r.writeResultFile(ctx, executionID, result, timeline); err != nil {
 		if r.log != nil {
 			r.log.WithError(err).Warn("Failed to write crash to result file")
 		}
@@ -1060,7 +1040,7 @@ func (r *FileWriter) MarkCrash(ctx context.Context, executionID uuid.UUID, failu
 			Timestamp: timestamppb.New(time.Now().UTC()),
 		})
 		timeline.mu.Unlock()
-		_ = r.writeProtoTimelineFile(executionID, timeline)
+		_ = r.writeProtoTimelineFile(ctx, executionID, timeline)
 	}
 
 	// Update database index to mark as failed
@@ -1113,10 +1093,10 @@ func (r *FileWriter) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID
 		timeline.mu.Lock()
 		timeline.pb.Progress = int32(progress)
 		timeline.mu.Unlock()
-		_ = r.writeProtoTimelineFile(executionID, timeline)
+		_ = r.writeProtoTimelineFile(ctx, executionID, timeline)
 	}
 
-	return r.writeResultFile(executionID, result, timeline)
+	return r.writeResultFile(ctx, executionID, result, timeline)
 }
 
 // updateExecutionIndex updates the database index with the result path.

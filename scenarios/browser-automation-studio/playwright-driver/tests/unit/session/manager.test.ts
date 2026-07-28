@@ -469,13 +469,19 @@ describe('SessionManager', () => {
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      const before = Date.now();
-      manager.updateActivity(sessionId);
-      const after = Date.now();
+      jest.useFakeTimers();
+      try {
+        const before = Date.now();
+        jest.advanceTimersByTime(1);
+        manager.updateActivity(sessionId);
+        const after = Date.now();
 
-      const session = manager.getSession(sessionId);
-      expect(session.lastUsedAt.getTime()).toBeGreaterThanOrEqual(before);
-      expect(session.lastUsedAt.getTime()).toBeLessThanOrEqual(after);
+        const session = manager.getSession(sessionId);
+        expect(session.lastUsedAt.getTime()).toBeGreaterThanOrEqual(before);
+        expect(session.lastUsedAt.getTime()).toBeLessThanOrEqual(after);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('should not throw for non-existent session', () => {

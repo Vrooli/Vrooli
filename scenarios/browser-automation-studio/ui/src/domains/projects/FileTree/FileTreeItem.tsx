@@ -23,26 +23,13 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { fileKindIcon, fileTypeLabelFromPath } from "./fileTreeUtils";
+import type { FileTreeDragPayload, FileTreeNode } from './fileTreeTypes';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type FileTreeNodeKind = "folder" | "workflow_file" | "asset_file";
-
-export interface FileTreeNode {
-  kind: FileTreeNodeKind;
-  path: string;
-  name: string;
-  children?: FileTreeNode[];
-  workflowId?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export type FileTreeDragPayload = {
-  path: string;
-  kind: FileTreeNodeKind;
-};
+export type { FileTreeDragPayload, FileTreeNode, FileTreeNodeKind } from './fileTreeTypes';
 
 /**
  * Renders VS Code-style indent guides using CSS borders

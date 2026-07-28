@@ -47,7 +47,7 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx 
 
 		outcome, updatedSession, err := e.executePlanStep(ctx, req, execCtx, eng, spec, session, *current, execState, reuseMode)
 		if err != nil {
-			return session, err
+			return updatedSession, err
 		}
 		session = updatedSession
 		if !outcome.Success {
@@ -276,7 +276,7 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 
 	result, err := handler.Execute(e, lctx)
 	if err != nil {
-		return contracts.StepOutcome{}, session, err
+		return contracts.StepOutcome{}, result.session, err
 	}
 
 	session = result.session
@@ -580,7 +580,7 @@ func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request,
 
 		outcome, updatedSession, err := e.executePlanStep(ctx, req, execCtx, eng, spec, session, *current, execState, reuseMode)
 		if err != nil {
-			return loopControl{}, session, err
+			return loopControl{}, updatedSession, err
 		}
 		session = updatedSession
 		last = outcome

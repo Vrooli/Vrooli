@@ -12,7 +12,7 @@ import (
 // configured with different artifact profiles do not leak settings into each
 // other through the shared recorder.
 func TestPerExecutionArtifactConfigIsolation(t *testing.T) {
-	writer := NewFileWriter(noopRepo{}, nil, nil, t.TempDir())
+	writer := NewFileWriter(noopRepo{}, nil, nil, NewStaticRoot(t.TempDir()))
 
 	execA := uuid.New()
 	execB := uuid.New()
@@ -53,7 +53,7 @@ func TestPerExecutionArtifactConfigIsolation(t *testing.T) {
 // TestForgetExecutionFallsBackToWriterDefault proves that once an execution is
 // forgotten its config no longer applies and the writer-wide default is used.
 func TestForgetExecutionFallsBackToWriterDefault(t *testing.T) {
-	writer := NewFileWriter(noopRepo{}, nil, nil, t.TempDir())
+	writer := NewFileWriter(noopRepo{}, nil, nil, NewStaticRoot(t.TempDir()))
 
 	exec := uuid.New()
 	none := config.DefaultArtifactSettingsForProfile(config.ProfileNone)
@@ -74,7 +74,7 @@ func TestForgetExecutionFallsBackToWriterDefault(t *testing.T) {
 // TestSetArtifactConfigForExecutionNilClears proves passing nil clears the
 // per-execution override.
 func TestSetArtifactConfigForExecutionNilClears(t *testing.T) {
-	writer := NewFileWriter(noopRepo{}, nil, nil, t.TempDir())
+	writer := NewFileWriter(noopRepo{}, nil, nil, NewStaticRoot(t.TempDir()))
 	exec := uuid.New()
 	minimal := config.DefaultArtifactSettingsForProfile(config.ProfileMinimal)
 	writer.SetArtifactConfigForExecution(exec, &minimal)

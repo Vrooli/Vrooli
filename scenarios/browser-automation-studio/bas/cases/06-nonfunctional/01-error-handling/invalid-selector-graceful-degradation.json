@@ -51,11 +51,14 @@
   ],
   "metadata": {
     "description": "Validates graceful handling of invalid CSS selectors with appropriate error messages",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Invalid Selector Graceful Degradation",
+    "version": "1"
   },
   "nodes": [
     {

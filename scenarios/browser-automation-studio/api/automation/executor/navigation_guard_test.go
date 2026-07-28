@@ -83,3 +83,14 @@ func TestMarkNavigation_ClearsFailedAttempt(t *testing.T) {
 		t.Error("a successful navigate should clear the stored failure")
 	}
 }
+
+func TestEnsureNavigation_AllowsPageIndependentEvaluate(t *testing.T) {
+	exec := NewSimpleExecutor(nil)
+	req := Request{}
+	execCtx := executionContext{navigation: &navigationState{}}
+
+	_, err := exec.ensureNavigation(context.Background(), req, execCtx, nil, engineSpec(), nil, "store-seed", "evaluate")
+	if err != nil {
+		t.Fatalf("evaluate should not require browser navigation: %v", err)
+	}
+}

@@ -129,6 +129,82 @@ func TestCompileResolvesZeroArgumentDynamicSelectorReference(t *testing.T) {
 	}
 }
 
+func TestCompileResolvesParameterizedDynamicSelectorReference(t *testing.T) {
+	root := t.TempDir()
+	manifest := map[string]any{
+		"selectors": map[string]any{},
+		"dynamicSelectors": map[string]any{
+			"projects.cardById": map[string]any{
+				"selectorPattern": "[data-project-id=\"${id}\"]",
+				"params": []any{map[string]any{
+					"name": "id",
+					"type": "string",
+				}},
+			},
+		},
+	}
+	content, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	path := filepath.Join(root, "ui", "src", "consts", "selectors.manifest.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	workflow := makeTestWorkflow(uuid.New(), "selector-flow", makeSelectorClickWorkflow("@selector/projects.cardById(id=\"${@params/projectId}\")").Nodes, makeSelectorClickWorkflow("@selector/projects.cardById(id=\"${@params/projectId}\")").Edges)
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{SelectorManifestRoot: root})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions() error = %v", err)
+	}
+	if got, want := plan.Steps[1].Action.GetClick().GetSelector(), "[data-project-id=\"${@params/projectId}\"]"; got != want {
+		t.Fatalf("resolved selector = %#v, want %q", got, want)
+	}
+}
+
+func TestCompilePreservesCSSPseudoClassAfterSelectorReference(t *testing.T) {
+	root := t.TempDir()
+	writeSelectorManifest(t, root, map[string]string{
+		"projects.card": "[data-testid=\"project-card\"]",
+	})
+
+	workflow := makeTestWorkflow(uuid.New(), "selector-flow", makeSelectorClickWorkflow("@selector/projects.card:not([data-dedupe=\"restored\"])").Nodes, makeSelectorClickWorkflow("@selector/projects.card:not([data-dedupe=\"restored\"])").Edges)
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{SelectorManifestRoot: root})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions() error = %v", err)
+	}
+	if got, want := plan.Steps[1].Action.GetClick().GetSelector(), "[data-testid=\"project-card\"]:not([data-dedupe=\"restored\"])"; got != want {
+		t.Fatalf("resolved selector = %#v, want %q", got, want)
+	}
+}
+
+func TestCompileResolvesSelectorReferenceInsideEvaluateExpression(t *testing.T) {
+	root := t.TempDir()
+	writeSelectorManifest(t, root, map[string]string{
+		"projects.card": "[data-testid=\"project-card\"]",
+	})
+	workflow := &basworkflows.WorkflowDefinitionV2{Nodes: []*basworkflows.WorkflowNodeV2{{
+		Id: "evaluate-project-cards",
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_EVALUATE,
+			Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{
+				Expression: "document.querySelectorAll('@selector/projects.card').length",
+			}},
+		},
+	}}}
+
+	plan, err := CompileWorkflowWithOptions(makeTestWorkflow(uuid.New(), "expression-selector", workflow.Nodes, nil), &CompileOptions{SelectorManifestRoot: root})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions() error = %v", err)
+	}
+	if got, want := plan.Steps[0].Action.GetEvaluate().GetExpression(), "document.querySelectorAll('[data-testid=\"project-card\"]').length"; got != want {
+		t.Fatalf("resolved expression = %#v, want %q", got, want)
+	}
+}
+
 // An unresolved @selector/ reference must fail compilation with a diagnostic
 // naming the token, instead of forwarding the literal token to the driver
 // (which used to surface as an opaque runtime "Selector not found: unknown").

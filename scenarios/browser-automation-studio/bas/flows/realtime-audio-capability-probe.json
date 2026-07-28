@@ -1,25 +1,40 @@
 {
+  "edges": [
+    {
+      "id": "navigate-to-audio",
+      "source": "navigate",
+      "target": "measure-realtime-audio",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
   "metadata": {
-    "name": "realtime-audio-capability-probe",
-    "labels": {"session_reuse_mode": "fresh"}
+    "description": "Workflow asset realtime-audio-capability-probe.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "session_reuse_mode": "fresh"
+    },
+    "name": "realtime-audio-capability-probe"
   },
   "nodes": [
     {
-      "id": "navigate",
       "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {"url": "about:blank"}
-      }
+        "navigate": {
+          "url": "about:blank"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate"
     },
     {
-      "id": "measure-realtime-audio",
       "action": {
-        "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(async () => { const c = new AudioContext(); const start = c.currentTime; let callbacks = 0; const p = c.createScriptProcessor(1024, 1, 1); p.onaudioprocess = () => callbacks++; const o = c.createOscillator(); o.connect(p); p.connect(c.destination); o.start(); await new Promise(resolve => setTimeout(resolve, 2000)); const result = { currentTimeDelta: c.currentTime - start, callbackCount: callbacks, outputLatency: c.outputLatency, state: c.state }; o.stop(); o.disconnect(); p.disconnect(); await c.close(); return result; })()"
-        }
-      }
+          "expression": "(async () =\u003e { const c = new AudioContext(); const start = c.currentTime; let callbacks = 0; const p = c.createScriptProcessor(1024, 1, 1); p.onaudioprocess = () =\u003e callbacks++; const o = c.createOscillator(); o.connect(p); p.connect(c.destination); o.start(); await new Promise(resolve =\u003e setTimeout(resolve, 2000)); const result = { currentTimeDelta: c.currentTime - start, callbackCount: callbacks, outputLatency: c.outputLatency, state: c.state }; o.stop(); o.disconnect(); p.disconnect(); await c.close(); return result; })()"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "measure-realtime-audio"
     }
-  ],
-  "edges": [{"id": "navigate-to-audio", "source": "navigate", "target": "measure-realtime-audio", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}]
+  ]
 }

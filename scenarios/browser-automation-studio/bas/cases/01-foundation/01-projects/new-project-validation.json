@@ -93,11 +93,14 @@
   ],
   "metadata": {
     "description": "Validates that project creation form displays appropriate error messages for invalid inputs",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "New Project Validation",
+    "version": "1"
   },
   "nodes": [
     {

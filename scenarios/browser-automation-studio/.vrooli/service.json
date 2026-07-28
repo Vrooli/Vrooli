@@ -58,18 +58,6 @@
       "range": "24400-24499"
     }
   },
-  "hostTools": [
-    {
-      "name": "ffmpeg",
-      "required": false,
-      "reason": "Render replay exports and media conversions for browser automation playback artifacts",
-      "when": [
-        "setup",
-        "develop"
-      ],
-      "notes": "Replay export features degrade when ffmpeg is unavailable"
-    }
-  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -183,7 +171,7 @@
         },
         {
           "name": "start-api",
-          "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
+        "run": "export VROOLI_TEST_MODE_FORCE_ENABLE=1; if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -259,8 +247,27 @@
         ]
       }
     },
-    "scenarios": {}
+    "scenarios": {
+      "experience-manager": {
+        "required": true,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "description": "Import-level dependency detected via go_import"
+      }
+    }
   },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Render replay exports and media conversions for browser automation playback artifacts",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Replay export features degrade when ffmpeg is unavailable"
+    }
+  ],
   "deployment": {
     "metadata_version": 1,
     "last_analyzed_at": "2024-03-28T01:30:00Z",

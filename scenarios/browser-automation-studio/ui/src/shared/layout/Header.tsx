@@ -16,7 +16,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
-import { useProjectStore, type Project } from "@/domains/projects";
+import { useProjectStore, type Project } from "@/domains/projects/store";
 import { AIEditModal } from "@/domains/ai";
 import toast from "react-hot-toast";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
@@ -48,6 +48,7 @@ interface HeaderProps {
   currentProject?: Project | null;
   currentWorkflow?: HeaderWorkflow | null;
   showBackToProject?: boolean;
+  onExecuteWorkflow?: () => void;
   onOpenHelp?: () => void;
   onOpenSettings?: () => void;
 }
@@ -59,6 +60,7 @@ function Header({
   currentProject,
   currentWorkflow: selectedWorkflow,
   showBackToProject,
+  onExecuteWorkflow,
   onOpenHelp,
   onOpenSettings,
 }: HeaderProps) {
@@ -851,7 +853,13 @@ function Header({
             </button>
 
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent('execute-workflow'))}
+              onClick={() => {
+                if (onExecuteWorkflow) {
+                  onExecuteWorkflow();
+                  return;
+                }
+                window.dispatchEvent(new CustomEvent('execute-workflow'));
+              }}
               className="bg-flow-accent hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-0 sm:gap-2 transition-colors"
               title="Execute Workflow"
               aria-label="Execute Workflow"

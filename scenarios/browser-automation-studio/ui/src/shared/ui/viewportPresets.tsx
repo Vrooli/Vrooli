@@ -1,5 +1,5 @@
 import { Monitor, Smartphone, Tv } from 'lucide-react';
-import type { ViewportPresetOption } from './ViewportPicker';
+import type { ViewportPresetOption } from './viewportPresetTypes';
 
 export const VIEWPORT_PRESETS: ViewportPresetOption[] = [
   {

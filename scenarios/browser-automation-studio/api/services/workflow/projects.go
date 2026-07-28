@@ -13,6 +13,9 @@ import (
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
 func (s *WorkflowService) CheckHealth() string {
@@ -27,7 +30,11 @@ func (s *WorkflowService) CheckHealth() string {
 	return "healthy"
 }
 
-const seedProjectName = "Demo Browser Automations"
+const (
+	seedProjectName    = "Demo Browser Automations"
+	seedWorkflowName   = "Demo Smoke Workflow"
+	seedWorkflowFolder = "/demo"
+)
 
 // EnsureSeedProject makes sure the default demo project exists so CLI/tests have a stable target.
 // The project is persisted as a DB index row (for queries) plus on-disk proto metadata (source of truth).
@@ -45,7 +52,15 @@ func (s *WorkflowService) EnsureSeedProject(ctx context.Context) (*database.Proj
 		return nil, fmt.Errorf("lookup seed project: %w", err)
 	}
 
-	demoFolder := paths.ResolveDemoProjectFolder(s.log)
+	projectsRoot := paths.ResolveProjectsRoot(s.log)
+	if s.projectRoot != nil {
+		resolved, resolveErr := s.projectRoot(ctx)
+		if resolveErr != nil {
+			return nil, fmt.Errorf("resolve project root: %w", resolveErr)
+		}
+		projectsRoot = resolved
+	}
+	demoFolder := filepath.Join(projectsRoot, "demo")
 	if abs, err := filepath.Abs(demoFolder); err == nil {
 		demoFolder = abs
 	}
@@ -74,6 +89,68 @@ func (s *WorkflowService) EnsureSeedProject(ctx context.Context) (*database.Proj
 		return nil, fmt.Errorf("create seed project: %w", err)
 	}
 	return project, nil
+}
+
+// EnsureSeedWorkflow provisions the complete deterministic demo fixture used by
+// the builder, execution, and replay surfaces. It is deliberately owned by the
+// workflow service so routed test pools receive the same minimum fixture as
+// normal startup without relying on an external seed process or primary data.
+func (s *WorkflowService) EnsureSeedWorkflow(ctx context.Context) (*database.WorkflowIndex, error) {
+	project, err := s.EnsureSeedProject(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ensure seed project: %w", err)
+	}
+
+	existing, err := s.repo.GetWorkflowByNameInProject(ctx, project.ID, seedWorkflowName, seedWorkflowFolder)
+	if err == nil && existing != nil {
+		return existing, nil
+	}
+	if err != nil && !errors.Is(err, database.ErrNotFound) {
+		return nil, fmt.Errorf("lookup seed workflow: %w", err)
+	}
+
+	created, err := s.CreateWorkflow(ctx, &basapi.CreateWorkflowRequest{
+		ProjectId:      project.ID.String(),
+		Name:           seedWorkflowName,
+		FolderPath:     seedWorkflowFolder,
+		FlowDefinition: seedWorkflowDefinition(),
+	})
+	if err != nil {
+		if !errors.Is(err, ErrWorkflowNameConflict) {
+			return nil, fmt.Errorf("create seed workflow: %w", err)
+		}
+		existing, lookupErr := s.repo.GetWorkflowByNameInProject(ctx, project.ID, seedWorkflowName, seedWorkflowFolder)
+		if lookupErr != nil {
+			return nil, fmt.Errorf("resolve concurrently created seed workflow: %w", lookupErr)
+		}
+		return existing, nil
+	}
+	workflowID, parseErr := uuid.Parse(created.GetWorkflow().GetId())
+	if parseErr != nil {
+		return nil, fmt.Errorf("parse created seed workflow id: %w", parseErr)
+	}
+	workflow, err := s.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("load created seed workflow: %w", err)
+	}
+	return workflow, nil
+}
+
+func seedWorkflowDefinition() *basworkflows.WorkflowDefinitionV2 {
+	return &basworkflows.WorkflowDefinitionV2{
+		Metadata: &basworkflows.WorkflowMetadataV2{
+			Labels: map[string]string{"seeded": "true"},
+		},
+		Nodes: []*basworkflows.WorkflowNodeV2{{
+			Id: "seed-navigate-example",
+			Action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+					Url: "https://example.com/",
+				}},
+			},
+		}},
+	}
 }
 
 // CreateProject creates a new project index row and persists proto metadata to disk.
