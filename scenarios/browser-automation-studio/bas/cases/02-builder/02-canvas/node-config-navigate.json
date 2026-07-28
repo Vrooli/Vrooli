@@ -9,12 +9,6 @@
     {
       "id": "e8",
       "source": "drag-navigate-node",
-      "target": "wait-node-added",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e9",
-      "source": "wait-node-added",
       "target": "verify-navigate-node",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -125,9 +119,6 @@
           "timeout_ms": 15000
         }
       },
-      "execution_settings": {
-        "wait_after_ms": 600
-      },
       "id": "wait-builder"
     },
     {
@@ -144,18 +135,6 @@
         "type": "ACTION_TYPE_DRAG_DROP"
       },
       "id": "drag-navigate-node"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for node to appear"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1500
-        }
-      },
-      "id": "wait-node-added"
     },
     {
       "action": {
@@ -225,8 +204,7 @@
         "type": "ACTION_TYPE_CLICK"
       },
       "execution_settings": {
-        "continue_on_error": true,
-        "wait_after_ms": 500
+        "continue_on_error": true
       },
       "id": "click-url-mode"
     },
@@ -239,9 +217,6 @@
           "label": "Click URL input field"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "click-url-input"
     },
@@ -260,9 +235,6 @@
         },
         "type": "ACTION_TYPE_KEYBOARD"
       },
-      "execution_settings": {
-        "wait_after_ms": 200
-      },
       "id": "clear-url-input"
     },
     {
@@ -276,9 +248,6 @@
         },
         "type": "ACTION_TYPE_INPUT"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "type-url"
     },
     {
@@ -290,9 +259,6 @@
           "label": "Click outside to trigger blur/save"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
       },
       "id": "blur-url-input"
     },

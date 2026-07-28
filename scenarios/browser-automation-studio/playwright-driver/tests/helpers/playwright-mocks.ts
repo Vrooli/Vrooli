@@ -11,6 +11,9 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 50 }),
     scrollIntoViewIfNeeded: jest.fn().mockResolvedValue(undefined),
     screenshot: jest.fn().mockResolvedValue(Buffer.from('element-screenshot')),
+    // Resolves by default so waiting for an element is a no-op; a test that
+    // wants the absent case rejects it explicitly.
+    waitFor: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockLocator = {

@@ -79,7 +79,6 @@
         "metadata": { "label": "Choose AI-assisted workflow creation" },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": { "wait_after_ms": 500 },
       "id": "select-ai-assisted"
     },
     {
@@ -88,7 +87,6 @@
         "metadata": { "label": "Switch workflows to card view" },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": { "wait_after_ms": 500 },
       "id": "open-card-view"
     },
     {
@@ -104,9 +102,6 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },
         "type": "ACTION_TYPE_NAVIGATE"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1200
       },
       "id": "navigate-dashboard"
     },

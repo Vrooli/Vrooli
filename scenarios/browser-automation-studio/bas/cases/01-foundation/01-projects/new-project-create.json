@@ -57,12 +57,6 @@
     {
       "id": "e8",
       "source": "click-create",
-      "target": "wait-for-navigation",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e8b",
-      "source": "wait-for-navigation",
       "target": "assert-workflows-tab-visible",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -100,9 +94,6 @@
         },
         "type": "ACTION_TYPE_NAVIGATE"
       },
-      "execution_settings": {
-        "wait_after_ms": 1200
-      },
       "id": "navigate-dashboard"
     },
     {
@@ -126,9 +117,6 @@
           "label": "Navigate to Projects tab"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "click-projects-tab"
     },
@@ -201,9 +189,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "expand-advanced-options"
     },
     {
@@ -230,22 +215,7 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "click-create"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for navigation and page render"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        }
-      },
-      "id": "wait-for-navigation"
     },
     {
       "action": {

@@ -76,8 +76,7 @@
         "resilience": {
           "success_selector": "@selector/executions.viewer.status, @selector/executions.list.item",
           "success_timeout_ms": 30000
-        },
-        "wait_after_ms": 500
+        }
       },
       "id": "click-execute"
     },

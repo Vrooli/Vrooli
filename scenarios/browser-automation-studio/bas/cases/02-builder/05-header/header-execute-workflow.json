@@ -27,12 +27,6 @@
     {
       "id": "e3",
       "source": "work",
-      "target": "wait1",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e4",
-      "source": "wait1",
       "target": "assert-execute-btn",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -79,7 +73,6 @@
         "metadata": { "label": "Open Projects dashboard tab" },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": { "wait_after_ms": 500 },
       "id": "open-projects"
     },
     {
@@ -88,7 +81,6 @@
         "metadata": { "label": "Switch workflows to card view" },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": { "wait_after_ms": 500 },
       "id": "open-card-view"
     },
     {
@@ -104,9 +96,6 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },
         "type": "ACTION_TYPE_NAVIGATE"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1200
       },
       "id": "nav"
     },
@@ -137,9 +126,6 @@
           "timeout_ms": 10000
         }
       },
-      "execution_settings": {
-        "wait_after_ms": 600
-      },
       "id": "wait-workflows"
     },
     {
@@ -153,18 +139,6 @@
         "type": "ACTION_TYPE_CLICK"
       },
       "id": "work"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for builder"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 3000
-        }
-      },
-      "id": "wait1"
     },
     {
       "action": {

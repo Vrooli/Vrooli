@@ -15,12 +15,6 @@
     {
       "id": "e7",
       "source": "drag-assert-node",
-      "target": "wait-node-render",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e8",
-      "source": "wait-node-render",
       "target": "verify-assert-node",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -131,9 +125,6 @@
           "timeout_ms": 15000
         }
       },
-      "execution_settings": {
-        "wait_after_ms": 600
-      },
       "id": "wait-builder"
     },
     {
@@ -150,18 +141,6 @@
         "type": "ACTION_TYPE_DRAG_DROP"
       },
       "id": "drag-assert-node"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for render"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1500
-        }
-      },
-      "id": "wait-node-render"
     },
     {
       "action": {
@@ -244,9 +223,6 @@
         },
         "type": "ACTION_TYPE_INPUT"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "enter-selector"
     },
     {
@@ -287,9 +263,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "toggle-case-sensitive"
     },
     {
@@ -329,9 +302,6 @@
           "label": "Click canvas to save"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
       },
       "id": "save-configuration"
     }

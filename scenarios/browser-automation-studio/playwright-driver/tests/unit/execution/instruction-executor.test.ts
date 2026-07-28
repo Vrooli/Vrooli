@@ -151,7 +151,11 @@ describe('Instruction executor', () => {
       expect(getHandler).toHaveBeenCalledWith(instruction);
       expect(executeHandler).toHaveBeenCalledWith(instruction, baseContext);
       expect(mockTelemetryInstance.start).toHaveBeenCalled();
-      expect(mockTelemetryInstance.collectForStep).toHaveBeenCalledWith(handlerResult);
+      // This instruction carries no telemetry directive, so the capture policy
+      // must resolve to "capture" — the pre-directive default.
+      expect(mockTelemetryInstance.collectForStep).toHaveBeenCalledWith(handlerResult, {
+        skipScreenshot: false,
+      });
       expect(mockTelemetryInstance.dispose).toHaveBeenCalled();
       expect(result.outcome).toBe(outcome);
       expect(result.driverOutcome).toBe(driverOutcome);

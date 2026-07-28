@@ -177,8 +177,12 @@ async function main(): Promise<void> {
     return originalEmit(event, ...args);
   } as typeof server.emit;
 
-  // Graceful shutdown with request draining
-  const shutdown = async (signal: string): Promise<void> => {
+  // Graceful shutdown with request draining.
+  //
+  // exitCode distinguishes an operator-requested stop from a fault. Exiting 0
+  // on a fault makes the supervisor report "exited normally", which hid a
+  // driver death mid-suite behind a clean-looking restart.
+  const shutdown = async (signal: string, exitCode = 0): Promise<void> => {
     if (isShuttingDown) {
       logger.warn('server: shutdown already in progress, ignoring signal', { signal });
       return;
@@ -229,8 +233,8 @@ async function main(): Promise<void> {
     // Shutdown session manager (close all browser sessions)
     await sessionManager.shutdown();
 
-    logger.info('server: shutdown complete');
-    process.exit(0);
+    logger.info('server: shutdown complete', { exitCode });
+    process.exit(exitCode);
   };
 
   process.on('SIGTERM', () => {
@@ -240,20 +244,27 @@ async function main(): Promise<void> {
     void shutdown('SIGINT');
   });
 
-  // Handle uncaught errors
+  // An uncaught exception can leave module state inconsistent, so the process
+  // still goes down — but with a non-zero code so the supervisor and its logs
+  // name it a fault rather than a normal exit.
   process.on('uncaughtException', (error) => {
     logger.error('server: uncaught exception', {
       error: error.message,
       stack: error.stack,
     });
-    void shutdown('uncaughtException');
+    void shutdown('uncaughtException', 1);
   });
 
+  // A stray rejection is a bug on one code path, not a reason to destroy every
+  // live browser session. Tearing the driver down here turned a single orphaned
+  // page.screenshot promise into a suite-wide outage: every in-flight execution
+  // failed with connection-refused while the exit looked clean. Log it loudly,
+  // keep serving, and let the failing path surface on its own terms.
   process.on('unhandledRejection', (reason) => {
-    logger.error('server: unhandled rejection', {
-      reason: String(reason),
+    logger.error('server: unhandled rejection (continuing)', {
+      reason: reason instanceof Error ? reason.message : String(reason),
+      stack: reason instanceof Error ? reason.stack : undefined,
     });
-    void shutdown('unhandledRejection');
   });
 }
 

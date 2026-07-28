@@ -33,12 +33,6 @@
     {
       "id": "fixture-edge-3",
       "source": "fixture-click-demo-workflow",
-      "target": "fixture-wait-for-builder",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "fixture-edge-4",
-      "source": "fixture-wait-for-builder",
       "target": "fixture-assert-builder-loaded",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -75,8 +69,7 @@
         "type": "ACTION_TYPE_CLICK"
       },
       "execution_settings": {
-        "timeout_ms": 10000,
-        "wait_after_ms": 500
+        "timeout_ms": 10000
       },
       "id": "fixture-open-workflows-tab"
     },
@@ -91,8 +84,7 @@
         "type": "ACTION_TYPE_CLICK"
       },
       "execution_settings": {
-        "timeout_ms": 10000,
-        "wait_after_ms": 500
+        "timeout_ms": 10000
       },
       "id": "fixture-open-workflow-card-view"
     },
@@ -131,9 +123,6 @@
           "timeout_ms": 15000
         }
       },
-      "execution_settings": {
-        "wait_after_ms": 1000
-      },
       "id": "fixture-wait-for-workflows"
     },
     {
@@ -162,22 +151,9 @@
         "type": "ACTION_TYPE_CLICK"
       },
       "execution_settings": {
-        "timeout_ms": 10000,
-        "wait_after_ms": 1000
+        "timeout_ms": 10000
       },
       "id": "fixture-click-demo-workflow"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for builder to initialize"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        }
-      },
-      "id": "fixture-wait-for-builder"
     },
     {
       "action": {

@@ -9,12 +9,6 @@
     {
       "id": "edge-app-ready-wait",
       "source": "wait-app-ready",
-      "target": "wait-for-page",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "edge-wait-screenshot-bridge-edge-screenshot-assert",
-      "source": "wait-for-page",
       "target": "assert-dashboard",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
@@ -59,18 +53,6 @@
         }
       },
       "id": "wait-app-ready"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for page load"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        }
-      },
-      "id": "wait-for-page"
     },
     {
       "action": {

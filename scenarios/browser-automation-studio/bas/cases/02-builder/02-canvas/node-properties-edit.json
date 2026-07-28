@@ -145,9 +145,6 @@
         },
         "type": "ACTION_TYPE_KEYBOARD"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "close-properties"
     }
   ],

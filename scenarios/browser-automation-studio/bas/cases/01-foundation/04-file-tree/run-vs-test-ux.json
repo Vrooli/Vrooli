@@ -45,12 +45,6 @@
     {
       "id": "e7",
       "source": "confirm-action-creation",
-      "target": "wait-for-action-file",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e8",
-      "source": "wait-for-action-file",
       "target": "go-back-to-project",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -99,12 +93,6 @@
     {
       "id": "e16",
       "source": "confirm-case-creation",
-      "target": "wait-for-case-file",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e17",
-      "source": "wait-for-case-file",
       "target": "go-back-to-project-again",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -163,9 +151,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "switch-to-tree-view"
     },
     {
@@ -193,9 +178,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "click-new-menu"
     },
     {
@@ -207,9 +189,6 @@
           "label": "Click New Action button"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "create-action-file"
     },
@@ -223,9 +202,6 @@
           "selector": "@selector/dialogs.responsive.content",
           "timeout_ms": 5000
         }
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "wait-for-name-dialog"
     },
@@ -241,9 +217,6 @@
         },
         "type": "ACTION_TYPE_INPUT"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "enter-action-name"
     },
     {
@@ -256,22 +229,7 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 1500
-      },
       "id": "confirm-action-creation"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for action file to appear"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1000
-        }
-      },
-      "id": "wait-for-action-file"
     },
     {
       "action": {
@@ -282,9 +240,6 @@
           "label": "Go back to project detail"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
       },
       "id": "go-back-to-project"
     },
@@ -297,9 +252,6 @@
           "label": "Switch to File Tree view again"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "switch-to-tree-view-again"
     },
@@ -326,9 +278,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "click-new-menu-for-case"
     },
     {
@@ -340,9 +289,6 @@
           "label": "Click New Case button"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "create-case-file"
     },
@@ -356,9 +302,6 @@
           "selector": "@selector/dialogs.responsive.content",
           "timeout_ms": 5000
         }
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "wait-for-case-dialog"
     },
@@ -374,9 +317,6 @@
         },
         "type": "ACTION_TYPE_INPUT"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "enter-case-name"
     },
     {
@@ -389,22 +329,7 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 1500
-      },
       "id": "confirm-case-creation"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for case file to be created"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1000
-        }
-      },
-      "id": "wait-for-case-file"
     },
     {
       "action": {
@@ -415,9 +340,6 @@
           "label": "Go back to project detail again"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
       },
       "id": "go-back-to-project-again"
     },
@@ -430,9 +352,6 @@
           "label": "Switch to File Tree view final"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "switch-to-tree-view-final"
     },

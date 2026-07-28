@@ -45,6 +45,7 @@ import {
   type HandlerInstruction,
   type StepOutcome,
 } from '../proto';
+import { ScreenshotCapturePolicy } from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
 import { TelemetryOrchestrator, type StepTelemetry } from '../telemetry';
 import {
   buildStepOutcome,
@@ -168,6 +169,32 @@ export function createInstructionKey(instruction: HandlerInstruction): string {
   return `${instruction.nodeId}:${instruction.index}`;
 }
 
+/**
+ * Apply the API's per-step screenshot directive.
+ *
+ * The API decides intent (it knows the execution's artifact profile and the
+ * step's action type); the driver only resolves the one case the API cannot,
+ * because success is not knowable until the handler has run.
+ *
+ * An absent or unspecified directive means "capture", so an API build that does
+ * not send one behaves exactly as it did before the directive existed.
+ *
+ * Pure by design so the policy can be tested without a browser.
+ */
+export function shouldCaptureStepScreenshot(
+  policy: ScreenshotCapturePolicy | undefined,
+  stepSucceeded: boolean
+): boolean {
+  switch (policy) {
+    case ScreenshotCapturePolicy.NEVER:
+      return false;
+    case ScreenshotCapturePolicy.ON_FAILURE:
+      return !stepSucceeded;
+    default:
+      return true;
+  }
+}
+
 // =============================================================================
 // Executor
 // =============================================================================
@@ -249,7 +276,12 @@ export async function executeInstruction(
   recordMetrics(context.metrics, getActionType(instruction), handlerResult, instructionDuration);
 
   // Collect telemetry
-  const telemetry = await telemetryOrchestrator.collectForStep(handlerResult);
+  const telemetry = await telemetryOrchestrator.collectForStep(handlerResult, {
+    skipScreenshot: !shouldCaptureStepScreenshot(
+      instruction.telemetry?.screenshot,
+      handlerResult.success
+    ),
+  });
   telemetryOrchestrator.dispose();
 
   // Build outcome

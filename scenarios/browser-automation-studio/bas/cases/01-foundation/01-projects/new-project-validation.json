@@ -141,9 +141,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "click-projects-tab"
     },
     {
@@ -156,9 +153,6 @@
           "selector": "@selector/dashboard.newProjectButton",
           "timeout_ms": 15000
         }
-      },
-      "execution_settings": {
-        "wait_after_ms": 600
       },
       "id": "wait-for-projects"
     },
@@ -242,9 +236,6 @@
         },
         "type": "ACTION_TYPE_INPUT"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "fill-whitespace-only-name"
     },
     {
@@ -299,9 +290,6 @@
           "label": "Enter excessively long name"
         },
         "type": "ACTION_TYPE_INPUT"
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "fill-very-long-name"
     },

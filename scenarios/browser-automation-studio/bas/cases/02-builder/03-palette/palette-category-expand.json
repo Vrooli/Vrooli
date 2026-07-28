@@ -111,8 +111,7 @@
         "type": "ACTION_TYPE_CLICK"
       },
       "execution_settings": {
-        "continue_on_error": true,
-        "wait_after_ms": 1000
+        "continue_on_error": true
       },
       "id": "click-first-category"
     },

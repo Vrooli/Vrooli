@@ -16,7 +16,10 @@
  * @module proto/instruction
  */
 
-import type { CompiledInstruction } from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
+import type {
+  CompiledInstruction,
+  StepTelemetryDirective,
+} from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
 import type { ActionDefinition } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import { jsonValueMapToPlain } from './utils';
@@ -55,6 +58,11 @@ export interface HandlerInstruction {
    * Always populated by the Go API - handlers should use requireTypedParams() to extract.
    */
   action: ActionDefinition;
+  /**
+   * Per-step telemetry collection intent from the API.
+   * Absent means "use driver defaults", which keeps older API builds working.
+   */
+  telemetry?: StepTelemetryDirective;
 }
 
 // =============================================================================
@@ -81,6 +89,7 @@ export function toHandlerInstruction(proto: CompiledInstruction): HandlerInstruc
     metadata: proto.metadata ? { ...proto.metadata } : undefined,
     // Typed action - the canonical representation
     action: proto.action,
+    telemetry: proto.telemetry,
   };
 }
 

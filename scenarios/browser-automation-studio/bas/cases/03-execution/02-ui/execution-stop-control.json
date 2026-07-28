@@ -75,14 +75,16 @@
     },
     {
       "action": {
-        "evaluate": {
-          "expression": "document.querySelector('[class*=\"running\"], [class*=\"executing\"], svg.lucide-loader') !== null",
-          "store_result": "executionRunning"
+        "assert": {
+          "failure_message": "Execution should reach a pending/running state before it can be stopped. Without this the stop click races execution startup and cancels nothing.",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.status",
+          "timeout_ms": 15000
         },
         "metadata": {
-          "label": "Check execution is running"
+          "label": "Wait for execution to start before stopping it"
         },
-        "type": "ACTION_TYPE_EVALUATE"
+        "type": "ACTION_TYPE_ASSERT"
       },
       "id": "check-running"
     },

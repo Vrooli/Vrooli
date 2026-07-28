@@ -166,9 +166,6 @@
         },
         "type": "ACTION_TYPE_DRAG_DROP"
       },
-      "execution_settings": {
-        "wait_after_ms": 2000
-      },
       "id": "drag-navigate-node"
     },
     {

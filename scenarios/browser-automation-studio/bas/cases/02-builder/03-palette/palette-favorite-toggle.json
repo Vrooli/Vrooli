@@ -3,12 +3,6 @@
     {
       "id": "call-open-builder-to-wait-for-builder",
       "source": "call-open-builder",
-      "target": "wait-for-builder",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e7",
-      "source": "wait-for-builder",
       "target": "assert-node-card-visible",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -61,18 +55,6 @@
     },
     {
       "action": {
-        "metadata": {
-          "label": "Wait for workflow builder"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 3000
-        }
-      },
-      "id": "wait-for-builder"
-    },
-    {
-      "action": {
         "assert": {
           "failure_message": "Node palette cards should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
@@ -110,9 +92,6 @@
           "label": "Click favorite button to toggle"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
       },
       "id": "click-favorite-button"
     },

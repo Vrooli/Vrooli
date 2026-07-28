@@ -130,9 +130,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "click-projects-tab"
     },
     {
@@ -145,9 +142,6 @@
           "selector": "@selector/projects.grid",
           "timeout_ms": 10000
         }
-      },
-      "execution_settings": {
-        "wait_after_ms": 600
       },
       "id": "wait-for-dashboard"
     },

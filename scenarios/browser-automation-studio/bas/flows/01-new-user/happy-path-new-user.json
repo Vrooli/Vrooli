@@ -271,9 +271,6 @@
           },
           "type": "ACTION_TYPE_NAVIGATE"
         },
-        "execution_settings": {
-          "wait_after_ms": 2000
-        },
         "id": "navigate-dashboard"
       },
       {
@@ -285,9 +282,6 @@
             "full_page": true
           },
           "type": "ACTION_TYPE_SCREENSHOT"
-        },
-        "execution_settings": {
-          "wait_after_ms": 500
         },
         "id": "capture-dashboard"
       },
@@ -302,9 +296,6 @@
             "timeout_ms": 10000
           }
         },
-        "execution_settings": {
-          "wait_after_ms": 1000
-        },
         "id": "wait-for-dashboard"
       },
       {
@@ -316,9 +307,6 @@
             "label": "Click New Project button"
           },
           "type": "ACTION_TYPE_CLICK"
-        },
-        "execution_settings": {
-          "wait_after_ms": 1500
         },
         "id": "click-new-project"
       },
@@ -332,9 +320,6 @@
             "selector": "@selector/dialogs.project.root",
             "timeout_ms": 10000
           }
-        },
-        "execution_settings": {
-          "wait_after_ms": 1000
         },
         "id": "wait-for-project-modal"
       },
@@ -363,9 +348,6 @@
           },
           "type": "ACTION_TYPE_INPUT"
         },
-        "execution_settings": {
-          "wait_after_ms": 500
-        },
         "id": "fill-project-name"
       },
       {
@@ -377,9 +359,6 @@
             "label": "Expand advanced options"
           },
           "type": "ACTION_TYPE_CLICK"
-        },
-        "execution_settings": {
-          "wait_after_ms": 300
         },
         "id": "expand-advanced-options"
       },
@@ -395,9 +374,6 @@
           },
           "type": "ACTION_TYPE_INPUT"
         },
-        "execution_settings": {
-          "wait_after_ms": 500
-        },
         "id": "fill-project-description"
       },
       {
@@ -409,9 +385,6 @@
             "label": "Submit project creation form"
           },
           "type": "ACTION_TYPE_CLICK"
-        },
-        "execution_settings": {
-          "wait_after_ms": 2000
         },
         "id": "submit-project"
       },
@@ -426,9 +399,6 @@
             "timeout_ms": 10000
           }
         },
-        "execution_settings": {
-          "wait_after_ms": 1500
-        },
         "id": "wait-for-project-detail"
       },
       {
@@ -441,9 +411,6 @@
           },
           "type": "ACTION_TYPE_SCREENSHOT"
         },
-        "execution_settings": {
-          "wait_after_ms": 500
-        },
         "id": "capture-project-created"
       },
       {
@@ -455,9 +422,6 @@
             "label": "Click New Workflow button"
           },
           "type": "ACTION_TYPE_CLICK"
-        },
-        "execution_settings": {
-          "wait_after_ms": 1500
         },
         "id": "click-new-workflow"
       },
@@ -484,8 +448,7 @@
           "type": "ACTION_TYPE_CLICK"
         },
         "execution_settings": {
-          "continue_on_error": true,
-          "wait_after_ms": 2000
+          "continue_on_error": true
         },
         "id": "click-manual-builder"
       },
@@ -500,9 +463,6 @@
             "timeout_ms": 15000
           }
         },
-        "execution_settings": {
-          "wait_after_ms": 2000
-        },
         "id": "wait-for-canvas"
       },
       {
@@ -514,9 +474,6 @@
             "full_page": true
           },
           "type": "ACTION_TYPE_SCREENSHOT"
-        },
-        "execution_settings": {
-          "wait_after_ms": 500
         },
         "id": "capture-empty-canvas"
       },
@@ -531,9 +488,6 @@
             "label": "Add Navigate node to canvas"
           },
           "type": "ACTION_TYPE_DRAG_DROP"
-        },
-        "execution_settings": {
-          "wait_after_ms": 3000
         },
         "id": "drag-navigate-node"
       },
@@ -560,8 +514,7 @@
           "type": "ACTION_TYPE_CLICK"
         },
         "execution_settings": {
-          "continue_on_error": true,
-          "wait_after_ms": 2000
+          "continue_on_error": true
         },
         "id": "click-navigate-node"
       },
@@ -590,8 +543,7 @@
           "type": "ACTION_TYPE_INPUT"
         },
         "execution_settings": {
-          "continue_on_error": true,
-          "wait_after_ms": 500
+          "continue_on_error": true
         },
         "id": "fill-navigate-url"
       },
@@ -606,9 +558,6 @@
             "label": "Add Screenshot node to canvas"
           },
           "type": "ACTION_TYPE_DRAG_DROP"
-        },
-        "execution_settings": {
-          "wait_after_ms": 3000
         },
         "id": "drag-screenshot-node"
       },
@@ -634,9 +583,6 @@
           },
           "type": "ACTION_TYPE_SCREENSHOT"
         },
-        "execution_settings": {
-          "wait_after_ms": 500
-        },
         "id": "capture-workflow-built"
       },
       {
@@ -655,8 +601,7 @@
           "type": "ACTION_TYPE_KEYBOARD"
         },
         "execution_settings": {
-          "continue_on_error": true,
-          "wait_after_ms": 2000
+          "continue_on_error": true
         },
         "id": "save-workflow"
       },
@@ -682,9 +627,6 @@
           },
           "type": "ACTION_TYPE_CLICK"
         },
-        "execution_settings": {
-          "wait_after_ms": 2000
-        },
         "id": "click-execute-button"
       },
       {
@@ -708,9 +650,6 @@
             "full_page": true
           },
           "type": "ACTION_TYPE_SCREENSHOT"
-        },
-        "execution_settings": {
-          "wait_after_ms": 500
         },
         "id": "capture-execution-in-progress"
       },
@@ -737,8 +676,7 @@
           "type": "ACTION_TYPE_CLICK"
         },
         "execution_settings": {
-          "continue_on_error": true,
-          "wait_after_ms": 2000
+          "continue_on_error": true
         },
         "id": "navigate-to-project"
       },
@@ -752,9 +690,6 @@
           },
           "type": "ACTION_TYPE_CLICK"
         },
-        "execution_settings": {
-          "wait_after_ms": 2000
-        },
         "id": "click-executions-tab"
       },
       {
@@ -767,9 +702,6 @@
             "selector": "@selector/executions.list.card:not([data-dedupe=\"wait\"])",
             "timeout_ms": 10000
           }
-        },
-        "execution_settings": {
-          "wait_after_ms": 1000
         },
         "id": "wait-for-executions-list"
       },
@@ -797,9 +729,6 @@
           },
           "type": "ACTION_TYPE_SCREENSHOT"
         },
-        "execution_settings": {
-          "wait_after_ms": 500
-        },
         "id": "capture-execution-history"
       },
       {
@@ -811,9 +740,6 @@
             "label": "Open first execution details"
           },
           "type": "ACTION_TYPE_CLICK"
-        },
-        "execution_settings": {
-          "wait_after_ms": 2000
         },
         "id": "click-first-execution"
       },
@@ -827,9 +753,6 @@
             "selector": "@selector/executions.viewer.root",
             "timeout_ms": 10000
           }
-        },
-        "execution_settings": {
-          "wait_after_ms": 1500
         },
         "id": "wait-for-execution-viewer"
       },
@@ -857,9 +780,6 @@
           },
           "type": "ACTION_TYPE_CLICK"
         },
-        "execution_settings": {
-          "wait_after_ms": 2000
-        },
         "id": "click-replay-tab"
       },
       {
@@ -872,9 +792,6 @@
             "selector": "@selector/replay.player, @selector/replay.timeline",
             "timeout_ms": 10000
           }
-        },
-        "execution_settings": {
-          "wait_after_ms": 1000
         },
         "id": "wait-for-replay-player"
       },
@@ -901,9 +818,6 @@
             "full_page": true
           },
           "type": "ACTION_TYPE_SCREENSHOT"
-        },
-        "execution_settings": {
-          "wait_after_ms": 500
         },
         "id": "capture-final-replay"
       }

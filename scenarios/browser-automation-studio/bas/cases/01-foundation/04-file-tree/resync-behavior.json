@@ -57,12 +57,6 @@
     {
       "id": "e9",
       "source": "confirm-resync",
-      "target": "wait-for-tree-refresh",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e10",
-      "source": "wait-for-tree-refresh",
       "target": "assert-tree-still-visible",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -115,9 +109,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "switch-to-tree-view"
     },
     {
@@ -158,9 +149,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "open-more-menu"
     },
     {
@@ -188,9 +176,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 500
-      },
       "id": "click-resync-button"
     },
     {
@@ -203,9 +188,6 @@
           "selector": "@selector/dialogs.responsive.content",
           "timeout_ms": 5000
         }
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "wait-for-confirm-dialog"
     },
@@ -234,22 +216,7 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 2000
-      },
       "id": "confirm-resync"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for tree to refresh after resync"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        }
-      },
-      "id": "wait-for-tree-refresh"
     },
     {
       "action": {

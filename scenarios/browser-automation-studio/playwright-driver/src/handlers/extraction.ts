@@ -106,6 +106,42 @@ export class ExtractionHandler extends BaseHandler {
     };
   }
 
+  /**
+   * Run a script, tolerating a navigation that lands mid-evaluate.
+   *
+   * Playwright tears down the JS execution context when the page navigates, so
+   * a script that started just before a navigation commits dies with
+   * "Execution context was destroyed". That is transient by definition — the
+   * next context can answer the same question — but it surfaced as a hard
+   * failure because the executor defaults to MaxAttempts=1, which makes the
+   * driver's `retryable` classification inert unless a workflow opts into a
+   * resilience block per node.
+   *
+   * Retrying once here fixes the whole class without loosening retry semantics
+   * for genuine failures. A second destruction is not swallowed: the workflow
+   * is then navigating continuously and the caller should see it.
+   */
+  private async evaluateSurvivingNavigation(
+    page: HandlerContext['page'],
+    script: string,
+    logger: HandlerContext['logger']
+  ): Promise<unknown> {
+    try {
+      return await page.evaluate(script);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/execution context was destroyed/i.test(message)) {
+        throw error;
+      }
+      logger.debug('evaluate: context destroyed by navigation, retrying once', {
+        scriptLength: script.length,
+      });
+      // Let the new document commit before asking it anything.
+      await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+      return await page.evaluate(script);
+    }
+  }
+
   private async handleEvaluate(
     instruction: HandlerInstruction,
     context: HandlerContext
@@ -135,7 +171,7 @@ export class ExtractionHandler extends BaseHandler {
 
     // Evaluate script in browser context
     // Note: EvaluateParams from proto doesn't support args - evaluate expression directly
-    const result = await page.evaluate(script);
+    const result = await this.evaluateSurvivingNavigation(page, script, logger);
 
     logger.info('Script evaluation successful', {
       resultType: typeof result,

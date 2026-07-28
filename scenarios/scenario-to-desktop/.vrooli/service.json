@@ -58,6 +58,8 @@
       "deployment-manager": {
         "purpose": "Bundle manifest generation for bundled runtime mode",
         "required": true,
+        "runtime_only": true,
+        "runtime_only_rationale": "Scenario-to-desktop requests bundled-runtime manifests from Deployment Manager through its external CLI/service boundary; it does not import Deployment Manager code.",
         "version": "1.0.0",
         "versionRange": "\u003e=1.0.0"
       }

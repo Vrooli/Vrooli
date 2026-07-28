@@ -97,9 +97,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "ensure-workflows-tab"
     },
     {
@@ -111,9 +108,6 @@
           "label": "Switch to File Tree view"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "switch-to-tree-view"
     },
@@ -141,9 +135,6 @@
           "label": "Open New file menu"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "click-new-menu"
     },
@@ -186,9 +177,6 @@
           "label": "Click away to close menu"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "click-away-to-close-menu"
     },

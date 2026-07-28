@@ -8,7 +8,7 @@ composition, and generic substrate are deliberately listed as non-domains.
 
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
-| generation | Analyzes a scenario and compiles its Electron wrapper deterministically. | Turn a Vrooli scenario into a platform-neutral desktop project. | Generated project configuration and build inputs. | service | orchestration | DesktopConfig, ScenarioMetadata, TemplateGenerator | `api/generation/`, `templates/` |
+| generation | Analyzes a scenario and compiles its Electron wrapper deterministically. | Turn a Vrooli scenario into a platform-neutral desktop project. | Generated project configuration and build inputs. | service | orchestration | DesktopConfig, ScenarioMetadata, TemplateGenerator | `api/generation/`, `api/template_generator_test.go`, `templates/` |
 | pipeline | Orchestrates validated desktop generation from preflight through artifacts. | Provide replay-safe operator workflows and stage state. | Pipeline runs and stage outcomes. | orchestration | mutation | Pipeline, Stage, IdempotencyKey | `api/pipeline/` |
 | preflight | Establishes the admissibility and deployment shape of a requested desktop build. | Prevent invalid deployment requests before work begins. | Preflight report and resolved deployment configuration. | classification | query | Preflight, BundleManifest, DeploymentMode | `api/preflight/` |
 | build | Builds and packages generated desktop applications. | Produce installable artifacts for supported operating systems. | Build state and artifact metadata. | orchestration | mutation | Build, Artifact, TargetPlatform | `api/build/` |

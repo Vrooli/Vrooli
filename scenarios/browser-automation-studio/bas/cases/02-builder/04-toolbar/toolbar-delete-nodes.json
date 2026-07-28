@@ -105,9 +105,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 1000
-      },
       "id": "click-first-node"
     },
     {
@@ -119,9 +116,6 @@
           "label": "Click toolbar delete button"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1500
       },
       "id": "click-delete-button"
     },

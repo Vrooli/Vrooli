@@ -3,12 +3,6 @@
     {
       "id": "e1",
       "source": "navigate-dashboard",
-      "target": "wait-dashboard",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e2",
-      "source": "wait-dashboard",
       "target": "click-invalid-selector",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -76,18 +70,6 @@
         "type": "ACTION_TYPE_NAVIGATE"
       },
       "id": "navigate-dashboard"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for dashboard"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        }
-      },
-      "id": "wait-dashboard"
     },
     {
       "action": {

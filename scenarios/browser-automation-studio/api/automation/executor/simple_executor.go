@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	"github.com/vrooli/browser-automation-studio/config"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
 // SimpleExecutor provides a minimal sequential executor that delegates step
@@ -1401,6 +1402,11 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 	// Apply execution-level navigation wait default if applicable
 	instruction = applyNavigationWaitDefault(instruction, req.NavigationWaitUntil)
 
+	// Tell the driver whether this step's screenshot is worth capturing. The
+	// API owns the policy so the driver stays a mechanism, and so a validation
+	// suite can stop paying for imagery that a replay audience would want.
+	instruction = applyTelemetryDirective(instruction, req.ArtifactConfig)
+
 	for attempt := 1; attempt <= cfg.MaxAttempts; attempt++ {
 		attemptStart := time.Now().UTC()
 
@@ -1715,6 +1721,55 @@ func (e *SimpleExecutor) recordTerminatedStep(ctx context.Context, req Request, 
 	e.emitEvent(persistCtx, req, contracts.EventKindStepFailed, &outcome.StepIndex, &outcome.Attempt, payload)
 
 	return outcome, cause
+}
+
+// screenshotEvidenceActions are the steps whose screenshot is diagnostic rather
+// than incidental. An assert is where a validation run proves its claim, and a
+// navigate marks the page transition that makes a storyboard readable. A
+// screenshot step is listed for intent; its handler supplies the image anyway.
+var screenshotEvidenceActions = map[basactions.ActionType]bool{
+	basactions.ActionType_ACTION_TYPE_ASSERT:     true,
+	basactions.ActionType_ACTION_TYPE_NAVIGATE:   true,
+	basactions.ActionType_ACTION_TYPE_SCREENSHOT: true,
+}
+
+// resolveStepScreenshotPolicy decides the per-step capture policy from the
+// execution-wide setting and the step's action type.
+//
+// Kept pure and separate from instruction mutation so the policy can be tested
+// without building a plan or a browser.
+func resolveStepScreenshotPolicy(
+	executionPolicy basexecution.ScreenshotCapturePolicy,
+	action *basactions.ActionDefinition,
+) basexecution.ScreenshotCapturePolicy {
+	switch executionPolicy {
+	case basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER:
+		return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER
+	case basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE:
+		if action != nil && screenshotEvidenceActions[action.Type] {
+			return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS
+		}
+		return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE
+	default:
+		// UNSPECIFIED and ALWAYS both mean "capture everything", which is the
+		// behavior every execution had before this directive existed.
+		return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS
+	}
+}
+
+// applyTelemetryDirective stamps the resolved per-step collection intent onto
+// an instruction before it is dispatched to the driver.
+func applyTelemetryDirective(
+	instruction contracts.CompiledInstruction,
+	settings *config.ArtifactCollectionSettings,
+) contracts.CompiledInstruction {
+	if settings == nil {
+		return instruction
+	}
+	instruction.Telemetry = &basexecution.StepTelemetryDirective{
+		Screenshot: resolveStepScreenshotPolicy(settings.ScreenshotPolicy, instruction.Action),
+	}
+	return instruction
 }
 
 // applyNavigationWaitDefault applies the execution-level navigation wait default to a navigate instruction

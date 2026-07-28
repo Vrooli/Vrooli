@@ -818,6 +818,22 @@ func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[str
 	}
 	wire["action"] = action
 
+	// This payload is assembled field by field, so anything added to
+	// CompiledInstruction and not copied here is silently dropped rather than
+	// failing to compile. Telemetry is opt-in: omitted when unset so the driver
+	// keeps its own defaults.
+	if instruction.Telemetry != nil {
+		telemetryJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Telemetry)
+		if err != nil {
+			return nil, fmt.Errorf("encode telemetry directive: %w", err)
+		}
+		var telemetry map[string]any
+		if err := json.Unmarshal(telemetryJSON, &telemetry); err != nil {
+			return nil, fmt.Errorf("decode telemetry directive: %w", err)
+		}
+		wire["telemetry"] = telemetry
+	}
+
 	payload["instruction"] = wire
 	return payload, nil
 }
