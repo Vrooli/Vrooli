@@ -79,16 +79,37 @@ upload exception. Copy its shape for your own domains, then remove it.
 
 - Purpose: hold every reusable thing that must look the same across renders.
 - Primary archetype: CRUD, with a versioning policy.
-- Secondary traits: schema validation per kind; idempotent canon import.
+- Secondary traits: schema validation per kind; operator authoring; idempotent
+  canon import.
+- **Two ingresses, and authoring is the primary one.** An identity enters this
+  registry either by being authored directly (`ASSET-P0-018`) or by being
+  imported from canon (`ASSET-P0-003`). Authoring is listed first deliberately:
+  the catalogue holds zero authored records today, so import has nothing to
+  carry, and D-015 and D-016 both already assume an authoring path exists. A
+  registry record that canon does not know about is not a layering violation —
+  the registry is authoritative for rendering and the catalogue for strategy
+  (D-011), and promoting a proven identity into canon is a separate operator
+  decision.
 - Owns: identity records (`character`, `scene`, `product`); the frozen identity
-  block; descriptive traits; reference image links and character sheets;
-  version chains; content-addressed import keys; the required-empty
-  `credential_claims` field on persona-depicting records.
+  block; descriptive traits; **conditioning artifact references** (a trained
+  adapter, a reference image set, or an image-tools look); reference image links
+  and character sheets; version chains; content-addressed import keys; the
+  required-empty `credential_claims` field on persona-depicting records.
+- Note the two distinct uses of images here, easily conflated: a **reference
+  image set** conditions the render, while a **character sheet** is what a
+  conformance verdict is judged against. The same file may serve both, but they
+  are different fields with different consumers.
 - Does not own: what a persona is *for* — persona strategy, audience fit, and
   the AI-UGC stance stay operator-curated marketing canon. This domain holds
   the data those decisions describe, never the decisions.
-- Invariant: an identity block referenced by an accepted asset is immutable.
+- Invariant: an identity block referenced by a **released** asset is immutable.
   A change is a new version; the prior version stays resolvable forever.
+  "Released" is the precise trigger and it matters (D-015): rendering test
+  frames against an identity while authoring it freezes nothing, so iteration
+  carries no versioning cost. Only shipping does.
+- Invariant: import updates an unreferenced head version in place and creates a
+  new version only when the head is referenced (D-016). The version chain
+  records what was published from, not every edit.
 - Invariant: the kind set is closed (`character`, `scene`, `product`) and
   validation is per kind. An unrecognised kind is a hard error at write, never
   a permissive default — a record with no schema is a record nothing can check.
@@ -96,7 +117,7 @@ upload exception. Copy its shape for your own domains, then remove it.
   item* and reports it. A vendor or an author changing shape must surface as a
   failure, not as an empty import that looks like "nothing new".
 - Requirements: `ASSET-P0-001`, `ASSET-P0-002`, `ASSET-P0-003`,
-  `ASSET-P1-007`.
+  `ASSET-P0-016`, `ASSET-P0-018`, `ASSET-P1-007`.
 
 ### specs
 
@@ -132,6 +153,9 @@ upload exception. Copy its shape for your own domains, then remove it.
   browser-automation-studio through a seam.
 - Invariant: a job that fails mid-render writes no asset. There is no partial
   artifact, and the failure is recorded with whatever it consumed.
+- Invariant: a job may produce **several candidates** and cost attributes across
+  the whole set, not only the selected one (D-018). Modelling one job as exactly
+  one artifact would misstate spend-per-released-artifact by the candidate count.
 - Invariant: provenance is captured at completion or the job fails. It cannot
   be backfilled — an artifact produced without it can never acquire it.
 - Requirements: `ASSET-P0-006`, `ASSET-P0-007`, `ASSET-P0-008`,
@@ -146,8 +170,16 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Owns: asset records; blob references behind the BlobStore seam; derived
   variants by aspect ratio and format; dimensions; required alt text;
   AI-generated and disclosure-requirement flags; release state.
-- Does not own: image processing itself. Resize, crop, and format conversion go
-  to image-tools; this domain stores what came back.
+- Does not own: image processing itself. Resize, crop, format conversion, and
+  **regional refinement** (inpainting, img2img) go to image-tools; this domain
+  stores what came back and its provenance link to the parent artifact.
+- Invariant: a **refined artifact re-enters conformance** and never inherits its
+  parent's verdict (D-019). An edit to a frame depicting an identity is a new
+  claim about that identity, and inheriting would let a change past a gate that
+  already passed on different pixels.
+- Candidate semantics: a job's candidates are assets in `produced`. Selection
+  moves one to `in_review` and the rest to `discarded`; a discarded candidate
+  retains its provenance and is never releasable.
 - Invariant: **this scenario stores bytes, and `content-desk` stores none.**
   That is the deliberate fork between the two scenarios. A consumer receives a
   reference, never a copy.
@@ -172,11 +204,20 @@ upload exception. Copy its shape for your own domains, then remove it.
   arrives as a recommendation and never satisfies the gate on its own, because
   the scoring model is unvalidated and an automated pass on a mis-scored frame
   is precisely the silent failure the gate exists to prevent.
+- Invariant: **a verdict names its basis.** Every verdict records what the
+  comparison was made against — `reference-sheet`, `reference-image-set`,
+  `conditioning-artifact`, or `prose-only` (D-020). At P0 the stronger bases do
+  not exist yet, so `prose-only` is a permitted and honest value rather than a
+  silent one. Without the field, a pass judged against a character sheet and a
+  pass judged against a paragraph would be indistinguishable in exactly the
+  corpus meant to calibrate `ASSET-P1-005`.
 - Highest-consequence error in the scenario: a frame that drifts from its
   identity being released, because every later artifact anchors to it and the
-  drift compounds silently across a campaign.
-- Requirements: `ASSET-P0-010`, `ASSET-P0-011`, `ASSET-P0-013`,
-  `ASSET-P1-005`.
+  drift compounds silently across a campaign. The second-highest is a gate that
+  passes everything because nothing was available to compare against — a
+  ceremony that reads as a control.
+- Requirements: `ASSET-P0-010`, `ASSET-P0-011`, `ASSET-P0-012`,
+  `ASSET-P0-013`, `ASSET-P1-005`.
 
 ### health
 

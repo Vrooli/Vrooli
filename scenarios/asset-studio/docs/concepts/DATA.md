@@ -48,6 +48,8 @@ database reachability.
 | Identity block | identities | SQLite | `api/internal/identities/schema.sql` | **Never deleted once referenced.** | The frozen subset a model must reproduce. Immutable after an accepted asset binds it; a change is a new version. |
 | Identity version | identities | SQLite | `api/internal/identities/schema.sql` | Permanent. | Version chain per record. A superseded version stays resolvable so old provenance keeps resolving. |
 | Reference image link | identities | SQLite | `api/internal/identities/schema.sql` | Follows its version. | Points at a character sheet or reference asset in the asset library. The conformance judgement is made against it. |
+| Conditioning artifact reference | identities | SQLite | `api/internal/identities/schema.sql` | **Follows its version; frozen with the block.** | Kind (`adapter` / `reference-set` / `look`), locator, and version of the artifact that actually reproduces the identity at render time (D-017). Part of the identity block, so it is immutable once released-referenced. Bytes for adapters and reference sets live in the asset library or in image-tools, never duplicated here. |
+| Conditioning preparation cost | renders | SQLite | `api/internal/renders/schema.sql` | Permanent. | Cost of training or preparing a conditioning artifact. Attributed to the **identity version**, not to each render that uses it — a different cost shape from per-render spend (`ASSET-P1-012`). |
 | Credential-claims field | identities | SQLite | `api/internal/identities/schema.sql` | Follows its record. | Required and required-empty on persona-depicting records. Encodes the AI-UGC ban structurally rather than as a review note. |
 | Import key | identities | SQLite | `api/internal/identities/schema.sql` | Permanent. | `hash(source_path, normalized_content)`, unique-indexed. The whole idempotency mechanism; no cursor, no watermark. |
 | Spec | specs | SQLite | `api/internal/specs/schema.sql` | Permanent once rendered. | Template reference, look reference, frames, and campaign reference. |
@@ -58,7 +60,8 @@ database reachability.
 | Render attempt | renders | SQLite | `api/internal/renders/schema.sql` | Permanent. | One per submission, including failures. A failed attempt is evidence, not noise. |
 | Provenance record | renders | SQLite | `api/internal/renders/schema.sql` | **Never deleted.** | Spec version, bound identity versions, backend, model, seed, resolved parameters. Cannot be backfilled. |
 | Cost record | renders | SQLite | `api/internal/renders/schema.sql` | Permanent. | Estimated and actual, per attempt. A failed attempt still records what it consumed. |
-| Asset record | assets | SQLite | `api/internal/assets/schema.sql` | Permanent. | Dimensions, format, required alt text, AI-generated flag, disclosure requirement, release state. |
+| Asset record | assets | SQLite | `api/internal/assets/schema.sql` | Permanent. | Dimensions, format, required alt text, AI-generated flag, disclosure requirement, release state. One job may produce several candidate assets (D-018); selection promotes one and discards the rest. |
+| Refinement link | assets | SQLite | `api/internal/assets/schema.sql` | Permanent. | Parent artifact, mask, and the image-tools operation that produced a refined artifact (D-019). Regeneration replays parent-then-edit; the refined artifact carries its own conformance verdict and never inherits the parent's. |
 | Asset bytes | assets | Filesystem BlobStore | BlobStore implementation in the assets module | Same lifecycle as the record. | Opaque bytes outside proto payloads. Local by default. |
 | Derived variant | assets | SQLite + BlobStore | `api/internal/assets/schema.sql` | Follows its parent asset. | Aspect-ratio and format derivations produced through image-tools, linked to the parent. |
 | Conformance verdict | conformance | SQLite | `api/internal/conformance/schema.sql` | **Never deleted.** | Frame, identity version, reference image, verdict, judging actor and kind, timestamp. A re-judgement is a new verdict; history is kept. |
@@ -187,12 +190,22 @@ time.
 **Deliberately not positional.** File offsets and ordinal position are not
 stable keys; the first reformat would re-import an entire catalogue as new.
 
-**Consequence, decided rather than discovered.** A catalogue entry edited in
-place changes its hash and therefore imports as a **new identity version**
-rather than mutating the existing block. Under the immutability invariant
-(`ASSET-P0-002`) that is correct: the edit is a new declaration, prior renders
-keep resolving to what they actually used, and no already-released artifact
-silently changes meaning.
+**What a changed hash actually does (D-016).** Detecting change and creating a
+version are two different questions, and conflating them produces churn:
+
+| Head version state | Import behaviour | Why |
+|---|---|---|
+| Unreferenced (nothing released from it) | **Update the head in place.** | Immutability only protects versions a released artifact depends on. An unreferenced head can absorb edits freely, so routine authoring produces no versions at all. |
+| Referenced (a released asset binds it) | **Create a new version.** | The edit is a new declaration. Prior renders keep resolving to what they actually used, and no already-released artifact silently changes meaning. |
+| Unchanged hash | **No-op.** | This is the diff. |
+
+The version chain therefore records *what was published from*, not every
+keystroke. That is deliberate: it is a provenance record, not an edit log. If a
+full edit history is ever wanted, it is a separate feature and should be built
+as one rather than obtained by removing this rule.
+
+"Referenced" here means **released** rather than merely rendered — see D-015.
+Iterating on an identity by rendering test frames against it freezes nothing.
 
 ### Validation on import
 

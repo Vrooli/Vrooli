@@ -80,9 +80,11 @@ production is disposable and always re-derivable.**
 ```
   CANON     ── docs/marketing/catalogs/rich-media/. Operator-curated, decision-gated.
      │         Who the personas are and why. This scenario reads it, never writes it.
-     ▼  (idempotent import, content-addressed)
+     │         Currently EMPTY — templates only, zero authored records (D-021).
+     ▼  (idempotent import, content-addressed)      ┌── operator authoring ──┐
   IDENTITIES ── validated, versioned records. A block referenced by an accepted
      │          asset is frozen forever; a change is a NEW VERSION.
+     │          Two ingresses: authoring (primary today) and import (migration).
      ▼  (bind by VERSION, never by name)
   SPECS     ── declarative, resolves as a pure function. Same inputs, same payload.
      │
@@ -113,6 +115,22 @@ Four invariants follow, and they are the ones to defend in review:
    from `assets` back into `specs` or `identities`, and nothing flows from this
    scenario back into the catalogue. If a change would let produced output
    redefine its own inputs, it is a layering defect.
+
+### What P0 pays forward, and what it does not
+
+Two P0 requirements buy schema shape rather than behaviour, and a reader
+budgeting the first slice should know which. This is the same "cheap insurance,
+taken deliberately" posture `vrooli-memory` records in its D-019 and D-020.
+
+| Requirement | What P0 buys | What it does not buy | Why it cannot wait |
+|---|---|---|---|
+| `ASSET-P0-016` conditioning reference | The field on the identity block, and its capture in every provenance record. | Rendering from it — that is `ASSET-P1-012`. | Provenance cannot be backfilled. An artifact released without the reference can never acquire it, so the column has to exist before the first release, not before the first render. |
+| `ASSET-P0-017` candidate set | Job-to-artifact cardinality of one-to-many, and cost attribution across the set. | A rich selection surface. | Changing cardinality later rewrites provenance, cost attribution, and the asset lifecycle at once. The metric most likely to reveal a problem — spend per *released* artifact — is wrong by the candidate count until it is right. |
+
+Everything else in P0 is slice work: it is exercised by walking one product
+identity from authoring through release. Nothing else is paid forward, and in
+particular no multi-store, multi-tenant, or plugin seam exists anywhere in this
+scenario — see § Intentional Deviations before adding one.
 
 ### Why versioning rather than a mutable library
 

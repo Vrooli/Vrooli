@@ -69,43 +69,74 @@ one is not.
 the operator accepted and rejected. That corpus is the calibration set for
 `ASSET-P1-005`, and it does not exist until the loop runs.
 
-**Owner:** unassigned.
+**Partial mitigation, added later the same day:** D-017 lets an identity carry a
+conditioning artifact. Judging a frame against that artifact's characteristic
+output is stronger evidence than judging it against a hand-authored sheet, so
+`ASSET-P1-012` may narrow this problem considerably. It does not close it —
+conditioning improves what is being compared, not whether the comparison
+discriminates — and the calibration corpus is still the thing that settles it.
 
-**Refs:** `ASSET-P0-010`, `ASSET-P0-011`, `ASSET-P1-005`, D-006.
-
-### 2026-07-28 — the rich-media catalogue has never been schema-validated
-
-**Symptom:** Import is expected to fail on files that currently look fine.
-Characters, scenes, and products were authored as hand-written JSON against a
-`_template.json` with no validator, so shape drift between entries is likely
-and currently invisible.
-
-**Root cause:** The catalogue is documentation that happens to be JSON. Nothing
-has ever read it programmatically.
-
-**Workaround:** None needed yet — nothing consumes it. Treat the first import
-run as a discovery exercise rather than a migration, and expect to fix sources
-rather than loosen the schema.
-
-**Real fix:** Import surfaces the failures per item (`ASSET-P0-003` aborts an
-item rather than importing it partially), and the sources are corrected in
-canon by decision. Loosening the schema to make import quiet would defeat the
-requirement.
+**Second mitigation, from the same review:** D-020 makes the verdict record
+name its **basis** — `reference-sheet`, `reference-image-set`,
+`conditioning-artifact`, or `prose-only`. This does not make a weak comparison
+strong, but it makes the calibration corpus interpretable: a pass judged on
+prose and a pass judged on a sheet are different evidence, and without the field
+they would be indistinguishable in exactly the dataset meant to settle this.
 
 **Owner:** unassigned.
 
-**Refs:** `ASSET-P0-003`, `docs/marketing/catalogs/rich-media/`.
+**Refs:** `ASSET-P0-010`, `ASSET-P0-011`, `ASSET-P1-005`, `ASSET-P1-007`,
+`ASSET-P1-012`, D-006, D-017, D-020.
+
+### 2026-07-28 — the rich-media catalogue is empty, so import has nothing to import
+
+**Symptom:** `docs/marketing/catalogs/rich-media/characters/`, `scenes/`, and
+`products/` each contain exactly two files: a `README.md` and a
+`_template.json`. There are **zero authored characters, scenes, or products**,
+and `assets/character-sheets/` holds a README and no sheets. `ASSET-P0-003`
+imports from this catalogue; run today it would import nothing and report
+success.
+
+**Root cause:** The catalogue was authored as a schema and a convention, and no
+record was ever written against it. An earlier revision of this entry asserted
+that entries "were authored … so shape drift between entries is likely" — that
+was wrong, and it mattered, because it made a corpus problem look like a
+validation problem. Unvalidated JSON is a discovery exercise; an empty directory
+is a blocked P0.
+
+**Workaround:** `ASSET-P0-018` gives the registry an ingress that does not
+depend on canon, and D-021 makes the P0 slice subject a product identity
+authored in the workbench. Import is re-sequenced after authoring as the
+migration path.
+
+**Real fix:** Two independent things, and only the first is on this scenario's
+critical path. (1) Author one product identity in the workbench during the P0
+slice — that is the slice, not a prerequisite to it. (2) Author the first
+persona in canon by operator decision, which unblocks import having anything to
+carry and is what makes character conformance testable. Schema validation of
+catalogue entries remains correct and remains untested until (2) happens; expect
+the first real import to surface shape problems, and fix the sources rather than
+loosening the schema.
+
+**Owner:** operator for (2) — authoring a persona is operator-curated canon
+(D-011) and is not an agent's to raise while the marketing team is paused.
+
+**Refs:** `ASSET-P0-003`, `ASSET-P0-018`, D-011, D-021,
+`docs/marketing/catalogs/rich-media/`.
 
 ### 2026-07-28 — produced artifacts have nowhere to be published
 
 **Symptom:** Every image and video post type in the marketing catalogue is
-inactive (`v0`, no paired skill), and no persona account exists on any platform.
-An artifact released by this scenario cannot currently reach an audience.
+inactive (`v0`, no paired skill), no persona exists in canon, and no persona
+account exists on any platform. An artifact released by this scenario cannot
+currently reach an audience.
 
-**Root cause:** Three separate gates sit outside this scenario: paired post-type
-skills must be authored, a `channel-strategy-update` decision must activate
-persona accounts with a slate and disclosure protocol, and account warming must
-run.
+**Root cause:** Four separate gates sit outside this scenario, and they are
+ordered: a persona must be authored in canon, paired post-type skills must be
+authored, a `channel-strategy-update` decision must activate persona accounts
+with a slate and disclosure protocol, and account warming must run. The persona
+gate is upstream of the account gate and is the one most easily overlooked,
+because "no account" reads as the blocking fact when "no persona" precedes it.
 
 **Workaround:** None. This is a sequencing fact, not a defect — the scenario is
 still worth building because it is on the critical path to all three, and its

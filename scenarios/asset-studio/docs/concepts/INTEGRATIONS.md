@@ -44,7 +44,7 @@ Use this document to answer:
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
 | ai-gateway | required | Every image and video generation call. Model policy, routing, and capacity stay in the gateway. | Scenario CLI/API. This scenario never speaks a model vendor's protocol and holds no vendor credential. |
-| image-tools | required | Deterministic operations (resize, crop, format), look recipes, and image analysis for conformance scoring. | Scenario CLI/API. Image processing is not reimplemented here. |
+| image-tools | required | Four distinct uses, all through the same dependency: deterministic operations (resize, crop, format) for derived variants; **identity conditioning** — LoRA, IP-Adapter, ControlNet, img2img — at render time (`ASSET-P1-012`); **regional refinement** via inpainting (`ASSET-P1-013`); and image analysis for conformance scoring (`ASSET-P1-005`). | Scenario CLI/API. **No image processing, conditioning, or adapter logic is implemented here.** The conditioning machinery already exists in image-tools; this scenario contributes identity, versioning, and provenance on top of it. |
 | browser-automation-studio | P1 | Executes capture specs. This scenario never drives a browser itself. | Scenario CLI/API through the capture-executor seam. |
 | content-desk | consumer | It references released assets by identifier. **The dependency runs one way** — this scenario does not call content-desk and must not learn about drafts, campaigns, or publication state. | Asset reference surface (`ASSET-P0-014`). |
 | search-hub | P1 | Federated retrieval over identity and asset metadata, never bytes. | `.vrooli/search.json` validated against `.vrooli/schemas/search.schema.json`; boot self-registration. |
