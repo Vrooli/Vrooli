@@ -23,31 +23,10 @@
       "prefix": "format-scan/*"
     },
     {
-      "prefix": "publish-log/*"
-    },
-    {
-      "prefix": "coverage-snapshot/*"
-    },
-    {
       "prefix": "brand-snapshot/YYYY-MM-DD"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "campaign-launch-proposal",
-        "brand-guideline-update"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "campaign-launch-proposal",
-        "brand-guideline-update"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "marketing-canon/*",
@@ -62,19 +41,12 @@
     {
       "prefix": "brand-snapshot/*",
       "destination_kind": "knowledge"
-    },
-    {
-      "prefix": "artifact-request/oss/*",
-      "destination_kind": "knowledge"
-    },
-    {
-      "prefix": "artifact-request/subscription/*",
-      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [
     "campaign-launch-proposal",
-    "brand-guideline-update"
+    "brand-guideline-update",
+    "channel-update"
   ],
   "decisions_consumed": [
     "capability-gap"

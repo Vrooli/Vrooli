@@ -292,7 +292,10 @@ func main() {
 		DataDir:   roots.RuntimeData,
 		CacheDir:  roots.RuntimeCache,
 	})
-	fileStore := store.NewFileStore(roots, fileRoots)
+	fileStore, err := store.NewFileStore(roots, fileRoots)
+	if err != nil {
+		log.Fatalf("initialize file store: %v", err)
+	}
 	fileStore.SetExperimentStoreDatabase(db)
 
 	// Initialize domain components (seams for testing)

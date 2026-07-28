@@ -24,6 +24,7 @@ Optional reading, when a finding narrows to one target:
 | One member looks vague or blocked | No | `team-member-capability-architecture-audit` |
 | One skill looks bloated or hand-rolled | No | `skill-improvement-suggestions` |
 | One team's contract fails validation | No | Fix it directly; that is a `validate` finding, not an audit |
+| One team produces little and hand-maintains its own state | No | `team-capability-consolidation` |
 
 Session boundary: this is an audit. Read, measure, and report. Do not fix what you find — findings route through the actuators named in `FRAMEWORK_HEALTH.md`.
 
@@ -100,6 +101,7 @@ Report these five structural defects:
 2. Run `prompt-manager graph health --type skill,agent,team --worst 20`. Omitting `--type` is still valid but ranks synthetic `cli:` nodes, which score 0 by construction and carry no finding.
 3. Look for skill families whose members differ only in a few lines — a consolidation candidate.
 4. Classify each conditioning defect using the C1–C5 table in `docs/agent-system/SKILL_AUTHORING.md` §"Conditioning defect patterns". Cite the row id; do not restate the row.
+5. Record any team whose shipped output is near zero against a large roster and canon, or that hand-maintains records with a lifecycle. Route it to `team-capability-consolidation`; the missing capability, not the roster, is usually the defect.
 
 #### Phase 6 — Report and record
 

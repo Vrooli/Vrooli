@@ -178,7 +178,6 @@ var (
 		Re:       regexp.MustCompile("`([a-z][a-z0-9-]*/[a-z0-9<>_*/-]+)`"),
 		IsCLI:    false,
 		IsWrite:  false,
-		Advisory: true,
 	}
 )
 
@@ -238,8 +237,13 @@ func ruleProseTopicLeak(members []MemberTopics, opts ValidationOptions) []Findin
 		return discoveryError
 	}
 
-	// Pre-build the join indexes once so per-file lookups stay O(1).
+	// Pre-build the join indexes once so per-file lookups stay O(1). The
+	// inferred backtick form is deliberately membership-classified: unlike an
+	// explicit `topic:` marker, a slash-delimited code span is ambiguous and
+	// becomes a topic reference only after it resolves to a declaration or a
+	// registered taxonomy destination.
 	idx := buildProseDeclarationIndex(members)
+	idx.addTaxonomyPrefixes(roots)
 
 	// Pre-load skill kinds (writer-skill vs other) — needed for the
 	// kind-conditional rule on skill SKILL.md targets. Empty when no
@@ -264,6 +268,16 @@ func ruleProseTopicLeak(members []MemberTopics, opts ValidationOptions) []Findin
 			continue
 		}
 		for _, m := range matches {
+			// A bare wildcard is a placeholder for "any topic", not a topic
+			// prefix an owner can declare. Reporting it creates an unactionable
+			// finding (there is no valid topics.json declaration to make it
+			// resolve), so leave it outside the validator's evidence channel.
+			if strings.TrimSpace(m.Prefix) == "*" {
+				continue
+			}
+			if m.Pattern.Name == inferredBacktickTopicPattern.Name && !idx.recognizesInferredPrefix(m.Prefix) {
+				continue
+			}
 			if f, ok := joinProseMatch(m, idx, skillIndex); ok {
 				findings = append(findings, f)
 			}
@@ -791,6 +805,39 @@ func buildProseDeclarationIndex(members []MemberTopics) proseDeclarationIndex {
 	}
 	sort.Strings(idx.allPrefixes)
 	return idx
+}
+
+// addTaxonomyPrefixes admits the destination prefixes registered by taxonomy
+// sidecars. A taxonomy can describe a stable topic family before a specific
+// member adopts it, so it is valid membership evidence for inferred prose.
+func (idx *proseDeclarationIndex) addTaxonomyPrefixes(roots []string) {
+	known := make(map[string]struct{}, len(idx.allPrefixes))
+	for _, prefix := range idx.allPrefixes {
+		known[prefix] = struct{}{}
+	}
+	for _, root := range roots {
+		registry, err := LoadAllTaxonomies(root)
+		if err != nil {
+			continue
+		}
+		for _, taxonomy := range registry {
+			for _, signalType := range taxonomy.SignalTypes {
+				prefix := strings.TrimSpace(signalType.DefaultDestinationPrefix)
+				if prefix != "" {
+					known[prefix] = struct{}{}
+				}
+			}
+		}
+	}
+	idx.allPrefixes = idx.allPrefixes[:0]
+	for prefix := range known {
+		idx.allPrefixes = append(idx.allPrefixes, prefix)
+	}
+	sort.Strings(idx.allPrefixes)
+}
+
+func (idx proseDeclarationIndex) recognizesInferredPrefix(prefix string) bool {
+	return anyOverlaps(idx.allPrefixes, normalizePlaceholderPrefix(prefix))
 }
 
 // joinProseMatch checks one match against the relevant declaration set

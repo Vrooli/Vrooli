@@ -8,7 +8,7 @@ Analyze and improve search engine visibility with site audits, keyword research,
 
 | Use when | Don't use when |
 |----------|----------------|
-| Auditing a landing page or scenario UI for SEO issues | Writing content (use campaign-content-studio) |
+| Auditing a landing page or scenario UI for SEO issues | Writing content (use the `x-<post-type>` skills) |
 | Researching keywords for content strategy | Scheduling social posts (use social-media-scheduler) |
 | Optimizing existing content for search rankings | Analyzing non-web content (PDFs, docs) |
 | Comparing SEO performance against a competitor | Need real-time search ranking monitoring |

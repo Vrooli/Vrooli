@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+
 	"prompt-manager/internal/paths"
 	"prompt-manager/store"
-	"testing"
 
 	"github.com/gorilla/mux"
 )
@@ -15,7 +16,7 @@ import (
 func TestPreviewPromptMatrixHandler(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
@@ -48,7 +49,7 @@ func TestPreviewPromptMatrixHandler(t *testing.T) {
 		t.Fatalf("add member 2: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/prompt-matrix", nil)
@@ -98,12 +99,12 @@ func hasPromptSectionKind(sections []PromptSection, kind string) bool {
 
 func TestPreviewPromptMatrixNotFound(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/nonexistent/prompt-matrix", nil)
@@ -120,7 +121,7 @@ func TestPreviewPromptMatrixNotFound(t *testing.T) {
 func TestPreviewPromptMatrixEmptyTeam(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
@@ -131,7 +132,7 @@ func TestPreviewPromptMatrixEmptyTeam(t *testing.T) {
 		t.Fatalf("create team: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-empty/prompt-matrix", nil)

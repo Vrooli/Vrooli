@@ -11,12 +11,15 @@ func (r graphPromptTopicContractMissingRule) ID() string {
 	return "graph_prompt_topic_contract_missing"
 }
 
-func (r graphPromptTopicContractMissingRule) Group() OperatingGraphRuleGroup {
+func (r graphPromptTopicContractMissingRule) Group() RuleGroup {
 	return OperatingRuleGroupPrompt
 }
-func (r graphPromptTopicContractMissingRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphPromptTopicContractMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphPromptTopicContractMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphPromptTopicContractMissingRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphPromptTopicContractMissingRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphPromptTopicContractMissingRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {
@@ -48,7 +51,7 @@ func (r graphPromptTopicContractContentMismatchRule) ID() string {
 	return "graph_prompt_topic_contract_content_mismatch"
 }
 
-func (r graphPromptTopicContractContentMismatchRule) Group() OperatingGraphRuleGroup {
+func (r graphPromptTopicContractContentMismatchRule) Group() RuleGroup {
 	return OperatingRuleGroupPrompt
 }
 
@@ -56,11 +59,11 @@ func (r graphPromptTopicContractContentMismatchRule) DefaultSeverity() Severity 
 	return SeverityError
 }
 
-func (r graphPromptTopicContractContentMismatchRule) AppliesTo(mode string) bool {
-	return mode == string(OperatingGraphModeContract)
+func (r graphPromptTopicContractContentMismatchRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == string(OperatingGraphModeContract)
 }
 
-func (r graphPromptTopicContractContentMismatchRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphPromptTopicContractContentMismatchRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {
@@ -82,7 +85,7 @@ func (r graphPromptTopicContractContentMismatchRule) Check(ctx OperatingGraphRul
 	return findings
 }
 
-func (r graphPromptTopicContractSourceMismatchRule) Group() OperatingGraphRuleGroup {
+func (r graphPromptTopicContractSourceMismatchRule) Group() RuleGroup {
 	return OperatingRuleGroupPrompt
 }
 
@@ -90,11 +93,11 @@ func (r graphPromptTopicContractSourceMismatchRule) DefaultSeverity() Severity {
 	return SeverityError
 }
 
-func (r graphPromptTopicContractSourceMismatchRule) AppliesTo(mode string) bool {
-	return mode == "contract"
+func (r graphPromptTopicContractSourceMismatchRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
 }
 
-func (r graphPromptTopicContractSourceMismatchRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphPromptTopicContractSourceMismatchRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {

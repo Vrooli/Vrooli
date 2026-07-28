@@ -37,7 +37,7 @@ Each intake channel a member drains is declared structurally in `topics.json`:
       "source_team": null
     }
   ],
-  "external_producers": ["vision-walk", "operator", "bookmark-intelligence-hub"]
+  "external_producers": ["vision-walk", "operator", "signal-inbox"]
 }
 ```
 
@@ -133,7 +133,7 @@ Collection turns an intake claim into actual evidence. Modes:
 
 - **Supplied source references.** Operator-provided links, bookmark exports, source URLs in the knowledge entry.
 - **Manual web research with cited sources.** Default fallback; label findings honestly.
-- **Scenario API or CLI.** When a Vrooli-controlled tool can fetch the source (e.g., `bookmark-intelligence-hub` for archived bookmarks), prefer that.
+- **Scenario API or CLI.** When a Vrooli-controlled tool can fetch the source (e.g., `signal-inbox` for archived bookmarks), prefer that.
 - **Action.** When the collection is a single deterministic command, expose it as an Action (per `PROMOTION_LADDER.md`).
 
 When source access requires credentials, scheduling, or scraping that no controlled tool covers, file a `capability-gap` decision rather than fudging the collection. Do not pretend the scan happened.
@@ -141,7 +141,7 @@ When source access requires credentials, scheduling, or scraping that no control
 ### Collection discipline
 
 - Prefer supplied source references and tool/Action output over manual web research.
-- Do not create platform-specific intake skills when a general collection layer (e.g., bookmark-intelligence-hub) would cover the source.
+- Do not create platform-specific intake skills when a general collection layer (e.g., signal-inbox) would cover the source.
 - Label single-snapshot findings `light-interpretation` so downstream consumers know the evidence weight.
 - If source access is blocked, raise a capability gap instead of pretending the scan happened.
 
@@ -226,7 +226,7 @@ These apply at every stage of the pipeline:
 - **One source is an observation, not canon.**
 - **Three converging scans** can justify a decision when the sources are meaningfully independent.
 - **Single-snapshot data must be labeled** `light-interpretation`.
-- **Tool classifications are inputs, not proof.** Bookmark-intelligence-hub or other automated tagging may surface candidates; the analyst still evaluates relevance and evidence quality.
+- **Tool classifications are inputs, not proof.** Signal-inbox or other automated tagging may surface candidates; the analyst still evaluates relevance and evidence quality.
 - **Researchers do not edit canon directly.** They propose changes for operator review via the appropriate decision context.
 
 ---

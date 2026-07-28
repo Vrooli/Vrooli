@@ -2,6 +2,8 @@ module github.com/vrooli/vrooli
 
 go 1.25.0
 
+toolchain go1.25.12
+
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1

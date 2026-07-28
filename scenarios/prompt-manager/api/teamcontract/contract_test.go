@@ -39,6 +39,39 @@ func TestValidateRejectsMissingActiveMemberContract(t *testing.T) {
 	}
 }
 
+func TestValidateFindingsCollectsIndependentContractDefects(t *testing.T) {
+	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract.SchemaVersion = 0
+	contract.Governance.DecisionMode = "invalid"
+	contract.Governance.TeamPendingCeiling.Value = -1
+	member := contract.Members["agent-1"]
+	member.OwnedDecisionContexts = []string{"missing-context"}
+	contract.Members["agent-1"] = member
+
+	findings := ValidateFindings(contract, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval, MemberIDs: []string{"agent-2"}})
+	if len(findings) < 5 {
+		t.Fatalf("ValidateFindings returned %d findings, want independent defects: %+v", len(findings), findings)
+	}
+	for _, field := range []string{
+		"operatingContract.schemaVersion",
+		"operatingContract.governance.decisionMode",
+		"operatingContract.governance.teamPendingCeiling.value",
+		"operatingContract.members",
+		"operatingContract.members.agent-1.ownedDecisionContexts",
+	} {
+		found := false
+		for _, finding := range findings {
+			if finding.Field == field {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing finding for %s: %+v", field, findings)
+		}
+	}
+}
+
 func TestNormalizePathRendersRepoRootRelative(t *testing.T) {
 	got, err := NormalizePath(PathRef{Base: BaseTeamShared, Path: "RUN_LESSONS.md"}, ValidationInput{TeamID: "meta-optimization"}, "run-introspector")
 	if err != nil {

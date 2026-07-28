@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+
 	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
-	"testing"
 
 	"github.com/gorilla/mux"
 )
@@ -16,11 +17,11 @@ import (
 func setupTeamTriggerTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore, *store.FileAgentStore, store.RelationStore) {
 	t.Helper()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 	return handlers, teamStore, agentStore, relationStore
 }
@@ -201,7 +202,7 @@ func TestTriggerTeam_MultiProcessNoConfigs(t *testing.T) {
 
 func TestTriggerTeam_ExecutorNotConfigured(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -225,7 +226,7 @@ func TestTriggerTeam_ExecutorNotConfigured(t *testing.T) {
 
 func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -254,7 +255,7 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 	}
 	exec := &captureExecutor{}
 	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir(), nil)
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
 
 	// First team trigger should succeed

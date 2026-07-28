@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+
 	"prompt-manager/internal/paths"
 	"prompt-manager/store"
-	"testing"
 )
 
 func TestGetAllPendingDecisions_Empty(t *testing.T) {
@@ -82,11 +83,11 @@ func TestGetAllPendingDecisions_SingleTeam(t *testing.T) {
 
 func TestGetAllPendingDecisions_MultipleTeams(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 	ctx := context.Background()
 

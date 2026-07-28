@@ -3,9 +3,10 @@ package heartbeat
 import (
 	"encoding/base64"
 	"encoding/json"
-	"prompt-manager/store"
 	"strings"
 	"testing"
+
+	"prompt-manager/store"
 )
 
 // encodeAttribution produces a header value from a fully-specified

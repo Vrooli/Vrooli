@@ -1,9 +1,10 @@
 package heartbeat
 
 import (
-	"prompt-manager/memberflow"
 	"strings"
 	"testing"
+
+	"prompt-manager/memberflow"
 )
 
 func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {

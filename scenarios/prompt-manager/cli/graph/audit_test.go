@@ -94,17 +94,21 @@ func TestCmdAuditReportsUnsensoredTargetsRatherThanDroppingThem(t *testing.T) {
 	if report.Unsensored != 2 {
 		t.Fatalf("unsensored = %d, want 2", report.Unsensored)
 	}
-	// An unsensored target must name which kind of open loop it is, using the
-	// honesty vocabulary from RELIABILITY_TARGETS §"Honesty flags":
-	// `pending-telemetry` when no instrument exists, `pending-baseline` when the
-	// instrument exists but nothing sweeps the corpus with it. Either is honest;
-	// an unsensored target carrying neither is not.
+	// An unsensored target must name both the honest open-loop state and a dated
+	// marker for the work that closes it. The marker prevents an intentionally
+	// visible gap from becoming permanent background noise.
 	for _, tgt := range report.Targets {
 		if tgt.Status != auditStatusNoSensor {
 			continue
 		}
 		if !strings.Contains(tgt.Observed, "pending-telemetry") && !strings.Contains(tgt.Observed, "pending-baseline") {
 			t.Fatalf("unsensored target must stay honest about it: %+v", tgt)
+		}
+		if !strings.HasPrefix(tgt.GapMarker, "2026-") {
+			t.Fatalf("unsensored target must carry a dated gap marker: %+v", tgt)
+		}
+		if strings.TrimSpace(tgt.Deadband) == "" {
+			t.Fatalf("unsensored target must declare its future deadband: %+v", tgt)
 		}
 	}
 }

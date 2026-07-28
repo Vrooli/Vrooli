@@ -60,6 +60,6 @@
   "external_producers": [
     "operator",
     "vision-walk",
-    "bookmark-intelligence-hub"
+    "signal-inbox"
   ]
 }

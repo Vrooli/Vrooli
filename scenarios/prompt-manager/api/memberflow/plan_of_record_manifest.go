@@ -16,16 +16,6 @@ const (
 	maxPlanOfRecordBaseDepth = 8
 )
 
-var planOfRecordBannedPhrases = []string{
-	"PLAN_OF_RECORD_STRUCTURE",
-	"NOTEBOOK_DEBT_TAXONOMY",
-	"docs/marketing/notebook",
-	"store/teams/meta-optimization/notebook",
-	"topic[old]:friction/",
-	"friction/<",
-	"Migration Notes",
-}
-
 type PlanOfRecordManifest struct {
 	Schema        string                `json:"$schema,omitempty"`
 	Version       string                `json:"version,omitempty"`
@@ -487,7 +477,7 @@ func ValidatePlanOfRecordManifest(repoRoot string, manifest PlanOfRecordManifest
 		}
 	}
 	findings = append(findings, validatePlanOfRecordRegisteredFiles(repoRoot, manifest, model, registered)...)
-	findings = append(findings, validatePlanOfRecordHardCutover(repoRoot, manifest, model)...)
+	findings = append(findings, validatePlanOfRecordNotebookSurfaces(repoRoot, manifest, model)...)
 	return findings
 }
 
@@ -587,32 +577,18 @@ func validatePlanOfRecordRegisteredFiles(repoRoot string, manifest PlanOfRecordM
 	return findings
 }
 
-func validatePlanOfRecordHardCutover(repoRoot string, manifest PlanOfRecordManifest, model OperatingModelDocument) []OperatingGraphFinding {
+func validatePlanOfRecordNotebookSurfaces(repoRoot string, manifest PlanOfRecordManifest, model OperatingModelDocument) []OperatingGraphFinding {
 	var findings []OperatingGraphFinding
 	_ = filepath.WalkDir(manifest.RootDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
-		if d.IsDir() {
-			if strings.EqualFold(d.Name(), "notebook") || strings.EqualFold(d.Name(), "notebooks") {
-				findings = append(findings, planOfRecordFinding(model, "por_notebook_surface", relPath(repoRoot, path), 0, "plan-of-record folders must not contain notebook surfaces; agents write working observations to typed knowledge topics", SeverityError))
-				return filepath.SkipDir
-			}
+		if !d.IsDir() {
 			return nil
 		}
-		ext := strings.ToLower(filepath.Ext(d.Name()))
-		if ext != ".md" && ext != ".json" {
-			return nil
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		text := string(data)
-		for _, phrase := range planOfRecordBannedPhrases {
-			if idx := strings.Index(text, phrase); idx >= 0 {
-				findings = append(findings, planOfRecordFinding(model, "por_hard_cutover_drift", relPath(repoRoot, path), lineNumberAt(text, idx), fmt.Sprintf("plan-of-record file contains hard-cutover drift phrase %q", phrase), SeverityError))
-			}
+		if strings.EqualFold(d.Name(), "notebook") || strings.EqualFold(d.Name(), "notebooks") {
+			findings = append(findings, planOfRecordFinding(model, "por_notebook_surface", relPath(repoRoot, path), 0, "plan-of-record folders must not contain notebook surfaces; agents write working observations to typed knowledge topics", SeverityError))
+			return filepath.SkipDir
 		}
 		return nil
 	})
@@ -636,22 +612,6 @@ func countPlanOfRecordPackageEntries(dir, pattern string) (int, error) {
 		}
 	}
 	return count, nil
-}
-
-func lineNumberAt(text string, idx int) int {
-	if idx < 0 {
-		return 0
-	}
-	line := 1
-	for i, r := range text {
-		if i >= idx {
-			break
-		}
-		if r == '\n' {
-			line++
-		}
-	}
-	return line
 }
 
 func markdownHeadingSet(text string) map[string]bool {

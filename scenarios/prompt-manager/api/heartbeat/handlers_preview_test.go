@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"prompt-manager/internal/paths"
-	"prompt-manager/store"
 	"strings"
 	"testing"
+
+	"prompt-manager/internal/paths"
+	"prompt-manager/store"
 )
 
 func TestPreviewPromptHandler(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
@@ -31,7 +32,7 @@ func TestPreviewPromptHandler(t *testing.T) {
 		t.Fatalf("create agent: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	reqBody, _ := json.Marshal(PromptPreviewRequest{AgentID: agent.ID})

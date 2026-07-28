@@ -354,7 +354,10 @@ func TestActionStore_RunHistoryIsBounded(t *testing.T) {
 
 func TestNewFileStoreInitializesActionDirectories(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fs := NewFileStore(roots)
+	fs, err := NewFileStore(roots)
+	if err != nil {
+		t.Fatalf("NewFileStore() error = %v", err)
+	}
 
 	if fs.Actions() == nil {
 		t.Fatal("Actions store should be wired")

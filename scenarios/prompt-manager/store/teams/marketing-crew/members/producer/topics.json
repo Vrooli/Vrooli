@@ -1,0 +1,76 @@
+{
+  "required_read": [
+    {
+      "prefix": "audience-scan/*"
+    },
+    {
+      "prefix": "competitor-record/*"
+    },
+    {
+      "prefix": "hook-record/*"
+    },
+    {
+      "prefix": "workflow-scan/*"
+    },
+    {
+      "prefix": "skill-scan/*"
+    },
+    {
+      "prefix": "channel-scan/*"
+    },
+    {
+      "prefix": "format-scan/*"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "audience-scan/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "competitor-record/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "hook-record/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "workflow-scan/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "skill-scan/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "channel-scan/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "format-scan/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "decisions_owned": [
+    "audience-update",
+    "channel-strategy-update",
+    "post-type-proposal",
+    "hook-candidate-promotion",
+    "coverage-gap"
+  ],
+  "decisions_consumed": [
+    "capability-gap",
+    "campaign-launch-proposal"
+  ],
+  "raises_capability_gaps": true,
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
+}

@@ -5,12 +5,15 @@ import "fmt"
 type graphDecisionsTableMissingRule struct{}
 
 func (r graphDecisionsTableMissingRule) ID() string { return "graph_decisions_table_missing" }
-func (r graphDecisionsTableMissingRule) Group() OperatingGraphRuleGroup {
+func (r graphDecisionsTableMissingRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
-func (r graphDecisionsTableMissingRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphDecisionsTableMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDecisionsTableMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphDecisionsTableMissingRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphDecisionsTableMissingRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphDecisionsTableMissingRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	if ctx.Block.Docs.Decisions.Present {
 		return nil
 	}
@@ -21,12 +24,15 @@ func (r graphDecisionsTableMissingRule) Check(ctx OperatingGraphRuleContext) []O
 type graphDecisionsTableDriftRule struct{}
 
 func (r graphDecisionsTableDriftRule) ID() string { return "graph_decisions_table_drift" }
-func (r graphDecisionsTableDriftRule) Group() OperatingGraphRuleGroup {
+func (r graphDecisionsTableDriftRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
-func (r graphDecisionsTableDriftRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphDecisionsTableDriftRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDecisionsTableDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphDecisionsTableDriftRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphDecisionsTableDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphDecisionsTableDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	if !ctx.Block.Docs.Decisions.Present {
 		return nil
 	}
@@ -69,12 +75,15 @@ func (r graphDecisionsTableOwnerDriftRule) ID() string {
 	return "graph_decisions_table_owner_drift"
 }
 
-func (r graphDecisionsTableOwnerDriftRule) Group() OperatingGraphRuleGroup {
+func (r graphDecisionsTableOwnerDriftRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
-func (r graphDecisionsTableOwnerDriftRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphDecisionsTableOwnerDriftRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDecisionsTableOwnerDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphDecisionsTableOwnerDriftRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphDecisionsTableOwnerDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphDecisionsTableOwnerDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	resolver := NewOperatingActorResolver(ctx.Block.Metadata)
 	var findings []OperatingGraphFinding
@@ -103,7 +112,7 @@ func (r graphDecisionsTableOwnerDriftRule) Check(ctx OperatingGraphRuleContext) 
 	return findings
 }
 
-func graphHasCapabilityGapOwner(ctx OperatingGraphRuleContext, rel OperatingRelationship) bool {
+func graphHasCapabilityGapOwner(ctx RuleContext, rel OperatingRelationship) bool {
 	if rel.Decision != "capability-gap" {
 		return false
 	}

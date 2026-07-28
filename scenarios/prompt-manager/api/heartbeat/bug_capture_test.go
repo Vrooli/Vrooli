@@ -50,10 +50,10 @@ func TestBugCaptureTopicIsStableAndPrivateDraftCommandIsExact(t *testing.T) {
 
 func TestBugCaptureDraftRemainsPrivateUntilRepairPublishes(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	h := NewHandlers(teamStore, agentStore, fileStore.Relations(), nil, NewExecutor(teamStore, agentStore, nil, "", nil, nil), nil, nil, nil)
+	h := NewHandlers(teamStore, agentStore, fileStore.Relations(), nil, newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil), nil, nil, nil)
 	if err := teamStore.Create(context.Background(), newIndependentTestTeam(scenarioQATeamID, "Scenario QA")); err != nil {
 		t.Fatal(err)
 	}

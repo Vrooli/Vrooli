@@ -1,22 +1,36 @@
 package memberflow
 
-type OperatingGraphRuleGroup string
+type RuleGroup string
 
 const (
-	OperatingRuleGroupEntity       OperatingGraphRuleGroup = "entity"
-	OperatingRuleGroupEdgeTruth    OperatingGraphRuleGroup = "edge_truth"
-	OperatingRuleGroupCompleteness OperatingGraphRuleGroup = "completeness"
-	OperatingRuleGroupPrompt       OperatingGraphRuleGroup = "prompt"
-	OperatingRuleGroupDocs         OperatingGraphRuleGroup = "docs"
-	OperatingRuleGroupCoherence    OperatingGraphRuleGroup = "coherence"
+	OperatingRuleGroupEntity       RuleGroup = "entity"
+	OperatingRuleGroupEdgeTruth    RuleGroup = "edge_truth"
+	OperatingRuleGroupCompleteness RuleGroup = "completeness"
+	OperatingRuleGroupPrompt       RuleGroup = "prompt"
+	OperatingRuleGroupDocs         RuleGroup = "docs"
+	OperatingRuleGroupCoherence    RuleGroup = "coherence"
+	OperatingRuleGroupTopic        RuleGroup = "topic"
+	OperatingRuleGroupPlanOfRecord RuleGroup = "plan_of_record"
 )
 
-type OperatingGraphRule interface {
+type Rule interface {
 	ID() string
-	Group() OperatingGraphRuleGroup
+	Group() RuleGroup
 	DefaultSeverity() Severity
-	AppliesTo(mode string) bool
-	Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding
+	AppliesTo(ctx RuleContext) bool
+	Check(ctx RuleContext) []OperatingGraphFinding
+}
+
+// RuleContext is the single execution context for every validation rule.
+// A graph rule reads OperatingGraphRuleContext; a model rule reads
+// OperatingModelRuleContext. Embedding keeps both surfaces explicit while
+// allowing one registry and one execution contract.
+type RuleContext struct {
+	OperatingGraphRuleContext
+	ModelContext         *OperatingModelRuleContext
+	PlanOfRecordFindings []OperatingGraphFinding
+	Members              []MemberTopics
+	Options              ValidationOptions
 }
 
 type OperatingGraphRuleContext struct {
@@ -26,9 +40,9 @@ type OperatingGraphRuleContext struct {
 	Matcher OperatingRelationshipMatcher
 }
 
-func DefaultOperatingGraphRules() []OperatingGraphRule {
+func DefaultOperatingGraphRules() []Rule {
 	registry := DefaultOperatingRelationshipRegistry()
-	rules := []OperatingGraphRule{
+	rules := []Rule{
 		graphUntypedNodeRule{},
 		graphUnknownNodeKindRule{},
 		graphNodeShapeConventionDriftRule{},
@@ -74,14 +88,19 @@ func DefaultOperatingGraphRules() []OperatingGraphRule {
 
 func ValidateOperatingGraphs(blocks []OperatingGraphBlock, runtime OperatingGraphRuntime, teamFilter, idFilter string) OperatingGraphValidationResult {
 	result := OperatingGraphValidationResult{Findings: []OperatingGraphFinding{}}
+	registry, err := DefaultRuleRegistry()
+	if err != nil {
+		addOperatingFindings(&result, []OperatingGraphFinding{{Rule: "rule_registry_invalid", Severity: string(SeverityError), Detail: err.Error()}})
+		return result
+	}
 	for _, block := range filterOperatingGraphBlocks(blocks, teamFilter, idFilter) {
 		if block.Metadata.Mode == OperatingGraphModeExplanatory {
 			continue
 		}
 		ctx := NewOperatingGraphContractContext(block, runtime)
-		ruleCtx := OperatingGraphRuleContext(ctx)
-		for _, rule := range DefaultOperatingGraphRules() {
-			if rule.AppliesTo(string(block.Metadata.Mode)) {
+		ruleCtx := RuleContext{OperatingGraphRuleContext: OperatingGraphRuleContext(ctx)}
+		for _, rule := range registry.RulesForPass(RulePassGraph) {
+			if rule.AppliesTo(ruleCtx) {
 				addOperatingFindings(&result, rule.Check(ruleCtx))
 			}
 		}

@@ -234,6 +234,14 @@ type ValidationInput struct {
 	RepoRoot     string
 }
 
+// ValidationFinding is one independently actionable operating-contract
+// defect. Validation reports the complete set on reads; callers that write a
+// contract can retain strict rejection through Validate.
+type ValidationFinding struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
 type RenderInput struct {
 	TeamID         string
 	TeamName       string
@@ -323,32 +331,49 @@ func firstMemberID(memberIDs []string) string {
 }
 
 func Validate(contract *OperatingContract, input ValidationInput) error {
+	findings := ValidateFindings(contract, input)
+	if len(findings) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s", findings[0].Message)
+}
+
+// ValidateFindings reports all independent contract defects that can be
+// evaluated from the supplied document. It intentionally avoids fail-fast
+// control flow: the read path must leave a malformed team visible and give
+// its operator the whole repair list in one pass.
+func ValidateFindings(contract *OperatingContract, input ValidationInput) []ValidationFinding {
+	var findings []ValidationFinding
+	add := func(field, format string, args ...any) {
+		findings = append(findings, ValidationFinding{Field: field, Message: fmt.Sprintf(format, args...)})
+	}
 	if contract == nil {
-		return fmt.Errorf("operatingContract is required")
+		add("operatingContract", "operatingContract is required")
+		return findings
 	}
 	if contract.SchemaVersion != SchemaVersion {
-		return fmt.Errorf("operatingContract.schemaVersion must equal %d", SchemaVersion)
+		add("operatingContract.schemaVersion", "operatingContract.schemaVersion must equal %d", SchemaVersion)
 	}
 	if strings.TrimSpace(contract.Governance.DecisionMode) == "" {
-		return fmt.Errorf("operatingContract.governance.decisionMode is required")
+		add("operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode is required")
 	}
 	if input.DecisionMode != "" && contract.Governance.DecisionMode != input.DecisionMode {
-		return fmt.Errorf("operatingContract.governance.decisionMode %q must match team decisionMode %q", contract.Governance.DecisionMode, input.DecisionMode)
+		add("operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode %q must match team decisionMode %q", contract.Governance.DecisionMode, input.DecisionMode)
 	}
 	if contract.Governance.DecisionMode != DecisionModeYolo && contract.Governance.DecisionMode != DecisionModeApproval {
-		return fmt.Errorf("operatingContract.governance.decisionMode must be 'yolo' or 'approval'")
+		add("operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode must be 'yolo' or 'approval'")
 	}
 	if contract.Governance.TeamPendingCeiling.Value < 0 {
-		return fmt.Errorf("operatingContract.governance.teamPendingCeiling.value must be non-negative")
+		add("operatingContract.governance.teamPendingCeiling.value", "operatingContract.governance.teamPendingCeiling.value must be non-negative")
 	}
 	if contract.DecisionContext == nil {
-		return fmt.Errorf("operatingContract.decisionContexts is required")
+		add("operatingContract.decisionContexts", "operatingContract.decisionContexts is required")
 	}
 	if contract.KnowledgeTopics == nil {
-		return fmt.Errorf("operatingContract.knowledgeTopics is required")
+		add("operatingContract.knowledgeTopics", "operatingContract.knowledgeTopics is required")
 	}
 	if contract.Members == nil {
-		return fmt.Errorf("operatingContract.members is required")
+		add("operatingContract.members", "operatingContract.members is required")
 	}
 	for _, memberID := range input.MemberIDs {
 		memberID = strings.TrimSpace(memberID)
@@ -356,31 +381,31 @@ func Validate(contract *OperatingContract, input ValidationInput) error {
 			continue
 		}
 		if _, ok := contract.Members[memberID]; !ok {
-			return fmt.Errorf("operatingContract.members missing active member %q", memberID)
+			add("operatingContract.members", "operatingContract.members missing active member %q", memberID)
 		}
 	}
 
 	for id, member := range contract.Members {
 		if strings.TrimSpace(id) == "" {
-			return fmt.Errorf("operatingContract.members contains an empty member id")
+			add("operatingContract.members", "operatingContract.members contains an empty member id")
 		}
 		if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat < 0 {
-			return fmt.Errorf("operatingContract.members.%s.newDecisionCapPerHeartbeat must be non-negative", id)
+			add("operatingContract.members."+id+".newDecisionCapPerHeartbeat", "operatingContract.members.%s.newDecisionCapPerHeartbeat must be non-negative", id)
 		}
 		if member.PendingOwnedDecisionCap != nil && *member.PendingOwnedDecisionCap < 0 {
-			return fmt.Errorf("operatingContract.members.%s.pendingOwnedDecisionCap must be non-negative", id)
+			add("operatingContract.members."+id+".pendingOwnedDecisionCap", "operatingContract.members.%s.pendingOwnedDecisionCap must be non-negative", id)
 		}
 		for contextID, cap := range member.NewDecisionCapsByContext {
 			if cap < 0 {
-				return fmt.Errorf("operatingContract.members.%s.newDecisionCapsByContext.%s must be non-negative", id, contextID)
+				add("operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s.newDecisionCapsByContext.%s must be non-negative", id, contextID)
 			}
 			if _, ok := contract.DecisionContext[contextID]; !ok {
-				return fmt.Errorf("operatingContract.members.%s.newDecisionCapsByContext.%s is not declared in decisionContexts", id, contextID)
+				add("operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s.newDecisionCapsByContext.%s is not declared in decisionContexts", id, contextID)
 			}
 		}
 		for _, contextID := range member.OwnedDecisionContexts {
 			if _, ok := contract.DecisionContext[contextID]; !ok {
-				return fmt.Errorf("operatingContract.members.%s.ownedDecisionContexts contains undeclared context %q", id, contextID)
+				add("operatingContract.members."+id+".ownedDecisionContexts", "operatingContract.members.%s.ownedDecisionContexts contains undeclared context %q", id, contextID)
 			}
 		}
 		// A member that forbids decision writes must zero its caps. Owning a
@@ -390,46 +415,55 @@ func Validate(contract *OperatingContract, input ValidationInput) error {
 		// states both "decision writes: not allowed" and "max new decisions: N".
 		if writeRefsContainKind(member.ForbiddenWrites, "decision") {
 			if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat != 0 {
-				return fmt.Errorf("operatingContract.members.%s forbids decision writes but declares newDecisionCapPerHeartbeat %d; set it to 0 or drop the forbidden write", id, *member.NewDecisionCapPerHeartbeat)
+				add("operatingContract.members."+id+".newDecisionCapPerHeartbeat", "operatingContract.members.%s forbids decision writes but declares newDecisionCapPerHeartbeat %d; set it to 0 or drop the forbidden write", id, *member.NewDecisionCapPerHeartbeat)
 			}
 			if member.PendingOwnedDecisionCap != nil && *member.PendingOwnedDecisionCap != 0 {
-				return fmt.Errorf("operatingContract.members.%s forbids decision writes but declares pendingOwnedDecisionCap %d; set it to 0 or drop the forbidden write", id, *member.PendingOwnedDecisionCap)
+				add("operatingContract.members."+id+".pendingOwnedDecisionCap", "operatingContract.members.%s forbids decision writes but declares pendingOwnedDecisionCap %d; set it to 0 or drop the forbidden write", id, *member.PendingOwnedDecisionCap)
 			}
 			for contextID, cap := range member.NewDecisionCapsByContext {
 				if cap != 0 {
-					return fmt.Errorf("operatingContract.members.%s forbids decision writes but declares newDecisionCapsByContext.%s %d; set it to 0 or drop the forbidden write", id, contextID, cap)
+					add("operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s forbids decision writes but declares newDecisionCapsByContext.%s %d; set it to 0 or drop the forbidden write", id, contextID, cap)
 				}
 			}
 		}
 		if err := validateWriteRefs(member.AllowedWrites, input, id, "allowedWrites"); err != nil {
-			return err
+			add("operatingContract.members."+id+".allowedWrites", "%s", err)
 		}
 		if err := validateWriteRefs(member.ForbiddenWrites, input, id, "forbiddenWrites"); err != nil {
-			return err
+			add("operatingContract.members."+id+".forbiddenWrites", "%s", err)
 		}
 	}
 	for contextID, dc := range contract.DecisionContext {
 		if len(dc.OwnerMemberIDs) == 0 && len(dc.ExternalAuthorizedRaisers) == 0 {
-			return fmt.Errorf("operatingContract.decisionContexts.%s requires ownerMemberIds or externalAuthorizedRaisers", contextID)
+			add("operatingContract.decisionContexts."+contextID, "operatingContract.decisionContexts.%s requires ownerMemberIds or externalAuthorizedRaisers", contextID)
 		}
 		for _, ownerID := range dc.OwnerMemberIDs {
 			if _, ok := contract.Members[ownerID]; !ok {
-				return fmt.Errorf("operatingContract.decisionContexts.%s owner %q is not a contract member", contextID, ownerID)
+				add("operatingContract.decisionContexts."+contextID+".ownerMemberIds", "operatingContract.decisionContexts.%s owner %q is not a contract member", contextID, ownerID)
 			}
 		}
 	}
 	if policy := contract.Governance.StaleDecisionPolicy; policy != nil {
 		if policy.AfterHeartbeats < 1 {
-			return fmt.Errorf("operatingContract.governance.staleDecisionPolicy.afterHeartbeats must be at least 1")
+			add("operatingContract.governance.staleDecisionPolicy.afterHeartbeats", "operatingContract.governance.staleDecisionPolicy.afterHeartbeats must be at least 1")
 		}
 		if _, ok := contract.Members[policy.OwnerMemberID]; !ok {
-			return fmt.Errorf("operatingContract.governance.staleDecisionPolicy.ownerMemberId %q is not a contract member", policy.OwnerMemberID)
+			add("operatingContract.governance.staleDecisionPolicy.ownerMemberId", "operatingContract.governance.staleDecisionPolicy.ownerMemberId %q is not a contract member", policy.OwnerMemberID)
 		}
 		if len(policy.RequiredOutcomes) == 0 {
-			return fmt.Errorf("operatingContract.governance.staleDecisionPolicy.requiredOutcomes is required")
+			add("operatingContract.governance.staleDecisionPolicy.requiredOutcomes", "operatingContract.governance.staleDecisionPolicy.requiredOutcomes is required")
 		}
 	}
-	return validateDocuments(contract, input)
+	if err := validateDocuments(contract, input); err != nil {
+		add("operatingContract.documents", "%s", err)
+	}
+	sort.SliceStable(findings, func(i, j int) bool {
+		if findings[i].Field != findings[j].Field {
+			return findings[i].Field < findings[j].Field
+		}
+		return findings[i].Message < findings[j].Message
+	})
+	return findings
 }
 
 func RenderMemberPolicy(contract *OperatingContract, input RenderInput) (string, error) {
@@ -483,17 +517,8 @@ func renderMemberPolicyBody(b *strings.Builder, contract *OperatingContract, mem
 		b.WriteString("\nDecision caps: decision writes are not allowed for this member.\n")
 	} else {
 		b.WriteString("\nDecision caps:\n")
-		if member.NewDecisionCapPerHeartbeat != nil {
-			b.WriteString(fmt.Sprintf("- max new decisions this heartbeat: %d\n", *member.NewDecisionCapPerHeartbeat))
-		}
-		if len(member.NewDecisionCapsByContext) > 0 {
-			keys := sortedKeys(member.NewDecisionCapsByContext)
-			for _, contextID := range keys {
-				b.WriteString(fmt.Sprintf("- %s: max %d new decisions this heartbeat\n", contextID, member.NewDecisionCapsByContext[contextID]))
-			}
-		}
-		if member.PendingOwnedDecisionCap != nil {
-			b.WriteString(fmt.Sprintf("- skip new decisions when %d+ owned-context decisions are already pending\n", *member.PendingOwnedDecisionCap))
+		for _, line := range DecisionCapBulletLines(member.NewDecisionCapPerHeartbeat, member.NewDecisionCapsByContext, member.PendingOwnedDecisionCap) {
+			b.WriteString("- " + line + "\n")
 		}
 	}
 	// Document authority and the allowed/forbidden write paths are deliberately
@@ -512,6 +537,49 @@ func renderMemberPolicyBody(b *strings.Builder, contract *OperatingContract, mem
 			b.WriteString(fmt.Sprintf("- %s: %v\n", key, member.TaskParameters[key]))
 		}
 	}
+}
+
+// DecisionCapsSummary is the single wording authority for the decision
+// creation limits shown in both the active-task brief and operating policy.
+// Keeping this logic in the contract package makes those independently built
+// prompt sections agree whenever a member contract changes.
+func DecisionCapsSummary(perHeartbeat *int, perContext map[string]int, pendingOwned *int) string {
+	clauses := make([]string, 0, 3)
+	if perHeartbeat != nil {
+		clauses = append(clauses, fmt.Sprintf("%d new decisions this heartbeat", *perHeartbeat))
+	}
+	if len(perContext) > 0 {
+		keys := sortedKeys(perContext)
+		parts := make([]string, 0, len(keys))
+		for _, contextID := range keys {
+			parts = append(parts, fmt.Sprintf("`%s` %d", contextID, perContext[contextID]))
+		}
+		clauses = append(clauses, "per owned context — "+strings.Join(parts, ", "))
+	}
+	if len(clauses) == 0 {
+		clauses = append(clauses, "no explicit per-heartbeat cap")
+	}
+	if pendingOwned != nil {
+		clauses = append(clauses, fmt.Sprintf("skip new decisions when %d owned-context decisions are already pending", *pendingOwned))
+	}
+	return strings.Join(clauses, "; ")
+}
+
+// DecisionCapBulletLines is the policy-oriented presentation of the same
+// decision-cap facts rendered inline by DecisionCapsSummary. Both functions
+// are deliberately sourced from the same three contract fields.
+func DecisionCapBulletLines(perHeartbeat *int, perContext map[string]int, pendingOwned *int) []string {
+	lines := make([]string, 0, len(perContext)+2)
+	if perHeartbeat != nil {
+		lines = append(lines, fmt.Sprintf("max new decisions this heartbeat: %d", *perHeartbeat))
+	}
+	for _, contextID := range sortedKeys(perContext) {
+		lines = append(lines, fmt.Sprintf("%s: max %d new decisions this heartbeat", contextID, perContext[contextID]))
+	}
+	if pendingOwned != nil {
+		lines = append(lines, fmt.Sprintf("skip new decisions when %d+ owned-context decisions are already pending", *pendingOwned))
+	}
+	return lines
 }
 
 func NormalizePath(ref PathRef, input ValidationInput, activeMemberID string) (string, error) {

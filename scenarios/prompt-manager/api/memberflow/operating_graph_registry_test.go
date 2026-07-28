@@ -33,7 +33,7 @@ func TestDefaultOperatingRelationshipRegistryIsInternallyConsistent(t *testing.T
 func TestDefaultOperatingGraphRulesIncludeRegistryBackedCompleteness(t *testing.T) {
 	registry := DefaultOperatingRelationshipRegistry()
 	rules := DefaultOperatingGraphRules()
-	rulesByID := map[string]OperatingGraphRule{}
+	rulesByID := map[string]Rule{}
 	for _, rule := range rules {
 		if _, ok := rulesByID[rule.ID()]; ok {
 			t.Fatalf("duplicate operating graph rule id %q", rule.ID())

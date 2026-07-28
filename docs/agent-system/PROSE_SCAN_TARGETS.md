@@ -147,7 +147,7 @@ The discriminator is the literal substring `team knowledge-` immediately precedi
 | `cli-knowledge-list-prefix` | ` `prompt-manager team knowledge-list\b[^\n]*?--topic-prefix[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)*/?)"?` ` | `prompt-manager team knowledge-list marketing-crew --topic-prefix=audience-scan/` | **error** |
 | `cli-knowledge-update-topic` | ` `prompt-manager team knowledge-update\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-update marketing-crew knw-abc --topic="audience-scan/keep"` | **error** |
 | `marked-topic-ref` | parser-backed marked inline reference from `package:api-core/markedrefs` | `` `topic[example]:audience-scan/<date>/<slug>` `` for illustrative syntax; unqualified `topic:` refs require current declarations | **warning** |
-| `inferred-backtick-topic-ref` | `` `([a-z][a-z0-9-]*/[a-z0-9<>_*/-]+)` `` (an unmarked backticked string with at least one `/`, lower-kebab segments, optional `<>` placeholders, `*` wildcard) | `` `audience-scan/<date>/<slug>` ``, `` `bug-inbox/regression/cli-flag-confusion` `` | **warning** (inferred; high false-positive risk) |
+| `inferred-backtick-topic-ref` | `` `([a-z][a-z0-9-]*/[a-z0-9<>_*/-]+)` `` (an unmarked backticked string with at least one `/`, lower-kebab segments, optional `<>` placeholders, `*` wildcard) | `` `audience-scan/<date>/<slug>` ``, `` `bug-inbox/regression/cli-flag-confusion` `` | **warning** (only after membership recognition) |
 
 For regex-backed patterns, captured group `1` is the topic prefix. For `marked-topic-ref`, the value after the `topic:` marker is the topic prefix. The scanner treats segments containing `<...>` placeholders or trailing `*` as wildcards when joining against declarations (e.g., `audience-scan/<date>/<slug>` joins against the declared `audience-scan/*` output prefix).
 
@@ -172,7 +172,7 @@ Marked topic references use the shared project syntax in `path:docs/reference/ma
 
 `path:docs/agent-system/` is scanned with code-block exclusion enabled. Other targets (member prose, agent prose, writer-skill SKILL.md, non-`path:docs/agent-system/` docs) are scanned **without** code-block exclusion — those files have no pedagogical-example use case. This is the only target-conditional scanner setting.
 
-Marked topic references (`marked-topic-ref`) and inferred unmarked references (`inferred-backtick-topic-ref`) remain at **warning** severity globally, even outside code blocks. Marked topic refs are explicit, but they are still documentation references rather than executable commands. Inferred refs are useful as a permanent safety net for ambiguous or agent-generated prose, but the scanner had to guess their meaning.
+Marked topic references (`marked-topic-ref`) and inferred unmarked references (`inferred-backtick-topic-ref`) remain at **warning** severity globally, even outside code blocks. Marked topic refs are explicit, but they are still documentation references rather than executable commands. An inferred backtick is considered a topic reference only when it overlaps a declared member prefix or registered taxonomy destination; otherwise it is ignored as ordinary code/path prose.
 
 ---
 
@@ -210,7 +210,7 @@ This is the matrix the scanner consumes when joining a detected reference back t
 
 Severity says how bad a finding is if real. It does not say how likely the finding is to be real, and those are different questions once a finding is shown to an agent rather than to an operator.
 
-`inferred-backtick-topic-ref` is marked **advisory** (`proseRegex.Advisory`, surfaced as `Finding.Advisory`). Its regex matches any backticked lowercase slash-separated string, so it also matches paths and package references — `docs/configuration/host`, `api-core/storage` — that were never topic prefixes. An operator dismisses those in seconds during a sweep. An agent cannot: the finding arrives as an instruction, and acting on it means proposing a correction to a declaration that was never wrong.
+`inferred-backtick-topic-ref` is membership-classified before it enters rule evaluation. Backticked paths and package references — `docs/configuration/host`, `api-core/storage` — are not declared topic prefixes and produce no finding. This avoids presenting a guess as an instruction to an agent or operator.
 
 The rule therefore is:
 

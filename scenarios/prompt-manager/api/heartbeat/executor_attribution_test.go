@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"prompt-manager/store"
 	"sync"
 	"testing"
 	"time"
+
+	"prompt-manager/store"
 )
 
 // TestExecute_PropagatesAttributionInCreateRunEnv asserts the spawner-side
@@ -29,7 +30,7 @@ func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-200", Status: "RUN_STATUS_COMPLETE"})
 
 	registry := NewRunRegistry(t.TempDir())
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
 
 	// Block on completion so this test doesn't race with the async waitForCompletion goroutine.
 	var completeCalled sync.WaitGroup

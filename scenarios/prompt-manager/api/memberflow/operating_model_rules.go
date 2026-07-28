@@ -1,25 +1,15 @@
 package memberflow
 
-type OperatingModelRuleGroup string
-
 const (
-	OperatingModelRuleGroupStructure       OperatingModelRuleGroup = "structure"
-	OperatingModelRuleGroupDecision        OperatingModelRuleGroup = "decision"
-	OperatingModelRuleGroupExternalInput   OperatingModelRuleGroup = "external_input"
-	OperatingModelRuleGroupOutput          OperatingModelRuleGroup = "output"
-	OperatingModelRuleGroupFeedback        OperatingModelRuleGroup = "feedback"
-	OperatingModelRuleGroupGap             OperatingModelRuleGroup = "gap"
-	OperatingModelRuleGroupAdoption        OperatingModelRuleGroup = "adoption"
-	OperatingModelRuleGroupDiscoverability OperatingModelRuleGroup = "discoverability"
+	OperatingModelRuleGroupStructure       RuleGroup = "structure"
+	OperatingModelRuleGroupDecision        RuleGroup = "decision"
+	OperatingModelRuleGroupExternalInput   RuleGroup = "external_input"
+	OperatingModelRuleGroupOutput          RuleGroup = "output"
+	OperatingModelRuleGroupFeedback        RuleGroup = "feedback"
+	OperatingModelRuleGroupGap             RuleGroup = "gap"
+	OperatingModelRuleGroupAdoption        RuleGroup = "adoption"
+	OperatingModelRuleGroupDiscoverability RuleGroup = "discoverability"
 )
-
-type OperatingModelRule interface {
-	ID() string
-	Group() OperatingModelRuleGroup
-	DefaultSeverity() Severity
-	AppliesTo(model OperatingModelDocument) bool
-	Check(ctx OperatingModelRuleContext) []OperatingGraphFinding
-}
 
 type OperatingModelRuleContext struct {
 	Model          OperatingModelDocument
@@ -29,7 +19,7 @@ type OperatingModelRuleContext struct {
 
 type operatingModelRule struct {
 	id    string
-	group OperatingModelRuleGroup
+	group RuleGroup
 	check func(OperatingModelRuleContext) []OperatingGraphFinding
 }
 
@@ -37,7 +27,7 @@ func (rule operatingModelRule) ID() string {
 	return rule.id
 }
 
-func (rule operatingModelRule) Group() OperatingModelRuleGroup {
+func (rule operatingModelRule) Group() RuleGroup {
 	return rule.group
 }
 
@@ -45,19 +35,22 @@ func (rule operatingModelRule) DefaultSeverity() Severity {
 	return SeverityError
 }
 
-func (rule operatingModelRule) AppliesTo(model OperatingModelDocument) bool {
-	return operatingModelPrimaryGraphMode(model) == OperatingGraphModeContract
+func (rule operatingModelRule) AppliesTo(ctx RuleContext) bool {
+	return ctx.ModelContext != nil && operatingModelPrimaryGraphMode(ctx.ModelContext.Model) == OperatingGraphModeContract
 }
 
-func (rule operatingModelRule) Check(ctx OperatingModelRuleContext) []OperatingGraphFinding {
+func (rule operatingModelRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	if rule.check == nil {
 		return nil
 	}
-	return rule.check(ctx)
+	if ctx.ModelContext == nil {
+		return nil
+	}
+	return rule.check(*ctx.ModelContext)
 }
 
-func DefaultOperatingModelRules() []OperatingModelRule {
-	return []OperatingModelRule{
+func DefaultOperatingModelRules() []Rule {
+	return []Rule{
 		operatingModelRule{id: "operating_model_required_section_missing", group: OperatingModelRuleGroupStructure, check: checkOperatingModelRequiredSectionMissing},
 		operatingModelRule{id: "operating_model_duplicate_section", group: OperatingModelRuleGroupStructure, check: checkOperatingModelDuplicateSection},
 		operatingModelFilteredRule("operating_model_decisions_header_drift", OperatingModelRuleGroupDecision, validateOperatingModelDecisions),
@@ -89,7 +82,7 @@ func DefaultOperatingModelRules() []OperatingModelRule {
 	}
 }
 
-func operatingModelFilteredRule(id string, group OperatingModelRuleGroup, check func(OperatingModelDocument) []OperatingGraphFinding) OperatingModelRule {
+func operatingModelFilteredRule(id string, group RuleGroup, check func(OperatingModelDocument) []OperatingGraphFinding) Rule {
 	return operatingModelRule{
 		id:    id,
 		group: group,
@@ -99,7 +92,7 @@ func operatingModelFilteredRule(id string, group OperatingModelRuleGroup, check 
 	}
 }
 
-func operatingModelContextualFilteredRule(id string, group OperatingModelRuleGroup, check func(OperatingModelRuleContext) []OperatingGraphFinding) OperatingModelRule {
+func operatingModelContextualFilteredRule(id string, group RuleGroup, check func(OperatingModelRuleContext) []OperatingGraphFinding) Rule {
 	return operatingModelRule{
 		id:    id,
 		group: group,
@@ -109,7 +102,7 @@ func operatingModelContextualFilteredRule(id string, group OperatingModelRuleGro
 	}
 }
 
-func operatingModelFilteredRuleWithRuntime(id string, group OperatingModelRuleGroup, check func(OperatingModelDocument, OperatingGraphRuntime) []OperatingGraphFinding) OperatingModelRule {
+func operatingModelFilteredRuleWithRuntime(id string, group RuleGroup, check func(OperatingModelDocument, OperatingGraphRuntime) []OperatingGraphFinding) Rule {
 	return operatingModelRule{
 		id:    id,
 		group: group,

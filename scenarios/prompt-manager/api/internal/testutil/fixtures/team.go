@@ -1,10 +1,43 @@
 package fixtures
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
 )
+
+// WriteTeam writes team.json from the real store.Team type. Tests using this
+// helper fail at compile time when the persisted contract changes instead of
+// silently drifting through hand-written JSON fixtures.
+func WriteTeam(root string, team *store.Team) (string, error) {
+	if team == nil {
+		return "", os.ErrInvalid
+	}
+	return WriteJSON(root, filepath.Join("teams", team.ID, "team.json"), team)
+}
+
+// WriteJSON persists a typed fixture at a root-relative path. It keeps the
+// common fixture substrate independent of domain packages while preserving
+// compile-time checking at every typed call site.
+func WriteJSON(root, relativePath string, value any) (string, error) {
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(root, filepath.FromSlash(relativePath))
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
 
 // TeamOption customizes a team fixture while preserving a shared base
 // contract for prompt-manager team behavior tests.

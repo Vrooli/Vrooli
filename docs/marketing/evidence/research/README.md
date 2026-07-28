@@ -7,7 +7,7 @@ Research supports two intake modes:
 - **Operator-fed alpha:** links, bookmarks, workflows, skills, posts, and observations surfaced during the morning vision walk or direct operator conversation.
 - **Proactive baseline:** low-volume scheduled scans across audiences, competitors, channels, hooks, formats, and benchmark-adjacent market evidence.
 
-When the bookmark-intelligence-hub scenario is available, it is the preferred collection layer for operator bookmarks and social saves. Do not create source-specific intake skills for X, Reddit, newsletters, or similar sources unless bookmark-intelligence-hub cannot reasonably cover that source. The researcher should consume classified bookmark-intelligence-hub CLI output, then apply marketing research methods to the relevant items.
+When the signal-inbox scenario is available, it is the preferred collection layer for operator bookmarks and social saves. Do not create source-specific intake skills for X, Reddit, newsletters, or similar sources unless signal-inbox cannot reasonably cover that source. The researcher should consume classified signal-inbox CLI output, then apply marketing research methods to the relevant items.
 
 ## Pipeline
 
@@ -25,7 +25,7 @@ Work may enter through:
 - researcher handoff and prior knowledge
 - operator-provided source references during a vision walk
 - proactive baseline scans when inbox signal is empty or stale
-- future bookmark-intelligence-hub CLI exports
+- future signal-inbox CLI exports
 - cross-team requests from director-swarm, monetization, or meta-optimization
 
 ### Inbox convention
@@ -85,7 +85,7 @@ Current collection modes:
 
 Planned collection mode:
 
-- bookmark-intelligence-hub CLI output for archived bookmarks, saved social posts, and source classification
+- signal-inbox CLI output for archived bookmarks, saved social posts, and source classification
 
 Collection should become a tool, action, or scenario capability when it is credentialed, scheduled, reusable, or deterministic. Until then, method skills may include lightweight collection steps, but they must label weak evidence honestly.
 
@@ -128,7 +128,7 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 - One source is an observation, not canon.
 - Three converging scans can justify a decision when the sources are meaningfully independent.
 - Single-snapshot data must be labeled `light-interpretation`.
-- Bookmark-intelligence-hub classifications are inputs, not proof. The researcher still evaluates relevance and evidence quality.
+- Signal-inbox classifications are inputs, not proof. The researcher still evaluates relevance and evidence quality.
 - Researcher never drafts marketing content or directly edits `path:docs/marketing/` canon; it proposes changes for operator review.
 
 ## Skill Surface

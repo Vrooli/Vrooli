@@ -1,9 +1,34 @@
 package fixtures
 
 import (
-	"prompt-manager/teamconfig"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"prompt-manager/teamconfig"
 )
+
+func TestWriteTeamMarshalsTeamFixture(t *testing.T) {
+	team := IndependentTeam("team-1", "Team One")
+	path, err := WriteTeam(t.TempDir(), team)
+	if err != nil {
+		t.Fatalf("WriteTeam() error = %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	var persisted struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(data, &persisted); err != nil {
+		t.Fatalf("decode fixture: %v", err)
+	}
+	if persisted.ID != team.ID || filepath.Base(path) != "team.json" {
+		t.Fatalf("persisted fixture = %+v at %s", persisted, path)
+	}
+}
 
 func TestIndependentTeamDefaults(t *testing.T) {
 	team := IndependentTeam("team-1", "Team One")

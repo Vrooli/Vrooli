@@ -1,9 +1,1 @@
-[
-  {
-    "rule": "prose_topic_leak",
-    "severity": "warning",
-    "owner_key": "skill:report-friction",
-    "pattern": "inferred-backtick-topic-ref",
-    "prefix": "bug-inbox/<scope>/<slug>"
-  }
-]
+[]

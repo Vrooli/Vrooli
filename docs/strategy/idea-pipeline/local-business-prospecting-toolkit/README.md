@@ -47,7 +47,7 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 **Downstream consumers (scenarios that would benefit once this exists):**
 
 - **`marketing-crew` team's outbound research** — could query this scenario for prospect-pool generation rather than relying on operator-surfaced manual research.
-- **`bookmark-intelligence-hub` (BIH)** — when BIH ships, leads surfaced via prospecting could route through BIH's classification flow alongside operator's bookmark stream.
+- **`signal-inbox`** — when signal-inbox ships, leads surfaced via prospecting could route through signal-inbox's classification flow alongside operator's bookmark stream.
 - **Future `social-media-scheduler` scenario** — if outreach has a social-media component (e.g., DM warming before email), the scheduler owns the publishing plumbing for that.
 
 **Substrate vs. leaf:** mostly leaf — depends on substrates (BAS, storage, AI, email) without itself being a substrate for many downstream scenarios. That's fine; not every scenario needs to be substrate.

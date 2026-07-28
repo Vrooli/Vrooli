@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/vrooli/api-core/database"
+	// Registers the sqlite driver so test binaries that open a routed DB
+	// through this helper do not depend on package main's blank import.
 	_ "modernc.org/sqlite"
 )
 

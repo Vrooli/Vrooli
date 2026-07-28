@@ -322,7 +322,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 
 **The frame to maintain:** Every non-recreational activity done outside Vrooli is an opportunity. External alpha is not evidence by itself; it is source material for the right downstream agent. The tone should be curious and constructive, like a partner noticing patterns, not a manager auditing time.
 
-**Bookmark-intelligence-hub posture:** When the operator talks about saved posts or bookmarks, assume the future durable collection layer is bookmark-intelligence-hub. Do not invent platform-specific intake workflows during the walk. Capture the signal and route it; later agents can consume bookmark-intelligence-hub CLI exports when that scenario exists.
+**Signal-inbox posture:** When the operator talks about saved posts or bookmarks, assume the future durable collection layer is signal-inbox. Do not invent platform-specific intake workflows during the walk. Capture the signal and route it; later agents can consume signal-inbox CLI exports when that scenario exists.
 
 **Exit criteria:**
 - [ ] User has discussed recent activities, frictions, or external signals outside Vrooli
@@ -406,7 +406,7 @@ Opportunity-inbox entries follow the same pattern on the `monetization` team: kn
 
 Validation-inbox entries are the same pattern for the market-validator's `validation-inbox/<request-type>/<slug>` topic. The `signal-classifier` triages and converts to `monetization/market-scan/<slug>` or raises a benchmark/pricing/financial-model-assumption decision. The inbox view (`team knowledge-list monetization --topic-prefix=validation-inbox/`) is always the unrouted set.
 
-When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that scenario's CLI/export path instead of manually creating platform-specific intake records. Until then, an inbox knowledge entry with source URL and raw note is the right shape.
+When signal-inbox exists, route bookmark-heavy alpha through that scenario's CLI/export path instead of manually creating platform-specific intake records. Until then, an inbox knowledge entry with source URL and raw note is the right shape.
 
 4. For backlog items, use the swarm-manager CLI:
    ```bash

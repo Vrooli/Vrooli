@@ -62,10 +62,6 @@ func (rf *runtimeFixture) writeTeam(t *testing.T, teamID, cutoff string, thresho
 // the supplied output prefixes, all marked DestinationKnowledge.
 func (rf *runtimeFixture) writeMember(t *testing.T, teamID, memberID string, outputs ...string) {
 	t.Helper()
-	dir := filepath.Join(rf.storeDir, "teams", teamID, "members", memberID)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", dir, err)
-	}
 	topics := Topics{}
 	for _, p := range outputs {
 		topics.Output = append(topics.Output, OutputEntry{
@@ -73,13 +69,7 @@ func (rf *runtimeFixture) writeMember(t *testing.T, teamID, memberID string, out
 			DestinationKind: DestinationKnowledge,
 		})
 	}
-	b, err := encodeTopicsJSON(topics)
-	if err != nil {
-		t.Fatalf("encode topics: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "topics.json"), b, 0o644); err != nil {
-		t.Fatalf("write topics.json: %v", err)
-	}
+	writeMemberTopics(t, rf.storeDir, teamID, memberID, topics)
 }
 
 // appendKnowledge writes one knowledge entry to

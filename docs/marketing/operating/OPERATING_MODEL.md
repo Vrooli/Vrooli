@@ -48,12 +48,12 @@ The first diagram is the compact operating-loop view. It is useful when checking
 ```mermaid
 flowchart LR
   OP[Operator / vision walk]
-  BIH[Bookmark intelligence hub]
+  SI[Signal inbox]
   WEB[Manual web and external sources]
   TEL[Future publish telemetry]
 
   OP --> RI[research-inbox]
-  BIH --> RI
+  SI --> RI
   WEB --> RI
   RI --> R[Researcher]
 
@@ -127,8 +127,8 @@ flowchart LR
     OP([Operator])
     %% @node VW external:vision-walk
     VW([Vision walk])
-    %% @node BIH external:bookmark-intelligence-hub
-    BIH([Bookmark intelligence hub])
+    %% @node SI external:signal-inbox
+    SI([Signal inbox])
     %% @node TEL future:publish-telemetry
     TEL([Future telemetry])
   end
@@ -243,10 +243,10 @@ flowchart LR
   %% Intake
   OP --> RI
   VW --> RI
-  BIH --> RI
+  SI --> RI
   OP --> R
   VW --> R
-  BIH --> R
+  SI --> R
   RI --> R
 
   %% Research
@@ -396,7 +396,7 @@ These are the knowledge-topic families the target operating model uses. Current 
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
-| `topic:research-inbox/*` | live | operator, vision-walk, bookmark-intelligence-hub | researcher | Raw unrouted research signal. The researcher drains this queue, then retags, deletes, or routes each item. |
+| `topic:research-inbox/*` | live | operator, vision-walk, signal-inbox | researcher | Raw unrouted research signal. The researcher drains this queue, then retags, deletes, or routes each item. |
 | `topic:audience-scan/*` | live | researcher | brand-manager, advertisers, researcher | Audience pain, vocabulary, buyer triggers, objections, and persona evidence. |
 | `topic:competitor-record/*` | live but under-consumed | researcher | brand-manager, advertisers | Competitor pricing, packaging, positioning, changelog, or claim evidence. Should feed positioning and campaign decisions. |
 | `topic:hook-record/*` | live but under-consumed | researcher | advertisers, brand-manager | Reusable hook and framing observations. Should feed draft generation and hook-library promotion. |
@@ -449,7 +449,7 @@ Current validation enforces table presence, graph/table parity, owner edges, exp
 |---|---|---|---|
 | Operator | `topic:research-inbox/*`, direct member context, or decision review | researcher, brand-manager, advertisers, publisher | Raw signal goes to research unless it is already a concrete decision review or artifact request. |
 | Vision walk | `topic:research-inbox/*` and direct member context | researcher, brand-manager, advertisers | Signals become evidence, campaign proposals, artifact requests, or capability gaps. |
-| Bookmark intelligence hub | `topic:research-inbox/*` | researcher | Researcher classifies into audience, competitor, hook, workflow, skill, channel, format, or benchmark-adjacent evidence. |
+| Signal inbox | `topic:research-inbox/*` | researcher | Researcher classifies into audience, competitor, hook, workflow, skill, channel, format, or benchmark-adjacent evidence. |
 | Future telemetry | `topic[future]:publish-performance/*` | future growth analyst / publisher / researcher | Target-state only until scheduler, accounts, and measurement sources exist. |
 | Monetization-adjacent market facts found by marketing | `topic:monetization-benchmark-adjacent-record/*` | monetization team | Researcher writes the record and routes strategic ownership to monetization. |
 | Accepted publish decisions | `topic:decision-application/<decision-id>` | publisher | Publisher uses accepted-decision markers to avoid duplicate execution and track follow-through. |

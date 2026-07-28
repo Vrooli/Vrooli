@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
 	"sort"
 	"strings"
 	"time"
+
+	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
@@ -397,18 +398,34 @@ func (s *FileTeamStore) loadTeam(teamID string) (*Team, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := teamconfig.Validate(team.Contract()); err != nil {
-		return nil, err
+	for _, finding := range teamconfig.ValidateFindings(team.Contract()) {
+		team.ValidationFindings = append(team.ValidationFindings, TeamValidationFinding{
+			Source:  "teamconfig",
+			Field:   finding.Field,
+			Message: finding.Message,
+		})
 	}
-	if err := s.validateOperatingContract(context.Background(), team); err != nil {
-		return nil, err
+	for _, finding := range s.validateOperatingContractFindings(context.Background(), team) {
+		team.ValidationFindings = append(team.ValidationFindings, TeamValidationFinding{
+			Source:  "teamcontract",
+			Field:   finding.Field,
+			Message: finding.Message,
+		})
 	}
 	return team, nil
 }
 
 func (s *FileTeamStore) validateOperatingContract(ctx context.Context, team *Team) error {
+	findings := s.validateOperatingContractFindings(ctx, team)
+	if len(findings) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s", findings[0].Message)
+}
+
+func (s *FileTeamStore) validateOperatingContractFindings(ctx context.Context, team *Team) []teamcontract.ValidationFinding {
 	if team == nil {
-		return fmt.Errorf("team is required")
+		return []teamcontract.ValidationFinding{{Field: "team", Message: "team is required"}}
 	}
 	var memberIDs []string
 	if s.relationStore != nil {
@@ -421,7 +438,7 @@ func (s *FileTeamStore) validateOperatingContract(ctx context.Context, team *Tea
 			}
 		}
 	}
-	return teamcontract.Validate(team.OperatingContract, teamcontract.ValidationInput{
+	return teamcontract.ValidateFindings(team.OperatingContract, teamcontract.ValidationInput{
 		TeamID:       team.ID,
 		DecisionMode: team.DecisionMode,
 		MemberIDs:    memberIDs,

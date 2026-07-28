@@ -249,7 +249,7 @@ func TestMemberDocSilentWithoutStoreDir(t *testing.T) {
 // new member added without the required sections, or a retired heading
 // reintroduced, fails here rather than in a heartbeat.
 func TestMemberDocLiveRosterHasNoErrors(t *testing.T) {
-	storeDir := repoStoreDirForTest(t)
+	storeDir := requirePromptManagerStoreDir(t)
 	members, err := LoadAll(storeDir)
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)

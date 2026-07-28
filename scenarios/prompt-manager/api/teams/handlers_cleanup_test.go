@@ -28,7 +28,7 @@ func (s *stubHeartbeatScheduler) Unschedule(teamID, agentID string) {
 func TestRemoveMemberCleansDataAndUnschedules(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -94,7 +94,7 @@ func TestRemoveMemberCleansDataAndUnschedules(t *testing.T) {
 func TestDeleteTeamUnschedulesHeartbeats(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()

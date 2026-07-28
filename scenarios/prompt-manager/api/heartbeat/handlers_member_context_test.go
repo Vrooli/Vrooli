@@ -5,16 +5,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+
 	"prompt-manager/internal/paths"
 	"prompt-manager/store"
-	"testing"
 
 	"github.com/gorilla/mux"
 )
 
 func TestGetMemberContext_Success(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -36,7 +37,7 @@ func TestGetMemberContext_Success(t *testing.T) {
 		t.Fatalf("set responsibilities: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/members/agent-1/context", nil)
@@ -66,12 +67,12 @@ func TestGetMemberContext_Success(t *testing.T) {
 
 func TestGetMemberContext_TeamNotFound(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/nonexistent/members/agent-1/context", nil)
@@ -87,7 +88,7 @@ func TestGetMemberContext_TeamNotFound(t *testing.T) {
 
 func TestGetMemberContext_MemberNotFound(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -102,7 +103,7 @@ func TestGetMemberContext_MemberNotFound(t *testing.T) {
 	}
 	// Note: not adding agent-1 as a member
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/members/agent-1/context", nil)
@@ -118,7 +119,7 @@ func TestGetMemberContext_MemberNotFound(t *testing.T) {
 
 func TestGetTeamExecutionStatus_Success(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -157,7 +158,7 @@ func TestGetTeamExecutionStatus_Success(t *testing.T) {
 
 func TestGetTeamExecutionStatus_TeamNotFound(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()

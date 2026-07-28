@@ -60,8 +60,8 @@ flowchart LR
     OP([Operator])
     %% @node VW external:vision-walk
     VW([Vision Walk])
-    %% @node BIH external:bookmark-intelligence-hub
-    BIH([Bookmark Intelligence Hub])
+    %% @node SI external:signal-inbox
+    SI([Signal Inbox])
   end
 
   %% Members
@@ -162,16 +162,16 @@ flowchart LR
   VW --> OS
   OP --> VAIN
   VW --> VAIN
-  BIH --> VAIN
+  SI --> VAIN
   OP --> ADJ
   VW --> ADJ
-  BIH --> ADJ
+  SI --> ADJ
   OP --> CS
   VW --> CS
   OP --> FT
   OP --> MV
   VW --> MV
-  BIH --> MV
+  SI --> MV
 
   OIN --> OS
   SCOUT --> OS

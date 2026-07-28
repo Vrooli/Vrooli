@@ -59,6 +59,9 @@ func printOperatingModelDiffGroup(title string, diffs []operatingGraphDiff, kind
 		}
 		fmt.Printf("- [%s] %s\n", d.Relationship, loc)
 		fmt.Printf("  %s\n", d.Detail)
+		if d.ProducerTeam != "" {
+			fmt.Printf("  Producer team: %s\n", d.ProducerTeam)
+		}
 		if d.RuntimePath != "" {
 			fmt.Printf("  Runtime file: %s\n", d.RuntimePath)
 		}

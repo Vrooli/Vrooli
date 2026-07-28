@@ -8,6 +8,7 @@ import (
 	"prompt-manager/internal/paths"
 	"prompt-manager/memberflow"
 	"prompt-manager/store"
+	"prompt-manager/teamcontract"
 )
 
 type stubContractFindings struct {
@@ -25,7 +26,7 @@ func newContractFindingsFixture(t *testing.T) (context.Context, *PromptBuilder, 
 	t.Helper()
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -189,6 +190,27 @@ func TestMemberflowProviderWithholdsAdvisoryFindings(t *testing.T) {
 	}
 	if len(kept) != 1 {
 		t.Fatalf("unattributed finding was routed to a member: %#v", kept)
+	}
+}
+
+func TestMergeTeamValidationFindingsRoutesMemberAndTeamDefects(t *testing.T) {
+	team := store.Team{
+		ID: "team-1",
+		OperatingContract: &teamcontract.OperatingContract{Members: map[string]teamcontract.MemberContract{
+			"agent-1": {}, "agent-2": {},
+		}},
+		ValidationFindings: []store.TeamValidationFinding{
+			{Source: "teamcontract", Field: "operatingContract.members.agent-1.newDecisionCapPerHeartbeat", Message: "agent cap is invalid"},
+			{Source: "teamconfig", Field: "runtime.mode", Message: "runtime mode is invalid"},
+		},
+	}
+	byMember := map[string][]ContractFinding{}
+	mergeTeamValidationFindings(byMember, []store.Team{team})
+	if got := len(byMember["team-1/agent-1"]); got != 2 {
+		t.Fatalf("agent-1 findings = %d, want member and team finding: %#v", got, byMember)
+	}
+	if got := len(byMember["team-1/agent-2"]); got != 1 {
+		t.Fatalf("agent-2 findings = %d, want only team finding: %#v", got, byMember)
 	}
 }
 

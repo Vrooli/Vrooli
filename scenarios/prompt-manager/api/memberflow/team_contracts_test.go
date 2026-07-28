@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"testing"
 
 	"prompt-manager/teamcontract"
@@ -414,7 +413,7 @@ func TestTeamRoleMemberDrift(t *testing.T) {
 // TestBundledTeamRolesMatchContractMembers is the live-roster guard: the rule
 // above only helps if the shipped teams satisfy it.
 func TestBundledTeamRolesMatchContractMembers(t *testing.T) {
-	registry, err := LoadAllTeamContracts(repoStoreDirForTest(t))
+	registry, err := LoadAllTeamContracts(requirePromptManagerStoreDir(t))
 	if err != nil {
 		t.Fatalf("load bundled team contracts: %v", err)
 	}
@@ -424,15 +423,6 @@ func TestBundledTeamRolesMatchContractMembers(t *testing.T) {
 	for _, f := range ruleTeamRoleMemberDrift(ValidationOptions{TeamContracts: registry}) {
 		t.Errorf("%s: %s", f.Member.Team, f.Detail)
 	}
-}
-
-func repoStoreDirForTest(t *testing.T) string {
-	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatalf("resolve test filename")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "store"))
 }
 
 func writeRolesFixtureTeam(t *testing.T, storeDir, teamID string, memberIDs, roleIDs []string) {

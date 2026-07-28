@@ -1034,18 +1034,19 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 	}
 
 	return Response{
-		ID:                t.ID,
-		DisplayName:       t.DisplayName,
-		Mission:           t.Mission,
-		Enabled:           t.Enabled,
-		Runtime:           t.Runtime,
-		Coordination:      t.Coordination,
-		Execution:         t.Execution,
-		DecisionMode:      t.DecisionMode,
-		OperatingContract: t.OperatingContract,
-		MemberCount:       memberCount,
-		CreatedAt:         t.CreatedAt,
-		UpdatedAt:         t.UpdatedAt,
+		ID:                 t.ID,
+		DisplayName:        t.DisplayName,
+		Mission:            t.Mission,
+		Enabled:            t.Enabled,
+		Runtime:            t.Runtime,
+		Coordination:       t.Coordination,
+		Execution:          t.Execution,
+		DecisionMode:       t.DecisionMode,
+		OperatingContract:  t.OperatingContract,
+		ValidationFindings: t.ValidationFindings,
+		MemberCount:        memberCount,
+		CreatedAt:          t.CreatedAt,
+		UpdatedAt:          t.UpdatedAt,
 	}
 }
 

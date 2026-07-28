@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"prompt-manager/memberflow"
+	"prompt-manager/store"
 )
 
 // ContractFinding is one open validation finding against a member's own
@@ -183,9 +184,50 @@ func (m *MemberflowContractFindings) snapshot() (map[string][]ContractFinding, e
 	})
 
 	byMember := filterActionableFindings(result.Findings)
+	teamStore := store.NewFileTeamStore(m.StoreDir, m.RuntimeDataDir, nil)
+	if teams, err := teamStore.List(context.Background()); err == nil {
+		mergeTeamValidationFindings(byMember, teams)
+	}
 	m.cached = byMember
 	m.cachedAt = time.Now()
 	return byMember, nil
+}
+
+// mergeTeamValidationFindings routes readable-but-invalid team contracts back
+// to their members. Member-specific fields are delivered only to that member;
+// a team-wide configuration defect is delivered to every declared contract
+// member because each prompt is otherwise capable of claiming a clean
+// operating policy while the team configuration is invalid.
+func mergeTeamValidationFindings(byMember map[string][]ContractFinding, teams []store.Team) {
+	for _, team := range teams {
+		if len(team.ValidationFindings) == 0 || team.OperatingContract == nil {
+			continue
+		}
+		for _, finding := range team.ValidationFindings {
+			memberID := memberIDForTeamFinding(finding.Field)
+			for id := range team.OperatingContract.Members {
+				if memberID != "" && id != memberID {
+					continue
+				}
+				key := memberflow.MemberRef{Team: team.ID, Member: id}.String()
+				byMember[key] = append(byMember[key], ContractFinding{
+					Rule:     "team_" + finding.Source + "_invalid",
+					Severity: string(memberflow.SeverityError),
+					Detail:   finding.Message,
+				})
+			}
+		}
+	}
+}
+
+func memberIDForTeamFinding(field string) string {
+	const prefix = "operatingContract.members."
+	if !strings.HasPrefix(field, prefix) {
+		return ""
+	}
+	rest := strings.TrimPrefix(field, prefix)
+	memberID, _, _ := strings.Cut(rest, ".")
+	return strings.TrimSpace(memberID)
 }
 
 // filterActionableFindings keeps the findings a specific member can act on and

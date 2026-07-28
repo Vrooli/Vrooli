@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "video-studio",
   "name": "Video Studio",
-  "description": "AI-driven video production combining browser recording, desktop recording, and compositing for marketing and demo content",
+  "description": "AI-driven video production combining browser recording, desktop recording, and compositing for marketing and demo content. Draft: no video-studio scenario exists, so this skill is not currently executable — pending an owner decision to build, retire, or rescope it.",
   "modes": [
     "tools"
   ],
@@ -14,9 +14,9 @@
     "content-creation"
   ],
   "icon": "video",
-  "status": "active",
+  "status": "draft",
   "entry": "SKILL.md",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-03-19T00:00:00Z",
-  "updatedAt": "2026-03-19T00:00:00Z"
+  "updatedAt": "2026-07-28T00:00:00Z"
 }

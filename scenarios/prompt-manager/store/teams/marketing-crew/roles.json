@@ -4,34 +4,19 @@
   "teamId": "marketing-crew",
   "roles": [
     {
+      "id": "producer",
+      "name": "Producer",
+      "description": "Sole draft producer. Draws open work from active campaigns in content-desk, gathers the evidence that work needs, and drafts against it with every factual assertion declared as a claim. Merges the former oss-advertiser, subscription-advertiser, and researcher roles — lane is a field on the draft, not a separate agent. Never publishes and never approves its own work."
+    },
+    {
       "id": "brand-manager",
       "name": "Brand Manager",
-      "description": "Owns brand canon — voice, positioning, campaign themes, audience definitions. Curates typed marketing-craft observations into permanent structure via decisions and retires obsolete entries. Strategic long-horizon voice, not per-post review."
-    },
-    {
-      "id": "subscription-advertiser",
-      "name": "Subscription Advertiser",
-      "description": "Generates marketing material for deployed and imminent-release SKUs/bundles/add-ons. Surfaces coverage gaps when subscription SKUs lack fresh material. Disciplined by the rule that subscription = convenience + integrated gateway, never paywalling core."
-    },
-    {
-      "id": "oss-advertiser",
-      "name": "OSS Advertiser",
-      "description": "Builder-in-public voice: dev logs, contributor/community acquisition, open-source narrative. Consumes the x-dev-log skill to mine scenario activity into story arcs. Frames self-host as brand credibility, never as leaked revenue."
-    },
-    {
-      "id": "publisher",
-      "name": "Publisher",
-      "description": "Pipeline operator. Polishes approved drafts, produces per-platform variants, schedules releases, maintains per-SKU coverage state under shared/coverage/. Decides when material goes live; raises channel-update decisions as platform rules drift."
-    },
-    {
-      "id": "researcher",
-      "name": "Researcher",
-      "description": "Audience, competitor, and trend scanning. Proposes audience-update decisions when persona revisions are warranted. Feeds benchmark-adjacent observations to monetization's market-validator via knowledge entries. Does not hallucinate engagement numbers pre-telemetry."
+      "description": "Owns brand canon — voice, positioning, campaign themes, audience definitions. Curates typed marketing-craft observations into permanent structure via decisions and retires obsolete entries. Strategic long-horizon voice, not per-post review. Holds channel-update until account operations have a home on the scheduler side."
     },
     {
       "id": "marketing-contrarian",
       "name": "Marketing Contrarian",
-      "description": "Mandatory skeptic across all other members' proposals. Scores each against eight domain-specific failure modes (hype drift, voice drift, hallucinated engagement metrics, paywall framing, OSS-as-leak framing, coverage-gap-ignorance, acquisition-only hypothesis, capability-workaround-without-gap). Owns the aging scan."
+      "description": "Mandatory skeptic. Scores proposals against the domain failure-mode framework (hype drift, voice drift, hallucinated engagement metrics, paywall framing, OSS-as-leak framing, coverage-gap-ignorance, acquisition-only hypothesis, capability-workaround-without-gap) and owns the aging scan. Additionally charged with hunting claims the producer did not declare — the compensating control for author self-reporting. Deliberately not merged into producer: this separation is what keeps the verification gate honest."
     }
   ]
 }

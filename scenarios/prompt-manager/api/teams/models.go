@@ -4,6 +4,7 @@
 package teams
 
 import (
+	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
 )
@@ -17,18 +18,19 @@ type (
 
 // Response is the API response for a team.
 type Response struct {
-	ID                string                          `json:"id"`
-	DisplayName       string                          `json:"displayName"`
-	Mission           string                          `json:"mission,omitempty"`
-	Enabled           bool                            `json:"enabled"`
-	Runtime           RuntimeDTO                      `json:"runtime"`
-	Coordination      CoordinationDTO                 `json:"coordination"`
-	Execution         ExecutionDTO                    `json:"execution"`
-	DecisionMode      string                          `json:"decisionMode,omitempty"`
-	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
-	MemberCount       int                             `json:"memberCount"`
-	CreatedAt         string                          `json:"createdAt"`
-	UpdatedAt         string                          `json:"updatedAt"`
+	ID                 string                          `json:"id"`
+	DisplayName        string                          `json:"displayName"`
+	Mission            string                          `json:"mission,omitempty"`
+	Enabled            bool                            `json:"enabled"`
+	Runtime            RuntimeDTO                      `json:"runtime"`
+	Coordination       CoordinationDTO                 `json:"coordination"`
+	Execution          ExecutionDTO                    `json:"execution"`
+	DecisionMode       string                          `json:"decisionMode,omitempty"`
+	OperatingContract  *teamcontract.OperatingContract `json:"operatingContract"`
+	ValidationFindings []store.TeamValidationFinding   `json:"validationFindings,omitempty"`
+	MemberCount        int                             `json:"memberCount"`
+	CreatedAt          string                          `json:"createdAt"`
+	UpdatedAt          string                          `json:"updatedAt"`
 }
 
 // TeamDetailsResponse includes full team details.

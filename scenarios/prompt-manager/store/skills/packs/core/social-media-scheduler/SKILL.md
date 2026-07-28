@@ -8,10 +8,10 @@ Schedule and manage content across multiple social media platforms with AI-power
 
 | Use when | Don't use when |
 |----------|----------------|
-| Scheduling a post to one or more platforms | Generating content from scratch (use campaign-content-studio) |
+| Scheduling a post to one or more platforms | Generating content from scratch (use the `x-<post-type>` skills) |
 | Viewing the content calendar for upcoming posts | Writing X/Twitter dev log threads (use x-dev-log) |
 | Optimizing content for a specific platform | Running SEO analysis (use seo-optimizer) |
-| Checking post performance analytics | Managing email campaigns (use campaign-content-studio) |
+| Checking post performance analytics | Managing email campaigns (no capability exists) |
 | Bulk scheduling multiple posts from a content plan | Need real-time engagement/replies |
 
 ```

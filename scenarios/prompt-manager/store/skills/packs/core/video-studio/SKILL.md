@@ -8,7 +8,7 @@ Produce marketing videos, product demos, and promotional content by combining AI
 
 | Use when | Don't use when |
 |----------|----------------|
-| Creating a product demo for a scenario's UI | Writing text-based content (use x-dev-log, campaign-content-studio) |
+| Creating a product demo for a scenario's UI | Writing text-based content (use x-dev-log) |
 | Recording a multi-step feature walkthrough | Running automated UI tests (use browser-automation-studio directly) |
 | Producing a promotional clip for social media | Creating static screenshots or images |
 | Generating a tutorial showing how to use a tool | Need real-time live streaming |

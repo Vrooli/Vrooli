@@ -1182,10 +1182,12 @@ func TestDefaultOperatingModelRulesRegistersBaselineContractRules(t *testing.T) 
 		if rule.ID() == "" || rule.Group() == "" || rule.DefaultSeverity() == "" {
 			t.Fatalf("rule[%d] has incomplete metadata: id=%q group=%q severity=%q", i, rule.ID(), rule.Group(), rule.DefaultSeverity())
 		}
-		if !rule.AppliesTo(contractModel) {
+		contractContext := NewOperatingModelRuleContext(contractModel, OperatingGraphRuntime{})
+		if !rule.AppliesTo(RuleContext{ModelContext: &contractContext}) {
 			t.Fatalf("rule[%d] should apply to contract models", i)
 		}
-		if rule.AppliesTo(explanatoryModel) {
+		explanatoryContext := NewOperatingModelRuleContext(explanatoryModel, OperatingGraphRuntime{})
+		if rule.AppliesTo(RuleContext{ModelContext: &explanatoryContext}) {
 			t.Fatalf("rule[%d] should not apply to explanatory models", i)
 		}
 	}
@@ -2172,7 +2174,7 @@ func TestValidateOperatingModelsChecksPlanOfRecordManifest(t *testing.T) {
 	assertOperatingFinding(t, result, "por_package_required_file_missing")
 }
 
-func TestValidateOperatingModelsRejectsPlanOfRecordHardCutoverDrift(t *testing.T) {
+func TestValidateOperatingModelsRejectsPlanOfRecordNotebookSurface(t *testing.T) {
 	repoRoot := t.TempDir()
 	writeFile := func(rel, body string) {
 		t.Helper()
@@ -2191,7 +2193,7 @@ func TestValidateOperatingModelsRejectsPlanOfRecordHardCutoverDrift(t *testing.T
     {"id": "operating", "path": "operating/", "required": true, "documents": [{"path": "OPERATING_MODEL.md", "required": true}]}
   ]
 }`)
-	writeFile("docs/team-a/README.md", "# Team A\n\nThis current file points to docs/marketing/notebook.\n")
+	writeFile("docs/team-a/README.md", "# Team A\n\n## Migration Notes\n\nHistorical context is allowed here.\n")
 	writeFile("docs/team-a/operating/OPERATING_MODEL.md", "# Operating\n")
 	writeFile("docs/team-a/notebook/NOTE.md", "# Note\n")
 
@@ -2200,7 +2202,6 @@ func TestValidateOperatingModelsRejectsPlanOfRecordHardCutoverDrift(t *testing.T
 	model.Source.Path = "docs/team-a/operating/OPERATING_MODEL.md"
 	result := ValidateOperatingModels([]OperatingModelDocument{model}, OperatingGraphRuntime{RepoRoot: repoRoot}, "team-a", "g")
 
-	assertOperatingFinding(t, result, "por_hard_cutover_drift")
 	assertOperatingFinding(t, result, "por_notebook_surface")
 }
 

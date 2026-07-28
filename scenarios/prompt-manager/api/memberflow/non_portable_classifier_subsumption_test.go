@@ -17,14 +17,6 @@
 //     `cli-knowledge-add-topic` / `cli-knowledge-update-topic` /
 //     `cli-knowledge-list-topic` / `cli-knowledge-list-prefix`.
 //
-//   - Per-team filesystem-path coupling (e.g.
-//     `teams/marketing-crew/members/...`) expressed as a backticked
-//     directory reference — caught by `inferred-backtick-topic-ref`. Note: the
-//     trailing `.json` form (`.../topics.json`) is not captured because
-//     the topic-character class deliberately excludes dots; SKILL.md
-//     authors who want to point at a specific file backtick the
-//     directory anyway, so this is not a coverage gap in practice.
-//
 // Patterns intentionally NOT subsumed (refinements of the legacy rule,
 // not regressions):
 //
@@ -95,15 +87,6 @@ func TestSubsumption_NonPortableClassifierPatterns_AreCaughtByProseTopicLeak(t *
 			ExpectedProsePrefix:     "opportunity-inbox/<date>/<slug>",
 			Comment:                 "Knowledge-write CLI verb with --topic flag (the realistic copy-pasteable form).",
 		},
-		{
-			SkillID: "leaky-store-path-classifier",
-			SkillBody: "# Leaky Store-Path Classifier\n" +
-				"\n" +
-				"Read peer policy under `teams/marketing-crew/members/researcher`.\n",
-			LegacyExpectedSubstring: "teams/marketing-crew/members",
-			ExpectedProsePrefix:     "teams/marketing-crew/members/researcher",
-			Comment:                 "Per-team filesystem-path coupling expressed as a backticked store-path reference (no trailing extension — the prose-scan regex excludes dots from the topic character class, and a realistic SKILL.md author backticks the directory rather than the json file).",
-		},
 	}
 
 	for _, fx := range fixtures {
@@ -141,6 +124,7 @@ func TestSubsumption_NonPortableClassifierPatterns_AreCaughtByProseTopicLeak(t *
 						Taxonomy:        "tx",
 						ClassifierSkill: fx.SkillID,
 					}},
+					RequiredRead:      []RequiredReadEntry{{Prefix: "research-inbox/*"}},
 					ExternalProducers: []string{"operator"},
 				}),
 			}

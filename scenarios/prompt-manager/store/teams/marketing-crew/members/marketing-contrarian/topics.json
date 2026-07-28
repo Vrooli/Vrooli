@@ -1,35 +1,12 @@
 {
-  "required_read": [
-    {
-      "prefix": "challenge-report/<decision-id>"
-    },
-    {
-      "prefix": "challenge-resolution-record/<decision-id>"
-    },
-    {
-      "prefix": "aging-scan-note/<decision-id>"
-    }
-  ],
-  "output": [
-    {
-      "prefix": "challenge-report/*",
-      "destination_kind": "knowledge"
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "destination_kind": "knowledge"
-    },
-    {
-      "prefix": "aging-scan-note/*",
-      "destination_kind": "knowledge"
-    }
-  ],
+  "required_read": [],
+  "evidence_consumed": [],
+  "output": [],
   "decisions_owned": [
     "decision-rejection-proposed",
     "framework-update"
   ],
   "decisions_consumed": [
-    "content-publish-proposal",
     "campaign-launch-proposal",
     "brand-guideline-update",
     "audience-update",

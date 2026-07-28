@@ -7,14 +7,5 @@
     "team": "marketing-crew",
     "member": "researcher",
     "prefix": "campaign-draft/<slug>"
-  },
-  {
-    "rule": "prose_topic_leak",
-    "severity": "warning",
-    "owner_key": "team:marketing-crew/researcher",
-    "pattern": "inferred-backtick-topic-ref",
-    "team": "marketing-crew",
-    "member": "researcher",
-    "prefix": "campaign-draft/<slug>"
   }
 ]

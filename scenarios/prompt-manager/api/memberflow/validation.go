@@ -144,31 +144,31 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 		}
 	}
 
+	registry, err := DefaultRuleRegistry()
+	if err != nil {
+		// Default registration is static; preserving a deterministic result is
+		// safer than silently dropping validation if a future edit breaks it.
+		return ValidationResult{Findings: []Finding{{Rule: "rule_registry_invalid", Severity: SeverityError, Detail: err.Error()}}, Errors: 1}
+	}
+	ctx := RuleContext{Members: members, Options: opts}
 	var findings []Finding
-
-	findings = append(findings, ruleConflictingDrain(members)...)
-	findings = append(findings, ruleOrphanOutput(members, opts)...)
-	findings = append(findings, ruleOrphanInput(members)...)
-	findings = append(findings, ruleUnreadRequired(members, opts)...)
-	findings = append(findings, ruleWildcardSourceMisuse(members)...)
-	findings = append(findings, ruleUnknownTaxonomy(members, opts)...)
-	findings = append(findings, ruleMissingDestinationSchema(members, opts)...)
-	findings = append(findings, ruleDanglingPORSink(members, opts)...)
-	findings = append(findings, ruleDanglingEvidenceDecision(members, opts)...)
-	findings = append(findings, ruleTeamRoleMemberDrift(opts)...)
-	findings = append(findings, ruleActualWriterUndeclared(members, opts)...)
-	findings = append(findings, ruleProseTopicLeak(members, opts)...)
-	findings = append(findings, ruleMemberDocSections(members, opts)...)
-
-	// Loop-kind rules (loopkind.go). Declare rules run unconditionally;
-	// enforce rules are gated behind an explicit LoopKind and stay silent
-	// on members that have not declared one.
-	findings = append(findings, ruleLoopKindInvalid(members)...)
-	findings = append(findings, ruleLoopKindMissing(members)...)
-	findings = append(findings, ruleLoopKindIntakeMismatch(members)...)
-	findings = append(findings, ruleSweepWithoutLedger(members)...)
-	findings = append(findings, ruleLedgerShapeInvalid(members)...)
-	findings = append(findings, ruleSweepPopulationMissing(members)...)
+	for _, registered := range registry.RulesForPass(RulePassTopic) {
+		rule, ok := registered.(findingRule)
+		if !ok {
+			// Registration rejects this, so reaching it means the registry was
+			// built by another path. Report rather than skip silently.
+			findings = append(findings, Finding{
+				Rule:     "rule_registry_invalid",
+				Severity: SeverityError,
+				Detail:   fmt.Sprintf("topic-pass rule %q does not implement findingRule", registered.ID()),
+			})
+			continue
+		}
+		if !rule.AppliesTo(ctx) {
+			continue
+		}
+		findings = append(findings, rule.CheckFindings(ctx)...)
+	}
 
 	// stalled_drain and piling_inbox depend on team-knowledge queue depth +
 	// age; those are computed by the CLI layer (which has access to the

@@ -10,7 +10,7 @@ import (
 
 func TestLoadPlanOfRecordManifestRejectsUnknownFields(t *testing.T) {
 	repoRoot := t.TempDir()
-	writePORFile(t, repoRoot, "docs/team-a/manifest.json", `{
+	writeRepoFile(t, repoRoot, "docs/team-a/manifest.json", `{
   "version": "1.0.0",
   "contract": {"kind": "team-plan-of-record", "schema": "team-plan-of-record/v1", "team": "team-a"},
   "sections": [],
@@ -25,7 +25,7 @@ func TestLoadPlanOfRecordManifestRejectsUnknownFields(t *testing.T) {
 
 func TestLoadPlanOfRecordManifestAcceptsOptionalFolders(t *testing.T) {
 	repoRoot := t.TempDir()
-	writePORFile(t, repoRoot, "docs/team-a/manifest.json", `{
+	writeRepoFile(t, repoRoot, "docs/team-a/manifest.json", `{
   "$schema": "../agent-system/team-plan-of-record.schema.json",
   "version": "1.0.0",
   "contract": {"kind": "team-plan-of-record", "schema": "team-plan-of-record/v1", "team": "team-a"},
@@ -58,7 +58,7 @@ func TestLoadPlanOfRecordManifestAcceptsOptionalFolders(t *testing.T) {
 func TestLoadResolvedPlanOfRecordManifestMergesBaseContract(t *testing.T) {
 	repoRoot := t.TempDir()
 	writePORBase(t, repoRoot)
-	writePORFile(t, repoRoot, "docs/team-a/manifest.json", `{
+	writeRepoFile(t, repoRoot, "docs/team-a/manifest.json", `{
   "version": "1.0.0",
   "contract": {
     "kind": "team-plan-of-record",
@@ -109,7 +109,7 @@ func TestLoadResolvedPlanOfRecordManifestMergesBaseContract(t *testing.T) {
 func TestValidateAllPlanOfRecordsDoesNotRequireOperatingModelDiscovery(t *testing.T) {
 	repoRoot := t.TempDir()
 	writePORBase(t, repoRoot)
-	writePORFile(t, repoRoot, "docs/team-a/manifest.json", `{
+	writeRepoFile(t, repoRoot, "docs/team-a/manifest.json", `{
   "version": "1.0.0",
   "contract": {
     "kind": "team-plan-of-record",
@@ -127,7 +127,7 @@ func TestValidateAllPlanOfRecordsDoesNotRequireOperatingModelDiscovery(t *testin
     }]
   }]
 }`)
-	writePORFile(t, repoRoot, "docs/team-a/README.md", "# Team A\n")
+	writeRepoFile(t, repoRoot, "docs/team-a/README.md", "# Team A\n")
 
 	findings := ValidateAllPlanOfRecords(repoRoot)
 	assertPORFinding(t, findings, "por_required_heading_missing")
@@ -136,12 +136,12 @@ func TestValidateAllPlanOfRecordsDoesNotRequireOperatingModelDiscovery(t *testin
 
 func TestLoadResolvedPlanOfRecordManifestRejectsBaseCycle(t *testing.T) {
 	repoRoot := t.TempDir()
-	writePORFile(t, repoRoot, "docs/a/manifest.json", `{
+	writeRepoFile(t, repoRoot, "docs/a/manifest.json", `{
   "version": "1.0.0",
   "contract": {"kind": "team-plan-of-record", "schema": "team-plan-of-record/v1", "base": "docs/b/manifest.json", "team": "a"},
   "sections": []
 }`)
-	writePORFile(t, repoRoot, "docs/b/manifest.json", `{
+	writeRepoFile(t, repoRoot, "docs/b/manifest.json", `{
   "version": "1.0.0",
   "contract": {"kind": "team-plan-of-record", "schema": "team-plan-of-record/v1", "base": "docs/a/manifest.json", "team": "b"},
   "sections": []
@@ -154,7 +154,7 @@ func TestLoadResolvedPlanOfRecordManifestRejectsBaseCycle(t *testing.T) {
 }
 
 func TestTeamPlanOfRecordSchemaJSONIsValid(t *testing.T) {
-	repoRoot := findRepoRootForPORTest(t)
+	repoRoot := requireRepositoryRoot(t)
 	data, err := os.ReadFile(filepath.Join(repoRoot, "docs", "agent-system", "team-plan-of-record.schema.json"))
 	if err != nil {
 		t.Fatalf("read schema: %v", err)
@@ -169,7 +169,7 @@ func TestTeamPlanOfRecordSchemaJSONIsValid(t *testing.T) {
 }
 
 func TestValidateAllPlanOfRecordsRepoBaseline(t *testing.T) {
-	repoRoot := findRepoRootForPORTest(t)
+	repoRoot := requireRepositoryRoot(t)
 	findings := ValidateAllPlanOfRecords(repoRoot)
 	var errors []OperatingGraphFinding
 	for _, finding := range findings {
@@ -184,7 +184,7 @@ func TestValidateAllPlanOfRecordsRepoBaseline(t *testing.T) {
 
 func writePORBase(t *testing.T, repoRoot string) {
 	t.Helper()
-	writePORFile(t, repoRoot, "docs/agent-system/team-plan-of-record.manifest.json", `{
+	writeRepoFile(t, repoRoot, "docs/agent-system/team-plan-of-record.manifest.json", `{
   "version": "1.0.0",
   "contract": {"kind": "team-plan-of-record", "schema": "team-plan-of-record/v1"},
   "sections": [
@@ -221,17 +221,6 @@ func writePORBase(t *testing.T, repoRoot string) {
 }`)
 }
 
-func writePORFile(t *testing.T, repoRoot, rel, body string) {
-	t.Helper()
-	path := filepath.Join(repoRoot, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", rel, err)
-	}
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatalf("write %s: %v", rel, err)
-	}
-}
-
 func requirePORSection(t *testing.T, manifest PlanOfRecordManifest, id string) PlanOfRecordSection {
 	t.Helper()
 	for _, section := range manifest.Sections {
@@ -251,22 +240,4 @@ func assertPORFinding(t *testing.T, findings []OperatingGraphFinding, rule strin
 		}
 	}
 	t.Fatalf("expected finding %q in %#v", rule, findings)
-}
-
-func findRepoRootForPORTest(t *testing.T) string {
-	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "docs", "agent-system", "team-plan-of-record.manifest.json")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			t.Skip("repo root not found")
-		}
-		dir = parent
-	}
 }

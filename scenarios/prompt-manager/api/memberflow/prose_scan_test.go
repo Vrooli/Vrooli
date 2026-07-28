@@ -129,6 +129,31 @@ func TestProseScanner_InferredBacktickRef_RejectsBareIdentifier(t *testing.T) {
 	}
 }
 
+func TestProseScanner_InferredBacktickRef_RequiresDeclaredMembership(t *testing.T) {
+	idx := buildProseDeclarationIndex([]MemberTopics{{
+		Topics: Topics{Output: []OutputEntry{{Prefix: "audience-scan/*"}}},
+	}})
+	if !idx.recognizesInferredPrefix("audience-scan/<date>/<slug>") {
+		t.Fatal("declared topic prefix must be recognized")
+	}
+	if idx.recognizesInferredPrefix("internal/testutil") {
+		t.Fatal("directory path must not be recognized as a topic prefix")
+	}
+	if idx.recognizesInferredPrefix("*") {
+		t.Fatal("literal wildcard must not be recognized as a topic prefix")
+	}
+}
+
+func TestProseScanner_DropsBareWildcardReference(t *testing.T) {
+	root := t.TempDir()
+	docsDir := filepath.Join(root, "docs", "example")
+	mustWriteFile(t, filepath.Join(docsDir, "OPERATING_MODEL.md"), "Use `topic:*` only as a wildcard example.\n")
+	findings := ruleProseTopicLeak(nil, ValidationOptions{RepoRoot: root})
+	if len(findings) != 0 {
+		t.Fatalf("bare wildcard produced findings: %+v", findings)
+	}
+}
+
 func TestProseScanner_MarkedTopicRef_Matches(t *testing.T) {
 	line := "Drain entries on `topic:audience-scan/<date>/<slug>` every tick."
 	matches := scanProseLineMarkedTopicRefs(proseTarget{}, line, 1)
@@ -763,21 +788,21 @@ func TestProseScanSkipsNonDeclarationBearingDocsDomains(t *testing.T) {
 	repoRoot := t.TempDir()
 
 	// A team plan of record: has a manifest declaring the PoR contract.
-	writeProseFile(t, repoRoot, "docs/team-a/manifest.json",
+	writeRepoFile(t, repoRoot, "docs/team-a/manifest.json",
 		`{"contract":{"kind":"team-plan-of-record","schema":"team-plan-of-record/v1","team":"team-a"},"version":"1.0.0","sections":[]}`)
-	writeProseFile(t, repoRoot, "docs/team-a/operating/OPERATING_MODEL.md", "# Model\n")
+	writeRepoFile(t, repoRoot, "docs/team-a/operating/OPERATING_MODEL.md", "# Model\n")
 
 	// The framework canon: no manifest yet, included by name because it
 	// defines the topic vocabulary.
-	writeProseFile(t, repoRoot, "docs/agent-system/TOPICS.md", "# Topics\n")
+	writeRepoFile(t, repoRoot, "docs/agent-system/TOPICS.md", "# Topics\n")
 
 	// Not declaration-bearing: no manifest at all.
-	writeProseFile(t, repoRoot, "docs/plans/some-implementation-plan.md", "# Plan\n")
-	writeProseFile(t, repoRoot, "docs/reference/some-reference.md", "# Reference\n")
+	writeRepoFile(t, repoRoot, "docs/plans/some-implementation-plan.md", "# Plan\n")
+	writeRepoFile(t, repoRoot, "docs/reference/some-reference.md", "# Reference\n")
 
 	// A manifest that is not a plan-of-record contract does not qualify.
-	writeProseFile(t, repoRoot, "docs/other/manifest.json", `{"contract":{"kind":"something-else"}}`)
-	writeProseFile(t, repoRoot, "docs/other/notes.md", "# Notes\n")
+	writeRepoFile(t, repoRoot, "docs/other/manifest.json", `{"contract":{"kind":"something-else"}}`)
+	writeRepoFile(t, repoRoot, "docs/other/notes.md", "# Notes\n")
 
 	targets, err := discoverProseTargets(repoRoot)
 	if err != nil {
@@ -800,16 +825,5 @@ func TestProseScanSkipsNonDeclarationBearingDocsDomains(t *testing.T) {
 		if scanned[notWant] {
 			t.Errorf("docs:%s is not declaration-bearing and should not be scanned", notWant)
 		}
-	}
-}
-
-func writeProseFile(t *testing.T, repoRoot, rel, content string) {
-	t.Helper()
-	path := filepath.Join(repoRoot, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir for %s: %v", rel, err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", rel, err)
 	}
 }

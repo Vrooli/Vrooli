@@ -4,11 +4,14 @@ import "fmt"
 
 type graphDocsUnknownActorRule struct{}
 
-func (r graphDocsUnknownActorRule) ID() string                     { return "graph_docs_unknown_actor" }
-func (r graphDocsUnknownActorRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupDocs }
-func (r graphDocsUnknownActorRule) DefaultSeverity() Severity      { return SeverityError }
-func (r graphDocsUnknownActorRule) AppliesTo(mode string) bool     { return mode == "contract" }
-func (r graphDocsUnknownActorRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphDocsUnknownActorRule) ID() string                { return "graph_docs_unknown_actor" }
+func (r graphDocsUnknownActorRule) Group() RuleGroup          { return OperatingRuleGroupDocs }
+func (r graphDocsUnknownActorRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphDocsUnknownActorRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphDocsUnknownActorRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
@@ -30,12 +33,15 @@ func (r graphTopicCatalogWriterDriftRule) ID() string {
 	return "graph_topic_catalog_writer_drift"
 }
 
-func (r graphTopicCatalogWriterDriftRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogWriterDriftRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
-func (r graphTopicCatalogWriterDriftRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphTopicCatalogWriterDriftRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphTopicCatalogWriterDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogWriterDriftRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogWriterDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogWriterDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
@@ -61,12 +67,15 @@ func (r graphTopicCatalogReaderDriftRule) ID() string {
 	return "graph_topic_catalog_reader_drift"
 }
 
-func (r graphTopicCatalogReaderDriftRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogReaderDriftRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
-func (r graphTopicCatalogReaderDriftRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphTopicCatalogReaderDriftRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphTopicCatalogReaderDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogReaderDriftRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogReaderDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogReaderDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
@@ -95,15 +104,19 @@ func (r graphTopicCatalogActorUnsupportedRule) ID() string {
 	return "graph_topic_catalog_actor_unsupported"
 }
 
-func (r graphTopicCatalogActorUnsupportedRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogActorUnsupportedRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
 
 func (r graphTopicCatalogActorUnsupportedRule) DefaultSeverity() Severity {
 	return SeverityWarning
 }
-func (r graphTopicCatalogActorUnsupportedRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphTopicCatalogActorUnsupportedRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+
+func (r graphTopicCatalogActorUnsupportedRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogActorUnsupportedRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
@@ -119,7 +132,7 @@ func (r graphTopicCatalogActorUnsupportedRule) Check(ctx OperatingGraphRuleConte
 	return findings
 }
 
-func validateOperatingActorRef(ctx OperatingGraphRuleContext, builder OperatingFindingBuilder, ref OperatingActorReference, line int) []OperatingGraphFinding {
+func validateOperatingActorRef(ctx RuleContext, builder OperatingFindingBuilder, ref OperatingActorReference, line int) []OperatingGraphFinding {
 	var findings []OperatingGraphFinding
 	resolver := NewOperatingActorResolver(ctx.Block.Metadata, ctx.Block.Graph)
 	for _, expanded := range resolver.Expand(ctx.Block.Metadata.Team, ctx.Runtime, ref) {
@@ -162,7 +175,7 @@ type catalogActorParityExpectation struct {
 	Reason       string
 }
 
-func topicCatalogWriterExpectations(ctx OperatingGraphRuleContext, row OperatingTopicCatalogRow) []catalogActorParityExpectation {
+func topicCatalogWriterExpectations(ctx RuleContext, row OperatingTopicCatalogRow) []catalogActorParityExpectation {
 	if row.Topic == "" || !operatingTopicCatalogStatusIsCurrent(row.StatusKind) {
 		return nil
 	}
@@ -174,7 +187,7 @@ func topicCatalogWriterExpectations(ctx OperatingGraphRuleContext, row Operating
 	return out
 }
 
-func topicCatalogReaderExpectations(ctx OperatingGraphRuleContext, row OperatingTopicCatalogRow) []catalogActorParityExpectation {
+func topicCatalogReaderExpectations(ctx RuleContext, row OperatingTopicCatalogRow) []catalogActorParityExpectation {
 	if row.Topic == "" || !operatingTopicCatalogStatusIsCurrent(row.StatusKind) {
 		return nil
 	}
@@ -186,7 +199,7 @@ func topicCatalogReaderExpectations(ctx OperatingGraphRuleContext, row Operating
 	return out
 }
 
-func topicCatalogActorExpectations(ctx OperatingGraphRuleContext, resolver DefaultOperatingActorResolver, row OperatingTopicCatalogRow, ref OperatingActorReference, writer bool) []catalogActorParityExpectation {
+func topicCatalogActorExpectations(ctx RuleContext, resolver DefaultOperatingActorResolver, row OperatingTopicCatalogRow, ref OperatingActorReference, writer bool) []catalogActorParityExpectation {
 	expanded := resolver.Expand(ctx.Block.Metadata.Team, ctx.Runtime, ref)
 	if len(expanded) == 0 {
 		return nil
@@ -198,7 +211,7 @@ func topicCatalogActorExpectations(ctx OperatingGraphRuleContext, resolver Defau
 	return out
 }
 
-func topicCatalogConcreteActorExpectation(ctx OperatingGraphRuleContext, row OperatingTopicCatalogRow, actor OperatingActorReference, writer bool) catalogActorParityExpectation {
+func topicCatalogConcreteActorExpectation(ctx RuleContext, row OperatingTopicCatalogRow, actor OperatingActorReference, writer bool) catalogActorParityExpectation {
 	expectation := catalogActorParityExpectation{Actor: actor, Enforceable: true}
 	if writer && actor.Kind == OperatingActorKindExternal && row.StatusKind == OperatingTopicStatusLiveSystem {
 		expectation.Enforceable = false

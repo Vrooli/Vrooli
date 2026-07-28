@@ -104,6 +104,27 @@ Tools do not currently have a `risk` field on their manifest (unlike safeguards 
 
 The wizard surfaces the new tool automatically once the manifest and any consumer references are in place.
 
+## Versioned host tools and toolchain authority
+
+`internal/tools/<name>/tool.json` is the single authority for a host tool's
+exact release when it declares `version` plus checksum-verified `source`
+targets. The generic host-tool handler treats a different detected version as
+not ready and repairs it from the declared release target; it never treats a
+similarly named OS package as equivalent.
+
+Directory releases may also declare `runtimeEnv`: environment-variable names
+mapped to paths inside the extracted tool directory. The generated launcher
+resolves and exports those paths, so a host's ambient runtime configuration
+cannot redirect a managed tool to an unrelated installation.
+
+Go is the workspace example because it is both a host tool and the compiler.
+Its manifest owns the exact patch release, `go.mod`'s `toolchain` directive
+requests that same release for Go-native development, and CI extracts the
+manifest version before calling `actions/setup-go`. The `go` directive is kept
+separate: it is the module compatibility floor, not the installed compiler
+release. The contract test in `internal/runtime/go_toolchain_contract_test.go`
+guards these consumers against drift.
+
 ## Sign-in state for host tools
 
 Some tools are runtime-authenticated rather than just installed — the operator runs a sign-in command (`buf registry login`, `claude /login`, future: `codex login`, `gh auth login`, ...) and the tool stores its own credentials in its own config dir. These follow the [`external_sign_in_command`](../integrations/external-auth.md#external_sign_in_command) integration pattern, with a per-tool integration page under [`path:docs/configuration/integrations/`](../integrations/README.md) (e.g. [`buf-bsr.md`](../integrations/buf-bsr.md)).

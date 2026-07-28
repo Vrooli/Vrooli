@@ -175,6 +175,31 @@ func TestValidateRejectsInboxInjectionWithoutAsyncMessaging(t *testing.T) {
 	}
 }
 
+func TestValidateFindingsReportsIndependentDefectsTogether(t *testing.T) {
+	contract := Contract{
+		Runtime: Runtime{Mode: "unsupported"},
+		Coordination: Coordination{
+			Pattern:       CoordinationPatternIndependent,
+			LeadAgentID:   "director",
+			ReportingMode: ReportingModeLeader,
+			MessagingMode: MessagingModeInSession,
+			Capabilities: Capabilities{
+				InjectInbox:       true,
+				AllowPeerTriggers: true,
+			},
+		},
+		Execution:    Execution{QueuePolicy: QueuePolicySerialized, MaxConcurrentRuns: 2},
+		DecisionMode: "unsupported",
+	}
+	findings := ValidateFindings(contract)
+	if len(findings) < 6 {
+		t.Fatalf("findings = %d, want multiple independent defects: %+v", len(findings), findings)
+	}
+	if err := Validate(contract); err == nil {
+		t.Fatal("Validate must retain strict write-path rejection")
+	}
+}
+
 func TestHelpersReflectResolvedPolicy(t *testing.T) {
 	contract := Contract{
 		Runtime: Runtime{Mode: RuntimeModeMultiProcess},

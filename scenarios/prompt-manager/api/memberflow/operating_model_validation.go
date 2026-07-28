@@ -10,15 +10,30 @@ import (
 func ValidateOperatingModels(models []OperatingModelDocument, runtime OperatingGraphRuntime, teamFilter, idFilter string) OperatingGraphValidationResult {
 	filtered := filterOperatingModelDocuments(models, teamFilter, idFilter)
 	result := ValidateOperatingGraphs(operatingGraphBlocksFromModels(filtered), runtime, "", "")
+	registry, err := DefaultRuleRegistry()
+	if err != nil {
+		addOperatingFindings(&result, []OperatingGraphFinding{{
+			Rule:     "rule_registry_invalid",
+			Severity: string(SeverityError),
+			Detail:   err.Error(),
+		}})
+		sortOperatingFindings(result.Findings)
+		return result
+	}
 	for _, model := range filtered {
-		ctx := NewOperatingModelRuleContext(model, runtime)
-		for _, rule := range DefaultOperatingModelRules() {
-			if rule.AppliesTo(model) {
+		modelContext := NewOperatingModelRuleContext(model, runtime)
+		// Plan-of-record validation is a corpus operation with filesystem I/O.
+		// Compute it once per model and let the granular registry entries select
+		// their findings from that shared result. Individual rule identities must
+		// not turn one validation pass into N repeated disk walks.
+		planOfRecordFindings := ValidatePlanOfRecordManifestsForModels([]OperatingModelDocument{model}, runtime)
+		ctx := RuleContext{ModelContext: &modelContext, PlanOfRecordFindings: planOfRecordFindings}
+		for _, rule := range registry.RulesForPass(RulePassModel) {
+			if rule.AppliesTo(ctx) {
 				addOperatingFindings(&result, rule.Check(ctx))
 			}
 		}
 	}
-	addOperatingFindings(&result, ValidatePlanOfRecordManifestsForModels(filtered, runtime))
 	sortOperatingFindings(result.Findings)
 	return result
 }

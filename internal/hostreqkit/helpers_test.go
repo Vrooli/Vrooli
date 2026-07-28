@@ -629,6 +629,26 @@ func TestRunVerificationCheckNil(t *testing.T) {
 	}
 }
 
+func TestVersionMatches(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		observed string
+		expected string
+		want     bool
+	}{
+		{name: "go version", observed: "go version go1.25.12 linux/amd64", expected: "1.25.12", want: true},
+		{name: "v prefix", observed: "pnpm  v10.19.0", expected: "10.19.0", want: true},
+		{name: "partial patch is rejected", observed: "go version go1.25.1 linux/amd64", expected: "1.25.12", want: false},
+		{name: "other version is rejected", observed: "go version go1.25.11 linux/amd64", expected: "1.25.12", want: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := VersionMatches(test.observed, test.expected); got != test.want {
+				t.Fatalf("VersionMatches(%q, %q) = %t, want %t", test.observed, test.expected, got, test.want)
+			}
+		})
+	}
+}
+
 func TestRunVerificationCheckFilesPass(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()

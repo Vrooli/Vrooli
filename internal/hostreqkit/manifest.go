@@ -45,6 +45,11 @@ type ToolSourceTarget struct {
 	Layout  string `json:"layout,omitempty"`  // file (default) | dir (extract whole tree into ~/.vrooli/opt/<tool>, launcher into ~/.vrooli/bin)
 	BinPath string `json:"binPath,omitempty"` // path of the binary inside the archive (for dir, relative to the opt dir)
 	Mode    string `json:"mode,omitempty"`    // octal file mode, e.g. 0755
+	// RuntimeEnv maps an environment-variable name to a path relative to the
+	// extracted opt directory. Dir-layout launchers resolve these paths at
+	// install time, preventing an incompatible ambient runtime home from
+	// changing the installed tool's behavior (for example Go's GOROOT).
+	RuntimeEnv map[string]string `json:"runtimeEnv,omitempty"`
 }
 
 // IsDir reports whether this target installs the whole archive tree into a

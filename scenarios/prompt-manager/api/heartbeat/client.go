@@ -17,6 +17,18 @@ import (
 type AgentManagerClient struct {
 	httpClient  *http.Client
 	testBaseURL string // override for tests; empty in production
+	sleep       func(context.Context, time.Duration) error
+}
+
+func waitForRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // NewAgentManagerClient creates a new agent-manager client
@@ -289,6 +301,27 @@ func (c *AgentManagerClient) GetRun(ctx context.Context, runID string) (*Run, er
 
 // WaitForRun polls until a run reaches a terminal state
 func (c *AgentManagerClient) WaitForRun(ctx context.Context, runID string, pollInterval time.Duration) (*Run, error) {
+	check := func() (*Run, error) {
+		run, err := c.GetRun(ctx, runID)
+		if err != nil {
+			return nil, err
+		}
+		if run == nil {
+			return nil, fmt.Errorf("run %s not found", runID)
+		}
+		if IsTerminalStatus(run.Status) {
+			return run, nil
+		}
+		return nil, nil
+	}
+
+	// Check immediately before waiting so an already-terminal run does not
+	// pay a full polling interval. This also keeps completion latency bounded
+	// by the remote request rather than the configured cadence.
+	if run, err := check(); err != nil || run != nil {
+		return run, err
+	}
+
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
@@ -297,16 +330,8 @@ func (c *AgentManagerClient) WaitForRun(ctx context.Context, runID string, pollI
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
-			run, err := c.GetRun(ctx, runID)
-			if err != nil {
-				return nil, err
-			}
-			if run == nil {
-				return nil, fmt.Errorf("run %s not found", runID)
-			}
-
-			if IsTerminalStatus(run.Status) {
-				return run, nil
+			if run, err := check(); err != nil || run != nil {
+				return run, err
 			}
 		}
 	}
@@ -517,10 +542,12 @@ func (c *AgentManagerClient) doRequestWithRetry(ctx context.Context, method, pat
 
 		// Don't sleep after the last attempt
 		if attempt < len(backoff) {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(backoff[attempt]):
+			sleep := c.sleep
+			if sleep == nil {
+				sleep = waitForRetry
+			}
+			if err := sleep(ctx, backoff[attempt]); err != nil {
+				return nil, err
 			}
 		}
 	}

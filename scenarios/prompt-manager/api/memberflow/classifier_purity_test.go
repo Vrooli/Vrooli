@@ -1,3 +1,5 @@
+//go:build liverepo
+
 package memberflow
 
 import (

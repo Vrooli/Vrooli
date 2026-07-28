@@ -159,6 +159,7 @@ func TestCmdOperatingModelDiffJSONPreservesFullDiffShape(t *testing.T) {
 			Team:             "team-a",
 			Member:           "member-a",
 			External:         "operator",
+			ProducerTeam:     "scenario-qa",
 			RuntimePath:      "teams/team-a/members/member-a/topics.json",
 			AcceptableFields: []string{"external_producers"},
 			Suggestions:      []string{"add external:operator -> member:member-a"},
@@ -176,6 +177,7 @@ func TestCmdOperatingModelDiffJSONPreservesFullDiffShape(t *testing.T) {
 		`"runtime_path": "teams/team-a/members/member-a/topics.json"`,
 		`"acceptable_fields": [`,
 		`"suggestions": [`,
+		`"producer_team": "scenario-qa"`,
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -191,6 +193,7 @@ func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 			Relationship:     "topic_read",
 			Team:             "marketing-crew",
 			Member:           "researcher",
+			ProducerTeam:     "strategy",
 			Topic:            "marketing-craft-observation/*",
 			SourcePath:       "docs/marketing/OPERATING_MODEL.md",
 			Line:             355,
@@ -214,6 +217,7 @@ func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 	for _, want := range []string{
 		"Graph Declares, Runtime Missing",
 		"[topic_read] docs/marketing/OPERATING_MODEL.md:355",
+		"Producer team: strategy",
 		"Runtime file: scenarios/prompt-manager/store/teams/marketing-crew/members/researcher/topics.json",
 		"Acceptable runtime fields: intake, required_read, evidence_consumed",
 		"Suggested fix: add required_read \"marketing-craft-observation/*\" to researcher/topics.json",

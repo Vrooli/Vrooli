@@ -213,8 +213,11 @@ type Team struct {
 	Execution         teamconfig.Execution            `json:"execution"`
 	DecisionMode      string                          `json:"decisionMode,omitempty"` // "yolo" or "approval"
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
-	Shared            *TeamShared                     `json:"shared,omitempty"`
-	Retention         *RetentionConfig                `json:"retention,omitempty"`
+	// ValidationFindings are read-time diagnostics for an otherwise readable
+	// team.json. They are never persisted and do not weaken write validation.
+	ValidationFindings []TeamValidationFinding `json:"validationFindings,omitempty"`
+	Shared             *TeamShared             `json:"shared,omitempty"`
+	Retention          *RetentionConfig        `json:"retention,omitempty"`
 	// AttributionValidFrom is the per-team Pillar 3 cutoff. Knowledge
 	// entries written on or after this ISO-8601 date (YYYY-MM-DD) MUST
 	// carry runtime attribution conforming to docs/agent-system/RUNTIME_ATTRIBUTION.md;
@@ -233,6 +236,14 @@ type Team struct {
 	// struct below for the active set.
 	Policy *TeamPolicy `json:"policy,omitempty"`
 	Timestamps
+}
+
+// TeamValidationFinding identifies one contract defect without hiding the
+// team that needs repair from operators.
+type TeamValidationFinding struct {
+	Source  string `json:"source"`
+	Field   string `json:"field,omitempty"`
+	Message string `json:"message"`
 }
 
 // TeamPolicy holds opt-in thresholds and toggles consulted by the Pillar 3

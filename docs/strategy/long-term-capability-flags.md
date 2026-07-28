@@ -61,11 +61,11 @@ But the *direction* is consistent with Vrooli's ambition (extending agentic auto
 
 **Promotion trigger:** when 2+ prerequisite substrate items above ship, re-evaluate this flag for promotion to an actionable initiative.
 
-**Source bookmark:** social-media post about a prompt-to-product website that returned a Kindle design with hardware specs + parts list. URL not captured (pre-BIH-rework workflow).
+**Source bookmark:** social-media post about a prompt-to-product website that returned a Kindle design with hardware specs + parts list. URL not captured (predates any bookmark-capture substrate; exactly the loss `signal-inbox` exists to prevent).
 
 **Cross-references:**
 - `VISION.md` Phase 3 ("Domain Specialization — Engineering Servers") — adjacent direction that this class would fit under once substrate matures.
-- Initiative `bookmark-intelligence-hub-rework-and-ideation` — when shipped, the BIH ideation-extraction agent should surface bookmarks classified as `capability-class-flag` for review against this file. New flags may append; promotion candidates may be flagged for operator review.
+- Initiative `bookmark-intelligence-hub-rework-and-ideation` — when shipped, the signal-inbox ideation-extraction agent should surface bookmarks classified as `capability-class-flag` for review against this file. New flags may append; promotion candidates may be flagged for operator review.
 
 ---
 

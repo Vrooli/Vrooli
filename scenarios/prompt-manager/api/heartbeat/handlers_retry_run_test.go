@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"prompt-manager/internal/testutil/httpx"
-	"prompt-manager/internal/paths"
-	"prompt-manager/store"
 	"testing"
+
+	"prompt-manager/internal/paths"
+	"prompt-manager/internal/testutil/httpx"
+	"prompt-manager/store"
 )
 
 func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -36,7 +37,7 @@ func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
 		WithCreateTaskResponse(&Task{ID: "task-1", Title: "Heartbeat: team-1/agent-1"}).
 		WithCreateRunResponse(&Run{ID: "run-retry-1", Status: "RUN_STATUS_RUNNING"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
 
 	req := httpx.Request(t, http.MethodPost, "/runs/run-failed/retry", nil, map[string]string{"runId": "run-failed"})
@@ -60,7 +61,7 @@ func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
 
 func TestRetryRun_RejectsNonHeartbeatRun(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -68,7 +69,7 @@ func TestRetryRun_RejectsNonHeartbeatRun(t *testing.T) {
 	mockClient := newMockAgentClient().
 		WithGetRunResponse("run-1", &Run{ID: "run-1", Tag: "manual-tag", Status: "RUN_STATUS_FAILED"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
 
 	req := httpx.Request(t, http.MethodPost, "/runs/run-1/retry", nil, map[string]string{"runId": "run-1"})

@@ -7,12 +7,15 @@ import (
 type graphDeclaredMemberMissingRule struct{}
 
 func (r graphDeclaredMemberMissingRule) ID() string { return "graph_declared_member_missing" }
-func (r graphDeclaredMemberMissingRule) Group() OperatingGraphRuleGroup {
+func (r graphDeclaredMemberMissingRule) Group() RuleGroup {
 	return OperatingRuleGroupCompleteness
 }
-func (r graphDeclaredMemberMissingRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphDeclaredMemberMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDeclaredMemberMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphDeclaredMemberMissingRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphDeclaredMemberMissingRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphDeclaredMemberMissingRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	teamContract := ctx.Runtime.Contracts[ctx.Block.Metadata.Team]
 	if teamContract == nil || teamContract.Contract == nil {
@@ -42,15 +45,15 @@ type declaredRuntimeRelationshipTarget struct {
 }
 
 func (r graphDeclaredRuntimeRelationshipMissingRule) ID() string { return r.id }
-func (r graphDeclaredRuntimeRelationshipMissingRule) Group() OperatingGraphRuleGroup {
+func (r graphDeclaredRuntimeRelationshipMissingRule) Group() RuleGroup {
 	return OperatingRuleGroupCompleteness
 }
 func (r graphDeclaredRuntimeRelationshipMissingRule) DefaultSeverity() Severity { return r.severity }
-func (r graphDeclaredRuntimeRelationshipMissingRule) AppliesTo(mode string) bool {
-	return mode == string(OperatingGraphModeContract)
+func (r graphDeclaredRuntimeRelationshipMissingRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == string(OperatingGraphModeContract)
 }
 
-func (r graphDeclaredRuntimeRelationshipMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphDeclaredRuntimeRelationshipMissingRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	var findings []OperatingGraphFinding
 	for _, target := range r.targets {
 		findings = append(findings, declaredRuntimeRelationshipMissingFindings(ctx, r, target.kind, target.label)...)
@@ -58,7 +61,7 @@ func (r graphDeclaredRuntimeRelationshipMissingRule) Check(ctx OperatingGraphRul
 	return findings
 }
 
-func graphDeclaredRuntimeRelationshipMissingRules(registry OperatingRelationshipRegistry) []OperatingGraphRule {
+func graphDeclaredRuntimeRelationshipMissingRules(registry OperatingRelationshipRegistry) []Rule {
 	rulesByID := map[string]*graphDeclaredRuntimeRelationshipMissingRule{}
 	var order []string
 	for _, spec := range registry.Specs() {
@@ -82,14 +85,14 @@ func graphDeclaredRuntimeRelationshipMissingRules(registry OperatingRelationship
 			})
 		}
 	}
-	out := make([]OperatingGraphRule, 0, len(order))
+	out := make([]Rule, 0, len(order))
 	for _, id := range order {
 		out = append(out, *rulesByID[id])
 	}
 	return out
 }
 
-func declaredRuntimeRelationshipMissingFindings(ctx OperatingGraphRuleContext, rule OperatingGraphRule, kind OperatingRelationshipKind, label string) []OperatingGraphFinding {
+func declaredRuntimeRelationshipMissingFindings(ctx RuleContext, rule Rule, kind OperatingRelationshipKind, label string) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, rule)
 	var findings []OperatingGraphFinding
 	for _, rel := range ctx.Index.RuntimeRelationshipsByKind(kind) {

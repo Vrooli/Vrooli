@@ -3,12 +3,16 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
+	// Registers the sqlite driver for every binary that links this package.
+	// Without it only package main had the driver, so store and teams test
+	// binaries failed on "sql: unknown driver sqlite".
 	_ "modernc.org/sqlite"
 	"prompt-manager/internal/paths"
 )
@@ -36,7 +40,9 @@ type FileStore struct {
 }
 
 // NewFileStore creates a new file-based store rooted at the given Roots.
-func NewFileStore(roots paths.Roots, routedRoots ...*filerouting.RoutedRoots) *FileStore {
+// It returns initialization failures to the caller rather than panicking so
+// tests and command startup can report the underlying storage problem.
+func NewFileStore(roots paths.Roots, routedRoots ...*filerouting.RoutedRoots) (*FileStore, error) {
 	// Ensure on-disk layout exists for every class FileStore writes to.
 	ensureStoreDirectories(roots)
 
@@ -62,10 +68,10 @@ func NewFileStore(roots paths.Roots, routedRoots ...*filerouting.RoutedRoots) *F
 		DSN:    filepath.Join(roots.RuntimeData, "store.sqlite"),
 	})
 	if err != nil {
-		panic("open experiment database: " + err.Error())
+		return nil, fmt.Errorf("open experiment database: %w", err)
 	}
 	if err := database.EnsureSchemas(context.Background(), experimentDB.Primary(), database.SchemaProviderFunc(ExperimentSchema)); err != nil {
-		panic("initialize experiment schema: " + err.Error())
+		return nil, fmt.Errorf("initialize experiment schema: %w", err)
 	}
 	experimentDB.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		return database.EnsureSchemas(ctx, pool, database.SchemaProviderFunc(ExperimentSchema))
@@ -96,7 +102,7 @@ func NewFileStore(roots paths.Roots, routedRoots ...*filerouting.RoutedRoots) *F
 		topics:      topicStore,
 		relations:   relationStore,
 		indexes:     indexStore,
-	}
+	}, nil
 }
 
 // SetExperimentStoreDatabase replaces FileStore's experiment persistence with

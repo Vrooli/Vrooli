@@ -8,12 +8,15 @@ import (
 type graphTopicCatalogMissingRule struct{}
 
 func (r graphTopicCatalogMissingRule) ID() string { return "graph_topic_catalog_missing" }
-func (r graphTopicCatalogMissingRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogMissingRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
-func (r graphTopicCatalogMissingRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphTopicCatalogMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphTopicCatalogMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogMissingRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogMissingRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogMissingRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	if ctx.Block.Docs.TopicCatalog.Present {
 		return nil
 	}
@@ -24,12 +27,15 @@ func (r graphTopicCatalogMissingRule) Check(ctx OperatingGraphRuleContext) []Ope
 type graphTopicCatalogInvalidTopicRule struct{}
 
 func (r graphTopicCatalogInvalidTopicRule) ID() string { return "graph_topic_catalog_invalid_topic" }
-func (r graphTopicCatalogInvalidTopicRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogInvalidTopicRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
-func (r graphTopicCatalogInvalidTopicRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphTopicCatalogInvalidTopicRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphTopicCatalogInvalidTopicRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogInvalidTopicRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogInvalidTopicRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogInvalidTopicRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
@@ -44,11 +50,14 @@ func (r graphTopicCatalogInvalidTopicRule) Check(ctx OperatingGraphRuleContext) 
 
 type graphTopicCatalogDriftRule struct{}
 
-func (r graphTopicCatalogDriftRule) ID() string                     { return "graph_topic_catalog_drift" }
-func (r graphTopicCatalogDriftRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupDocs }
-func (r graphTopicCatalogDriftRule) DefaultSeverity() Severity      { return SeverityError }
-func (r graphTopicCatalogDriftRule) AppliesTo(mode string) bool     { return mode == "contract" }
-func (r graphTopicCatalogDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogDriftRule) ID() string                { return "graph_topic_catalog_drift" }
+func (r graphTopicCatalogDriftRule) Group() RuleGroup          { return OperatingRuleGroupDocs }
+func (r graphTopicCatalogDriftRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	if !ctx.Block.Docs.TopicCatalog.Present {
 		return nil
 	}
@@ -89,12 +98,15 @@ func (r graphTopicCatalogDriftRule) Check(ctx OperatingGraphRuleContext) []Opera
 type graphTopicCatalogUnknownStatusRule struct{}
 
 func (r graphTopicCatalogUnknownStatusRule) ID() string { return "graph_topic_catalog_unknown_status" }
-func (r graphTopicCatalogUnknownStatusRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogUnknownStatusRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
-func (r graphTopicCatalogUnknownStatusRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphTopicCatalogUnknownStatusRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphTopicCatalogUnknownStatusRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogUnknownStatusRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogUnknownStatusRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogUnknownStatusRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
@@ -114,7 +126,7 @@ func (r graphTopicCatalogStatusQualifierDriftRule) ID() string {
 	return "graph_topic_catalog_status_qualifier_drift"
 }
 
-func (r graphTopicCatalogStatusQualifierDriftRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogStatusQualifierDriftRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
 
@@ -122,11 +134,11 @@ func (r graphTopicCatalogStatusQualifierDriftRule) DefaultSeverity() Severity {
 	return SeverityError
 }
 
-func (r graphTopicCatalogStatusQualifierDriftRule) AppliesTo(mode string) bool {
-	return mode == "contract"
+func (r graphTopicCatalogStatusQualifierDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
 }
 
-func (r graphTopicCatalogStatusQualifierDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogStatusQualifierDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
@@ -147,15 +159,15 @@ func (r graphTopicCatalogLiveStatusUnbackedRule) ID() string {
 	return "graph_topic_catalog_live_status_unbacked"
 }
 
-func (r graphTopicCatalogLiveStatusUnbackedRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogLiveStatusUnbackedRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
 func (r graphTopicCatalogLiveStatusUnbackedRule) DefaultSeverity() Severity { return SeverityError }
-func (r graphTopicCatalogLiveStatusUnbackedRule) AppliesTo(mode string) bool {
-	return mode == "contract"
+func (r graphTopicCatalogLiveStatusUnbackedRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
 }
 
-func (r graphTopicCatalogLiveStatusUnbackedRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogLiveStatusUnbackedRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
@@ -175,7 +187,7 @@ func (r graphTopicCatalogTransitionalWithoutTargetRule) ID() string {
 	return "graph_topic_catalog_transitional_without_target"
 }
 
-func (r graphTopicCatalogTransitionalWithoutTargetRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogTransitionalWithoutTargetRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
 
@@ -183,11 +195,11 @@ func (r graphTopicCatalogTransitionalWithoutTargetRule) DefaultSeverity() Severi
 	return SeverityWarning
 }
 
-func (r graphTopicCatalogTransitionalWithoutTargetRule) AppliesTo(mode string) bool {
-	return mode == "contract"
+func (r graphTopicCatalogTransitionalWithoutTargetRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
 }
 
-func (r graphTopicCatalogTransitionalWithoutTargetRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogTransitionalWithoutTargetRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
@@ -207,7 +219,7 @@ func (r graphTopicCatalogPurposeDriftRule) ID() string {
 	return "graph_topic_catalog_purpose_drift"
 }
 
-func (r graphTopicCatalogPurposeDriftRule) Group() OperatingGraphRuleGroup {
+func (r graphTopicCatalogPurposeDriftRule) Group() RuleGroup {
 	return OperatingRuleGroupDocs
 }
 
@@ -215,11 +227,11 @@ func (r graphTopicCatalogPurposeDriftRule) DefaultSeverity() Severity {
 	return SeverityError
 }
 
-func (r graphTopicCatalogPurposeDriftRule) AppliesTo(mode string) bool {
-	return mode == "contract"
+func (r graphTopicCatalogPurposeDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
 }
 
-func (r graphTopicCatalogPurposeDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicCatalogPurposeDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	if !ctx.Block.Docs.TopicCatalog.Present {
 		return nil
 	}

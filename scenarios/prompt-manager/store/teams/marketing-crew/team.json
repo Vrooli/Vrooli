@@ -3,8 +3,8 @@
   "schemaVersion": 1,
   "id": "marketing-crew",
   "displayName": "Marketing Crew",
-  "mission": "Own Vrooli's external voice — subscription marketing, open-source / community marketing, brand canon, and publishing pipeline — and surface the publishing, campaign, and positioning decisions the operator reviews each heartbeat.",
-  "enabled": true,
+  "mission": "Own Vrooli's external voice \u2014 subscription marketing, open-source / community marketing, brand canon, and publishing pipeline \u2014 and surface the publishing, campaign, and positioning decisions the operator reviews each heartbeat.",
+  "enabled": false,
   "runtime": {
     "mode": "multi-process"
   },
@@ -27,143 +27,6 @@
     "maxConcurrentRuns": 3
   },
   "decisionMode": "approval",
-  "shared": {
-    "path": "shared/",
-    "mountHint": "readWrite"
-  },
-  "revision": 7,
-  "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-05-01T00:00:00Z",
-  "topicCatalog": [
-    {
-      "prefix": "research-inbox/*",
-      "status": "live",
-      "purpose": "Raw unrouted research signal. The researcher drains this queue, then retags, deletes, or routes each item."
-    },
-    {
-      "prefix": "audience-scan/*",
-      "status": "live",
-      "purpose": "Audience pain, vocabulary, buyer triggers, objections, and persona evidence."
-    },
-    {
-      "prefix": "competitor-record/*",
-      "status": "live but under-consumed",
-      "purpose": "Competitor pricing, packaging, positioning, changelog, or claim evidence. Should feed positioning and campaign decisions."
-    },
-    {
-      "prefix": "hook-record/*",
-      "status": "live but under-consumed",
-      "purpose": "Reusable hook and framing observations. Should feed draft generation and hook-library promotion."
-    },
-    {
-      "prefix": "workflow-scan/*",
-      "status": "live",
-      "purpose": "External workflows, playbooks, agent setups, or business processes worth deconstructing."
-    },
-    {
-      "prefix": "skill-scan/*",
-      "status": "live",
-      "purpose": "External skills, prompts, reusable processes, or capability ideas. Raise `capability-gap` when blocked."
-    },
-    {
-      "prefix": "channel-scan/*",
-      "status": "live",
-      "purpose": "Evidence that a channel is worth activating, deprioritizing, or handling differently."
-    },
-    {
-      "prefix": "format-scan/*",
-      "status": "live",
-      "purpose": "Evidence that a post format or channel-native format is worth using or codifying."
-    },
-    {
-      "prefix": "monetization-benchmark-adjacent-record/*",
-      "status": "live",
-      "purpose": "Pricing, packaging, or market facts discovered by marketing but owned strategically by monetization."
-    },
-    {
-      "prefix": "artifact-request/oss/*",
-      "status": "live",
-      "purpose": "Work queue for requested OSS-lane draft artifacts. It should carry campaign, audience, channel, format, source decision, and acceptance criteria."
-    },
-    {
-      "prefix": "artifact-request/subscription/*",
-      "status": "live",
-      "purpose": "Work queue for requested subscription-lane draft artifacts. It should carry campaign, SKU/bundle, audience, channel, format, source decision, and acceptance criteria."
-    },
-    {
-      "prefix": "campaign-draft/*",
-      "status": "live",
-      "purpose": "Draft artifacts ready to support a `content-publish-proposal`. Lane is metadata, not a separate pipeline."
-    },
-    {
-      "prefix": "ad-run/<lane>/*",
-      "qualifier": "future",
-      "status": "target",
-      "purpose": "Normalized advertiser run summaries. This should eventually replace separate `oss-ad-run/*` and `subscription-ad-run/*` surfaces."
-    },
-    {
-      "prefix": "oss-ad-run/*",
-      "status": "live transitional",
-      "purpose": "Current OSS-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists."
-    },
-    {
-      "prefix": "subscription-ad-run/*",
-      "status": "live transitional",
-      "purpose": "Current subscription-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists."
-    },
-    {
-      "prefix": "publish-log/*",
-      "status": "live",
-      "purpose": "Record of what actually shipped: draft, channel, URL, post id, series, previous URL, and release notes."
-    },
-    {
-      "prefix": "coverage-snapshot/*",
-      "status": "live",
-      "purpose": "Current marketing coverage by SKU, lane, channel, or campaign."
-    },
-    {
-      "prefix": "published-scenario-mentions/*",
-      "qualifier": "future",
-      "status": "target",
-      "purpose": "Familiarity tracking for named scenarios, agents, and concepts, so drafts introduce subjects correctly for each audience. Current storage is JSONL."
-    },
-    {
-      "prefix": "publish-performance/*",
-      "qualifier": "future",
-      "status": "target",
-      "purpose": "Telemetry and qualitative performance: impressions, clicks, replies, saves, conversion, comments, channel-specific notes."
-    },
-    {
-      "prefix": "marketing-craft-observation/*",
-      "status": "live",
-      "purpose": "Typed production observations: repeated lessons, workarounds, craft observations, and campaign lessons that may feed canon, skill, scenario, capability-gap, or retirement decisions."
-    },
-    {
-      "prefix": "brand-snapshot/*",
-      "status": "live",
-      "purpose": "Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates."
-    },
-    {
-      "prefix": "challenge-report/*",
-      "status": "live",
-      "purpose": "Append-only challenge evidence for pending marketing decisions."
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "status": "live",
-      "purpose": "Latest challenge state: open, author-responded, resolved, escalated, overridden, or stale."
-    },
-    {
-      "prefix": "aging-scan-note/*",
-      "status": "live",
-      "purpose": "Stale-decision hygiene notes."
-    },
-    {
-      "prefix": "decision-application/<decision-id>",
-      "status": "live system",
-      "purpose": "Accepted-decision application markers used to avoid duplicate execution and track publish-decision follow-through."
-    }
-  ],
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {
@@ -306,7 +169,7 @@
             "marketing-crew",
             "meta-optimization"
           ],
-          "rationale": "Research intake, collection, method, and promotion architecture for operator-fed alpha, proactive scans, and future bookmark-intelligence-hub exports.",
+          "rationale": "Research intake, collection, method, and promotion architecture for operator-fed alpha, proactive scans, and future signal-inbox exports.",
           "useFor": "marketing research routing, alpha extraction, proactive scan discipline, and research method evolution"
         },
         {
@@ -402,9 +265,9 @@
             "base": "team-shared",
             "path": "audience-scans.jsonl"
           },
+          "ownerMemberId": "producer",
           "kind": "append-only-event-log",
-          "required": true,
-          "ownerMemberId": "researcher"
+          "required": true
         },
         {
           "id": "campaign-drafts-jsonl",
@@ -449,8 +312,7 @@
             "path": "publish-log.jsonl"
           },
           "kind": "append-only-event-log",
-          "required": true,
-          "ownerMemberId": "publisher"
+          "required": true
         },
         {
           "id": "published-improvements-log-jsonl",
@@ -459,8 +321,7 @@
             "path": "published-improvements-log.jsonl"
           },
           "kind": "append-only-event-log",
-          "required": true,
-          "ownerMemberId": "publisher"
+          "required": true
         },
         {
           "id": "published-scenario-mentions-jsonl",
@@ -469,8 +330,7 @@
             "path": "published-scenario-mentions.jsonl"
           },
           "kind": "append-only-event-log",
-          "required": true,
-          "ownerMemberId": "publisher"
+          "required": true
         },
         {
           "id": "coverage-business",
@@ -479,8 +339,7 @@
             "path": "coverage/business.json"
           },
           "kind": "working-register",
-          "required": true,
-          "ownerMemberId": "publisher"
+          "required": true
         },
         {
           "id": "coverage-oss-platform",
@@ -489,25 +348,16 @@
             "path": "coverage/oss-platform.json"
           },
           "kind": "working-register",
-          "required": true,
-          "ownerMemberId": "publisher"
+          "required": true
         }
       ]
     },
     "decisionContexts": {
-      "content-publish-proposal": {
+      "audience-update": {
         "ownerMemberIds": [
-          "subscription-advertiser",
-          "oss-advertiser",
-          "publisher"
+          "producer"
         ],
-        "description": "Draft artifact or platform-variant pack ready for operator publish decision."
-      },
-      "campaign-launch-proposal": {
-        "ownerMemberIds": [
-          "brand-manager"
-        ],
-        "description": "Multi-artifact campaign with theme, timing, channel mix, and acquisition/retention hypothesis."
+        "description": "Persona or audience canon revision backed by converging observations."
       },
       "brand-guideline-update": {
         "ownerMemberIds": [
@@ -515,55 +365,38 @@
         ],
         "description": "Plan-of-record edit proposal across marketing or narrative canon."
       },
-      "audience-update": {
+      "campaign-launch-proposal": {
         "ownerMemberIds": [
-          "researcher"
+          "brand-manager"
         ],
-        "description": "Persona or audience canon revision backed by converging observations."
-      },
-      "channel-update": {
-        "ownerMemberIds": [
-          "publisher"
-        ],
-        "description": "Operational per-platform rule change based on publishing friction."
-      },
-      "channel-strategy-update": {
-        "ownerMemberIds": [
-          "researcher"
-        ],
-        "description": "Strategic channel priority or activation update."
-      },
-      "post-type-proposal": {
-        "ownerMemberIds": [
-          "researcher"
-        ],
-        "description": "New post-type doc plus paired skill proposal backed by format-trend scans."
-      },
-      "hook-candidate-promotion": {
-        "ownerMemberIds": [
-          "researcher"
-        ],
-        "description": "Promote observed stable hooks into hook-library canon."
-      },
-      "coverage-gap": {
-        "ownerMemberIds": [
-          "subscription-advertiser",
-          "oss-advertiser",
-          "publisher"
-        ],
-        "description": "Deployed or imminent SKU/app has stale or missing marketing coverage."
+        "description": "Multi-artifact campaign with theme, timing, channel mix, and acquisition/retention hypothesis."
       },
       "capability-gap": {
         "ownerMemberIds": [
-          "subscription-advertiser",
-          "oss-advertiser",
-          "publisher",
-          "researcher"
+          "producer"
         ],
+        "description": "Missing scenario, skill, or tool capability blocks marketing work; consumed by director-swarm.",
         "externalAuthorizedRaisers": [
           "meta-optimization"
+        ]
+      },
+      "channel-strategy-update": {
+        "ownerMemberIds": [
+          "producer"
         ],
-        "description": "Missing scenario, skill, or tool capability blocks marketing work; consumed by director-swarm."
+        "description": "Strategic channel priority or activation update."
+      },
+      "channel-update": {
+        "ownerMemberIds": [
+          "brand-manager"
+        ],
+        "description": "Operational per-platform rule change based on publishing friction. Reassigned from publisher; moves to the scheduler team once account operations have a home."
+      },
+      "coverage-gap": {
+        "ownerMemberIds": [
+          "producer"
+        ],
+        "description": "Deployed or imminent SKU/app has stale or missing marketing coverage."
       },
       "decision-rejection-proposed": {
         "ownerMemberIds": [
@@ -576,91 +409,73 @@
           "marketing-contrarian"
         ],
         "description": "Marketing failure-mode framework needs a concrete update."
+      },
+      "hook-candidate-promotion": {
+        "ownerMemberIds": [
+          "producer"
+        ],
+        "description": "Promote observed stable hooks into hook-library canon."
+      },
+      "post-type-proposal": {
+        "ownerMemberIds": [
+          "producer"
+        ],
+        "description": "New post-type doc plus paired skill proposal backed by format-trend scans."
       }
     },
     "knowledgeTopics": {
-      "artifact-request/oss/<slug>": {
-        "ownerMemberId": "brand-manager",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "artifact-request/subscription/<slug>": {
-        "ownerMemberId": "brand-manager",
-        "supersedesPrevious": false,
-        "retention": "append-only"
+      "audience-scan/YYYY-MM-DD": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
       },
       "brand-snapshot/YYYY-MM-DD": {
         "ownerMemberId": "brand-manager",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "subscription-ad-run/YYYY-MM-DD": {
-        "ownerMemberId": "subscription-advertiser",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "oss-ad-run/YYYY-MM-DD": {
-        "ownerMemberId": "oss-advertiser",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "coverage-snapshot/YYYY-MM-DD": {
-        "ownerMemberId": "publisher",
-        "supersedesPrevious": true,
-        "retention": "snapshot"
-      },
-      "audience-scan/YYYY-MM-DD": {
-        "ownerMemberId": "researcher",
-        "supersedesPrevious": true,
-        "retention": "snapshot"
-      },
-      "monetization-benchmark-adjacent-record/<topic>": {
-        "ownerMemberId": "researcher",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "workflow-scan/<slug>": {
-        "ownerMemberId": "researcher",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "skill-scan/<slug>": {
-        "ownerMemberId": "researcher",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
       "channel-scan/<slug>": {
-        "ownerMemberId": "researcher",
+        "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "format-scan/<slug>": {
-        "ownerMemberId": "researcher",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "challenge-report/<decision-id>": {
-        "ownerMemberId": "marketing-contrarian",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "challenge-resolution-record/<decision-id>": {
-        "ownerMemberId": "marketing-contrarian",
-        "supersedesPrevious": true,
-        "retention": "snapshot"
-      },
-      "aging-scan-note/<decision-id>": {
-        "ownerMemberId": "marketing-contrarian",
+      "competitor-record/<slug>": {
+        "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
       "decision-application/<decision-id>": {
-        "ownerMemberId": "publisher",
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "format-scan/<slug>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "hook-record/<slug>": {
+        "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
       "marketing-craft-observation/<post-type>/<slug>": {
         "ownerMemberId": "brand-manager",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "monetization-benchmark-adjacent-record/<topic>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "skill-scan/<slug>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "workflow-scan/<slug>": {
+        "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
       }
@@ -670,8 +485,14 @@
         "lane": "Steward marketing and narrative canon, drain typed marketing-craft observations, and propose campaigns only when signal warrants.",
         "ownedDecisionContexts": [
           "campaign-launch-proposal",
-          "brand-guideline-update"
+          "brand-guideline-update",
+          "channel-update"
         ],
+        "newDecisionCapsByContext": {
+          "brand-guideline-update": 1,
+          "campaign-launch-proposal": 1,
+          "channel-update": 1
+        },
         "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
           {
@@ -704,10 +525,6 @@
           "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
-        "newDecisionCapsByContext": {
-          "campaign-launch-proposal": 1,
-          "brand-guideline-update": 1
-        },
         "taskParameters": {
           "narrativeCanonTriggers": [
             "accepted decision changes positioning",
@@ -718,228 +535,16 @@
           ]
         }
       },
-      "subscription-advertiser": {
-        "lane": "Subscription-lane advertiser in the shared draft pipeline. Consumes subscription artifact requests, marketing evidence, canon, coverage, and publish state; writes campaign drafts plus coverage/capability proposals without editing canon or publishing.",
-        "ownedDecisionContexts": [
-          "content-publish-proposal",
-          "coverage-gap",
-          "capability-gap"
-        ],
-        "pendingOwnedDecisionCap": 3,
-        "allowedWrites": [
-          {
-            "base": "team-shared",
-            "path": "campaign-drafts.jsonl"
-          },
-          {
-            "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
-          },
-          {
-            "kind": "handoff"
-          }
-        ],
-        "forbiddenWrites": [
-          {
-            "base": "repo-root",
-            "path": "docs/marketing/"
-          },
-          {
-            "base": "repo-root",
-            "path": "docs/monetization/"
-          }
-        ],
-        "safetyCriticalRules": [
-          "Never frame subscriptions as paywalling core features.",
-          "Never auto-publish.",
-          "Missing tooling becomes capability-gap plus typed marketing-craft observation when the lesson is marketing-specific."
-        ],
-        "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
-          "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
-          "stillWriteHandoff": true
-        },
-        "newDecisionCapsByContext": {
-          "content-publish-proposal": 2,
-          "coverage-gap": 2,
-          "capability-gap": 1
-        }
-      },
-      "oss-advertiser": {
-        "lane": "OSS-lane advertiser in the shared draft pipeline. Consumes OSS artifact requests, marketing evidence, canon, coverage, and publish state; writes builder-in-public drafts plus coverage/capability proposals without editing canon or publishing.",
-        "ownedDecisionContexts": [
-          "content-publish-proposal",
-          "coverage-gap",
-          "capability-gap"
-        ],
-        "pendingOwnedDecisionCap": 3,
-        "allowedWrites": [
-          {
-            "base": "team-shared",
-            "path": "campaign-drafts.jsonl"
-          },
-          {
-            "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
-          },
-          {
-            "kind": "handoff"
-          }
-        ],
-        "forbiddenWrites": [
-          {
-            "base": "repo-root",
-            "path": "docs/marketing/"
-          },
-          {
-            "base": "repo-root",
-            "path": "docs/monetization/"
-          }
-        ],
-        "safetyCriticalRules": [
-          "Frame OSS self-host as deliberate brand credibility, not revenue leak.",
-          "Do not market subscription features.",
-          "If data-source scenarios are unhealthy, raise capability-gap instead of shipping partial claims."
-        ],
-        "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
-          "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
-          "stillWriteHandoff": true
-        },
-        "newDecisionCapsByContext": {
-          "content-publish-proposal": 2,
-          "coverage-gap": 1,
-          "capability-gap": 1
-        }
-      },
-      "publisher": {
-        "lane": "Execute approved publish proposals, polish platform variants, maintain publish logs, subject mentions, and coverage state, and raise channel or scheduling gaps.",
-        "ownedDecisionContexts": [
-          "content-publish-proposal",
-          "channel-update",
-          "capability-gap"
-        ],
-        "pendingOwnedDecisionCap": 4,
-        "allowedWrites": [
-          {
-            "base": "team-shared",
-            "path": "publish-log.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "published-scenario-mentions.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "published-improvements-log.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "coverage/"
-          },
-          {
-            "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
-          },
-          {
-            "kind": "handoff"
-          }
-        ],
-        "forbiddenWrites": [
-          {
-            "base": "repo-root",
-            "path": "docs/marketing/"
-          },
-          {
-            "base": "repo-root",
-            "path": "docs/monetization/"
-          }
-        ],
-        "safetyCriticalRules": [
-          "Never auto-publish without an accepted content-publish-proposal.",
-          "Never drop honesty flags during polish.",
-          "Do not rewrite advertiser voice beyond platform fit and correctness."
-        ],
-        "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
-          "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
-          "stillWriteHandoff": true
-        },
-        "newDecisionCapsByContext": {
-          "content-publish-proposal": 2,
-          "channel-update": 1,
-          "capability-gap": 1
-        }
-      },
-      "researcher": {
-        "lane": "Drain research-inbox signals into durable audience, competitor, hook, workflow, skill, channel, format, and benchmark-adjacent evidence before proposing planning or capability decisions.",
-        "ownedDecisionContexts": [
-          "audience-update",
-          "channel-strategy-update",
-          "post-type-proposal",
-          "hook-candidate-promotion",
-          "capability-gap"
-        ],
-        "pendingOwnedDecisionCap": 2,
-        "allowedWrites": [
-          {
-            "base": "team-shared",
-            "path": "audience-scans.jsonl"
-          },
-          {
-            "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
-          },
-          {
-            "kind": "handoff"
-          }
-        ],
-        "forbiddenWrites": [
-          {
-            "base": "repo-root",
-            "path": "docs/marketing/"
-          },
-          {
-            "base": "repo-root",
-            "path": "docs/monetization/"
-          }
-        ],
-        "safetyCriticalRules": [
-          "Never draft content or create publish proposals.",
-          "Never hallucinate engagement numbers.",
-          "Audience and post-type proposals require at least three converging scans."
-        ],
-        "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
-          "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
-          "stillWriteHandoff": true
-        },
-        "newDecisionCapsByContext": {
-          "audience-update": 1,
-          "channel-strategy-update": 1,
-          "post-type-proposal": 1,
-          "hook-candidate-promotion": 1,
-          "capability-gap": 1
-        }
-      },
       "marketing-contrarian": {
         "lane": "Challenge pending marketing proposals against the failure-mode framework and run stale decision hygiene.",
         "ownedDecisionContexts": [
           "decision-rejection-proposed",
           "framework-update"
         ],
+        "newDecisionCapsByContext": {
+          "decision-rejection-proposed": 2,
+          "framework-update": 1
+        },
         "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
           {
@@ -981,16 +586,82 @@
           "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
-        "newDecisionCapsByContext": {
-          "decision-rejection-proposed": 2,
-          "framework-update": 1
-        },
         "taskParameters": {
           "failureModeFrameworkSource": "docs/marketing/strategy/STRATEGY.md#anti-patterns",
           "reviewPostTypeV1Status": true
         }
+      },
+      "producer": {
+        "lane": "Sole draft producer. Draws open campaign work from content-desk, gathers the evidence that work needs, and drafts against it with every factual assertion declared as a claim. Lane is a field on the draft, not a member.",
+        "ownedDecisionContexts": [
+          "audience-update",
+          "channel-strategy-update",
+          "post-type-proposal",
+          "hook-candidate-promotion",
+          "coverage-gap",
+          "capability-gap"
+        ],
+        "newDecisionCapsByContext": {
+          "audience-update": 1,
+          "capability-gap": 1,
+          "channel-strategy-update": 1,
+          "coverage-gap": 1,
+          "hook-candidate-promotion": 1,
+          "post-type-proposal": 1
+        },
+        "pendingOwnedDecisionCap": 3,
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "audience-scans.jsonl"
+          },
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/narrative/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never publish, and never approve your own draft. The operator is the only approver.",
+          "Frame OSS self-host as deliberate brand credibility, not a revenue leak.",
+          "Never frame subscriptions as paywalling core features.",
+          "Never hallucinate engagement numbers.",
+          "If a source system is unhealthy, raise capability-gap instead of shipping partial claims.",
+          "Audience and post-type proposals require at least three converging scans."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        }
       }
     }
   },
-  "attributionValidFrom": "2026-05-04"
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "attributionValidFrom": "2026-05-04",
+  "revision": 9,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-07-28T00:00:00Z"
 }

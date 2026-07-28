@@ -48,6 +48,10 @@ type auditTarget struct {
 	Actuator string `json:"actuator"`
 	Observed string `json:"observed"`
 	Status   string `json:"status"`
+	// GapMarker is required whenever a target has no automated corpus-wide
+	// sensor. It makes the missing instrument a dated, owned work item rather
+	// than a silent hole in the audit.
+	GapMarker string `json:"gap_marker,omitempty"`
 	// Detail carries the first few offending entries when out of band, so a
 	// reader gets a lead without re-running the underlying sensor.
 	Detail []string `json:"detail,omitempty"`
@@ -354,23 +358,25 @@ func auditObjectiveCoverage(appctx.Context) auditTarget {
 
 func auditSkillConditioning(appctx.Context) auditTarget {
 	return auditTarget{
-		Target:   "Skill conditioning quality",
-		Sensor:   "per-skill only: the divergence probe (skill-validation §3.3); no corpus-wide sweep exists",
-		Deadband: "",
-		Actuator: "skill-improvement",
-		Observed: "pending-baseline — the instrument is built, the sweep is not",
-		Status:   auditStatusNoSensor,
+		Target:    "Skill conditioning quality",
+		Sensor:    "per-skill only: the divergence probe (skill-validation §3.3); no corpus-wide sweep exists",
+		Deadband:  "0 unreviewed divergence regressions once the corpus sweep exists",
+		Actuator:  "skill-improvement",
+		Observed:  "pending-baseline — the instrument is built, the sweep is not",
+		Status:    auditStatusNoSensor,
+		GapMarker: "2026-07-27 — build a corpus-wide divergence-probe sweep; blocked on a stable per-skill evaluation inventory",
 	}
 }
 
 func auditPoREntropy(appctx.Context) auditTarget {
 	return auditTarget{
-		Target:   "PoR entropy",
-		Sensor:   "",
-		Deadband: "",
-		Actuator: "framework-update",
-		Observed: "pending-telemetry — state-in-prose is audited by judgment today",
-		Status:   auditStatusNoSensor,
+		Target:    "PoR entropy",
+		Sensor:    "state-in-prose telemetry (not implemented)",
+		Deadband:  "0 unclassified state-in-prose findings once telemetry exists",
+		Actuator:  "framework-update",
+		Observed:  "pending-telemetry — state-in-prose is audited by judgment today",
+		Status:    auditStatusNoSensor,
+		GapMarker: "2026-07-27 — build state-in-prose telemetry; blocked on a stable document-state classification contract",
 	}
 }
 

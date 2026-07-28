@@ -22,7 +22,7 @@ import (
 func TestPromptBuilderAgentOnly(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -110,7 +110,7 @@ func sectionKindIndex(kinds []string, kind string) int {
 func TestPromptBuilderTeamContext(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -260,7 +260,7 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 func TestBuildOmitsCoordinationSkillForPlainIndependentTeam(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -290,7 +290,7 @@ func TestBuildOmitsCoordinationSkillForPlainIndependentTeam(t *testing.T) {
 
 func TestOperatingPolicySectionGoldenPlainIndependentTeam(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	builder := NewPromptBuilder(teamStore, agentStore)
@@ -351,7 +351,7 @@ Your write surfaces are listed in ` + "`# Active Task Brief`" + ` and described 
 func TestBuildIncludesCoordinationSkillForPeerTeam(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -386,7 +386,7 @@ func TestBuildIncludesCoordinationSkillForPeerTeam(t *testing.T) {
 func TestBuildIncludesCoordinationSkillSingleProcess(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -417,7 +417,7 @@ func TestBuildIncludesCoordinationSkillSingleProcess(t *testing.T) {
 func TestBuildTeamLeadPromptIncludesApprovalConstraints(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
@@ -478,7 +478,7 @@ func TestBuildTeamLeadPromptIncludesApprovalConstraints(t *testing.T) {
 func TestBuildContextOmitsHeartbeatSection(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -515,7 +515,7 @@ func TestBuildContextOmitsHeartbeatSection(t *testing.T) {
 func TestBuildStructuredAgentOnly(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -568,7 +568,7 @@ func TestBuildStructuredAgentOnly(t *testing.T) {
 func TestBuildStructuredTeamContext(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -659,7 +659,7 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 func TestBuildStructuredMatchesBuild(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -805,7 +805,7 @@ func TestStoredPromptMarkdownExcludesObsoleteMiddleContextDoctrine(t *testing.T)
 
 func TestBundledVisionWalkPrepPromptUsesMemberAwareStorage(t *testing.T) {
 	ctx := context.Background()
-	fileStore := store.NewFileStore(paths.RootsForRepoStoreTest(t, "../../store"))
+	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
 	builder := NewPromptBuilder(
 		fileStore.Teams().(*store.FileTeamStore),
 		fileStore.Agents().(*store.FileAgentStore),
@@ -849,7 +849,7 @@ func TestBundledVisionWalkPrepPromptUsesMemberAwareStorage(t *testing.T) {
 
 func TestBundledPromptMatrixHardCutoverInvariants(t *testing.T) {
 	ctx := context.Background()
-	fileStore := store.NewFileStore(paths.RootsForRepoStoreTest(t, "../../store"))
+	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	builder := NewPromptBuilder(teamStore, agentStore)
@@ -997,7 +997,7 @@ func memberCanWriteKindOrPath(member teamcontract.MemberContract, kind, pathSuff
 // ordering, headings) surfaces as a failure rather than a silent regression.
 func TestRequiredMemorySectionMatchesTopicsJSON(t *testing.T) {
 	ctx := context.Background()
-	fileStore := store.NewFileStore(paths.RootsForRepoStoreTest(t, "../../store"))
+	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	builder := NewPromptBuilder(teamStore, agentStore)
@@ -1116,7 +1116,7 @@ func expectedRequiredMemoryBlock(t *testing.T, configRoot, teamID, agentID strin
 func TestActiveTaskBriefNoSwarmManagerLeak(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -1154,7 +1154,7 @@ func TestActiveTaskBriefNoSwarmManagerLeak(t *testing.T) {
 func TestActiveTaskBriefUsesHumanReadableWriteSurface(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -1217,7 +1217,7 @@ func TestActiveTaskBriefUsesHumanReadableWriteSurface(t *testing.T) {
 func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -1326,7 +1326,7 @@ func decisionCapNumbers(t *testing.T, section, startMarker string) []int {
 // while the operating policy 240 lines later named real caps.
 func TestPromptSectionsAgreeOnDecisionCaps(t *testing.T) {
 	ctx := context.Background()
-	fileStore := store.NewFileStore(paths.RootsForRepoStoreTest(t, "../../store"))
+	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	builder := NewPromptBuilder(teamStore, fileStore.Agents().(*store.FileAgentStore))
 

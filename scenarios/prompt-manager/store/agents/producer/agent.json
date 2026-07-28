@@ -1,0 +1,28 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "producer",
+  "displayName": "Producer",
+  "description": "Sole draft producer for the marketing crew. Draws open work from content-desk campaigns, gathers the evidence that work needs, and drafts against it with claims declared. Lane is a field on the draft, not a separate agent.",
+  "status": "active",
+  "appearance": {
+    "body": "#064E3B",
+    "head": "#059669",
+    "accent": "#A7F3D0"
+  },
+  "tags": [
+    "marketing",
+    "advertiser",
+    "research",
+    "drafting",
+    "content-desk"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-07-28T00:00:00Z",
+  "updatedAt": "2026-07-28T00:00:00Z"
+}

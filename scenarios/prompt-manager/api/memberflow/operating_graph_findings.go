@@ -9,7 +9,7 @@ type OperatingFindingBuilder struct {
 	Severity Severity
 }
 
-func NewOperatingFindingBuilder(ctx OperatingGraphRuleContext, rule OperatingGraphRule) OperatingFindingBuilder {
+func NewOperatingFindingBuilder(ctx RuleContext, rule Rule) OperatingFindingBuilder {
 	return OperatingFindingBuilder{
 		GraphID:  ctx.Block.Metadata.ID,
 		Team:     ctx.Block.Metadata.Team,

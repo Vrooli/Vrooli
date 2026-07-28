@@ -97,7 +97,7 @@ Top-level keys, all optional (omit when not applicable):
 | `decisions_owned` | array of decision-context strings | Decision contexts this member owns. |
 | `decisions_consumed` | array of decision-context strings | Decision contexts whose acceptance changes this member's behavior. |
 | `raises_capability_gaps` | boolean | True if the member's role includes filing `capability-gap` decisions. |
-| `external_producers` | array of stable identifiers | Non-team-member producers that feed intake (e.g., `vision-walk`, `operator`, `bookmark-intelligence-hub`). |
+| `external_producers` | array of stable identifiers | Non-team-member producers that feed intake (e.g., `vision-walk`, `operator`, `signal-inbox`). |
 
 ## Team topic catalog
 
@@ -338,7 +338,7 @@ The producer-owns-schema rule has its own worked example (marketing → monetiza
   "decisions_owned": ["audience-update", "channel-strategy-update", "post-type-proposal", "hook-candidate-promotion"],
   "decisions_consumed": ["capability-gap"],
   "raises_capability_gaps": true,
-  "external_producers": ["vision-walk", "operator", "bookmark-intelligence-hub"]
+  "external_producers": ["vision-walk", "operator", "signal-inbox"]
 }
 ```
 

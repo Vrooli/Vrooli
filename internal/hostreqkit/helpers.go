@@ -173,6 +173,32 @@ func ReadVersion(command string, args []string) string {
 	return FirstLine(strings.TrimSpace(string(output)))
 }
 
+// VersionMatches reports whether a version-command line contains expected as a
+// complete version token. It accepts the conventional leading "v" and "go"
+// prefixes while deliberately rejecting partial matches (for example 1.25.1
+// does not satisfy 1.25.12). Manifests use this for exact release pins.
+func VersionMatches(observed, expected string) bool {
+	expected = normalizeVersionToken(expected)
+	if expected == "" {
+		return true
+	}
+	for _, token := range strings.FieldsFunc(observed, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z') && !(r >= 'A' && r <= 'Z') && !(r >= '0' && r <= '9') && r != '.' && r != '+' && r != '-'
+	}) {
+		if normalizeVersionToken(token) == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeVersionToken(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "go")
+	value = strings.TrimPrefix(value, "v")
+	return value
+}
+
 func FirstLine(value string) string {
 	lines := strings.Split(strings.TrimSpace(value), "\n")
 	return strings.TrimSpace(lines[0])

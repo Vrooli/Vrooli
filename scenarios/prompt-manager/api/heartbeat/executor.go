@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"prompt-manager/store"
@@ -45,6 +46,59 @@ type Executor struct {
 	handoffExtractor HandoffExtractor
 	teamExecStore    TeamExecStoreRegistrar
 	OnComplete       func(teamID, agentID string)
+
+	// Completion waiters outlive the request that started them, so they are
+	// tracked here to give the executor a point where that work is known to
+	// be finished. See Shutdown.
+	mu           sync.Mutex
+	waiters      map[int64]context.CancelFunc
+	nextWaiterID int64
+	stopped      bool
+	inflight     sync.WaitGroup
+}
+
+// trackWaiter registers a completion waiter's cancel function so Shutdown can
+// reach it. It reports false once the executor has shut down, in which case
+// the caller must not start the waiter.
+func (e *Executor) trackWaiter(cancel context.CancelFunc) (int64, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.stopped {
+		return 0, false
+	}
+	if e.waiters == nil {
+		e.waiters = make(map[int64]context.CancelFunc)
+	}
+	e.nextWaiterID++
+	id := e.nextWaiterID
+	e.waiters[id] = cancel
+	return id, true
+}
+
+func (e *Executor) releaseWaiter(id int64) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	delete(e.waiters, id)
+}
+
+// Shutdown cancels every in-flight completion waiter and blocks until they
+// return. Those waiters run on a background context and keep writing run
+// state after the triggering request has been answered, so both a server
+// restart and a finishing test need a point where that writing has stopped.
+func (e *Executor) Shutdown() {
+	e.mu.Lock()
+	e.stopped = true
+	cancels := make([]context.CancelFunc, 0, len(e.waiters))
+	for _, cancel := range e.waiters {
+		cancels = append(cancels, cancel)
+	}
+	e.waiters = nil
+	e.mu.Unlock()
+
+	for _, cancel := range cancels {
+		cancel()
+	}
+	e.inflight.Wait()
 }
 
 // SetTeamExecStore wires the team execution store so Execute can register
@@ -244,7 +298,16 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	if e.runRegistry != nil {
 		e.runRegistry.Register(teamID, agentID, run.ID, startedAt, waitCancel)
 	}
+	waiterID, started := e.trackWaiter(waitCancel)
+	if !started {
+		waitCancel()
+		result.Status = store.HeartbeatStatusRunning
+		return result, nil
+	}
+	e.inflight.Add(1)
 	go func() {
+		defer e.inflight.Done()
+		defer e.releaseWaiter(waiterID)
 		defer waitCancel()
 		e.waitForCompletion(waitCtx, teamID, agentID, run.ID, attemptID, profileKey, createdTask.ID, runTag, startedAt, logPath, config.EffectiveTimeout())
 	}()

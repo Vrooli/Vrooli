@@ -63,9 +63,9 @@ func (b *PromptBuilder) buildSections(ctx context.Context, req PromptBuildReques
 	// with "# Agent Files (Markdown)\n\n".
 	var parts []string
 	for i := 0; i < len(sections); i++ {
-		if sections[i].Kind == "agent-file" {
+		if sections[i].Kind == promptSectionKindAgentFile {
 			block := "# Agent Files (Markdown)\n\n"
-			for i < len(sections) && sections[i].Kind == "agent-file" {
+			for i < len(sections) && sections[i].Kind == promptSectionKindAgentFile {
 				block += sections[i].Content
 				i++
 			}
@@ -136,7 +136,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 					continue
 				}
 				agentSections = append(agentSections, PromptSection{
-					Kind:       "agent-file",
+					Kind:       promptSectionKindAgentFile,
 					Label:      entry.Path,
 					SourcePath: fmt.Sprintf("agents/%s/%s", agentID, entry.Path),
 					Content:    fmt.Sprintf("## %s\n\n%s\n\n", entry.Path, content),
@@ -175,7 +175,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		if teamconfig.ShouldInjectInbox(contract) {
 			if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
 				sections = append(sections, PromptSection{
-					Kind:    "team-inbox",
+					Kind:    promptSectionKindTeamInbox,
 					Label:   "Team Inbox",
 					Content: section,
 				})
@@ -184,7 +184,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 
 		if handoff, err := b.teamStore.GetLastHandoff(ctx, teamID, agentID); err == nil && handoff != "" {
 			sections = append(sections, PromptSection{
-				Kind:       "last-handoff",
+				Kind:       promptSectionKindLastHandoff,
 				Label:      "Previous Handoff",
 				SourcePath: fmt.Sprintf("teams/%s/members/%s/last-handoff.md", teamID, agentID),
 				Content:    "# Previous Heartbeat Handoff\n\nThis is what you noted at the end of your last heartbeat:\n\n" + handoff,
@@ -204,7 +204,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			return nil, err
 		} else if section != "" {
 			sections = append(sections, PromptSection{
-				Kind:    "team-storage-map",
+				Kind:    promptSectionKindStorageMap,
 				Label:   "Storage Map",
 				Content: section,
 			})
@@ -213,7 +213,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		if teamconfig.ShouldShowOrgContext(contract) {
 			if section := b.buildOrgContextSection(ctx, team, agentID); section != "" {
 				sections = append(sections, PromptSection{
-					Kind:    "team-org-context",
+					Kind:    promptSectionKindOrgContext,
 					Label:   "Team Org Context",
 					Content: section,
 				})
@@ -263,7 +263,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)
 		if err == nil && responsibilities != "" {
 			sections = append(sections, PromptSection{
-				Kind:       "team-responsibilities",
+				Kind:       promptSectionKindResponsibilities,
 				Label:      "RESPONSIBILITIES.md",
 				SourcePath: fmt.Sprintf("teams/%s/members/%s/RESPONSIBILITIES.md", teamID, agentID),
 				Content:    "# Team Responsibilities (RESPONSIBILITIES.md)\n\n" + responsibilities,
@@ -275,7 +275,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		if includeHeartbeat {
 			if heartbeatInstructions != "" {
 				sections = append(sections, PromptSection{
-					Kind:       "heartbeat-task",
+					Kind:       promptSectionKindHeartbeatTask,
 					Label:      "HEARTBEAT.md",
 					SourcePath: fmt.Sprintf("teams/%s/members/%s/HEARTBEAT.md", teamID, agentID),
 					Content:    promptHeadingHeartbeatTask + "\n\n" + heartbeatInstructions,
@@ -283,7 +283,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			} else {
 				// No heartbeat instructions - use default task
 				sections = append(sections, PromptSection{
-					Kind:    "heartbeat-task",
+					Kind:    promptSectionKindHeartbeatTask,
 					Label:   "Heartbeat Task",
 					Content: "# Heartbeat Task\n\nNo specific heartbeat instructions defined. Please review your responsibilities and perform any pending work.",
 				})
@@ -299,6 +299,9 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		sections = append(sections, agentSections...)
 	}
 
+	if err := validatePromptSections(sections); err != nil {
+		return nil, err
+	}
 	return sections, nil
 }
 
@@ -664,30 +667,7 @@ func firstHeartbeatTaskHeading(markdown string) string {
 // per-context members reading "no explicit per-heartbeat cap" in the brief
 // while the operating policy named real caps.
 func describeDecisionCaps(policy memberStoragePolicy) string {
-	var clauses []string
-	if policy.DecisionCapPerHeartbeat != nil {
-		clauses = append(clauses, fmt.Sprintf("%d new decisions this heartbeat", *policy.DecisionCapPerHeartbeat))
-	}
-	if len(policy.DecisionCapsByContext) > 0 {
-		contexts := make([]string, 0, len(policy.DecisionCapsByContext))
-		for contextID := range policy.DecisionCapsByContext {
-			contexts = append(contexts, contextID)
-		}
-		sort.Strings(contexts)
-		perContext := make([]string, 0, len(contexts))
-		for _, contextID := range contexts {
-			perContext = append(perContext, fmt.Sprintf("`%s` %d", contextID, policy.DecisionCapsByContext[contextID]))
-		}
-		clauses = append(clauses, "per owned context — "+strings.Join(perContext, ", "))
-	}
-	if len(clauses) == 0 {
-		clauses = append(clauses, "no explicit per-heartbeat cap")
-	}
-	caps := strings.Join(clauses, "; ")
-	if policy.PendingOwnedDecisionCap != nil {
-		caps += fmt.Sprintf("; skip new decisions when %d owned-context decisions are already pending", *policy.PendingOwnedDecisionCap)
-	}
-	return caps
+	return teamcontract.DecisionCapsSummary(policy.DecisionCapPerHeartbeat, policy.DecisionCapsByContext, policy.PendingOwnedDecisionCap)
 }
 
 func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string) memberStoragePolicy {

@@ -7,9 +7,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"prompt-manager/teamconfig"
 	"sort"
 	"sync"
+
+	"prompt-manager/teamconfig"
 )
 
 // TeamExecutionManager defines the interface for team-level execution coordination.

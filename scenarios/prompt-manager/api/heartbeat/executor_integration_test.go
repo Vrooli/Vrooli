@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"prompt-manager/internal/paths"
-	"prompt-manager/store"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"prompt-manager/internal/paths"
+	"prompt-manager/store"
 )
 
 // awaitableOnComplete returns (handler, wait). Assigning handler to
@@ -44,7 +45,7 @@ func setupExecutorTestEnv(t *testing.T) (
 ) {
 	t.Helper()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -87,7 +88,7 @@ func TestExecute_FullLifecycle(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-200", Status: "RUN_STATUS_COMPLETE"})
 
 	registry := NewRunRegistry(t.TempDir())
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
 
 	var completeCalled sync.WaitGroup
 	completeCalled.Add(1)
@@ -171,7 +172,7 @@ func TestExecute_FullLifecycle(t *testing.T) {
 
 func TestExecute_TeamDisabled(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 
@@ -181,7 +182,7 @@ func TestExecute_TeamDisabled(t *testing.T) {
 	_ = teamStore.Create(ctx, team)
 	_ = agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "A"})
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	result, err := executor.Execute(ctx, "team-1", "agent-1", "p")
 
 	if err == nil {
@@ -201,7 +202,7 @@ func TestExecute_CreateTaskFailure(t *testing.T) {
 	mockClient := newMockAgentClient().
 		WithCreateTaskError(errForTest("agent-manager error: validation error"))
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "p")
 
 	if err == nil {
@@ -228,7 +229,7 @@ func TestExecute_CreateRunFailure(t *testing.T) {
 		WithCreateTaskResponse(&Task{ID: "task-1", Title: "test"}).
 		WithCreateRunError(errForTest("runner unavailable"))
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "p")
 
 	if err == nil {
@@ -251,7 +252,7 @@ func TestExecute_WaitForRunFailure(t *testing.T) {
 		WithWaitRunError(errForTest("timeout"))
 
 	registry := NewRunRegistry(t.TempDir())
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
 
 	var completeCalled sync.WaitGroup
 	completeCalled.Add(1)
@@ -292,7 +293,7 @@ func TestExecute_RunFailed(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_FAILED", Error: "agent crashed"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 
 	var completeCalled sync.WaitGroup
 	completeCalled.Add(1)
@@ -329,7 +330,7 @@ func TestExecute_RunFailed(t *testing.T) {
 func TestExecute_NilAgentClient(t *testing.T) {
 	teamStore, agentStore, _ := setupExecutorTestEnv(t)
 
-	executor := NewExecutor(teamStore, agentStore, nil, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, t.TempDir(), nil, nil)
 	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "p")
 
 	// With nil client, Execute should return a clear error, not panic.
@@ -358,7 +359,7 @@ func TestTriggerManual_UsesConfigProfileKey(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	onComplete, waitComplete := awaitableOnComplete(t)
 	executor.OnComplete = onComplete
 	defer waitComplete()
@@ -384,7 +385,7 @@ func TestTriggerManual_DefaultProfile(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	onComplete, waitComplete := awaitableOnComplete(t)
 	executor.OnComplete = onComplete
 	defer waitComplete()
@@ -401,7 +402,7 @@ func TestTriggerManual_DefaultProfile(t *testing.T) {
 
 func TestTriggerManual_MissingConfig(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 
@@ -409,7 +410,7 @@ func TestTriggerManual_MissingConfig(t *testing.T) {
 	_ = teamStore.Create(ctx, newIndependentTestTeam("team-1", "T"))
 	_ = agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "A"})
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	_, err := executor.TriggerManual(ctx, "team-1", "agent-1")
 
 	if err == nil {
@@ -429,7 +430,7 @@ func setupExecutorTestEnvWithRuntimeMode(t *testing.T, runtimeMode string) (
 ) {
 	t.Helper()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -477,7 +478,7 @@ func TestExecute_SingleProcessTeam_UsesClaudeCodeProfile(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	onComplete, waitComplete := awaitableOnComplete(t)
 	executor.OnComplete = onComplete
 	defer waitComplete()
@@ -505,7 +506,7 @@ func TestExecute_MultiProcessTeam_UsesCodexProfile(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	onComplete, waitComplete := awaitableOnComplete(t)
 	executor.OnComplete = onComplete
 	defer waitComplete()
@@ -530,7 +531,7 @@ func TestTriggerManual_SingleProcessTeam_DefaultsToClaudeCode(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	onComplete, waitComplete := awaitableOnComplete(t)
 	executor.OnComplete = onComplete
 	defer waitComplete()
@@ -636,7 +637,7 @@ func TestExecute_EndToEndWithHTTPServer(t *testing.T) {
 
 	client := newTestClient(t, srv)
 	registry := NewRunRegistry(t.TempDir())
-	executor := NewExecutor(teamStore, agentStore, client, t.TempDir(), registry, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), registry, nil)
 
 	var completeCalled sync.WaitGroup
 	completeCalled.Add(1)
@@ -682,7 +683,7 @@ func TestExecute_AgentManagerReturnsValidationError(t *testing.T) {
 	defer srv.Close()
 
 	client := newTestClient(t, srv)
-	executor := NewExecutor(teamStore, agentStore, client, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
 
 	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "p")
 	if err == nil {
@@ -744,7 +745,7 @@ func TestEnsureProfileFailure_CausesCreateRunProfileNotFound(t *testing.T) {
 	defer scheduler.Stop()
 
 	// Now execute a heartbeat - it should fail at CreateRun because profile doesn't exist
-	executor := NewExecutor(teamStore, agentStore, client, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
 	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "prompt-manager-heartbeat")
 	if err == nil {
 		t.Fatal("expected error from CreateRun (profile not found)")
@@ -779,7 +780,7 @@ func TestExecute_CreateRunUsesDeclaredProfile(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	onComplete, waitComplete := awaitableOnComplete(t)
 	executor.OnComplete = onComplete
 	defer waitComplete()
@@ -830,7 +831,7 @@ func TestExecute_AgentManagerReturnsProfileNotFound(t *testing.T) {
 	defer srv.Close()
 
 	client := newTestClient(t, srv)
-	executor := NewExecutor(teamStore, agentStore, client, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
 
 	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "nonexistent-profile")
 	if err == nil {

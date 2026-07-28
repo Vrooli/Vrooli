@@ -16,6 +16,7 @@ func newTestClient(t *testing.T, server *httptest.Server) *AgentManagerClient {
 	t.Helper()
 	c := &AgentManagerClient{
 		httpClient: server.Client(),
+		sleep:      func(context.Context, time.Duration) error { return nil },
 	}
 	// Override resolveBaseURL to return the test server URL.
 	c.testBaseURL = server.URL

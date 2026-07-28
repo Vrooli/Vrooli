@@ -4,17 +4,18 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"prompt-manager/internal/paths"
-	"prompt-manager/store"
 	"testing"
 	"time"
+
+	"prompt-manager/internal/paths"
+	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
 )
 
 func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -33,7 +34,7 @@ func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
 		t.Fatalf("create membership: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
@@ -49,7 +50,7 @@ func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
 
 func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -61,7 +62,7 @@ func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
 		t.Fatalf("create agent: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
@@ -77,7 +78,7 @@ func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
 
 func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -98,7 +99,7 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 
 	exec := &captureExecutor{}
 	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir(), nil)
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
 
 	// First trigger should succeed (202 Accepted)
@@ -126,7 +127,7 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 // path: handler → teamExecStore → executor → mock HTTP client.
 func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -156,7 +157,7 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	registry := NewRunRegistry(t.TempDir())
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
 	executor.OnComplete = func(_, _ string) {}
 
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, t.TempDir(), nil)
@@ -203,7 +204,7 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 // no teamExecStore is configured.
 func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -231,7 +232,7 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	completed := make(chan struct{})
 	executor.OnComplete = func(_, _ string) {
 		close(completed)
@@ -269,7 +270,7 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 
 func TestTriggerHeartbeatBlockedWhenTeamDisabled(t *testing.T) {
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
@@ -299,7 +300,7 @@ func TestTriggerHeartbeatBlockedWhenTeamDisabled(t *testing.T) {
 		t.Fatalf("set heartbeat config: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)

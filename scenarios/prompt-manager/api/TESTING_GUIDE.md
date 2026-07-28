@@ -6,6 +6,25 @@ This guide explains the testing infrastructure and patterns used in the prompt-m
 
 ## Test Architecture
 
+### Validation fixtures
+
+Validation tests must create persisted team data through
+`internal/testutil/fixtures`, never by copying JSON strings. The package
+provides typed writers for `store.Team`, `memberflow.Topics`, and
+`memberflow.PlanOfRecordManifest`, plus `FindingsEqual` for whole-result
+assertions. This makes a persisted-schema change a compile-time fixture
+failure instead of an unobserved test-data drift.
+
+For repository-backed tests, call `fixtures.RepositoryRoot`. A missing checkout
+returns `os.ErrNotExist` and is a reason to skip a `liverepo` test; a discovered
+but malformed checkout is an error and must fail the test. Default tests should
+use `t.TempDir()` trees only.
+
+Golden validation tests assert the complete sorted findings set (identifier,
+severity, attribution, advisory status, and detail). Regenerate expected output
+only after reviewing every added or removed finding as a validator behavior
+change; a count change alone is not evidence of a correct precision change.
+
 ### Test Files
 
 1. **test_helpers.go** - Reusable test utilities

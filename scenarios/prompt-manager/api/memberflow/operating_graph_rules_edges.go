@@ -5,12 +5,15 @@ import "fmt"
 type graphFutureTopicLiveEdgeRule struct{}
 
 func (r graphFutureTopicLiveEdgeRule) ID() string { return "graph_future_topic_live_edge" }
-func (r graphFutureTopicLiveEdgeRule) Group() OperatingGraphRuleGroup {
+func (r graphFutureTopicLiveEdgeRule) Group() RuleGroup {
 	return OperatingRuleGroupEdgeTruth
 }
-func (r graphFutureTopicLiveEdgeRule) DefaultSeverity() Severity  { return SeverityWarning }
-func (r graphFutureTopicLiveEdgeRule) AppliesTo(mode string) bool { return mode != "explanatory" }
-func (r graphFutureTopicLiveEdgeRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphFutureTopicLiveEdgeRule) DefaultSeverity() Severity { return SeverityWarning }
+func (r graphFutureTopicLiveEdgeRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphFutureTopicLiveEdgeRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, edge := range ctx.Block.Graph.Edges {
@@ -39,12 +42,15 @@ func (r graphFutureTopicLiveEdgeRule) Check(ctx OperatingGraphRuleContext) []Ope
 type graphUnsupportedEdgeSemanticsRule struct{}
 
 func (r graphUnsupportedEdgeSemanticsRule) ID() string { return "graph_unsupported_edge_semantics" }
-func (r graphUnsupportedEdgeSemanticsRule) Group() OperatingGraphRuleGroup {
+func (r graphUnsupportedEdgeSemanticsRule) Group() RuleGroup {
 	return OperatingRuleGroupEdgeTruth
 }
-func (r graphUnsupportedEdgeSemanticsRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphUnsupportedEdgeSemanticsRule) AppliesTo(mode string) bool { return mode != "explanatory" }
-func (r graphUnsupportedEdgeSemanticsRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphUnsupportedEdgeSemanticsRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphUnsupportedEdgeSemanticsRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphUnsupportedEdgeSemanticsRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, edge := range ctx.Block.Graph.Edges {
@@ -63,11 +69,14 @@ func (r graphUnsupportedEdgeSemanticsRule) Check(ctx OperatingGraphRuleContext) 
 
 type graphEdgeUnbackedRule struct{}
 
-func (r graphEdgeUnbackedRule) ID() string                     { return "graph_edge_unbacked" }
-func (r graphEdgeUnbackedRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupEdgeTruth }
-func (r graphEdgeUnbackedRule) DefaultSeverity() Severity      { return SeverityError }
-func (r graphEdgeUnbackedRule) AppliesTo(mode string) bool     { return mode != "explanatory" }
-func (r graphEdgeUnbackedRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphEdgeUnbackedRule) ID() string                { return "graph_edge_unbacked" }
+func (r graphEdgeUnbackedRule) Group() RuleGroup          { return OperatingRuleGroupEdgeTruth }
+func (r graphEdgeUnbackedRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphEdgeUnbackedRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphEdgeUnbackedRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, edge := range ctx.Block.Graph.Edges {

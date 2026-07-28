@@ -3,15 +3,16 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"testing"
+
 	"prompt-manager/internal/paths"
 	"prompt-manager/store"
-	"testing"
 )
 
 func TestExecutorExecuteFailsWhenConfigMissing(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
-	fileStore := store.NewFileStore(roots)
+	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 
@@ -22,7 +23,7 @@ func TestExecutorExecuteFailsWhenConfigMissing(t *testing.T) {
 		t.Fatalf("create team: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
 	result, err := executor.Execute(ctx, "team-1", "agent-1", "profile-key")
 
 	if err == nil {

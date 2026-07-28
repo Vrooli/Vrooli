@@ -9,7 +9,7 @@ Create and manage multi-step conversion funnels with a visual drag-and-drop buil
 | Use when | Don't use when |
 |----------|----------------|
 | Building a lead capture funnel for a product launch | Creating a full landing page (use landing-page-business-suite) |
-| Setting up a product demo request flow | Writing marketing copy (use campaign-content-studio) |
+| Setting up a product demo request flow | Writing marketing copy (use the `x-<post-type>` skills) |
 | Creating an event registration funnel | Need email drip sequences (not yet available) |
 | Analyzing conversion rates and drop-off points | Need A/B testing on funnel variants (P2) |
 | Exporting leads for follow-up campaigns | Need payment/checkout flows (use landing-page-business-suite) |

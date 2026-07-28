@@ -9,11 +9,14 @@ import (
 
 type graphUntypedNodeRule struct{}
 
-func (r graphUntypedNodeRule) ID() string                     { return "graph_untyped_node" }
-func (r graphUntypedNodeRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupEntity }
-func (r graphUntypedNodeRule) DefaultSeverity() Severity      { return SeverityError }
-func (r graphUntypedNodeRule) AppliesTo(mode string) bool     { return mode != "explanatory" }
-func (r graphUntypedNodeRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphUntypedNodeRule) ID() string                { return "graph_untyped_node" }
+func (r graphUntypedNodeRule) Group() RuleGroup          { return OperatingRuleGroupEntity }
+func (r graphUntypedNodeRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphUntypedNodeRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphUntypedNodeRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {
@@ -26,11 +29,14 @@ func (r graphUntypedNodeRule) Check(ctx OperatingGraphRuleContext) []OperatingGr
 
 type graphUnknownNodeKindRule struct{}
 
-func (r graphUnknownNodeKindRule) ID() string                     { return "graph_unknown_node_kind" }
-func (r graphUnknownNodeKindRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupEntity }
-func (r graphUnknownNodeKindRule) DefaultSeverity() Severity      { return SeverityError }
-func (r graphUnknownNodeKindRule) AppliesTo(mode string) bool     { return mode != "explanatory" }
-func (r graphUnknownNodeKindRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphUnknownNodeKindRule) ID() string                { return "graph_unknown_node_kind" }
+func (r graphUnknownNodeKindRule) Group() RuleGroup          { return OperatingRuleGroupEntity }
+func (r graphUnknownNodeKindRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphUnknownNodeKindRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphUnknownNodeKindRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {
@@ -49,12 +55,15 @@ func (r graphUnknownNodeKindRule) Check(ctx OperatingGraphRuleContext) []Operati
 type graphNodeShapeConventionDriftRule struct{}
 
 func (r graphNodeShapeConventionDriftRule) ID() string { return "graph_node_shape_convention_drift" }
-func (r graphNodeShapeConventionDriftRule) Group() OperatingGraphRuleGroup {
+func (r graphNodeShapeConventionDriftRule) Group() RuleGroup {
 	return OperatingRuleGroupEntity
 }
-func (r graphNodeShapeConventionDriftRule) DefaultSeverity() Severity  { return SeverityWarning }
-func (r graphNodeShapeConventionDriftRule) AppliesTo(mode string) bool { return mode != "explanatory" }
-func (r graphNodeShapeConventionDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphNodeShapeConventionDriftRule) DefaultSeverity() Severity { return SeverityWarning }
+func (r graphNodeShapeConventionDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphNodeShapeConventionDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {
@@ -109,11 +118,14 @@ func operatingGraphExpectedShapeDetail(kind OperatingGraphNodeKind) string {
 
 type graphUnknownMemberRule struct{}
 
-func (r graphUnknownMemberRule) ID() string                     { return "graph_unknown_member" }
-func (r graphUnknownMemberRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupEntity }
-func (r graphUnknownMemberRule) DefaultSeverity() Severity      { return SeverityError }
-func (r graphUnknownMemberRule) AppliesTo(mode string) bool     { return mode != "explanatory" }
-func (r graphUnknownMemberRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphUnknownMemberRule) ID() string                { return "graph_unknown_member" }
+func (r graphUnknownMemberRule) Group() RuleGroup          { return OperatingRuleGroupEntity }
+func (r graphUnknownMemberRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphUnknownMemberRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphUnknownMemberRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	contract := ctx.Runtime.Contracts[ctx.Block.Metadata.Team]
 	var findings []OperatingGraphFinding
@@ -134,11 +146,14 @@ func (r graphUnknownMemberRule) Check(ctx OperatingGraphRuleContext) []Operating
 
 type graphUnknownDecisionRule struct{}
 
-func (r graphUnknownDecisionRule) ID() string                     { return "graph_unknown_decision" }
-func (r graphUnknownDecisionRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupEntity }
-func (r graphUnknownDecisionRule) DefaultSeverity() Severity      { return SeverityError }
-func (r graphUnknownDecisionRule) AppliesTo(mode string) bool     { return mode != "explanatory" }
-func (r graphUnknownDecisionRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphUnknownDecisionRule) ID() string                { return "graph_unknown_decision" }
+func (r graphUnknownDecisionRule) Group() RuleGroup          { return OperatingRuleGroupEntity }
+func (r graphUnknownDecisionRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphUnknownDecisionRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphUnknownDecisionRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {
@@ -160,11 +175,14 @@ func (r graphUnknownDecisionRule) Check(ctx OperatingGraphRuleContext) []Operati
 
 type graphUnknownTeamRule struct{}
 
-func (r graphUnknownTeamRule) ID() string                     { return "graph_unknown_team" }
-func (r graphUnknownTeamRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupEntity }
-func (r graphUnknownTeamRule) DefaultSeverity() Severity      { return SeverityWarning }
-func (r graphUnknownTeamRule) AppliesTo(mode string) bool     { return mode != "explanatory" }
-func (r graphUnknownTeamRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphUnknownTeamRule) ID() string                { return "graph_unknown_team" }
+func (r graphUnknownTeamRule) Group() RuleGroup          { return OperatingRuleGroupEntity }
+func (r graphUnknownTeamRule) DefaultSeverity() Severity { return SeverityWarning }
+func (r graphUnknownTeamRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphUnknownTeamRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {
@@ -179,11 +197,14 @@ func (r graphUnknownTeamRule) Check(ctx OperatingGraphRuleContext) []OperatingGr
 
 type graphUnknownPORRule struct{}
 
-func (r graphUnknownPORRule) ID() string                     { return "graph_unknown_por" }
-func (r graphUnknownPORRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupEntity }
-func (r graphUnknownPORRule) DefaultSeverity() Severity      { return SeverityError }
-func (r graphUnknownPORRule) AppliesTo(mode string) bool     { return mode != "explanatory" }
-func (r graphUnknownPORRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphUnknownPORRule) ID() string                { return "graph_unknown_por" }
+func (r graphUnknownPORRule) Group() RuleGroup          { return OperatingRuleGroupEntity }
+func (r graphUnknownPORRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphUnknownPORRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphUnknownPORRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {
@@ -196,11 +217,14 @@ func (r graphUnknownPORRule) Check(ctx OperatingGraphRuleContext) []OperatingGra
 
 type graphTopicUnresolvedRule struct{}
 
-func (r graphTopicUnresolvedRule) ID() string                     { return "graph_topic_unresolved" }
-func (r graphTopicUnresolvedRule) Group() OperatingGraphRuleGroup { return OperatingRuleGroupEntity }
-func (r graphTopicUnresolvedRule) DefaultSeverity() Severity      { return SeverityError }
-func (r graphTopicUnresolvedRule) AppliesTo(mode string) bool     { return mode != "explanatory" }
-func (r graphTopicUnresolvedRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+func (r graphTopicUnresolvedRule) ID() string                { return "graph_topic_unresolved" }
+func (r graphTopicUnresolvedRule) Group() RuleGroup          { return OperatingRuleGroupEntity }
+func (r graphTopicUnresolvedRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicUnresolvedRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) != "explanatory"
+}
+
+func (r graphTopicUnresolvedRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
 	var findings []OperatingGraphFinding
 	for _, node := range ctx.Block.Graph.Nodes {

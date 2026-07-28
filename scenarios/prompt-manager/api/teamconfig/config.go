@@ -66,6 +66,13 @@ type ValidationError struct {
 	Message string
 }
 
+// ValidationFinding is one independently actionable contract defect. Reads
+// expose the complete set; writes still reject whenever this set is nonempty.
+type ValidationFinding struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
 func (e *ValidationError) Error() string {
 	return e.Message
 }
@@ -182,111 +189,126 @@ func BuildExecutionConfig(runtimeMode, queuePolicy string, maxConcurrentRuns int
 }
 
 func Validate(contract Contract) error {
+	findings := ValidateFindings(contract)
+	if len(findings) == 0 {
+		return nil
+	}
+	return validationError(findings[0].Message)
+}
+
+// ValidateFindings reports every invalid runtime/coordination combination in
+// one pass. It deliberately does not short-circuit: an operator repairing a
+// malformed team.json needs the whole actionable set, not a retry loop.
+func ValidateFindings(contract Contract) []ValidationFinding {
+	var findings []ValidationFinding
+	add := func(field, message string) {
+		findings = append(findings, ValidationFinding{Field: field, Message: message})
+	}
 	switch contract.Runtime.Mode {
 	case RuntimeModeMultiProcess, RuntimeModeSingleProcess:
 	default:
-		return validationError("runtime.mode must be 'multi-process' or 'single-process'")
+		add("runtime.mode", "runtime.mode must be 'multi-process' or 'single-process'")
 	}
 
 	switch contract.DecisionMode {
 	case DecisionModeYolo, DecisionModeApproval:
 	default:
-		return validationError("decisionMode must be 'yolo' or 'approval'")
+		add("decisionMode", "decisionMode must be 'yolo' or 'approval'")
 	}
 
 	switch contract.Coordination.Pattern {
 	case CoordinationPatternIndependent, CoordinationPatternPeer, CoordinationPatternLeaderLed:
 	default:
-		return validationError("coordination.pattern must be 'independent', 'peer', or 'leader-led'")
+		add("coordination.pattern", "coordination.pattern must be 'independent', 'peer', or 'leader-led'")
 	}
 
 	switch contract.Coordination.ReportingMode {
 	case ReportingModeNone, ReportingModeLeader, ReportingModeOrgChart:
 	default:
-		return validationError("coordination.reportingMode must be 'none', 'leader', or 'org-chart'")
+		add("coordination.reportingMode", "coordination.reportingMode must be 'none', 'leader', or 'org-chart'")
 	}
 
 	switch contract.Coordination.MessagingMode {
 	case MessagingModeDisabled, MessagingModeAsyncInbox, MessagingModeInSession:
 	default:
-		return validationError("coordination.messagingMode must be 'disabled', 'async-inbox', or 'in-session'")
+		add("coordination.messagingMode", "coordination.messagingMode must be 'disabled', 'async-inbox', or 'in-session'")
 	}
 
 	switch contract.Execution.QueuePolicy {
 	case QueuePolicySerialized, QueuePolicyBoundedParallel:
 	default:
-		return validationError("execution.queuePolicy must be 'serialized' or 'bounded-parallel'")
+		add("execution.queuePolicy", "execution.queuePolicy must be 'serialized' or 'bounded-parallel'")
 	}
 
 	if contract.Execution.MaxConcurrentRuns < 1 {
-		return validationError("execution.maxConcurrentRuns must be at least 1")
+		add("execution.maxConcurrentRuns", "execution.maxConcurrentRuns must be at least 1")
 	}
 
 	if contract.Execution.QueuePolicy == QueuePolicySerialized && contract.Execution.MaxConcurrentRuns != 1 {
-		return validationError("serialized execution requires maxConcurrentRuns to equal 1")
+		add("execution.maxConcurrentRuns", "serialized execution requires maxConcurrentRuns to equal 1")
 	}
 
 	if contract.Execution.QueuePolicy == QueuePolicyBoundedParallel && contract.Execution.MaxConcurrentRuns < 2 {
-		return validationError("bounded-parallel execution requires maxConcurrentRuns to be at least 2")
+		add("execution.maxConcurrentRuns", "bounded-parallel execution requires maxConcurrentRuns to be at least 2")
 	}
 
 	switch contract.Coordination.Pattern {
 	case CoordinationPatternLeaderLed:
 		if contract.Coordination.LeadAgentID == "" {
-			return validationError("coordination.leadAgentId is required for leader-led teams")
+			add("coordination.leadAgentId", "coordination.leadAgentId is required for leader-led teams")
 		}
 		if contract.Coordination.ReportingMode == ReportingModeNone {
-			return validationError("leader-led teams must use reportingMode 'leader' or 'org-chart'")
+			add("coordination.reportingMode", "leader-led teams must use reportingMode 'leader' or 'org-chart'")
 		}
 	case CoordinationPatternIndependent, CoordinationPatternPeer:
 		if contract.Coordination.LeadAgentID != "" {
-			return validationError(fmt.Sprintf("coordination.leadAgentId is only allowed for %q teams", CoordinationPatternLeaderLed))
+			add("coordination.leadAgentId", fmt.Sprintf("coordination.leadAgentId is only allowed for %q teams", CoordinationPatternLeaderLed))
 		}
 	}
 
 	if contract.Coordination.Pattern == CoordinationPatternIndependent && contract.Coordination.ReportingMode != ReportingModeNone {
-		return validationError("independent teams must use reportingMode 'none'")
+		add("coordination.reportingMode", "independent teams must use reportingMode 'none'")
 	}
 
 	if contract.Coordination.Pattern == CoordinationPatternPeer && contract.Coordination.ReportingMode == ReportingModeLeader {
-		return validationError("peer teams cannot use reportingMode 'leader'")
+		add("coordination.reportingMode", "peer teams cannot use reportingMode 'leader'")
 	}
 
 	if contract.Coordination.MessagingMode == MessagingModeInSession && contract.Runtime.Mode != RuntimeModeSingleProcess {
-		return validationError("in-session messaging is only supported for single-process runtime mode")
+		add("coordination.messagingMode", "in-session messaging is only supported for single-process runtime mode")
 	}
 
 	if contract.Coordination.MessagingMode == MessagingModeDisabled && contract.Coordination.Capabilities.InjectInbox {
-		return validationError("injectInbox requires async-inbox messaging")
+		add("coordination.capabilities.injectInbox", "injectInbox requires async-inbox messaging")
 	}
 
 	if contract.Coordination.Capabilities.InjectInbox && contract.Coordination.MessagingMode != MessagingModeAsyncInbox {
-		return validationError("injectInbox requires messagingMode 'async-inbox'")
+		add("coordination.capabilities.injectInbox", "injectInbox requires messagingMode 'async-inbox'")
 	}
 
 	if contract.Coordination.Capabilities.AllowPeerTriggers && contract.Runtime.Mode != RuntimeModeMultiProcess {
-		return validationError("allowPeerTriggers is only supported for multi-process teams")
+		add("coordination.capabilities.allowPeerTriggers", "allowPeerTriggers is only supported for multi-process teams")
 	}
 
 	if contract.Runtime.Mode == RuntimeModeSingleProcess {
 		if contract.Coordination.Pattern != CoordinationPatternLeaderLed {
-			return validationError("single-process runtime mode requires coordination.pattern 'leader-led'")
+			add("coordination.pattern", "single-process runtime mode requires coordination.pattern 'leader-led'")
 		}
 		if contract.Coordination.MessagingMode != MessagingModeInSession {
-			return validationError("single-process teams must use messagingMode 'in-session'")
+			add("coordination.messagingMode", "single-process teams must use messagingMode 'in-session'")
 		}
 		if contract.Execution.QueuePolicy != QueuePolicySerialized || contract.Execution.MaxConcurrentRuns != 1 {
-			return validationError("single-process teams must use serialized execution with maxConcurrentRuns 1")
+			add("execution", "single-process teams must use serialized execution with maxConcurrentRuns 1")
 		}
 		if contract.Coordination.Capabilities.InjectInbox {
-			return validationError("single-process teams cannot inject async inbox messages")
+			add("coordination.capabilities.injectInbox", "single-process teams cannot inject async inbox messages")
 		}
 		if contract.Coordination.Capabilities.AllowPeerTriggers {
-			return validationError("single-process teams cannot allow peer triggers")
+			add("coordination.capabilities.allowPeerTriggers", "single-process teams cannot allow peer triggers")
 		}
 	}
 
-	return nil
+	return findings
 }
 
 func CoordinationSkillID(contract Contract) string {

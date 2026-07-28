@@ -2,15 +2,40 @@ package domains
 
 import "testing"
 
+// The registered groups are asserted by name and order rather than by count.
+// A bare count told an author only that a number had changed, never which
+// group appeared or vanished, so registering a new group failed here with no
+// way to see what it was.
 func TestCommandGroupsRegistersExpectedDomainGroups(t *testing.T) {
+	want := []string{
+		"Skills",
+		"Actions",
+		"Experiments",
+		"Tags",
+		"Members",
+		"Agents",
+		"Teams",
+		"Topics",
+		"Testing",
+		"Metadata",
+		"Search",
+		"Discovery",
+		"Graph",
+		"Coverage Space",
+	}
+
 	groups := CommandGroups(nil)
-	if len(groups) != 13 {
-		t.Fatalf("expected 13 command groups, got %d", len(groups))
+	got := make([]string, 0, len(groups))
+	for _, group := range groups {
+		got = append(got, group.Title)
 	}
-	if groups[0].Title != "Skills" {
-		t.Fatalf("skills should be first command group, got %q", groups[0].Title)
+
+	if len(got) != len(want) {
+		t.Fatalf("command groups = %v, want %v", got, want)
 	}
-	if groups[1].Title != "Actions" {
-		t.Fatalf("actions should be second command group, got %q", groups[1].Title)
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("command group %d = %q, want %q", i, got[i], want[i])
+		}
 	}
 }

@@ -32,9 +32,9 @@ Every target names its **sensor** (the exact command that observes it), its **de
 | Canon coherence | `path:scenarios/prompt-manager/test/agent_system_canon_test.sh` | all assertions pass | `framework-update` | **8 pass, 1 fail** — `proto-contract-audit` is tagged `audit-technique` with no paired PoR doc in `path:docs/scenario-qa/methods/audit/` (`measured`) |
 | Skill reachability | `prompt-manager graph orphaned-skills` | 0 unreachable candidates | `skill-deprecation` or `skill-improvement` | 54 candidates (`measured`) — a standing triage backlog, not a clean reading |
 | Objective coverage | `path:docs/director-swarm/strategy/OBJECTIVES.md` §"The coverage rule" — read both directions against the charter's team contribution map | 0 objectives unserved without a dated gap marker; 0 teams or outcome categories tracing to no objective | `outcome-direction` or `capability-gap` in `director-swarm` | 2 unserved, both declared: `T2` (no team, no evidence source), `I3` (no owning lane); 0 unattached teams or categories (`measured`) |
-| Skill conditioning quality | per-skill only: the divergence probe (`skill-validation` §3.3). No corpus-wide aggregation exists — the instrument is built, the sweep is not | — | `skill-improvement` | `pending-baseline` |
+| Skill conditioning quality | per-skill only: the divergence probe (`skill-validation` §3.3). No corpus-wide aggregation exists — the instrument is built, the sweep is not | 0 unreviewed divergence regressions once the corpus sweep exists | `skill-improvement` | `pending-baseline`; dated gap marker **2026-07-27**: build a corpus-wide divergence-probe sweep, blocked on a stable per-skill evaluation inventory |
 | Skill-experiment loop liveness | `prompt-manager experiment list` | at least one concluded experiment per audit cycle once the loop is live | `skill-experiment-promotion` | 0 experiments (`measured`) |
-| PoR entropy | — (no sensor; `state-in-prose` defect class is audited by judgment today) | — | `framework-update` | `pending-telemetry` |
+| PoR entropy | state-in-prose telemetry (not implemented; the defect class is audited by judgment today) | 0 unclassified state-in-prose findings once telemetry exists | `framework-update` | `pending-telemetry`; dated gap marker **2026-07-27**: build state-in-prose telemetry, blocked on a stable document-state classification contract |
 
 ## Deadband rule
 
@@ -69,3 +69,22 @@ A target outside its deadband in that record is a declared trigger for the `fram
 ## Ownership
 
 `meta-optimization` owns this file, as it owns the rest of `path:docs/agent-system/`. Targets change by decision, not by drift. When a sensor ships for a `pending-telemetry` row, the flag moves to `pending-baseline` and the first audit that reads it records the baseline.
+
+## Validation rule reference
+
+The operator-facing validation-rule reference is generated from
+`memberflow.DefaultRuleCatalog`; it is not a second hand-maintained list of
+identifiers or severities. The catalog requires an identifier, group, default
+severity, description, and actuator for every registered rule, and registry
+construction rejects missing, duplicate, or orphaned entries.
+
+Run the catalog test and renderer from the API module when changing a rule:
+
+```bash
+cd scenarios/prompt-manager/api
+go test ./memberflow/... -run 'TestDefaultRuleCatalogExactlyMatchesDefaultRegistry|TestRuleCatalogMarkdownIsStableAndComplete'
+```
+
+The generated Markdown table is exposed by `RuleCatalog.Markdown()`. Consumers
+that need the current reference must render it from that source rather than
+copying rule metadata into a document or CLI surface.
